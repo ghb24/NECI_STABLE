@@ -314,8 +314,8 @@ contains
         character(*), parameter :: this_routine = "test_identify_excitation_and_matrix_element" 
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot) 
         type(excitationInformation) :: excitInfo
-        integer(n_int), pointer :: ex(:,:), two_ex
-        integer :: nEx, i, nex_2, test_det(nel)
+        integer(n_int), pointer :: ex(:,:), two_ex(:,:)
+        integer :: nEx, i, nex_2, test_det(nel), j, ind
         logical :: valid
         real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), mat_ele, diff
 
@@ -333,6 +333,8 @@ contains
         print *, "Testing matrix elements for nEx excitations of: ", nEx
         call write_det_guga(6,ilutI,.true.)
         call write_guga_list(6,ex(:,1:nex))
+
+        print *, "Do the tests on only connected determinants:"
         do i = 1, nEx
 
             excitInfo = identify_excitation(ilutI, ex(:,i)) 
@@ -366,6 +368,61 @@ contains
             ! do i apply the hamiltonian once more? and then check in the 
             ! lists? 
 !             call actHamiltonian(ex(:,i), two_ex, nex_2) 
+
+        end do
+
+        ! also do the tests on non-connected CSFs.. 
+        ! maybe apply the hamiltonian a second time to the list of generated 
+        ! CSFs and check with the original one.. some of them should not 
+        ! be connected then and have a zero matrix element! 
+        print *, "do the test on only non-connected determinants:"
+        ! this might take some time.. 
+        do i = 1, nEx
+
+            print *, "i:", i
+            call write_det_guga(6, ex(:,i),.true.)
+
+            call actHamiltonian(ex(:,i), two_ex, nex_2) 
+
+!             pos = binary_search(two_ex(0:nifd), ilutI)
+
+            do j = 1, nex_2
+
+                excitInfo = identify_excitation(ilutI, two_ex(:,j))
+! 
+!                 if (excitInfo%valid) then
+! 
+!                     ind = binary_search(ex(0:nifd,1:nex), two_ex(0:nifd,j)) 
+! 
+!                     if (ind < 0) then 
+! 
+!                         print *, "incorrectly identified!"
+! 
+!                         call write_det_guga(6,ilutI,.true.)
+!                         call write_det_guga(6,two_ex(:,j),.true.) 
+!                         call print_excitInfo(excitInfo)
+! 
+!                     end if
+!                 end if
+
+                call calc_guga_matrix_element(ilutI, two_ex(:,j), excitInfo, &
+                    mat_ele, .true., 2)
+
+                if (abs(mat_ele) > EPS) then 
+
+                    ! this should only happen if two_ex is in the original ex
+                    ! or it is ilutI 
+                    ind = binary_search(ex(0:nifd,1:nex), two_ex(0:nifd,j)) 
+
+                    if (ind < 0 .and. (.not. DetBitEQ(two_ex(0:nifd,j),ilutI(0:nifd)))) then 
+
+                        print *, "something wrong!"
+
+                    end if
+                end if 
+            end do 
+
+            deallocate(two_ex)
 
         end do
 

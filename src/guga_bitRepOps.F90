@@ -1052,13 +1052,13 @@ contains
                             excitInfo = assign_excitInfo_values_exact(20,1,-1,&
                                 1,1,1,i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
-                        else if (isThree(ilutI,i)) then 
+                        else if (isThree(ilutI,j)) then 
                             ! _RL_(i) -> ^RL(j) -> ^L(k) 
                             excitInfo = assign_excitInfo_values_exact(21,1,-1,&
                                 1,1,-1,i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else 
-                            if (isZero(ilutJ,i)) then 
+                            if (isZero(ilutJ,j)) then 
                                 ! _RL_(i) -> ^RL(j) -> ^L(k) 
                                 excitInfo = assign_excitInfo_values_exact(21,1,-1,&
                                     1,1,-1,i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)

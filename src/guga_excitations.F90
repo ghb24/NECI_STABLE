@@ -15,7 +15,7 @@ module guga_excitations
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign, add_ilut_lists, nifguga, nifd
     use bit_rep_data, only: nifdbo
-    use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt
+    use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ
     use guga_data, only: excitationInformation, getSingleMatrixElement, &
                     getDoubleMatrixElement, getMixedFullStop, &
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
@@ -317,6 +317,7 @@ contains
         logical :: t_calc_full
         integer :: temp_b(nSpatOrbs)
         real(dp) :: temp_occ(nSpatOrbs)
+        integer(n_int) :: tmp_i(0:nifguga)
 
         ! i have to decide which type of excitation it is and how to 
         ! calculate the corresponding matrix element then.. 
@@ -370,6 +371,15 @@ contains
         ! excitations connecting the same 2 CSFs in the rdm calculation
         ! but do that later!
 
+        ! check diagonal case first 
+        if (DetBitEQ(ilutI,ilutJ)) then 
+
+            call convert_ilut_toGUGA(ilutI, tmp_i)
+            
+            mat_ele = calcDiagMatEleGUGA_ilut(tmp_i)
+
+            return
+        end if
 
         excitInfo = identify_excitation(ilutI, ilutJ)
 
@@ -1459,7 +1469,7 @@ contains
             temp_x0 = temp_x0 * temp_mat0
             temp_x1 = temp_x1 * temp_mat1 
 
-            if (abs(temp_x0) < EPS .and. abs(temp_x1) < EPS) then 
+            if (abs(temp_x1) < EPS) then 
                 mat_ele = 0.0_dp
                 return
             end if
