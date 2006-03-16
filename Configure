@@ -1,0 +1,1223 @@
+#!/bin/sh
+#      INTEGER*8 PLAN
+
+#--------------------------------------------------------------------#
+#Create Makefile for sort.x program.                                 #
+#--------------------------------------------------------------------#
+# Options for CPPFLAG                                                #
+#  -DLAPACK  Use LAPACK routine, you must have this option and       #
+#            the LAPACK library                                      #
+#  -DFFT_DEFAULT Use default FFT routine in the code (from Goedecker)#
+#  -DFFT_ESSL    Use FFT ESSL (need ESSL library)                    #
+#  -DFFT_HP      Use FFT HP (Hewlet-Packard)                         #
+#  -DFFT_YMP     Use CRAY YMP, C94, T90 FFT routines                 #
+#  -DFFT_T3D     Use CRAY T3D or T3E FFT routines                    #
+#  -DPARALLEL    For PARALLEL computers, you have to indicate        #
+#                the parallel library with :                         #
+#  -DMP_LIBRARY=__MPI   Message Passing Interface library            #
+#            or __SHMEM SHMEM library (CRAY)                         #
+#            or __MPL                                                #
+#  -D__VECTOR    For vectorial computers                             #
+#  -DPOINTER8    If the addresses are coded in INTEGER*8             #
+#                (for LOC and MALLOC)                                #
+#  -DMALLOC8     If the argument of MALLOC is INTEGER*8              #
+#  -D__NOINT8    If the compiler does not use INTEGER*8 or           #
+#                if the function BTEST and IBTEST do not like it     #
+#  -DJOBLIMIT    For batch job, try to know the remaining time       #
+#                (For CRAY only)                                     #
+#--------------------------------------------------------------------#
+#Create Makefile for sort.x program.
+
+#Display all configurations
+Message () {
+cat << END >&2
+Configure  [options] Name_of_Configuration
+where the name of the configuration is:
+   IBM-RISC                   IBM-SP2
+   IBM-SP3                    CRAY-YMP
+   CRAY-C94                   CRAY-T90
+   CRAY-T3D                   CRAY-T3E
+   CRAY-T3E-PACX              SGI-ORIGIN
+   SGI-ORIGIN-MPI             DEC-ALPHA
+   DEC-ALPHA-MPI              COMPAQ-SC80
+   SUN                        NEC-SX4
+   HP                         HP-MPI 
+   HITACHI-SR2201             HITACHI-SR8000
+   FUJITSU-VPP5000            FUJITSU-VPP
+   FUJITSU-VPP-MPI            FUJITSU-VPP-JPN
+   FUJITSU-VPP-MPJP           PC-ABSOFT
+   PC-PGI                     PC-PGI-MPI
+Use Configure in the directory where the SOURCE FILES are.
+Ex: Configure SUN > Makefile
+See the description of options with Configure -help
+END
+}
+
+
+#Help
+Help () {
+Message
+cat << END >&2
+
+Description of options:
+   -debug    (-d) Give special options for debugging
+   -help     (-h) Print this message
+   -makefile (-m) Create the file Makefile in DEST directory
+                  instead of using standard output
+   -verbose  (-v) Display the name of files for the dependencies
+   -VAR=value     Use the value of VAR in the makefile
+            Ex: -DEST=destdir specifies where the compilation will be
+   You can use:
+     FFLAGS   Fortran flags
+     LFLAGS   Link editor flags
+     CFLAGS   C compiler flags
+     CPP      Preprocessor program
+     CPPFLAGS CPP flags
+     FC       Fortran compiler
+     LD       Link editor
+     AR       Archive library maintainer
+     RANLIB   Converts archives to random libraries
+     SRC      Source files directory (default=.)
+     DEST     Object files directory (default=.)
+              Use to write irat.inc in the right directory
+     BIN      Use to put the sort.x executable (default=.)
+Note: if you want to compile sort.x in a different directory
+      than the source files, use:
+         Configure -DEST=destdir SUN > destdir/Makefile
+      or Configure -makefile -DEST=destdir SUN
+      and then cd destdir; make
+      In this case, SRC is equal to source_dir_pathname
+      except if you specify SRC.
+END
+}
+
+#No argument: Error
+if [ $# -eq 0 ]; then
+  Message
+ exit 2
+fi
+
+#Is it help option or debug option
+opt=0
+i=1
+while [ $i -le $# ];
+do
+  #Select the i-th argument
+  eval option=\$$i
+  case $option in
+    -debug|-d)
+      debug=1
+      ;;
+    -help|-h)
+      Help
+      exit 0
+      ;;
+    -makefile|-m)
+      makefile=1
+      ;;
+    -verbose|-v)
+      verbose=1
+      ;;
+    -DEST=*)
+      opt=1
+      DEST=`echo $option | cut -c2- | cut -d= -f 2`
+      ;;
+    -*=*)
+      opt=1
+      ;;
+    -*)
+      echo "Unknow option: $option" >&2
+      Message
+      exit 1
+      ;;
+    *)
+      Configuration=$option
+      ;;
+  esac
+  i=`expr $i + 1`
+done
+
+#No configuration given
+if [ -z "$Configuration" ]; then
+  echo "Configure: No configuration name" >&2
+  Message
+  exit 2
+fi
+
+#--------------------------------------------------------------------#
+#Configurations                                                      #
+#--------------------------------------------------------------------#
+case ${Configuration}
+  in
+  "IBM-RISC")
+     IRAT=2
+     FFLAGS='-qmaxmem=8192'
+     LFLAGS='-llapack -lessl -bbinder:/usr/lib/bind -bmaxdata:1024000000'
+     CPP='/usr/ccs/lib/cpp -P'
+     CPPFLAGS='-D__IBM -DLAPACK -DFFT_ESSL'
+     AR='/usr/bin/ar -c'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       #-C Performs run-time checking of array bounds and character
+       #   substring expressions
+       CFLAGS='-g'
+       FC='xlf -c -g -C -qflttrap'
+       LD='xlf -g -C -qflttrap'
+     else
+       CFLAGS='-O'
+       FC='xlf -c -O'
+       LD='xlf -O'
+     fi
+     ;;
+
+  "IBM-SP2")
+     IRAT=2
+     FFLAGS='-qmaxmem=8192 -qarch=pwr2' 
+     LFLAGS='-llapack -lessl -bbinder:/usr/lib/bind -bmaxdata:1024000000'
+     CFLAGS= ''
+     CPP='/usr/ccs/lib/cpp -P'
+     CPPFLAGS='-D__IBM -DLAPACK -DPARALLEL -DMP_LIBRARY=__MPI -DFFT_ESSL'
+     AR='/usr/bin/ar'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       CFLAGS='-g'
+       FC='mpxlf -c -g'
+       LD='mpxlf -g'
+     else
+       CFLAGS='-O'
+       FC='mpxlf -c -O'
+       LD='mpxlf -O'
+     fi
+     ;;
+
+  "IBM-SP3")
+     IRAT=2
+     FFLAGS='-O3 -qstrict -qxlf77=leadzero -qmaxmem=8192 -qarch=pwr3 \
+             -qtune=pwr3'
+     LFLAGS='-L/usr/local/lapack -llapack -lessl \
+             -bbinder:/usr/lib/bind -bmaxdata:1024000000 -qtune=pwr3'
+     CFLAGS= '-O3 -qstrict -qarch=pwr3 -qtune=pwr3'
+     CPP='/usr/ccs/lib/cpp -P'
+     CPPFLAGS='-D__IBM -DLAPACK -DPARALLEL -DMP_LIBRARY=__MPI -DFFT_ESSL'
+     AR='/usr/bin/ar'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       CFLAGS='-g'
+       FC='mpxlf -c -g'
+       LD='mpxlf -g'
+       FCD='mpxlf -c -g'
+       LDD='mpxlf -g'
+     else
+       CFLAGS='-O3 -qstrict -qarch=pwr3 -qtune=pwr3'
+       FC='mpxlf -c -O3 -qstrict'
+       LD='mpxlf -O3 -qstrict'
+       FCD='mpxlf -c -O3 -qstrict'
+       LDD='mpxlf -O3 -qstrict'
+     fi
+     ;;
+
+  "CRAY-YMP" | "CRAY-T90")
+     IRAT=1
+     FFLAGS='-dp'
+     LFLAGS=''
+     CFLAGS=''
+     CPP='/lib/cpp -PC'
+     CPPFLAGS='-DCRAY -DYMP -D__VECTOR -DLAPACK -DFFT_DEFAULT \
+      -DDGEMM=SGEMM   -DDAXPY=SAXPY   -DDASUM=SASUM   -DDSCAL=SSCAL   \
+      -DDDOT=SDOT     -DDCOPY=SCOPY   -DDGEMV=SGEMV   -DIDAMAX=ISAMAX \
+      -DDERF=ERF      -DDERFC=ERFC    -DDROT=SROT     -DDGER=SGER     \
+      -DIDMIN=ISMIN   -DDGELSS=SGELSS -DDGESV=SGESV   -DDGETRF=SGETRF \
+      -DDGETRI=SGETRI -DDSPEV=SSPEV   -DDSYGV=SSYGV   -DIDAMIN=ISAMIN \
+      -DDSWAP=SSWAP   -DDSYRK=SSYRK   -DDNRM2=SNRM2   -DZSCAL=CSCAL   \
+      -DZAXPY=CAXPY   -DZDOTC=CDOTC   -DZGEMV=CGEMV   -DZGEMM=CGEMM   \
+      -DZHEGV=CHEGV   -DZHEEV=CHEEV   -DDZNRM2=SCNRM2 -DDPOTRF=SPOTRF \
+      -DDTRTRI=STRTRI -DDTRMM=STRMM   -DZHERK=CHERK   -DZPOTRF=CPOTRF \
+      -DZTRTRI=CTRTRI -DZTRMM=CTRMM   -DIMAG=AIMAG    -DZCOPY=CCOPY   \
+      -DDSYEV=SSYEV   -DZGETRF=CGETRF -DDSYEVX=SSYEVX -DDSBEVX=SSBEVX \
+      -DZHEEVX=CHEEVX -DZHBEVX=CHBEVX -DZGETRI=CGETRI -DDSTEV=SSTEV   \
+      -DZGEEV=CGEEV   -DDSYMM=SSYMM   -DDPOSV=SPOSV   -DDSYR=SSYR     \
+      -DZHPEV=CHPEV'
+     AR='/bin/ar -r'
+     RANLIB='/opt/ctl/bin/ranlib'
+     if [ $debug ]; then
+       CFLAGS='-g'
+       FC='cf77 -Zp -c -g'
+       LD='cf77 -g'
+     else
+       CFLAGS='-O'
+       FC='cf77 -Zp -c -O 2'
+       LD='cf77 -O 2'
+     fi
+     ;;
+
+  "CRAY-C94")
+     IRAT=1
+     FFLAGS='-c -dp'
+     LFLAGS=''
+     CPP='cpp -PC'
+     CPPFLAGS='-DCRAY -D__YMP -D__VECTOR -DLAPACK -DFFT_DEFAULT \
+      -DDGEMM=SGEMM   -DDAXPY=SAXPY   -DDASUM=SASUM   -DDSCAL=SSCAL   \
+      -DDDOT=SDOT     -DDCOPY=SCOPY   -DDGEMV=SGEMV   -DIDAMAX=ISAMAX \
+      -DDERF=ERF      -DDERFC=ERFC    -DDROT=SROT     -DDGER=SGER     \
+      -DIDMIN=ISMIN   -DDGELSS=SGELSS -DDGESV=SGESV   -DDGETRF=SGETRF \
+      -DDGETRI=SGETRI -DDSPEV=SSPEV   -DDSYGV=SSYGV   -DIDAMIN=ISAMIN \
+      -DDSWAP=SSWAP   -DDSYRK=SSYRK   -DDNRM2=SNRM2   -DZSCAL=CSCAL   \
+      -DZAXPY=CAXPY   -DZDOTC=CDOTC   -DZGEMV=CGEMV   -DZGEMM=CGEMM   \
+      -DZHEGV=CHEGV   -DZHEEV=CHEEV   -DDZNRM2=SCNRM2 -DDPOTRF=SPOTRF \
+      -DDTRTRI=STRTRI -DDTRMM=STRMM   -DZHERK=CHERK   -DZPOTRF=CPOTRF \
+      -DZTRTRI=CTRTRI -DZTRMM=CTRMM   -DIMAG=AIMAG    -DZCOPY=CCOPY   \
+      -DDSYEV=SSYEV   -DZGETRF=CGETRF -DDSYEVX=SSYEVX -DDSBEVX=SSBEVX \
+      -DZHEEVX=CHEEVX -DZHBEVX=CHBEVX -DZGETRI=CGETRI -DDSTEV=SSTEV   \
+      -DZGEEV=CGEEV   -DDSYMM=SSYMM   -DDPOSV=SPOSV   -DDSYR=SSYR     \
+      -DZHPEV=CHPEV'
+     AR='/bin/ar -r'
+     RANLIB='/opt/ctl/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -R abcn'
+       LD='f90 -g -R abcn'
+       CC='cc -g'
+     else
+       FC='f90 -O 3'
+       LD='f90 -O 3'
+       CC='cc -O 3'
+     fi
+     ;;
+
+  "CRAY-T3D")
+     IRAT=1
+     #In Edinburg Cray T3D
+     CRAYLIBS_T3D='/opt/ctl/craylibs_m/2.0.0.0'
+     FFLAGS='-X 4 -G1 \
+      -c -dp -I $(CRAYLIBS_T3D)/include/mpp/mpp -I /usr/include/mpp'
+     LFLAGS='-Wl"-Xm" -lmpi'
+     CFLAGS=' $(CPPFLAGS)'
+     CPP='/opt/ctl/bin/cpp -PC'
+     CPPFLAGS='-DCRAY -DT3D -DLAPACK -DPARALLEL -DMP_LIBRARY=__MPI \
+      -DFFT_DEFAULT \
+      -DDGEMM=SGEMM   -DDAXPY=SAXPY   -DDASUM=SASUM   -DDSCAL=SSCAL   \
+      -DDDOT=SDOT     -DDCOPY=SCOPY   -DDGEMV=SGEMV   -DIDAMAX=ISAMAX \
+      -DDERF=ERF      -DDERFC=ERFC    -DDROT=SROT     -DDGER=SGER     \
+      -DIDMIN=ISMIN   -DDGELSS=SGELSS -DDGESV=SGESV   -DDGETRF=SGETRF \
+      -DDGETRI=SGETRI -DDSPEV=SSPEV   -DDSYGV=SSYGV   -DIDAMIN=ISAMIN \
+      -DDSWAP=SSWAP   -DDSYRK=SSYRK   -DDNRM2=SNRM2   -DZSCAL=CSCAL   \
+      -DZAXPY=CAXPY   -DZDOTC=CDOTC   -DZGEMV=CGEMV   -DZGEMM=CGEMM   \
+      -DZHEGV=CHEGV   -DZHEEV=CHEEV   -DDZNRM2=SCNRM2 -DDPOTRF=SPOTRF \
+      -DDTRTRI=STRTRI -DDTRMM=STRMM   -DZHERK=CHERK   -DZPOTRF=CPOTRF \
+      -DZTRTRI=CTRTRI -DZTRMM=CTRMM   -DIMAG=AIMAG    -DZCOPY=CCOPY   \
+      -DDSYEV=SSYEV   -DZGETRF=CGETRF -DDSYEVX=SSYEVX -DDSBEVX=SSBEVX \
+      -DZHEEVX=CHEEVX -DZHBEVX=CHBEVX -DZGETRI=CGETRI -DDSTEV=SSTEV   \
+      -DZGEEV=CGEEV   -DDSYMM=SSYMM   -DDPOSV=SPOSV   -DDSYR=SSYR     \
+      -DZHPEV=CHPEV'
+     AR='/bin/ar -r'
+     RANLIB='/opt/ctl/bin/ranlib'
+     if [ $debug ]; then
+       FC='/opt/ctl/bin/f90 -G1 -g'
+       LD='/opt/ctl/bin/f90 -g'
+       CC='/opt/ctl/bin/cc -g' 
+     else
+       FC='/opt/ctl/bin/f90 -G1 -O 3'
+       LD='/opt/ctl/bin/f90 -O 3'
+       CC='/opt/ctl/bin/cc -O 3' 
+     fi
+     ;;
+
+  "CRAY-T3E")
+     IRAT=1
+     FFLAGS='-c -dp'
+     LFLAGS='-Wl"-Xm -L/usr/local/lib -lmpi"'
+     CPP='cpp -P -C'
+     CPPFLAGS='-DCRAY -DT3E -DLAPACK -DPARALLEL -DMP_LIBRARY=__SHMEM \
+      -DFFT_DEFAULT \
+      -DDGEMM=SGEMM   -DDAXPY=SAXPY   -DDASUM=SASUM   -DDSCAL=SSCAL   \
+      -DDDOT=SDOT     -DDCOPY=SCOPY   -DDGEMV=SGEMV   -DIDAMAX=ISAMAX \
+      -DDERF=ERF      -DDERFC=ERFC    -DDROT=SROT     -DDGER=SGER     \
+      -DIDMIN=ISMIN   -DDGELSS=SGELSS -DDGESV=SGESV   -DDGETRF=SGETRF \
+      -DDGETRI=SGETRI -DDSPEV=SSPEV   -DDSYGV=SSYGV   -DIDAMIN=ISAMIN \
+      -DDSWAP=SSWAP   -DDSYRK=SSYRK   -DDNRM2=SNRM2   -DZSCAL=CSCAL   \
+      -DZAXPY=CAXPY   -DZDOTC=CDOTC   -DZGEMV=CGEMV   -DZGEMM=CGEMM   \
+      -DZHEGV=CHEGV   -DZHEEV=CHEEV   -DDZNRM2=SCNRM2 -DDPOTRF=SPOTRF \
+      -DDTRTRI=STRTRI -DDTRMM=STRMM   -DZHERK=CHERK   -DZPOTRF=CPOTRF \
+      -DZTRTRI=CTRTRI -DZTRMM=CTRMM   -DIMAG=AIMAG    -DZCOPY=CCOPY   \
+      -DDSYEV=SSYEV   -DZGETRF=CGETRF -DDSYEVX=SSYEVX -DDSBEVX=SSBEVX \
+      -DZHEEVX=CHEEVX -DZHBEVX=CHBEVX -DZGETRI=CGETRI -DDSTEV=SSTEV   \
+      -DZGEEV=CGEEV   -DDSYMM=SSYMM   -DDPOSV=SPOSV   -DDSYR=SSYR     \
+      -DZHPEV=CHPEV'
+     CFLAGS=' $(CPPFLAGS)'
+     AR='/bin/ar -r'
+     RANLIB='/opt/ctl/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -R abcn'
+       LD='f90 -g -R abcn'
+       CC='cc -g'
+     else
+       FC='f90 -O 3'
+       LD='f90 -O 3'
+       CC='cc -O 3'
+     fi
+     ;;
+
+  "CRAY-T3E-PACX")
+     IRAT=1
+     PACX_PATH   = /usr/local/pacx
+     FFLAGS ='-c -dp -I${PACX_PATH}/include'
+     LFLAGS ='-Wl"-Xm -L ${PACX_PATH}/lib -lpacxf -lpacx"'
+     CPP='cpp -P -C'
+     CPPFLAGS='-DCRAY -DT3E -DLAPACK -DPARALLEL -DMP_LIBRARY=__MPI \
+      -DFFT_DEFAULT \
+      -DDGEMM=SGEMM   -DDAXPY=SAXPY   -DDASUM=SASUM   -DDSCAL=SSCAL   \
+      -DDDOT=SDOT     -DDCOPY=SCOPY   -DDGEMV=SGEMV   -DIDAMAX=ISAMAX \
+      -DDERF=ERF      -DDERFC=ERFC    -DDROT=SROT     -DDGER=SGER     \
+      -DIDMIN=ISMIN   -DDGELSS=SGELSS -DDGESV=SGESV   -DDGETRF=SGETRF \
+      -DDGETRI=SGETRI -DDSPEV=SSPEV   -DDSYGV=SSYGV   -DIDAMIN=ISAMIN \
+      -DDSWAP=SSWAP   -DDSYRK=SSYRK   -DDNRM2=SNRM2   -DZSCAL=CSCAL   \
+      -DZAXPY=CAXPY   -DZDOTC=CDOTC   -DZGEMV=CGEMV   -DZGEMM=CGEMM   \
+      -DZHEGV=CHEGV   -DZHEEV=CHEEV   -DDZNRM2=SCNRM2 -DDPOTRF=SPOTRF \
+      -DDTRTRI=STRTRI -DDTRMM=STRMM   -DZHERK=CHERK   -DZPOTRF=CPOTRF \
+      -DZTRTRI=CTRTRI -DZTRMM=CTRMM   -DIMAG=AIMAG    -DZCOPY=CCOPY   \
+      -DDSYEV=SSYEV   -DZGETRF=CGETRF -DDSYEVX=SSYEVX -DDSBEVX=SSBEVX \
+      -DZHEEVX=CHEEVX -DZHBEVX=CHBEVX -DZGETRI=CGETRI -DDSTEV=SSTEV   \
+      -DZGEEV=CGEEV   -DDSYMM=SSYMM   -DDPOSV=SPOSV   -DDSYR=SSYR     \
+      -DZHPEV=CHPEV'
+     CFLAGS=' $(CPPFLAGS)'
+     AR='/bin/ar -r'
+     RANLIB='/opt/ctl/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -R abcn'
+       LD='f90 -g -R abcn'
+       CC='cc -g'
+     else
+       FC='f90 -O 3'
+       LD='f90 -O 3'
+       CC='cc -O 3'
+     fi
+     ;;
+
+  "SGI-ORIGIN")
+     IRAT=2
+     FFLAGS='-O3 -nocpp -r8'
+     CFLAGS='-D__SGI -mips4 -64'
+     LFLAGS='-lcomplib.sgimath -lblas'
+     CPP='/usr/lib/acpp -E -P'
+     CPPFLAGS='-D__SGI -DPOINTER8 -D__DERF -DFFT_DEFAULT -DLAPACK'
+     if [ $debug ]; then
+       FC='f90 -mips4 -64 -c -g'
+       LD='f90 -mips4 -64 -g'
+     else
+       CC='cc -O3 -c'
+       FC='f90 -mips4 -64 -c'
+       LD='f90 -mips4 -64'
+     fi
+     ;;
+
+  "SGI-ORIGIN-MPI")
+     IRAT=2
+     FFLAGS='-O3 -nocpp -r8'
+     LFLAGS='-lcomplib.sgimath -lblas -lmpi'
+     CFLAGS='-D__SGI -mips4 -64'
+     CPP='/usr/lib/acpp -E -P'
+     CPPFLAGS='-D__SGI -DFFT_DEFAULT -DLAPACK -DPOINTER8 -DPARALLEL \
+      -DMP_LIBRARY=__MPI'
+     AR='ar'
+     RANLIB='echo'
+     if [ $debug ]; then
+       FC='f90 -mips4 -64 -c -g'
+       LD='f90 -mips4 -64 -g'
+     else
+       FC='f90 -mips4 -64 -c'
+       LD='f90 -mips4 -64'
+     fi
+     ;;
+
+
+  "DEC-ALPHA")
+     IRAT=2
+     CFLAGS='-D__alpha'
+     CPP='cpp -P'
+     CPPFLAGS='-C -D__alpha -DPOINTER8 -D__DERF -DLAPACK -DFFT_DEFAULT'
+     FFLAGS='-align dcommons -convert big_endian'
+     LFLAGS='-ldxml'
+     AR='/usr/bin/ar -r'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -c -V -ladebug -check bounds -check overflow -check power'
+       CC='cc -c -g'
+       LD='f90 -g -ladebug'
+     else
+       FC='f90 -O -c'
+       CC='cc -c -O'
+       LD='f90 -O'
+     fi
+     ;;
+
+  "DEC-ALPHA-MPI")
+     IRAT=2
+     CFLAGS='-D__alpha -I/usr/opt/MPI130/include'
+     CPP='cpp -P'
+     CPPFLAGS='-C -D__alpha -DPOINTER8 -D__DERF -DLAPACK -DFFT_DEFAULT \
+      -DPARALLEL -DMP_LIBRARY=__MPI'
+     FFLAGS='-align dcommons -convert big_endian -I/usr/opt/MPI130/include'
+     LFLAGS='-ldxml -lfmpi -lmpi -lrt -pthread'
+     AR='/usr/bin/ar -r'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -c -V -ladebug -check bounds -check overflow -check power'
+       CC='cc -c -g'
+       LD='f90 -g -ladebug'
+     else
+       FC='f90 -O -c'
+       CC='cc -c -O'
+       LD='f90 -O'
+     fi
+     ;;
+
+  "COMPAQ-SC80")
+     IRAT=2
+     CFLAGS='-D__alpha'
+     CPP='cpp -P'
+     CPPFLAGS='-C -D__alpha -DPOINTER8 -D__DERF -DLAPACK -DFFT_DEFAULT \
+      -DPARALLEL -DMP_LIBRARY=__MPI'
+     FFLAGS='-align dcommons -convert big_endian'
+     LFLAGS='-ldxml -lmpi -lelan -lelan3'
+     AR='/usr/bin/ar -r'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -c -V -ladebug -check bounds -check overflow -check power'
+       CC='cc -c -g'
+       LD='f90 -g -ladebug'
+     else
+       FC='f90 -O -arch ev6 -tune ev6 -c'
+       CC='cc -c -O'
+       LD='f90 -O'
+     fi
+     ;;
+
+  "HP")
+     IRAT=2
+     CFLAGS='-D__HP'
+     CPP='/usr/ccs/lbin/cpp'
+     CPPFLAGS = -D__HP -DFFT_HP -DLAPACK -D_PSTAT64
+     FFLAGS='+O3 +Odataprefetch +Onolimit +DA2.0 +DS2.0 +U77 \
+             +externals=equiv_file'
+     LFLAGS='-L /opt/mlib/lib/pa2.0 -lveclib -llapack +O3 +Oparallel -lm +U77'
+     AR='/usr/bin/ar -r'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -c'
+       CC='cc -c -g'
+       LD='f90 -g'
+     else
+       FC='f90 -c'
+       CC='cc -c -O'
+       LD='f90'
+     fi
+     ;;
+
+  "HP-MPI")
+     IRAT=2
+     CFLAGS='-D__HP'
+     CPP='/usr/ccs/lbin/cpp'
+     CPPFLAGS='-E -P -D__HP -DFFT_DEFAULT -DLAPACK -DPARALLEL \
+               -DMP_LIBRARY=__MPI'
+     CPPFLAGS='-D__HP -DFFT_HP -DLAPACK -DPARALLEL \
+               -DMP_LIBRARY=__MPI -D_PSTAT64'
+     FFLAGS='+O3 +Odataprefetch +Onolimit +DA2.0 +DS2.0 +U77 \
+             +externals=equiv_file -I /opt/mpi/include'
+     LFLAGS='-L /opt/mlib/lib/pa2.0 -lveclib -llapack +O3 +Oparallel \
+             -lm +U77 -L /opt/mpi/lib/pa1.1 -lmpi'
+     AR='/usr/bin/ar -r'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -c'
+       CC='cc -c -g'
+       LD='f90 -g'
+     else
+       FC='f90 -c'
+       CC='cc -c -O'
+       LD='f90'
+     fi
+     ;;
+
+  "HITACHI-SR2201")
+     IRAT=2
+     CFLAGS='-D__SR2201'
+     CPP='cpp -PC'
+     CPPFLAGS='-D__SR2201 -D__NOINT8 -DPARALLEL -D__VECTOR \
+               -DFFT_DEFAULT -DLAPACK -DMP_LIBRARY=__MPI'
+     FFLAGS='-c -W0,"LANGLVL(INTPTR(1),CONTI199(1)),OPT(O(S)),PVEC" \
+             -I/usr/local/mpi/include'
+     LFLAGS='-L/usr/local/lib -L/usr/local/BLAS -L/usr/local/mpi/lib \
+             -llapack -lblas -lfmpi -lmpi -lf77c'
+     AR='/usr/bin/ar -r'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -c'
+       CC='cc -c -g'
+       LD='f90 -g'
+     else
+       FC='f90 -c'
+       CC='cc -c -O'
+       LD='f90'
+     fi
+     ;;
+
+
+  "HITACHI-SR8000")
+     IRAT=2
+     CFLAGS='-64 -D__SR8000'
+     CPP='cpp -PC'
+     CPPFLAGS='-D__SR8000 -DPOINTER8 -D__NOINT8 -DPARALLEL -D__VECTOR \
+               -DFFT_DEFAULT -DLAPACK -DMP_LIBRARY=__MPI'
+     FFLAGS= '\
+        -W0,"opt(o(ss),scope(0)),mp(procnum(8)),opt(split(0),rapidcall(0))" \
+        -W0,"pvec(pvfunc(0)),list(e(4)),langlvl(intptr(1),conti199(1))" \
+        -nolimit -64 -I/usr/mpi/include'
+     LFLAGS='-parallel -64 +BTLB -L/usr/lib/LAPACK/lib64 -L/usr/lib/BLAS/lib64 \
+             -L/usr/mpi/lib/lib64 -llapack -lblas -lfmpi -lmpi -lf90c'
+     AR='/usr/bin/ar -r'
+     RANLIB='/usr/bin/ranlib'
+     if [ $debug ]; then
+       FC='f90 -g -c'
+       CC='cc -c -g'
+       LD='f90 -g'
+     else
+       FC='f90 -c'
+       CC='cc -c -O'
+       LD='f90'
+     fi
+     ;;
+
+
+  "SUN")
+     IRAT=2
+     CFLAGS=''
+     CPP='/usr/ccs/lib/cpp -P'
+     CPPFLAGS=`printf "-D__SUN -DLAPACK -DFFT_DEFAULT \134\\\n\t\
+      -D__DATE__=\"'\\\`date '+%%b %%e %%Y'\\\`'\" \134\\\n\t\
+      -D__TIME__=\"'\\\`date '+%%b %%e %%Y'\\\`'\" "`
+     #-sb is to use Workshop package
+     FFLAGS='-dalign -fnonstd'
+     AR='/usr/ccs/bin/ar'
+     RANLIB='/usr/ccs/bin/ranlib'
+     if [ $debug ]; then
+       FC='f77 -c -g -sb'
+       LFLAGS='-xlic_lib=sunperf'
+       CC='cc -g -sb -C -errtags'
+       LD='f77 -dalign -fnonstd -g -sb'
+     else
+       FC='f77 -c -O4 -cg92 -native -w'
+       LFLAGS='-xlibmopt -xlic_lib=sunperf'
+       CC='cc -O'
+       LD='f77 -dalign -fnonstd -O4'
+     fi
+     ;;
+
+ "NEC-SX4")
+     IRAT=1
+     FFLAGS='-float2 -pvctl loopcnt=9999999'
+     LFLAGS='-l-llapack2 -l-lblas2'
+     CPP='/lib/cpp -P'
+     CPPFLAGS='-D__NEC -USX -DFFT_DEFAULT -DLAPACK -D__VECTOR \
+      -DDGEMM=SGEMM   -DDAXPY=SAXPY   -DDASUM=SASUM   -DDSCAL=SSCAL   \
+      -DDDOT=SDOT     -DDCOPY=SCOPY   -DDGEMV=SGEMV   -DIDAMAX=ISAMAX \
+      -DDERF=ERF      -DDERFC=ERFC    -DDROT=SROT     -DDGER=SGER     \
+      -DIDMIN=ISMIN   -DDGELSS=SGELSS -DDGESV=SGESV   -DDGETRF=SGETRF \
+      -DDGETRI=SGETRI -DDSPEV=SSPEV   -DDSYGV=SSYGV   -DIDAMIN=ISAMIN \
+      -DDSWAP=SSWAP   -DDSYRK=SSYRK   -DDNRM2=SNRM2   -DZSCAL=CSCAL   \
+      -DZAXPY=CAXPY   -DZDOTC=CDOTC   -DZGEMV=CGEMV   -DZGEMM=CGEMM   \
+      -DZHEGV=CHEGV   -DZHEEV=CHEEV   -DDZNRM2=SCNRM2 -DDPOTRF=SPOTRF \
+      -DDTRTRI=STRTRI -DDTRMM=STRMM   -DZHERK=CHERK   -DZPOTRF=CPOTRF \
+      -DZTRTRI=CTRTRI -DZTRMM=CTRMM   -DIMAG=AIMAG    -DZCOPY=CCOPY   \
+      -DDSYEV=SSYEV   -DZGETRF=CGETRF -DDSYEVX=SSYEVX -DDSBEVX=SSBEVX \
+      -DZHEEVX=CHEEVX -DZHBEVX=CHBEVX -DZGETRI=CGETRI -DDSTEV=SSTEV   \
+      -DZGEEV=CGEEV   -DDSYMM=SSYMM   -DDPOSV=SPOSV   -DDSYR=SSYR     \
+      -DZHPEV=CHPEV'
+     AR='ar'
+     RANLIB='ranlib'
+     if [ $debug ]; then
+       echo "No debug version for ${Configuration}" >&2
+       exit 1
+     else
+       FC='f77sx -c'
+       LD='f77sx'
+     fi
+     ;;
+
+ "FUJITSU-VPP5000")
+     #Fujitsu VPP5000 - Sequential Version - Grenoble
+     IRAT=2
+     FFLAGS=''
+     LFLAGS='-L/usr/lan/lib64 -llapackvp -lblasvp'
+     CPP='/lib/cpp -P'
+     CPPFLAGS='-DPOINTER8 -DMALLOC8 -DLAPACK -DFFT_DEFAULT -D_vpp_ -D__VECTOR'
+     CFLAGS=' $(CPPFLAGS)'
+     AR='ar'
+     RANLIB='ranlib'
+     if [ $debug ]; then
+       FC='frt -c -g -Da -Ds -On'
+       LD='frt -g -Da -Ds -On'
+     else
+       #for vpsi.F use -Ob instead of -Of because of Segmentation fault
+       FC='frt -Sw -c -Of -Kfast -X7'
+       LD='frt -Of -Kfast -X7'
+     fi
+     ;;
+
+ "FUJITSU-VPP")
+     #Fujitsu VPP700 - Sequential Version - Grenoble
+     IRAT=2
+     FFLAGS=''
+     LFLAGS='-L/usr/local/lib -llapack -lblas'
+     CPP='/lib/cpp -P'
+     CPPFLAGS='-DLAPACK -DFFT_DEFAULT -D_vpp_ -D__VECTOR'
+     CFLAGS=' $(CPPFLAGS)'
+     AR='ar'
+     RANLIB='ranlib'
+     if [ $debug ]; then
+       FC='frt -c -g -Da -Ds -On'
+       LD='frt -g -Da -Ds -On'
+     else
+       #for vpsi.F use -Ob instead of -Of because of Segmentation fault
+       FC='frt -Sw -c -Of -Kfast -X7 -Neg'
+       LD='frt -Of -Kfast -X7 -Ne'
+     fi
+     ;;
+
+ "FUJITSU-VPP-JPN")
+     #Fujitsu VPP700 - Sequential Version - Japan
+     #Warning: on japanese VPP comment out OBJ_CC and
+     #         shmemory & sysdepend
+     IRAT=2
+     FFLAGS=''
+     LFLAGS='-L/opt/lib -llapackvp -lblasvp'
+     CPP='/usr/ccs/lib/cpp -P'
+     CPPFLAGS='-DLAPACK -DFFT_DEFAULT -D_vpp_ -D_vpp_old -D__VECTOR \
+              -DFDATE_=FDATE -DGETUID=GETPID'
+     CFLAGS=' $(CPPFLAGS)'
+     AR='ar'
+     RANLIB='ranlib'
+     if [ $debug ]; then
+       FC='frtpx -c -g -Da -Ds -On'
+       LD='vppld -g -Da -Ds -On'
+     else
+       #for vpsi.F use -Ob instead of -Of because of Segmentation fault
+       FC='frtpx -c -Ob -Sw -Kfast -X7 -Ne -Aabw2y'
+       LD='vppld -Ob -Kfast -X7 -Ne -Aabw2y'
+     fi
+     ;;
+
+ "FUJITSU-VPP-MPI")
+     #Fujitsu VPP700 - Parallel Version - Grenoble
+     IRAT=2
+     FFLAGS=''
+     LFLAGS='-Wl,-P,-J -dn \
+        -L/usr/lang/mpi2/lib -lmpi -lmp -lcvp \
+        -L/usr/local/lib -llapack -lblas'
+     CPP='/lib/cpp -P'
+     CPPFLAGS='-DLAPACK -DFFT_DEFAULT -D_vpp_ -D__VECTOR \
+      -DPARALLEL -DMP_LIBRARY=__MPI'
+     CFLAGS=' $(CPPFLAGS)'
+     AR='ar'
+     RANLIB='ranlib'
+     if [ $debug ]; then
+       FC='frt -c -g  -Da -Ds -On -I/usr/lang/mpi2/include'
+       LD='frt -g -Da -Ds -On'
+     else
+       #for vpsi.F use -Ob instead of -Of because of Segmentation fault
+       #/usr/lang/mpi/include
+       FC='frt -Sw -c -Ob -Kfast -X7 -Ne -I/usr/lang/mpi2/include'
+       LD='frt -Of -Kfast -X7 -Ne'
+     fi
+     ;;
+
+ "FUJITSU-VPP-MPJP")
+     #Fujitsu VPP700 - Parallel Version - Japan
+     #Warning: on japanese VPP comment out OBJ_CC and
+     #         shmemory & sysdepend
+     IRAT=2
+     FFLAGS=''
+     LFLAGS='-Wl,-P,-J,-dy -L/usr/lang/lib -llapackvp -lblasvp \
+        -L/usr/lang/mpi2/lib -lmpi -lmp -lspfs -lpx -lelf \
+        -lgen -lm -lc -lrpcsvc -lsocket -lnsl -lcvp'
+     CPP='/usr/ccs/lib/cpp -P'
+     CPPFLAGS='-DLAPACK -DFFT_DEFAULT -D_vpp_ -D_vpp_old -D__VECTOR \
+               -DFDATE_=FDATE -DGETUID=GETPID \
+               -DPARALLEL -DMP_LIBRARY=__MPI'
+     CFLAGS=' $(CPPFLAGS)'
+     AR='ar'
+     RANLIB='ranlib'
+     if [ $debug ]; then
+       FC='frtpx -c -g  -Da -Ds -On -I/opt/local/include/vppmpi2'
+       LD='vppld -g -Da -Ds -On'
+     else
+       #for vpsi.F use -Ob instead of -Of because of Segmentation fault
+       #/usr/lang/mpi/include
+       FC='frtpx -c -Ob -Sw -Kfast -X7 -Ne -Aabw2y -I/opt/local/include/vppmpi2'
+       LD='vppld -Ob -Kfast -X7 -Ne -Aabw2y'
+     fi
+     ;;
+
+  "PC-PGI")
+     IRAT=2
+     CFLAGS='-D__PGI'
+     #CPP='pgf90 -F'
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT'
+     NCPUS=2
+     #-sb is to use Workshop package
+      FFLAGS='-I /usr/local/shared/fftw3/include -I /usr/local/fftw-3.0.1/include -Mr8 -Msignextend -Minform=warn'
+      LFLAGS='-L /usr/local/shared/fftw3/lib -L /usr/local/fftw-3.0.1/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS)'
+#     FFLAGS='-I /usr/local/fftw-3.0/include -Mr8 -Msignextend -Msecond_underscore'
+#     FFLAGS='-I /usr/local/fftw-3.0.1/include -Mr8 -Msignextend -Minform=warn' 
+#     FFLAGS='-I /usr/local/shared/fftw3/include -Mr8 -Msignextend -Minform=warn' 
+#     LFLAGS=' -L$(PGI)/linux86/lib -llapack -lf77blas -latlas -lpgc \
+#             -lpgf90rtl -lf2c'
+#     LFLAGS='-L /usr/local/fftw-3.0.1/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS)'
+#     LFLAGS='-L /usr/local/shared/fftw3/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS)'
+     if [ $debug ]; then
+       FC='pgf90 -c -g'
+       CC='cc -g -sb -C -errtags'
+       LD='pgf90 -g'
+       FCD='pgf90 -c -g'$
+       CCD='cc -g -sb -C -errtags'$
+       LDD='pgf90 -g'$
+     else
+       FC='pgf90 -c -O4 -fast'
+       CC='cc -O'
+       LD='pgf90 -O4'
+       FCD='pgf90 -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='pgf90 -g'
+     fi
+     ;;
+
+  "PC-PGI-MPI")
+     IRAT=2
+     CFLAGS=''
+     #CPP='pgf90 -F'
+     CPP='/lib/cpp -P -C'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT \
+               -DPARALLEL -DMP_LIBRARY=__MPI'
+     #-sb is to use Workshop package
+     FFLAGS='-I/usr/local/mpich/include/'
+     LFLAGS='-L/usr/pgi/linux86/lib \
+             -L/usr/local/mpich/build/LINUX/ch_p4/lib/ -lmpich \
+             -llapack  -lintelblas -lpgc -lpgftnrtl'
+     if [ $debug ]; then
+       FC='pgf90 -c -g -w'
+       CC='cc -g -sb -C -errtags'
+       LD='pgf90 -g'
+     else
+       FC='pgf90 -c -O4 -w -fast'
+       CC='cc -O'
+       LD='pgf90 -O4'
+     fi
+     ;;
+
+  "PC-ABSOFT")
+     IRAT=2
+     CFLAGS=''
+     #CPP='pgf90 -F'
+     CPP='/lib/cpp -P -C'
+     CPPFLAGS='-D__NOINT8 -D__Linux -D__ABSOFT -DLAPACK -DFFT_DEFAULT'
+     #-sb is to use Workshop package
+     FFLAGS=''
+#     LFLAGS='-L/usr/lib/lapack -L/usr/absoft/lib -lm -llapack -lblas \
+#             -lU77 -lf2c'
+     LFLAGS='-L/usr/absoft/lib -llapack -lblas -lU77'
+     if [ $debug ]; then
+       FC='f90 -c -B108 -YEXT_NAMES=LCS -g'
+       CC='cc -g -sb -C -errtags'
+       LD='f90 -g -X-Bstatic'
+     else
+#      -B108: append underscore; -B100: PentiumII or higher;
+#      -YEXT_NAMES=LCS: fold to lowercase
+       FC='f90 -c -B108 -B100 -YEXT_NAMES=LCS -O'
+       CC='cc -g -sb -C -errtags'
+       LD='f90 -O -X-Bstatic'
+       CC='cc -O'
+     fi
+     ;;
+
+  "PC-ABSOFT-MPI")
+     IRAT=2
+     CFLAGS=''
+     #CPP='pgf90 -F'
+     CPP='/lib/cpp -P -C'
+     CPPFLAGS='-D__NOINT8 -D__Linux -D__ABSOFT -DLAPACK -DFFT_DEFAULT \
+               -DPARALLEL -DMP_LIBRARY=__MPI'
+     #-sb is to use Workshop package
+     #-sb is to use Workshop package
+     FFLAGS='-I/usr/local/mpich/include/'
+#     LFLAGS='-L/usr/lib/lapack -L/usr/absoft/lib -lm -llapack -lblas \
+#             -lU77 -lf2c -L/usr/local/mpich/build/LINUX/ch_p4/lib/ -lmpich'
+     LFLAGS='-L/usr/absoft/lib -llapack -lblas -lU77\
+             -L/usr/local/mpich/build/LINUX/ch_p4/lib/ -lmpich'
+     if [ $debug ]; then
+       FC='f90 -c -B108 -YEXT_NAMES=LCS -g'
+       CC='cc -g -sb -C -errtags'
+       LD='f90 -g -X-Bstatic'
+     else
+#      -B108: append underscore; -B100: PentiumII or higher;
+#      -YEXT_NAMES=LCS: fold to lowercase
+       FC='f90 -c -B108 -B100 -YEXT_NAMES=LCS -O'
+       CC='cc -g -sb -C -errtags'
+       LD='f90 -O -X-Bstatic'
+       CC='cc -O'
+     fi
+     ;;
+
+  *)
+     echo "Configure: Unknown configuration '${Configuration}'" >&2
+     Message
+     exit 2
+     ;;
+esac
+#--------------------------------------------------------------------#
+#End of Configurations                                               #
+#--------------------------------------------------------------------#
+
+# File descriptor usage:
+# 0 standard input
+# 1 file creation (standard output or makefile)
+# 2 errors and warnings
+# 3 Makefile if $makefile or &1
+
+echo "Default configuration for $Configuration." >&2
+if [ $debug ]; then
+   echo "Debug option is used." >&2
+fi
+
+#Default DEST is .
+DEST=${DEST:-'.'}
+
+#Check if DEST directory exists.
+if [ ! -d ${DEST} ]; then
+   echo "The directory ${DEST} does not exist" >&2
+  exit 1
+fi
+if [ ! -w ${DEST} ]; then
+  echo "The directory ${DEST} has no write permission" >&2
+  exit 1
+fi
+
+#Create Makefile if output
+if [ $makefile ]; then
+  echo "Creation of Makefile: ${DEST}/Makefile" >&2
+  exec 3>${DEST}/Makefile
+else
+  echo "Use standard output for the Makefile." >&2
+  exec 3>&1
+fi
+
+cat << END >&3
+#----------------------------------------------------------------------------
+# Makefile for sort.x (plane wave electronic calculation)
+# Configuration: ${Configuration}
+# Creation of Makefile: `date '+%b %e %Y'`
+# on `uname -a`
+# Author: `who am i | cut -d' ' -f 1`
+#----------------------------------------------------------------------------
+#
+SHELL = /bin/sh
+#
+#--------------- Default Configuration for $Configuration ---------------
+SRC  = .
+DEST = ${DEST}
+BIN  = .
+FFLAGS = ${FFLAGS}
+LFLAGS = ${LFLAGS}
+CFLAGS = ${CFLAGS}
+CPP = ${CPP}
+CPPFLAGS = ${CPPFLAGS}
+FC = ${FC}
+LD = ${LD}
+AR = ${AR}
+FCD = ${FCD}
+LDD = ${LDD}
+ARD = ${ARD}
+#----------------------------------------------------------------------------
+END
+
+#There is Personal Configuration.
+if [ $opt -eq 1 ]; then
+  printf "Personal configurations..." >&2
+
+  #Check the options and personal variables 
+  cat << END >&3
+
+#----------------------------------------------------------------------------
+# Personal Configuration
+#----------------------------------------------------------------------------
+END
+
+  i=1
+  while [ $i -le $# ];
+  do
+    eval option=\$$i
+    case $option in
+    -DEST=*)
+      #Special case for DEST (only used for makefile)
+      ;;
+    -*=*)
+      var=`echo $option | cut -c2- | cut -d= -f 1`
+      val=`echo $option | cut -c2- | cut -d= -f 2`
+      echo "$var = $val" >&3
+      eval $var='$val'
+      ;;
+    *)
+      ;;
+    esac
+    i=`expr $i + 1`
+  done
+
+  #Default personal option
+  if [ $DEST != "." ]; then
+    if [ -z "$SRC" ]; then
+      SRC=`pwd`
+      echo "SRC = $SRC" >&3
+    fi
+  fi
+  
+  if [ -n "$SRC" ]; then
+    echo "FC = $FC -I\$(SRC)" >&3
+  fi
+  cat << END >&3
+#----------------------------------------------------------------------------
+# End of Personal Configuration
+#----------------------------------------------------------------------------
+END
+  echo "done." >&2
+  if [ -n "$BIN" ]; then
+    echo "sort.x executable will be in: $BIN" >&2
+  fi
+  
+fi #End of Personal Configuration.
+
+#Default SRC is .
+SRC=${SRC:-'.'}
+
+echo "The source directory is: $SRC" >&2
+echo "The object directory is: $DEST" >&2
+  
+
+#Now we change irat if necessary
+if [ -f ${DEST}/irat.inc ]; then
+  iratfile="${DEST}/irat.inc"
+else
+  iratfile="irat.inc"
+fi
+irat=`awk -F= '/PARAMETER/ { print substr($2,1,1) }' $iratfile`
+if [ ${irat} != ${IRAT} -o ! -f ${DEST}/irat.inc ]; then
+  echo "We change the file $iratfile " \
+       "[old irat=${irat}, new irat=${IRAT}]" >&2
+  if [ -w /dev/null ]; then
+    exec 4> /dev/null
+  else
+    exec 4>&2
+  fi
+  ed -s $iratfile << END >&4
+/PARAMETER
+d
+i
+      PARAMETER(IRAT=${IRAT})
+.
+w ${DEST}/irat.inc
+q
+END
+  echo "The file ${DEST}/irat.inc is created." >&2
+else
+  echo "The file ${DEST}/irat.inc is correct." >&2
+fi
+
+#Now DEST is always ./
+DEST='.'
+
+#Default SRC
+SRC=${SRC:-'.'}
+
+#Print OBJECTS
+if [ -f OBJECTS ]; then
+  printf "Add OBJECTS (object files)..." >&2
+  cat OBJECTS >&3
+  echo "done."  >&2
+else
+  printf "\nThe file OBJECTS does not exist.\n" >&2
+  echo "The file OBJECTS does not exist" >&2
+  exit 1
+fi
+
+#Include files
+printf "Add INCFILES (include files)..." >&2
+IncludeFile=`ls *.inc`
+printf "INCFILES = " >&3
+i=0
+for name in ${IncludeFile}
+do
+  if [ $i -eq 6 ]; then
+    printf "\\\\\n           " >&3
+    i=0
+  fi
+  i=`expr $i + 1`
+  printf "%s " ${name} >&3
+done
+printf "\n\n" >&3
+echo "done." >&2
+
+printf "Add explicit rules..." >&2
+cat << END >&3
+#----------------------------------------------------------------------------
+# Compile sort.x
+#----------------------------------------------------------------------------
+#MAIN_OBJS=sort.o histogram.o
+
+sort.x : sort.o \$(OBJECTS) \$(OBJ_CC)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 rm -f sort.x
+	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/sort.x sort.x; fi
+	 \$(LD) -o \$(BIN)/sort.x timetag.o sort.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
+
+histogram.x : histogram.o \$(OBJECTS) \$(OBJ_CC)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 rm -f histogram.x
+	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/histogram.x histogram.x; fi
+	 \$(LD) -o \$(BIN)/histogram.x histogram.o timetag.o \$(OBJECTS) \$(OBJ_CC) input.o \$(LFLAGS)
+
+#----------------------------------------------------------------------------
+# Generate library libcpmd.a
+#----------------------------------------------------------------------------
+lib : \$(OBJ_LIB)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 \$(AR) libcpmd.a timetag.o \$(OBJ_LIB)
+	 \$(RANLIB) libcpmd.a
+
+#----------------------------------------------------------------------------
+# Remove all *.o and *.f
+#----------------------------------------------------------------------------
+clean : 
+	 rm -f \$(MAIN_OBJS) \$(OBJECTS) \$(OBJ_CC) \$(DEST)/\$(OBJECTS:.o=.f)
+
+#----------------------------------------------------------------------------
+# Explicit rules
+#----------------------------------------------------------------------------
+ALLOBJECTS= \$(MAIN_OBJS) \$(OBJECTS) input.mod
+.SUFFIXES:
+.SUFFIXES: .o .f .F .mod .F90
+
+\$(ALLOBJECTS:.o=.f) : 
+	rm -f \$@
+	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f=.F) \$(DEST)/\$@
+.f.o :
+	\$(FC) \$(FFLAGS) \$<
+
+\$(OBJ_CC) :
+	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
+
+util-sp.o :
+	\$(FCD) \$(FFLAGS) \$(DEST)/util-sp.f
+
+\$(DEST)/input.mod :
+	\$(FCD) -c \$(SRC)/input.F90
+
+#----------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------
+# Dependencies
+#----------------------------------------------------------------------------
+END
+echo "done." >&2
+
+printf "Create dependencies..." >&2
+FortranFiles=`ls *.F *.c`
+
+for name in ${FortranFiles}
+do
+  if [ $verbose ]; then
+    printf "[%s]" $name
+  fi
+  awk 'NR==1 { Ninclude = 2;
+               OldInclude["pimd.inc"] = 0;
+               OldInclude["mpif.h"] = 0;
+               MaxLength=60;
+               ll = length(FILENAME);
+               prefix = substr(FILENAME,1,ll-2);
+               suffix = substr(FILENAME,ll-1,2);
+               src    = "$(SRC)";
+               dest = "$(DEST)";
+               #To have the quote.
+               quote = sprintf("%c",39);
+               if (suffix == ".F") {
+                 line = sprintf("%s.f:", prefix);
+                 printf "%-16s%s/%s%s\n", line,src,prefix,suffix;
+                 suffix = ".f";
+               }
+               line = sprintf("%s.o:", prefix);
+               if (suffix == ".c") {
+                 line = sprintf("%-16s%s/%s%s",line,src,prefix,suffix);
+               } else {
+                 line = sprintf("%-16s%s%s",line,prefix,suffix);
+               }
+             }
+       /^[ ]*INCLUDE/ || /^[ ]*include/ {
+               split($0,a,quote);
+               Name = a[2];
+               no = 0;
+               if (Ninclude != 0) {
+                 for ( Include in OldInclude ) {
+                   if (Include == Name ) { 
+                     no = 1;
+                     break;
+                   }
+                 }
+               }
+               if (no != 1) {
+                 Ninclude=Ninclude+1;
+                 OldInclude[Name] = 0;
+                 lline = length(line);
+                 if (lline+2 >= MaxLength) {
+                   printf "%s \\\n", line;
+                   line = sprintf("%-15s"," ");
+                 }
+                 if (Name == "irat.inc") {
+                   line=sprintf("%s %s/%s",line,dest,Name)
+                 } else {
+                   line=sprintf("%s %s/%s",line,src,Name)
+                 }
+               }
+       }
+       /^[ ]*USE/ || /^[ ]*use/ {
+               split($0,a," *");
+               Name =  a[3] ".mod";
+               no = 0;
+               if (Ninclude != 0) {
+                 for ( Include in OldInclude ) {
+                   if (Include == Name ) { 
+                     no = 1;
+                     break;
+                   }
+                 }
+               }
+               if (no != 1) {
+                 Ninclude=Ninclude+1;
+                 OldInclude[Name] = 0;
+                 lline = length(line);
+                 if (lline+2 >= MaxLength) {
+                   printf "%s \\\n", line;
+                   line = sprintf("%-15s"," ");
+                 }
+                 line=sprintf("%s %s/%s",line,dest,Name)
+               }
+       }
+       END   { printf "%s\n", line }' ${name} >&3
+done
+
+echo "input.mod:     \$(SRC)/input.F90" >&3
+echo "done."  >&2
+echo "O.K." >&2
+exit 0
+

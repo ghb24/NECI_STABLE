@@ -1,0 +1,269 @@
+Usage:
+
+histogram.x < inputfile > outputfile
+(I prefer histogram.x < inputfile | tee outputfile if run interactively)
+[or just histogram.x inputfile > outputfile]
+
+The input file is keyword driven and requires the minimal amount of information.  Some flags can only be used for certain calculations (or rather, are irrelevant for othert types of runs).  The order of input blocks is not important, nor is the order within a block, unless an option is only valid when a logical statement is true, in which case the relevant keyword for the logical statement must precede its related keywords.  I have imposed a block structure on the input file to aid readability.
+
+General points to note:
+* Parameters which follow a keyword ought to be on the same line as the keyword,but this isn't a strict requirement.
+* A new line is required for each keyword, unless the keyword is an option of another keyword, in which case it ought to be on the same line.
+* Blank lines are ignored.
+* Comments are enclosed in brackets.
+* Data items are terminated by space or comma.
+* The input file is not case sensitive.
+* Only the variables relevant to the desired run are required.
+* Unknown keywords return an error message and stop the run.
+* It is trivial to change the keyword or which block it's in.  Similarly, if it would be better to set some variables to be true by default, then it's easy to add to the routine such that it's possible to turn those options off as desired.
+* Sensible defaults need to be set - this will reduce the amount of information currently required from the input file.
+
+Keywords
+
+Syntax:  Keywords are specified by capitals.  Options/data required after a keyword are in <angled brackets>.  Alternative options are separated by commas.
+
+TITLE 
+    Takes the rest of the line as the title and passes it to output.
+
+SYSTEM <system type> [required]
+    Starts system block.
+    System types are:
+                    READ,GENERIC
+                    BOX
+                    HUBBARD
+                    UEG
+One of these must be specified.  If READ or GENERIC is followed by ORDER, then a quick HF calculation is performed to give an ordering of the orbitals read in (THFORDER = .true.)
+
+ELECTRONS,NEL <NEL> [required]
+
+SPIN-RESTRICT <LMS> [default off.  default LMS=0]
+    Turns spin restriction on, limiting the working space to the z-component of spin being LMS*2
+    
+CSF <STOT> [default off.  default STOT=0]
+    If specified, work in CSFs rather than determinants.  CSFs might not function properly for some monte carlo, but should work for vertex sums and diagonalization.   STOT is twice the magnitude of spin to restrict the resultant space
+
+SYM <SYM(I), I=1,3> [default off.  default SYM=(0,0,0)]
+   If specified, limit the working space to space with the specified symmetry quantum numbers.
+
+CELL <NMAXX NMAXY NMAXZ> [required for HUBBARD, UEG, and BOX]
+   Maximum basis functions for each dimension.  For HUBBARD and UEG, functions range from -NMAX to NMAX, but for BOX, they range from 1 to NMAX
+
+MESH <NMSH> [default 32]
+   Number of mesh points for integrals for BOX
+
+BOXSIZE <BOX [BOA COA]> [BOX required for UEG, and BOX.  BOA, COA optional, default 1]
+    Set lattice vector a, b and c, where b and c are defined as a ratio of a.
+
+U <UHUB> [only needed for HUBBARD.  default=0]
+B <BHUB> [only needed for HUBBARD.  default=0]
+    Sets U (on-site repulsion) and B (hopping or kinetic energy) parameters for the Hubbard model.
+
+REAL        [HUBBARD ONLY}
+APERIODIC   {HUBBARD ONLY]
+    Hubbard model is set to be real space and/or not periodic.
+
+TILT <ITILTX ITILTY> [HUBBARD only.  default off]
+    System is tilted (Hubbard only?) and the unit vectors are (x,y)=(ITILTX,ITILTY) and (-y,x).  Requirement that x>= y.
+
+ALPHA <ALPHA>
+    Sets TALPHA=.true. and defines ALPHA.
+
+ENDSYS
+    End system block.
+
+CALC
+    Start calculation block.  This chooses what calculation to do.
+
+HAMILTONIAN
+    Store the Hamiltonian.  This is defaulted to ON if ENERGY is set, but can be used without ENERGY.
+
+EXCITE <ICILEVEL> [default=0]
+   Excitiation level at which to truncate determinant list.  If ICILEVEL=0 then all determinants are enumerated.
+
+ENERGY
+    Calculate the energy by diagonalising.  Requires that one of COMPLETE, LANCZOS, or READ be set.
+
+COMPLETE
+    Do a full diagonalisation working out all eigenvectors and eigenvalues.  if HAMILTONIAN is OFF, this throws away the eigenvectors and eigenvalues after having used them for calculation.  Relevant parameters are HAMILTONIAN and BLOCK
+
+BLOCK <ON,OFF>
+    Determines whether the Hamiltonian is calculated for each block or not.  This only works for COMPLETE 
+
+READ
+    Read in eigenvectors and eigenvalues from a previous calculation.
+
+LANCZOS
+    Do a Lanczos block diagonalisation.  The relevant parameters are BLOCKS, KRYLOV, ACCURACY, STEPS, EIGENVALUES
+
+EIGENVALUES <NEVAL>
+    Required number of eigenvalues.
+
+BLOCKS <NBLK>
+    Set number of blocks in Lanczos routine.
+
+KRYLOV <NKRY>
+    Set number of Krylov vectors.
+
+ACCURACY <B2L>
+    Desired level of accuracy for Lanczos routine.
+
+STEPS <NCYCLE>
+   Sets the number of steps in the Lanzcos routine.
+
+POSITION <IOBS JOBS KOBS>
+   Sets the position of the reference particle.
+
+WORKOUT <NDETWORK>
+   Sets the number of determinants which are worked out exactly.
+
+TROTTER
+   Perform a Trotter decomposition.
+
+BETA <BETA>
+   Set BETA.
+
+BETAOVERP <BETAP>
+   Set BETA/P.
+
+TIMESTEPS <I_P>
+   Set p, the timesteps into which exp(- Beta H) is split.  Automatically sets BETA/P=0 (as required) but returns an error message if BETA/P is also set.
+
+DELTABETA <DBETA>
+   Set delta_beta.  If a negative value, calculates exactly.
+
+RHOEPSILON <RHOEPSILON>
+   Set the minimum significant value of RHO (as a fraction of RHOIIMAX).
+
+METHOD <METHOD>
+    Specify the method for vertex summation routine.  Opptions currently are:
+    VERTEX SUM OLD,NEW
+        Use the old or new vertex sum subroutine.
+    MC
+        Monte Carlo procedure.
+
+CYCLES <NWHTAY(1,1)>
+    Specifies the number of cycles of the MC routine.
+
+MAXVERTICES <I_VMAX>
+    Set the vertex level.
+
+IMPORTANCE <G_VMC_PI>
+    Set the generation probability for the MC routine.
+
+SEED <G_VMC_SEED>
+    Random seed required for the MC routine.
+
+BIAS <G_VMC_FAC>
+    Level bias for the MC routine.
+
+**If any of the options for MC are set and the vertex method is not MC, then an error is returned.**
+
+PATHS <NPATHS>
+    Choose the first NPATHS determinants and calculate RHOPII etc.
+
+ALLPATHS
+    Choose all determinants (i.e. set NPATHS = -1).
+
+ENERGY
+    Also calculate the energies for NPATHS determinants.  This option required delta_beta to be positive.
+
+CIMC
+    Perform a CI space Monte Carlo.
+
+STEPS <IMCSTEPS>
+    Set the number of steps for the CI space Monte Carlo routine.
+
+EQSTEPS <IEQSTEPS>
+    Set the number of equilibriation sets for the CI space Monte Carlo routine.
+
+BETAEQ <BETAEQ>
+    Set the value of beta for equilibriation steps.  The default value is zero, in which case the value of BETA, above, is used.
+
+DETSYM <MDK(I), I=1,4>
+    Specify the symmetry of the CIMC determinant.
+
+**If any if the CIMC options are set without CIMC being specified, the code will return an error and exit.**
+
+DETINV <DETINV>
+    Specify the determinant for which the complete vertex series is worked out.  If DETINV is negative, the NPATHS calculations are started at this determinant.
+
+ENDCALC
+   Ends the calculation block.
+
+INTEGRAL
+   Starts the integral block.
+HF
+    Use a HF basis.
+
+CALCULATE      
+    Calculate the HF basis rather than reading it in.
+
+MAXITERATIONS <NHFIT>
+    Set the maximum number of HF iterations.
+
+MIX <HFMIX>
+    Set the mixing parameter for each HF iteration.
+
+THRESHOLD < ENERGY<HFEDELTA> ORBITAL<HFCDELTA> >
+    Set the convergence threshold for the energy and/or the orbitals.
+
+RHF
+    Use restricted Hartree-Fock theory.
+
+UHF
+    Use unrestricted Hartree-Fock theory.
+      
+HFMETHOD <HFMETTHOD>
+    Specify the method for the Hartree-Fock routine.  Options are:
+    STANDARD
+        Use normal HF process.
+    DESCENT <SINGLES,OTHER>
+        Use singles or other gradient descent.
+
+READ <MATRIX BASIS>
+    Read in U matrix and/or HF basis.
+     
+FREEZE <NFROZEN NTFROZEN>
+    Set the number of frozen core states and frozen excited states respectively.  Both must be a multiple of two - an error is returned if this is not the case.
+
+INSPECT <SPECDET(I), I=1,NEL-NFROZEN>
+    Investigate the specified determinant.
+
+ORDER <ORBORDER(I), I=1,8)>
+    Set the prelimanary ordering of basis functions for an initial guess at the HF determinant.
+
+ENDINT
+    End of integral block.
+
+LOGGING
+    Start of logging block.
+     
+MCPATHS     
+    Log in MCPATHS to MCPATHS
+
+FMCPR <LABEL,RHO>
+    Log in FMCPR to PATHS.  Either just label logging or also log RHOIJ.
+
+CALPATH <LABEL,RHO>
+    Log in CALCPATH_R to PATHS.  Either just label logging or also log RHOIJ.
+
+XIJ
+    Log XIJ in FMCPR to PATHS.
+
+HAMILTONIAN      
+    Log HAMIL and PSI and PSI_LONG.
+
+PSI
+    Log PSI_COMP.
+
+VERTEX <1000 EVERY>
+    Log vertex MC with E~ every 1000 cycles and/or log vertex MC contribution every cycle.
+
+HFBASIS
+    Log HFBASIS.
+
+ENDLOG
+    End of logging block.
+
+END
+    End of input file (not necessarily required, unless there is text after the input (e.g. comments or notes) which are not parenthesised.

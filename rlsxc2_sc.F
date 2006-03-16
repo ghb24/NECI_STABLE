@@ -1,0 +1,97 @@
+      SUBROUTINE RLSXC2_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
+     &	NDET,NDET1,NDET2,G1,NHG,AUXC)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
+C..Cube array
+      DIMENSION SITAB(NMSH,NMAX)
+      INTEGER G1(4,NHG),ND1(2),ND2(2)
+      INTEGER IDS(4)
+      EXTERNAL U1
+C..Zero ND1 and ND2
+      CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
+      CALL IAZZERO(ND1,2)
+      CALL IAZZERO(ND2,2)
+C..IQ ensures that only two differences are recorded
+C..First routine compares NDET1 to NDET2
+      IQ=0
+      DO I=1,NEL
+	 K=0
+         DO J=1,NEL
+            IF(NDET1(I).EQ.NDET2(J)) CONTINUE
+            IF(NDET1(I).NE.NDET2(J)) K=K+1
+         ENDDO
+         IF(K.EQ.NEL) THEN
+            IQ=IQ+1
+            ND1(IQ)=NDET1(I)
+            IF(IQ.GE.2) GOTO 100
+         ENDIF
+      ENDDO
+ 100  CONTINUE
+C..This routine compares NDET2 to NDET1
+      IQ=0
+      DO I=1,NEL
+      	 K=0
+         DO J=1,NEL
+            IF(NDET2(I).EQ.NDET1(J)) CONTINUE
+            IF(NDET2(I).NE.NDET1(J)) K=K+1
+         ENDDO
+         IF(K.EQ.NEL) THEN
+            IQ=IQ+1
+            ND2(IQ)=NDET2(I)
+            IF(IQ.GE.2) GOTO 200
+         ENDIF
+      ENDDO
+ 200  CONTINUE
+C.. 
+      CALL IAZZERO(IDS,4)
+      CALL GENKRON2(G1,NHG,ND1,ND2,IDS)
+      CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
+C..
+C..electron in orbital ND1(1) at position R1Z, 0 
+      U1ND11R1=U1(ND1(1),NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)
+C..electron in orbital ND1(2) at position R1Z, 0
+      U1ND12R1=U1(ND1(2),NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)
+C..electron in orbital ND2(1) at position R1Z, 0
+      U1ND21R1=U1(ND2(1),NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)
+C..electron in orbital ND2(2) at position R1Z, 0
+      U1ND22R1=U1(ND2(2),NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)
+C..
+      DO IZ=1,NMSH
+        DO IY=1,NMSH
+          DO IX=1,NMSH
+C..electron in orbital ND1(1) at position R2, THT
+            U2ND11R2=U1(ND1(1),NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ) 
+C..electron in orbital ND1(2) at position R2, THT
+            U2ND12R2=U1(ND1(2),NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
+C..electron in orbital ND2(1) at position R2, THT
+            U2ND21R2=U1(ND2(1),NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
+C..electron in orbital ND2(2) at position R2, THT
+            U2ND22R2=U1(ND2(2),NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
+C..
+            AUXC(IX,IY,IZ)=AUXC(IX,IY,IZ)+(
+     &		U1ND12R1*U1ND22R1*U2ND11R2*U2ND21R2*DFLOAT(
+     &		IDS(1)*IDS(2))+
+     &          U1ND11R1*U1ND21R1*U2ND12R2*U2ND22R2*DFLOAT(
+     &	        IDS(1)*IDS(2))-
+     &		U1ND12R1*U1ND21R1*U2ND11R2*U2ND22R2*DFLOAT(
+     &		IDS(3)*IDS(4))-
+     &		U1ND11R1*U1ND22R1*U2ND12R2*U2ND21R2*DFLOAT(
+     &		IDS(3)*IDS(4)))		
+          ENDDO
+        ENDDO
+      ENDDO
+      RETURN
+      END
+C ==--------------------------------------------------------==
+      SUBROUTINE GENKRON2(G,NHG,ND1,ND2,IDS)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      INTEGER G(4,NHG)
+      INTEGER ND1(2),ND2(2),IDS(4)
+C..
+      CALL CHK(G(4,ND1(2)),G(4,ND2(2)),IDS(1))
+      CALL CHK(G(4,ND1(1)),G(4,ND2(1)),IDS(2))
+      CALL CHK(G(4,ND1(2)),G(4,ND2(1)),IDS(3))
+      CALL CHK(G(4,ND1(1)),G(4,ND2(2)),IDS(4))
+C..
+      RETURN
+      END

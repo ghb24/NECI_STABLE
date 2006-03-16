@@ -1,0 +1,15 @@
+C     ==================================================================
+C     == INCLUDE FILE FOR TIMING                                      ==
+C     ==================================================================
+      INTEGER        NTIMX
+      PARAMETER      (NTIMX=200)
+C     ==--------------------------------------------------------------==
+      CHARACTER*10   TNAM
+      COMMON /TNAME/ TNAM(NTIMX)
+C     ==================================================================
+      REAL*8         CTSUM(NTIMX),CTSTA(NTIMX),WTSUM(NTIMX),WTSTA(NTIMX)
+      COMMON /TIMBU/ CTSUM,CTSTA,WTSUM,WTSTA
+C     ==================================================================
+      INTEGER        NTIMER,NCALLS(NTIMX)
+      COMMON /TIMIN/ NTIMER,NCALLS
+C     ==================================================================

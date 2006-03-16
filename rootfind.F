@@ -1,0 +1,346 @@
+C.. A procedure to use the regular falsi (false descent) method
+C.. to find the roots of a polynomial in the form
+
+C.. a0-x + b1^2/(x-a1) +b2^2/(x-a2) + ...
+
+C.. which is the characteristic polynomial of a matrix corresponding to
+C.. a star-graph, with a as the diagonal terms, and b as the off
+C.. diagonal (first row) terms.  a0 is the diagonal of the pivot of the
+C.. star.  THere are N spokes and 1 pivot, and thus N+1 roots
+
+C.. A and B are sorted in ascending order of A
+
+      SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS)
+         IMPLICIT NONE
+         INTEGER N,I,J
+         REAL*8 A(0:N),B(0:N),ROOTS(0:N)
+         REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX
+C.. We find the first root by starting very slightly above the highest
+C.. pole
+         XLOW=A(N)
+         XHIGH=2*A(N)
+C.. The value at XHIGH is always bigger than at XLOW
+         I=N
+         DO WHILE(I.GE.0)
+C            WRITE(6,*),I,A(I),B(I)
+            VAL=1.D0
+            DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-12)
+               X=(XLOW+XHIGH)/2.D0
+               CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+C               WRITE(6,"(4G19.12)") XLOW,XHIGH,X,VAL
+               IF(VAL.GT.0) THEN
+                  XLOW=X
+               ELSEIF(VAL.LT.0) THEN
+                  XHIGH=X
+               ELSE
+                  XLOW=X
+                  XHIGH=X
+               ENDIF
+            ENDDO
+C.. Now polish off with some Newton Raphson
+            J=0
+            OX=0.D0
+            DO WHILE(ABS(VAL).GT.1.D-13.AND.J.LT.10
+     &         .AND.ABS(X-OX).GT.1.D-13)
+               CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+               CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
+C               WRITE(6,"(4G15.9)") X,VAL
+               OX=X
+               X=X-VAL/DERIV
+               J=J+1
+            ENDDO
+            ROOTS(I)=X
+C            WRITE(6,*) "Root found: ",X
+            DO WHILE(I.GT.0.AND.ABS(A(I)-A(I-1)).LT.1.D-9)
+               I=I-1
+               ROOTS(I)=A(I)
+C               WRITE(6,*),I,A(I),B(I)
+C               WRITE(6,*) "Root found2:",A(I)
+            ENDDO
+            XHIGH=A(I)
+            I=I-1
+            IF(I.EQ.0) THEN
+               XLOW=-1.D0
+            ELSE
+               XLOW=A(I)
+            ENDIF
+         ENDDO
+         RETURN
+      END         
+         
+
+      SUBROUTINE CALCSTARPOLYVALUE(N,A,B,X,VAL)
+         IMPLICIT NONE
+         INTEGER N
+         REAL*8 A(0:N),B(0:N),X,VAL
+         INTEGER I
+         VAL=A(0)-X
+         DO I=1,N
+            VAL=VAL+B(I)*B(I)/(X-A(I))
+         ENDDO
+         RETURN
+      END
+      SUBROUTINE CALCSTARPOLYDERIV(N,A,B,X,VAL)
+         IMPLICIT NONE
+         INTEGER N
+         REAL*8 A(0:N),B(0:N),X,VAL
+         INTEGER I
+         VAL=-1.D0
+         DO I=1,N
+            VAL=VAL-B(I)*B(I)/((X-A(I))**2)
+         ENDDO
+         RETURN
+      END
+      SUBROUTINE FINDROOTSTAR2(N,A,B,NR,ROOTS,IRMIN)
+         IMPLICIT NONE
+         INTEGER N,I,J
+         REAL*8 A(0:N),B(0:N),ROOTS(0:N)
+         INTEGER NR(0:N)
+         REAL*8 XHIGH,XLOW,X,VAL,DERIV,XVLOW,XVHIGH,SMIN,OH,OX
+         REAL*8 OXLOW,OXHIGH
+         INTEGER IMODE,IROOT,IRMIN
+C.. We find the first root by starting very slightly above the highest
+C.. pole
+         XLOW=A(N)
+         XHIGH=2*A(N)
+C.. The value at XHIGH is always bigger than at XLOW
+         I=N
+         IROOT=N
+         DO WHILE(I.GE.0)
+C            WRITE(6,*),I,A(I),B(I)
+            
+            CALL CALCSTARPOLYVALUE2(N,A,B,XHIGH,NR,XVHIGH,.FALSE.)
+            CALL CALCSTARPOLYVALUE2(N,A,B,XLOW,NR,XVLOW,.TRUE.)
+C            WRITE(6,*) "HIGH:",XHIGH,VAL
+C            WRITE(6,*) "LOW:",XLOW,DERIV
+C            WRITE(6,*) VAL*DERIV
+            VAL=XVHIGH*XVLOW
+            IF(ABS(VAL).EQ.VAL) THEN
+C.. No roots to be found here by regular falsi.
+C.. However, if we find the minimum in the current section, we can try
+C.. using that.
+C               WRITE(6,*) I,"Falsi Fail:", XLOW,XHIGH,XVHIGH,XVLOW
+               OH=XHIGH
+               CALL FINDSTARPOLYMIN(N,A,B,XHIGH,XLOW,NR,SMIN)
+               CALL CALCSTARPOLYVALUE2(N,A,B,SMIN,NR,XVLOW,.FALSE.)
+C               WRITE(6,*) IROOT,"Min:",SMIN,XVLOW
+               XLOW=SMIN
+               XHIGH=OH
+               VAL=XVLOW*XVHIGH
+               IF(ABS(VAL).EQ.VAL) THEN
+C.. Definitely no roots to be found.  give up
+                  X=0.D0
+                  IMODE=0
+               ELSE
+C.. There should be two roots
+                  WRITE(6,*) "2 roots"
+                  IMODE=2
+               ENDIF
+            ELSE
+               IMODE=1
+            ENDIF
+            OXLOW=XLOW
+            OXHIGH=XHIGH
+            DO WHILE(IMODE.GT.0)
+             VAL=1.D0
+C            WRITE(6,*) "HIGH:", XHIGH,XVHIGH
+C            WRITE(6,*) "LOW :", XLOW,XVLOW
+             DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-12)
+               X=(XLOW+XHIGH)/2.D0
+               CALL CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,.FALSE.)
+C               WRITE(6,"(4G19.12)") XLOW,XHIGH,X,VAL
+               IF(VAL.GT.0) THEN
+                  IF(XVLOW.GT.0) THEN
+                     XLOW=X
+                     XVLOW=VAL
+                  ELSE
+                     XHIGH=X
+                     XVHIGH=VAL
+                  ENDIF
+               ELSEIF(VAL.LT.0) THEN
+                  IF(XVHIGH.LT.0) THEN
+                     XHIGH=X
+                     XVHIGH=VAL
+                  ELSE
+                     XLOW=X
+                     XVLOW=VAL
+                  ENDIF
+               ELSE
+                  XLOW=X
+                  XHIGH=X
+               ENDIF
+             ENDDO
+C.. Now polish off with some Newton Raphson
+            J=0
+            IF(X.EQ.0.D0) J=11
+            OX=0.D0
+            DO WHILE(ABS(VAL).GT.3.D-13.AND.J.LT.10
+     &         .AND.ABS(X-OX).GT.1.D-13)
+               CALL CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,.FALSE.)
+               CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,DERIV)
+C               WRITE(6,*) X,VAL
+               OX=X
+               X=X-VAL/DERIV
+               J=J+1
+            ENDDO
+            IF(X.LT.OXLOW.OR.X.GT.OXHIGH) J=11
+            IF(J.LT.10) THEN
+C             WRITE(6,*) "Root found: ",IROOT,X
+             ROOTS(IROOT)=X
+             IROOT=IROOT-1
+            ELSE
+               WRITE(6,*) A(I+2),B(I+2),NR(I+2)
+               WRITE(6,*) A(I+1),B(I+1),NR(I+1)
+               WRITE(6,*) A(I),B(I),NR(I)
+               WRITE(6,*) A(I-1),B(I-1),NR(I-1)
+               WRITE(6,*) A(I-2),B(I-2),NR(I-2)
+               WRITE(6,*) X,OXLOW,OXHIGH
+               WRITE(6,*) I,"NO ROOT FOUND"
+               CALL CALCSTARPOLYVALUE2(N,A,B,OXHIGH,NR,XVHIGH,.FALSE.)
+               CALL CALCSTARPOLYVALUE2(N,A,B,OXLOW,NR,XVLOW,.TRUE.)
+               WRITE(6,*) VAL,XVLOW,XVHIGH
+C               STOP "NO ROOT FOUND"
+            ENDIF
+             IMODE=IMODE-1
+             IF(IMODE.EQ.1) THEN
+C.. one more root to find
+               XHIGH=SMIN
+               XLOW=A(I)
+               CALL CALCSTARPOLYVALUE2(N,A,B,XHIGH,NR,XVHIGH,.FALSE.)
+               CALL CALCSTARPOLYVALUE2(N,A,B,XLOW,NR,XVLOW,.TRUE.)
+             ENDIF
+            ENDDO
+             DO WHILE(I.GT.0.AND.ABS(A(I)-A(I-1)).LT.1.D-9)
+               I=I-1
+               ROOTS(IROOT)=0.D0
+C..A(I)
+C               WRITE(6,*) "Root found2:",IROOT,A(I)
+C               IROOT=IROOT-1
+C               WRITE(6,*),I,A(I),B(I)
+             ENDDO
+            XHIGH=A(I)
+            I=I-1
+            IF(I.EQ.0) THEN
+               XLOW=-1.D0
+            ELSE
+               XLOW=A(I)
+            ENDIF
+         ENDDO
+         DO I=IROOT,0,-1
+            ROOTS(I)=0.D0
+         ENDDO
+         IRMIN=IROOT+1
+         RETURN
+      END         
+         
+
+      SUBROUTINE CALCSTARPOLYVALUE2(N,A,B,X,NR,VAL,TABOVE)
+         IMPLICIT NONE
+         INTEGER N
+         REAL*8 A(0:N),B(0:N),X,VAL,OV,X2,DX
+         INTEGER NR(0:N)
+         INTEGER I
+         LOGICAL TABOVE
+         VAL=A(0)-X
+         OV=0.D0
+         DO I=1,N
+            VAL=VAL+NR(I)*B(I)*B(I)/(X-A(I))
+            IF(X.EQ.A(I)) OV=OV+NR(I)*B(I)*B(I)
+         ENDDO
+         IF(OV.NE.0.D0) THEN 
+C.. We're actually on a root.
+C. if above, it then x-a >0, so just the sign of OV
+C            VAL=1.D10*OV   
+C            IF(.NOT.TABOVE) VAL=-VAL
+            IF(TABOVE) THEN
+               DX=1.D-16
+            ELSE
+               DX=-1.D-16
+            ENDIF
+            X2=X+DX
+            DO WHILE (X2.EQ.X)
+               DX=DX*2.D0
+               X2=X+DX
+            ENDDO
+            VAL=A(0)-X2
+            DO I=1,N
+               VAL=VAL+NR(I)*B(I)*B(I)/(X2-A(I))
+            ENDDO
+         ENDIF
+         RETURN
+      END
+      SUBROUTINE CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
+         IMPLICIT NONE
+         INTEGER N
+         REAL*8 A(0:N),B(0:N),X,VAL
+         INTEGER NR(0:N)
+         INTEGER I
+         VAL=-1.D0
+         DO I=1,N
+            VAL=VAL-NR(I)*B(I)*B(I)/((X-A(I))**2)
+         ENDDO
+         RETURN
+      END
+      SUBROUTINE CALCSTARPOLYDERIV3(N,A,B,X,NR,VAL)
+         IMPLICIT NONE
+         INTEGER N
+         REAL*8 A(0:N),B(0:N),X,VAL
+         INTEGER NR(0:N)
+         INTEGER I
+         VAL=0.D0
+         DO I=1,N
+            VAL=VAL+2*NR(I)*B(I)*B(I)/((X-A(I))**3)
+         ENDDO
+         RETURN
+      END
+      SUBROUTINE FINDSTARPOLYMIN(N,A,B,XH,XL,NR,ROOT)
+         IMPLICIT NONE
+         INTEGER N,I,J
+         REAL*8 A(0:N),B(0:N)
+         INTEGER NR(0:N)
+         REAL*8 XHIGH,XLOW,X,VAL,DERIV,XVLOW,XVHIGH,ROOT,OX
+         REAL*8 XH,XL
+         XHIGH=XH
+         XLOW=XL
+         CALL CALCSTARPOLYDERIV2(N,A,B,XHIGH*0.99999999D0,NR,XVHIGH)
+         CALL CALCSTARPOLYDERIV2(N,A,B,XLOW *1.00000001D0,NR,XVLOW)
+         VAL=1.D0
+         DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-12)
+            X=(XLOW+XHIGH)/2.D0
+            CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
+            IF(VAL.GT.0) THEN
+               IF(XVLOW.GT.0) THEN
+                  XLOW=X
+                  XVLOW=VAL
+               ELSE
+                  XHIGH=X
+                  XVHIGH=VAL
+               ENDIF
+            ELSEIF(VAL.LT.0) THEN
+               IF(XVHIGH.LT.0) THEN
+                  XHIGH=X
+                  XVHIGH=VAL
+               ELSE
+                  XLOW=X
+                  XVLOW=VAL
+               ENDIF
+            ELSE
+               XLOW=X
+               XHIGH=X
+            ENDIF
+         ENDDO
+C.. Now polish off with some Newton Raphson
+         J=0
+         OX=0.D0
+         DO WHILE(ABS(VAL).GT.1.D-13.AND.J.LT.10
+     &      .AND.ABS(X-OX).GT.1.D-13)
+            CALL CALCSTARPOLYDERIV2(N,A,B,X,NR,VAL)
+            CALL CALCSTARPOLYDERIV3(N,A,B,X,NR,DERIV)
+            OX=X
+            X=X-VAL/DERIV
+            J=J+1
+         ENDDO
+         ROOT=X
+         IF(X.LT.XL.OR.X.GT.XH) ROOT=(XHIGH+XLOW)/2.D0
+         RETURN
+      END

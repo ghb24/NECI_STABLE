@@ -1,0 +1,516 @@
+      SUBROUTINE WIRHODIAG(NI,BETA,I_P,NEL,
+     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &      RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
+         IMPLICIT NONE
+         REAL*8 BETA,FCK(*),ZIA(*),ALAT(3),UMAT(*),RHOEPS,ECORE
+         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
+
+         INTEGER NEL,NBASIS,NBASISMAX(4,2),G1(4,NBASIS)
+         INTEGER NI(NEL),K
+         LOGICAL TSYM,LACC
+         INTEGER NLIST,NLMAX
+         REAL*8 RH,RHII
+         REAL*8 HDMAX,RHRATMAX
+         INTEGER ILFREE,I,J
+         REAL*8 RIJMAT(*),WLIST(*),RJJLIST(0:*)
+         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
+         INTEGER LSTE(NEL,0:*)
+         POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
+         INTEGER ISUB,ILMAX
+         INTEGER WORKL,WORK(*),INFO
+         REAL*8 WLRI,WLSI,SI
+         LOGICAL LCHKSYMD
+         INCLUDE 'irat.inc'
+         CALL TISET('WIRHODIAG ',ISUB)
+         HDMAX=5000.D0
+         RHRATMAX=EXP(-BETA*HDMAX/I_P)
+
+C.. Get how much mem we need
+         NLIST=0
+         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
+C.. account for LSTE(0)
+         NLMAX=NLIST+1
+         CALL MEMORY(IP_LSTE,NLMAX*NEL/IRAT+1,"LSTE")
+         CALL MEMORY(IP_RJJLIST,NLMAX,"RJJLIST")
+
+         CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
+         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
+         
+         IF(NLIST.GT.NLMAX) THEN
+            WRITE(6,*) "WARNING on excitations"
+         ENDIF
+
+         CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &         RH,NTAY,0,ECORE)
+         WRITE(35,"(A,$)") "("
+         DO K=1,NEL
+            WRITE(35,"(I3,A,$)") NI(K),","
+         ENDDO
+         WRITE(35,"(A,G25.16,I,$)") ")", -(I_P/BETA)*LOG(RH),NLIST
+         RJJLIST(0)=RH
+         WLRI=LOG(RH)
+         RHII=RH
+         ILFREE=1
+         DO I=1,NLIST
+            IF(LSTE(1,I).NE.0) THEN
+               LACC=LCHKSYMD(LSTE(1,0),LSTE(1,I),
+     &               NEL,G1,NBASISMAX)
+               IF(LACC) THEN
+                  CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
+     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &               RH,NTAY,0,ECORE)
+C                  WRITE(35,"(G25.16,$)") -(I_P/BETA)*LOG(RH)
+                  IF(RH/RHII.GT.RHRATMAX) THEN
+                     IF(ILFREE.LT.I)
+     &                  CALL ICOPY(NEL,LSTE(1,I),1,LSTE(1,ILFREE),1)
+                     RJJLIST(ILFREE)=RH
+                     ILFREE=ILFREE+1
+C                     WRITE(35,*) 1
+                  ELSE
+C                     WRITE(35,*) 0
+                  ENDIF
+               ENDIF
+            ENDIF
+         ENDDO
+         NLIST=ILFREE
+C         WRITE(6,*) NLIST," dets in energy range."
+         CALL MEMORY(IP_RIJMAT,NLIST*NLIST,"RIJMAT")
+         CALL MEMORY(IP_WLIST,NLIST,"WLIST")
+         WORKL=3*NLIST
+         CALL MEMORY(IP_WORK,WORKL,"WORK")
+         
+
+C.. Now we fill the RIJ array
+         DO I=0,NLIST-1
+            RIJMAT(I*NLIST+I+1)=RJJLIST(I)
+            DO J=I+1,NLIST-1
+               CALL CALCRHO2(LSTE(1,I),LSTE(1,J),BETA,I_P,NEL,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &            RH,NTAY,-1,ECORE)
+               RIJMAT(I*NLIST+J+1)=RH
+            ENDDO
+         ENDDO  
+
+C.. Diagonalize
+         CALL DSYEV('V','L',NLIST,RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) 'DYSEV error: ',INFO
+            STOP
+         ENDIF
+         CALL FREEM(IP_WORK)
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+         SI=0.D0
+C.. divide through by highest eigenvalue to stop things blowing up
+         DO I=0,NLIST-1
+            SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
+     &               *((WLIST(I+1)/WLIST(NLIST))**I_P)
+C            WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
+         ENDDO
+C         DO I=0,NLIST-1
+C            DO J=0,NLIST-1
+C               WRITE(34,"(2I5,$)") I,J
+C               WRITE(34,"(A,$)") "  ("
+C               DO K=1,NEL
+C                  WRITE(34,"(I3,A,$)") LSTE(K,J),","
+C               ENDDO
+C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
+C            ENDDO
+C         ENDDO
+         WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
+         WRITE(35,"(I,3G25.16)") NLIST+1,WLRI,WLSI,EXP(I_P*WLRI+WLSI)
+         CALL FREEM(IP_WLIST)
+         CALL FREEM(IP_RIJMAT)
+         CALL FREEM(IP_LSTE)
+         CALL FREEM(IP_RJJLIST)
+         CALL TIHALT("WIRHODIAG ",ISUB)
+         RETURN
+      END
+ 
+         SUBROUTINE WIRD_SUBSET(NI,BETA,I_P,NEL,
+     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &      RHOEPS,ILOGGING,TSYM,ECORE)
+         IMPLICIT NONE
+         REAL*8 BETA,FCK(*),ZIA(*),ALAT(3),UMAT(*),RHOEPS,ECORE
+         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
+
+         INTEGER K,ID,IDI,IDJ
+         INTEGER NEL,NBASIS,NBASISMAX(4,2),G1(4,NBASIS)
+         INTEGER NI(NEL)
+         LOGICAL TSYM,LACC
+         INTEGER NLIST,NLMAX
+         REAL*8 RH,RHII
+         REAL*8 HDMAX,RHRATMAX
+         INTEGER ILFREE,I,J
+         REAL*8 RIJMAT(*),WLIST(*),RJJLIST(0:*)
+         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
+         POINTER (IP_LSTP,LSTP)
+         INTEGER LSTE(NEL,0:*),LSTP(0:*)
+         POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
+         INTEGER ISUB,ILMAX
+         INTEGER WORKL,WORK(*),INFO
+         REAL*8 WLRI,WLSI,SI,SN,SNO,SNC,SNN
+         INTEGER IPLEN,NCOUNT
+         REAL*8 VARRAY(0:*)
+         POINTER (IP_VARRAY,VARRAY)
+         INTEGER BINOMIAL
+         LOGICAL LSUB
+         INCLUDE 'irat.inc'
+         CALL TISET('WIRHODIAG ',ISUB)
+         HDMAX=5000.D0
+         RHRATMAX=EXP(-BETA*HDMAX/I_P)
+
+C.. Get how much mem we need
+         NLIST=0
+         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
+C.. account for LSTE(0)
+         NLMAX=NLIST+1
+         CALL MEMORY(IP_LSTE,NLMAX*NEL/IRAT+1,"LSTE")
+         CALL MEMORY(IP_RJJLIST,NLMAX,"RJJLIST")
+         CALL MEMORY(IP_LSTP,NLMAX/IRAT+1,"LSTP")
+         CALL MEMORY(IP_RIJMAT,NLMAX*NLMAX,"RIJMAT")
+         CALL MEMORY(IP_WLIST,NLMAX,"WLIST")
+         WORKL=3*NLMAX
+         CALL MEMORY(IP_WORK,WORKL,"WORK")
+         CALL MEMORY(IP_VARRAY,NLMAX,"VARRAY")
+
+         CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
+         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
+
+         CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &         RH,NTAY,0,ECORE)
+         LSTP(0)=0
+
+         LSUB=.FALSE.
+C         LSUB=.TRUE.
+C         OPEN(36,FILE="/dev/null",STATUS="UNKNOWN")
+         IF(LSUB) THEN
+            WRITE(36,"(A,$)") "("
+            DO K=1,NEL
+               WRITE(36,"(I3,A,$)") NI(K),","
+            ENDDO
+            WRITE(36,"(A,G25.16,I)") ")", -(I_P/BETA)*LOG(RH),NLIST
+         ENDIF
+         WRITE(37,"(A,$)") "("
+         DO K=1,NEL
+            WRITE(37,"(I3,A,$)") NI(K),","
+         ENDDO
+         WRITE(37,"(A,I)") ")",NLIST
+         RJJLIST(0)=RH
+         WLRI=LOG(RH)
+         RHII=RH
+C.. List all the dets
+         IF(LSUB) THEN
+            DO I=1,NLIST
+               WRITE(36,"(A,$)") "("
+               DO K=1,NEL
+                  WRITE(36,"(I3,A,$)") LSTE(K,I),","
+               ENDDO
+               WRITE(36,"(A,$)") ") | "
+            ENDDO
+            WRITE(36,*)
+         ENDIF
+         SN=0.D0
+         SNC=0.D0
+         DO I=1,NLIST
+            CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
+     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &               RH,NTAY,0,ECORE)
+            IF(LSUB)
+     &         WRITE(36,"(I5,G25.16,A,$)") I,-(I_P/BETA)*LOG(RH)
+     &                  ," | "
+         ENDDO
+         IF(LSUB) WRITE(36,*)
+C.. Recurse over all lengths of permutation         
+         DO IPLEN=0,NLIST
+C.. Initiate with the first IPLEN dets
+            NCOUNT=0
+            DO I=1,IPLEN
+               LSTP(I)=I
+            ENDDO
+            NLIST=IPLEN+1
+            LACC=.TRUE.
+            SNO=SN
+C            IF(IPLEN.EQ.0) THEN
+C               SN=1.D0
+C            ELSE
+               SN=0.D0
+C            ENDIF
+            DO WHILE(LACC)
+               NCOUNT=NCOUNT+1
+               ILFREE=1
+               DO I=1,NLIST-1
+                  ID=LSTP(I)
+                  IF(LSUB) THEN
+                      WRITE(36,"(I5,A,$)") ID,","
+                      WRITE(38,"(I5,A,$)") ID,","
+                  ENDIF
+                  CALL CALCRHO2(LSTE(1,ID),LSTE(1,ID),BETA,I_P,NEL,
+     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &               RH,NTAY,0,ECORE)
+                  RJJLIST(ILFREE)=RH
+                  ILFREE=ILFREE+1
+               ENDDO
+               IF(LSUB) WRITE(36,"(A,$)") " | "
+C.. Now we fill the RIJ array
+               DO I=0,NLIST-1
+                  RIJMAT(I*NLIST+I+1)=RJJLIST(I)
+                  IDI=LSTP(I)
+                  DO J=I+1,NLIST-1
+                     IDJ=LSTP(J)
+                     CALL CALCRHO2(LSTE(1,IDI),LSTE(1,IDJ),BETA,I_P,NEL,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &            RH,NTAY,-1,ECORE)
+                     RIJMAT(I*NLIST+J+1)=RH
+                  ENDDO
+               ENDDO  
+               IF(LSUB) THEN
+                  WRITE(38,*)
+                  DO I=0,NLIST-1
+                     DO J=0,NLIST-1
+                        IF(J.LT.I) THEN
+                           RH=RIJMAT(J*NLIST+I+1)
+                        ELSE
+                           RH=RIJMAT(I*NLIST+J+1)
+                        ENDIF
+                        WRITE(38,"(G20.10,$)") RH
+                     ENDDO
+                     WRITE(38,*)
+                  ENDDO
+                  WRITE(38,*)
+               ENDIF
+C.. Diagonalize
+               CALL DSYEV('V','L',NLIST,
+     &            RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
+               IF(INFO.NE.0) THEN
+                  WRITE(6,*) 'DYSEV error: ',INFO
+                  STOP
+               ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+               SI=0.D0
+C.. divide through by highest eigenvalue to stop things blowing up
+               DO I=0,NLIST-1
+                  SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
+     &                     *((WLIST(I+1)/WLIST(NLIST))**I_P)
+C            WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
+               ENDDO
+               IF(LSUB) THEN
+                  DO I=0,NLIST-1
+                     WRITE(38,"(G20.10,$)") WLIST(I+1)
+                     DO J=0,NLIST-1
+                        WRITE(38,"(G20.10,$)") RIJMAT(I*NLIST+J+1)
+                     ENDDO
+                     WRITE(38,*)
+                  ENDDO
+                  WRITE(38,*)
+                  WRITE(38,*)
+               ENDIF
+C         DO I=0,NLIST-1
+C            DO J=0,NLIST-1
+C               WRITE(34,"(2I5,$)") I,J
+C               WRITE(34,"(A,$)") "  ("
+C               DO K=1,NEL
+C                  WRITE(34,"(I3,A,$)") LSTE(K,J),","
+C               ENDDO
+C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
+C            ENDDO
+C         ENDDO
+               WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
+              IF(LSUB) 
+     &         WRITE(36,"(I,4G25.16)") NLIST,WLRI,WLSI,EXP(WLSI),
+     &                  EXP(I_P*WLRI+WLSI)
+               SN=SN+EXP(WLSI)
+              CALL GETNEXTPERM(LSTP(1),NLMAX-1,IPLEN,LACC,IPLEN,NLMAX-1)
+            ENDDO
+            SNN=SN
+C            WRITE(37,*) SN
+            DO I=0,IPLEN-1
+               SN=SN-BINOMIAL(NLMAX-1-I,IPLEN-I)*VARRAY(I)
+            ENDDO
+            VARRAY(IPLEN)=SN
+            SNC=SNC+SN
+            WRITE(37,"(I4,3G25.16,I)") IPLEN+1,SN,SNC,SNN,NCOUNT
+            IF(NLMAX.GT.10) CALL FLUSH(37)
+C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
+         ENDDO
+         CALL FREEM(IP_WORK)
+         CALL FREEM(IP_WLIST)
+         CALL FREEM(IP_RIJMAT)
+         CALL FREEM(IP_LSTE)
+         CALL FREEM(IP_RJJLIST)
+         CALL TIHALT("WIRHODIAG ",ISUB)
+C         CLOSE(36)
+         RETURN
+      END
+
+
+      RECURSIVE SUBROUTINE GETNEXTPERM(LSTP,NL,IPLEN,LACC,IPOS,IMAX)
+         IMPLICIT NONE
+         LOGICAL LACC
+         INTEGER LSTP(IPLEN),NL,IPOS,IMAX,IPLEN
+         IF(IPOS.LT.1.OR.IPLEN.LT.1) THEN
+            LACC=.FALSE.
+            RETURN
+         ENDIF
+         IF(LSTP(IPOS).EQ.IMAX) THEN
+            IF(IPOS.GT.1) THEN
+               CALL GETNEXTPERM(LSTP,NL,IPLEN,LACC,IPOS-1,IMAX-1)
+               LSTP(IPOS)=LSTP(IPOS-1)+1
+            ELSE
+               LACC=.FALSE.
+            ENDIF
+         ELSE
+            LSTP(IPOS)=LSTP(IPOS)+1
+         ENDIF
+         RETURN
+      END 
+
+      INTEGER FUNCTION BINOMIAL(N,R)
+         INTEGER N,R,I
+         IF(R.GT.N.OR.N.LT.0.OR.R.LT.0) THEN
+            BINOMIAL=0
+         ELSE
+            BINOMIAL=1
+            DO I=1,R
+               BINOMIAL=(BINOMIAL*(N-I+1))/I
+            ENDDO
+         ENDIF
+         RETURN
+      END
+
+      REAL*8 FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
+         IMPLICIT NONE
+         INTEGER I_P,I_V,ISUB
+         REAL*8 RHOIJ(0:I_V,0:I_V)
+         REAL*8 RIJMAT(I_V,I_V)
+         REAL*8 WLIST(I_V),WORK(3*I_V)         
+         INTEGER INFO,I,J
+         REAL*8 SI
+         REAL*8 RII
+         RII=RHOIJ(0,0)
+C.. Diagonalize
+         CALL TISET('RHODIAG_CP',ISUB)
+         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         DO I=1,I_V
+            DO J=I,I_V
+               RIJMAT(I,J)=RHOIJ(I-1,J-1)+0.D0
+               RIJMAT(I,J)=RIJMAT(I,J)+0.D0
+               SI=RHOIJ(I-1,J-1)
+            ENDDO
+         ENDDO
+C         RIJMAT(1,1)=1.D0
+C         RIJMAT(1,2)=1.D0
+C         RIJMAT(2,1)=1.D0
+C         RIJMAT(2,2)=1.D0
+C         WRITE(6,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
+         CALL DSYEV('V','U',I_V,RIJMAT(1,1),I_V,
+     &            WLIST(1),WORK(1),3*I_V,INFO)
+C         WRITE(6,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
+C         WRITE(6,*) (WLIST(I),I=1,I_V)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) 'DYSEV error: ',INFO
+            STOP
+         ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+         SI=0.D0
+C.. divide through by RHOII^P
+         DO I=1,I_V
+            SI=SI+RIJMAT(1,I)*RIJMAT(1,I)
+     &               *((WLIST(I)/RII)**I_P)
+C           WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
+         ENDDO
+         RHODIAG_CP=SI
+C         DO I=0,NLIST-1
+C            DO J=0,NLIST-1
+C               WRITE(34,"(2I5,$)") I,J
+C               WRITE(34,"(A,$)") "  ("
+C               DO K=1,NEL
+C                  WRITE(34,"(I3,A,$)") LSTE(K,J),","
+C               ENDDO
+C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
+C            ENDDO
+C         ENDDO
+         
+         CALL TIHALT("RHODIAG_CP",ISUB)
+         RETURN
+      END
+
+C.. See 1/7/04
+      RECURSIVE REAL*8 FUNCTION RHODIAG_CPP(RHOIJ,
+     &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
+         IMPLICIT NONE
+         INTEGER I_P,I_V,ISUB
+         REAL*8 RHOIJ(I_V+1,I_V+1)
+         REAL*8 RIJMAT(I_V,I_V)
+         REAL*8 WLIST(I_V),WORK(3*I_V)         
+         INTEGER INFO,I,J,IMISS,II,IJ
+         REAL*8 SI,SI2
+C.. do we subtract out lower vertices here or later?
+         LOGICAL TSUB
+         REAL*8 DBETA,DLWDB,DD2,HIJS(I_V+1),HIJS2(I_V)
+         REAL*8 RII
+         RII=RHOIJ(1,1)
+C.. Diagonalize
+C         WRITE(6,*) "...",I_V,IMISS
+         CALL TISET('RHODIAG_C2',ISUB)
+         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         IF(DBETA.NE.0.D0) DLWDB=0.D0
+         II=0
+         DO I=1,I_V+1
+            IF(I.NE.IMISS) THEN
+               IJ=II
+               II=II+1
+               DO J=I,I_V+1
+                  IF(J.NE.IMISS) THEN
+                     IJ=IJ+1
+                     RIJMAT(II,IJ)=RHOIJ(I,J)+0.D0
+                  ENDIF
+               ENDDO
+               HIJS2(II)=HIJS(I)
+            ENDIF
+         ENDDO
+         SI=0.D0
+C.. Now subtract out the smaller submatrices first
+C.. In order to count the subsets only once, we need to only
+C.. remove up to IMISS 
+         IF(TSUB) THEN
+            DO I=2,IMISS-1
+CIMISS-1
+               DD2=0.D0
+               SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
+     &            DBETA,DD2,HIJS2)
+               IF(DBETA.NE.0.D0) DLWDB=DLWDB-DD2
+C            WRITE(6,*) "SI=",SI
+            ENDDO
+         ENDIF
+C         WRITE(6,*) I_V
+         CALL DSYEV('V','U',I_V,RIJMAT(1,1),I_V,
+     &            WLIST(1),WORK(1),3*I_V,INFO)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) 'DYSEV error: ',INFO
+            STOP
+         ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. divide through by RHOII^P
+C         WRITE(6,*) (RIJMAT(1,I),I=1,I_V)
+C         WRITE(6,*) (WLIST(I),I=1,I_V)
+         SI2=0.D0
+         DO I=1,I_V
+C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
+            SI2=SI2+RIJMAT(1,I)*RIJMAT(1,I)
+     &               *((WLIST(I)/RII)**I_P)
+            IF(DBETA.NE.0.D0) THEN
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+               DO J=1,I_V
+                  DLWDB=DLWDB+HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
+     &               *((WLIST(I)/RII)**I_P)
+               ENDDO
+            ENDIF
+         ENDDO
+C         WRITE(6,*) I_V,IMISS,SI2,SI
+         RHODIAG_CPP=SI+SI2
+C         WRITE(6,*) SI         
+         CALL TIHALT("RHODIAG_C2",ISUB)
+         RETURN
+      END

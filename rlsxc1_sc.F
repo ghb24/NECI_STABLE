@@ -1,0 +1,101 @@
+      SUBROUTINE RLSXC1_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
+     &	NDET,NDET1,NDET2,G1,NHG,AUXC)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
+C..Cube array
+      DIMENSION SITAB(NMSH,NMAX) 
+      INTEGER G1(4,NHG),TMP1(NEL),TMP2(NEL)
+      INTEGER IDS1(NEL-1),IDS2(NEL-1)
+      EXTERNAL CHK,U1
+C..
+      CALL IAZZERO(TMP1,NEL)
+      CALL IAZZERO(TMP2,NEL)
+      CALL AZZERO(AUXC,(NMSH+1)*(2*NMSH+1))
+C..Compare NDET1 to NDET2
+      IQ=0
+      DO I=1,NEL
+        K=0
+        DO J=1,NEL
+          IF(NDET1(I).EQ.NDET2(J)) CONTINUE
+          IF(NDET1(I).NE.NDET2(J)) K=K+1
+        ENDDO
+        IF(K.EQ.NEL) THEN
+          IQ=IQ+1
+          ND1=NDET1(I)
+          IF(IQ.GE.1) GOTO 100
+        ENDIF
+      ENDDO
+100   CONTINUE
+C..Now we compare NDET2 to NDET1
+      IQ=0
+      DO I=1,NEL
+        K=0
+        DO J=1,NEL
+          IF(NDET2(I).EQ.NDET1(J)) CONTINUE
+          IF(NDET2(I).NE.NDET1(J)) K=K+1
+        ENDDO
+        IF(K.EQ.NEL) THEN
+          IQ=IQ+1
+          ND2=NDET2(I)
+          IF(IQ.GE.1) GOTO 200
+        ENDIF
+      ENDDO
+200   CONTINUE
+C..Here we make sure that the last elements of TMP12 are ND1 and ND2
+      TMP1(NEL)=ND1
+      TMP2(NEL)=ND2
+C..Add in rest of NDET1 and NDET2 to TMP12
+      II=0
+      DO I=1,NEL
+        IF(NDET1(I).NE.ND1) THEN
+          II=II+1
+          TMP1(II)=NDET1(I)
+        ENDIF
+      ENDDO
+C..
+      II=0
+      DO I=1,NEL
+        IF(NDET2(I).NE.ND2) THEN
+          II=II+1
+          TMP2(II)=NDET2(I)
+        ENDIF
+      ENDDO
+C..Kronecker deltas
+      IQ=0
+      DO I=1,NEL
+        IF(NDET1(I).NE.ND1) THEN
+          IQ=IQ+1
+          CALL CHK(G1(4,NDET1(I)),G1(4,ND1),IDS1(IQ))
+          CALL CHK(G1(4,NDET2(I)),G1(4,ND2),IDS2(IQ))
+          IF(IQ.GE.(NEL-1)) GOTO 500
+	ENDIF
+      ENDDO
+500   CONTINUE
+C..
+      CALL CHK(G1(4,ND1),G1(4,ND2),IDS)
+      DO KI=1,NEL-1
+       
+        DO IZ=1,NMSH
+          DO IY=1,NMSH 
+            DO IX=1,NMSH
+C..
+              U1ND1R1=U1(ND1,NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)
+              U1ND2R1=U1(ND2,NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)
+              U2KIR2=U1(TMP1(KI),NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
+              U1KIR1=U1(TMP1(KI),NMAX,NMSH,NHG,G1,SITAB,
+     &			IOBS,JOBS,KOBS)    
+              U2ND1R2=U1(ND1,NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
+              U2ND2R2=U1(ND2,NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
+
+              AUXC(IX,IY,IZ)=AUXC(IX,IY,IZ)+
+     &	        U1ND1R1*U1ND2R1*U2KIR2*U2KIR2*DFLOAT(IDS)  
+     &         +U1KIR1*U1KIR1*U2ND1R2*U2ND2R2*DFLOAT(IDS)   
+     &         -IDS1(KI)*IDS2(KI)*U1ND1R1*U1KIR1*U2KIR2*U2ND2R2   
+     &	       -IDS1(KI)*IDS2(KI)*U1KIR1*U1ND2R1*U2ND1R2*U2KIR2    
+            ENDDO
+          ENDDO
+        ENDDO
+C..
+      ENDDO  
+      RETURN
+      END 

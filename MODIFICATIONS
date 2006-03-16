@@ -1,0 +1,9 @@
+02/10/03 detham.F 45/6 
+IF(ABS(SUM).GT.1.D-15) THEN
+   IF(ABS(SUM).LT.1.D-15) SUM=0.D0
+
+=>
+            IF(ABS(SUM).LT.1.D-10) SUM=0.D0
+            IF(ABS(SUM).GT.0.D0) THEN
+
+

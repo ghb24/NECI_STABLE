@@ -1,0 +1,2 @@
+      REAL*8 FCOUL
+      COMMON /FCOUL/ FCOUL   

@@ -1,0 +1,213 @@
+      SUBROUTINE FODMAT(NEL,NHG,NDET,NEVAL,ISTATE,
+     &	NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
+      IMPLICIT REAL*8 (A-H,O-Z)
+C..
+      POINTER (IP_FODM,FODM),(IP_Z,Z),(IP_W,W),(IP_CDETK,CDETK),
+     &	(IP_DMAT,DMAT),(IP_INDX,INDX)
+C..Diagonalisation vectors 
+      POINTER (IP_WORK,WORK),(IP_IWORK,IWORK),(IP_IFAIL,IFAIL)
+      SAVE IP_FODM,IP_Z,IP_W,IP_WORK,IP_IWORK,IP_IFAIL,IP_CDETK,
+     &	IP_DMAT,IP_INDX
+#ifdef POINTER8
+	INTEGER*8 GET_ADDR
+#else
+      INTEGER GET_ADDR
+#endif
+      DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*),CDETK(NHG,*)
+      DIMENSION FODM(NHG,*),Z(NHG,*),W(*),IFAIL(*)
+      DIMENSION N1E(NHG),N2E(NHG)
+      DIMENSION SUMA(NMAXX,NMAXY,NMAXZ)
+C..Diagonalisation vectors
+      DIMENSION WORK(*),IWORK(*)
+      COMPLEX*16 DMAT(NHG,*),CDET
+      INTEGER G1(4,NHG),INDX(*)
+C..
+      WRITE(6,'(1X,A)') '*** NATURAL ORBITAL EVALUATION ***'
+      WRITE(6,'(2X,A)') 'FILE ./NATURAL BEING UPDATED'
+      EPS=1.D-8 
+C..
+      CALL MEMORY(IP_FODM,NHG*NHG,'FODM')
+      CALL AZZERO(FODM,NHG*NHG)
+C..
+      CALL IAZZERO(N1E,NHG)
+      CALL IAZZERO(N2E,NHG)
+C..
+      DO IG=1,NHG     ! n   (orbitals) 
+        DO JG=IG,NHG    ! nprime (orbitals)
+          IF(JG.EQ.IG) THEN
+C..
+            SUM=0.D0
+            DO ID=1,NDET
+              IF(ABS(CK(ID,ISTATE)).LT.EPS) GOTO 100 
+              DO IN=1,NEL
+                IF(NMRKS(IN,ID).EQ.IG) THEN
+                  SUM=SUM+CK(ID,ISTATE)*CK(ID,ISTATE)
+                  GOTO 100
+                ENDIF
+              ENDDO
+ 100	      CONTINUE
+            ENDDO
+            FODM(JG,IG)=SUM
+          ELSE
+            SUM=0.D0
+            DO ID1=1,NDET
+              IF(ABS(CK(ID1,ISTATE)).LT.EPS) GOTO 300 
+              DO ID2=1,NDET
+                IF(ABS(CK(ID2,ISTATE)).LT.EPS) GOTO 200 
+C..   Compare NDET1 to NDET2
+                 IQ=0
+                 K=0
+                 DO I=1,NEL
+                    DO J=1,NEL
+                       IF(NMRKS(I,ID1).EQ.NMRKS(J,ID2)) THEN 
+                          GOTO 40
+                       ENDIF
+                    ENDDO
+                    K=K+1
+ 40                 CONTINUE
+                 ENDDO
+                 IF(K.NE.1) GOTO 200
+C..   we have the single excitation from i   
+                 CALL WHCH(NMRKS,NEL,ID1,ID2,ND1,ND2)
+                 CALL LINEUP(NEL,NMRKS(1:NEL,ID1),NMRKS(1:NEL,ID2),
+     &                NHG,N1E,N2E,IFLAG,IPTOT)
+                 IF(ND1.EQ.IG.AND.ND2.EQ.JG) THEN 
+                    SUM=SUM+DFLOAT(IPTOT)*
+     &                   CK(ID1,ISTATE)*CK(ID2,ISTATE)
+                 ENDIF
+ 200             CONTINUE
+              ENDDO             ! id2
+ 300          CONTINUE
+           ENDDO                ! id1 
+           FODM(JG,IG)=SUM
+        ENDIF  
+C..   
+      ENDDO                     ! jg
+      ENDDO    !ig
+C..   
+C      OPEN(10,FILE='FODM',STATUS='UNKNOWN')
+C      CALL WRITE_MATRIX('   FODM: ',NHG,NHG,FODM)
+C      CLOSE(10)
+C..Now diagonalise FODM
+      CALL MEMORY(IP_WORK,8*NHG ,'WORK') 
+      CALL AZZERO(WORK,8*NHG)
+      CALL MEMORY(IP_IWORK,5*NHG,'IWORK')
+      CALL IAZZERO(IWORK,5*NHG)
+      CALL MEMORY(IP_IFAIL,NHG,'IFAIL')
+      CALL IAZZERO(IFAIL,NHG)
+C..Natural orbitals and occupation numbers
+      CALL MEMORY(IP_Z,NHG*NHG,'Z')
+      CALL AZZERO(Z,NHG*NHG)
+      CALL MEMORY(IP_W,NHG,'W')
+      CALL AZZERO(W,NHG)
+C..
+      ABSTOL=1.D-15
+      CALL DSYEVX('V','A','L',NHG,FODM,NHG,VL,VU,1,NHG,ABSTOL,M,
+     &	W,Z,NHG,WORK,8*NHG,IWORK,IFAIL,INFO)
+      IF(INFO.GT.0) THEN
+        WRITE(6,*) ' !!!!! WARNING FROM DIAGONALISOR !!!!!'
+        WRITE(6,*) ' INFO:',INFO
+        WRITE(6,*) '    M:',M
+        WRITE(6,*) ' !!!!! WARNING FROM DIAGONALISOR !!!!!'
+      ENDIF
+C..
+      OPEN(10,FILE='NATURAL',STATUS='UNKNOWN')
+      DO I=1,NHG   
+        WRITE(10,*) ' NATURAL ORBITAL NO. ' , I
+        WRITE(10,'(F19.5)') W(I)
+        WRITE(10,*) ' COEFFICIENT EXPANSION : ' 
+        SUMC=0.D0
+        DO J=1,NHG
+          SUMC=SUMC+Z(J,I)*Z(J,I)
+          IF(ABS(Z(J,I)).GT.1.D-12) THEN
+            WRITE(10,'(I7,1X,4(I7,1X),E19.6)') J,(G1(K,J),K=1,4),Z(J,I)
+          ENDIF
+        ENDDO
+        WRITE(10,'(1X,A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , SUMC
+      ENDDO
+C..
+      SUM=0.D0
+      WRITE(6,'(1X,A,F19.5)') ' OCCUPATION NUMBERS : '
+      DO I=NHG,1,-1   
+        SUM=SUM+W(I)
+        WRITE(6,'(I4,2F10.3)') NHG-I+1,W(I),SUM
+      ENDDO
+C      WRITE(6,'(1X,A,F19.5)') ' TOTAL SUM: ' , SUM
+      CLOSE(10)
+C.. Population analysis
+      WRITE(6,*) ' POPULATION ANALYSIS OF THE NATURAL ORBITALS'
+      CALL AZZERO(SUMA,NMAXX*NMAXY*NMAXZ) 
+      DO I=1,NHG
+        D=0.D0
+        DO J=1,NHG
+          D=D+Z(I,J)**2*W(J)
+        ENDDO
+         SUMA(G1(1,I),G1(2,I),G1(3,I))=
+     &			SUMA(G1(1,I),G1(2,I),G1(3,I))+D
+      ENDDO
+      DO I=1,NMAXZ  ! over nmaxx 
+        DO J=1,NMAXY  ! over nmaxy
+          DO K=1,NMAXX  ! over nmaxx
+            IF(SUMA(K,J,I).GT.0) THEN
+              WRITE(6,'(3I3,F9.2)') K,J,I,SUMA(K,J,I) 
+            ENDIF
+          ENDDO
+        ENDDO
+      ENDDO 
+      WRITE(6,*) ' TOTAL ANGULAR-MOMENTUM DECOMPOSED POPULATION:'
+      DO I=1,NMAXZ ! over nmaxz
+        SUM=0.D0
+        DO J=1,NMAXY ! over nmaxy
+          DO K=1,NMAXX
+            SUM=SUM+SUMA(K,J,I)
+          ENDDO
+        ENDDO
+        WRITE(6,'(I3,F9.3)') I,SUM
+      ENDDO       
+C..Now we calculate the overlap of the single det. composed of the 
+C..natural orbitals with the many-body wavefunction
+C..<Phi_k|Psi>
+      RETURN
+      END
+C ==---------------------------------------------------------------------==
+      SUBROUTINE WHCH(NMRKS,NEL,ID1,ID2,ND1,ND2)
+      IMPLICIT REAL*8 (A-H,O-Z)
+C.. 
+      DIMENSION NMRKS(NEL,*)
+C..ID1 and ID2 are the labels of the determinants under investigation 
+C..ND1 and ND2 are the labels of orbitals they differ by
+C..Compare NDET1 to NDET2
+      ND1=0
+      ND2=0
+      IQ=0
+      DO I=1,NEL
+        K=0
+        DO J=1,NEL
+          IF(NMRKS(I,ID1).EQ.NMRKS(J,ID2)) CONTINUE
+          IF(NMRKS(I,ID1).NE.NMRKS(J,ID2)) K=K+1
+        ENDDO
+        IF(K.EQ.NEL) THEN
+          IQ=IQ+1
+          ND1=NMRKS(I,ID1)
+          IF(IQ.GE.1) GOTO 100
+        ENDIF
+      ENDDO
+ 100  CONTINUE
+C..   Now we compare NDET2 to NDET1
+      IQ=0
+      DO I=1,NEL
+        K=0
+        DO J=1,NEL
+          IF(NMRKS(I,ID2).EQ.NMRKS(J,ID1)) CONTINUE
+          IF(NMRKS(I,ID2).NE.NMRKS(J,ID1)) K=K+1
+        ENDDO
+        IF(K.EQ.NEL) THEN
+          IQ=IQ+1
+          ND2=NMRKS(I,ID2)
+          IF(IQ.GE.1) GOTO 200
+        ENDIF
+      ENDDO
+ 200  CONTINUE
+C..
+      RETURN
+      END
