@@ -44,8 +44,8 @@ C.. The new node is connected to this node
      &         NMEM,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
@@ -65,8 +65,8 @@ C.. now call a routine to reset the current type's lists
      &         TYPES,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
@@ -106,8 +106,8 @@ C..Debugging junk
      &         NMEM,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6),NJ(NEL)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6),NJ(NEL)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
@@ -127,8 +127,8 @@ C.. now call a routine to reset the current type's lists
      &         TYPES,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
@@ -254,8 +254,8 @@ C.. ISYM, and discarded if it has the wrong symmetry
      &         TSETUP,NMEM,NJ,ISEED,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6),NJ(NEL)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6),NJ(NEL)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
@@ -321,7 +321,7 @@ C.. Return a count of the number of up to double excitations of NI
 C.. available within the same symmetry and Sz.  This does not enumerate them all.
       SUBROUTINE COUNTSYMEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,NEX,IFRZ)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,G1(4,NBASIS),NBASIS,NBASISMAX(4,6)
+         INTEGER NI(NEL),NEL,G1(5,NBASIS),NBASIS,NBASISMAX(5,6)
          INTEGER NEX
 
          INTEGER TYPES(5,*),NTYPES
@@ -355,8 +355,8 @@ C.. ISYM, and discarded if it has the wrong symmetry
      &         TSETUP,NMEM,NJ,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6),NJ(NEL)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6),NJ(NEL)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
@@ -418,8 +418,8 @@ C.. list LIST, and their excitation level into list ICLIST.
      &            LIST,ICLIST,NLIST,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
@@ -469,8 +469,8 @@ C.. it is just returned
      &         NMEM,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
@@ -500,7 +500,7 @@ C.. each individual type's count in the TYPES(5,*)
       SUBROUTINE COUNTSYMEXCIT2(NI,NEL,G1,NBASIS,NBASISMAX,NEX,
      &      TYPES,NTYPES,IFRZ)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,G1(4,NBASIS),NBASIS,NBASISMAX(4,6)
+         INTEGER NI(NEL),NEL,G1(5,NBASIS),NBASIS,NBASISMAX(5,6)
          INTEGER NEX
 
          INTEGER TYPES(5,*),NTYPES
@@ -529,8 +529,8 @@ C.. Generate a random excitation of TYPE TYPES(1:5,NTYPE)
      &         TYPES,ISEED,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
@@ -572,8 +572,8 @@ C.. Best not to call directly, but let  GENSYMEXCITIT() do the work
      &         TYPES,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
@@ -674,9 +674,9 @@ C.. so just return.
       SUBROUTINE GSETE_INIT(NI,NEL,G1,NBASIS,NFULL,NFREE,TYPES,NTYPE,
      &      NBASISMAX,TOPT,IFRZ)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,G1(4,*),NBASIS,TYPES(5,*),NTYPE,TYP
+         INTEGER NI(NEL),NEL,G1(5,*),NBASIS,TYPES(5,*),NTYPE,TYP
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
-         INTEGER NSYM(2),NSYME(2),IEL,I,NSPN,NBASISMAX(4,6),NS,NSE
+         INTEGER NSYM(2),NSYME(2),IEL,I,NSPN,NBASISMAX(5,6),NS,NSE
          LOGICAL TNS,TOPT
          INTEGER ISYM
          INTEGER IFRZ(0:NBASIS)
@@ -929,8 +929,8 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
      &         TYP,LIST,ICLIST,NLIST,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER TYP(5),NSPN,NJ(NEL)
          INTEGER NFULL(2,-3:NEL),NFREE(2,-3:NBASIS),NSYM,NSYME
          INTEGER SPN1,SPN2,IC,ICARRY
@@ -1042,7 +1042,7 @@ C.. TYPE(5,*)=number of excitations of this type (calculated later)
       SUBROUTINE GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
          IMPLICIT NONE
-         INTEGER NBASISMAX(4,6),NBASIS
+         INTEGER NBASISMAX(5,6),NBASIS
          INTEGER NTYPES,TYPES(5,NTYPES) 
 
          INTEGER NTY2
@@ -1051,7 +1051,7 @@ C.. TYPE(5,*)=number of excitations of this type (calculated later)
          INTEGER JMIN,JMAX
          INTEGER IEXC
          INTEGER SYMES(2,2,0:8),NSPN,IEL
-         INTEGER NI(NEL),NEL,G1(4,*)
+         INTEGER NI(NEL),NEL,G1(5,*)
          LOGICAL TALL
          LOGICAL ISUHFDET,NOSING
          INTEGER IFRZ(0:NBASIS)
@@ -1209,8 +1209,8 @@ C.. This does not take into account TSYM exclusions.
      &   NTYPE,NFULL,NFREE,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(4,6)
-         INTEGER G1(4,NBASIS)
+         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER G1(5,NBASIS)
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
          LOGICAL TFULL,TFREE,TTYPE
@@ -1250,10 +1250,10 @@ C.. IF NORDER=0, we SET NORDER=NEL
      &            G1,TSYM,NBASISMAX,TCOUNT)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
-         INTEGER NEXCIT(NEL),NLIST,NBASISMAX(4,7)
+         INTEGER NEXCIT(NEL),NLIST,NBASISMAX(5,7)
          INTEGER ISYM(4),NO,IFDET
          LOGICAL TSYM,TCOUNT
-         INTEGER G1(4,NBASIS),NMIN
+         INTEGER G1(5,NBASIS),NMIN
          NO=NORDER
          IF(NO.EQ.0) NO=NEL
          IF(TSYM) CALL GETSYM(NI,NEL,G1,NBASISMAX,ISYM)
@@ -1290,7 +1290,7 @@ C.. NSTARTFN is the basis fn to start with for this electron
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
          INTEGER I,J,I1,I2,NMIN,NMAXEX,ISYM2(4)
          LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT
-         INTEGER G1(4,NBASIS),ISYM(4),NBASISMAX(4,3)
+         INTEGER G1(5,NBASIS),ISYM(4),NBASISMAX(5,3)
 C.. NMAXEX is the maximum number of excitations we're allowed to  have
 Cleft
          NMAXEX=NORDER-NMIN

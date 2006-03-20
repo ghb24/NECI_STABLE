@@ -20,7 +20,7 @@ C..Diagonalisation vectors
 C..Diagonalisation vectors
       DIMENSION WORK(*),IWORK(*)
       COMPLEX*16 DMAT(NHG,*),CDET
-      INTEGER G1(4,NHG),INDX(*)
+      INTEGER G1(5,NHG),INDX(*)
 C..
       WRITE(6,'(1X,A)') '*** NATURAL ORBITAL EVALUATION ***'
       WRITE(6,'(2X,A)') 'FILE ./NATURAL BEING UPDATED'

@@ -64,7 +64,7 @@ C..Save the Cube specific pointers
 #else
       INTEGER GET_ADDR
 #endif
-      INTEGER NMRKS(NEL,*),G1(4,*),LAB(*),NROW(*),IKILL(*)
+      INTEGER NMRKS(NEL,*),G1(5,*),LAB(*),NROW(*),IKILL(*)
       INTEGER IPARITY(3),GC
       REAL*8 ARR(*),BRR(*),HAMIL(*),CKN(*),CK(*)
       REAL*8 A(*),W(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
@@ -382,12 +382,12 @@ C ==-------------------------------------------------------------------==
       RETURN
       END
 C ==-------------------------------------------------------------------==
-      SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NMAXX,NMAXY,NMAXZ,NEL,G,CG,
+      SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NMAXX,NMAXY,NMAXZ,NEL,G1,CG,
      &	ALAT,TKE)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION CG(NDET,NEVAL),NM(NEL,*)
       DIMENSION ALAT(3),TKE(NEVAL)
-      INTEGER G(4,2*NMAXX*NMAXY*NMAXZ)
+      INTEGER G1(5,2*NMAXX*NMAXY*NMAXZ)
 C..Calculate the expectation value of the kinetic energy
 C..<Psi|T|Psi>
       PI=ACOS(-1.D0)
@@ -396,9 +396,9 @@ C..<Psi|T|Psi>
         DO I=1,NDET
           SUM=0.D0
           DO J=1,NEL
-            AUX=((ALAT(1)**2)*((G(1,NM(J,I))**2)/(ALAT(1)**2)+
-     &		(G(2,NM(J,I))**2)/(ALAT(2)**2)+
-     &		(G(3,NM(J,I))**2)/(ALAT(3)**2)))
+            AUX=((ALAT(1)**2)*((G1(1,NM(J,I))**2)/(ALAT(1)**2)+
+     &		(G1(2,NM(J,I))**2)/(ALAT(2)**2)+
+     &		(G1(3,NM(J,I))**2)/(ALAT(3)**2)))
             SUM=SUM+AUX
           ENDDO
 C..Cube multiplier
@@ -435,19 +435,19 @@ C ==--------------------------------------------------------------==
 #ifdef NEL6
            WRITE(10,'(6(I1,I1,2I2,2X),F19.9,1X,I7)')
 #endif
-     &	(G(L,NM(1,I)),L=1,4)
-     &	,(G(K,NM(2,I)),K=1,4)
+     &	(G1(L,NM(1,I)),L=1,4)
+     &	,(G1(K,NM(2,I)),K=1,4)
 #if NEL3 || NEL4 || NEL5 || NEL6
-     &	,(G(K,NM(3,I)),K=1,4)
+     &	,(G1(K,NM(3,I)),K=1,4)
 #endif
 #if NEL4 || NEL5 || NEL6
-     &	,(G(K,NM(4,I)),K=1,4)
+     &	,(G1(K,NM(4,I)),K=1,4)
 #endif
 #if NEL5 || NEL6
-     &	,(G(K,NM(5,I)),K=1,4)
+     &	,(G1(K,NM(5,I)),K=1,4)
 #endif
 #if NEL6
-     &	,(G(K,NM(6,I)),K=1,4)
+     &	,(G1(K,NM(6,I)),K=1,4)
 #endif
      &	,CG(I,J),I
  	  ENDIF

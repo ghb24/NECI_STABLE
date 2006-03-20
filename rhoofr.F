@@ -5,7 +5,7 @@ C..
       POINTER (IP_CFS,CFS)
       SAVE IP_CFS
 C..
-      INTEGER G1(4,NHG)
+      INTEGER G1(5,NHG)
       DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION RHO(NMSH,NMSH,NMSH),AUX(NMSH,NMSH,NMSH)
       DIMENSION SITAB(NMSH,NMAX),CFS(*),ALAT(3)
@@ -80,7 +80,7 @@ C ==---------------------------------------------------------==
 C..
       DIMENSION NDET1(NEL),NDET2(NEL),AUX(NMSH,NMSH,NMSH)
       DIMENSION SITAB(NMSH,NMAX),AUXX(NEL),AUXY(NEL),AUXZ(NEL)
-      INTEGER G1(4,NHG)
+      INTEGER G1(5,NHG)
       INTEGER N1E(NHG),N2E(NHG)
 C..
       CALL IAZZERO(N1E,NHG)
@@ -202,7 +202,7 @@ C..
 C ==---------------------------------------------------------==
       SUBROUTINE CKRN(NHG,G1,ND1,ND2,ID)
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER G1(4,NHG)
+      INTEGER G1(5,NHG)
 C..
       ID=0
       IF(G1(4,ND1).EQ.G1(4,ND2)) ID=1

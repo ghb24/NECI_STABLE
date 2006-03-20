@@ -1,8 +1,8 @@
-      SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G,
+      SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
      &	NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM)
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
-      INTEGER G(4,*),NBASISMAX(4,2)
+      INTEGER G1(5,*),NBASISMAX(5,2)
       INTEGER ID(NEL-1),IDS1(NEL-1),IDS2(NEL-1)
       REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 TMAT(NHG,NHG),ALAT(3)
@@ -59,8 +59,8 @@ C..The two electron integrals are to be done
         IF(NDET1(I).NE.ND1) THEN
           IQ=IQ+1
           CALL GTID(NBASISMAX,NDET1(I),ID(IQ))
-          CALL CHK(G(4,NDET1(I)),G(4,ND1),IDS1(IQ))
-          CALL CHK(G(4,NDET1(I)),G(4,ND2),IDS2(IQ))
+          CALL CHK(G1(4,NDET1(I)),G1(4,ND1),IDS1(IQ))
+          CALL CHK(G1(4,NDET1(I)),G1(4,ND2),IDS2(IQ))
           IF(IQ.GE.(NEL-1)) GOTO 500
         ENDIF 
       ENDDO 
@@ -69,16 +69,16 @@ C..The two electron integrals are to be done
       CALL GTID(NBASISMAX,ND1,ID1)
       CALL GTID(NBASISMAX,ND2,ID2)
 C..
-      CALL CHK(G(4,ND1),G(4,ND2),IDS)
+      CALL CHK(G1(4,ND1),G1(4,ND2),IDS)
 C..
       SUM2=0.D0
       DO I=1,NEL-1
         SUM2=SUM2+DFLOAT(IDS)*
-     &  GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G,ID1,ID(I),ID2,ID(I))
+     &  GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID(I),ID2,ID(I))
      &           -DFLOAT(IDS1(I)*IDS2(I))*
-     &  GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G,ID1,ID(I),ID(I),ID2)
+     &  GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID(I),ID(I),ID2)
       ENDDO
-      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,NEL,2,G)
+      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,NEL,2,G1)
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2

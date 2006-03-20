@@ -2,7 +2,7 @@ C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
      &            UMAT)
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,NBASISMAX(4,3),G1(4,NBASIS)
+         INTEGER NEL,NBASIS,NBASISMAX(5,3),G1(5,NBASIS)
          REAL*8 UMAT(NBASIS,NBASIS,NBASIS,NBASIS)
          REAL*8 UHUB
          INTEGER I,J,K,IC
@@ -24,7 +24,7 @@ C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER NBASISMAX(4,5),AX,AY
+      INTEGER NBASISMAX(5,5),AX,AY
       INTEGER LX,LY,LZ,DX,DY,DZ
       LOGICAL TTILT,TREAL
       INCLUDE 'cons.inc'
@@ -57,7 +57,7 @@ C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ).  NON-PBC
 C..Returned in sum
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER NBASISMAX(4,5),AX,AY
+      INTEGER NBASISMAX(5,5),AX,AY
       LOGICAL TTILT,TREAL
       INTEGER II,JJ,KK
       INCLUDE 'cons.inc'
@@ -86,10 +86,10 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
       RETURN
       END
 
-      SUBROUTINE CALCTMATHUB(TMAT,NBASIS,NBASISMAX,BHUB,TTILT,G,TREAL,
+      SUBROUTINE CALCTMATHUB(TMAT,NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
      &         TPBC)
          IMPLICIT NONE
-         INTEGER NBASIS,G(4,NBASIS),NBASISMAX(4,2)
+         INTEGER NBASIS,G1(5,NBASIS),NBASISMAX(5,2)
          REAL*8 TMAT(NBASIS,NBASIS),BHUB
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
@@ -105,9 +105,9 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          IF(TREAL) THEN
             DO I=1,NBASIS
                DO J=1,NBASIS
-                  DX=ABS(G(1,I)-G(1,J))
-                  DY=ABS(G(2,I)-G(2,J))
-                  DZ=ABS(G(3,I)-G(3,J))
+                  DX=ABS(G1(1,I)-G1(1,J))
+                  DY=ABS(G1(2,I)-G1(2,J))
+                  DZ=ABS(G1(3,I)-G1(3,J))
                   SUM=BHUB
                   IF(TPBC) THEN
                      IF(DX.EQ.LX) THEN
@@ -123,7 +123,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                         IF(LZ.EQ.1) SUM=SUM+BHUB
                      ENDIF
                   ENDIF
-                  IF(DX+DY+DZ.EQ.1.AND.G(4,I).EQ.G(4,J)) THEN
+                  IF(DX+DY+DZ.EQ.1.AND.G1(4,I).EQ.G1(4,J)) THEN
                      TMAT(I,J)=SUM
                      WRITE(10,*) I,J,SUM
                   ENDIF
@@ -132,14 +132,14 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          ELSE
             IF(TPBC) THEN
                DO I=1,NBASIS
-                  CALL HUBKIN(G(1,I),G(2,I),G(3,I),NBASISMAX,BHUB,
+                  CALL HUBKIN(G1(1,I),G1(2,I),G1(3,I),NBASISMAX,BHUB,
      &               TTILT,SUM)
                   TMAT(I,I)=SUM
                   WRITE(10,*) I,I,TMAT(I,I)
                ENDDO
             ELSE
                DO I=1,NBASIS
-                  CALL HUBKINN(G(1,I),G(2,I),G(3,I),NBASISMAX,BHUB,
+                  CALL HUBKINN(G1(1,I),G1(2,I),G1(3,I),NBASISMAX,BHUB,
      &               TTILT,SUM)
                   TMAT(I,I)=SUM
                   WRITE(10,*) I,I,TMAT(I,I)
@@ -165,7 +165,7 @@ C
       SUBROUTINE SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &            TPBC,TREAL)
          IMPLICIT NONE
-         INTEGER NBASISMAX(4,3),NMAXX,NMAXY,NMAXZ,LEN
+         INTEGER NBASISMAX(5,3),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC,TREAL
          IF(TPBC) THEN
             NBASISMAX(1,3)=0
@@ -215,7 +215,7 @@ C         ENDIF
 
       SUBROUTINE SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &         TPBC,ITILTX,ITILTY)
-         INTEGER NBASISMAX(4,5),NMAXX,NMAXY,NMAXZ,LEN
+         INTEGER NBASISMAX(5,5),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC
          INTEGER ITILTX,ITILTY
          IF(TPBC) THEN

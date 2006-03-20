@@ -1,7 +1,7 @@
 #----------------------------------------------------------------------------
 # Makefile for sort.x (plane wave electronic calculation)
 # Configuration: PC-PGI
-# Creation of Makefile: Mar 16 2006
+# Creation of Makefile: Mar 20 2006
 # on Linux slou 2.6.11.4-21.10-smp #1 SMP Tue Nov 29 14:32:49 UTC 2005 i686 i686 i386 GNU/Linux
 # Author: ajwt3
 #----------------------------------------------------------------------------
@@ -10,7 +10,7 @@ SHELL = /bin/sh
 #
 #--------------- Default Configuration for PC-PGI ---------------
 SRC  = .
-DEST = /home/ajwt3/NE-CI/SOURCE/dest
+DEST = /home/ajwt3/NE-CI/SOURCE-new/dest
 BIN  = .
 FFLAGS = -I /usr/local/shared/fftw3/include -I /usr/local/fftw-3.0.1/include -Mr8 -Msignextend -Minform=warn
 LFLAGS = -L /usr/local/shared/fftw3/lib -L /usr/local/fftw-3.0.1/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS)
@@ -28,7 +28,7 @@ ARD =
 #----------------------------------------------------------------------------
 # Personal Configuration
 #----------------------------------------------------------------------------
-SRC = /home/ajwt3/NE-CI/SOURCE
+SRC = /home/ajwt3/NE-CI/SOURCE-new
 FC = pgf90 -c -O4 -fast -I$(SRC)
 #----------------------------------------------------------------------------
 # End of Personal Configuration
