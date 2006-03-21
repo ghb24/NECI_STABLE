@@ -120,7 +120,7 @@ C..
         DO J=1,NHG
           SUMC=SUMC+Z(J,I)*Z(J,I)
           IF(ABS(Z(J,I)).GT.1.D-12) THEN
-            WRITE(10,'(I7,1X,4(I7,1X),E19.6)') J,(G1(K,J),K=1,4),Z(J,I)
+            WRITE(10,'(I7,1X,5(I7,1X),E19.6)') J,(G1(K,J),K=1,5),Z(J,I)
           ENDIF
         ENDDO
         WRITE(10,'(1X,A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , SUMC

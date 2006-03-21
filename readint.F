@@ -39,7 +39,7 @@ C.. SHow that there's no momentum conservation
          READ(8,FCI)
          ISYMNUM=0
          ISNMAX=0
-         CALL IAZZERO(G1,4*LEN)
+         CALL IAZZERO(G1,5*LEN)
 1        READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
 C.. Each orbital in the file corresponds to alpha and beta spinorbitals
          IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN

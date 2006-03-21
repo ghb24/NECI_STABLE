@@ -565,7 +565,7 @@ C.. if there's space, we store
 
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),NI(NEL),NJ(NEL),NQN(4),G1(5,NBASIS)
+         INTEGER NBASISMAX(5,3),NI(NEL),NJ(NEL),NQN(5),G1(5,NBASIS)
          INTEGER NCH,ND,NEL,BRR(NBASIS),NBASIS,ISEED
          LOGICAL L
          CHARACTER*20 STR
@@ -584,7 +584,7 @@ C.. Copy NI to NJ
 C.. we need to keep on doing this until we make a valid choice
          DO WHILE(L)
             IEL=INT(RAN2(ISEED)*NEL)+1
-            CALL ICOPY(4,G1(1:4,NJ(IEL)),1,NQN,1)
+            CALL ICOPY(5,G1(1,NJ(IEL)),1,NQN,1)
             IQN=3+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
 C.. Sometimes no spin freedom
             IQN=INT(RAN2(ISEED)*IQN)+1
@@ -624,7 +624,7 @@ C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,2),NI(NEL),NJ(NEL),NQN(4),G1(5,NBASIS)
+         INTEGER NBASISMAX(5,2),NI(NEL),NJ(NEL),NQN(5),G1(5,NBASIS)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
          LOGICAL L
          CHARACTER*20 STR
@@ -675,11 +675,11 @@ C.. if we've more electrons to change, we go round again
       END
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NQNS(4),G1(5,NBASIS),NBASIS
+         INTEGER NQNS(5),G1(5,NBASIS),NBASIS
          LOGICAL L
          DO I=1,NBASIS
             L=.TRUE.
-            DO J=1,4
+            DO J=1,5
                IF(G1(J,I).NE.NQNS(J)) L=.FALSE.
             ENDDO
             IF(L) THEN
@@ -888,7 +888,7 @@ c            IF(MOD(IT,100).EQ.0) WRITE(6,*) IT
       END
 
       SUBROUTINE PBC(NQN, NBASISMAX)
-         INTEGER NQN(4), NBASISMAX(5,3)
+         INTEGER NQN(5), NBASISMAX(5,3)
          INTEGER MPN,MMN,L,IQN,NMAXX
          LOGICAL TALLOW
          IF(NBASISMAX(1,3).EQ.0) THEN

@@ -1,7 +1,7 @@
 #----------------------------------------------------------------------------
 # Makefile for sort.x (plane wave electronic calculation)
 # Configuration: PC-PGI
-# Creation of Makefile: Mar 20 2006
+# Creation of Makefile: Mar 21 2006
 # on Linux slou 2.6.11.4-21.10-smp #1 SMP Tue Nov 29 14:32:49 UTC 2005 i686 i686 i386 GNU/Linux
 # Author: ajwt3
 #----------------------------------------------------------------------------

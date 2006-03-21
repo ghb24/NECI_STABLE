@@ -7,8 +7,8 @@
      &   TBLOCK,TREADINT,TPBC,TREAL,TRHF,TREADHF,TSPECDET,TREADTUMAT,
      &   THFORDER,TCSF,TSPECDET2
       CHARACTER*255 INP
-      INTEGER NPATHS,STOT
-      INTEGER MDK(4),DETINV,ORBORDER(8,2)
+      INTEGER NPATHs,STOT
+      INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER SPECDET(*)
       INTEGER NWHTAY(2,10)
       REAL*8 ORBORDER2(8)
@@ -146,16 +146,16 @@ C..
       LOGICAL TBLOCK
 
       LOGICAL TMCDET,TRHF
-      INTEGER MDK(4),MCDET(NEL),DETINV
+      INTEGER MDK(5),MCDET(NEL),DETINV
 
       LOGICAL TALLOW,TTILT,TREADINT,TPBC,TREAL,TREADHF
-      INTEGER G(4)
+      INTEGER G(5)
       LOGICAL KALLOWED
       INTEGER ORBORDER(8,2),ITILTX,ITILTY,NDETWORK
       INTEGER NFROZEN,IHFMETHOD
       INTEGER SPECDET(NEL-NFROZEN)
       LOGICAL TSPECDET,TREADTUMAT
-      INTEGER ISYM(4),IDEG
+      INTEGER ISYM(5),IDEG
       LOGICAL THFORDER,TCSF
 C.. The spin including the total spin
       INTEGER LMS2,STOT,LMSBASIS
@@ -1618,7 +1618,7 @@ C      IF(BTEST(ILOGGING,7)) THEN
         DO I=1,NDET
          IF(ABS(CG(I,J)).GT.1.D-15) THEN
             DO IEL=1,NEL
-               WRITE(10,"(I3,I3,2I3,2X,$)") (G(L,NM(1,IEL)),L=1,4)
+               WRITE(10,"(I3,I3,2I3,2X,$)") (G1(L,NM(1,IEL)),L=1,5)
             ENDDO
             WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
          ENDIF
@@ -1877,8 +1877,7 @@ C.. the Fermi determinant, otherwise the numbers blow up
             ENDIF
           ENDDO
          CLOSE(15)
-         IF(TNPDERIV)
-     &      WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
          CALL FREEM(IP_RIJLIST)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_ICE)
@@ -2138,7 +2137,7 @@ C.. This should only happen for HMAX
       END
       LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
          IMPLICIT NONE
-         INTEGER G(4),NBASISMAX(5,5),NMAXX,I,J,AX,AY
+         INTEGER G(5),NBASISMAX(5,5),NMAXX,I,J,AX,AY
          INTEGER KX,KY
          REAL*8 MX,MY,XX,YY
          LOGICAL TALLOW
@@ -2243,7 +2242,7 @@ C.. Normal Hubbard
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),RHOEPS,DLWDB
          INTEGER NPATHS,NI(NEL),I_P,NBASISMAX(5,5),G1(5,NBASIS)
          INTEGER BRR(NBASIS),NMSH,NMAX(*),NTAY,ILOGGING
-         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,IPARITY(3),ISUB,ISYM(4)
+         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,IPARITY(3),ISUB,ISYM(5)
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM,TMAT(*)
@@ -2455,7 +2454,7 @@ C.. If we've got a generic spatial sym or hf we mark degeneracies
          REAL*8 UMAT2(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 TMAT2(NBASIS,NBASIS)
          REAL*8 ARR(NHG),ARR2(NBASIS)
-         INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),G2(4,NHG),GG(NHG)
+         INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),G2(5,NHG),GG(NHG)
          INTEGER NTFROZEN
          INTEGER I,J,K,L,A,B,IP,JP,KP,LP,IDI,IDJ,IDK,IDL
          INTEGER IB,JB,KB,LB,AB,BB,IPB,JPB,KPB,LPB
@@ -2493,7 +2492,7 @@ C.. we've got an orb which is not to be frozen
 C.. GG(I) is the new position in G of the (old) orb I
                GG(I)=K
 C.. copy the eigenvalue table to the new location
-               CALL ICOPY(4,G1(1,I),1,G2(1,K),1)
+               CALL ICOPY(5,G1(1,I),1,G2(1,K),1)
             ENDIF
          ENDDO
 C.. Now construct the new BRR and ARR
@@ -2593,7 +2592,7 @@ C.. Now setup the default symmetry to include the frozen electrons
             CALL ADDELECSYM(BRR(I),G1,NBASISMAX,NBASISMAX(1,6),.FALSE.)
          ENDDO
 C.. Copy the new G1 and BRR and ARR over the old ones
-         CALL ICOPY(4*NBASIS,G2,1,G1,1)
+         CALL ICOPY(5*NBASIS,G2,1,G1,1)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)
          CALL DCOPY(NBASIS,ARR2,1,ARR,1)
 C.. Now reset the total number of orbitals
@@ -2695,7 +2694,7 @@ C.. Check spin
                ENDDO
             ENDDO
             STOT=STOT/(NMAXX*NMAXY*NMAXZ*AA2)
-            WRITE(6,*) (G1(I,J),I=1,4),REAL(STOT)
+            WRITE(6,*) (G1(I,J),I=1,5),REAL(STOT)
             STT=STT+REAL(STOT)
          ENDDO
          WRITE(6,*) NEL,STT

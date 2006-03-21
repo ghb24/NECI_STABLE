@@ -15,7 +15,7 @@ C..  This will hold which determinant each electron is on at the moment
          INTEGER IELECS(NEL)
 C..  This will hold the spin of each electron
          INTEGER ISPINS(NEL)
-         INTEGER KJ(4),I
+         INTEGER KJ(5),I
             
 C.. Total number of determined determinants
          II=0
@@ -59,7 +59,7 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       INTEGER IELEC,IST,IEL,MSS,I,IP
 C.. This will hold the parity of the basis fn
       INTEGER IPAR(3)
-      INTEGER KI(4),KJ(4)
+      INTEGER KI(5),KJ(5)
       LOGICAL LCHKSYM
 C.. Iterate of the the spin basis functions available for this electron
 C.. I_(N+1) = I_N +1 .. NHG

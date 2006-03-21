@@ -23,15 +23,15 @@ C ==--------------------------------------------------------------------==
             DO L=1,NHG,ISPINSKIP
               SUM=0.D0
 C..Original call
-C              CALL SLATCOULFOU(G1(1:4,I),G1(1:4,J),
-C     &		G1(1:4,K),G1(1:4,L),NMSH,FCK,ZIA,NMAX,SUM)
+C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
+C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
               CALL GTID(NBASISMAX,I,ID1)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
               CALL GTID(NBASISMAX,L,ID4)
               IF(UMAT(ID1,ID2,ID3,ID4).NE.0.D0) GOTO 100
-              CALL SLATCOULFOU(G1(1:4,I),G1(1:4,J),
-     &		G1(1:4,K),G1(1:4,L),NMSH,FCK,ZIA,NMAX,SUM)
+              CALL SLATCOULFOU(G1(1,I),G1(1,J),
+     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
 c              SUM=SUM*COUPLE 
 C..Original call
               UMAT(ID1,ID2,ID3,ID4)=SUM

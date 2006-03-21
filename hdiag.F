@@ -161,7 +161,7 @@ C        WRITE(6,*) "NORM: ",DNORM
          WRITE(6,"(A,F19.11,I4)") "GROUND E, g(E)=",ELOWEST,GELOWEST
          OPEN(16,FILE='GOFE',STATUS='UNKNOWN')
          DO J=1,NBASIS
-            WRITE(16,"(5I4,2G25.16)") BRR(J),(G1(K,BRR(J)),K=1,4),
+            WRITE(16,"(6I4,2G25.16)") BRR(J),(G1(K,BRR(J)),K=1,5),
      &         ARR(J),GOFE(BRR(J))/DNORM
          ENDDO
          CLOSE(16)

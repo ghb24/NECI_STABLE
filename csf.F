@@ -217,7 +217,7 @@ C.. test if NCI is a CSF
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
-         INTEGER ISYM(4),JSYM(4)
+         INTEGER ISYM(5),JSYM(5)
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
          INCLUDE 'csf.inc'
@@ -225,6 +225,7 @@ C.. test if NCI is a CSF
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
          CALL ICOPY(3,IPARITY,1,ISYM,1)
          ISYM(4)=0
+         ISYM(5)=0
          CALL SETUPSYM(NBASISMAX,JSYM)
          IFDET=1
          NDET=0
@@ -280,6 +281,7 @@ C.. Now check the symmetry's right
 C.. we'll deal with spin in the CSF generation
                CALL ROUNDSYM(JSYM,NBASISMAX)
                JSYM(4)=0
+               JSYM(5)=0
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,JSYM))
 C.. go and create a set of CSFs from these electrons
      &           CALL CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
@@ -394,7 +396,7 @@ C.. IEXLEV from NDCH
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
-         INTEGER ISYM(4),JSYM(4)
+         INTEGER ISYM(5),JSYM(5)
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS(NEL+1),OIEX,IEXCITS2(NEL+1),OIEX2
          INTEGER ICLOSEDD(NEL),NCLOSEDD,IOPEND(NEL),NOPEND
@@ -419,6 +421,7 @@ C.. IEXLEV from NDCH
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
          CALL ICOPY(3,IPARITY,1,ISYM,1)
          ISYM(4)=0
+         ISYM(5)=0
          CALL SETUPSYM(NBASISMAX,JSYM)
          IFDET=1
          NDET=0
@@ -516,6 +519,7 @@ C.. Now check the symmetry's right
 C.. we'll deal with spin in the CSF generation
                CALL ROUNDSYM(JSYM,NBASISMAX)
                JSYM(4)=0
+               JSYM(5)=0
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,JSYM)) THEN
 C.. go and create a set of CSFs from these electrons
                 CALL ICOPY(NEL,NI,1,NJ,1)

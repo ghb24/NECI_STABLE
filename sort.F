@@ -152,8 +152,8 @@ C..
       CALL AZZERO(ARR,LEN)
       CALL MEMORY(IP_BRR,LEN,'BRR')
       CALL AZZERO(BRR,LEN)
-      CALL MEMORY(IP_G1,4*LEN,'G1')
-      CALL IAZZERO(G1,4*LEN)
+      CALL MEMORY(IP_G1,5*LEN,'G1')
+      CALL IAZZERO(G1,5*LEN)
 C..Calculate number of basis functions
       IG=0
       DO I=1,NMAXX
@@ -435,19 +435,19 @@ C ==--------------------------------------------------------------==
 #ifdef NEL6
            WRITE(10,'(6(I1,I1,2I2,2X),F19.9,1X,I7)')
 #endif
-     &	(G1(L,NM(1,I)),L=1,4)
-     &	,(G1(K,NM(2,I)),K=1,4)
+     &	(G1(L,NM(1,I)),L=1,5)
+     &	,(G1(K,NM(2,I)),K=1,5)
 #if NEL3 || NEL4 || NEL5 || NEL6
-     &	,(G1(K,NM(3,I)),K=1,4)
+     &	,(G1(K,NM(3,I)),K=1,5)
 #endif
 #if NEL4 || NEL5 || NEL6
-     &	,(G1(K,NM(4,I)),K=1,4)
+     &	,(G1(K,NM(4,I)),K=1,5)
 #endif
 #if NEL5 || NEL6
-     &	,(G1(K,NM(5,I)),K=1,4)
+     &	,(G1(K,NM(5,I)),K=1,5)
 #endif
 #if NEL6
-     &	,(G1(K,NM(6,I)),K=1,4)
+     &	,(G1(K,NM(6,I)),K=1,5)
 #endif
      &	,CG(I,J),I
  	  ENDIF

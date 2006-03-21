@@ -37,8 +37,8 @@ C ==--------------------------------------------------------------------==
             DO L=1,NHG,ISPINSKIP
               SUM=1.D0
 C..Original call
-C              CALL SLATCOULFOU(G1(1:4,I),G1(1:4,J),
-C     &		G1(1:4,K),G1(1:4,L),NMSH,FCK,ZIA,NMAX,SUM)
+C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
+C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
               CALL GTID(NBASISMAX,I,ID1)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
@@ -120,8 +120,8 @@ C ==--------------------------------------------------------------------==
             DO L=1,NHG,ISPINSKIP
               SUM=0.D0
 C..Original call
-C              CALL SLATCOULFOU(G1(1:4,I),G1(1:4,J),
-C     &		G1(1:4,K),G1(1:4,L),NMSH,FCK,ZIA,NMAX,SUM)
+C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
+C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
               CALL GTID(NBASISMAX,I,ID1)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
@@ -207,8 +207,8 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
                    ENDIF
 
 CC Old UEG - doesn't seem to work
-C                 CALL SLATCOULFOUCOU(G1(1:4,I),G1(1:4,J),
-C     &            G1(1:4,K),G1(1:4,L),NMSH,FCK,ZIA,NMAX,SUM)
+C                 CALL SLATCOULFOUCOU(G1(1,I),G1(1,J),
+C     &            G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
 C                 ENDIF
                ENDIF
 C..Original call

@@ -399,7 +399,7 @@ C.. not very efficient.
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER KSYM(4)
+         INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,J,K,ICE,IC
@@ -556,7 +556,7 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER KSYM(4)
+         INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT,ICURNODE
          INTEGER I,J,K,ICE,IC,IONODE
@@ -710,7 +710,7 @@ C..
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER KSYM(4)
+         INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,J,K,ICE,IC
@@ -1076,7 +1076,7 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
          INTEGER IGETEXCITLEVEL
-         INTEGER KSYM(4),G1(5,NBASIS),NBASISMAX(5,2)
+         INTEGER KSYM(5),G1(5,NBASIS),NBASISMAX(5,2)
          LOGICAL LCHKSYM
          IF(IEXLEVEL.GT.2)
      &    STOP "Cannot handle more than double excitations."
@@ -1116,7 +1116,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
      &            KSYM,BRR,ICOUNT)
          IMPLICIT NONE
          INTEGER NEL,INODE(NEL),NBASIS,G1(5,NBASIS),NBASISMAX(5,2)
-         INTEGER KSYM(4),ICOUNT,BRR(NBASIS)
+         INTEGER KSYM(5),ICOUNT,BRR(NBASIS)
          ICOUNT=0
          CALL GENSYMDETSSD(INODE,KSYM,NEL,G1,BRR,NBASIS,0,
      &        ICOUNT,NBASISMAX,0.D0,0,0,0,0,0,0,0,0,0.D0,0.D0,0.D0,0.D0,
@@ -1132,7 +1132,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
          INTEGER IEX1,IEX2,IIEX1,IIEX2
          LOGICAL BR
          INTEGER NBASISMAX(5,6)
-         INTEGER KSYM(4),NEX1A,NEX1B,NEX2A,NEX2B,G1(5,*)
+         INTEGER KSYM(5),NEX1A,NEX1B,NEX2A,NEX2B,G1(5,*)
          INTEGER NEXAB
          REAL*8 R,IEX
          LOGICAL ISUHFDET
@@ -1269,7 +1269,7 @@ C.. weight.
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER KSYM(4)
+         INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,J,K,ICE,IC

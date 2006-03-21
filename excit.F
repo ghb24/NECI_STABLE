@@ -259,7 +259,7 @@ C.. ISYM, and discarded if it has the wrong symmetry
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
-         INTEGER ISYM(4)
+         INTEGER ISYM(5)
          LOGICAL TSYM
          LOGICAL TSETUP
          INTEGER NMEM(*)
@@ -360,7 +360,7 @@ C.. ISYM, and discarded if it has the wrong symmetry
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
-         INTEGER ISYM(4)
+         INTEGER ISYM(5)
          LOGICAL TSYM
          LOGICAL TSETUP
          INTEGER NMEM(*)
@@ -423,7 +423,7 @@ C.. list LIST, and their excitation level into list ICLIST.
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
-         INTEGER ISYM(4)
+         INTEGER ISYM(5)
          LOGICAL TSYM
          INTEGER IFRZ(0:NBASIS)
          NTYPES=0
@@ -474,7 +474,7 @@ C.. it is just returned
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
-         INTEGER ISYM(4)
+         INTEGER ISYM(5)
          LOGICAL TSYM
          LOGICAL TSETUP
          INTEGER NMEM(*)
@@ -535,7 +535,7 @@ C.. Generate a random excitation of TYPE TYPES(1:5,NTYPE)
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
          LOGICAL TFULL,TFREE,TTYPE
-         INTEGER ISYM(4),I,J
+         INTEGER ISYM(5),I,J
          LOGICAL TSYM
          LOGICAL TDONE
          INTEGER ISEED
@@ -578,7 +578,7 @@ C.. Best not to call directly, but let  GENSYMEXCITIT() do the work
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
          LOGICAL TFULL,TFREE,TTYPE
-         INTEGER ISYM(4),I,J
+         INTEGER ISYM(5),I,J
          LOGICAL TSYM
          LOGICAL TDONE
          INTEGER IFRZ(0:NBASIS)
@@ -882,7 +882,7 @@ C.. in NFULL and NFREE
          INTEGER NFULL(2,2,-3:0)
          INTEGER NFREE(2,2,-3:0)
          LOGICAL TSYM
-         INTEGER ISYM(4),ISYM2(4)
+         INTEGER ISYM(5),ISYM2(5)
          INTEGER NJ(NEL),NI(NEL),NEL
          LOGICAL LCHKSYM
          INTEGER IC,G1(*),NBASISMAX(*),I
@@ -936,7 +936,7 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
          INTEGER SPN1,SPN2,IC,ICARRY
          LOGICAL TFULL,TFREE
          INTEGER IEL,I
-         INTEGER ISYM(4),ISYM2(4)
+         INTEGER ISYM(5),ISYM2(5)
          LOGICAL TSYM
          LOGICAL LCHKSYM
          INTEGER IFRZ(0:NBASIS)
@@ -1214,7 +1214,7 @@ C.. This does not take into account TSYM exclusions.
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC
          LOGICAL TFULL,TFREE,TTYPE
-         INTEGER ISYM(4),I,J
+         INTEGER ISYM(5),I,J
          LOGICAL TSYM
          LOGICAL TDONE
          INTEGER ISEED,IC1,IC2,TYPES(5,*),NTYPE
@@ -1251,7 +1251,7 @@ C.. IF NORDER=0, we SET NORDER=NEL
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
          INTEGER NEXCIT(NEL),NLIST,NBASISMAX(5,7)
-         INTEGER ISYM(4),NO,IFDET
+         INTEGER ISYM(5),NO,IFDET
          LOGICAL TSYM,TCOUNT
          INTEGER G1(5,NBASIS),NMIN
          NO=NORDER
@@ -1288,9 +1288,9 @@ C.. NSTARTFN is the basis fn to start with for this electron
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
-         INTEGER I,J,I1,I2,NMIN,NMAXEX,ISYM2(4)
+         INTEGER I,J,I1,I2,NMIN,NMAXEX,ISYM2(5)
          LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT
-         INTEGER G1(5,NBASIS),ISYM(4),NBASISMAX(5,3)
+         INTEGER G1(5,NBASIS),ISYM(5),NBASISMAX(5,3)
 C.. NMAXEX is the maximum number of excitations we're allowed to  have
 Cleft
          NMAXEX=NORDER-NMIN

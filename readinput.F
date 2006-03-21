@@ -23,7 +23,7 @@
       CHARACTER(LEN=16) title  
       CHARACTER(LEN=16) w
       INTEGER NPATHS,STOT
-      INTEGER MDK(4),DETINV,ORBORDER(8,2)
+      INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER NWHTAY(2,10)
       REAL*8  ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
@@ -81,7 +81,7 @@
       TMCDET = .false.
       FCOUL=1.D0
       FUEGRS=0.D0
-      do I = 1,4
+      do I = 1,5
         MDK(I) = 0
       end do
       DETINV = 0
@@ -367,7 +367,7 @@
                   end if
               case("DETSYM")
                   TMCDET = .true.
-                  do I = 1,4
+                  do I = 1,5
                     call readi(MDK(I))
                   end do
                   if ( .not. TMONTE ) then
@@ -612,7 +612,7 @@ C ==------------------------------------------------------------------==
      &   THFORDER,TCSF,TSPECDET2
       CHARACTER*255 INP
       INTEGER NPATHS,STOT
-      INTEGER MDK(4),DETINV,ORBORDER(8,2)
+      INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER SPECDET(*)
       INTEGER NWHTAY(2,10)
       REAL*8 ORBORDER2(8)
@@ -686,7 +686,7 @@ C..Read in input parameters
      &               TRHF,HFCDELTA
       READ(IFILE,*) IHFMETHOD,TREADHF,TREADTUMAT
       READ(IFILE,*) ETRIAL
-      READ(IFILE,*) TMCDET,MDK(1),MDK(2),MDK(3),MDK(4)
+      READ(IFILE,*) TMCDET,MDK(1),MDK(2),MDK(3),MDK(4),MDK(5)
       READ(IFILE,*) DETINV
       READ(IFILE,*) NDETWORK
       READ(IFILE,*) (ORBORDER2(I),I=1,8)
