@@ -11,7 +11,7 @@
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS)
       USE input
       IMPLICIT REAL*8    (A-H,O-Z)
-      DIMENSION IPARITY(3)
+      INTEGER IPARITY(5)
       LOGICAL TSPN,TALPHA,TPARITY,TCORR,TFODM,TCALCHMAT,TUEG,     
      &   TREAD,TRHOOFR,TENERGY,TMC,TRHOIJ,TREADRHO,TMONTE,TTROT,  
      &   TBEGRAPH,THFBASIS,THUB,TNPDERIV,TMCDET,THFCALC,TTILT,    
@@ -168,9 +168,12 @@
                   TCSF = .true.
               case("SYM")
                   TPARITY = .true.
-                  do I = 1,3
+                  do I = 1,4
                     call geti(IPARITY(I))
                   end do
+C.. the last number is the symmetry specification - and is placed in position 5
+                  IPARITY(5)=IPARITY(4)
+                  IPARITY(4)=0
               case("CELL")
                   call geti(NMAXX)
                   call geti(NMAXY)
@@ -297,12 +300,12 @@
                                 call report("Error - must specify OLD" 
      &                         //" or NEW vertex sum method",.true.)
                             end select
+                        case("MC")
+                           I_HMAX = -7
                         case default
                         call report("Keyword error with "//trim(w),  
      &                          .true.)
                         end select
-                    case("MC")
-                        I_HMAX = -7
                     case default
                         call report("Error.  Method not specified."    
      &                    //" Stopping.",.true.)

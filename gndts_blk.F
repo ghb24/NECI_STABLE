@@ -81,10 +81,10 @@ C.. we've found an occupied block
          INTEGER IGETEXCITLEVEL,ICE
          DO I=NBF,NBASIS
             NJ(NELEC)=BRR(I)
-            DO J=1,4
+            DO J=1,5
                KJ2(J)=KJ(J)
             ENDDO
-            CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ2,.FALSE.)
+            CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ2)
 C.. Check if we've filled all the electrons
             IF(NELEC.EQ.NEL) THEN
                CALL ROUNDSYM(KJ2,NBASISMAX)
@@ -111,7 +111,7 @@ C.. otherwise we need to add more electrons:
       END
 
 C.. Get the determinants of the same symmetry as KI, but which are only
-C.. singles and doubles oh NI
+C.. singles and doubles of NI
       SUBROUTINE GENSYMDETSSD(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &         NLIST,NBASISMAX)
          IMPLICIT NONE
@@ -119,7 +119,7 @@ C.. singles and doubles oh NI
          INTEGER NLIST,LSTE(NEL,NLIST)
          INTEGER KI(5),KJ(5),NJ(NEL),NBASISMAX(5,2)
          INTEGER I,J,NLMAX
-         DO J=1,4
+         DO J=1,5
             KJ(J)=0
          ENDDO
          DO J=1,NEL
@@ -133,14 +133,17 @@ C.. singles and doubles oh NI
       END
  
 
-
+C.. Generate determinants of the same symmetry as NI (including NI).
+C.. As they are generated, they are placed in LSTE, which is of length
+C.. NLIST, up until LSTE is full.  NLIST at the end contains the total
+C.. number of determinants available (even if LSTE doesn't hold them all).
       SUBROUTINE GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,G1(5,NBASIS),BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST),NBASISMAX(5,2)
          INTEGER KI(5),KJ(5),NJ(NEL)
          INTEGER I,J,NLMAX
-         DO J=1,4
+         DO J=1,5
             KJ(J)=0
          ENDDO
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
@@ -161,11 +164,11 @@ C.. singles and doubles oh NI
 C         INTEGER KJ3(4)
          DO I=NBF,NBASIS
             NJ(NELEC)=BRR(I)
-            DO J=1,4
+            DO J=1,5
                KJ2(J)=KJ(J)
 C               KJ3(J)=KJ(J)
             ENDDO
-            CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ2,.FALSE.)
+            CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ2)
 C            CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ3,.FALSE.)
 C.. Check if we've filled all the electrons
             IF(NELEC.EQ.NEL) THEN
@@ -201,14 +204,14 @@ C.. otherwise we need to add more electrons:
       END
 
       
-
+C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
       SUBROUTINE GENSYMDETSS(KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,G1(5,NBASIS),BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
          INTEGER KI(5),KJ(5),NJ(NEL),NBASISMAX(5,2)
          INTEGER I,J,NLMAX
-         DO J=1,4
+         DO J=1,5
             KJ(J)=0
          ENDDO
          DO J=1,NEL
@@ -239,10 +242,10 @@ C.. We continue if we're not searching for a specific det, or if we've
 C.. yet to find a specific det.
             IF(PP.EQ.0.D0.OR.NLIST.LT.NLMAX) THEN
                NJ(NELEC)=BRR(I)
-               DO J=1,4
+               DO J=1,5
                   KJ2(J)=KJ(J)
                ENDDO
-               CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ2,.FALSE.)
+               CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ2)
 C.. Check if we've filled all the electrons
                IF(NELEC.EQ.NEL) THEN
                   CALL ROUNDSYM(KJ2,NBASISMAX)
@@ -320,7 +323,7 @@ C.. the first NLIST are stored.
          REAL*8 RN,RP,PP,RHOEPS
          REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
-         DO J=1,4
+         DO J=1,5
             KJ(J)=0
          ENDDO
          DO J=1,NEL
@@ -342,20 +345,31 @@ C.. the first NLIST are stored.
          INTEGER I
          CALL SETUPSYM(NBASISMAX,ISYM)    
          DO I=1,NEL
-            CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM,.FALSE.)
+            CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
          ENDDO
          CALL ROUNDSYM(ISYM,NBASISMAX)
          RETURN
       END
 
+
+C.  Irrep symmetries are specified in SYM(5).
+C.. if SYM(5)=0, we assume it's totally symmetric
+C.. Other irreps contributing to the symmetry have bits set in 
+C.. SYM.
+C.. e.g. if irreps are a1,a2,b1,b2
       LOGICAL FUNCTION LCHKSYM(ISYM,JSYM)
          IMPLICIT NONE
-         INTEGER I,ISYM(5),JSYM(5)
+         INTEGER I,ISYM(5),JSYM(5),IS,JS
+         INTEGER SYMPROD
+         LOGICAL LSYMSYM
          LCHKSYM=.TRUE.
          DO I=1,4
             IF(ISYM(I).NE.JSYM(I)) LCHKSYM=.FALSE.
          ENDDO
-         RETURN
+C.. if the symmetry product of I and J doesn't contain the totally
+C.. symmetric irrep, we set sym to .FALSE.
+         LCHKSYM=LSYMSYM(SYMPROD(ISYM(5),JSYM(5)))
+      RETURN
       END
       
       LOGICAL FUNCTION LCHKSYMD(NI,NJ,NEL,G1,NBASISMAX)
@@ -368,41 +382,56 @@ C.. the first NLIST are stored.
          LCHKSYMD=LCHKSYM(ISYM,JSYM)
          RETURN
       END
+C.. NBASISMAX descriptor (1,3)
+C
+C HUBBARD:
+C  BITS
+C. 0 Tilted
+C. 1 non-pbc
+C. 2 real-space
+C.. which effects to values
+C.. MOM SPACE
+C 0 Non-Tilted Lattice - pbc
+C 1 Tilted Lattice - pbc
+C 2 Non-Tilted lattice - no pbc
+C 3 Tilted Lattice - no pbc
+C.. four following are REAL
+C 4 Non-Tilted Lattice - pbc
+C 5 Tilted Lattice - pbc
+C 6 Non-Tilted lattice - no pbc
+C 7 Tilted Lattice - no pbc
+C
+C (3,3)
+C -2 Particle in a box
+C -1 UEG
+C 0 Hubbard
+C 1 Generic spatial
 
-      SUBROUTINE ADDELECSYM(IEL,G1,NBASISMAX,ISYM,TSUB)
+      SUBROUTINE ADDELECSYM(IEL,G1,NBASISMAX,ISYM)
          IMPLICIT NONE
          INTEGER IELEC,G1(5,*),NBASISMAX(5,3),ISYM(5)
          INTEGER I,IEL,SSYM
-         LOGICAL TSUB
+         INTEGER SYMPROD
          CALL GETUNCSFELEC(IEL,IELEC,SSYM)
-         IF(NBASISMAX(3,3).LE.0.AND.NBASISMAX(1,3).LT.4) THEN
+C..   removed - NBASISMAX(3,3).LE.0.AND. even generic spatial sym has momentum now
+        IF(NBASISMAX(1,3).LT.4) THEN
 C.. Momentum space
-C.. the symmetries are really momenta, so add
             DO I=1,4
-               IF(TSUB) THEN
-                  ISYM(I)=ISYM(I)-G1(I,IELEC)
-               ELSE
-                  ISYM(I)=ISYM(I)+G1(I,IELEC)
-               ENDIF
+               ISYM(I)=ISYM(I)+G1(I,IELEC)
             ENDDO
+C.. Symmetry space
          ELSEIF(NBASISMAX(3,3).EQ.0.AND.NBASISMAX(1,3).GE.4) THEN
 C.. We have no symmetries, so do nothing. (we're in real space)
 C.. except Ms
-            IF(TSUB) THEN
-               ISYM(4)=ISYM(4)-G1(4,IELEC)
-            ELSE
-               ISYM(4)=ISYM(4)+G1(4,IELEC)
-            ENDIF
+            ISYM(4)=ISYM(4)+G1(4,IELEC)
          ELSEIF(NBASISMAX(3,3).EQ.1) THEN
 C.. the symmetries are spatial symmetries, and xor.  They are stored
 C.. in G(2,...)
-            ISYM(2)=IEOR(ISYM(2),G1(2,IELEC))
-C.. deal with spin
-            IF(TSUB) THEN
-               ISYM(4)=ISYM(4)-G1(4,IELEC)
-            ELSE
-               ISYM(4)=ISYM(4)+G1(4,IELEC)
-            ENDIF
+            ISYM(5)=SYMPROD(ISYM(5),G1(5,IELEC))
+C.. deal with momentum
+            DO I=1,4
+               ISYM(I)=ISYM(I)+G1(I,IELEC)
+            ENDDO
          ENDIF
 C.. SSYM keeps track of the total S change on adding this electron
 C.. (it is +/-CSF_NSBASIS)
@@ -442,6 +471,8 @@ C.. we're in real space so no sym
          ELSEIF(NBASISMAX(3,3).EQ.1) THEN
 C.. Generic spatial symmetries
 C..         We need do nothing.
+C.. However, there is still momentum conservation - various PBC issues
+               CALL MOMPBCSYM(ISYM,NBASISMAX)
          ENDIF
          RETURN 
       END
@@ -527,12 +558,13 @@ C.. Get the next symmetric determinant in sequence.
 C.. TDONE will be set to TRUE if there are no more dets.
 C.. KI is the sym, NJ contains the working
       SUBROUTINE GENNEXTSYMDET(KI,NEL,G1,BRR,NBASIS,
-     &                  TDONE,NJ,NN,INDJ,KJ,NELEC,NBASISMAX)
+     &            TDONE,NJ,NN,INDJ,NELEC,NBASISMAX,KSYMS)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, G1(5,NBASIS),KJ2(5)
-         INTEGER KI(5),KJ(5),NJ(NEL),NELEC,INDJ(NEL),NLAST
+         INTEGER KI(5),NJ(NEL),NELEC,INDJ(NEL),NLAST
          INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
          LOGICAL LCHKSYM,LCONT,TDONE
+         INTEGER KSYMS(5,NEL)
          TDONE=.FALSE.
          LCONT=.TRUE.
          DO WHILE (LCONT)
@@ -540,8 +572,9 @@ C.. Remove the current electron in this slot
 C.. Only do this if there was one there before.
             IF((NELEC.GT.1.AND.INDJ(NELEC).GT.(INDJ(NELEC-1)))
      &               .OR.(NELEC.EQ.1.AND.INDJ(1).GT.0)) THEN
-C.. Subtract
-               CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ,.TRUE.)
+C.. Roll back to previous sym
+               CALL ICOPY(5,KSYMS(1,NELEC-1),1,KSYMS(1,NELEC),1)
+C               CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ,.TRUE.)
             ENDIF
             NLAST=NBASIS-(NEL-NELEC)
 C.. if we've past the last allowable electron in our position
@@ -561,13 +594,12 @@ C..Increment this slot
                IF(I.LE.NBASIS) NJ(NELEC)=BRR(I)
                IF(I.LE.NLAST) THEN
 C.. Add the new electron
-                  CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KJ,.FALSE.)
-               
+                  CALL ADDELECSYM(NJ(NELEC),G1,NBASISMAX,KSYMS(1,NELEC))
                ENDIF
 C.. Check if we've filled all the electrons
                IF(NELEC.EQ.NEL) THEN
-                  DO J=1,4
-                     KJ2(J)=KJ(J)
+                  DO J=1,5
+                     KJ2(J)=KSYMS(J,NELEC)
                   ENDDO
                   CALL ROUNDSYM(KJ2,NBASISMAX)
                   IF(I.LE.NBASIS.AND.LCHKSYM(KI,KJ2)) THEN
@@ -591,41 +623,45 @@ C.. WORK(2*NEL+18)
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3),G1(5,NBASIS)
          INTEGER LMS,IPARITY(3),ISYM(5),NIWORK(NEL),NI(NEL)
-         INTEGER WORK(2*NEL+17)
+         INTEGER WORK(5*NEL+18)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE
-C.. WORK(2*NEL+18)
+C.. WORK(7*NEL+18)
 C..  1-4                NSWORK
 C..  5-12               IMAX
 C..  13-17              ISYM
 C..  18                 NELEC
 C..  19-NEL+18          NIWORK
 C..  NEL+19 - 2*NEL+18  NINDJ
+C..  2*NEL+19           KSYMS
+C..   - 7*NEL+18
          CALL GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,IPARITY,NI,TSETUP,TDONE,WORK(1),WORK(5),
-     &      WORK(13),WORK(18),WORK(19),WORK(NEL+19))
+     &      TPARITY,IPARITY,NI,TSETUP,TDONE,WORK(5),
+     &      WORK(13),WORK(18),WORK(19),WORK(NEL+19),WORK(NEL*2+19))
          CALL ICOPY(4,WORK(13),1,ISYM,1)
          RETURN
       END
       SUBROUTINE GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,IPARITY,NI,TSETUP,TDONE,NSWORK,IMAX,ISYM,NELEC,
-     &      NIWORK,NINDJ)
+     &      TPARITY,IPARITY,NI,TSETUP,TDONE,IMAX,ISYM,NELEC,
+     &      NIWORK,NINDJ,KSYMS)
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3),G1(5,NBASIS)
          INTEGER LMS,IPARITY(3),ISYM(5),NIWORK(NEL),NI(NEL)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
-         INTEGER ILEV,IMAX(4,2)
+         INTEGER ILEV,IMAX(4,2),KSYMS(5,NEL)
 C..  1-4                NSWORK
 C..  5-12               IMAX
 C..  13-17              ISYM
 C..  18                 NELEC
 C..  19-NEL+18          NIWORK
 C..  NEL+19 - 2*NEL+18  NINDJ
-         INTEGER NSWORK(5),NELEC,NINDJ(NEL)
+C..  2*NEL+19           KSYMS
+C..   - 7*NEL+18
+         INTEGER NELEC,NINDJ(NEL)
          IF(TSETUP) THEN
             CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &         TPARITY,IPARITY,TSETUP,TDONE,IMAX,ISYM)
-            DO ILEV=1,4
-               NSWORK(ILEV)=0
+            DO ILEV=1,5
+               KSYMS(ILEV)=0
             ENDDO
             NELEC=1
             NINDJ(1)=0
@@ -635,7 +671,8 @@ C.. Go to the next det.
          TMORE=.TRUE.
          DO WHILE(TMORE)
             CALL GENNEXTSYMDET(ISYM,NEL,G1,BRR,NBASIS,
-     &                  TDONE,NIWORK,NI,NINDJ,NSWORK,NELEC,NBASISMAX)
+     &           TDONE,NIWORK,NI,NINDJ,NELEC,NBASISMAX,
+     &            KSYMS)
             IF(TDONE) THEN
                CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &            TPARITY,IPARITY,TSETUP,TMORE,IMAX,ISYM)
@@ -752,7 +789,7 @@ C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE SETUPSYM(NBASISMAX,ISYM)
          IMPLICIT NONE
          INTEGER NBASISMAX(5,6),ISYM(5)
-         CALL ICOPY(4,NBASISMAX(1,6),1,ISYM,1)
+         CALL ICOPY(5,NBASISMAX(1,6),1,ISYM,1)
          RETURN
       END
 

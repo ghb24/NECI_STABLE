@@ -8,7 +8,7 @@ C.. This sets up variables, and calls the recursion
          INTEGER NMRKS(NEL,*)
          INTEGER BRR(NHG)
          INTEGER G1(5,NHG)
-         INTEGER IPARITY(3)
+         INTEGER IPARITY(5)
          LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
          INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
 C..  This will hold which determinant each electron is on at the moment
@@ -19,7 +19,7 @@ C..  This will hold the spin of each electron
             
 C.. Total number of determined determinants
          II=0
-         DO I=1,3
+         DO I=1,5
             IF(TPARITY) THEN
                KJ(I)=IPARITY(I)
             ELSE
@@ -80,6 +80,7 @@ C.. If we're on the last electron
                DO I=1,3
                   KI(I)=0
                ENDDO
+               KI(5)=0
             ENDIF
             IF(LCHKSYM(KI,KJ)) THEN
                II=II+1

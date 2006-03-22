@@ -1309,7 +1309,7 @@ C.. We do this by ensuring that within a degenerate set, the BRR are in
 C.. ascending order
          OEN=ARR(1)
          J=1
-         G1(3,BRR(1))=J
+C         G1(3,BRR(1))=J
          ITOT=1
          DO I=2,NBASIS
             IF(ABS(ARR(I)-OEN).GT.1.D-4) THEN
@@ -1325,7 +1325,7 @@ C.. now setup the new degenerate set.
             ENDIF
             OEN=ARR(I)
 C.. If we've got a generic spatial sym or hf we mark degeneracies
-               G1(3,BRR(I))=J
+C               G1(3,BRR(I))=J
          ENDDO
          RETURN
       END

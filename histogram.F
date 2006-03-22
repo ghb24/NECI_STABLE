@@ -1,6 +1,6 @@
       PROGRAM NECICUBE
       IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION IPARITY(3)
+      INTEGER IPARITY(5)
       LOGICAL TSPN,TALPHA,TPARITY,TCORR,TFODM,TCALCHMAT,TUEG,
      &   TREAD,TRHOOFR,TENERGY,TMC,TRHOIJ,TREADRHO,TMONTE,TTROT,
      &   TBEGRAPH,THFBASIS,THUB,TNPDERIV,TMCDET,THFCALC,TTILT,
@@ -112,7 +112,7 @@ C..
 #endif
 C.. NEL now includes all electrons, and we'll only want active later
       INTEGER NMRKS(NEL-NFROZEN,*),G1(5,*),LAB(*),NROW(*),IKILL(*)
-      INTEGER IPARITY(3),GC,IMCSTEPS,IEQSTEPS,I_HMAX,NTAY,NWHTAY
+      INTEGER IPARITY(5),GC,IMCSTEPS,IEQSTEPS,I_HMAX,NTAY,NWHTAY
       REAL*8 ARR(*),HAMIL(*),CKN(*),CK(*)
       INTEGER BRR(*)
       REAL*8 A(*),W(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*),TMAT(*)
@@ -173,6 +173,7 @@ C ==-------------------------------------------------------------------==
 C..Input parameters
       WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
       WRITE(6,*) ' TSPN : ' , TSPN
+      CALL IAZZERO(NBASISMAX,5*7)
       TSPINPOLAR=.FALSE.
       IF(TSPN) THEN
 C.. If we're doing monte carlo without generating a list of
@@ -2249,7 +2250,7 @@ C.. Normal Hubbard
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
          INTEGER ISTART,IEND,IDEG
-         INTEGER WORK(2*NEL+18)
+         INTEGER WORK(7*NEL+18)
          LOGICAL TSPECDET
          INTEGER SPECDET(NEL)
          REAL*8 DLWDB2,DLWDB3,DLWDB4,TOT2
@@ -2368,9 +2369,9 @@ C.. the Fermi determinant, otherwise the numbers blow up
          RETURN
       END    
 
-      SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G)
+      SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
          INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),NBASISMAX(5,3)
-         INTEGER BRR2(NBASIS),G(4,NBASIS)
+         INTEGER BRR2(NBASIS),G1(5,NBASIS)
          REAL*8 ARR(NBASIS),ARR2(NBASIS)
          INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K
          REAL*8 OEN
@@ -2387,7 +2388,7 @@ C.. we use the symmetries of the spatial orbitals
              DO I=1,8
                DO J=1,ORBORDER(I,ITYPE)
                   DO WHILE(IBFN.LE.NBASIS
-     &                  .AND.(G(2,IBFN).LT.I-1.OR.BRR(IBFN).EQ.0))
+     &                  .AND.(G1(5,IBFN).LT.I-1.OR.BRR(IBFN).EQ.0))
                      IBFN=IBFN+1
                   ENDDO
                   IF(IBFN.GT.NBASIS) THEN
@@ -2422,7 +2423,7 @@ C.. We do this by ensuring that within a degenerate set, the BRR are in
 C.. ascending order
          OEN=ARR(1)
          J=1
-         IF(NBASISMAX(3,3).EQ.1) G(3,BRR(1))=J
+C         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
          ITOT=1
          DO I=2,NBASIS
             IF(ABS(ARR(I)-OEN).GT.1.D-4) THEN
@@ -2439,7 +2440,7 @@ C.. now setup the new degenerate set.
             OEN=ARR(I)
             IF(NBASISMAX(3,3).EQ.1) THEN
 C.. If we've got a generic spatial sym or hf we mark degeneracies
-               G(3,BRR(I))=J
+C               G(3,BRR(I))=J
             ENDIF
          ENDDO
          CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT))
@@ -2589,7 +2590,7 @@ C.. the primed (...P) are the new versions
          ENDIF
 C.. Now setup the default symmetry to include the frozen electrons
          DO I=1,NFROZEN
-            CALL ADDELECSYM(BRR(I),G1,NBASISMAX,NBASISMAX(1,6),.FALSE.)
+            CALL ADDELECSYM(BRR(I),G1,NBASISMAX,NBASISMAX(1,6))
          ENDDO
 C.. Copy the new G1 and BRR and ARR over the old ones
          CALL ICOPY(5*NBASIS,G2,1,G1,1)
@@ -2705,9 +2706,9 @@ C.. Check spin
          INTEGER NUNIT,NHG,G1(5,NHG),BRR(NHG),I
          REAL*8 ARR(NHG)
          DO I=1,NHG
-           WRITE(NUNIT,'(6I7,F19.5)') I,BRR(I),G1(1,BRR(I)),
+           WRITE(NUNIT,'(7I7,F19.5)') I,BRR(I),G1(1,BRR(I)),
      &         G1(2,BRR(I)),G1(3,BRR(I)),
-     &         G1(4,BRR(I)),ARR(I)
+     &         G1(4,BRR(I)),G1(5,BRR(I)),ARR(I)
          ENDDO
          RETURN
       END

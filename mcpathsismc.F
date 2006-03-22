@@ -165,6 +165,8 @@ C.. and for 2 (rho_jj/rhoii)**-P
                   OWEIGHT=0.D0
                   ODLWDB=0.D0
                ENDIF
+               IF(NWHTAY.LT.1) WRITE(6,*) "Warning: MC CYCLE count <0: "
+     &               ,NWHTAY
                DO ICOUNT=1,NWHTAY
 C                  IF(ICOUNT.EQ.135) TST=1
                   DLWDB2=0.D0
@@ -1629,8 +1631,8 @@ C.. configuration
             OWEIGHT=WEIGHT
             IACC=1
          ELSE
-         CALL WRITEPATH(6,IPATH,I_V,NEL,.FALSE.)
-         WRITE(6,*) I_V,WEIGHT,I_OVCUR,OWEIGHT
+C         CALL WRITEPATH(6,IPATH,I_V,NEL,.FALSE.)
+C         WRITE(6,*) I_V,WEIGHT,I_OVCUR,OWEIGHT
 C.. Accept the new configuration with prob (|S'(new)|/|S'(old)|)*(OPROB/RH)  
 
 C.. acc(A->B)/acc(B->A) = p(B) gen(B->A) / (p(A) gen(A->B))

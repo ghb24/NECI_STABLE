@@ -138,7 +138,7 @@ METHOD <METHOD>
     Specify the method for vertex summation routine.  Opptions currently are:
     VERTEX SUM OLD,NEW
         Use the old or new vertex sum subroutine.
-    MC
+    VERTEX MC
         Monte Carlo procedure.
 
 CYCLES <NWHTAY(1,1)>

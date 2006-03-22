@@ -59,12 +59,19 @@ C.. At the moment we're ignoring the core energy
          DO I=1,LEN
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
-            G1(1,2*I-1)=ISYMNUM-1
-            G1(1,2*I)=ISYMNUM-1
-            G1(2,2*I-1)=ORBSYM(I)-1
-            G1(2,2*I)=ORBSYM(I)-1
-            G1(3,2*I-1)=I
-            G1(3,2*I)=I
+C            G1(1,2*I-1)=ISYMNUM-1
+C            G1(1,2*I)=ISYMNUM-1
+            G1(5,2*I-1)=ORBSYM(I)-1
+            G1(5,2*I)=ORBSYM(I)-1
+C            G1(3,2*I-1)=I
+C            G1(3,2*I)=I
+C.. set momentum to 0
+            G1(1,2*I-1)=0
+            G1(2,2*I)=0
+            G1(3,2*I-1)=0
+            G1(1,2*I)=0
+            G1(2,2*I-1)=0
+            G1(3,2*I)=0
             G1(4,2*I-1)=-1
             G1(4,2*I)=1
          ENDDO

@@ -721,7 +721,7 @@ C.. are either filled, or virtuals which can be.
              IF(NI(IEL).EQ.I) THEN
 C.. a filled electron
                DO ISYM=1,2
-                  IF(G1(2,I).EQ.NSYM(ISYM).OR.TNS) THEN
+                  IF(G1(5,I).EQ.NSYM(ISYM).OR.TNS) THEN
                      NFULL(ISYM,NSPN,0)=NFULL(ISYM,NSPN,0)+1
                      NFULL(ISYM,NSPN,NFULL(ISYM,NSPN,0))=IEL
 C                     WRITE(6,*) "S",ISYM,NSPN,NFULL(ISYM,NSPN,0)
@@ -730,7 +730,7 @@ C                     WRITE(6,*) "S",ISYM,NSPN,NFULL(ISYM,NSPN,0)
              ELSE
 C.. a virtual orbital
                DO ISYM=1,2
-                  IF(G1(2,I).EQ.NSYME(ISYM).OR.TNS) THEN
+                  IF(G1(5,I).EQ.NSYME(ISYM).OR.TNS) THEN
                      NFREE(ISYM,NSPN,0)=NFREE(ISYM,NSPN,0)+1
                      NFREE(ISYM,NSPN,NFREE(ISYM,NSPN,0))=I
 C                     WRITE(6,*) "S",ISYM,NSPN,NFREE(ISYM,NSPN,0)
@@ -1082,7 +1082,7 @@ C.. Get all the syms
                IEL=IEL+1
             ENDDO
             IF(NBASISMAX(3,3).EQ.1) THEN
-               J=G1(2,I)+1
+               J=G1(5,I)+1
             ELSE
                J=0
             ENDIF
