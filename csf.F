@@ -217,7 +217,7 @@ C.. test if NCI is a CSF
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
-         INTEGER ISYM(5),JSYM(5),KSYMS(5,0:NEL)
+         INTEGER ISYM(5),KSYM(5)
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
          INCLUDE 'csf.inc'
@@ -226,7 +226,6 @@ C.. test if NCI is a CSF
          CALL ICOPY(5,IPARITY,1,ISYM,1)
 C.. make sure Sz=0 as this is dealt with in the csfgen part
          ISYM(4)=0
-         CALL SETUPSYM(NBASISMAX,KSYMS(1,0))
          IFDET=1
          NDET=0
          NORBS=NBASIS/2
@@ -256,11 +255,6 @@ C.. Closed shell
                NI(IELEC)=IORB*2-1
                NI(IELEC+1)=IORB*2
 
-C.. add the (spatial) symmetries of these electrons)
-               CALL ICOPY(5,KSYMS(1,IELEC-1),1,KSYMS(1,IELEC))
-               CALL ADDELECSYM(NI(IELEC),G1,NBASISMAX,KSYMS(1,IELEC))
-               CALL ICOPY(5,KSYMS(1,IELEC),1,KSYMS(1,IELEC+1))
-              CALL ADDELECSYM(NI(IELEC+1),G1,NBASISMAX,KSYMS(1,IELEC+1))
 C.. mark both closed and open shell orbs unavailable
                ORBS(IORB,1)=0
                ORBS(IORB,2)=0
@@ -270,8 +264,6 @@ C.. move up two electrons
             ELSE
 C.. we have an open shell electron
                NI(IELEC)=CSF_NBSTART+8*(IORB-1)
-               CALL ICOPY(5,KSYMS(1,IELEC-1),1,KSYMS(1,IELEC))
-               CALL ADDELECSYM((IORB-1)*2+1,G1,NBASISMAX,KSYMS(1,IELEC))
                IELEC=IELEC+1
                ORBS(IORB,1)=0
                ORBS(IORB,2)=0
@@ -282,10 +274,10 @@ C.. First check if we have enough electrons for a CSF
             IF(IELEC.GT.NEL) THEN
 C.. Now check the symmetry's right
 C.. we'll deal with spin in the CSF generation
-               CALL ROUNDSYM(KSYMS(1,NEL),NBASISMAX)
+               CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 C.. remove Ms value, as this is dealt with in csfgencsfs
-               KSYMS(4,NEL)=0
-               IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYMS(1,NEL)))
+               KSYM(4)=0
+               IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM))
 C.. go and create a set of CSFs from these electrons
      &           CALL CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
      &            TSPN,SFORCE,SZFORCE)
@@ -329,10 +321,6 @@ C.. See what sort of electron the last one was
                      IELEC=0
                   ELSEIF(NI(IELEC-1).GE.CSF_NBSTART) THEN
 C.. an open shell
-C.. remove the spatial symmetry of this electron - not necessary - as 
-C..   we can roll back to symmetries without these electrons in KSYMS
-C                     CALL ADDELECSYM((NI(IELEC-1)-CSF_NBSTART)/4+1,G1,
-C     &                  NBASISMAX,JSYM,.TRUE.)
                      IELEC=IELEC-1
                      NOPEN=NOPEN-1
                      IORB=(NI(IELEC)-CSF_NBSTART)/8+1
@@ -342,10 +330,6 @@ C     &                  NBASISMAX,JSYM,.TRUE.)
                      IORBTYPE=2
                   ELSE
 C.. a closed shell
-C.. remove the spatial symmetries of these electrons - not necessary - as 
-C..   we can roll back to symmetries without these electrons in KSYMS
-C               CALL ADDELECSYM(NI(IELEC-1),G1,NBASISMAX,JSYM,.TRUE.)
-C               CALL ADDELECSYM(NI(IELEC-2),G1,NBASISMAX,JSYM,.TRUE.)
                      IELEC=IELEC-2
                      NCLOSED=NCLOSED-2
                      IORB=(NI(IELEC)+1)/2
@@ -401,7 +385,7 @@ C.. IEXLEV from NDCH
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
-         INTEGER ISYM(5),KSYMS(5,0:NEL)
+         INTEGER ISYM(5),KSYM(5)
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS(NEL+1),OIEX,IEXCITS2(NEL+1),OIEX2
          INTEGER ICLOSEDD(NEL),NCLOSEDD,IOPEND(NEL),NOPEND
@@ -416,6 +400,7 @@ C.. IEXLEV from NDCH
          IF(TCHKEX) CALL CSFGETCSFDATA(NDCH,NEL,ICLOSEDD,NCLOSEDD,
      &      IOPEND,NOPEND,SZD,SD,SORDERD)
 
+         
          DO I=1,NBASIS
             IF(TORDER) THEN
                BRR2(I)=I
@@ -427,7 +412,6 @@ C.. IEXLEV from NDCH
          CALL ICOPY(5,IPARITY,1,ISYM,1)
 C.. ensure Ms=0 as this is dealt with later
          ISYM(4)=0
-         CALL SETUPSYM(NBASISMAX,KSYMS(1,0))
          IFDET=1
          NDET=0
          NORBS=NBASIS/2
@@ -461,11 +445,6 @@ C.. Closed shell
                IND(IELEC+1)=IORB*2
                NI(IELEC)=BRR2(IND(IELEC))
                NI(IELEC+1)=BRR2(IND(IELEC+1))
-C.. add the (spatial) symmetries of these electrons)
-               CALL ICOPY(5,KSYMS(1,IELEC-1),1,KSYMS(1,IELEC),1)
-               CALL ADDELECSYM(NI(IELEC),G1,NBASISMAX,KSYMS(1,IELEC))
-               CALL ICOPY(5,KSYMS(1,IELEC),1,KSYMS(1,IELEC+1),1)
-              CALL ADDELECSYM(NI(IELEC+1),G1,NBASISMAX,KSYMS(1,IELEC+1))
 C.. mark both closed and open shell orbs unavailable
                ORBS(IORB,1)=0
                ORBS(IORB,2)=0
@@ -476,8 +455,6 @@ C.. move up two electrons
 C.. we have an open shell electron
                IND(IELEC)=CSF_NBSTART+IORB*2-1
                NI(IELEC)=CSF_NBSTART+4*(BRR2(IORB*2-1)-1)
-               CALL ICOPY(5,KSYMS(1,IELEC-1),1,KSYMS(1,IELEC),1)
-               CALL ADDELECSYM(NI(IELEC),G1,NBASISMAX,KSYMS(1,IELEC))
                IELEC=IELEC+1
                ORBS(IORB,1)=0
                ORBS(IORB,2)=0
@@ -524,9 +501,9 @@ C.. First check if we have enough electrons for a CSF
             IF(IELEC.GT.NEL) THEN
 C.. Now check the symmetry's right
 C.. we'll deal with spin in the CSF generation
-               CALL ROUNDSYM(KSYMS(1,NEL),NBASISMAX)
-               KSYMS(4,NEL)=0
-               IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYMS(1,NEL))) THEN
+               CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
+               KSYM(4)=0
+               IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM)) THEN
 C.. go and create a set of CSFs from these electrons
                 CALL ICOPY(NEL,NI,1,NJ,1)
                 IF(.NOT.TORDER) CALL SORTI(NEL,NJ)

@@ -706,6 +706,12 @@ C.. single excitation
          ENDIF
       ENDIF
 
+C.. Calculate relevant symmetry tables
+      IF(TREADINT) THEN
+         CALL GENMOLPSYMTABLE(NBASISMAX(1,2)+1,G1,NBASIS,ARR,BRR)
+      ELSE
+         CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
+      ENDIF
 
       IF(TCSF.AND.TSPECDET) THEN
          WRITE(6,*) "TSPECDET set.  SPECDET is"
@@ -1566,6 +1572,7 @@ C          CLOSE(11)
       ENDIF
 
 C..
+      CALL ENDSYM()
       CALL MEMORY_CHECK
 C ==-------------------------------------------------------------------==
       CALL TIHALT('NECICUBE  ',ISUB)
@@ -2388,7 +2395,7 @@ C.. we use the symmetries of the spatial orbitals
              DO I=1,8
                DO J=1,ORBORDER(I,ITYPE)
                   DO WHILE(IBFN.LE.NBASIS
-     &                  .AND.(G1(5,IBFN).LT.I-1.OR.BRR(IBFN).EQ.0))
+     &                  .AND.(G1(5,IBFN).LT.2**(I-1).OR.BRR(IBFN).EQ.0))
                      IBFN=IBFN+1
                   ENDDO
                   IF(IBFN.GT.NBASIS) THEN
@@ -2462,6 +2469,7 @@ C               G(3,BRR(I))=J
          INTEGER IDIP,IDJP,IDKP,IDLP
          INTEGER IDA,IDB,SGN
          INTEGER FDET(NEL),NEL
+         INTEGER KSYM(5,0:NFROZEN)
          REAL*8 GETUMATEL
          REAL*8 ALAT(3)
 C.. At this point, we transform the UMAT and TMAT into a new UMAT and
@@ -2589,9 +2597,11 @@ C.. the primed (...P) are the new versions
          ENDDO
          ENDIF
 C.. Now setup the default symmetry to include the frozen electrons
+         CALL SETUPSYM(NBASISMAX,KSYM(1,0))
          DO I=1,NFROZEN
-            CALL ADDELECSYM(BRR(I),G1,NBASISMAX,NBASISMAX(1,6))
+            CALL ADDELECSYM(BRR,I,G1,NBASISMAX,KSYM)
          ENDDO
+         CALL ICOPY(5,KSYM(1,NFROZEN),1,NBASISMAX(1,6),1)
 C.. Copy the new G1 and BRR and ARR over the old ones
          CALL ICOPY(5*NBASIS,G2,1,G1,1)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)

@@ -28,4 +28,4 @@ MAIN_OBJS = sort.o histogram.o
 # LIST OF INCLUDE FILES
 #----------------------------------------------------------------------------
 INCFILES = envj.inc geq0.inc irat.inc kb07ad.inc memc.inc system.h \
-           time.inc quant.inc tabul.inc cons.inc fcoul.inc
+           time.inc quant.inc tabul.inc cons.inc fcoul.inc sym.inc
