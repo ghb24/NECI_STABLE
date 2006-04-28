@@ -16,6 +16,12 @@
       REAL*8 FUEGRS
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
+
+C      INTEGER NHG
+C      CALL FAKEREADCHARTABLE(NHG)
+C      CALL GENIRREPS
+C      CALL GENSYMTABLE
+      STOP
 C.. Cleanup from a previous run
 C      i=unlink("MCPATHS")
 C      OPEN(1,FILE="MCPATHS",STATUS='NEW')
