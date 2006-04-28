@@ -8,7 +8,8 @@
      & BETAP,BETAEQ,TMCDET,MDK,DETINV,THFCALC,NHFIT,TTILT,ITILTX,ITILTY,
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
-     &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS)
+     &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
+     &   TCPMD)
       USE input
       IMPLICIT REAL*8    (A-H,O-Z)
       INTEGER IPARITY(5)
@@ -16,7 +17,7 @@
      &   TREAD,TRHOOFR,TENERGY,TMC,TRHOIJ,TREADRHO,TMONTE,TTROT,  
      &   TBEGRAPH,THFBASIS,THUB,TNPDERIV,TMCDET,THFCALC,TTILT,    
      &   TBLOCK,TREADINT,TPBC,TREAL,TRHF,TREADHF,TSPECDET,TREADTUMAT,  
-     &   THFORDER,TCSF,TBETAP, eof
+     &   THFORDER,TCSF,TBETAP, eof,TCPMD
       CHARACTER*255 INP
       INTEGER SPECDET(*)
 !
@@ -139,6 +140,8 @@
                 TPBC=.true.
             case("UEG")
                 TUEG = .true.
+            case("CPMD")
+                TCPMD = .true.
             case default
                 call report ("System type "//trim(w)    
      &                       //" not valid",.true.)
@@ -223,7 +226,7 @@ C.. the last number is the symmetry specification - and is placed in position 5
             end do system
             if(NEL.eq.0)
      &         call report("Number of electrons cannot be zero.",.true.)
-            if(THUB.OR.TUEG.OR..NOT.TREADINT) then
+            if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD)) then
                if(NMAXX.EQ.0)
      &            call report("Must specify CELL "
      &            //"- the number of basis functions in each dim.",

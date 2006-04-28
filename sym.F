@@ -1,14 +1,14 @@
 C.. Symmetries can be unset(=0), or have bits set for the different irreps included
 C.. bit 0 corresponds to totally symmetric.
 C.. To multiply symmetries, for each bit set in each of the two symmetries, we look up the 
-C.. product in the symmetry table, and set that bit.
+C.. product in the symmetry table, and OR that with the product.
       INTEGER FUNCTION SYMPROD(ISYM1,ISYM2)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER ISYM1, ISYM2
          INTEGER IS1,IS2
          INTEGER I,J
-         IF(IS1.EQ.0.OR.IS2.EQ.0) THEN
+         IF(ISYM1.EQ.0.OR.ISYM2.EQ.0) THEN
             SYMPROD=0
             RETURN
          ENDIF
@@ -22,7 +22,7 @@ C.. product in the symmetry table, and set that bit.
                J=1
                DO WHILE(IS2.NE.0)
                   IF(IAND(IS2,1)) THEN
-                     SYMPROD=IBSET(SYMPROD,SYMTABLE(I,J))
+                     SYMPROD=IOR(SYMPROD,SYMTABLE(I,J))
                   ENDIF
                   IS2=RSHIFT(IS2,1)
                   J=J+1
@@ -99,7 +99,62 @@ C.. delete a symmetry table if one existed.
          IP_SYMLABELCHARS=0
          IF(IP_IRREPCHARS.NE.0) CALL FREEM(IP_IRREPCHARS)
          IP_IRREPCHARS=0
+         IF(IP_SYMLABELPAIRS.NE.0) CALL FREEM(IP_SYMLABELPAIRS)
+         IP_SYMLABELPAIRS=0
+         IF(IP_SYMLABELPAIRLIST.NE.0) CALL FREEM(IP_SYMLABELPAIRLIST)
+         IP_SYMLABELPAIRLIST=0
       END
+
+C.. Precompute a list of the symmetry product of all pairs of symmetry labels
+      SUBROUTINE GENSYMLABELPAIRS
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         INTEGER I,IDECOMP,CNORM,TOT
+         LOGICAL L,GETIRREPDECOMP
+C.. First allocate the list where we will store the numbers and positions of the sym pairs in the sym pair table
+C.. This can get very big if there are very many different irreps
+         CALL MEMORY(IP_SYMLABELPAIRLIST,2*(2**NSYM),"SYMPAIRLIST")
+         CALL IAZZERO(SYMLABELPAIRLIST,2*(2**NSYM))
+C..   Classify each of the symlabels with its decomposition into irreps
+         DO I=1,NSYMLABELS
+            L=GETIRREPDECOMP(SYMLABELCHARS(1,I),IRREPCHARS,
+     &         NSYM,NROT,IDECOMP,CNORM)
+            SYMLABELS(2,I)=IDECOMP
+         ENDDO
+C.. Now enumerate all pairs, and classify their product, but don't store them.
+         CALL GENALLSYMLABELPAIRS(.FALSE.)
+         TOT=0
+         DO I=0,2**NSYM-1
+            SYMLABELPAIRLIST(1,I)=TOT
+            TOT=TOT+SYMLABELPAIRLIST(2,I)
+            SYMLABELPAIRLIST(2,I)=0
+         ENDDO
+         CALL MEMORY(IP_SYMLABELPAIRS,2*TOT,'SYMLABPS')
+         CALL GENALLSYMLABELPAIRS(.TRUE.)
+      END
+
+      SUBROUTINE GENALLSYMLABELPAIRS(TSTORE)
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         LOGICAL TSTORE
+         INTEGER I,J,PROD
+         INTEGER SYMPROD
+         DO I=1,NSYMLABELS
+            DO J=I,NSYMLABELS
+               PROD=SYMPROD(SYMLABELS(2,I),SYMLABELS(2,J))
+               IF(TSTORE) THEN
+C.. put the pair into the list of pairs.
+                  SYMLABELPAIRS(1,SYMLABELPAIRLIST(1,PROD)+
+     &               SYMLABELPAIRLIST(2,PROD))=I
+                  SYMLABELPAIRS(2,SYMLABELPAIRLIST(1,PROD)+
+     &               SYMLABELPAIRLIST(2,PROD))=J
+               ENDIF
+C.. incrememnt the counter in the pairlist
+               SYMLABELPAIRLIST(2,PROD)=SYMLABELPAIRLIST(2,PROD)+1
+            ENDDO
+         ENDDO
+      END
+
 
 C..   SYMREPS(2,*) has two sets of data:
 C.. SYMREPS(1,IBASISFN) contains the numnber of the representation
@@ -160,41 +215,6 @@ C.. add the momentum
 C.. round the momentum
          CALL ROUNDSYM(ISYM,NBASISMAX)
          RETURN
-      END
-
-      SUBROUTINE FAKEREADCHARTABLE(NHG)
-         IMPLICIT NONE
-         INCLUDE 'sym.inc'
-C.. First set up the labels and chars
-         INTEGER CHARS(16,7)
-         DATA ((CHARS(J,I),J=1,16),I=1,7)
-     &               /1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-     &               2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2,
-     &               2, 0, 0,-2, 0, 0, 0, 0,-2, 0, 0, 2, 0, 0, 0, 0,
-     &               1,-1,-1, 1, 1, 1,-1,-1, 1,-1,-1, 1, 1, 1,-1,-1,
-     &               4, 0, 0,-4, 0, 0, 0, 0,-4, 0, 0, 4, 0, 0, 0, 0,
-     &               1,-1,-1, 1,-1,-1, 1, 1, 1,-1,-1, 1,-1,-1, 1, 1,
-     &               2,-2,-2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2,-2,-2/
-         INTEGER LABS(19)
-         DATA LABS /1,2,2,1,3,3,4,2,2,1,5,5,5,5,
-     &              3,3,6,7,7/
-         INTEGER NHG,I,J
-         INTEGER ARRAY(*)
-         POINTER (IP_ARRAY,ARRAY)
-         NSYMLABELS=7
-         NROT=16
-         NHG=19
-         CALL MEMORY(IP_SYMLABELS,NHG,"SYMLABELS")
-         CALL MEMORY(IP_SYMLABELCHARS,NROT*NSYMLABELS,"SYMLABELCH")
-         IP_ARRAY=IP_SYMLABELCHARS
-         CALL MEMORY(IP_IRREPCHARS,NROT*NSYMLABELS,"IRREPCH")
-         DO I=1,7
-            DO J=1,16
-               ARRAY((I-1)*16+J)=CHARS(J,I)
-            ENDDO
-         ENDDO
-         WRITE(6,*) "SYMMETRY CLASSES"
-         CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
       END
 
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.

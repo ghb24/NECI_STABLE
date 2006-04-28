@@ -20,7 +20,7 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           chebint.o sorti.o calcpathnci.o factorpoly.o rhodiag.o \
           hdiag.o gndts_blk.o mcpathsismc.o mcpathsmcmc.o \
           mcpathsch.o readint.o hubbard.o excit.o mcpathsold.o \
-          rootfind.o
+          rootfind.o cpmdinit.o
 
 MAIN_OBJS = sort.o histogram.o
 
@@ -28,4 +28,5 @@ MAIN_OBJS = sort.o histogram.o
 # LIST OF INCLUDE FILES
 #----------------------------------------------------------------------------
 INCFILES = envj.inc geq0.inc irat.inc kb07ad.inc memc.inc system.h \
-           time.inc quant.inc tabul.inc cons.inc fcoul.inc sym.inc
+           time.inc quant.inc tabul.inc cons.inc fcoul.inc sym.inc \
+           cpmddata.inc
