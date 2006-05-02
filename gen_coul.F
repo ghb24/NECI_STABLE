@@ -54,18 +54,3 @@ C ==--------------------------------------------------------------------==
       RETURN
       END
 C ==------------------------------------------------------------------==
-      SUBROUTINE GTID(NBASISMAX,GIND,ID)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER GIND,NBASISMAX(5,2)
-      ID=(GIND-1)/NBASISMAX(2,3)+1
-      RETURN
-      END
-
-c      SUBROUTINE GTID(NBASISMAX,G1,ID)
-c      IMPLICIT REAL*8 (A-H,O-Z)
-c      INTEGER G1(5),NBASISMAX(5,2)
-c      ID=((G1(1)-NBASISMAX(1,1))*(NBASISMAX(2,2)-NBASISMAX(2,1)+1)+
-c     & (G1(2)-NBASISMAX(2,1)))*(NBASISMAX(3,2)-NBASISMAX(3,1)+1)+
-c     & (G1(3)-NBASISMAX(3,1))+1
-c      RETURN
-c      END

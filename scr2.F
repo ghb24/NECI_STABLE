@@ -9,7 +9,8 @@ C..that are NOT common to both.
       INTEGER NDET2(NEL)
       INTEGER G1(5,*),ISS
       INTEGER ND1(2),ND2(2),IDS(4)
-      REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+      REAL*8 UMAT(*)
+C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 ALAT(3)
       REAL*8 GETUMATEL
       INTEGER NEL,NHG

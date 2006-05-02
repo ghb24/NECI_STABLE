@@ -3,7 +3,8 @@ C.. TMAT has sometimes been hidden in ZIA
      &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM) 
       IMPLICIT NONE
       INTEGER G1(5,*),ISS
-      REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+      REAL*8 UMAT(*)
+C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER ID(NEL)
       INTEGER NBASISMAX(5,2)
@@ -71,7 +72,7 @@ C=============================================================
          INTEGER NBASISMAX(5,3),I,J,K,L,NHG,ISS
          INTEGER G1(5,NHG)
          REAL*8 ALAT(3)
-         REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+         REAL*8 UMAT(*)
          INTEGER A,B,C
          INTEGER IDI,IDJ,IDK,IDL
          REAL*8 SUM
@@ -80,7 +81,13 @@ C=============================================================
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
-            GETUMATEL=UMAT(IDI,IDJ,IDK,IDL)
+            IF(ISS.EQ.0) THEN
+C.. We don't have a stored UMAT - we call to generate it.
+               CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
+            ELSE
+               GETUMATEL=UMAT(IDI+(NHG/ISS)*(IDJ-1+
+     &                     (NHG/ISS)*(IDK-1+(NHG/ISS)*(IDL-1))))
+            ENDIF
             RETURN
          ENDIF
          IF(NBASISMAX(1,3).EQ.-1) THEN
@@ -110,3 +117,16 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
          ENDIF
             
       END
+
+
+      SUBROUTINE GTID(NBASISMAX,GIND,ID)
+      IMPLICIT REAL*8 (A-H,O-Z)
+      INTEGER GIND,NBASISMAX(5,2)
+      IF(NBASISMAX(2,3).GT.0) THEN
+         ID=(GIND-1)/NBASISMAX(2,3)+1
+      ELSE
+         ID=(GIND-1)/2+1
+      ENDIF
+      RETURN
+      END
+

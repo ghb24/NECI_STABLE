@@ -96,7 +96,8 @@ C.. TMAT has sometimes been hidden in ZIA
      &   NSBASIS,NSPINS,SUM)
          IMPLICIT NONE
          INTEGER G(4,*),ISS
-         REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+         REAL*8 UMAT(*)
+C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER NDET1(NEL),NDET2(NEL)
          INTEGER ID(NEL)
          INTEGER NBASISMAX(5,2)
@@ -151,7 +152,8 @@ C..
          INTEGER NDET1(NEL),NDET2(NEL)
          INTEGER G1(5,*),NBASISMAX(5,2)
          INTEGER ID(NEL-1),IDS1(NEL-1),IDS2(NEL-1)
-         REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+         REAL*8 UMAT(*)
+C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 TMAT(NHG,NHG)
          REAL*8 TRTMAT,TRUMAT
          INTEGER NEL,NHG,ISS
@@ -255,7 +257,8 @@ C..that are NOT common to both.
          INTEGER NDET2(NEL)
          INTEGER G1(5,*),ISS
          INTEGER ND1(2),ND2(2),IDS(4)
-         REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+         REAL*8 UMAT(*)
+C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER NEL,NHG,NBASISMAX(5,2)
          REAL*8 COULCOUPLE,SUM,SUM2,TRUMAT
          REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
@@ -331,13 +334,15 @@ C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
          IMPLICIT NONE
          INTEGER A,B,C,D
          INTEGER I,J,K,L
-         REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+         REAL*8 UMAT(*)
+C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSPINS,NSBASIS
          INTEGER NHG,ISS,NBASISMAX(5,2)
          REAL*8 SUM,SUM1,SUM2,SUM3
          INTEGER ASPN,BSPN,CSPN,DSPN,AE,BE,CE,DE
          INTEGER IDI,IDJ,IDK,IDL
+         REAL*8 GETUMATEL
          ASPN=MOD(A-1,NSPINS)+1
          BSPN=MOD(B-1,NSPINS)+1
          CSPN=MOD(C-1,NSPINS)+1
@@ -367,7 +372,8 @@ C.. and then from it get the ID within UMAT
                   DO L=1,NSBASIS
                      CALL GTID(NBASISMAX,(L-1)*NSPINS+1+DSPN-1,IDL)
                      SUM3=SUM3+BTRANS(DE,L,DSPN)*
-     &                  UMAT(IDI,IDJ,IDK,IDL)
+     &       GETUMATEL(NBASISMAX,UMAT,0.D0,NHG,ISS,0.D0,IDI,IDJ,IDK,IDL)
+C     &                  UMAT(IDI,IDJ,IDK,IDL)
                   ENDDO
                   SUM2=SUM2+SUM3*BTRANS(CE,K,CSPN)
                ENDDO

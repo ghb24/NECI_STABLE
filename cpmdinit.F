@@ -4,28 +4,34 @@
          INCLUDE 'sym.inc'
          INTEGER NBASISMAX(5,2), BRR(LEN),LEN,G1(5,LEN)
          REAL*8 ARR(LEN)
-         INTEGER I,IDECOMP,CNORM
-         LOGICAL L
-         LOGICAL GETIRREPDECOMP
+         INTEGER I,IDECOMP
          NBASISMAX(1,1)=1
          NBASISMAX(1,2)=NSTATES
          NBASISMAX(1,3)=2
          NBASISMAX(4,1)=-1
          NBASISMAX(4,2)=1
+
+C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
+         NBASISMAX(2,3)=0
+
          CALL GENIRREPS
          CALL GENSYMTABLE
          CALL GENSYMLABELPAIRS
+
+         CALL FAKEEIGENVALUES
+
          CALL IAZZERO(G1,LEN*5)
          DO I=1,NSTATES
-            L=GETIRREPDECOMP(SYMLABELCHARS(1,SYMLABELS(I)),IRREPCHARS,
-     &         NSYM,NROT,IDECOMP,CNORM)
+           CALL DECOMPOSEREP(SYMLABELCHARS(1,SYMLABELS(1,I)),IDECOMP)
             G1(5,I*2-1)=IDECOMP
-            G1(5,I)=IDECOMP
+            G1(5,I*2)=IDECOMP
             G1(4,I*2-1)=-1
             G1(4,I*2)=1
 C.. Fake the eigenvalues
-            ARR(I)=I*1.D0
-            BRR(I)=I
+            ARR(2*I-1)=EIGENVALUES(I)
+            ARR(2*I)=EIGENVALUES(I)
+            BRR(2*I-1)=2*I-1
+            BRR(2*I)=2*I
          ENDDO
 C.. show it's a generic spatial basis
          NBASISMAX(3,3)=1
@@ -38,6 +44,16 @@ C.. Called to retrieve number of basis functions from CPMD
          CALL FAKEREADCHARTABLE(NSTATES)
          LEN=NSTATES*2
       END
+
+      SUBROUTINE FAKEEIGENVALUES
+         IMPLICIT NONE
+         INCLUDE 'cpmddata.inc'
+         INTEGER I
+         CALL MEMORY(IP_EIGENVALUES,NSTATES,"EIGENVALUES")
+         DO I=1,NSTATES
+            EIGENVALUES(I)=I
+         ENDDO
+      END 
       SUBROUTINE FAKEREADCHARTABLE(NSTATES)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
@@ -65,7 +81,6 @@ C.. First set up the labels and chars
          IP_ARRAY=IP_SYMLABELCHARS
          CALL MEMORY(IP_IRREPCHARS,NROT*NSYMLABELS,"IRREPCH")
          I=IP_SYMLABELS
-         WRITE(6,*) I
          DO I=1,7
             DO J=1,16
                ARRAY((I-1)*16+J)=CHARS(J,I)
@@ -74,7 +89,46 @@ C.. First set up the labels and chars
          DO I=1,NSTATES
             SYMLABELS(1,I)=LABS(I)
          ENDDO
-         WRITE(6,*) "SYMMETRY CLASSES"
+         WRITE(6,*) "SYMMETRY CLASSES", IP_SYMLABELCHARS,
+     &      LOC(SYMLABELCHARS)
          CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
       END
 
+C.. Calculate the h_ij elements for CPMD orbitals.
+C.. E_i is the eigenvalue for state i.
+C.. f_i is the occupation number for state i.
+C.. delta_ij is the Dirac delta.
+C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
+C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
+      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG)
+         IMPLICIT NONE
+         INTEGER NHG
+         INCLUDE 'cpmddata.inc'
+         REAL*8 TMAT(NHG,NHG)
+         REAL*8 CPMD1EINT(NSTATES,NSTATES)
+         INTEGER I,J,K
+         REAL*8 TOT,F,U
+           
+         CALL CPMDGEN1EINTS(CPMD1EINT)
+         DO I=1,NSTATES
+            DO J=I,NSTATES
+               TOT=0.D0
+               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)+XI
+               TOT=TOT-CPMD1EINT(I,J)
+               DO K=1,NSTATES
+                  CALL CPMDGETOCC(K,F)
+C.. F now has the occupation number of state K
+                  IF(F.GT.0.D0) THEN
+C.. Get 4-index integral (ik|jk)
+                     CALL INITFINDXI(I,K,J,K,U)
+                     TOT=TOT-F*U
+                  ENDIF
+               ENDDO
+               TMAT(2*I-1,2*J-1)=TOT
+               TMAT(2*I,2*J)=TOT
+               TMAT(2*J-1,2*I-1)=TOT
+               TMAT(2*J,2*I)=TOT
+            ENDDO
+         ENDDO
+         
+      END   

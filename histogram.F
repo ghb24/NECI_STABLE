@@ -510,7 +510,11 @@ C..
      &   WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(.NOT.(TREAD.OR.TREADRHO)) THEN
          IF(TCPMD) THEN
-C.. We don't need to do init any integrals
+C.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
+            CALL MEMORY(IP_UMAT,1,'UMAT')
+            CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
+            CALL AZZERO(TMAT,NHG*NHG)
+            CALL CPMDINIT2INDINT(TMAT,NHG)
          ELSEIF(TREADINT) THEN
             WRITE(6,*)
      &         ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
@@ -646,7 +650,7 @@ C.. NBASIS contains the new
             NBASIS=NBASIS-NFROZEN-NTFROZEN
             CALL MEMORY(IP_TMAT2,(NBASIS)**2,'TMAT2')
             CALL AZZERO(TMAT2,(NBASIS)**2)
-            IF(NBASISMAX(1,3).GE.0) THEN
+            IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
 C.. allocate a UMAT
                CALL MEMORY(IP_UMAT2,(NBASIS/ISPINSKIP)**4,'UMAT2')
                CALL AZZERO(UMAT2,(NBASIS/ISPINSKIP)**4)
@@ -2478,9 +2482,11 @@ C               G(3,BRR(I))=J
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,ALAT)
          IMPLICIT NONE
          INTEGER NHG,NBASIS,G1(5,NHG),NBASISMAX(5,6),ISS
-         REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+         REAL*8 UMAT(*)
+C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 TMAT(NHG,NHG),ECORE
-         REAL*8 UMAT2(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
+         REAL*8 UMAT2(*)
+C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 TMAT2(NBASIS,NBASIS)
          REAL*8 ARR(NHG),ARR2(NBASIS)
          INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),G2(5,NHG),GG(NHG)
@@ -2579,7 +2585,7 @@ C.. if the spins are the same
                ENDDO
             ENDDO
          ENDDO
-         IF(NBASISMAX(1,3).GE.0) THEN
+         IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
 CC Only do the below if we've a stored UMAT
 C.. Now copy the relevant matrix elements of UMAT across
 C.. the primed (...P) are the new versions
@@ -2607,7 +2613,10 @@ C.. the primed (...P) are the new versions
                      IF(.NOT.ISS.OR.G1(4,I).EQ.1) THEN
                       CALL GTID(NBASISMAX,LB,IDL)
                       CALL GTID(NBASISMAX,LPB,IDLP)
-                      UMAT2(IDIP,IDJP,IDKP,IDLP)=UMAT(IDI,IDJ,IDK,IDL)
+                      UMAT2(IDIP+(NBASIS/ISS)*(IDJP-1+
+     &                     (NBASIS/ISS)*(IDKP-1+(NBASIS/ISS)*(IDLP-1))))
+     &                    =UMAT(IDI+(NHG/ISS)*(IDJ-1+
+     &                     (NHG/ISS)*(IDK-1+(NHG/ISS)*(IDL-1))))
                      ENDIF
                    ENDDO
                   ENDIF

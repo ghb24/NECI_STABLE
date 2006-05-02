@@ -109,16 +109,14 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
       SUBROUTINE GENSYMLABELPAIRS
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         INTEGER I,IDECOMP,CNORM,TOT
-         LOGICAL L,GETIRREPDECOMP
+         INTEGER I,IDECOMP,TOT
 C.. First allocate the list where we will store the numbers and positions of the sym pairs in the sym pair table
 C.. This can get very big if there are very many different irreps
          CALL MEMORY(IP_SYMLABELPAIRLIST,2*(2**NSYM),"SYMPAIRLIST")
          CALL IAZZERO(SYMLABELPAIRLIST,2*(2**NSYM))
 C..   Classify each of the symlabels with its decomposition into irreps
          DO I=1,NSYMLABELS
-            L=GETIRREPDECOMP(SYMLABELCHARS(1,I),IRREPCHARS,
-     &         NSYM,NROT,IDECOMP,CNORM)
+            CALL DECOMPOSEREP(SYMLABELCHARS(1,I),IDECOMP)
             SYMLABELS(2,I)=IDECOMP
          ENDDO
 C.. Now enumerate all pairs, and classify their product, but don't store them.
@@ -351,10 +349,62 @@ C.. Display a line of characters
                WRITE(IUNIT,"(I3,$)") CHARS(J)
             ENDDO
             WRITE(IUNIT,*)
-      END 
+      END
+
+C.. Decompose rep CHARS into irreps in IRREPCHARS.  Bit 0 in IDECOMP corresponds to the first irrep etc.
+C.. CHARS at the end contains the remainder after the decomposition.
+      SUBROUTINE DECOMPOSEREP(CHARSIN,IDECOMP)
+         IMPLICIT NONE
+         INTEGER IDECOMP
+         INTEGER CHARS(NROT),CHARSIN(NROT),CNORM
+         INTEGER I,J,TOT,NORM
+         INCLUDE 'sym.inc'
+         IDECOMP=0
+         CALL ICOPY(NROT,CHARSIN,1,CHARS,1)
+C,. First check norm of this state
+         CNORM=0
+         DO J=1,NROT
+            CNORM=CNORM+CHARS(J)*CHARS(J)
+         ENDDO
+         DO I=1,NSYM
+            TOT=0
+            DO J=1,NROT
+               TOT=TOT+IRREPCHARS(J,I)*CHARS(J)
+            ENDDO
+            IF(TOT.NE.0) THEN
+C.. Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
+               NORM=0
+               DO J=1,NROT
+                  NORM=NORM+IRREPCHARS(J,I)*IRREPCHARS(J,I)
+               ENDDO
+C               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
+               IF(MOD(TOT,NORM).NE.0) THEN
+                  WRITE(6,*) 'Symmetry decomposition not complete'
+                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
+                  CALL WRITECHARS(6,CHARS,NROT,"CHARS ")
+                  WRITE(6,*) "Dot product: ",(TOT+0.D0)/NORM,TOT,NORM
+                  STOP 'Incomplete symmetry decomposition'
+C.. The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
+C.. Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
+               ELSE
+C.. We've found an (ir)rep which is wholly in CHARS
+                  IDECOMP=IBSET(IDECOMP,I-1)
+                  CNORM=0
+                  DO J=1,NROT
+                     CHARS(J)=CHARS(J)-(IRREPCHARS(J,I)*TOT)/NORM
+                     CNORM=CNORM+CHARS(J)*CHARS(J)
+                  ENDDO
+               ENDIF
+            ENDIF
+         ENDDO
+      END
+   
+ 
 C.. Decompose rep CHARS into irreps in IRREPCHARS.  Bit 0 in IDECOMP corresponds to the first irrep etc.
 C.. CHARS at the end contains the remainder after the decomposition.
 C.. Return .FALSE. if the decomposition is complete and CHARS contains only 0.
+C.. This is used internally in the symmetry routine and destroys CHARS.  For general decomposition,
+C,, use DECOMPOSEREP
       LOGICAL FUNCTION GETIRREPDECOMP(CHARS,IRREPCHARS,NIRREPS,NROT,
      &         IDECOMP,CNORM)
          IMPLICIT NONE
