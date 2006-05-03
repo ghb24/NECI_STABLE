@@ -58,6 +58,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
 
 C.. Setup the symmetry product table
          NSYM=NSYMMAX
+         WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
 
          CALL MEMORY(IP_SYMTABLE,NSYM*NSYM,'SYMTABLE')
          DO I=0,NSYM-1

@@ -15,9 +15,11 @@ C         NEL=NELEC
          WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
          WRITE(6,*) ' BASIS MS : ' , LMS
          LEN=2*NORB
-         CALL IAZZERO(NBASISMAX,12)
-         NBASISMAX(1,1)=1
-         NBASISMAX(1,2)=NORB
+         CALL IAZZERO(NBASISMAX,15)
+C         NBASISMAX(1,1)=1
+C         NBASISMAX(1,2)=NORB
+         NBASISMAX(1,1)=0
+         NBASISMAX(1,2)=0
          NBASISMAX(1,3)=2
          NBASISMAX(4,1)=-1
          NBASISMAX(4,2)=1
@@ -83,9 +85,11 @@ C.. set momentum to 0
             ISNMAX=8
          ENDIF
          NBASISMAX(1,1)=0
-         NBASISMAX(1,2)=ISNMAX-1
+C         NBASISMAX(1,2)=ISNMAX-1
+         NBASISMAX(1,2)=0
          NBASISMAX(2,1)=0
-         NBASISMAX(2,2)=ORBSYM(NORB)-1
+C         NBASISMAX(2,2)=ORBSYM(NORB)-1
+         NBASISMAX(2,2)=0
          CLOSE(8)
          RETURN
       END

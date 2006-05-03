@@ -650,7 +650,7 @@ C.. NBASIS contains the new
             NBASIS=NBASIS-NFROZEN-NTFROZEN
             CALL MEMORY(IP_TMAT2,(NBASIS)**2,'TMAT2')
             CALL AZZERO(TMAT2,(NBASIS)**2)
-            IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
+            IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
 C.. allocate a UMAT
                CALL MEMORY(IP_UMAT2,(NBASIS/ISPINSKIP)**4,'UMAT2')
                CALL AZZERO(UMAT2,(NBASIS/ISPINSKIP)**4)
@@ -2496,7 +2496,7 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          INTEGER IDIP,IDJP,IDKP,IDLP
          INTEGER IDA,IDB,SGN
          INTEGER FDET(NEL),NEL
-         INTEGER KSYM(5,0:NFROZEN)
+         INTEGER KSYM(5)
          REAL*8 GETUMATEL
          REAL*8 ALAT(3)
 C.. At this point, we transform the UMAT and TMAT into a new UMAT and
@@ -2592,25 +2592,25 @@ C.. the primed (...P) are the new versions
          DO I=1,NBASIS
             IB=BRR(I+NFROZEN)
             IPB=GG(IB)
-            IF(.NOT.ISS.OR.G1(4,I).EQ.1) THEN
+            IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
              CALL GTID(NBASISMAX,IB,IDI)
              CALL GTID(NBASISMAX,IPB,IDIP)
              DO J=1,NBASIS
                JB=BRR(J+NFROZEN)
                JPB=GG(JB)
-               IF(.NOT.ISS.OR.G1(4,I).EQ.1) THEN
+               IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
                 CALL GTID(NBASISMAX,JB,IDJ)
                 CALL GTID(NBASISMAX,JPB,IDJP)
                 DO K=1,NBASIS
                   KB=BRR(K+NFROZEN)
                   KPB=GG(KB)
-                  IF(.NOT.ISS.OR.G1(4,I).EQ.1) THEN
+                  IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
                    CALL GTID(NBASISMAX,KB,IDK)
                    CALL GTID(NBASISMAX,KPB,IDKP)
                    DO L=1,NBASIS
                      LB=BRR(L+NFROZEN)
                      LPB=GG(LB)
-                     IF(.NOT.ISS.OR.G1(4,I).EQ.1) THEN
+                     IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
                       CALL GTID(NBASISMAX,LB,IDL)
                       CALL GTID(NBASISMAX,LPB,IDLP)
                       UMAT2(IDIP+(NBASIS/ISS)*(IDJP-1+
@@ -2627,11 +2627,11 @@ C.. the primed (...P) are the new versions
          ENDDO
          ENDIF
 C.. Now setup the default symmetry to include the frozen electrons
-         CALL SETUPSYM(NBASISMAX,KSYM(1,0))
+         CALL SETUPSYM(NBASISMAX,KSYM)
          DO I=1,NFROZEN
-            CALL ADDELECSYM(BRR,I,G1,NBASISMAX,KSYM)
+            CALL ADDELECSYM(I,G1,NBASISMAX,KSYM)
          ENDDO
-         CALL ICOPY(5,KSYM(1,NFROZEN),1,NBASISMAX(1,6),1)
+         CALL ICOPY(5,KSYM,1,NBASISMAX(1,6),1)
 C.. Copy the new G1 and BRR and ARR over the old ones
          CALL ICOPY(5*NBASIS,G2,1,G1,1)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)

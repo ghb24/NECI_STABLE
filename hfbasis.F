@@ -98,7 +98,7 @@ C.. Now modify NBASISMAX
          NBASISMAX(2,1)=0
          NBASISMAX(2,2)=0
          NBASISMAX(1,1)=0
-         NBASISMAX(1,2)=NBASIS-1
+C         NBASISMAX(1,2)=NBASIS-1
 
 C.. Generic spatial symmetry
          NBASISMAX(3,3)=1
