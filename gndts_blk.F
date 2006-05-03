@@ -11,9 +11,9 @@
          INTEGER KI1,KI2,KI3,KI4
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1),OII
          LOGICAL TSPN,TPARITY,TDONE
-         INTEGER LMS,IPARITY(3),LMIN,LMAX,BLOCKSYM(4,NBLOCKS)
+         INTEGER LMS,IPARITY(3),LMIN,LMAX,BLOCKSYM(5,NBLOCKS)
          LOGICAL TGENFDET
-         INTEGER IFDET,IC,IMAX(4,2),NDETTOT,IDEG
+         INTEGER IFDET,IC,IMAX(5,2),NDETTOT,IDEG
          REAL*8 DETSC,TDETSC,TMAT(*)
          REAL*8 CALCT
          DETSC=1D200
@@ -43,7 +43,7 @@ C.. we've found an occupied block
                CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
                NDETTOT=NDETTOT+(II-OII)*IDEG
                IF(TCOUNT) THEN
-                  WRITE(14,"(5I5,2I10)") I,(ISYM(J),J=1,4),II-OII,
+                  WRITE(14,"(5I5,Z4,2I10)") I,(ISYM(J),J=1,5),II-OII,
      &               (II-OII)*IDEG
                ELSE
                   NBLOCKSTARTS(I)=OII+1
@@ -173,6 +173,9 @@ C.. Check if we've filled all the electrons
                CALL GETSYM(NJ,NEL,G1,NBASISMAX,KJ2)
 C               CALL WRITEDET(16,NJ,NEL,.FALSE.)
 C                WRITE(16,*) KJ2(1),KJ2(2),KJ2(3)
+C               WRITE(6,*) KJ2
+C               WRITE(6,*) KI
+C               WRITE(6,*)
                IF(LCHKSYM(KJ2,KI)) THEN
 C                  CALL ROUNDSYM(KJ3,NBASISMAX)
 C.. we've found a det with the right sym.
@@ -599,15 +602,15 @@ C.. WORK(2*NEL+18)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE
 C.. WORK(7*NEL+18)
 C..  1-4                NSWORK
-C..  5-12               IMAX
-C..  13-17              ISYM
-C..  18                 NELEC
-C..  19-NEL+18          NIWORK
-C..  NEL+19 - 2*NEL+18  NINDJ
+C..  5-14               IMAX
+C..  15-19              ISYM
+C..  20                 NELEC
+C..  21-NEL+20          NIWORK
+C..  NEL+21 - 2*NEL+20  NINDJ
          CALL GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
      &      TPARITY,IPARITY,NI,TSETUP,TDONE,WORK(5),
-     &      WORK(13),WORK(18),WORK(19),WORK(NEL+19))
-         CALL ICOPY(4,WORK(13),1,ISYM,1)
+     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
+         CALL ICOPY(5,WORK(15),1,ISYM,1)
          RETURN
       END
       SUBROUTINE GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
@@ -617,7 +620,7 @@ C..  NEL+19 - 2*NEL+18  NINDJ
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3),G1(5,NBASIS)
          INTEGER LMS,IPARITY(3),ISYM(5),NIWORK(NEL),NI(NEL)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
-         INTEGER ILEV,IMAX(4,2)
+         INTEGER ILEV,IMAX(5,2)
 C..  1-4                NSWORK
 C..  5-12               IMAX
 C..  13-17              ISYM
@@ -652,9 +655,10 @@ C.. Go to the next det.
      &      TPARITY,IPARITY,TSETUP,TDONE,IMAX,ISYM)
          IMPLICIT NONE
          INTEGER NEL,NBASISMAX(5,3)
-         INTEGER LMS,IPARITY(3),ISYM(5)
+         INTEGER LMS,IPARITY(5),ISYM(5)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
-         INTEGER ILEV,IMAX(4,2)
+         INTEGER ILEV,IMAX(5,2)
+         INCLUDE 'sym.inc'
          IF(TSETUP) THEN
             DO ILEV=1,3
                IF(TPARITY) THEN
@@ -677,20 +681,42 @@ C                  ENDIF
                IMAX(4,1)=NBASISMAX(4,1)*NEL
                IMAX(4,2)=NBASISMAX(4,2)*NEL
             ENDIF
+C.. If we're specifying a sym (TPARITY) in IPARITY(5), and
+C.. we have a system with all 1D reducible orbs, then we put
+C.. that into IMAX
+            IF(NBASISMAX(5,2).NE.0) THEN
+               IF(TPARITY) THEN
+                  IMAX(5,1)=2**IPARITY(5)
+                  IMAX(5,2)=IMAX(5,1)
+               ELSE
+                  IMAX(5,1)=1
+                  IMAX(5,2)=2**NBASISMAX(5,2)
+               ENDIF
+            ELSE
+C.. we've got a sym system with polydimensional irreps, which leads to
+C.. dets with combinations of irreps, so we cannot put sym into blocks
+               IMAX(5,1)=0
+               IMAX(5,2)=0
+            ENDIF
+            TDONE=.FALSE.
             CALL DOSYMLIMDEGEN(IMAX,NBASISMAX)
-            DO ILEV=1,4
+            DO ILEV=1,5
                ISYM(ILEV)=IMAX(ILEV,1)
             ENDDO
-            TDONE=.FALSE.
          ENDIF
          IF(TSETUP.AND.KALLOWED(ISYM,NBASISMAX)) RETURN
 C.. Go to the next sym.
          TMORE2=.TRUE.
          TMORE=.TRUE.
-         ILEV=4
+         ILEV=5
          DO WHILE(TMORE2)
             DO WHILE (ILEV.GT.0)
-               ISYM(ILEV)=ISYM(ILEV)+1
+               IF(ILEV.EQ.5.AND.ISYM(ILEV).NE.0) THEN
+C.. symmetry specifiers are incremented by multiplying*2 (unless there are no syms counted)
+                  ISYM(ILEV)=ISYM(ILEV)*2
+               ELSE
+                  ISYM(ILEV)=ISYM(ILEV)+1
+               ENDIF
                IF(ISYM(ILEV).GT.IMAX(ILEV,2)) THEN
                   ISYM(ILEV)=IMAX(ILEV,1)
                   ILEV=ILEV-1
@@ -699,7 +725,7 @@ C.. Go to the next sym.
 C.. If we've run out of syms, we give up
                      TMORE=.FALSE.
                   ENDIF
-               ELSEIF(ILEV.LT.4) THEN
+               ELSEIF(ILEV.LT.5) THEN
 C.. We've just incremented one of the higher columns, now go down to the
 C.. lower ones.
                   ILEV=ILEV+1
@@ -714,7 +740,7 @@ C.. lower ones.
       END
       SUBROUTINE DOSYMLIMDEGEN(IMAX,NBASISMAX)
          IMPLICIT NONE
-         INTEGER IMAX(4,2),NBASISMAX(5,5),I
+         INTEGER IMAX(5,2),NBASISMAX(5,5),I
          IF(NBASISMAX(3,3).EQ.0) THEN
             DO I=1,3
                IF(IMAX(I,2).NE.IMAX(I,1)) IMAX(I,1)=0

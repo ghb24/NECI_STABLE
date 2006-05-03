@@ -34,6 +34,18 @@ C.. product in the symmetry table, and OR that with the product.
          RETURN
       END
 
+      SUBROUTINE WRITESYMTABLE(IUNIT)
+         IMPLICIT NONE
+         INTEGER IUNIT,I,J
+         INCLUDE 'sym.inc'
+         DO I=0,NSYM-1
+            DO J=0,NSYM-1
+               WRITE(IUNIT,"(Z5,$)")SYMTABLE(I+1,J+1)
+            ENDDO
+            WRITE(IUNIT,*)
+         ENDDO
+      END
+
       LOGICAL FUNCTION LSYMSYM(ISYM)
          INTEGER ISYM
          LSYMSYM=(ISYM.EQ.0.OR.ISYM.EQ.1)
@@ -54,6 +66,8 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          INTEGER I,J
          INTEGER G1(5,NBASIS),NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
+         INTEGER SYMT2(NSYMMAX,NSYMMAX)
+         POINTER (IP_SYMT2,SYMT2)
          
 
 C.. Setup the symmetry product table
@@ -61,15 +75,15 @@ C.. Setup the symmetry product table
          WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
 
          CALL MEMORY(IP_SYMTABLE,NSYM*NSYM,'SYMTABLE')
+         IP_SYMT2=IP_SYMTABLE
+         CALL IAZZERO(SYMTABLE,NSYM*NSYM)
          DO I=0,NSYM-1
             DO J=0,NSYM-1
-               SYMTABLE(I+1,J+1)=IBSET(0,IEOR(I,J))
-               SYMTABLE(J+1,I+1)=IBSET(0,IEOR(I,J))
-               WRITE(6,"(I4,$)")SYMTABLE(I+1,J+1)
+               SYMT2(I+1,J+1)=IBSET(0,IEOR(I,J))
             ENDDO
-            WRITE(6,*)
          ENDDO
 
+         CALL WRITESYMTABLE(6)
 C.. now work out which reps are degenerate and label them
          CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
          J=0

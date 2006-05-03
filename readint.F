@@ -85,8 +85,9 @@ C.. set momentum to 0
             ISNMAX=8
          ENDIF
          NBASISMAX(1,1)=0
-C         NBASISMAX(1,2)=ISNMAX-1
          NBASISMAX(1,2)=0
+         NBASISMAX(5,1)=0
+         NBASISMAX(5,2)=ISNMAX-1
          NBASISMAX(2,1)=0
 C         NBASISMAX(2,2)=ORBSYM(NORB)-1
          NBASISMAX(2,2)=0
