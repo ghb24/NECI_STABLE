@@ -20,9 +20,9 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           chebint.o sorti.o calcpathnci.o factorpoly.o rhodiag.o \
           hdiag.o gndts_blk.o mcpathsismc.o mcpathsmcmc.o \
           mcpathsch.o readint.o hubbard.o excit.o mcpathsold.o \
-          rootfind.o cpmdinit.o cpmdstub.o
+          rootfind.o cpmdinit.o cpmdstub.o neci.o
 
-MAIN_OBJS = sort.o histogram.o
+MAIN_OBJS = histogram.o
 
 #----------------------------------------------------------------------------
 # LIST OF INCLUDE FILES
