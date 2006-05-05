@@ -5,8 +5,13 @@
          INTEGER NBASISMAX(5,2), BRR(LEN),LEN,G1(5,LEN)
          REAL*8 ARR(LEN)
          INTEGER I,IDECOMP
-         NBASISMAX(1,1)=1
-         NBASISMAX(1,2)=NSTATES
+C         NBASISMAX(1,1)=1
+C         NBASISMAX(1,2)=NSTATES
+C         NBASISMAX(1,3)=2
+C         NBASISMAX(4,1)=-1
+C         NBASISMAX(4,2)=1
+         NBASISMAX(1,1)=0
+         NBASISMAX(1,2)=0
          NBASISMAX(1,3)=2
          NBASISMAX(4,1)=-1
          NBASISMAX(4,2)=1

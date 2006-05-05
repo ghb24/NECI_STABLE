@@ -1,4 +1,5 @@
-      SUBROUTINE READINPUT(NEL,TSPN,LMS,TPARITY,IPARITY,NMAXX,NMAXY,
+      SUBROUTINE READINPUT(FILENAME,
+     &   NEL,TSPN,LMS,TPARITY,IPARITY,NMAXX,NMAXY,
      &   NMAXZ,
      &	NMSH,BOX,BOA,COA,TALPHA,ALPHA,ISTATE,NEVAL,B2L,NCYCLE,NBLK,
      &	NKRY,TRHOOFR,TREAD,TCORR,TFODM,IOBS,JOBS,KOBS,TENERGY,TMC,
@@ -28,6 +29,7 @@
       INTEGER NWHTAY(2,10)
       REAL*8  ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
+      CHARACTER*255 FILENAME
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
 !     --------------------------------------------
@@ -105,11 +107,16 @@
       NMSH=32
 
       ir=1
-      IF(IARGC().GT.0) THEN
+      IF(FILENAME.NE."") THEN
+         WRITE(6,*) "Reading from file: ",FILENAME
+         OPEN(1,FILE=FILENAME,STATUS="OLD")
+      ELSEIF(IARGC().GT.0) THEN
          CALL GETARG(1,INP)
+         WRITE(6,*) "Reading from file: ",INP
          OPEN(1,FILE=INP,STATUS="OLD")
       ELSE
          ir=5
+         WRITE(6,*) "Reading from STDIN"
       ENDIF
 
 !     --------------------------------------------

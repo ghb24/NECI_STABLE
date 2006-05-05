@@ -15,6 +15,7 @@
       POINTER (IP_SPECDET,SPECDET)
       REAL*8 FUEGRS
       LOGICAL TCPMD
+      CHARACTER*255 FILENAME
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
 
@@ -28,8 +29,9 @@ C      i=unlink("MCPATHS")
 C      OPEN(1,FILE="MCPATHS",STATUS='NEW')
 C      CLOSE(1)
 
+      FILENAME=""
       WRITE(6,*) "STARTING HISTOGRAM"
-      CALL READINPUT(NEL,TSPN,LMS,TPARITY,IPARITY,NMAXX,NMAXY,
+      CALL READINPUT(FILENAME,NEL,TSPN,LMS,TPARITY,IPARITY,NMAXX,NMAXY,
      &   NMAXZ,
      &  NMSH,BOX,BOA,COA,TALPHA,ALPHA,ISTATE,NEVAL,B2L,NCYCLE,NBLK,
      &  NKRY,TRHOOFR,TREAD,TCORR,TFODM,IOBS,JOBS,KOBS,TENERGY,TMC,
@@ -738,11 +740,18 @@ C.. single excitation
 
 C.. Calculate relevant symmetry tables
       IF(TREADINT) THEN
+C.. we're reading in integrals and have a molpro symmetry table
          CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
+      ELSEIF(TCPMD) THEN
+C.. If TCPMD, then we've generated the symmetry table earlier,
+C.. but we still need the sym reps table
+         CALL GENSYMREPS(G1,NBASIS,ARR,BRR)
       ELSE
+C.. no symmetry, so a simple sym table
          CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
       ENDIF
 
+         WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
 
       IF(TCSF.AND.TSPECDET) THEN

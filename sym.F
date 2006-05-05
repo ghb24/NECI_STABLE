@@ -72,7 +72,6 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
 
 C.. Setup the symmetry product table
          NSYM=NSYMMAX
-         WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
 
          CALL MEMORY(IP_SYMTABLE,NSYM*NSYM,'SYMTABLE')
          IP_SYMT2=IP_SYMTABLE
@@ -83,7 +82,6 @@ C.. Setup the symmetry product table
             ENDDO
          ENDDO
 
-         CALL WRITESYMTABLE(6)
 C.. now work out which reps are degenerate and label them
          CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
          J=0
@@ -99,6 +97,20 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,I)=J
          ENDDO
+C.. Now generate a list of sym labels.
+         CALL MEMORY(IP_SYMLABELS,NBASIS*2,"SYMLABELS")
+         NSYMLABELS=NSYM
+         DO I=1,NBASIS
+C.. place the sym label of each state in SYMLABELS(1,ISTATE).  For molp sym, this is 
+C.. the log_2 of the symmetry bit string
+            SYMLABELS(1,I)=INT(DLOG(G1(5,I)+0.D0)/DLOG(2.D0)+.4)
+         ENDDO
+C.. list the symmetry string of each sym label
+         DO I=1,NSYM
+            SYMLABELS(2,I)=2**(I-1)
+         ENDDO
+
+         CALL GENSYMLABELPAIRS
       END
 
 C.. delete a symmetry table if one existed.
@@ -118,23 +130,21 @@ C.. delete a symmetry table if one existed.
          IP_SYMLABELPAIRS=0
          IF(IP_SYMLABELPAIRLIST.NE.0) CALL FREEM(IP_SYMLABELPAIRLIST)
          IP_SYMLABELPAIRLIST=0
+         IF(IP_SYMLABELPAIRPRODS.NE.0) CALL FREEM(IP_SYMLABELPAIRPRODS)
+         IP_SYMLABELPAIRPRODS=0
       END
 
 C.. Precompute a list of the symmetry product of all pairs of symmetry labels
       SUBROUTINE GENSYMLABELPAIRS
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         INTEGER I,IDECOMP,TOT
+         INTEGER I,IDECOMP,TOT,NPRODS
 C.. First allocate the list where we will store the numbers and positions of the sym pairs in the sym pair table
 C.. This can get very big if there are very many different irreps
          CALL MEMORY(IP_SYMLABELPAIRLIST,2*(2**NSYM),"SYMPAIRLIST")
          CALL IAZZERO(SYMLABELPAIRLIST,2*(2**NSYM))
-C..   Classify each of the symlabels with its decomposition into irreps
-         DO I=1,NSYMLABELS
-            CALL DECOMPOSEREP(SYMLABELCHARS(1,I),IDECOMP)
-            SYMLABELS(2,I)=IDECOMP
-         ENDDO
 C.. Now enumerate all pairs, and classify their product, but don't store them.
+         NSYMPAIRPRODS=0
          CALL GENALLSYMLABELPAIRS(.FALSE.)
          TOT=0
          DO I=0,2**NSYM-1
@@ -143,6 +153,9 @@ C.. Now enumerate all pairs, and classify their product, but don't store them.
             SYMLABELPAIRLIST(2,I)=0
          ENDDO
          CALL MEMORY(IP_SYMLABELPAIRS,2*TOT,'SYMLABPS')
+         CALL MEMORY(IP_SYMPAIRPRODS,NSYMPAIRPRODS,'SYMPAIRPRODS')
+         WRITE(6,*) TOT," SYM LABEL PAIRS"
+         WRITE(6,*) NSYMPAIRPRODS," DISTINCT SYM PAIR PRODUCTS"
          CALL GENALLSYMLABELPAIRS(.TRUE.)
       END
 
@@ -161,8 +174,13 @@ C.. put the pair into the list of pairs.
      &               SYMLABELPAIRLIST(2,PROD))=I
                   SYMLABELPAIRS(2,SYMLABELPAIRLIST(1,PROD)+
      &               SYMLABELPAIRLIST(2,PROD))=J
+                  WRITE(6,"(3Z4)") SYMLABELS(2,I),SYMLABELS(2,J),PROD
                ENDIF
 C.. incrememnt the counter in the pairlist
+               IF(SYMLABELPAIRLIST(2,PROD).EQ.0) THEN
+                  NSYMPAIRPRODS=NSYMPAIRPRODS+1
+                  IF(TSTORE) SYMPAIRPRODS(NSYMPAIRPRODS)=PROD
+               ENDIF
                SYMLABELPAIRLIST(2,PROD)=SYMLABELPAIRLIST(2,PROD)+1
             ENDDO
          ENDDO
@@ -336,6 +354,11 @@ C..
             CALL WRITEIRREPTAB(6,REPCHARS,NROT,NREPS)
             STOP "Non-reducible reps found."
          ENDIF
+C..   Classify each of the symlabels with its decomposition into irreps
+         DO I=1,NSYMLABELS
+            CALL DECOMPOSEREP(SYMLABELCHARS(1,I),IDECOMP)
+            SYMLABELS(2,I)=IDECOMP
+         ENDDO
       END
 
 
@@ -492,6 +515,30 @@ C.. We've found an (ir)rep which is wholly in CHARS
                SYMTABLE(J,I)=IDECOMP
 C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
             ENDDO
+         ENDDO
+      END
+
+      SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR)
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         INTEGER I,J
+         INTEGER G1(5,NBASIS),NBASIS,BRR(NBASIS)
+         REAL*8 ARR(NBASIS)
+
+C.. now work out which reps are degenerate and label them
+         CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
+         J=0
+         DO I=1,NBASIS
+            IF(I.GT.1.AND.ARR(I).EQ.ARR(I-1)
+     &         .AND.G1(5,BRR(I)).EQ.G1(5,BRR(I-1))) THEN
+C.. we have the same degenerate rep as the previous entry
+               SYMREPS(2,J)=SYMREPS(2,J)+1
+            ELSE
+C.. we have a new rep
+               J=J+1
+               SYMREPS(2,J)=1
+            ENDIF
+            SYMREPS(1,I)=J
          ENDDO
       END
 

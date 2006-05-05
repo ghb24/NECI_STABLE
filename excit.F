@@ -265,6 +265,7 @@ C.. ISYM, and discarded if it has the wrong symmetry
          INTEGER NMEM(*)
          INTEGER ISEED
          INTEGER IFRZ(0:NBASIS)
+         STOP 'Excitation generators not functional'
          IF(TSETUP) THEN
 C.. we need to be called with TSETUP=.T. first, to work out how much
 C.. memory needs to be allocated for temp storage.  We return this in 
@@ -329,6 +330,7 @@ C.. available within the same symmetry and Sz.  This does not enumerate them all
          INTEGER I,IC
          INTEGER IFRZ(0:NBASIS)
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
+         STOP 'Excitation generators not functional'
          NTYPES=0
          CALL GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
@@ -365,6 +367,7 @@ C.. ISYM, and discarded if it has the wrong symmetry
          LOGICAL TSETUP
          INTEGER NMEM(*)
          INTEGER IFRZ(0:NBASIS)
+         STOP 'Excitation generators not functional'
          IF(TSETUP) THEN
 C.. we need to be called with TSETUP=.T. first, to work out how much
 C.. memory needs to be allocated for temp storage.  We return this in 
@@ -426,6 +429,7 @@ C.. list LIST, and their excitation level into list ICLIST.
          INTEGER ISYM(5)
          LOGICAL TSYM
          INTEGER IFRZ(0:NBASIS)
+         STOP 'Excitation generators not functional'
          NTYPES=0
          CALL GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
@@ -1246,6 +1250,9 @@ Citself)
 C.. ICLIST is the list of orders of the excitations
 C.. NMIN is the minimum level of excitation
 C.. IF NORDER=0, we SET NORDER=NEL
+
+C.. THis does not use the excitation generators, but enumerates all possible
+C.. determinants within double excitations, which will end up fairly inefficient.
       SUBROUTINE GENEXCIT(NI,NORDER,NBASIS,NEL,LIST,ICLIST,NLIST,NMIN,
      &            G1,TSYM,NBASISMAX,TCOUNT)
          IMPLICIT NONE
@@ -1254,6 +1261,7 @@ C.. IF NORDER=0, we SET NORDER=NEL
          INTEGER ISYM(5),NO,IFDET
          LOGICAL TSYM,TCOUNT
          INTEGER G1(5,NBASIS),NMIN
+
          NO=NORDER
          IF(NO.EQ.0) NO=NEL
          IF(TSYM) CALL GETSYM(NI,NEL,G1,NBASISMAX,ISYM)
