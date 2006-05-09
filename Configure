@@ -1082,7 +1082,8 @@ neci.a : \$(OBJECTS) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 \$(LD) -r -o \$(BIN)/neci.a timetag.o \$(OBJECTS) \$(OBJ_CC) input.o \$(LFLAGS)
+	 ld -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTS) \$(OBJ_CC) input.o
+         objcopy --keep-global-symbols=\$(SRC)/GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
 
 #----------------------------------------------------------------------------
 # Generate library libcpmd.a
