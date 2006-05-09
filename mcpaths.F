@@ -7,7 +7,7 @@ C.. I_VMAX is the max number of distinct vertices in a path.
 C.. I_HMAX is the max number of hops in a path.
 C.. If we must calculate DLWDB along with WI, we set its value.
 C.. If we leave it as it is, we will be called again to calculated it.
-C.. 
+C..  MCPATHSR10 allows different methods at each vertex level
 
       SUBROUTINE  MCPATHSR10(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &               NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
@@ -231,7 +231,7 @@ C.. I_VMAX is the max number of distinct vertices in a path.
 C.. I_HMAX is the max number of hops in a path.
 C.. If we must calculate DLWDB along with WI, we set its value.
 C.. If we leave it as it is, we will be called again to calculated it.
-
+C.. MCPATHSR3 has the same method at each vertex level
       SUBROUTINE  MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &               NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
@@ -311,7 +311,7 @@ C.. Pick the largest cluster
      &               WLRI,WLSI,DBETA,DLWDB)
             RETURN
          ELSEIF(I_HMAX.EQ.-10) THEN
-C.. Pick the largest cluster
+C.. Use a different method at each vertex level
             CALL MCPATHSR10(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &               NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,

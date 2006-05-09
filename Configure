@@ -1070,14 +1070,6 @@ cat << END >&3
 #----------------------------------------------------------------------------
 #MAIN_OBJS=sort.o histogram.o
 
-sort.x : sort.o \$(OBJECTS) \$(OBJ_CC)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 rm -f sort.x
-	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/sort.x sort.x; fi
-	 \$(LD) -o \$(BIN)/sort.x timetag.o sort.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
-
 histogram.x : histogram.o \$(OBJECTS) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
@@ -1085,6 +1077,12 @@ histogram.x : histogram.o \$(OBJECTS) \$(OBJ_CC)
 	 rm -f histogram.x
 	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/histogram.x histogram.x; fi
 	 \$(LD) -o \$(BIN)/histogram.x histogram.o timetag.o \$(OBJECTS) \$(OBJ_CC) input.o \$(LFLAGS)
+
+neci.a : \$(OBJECTS) \$(OBJ_CC)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 \$(LD) -r -o \$(BIN)/neci.a timetag.o \$(OBJECTS) \$(OBJ_CC) input.o \$(LFLAGS)
 
 #----------------------------------------------------------------------------
 # Generate library libcpmd.a
