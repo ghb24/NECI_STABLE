@@ -1078,11 +1078,11 @@ histogram.x : histogram.o \$(OBJECTS) \$(OBJ_CC)
 	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/histogram.x histogram.x; fi
 	 \$(LD) -o \$(BIN)/histogram.x histogram.o timetag.o \$(OBJECTS) \$(OBJ_CC) input.o \$(LFLAGS)
 
-neci.a : \$(OBJECTS) \$(OBJ_CC)
+neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 ld -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTS) \$(OBJ_CC) input.o
+	 ld -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC) input.o
 	 objcopy --keep-global-symbols=\$(SRC)/GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
 
 #----------------------------------------------------------------------------
@@ -1104,7 +1104,7 @@ clean :
 #----------------------------------------------------------------------------
 # Explicit rules
 #----------------------------------------------------------------------------
-ALLOBJECTS= \$(MAIN_OBJS) \$(OBJECTS) input.mod
+ALLOBJECTS= \$(MAIN_OBJS) \$(OBJECTS) \$(OBJ_NOCPMDSTUB) input.mod
 .SUFFIXES:
 .SUFFIXES: .o .f .F .mod .F90
 

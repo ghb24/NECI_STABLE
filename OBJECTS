@@ -1,7 +1,8 @@
 #
 #  LIST OF FILES
 #
-OBJECTS = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC)
+OBJECTS = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_CPMDSTUB)
+OBJECTSNOCPMD = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_NOCPMDSTUB)
 
 OBJ_AL  = sort2.o fctrl.o sltcnd.o \
           scr.o scr1.o scr2.o matmul.o dotp.o \
@@ -10,18 +11,20 @@ OBJ_AL  = sort2.o fctrl.o sltcnd.o \
           sort_1.o lineup.o gen_coul.o sym.o\
           gndts.o util-sp.o xcnrgy_dnsty.o xcener.o readinput.o
 
-OBJ_CU  = init_coul.o fcoul.o rhoofr.o write_rho.o \
+OBJ_CU  = fcoul.o rhoofr.o write_rho.o \
           xchole.o rlsxc_sc.o rlsxc1_sc.o rlsxc2_sc.o \
           xcholes.o fodmat.o blas_tuned_NECSX.o erf.o \
-	  read_psi.o gen_coul_ueg.o init_coul2D.o \
+	  read_psi.o gen_coul_ueg.o \
           hfbasis.o scrtransf.o csf.o
 
 OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           chebint.o sorti.o calcpathnci.o factorpoly.o rhodiag.o \
           hdiag.o gndts_blk.o mcpathsismc.o mcpathsmcmc.o \
           mcpathsch.o readint.o hubbard.o excit.o mcpathsold.o \
-          rootfind.o cpmdinit.o cpmdstub.o neci.o
+          rootfind.o cpmdinit.o neci.o
 
+OBJ_CPMDSTUB = cpmdstub.o init_coul.o init_coul2D.o
+OBJ_NOCPMDSTUB = nocpmdstub.o
 MAIN_OBJS = histogram.o
 
 #----------------------------------------------------------------------------
