@@ -10,7 +10,7 @@
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD)
+     &   TCPMD,ios)
       USE input
       IMPLICIT REAL*8    (A-H,O-Z)
       INTEGER IPARITY(5)
@@ -30,6 +30,7 @@
       REAL*8  ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
+      INTEGER ios
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
 !     --------------------------------------------
@@ -108,8 +109,8 @@
 
       ir=1
       IF(FILENAME.NE."") THEN
-         WRITE(6,*) "Reading from file: ",FILENAME
-         OPEN(1,FILE=FILENAME,STATUS="OLD")
+         WRITE(6,*) "Reading from file: ",TRIM(FILENAME)
+         OPEN(1,FILE=FILENAME,STATUS="OLD",err=99,iostat=ios)
       ELSEIF(IARGC().GT.0) THEN
          CALL GETARG(1,INP)
          WRITE(6,*) "Reading from file: ",INP
@@ -602,6 +603,10 @@ C..   Testing ILOGGING
 C     ILOGGING = 0771
       WRITE (6,*) 'ILOGGING after input routine', ILOGGING
       IF(IR.EQ.1) CLOSE(1)
+   99 IF (ios.gt.0) THEN
+          WRITE (6,*) 'Problem reading input file ',TRIM(FILENAME)
+      END IF
+      RETURN
       END
 C ==------------------------------------------------------------------==
 

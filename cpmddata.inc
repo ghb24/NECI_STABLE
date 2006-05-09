@@ -14,12 +14,15 @@ C     == EIGENVALUES:eigenvalues of the states, in rydberg.           ==
 C     == XI:        finite size correction.                           ==
 C     == BIGCELL:   true if the cell is non-primitive.                ==
 C     ==================================================================
-      INTEGER NSTATES,NROTOP,NTRANSLAT 
+      INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATE),
+     &        TRANS_LABEL(NSTATE) 
       REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT)
       LOGICAL BIGCELL
       POINTER (IP_EIGENVALUES,EIGENVALUES),(IP_ROT_CHAR,ROT_CHAR),
-     &        (IP_TRANS_CHAR,TRANS_CHAR)
+     &        (IP_TRANS_CHAR,TRANS_CHAR),(IP_ROT_LABEL,ROT_LABEL),
+     &        (IP_TRANS_LABEL,TRANS_LABEL)
       COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,IP_ROT_CHAR,
-     &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL
+     &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,
+     &                  IP_ROT_LABEL,IP_TRANS_LABEL
 C     ==================================================================
