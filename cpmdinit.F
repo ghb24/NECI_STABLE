@@ -18,7 +18,6 @@ C         NBASISMAX(4,2)=1
 
 C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          NBASISMAX(2,3)=0
-         NROT=NROTOP
          CALL EXTRACTSYMLABELS
          CALL GENIRREPS(IMPROPER_OP)
          CALL GENSYMTABLE
@@ -46,9 +45,11 @@ C.. Called to retrieve number of basis functions from CPMD
       SUBROUTINE CPMDSYSTEMINIT(LEN)
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
+         INCLUDE 'sym.inc'
          INTEGER LEN
 C         CALL FAKEREADCHARTABLE(NSTATES)
          LEN=NSTATES*2
+         NROT=NROTOP
       END
 
       SUBROUTINE EXTRACTSYMLABELS
@@ -71,7 +72,7 @@ C.. Indices need to be inverted so cannot straight ICOPY
                   SYMLABELCHARS(J,ROT_LABEL(I))=NINT(ROT_CHAR(I,J))
                ENDDO
             ENDIF
-            SYMLABELS(I)=ROT_LABEL(I)
+            SYMLABELS(1,I)=ROT_LABEL(I)
          ENDDO
          WRITE(6,*) "SYMMETRY CLASSES"
          CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)

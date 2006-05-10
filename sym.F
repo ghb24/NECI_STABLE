@@ -359,6 +359,7 @@ C                  WRITE(6,*) "IDECOMP:", IDECOMP
 C.. We've not manage to add any more irreps, so we have achieved self-consistency.  Do one more pass to check, saving all C.. non-reducible reps
                   LDO=.TRUE.
                   LDO2=.FALSE.
+                  NREPS=0
                ENDIF
             END DO lp2
          ENDDO

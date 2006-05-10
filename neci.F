@@ -1541,7 +1541,7 @@ C          CLOSE(11)
 
 C..
       CALL ENDSYM()
-      CALL FREEM(IP_SPECDET)
+C      CALL FREEM(IP_SPECDET)
       CALL MEMORY_CHECK
 C ==-------------------------------------------------------------------==
       CALL TIHALT('NECICUBE  ',ISUB)
@@ -2692,7 +2692,7 @@ C.. Check spin
          INTEGER NUNIT,NHG,G1(5,NHG),BRR(NHG),I
          REAL*8 ARR(NHG)
          DO I=1,NHG
-           WRITE(NUNIT,'(7I7,F19.5)') I,BRR(I),G1(1,BRR(I)),
+           WRITE(NUNIT,'(6I7,Z6,F19.5)') I,BRR(I),G1(1,BRR(I)),
      &         G1(2,BRR(I)),G1(3,BRR(I)),
      &         G1(4,BRR(I)),G1(5,BRR(I)),ARR(I)
          ENDDO
