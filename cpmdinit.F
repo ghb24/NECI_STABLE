@@ -18,12 +18,13 @@ C         NBASISMAX(4,2)=1
 
 C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          NBASISMAX(2,3)=0
-
-         CALL GENIRREPS
+         NROT=NROTOP
+         CALL EXTRACTSYMLABELS
+         CALL GENIRREPS(IMPROPER_OP)
          CALL GENSYMTABLE
          CALL GENSYMLABELPAIRS
 
-         CALL FAKEEIGENVALUES
+C         CALL FAKEEIGENVALUES
 
          CALL IAZZERO(G1,LEN*5)
          DO I=1,NSTATES
@@ -46,8 +47,36 @@ C.. Called to retrieve number of basis functions from CPMD
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
          INTEGER LEN
-         CALL FAKEREADCHARTABLE(NSTATES)
+C         CALL FAKEREADCHARTABLE(NSTATES)
          LEN=NSTATES*2
+      END
+
+      SUBROUTINE EXTRACTSYMLABELS
+         IMPLICIT NONE
+         INCLUDE 'cpmddata.inc'
+         INCLUDE 'sym.inc'
+         INTEGER I,J
+         NSYMLABELS=0
+         DO I=1,NSTATES
+            IF(ROT_LABEL(I).GT.NSYMLABELS) NSYMLABELS=ROT_LABEL(I)
+         ENDDO
+         CALL MEMORY(IP_SYMLABELCHARS,NSYMLABELS*NROT,'SYMLABELCH')
+         CALL IAZZERO(SYMLABELCHARS,NSYMLABELS*NROT)
+         CALL MEMORY(IP_SYMLABELS,NSTATES*2,'SYMLABELS')
+         DO I=1,NSTATES
+            IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.0) THEN
+C.. we've found an uninitialized symlabel - fill it
+               DO J=1,NROT
+C.. Indices need to be inverted so cannot straight ICOPY
+                  SYMLABELCHARS(J,ROT_LABEL(I))=NINT(ROT_CHAR(I,J))
+               ENDDO
+            ENDIF
+            SYMLABELS(I)=ROT_LABEL(I)
+         ENDDO
+         WRITE(6,*) "SYMMETRY CLASSES"
+         CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
+C.. Allocate memory gor irreps.
+         CALL MEMORY(IP_IRREPCHARS,NROT*NSYMLABELS,"IRREPCH")
       END
 
       SUBROUTINE FAKEEIGENVALUES

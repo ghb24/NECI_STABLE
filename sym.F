@@ -174,7 +174,7 @@ C.. put the pair into the list of pairs.
      &               SYMLABELPAIRLIST(2,PROD))=I
                   SYMLABELPAIRS(2,SYMLABELPAIRLIST(1,PROD)+
      &               SYMLABELPAIRLIST(2,PROD))=J
-                  WRITE(6,"(3Z4)") SYMLABELS(2,I),SYMLABELS(2,J),PROD
+C                  WRITE(6,"(3Z4)") SYMLABELS(2,I),SYMLABELS(2,J),PROD
                ENDIF
 C.. incrememnt the counter in the pairlist
                IF(SYMLABELPAIRLIST(2,PROD).EQ.0) THEN
@@ -249,7 +249,7 @@ C.. round the momentum
       END
 
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.
-      SUBROUTINE GENIRREPS
+      SUBROUTINE GENIRREPS(IMPROPER_OP)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J,K
@@ -258,12 +258,28 @@ C.. Given a set of characters of states, generate all relevant irreps which span
          INTEGER NEXTSYMLAB
          LOGICAL GETIRREPDECOMP
          INTEGER REPCHARS(NROT,NSYMLABELS),NREPS,NORM
+         LOGICAL INV,IMPROPER_OP(NROT)
          NREPS=0
 C.. Initialize the table with the totally symmetric rep.
+         INV=.FALSE.
          DO I=1,NROT
             IRREPCHARS(I,1)=1
+            IF(IMPROPER_OP(I)) INV=.TRUE.
          ENDDO
          NSYM=1
+         IF(INV) THEN
+            WRITE(6,*) "Inversion centre detected"
+            NSYM=NSYM+1
+C.. There's an inversion centre, so we can immediately create an A1u irrep
+            DO I=1,NROT
+               IF(IMPROPER_OP(I)) THEN
+                  IRREPCHARS(I,NSYM)=-1
+               ELSE
+                  IRREPCHARS(I,NSYM)=1
+               ENDIF
+            ENDDO
+            CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
+         ENDIF
          LDO=.TRUE.
          NEXTSYMLAB=1
          LDO2=.TRUE.
@@ -351,8 +367,15 @@ C..
          CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
          IF(NREPS.GT.0) THEN
             WRITE(6,*) NREPS," non-reducible"
-            CALL WRITEIRREPTAB(6,REPCHARS,NROT,NREPS)
-            STOP "Non-reducible reps found."
+               CALL WRITEIRREPTAB(6,REPCHARS,NROT,NREPS)
+C            IF(NREPS.GT.1) THEN
+               STOP "More than 1 non-reducible reps found."
+C            ENDIF
+C.. we can cope with a single reducible rep.
+C            NSYM=NSYM+1
+C            DO I=1,NROT
+C               IRREPCHARS(I,NSYM)=REPCHARS(I,NREPS)
+C            ENDDO
          ENDIF
 C..   Classify each of the symlabels with its decomposition into irreps
          DO I=1,NSYMLABELS

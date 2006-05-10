@@ -17,8 +17,8 @@ C     == ROT/TRANS_LABEL : label characters of states by unique       ==
 C     ==            representations.                                  ==
 C     == IMPROPER_ROT: true if operation is improper.                 ==
 C     ==================================================================
-      INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATE),
-     &        TRANS_LABEL(NSTATE) 
+      INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATES),
+     &        TRANS_LABEL(NSTATES) 
       REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT)
       LOGICAL BIGCELL,IMPROPER_OP(NROTOP)

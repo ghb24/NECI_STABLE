@@ -4,4 +4,5 @@
 cp -f Makefile dest
 cd dest
 make histogram.x
+make neci.a
 cd ..
