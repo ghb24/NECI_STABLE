@@ -33,8 +33,8 @@ C         CALL FAKEEIGENVALUES
             G1(4,I*2-1)=-1
             G1(4,I*2)=1
 C.. Fake the eigenvalues
-            ARR(2*I-1)=EIGENVALUES(I)
-            ARR(2*I)=EIGENVALUES(I)
+            ARR(2*I-1)=EIGENVALUES(I)+XI
+            ARR(2*I)=EIGENVALUES(I)+XI
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
          ENDDO
@@ -77,7 +77,8 @@ C.. Indices need to be inverted so cannot straight ICOPY
          WRITE(6,*) "SYMMETRY CLASSES"
          CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 C.. Allocate memory gor irreps.
-         CALL MEMORY(IP_IRREPCHARS,NROT*NSYMLABELS,"IRREPCH")
+C.. Assume there will be no more than 16 irreps
+         CALL MEMORY(IP_IRREPCHARS,NROT*16,"IRREPCH")
       END
 
       SUBROUTINE FAKEEIGENVALUES
@@ -145,6 +146,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          REAL*8 TOT,F,U
            
          CALL CPMDGEN1EINTS(CPMD1EINT)
+         WRITE(6,*) "XI=",XI
          DO I=1,NSTATES
             DO J=I,NSTATES
                TOT=0.D0

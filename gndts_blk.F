@@ -43,7 +43,7 @@ C.. we've found an occupied block
                CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
                NDETTOT=NDETTOT+(II-OII)*IDEG
                IF(TCOUNT) THEN
-                  WRITE(14,"(5I5,Z4,2I10)") I,(ISYM(J),J=1,5),II-OII,
+                  WRITE(14,"(5I5,Z5,2I10)") I,(ISYM(J),J=1,5),II-OII,
      &               (II-OII)*IDEG
                ELSE
                   NBLOCKSTARTS(I)=OII+1

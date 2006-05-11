@@ -5,11 +5,11 @@ C     ==================================================================
       PARAMETER      (NTIMX=200)
 C     ==--------------------------------------------------------------==
       CHARACTER*10   TNAM
-      COMMON /TNAME/ TNAM(NTIMX)
+      COMMON /TNAMENECI/ TNAM(NTIMX)
 C     ==================================================================
       REAL*8         CTSUM(NTIMX),CTSTA(NTIMX),WTSUM(NTIMX),WTSTA(NTIMX)
-      COMMON /TIMBU/ CTSUM,CTSTA,WTSUM,WTSTA
+      COMMON /TIMBUNECI/ CTSUM,CTSTA,WTSUM,WTSTA
 C     ==================================================================
       INTEGER        NTIMER,NCALLS(NTIMX)
-      COMMON /TIMIN/ NTIMER,NCALLS
+      COMMON /TIMINNECI/ NTIMER,NCALLS
 C     ==================================================================

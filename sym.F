@@ -278,7 +278,7 @@ C.. There's an inversion centre, so we can immediately create an A1u irrep
                   IRREPCHARS(I,NSYM)=1
                ENDIF
             ENDDO
-            CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
+C            CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
          ENDIF
          LDO=.TRUE.
          NEXTSYMLAB=1
@@ -296,6 +296,7 @@ C.. First see if all the products of chars are decomposable
                   DO K=1,NROT
                      REPCHARS(K,NREPS)=IRREPCHARS(K,I)*IRREPCHARS(K,J)
                   ENDDO
+C                  WRITE(6,*) NREPS,"PROD",I,J
 C                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,
      &               NSYM,NROT,IDECOMP,NORM)) THEN
@@ -303,6 +304,7 @@ C.. CHARWORK now contains the remainder, which will be a new irrep (or combinati
                      IF(NORM.EQ.NROT) THEN
 C.. if it's an irrep
                         NSYM=NSYM+1
+                        IF(NSYM.GT.16) STOP "MORE than 16 irreps"
                         DO K=1,NROT
                            IRREPCHARS(K,NSYM)=REPCHARS(K,NREPS)
                         ENDDO
@@ -494,9 +496,9 @@ C               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
                IF(MOD(TOT,NORM).NE.0.AND.CNORM.EQ.NROT) THEN
 C.. The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
 C.. Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
-                  DO J=1,NROT
-                    IRREPCHARS(J,I)=IRREPCHARS(J,I)-CHARS(J)*TOT/CNORM
-                  ENDDO
+C                  DO J=1,NROT
+C                    IRREPCHARS(J,I)=IRREPCHARS(J,I)-CHARS(J)*TOT/CNORM
+C                  ENDDO
 C                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"NOW   ")
                ELSEIF(MOD(TOT,NORM).EQ.0) THEN
 C.. We've found an (ir)rep which is wholly in CHARS
