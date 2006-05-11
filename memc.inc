@@ -28,17 +28,17 @@ C     ==--------------------------------------------------------------==
      &             NUMPEAK,MEMTOT,MEMPEAK
       DIMENSION    I_AD1(MEM_LEN),I_AD2(MEM_LEN),I_LEN(MEM_LEN),
      &             I_LENB(MBM)
-      COMMON/MEMC2/I_AD1,I_AD2,I_LEN,I_LENB,
+      COMMON/MEMCNECI2/I_AD1,I_AD2,I_LEN,I_LENB,
      &             I_BLOCK,IB_MIN,LB_MIN,NUMPEAK,MEMTOT,MEMPEAK
 C     ==--------------------------------------------------------------==
 C     == I_TAG   TAG FOR EACH ALLOCATION                              ==
 C     == IB_TAG  TAG FOR THE MBM BIGGEST ALLOCATIONS                  ==
 C     ==--------------------------------------------------------------==
       CHARACTER*10 I_TAG,IB_TAG
-      COMMON/MEMC3/I_TAG(MEM_LEN),IB_TAG(MBM)
+      COMMON/MEMCNECI3/I_TAG(MEM_LEN),IB_TAG(MBM)
 C     ==--------------------------------------------------------------==
 C     == MEMCHK .TRUE. MEMORY_CHECK DISPLAY MESSAGES                  ==
 C     ==--------------------------------------------------------------==
       LOGICAL MEMCHK
-      COMMON /MEMC1/ MEMCHK
+      COMMON /MEMCNECI1/ MEMCHK
 C     ==================================================================

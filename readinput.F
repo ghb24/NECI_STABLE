@@ -563,28 +563,28 @@ C.. multiple of 2
                   call readu(w)
                   select case(w)
                   case("LABEL")
-                      ILOGGING = ILOGGING + 2**3
-                  case("RHO")
                       ILOGGING = ILOGGING + 2**4
+                  case("RHO")
+                      ILOGGING = ILOGGING + 2**5
                   case default
-                      ILOGGING = ILOGGING + 2**3
+                      ILOGGING = ILOGGING + 2**4
                   end select
               case("XIJ")
-                  ILOGGING = ILOGGING + 2**5
-              case("HAMILTONIAN")
                   ILOGGING = ILOGGING + 2**6
-              case("PSI")
+              case("HAMILTONIAN")
                   ILOGGING = ILOGGING + 2**7
+              case("PSI")
+                  ILOGGING = ILOGGING + 2**8
               case("VERTEX")
                   call readu(w)
                   select case(w)
                   case("1000")
-                      ILOGGING = ILOGGING + 2**8
-                  case("EVERY")
                       ILOGGING = ILOGGING + 2**9
+                  case("EVERY")
+                      ILOGGING = ILOGGING + 2**10
                   end select
               case("HFBASIS")
-                  ILOGGING = ILOGGING + 2**10
+                  ILOGGING = ILOGGING + 2**11
               case("ENDLOG")
                   exit logging
               end select
@@ -601,7 +601,7 @@ C..   false.
       CALL MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
 C..   Testing ILOGGING
 C     ILOGGING = 0771
-      WRITE (6,*) 'ILOGGING after input routine', ILOGGING
+      WRITE (6,"(A,Z4)") 'ILOGGING after input routine', ILOGGING
       IF(IR.EQ.1) CLOSE(1)
    99 IF (ios.gt.0) THEN
           WRITE (6,*) 'Problem reading input file ',TRIM(FILENAME)
