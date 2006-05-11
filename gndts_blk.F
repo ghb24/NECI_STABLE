@@ -725,11 +725,12 @@ C.. symmetry specifiers are incremented by multiplying*2 (unless there are no sy
 C.. If we've run out of syms, we give up
                      TMORE=.FALSE.
                   ENDIF
-               ELSEIF(ILEV.LT.5) THEN
+               ELSEIF(ILEV.LT.4) THEN
 C.. We've just incremented one of the higher columns, now go down to the
 C.. lower ones.
                   ILEV=ILEV+1
                   ISYM(ILEV)=IMAX(ILEV,1)-1
+                  
                ELSEIF(KALLOWED(ISYM,NBASISMAX)) THEN
                   TMORE2=.FALSE.
                   ILEV=0

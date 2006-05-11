@@ -448,7 +448,7 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL MEMORY(IP_UMAT,1,'UMAT')
             CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
             CALL AZZERO(TMAT,NHG*NHG)
-            CALL CPMDINIT2INDINT(TMAT,NHG)
+            CALL CPMDINIT2INDINT(TMAT,NHG,NTFROZEN)
          ELSEIF(TREADINT) THEN
             WRITE(6,*)
      &         ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
