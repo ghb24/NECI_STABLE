@@ -5,6 +5,7 @@
          INTEGER NBASISMAX(5,2), BRR(LEN),LEN,G1(5,LEN)
          REAL*8 ARR(LEN)
          INTEGER I,IDECOMP
+         LOGICAL ALL1D
 C         NBASISMAX(1,1)=1
 C         NBASISMAX(1,2)=NSTATES
 C         NBASISMAX(1,3)=2
@@ -26,8 +27,10 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
 C         CALL FAKEEIGENVALUES
 
          CALL IAZZERO(G1,LEN*5)
+         ALL1D=.TRUE.
          DO I=1,NSTATES
            CALL DECOMPOSEREP(SYMLABELCHARS(1,SYMLABELS(1,I)),IDECOMP)
+            IF(SYMLABELCHARS(1,SYMLABELS(1,I)).NE.1) ALL1D=.FALSE.
             G1(5,I*2-1)=IDECOMP
             G1(5,I*2)=IDECOMP
             G1(4,I*2-1)=-1
@@ -38,6 +41,17 @@ C.. Fake the eigenvalues
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
          ENDDO
+         IF(ALL1D) THEN
+C.. If all reps are 1D, we can block determinants in different symmetries
+            NBASISMAX(5,1)=0
+            NBASISMAX(5,2)=NSYM-1
+            WRITE(6,*)
+     &   "All orbitals have 1D symmetry. Using blocking symmetry."
+         ELSE
+            WRITE(6,*)
+     &   "Multidimensional symmetries detected. ",
+     &   "Not using symmetry blocking."
+         ENDIF
 C.. show it's a generic spatial basis
          NBASISMAX(3,3)=1
       END
@@ -147,6 +161,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          CALL TISET('CPMDINIT2I',ISUB)
  
          NSTATESUSED=NSTATES-NTFROZEN/2
+         CALL SETUPUMATCACHE(NSTATESUSED)
          CALL CPMDGEN1EINTS(CPMD1EINT)
          WRITE(6,*) "XI=",XI
          DO I=1,NSTATESUSED

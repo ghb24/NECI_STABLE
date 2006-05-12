@@ -548,16 +548,16 @@ C.. multiple of 2
               call readu(w)
               select case(w)
               case("MCPATHS")
-                  ILOGGING = ILOGGING + 2**0
+                  ILOGGING = ILOGGING + 2**1
               case("FMCPR")
                   call readu(w)
                   select case(w)
                   case("LABEL")
-                      ILOGGING = ILOGGING + 2**1
-                  case("RHO")
                       ILOGGING = ILOGGING + 2**2
+                  case("RHO")
+                      ILOGGING = ILOGGING + 2**3
                   case default
-                      ILOGGING = ILOGGING + 2**1
+                      ILOGGING = ILOGGING + 2**2
                   end select
               case("CALPATH")
                   call readu(w)

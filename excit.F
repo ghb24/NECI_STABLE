@@ -1296,7 +1296,7 @@ C.. NSTARTFN is the basis fn to start with for this electron
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
-         INTEGER I,J,I1,I2,NMIN,NMAXEX,ISYM2(5)
+         INTEGER I,J,I1,I2,NMIN,NMAXEX,ISYM2(5),K
          LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT
          INTEGER G1(5,NBASIS),ISYM(5),NBASISMAX(5,3)
 C.. NMAXEX is the maximum number of excitations we're allowed to  have
@@ -1324,12 +1324,14 @@ C.. is allowed, and if so, store it
 C.. if we've excited at least one elec
                IF(NNLEFT.LE.NMAXEX.AND.NNLEFT.GE.0) THEN
 C.. we check whether we're allowed this excitation owing to sym
+C                  CALL WRITEDET(6,NEXCIT,NEL,.TRUE.)
                   IF(TSYM) THEN
                      CALL GETSYM(NEXCIT,NEL,G1,NBASISMAX,ISYM2)
                      LSYM=LCHKSYM(ISYM,ISYM2)
                   ELSE
                      LSYM=.TRUE.
                   ENDIF
+C                  WRITE(6,*) ISYM,ISYM2,LSYM
                   IF(LSYM) THEN
                      IF(.NOT.TCOUNT) THEN
                         CALL ICOPY(NEL,NEXCIT,1,LIST(1:NEL,NLISTPOS),1)
