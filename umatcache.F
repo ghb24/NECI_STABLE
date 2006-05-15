@@ -41,8 +41,8 @@ C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
 C.. We don't have a stored UMAT - we call to generate it.
                   CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
-C                  IF(I.EQ.J.AND.I.EQ.K.AND.I.EQ.L)
-C     &               GETUMATEL=GETUMATEL-XI
+                  IF(I.EQ.J.AND.I.EQ.K.AND.I.EQ.L)
+     &               GETUMATEL=GETUMATEL-XI
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &               ICACHEI)
                ELSE
