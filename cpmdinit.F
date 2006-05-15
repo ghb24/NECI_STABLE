@@ -36,8 +36,10 @@ C         CALL FAKEEIGENVALUES
             G1(4,I*2-1)=-1
             G1(4,I*2)=1
 C.. Fake the eigenvalues
-            ARR(2*I-1)=EIGENVALUES(I)+XI
-            ARR(2*I)=EIGENVALUES(I)+XI
+            ARR(2*I-1)=EIGENVALUES(I)
+C+XI
+            ARR(2*I)=EIGENVALUES(I)
+C+XI
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
          ENDDO
@@ -169,8 +171,9 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          DO I=1,NSTATESUSED
             DO J=I,NSTATESUSED
                TOT=0.D0
-C               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)+XI
-C               WRITE(6,*) I,J,CPMD1EINT(I,J)
+               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
+C+XI
+C              WRITE(6,*) I,J,CPMD1EINT(I,J)
               TOT=TOT-CPMD1EINT(I,J)
                DO K=1,NSTATES
                   CALL CPMDGETOCC(K,F)
@@ -180,6 +183,7 @@ C.. Get 4-index integral (ik|jk)
                      U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
      &      I,K,J,K)
 C                     CALL INITFINDXI(I,K,J,K,U)
+C                     WRITE(6,*) F,U
                      TOT=TOT-F*U
                   ENDIF
                ENDDO
