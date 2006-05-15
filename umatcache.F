@@ -7,10 +7,12 @@
          REAL*8 UMAT(*)
          INTEGER A,B,C
          INTEGER IDI,IDJ,IDK,IDL
+         INTEGER SYM
          REAL*8 SUM
          PARAMETER PI=3.14159265358979323846264338327950288419716939937510D0
          INTEGER ICACHE,ICACHEI
-         LOGICAL GETCACHEDUMATEL
+         LOGICAL GETCACHEDUMATEL,LSYMSYM
+         INTEGER SYMPROD
 
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
@@ -21,6 +23,17 @@ C.. Check to see if the umat element is in the cache
                J=IDJ
                K=IDK
                L=IDL
+               SYM=1
+               SYM=SYMPROD(SYM,G1(5,I*2-1))
+               SYM=SYMPROD(SYM,G1(5,J*2-1))
+               SYM=SYMPROD(SYM,G1(5,K*2-1))
+               SYM=SYMPROD(SYM,G1(5,L*2-1))
+C.. Check the symmetry of the 4-index integrals
+               IF(.NOT.LSYMSYM(SYM)) THEN
+                  GETUMATEL=0.D0
+                  RETURN
+               ENDIF
+               
                IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B))
      &             THEN
 C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL

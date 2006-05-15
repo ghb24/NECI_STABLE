@@ -166,11 +166,13 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          CALL SETUPUMATCACHE(NSTATESUSED)
          CALL CPMDGEN1EINTS(CPMD1EINT)
          WRITE(6,*) "XI=",XI
+         OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          DO I=1,NSTATESUSED
             DO J=I,NSTATESUSED
                TOT=0.D0
                IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)+XI
-               TOT=TOT-CPMD1EINT(I,J)
+C               WRITE(6,*) I,J,CPMD1EINT(I,J)
+              TOT=TOT-CPMD1EINT(I,J)
                DO K=1,NSTATES
                   CALL CPMDGETOCC(K,F)
 C.. F now has the occupation number of state K
@@ -186,7 +188,9 @@ C                     CALL INITFINDXI(I,K,J,K,U)
                TMAT(2*I,2*J)=TOT
                TMAT(2*J-1,2*I-1)=TOT
                TMAT(2*J,2*I)=TOT
+               WRITE(10,*) I,J,TOT
             ENDDO
          ENDDO
+         CLOSE(10)
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   

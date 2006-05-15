@@ -48,7 +48,7 @@ C.. product in the symmetry table, and OR that with the product.
 
       LOGICAL FUNCTION LSYMSYM(ISYM)
          INTEGER ISYM
-         LSYMSYM=(ISYM.EQ.0.OR.ISYM.EQ.1)
+         LSYMSYM=(ISYM.EQ.0.OR.BTEST(ISYM,0))
          RETURN
       END
 
