@@ -165,12 +165,11 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          NSTATESUSED=NSTATES-NTFROZEN/2
          CALL SETUPUMATCACHE(NSTATESUSED)
          CALL CPMDGEN1EINTS(CPMD1EINT)
-         WRITE(6,*) "XI=",XI
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          DO I=1,NSTATESUSED
             DO J=I,NSTATESUSED
                TOT=0.D0
-               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)+XI
+C               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)+XI
 C               WRITE(6,*) I,J,CPMD1EINT(I,J)
               TOT=TOT-CPMD1EINT(I,J)
                DO K=1,NSTATES

@@ -13,6 +13,7 @@
          INTEGER ICACHE,ICACHEI
          LOGICAL GETCACHEDUMATEL,LSYMSYM
          INTEGER SYMPROD
+         INCLUDE 'cpmddata.inc'
 
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
@@ -40,6 +41,8 @@ C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
 C.. We don't have a stored UMAT - we call to generate it.
                   CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
+C                  IF(I.EQ.J.AND.I.EQ.K.AND.I.EQ.L)
+C     &               GETUMATEL=GETUMATEL-XI
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &               ICACHEI)
                ELSE
