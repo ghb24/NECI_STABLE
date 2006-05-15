@@ -23,13 +23,15 @@ C.. Check to see if the umat element is in the cache
                L=IDL
                IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B))
      &             THEN
+C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL
+C                  WRITE(6,*) A,B
 C.. We don't have a stored UMAT - we call to generate it.
                   CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &               ICACHEI)
-C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL
                ELSE
 C                  WRITE(6,*) "HIT ",IDI,IDJ,IDK,IDL,GETUMATEL
+C                  WRITE(6,*) A,B
                ENDIF
 C               GETUMATEL=0.5D0
             ELSE
@@ -107,15 +109,20 @@ C.. First ensure the indices are in the correct order
          IF(IDK.LT.IDI) CALL SWAP(IDI,IDK)
          IF(IDL.LT.IDJ) CALL SWAP(IDJ,IDL)
          CALL GETCACHEINDEX(IDI,IDK,NSTATES,A)
-         CALL GETCACHEINDEX(IDJ,IDK,NSTATES,B)
+         CALL GETCACHEINDEX(IDJ,IDL,NSTATES,B)
+C         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
          IF(A.GT.B) THEN
             CALL SWAP(A,B)
             CALL SWAP(IDI,IDJ)
             CALL SWAP(IDK,IDL)
          ENDIF
          ICACHE=A
-C         WRITE(6,*) A,B
-         CALL BINARYSEARCH(B,UMATLABELS(1,A),1,NSLOTS,ICACHEI)
+         IF(NSLOTS.EQ.NPAIRS) THEN
+C.. we've a small enough system to store everything.
+            ICACHEI=B
+         ELSE
+            CALL BINARYSEARCH(B,UMATLABELS(1,A),1,NSLOTS,ICACHEI)
+         ENDIF
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN
             UMATEL=UMATCACHE(ICACHEI,ICACHE)
 C.. signal success
@@ -145,9 +152,10 @@ C         ENDDO
          J=B
          IFIRST=I
          ILAST=J
-         DO WHILE(J-I.GT.1)
+         DO WHILE(J-I.GE.1)
             N=(I+J)/2
-            IF(TAB(N).LT.VAL.AND.TAB(N).NE.0) THEN
+C            WRITE(6,"(A,5I3)") "TN",I,J,N,TAB(N),VAL
+            IF(TAB(N).LT.VAL.AND.TAB(N).NE.0.AND.I.NE.N) THEN
                IF(TAB(N).NE.TAB(IFIRST)) IFIRST=N
 C.. reset the lower limit
                I=N
@@ -155,19 +163,32 @@ C.. reset the lower limit
                IF(TAB(N).NE.TAB(ILAST)) ILAST=N
 C.. reset the upper limit
                J=N
-            ELSE
+            ELSEIF(TAB(N).EQ.VAL) THEN
 C.. bingo, we've got it!
                LOC=N
+C         DO I=A,B
+C            WRITE(6,*) I,TAB(I),I.EQ.LOC
+C         ENDDO
                RETURN
+            ELSE
+C.. we've reached a situation where I and J's entries have the same value, and it's
+C.. not the one we want.  Leave the loop.
+               I=J
             ENDIF
          ENDDO
 C.. We've failed.  However, the new value should sit between I and J.
 C.. Split whichever of the prior or after slots which has the most duplicates
-         IF(I-IFIRST.GT.ILAST-J) THEN
+C         WRITE(6,*) "FAIL:",IFIRST,I,J,ILAST
+         IF(TAB(IFIRST).EQ.TAB(ILAST)) THEN
+            LOC=(IFIRST+ILAST)/2
+         ELSEIF(I-IFIRST.GE.ILAST-J) THEN
             LOC=(IFIRST+I)/2
          ELSE
             LOC=(ILAST+J)/2
          ENDIF
+C         DO I=A,B
+C            WRITE(6,*) I,TAB(I),I.EQ.LOC
+C         ENDDO
       END
 
 C.. Get a unique index corresponding to pair (I,J), and return in RET.
@@ -201,6 +222,12 @@ C.. middle of a block of duplicates
          REAL*8 UMATEL
          INCLUDE 'umatcache.inc'      
          INTEGER OLAB,IC1
+         IF(NSLOTS.EQ.NPAIRS) THEN
+C.. small system.  only store a single element
+            UMATLABELS(ICACHEI,ICACHE)=B
+            UMATCACHE(ICACHEI,ICACHE)=UMATEL
+            RETURN
+         ENDIF
          IC1=ICACHEI
 C         WRITE(6,*) "ICI",ICACHEI,ICACHE
          OLAB=UMATLABELS(ICACHEI,ICACHE)

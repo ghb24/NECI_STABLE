@@ -150,14 +150,16 @@ C.. f_i is the occupation number for state i.
 C.. delta_ij is the Dirac delta.
 C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
-      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NTFROZEN)
+      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NTFROZEN,NBASISMAX,ISS,G1)
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
          REAL*8 TMAT(NHG,NHG)
          REAL*8 CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,ISUB
-         REAL*8 TOT,F,U
+         REAL*8 TOT,F,U 
+         REAL*8 GETUMATEL
+         INTEGER ISS(*),G1(*),NBASISMAX(*)
          CALL TISET('CPMDINIT2I',ISUB)
  
          NSTATESUSED=NSTATES-NTFROZEN/2
@@ -174,7 +176,9 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
 C.. F now has the occupation number of state K
                   IF(F.GT.0.D0) THEN
 C.. Get 4-index integral (ik|jk)
-                     CALL INITFINDXI(I,K,J,K,U)
+                     U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
+     &      I,K,J,K)
+C                     CALL INITFINDXI(I,K,J,K,U)
                      TOT=TOT-F*U
                   ENDIF
                ENDDO
