@@ -36,10 +36,8 @@ C         CALL FAKEEIGENVALUES
             G1(4,I*2-1)=-1
             G1(4,I*2)=1
 C.. Fake the eigenvalues
-            ARR(2*I-1)=EIGENVALUES(I)
-C+XI
-            ARR(2*I)=EIGENVALUES(I)
-C+XI
+            ARR(2*I-1)=EIGENVALUES(I)+XI
+            ARR(2*I)=EIGENVALUES(I)+XI
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
          ENDDO
@@ -152,7 +150,7 @@ C.. f_i is the occupation number for state i.
 C.. delta_ij is the Dirac delta.
 C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
-      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NTFROZEN,NBASISMAX,ISS,G1,
+      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NTFROZEN,NBASISMAX,ISS,G1,NEL,
      &      ECORE)
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
@@ -164,10 +162,11 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          REAL*8 GETUMATEL
          INTEGER ISS(*),G1(*),NBASISMAX(*)
          REAL*8 ECORE
+         INTEGER NEL
          CALL TISET('CPMDINIT2I',ISUB)
 
-         WRITE(6,*) "Core Energy:", EIONION 
-         ECORE=EIONION
+         ECORE=EIONION-NEL*NEL*XI/2.0
+         WRITE(6,*) "Core Energy:", ECORE 
          NSTATESUSED=NSTATES-NTFROZEN/2
          CALL SETUPUMATCACHE(NSTATESUSED)
          CALL CPMDGEN1EINTS(CPMD1EINT)
@@ -175,8 +174,9 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          DO I=1,NSTATESUSED
             DO J=I,NSTATESUSED
                TOT=0.D0
-               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)+XI
-C              WRITE(6,*) I,J,CPMD1EINT(I,J)
+               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
+C+XI
+              WRITE(6,*) I,J,CPMD1EINT(I,J)
               TOT=TOT-CPMD1EINT(I,J)
                DO K=1,NSTATES
                   CALL CPMDGETOCC(K,F)
