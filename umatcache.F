@@ -41,7 +41,7 @@ C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
 C.. We don't have a stored UMAT - we call to generate it.
                   CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
-                  IF(I.EQ.J.AND.I.EQ.K.AND.I.EQ.L)
+                  IF(I.EQ.K.AND.J.EQ.L)
      &               GETUMATEL=GETUMATEL-XI
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &               ICACHEI)
@@ -104,6 +104,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
          NSTATES=NSTATE
          NPAIRS=NSTATES*(NSTATES+1)/2
          NSLOTS=MIN(NPAIRS, 1024)
+         WRITE(6,*) "UMAT NSLOTS,NPAIRS,TOT",NSLOTS,NPAIRS,NSLOTS*NPAIRS
          CALL MEMORY(IP_UMATCACHE,NSLOTS*NPAIRS,'UMATCACHE')
          CALL MEMORY(IP_UMATLABELS,NSLOTS*NPAIRS/IRAT+1,'UMATLABELS')
          CALL AZZERO(UMATCACHE,NPAIRS*NSLOTS)
