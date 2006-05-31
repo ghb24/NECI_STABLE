@@ -176,13 +176,19 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
                TOT=0.D0
                IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
 C+XI
-              WRITE(6,*) I,J,CPMD1EINT(I,J)
+C              WRITE(6,*) I,J,CPMD1EINT(I,J)
               TOT=TOT-CPMD1EINT(I,J)
                DO K=1,NSTATES
                   CALL CPMDGETOCC(K,F)
 C.. F now has the occupation number of state K
-                  IF(F.GT.0.D0) THEN
+                  IF(F.GT.1.D-5) THEN
 C.. Get 4-index integral (ik|jk)
+                     IF(K.GT.NSTATESUSED) THEN
+                        WRITE(6,"(A,I2,A,F10.6)") "TOP FROZEN STATE ",K,
+     &                   " has occupation number ",F
+                        STOP "TOP FROZEN STATE OCCUPIED"
+                     ENDIF
+C                     WRITE(6,*) "U",I,K,J,K
                      U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
      &      I,K,J,K)
 C                     CALL INITFINDXI(I,K,J,K,U)
