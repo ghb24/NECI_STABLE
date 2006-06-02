@@ -17,9 +17,10 @@ C         OCC=F(ISTATE)
          OCC=0.D0
       END
       
-      SUBROUTINE CPMDGEN1EINTS(INTS)
+      SUBROUTINE CPMDGEN1EINTS(INTS,XIS)
          IMPLICIT NONE
          REAL*8 INTS(NSTATES,NSTATES)
+         REAL*8 XIS
          INCLUDE 'cpmddata.inc'
          CALL AZZERO(INTS,NSTATES*NSTATES)
       END

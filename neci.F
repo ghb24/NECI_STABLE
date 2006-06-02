@@ -573,6 +573,11 @@ C.. If in Hubbard, we generate site-spin occupations
             CALL FLUSH(6)
          ENDIF
 
+         IF(NTFROZEN.LT.0) THEN
+            WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN,
+     &         " unfrozen virtuals."
+            NTFROZEN=NTFROZEN+NHG-NEL
+         ENDIF
          IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0) THEN
 C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 C.. TMAT and Ecore with the frozen orbitals factored in
@@ -669,6 +674,7 @@ C.. single excitation
 C.. Calculate relevant symmetry tables
       IF(TREADINT) THEN
 C.. we're reading in integrals and have a molpro symmetry table
+                  WRITE(6,*) 1,NBASISMAX(5,2)
          CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
       ELSEIF(TCPMD) THEN
 C.. If TCPMD, then we've generated the symmetry table earlier,

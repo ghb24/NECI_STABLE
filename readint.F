@@ -47,6 +47,7 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
          IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
             IF(I.GT.1) THEN
                IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
+                  WRITE(6,*) ISYMNUM
                   IF(ISYMNUM.GT.ISNMAX) ISNMAX=ISYMNUM
                   ISYMNUM=0
                ENDIF
@@ -87,7 +88,8 @@ C.. set momentum to 0
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
          NBASISMAX(5,1)=0
-         NBASISMAX(5,2)=ISNMAX-1
+         NBASISMAX(5,2)=ORBSYM(NORB)-1
+CISNMAX-1
          NBASISMAX(2,1)=0
 C         NBASISMAX(2,2)=ORBSYM(NORB)-1
          NBASISMAX(2,2)=0
