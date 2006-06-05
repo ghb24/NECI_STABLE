@@ -88,7 +88,25 @@ C       Integer=integer*4 : 2^31=2147483648, 2^28=268435456
 #else
       IP_XM=MALLOC(LEN)
 #endif
-      IF(IP_XM.LE.0) IERROR=1
+CC AJWT 5/6/06 from CPMD 3.9.11
+C detect malloc failure. comparing a pointer with a possibly signed
+C integer
+C may be a problem. on some machines the 'heap' grows down so successful
+C allocations may result in a 'negative' value.
+C we are being careful here. on the following machines a failed malloc
+C _is_
+C indicated by a NULL pointer, for the rest we fail on negative as well.
+C AK 2005/04/16.
+CC /AJWT
+#if defined(__HP) || defined(__Linux) || defined(__alpha) || defined(__OSX) || defined(__WINNT)
+      IF(IP_XM.EQ.0) THEN
+        IERROR=1
+      ENDIF
+#else
+      IF(IP_XM.LE.0) THEN
+        IERROR=1
+      ENDIF
+#endif
 #endif
       IF(IERROR.NE.0) THEN
         WRITE(*,'(/,1X,64("*"))')
