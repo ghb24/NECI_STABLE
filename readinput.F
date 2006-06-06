@@ -33,6 +33,7 @@
       INTEGER ios
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
+      INCLUDE 'umatcache.inc'
 !     --------------------------------------------
 !     Set some sensible defaults here
       title = ""
@@ -91,6 +92,9 @@
       DETINV = 0
       NDETWORK = 50000
       TSPECDET = .false.
+
+      NSLOTSINIT=1024
+
 !     Values for old parameters.
       TRHOOFR = .false.
       TCORR = .false.
@@ -531,6 +535,8 @@ C.. multiple of 2
      &                                 0.000001)*1000)*2
                      ENDIF
                   ENDDO
+              case("UMATCACHE")
+                  call geti(NSLOTSINIT)
               case("ENDINT")
                    exit integral
               case default

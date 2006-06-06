@@ -232,6 +232,9 @@ INSPECT <SPECDET(I), I=1,NEL-NFROZEN>
 ORDER <ORBORDER(I), I=1,8)>
     Set the prelimanary ordering of basis functions for an initial guess at the HF determinant.
 
+UMATCACHE NSLOTSINIT (default 1024)
+   For CPMD-generated 2-electron integrals, set the number of slots per state-pair of cache to reserve.  The total amount of cache will be in the order of NSLOTS*NSTATES*(NSTATES-1)/2  words
+
 ENDINT
     End of integral block.
 
