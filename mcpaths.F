@@ -886,13 +886,14 @@ C.. Now use the generator to make the next node,NJ
 C               CALL WRITEDET(6,IPATH(1,IEXFROM),NEL,.FALSE.)
 C               CALL WRITEDET(6,NJ,NEL,.FALSE.)
 C               WRITE(6,"(3I)") I_VIND,LOC(CURGEN),CURGEN(6)
-C.. First make sure it's not already in the path
+C.. Check to see it's actually been generated
                IF(NJ(1).EQ.0) THEN
                   TFAIL=.TRUE.
                   TNEXT=.TRUE.
                ELSE
                   TFAIL=.FALSE.
                ENDIF
+C.. Now make sure it's not already in the path
                IF(.NOT.TFAIL) THEN
                   DO J=0,I_VIND
                      IF(ICMPDETS(NJ,IPATH(1,J),NEL).EQ.0) THEN
