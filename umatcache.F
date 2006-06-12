@@ -14,7 +14,8 @@
          LOGICAL GETCACHEDUMATEL,LSYMSYM
          INTEGER SYMPROD
          INCLUDE 'cpmddata.inc'
-
+         INTEGER ISUB
+         CALL TISET(' GETUMATEL',ISUB)
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
@@ -32,6 +33,7 @@ C.. Check to see if the umat element is in the cache
 C.. Check the symmetry of the 4-index integrals
                IF(.NOT.LSYMSYM(SYM)) THEN
                   GETUMATEL=0.D0
+                  CALL TIHALT(' GETUMATEL',ISUB)
                   RETURN
                ENDIF
                
@@ -54,6 +56,7 @@ C               GETUMATEL=0.5D0
                GETUMATEL=UMAT(IDI+(NHG/ISS)*(IDJ-1+
      &                     (NHG/ISS)*(IDK-1+(NHG/ISS)*(IDL-1))))
             ENDIF
+            CALL TIHALT(' GETUMATEL',ISUB)
             RETURN
          ENDIF
          IF(NBASISMAX(1,3).EQ.-1) THEN
@@ -82,6 +85,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
             GETUMATEL=SUM
          ENDIF
             
+         CALL TIHALT(' GETUMATEL',ISUB)
       END
 
 
@@ -103,6 +107,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
          INCLUDE 'irat.inc'
          NSTATES=NSTATE
          NPAIRS=NSTATES*(NSTATES+1)/2
+c        NSLOTS=MIN(NPAIRS, 1024)
          NSLOTS=MIN(NPAIRS, NSLOTSINIT)
          WRITE(6,*) "UMAT NSLOTS,NPAIRS,TOT",NSLOTS,NPAIRS,NSLOTS*NPAIRS
          CALL MEMORY(IP_UMATCACHE,NSLOTS*NPAIRS,'UMATCACHE')

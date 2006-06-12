@@ -13,7 +13,8 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 
       INTEGER ND1,ND2,IQ,I,J,K,ID1,ID2,IDS
       REAL*8 SUM2
-
+      INTEGER ISUB
+      CALL TISET('      SCR1',ISUB) 
 C.. NB in HF we need to include TMAT element
 
 
@@ -84,5 +85,6 @@ C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
       SUM=SUM2*COULCOUPLE+TMAT(ND1,ND2)
+      CALL TIHALT('      SCR1',ISUB) 
       RETURN
       END

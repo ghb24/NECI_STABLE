@@ -21,9 +21,9 @@ MODULE input
 !  http://www.gnu.org/copyleft/gpl.html
 
 
-#ifdef NAGF95
-USE f90_unix_env, ONLY: getarg
-#endif
+!#ifdef NAGF95
+!USE f90_unix_env, ONLY: getarg
+!#endif
 
 IMPLICIT NONE
 

@@ -864,7 +864,7 @@ C.. Work out the fermi det
 
          WRITE(6,*) ' NUMBER OF SYMMETRY UNIQUE DETS ' , NDET
 
-         WRITE(6,*) ' TOTAL NUMBER OF DETS.' , NDETTOT
+C         WRITE(6,*) ' TOTAL NUMBER OF DETS.' , NDETTOT
          IF(NEVAL.EQ.0) THEN
             WRITE(6,*) 'NEVAL=0.  Setting NEVAL=NDET'
             NEVAL=NDET
@@ -891,7 +891,6 @@ C.. Work out the fermi det
             DETINV=0
             NPATHS=0
          ENDIF
-
          CALL FLUSH(6)
 C ==----------------------------------------------------------------==
 C..Set up memory for c's, nrow and the label
