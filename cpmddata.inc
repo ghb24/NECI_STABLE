@@ -18,7 +18,7 @@ C     ==            representations.                                  ==
 C     == IMPROPER_ROT: true if operation is improper.                 ==
 C     ==================================================================
       INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATES),
-     &        TRANS_LABEL(NSTATES) 
+     &        TRANS_LABEL(NSTATES),NCOMPLETE
       REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT)
       LOGICAL BIGCELL,IMPROPER_OP(NROTOP)
@@ -29,5 +29,5 @@ C     ==================================================================
       COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,IP_ROT_CHAR,
      &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,
      &                  IP_ROT_LABEL,IP_TRANS_LABEL,IP_IMPROPER_OP,
-     &                  EIONION
+     &                  EIONION,NCOMPLETE
 C     ==================================================================
