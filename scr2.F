@@ -20,7 +20,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
 
       INTEGER ISUB
-      CALL TISET('      SCR2',ISUB)
+      CALL TISET('SCR2      ',ISUB)
 C..Here we zero ND1 and ND2
       DO I=1,2
          ND1(I)=0
@@ -73,7 +73,7 @@ C..N'>N'-1 and N>N-1 *See Levine for rule 3*
       IF(SUM.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
      &   NEL,3,G1)
       SUM=SUM*COULCOUPLE
-      CALL TIHALT('      SCR2',ISUB)
+      CALL TIHALT('SCR2      ',ISUB)
       RETURN
       END 
 C ==----------------------------------------------------------------==
