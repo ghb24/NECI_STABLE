@@ -3,7 +3,7 @@
          INCLUDE 'cpmddata.inc'
          INCLUDE 'sym.inc'
          INTEGER NBASISMAX(5,2), BRR(LEN),LEN,G1(5,LEN)
-         REAL*8 ARR(LEN)
+         REAL*8 ARR(LEN,2)
          INTEGER I,IDECOMP
          LOGICAL ALL1D
 C         NBASISMAX(1,1)=1
@@ -36,8 +36,10 @@ C         CALL FAKEEIGENVALUES
             G1(4,I*2-1)=-1
             G1(4,I*2)=1
 C.. Fake the eigenvalues
-            ARR(2*I-1)=EIGENVALUES(I)+XI
-            ARR(2*I)=EIGENVALUES(I)+XI
+            ARR(2*I-1,1)=EIGENVALUES(I)+XI
+            ARR(2*I,1)=EIGENVALUES(I)+XI
+            ARR(2*I-1,2)=EIGENVALUES(I)+XI
+            ARR(2*I,2)=EIGENVALUES(I)+XI
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
          ENDDO

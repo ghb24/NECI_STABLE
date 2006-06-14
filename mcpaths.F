@@ -508,7 +508,7 @@ caa	    call flush(10)
             IF(I_V.EQ.2) THEN
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
-               CALL ADDMP2E(HIJS,NMAX,IPATH,NEL,MP2E)
+               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,MP2E)
             ENDIF
             RETURN
          ENDIF
@@ -2032,11 +2032,11 @@ C         DLWDB=DLWDB-LIST(1,2)
 
 C.. Calculate the contribution to the MP2 energy from 
 C.. the determinant making this a 2-v graph.
-      SUBROUTINE ADDMP2E(HIJS,ARR,IPATH,NEL,MP2E)
+      SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,MP2E)
          IMPLICIT NONE
          REAL*8 HIJS(0:2)
-         REAL*8 ARR(*)
-         INTEGER IPATH(NEL,0:2),NEL
+         REAL*8 ARR(NBASIS,2)
+         INTEGER IPATH(NEL,0:2),NEL,NBASIS
          INTEGER NI(NEL),NJ(NEL)
          REAL*8 MP2E
          REAL*8 DENOM,CONTR
@@ -2069,13 +2069,13 @@ C            WRITE(23,*) I,J,IPATH(I,0),IPATH(J,1)
             IF(J.GT.NEL.OR.(I.LE.NEL.AND.NI(I).LT.NJ(J))) THEN
 C.. 0 has a lower orb than 1, so 0's must have been removed to get 1
 C               WRITE(23,*) IPATH(I,0),-ARR(IPATH(I,0))
-               DENOM=DENOM-ARR(NI(I))
+               DENOM=DENOM-ARR(NI(I),2)
                I=I+1
             ELSEIF(I.GT.NEL.OR.(J.LE.NEL.AND.NI(I).GT.NJ(J)))
      &          THEN
 C.. 1 has a lower orb than 0, so 1's must have been added to get 1
 C               WRITE(23,*) IPATH(J,0),ARR(IPATH(J,1))
-               DENOM=DENOM+ARR(NJ(J))
+               DENOM=DENOM+ARR(NJ(J),2)
                J=J+1
             ELSE
                I=I+1
@@ -2083,8 +2083,8 @@ C               WRITE(23,*) IPATH(J,0),ARR(IPATH(J,1))
             ENDIF
          ENDDO
          CONTR=HIJS(1)*HIJS(1)/DENOM
-C         CALL WRITEPATH(23,IPATH,2,NEL,.FALSE.)
-C         WRITE(23,*) HIJS(1),DENOM,CONTR
+         CALL WRITEPATH(23,IPATH,2,NEL,.FALSE.)
+         WRITE(23,*) HIJS(1),DENOM,CONTR
          MP2E=MP2E-CONTR
          RETURN
       END

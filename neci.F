@@ -329,8 +329,12 @@ C.. Set the initial symmetry to be totally symmetric
       NBASISMAX(5,6)=1
 
 
-      CALL MEMORY(IP_ARR,LEN,'ARR')
-      CALL AZZERO(ARR,LEN)
+C.. we actually store twice as much in arr as we need.
+C.. the ARR(1:LEN) are the energies of the orbitals ordered according to
+C.. BRR.  ARR(LEN+1:2*LEN) are the energies of the orbitals with default 
+C.. ordering.
+      CALL MEMORY(IP_ARR,2*LEN,'ARR')
+      CALL AZZERO(ARR,2*LEN)
       CALL MEMORY(IP_BRR,LEN,'BRR')
       CALL AZZERO(BRR,LEN)
       CALL MEMORY(IP_G1,5*LEN,'G1')
@@ -2367,11 +2371,14 @@ C.. the Fermi determinant, otherwise the numbers blow up
       SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
          INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),NBASISMAX(5,3)
          INTEGER BRR2(NBASIS),G1(5,NBASIS)
-         REAL*8 ARR(NBASIS),ARR2(NBASIS)
+         REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
          INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K
          REAL*8 OEN
          IDONE=0
          ITOT=0
+C.. copy the default ordered energies.
+         CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
+         CALL DCOPY(NBASIS,ARR(1,1),1,ARR2(1,2),1)
          WRITE(6,"(A,8I4)") "Ordering Basis (Closed): ",
      &      (ORBORDER(I,1),I=1,8)
          WRITE(6,"(A,8I4)") "Ordering Basis (Open  ): ",
@@ -2393,52 +2400,52 @@ C.. we use the symmetries of the spatial orbitals
                   IDONE=IDONE+1 
                   BRR2(IDONE)=IBFN
                   BRR(IBFN)=0
-                  ARR2(IDONE)=ARR(IBFN)
+                  ARR2(IDONE,1)=ARR(IBFN,1)
                   IBFN=IBFN+1
                ENDDO
              ENDDO
-             CALL SORT2(IDONE-ITOT,ARR2(ITOT+1),BRR2(ITOT+1))
+             CALL SORT2(IDONE-ITOT,ARR2(ITOT+1,1),BRR2(ITOT+1))
              ITOT=IDONE
             ENDDO
             DO I=1,NBASIS
                IF(BRR(I).NE.0) THEN
                   ITOT=ITOT+1
                   BRR2(ITOT)=BRR(I)
-                  ARR2(ITOT)=ARR(I)
+                  ARR2(ITOT,1)=ARR(I,1)
                ENDIF
             ENDDO
             CALL ICOPY(NBASIS,BRR2,1,BRR,1)
             CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
          ENDIF
-         CALL SORT2(NBASIS-ITOT,ARR(ITOT+1),BRR(ITOT+1))
+         CALL SORT2(NBASIS-ITOT,ARR(ITOT+1,1),BRR(ITOT+1))
 C.. We need to now go through each set of degenerate orbitals, and make
 C.. the correct ones are paired together in BRR otherwise bad things
 C.. happen in FREEZEBASIS
 C.. We do this by ensuring that within a degenerate set, the BRR are in
 C.. ascending order
-         OEN=ARR(1)
+         OEN=ARR(1,1)
          J=1
 C         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
          ITOT=1
          DO I=2,NBASIS
-            IF(ABS(ARR(I)-OEN).GT.1.D-4) THEN
+            IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
 C.. We don't have degenerate orbitals
 C.. First deal with the last set of degenerate orbitals
 C.. We sort them into order of BRR
-               CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT))
+               CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1))
 C.. now setup the new degenerate set.
                J=J+1
                ITOT=1
             ELSE
                ITOT=ITOT+1
             ENDIF
-            OEN=ARR(I)
+            OEN=ARR(I,1)
             IF(NBASISMAX(3,3).EQ.1) THEN
 C.. If we've got a generic spatial sym or hf we mark degeneracies
 C               G(3,BRR(I))=J
             ENDIF
          ENDDO
-         CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT))
+         CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1))
       END
 
       SUBROUTINE FREEZEBASIS(NHG,NBASIS,UMAT,TMAT,UMAT2,TMAT2,ECORE,
@@ -2451,7 +2458,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 UMAT2(*)
 C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 TMAT2(NBASIS,NBASIS)
-         REAL*8 ARR(NHG),ARR2(NBASIS)
+         REAL*8 ARR(NHG,2),ARR2(NBASIS,2)
          INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),G2(5,NHG),GG(NHG)
          INTEGER NTFROZEN
          INTEGER I,J,K,L,A,B,IP,JP,KP,LP,IDI,IDJ,IDK,IDL
@@ -2497,7 +2504,8 @@ C.. copy the eigenvalue table to the new location
 C.. Now construct the new BRR and ARR
          DO I=1,NBASIS
             BRR2(I)=GG(BRR(I+NFROZEN))
-            ARR2(I)=ARR(I+NFROZEN)
+            ARR2(I,1)=ARR(I+NFROZEN,1)
+            ARR2(I,2)=ARR(I+NFROZEN,2)
          ENDDO
 C.. First deal with Ecore
          DO A=1,NFROZEN
@@ -2598,7 +2606,7 @@ C.. Now setup the default symmetry to include the frozen electrons
 C.. Copy the new G1 and BRR and ARR over the old ones
          CALL ICOPY(5*NBASIS,G2,1,G1,1)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)
-         CALL DCOPY(NBASIS,ARR2,1,ARR,1)
+         CALL DCOPY(NBASIS*2,ARR2,1,ARR,1)
 C.. Now reset the total number of orbitals
          NHG=NBASIS
 C.. Deal with FDET
@@ -2707,11 +2715,11 @@ C.. Check spin
       SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
          IMPLICIT NONE
          INTEGER NUNIT,NHG,G1(5,NHG),BRR(NHG),I
-         REAL*8 ARR(NHG)
+         REAL*8 ARR(NHG,2)
          DO I=1,NHG
            WRITE(NUNIT,'(6I7,Z6,F19.5)') I,BRR(I),G1(1,BRR(I)),
      &         G1(2,BRR(I)),G1(3,BRR(I)),
-     &         G1(4,BRR(I)),G1(5,BRR(I)),ARR(I)
+     &         G1(4,BRR(I)),G1(5,BRR(I)),ARR(I,1)
          ENDDO
          RETURN
       END

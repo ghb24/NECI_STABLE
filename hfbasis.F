@@ -73,7 +73,7 @@ C..Symmetries
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
          IMPLICIT NONE
          INTEGER NBASIS,G1(5,NBASIS),NBASISMAX(5,2)
-         REAL*8 ARR(NBASIS)
+         REAL*8 ARR(NBASIS,2)
          REAL*8 HFE(NBASIS)
          INTEGER BRR(NBASIS)
          INTEGER I
@@ -85,7 +85,8 @@ C.. a different X quantum number, and all have the same spin.
             G1(2,I)=0
             G1(3,I)=I
             G1(4,I)=-2*(MOD(I,2))+1
-            ARR(I)=HFE(I)
+            ARR(I,1)=HFE(I)
+            ARR(I,2)=HFE(I)
             BRR(I)=I
          ENDDO
 C.. This sorts ARR and BRR into order of ARR [AJWT]
@@ -1277,7 +1278,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE ORDERBASISHF(ARR,BRR,HFE,HFBASIS,G1,NBASIS,FDET,NEL)
          IMPLICIT NONE
          INTEGER NBASIS,BRR(NBASIS)
-         REAL*8 ARR(NBASIS),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)
+         REAL*8 ARR(NBASIS,2),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER I,J,IBF,G1(5,NBASIS),ITOT,NEL,FDET(NEL),ICUR
          REAL*8 MX,OEN
@@ -1299,7 +1300,8 @@ C.. The largest element isn't big enough, so we abort
                CALL FLUSH(6)
                STOP "ORDERBASISHF failed - HF Basis not converged"
             ENDIF
-            ARR(I)=HFE(I)
+            ARR(I,1)=HFE(I)
+            ARR(IBF,2)=HFE(I)
             BRR(I)=IBF
          ENDDO
 C.. We need to now go through each set of degenerate orbitals, and make
@@ -1307,23 +1309,23 @@ C.. the correct ones are paired together in BRR otherwise bad things
 C.. happen in FREEZEBASIS
 C.. We do this by ensuring that within a degenerate set, the BRR are in
 C.. ascending order
-         OEN=ARR(1)
+         OEN=ARR(1,1)
          J=1
 C         G1(3,BRR(1))=J
          ITOT=1
          DO I=2,NBASIS
-            IF(ABS(ARR(I)-OEN).GT.1.D-4) THEN
+            IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
 C.. We don't have degenerate orbitals
 C.. First deal with the last set of degenerate orbitals
 C.. We sort them into order of BRR
-               CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT))
+               CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1))
 C.. now setup the new degenerate set.
                J=J+1
                ITOT=1
             ELSE
                ITOT=ITOT+1
             ENDIF
-            OEN=ARR(I)
+            OEN=ARR(I,1)
 C.. If we've got a generic spatial sym or hf we mark degeneracies
 C               G1(3,BRR(I))=J
          ENDDO
