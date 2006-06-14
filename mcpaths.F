@@ -49,7 +49,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 NTIME,OTIME
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          REAL*8 OSI,ODLWDB,OPROB
+         REAL*8 MP2E
          CALL TISET('MCPATHSR10',ISUB)
+C.. This will store the MP2 energy
+         MP2E=0.D0
          ISEED=7
          TLOG=BTEST(ILOGGING,1)
          IF(NTAY.LE.0) THEN
@@ -105,14 +108,16 @@ C.. This code generates list of all excitations at each level
      &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
      &            CNWHTAY,L,LT,I_CHMAX,NLIST,LSTP,
-     &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS)
+     &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,
+     &            MP2E)
             STD=LT
             ELSEIF(I_CHMAX.EQ.-8) THEN
 C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0)
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
+     &         MP2E)
                STD=LT
             ELSEIF(I_CHMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
@@ -212,6 +217,7 @@ C.. save all log files
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          IF(BTEST(ILOGGING,9)) CLOSE(12)
+         IF(MP2E.NE.0.D0) WRITE(6,*) "MP2 ENERGY = ",HIJS(0)+MP2E
          WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
 C.<D|H exp(-b H)|D> / <D|exp(-b H)|D>
@@ -265,6 +271,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 GETHELEMENT2,FMCPR3B
          REAL*8 NTIME,OTIME
          INTEGER IFRZ(0:NBASIS,I_VMAX)
+         REAL*8 MP2E
+
+C.. This is where we will store the MP2 energy
+         MP2E=0.D0
 C         CALL MEMORY_CHECK()
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
          CALL CLEARCLASSPATHS()
@@ -368,13 +378,15 @@ C.. This code generates list of all excitations at each level
      &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
      &            NWHTAY,L,LT,I_HMAX,NLIST,LSTP,
-     &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS)
+     &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,
+     &            MP2E)
             ELSEIF(I_HMAX.EQ.-8) THEN
 C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0)
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
+     &         MP2E)
             ENDIF
             CALL TIHALT(STR,ISUB2)
             NTIME=TIMEC()*0.001D0
@@ -405,6 +417,7 @@ C.<D|H exp(-b H)|D> / <D|exp(-b H)|D>
 C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
          DLWDB=DLWDB/TOTAL
+         IF(MP2E.NE.0.D0) WRITE(6,*) "MP2 ENERGY = ",HIJS(0)+MP2E
          CALL TIHALT('MCPATHSR3 ',ISUB)
          CALL MEMORY_CHECK()
          RETURN
@@ -417,7 +430,8 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
       RECURSIVE REAL*8 FUNCTION FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
-     &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS)
+     &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
+     &   MP2E)
          
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -447,6 +461,7 @@ C.. NLIST contains the legnth of LSTE for each node
          REAL*8 HIJS(0:I_V)
          INTEGER ICLS
          REAL*8 GETHELEMENT2
+         REAL*8 MP2E
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
          LT=LT+1
@@ -490,6 +505,11 @@ C.. Sum up the components of <D|H exp(-b H)|D>
 caa	    call flush(10) 
             L=L+1
             FMCPR3=TOTAL
+            IF(I_V.EQ.2) THEN
+C.. Calculate the MP2 Energy
+C.. NMAX has ARR hidden in it.
+               CALL ADDMP2E(HIJS,NMAX,IPATH,NEL,MP2E)
+            ENDIF
             RETURN
          ENDIF
 C.. Find all nodes connected to this node
@@ -659,7 +679,7 @@ C.. Get the H element so we can calculate the energy
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,LSTE,
      &                     ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,NLIST,
      &                     LSTP2,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,
-     &                     DBETA,DLWDB,HIJS)
+     &                     DBETA,DLWDB,HIJS,MP2E)
                ENDIF
             ENDIF
             I=I+1
@@ -684,7 +704,7 @@ C.. scaling should be better. (9/3/05)
       RECURSIVE REAL*8 FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
-     &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE)
+     &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E)
          
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -720,6 +740,7 @@ C.. scaling should be better. (9/3/05)
          INTEGER IFRZ(0:NBASIS,I_V),IFRZ2(0:NBASIS)
          INTEGER EX(2,2),ICIL,ICILMAX
          REAL*8 FSCALE,FSC2
+         REAL*8 MP2E
          IF(I_VIND.EQ.0) THEN
 C.. 1st time in
             CALL IAZZERO(IFRZ(0,1),NBASIS+1) 
@@ -994,7 +1015,7 @@ C.. Get the H element so we can calculate the energy
      &                     G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
-     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2)
+     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF
@@ -1026,7 +1047,7 @@ C            CALL PRINT_MEMORY()
          INTEGER J,K
          
          WRITE(NUNIT,"(A,$)") "["
-         DO J=0,I_V
+         DO J=0,I_V-1
             CALL WRITEDET(NUNIT,IPATH(1,J),NEL,.FALSE.)
             WRITE(NUNIT,"(A,$)") ","
          ENDDO
@@ -2009,3 +2030,61 @@ C         DLWDB=DLWDB-LIST(1,2)
          RETURN
       END
 
+C.. Calculate the contribution to the MP2 energy from 
+C.. the determinant making this a 2-v graph.
+      SUBROUTINE ADDMP2E(HIJS,ARR,IPATH,NEL,MP2E)
+         IMPLICIT NONE
+         REAL*8 HIJS(0:2)
+         REAL*8 ARR(*)
+         INTEGER IPATH(NEL,0:2),NEL
+         INTEGER NI(NEL),NJ(NEL)
+         REAL*8 MP2E
+         REAL*8 DENOM,CONTR
+         INTEGER I,J,S
+         LOGICAL ISCSF
+
+
+C.. If we have CSFs, unCSF the elecs
+         IF(ISCSF(IPATH(1,0),NEL)) THEN
+            DO I=1,NEL
+               CALL GETUNCSFELEC(IPATH(I,0),NI(I),S)
+            ENDDO
+         ELSE
+            CALL ICOPY(NEL,IPATH(1,0),1,NI,1)
+         ENDIF
+         IF(ISCSF(IPATH(1,1),NEL)) THEN
+            DO I=1,NEL
+               CALL GETUNCSFELEC(IPATH(I,1),NJ(I),S)
+            ENDDO
+         ELSE
+            CALL ICOPY(NEL,IPATH(1,1),1,NJ,1)
+         ENDIF
+
+C.. First find which orbitals have been excited
+         I=1
+         J=1
+         DENOM=0.D0
+         DO WHILE (I.LE.NEL.OR.J.LE.NEL)
+C            WRITE(23,*) I,J,IPATH(I,0),IPATH(J,1)
+            IF(J.GT.NEL.OR.(I.LE.NEL.AND.NI(I).LT.NJ(J))) THEN
+C.. 0 has a lower orb than 1, so 0's must have been removed to get 1
+C               WRITE(23,*) IPATH(I,0),-ARR(IPATH(I,0))
+               DENOM=DENOM-ARR(NI(I))
+               I=I+1
+            ELSEIF(I.GT.NEL.OR.(J.LE.NEL.AND.NI(I).GT.NJ(J)))
+     &          THEN
+C.. 1 has a lower orb than 0, so 1's must have been added to get 1
+C               WRITE(23,*) IPATH(J,0),ARR(IPATH(J,1))
+               DENOM=DENOM+ARR(NJ(J))
+               J=J+1
+            ELSE
+               I=I+1
+               J=J+1
+            ENDIF
+         ENDDO
+         CONTR=HIJS(1)*HIJS(1)/DENOM
+C         CALL WRITEPATH(23,IPATH,2,NEL,.FALSE.)
+C         WRITE(23,*) HIJS(1),DENOM,CONTR
+         MP2E=MP2E-CONTR
+         RETURN
+      END

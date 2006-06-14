@@ -26,7 +26,9 @@ C      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
       INTEGER IC,NMAX
       INTEGER IFLAG,IPTOT
       REAL*8 COULCOUPLE
+      INTEGER ISUB
       INCLUDE 'fcoul.inc'
+      CALL TISET('SLTCND    ',ISUB)
       ISPINSKIP=NBASISMAX(2,3)
 C..
 C..Routine to read in UMAT
@@ -63,6 +65,7 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
         RETURN
       ENDIF
       SUM=SUM*DFLOAT(IPTOT)
+      CALL TIHALT('SLTCND    ',ISUB)
       RETURN
       END
 C=================================================================

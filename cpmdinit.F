@@ -150,27 +150,26 @@ C.. f_i is the occupation number for state i.
 C.. delta_ij is the Dirac delta.
 C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
-      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NTFROZEN,NBASISMAX,ISS,G1,NEL,
+      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE)
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
          REAL*8 TMAT(NHG,NHG)
          REAL*8 CPMD1EINT(NSTATES,NSTATES)
-         INTEGER I,J,K,NSTATESUSED,ISUB
+         INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED
          REAL*8 TOT,F,U 
          REAL*8 GETUMATEL
          INTEGER ISS(*),G1(*),NBASISMAX(*)
          REAL*8 ECORE
          INTEGER NEL
-         REAL*8 XIS(NSTATES,NSTATES)
          CALL TISET('CPMDINIT2I',ISUB)
 
          ECORE=EIONION-NEL*NEL*XI/2.0
          WRITE(6,*) "Core Energy:", ECORE 
-         NSTATESUSED=NSTATES-NTFROZEN/2
+         NSTATESUSED=NORBUSED/2
          CALL SETUPUMATCACHE(NSTATESUSED)
-         CALL CPMDGEN1EINTS(CPMD1EINT,XIS)
+         CALL CPMDGEN1EINTS(CPMD1EINT)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          DO I=1,NSTATESUSED
             DO J=I,NSTATESUSED

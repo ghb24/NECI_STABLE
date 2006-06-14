@@ -19,7 +19,7 @@ C..Cube array
       REAL*8 SUM1,SUM2,PI
       INTEGER IDS,I,J
       INTEGER ISUB
-      CALL TISET('SCR0      ',ISUB) 
+      CALL TISET('      SCR0',ISUB) 
       PI=ACOS(-1.D0)
 C..This is the Slater-Condon rule when the two determinants are the *SAME*
       SUM1=0.D0
@@ -58,7 +58,7 @@ C..
       IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
      &   NEL,1,G1)
       SUM=SUM1+SUM2*COULCOUPLE
-      CALL TIHALT('SCR0      ',ISUB) 
+      CALL TIHALT('      SCR0',ISUB) 
       RETURN
       END
 C=============================================================

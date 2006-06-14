@@ -448,7 +448,12 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL MEMORY(IP_UMAT,1,'UMAT')
             CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
             CALL AZZERO(TMAT,NHG*NHG)
-            CALL CPMDINIT2INDINT(TMAT,NHG,NTFROZEN,NBASISMAX,
+            IF(NTFROZEN.LT.0) THEN
+               I=NEL+(-NTFROZEN)
+            ELSE
+               I=NHG-NTFROZEN
+            ENDIF
+            CALL CPMDINIT2INDINT(TMAT,NHG,I,NBASISMAX,
      &         ISPINSKIP,G1,NEL,ECORE)
          ELSEIF(TREADINT) THEN
             WRITE(6,*)
@@ -1284,8 +1289,9 @@ C..     BETA->NDET
                   NTAY=-NEL
                ENDIF
 CCC..AAAA
+CC.. Instead of NMAX, we put ARR
                CALL CALCRHOPII2(NMRKS,NDET,I_P,I_HMAX,I_VMAX,NEL,NDET,
-     &           NBASISMAX,G1,NHG,BRR,NMRKS,RHOIJ,RHOIJLAB,NMAX,ALAT,
+     &           NBASISMAX,G1,NHG,BRR,NMRKS,RHOIJ,RHOIJLAB,ARR,ALAT,
      &           RHOIJROWS,NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,
      &            .FALSE.,0.D0,DETINV,TSPECDET,SPECDET)
 C               CALL MCPATHSR3(NMRKS(1:NEL,III),NHG,I_P,I_HMAX,I_VMAX,
@@ -1413,8 +1419,9 @@ C..      FCK=W
 C..      ZIA=CK
 C..      UMAT=NDET
 C..      ALAT=NMRKS
+C..      NMAX=ARR
               CALL CALCRHOPII2(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,
-     &           NBASISMAX,G1,NHG,BRR,NEVAL,W,CK,NMAX,NMRKS,NDET,NTAY,
+     &           NBASISMAX,G1,NHG,BRR,NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
      &            DETINV,TSPECDET,SPECDET)
 
@@ -1425,8 +1432,9 @@ C.. we haven't calculated the energy, so we're calculating the weights
 C.. with approx RHOs
                IF(TENERGY) THEN
 C.. If we've generated a list of dets
+C.. Instead of NMAX, we put ARR
               CALL CALCRHOPII2(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,
-     &           NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
+     &           NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMAT,ARR,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
      &            DETINV,TSPECDET,SPECDET)
                ELSE
@@ -1438,8 +1446,9 @@ C.. If we've generated a list of dets
                         CALL ICOPY(NEL,FDET,1,SPECDET,1)
                      ENDIF
                   ENDIF
+C.. Instead of NMAX we have ARR
               CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,
-     &           NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
+     &           NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMAT,ARR,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
      &            DETINV,TSPN,LMS2,TPARITY,IPARITY,TSPECDET,SPECDET)
                ENDIF
@@ -1457,10 +1466,11 @@ C            DBETA=DBRAT*BETA
             IF(NTAY.GT.0) THEN
                WRITE(6,*) "Using approx RHOs generated on the fly,",
      &            "NTAY=",NTAY
+C.. NMAX is now ARR
                EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,
      &               IMCSTEPS,
      &            G1,NEL,NBASISMAX,NHG,BRR,IEQSTEPS,
-     &         NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,
+     &         NMSH,FCK,TMAT,ARR,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,
      &            ECORE,BETAEQ)
             ELSEIF(NTAY.EQ.0) THEN
                IF(TENERGY) THEN
@@ -1472,10 +1482,11 @@ C..      FCK=W
 C..      ZIA=CK
 C..      UMAT=NDET
 C..      ALAT=NMRKS
+C..      NMAX=ARR
                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,
      &                     IMCSTEPS,
      &               G1,NEL,NBASISMAX,NHG,BRR,IEQSTEPS,
-     &         NEVAL,W,CK,NMAX,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,
+     &         NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,
      &               ECORE,BETAEQ)
                ELSE
                   
