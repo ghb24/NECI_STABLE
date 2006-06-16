@@ -173,6 +173,8 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          CALL SETUPUMATCACHE(NSTATESUSED)
          CALL CPMDGEN1EINTS(CPMD1EINT)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
+C.. Set the UMAT cache to cache things in the lowest possible position
+         CALL SETUMATCACHEFLAG(1)
          DO I=1,NSTATESUSED
             DO J=I,NSTATESUSED
                TOT=0.D0
@@ -205,6 +207,8 @@ C                     WRITE(6,*) F,U
                WRITE(10,*) I,J,TOT
             ENDDO
          ENDDO
+C.. Set the UMAT cache to cache normally again
+         CALL SETUMATCACHEFLAG(0)
          CLOSE(10)
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   

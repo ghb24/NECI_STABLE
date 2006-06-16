@@ -4,5 +4,10 @@
       INTEGER NSLOTSINIT
       POINTER (IP_UMATCACHE,UMATCACHE)
       POINTER (IP_UMATLABELS,UMATLABELS)
+C.. UMATCACHEFLAG=0 is normal operation
+C.. UMATCACHEFLAG=1 means cache from bottom up
+C..      This is useful when lots of sequential pieces of data
+C..    are being sought.
+      INTEGER UMATCACHEFLAG
       COMMON /UMATCACHE/ NSLOTS,NPAIRS,IP_UMATCACHE,IP_UMATLABELS,
-     &   NSTATES,NSLOTSINIT
+     &   NSTATES,NSLOTSINIT,UMATCACHEFLAG

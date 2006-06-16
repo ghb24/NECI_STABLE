@@ -109,11 +109,20 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
          NPAIRS=NSTATES*(NSTATES+1)/2
 c        NSLOTS=MIN(NPAIRS, 1024)
          NSLOTS=MIN(NPAIRS, NSLOTSINIT)
+         UMATCACHEFLAG=0
          WRITE(6,*) "UMAT NSLOTS,NPAIRS,TOT",NSLOTS,NPAIRS,NSLOTS*NPAIRS
          CALL MEMORY(IP_UMATCACHE,NSLOTS*NPAIRS,'UMATCACHE')
          CALL MEMORY(IP_UMATLABELS,NSLOTS*NPAIRS/IRAT+1,'UMATLABELS')
          CALL AZZERO(UMATCACHE,NPAIRS*NSLOTS)
          CALL IAZZERO(UMATLABELS,NPAIRS*NSLOTS)
+      END
+
+      SUBROUTINE SETUMATCACHEFLAG(NEWFLAG)
+         IMPLICIT NONE
+         INTEGER NEWFLAG
+         INCLUDE 'umatcache.inc'
+         UMATCACHEFLAG=NEWFLAG
+         RETURN
       END
 
 C.. Lookup in the cache to see if there's a stored element.  If not, return TRUE.
@@ -124,6 +133,7 @@ C.. ICACHEI is the index in that cache where the cache should be located.
      &      ICACHEI,A,B)
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI
+         INTEGER ICACHEI1,ICACHEI2
          REAL*8 UMATEL
          INCLUDE 'umatcache.inc'      
          INTEGER I,A,B
@@ -143,7 +153,10 @@ C         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
 C.. we've a small enough system to store everything.
             ICACHEI=B
          ELSE
-            CALL BINARYSEARCH(B,UMATLABELS(1,A),1,NSLOTS,ICACHEI)
+            CALL BINARYSEARCH(B,UMATLABELS(1,A),1,NSLOTS,ICACHEI,
+     &         ICACHEI1,ICACHEI2)
+C.. UMATCACHEFLAG=1 means we store at the lowest possible position
+            IF(UMATCACHEFLAG.EQ.1) ICACHEI=ICACHEI1
          ENDIF
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN
             UMATEL=UMATCACHE(ICACHEI,ICACHE)
@@ -162,9 +175,9 @@ C.. the entry indicated is one after half-way through the set of entries which
 C.. would be immediately prior to it.  From here until the label changes
 C.. should be filled with VAL if it is to be entered into the table.
 C.. A and B are the limits of the table.
-      SUBROUTINE BINARYSEARCH(VAL,TAB,A,B,LOC)
+      SUBROUTINE BINARYSEARCH(VAL,TAB,A,B,LOC,LOC1,LOC2)
          IMPLICIT NONE
-         INTEGER VAL,A,B,LOC
+         INTEGER VAL,A,B,LOC,LOC1,LOC2
          INTEGER TAB(B)
          INTEGER I,J,IFIRST,N,ILAST
 C         DO I=A,B
@@ -191,6 +204,8 @@ C.. bingo, we've got it!
 C         DO I=A,B
 C            WRITE(6,*) I,TAB(I),I.EQ.LOC
 C         ENDDO
+               LOC1=N
+               LOC2=N
                RETURN
             ELSE
 C.. we've reached a situation where I and J's entries have the same value, and it's
@@ -201,8 +216,12 @@ C.. not the one we want.  Leave the loop.
 C.. We've failed.  However, the new value should sit between I and J.
 C.. Split whichever of the prior or after slots which has the most duplicates
 C         WRITE(6,*) "FAIL:",IFIRST,I,J,ILAST
+         LOC1=IFIRST+1
+         LOC2=ILAST-1
          IF(TAB(IFIRST).EQ.TAB(ILAST)) THEN
             LOC=(IFIRST+ILAST)/2
+            LOC1=IFIRST
+            LOC2=ILAST
          ELSEIF(I-IFIRST.GE.ILAST-J) THEN
             LOC=(IFIRST+I)/2
          ELSE
