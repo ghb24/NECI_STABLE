@@ -34,6 +34,7 @@
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'umatcache.inc'
+      INCLUDE 'sym.inc'
 !     --------------------------------------------
 !     Set some sensible defaults here
       title = ""
@@ -74,6 +75,8 @@
       DBETA=-1.D0
       RHOEPSILON=1.D-6
       TTROT=.true.
+
+      TNEWEXCITATIONS=.FALSE.
 
       TNPDERIV = .false.
       TMONTE = .false.
@@ -287,6 +290,14 @@ C.. the last number is the symmetry specification - and is placed in position 5
                   end select
               case("EXCITE")
                   call geti(ICILEVEL)
+              case("EXCITATIONS")
+                  call readu(w)
+                  select case(w)
+                  case("NEW")
+                     TNEWEXCITATIONS=.TRUE.
+                  case("OLD")
+                     TNEWEXCITATIONS=.FALSE.
+                  end select
               case("STEPS")
                   call geti(NCYCLE)
               case("POSITION")

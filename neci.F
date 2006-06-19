@@ -151,6 +151,9 @@ C.. Encode the symmetry for the total spin in LMS
       IF(TCPMD) THEN
          WRITE(6,*) ' *** GENERIC SYSTEM USING KOHN-SHAM ORBITALS *** '
          CALL CPMDSYSTEMINIT(LEN)   
+         IF(TPARITY) THEN
+            WRITE(6,*) ' SYMMETRIES : ',(IPARITY(I),I=1,5)
+         ENDIF
       ELSEIF(TREADINT) THEN
 C.. we read in the integrals from FCIDUMP and ignore most config
 C..   
@@ -349,6 +352,7 @@ C.. ordering.
          CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN) 
          NBASIS=LEN
          NHG=LEN
+         CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
       ELSE
 C.. Create plane wave basis functions
       IG=0
@@ -393,6 +397,7 @@ C..Check to see if all's well
          WRITE(6,*) "LEN=",LEN,"IG=",IG
          STOP ' LEN NE IG ' 
       ENDIF
+         CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
       ENDIF
 C..        (.NOT.TREADINT)
 C..Now we sort them using SORT2 and then SORT
@@ -627,6 +632,8 @@ C.. to UMAT2
             IP_UMAT2=NULL
             CALL MEMORY_CHECK
             WRITE(6,*) "Active basis functions:",NHG
+            CALL FREEZESYMLABELS(NFROZEN,NTFROZEN,
+     &         NBASIS+NFROZEN+NTFROZEN)
             CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
          ENDIF
 
@@ -683,15 +690,14 @@ C.. single excitation
 C.. Calculate relevant symmetry tables
       IF(TREADINT) THEN
 C.. we're reading in integrals and have a molpro symmetry table
-                  WRITE(6,*) 1,NBASISMAX(5,2)
-         CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
+         CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
       ELSEIF(TCPMD) THEN
 C.. If TCPMD, then we've generated the symmetry table earlier,
 C.. but we still need the sym reps table
-         CALL GENSYMREPS(G1,NBASIS,ARR,BRR)
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
       ELSE
 C.. no symmetry, so a simple sym table
-         CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
+         CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
       ENDIF
 
          WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
@@ -728,7 +734,10 @@ C         WRITE(6,*) "THFBASIS set and NBLK=0.  ",
 C     &         "Cannot block diagonalize in HF Basis."
 C         STOP
 C      ENDIF
-
+C      CALL SYMGENEXCITS(FDET,NEL,G1,NBASIS,NBASISMAX)
+C      CALL PMAXMEM
+C      CALL TIPRI
+C      STOP
 
       IF(.NOT.TCALCHMAT) THEN
          WRITE(6,*) "Not storing the H matrix."
@@ -860,7 +869,9 @@ C.. Use HAMIL to temporarily hold a list of excitation levels
          ENDIF
          OPEN(8,FILE='DETS',STATUS='UNKNOWN')
          DO I=1,NDET
-            CALL WRITEDET(8,NMRKS(1,I),NEL,.TRUE.)
+            CALL WRITEDET(8,NMRKS(1,I),NEL,.FALSE.)
+            CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
+            WRITE(8,"(Z6)") ISYM(5)
          ENDDO
          CLOSE(8)
 C..
@@ -2469,6 +2480,20 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          INTEGER KSYM(5)
          REAL*8 GETUMATEL
          REAL*8 ALAT(3)
+C.. Just check to see if we're not in the middle of a degenerate set with the same sym
+         IF(NFROZEN.GT.0) THEN
+            IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.
+     &        G1(5,BRR(NFROZEN)).EQ.G1(5,BRR(NFROZEN+1))) THEN
+               STOP "Cannot freeze in the middle of a degenerate set"
+            ENDIF
+         ENDIF
+         IF(NFROZEN.GT.0) THEN
+            IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6
+     &     .AND.G1(5,BRR(NHG-NFROZEN)).EQ.G1(5,BRR(NHG-NFROZEN+1))) THEN
+          STOP "Cannot freeze in the middle of a degenerate virtual set"
+            ENDIF
+         ENDIF
+
 C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 C.. TMAT and Ecore with the frozen orbitals factored in
 C..
@@ -2715,11 +2740,14 @@ C.. Check spin
       SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
          IMPLICIT NONE
          INTEGER NUNIT,NHG,G1(5,NHG),BRR(NHG),I
+         INCLUDE 'sym.inc'
          REAL*8 ARR(NHG,2)
          DO I=1,NHG
            WRITE(NUNIT,'(6I7,Z6,F19.5)') I,BRR(I),G1(1,BRR(I)),
      &         G1(2,BRR(I)),G1(3,BRR(I)),
-     &         G1(4,BRR(I)),G1(5,BRR(I)),ARR(I,1)
+     &         G1(4,BRR(I)),G1(5,BRR(I)),
+C     &         SYMLABELS(2,SYMLABELS(1,(BRR(I)+1)/2)),
+     &         ARR(I,1)
          ENDDO
          RETURN
       END

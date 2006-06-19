@@ -542,8 +542,6 @@ C.. This procedure need not be done here, but can be done as we recurse
 C.. through the excitations.
          CALL ELIMDUPS(LSTE,LSTP,I_VIND,NEL,NLIST,ILMAX,NI)
 
-
-
 C.. We now find all the nodes which actually have a connection to us
 C.. eliminating any others in the list.  As this requires that we calc
 C.. RHOIJ, so we store it too.
@@ -556,7 +554,7 @@ C.. we are not connected.
                CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_VIND),BETA,I_P,NEL,
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
      &            RH,NTAY,ICE(I,I_VIND),ECORE)
-               IF(ABS(RH).GT.RHOEPS) THEN
+               IF(ABS(RH).GE.RHOEPS) THEN
                   IF(II.NE.I) 
      &              CALL ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,
      &                    LSTE(1:NEL,II,I_VIND),1)
@@ -568,6 +566,10 @@ C.. we are not connected.
          ENDDO
          NLIST(I_VIND)=II-1            
             
+C         WRITE(6,*) NLIST(I_VIND)
+C         DO I=1,NLIST(I_VIND)
+C            CALL WRITEDET(6,LSTE(1,I,I_VIND),NEL,.TRUE.)
+C         ENDDO
 C.. We recurse over all possibilities for the next node:
 C..  1) Nodes connected to us (excluding those connected to previous nodes
 C..        (whether we have processed them or not))
@@ -633,7 +635,7 @@ C.. LSTE(1:NEL,I,IVLEVEL) is the node we're attempting to connect to
 C.. see if it's worth going further
                RHOIJ(IVLEVEL,I_VIND+1)=RH
                RHOIJ(I_VIND+1,IVLEVEL)=RH
-               IF(ABS(RH).LE.RHOEPS) THEN
+               IF(ABS(RH).LT.RHOEPS) THEN
 C.. we're not connected to this node, so we remove it from our list
                   DO II=1,NEL
                      LSTE(II,I,IVLEVEL)=0
@@ -646,7 +648,7 @@ C.. we've already calculated the RHO to the node to which we are connected.
      &                   LSTE(1:NEL,I,IVLEVEL),BETA,I_P,
      &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
-                        IF(ABS(RH).LE.RHOEPS) THEN
+                        IF(ABS(RH).LT.RHOEPS) THEN
 C.. These two vertices are not connected, which is as we want
                            RH=0.D0
                         ENDIF
@@ -929,7 +931,7 @@ C.. see if we're connected to what we were excited from
                   CALL CALCRHO2(IPATH(1,IEXFROM),NJ,BETA,I_P,
      &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,
      &                   ALAT,UMAT,RH,NTAY,IC,ECORE)
-                  IF(ABS(RH).LE.RHOEPS) THEN
+                  IF(ABS(RH).LT.RHOEPS) THEN
 C.. if we're not connected to this node, we fail now
                      RH=0.D0
                      TFAIL=.TRUE.
@@ -946,7 +948,7 @@ C.. because we've just done that
                      CALL CALCRHO2(IPATH(1,II),NJ,BETA,I_P,
      &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
-                     IF(ABS(RH).LE.RHOEPS) RH=0.D0
+                     IF(ABS(RH).LT.RHOEPS) RH=0.D0
                      RHOIJ(I_VIND+1,II)=RH
                      RHOIJ(II,I_VIND+1)=RH
                      IF(RH.NE.0.D0) THEN

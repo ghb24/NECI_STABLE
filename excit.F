@@ -1246,7 +1246,7 @@ C      WRITE(6,*) IC1,IC2
       END
 
 C.. Generate excitations of order at most NORDER from NI (excluding NI
-Citself)
+Citself) in order
 C.. ICLIST is the list of orders of the excitations
 C.. NMIN is the minimum level of excitation
 C.. IF NORDER=0, we SET NORDER=NEL
@@ -1262,19 +1262,40 @@ C.. determinants within double excitations, which will end up fairly inefficient
          LOGICAL TSYM,TCOUNT
          INTEGER G1(5,NBASIS),NMIN
 
+         INTEGER STORE(6),ICOUNT         
+         INCLUDE 'sym.inc'
+
+
          NO=NORDER
          IF(NO.EQ.0) NO=NEL
          IF(TSYM) CALL GETSYM(NI,NEL,G1,NBASISMAX,ISYM)
-         NLIST=1
          IF(NBASISMAX(4,7).EQ.1) THEN
+            NLIST=1
 C.. If we're actually using CSFs
             CALL GNCSFS(NEL,NBASIS,0,NBASISMAX,
      &         LIST,TCOUNT,G1,TSYM,ISYM(4),TSYM,ISYM,NLIST,IFDET,
      &         .TRUE.,NI,ICLIST,.TRUE.,NO)
          ELSE
-            CALL GENEXCIT_R(NI,NO,NEL,1,NBASIS,LIST,ICLIST,
+            IF(TNEWEXCITATIONS.AND.NORDER.EQ.2) THEN
+C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
+               CALL SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+     &            TCOUNT,ICOUNT)
+               IF(.NOT.TCOUNT) THEN
+                  IF(ICOUNT.GT.NLIST) THEN
+                     WRITE(6,*) "Exctiation list size",NLIST
+                     WRITE(6,*) "Requires size",ICOUNT
+                     STOP "EXCITATIONS LIST NOT LARGE ENOUGH"
+                  ENDIF
+                  CALL SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+     &               LIST,ICLIST,ICOUNT)
+               ENDIF
+               NLIST=ICOUNT
+            ELSE
+               NLIST=1
+               CALL GENEXCIT_R(NI,NO,NEL,1,NBASIS,LIST,ICLIST,
      &            NLIST,NEXCIT,NO,1,NMIN,G1,ISYM,TSYM,NBASISMAX,TCOUNT)
-            NLIST=NLIST-1
+               NLIST=NLIST-1
+            ENDIF
          ENDIF
          RETURN
       END

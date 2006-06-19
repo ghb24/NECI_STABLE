@@ -22,7 +22,6 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          CALL EXTRACTSYMLABELS
          CALL GENIRREPS(IMPROPER_OP)
          CALL GENSYMTABLE
-         CALL GENSYMLABELPAIRS
 
 C         CALL FAKEEIGENVALUES
 
@@ -66,6 +65,15 @@ C.. Called to retrieve number of basis functions from CPMD
 C         CALL FAKEREADCHARTABLE(NSTATES)
          LEN=NSTATES*2
          NROT=NROTOP
+      END
+      
+      SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
+         IMPLICIT NONE
+         INCLUDE 'cpmddata.inc'
+         INTEGER BRR(NBASIS),NBASIS,G1(5,NBASIS)
+         REAL*8 ARR(NBASIS,2)
+         CALL GENSYMREPS(G1,NBASIS,ARR,BRR)
+         CALL GENSYMLABELPAIRS(NBASIS/2)
       END
 
       SUBROUTINE EXTRACTSYMLABELS
@@ -171,7 +179,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          WRITE(6,*) "Core Energy:", ECORE 
          NSTATESUSED=NORBUSED/2
          CALL SETUPUMATCACHE(NSTATESUSED)
-         CALL CPMDGEN1EINTS(CPMD1EINT)
+C         CALL CPMDGEN1EINTS(CPMD1EINT)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
