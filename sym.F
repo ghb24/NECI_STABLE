@@ -633,19 +633,20 @@ C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
          ENDDO
       END
 
-      SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR)
+      SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J
          INTEGER G1(5,NBASIS),NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS,2)
+         REAL*8 DEGENTOL
 
 C.. now work out which reps are degenerate and label them
          CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
          J=0
          DO I=1,NBASIS
 C            WRITE(6,*) "SR2",I
-            IF(I.GT.1.AND.ABS(ARR(I,2)-ARR(I-1,2)).LT.1.D-5
+            IF(I.GT.1.AND.ABS(ARR(I,2)-ARR(I-1,2)).LT.DEGENTOL
      &         .AND.G1(5,I).EQ.G1(5,I-1)) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1
