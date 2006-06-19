@@ -179,7 +179,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          WRITE(6,*) "Core Energy:", ECORE 
          NSTATESUSED=NORBUSED/2
          CALL SETUPUMATCACHE(NSTATESUSED)
-C         CALL CPMDGEN1EINTS(CPMD1EINT)
+         CALL CPMDGEN1EINTS(CPMD1EINT)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
