@@ -245,7 +245,7 @@ MCPATHS
     Log in MCPATHS to MCPATHS
 
 FMCPR <LABEL,RHO>
-    Log in FMCPR to PATHS.  Either just label logging or also log RHOIJ.
+    Log in FMCPR to PATHS and MP2PATHS.  Either just label logging or also log RHOIJ.
 
 CALPATH <LABEL,RHO>
     Log in CALCPATH_R to PATHS.  Either just label logging or also log RHOIJ.

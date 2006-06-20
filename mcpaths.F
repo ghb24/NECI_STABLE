@@ -66,8 +66,10 @@ C.. go to end of file
             I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
-         IF(BTEST(ILOGGING,2))
-     &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
+         IF(BTEST(ILOGGING,2)) THEN
+            OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
+            OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
+         ENDIF
          IF(BTEST(ILOGGING,9))
      &      OPEN(12,FILE="VERTEXMC",STATUS="UNKNOWN")
 C.. Set the first node to I_I
@@ -215,7 +217,10 @@ C.. save all log files
             CALL WRITECLASSPATHS()
          ENDDO
          IF(TLOG) CLOSE(11)
-         IF(BTEST(ILOGGING,2)) CLOSE(10)
+         IF(BTEST(ILOGGING,2)) THEN
+            CLOSE(10)
+            CLOSE(13)
+         ENDIF
          IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF(MP2E.NE.0.D0) WRITE(6,*) "MP2 ENERGY = ",HIJS(0)+MP2E
          WLSI=LOG(TOTAL)
@@ -345,8 +350,10 @@ C.. go to end of file
             I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
-         IF(BTEST(ILOGGING,2))
-     &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
+         IF(BTEST(ILOGGING,2)) THEN
+            OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
+            OPEN(13,FILE="PATHS",STATUS="UNKNOWN")
+         ENDIF
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
@@ -410,7 +417,10 @@ C.. save all log files
             CALL WRITECLASSPATHS()
          ENDDO
          IF(TLOG) CLOSE(11)
-         IF(BTEST(ILOGGING,2)) CLOSE(10)
+         IF(BTEST(ILOGGING,2)) THEN
+            CLOSE(10)
+            CLOSE(13)
+         ENDIF
          WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
 C.<D|H exp(-b H)|D> / <D|exp(-b H)|D>
@@ -508,7 +518,7 @@ caa	    call flush(10)
             IF(I_V.EQ.2) THEN
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
-               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,MP2E)
+               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
             ENDIF
             RETURN
          ENDIF
@@ -2034,7 +2044,7 @@ C         DLWDB=DLWDB-LIST(1,2)
 
 C.. Calculate the contribution to the MP2 energy from 
 C.. the determinant making this a 2-v graph.
-      SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,MP2E)
+      SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
          IMPLICIT NONE
          REAL*8 HIJS(0:2)
          REAL*8 ARR(NBASIS,2)
@@ -2043,6 +2053,7 @@ C.. the determinant making this a 2-v graph.
          REAL*8 MP2E
          REAL*8 DENOM,CONTR
          INTEGER I,J,S
+         LOGICAL TLOG
          LOGICAL ISCSF
 
 
@@ -2085,8 +2096,10 @@ C               WRITE(23,*) IPATH(J,0),ARR(IPATH(J,1))
             ENDIF
          ENDDO
          CONTR=HIJS(1)*HIJS(1)/DENOM
-         CALL WRITEPATH(23,IPATH,2,NEL,.FALSE.)
-         WRITE(23,*) HIJS(1),DENOM,CONTR
+         IF(TLOG) THEN
+            CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+            WRITE(13,*) HIJS(1),DENOM,CONTR
+         ENDIF
          MP2E=MP2E-CONTR
          RETURN
       END
