@@ -751,6 +751,7 @@ C.. scaling should be better. (9/3/05)
          INTEGER IC
          INTEGER IFRZ(0:NBASIS,I_V),IFRZ2(0:NBASIS)
          INTEGER EX(2,2),ICIL,ICILMAX
+         INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
          REAL*8 MP2E
          IF(I_VIND.EQ.0) THEN
@@ -842,10 +843,15 @@ C.. current node
 
 C.. Initialiaze the excitation generators
          CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
-         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
-     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
+         STORE(1)=0
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE)
+C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
+C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
          CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
          NMEM(1)=0
+         CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE)
 C.. I_VIND is the node that has just been chosen (so LOCTAB(I_VIND) is a
 C.. generator for that node.  We need to generate from that node, so we
 C.. store at I_VIND+1
@@ -898,8 +904,10 @@ C.. create a copy
 C.. We need to reset the generator if we're only generating stars.
 C.. Because we now have some frozen orbitals, the original excitation
 C.. will not be re-generated.
-                  CALL RESETEXIT(IPATH(1,LOCTAB(3,IVLEVEL)),NEL,G1,
+                  CALL RESETEXIT2(IPATH(1,LOCTAB(3,IVLEVEL)),NEL,G1,
      &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
+C                  CALL RESETEXIT(IPATH(1,LOCTAB(3,IVLEVEL)),NEL,G1,
+C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
                ENDIF
                LOCTAB2(2,I_VIND+1)=LOCTAB(2,IVLEVEL)
                LOCTAB2(3,I_VIND+1)=LOCTAB(3,IVLEVEL)
@@ -914,9 +922,12 @@ C.. will not be re-generated.
 C               CALL EXCIT_DUMP(10,IPATH(1,IEXFROM),NEL,G1,NBASIS,
 C     &         NBASISMAX,CURGEN,IFRZ2)
 C.. Now use the generator to make the next node,NJ
-               CALL GENSYMEXCITIT(IPATH(1,IEXFROM),NEL,G1,
-     &            NBASIS,NBASISMAX,.TRUE.,
-     &            ISYM,.FALSE.,CURGEN,NJ,IC,IFRZ2)
+               CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,
+     &         NBASIS,NBASISMAX,
+     &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE)
+C               CALL GENSYMEXCITIT(IPATH(1,IEXFROM),NEL,G1,
+C     &            NBASIS,NBASISMAX,.TRUE.,
+C     &            ISYM,.FALSE.,CURGEN,NJ,IC,IFRZ2)
 C               CALL WRITEDET(6,IPATH(1,IEXFROM),NEL,.FALSE.)
 C               CALL WRITEDET(6,NJ,NEL,.FALSE.)
 C               WRITE(6,"(3I)") I_VIND,LOC(CURGEN),CURGEN(6)
