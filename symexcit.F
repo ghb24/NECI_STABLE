@@ -10,6 +10,7 @@ C.. Setup for symmetry routine below.
          INTEGER DSTORE(*)
          INTEGER STORE(6),ICOUNT
          LOGICAL TCOUNT
+         CALL IAZZERO(STORE,6)
          CALL MEMORY(IP_DSTORE,NEL+NBASIS/32+1,'DSTORE')
          STORE(1)=IP_DSTORE
          CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
@@ -159,7 +160,12 @@ C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 
 
 C.. Allocate enough memory to store the index
-         CALL MEMORY(IP_SYMPRODIND,2*3*(NPR+1),'SYMPRODIND')   
+         IF(STORE(5).EQ.0) THEN
+            CALL MEMORY(IP_SYMPRODIND,2*3*(NPR+1),'SYMPRODIND')   
+         ELSE
+C.. we've acually got space to store it somewhere
+            IP_SYMPRODIND=STORE(5)
+         ENDIF
          CALL IAZZERO(SYMPRODIND,2*3*(NPR+1))
 
 C.. Now shift this such that SYMPRODCOUNT(ISPN,I) is the index of
@@ -179,7 +185,11 @@ C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 C         ENDDO
 C.. We allocate enough memory to store all the pairs.
 C.. Each pair consists of (ORB1,ORB2) where ORB1<ORB2
-         CALL MEMORY(IP_ORBPAIRS,2*NPAIRS/IRAT+1,'ORBPAIRS')
+         IF(STORE(4).EQ.0) THEN
+            CALL MEMORY(IP_ORBPAIRS,2*NPAIRS/IRAT+1,'ORBPAIRS')
+         ELSE
+            IP_ORBPAIRS=STORE(4)
+         ENDIF
 
 C.. Classify and store each possible pair of orbitals under its symmetry product.
 C.. With each symmetry product (denoted []), calculate []'' which is the 
@@ -254,7 +264,11 @@ C         ENDDO
 C.. Now look through the list of our pairs.  For each pair sym of the complete list which has a 
 C.. symmetric product with any of our pair syms, we work out how many allowed pairs there are in
 C.. the complete list, and store that value in NALLOWPPS
-         CALL MEMORY(IP_NALLOWPPS,3*NSYMPAIRPRODS/IRAT+1,'NALLOWPPS')
+         IF(STORE(3).EQ.0) THEN
+            CALL MEMORY(IP_NALLOWPPS,3*NSYMPAIRPRODS/IRAT+1,'NALLOWPPS')
+         ELSE
+            IP_NALLOWPPS=STORE(3)
+         ENDIF
          NDOUB=0
          NEXCITTYPES=0
          DO I=1,NPR
@@ -363,6 +377,18 @@ C         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
          IF(TCOUNT) THEN
 C.. If we're just counting, we're done, so we get rid of some pointers.
             IP_EXCITTYPES=0
+C.. However, we do save the length of the memory required.
+C.. EXCITTYPES
+            STORE(2)=(NEXCITS*5)/IRAT+1
+C.. NALLOWPPS
+            STORE(3)=3*NSYMPAIRPRODS/IRAT+1
+C.. ORBPAIRS
+            STORE(4)=2*NPAIRS/IRAT+1
+C.. SYMPRODIND
+            STORE(5)=2*3*(NPR+1)
+C.. indicate that these are lengths
+            STORE(6)=0
+            
             CALL FREEM(IP_NALLOWPPS)
             CALL FREEM(IP_ORBPAIRS)
             CALL FREEM(IP_SYMPRODIND)
@@ -707,3 +733,316 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
             ENDIF
          ENDDO 
       END
+
+C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
+C.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
+C.. first with STORE(1)=0, and then again.  Finally it can be called with TSETUP=.FALSE. 
+C.. to actually generate the excitations
+      SUBROUTINE GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE)
+         IMPLICIT NONE
+         INCLUDE 'irat.inc'
+         INTEGER NEL,NI(NEL)
+         INTEGER G1(5,NBASIS),NBASISMAX(*),NBASIS
+         POINTER (IP_DSTORE,DSTORE)
+         INTEGER DSTORE(*)
+         INTEGER STORE(6),ICOUNT
+         INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
+         LOGICAL TSETUP
+         INTEGER GET_ADDR
+         IF(TSETUP) THEN
+C.. This is the first time we've been called for setup.
+            IF(STORE(1).EQ.0) THEN
+               CALL IAZZERO(STORE,6)
+               CALL MEMORY(IP_DSTORE,NEL+NBASIS/32+1,'DSTORE')
+               STORE(1)=IP_DSTORE
+C.. Just count.
+               CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+     &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(NEL+1))
+               CALL FREEM(IP_DSTORE)
+               STORE(1)=NEL+NBASIS/32+1
+               NMEM(1)=6+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
+            ELSE
+C.. The second setup.  Now NMEM is allocated, we store all the info
+C.. NMEM is as follows:
+C..   1           -  5           STORE(1:5)
+C..   6           -  6           STORE(6) = NEXCITTYPES
+C.. Data for the iterators
+C..   7  IEXCIT
+C..   8  ISPN
+C..   9  IFROM
+C..   10 ITO
+C..   11 I
+C..   12 J
+C..   13 K
+C..   14 L
+C..   15 ICC(1:4)
+C..   19 LS(1:2,1:2)  ([1 or 2], [A or B])
+C..   23...
+C..  (STORE(1)=23)-  STORE(2)-1  DSTORE
+C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
+C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
+C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
+C..   STORE(5)    -  ...         SYMPRODIND
+
+C..   DSTORE(1)   -  DSTORE(NEL) CLASSES
+C..   DSTORE(NEL+1) - ,,,        ILUT
+
+               CALL IAZZERO(NMEM,22)
+               NMEM(11)=-1
+               NMEM(7)=0
+               ICOUNT=23
+               DO I=1,5
+                  NMEM(I)=GET_ADDR(NMEM(ICOUNT))
+                  ICOUNT=ICOUNT+STORE(I)
+               ENDDO
+C.. Second setup finally complete.
+            ENDIF
+         ELSE
+C.. Actually generate a det
+            IP_DSTORE=NMEM(1)
+            CALL SYMGENEXCITIT(NI,NEL,NMEM(STORE(2)),NMEM(6),DSTORE(1),
+     &         NMEM(STORE(5)),DSTORE(NEL+1),NMEM(STORE(4)),
+     &         STORE(7),STORE(8),STORE(9),STORE(10),STORE(11),STORE(12),
+     &         STORE(13),STORE(14),STORE(15),STORE(19),NJ,IC)
+         ENDIF
+      END
+
+C                  CALL RESETEXIT(IPATH(1,LOCTAB(3,IVLEVEL)),NEL,G1,
+C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
+C      SUBROUTINE RESETEXIT(NI,NEL,G1,NBASIS,NBASISMAX,
+C     &         NMEM,IFRZ)
+
+      SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
+     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
+     &               I,J,K,L,ICC,LS,
+     &               NK,IC)
+      IMPLICIT NONE
+      INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
+      
+      INTEGER I,J,K,L
+      INTEGER NK(NEL)
+      INTEGER CLASSES(*)
+      INTEGER IEXCIT
+      INTEGER IFROM,ITO,ISPN
+      INTEGER IFROMSL,ITOSL
+      INTEGER SPP
+      LOGICAL L1,L2
+      INTEGER ICC(4)
+C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
+      LOGICAL LS(2,2)
+
+      INTEGER ORBPAIRS(2,*)
+      INTEGER ILUT(0:*)
+      INTEGER SYMPRODIND(2,3,0:*)
+      INTEGER IC
+      INCLUDE 'sym.inc'
+
+      DO WHILE(1)
+C.. see if we need a new EXCIT
+         IF(I.LT.0) THEN
+C.. move to the next excitation
+            IEXCIT=IEXCIT+1
+            IF(IEXCIT.GT.NEXCITTYPES) THEN
+C.. We're done
+               NK(1)=0
+               RETURN
+            ENDIF
+            IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
+C.. a single
+               ISPN=EXCITTYPES(2,IEXCIT)-2
+               IFROM=CLASSES(EXCITTYPES(3,IEXCIT))
+               ITO=EXCITTYPES(4,IEXCIT)
+               L=0
+               K=-1
+               J=0
+               I=1
+            ELSE
+C.. a double
+               ISPN=EXCITTYPES(2,IEXCIT)
+               IFROM=EXCITTYPES(3,IEXCIT)
+               ITO=EXCITTYPES(4,IEXCIT)
+               I=1
+               L=5
+               K=-2
+            ENDIF
+         ENDIF
+         IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
+C.. singles
+C.. We always need a new K.  K and L run in parallel
+            K=K+1
+C.. For each K, we check to see if it's valid
+            IF(K.GE.SYMLABELCOUNTS(2,ITO)) THEN
+C.. no more possible K, so we get a new J
+C.. I and J run in parallel, and for each J, we check whether it's in 
+C.. the det.  If it is, then we carry on.
+               L1=J.LT.SYMLABELCOUNTS(2,IFROM)
+               DO WHILE(L1)
+                  IFROMSL=(SYMLABELLIST(SYMLABELCOUNTS(1,IFROM)+J)*2
+     &                  +ISPN)
+C                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+                  IF(IFROMSL.LT.NI(I)) J=J+1
+                  L1=IFROMSL.LT.NI(I)
+     &                  .AND.J.LT.SYMLABELCOUNTS(2,IFROM)
+               ENDDO
+C.. see if we need a new I.
+               IF(IFROMSL.GT.NI(I)) THEN
+                  I=I+1
+C.. If we've gone too far, signal a new excit
+                  IF(I.GT.NEL) I=-1
+                  CYCLE
+               ENDIF
+            ENDIF
+C.. it's a valid K, but is it in the det already?
+C.. ITOSL is the orb it corresponds to
+            ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
+     &                              +ISPN
+C.. Check if it's in the det
+            L2=.TRUE.
+            DO WHILE (L2)
+               L=L+1
+               L2=L.LE.NEL.AND.NI(L).LT.ITOSL
+            ENDDO
+            IF(L.LE.NEL.AND.NI(L).EQ.ITOSL) THEN
+C.. We've found an L in the det which is the same as ITOSL. 
+C.. we go round again, getting another K
+               CYCLE
+            ENDIF
+C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excitation
+            CALL ICOPY(NEL,NI,1,NK,1)
+            NK(I)=ITOSL
+            CALL SORTI(NEL,NK)
+            IC=1
+C.. quit the do loop
+            EXIT
+         ELSE
+C.. doubles
+            SPP=SYMPAIRPRODS(ITO)
+C.. See if we need a new K.  L is the spin label, and goes from 1..4.
+            IF(L.GT.4) THEN
+               L=1
+               K=K+1
+               IF(K.LT.0.OR.
+     &            K.GE.SYMLABELPAIRLIST(1,SPP)+SYMLABELPAIRLIST(2,SPP))
+     &            THEN
+C.. K is invalid.  Get a new I
+                  K=1
+                  I=I+1
+                  IF(I.GT.SYMPRODIND(2,ISPN,IFROM)) THEN
+C.. I is now invalid
+                     I=-1
+                     CYCLE
+                  ELSE
+C.. reset K
+                     K=SYMLABELPAIRLIST(1,SPP)
+                  ENDIF
+C.. We've got a new K, so we need to reset some variables
+                     ICC(1)=SYMLABELPAIRS(1,K)*2-1
+                     ICC(2)=ICC(1)+1
+                     ICC(3)=SYMLABELPAIRS(2,K)*2-1
+                     ICC(4)=ICC(3)+1
+C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
+C                     WRITE(6,*) ISPN,ICC1,ICC3
+                     LS(1,1)=BTEST(ILUT(ICC(1)/32),
+     &                     MOD(ICC(1),32)-1)
+                     LS(1,2)=BTEST(ILUT(ICC(2)/32),
+     &                     MOD(ICC(2),32)-1)
+                     LS(2,1)=BTEST(ILUT(ICC(3)/32),
+     &                     MOD(ICC(3),32)-1)
+                     LS(2,2)=BTEST(ILUT(ICC(4)/32),
+     &                     MOD(ICC(4),32)-1)
+               ENDIF
+            ENDIF
+C.. Now check for an excitation
+            IF(L.EQ.1) THEN
+               L=2
+               IF(ISPN.EQ.1.AND.ICC(1).NE.ICC(3).AND.
+     &            .NOT.(LS(1,1).OR.LS(1,2))) THEN
+                  CALL ICOPY(NEL,NI,1,NK,1)
+                  DO J=1,NEL
+                     IF(NI(J).EQ.ORBPAIRS(1,
+     &                  SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        NK(J)=ICC(1)
+                     ENDIF
+                     IF(NI(J).EQ.ORBPAIRS(2,
+     &                  SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        NK(J)=ICC(3)
+                     ENDIF
+                  ENDDO
+                  CALL SORTI(NEL,NK)
+                  IC=2
+                  EXIT
+               ENDIF
+            ENDIF
+            IF(L.EQ.2) THEN
+               L=3
+               IF(ISPN.EQ.2) THEN
+C.. If neither virtuals are in NI, then allow
+                  IF(.NOT.(LS(1,1).OR.LS(2,2))) THEN
+                     CALL ICOPY(NEL,NI,1,NK,1)
+                     DO J=1,NEL
+                        IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(1)
+                        ENDIF
+                        IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(4)
+                        ENDIF
+                     ENDDO
+                     CALL SORTI(NEL,NK)
+                     IC=2
+                     EXIT
+                  ENDIF
+               ENDIF
+            ENDIF
+            IF(L.EQ.3) THEN
+               L=4
+               IF(ISPN.EQ.2) THEN
+C.. If neither virtuals are in NI, and they're not the same(which would give
+C.. us the same excitation as previously), then allow
+                 IF(.NOT.(LS(1,2).OR.LS(2,1)).AND.ICC(1).NE.ICC(3)) THEN
+                     CALL ICOPY(NEL,NI,1,NK,1)
+                     DO J=1,NEL
+                        IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(2)
+                        ENDIF
+                        IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(3)
+                        ENDIF
+                     ENDDO
+                     CALL SORTI(NEL,NK)
+                     IC=2
+                     EXIT
+                  ENDIF
+               ENDIF
+            ENDIF
+            IF(L.EQ.4) THEN
+               L=5
+               IF(ISPN.EQ.3) THEN
+C.. If both virtuals aren't the samem and neither are in NI, then allow
+                 IF(ICC(1).NE.ICC(3).AND..NOT.(LS(1,2).OR.LS(2,2))) THEN
+                     CALL ICOPY(NEL,NI,1,NK,1)
+                     DO J=1,NEL
+                        IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(2)
+                        ENDIF
+                        IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(4)
+                        ENDIF
+                     ENDDO
+                     CALL SORTI(NEL,NK)
+                     IC=2
+                     EXIT
+                  ENDIF
+               ENDIF
+            ENDIF
+         ENDIF
+      ENDDO 
+      END
+

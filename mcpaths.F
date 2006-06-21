@@ -352,7 +352,7 @@ C.. go to end of file
          ENDIF
          IF(BTEST(ILOGGING,2)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
-            OPEN(13,FILE="PATHS",STATUS="UNKNOWN")
+            OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
          ENDIF
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
