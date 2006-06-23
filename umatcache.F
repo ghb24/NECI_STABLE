@@ -16,6 +16,8 @@
          INCLUDE 'cpmddata.inc'
          INTEGER ISUB
          CALL TISET(' GETUMATEL',ISUB)
+C         GETUMATEL=0.D0
+C         RETURN
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN

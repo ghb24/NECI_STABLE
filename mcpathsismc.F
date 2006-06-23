@@ -58,6 +58,7 @@ C.. do some blocking analysis
          REAL*8 CURBLOCK(0:40),BLOCKSUM(0:40),BLOCKSUMSQ(0:40)
          REAL*8 BB,CC,SS,EE,MM
          INTEGER NN,BMAX,OBMAX
+         INTEGER STORE(6)
          INCLUDE 'vmc.inc'
          TST=0
          CALL TISET('MCPATHSR4 ',ISUB)
@@ -110,12 +111,23 @@ C.. we're working in block space, so we work out our current symmetry.
          I_VM2=I_VMAX
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
-            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
-     &               .TRUE.,NMEMLEN,INODE2,ISEED,IEXCITS,0)
+C            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
+C     &               .TRUE.,NMEMLEN,INODE2,ISEED,IEXCITS,0)
+C            CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
+C            NMEM(1)=0
+C            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
+C     &               .FALSE.,NMEM,INODE2,ISEED,IEXCITS,0)
+C.. Setup the spin excit generator
+            STORE(1)=0
+            CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         .TRUE.,NMEMLEN,INODE2,I,0,STORE)
             CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
             NMEM(1)=0
-            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
-     &               .FALSE.,NMEM,INODE2,ISEED,IEXCITS,0)
+            CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         .TRUE.,NMEM,INODE2,I,0,STORE)
+C.. Count the excitations (and generate a random one which we throw)
+            CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         NMEM,INODE2,ISEED,IEXCITS,0)
             I_VM2=2
             VEXCITS(0)=IP_NMEM
          ENDIF
@@ -900,6 +912,7 @@ C..
          INTEGER PVERTMEMS(0:I_V)
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
+         INTEGER STORE(6)
          REAL*8 RAN2
          INCLUDE 'vmc.inc'
 C.. PEXCIT(NODE) is the probability of selecting NODE and
@@ -912,10 +925,11 @@ C.. parameter.
          I_VNEXT=1
          CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
          IC=0
-C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
-C.. doesn't bother calculating the RHO_JJ.
-         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
+C.. Count the number of adjacent nodes to us in IC.
+          CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         NMEM,INODE2,ISEED,IC,0)
+C         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
+C     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 
@@ -945,24 +959,48 @@ C.. set the current to be the pivot
             IP_CUREX=PVERTMEMS(NEXNODE-1)
 
 
-C.. setup spin excitation generator
-            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
+C.. generate a random excitation
+            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
+
+C            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
+C     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
             CALL ICOPY(NEL,INODE2,1,INODE,1)
 
 C.. If the new node is not in the path, add it.
             IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
                CALL ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)
-C.. Count the number of connections from this node (RP=0)
-C               NLIST=0
-               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
+
+
+
+
+
+C.. Setup the spin excit generator
+               STORE(1)=0
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE)
                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE)
+C.. Count the excitations (and generate a random one which we throw)
+               CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            NEWEX,INODE2,ISEED,IC,0)
+
+
+
+
+
+C.. Count the number of connections from this node (RP=0)
+C               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
+C     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
+C               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+C               NEWEX(1)=0
+C               PVERTMEMS(I_VNEXT)=IP_NEWEX
 C               WRITE(6,*) I_VNEXT,IP_NEWEX
-               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
+C               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
+C     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
 
                XIJ(I_VNEXT,I_VNEXT)=IC
                NLIST=IC
@@ -1453,6 +1491,7 @@ C.. weight.
          INTEGER IACC
          REAL*8 PFAC
          REAL*8 RAN2
+         INTEGER STORE(6)
          INCLUDE 'vmc.inc'
 C         WRITE(6,*) "START:",LOC(NMEM)
 C.. PEXCIT(NODE) is the probability of selecting NODE and
@@ -1483,8 +1522,10 @@ C     &      BETA,I_P,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,
 C     &      RHOEPS)
 CC         CALL GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,IC,
 CC     &      ISEED,INODE2)
-         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
+          CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         NMEM,INODE2,ISEED,IC,0)
+C         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
+C     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 
@@ -1517,9 +1558,29 @@ C.. set the current to be the pivot
             IP_CUREX=PVERTMEMS(NEXNODE-1)
 
 
-C.. setup spin excitation generator
-            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+C.. generate a random excitation
+            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
+
+
+C            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
+C     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
             CALL ICOPY(NEL,INODE2,1,INODE,1)
 C            CALL WRITEDET(6,INODE,NEL,.TRUE.)
 
@@ -1537,17 +1598,45 @@ C               NLIST=0
 C               CALL GENSYMDETSSDN(INODE2,KSYM,NEL,G1,BRR,NBASIS,LSTE,
 C     &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,ZIA,NMAX,
 C     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
-               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
+
+
+
+
+
+C.. Setup the spin excit generator
+               STORE(1)=0
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE)
                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
-C               WRITE(6,*) "M",IP_NEWEX
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
-C               WRITE(6,*) I_VNEXT,IP_NEWEX
-               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
-CC               CALL GENRANDOMSPINEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,IC,
-CC     &            ISEED,INODE2)
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE)
+C.. Count the excitations (and generate a random one which we throw)
+               CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            NEWEX,INODE2,ISEED,IC,0)
+
+
+
+
+
+
+
+C               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
+C     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
+C               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+C               WRITE(6,*) "M",IP_NEWEX
+C               NEWEX(1)=0
+C               PVERTMEMS(I_VNEXT)=IP_NEWEX
+CC               WRITE(6,*) I_VNEXT,IP_NEWEX
+C               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
+C     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
+CCC               CALL GENRANDOMSPINEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,IC,
+CCC     &            ISEED,INODE2)
+
+
+
+
 
                XIJ(I_VNEXT,I_VNEXT)=IC
                NLIST=IC
@@ -1762,6 +1851,7 @@ C.. a wrongly biased MC
          REAL*8 CURWEIGHT,WEIGHTTOT,PGEN,CURDLWDB,CURICLS
          INTEGER IEXNUM,NTENT
          REAL*8 RAN2
+         INTEGER STORE(6)
          INCLUDE 'vmc.inc'
 C         WRITE(6,*) "START:",LOC(NMEM)
 
@@ -1783,9 +1873,27 @@ C.. Take a copy of the old path and rho matrix etc.
          CALL ICOPY(NEL*(1+I_V),IPATH,1,OIPATH,1)
 
 
-C.. setup excitation generator
-         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
+
+
+
+
+
+
+
+
+
+
+
+C.. Get the excitation count
+            CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,
+     &         NBASISMAX,NMEM,INODE2,ISEED,IC,0)
+
+
+
+
+CC.. setup excitation generator
+C         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
+C     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 
@@ -1834,9 +1942,15 @@ C.. rejecting them on the basis of their weights.
 C.. Hard code at 4 excitations.
             IEXNUM=0
             DO WHILE (IEXNUM.LT.NTENT)
-C.. Generate an excitation
-               CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &            NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
+
+C.. generate a random excitation
+            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
+
+
+CC.. Generate an excitation
+C               CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
+C     &            NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
                CALL ICOPY(NEL,INODE2,1,INODE,1)
                IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                   WRITE(6,*) "INVALID DET"
@@ -1919,15 +2033,38 @@ C.. give up trying to find something to attach, and go home
                   RETURN
                ENDIF
             ENDDO
+
+
+
 C.. Create an excitation generator for this node
-            CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
-            CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
-            NEWEX(1)=0
-            PVERTMEMS(I_VNEXT)=IP_NEWEX
-C.. Count the number of connections to this node
-            CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
+C.. Setup the spin excit generator
+               STORE(1)=0
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE)
+               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+               NEWEX(1)=0
+               PVERTMEMS(I_VNEXT)=IP_NEWEX
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE)
+C.. Count the excitations (and generate a random one which we throw)
+               CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            NEWEX,INODE2,ISEED,IC,0)
+
+
+
+
+
+
+
+CC.. Create an excitation generator for this node
+C            CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
+C     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
+C            CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+C            NEWEX(1)=0
+C            PVERTMEMS(I_VNEXT)=IP_NEWEX
+CC.. Count the number of connections to this node
+C            CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
+C     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
 
             XIJ(I_VNEXT,I_VNEXT)=IC
             DO I=0,I_VNEXT-1

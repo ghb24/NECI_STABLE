@@ -782,8 +782,8 @@ C..   13 K
 C..   14 L
 C..   15 ICC(1:4)
 C..   19 LS(1:2,1:2)  ([1 or 2], [A or B])
-C..   23...
-C..  (STORE(1)=23)-  STORE(2)-1  DSTORE
+C..   23 NEXCIT      total number of excitations
+C..  (STORE(1)=24)-  STORE(2)-1  DSTORE
 C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
 C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
 C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
@@ -795,7 +795,7 @@ C..   DSTORE(NEL+1) - ,,,        ILUT
                CALL IAZZERO(NMEM,22)
                NMEM(11)=-1
                NMEM(7)=0
-               ICOUNT=23
+               ICOUNT=24
 C.. Put the addresses in store
                DO I=1,5
                   NMEM(I)=GET_ADDR(NMEM(ICOUNT))
@@ -804,8 +804,9 @@ C.. Put the addresses in store
                IP_DSTORE=NMEM(1)
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(1),
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(NEL+1))
+               NMEM(23)=ICOUNT
 C.. and now instead the indices within NMEM
-               ICOUNT=23
+               ICOUNT=24
                DO I=1,5
                   NMEM(I)=ICOUNT
                   ICOUNT=ICOUNT+STORE(I)
@@ -1073,4 +1074,297 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
          ENDIF
       ENDDO 
       END
+C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
+C.. before this.
+      SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         NMEM,NJ,ISEED,IC,IFRZ)
+         IMPLICIT NONE
+         INCLUDE 'irat.inc'
+         INTEGER NEL,NI(NEL)
+         INTEGER G1(5,NBASIS),NBASISMAX(*),NBASIS
+         POINTER (IP_DSTORE,DSTORE)
+         INTEGER DSTORE(*)
+         INTEGER STORE(6),ICOUNT
+         INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
+         LOGICAL TSETUP
+         INTEGER GET_ADDR
+         INTEGER ISEED
+C.. The second setup.  Now NMEM is allocated, we store all the info
+C.. NMEM is as follows:
+C..   1           -  5           STORE(1:5)
+C..   6           -  6           STORE(6) = NEXCITTYPES
+C.. Data for the iterators
+C..   23 NEXCIT      total number of excitations
+C..  (STORE(1)=24)-  STORE(2)-1  DSTORE
+C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
+C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
+C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
+C..   STORE(5)    -  ...         SYMPRODIND
 
+C..   DSTORE(1)   -  DSTORE(NEL) CLASSES
+
+C.. Actually generate a det
+         IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
+         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
+     &         NMEM(NMEM(5)),DSTORE(NEL+1),NMEM(NMEM(4)),
+     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
+     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC)
+         IC=NMEM(23)
+      END
+      
+      SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,
+     &               CLASSES,
+     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
+     &               I,J,K,L,ICC,LS,ITOTAL,ISEED,
+     &               NK,IC)
+      IMPLICIT NONE
+      INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
+      
+      INTEGER I,J,K,L
+      INTEGER NK(NEL)
+      INTEGER CLASSES(*)
+      INTEGER IEXCIT
+      INTEGER IFROM,ITO,ISPN
+      INTEGER IFROMSL,ITOSL
+      INTEGER SPP
+      LOGICAL L1,L2
+      INTEGER ICC(4)
+C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
+      LOGICAL LS(2,2)
+
+      INTEGER ORBPAIRS(2,*)
+      INTEGER ILUT(0:*),ITOTAL,ISEED
+      INTEGER SYMPRODIND(2,3,0:*)
+      INTEGER IC,ICOUNT
+      REAL*8 RAN2
+         INTEGER ICC1,ICC2,ICC3,ICC4
+         LOGICAL L1B,L1A,L2B,L2A
+      INCLUDE 'sym.inc'
+C.. First generate a random excitation 
+      I=ITOTAL*RAN2(ISEED)
+      IEXCIT=1
+      DO WHILE(EXCITTYPES(5,IEXCIT).LE.I)
+         I=I-EXCITTYPES(5,IEXCIT)
+         IEXCIT=IEXCIT+1
+      ENDDO
+C.. We've chosen the excitation.  Now pick a random from and to
+      IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
+C.. a single
+         ISPN=EXCITTYPES(2,IEXCIT)-2
+         IFROM=CLASSES(EXCITTYPES(3,IEXCIT))
+         ITO=EXCITTYPES(4,IEXCIT)
+         ICOUNT=0
+         ot:DO K=0,1
+            J=0
+            I=1
+C               WRITE(6,*) ISPN,IFROM,ITO,EXCITTYPES(5,IEXCIT)
+C.. SYMLABELCOUNTS(1,I) is the index within SYMLABELLIST of the first state of symlabel I
+C.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
+            DO WHILE (I.LE.NEL)
+               L1=J.LT.SYMLABELCOUNTS(2,IFROM)
+               DO WHILE(L1)
+                  IFROMSL=(SYMLABELLIST(SYMLABELCOUNTS(1,IFROM)+J)*2
+     &                  +ISPN)
+C                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+                  IF(IFROMSL.LT.NI(I)) J=J+1
+                  L1=IFROMSL.LT.NI(I)
+     &               .AND.J.LT.SYMLABELCOUNTS(2,IFROM)
+               ENDDO
+C                  WRITE(6,*) I,J,SYMLABELCOUNTS(2,IFROM)
+               IF(J.LT.SYMLABELCOUNTS(2,IFROM).AND.IFROMSL.EQ.NI(I))
+     &            THEN
+C.. We've found an orb in NI with the correct sym. 
+                  IF(K.EQ.0) THEN
+                     ICOUNT=ICOUNT+1
+                  ELSEIF(ICOUNT.EQ.0) THEN
+                     EXIT ot
+                  ELSE
+                     ICOUNT=ICOUNT-1
+                  ENDIF
+               ENDIF
+               I=I+1
+            ENDDO
+            ICOUNT=ICOUNT*RAN2(ISEED)
+         ENDDO ot
+C.. NI(I) is now the orbital to excite
+C Now go through the list of possible excitations of it
+         ICOUNT=0
+         DO J=0,1
+            K=0
+            L=0
+            DO WHILE(K.LT.SYMLABELCOUNTS(2,ITO))
+               L2=.TRUE.
+               DO WHILE (L2)
+                  L=L+1
+                  ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
+     &                           +ISPN
+                  L2=L.LE.NEL.AND.NI(L).LT.ITOSL
+               ENDDO
+               IF(L.GT.NEL.OR.NI(L).NE.ITOSL) THEN
+                  IF(J.EQ.0) THEN
+                     ICOUNT=ICOUNT+1
+                  ELSEIF(ICOUNT.EQ.0) THEN
+C.. We've found a virtual into which we can excite our occupied orb.
+                     CALL ICOPY(NEL,NI,1,NK,1)
+                     NK(I)=ITOSL
+                     CALL SORTI(NEL,NK)
+                     IC=1
+                     RETURN
+                  ELSE
+                     ICOUNT=ICOUNT-1
+                  ENDIF
+               ENDIF
+               K=K+1
+            ENDDO
+            ICOUNT=ICOUNT*RAN2(ISEED)
+         ENDDO
+      ELSE
+C.. a double excitation
+C.. We store each excitation type as:
+C.. 1   TYPE (single=1, double=2)
+C.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/beta; 3=alpha/alpha;)
+C.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
+C.. 4   TO   (for single, J in SYMLABELS(2,J); for double, J in SYMPAIRPRODS(J) )
+C.. 5  COUNT (Total number of excitations in this category)
+         ISPN=EXCITTYPES(2,IEXCIT)
+         IFROM=EXCITTYPES(3,IEXCIT)
+         ITO=EXCITTYPES(4,IEXCIT)
+C.. Go through the list of pairs with a given symprod.
+C.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
+C.. SYMPRODS(I) in ORBPAIRS
+C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
+         I=RAN2(ISEED)*SYMPRODIND(2,ISPN,IFROM)+1
+C.. Now go through the list of virtual pairs, excluding those with orbitals in NI 
+         SPP=SYMPAIRPRODS(ITO)
+C.. I=SYMLABELPAIRLIST(1,SYMPROD) is the index of the set of symlabels with sym prod SYMPROD in
+C.. SYMLABELPAIRS
+C.. SYMLABELPAIRLIST(2,SYMPROD) is he total number of pairs [of states] with that SYMPROD
+C.. [ SYMLABELPAIRS(1,I) , SYMLABELPAIRS(2,I) ] is the pair of states whose prod is the symlabel.
+C.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available.
+         ICOUNT=0
+         DO L=0,1
+            DO K=SYMLABELPAIRLIST(1,SPP),
+     &              SYMLABELPAIRLIST(1,SPP)+SYMLABELPAIRLIST(2,SPP)-1
+C.. Now check according to ISPN
+C.. ICC1 is the beta orbital corresponding to the first state, and ICC2 the alpha
+C.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
+               ICC1=SYMLABELPAIRS(1,K)*2-1
+               ICC2=ICC1+1
+               ICC3=SYMLABELPAIRS(2,K)*2-1
+               ICC4=ICC3+1
+C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
+C                     WRITE(6,*) ISPN,ICC1,ICC3
+               L1B=BTEST(ILUT(ICC1/32),
+     &                     MOD(ICC1,32)-1)
+               L1A=BTEST(ILUT(ICC2/32),
+     &                     MOD(ICC2,32)-1)
+               L2B=BTEST(ILUT(ICC3/32),
+     &                     MOD(ICC3,32)-1)
+               L2A=BTEST(ILUT(ICC4/32),
+     &                     MOD(ICC4,32)-1)
+C                     WRITE(6,*) L1B,L1A,L2B,L2A
+C.. L1B is set if the beta of the first virtual is in NI, i.e. is disallowed
+               IF(ISPN.EQ.1) THEN
+C.. If both virtuals aren't the samem and neither are in NI, then allow
+                  IF(ICC1.NE.ICC3.AND..NOT.(L1B.OR.L2B)) THEN
+                     IF(L.EQ.0) THEN
+                        ICOUNT=ICOUNT+1
+                     ELSEIF(ICOUNT.NE.0) THEN
+                        ICOUNT=ICOUNT-1
+                     ELSE
+                        CALL ICOPY(NEL,NI,1,NK,1)
+                        DO J=1,NEL
+                          IF(NI(J).EQ.ORBPAIRS(1,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC1
+                           ENDIF
+                           IF(NI(J).EQ.ORBPAIRS(2,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC3
+                           ENDIF
+                        ENDDO
+                        CALL SORTI(NEL,NK)
+                        IC=2
+                        RETURN
+                     ENDIF
+                  ENDIF
+               ELSEIF(ISPN.EQ.2) THEN
+C.. If neither virtuals are in NI, then allow
+                  IF(.NOT.(L1B.OR.L2A)) THEN
+                     IF(L.EQ.0) THEN
+                        ICOUNT=ICOUNT+1
+                     ELSEIF(ICOUNT.NE.0) THEN
+                        ICOUNT=ICOUNT-1
+                     ELSE
+                        CALL ICOPY(NEL,NI,1,NK,1)
+                        CALL ICOPY(NEL,NI,1,NK,1)
+                        DO J=1,NEL
+                           IF(NI(J).EQ.ORBPAIRS(1,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC1
+                              ENDIF
+                           IF(NI(J).EQ.ORBPAIRS(2,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC4
+                           ENDIF
+                        ENDDO
+                        CALL SORTI(NEL,NK)
+                        IC=2
+                        RETURN
+                     ENDIF
+                  ENDIF
+C.. If neither virtuals are in NI, and they're not the same(which would give
+C.. us the same excitation as previously), then allow
+                  IF(.NOT.(L1A.OR.L2B).AND.ICC1.NE.ICC3) THEN
+                     IF(L.EQ.0) THEN
+                        ICOUNT=ICOUNT+1
+                     ELSEIF(ICOUNT.NE.0) THEN
+                        ICOUNT=ICOUNT-1
+                     ELSE
+                        CALL ICOPY(NEL,NI,1,NK,1)
+                        DO J=1,NEL
+                           IF(NI(J).EQ.ORBPAIRS(1,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC2
+                           ENDIF
+                           IF(NI(J).EQ.ORBPAIRS(2,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC3
+                           ENDIF
+                        ENDDO
+                        CALL SORTI(NEL,NK)
+                        IC=2
+                        RETURN
+                     ENDIF
+                  ENDIF
+               ELSEIF(ISPN.EQ.3) THEN
+C.. If both virtuals aren't the samem and neither are in NI, then allow
+                  IF(ICC1.NE.ICC3.AND..NOT.(L1A.OR.L2A)) THEN
+                     IF(L.EQ.0) THEN
+                        ICOUNT=ICOUNT+1
+                     ELSEIF(ICOUNT.NE.0) THEN
+                        ICOUNT=ICOUNT-1
+                     ELSE
+                        CALL ICOPY(NEL,NI,1,NK,1)
+                        DO J=1,NEL
+                           IF(NI(J).EQ.ORBPAIRS(1,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC2
+                           ENDIF
+                           IF(NI(J).EQ.ORBPAIRS(2,
+     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                              NK(J)=ICC4
+                           ENDIF
+                        ENDDO
+                        CALL SORTI(NEL,NK)
+                        IC=2
+                        RETURN
+                     ENDIF
+                  ENDIF
+               ENDIF
+            ENDDO
+            ICOUNT=ICOUNT*RAN2(ISEED)
+         ENDDO
+      ENDIF
+      END 
