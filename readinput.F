@@ -97,6 +97,7 @@
       TSPECDET = .false.
 
       NSLOTSINIT=1024
+      I_VMAX=0
 
 !     Values for old parameters.
       TRHOOFR = .false.
@@ -328,6 +329,19 @@ C.. the last number is the symmetry specification - and is placed in position 5
                             end select
                         case("MC")
                            I_HMAX = -7
+                        case("STAR")
+                           I_HMAX = -9
+                           I_VMAX = 2
+                           call readu(w)
+                           select case(w)
+                           case("DIAG")
+                               NWHTAY=0
+                           case("POLY")
+                               NWHTAY=1
+                           case default
+                                call report("Error - must specify DIAG" 
+     &                         //" or POLY vertex star method",.true.)
+                            end select
                         case default
                         call report("Keyword error with "//trim(w),  
      &                          .true.)
@@ -344,6 +358,9 @@ C.. the last number is the symmetry specification - and is placed in position 5
      &                   //"method",.true.)
                   end if
               case("MAXVERTICES")
+                  if ( I_VMAX .ne. 0 ) then
+                     call report("Cannot reset MAXVERTICES",.true.)
+                  endif 
                   call readi(I_VMAX)
               case("IMPORTANCE")
                   call readf(G_VMC_PI)

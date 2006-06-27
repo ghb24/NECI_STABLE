@@ -2530,7 +2530,9 @@ C.. Now construct the new BRR and ARR
          DO I=1,NBASIS
             BRR2(I)=GG(BRR(I+NFROZEN))
             ARR2(I,1)=ARR(I+NFROZEN,1)
-            ARR2(I,2)=ARR(I+NFROZEN,2)
+         ENDDO
+         DO I=1,NHG
+            IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
          ENDDO
 C.. First deal with Ecore
          DO A=1,NFROZEN
@@ -2748,6 +2750,7 @@ C.. Check spin
      &         G1(4,BRR(I)),G1(5,BRR(I)),
 C     &         SYMLABELS(2,SYMLABELS(1,(BRR(I)+1)/2)),
      &         ARR(I,1)
+C,ARR(BRR(I),2)
          ENDDO
          RETURN
       END

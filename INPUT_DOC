@@ -135,12 +135,17 @@ RHOEPSILON <RHOEPSILON>
    Set the minimum significant value of RHO (as a fraction of RHOIIMAX).
 
 METHOD <METHOD>
-    Specify the method for vertex summation routine.  Opptions currently are:
+    Specify the method for vertex summation routine.  Options currently are:
     VERTEX SUM OLD,NEW
         Use the old or new vertex sum subroutine.
     VERTEX MC
         Monte Carlo procedure.
-
+    VERTEX STAR DIAG,POLY
+        Constructs a star from all determinants connected to the root (ignoring connections between those dets).
+        DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
+        POLY uses the special properties of the matrix to find the roots of the polynomial and uses them to calculat
+               the relevant values.
+        Both methods do not use an excitation generator, so for large systems, can take a lot of memory and time. 
 CYCLES <NWHTAY(1,1)>
     Specifies the number of cycles of the MC routine.
 

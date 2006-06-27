@@ -278,6 +278,8 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          REAL*8 MP2E
 
+         REAL*8 FMCPR3STAR
+
 C.. This is where we will store the MP2 energy
          MP2E=0.D0
 C         CALL MEMORY_CHECK()
@@ -394,6 +396,14 @@ C.. This code generates excitations on the fly
      &         RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &         MP2E)
+            ELSEIF(I_HMAX.EQ.-9) THEN
+C.. This code generates a star consisting of all the two-vertex terms,
+C.. forcing them to be disconnected.
+               F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,
+     &            NBASIS,
+     &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            LSTE,ICE,RIJLIST,L,LT,
+     &            NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ENDIF
             CALL TIHALT(STR,ISUB2)
             NTIME=TIMEC()*0.001D0
@@ -811,6 +821,11 @@ C.. Sum up the components of <D|H exp(-b H)|D>
             IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             L=L+1
             FMCPR3B=TOTAL
+            IF(I_V.EQ.2) THEN
+C.. Calculate the MP2 Energy
+C.. NMAX has ARR hidden in it.
+               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
+            ENDIF
 C            WRITE(10,*) (LOCTAB(3,I),I=1,I_V-1)
 C            WRITE(6,*) "X"
             RETURN
@@ -1224,10 +1239,13 @@ C                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
          LT=ILMAX+1
 C.. we now have a list length NLCUR of dets in the star.
 C.. Call a routine to generate the value of the star
+         WRITE(6,*) NLCUR," determinants in star"
          IF(NWHTAY.EQ.0) THEN
+            WRITE(6,*) "Beginning Complete Star Diagonalization"
             CALL STARDIAG(LSTE,NEL,NLCUR,LIST,
      &         ILMAX+1,I_P,FMCPR3STAR,DBETA,DLWDB)
          ELSE
+            WRITE(6,*) "Beginning Polynomial Star Diagonalization"
             CALL STARDIAG2(LSTE,NEL,NLCUR,LIST,
      &         ILMAX+1,I_P,FMCPR3STAR,DBETA,DLWDB)
          ENDIF
@@ -2083,22 +2101,23 @@ C.. If we have CSFs, unCSF the elecs
          ELSE
             CALL ICOPY(NEL,IPATH(1,1),1,NJ,1)
          ENDIF
-
+         CALL WRITEDET(13,NI,NEL,.FALSE.)
+         CALL WRITEDET(13,NJ,NEL,.TRUE.)
 C.. First find which orbitals have been excited
          I=1
          J=1
          DENOM=0.D0
          DO WHILE (I.LE.NEL.OR.J.LE.NEL)
-C            WRITE(23,*) I,J,IPATH(I,0),IPATH(J,1)
+            WRITE(13,*) I,J,NI(I),NJ(J)
             IF(J.GT.NEL.OR.(I.LE.NEL.AND.NI(I).LT.NJ(J))) THEN
 C.. 0 has a lower orb than 1, so 0's must have been removed to get 1
-C               WRITE(23,*) IPATH(I,0),-ARR(IPATH(I,0))
+               WRITE(13,*) NI(I),-ARR(NI(I),2)
                DENOM=DENOM-ARR(NI(I),2)
                I=I+1
             ELSEIF(I.GT.NEL.OR.(J.LE.NEL.AND.NI(I).GT.NJ(J)))
      &          THEN
 C.. 1 has a lower orb than 0, so 1's must have been added to get 1
-C               WRITE(23,*) IPATH(J,0),ARR(IPATH(J,1))
+               WRITE(13,*) NJ(J),ARR(NJ(J),2)
                DENOM=DENOM+ARR(NJ(J),2)
                J=J+1
             ELSE
