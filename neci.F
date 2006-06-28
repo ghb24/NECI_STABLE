@@ -632,8 +632,6 @@ C.. to UMAT2
             IP_UMAT2=NULL
             CALL MEMORY_CHECK
             WRITE(6,*) "Active basis functions:",NHG
-            CALL FREEZESYMLABELS(NFROZEN,NTFROZEN,
-     &         NBASIS+NFROZEN+NTFROZEN)
             CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
          ENDIF
 
@@ -1792,7 +1790,8 @@ C         WRITE(17,*) CK(1,I),W(I)
          CALL TISET('CLCRHOPII2',ISUB)
          ILMAX=NDET
 C.. we don't need lists for I_HMAX=8
-         IF(I_HMAX.EQ.-8.OR.I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) ILMAX=1
+         IF(I_HMAX.EQ.-9.OR.I_HMAX.EQ.-8.OR.I_HMAX.EQ.-7
+     &      .OR.I_HMAX.LE.-12) ILMAX=1
 C         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
          CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
@@ -2274,7 +2273,8 @@ C.. Normal Hubbard
 C         ILMAX=NDET
 C.. We don't need to store lists for I_HMAX=-8
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
-         IF(I_HMAX.EQ.-8.OR.I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) ILMAX=1
+         IF(I_HMAX.EQ.-9.OR.I_HMAX.EQ.-8.OR.I_HMAX.EQ.-7
+     &     .OR.I_HMAX.LE.-12) ILMAX=1
          CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
          CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
         CALL MEMORY(IP_RIJLIST,(1+ILMAX)*IMAX*2,"RIJLIST")
@@ -2482,14 +2482,18 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 ALAT(3)
 C.. Just check to see if we're not in the middle of a degenerate set with the same sym
          IF(NFROZEN.GT.0) THEN
+         WRITE(6,*) (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)),
+     &        G1(5,BRR(NFROZEN)),G1(5,BRR(NFROZEN+1)))
             IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.
      &        G1(5,BRR(NFROZEN)).EQ.G1(5,BRR(NFROZEN+1))) THEN
                STOP "Cannot freeze in the middle of a degenerate set"
             ENDIF
          ENDIF
-         IF(NFROZEN.GT.0) THEN
+         IF(NTFROZEN.GT.0) THEN
+         WRITE(6,*) ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)),
+     &     G1(5,BRR(NHG-NTFROZEN)),G1(5,BRR(NHG-NTFROZEN+1))
             IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6
-     &     .AND.G1(5,BRR(NHG-NFROZEN)).EQ.G1(5,BRR(NHG-NFROZEN+1))) THEN
+     &   .AND.G1(5,BRR(NHG-NTFROZEN)).EQ.G1(5,BRR(NHG-NTFROZEN+1))) THEN
           STOP "Cannot freeze in the middle of a degenerate virtual set"
             ENDIF
          ENDIF
@@ -2534,6 +2538,7 @@ C.. Now construct the new BRR and ARR
          DO I=1,NHG
             IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
          ENDDO
+         CALL FREEZESYMLABELS(NHG,NBASIS,GG)
 C.. First deal with Ecore
          DO A=1,NFROZEN
             AB=BRR(A)
@@ -2745,12 +2750,11 @@ C.. Check spin
          INCLUDE 'sym.inc'
          REAL*8 ARR(NHG,2)
          DO I=1,NHG
-           WRITE(NUNIT,'(6I7,Z6,F19.5)') I,BRR(I),G1(1,BRR(I)),
+           WRITE(NUNIT,'(6I7,Z6,2F19.5)') I,BRR(I),G1(1,BRR(I)),
      &         G1(2,BRR(I)),G1(3,BRR(I)),
      &         G1(4,BRR(I)),G1(5,BRR(I)),
 C     &         SYMLABELS(2,SYMLABELS(1,(BRR(I)+1)/2)),
-     &         ARR(I,1)
-C,ARR(BRR(I),2)
+     &         ARR(I,1),ARR(BRR(I),2)
          ENDDO
          RETURN
       END

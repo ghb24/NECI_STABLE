@@ -1,7 +1,7 @@
 
 C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
-     &      ICOUNT)
+     &      ICOUNT,ILEVEL)
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL)
@@ -10,17 +10,19 @@ C.. Setup for symmetry routine below.
          INTEGER DSTORE(*)
          INTEGER STORE(6),ICOUNT
          LOGICAL TCOUNT
+         INTEGER ILEVEL
          CALL IAZZERO(STORE,6)
          CALL MEMORY(IP_DSTORE,NEL+NBASIS/32+1,'DSTORE')
          STORE(1)=IP_DSTORE
          CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
-     &      DSTORE(NEL+1))
+     &      DSTORE(NEL+1),ILEVEL)
 C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) CALL FREEM(IP_DSTORE)
       END
 
 
+C.. ILEVEL is 1 for singles, 2 for just doubles, and 3 for both.
 C.. A test subroutine to trial a new symmetry excitation generation algorithm
 C.. Algorithm: First list all the different symmetry classes in NI.
 C.. For each pair of symmetry classes, determine its symmetry product.
@@ -31,7 +33,7 @@ C.. We do this by checking whether any of the []' in the
 C.. global symprods table multiply by [] to give the sym rep.
 
       SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-     &   TCOUNT,ICOUNT,CLASSES,ILUT)
+     &   TCOUNT,ICOUNT,CLASSES,ILUT,ILEVEL)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INCLUDE 'irat.inc'
@@ -64,6 +66,7 @@ C.. global symprods table multiply by [] to give the sym rep.
          INTEGER ISPN
          INTEGER ILUT(0:NBASIS/32)
          INTEGER ISUB
+         INTEGER ILEVEL
          
          CALL TISET('SYMSUEXCIT',ISUB)
 
@@ -369,7 +372,9 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
          ENDDO         
 
 C         WRITE(6,*) "Number of single excitations: ",NSING
-         NEXCITS=NSING+NDOUB
+         NEXCITS=0
+         IF(BTEST(ILEVEL,0)) NEXCITS=NEXCITS+NSING
+         IF(BTEST(ILEVEL,1)) NEXCITS=NEXCITS+NDOUB
          ICOUNT=NEXCITS
 C         WRITE(6,*) "Total number of excitations: ",NEXCITS
 C         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
@@ -408,49 +413,53 @@ C.. 5  COUNT (Total number of excitations in this category)
 
 C.. Now store the singles:
          NEXCITTYPES=0
-         DO I=1,NCL
+         IF(BTEST(ILEVEL,0)) THEN
+            DO I=1,NCL
 C.. For each class, see what sym prods it can interact with
-            DO J=1,NSYMLABELS
-               IF(LSYMSYM(SYMPROD(SYMLABELS(2,J),
+               DO J=1,NSYMLABELS
+                  IF(LSYMSYM(SYMPROD(SYMLABELS(2,J),
      &                            SYMLABELS(2,CLASSES(I))))) THEN
-                  DO ISPN=1,2
-                     ICC=CLASSCOUNT(ISPN,I)*
-     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
-                     IF(ICC.NE.0) THEN
-                        NEXCITTYPES=NEXCITTYPES+1
-                        EXCITTYPES(1,NEXCITTYPES)=1
-                        EXCITTYPES(2,NEXCITTYPES)=ISPN
-                        EXCITTYPES(3,NEXCITTYPES)=I
-                        EXCITTYPES(4,NEXCITTYPES)=J
-                        EXCITTYPES(5,NEXCITTYPES)=ICC
-                     ENDIF
-                  ENDDO
-               ENDIF
+                     DO ISPN=1,2
+                        ICC=CLASSCOUNT(ISPN,I)*
+     &                     (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
+                        IF(ICC.NE.0) THEN
+                           NEXCITTYPES=NEXCITTYPES+1
+                           EXCITTYPES(1,NEXCITTYPES)=1
+                           EXCITTYPES(2,NEXCITTYPES)=ISPN
+                           EXCITTYPES(3,NEXCITTYPES)=I
+                           EXCITTYPES(4,NEXCITTYPES)=J
+                           EXCITTYPES(5,NEXCITTYPES)=ICC
+                        ENDIF
+                     ENDDO
+                  ENDIF
+               ENDDO
             ENDDO
-         ENDDO         
+         ENDIF
 C.. And the doubles
-         DO I=1,NPR
-            DO J=1,NSYMPAIRPRODS
-               SPP=SYMPAIRPRODS(J)
-               IF(LSYMSYM(SYMPROD(SYMPRODS(I), SPP))) THEN
-                  DO ISPN=1,3
-                     K=NALLOWPPS(ISPN,J)
-                     L=SYMPRODIND(2,ISPN,I)
-                     ICC=L*K
-                     IF(ICC.NE.0) THEN
-                        NEXCITTYPES=NEXCITTYPES+1
-                        EXCITTYPES(1,NEXCITTYPES)=2
-                        EXCITTYPES(2,NEXCITTYPES)=ISPN
-                        EXCITTYPES(3,NEXCITTYPES)=I
-                        EXCITTYPES(4,NEXCITTYPES)=J
-                        EXCITTYPES(5,NEXCITTYPES)=ICC
-C                     WRITE(6,"(2I5,2Z6,4I5)") I,J,SYMPRODS(I),
-C     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
-                     ENDIF
-                  ENDDO
-               ENDIF
+         IF(BTEST(ILEVEL,1)) THEN
+            DO I=1,NPR
+               DO J=1,NSYMPAIRPRODS
+                  SPP=SYMPAIRPRODS(J)
+                  IF(LSYMSYM(SYMPROD(SYMPRODS(I), SPP))) THEN
+                     DO ISPN=1,3
+                        K=NALLOWPPS(ISPN,J)
+                        L=SYMPRODIND(2,ISPN,I)
+                        ICC=L*K
+                        IF(ICC.NE.0) THEN
+                           NEXCITTYPES=NEXCITTYPES+1
+                           EXCITTYPES(1,NEXCITTYPES)=2
+                           EXCITTYPES(2,NEXCITTYPES)=ISPN
+                           EXCITTYPES(3,NEXCITTYPES)=I
+                           EXCITTYPES(4,NEXCITTYPES)=J
+                           EXCITTYPES(5,NEXCITTYPES)=ICC
+C                        WRITE(6,"(2I5,2Z6,4I5)") I,J,SYMPRODS(I),
+C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
+                        ENDIF
+                     ENDDO
+                  ENDIF
+               ENDDO
             ENDDO
-         ENDDO
+         ENDIF
 C.. Store all the pointers we need
          STORE(2)=IP_EXCITTYPES
          STORE(3)=IP_NALLOWPPS
@@ -736,6 +745,7 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                ENDDO
             ENDIF
          ENDDO 
+C         WRITE(6,*) "COUNT:",ICOUNT
       END
 
 C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
@@ -743,7 +753,7 @@ C.. one at a time (in an unordered fashion) from a given det.  THis needs to be 
 C.. first with STORE(1)=0, and then again.  Finally it can be called with TSETUP=.FALSE. 
 C.. to actually generate the excitations
       SUBROUTINE GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE)
+     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL)
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL)
@@ -754,6 +764,7 @@ C.. to actually generate the excitations
          INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
          LOGICAL TSETUP
          INTEGER GET_ADDR
+         INTEGER ILEVEL
          IF(TSETUP) THEN
 C.. This is the first time we've been called for setup.
             IF(STORE(1).EQ.0) THEN
@@ -762,7 +773,7 @@ C.. This is the first time we've been called for setup.
                STORE(1)=IP_DSTORE
 C.. Just count.
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-     &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(NEL+1))
+     &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(NEL+1),ILEVEL)
                CALL FREEM(IP_DSTORE)
                STORE(1)=NEL+NBASIS/32+1
                NMEM(1)=6+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
@@ -803,7 +814,7 @@ C.. Put the addresses in store
                ENDDO
                IP_DSTORE=NMEM(1)
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(1),
-     &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(NEL+1))
+     &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(NEL+1),ILEVEL)
                NMEM(23)=ICOUNT
 C.. and now instead the indices within NMEM
                ICOUNT=24
@@ -886,6 +897,8 @@ C.. a double
                I=0
                L=5
                K=-2
+C               WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
+C     &            IFROM)
             ENDIF
          ENDIF
          IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
@@ -973,7 +986,7 @@ C.. We've got a new K, so we need to reset some variables
                ICC(4)=ICC(3)+1
 C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
 C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
-C                     WRITE(6,*) ISPN,ICC1,ICC3
+C                     WRITE(6,*) ISPN,ICC(1),ICC(3)
                LS(1,1)=BTEST(ILUT(ICC(1)/32),
      &                     MOD(ICC(1),32)-1)
                LS(1,2)=BTEST(ILUT(ICC(2)/32),
@@ -987,7 +1000,7 @@ C.. Now check for an excitation
             IF(L.EQ.1) THEN
                L=2
                IF(ISPN.EQ.1.AND.ICC(1).NE.ICC(3).AND.
-     &            .NOT.(LS(1,1).OR.LS(1,2))) THEN
+     &            .NOT.(LS(1,1).OR.LS(2,1))) THEN
                   CALL ICOPY(NEL,NI,1,NK,1)
                   DO J=1,NEL
                      IF(NI(J).EQ.ORBPAIRS(1,
@@ -999,6 +1012,7 @@ C.. Now check for an excitation
                         NK(J)=ICC(3)
                      ENDIF
                   ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                   CALL SORTI(NEL,NK)
                   IC=2
                   EXIT
@@ -1020,6 +1034,7 @@ C.. If neither virtuals are in NI, then allow
                            NK(J)=ICC(4)
                         ENDIF
                      ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                      CALL SORTI(NEL,NK)
                      IC=2
                      EXIT
@@ -1043,6 +1058,7 @@ C.. us the same excitation as previously), then allow
                            NK(J)=ICC(3)
                         ENDIF
                      ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                      CALL SORTI(NEL,NK)
                      IC=2
                      EXIT
@@ -1065,6 +1081,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                            NK(J)=ICC(4)
                         ENDIF
                      ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                      CALL SORTI(NEL,NK)
                      IC=2
                      EXIT
@@ -1297,7 +1314,6 @@ C.. If neither virtuals are in NI, then allow
                      ELSEIF(ICOUNT.NE.0) THEN
                         ICOUNT=ICOUNT-1
                      ELSE
-                        CALL ICOPY(NEL,NI,1,NK,1)
                         CALL ICOPY(NEL,NI,1,NK,1)
                         DO J=1,NEL
                            IF(NI(J).EQ.ORBPAIRS(1,

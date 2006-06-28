@@ -482,6 +482,9 @@ C.. NLIST contains the legnth of LSTE for each node
          INTEGER ICLS
          REAL*8 GETHELEMENT2
          REAL*8 MP2E
+         INTEGER EXFLAG
+C.. Allow both single and double excitations
+         EXFLAG=3
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
          LT=LT+1
@@ -723,6 +726,18 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
 C.. This version doesn't need to generate excitation lists, so 
 C.. calculates excitations on the fly.  Overheads are bigger, but
 C.. scaling should be better. (9/3/05)
+
+C.. Various flags are available in NWHTAY
+C.. Bit 8 (512).  If set the lowest 8 bits of NWHTAY correspond to freezing data.
+C..                  (which is no longer implemented)
+C.. Bit 1 (2).  If 0, then allow connections to anywhere in a graph
+C..             If 1, then only allow connections to the root
+C.. Bit 2 (4).  If 0 allow all topologies.
+C..             If 1, disallow a det if it's already connected to one in the graph
+C.. Bit 3 (8).  If 0 allow all types of excitations
+C..             If 1 only allow singles.
+C.. Bit 4 (16)  If 0 allow all types of excitations
+C.,             If 1, only allow doubles.
       RECURSIVE REAL*8 FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
@@ -764,6 +779,20 @@ C.. scaling should be better. (9/3/05)
          INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
          REAL*8 MP2E
+         INTEGER EXFLAG
+   
+         SELECT CASE (IAND(NWHTAY,24))
+         CASE(0)
+C.. Allow both singles and doubles
+            EXFLAG=3
+         CASE(8)
+C.. only singles
+            EXFLAG=1
+         CASE(16)
+            EXFLAG=2
+         CASE(24)
+            STOP "Invalid combination of flags in NWHTAY"
+         END SELECT
          IF(I_VIND.EQ.0) THEN
 C.. 1st time in
             CALL IAZZERO(IFRZ(0,1),NBASIS+1) 
@@ -860,13 +889,13 @@ C.. Initialiaze the excitation generators
          CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
          STORE(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE)
+     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
 C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
          CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE)
+     &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
 C.. I_VIND is the node that has just been chosen (so LOCTAB(I_VIND) is a
 C.. generator for that node.  We need to generate from that node, so we
 C.. store at I_VIND+1
@@ -939,7 +968,7 @@ C     &         NBASISMAX,CURGEN,IFRZ2)
 C.. Now use the generator to make the next node,NJ
                CALL GENSYMEXCITIT2(IPATH(1,IEXFROM),NEL,G1,
      &         NBASIS,NBASISMAX,
-     &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE)
+     &         .FALSE.,CURGEN,NJ,IC,IFRZ2,STORE,EXFLAG)
 C               CALL GENSYMEXCITIT(IPATH(1,IEXFROM),NEL,G1,
 C     &            NBASIS,NBASISMAX,.TRUE.,
 C     &            ISYM,.FALSE.,CURGEN,NJ,IC,IFRZ2)
@@ -1167,9 +1196,96 @@ C.. we can go to the next new element
       END
 
 
-
 C.. This version creates a star of all 2-vertex terms.
+C.. This sets up the excitation generators and the memory
       REAL*8 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,
+     &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
+            
+         IMPLICIT NONE
+         INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER NTAY,NWHTAY,ILOGGING,LT
+         REAL*8 FCK(*), ZIA(*),ALAT(*),UMAT(*),ECORE
+         INTEGER NI(NEL),ILMAX
+C.. These are old and no longer used
+C.. LSTE is a list of excitations (which we will generate)
+C.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
+         INTEGER LSTE(NEL,0:ILMAX)
+         INTEGER ICE(0:ILMAX)
+         REAL*8 LIST(0:ILMAX,0:2)
+C.. New lists are generated here
+         INTEGER NLSTE(NEL,0:*)
+         REAL*8  NLIST(0:*)
+         INTEGER NICE(0:*)
+
+         POINTER (IP_NLIST,NLIST)
+         POINTER (IP_NLSTE,NLSTE)
+         POINTER (IP_NICE,NICE)
+
+C.. This will contain all the info needed to work out the value of the
+C.. star
+C.. LIST(0,...) corresponds to J=I
+C.. LIST(J,0) = RHOJJ
+C.. LIST(J,1) = RHOIJ
+C.. LIST(J,2) = HIJ
+
+         REAL*8 BETA,RHOEPS
+         LOGICAL TSYM
+         REAL*8 DBETA,DLWDB
+         REAL*8 GETHELEMENT2
+         INTEGER NLENLIST,NLCUR,I,J,L
+
+         REAL*8 RH,RHII
+
+         INTEGER NORDER,NMIN
+         REAL*8 FMCPR3STAR2
+         include 'irat.inc'
+   
+         SELECT CASE (IAND(NWHTAY,24))
+         CASE(0)
+C.. Allow both singles and doubles
+            NORDER=2
+            NMIN=1
+         CASE(8)
+C.. only singles
+            NORDER=1
+            NMIN=1
+         CASE(16)
+            NORDER=2
+            NMIN=2
+         CASE(24)
+            STOP "Invalid combination of flags in NWHTAY"
+         END SELECT
+C.. Count the excitations.
+         CALL GENEXCIT(NI,NORDER,NBASIS,NEL,LSTE,ICE,NLENLIST,NMIN,
+     &            G1,TSYM,NBASISMAX,.TRUE.)
+C.. Allocate memory for the lists
+         ILMAX=NLENLIST
+         CALL MEMORY(IP_NLIST,(NLENLIST+1)*3,'NLIST')
+         CALL MEMORY(IP_NLSTE,((NLENLIST+1)*NEL)/IRAT+1,'NLSTE')
+         CALL MEMORY(IP_NICE,(NLENLIST+1)/IRAT+1,'NICE')
+
+         CALL ICOPY(NEL,NI,1,NLSTE(1,0),1)
+         NICE(0)=0
+C.. Now generate the excitations
+         CALL GENEXCIT(NI,NORDER,NBASIS,NEL,NLSTE(1,1),NICE(1),NLENLIST,
+     &         NMIN,
+     &            G1,TSYM,NBASISMAX,.FALSE.)
+
+         FMCPR3STAR=FMCPR3STAR2(NI,BETA,I_P,NEL,
+     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &      RHOEPS,NLSTE,NICE,NLIST,L,LT,NWHTAY,
+     &      ILOGGING,TSYM,ECORE,NLENLIST,DBETA,DLWDB)
+
+         CALL FREEM(IP_NLIST)
+         CALL FREEM(IP_NLSTE)
+         CALL FREEM(IP_NICE)
+         RETURN
+      END
+C.. This version creates a star of all 2-vertex terms.
+C..   This is the heart of the function, called once the excitations are found.
+      REAL*8 FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,
      &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
@@ -1198,16 +1314,7 @@ C.. LIST(J,2) = HIJ
          INTEGER NLIST,NLCUR,I,J,L
 
          REAL*8 RH,RHII
-
-         CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
-         ICE(0)=0
          NLIST=ILMAX
-         CALL GENEXCIT(NI,ABS(NTAY*2),NBASIS,NEL,
-     &         LSTE(1,1),ICE(1),NLIST,1,G1,TSYM,
-     &         NBASISMAX,.FALSE.)
-         IF(NLIST.GT.ILMAX) THEN
-            WRITE(6,*) "WARNING on excitations"
-         ENDIF
 
          NLCUR=0
          DO I=0,NLIST
@@ -1230,6 +1337,7 @@ C.. LIST(J,2) = HIJ
                   LIST(NLCUR,2)=GETHELEMENT2(NI,
      &               LSTE(1,I),NEL,NBASISMAX,
      &               G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,-1,ECORE)
+C                  CALL WRITEDET(6,LSTE(1,I),NEL,.FALSE.)
 C                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
                   NLCUR=NLCUR+1
                ENDIF
@@ -1240,14 +1348,14 @@ C                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
 C.. we now have a list length NLCUR of dets in the star.
 C.. Call a routine to generate the value of the star
          WRITE(6,*) NLCUR," determinants in star"
-         IF(NWHTAY.EQ.0) THEN
+         IF(.NOT.BTEST(NWHTAY,0)) THEN
             WRITE(6,*) "Beginning Complete Star Diagonalization"
             CALL STARDIAG(LSTE,NEL,NLCUR,LIST,
-     &         ILMAX+1,I_P,FMCPR3STAR,DBETA,DLWDB)
+     &         ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB)
          ELSE
             WRITE(6,*) "Beginning Polynomial Star Diagonalization"
             CALL STARDIAG2(LSTE,NEL,NLCUR,LIST,
-     &         ILMAX+1,I_P,FMCPR3STAR,DBETA,DLWDB)
+     &         ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB)
          ENDIF
       END
 
@@ -2108,16 +2216,16 @@ C.. First find which orbitals have been excited
          J=1
          DENOM=0.D0
          DO WHILE (I.LE.NEL.OR.J.LE.NEL)
-            WRITE(13,*) I,J,NI(I),NJ(J)
+C            WRITE(13,*) I,J,NI(I),NJ(J)
             IF(J.GT.NEL.OR.(I.LE.NEL.AND.NI(I).LT.NJ(J))) THEN
 C.. 0 has a lower orb than 1, so 0's must have been removed to get 1
-               WRITE(13,*) NI(I),-ARR(NI(I),2)
+C               WRITE(13,*) NI(I),-ARR(NI(I),2)
                DENOM=DENOM-ARR(NI(I),2)
                I=I+1
             ELSEIF(I.GT.NEL.OR.(J.LE.NEL.AND.NI(I).GT.NJ(J)))
      &          THEN
 C.. 1 has a lower orb than 0, so 1's must have been added to get 1
-               WRITE(13,*) NJ(J),ARR(NJ(J),2)
+C               WRITE(13,*) NJ(J),ARR(NJ(J),2)
                DENOM=DENOM+ARR(NJ(J),2)
                J=J+1
             ELSE

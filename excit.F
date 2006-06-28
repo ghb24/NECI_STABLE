@@ -1262,7 +1262,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
          LOGICAL TSYM,TCOUNT
          INTEGER G1(5,NBASIS),NMIN
 
-         INTEGER STORE(6),ICOUNT         
+         INTEGER STORE(6),ICOUNT,ILEVEL
          INCLUDE 'sym.inc'
 
 
@@ -1276,10 +1276,18 @@ C.. If we're actually using CSFs
      &         LIST,TCOUNT,G1,TSYM,ISYM(4),TSYM,ISYM,NLIST,IFDET,
      &         .TRUE.,NI,ICLIST,.TRUE.,NO)
          ELSE
-            IF(TNEWEXCITATIONS.AND.NORDER.EQ.2) THEN
+            IF(TNEWEXCITATIONS.AND.NORDER.LE.2) THEN
+               IF(NORDER.EQ.1) ILEVEL=1
+               IF(NORDER.EQ.2) THEN
+                  IF(NMIN.EQ.1) THEN
+                     ILEVEL=3
+                  ELSE
+                     ILEVEL=2
+                  ENDIF
+               ENDIF
 C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
                CALL SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-     &            TCOUNT,ICOUNT)
+     &            TCOUNT,ICOUNT,ILEVEL)
                IF(.NOT.TCOUNT) THEN
                   IF(ICOUNT.GT.NLIST) THEN
                      WRITE(6,*) "Exctiation list size",NLIST

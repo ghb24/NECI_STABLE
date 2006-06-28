@@ -278,7 +278,7 @@ CINT(SECNDS(0.0))
 C.. THe seed must be odd
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
 C.. We don't need to store these lists for I_HMAX=-8
-         IF(I_HMAX.EQ.-8.OR.I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) ILMAX=1
+         IF((I_HMAX.GE.-9.AND.I_HMAX.LE.-7).OR.I_HMAX.LE.-12) ILMAX=1
 C.. Allocate some memory
          IF(I_VMAX.GT.0) THEN
             CALL MEMORY(IP_LSTE,NEL*(ILMAX+1)*I_VMAX/IRAT,

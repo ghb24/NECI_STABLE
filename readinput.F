@@ -298,6 +298,8 @@ C.. the last number is the symmetry specification - and is placed in position 5
                      TNEWEXCITATIONS=.TRUE.
                   case("OLD")
                      TNEWEXCITATIONS=.FALSE.
+                  case default
+                     call inpgetexcitations(NWHTAY(1,1),w)
                   end select
               case("STEPS")
                   call geti(NCYCLE)
@@ -309,48 +311,36 @@ C.. the last number is the symmetry specification - and is placed in position 5
                   call geti(NDETWORK)
               case("ENDCALC")
                   exit calc
+              case("METHODS")
+               I_HMAX=-10
+               I_VMAX=1
+               methods: do
+                  call read_line(eof)
+                  if (eof) then
+                     call report("Incomplete input file",.true.)
+                  end if
+                  call readu(w)
+                  select case(trim(w))
+                  case("METHOD")
+                     I_VMAX=I_VMAX+1
+                    call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX))
+                  case("EXCITATIONS")
+                     call inpgetexcitations(NWHTAY(2,I_VMAX))
+                  case("CYCLES")
+                     call readi(NWHTAY(1,1))
+                     if ( NWHTAY(1,I_VMAX).ne. -7 ) then
+                        call report(trim(w)//" only valid for MC " 
+     &                   //"method",.true.)
+                     end if
+                  case("ENDMETHODS")
+                     exit methods
+                  case default
+            call report ("Keyword "//trim(w)//" not recognized",.true.)
+                  end select
+                end do methods
+               
               case("METHOD")
-                  do while ( item .lt. nitems )
-                    call readu(w)
-                    select case(w)
-                    case("VERTEX")
-                        call readu(w)
-                        select case(w)
-                        case("SUM")
-                            call readu(w)
-                            select case(w)
-                            case("OLD")
-                                I_HMAX = -1
-                            case("NEW")
-                                I_HMAX = -8
-                            case default
-                                call report("Error - must specify OLD" 
-     &                         //" or NEW vertex sum method",.true.)
-                            end select
-                        case("MC")
-                           I_HMAX = -7
-                        case("STAR")
-                           I_HMAX = -9
-                           I_VMAX = 2
-                           call readu(w)
-                           select case(w)
-                           case("DIAG")
-                               NWHTAY=0
-                           case("POLY")
-                               NWHTAY=1
-                           case default
-                                call report("Error - must specify DIAG" 
-     &                         //" or POLY vertex star method",.true.)
-                            end select
-                        case default
-                        call report("Keyword error with "//trim(w),  
-     &                          .true.)
-                        end select
-                    case default
-                        call report("Error.  Method not specified."    
-     &                    //" Stopping.",.true.)
-                    end select
-                  end do
+                  call inpgetmethod(I_HMAX,NWHTAY(1,1))
               case("CYCLES")
                   call readi(NWHTAY(1,1))
                   if ( I_HMAX .ne. -7 ) then
@@ -635,6 +625,7 @@ C..   false.
       CALL MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
 C..   Testing ILOGGING
 C     ILOGGING = 0771
+      IF(I_VMAX.EQ.0) STOP 'I_VMAX=0.  VERTEX SUM max level not set'
       WRITE (6,"(A,Z4)") 'ILOGGING after input routine', ILOGGING
       IF(IR.EQ.1) CLOSE(1)
    99 IF (ios.gt.0) THEN
@@ -642,6 +633,73 @@ C     ILOGGING = 0771
       END IF
       RETURN
       END
+
+      subroutine inpgetexcitations(NWHTAY,w)
+         use input
+         IMPLICIT NONE
+         INTEGER NWHTAY
+         CHARACTER(LEN=16) w
+                  call readu(w)
+                  select case(w)
+                  case("SINGLES")
+                     NWHTAY=8
+                  case("DOUBLES")
+                     NWHTAY=16
+                  case("ALL")
+                     NWHTAY=0
+                  case default
+                        call report("Keyword error with EXCITATIONS "
+     &                     //trim(w),  
+     &                          .true.)
+                  end select
+      end
+      subroutine inpgetmethod(I_HMAX,NWHTAY)
+         use input
+         implicit none
+         integer I_HMAX,NWHTAY
+         CHARACTER(LEN=16) w
+                  do while ( item .lt. nitems )
+                    call readu(w)
+                    select case(w)
+                    case("VERTEX")
+                        call readu(w)
+                        select case(w)
+                        case("SUM")
+                            call readu(w)
+                            select case(w)
+                            case("OLD")
+                                I_HMAX = -1
+                            case("NEW")
+                                I_HMAX = -8
+                            case default
+                                call report("Error - must specify OLD" 
+     &                         //" or NEW vertex sum method",.true.)
+                            end select
+                        case("MC")
+                           I_HMAX = -7
+                        case("STAR")
+                           I_HMAX = -9
+                           call readu(w)
+                           select case(w)
+                           case("DIAG")
+                               NWHTAY=IBCLR(NWHTAY,0)
+                           case("POLY")
+                               NWHTAY=IBSET(NWHTAY,0)
+                           case default
+                                call report("Error - must specify DIAG" 
+     &                         //" or POLY vertex star method",.true.)
+                            end select
+                        case default
+                        call report("Keyword error with "//trim(w),  
+     &                          .true.)
+                        end select
+                    case default
+                        call report("Error.  Method not specified."    
+     &                    //" Stopping.",.true.)
+                    end select
+               end do
+      end
+
 C ==------------------------------------------------------------------==
 
       SUBROUTINE READOLDINPUT(NEL,TSPN,LMS,TPARITY,IPARITY,NMAXX,NMAXY,

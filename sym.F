@@ -97,12 +97,16 @@ C.. list the symmetry string of each sym label
       END
 
 C.. Freeze the SYM LABELS
-      SUBROUTINE FREEZESYMLABELS(NFROZEN,NTFROZEN,NBASIS)
+C.. NHG is the old number of orbs
+C.. NBASIS is the new number of orbs
+C.. GG(I) is the new index of the (old) orb I
+
+      SUBROUTINE FREEZESYMLABELS(NHG,NBASIS,GG)
          IMPLICIT NONE
-         INTEGER NFROZEN,NTFROZEN,NBASIS
-         INTEGER I,NSL
+         INTEGER NHG,NBASIS,GG(NHG)
+         INTEGER I
+         INTEGER NSL(NBASIS)
          INCLUDE 'sym.inc'
-         NSL=NBASIS/2-NTFROZEN/2
 C.. SYMLABELS is used to classify all states which transform with the same symmetry
 C.. for the excitation generation routines
 C.. Each state's symmetry falls into a class SYMLABELS(1,ISTATE).
@@ -110,11 +114,14 @@ C.. The symmetry bit string, decomposing the sym label into its component irreps
 C.. SYMLABELS(2,ISYMLABEL)
 C.. The characters of this class are stored in SYMLABELCHARS(1:NROT, SYMLABELS(1,ISTATE))
 C.. The total number of symmetry labels is NSYMLABELS
+         DO I=1,NHG,2
+            IF(GG(I).NE.0) THEN
+               NSL((GG(I)+1)/2)=SYMLABELS(1,(I+1)/2)
+            ENDIF
+         ENDDO
          DO I=1,NBASIS/2
-C            WRITE(6,*) "FSL",I,NFROZEN/2,NSL
-            IF(I.GT.NFROZEN/2.AND.I.LE.NSL) THEN
-               SYMLABELS(1,I-NFROZEN/2)=SYMLABELS(1,I)
-            ENDIF   
+            SYMLABELS(1,I)=NSL(I)
+C            WRITE(6,*) "SL",I,SYMLABELS(1,I)
          ENDDO
       END
 

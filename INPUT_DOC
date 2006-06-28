@@ -131,8 +131,34 @@ TIMESTEPS <I_P>
 DELTABETA <DBETA>
    Set delta_beta.  If a negative value, calculates exactly.
 
+METHODS
+   Begin a METHODS BLOCK.  This allows a different method for each vertex level.
+   Each vertex level can contain EXCITATIONS and CYCLES keywords
+   The block terminates with ENDMETHODS
+   e.g.
+
+      METHODS
+         METHOD VERTEX SUM NEW
+         EXCITATIONS DOUBLES
+         METHOD VERTEX STAR POLY
+         EXCITATIONS SINGLES
+      ENDMETHODS
+
+   Sets the two-vertex level to be a complete 2-vertex sum of only doubles,
+     and the three-vertex level to be a vertex star of singles (which actually only
+     includes singles at a two-vertex level)
+
+ENDMETHODS
+   Terminate a methods block
 RHOEPSILON <RHOEPSILON>
    Set the minimum significant value of RHO (as a fraction of RHOIIMAX).
+
+EXCITATIONS OLD,NEW
+   For generation of up to double excitations use the old (completely reliable), or new
+   (faster, but does not work for more than 2-vertex level SUMS) routine
+
+EXCITATIONS SINGLES,DOUBLES
+   Limits excitations in METHOD VERTEX SUM NEW to only singles or doubles.
 
 METHOD <METHOD>
     Specify the method for vertex summation routine.  Options currently are:
@@ -145,7 +171,7 @@ METHOD <METHOD>
         DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
         POLY uses the special properties of the matrix to find the roots of the polynomial and uses them to calculat
                the relevant values.
-        Both methods do not use an excitation generator, so for large systems, can take a lot of memory and time. 
+        The excitation routine specified in EXCITATIONS OLD,NEW is used.
 CYCLES <NWHTAY(1,1)>
     Specifies the number of cycles of the MC routine.
 
