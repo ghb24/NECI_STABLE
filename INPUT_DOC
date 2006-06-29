@@ -131,9 +131,16 @@ TIMESTEPS <I_P>
 DELTABETA <DBETA>
    Set delta_beta.  If a negative value, calculates exactly.
 
+RHOEPSILON <RHOEPSILON>
+   Set the minimum significant value of RHO (as a fraction of RHOIIMAX).
+
+EXCITATIONS OLD,NEW
+   For generation of up to double excitations use the old (completely reliable), or new
+   (faster, but does not work for more than 2-vertex level SUMS) routine
+
 METHODS
    Begin a METHODS BLOCK.  This allows a different method for each vertex level.
-   Each vertex level can contain EXCITATIONS and CYCLES keywords
+   Each vertex level can contain EXCITATIONS, VERTICES and CYCLES keywords
    The block terminates with ENDMETHODS
    e.g.
 
@@ -142,20 +149,21 @@ METHODS
          EXCITATIONS DOUBLES
          METHOD VERTEX STAR POLY
          EXCITATIONS SINGLES
+         VERTICES 2
       ENDMETHODS
 
-   Sets the two-vertex level to be a complete 2-vertex sum of only doubles,
-     and the three-vertex level to be a vertex star of singles (which actually only
-     includes singles at a two-vertex level)
+   Sets the first method, at a two-vertex level, to be a complete 2-vertex sum of only doubles,
+     and the second method, overriden to be also at  the two-vertex level, to be a vertex star 
+      of singles.
+
+VERTICES
+   Only usable in a methods block.  By default, each method takes a number of vertices corresponding to its
+     index within the methods block, the first methods corresponding to the 2-vertex level, the second to the 
+     3-vertex level etc. .  VERTICES overrides this, and allows you to specify the vertex level of each method, 
+     allowing, for example, to split the 2-vertex level into doubles and singles which are handled separately.
 
 ENDMETHODS
    Terminate a methods block
-RHOEPSILON <RHOEPSILON>
-   Set the minimum significant value of RHO (as a fraction of RHOIIMAX).
-
-EXCITATIONS OLD,NEW
-   For generation of up to double excitations use the old (completely reliable), or new
-   (faster, but does not work for more than 2-vertex level SUMS) routine
 
 EXCITATIONS SINGLES,DOUBLES
    Limits excitations in METHOD VERTEX SUM NEW to only singles or doubles.

@@ -26,7 +26,7 @@
       CHARACTER(LEN=16) w
       INTEGER NPATHS,STOT
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
-      INTEGER NWHTAY(2,10)
+      INTEGER NWHTAY(3,10)
       REAL*8  ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
@@ -323,6 +323,7 @@ C.. the last number is the symmetry specification - and is placed in position 5
                   select case(trim(w))
                   case("METHOD")
                      I_VMAX=I_VMAX+1
+                     NWHTAY(3,I_VMAX)=I_VMAX
                     call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX))
                   case("EXCITATIONS")
                      call inpgetexcitations(NWHTAY(2,I_VMAX))
@@ -332,6 +333,8 @@ C.. the last number is the symmetry specification - and is placed in position 5
                         call report(trim(w)//" only valid for MC " 
      &                   //"method",.true.)
                      end if
+                  case("VERTICES")
+                     call geti(NWHTAY(3,I_VMAX))
                   case("ENDMETHODS")
                      exit methods
                   case default
@@ -724,7 +727,7 @@ C ==------------------------------------------------------------------==
       INTEGER NPATHS,STOT
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER SPECDET(*)
-      INTEGER NWHTAY(2,10)
+      INTEGER NWHTAY(3,10)
       REAL*8 ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
       REAL*8 FUEGRS

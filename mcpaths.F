@@ -18,7 +18,7 @@ C..  MCPATHSR10 allows different methods at each vertex level
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
          INTEGER I_P,I_HMAX,BRR(*),NMSH(*),FCK(*),ZIA(*),NMAX
-         INTEGER NTAY,NWHTAY(2,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
+         INTEGER NTAY,NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
          INTEGER FSEEK,L,LT,ITIME,K
          REAL*8 BETA,ECORE,WLRI,WLSI,RH,FMCPR3,UMAT(*),TIMEC
          REAL*8 TIGET
@@ -50,6 +50,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          REAL*8 OSI,ODLWDB,OPROB
          REAL*8 MP2E
+         INTEGER I
          CALL TISET('MCPATHSR10',ISUB)
 C.. This will store the MP2 energy
          MP2E=0.D0
@@ -92,7 +93,8 @@ C     &            HIJS(0))
 
 
 C.. I_V is the number of vertices in the path
-         DO I_V=2,I_VMAX
+         DO I=2,I_VMAX
+            I_V=NWHTAY(3,I)
 CI_P
 c            WRITE(6,"I2") I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
@@ -102,8 +104,8 @@ c            WRITE(6,"I2") I_V
             LT=0
             BTABLE(0)=-1
             DLWDB2=0.D0
-            I_CHMAX=NWHTAY(1,I_V)
-            CNWHTAY=NWHTAY(2,I_V)
+            I_CHMAX=NWHTAY(1,I)
+            CNWHTAY=NWHTAY(2,I)
             IF(I_CHMAX.EQ.-1) THEN
 C.. This code generates list of all excitations at each level
             F(I_V)=FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,
