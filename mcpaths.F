@@ -50,7 +50,6 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          REAL*8 OSI,ODLWDB,OPROB
          REAL*8 MP2E
-         INTEGER I
          CALL TISET('MCPATHSR10',ISUB)
 C.. This will store the MP2 energy
          MP2E=0.D0
@@ -2211,8 +2210,8 @@ C.. If we have CSFs, unCSF the elecs
          ELSE
             CALL ICOPY(NEL,IPATH(1,1),1,NJ,1)
          ENDIF
-         CALL WRITEDET(13,NI,NEL,.FALSE.)
-         CALL WRITEDET(13,NJ,NEL,.TRUE.)
+C         CALL WRITEDET(13,NI,NEL,.FALSE.)
+C         CALL WRITEDET(13,NJ,NEL,.TRUE.)
 C.. First find which orbitals have been excited
          I=1
          J=1
