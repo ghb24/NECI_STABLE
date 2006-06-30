@@ -436,6 +436,82 @@ C         ENDDO
          RETURN
       END
 
+
+C.. 29/6/06 Based on RHODIAG_CPP, instead of diagonalizing
+C.. a matrix of RHOIJ elements, and raising the result ^P,
+C.. we diagonalize the HIJ elements and work out e^-beta lambda.
+
+C.. See 1/7/04
+      RECURSIVE REAL*8 FUNCTION HDIAG_CPP(HIJ,
+     &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
+         IMPLICIT NONE
+         INTEGER I_P,I_V,ISUB
+         REAL*8 HIJ(I_V+1,I_V+1)
+         REAL*8 RIJMAT(I_V,I_V)
+         REAL*8 WLIST(I_V),WORK(3*I_V)         
+         INTEGER INFO,I,J,IMISS,II,IJ
+         REAL*8 SI,SI2
+C.. do we subtract out lower vertices here or later?
+         LOGICAL TSUB
+         REAL*8 BETA,DLWDB,DD2,HIJS(I_V+1),HIJS2(I_V)
+         REAL*8 RII
+         RII=EXP(-BETA*HIJ(1,1))
+C.. Diagonalize
+C         WRITE(6,*) "...",I_V,IMISS
+         CALL TISET('HDIAG_CPP',ISUB)
+         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         DLWDB=0.D0
+         II=0
+         DO I=1,I_V+1
+            IF(I.NE.IMISS) THEN
+               IJ=II
+               II=II+1
+               DO J=I,I_V+1
+                  IF(J.NE.IMISS) THEN
+                     IJ=IJ+1
+                     RIJMAT(II,IJ)=HIJ(I,J)+0.D0
+                  ENDIF
+               ENDDO
+               HIJS2(II)=HIJS(I)
+            ENDIF
+         ENDDO
+         SI=0.D0
+C.. Now subtract out the smaller submatrices first
+C.. In order to count the subsets only once, we need to only
+C.. remove up to IMISS 
+         IF(TSUB) THEN
+            DO I=2,IMISS-1
+CIMISS-1
+               DD2=0.D0
+               SI=SI-HDIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
+     &            BETA,DD2,HIJS2)
+               DLWDB=DLWDB-DD2
+            ENDDO
+         ENDIF
+         CALL DSYEV('V','U',I_V,RIJMAT(1,1),I_V,
+     &            WLIST(1),WORK(1),3*I_V,INFO)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) 'DYSEV error: ',INFO
+            STOP
+         ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. appropriate projection onto the root
+         SI2=0.D0
+         DO I=1,I_V
+C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
+            SI2=SI2+RIJMAT(1,I)*RIJMAT(1,I)
+     &               *DEXP(-BETA*WLIST(I))/RII
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+            DO J=1,I_V
+               DLWDB=DLWDB+HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
+     &               *DEXP(-BETA*WLIST(I))/RII
+            ENDDO
+         ENDDO
+         HDIAG_CPP=SI+SI2
+         CALL TIHALT("HDIAG_CPP",ISUB)
+         RETURN
+      END
 C.. See 1/7/04
       RECURSIVE REAL*8 FUNCTION RHODIAG_CPP(RHOIJ,
      &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)

@@ -938,9 +938,16 @@ C..
 C.. we need to calculate a value for RHOEPS, so we approximate that
 C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this
 C.. we have put TMAT instead of ZIA
-      RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG,BRR,
+      IF(I_HMAX.NE.-20) THEN
+C.. If we're using rhos,
+         RHOEPS=GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG,BRR,
      &               NMSH,FCK,TMAT,NMAX,ALAT,UMAT,I_P,ECORE)
-      WRITE(6,*) "RHOEPS:",RHOEPS
+
+         WRITE(6,*) "RHOEPS:",RHOEPS
+      ELSE
+C.. we're acutally diagonalizing H's, so we just leave RHOEPS as RHOEPSILON
+         RHOEPS=RHOEPSILON
+      ENDIF
 
 
 

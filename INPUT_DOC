@@ -170,8 +170,8 @@ EXCITATIONS SINGLES,DOUBLES
 
 METHOD <METHOD>
     Specify the method for vertex summation routine.  Options currently are:
-    VERTEX SUM OLD,NEW
-        Use the old or new vertex sum subroutine.
+    VERTEX SUM OLD,NEW,HDIAG
+        Use the old, new, or H-diagonalizing vertex sum subroutine.
     VERTEX MC
         Monte Carlo procedure.
     VERTEX STAR DIAG,POLY

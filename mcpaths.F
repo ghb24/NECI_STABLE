@@ -40,7 +40,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 HIJS(0:I_VMAX)
          INTEGER LOCTAB(3,I_VMAX)
          REAL*8 GETHELEMENT2,FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
-         REAL*8 FMCPR3STAR,FMCPR3NVSTAR
+         REAL*8 FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
          INTEGER KSYM(5),I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          REAL*8 FF,STD,FSQ(2:I_VMAX),DLWDB3
@@ -119,6 +119,15 @@ C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
+     &         MP2E)
+               STD=LT
+            ELSEIF(I_CHMAX.EQ.-20) THEN
+C.. This code generates excitations on the fly, and diagonalizes a
+C.. matrix of hij instead of rhoij
+               F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &         MP2E)
                STD=LT
@@ -279,7 +288,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          REAL*8 MP2E
 
-         REAL*8 FMCPR3STAR
+         REAL*8 FMCPR3STAR,FMCPR3B2
 
 C.. This is where we will store the MP2 energy
          MP2E=0.D0
@@ -304,7 +313,7 @@ C     &         RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI,I_VMAX)
 C            RETURN
 C         ENDIF
          IF(I_HMAX.EQ.-3.OR.I_HMAX.EQ.-4.OR.I_HMAX.EQ.-7
-     &      .OR.I_HMAX.LE.-12) THEN
+     &      .OR.(I_HMAX.LE.-12.AND.I_HMAX.GT.-20)) THEN
 C.. Importance sampling monte-carlo
 C.. H=-3 is unbiased, and H=-4 is biased
             CALL MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
@@ -395,6 +404,14 @@ C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
+     &         MP2E)
+            ELSEIF(I_HMAX.EQ.-20) THEN
+C.. This code generates excitations on the fly, and diagonalizes a matrix of
+C.. HIJ rather than RHOIJ
+               F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &         RHOEPS,0,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &         MP2E)
             ELSEIF(I_HMAX.EQ.-9) THEN

@@ -22,7 +22,7 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           chebint.o sorti.o calcpathnci.o factorpoly.o rhodiag.o \
           hdiag.o gndts_blk.o mcpathsismc.o mcpathsmcmc.o \
           mcpathsch.o readint.o hubbard.o excit.o mcpathsold.o \
-          rootfind.o cpmdinit.o neci.o umatcache.o
+          rootfind.o cpmdinit.o neci.o umatcache.o mcpathshdiag.o
 
 OBJ_CPMDSTUB = cpmdstub.o init_coul.o init_coul2D.o
 OBJ_NOCPMDSTUB = nocpmdstub.o

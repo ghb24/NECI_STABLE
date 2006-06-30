@@ -73,8 +73,15 @@ C.. If we're using the contour integral trick to sum all possible graphs with th
 C.. we use a diagonalization version rather than contour etc.
 C.. subtracting out lower vertex paths at this level
 C            WRITE(6,*) "-----"
-            CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
-     &         DBETA,DLWDB,HIJS)
+            IF(RHOII(0).EQ.0.D0) THEN
+C.. We actually diagonalize a matrix of Hij elements rather than a matrix of
+C.. RHOIJ elements.  We send beta in from RHOII(1)
+               CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
+     &            RHOII(1),DLWDB,HIJS)
+            ELSE
+               CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
+     &            DBETA,DLWDB,HIJS)
+            ENDIF
          ELSEIF(I_HMAX.EQ.-2.OR.I_HMAX.EQ.-6) THEN
 C.. we use a diagonalization version rather than contour etc.
 C.. we deal with removing lower vertex paths later

@@ -674,6 +674,8 @@ C     ILOGGING = 0771
                                 I_HMAX = -1
                             case("NEW")
                                 I_HMAX = -8
+                            case("HDIAG")
+                                I_HMAX = -20
                             case default
                                 call report("Error - must specify OLD" 
      &                         //" or NEW vertex sum method",.true.)
