@@ -78,6 +78,7 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
            COULDAMP=1.D0
          ELSE
             COULDAMP=DERFC(FCOULDAMPBETA*(ARRSTORE(NHG+I)-FCOULDAMPMU))
+     &                  /2.D0
          ENDIF
          RETURN
       END
