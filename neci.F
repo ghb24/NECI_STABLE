@@ -2757,7 +2757,7 @@ C.. Check spin
          INCLUDE 'sym.inc'
          REAL*8 ARR(NHG,2)
          DO I=1,NHG
-           WRITE(NUNIT,'(6I7,Z6,2F19.5)') I,BRR(I),G1(1,BRR(I)),
+           WRITE(NUNIT,'(6I7,Z6,2F19.9)') I,BRR(I),G1(1,BRR(I)),
      &         G1(2,BRR(I)),G1(3,BRR(I)),
      &         G1(4,BRR(I)),G1(5,BRR(I)),
 C     &         SYMLABELS(2,SYMLABELS(1,(BRR(I)+1)/2)),
