@@ -98,6 +98,7 @@
 
       NSLOTSINIT=1024
       I_VMAX=0
+      FCOULDAMPBETA=-1.D0
 
 !     Values for old parameters.
       TRHOOFR = .false.
@@ -212,6 +213,9 @@ C.. the last number is the symmetry specification - and is placed in position 5
                   call getf(FUEGRS)
               case("COULOMB")
                   call getf(FCOUL)
+              case("COULOMB-DAMPING")
+                  call getf(FCOULDAMPMU)
+                  call getf(FCOULDAMPBETA)
               case("U")
                   call getf(UHUB)
               case("B")

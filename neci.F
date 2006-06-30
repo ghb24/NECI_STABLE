@@ -337,6 +337,7 @@ C.. the ARR(1:LEN) are the energies of the orbitals ordered according to
 C.. BRR.  ARR(LEN+1:2*LEN) are the energies of the orbitals with default 
 C.. ordering.
       CALL MEMORY(IP_ARR,2*LEN,'ARR')
+      IP_ARRSTORE=IP_ARR
       CALL AZZERO(ARR,2*LEN)
       CALL MEMORY(IP_BRR,LEN,'BRR')
       CALL AZZERO(BRR,LEN)
@@ -450,6 +451,9 @@ C..
       WRITE(6,*) (MDK(I),I=1,4)
       IF(FCOUL.NE.1.D0)
      &   WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
+      IF(FCOULDAMPBETA.GT.0)
+     &   WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA,
+     &      " Mu ",FCOULDAMPMU
       IF(.NOT.(TREAD.OR.TREADRHO)) THEN
          IF(TCPMD) THEN
 C.. We don't need to do init any 4-index integrals, but we do need to init the 2-index

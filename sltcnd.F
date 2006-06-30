@@ -68,6 +68,19 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
       CALL TIHALT('SLTCND    ',ISUB)
       RETURN
       END
+
+      REAL*8 FUNCTION COULDAMP(I,NHG)
+         IMPLICIT NONE
+         INTEGER I,NHG
+         INCLUDE 'fcoul.inc'
+         REAL*8 DERFC
+C         IF(FCOULDAMPBETA.LT.0.D0) THEN
+            COULDAMP=1.D0
+C         ELSE
+C            COULDAMP=DERFC(FCOULDAMPBETA*(ARRSTORE(NHG+I)-FCOULDAMPMU))
+C         ENDIF
+         RETURN
+      END
 C=================================================================
 C      SUBROUTINE GETIDM(NBASISMAX,N,G1,ID)
 C      IMPLICIT REAL*8 (A-H,O-Z)

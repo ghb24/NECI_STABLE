@@ -58,6 +58,13 @@ U <UHUB> [only needed for HUBBARD.  default=0]
 B <BHUB> [only needed for HUBBARD.  default=0]
     Sets U (on-site repulsion) and B (hopping or kinetic energy) parameters for the Hubbard model.
 
+COULOMB <FCOUL>
+      Multiplies the strength of the coulomb interaction by FCOUL
+
+COULOMB-DAMPING <FCOULDAMPMU FCOULDAMPBETA>
+      Damps the two-electron coulomb integrals, <a b || c d> with factor f(Ea)f(Eb)f(Ec)f(Ed)
+      where f(E)=ERFC(BETA*(E-MU)).  Beta of 1 gives a damping range of 2.  Beta of 40 gives a damping range of 0.05
+
 REAL        [HUBBARD ONLY}
 APERIODIC   {HUBBARD ONLY]
     Hubbard model is set to be real space and/or not periodic.

@@ -16,9 +16,10 @@ C..Cube array
       REAL*8 GETUMATEL
       INTEGER NEL,NHG
       REAL*8 SUM,COULCOUPLE
-      REAL*8 SUM1,SUM2,PI
+      REAL*8 SUM1,SUM2,PI,SUM3,SUM4
       INTEGER IDS,I,J
       INTEGER ISUB
+      REAL*8 COULDAMP
       CALL TISET('      SCR0',ISUB) 
       PI=ACOS(-1.D0)
 C..This is the Slater-Condon rule when the two determinants are the *SAME*
@@ -46,12 +47,14 @@ C            SUM=SUM-NEL*UMAT(1,1,1,1)/2
 C         ENDIF
 C..Now for the two electron part
       DO I=1,NEL-1
+        SUM3=COULDAMP(NDET1(I),NHG)**2
         DO J=I+1,NEL
           CALL CHK(G1(4,NDET1(I)),G1(4,NDET2(J)),IDS)
-          SUM2=SUM2+
+          SUM4=
      & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
      &   -DFLOAT(IDS)*
      & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
+          SUM2=SUM2+SUM4*SUM3*(COULDAMP(NDET2(J),NHG)**2)
         ENDDO
       ENDDO
 C..
