@@ -74,11 +74,11 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
          INTEGER I,NHG
          INCLUDE 'fcoul.inc'
          REAL*8 DERFC
-C         IF(FCOULDAMPBETA.LT.0.D0) THEN
-            COULDAMP=1.D0
-C         ELSE
-C            COULDAMP=DERFC(FCOULDAMPBETA*(ARRSTORE(NHG+I)-FCOULDAMPMU))
-C         ENDIF
+         IF(FCOULDAMPBETA.LT.0.D0) THEN
+           COULDAMP=1.D0
+         ELSE
+            COULDAMP=DERFC(FCOULDAMPBETA*(ARRSTORE(NHG+I)-FCOULDAMPMU))
+         ENDIF
          RETURN
       END
 C=================================================================
