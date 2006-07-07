@@ -183,38 +183,66 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
+C  JSS
+C        Test for freezing problems:
+         DO K=1,NSTATES
+           CALL CPMDGETOCC(K,F)
+C          F now has the occupation number of state K.
+           IF(F.GT.1.D-5.and.K.GT.NSTATESUSED) THEN
+               WRITE(6,"(A,I2,A,F10.6)") "TOP FROZEN STATE ",K,
+     &              " has occupation number ",F
+               STOP "TOP FROZEN STATE OCCUPIED"
+           END IF
+         END DO
          DO I=1,NSTATESUSED
-            DO J=I,NSTATESUSED
-               TOT=0.D0
-               IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
-C+XI
-C              WRITE(6,*) I,J,CPMD1EINT(I,J)
-              TOT=TOT-CPMD1EINT(I,J)
-               DO K=1,NSTATES
-                  CALL CPMDGETOCC(K,F)
+           DO J=I,NSTATESUSED,2
+             TOT=0.D0
+             IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
+             TOT=TOT-CPMD1EINT(I,J)
+             IF(J+1.LE.NSTATESUSED) THEN
+                 J1=J+1
+                 TOT1=0.D0
+                 IF(I.EQ.J1) TOT1=TOT1+EIGENVALUES(I)
+                 TOT1=TOT1-CPMD1EINT(I,J1)
+C                Get sum_k <ik|jk>f_k = sum_G 4pi/G^2 psi*_ij(G) n(G)
+C                where n(G) is the number density in fourier space.
+                 CALL CPMDTMATEL(I,J,J1,CPMDINTIKJK,CPMDINTIKJK1,.TRUE.)
+                 TOT1=TOT1-CPMDINTIKJK1
+                 TMAT(2*I-1,2*J1-1)=TOT1
+                 TMAT(2*I,2*J1)=TOT1
+                 TMAT(2*J1-1,2*I-1)=TOT1
+                 TMAT(2*J1,2*I)=TOT1
+             ELSE
+C                Only have one element to find.
+                 CALL CPMDTMATEL(I,J,J,CPMDINTIKJK,CPMDINTIKJK1,.FALSE.)
+             END IF
+             TOT=TOT-CPMDINTIKJK
+c              DO K=1,NSTATES
+c                 CALL CPMDGETOCC(K,F)
 C.. F now has the occupation number of state K
-                  IF(F.GT.1.D-5) THEN
+c                 IF(F.GT.1.D-5) THEN
 C.. Get 4-index integral (ik|jk)
-                     IF(K.GT.NSTATESUSED) THEN
-                        WRITE(6,"(A,I2,A,F10.6)") "TOP FROZEN STATE ",K,
-     &                   " has occupation number ",F
-                        STOP "TOP FROZEN STATE OCCUPIED"
-                     ENDIF
+c                    IF(K.GT.NSTATESUSED) THEN
+c                       WRITE(6,"(A,I2,A,F10.6)") "TOP FROZEN STATE ",K,
+c    &                   " has occupation number ",F
+c                       STOP "TOP FROZEN STATE OCCUPIED"
+c                    ENDIF
 C                     WRITE(6,*) "U",I,K,J,K
-                     U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
-     &      I,K,J,K)
+c                    U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
+c    &      I,K,J,K)
 C                     CALL INITFINDXI(I,K,J,K,U)
 C                     WRITE(6,*) F,U
-                     TOT=TOT-F*U
-                  ENDIF
-               ENDDO
-               TMAT(2*I-1,2*J-1)=TOT
-               TMAT(2*I,2*J)=TOT
-               TMAT(2*J-1,2*I-1)=TOT
-               TMAT(2*J,2*I)=TOT
-               WRITE(10,*) I,J,TOT
-            ENDDO
-         ENDDO
+c                    TOT=TOT-F*U
+c                 ENDIF
+c              ENDDO
+             TMAT(2*I-1,2*J-1)=TOT
+             TMAT(2*I,2*J)=TOT
+             TMAT(2*J-1,2*I-1)=TOT
+             TMAT(2*J,2*I)=TOT
+             WRITE(10,*) I,J,TOT
+             IF(J+1.LE.NSTATESUSED) WRITE(10,*) I,J1,TOT1
+           END DO
+         END DO
 C.. Set the UMAT cache to cache normally again
          CALL SETUMATCACHEFLAG(0)
          CLOSE(10)
