@@ -7,6 +7,13 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
          UMATEL=0.D0
       END
 
+      SUBROUTINE CPMDTMATEL(I,J,J1,CPMDINTIKJK,CPMDINTIKJK1,TTWOSTATES)
+         IMPLICIT NONE
+         INTEGER  I,J,J1
+         REAL*8   CPMDINTIKJK,CPMDINTIKJK1
+         LOGICAL  TTWOSTATES
+      END SUBROUTINE
+
       SUBROUTINE CPMDGETOCC(ISTATE,OCC)
          IMPLICIT NONE
 C         INCLUDE 'elct.inc'
