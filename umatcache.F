@@ -21,6 +21,19 @@ C         RETURN
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
+C  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
+         IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
+             GETUMATEL=UMAT2D(IDI,IDI)-XI
+         ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL) THEN
+             I=MIN(IDI,IDJ)
+             J=MAX(IDI,IDJ)
+             GETUMATEL=UMAT2D(I,J)-XI
+         ELSE IF (IDI.eq.IDL.and.IDJ.eq.IDK) THEN
+             I=MAX(IDI,IDJ)
+             J=MIN(IDI,IDJ)
+             GETUMATEL=UMAT2D(I,J)
+         ELSE
+C  /JSS             
             IF(ISS.EQ.0) THEN
 C.. Check to see if the umat element is in the cache
                I=IDI
@@ -61,6 +74,7 @@ C               GETUMATEL=0.5D0
             CALL TIHALT(' GETUMATEL',ISUB)
             RETURN
          ENDIF
+         END IF   
          IF(NBASISMAX(1,3).EQ.-1) THEN
             I=(IDI-1)*ISS+1
             J=(IDJ-1)*ISS+1
@@ -86,7 +100,6 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
                    ENDIF
             GETUMATEL=SUM
          ENDIF
-            
          CALL TIHALT(' GETUMATEL',ISUB)
       END
 

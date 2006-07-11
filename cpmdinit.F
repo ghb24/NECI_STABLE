@@ -183,6 +183,8 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
+C        Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
+         CALL CPMDANTISYMINTEL
          DO I=1,NSTATESUSED
            DO J=I,NSTATESUSED
              TOT=0.D0
