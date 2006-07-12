@@ -372,7 +372,7 @@ C ,F(I_V),FSQ(I_V)
 C.. save all log files
                ITIME=TIMEC()
                CALL FLUSH(11)
-               CALL FLUSH(10)
+caa            CALL FLUSH(10)
                CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A,$)") "  nan det=("
