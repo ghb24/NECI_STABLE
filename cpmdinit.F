@@ -173,6 +173,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          INTEGER ISS(*),G1(*),NBASISMAX(*)
          REAL*8 ECORE
          INTEGER NEL
+         LOGICAL TTMATELSYMA1
          CALL TISET('CPMDINIT2I',ISUB)
 
          ECORE=EIONION-NEL*NEL*XI/2.0
@@ -183,36 +184,42 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
-C        Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
+C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
          CALL CPMDANTISYMINTEL
          DO I=1,NSTATESUSED
            DO J=I,NSTATESUSED
              TOT=0.D0
-             IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
-             TOT=TOT-CPMD1EINT(I,J)
-               DO K=1,NSTATES
-                  CALL CPMDGETOCC(K,F)
+C   JSS      Check that Gamma_I* x Gamma_J contain the totally symmetric
+C            representation.  If they don't, then the integrals <i|vxc|j>
+C            and sum_k <ik|jk> will be zero.  The diagonal elements always
+C            contain the A1 representation.
+             IF (TTMATELSYMA1(I,J)) THEN
+                 IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
+                 TOT=TOT-CPMD1EINT(I,J)
+                   DO K=1,NSTATES
+                      CALL CPMDGETOCC(K,F)
 C.. F now has the occupation number of state K
-                  IF(F.GT.1.D-5) THEN
+                      IF(F.GT.1.D-5) THEN
 C.. Get 4-index integral (ik|jk)
-                     IF(K.GT.NSTATESUSED) THEN
-                        WRITE(6,"(A,I2,A,F10.6)") "TOP FROZEN STATE ",K,
-     &                   " has occupation number ",F
-                        STOP "TOP FROZEN STATE OCCUPIED"
-                     ENDIF
-C                     WRITE(6,*) "U",I,K,J,K
-                     U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
-     &      I,K,J,K)
-C                     CALL INITFINDXI(I,K,J,K,U)
-C                     WRITE(6,*) F,U
-                     TOT=TOT-F*U
-                  ENDIF
-               ENDDO
-             TMAT(2*I-1,2*J-1)=TOT
-             TMAT(2*I,2*J)=TOT
-             TMAT(2*J-1,2*I-1)=TOT
-             TMAT(2*J,2*I)=TOT
-             WRITE(10,*) I,J,TOT
+                         IF(K.GT.NSTATESUSED) THEN
+                            WRITE(6,"(A,I2,A,F10.6)")"TOP FROZEN STATE "
+     &                          ,K," has occupation number ",F
+                            STOP "TOP FROZEN STATE OCCUPIED"
+                         ENDIF
+C                         WRITE(6,*) "U",I,K,J,K
+                         U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
+     &          I,K,J,K)
+C                         CALL INITFINDXI(I,K,J,K,U)
+C                         WRITE(6,*) F,U
+                         TOT=TOT-F*U
+                      ENDIF
+                   ENDDO
+                 TMAT(2*I-1,2*J-1)=TOT
+                 TMAT(2*I,2*J)=TOT
+                 TMAT(2*J-1,2*I-1)=TOT
+                 TMAT(2*J,2*I)=TOT
+                 WRITE(10,*) I,J,TOT
+             END IF
            END DO
          END DO
 C.. Set the UMAT cache to cache normally again
@@ -220,3 +227,38 @@ C.. Set the UMAT cache to cache normally again
          CLOSE(10)
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   
+
+      LOGICAL FUNCTION TTMATELSYMA1(IA,IB)
+         IMPLICIT NONE
+         INCLUDE  'cpmddata.inc'
+C        Arguments
+         INTEGER  IA,IB
+C        Variables
+         INTEGER  ISYMOP
+         REAL*8   sum1,SUMROTPROD,SUMTRANSPROD
+         sum1=0.d0
+         DO ISYMOP=1,NROTOP
+           sum1 = sum1 + ROT_CHAR(IA,ISYMOP)*ROT_CHAR(IB,ISYMOP)
+         END DO
+         SUMROTPROD=sum1/NROTOP
+         sum1=0.d0
+         IF (BIGCELL) THEN
+             DO ISYMOP=1,NTRANSLAT
+               sum1 = sum1 + REAL(DCONJG(TRANS_CHAR(IA,ISYMOP))*
+     &                                            TRANS_CHAR(IB,ISYMOP))
+             END DO
+             SUMTRANSPROD=sum1/NTRANSLAT
+         ELSE
+C            Set SUMTRANSPROD such that it's test is true.
+             SUMTRANSPROD=1
+         END IF
+         IF (ABS(NINT(SUMROTPROD)-SUMROTPROD).LT.1.D-1.and.
+     &                           NINT(SUMROTPROD).NE.0.and.
+     &   ABS(NINT(SUMTRANSPROD)-SUMTRANSPROD).LT.1.D-1.and.
+     &                                     NINT(SUMTRANSPROD).NE.0) THEN
+             TTMATELSYMA1=.true.
+         ELSE
+             TTMATELSYMA1=.false.
+         END IF
+         RETURN
+      END FUNCTION
