@@ -49,6 +49,8 @@ C         IF(NBASISMAX(1,1).LT.1) THEN
 C            SUM=SUM-NEL*UMAT(1,1,1,1)/2
 C         ENDIF
 C..Now for the two electron part
+C  JSS --access the <ij|ij> and <ij|ji> integrals directly.  Note J>I and how the integrals are
+C  stored in UMAT2D (see note in cpmddata.inc).   
       DO I=1,NEL-1
 C        SUM3=COULDAMP(NDET1(I),NHG)**2
          IG1I=G1(4,NDET1(I))
