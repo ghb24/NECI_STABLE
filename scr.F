@@ -16,19 +16,21 @@ C..Cube array
       REAL*8 GETUMATEL
       INTEGER NEL,NHG
       REAL*8 SUM,COULCOUPLE
-      REAL*8 SUM1,SUM2,PI,SUM3,SUM4
-      INTEGER IDS,I,J
+      REAL*8 SUM1,SUM2,SUM3,SUM4
+      INTEGER IDS,I,J,IG1I,INDET
       INTEGER ISUB
       REAL*8 COULDAMP
+c      PARAMETER PI=3.14159265358979323846264338327950288419716939937510D0
       CALL TISET('      SCR0',ISUB) 
-      PI=ACOS(-1.D0)
+C      PI=ACOS(-1.D0)
 C..This is the Slater-Condon rule when the two determinants are the *SAME*
       SUM1=0.D0
       SUM2=0.D0
 C..We must first do the one electron integrals
       DO I=1,NEL
 C.. we extract the KEs from TMAT
-         SUM1=SUM1+TMAT(NDET1(I),NDET1(I))
+         INDET=NDET1(I)
+         SUM1=SUM1+TMAT(INDET,INDET)
 C        SUM1=SUM1+((ALAT(1)**2)*((G(1,NDET1(I))**2)/(ALAT(1)**2)+
 C     &      (G(2,NDET1(I))**2)/(ALAT(2)**2)+
 C     &      (G(3,NDET1(I))**2)/(ALAT(3)**2)))
@@ -48,12 +50,15 @@ C         ENDIF
 C..Now for the two electron part
       DO I=1,NEL-1
 C        SUM3=COULDAMP(NDET1(I),NHG)**2
+         IG1I=G1(4,NDET1(I))
         DO J=I+1,NEL
-          CALL CHK(G1(4,NDET1(I)),G1(4,NDET2(J)),IDS)
+          CALL CHK(IG1I,G1(4,NDET2(J)),IDS)
           SUM4=
      & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
-     &   -DFLOAT(IDS)*
+          IF(IDS.NE.0) THEN 
+             SUM4=SUM4-DFLOAT(IDS)*
      & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
+          ENDIF
           SUM2=SUM2+SUM4
 C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
         ENDDO
