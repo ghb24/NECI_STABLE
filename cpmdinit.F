@@ -213,7 +213,7 @@ C                         WRITE(6,*) F,U
                  TMAT(2*I,2*J)=TOT
                  TMAT(2*J-1,2*I-1)=TOT
                  TMAT(2*J,2*I)=TOT
-                 IF (TOT.gt.1.D-9) WRITE(10,*) I,J,TOT
+                 IF (ABS(TOT).gt.1.D-9) WRITE(10,*) I,J,TOT
            END DO
          END DO
 C.. Set the UMAT cache to cache normally again
