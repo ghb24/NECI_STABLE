@@ -23,15 +23,21 @@ C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
 C  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
          IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
-             GETUMATEL=UMAT2D(IDI,IDI)-XI
+             GETUMATEL=UMAT2D(IDI,IDI)
+             CALL TIHALT(' GETUMATEL',ISUB)
+             RETURN
          ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL) THEN
              I=MIN(IDI,IDJ)
              J=MAX(IDI,IDJ)
-             GETUMATEL=UMAT2D(I,J)-XI
+             GETUMATEL=UMAT2D(I,J)
+             CALL TIHALT(' GETUMATEL',ISUB)
+             RETURN
          ELSE IF (IDI.eq.IDL.and.IDJ.eq.IDK) THEN
              I=MAX(IDI,IDJ)
              J=MIN(IDI,IDJ)
              GETUMATEL=UMAT2D(I,J)
+             CALL TIHALT(' GETUMATEL',ISUB)
+             RETURN
          ELSE
 C  /JSS             
             IF(ISS.EQ.0) THEN
@@ -58,8 +64,9 @@ C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
 C.. We don't have a stored UMAT - we call to generate it.
                   CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
-                  IF(I.EQ.K.AND.J.EQ.L)
-     &               GETUMATEL=GETUMATEL-XI
+C JSS: Elements <ij|ij> and <ii|ii> are no longer stored in the cache.
+C                 IF(I.EQ.K.AND.J.EQ.L)
+C    &               GETUMATEL=GETUMATEL-XI
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &               ICACHEI)
                ELSE
