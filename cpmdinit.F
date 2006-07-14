@@ -170,10 +170,10 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED
          REAL*8 TOT,F,U 
          REAL*8 GETUMATEL
-         INTEGER ISS(*),G1(*),NBASISMAX(*)
+         INTEGER ISS(*),G1(5,*),NBASISMAX(*)
          REAL*8 ECORE
-         INTEGER NEL
-         LOGICAL TTMATELSYMA1
+         INTEGER NEL,SYMPROD
+         LOGICAL LSYMSYM
          CALL TISET('CPMDINIT2I',ISUB)
 
          ECORE=EIONION-NEL*NEL*XI/2.0
@@ -188,7 +188,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
          CALL CPMDANTISYMINTEL
          DO I=1,NSTATESUSED
            DO J=I,NSTATESUSED
-             TOT=0.D0
+             IF(LSYMSYM(SYMPROD(G1(5,I*2-1),G1(5,J*2-1)))) THEN
+              TOT=0.D0
                  IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
                  TOT=TOT-CPMD1EINT(I,J)
                    DO K=1,NSTATES
@@ -214,6 +215,7 @@ C                         WRITE(6,*) F,U
                  TMAT(2*J-1,2*I-1)=TOT
                  TMAT(2*J,2*I)=TOT
                  IF (ABS(TOT).gt.1.D-9) WRITE(10,*) I,J,TOT
+              ENDIF
            END DO
          END DO
 C.. Set the UMAT cache to cache normally again
