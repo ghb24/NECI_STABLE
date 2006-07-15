@@ -147,7 +147,7 @@ C     ==--------------------------------------------------------------==
         IF(J.EQ.1) CPTHRS=CPMAX/100.D0
         IF(CPMAX.LT.CPTHRS) GOTO 100
         I=IMAX
-        WRITE(6,'(1X,A10,7X,I10,5X,F12.2,8X,F12.2)') 
+        WRITE(6,'(1X,A10,7X,I13,5X,F12.2,8X,F12.2)') 
      *                    TNAM(I),NCALLS(I),CTSUM(I),WTSUM(I)
         TOTALCT=TOTALCT+CTSUM(I)
         TOTALWT=TOTALWT+WTSUM(I)

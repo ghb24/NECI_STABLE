@@ -630,7 +630,7 @@ C     ==--------------------------------------------------------------==
 Cdeb        IF(J.EQ.1) CPTHRS=CPMAX/100.D0
         IF(CPMAX.LT.CPTHRS) GOTO 100
         I=IMAX
-        WRITE(*,'(1X,A10,9X,I8,5X,F12.2,8X,F12.2)') 
+        WRITE(*,'(1X,A10,5X,I12,5X,F12.2,8X,F12.2)') 
      *                    TNAM(I),NCALLS(I),CTSUM(I),WTSUM(I)
         TOTALCT=TOTALCT+CTSUM(I)
         TOTALWT=TOTALWT+WTSUM(I)
