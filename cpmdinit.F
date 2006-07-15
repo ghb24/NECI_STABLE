@@ -185,7 +185,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
 C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
-         CALL CPMDANTISYMINTEL
+         CALL CPMDANTISYMINTEL(G1)
          DO I=1,NSTATESUSED
            DO J=I,NSTATESUSED
              IF(LSYMSYM(SYMPROD(G1(5,I*2-1),G1(5,J*2-1)))) THEN
