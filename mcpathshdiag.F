@@ -27,7 +27,8 @@ C.,             If 1, only allow doubles.
       RECURSIVE REAL*8 FUNCTION FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
-     &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E)
+     &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
+     &   NTOTAL)
          
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -42,7 +43,7 @@ C.,             If 1, only allow doubles.
          INTEGER I_HMAX
          REAL*8 RH,BETA,RHOEPS
          LOGICAL TSYM
-         LOGICAL TLOG,TLOG2
+         LOGICAL TLOG,TLOG2,TLOG3,TLOG4
          REAL*8 DBETA,DLWDB,DLWDB2
          REAL*8 HIJS(0:I_V)
          INTEGER ICLS
@@ -63,7 +64,7 @@ C.,             If 1, only allow doubles.
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
-         REAL*8 MP2E
+         REAL*8 MP2E,NTOTAL
          INTEGER EXFLAG
 
          REAL*8 GETHELEMENT
@@ -102,6 +103,9 @@ C.. the path (i.e. J).  LOCTAB(1,2) is the length of the generator (i.e.
 C.. the amount of memory used to store it)
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
+         TLOG3=BTEST(ILOGGING,12)
+         TLOG4=BTEST(ILOGGING,9)
+         TLOG=TLOG.AND..NOT.TLOG4
          TOTAL=0.D0
          LT=LT+1
 C.. This is the current node (set by our parent)         
@@ -118,8 +122,13 @@ C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
 C.. If we're at the last node we call CALCPATHS to generate all 
 C.. the paths for it
             CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
-            IF(TLOG) CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
+            IF(TLOG) THEN
+               IF(.NOT.TLOG3) THEN
+                  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+               ELSE
+                  CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
+               ENDIF
+            ENDIF
 C.. 
             ICLS=0
 C.. Store beta in RHOII(1) (calling it BETADATA)
@@ -128,6 +137,7 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
             TOTAL=TOTAL+
      &         CALCPATHS_N(IPATH,BETADATA,HIJ,I_V,I_HMAX,
      &         I_P,FSCALE,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)
+            NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
             IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
@@ -137,6 +147,10 @@ C.. Sum up the components of <D|H exp(-b H)|D>
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
                CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
+            ENDIF
+            IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
+C.. log every 1000
+               WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
             ENDIF
             RETURN
          ENDIF
@@ -347,7 +361,7 @@ C.. Get the H element so we can calculate the energy
      &                     G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
-     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E)
+     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF

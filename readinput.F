@@ -579,43 +579,47 @@ C.. multiple of 2
               call readu(w)
               select case(w)
               case("MCPATHS")
-                  ILOGGING = ILOGGING + 2**1
+                  ILOGGING = IOR(ILOGGING,2**1)
               case("FMCPR")
                   call readu(w)
                   select case(w)
                   case("LABEL")
-                      ILOGGING = ILOGGING + 2**2
+                      ILOGGING = IOR(ILOGGING,2**2)
                   case("RHO")
-                      ILOGGING = ILOGGING + 2**3
+                      ILOGGING = IOR(ILOGGING,2**3)
+                  case("1000")
+                      ILOGGING = IOR(ILOGGING,2**9)
+                  case("EXCITATION")
+                      ILOGGING = IOR(ILOGGING,2**12)
                   case default
-                      ILOGGING = ILOGGING + 2**2
+                      ILOGGING = IOR(ILOGGING,2**2)
                   end select
               case("CALPATH")
                   call readu(w)
                   select case(w)
                   case("LABEL")
-                      ILOGGING = ILOGGING + 2**4
+                      ILOGGING = IOR(ILOGGING,2**4)
                   case("RHO")
-                      ILOGGING = ILOGGING + 2**5
+                      ILOGGING = IOR(ILOGGING,2**5)
                   case default
-                      ILOGGING = ILOGGING + 2**4
+                      ILOGGING = IOR(ILOGGING,2**4)
                   end select
               case("XIJ")
-                  ILOGGING = ILOGGING + 2**6
+                  ILOGGING = IOR(ILOGGING,2**6)
               case("HAMILTONIAN")
-                  ILOGGING = ILOGGING + 2**7
+                  ILOGGING = IOR(ILOGGING,2**7)
               case("PSI")
-                  ILOGGING = ILOGGING + 2**8
+                  ILOGGING = IOR(ILOGGING,2**8)
               case("VERTEX")
                   call readu(w)
                   select case(w)
                   case("1000")
-                      ILOGGING = ILOGGING + 2**9
+                      ILOGGING = IOR(ILOGGING,2**9)
                   case("EVERY")
-                      ILOGGING = ILOGGING + 2**10
+                      ILOGGING = IOR(ILOGGING,2**10)
                   end select
               case("HFBASIS")
-                  ILOGGING = ILOGGING + 2**11
+                  ILOGGING = IOR(ILOGGING,2**11)
               case("ENDLOG")
                   exit logging
               end select

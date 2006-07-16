@@ -21,6 +21,7 @@ C..  MCPATHSR10 allows different methods at each vertex level
          INTEGER NTAY,NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
          INTEGER FSEEK,L,LT,ITIME,K
          REAL*8 BETA,ECORE,WLRI,WLSI,RH,FMCPR3,UMAT(*),TIMEC
+         REAL*8 NTOTAL
          REAL*8 TIGET
 
          REAL*8 F(2:I_VMAX)
@@ -90,7 +91,7 @@ C     &            HIJS(0))
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 
 
-
+         NTOTAL=1.D0
 C.. I_V is the number of vertices in the path
          DO I=2,I_VMAX
             I_V=NWHTAY(3,I)
@@ -112,7 +113,7 @@ C.. This code generates list of all excitations at each level
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
      &            CNWHTAY,L,LT,I_CHMAX,NLIST,LSTP,
      &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,
-     &            MP2E)
+     &            MP2E,NTOTAL)
             STD=LT
             ELSEIF(I_CHMAX.EQ.-8) THEN
 C.. This code generates excitations on the fly
@@ -120,7 +121,7 @@ C.. This code generates excitations on the fly
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E)
+     &         MP2E,NTOTAL)
                STD=LT
             ELSEIF(I_CHMAX.EQ.-20) THEN
 C.. This code generates excitations on the fly, and diagonalizes a
@@ -129,7 +130,7 @@ C.. matrix of hij instead of rhoij
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E)
+     &         MP2E,NTOTAL)
                STD=LT
             ELSEIF(I_CHMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
@@ -286,7 +287,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 GETHELEMENT2,FMCPR3B
          REAL*8 NTIME,OTIME
          INTEGER IFRZ(0:NBASIS,I_VMAX)
-         REAL*8 MP2E
+         REAL*8 MP2E,NTOTAL
 
          REAL*8 FMCPR3STAR,FMCPR3B2
 
@@ -377,6 +378,7 @@ C     &            HIJS(0))
          RHOIJ(0,0)=RH
          WLRI=LOG(RHOII(0))
          TOTAL=1.D0
+         NTOTAL=1.D0
          DLWDB=HIJS(0)
          IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 
      &         1,TOTAL,TOTAL,0.D0,1,1,HIJS(0)
@@ -398,14 +400,14 @@ C.. This code generates list of all excitations at each level
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
      &            NWHTAY,L,LT,I_HMAX,NLIST,LSTP,
      &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,
-     &            MP2E)
+     &            MP2E,NTOTAL)
             ELSEIF(I_HMAX.EQ.-8) THEN
 C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E)
+     &         MP2E,NTOTAL)
             ELSEIF(I_HMAX.EQ.-20) THEN
 C.. This code generates excitations on the fly, and diagonalizes a matrix of
 C.. HIJ rather than RHOIJ
@@ -413,7 +415,7 @@ C.. HIJ rather than RHOIJ
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E)
+     &         MP2E,NTOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
@@ -469,7 +471,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
-     &   MP2E)
+     &   MP2E,NTOTAL)
          
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -494,17 +496,20 @@ C.. NLIST contains the legnth of LSTE for each node
          INTEGER IVLEVEL,I_HMAX,IC,BTABLE(0:I_V)
          REAL*8 RH,BETA,RHOEPS
          LOGICAL LSAME,TSYM
-         LOGICAL TLOG,TLOG2
+         LOGICAL TLOG,TLOG2,TLOG3,TLOG4
          REAL*8 DBETA,DLWDB,DLWDB2
          REAL*8 HIJS(0:I_V)
          INTEGER ICLS
          REAL*8 GETHELEMENT2
-         REAL*8 MP2E
+         REAL*8 MP2E,NTOTAL
          INTEGER EXFLAG
 C.. Allow both single and double excitations
          EXFLAG=3
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
+         TLOG3=BTEST(ILOGGING,12)
+         TLOG4=BTEST(ILOGGING,9)
+         TLOG=TLOG.AND..NOT.TLOG4
          LT=LT+1
  
          TOTAL=0.D0
@@ -533,13 +538,21 @@ C.. If we're at the last node we call CALCPATHS to generate all
 C.. the paths for it
             CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
             RHOII(I_V)=RHOII(0)
-            IF(TLOG)  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+            IF(TLOG) THEN
+               IF(.NOT.TLOG3) THEN
+                  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+               ELSE
+                  CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
+               ENDIF
+            ENDIF
+            
             IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
 C..
             ICLS=0 
             TOTAL=TOTAL+
      &         CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &         I_P,1.D0,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)
+            NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
             IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
@@ -550,6 +563,10 @@ caa	    call flush(10)
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
                CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
+            ENDIF
+            IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
+C.. log every 1000
+               WRITE(10,*) L,NTOTAL,DLWDB,MP2E
             ENDIF
             RETURN
          ENDIF
@@ -722,7 +739,7 @@ C.. Get the H element so we can calculate the energy
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,LSTE,
      &                     ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,NLIST,
      &                     LSTP2,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,
-     &                     DBETA,DLWDB,HIJS,MP2E)
+     &                     DBETA,DLWDB,HIJS,MP2E,NTOTAL)
                ENDIF
             ENDIF
             I=I+1
@@ -759,7 +776,8 @@ C.,             If 1, only allow doubles.
       RECURSIVE REAL*8 FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
-     &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E)
+     &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
+     &   NTOTAL)
          
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -775,7 +793,7 @@ C.,             If 1, only allow doubles.
          INTEGER I_HMAX
          REAL*8 RH,BETA,RHOEPS
          LOGICAL TSYM
-         LOGICAL TLOG,TLOG2
+         LOGICAL TLOG,TLOG2,TLOG3,TLOG4
          REAL*8 DBETA,DLWDB,DLWDB2
          REAL*8 HIJS(0:I_V)
          INTEGER ICLS
@@ -796,7 +814,7 @@ C.,             If 1, only allow doubles.
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
-         REAL*8 MP2E
+         REAL*8 MP2E,NTOTAL
          INTEGER EXFLAG
    
          SELECT CASE (IAND(NWHTAY,24))
@@ -832,6 +850,9 @@ C.. the path (i.e. J).  LOCTAB(1,2) is the length of the generator (i.e.
 C.. the amount of memory used to store it)
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
+         TLOG3=BTEST(ILOGGING,12)
+         TLOG4=BTEST(ILOGGING,9)
+         TLOG=TLOG.AND..NOT.TLOG4
          TOTAL=0.D0
          LT=LT+1
 C.. This is the current node (set by our parent)         
@@ -856,7 +877,13 @@ C               WRITE(10,"(I2,$)"),IFRZ(I,J)
 C            ENDDO
 C            WRITE(10,*) LOCTAB(3,J)
 C            ENDDO
-            IF(TLOG) CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+            IF(TLOG) THEN
+               IF(.NOT.TLOG3) THEN
+                  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+               ELSE
+                  CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
+               ENDIF
+            ENDIF
             IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
 C.. 
             ICLS=0
@@ -865,6 +892,7 @@ C..
      &         I_P,FSCALE,NEL,I_VMAX,ILOGGING,DBETA,DLWDB2,HIJS,ICLS)
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
+            NTOTAL=NTOTAL+TOTAL
             IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             L=L+1
             FMCPR3B=TOTAL
@@ -872,6 +900,10 @@ C.. Sum up the components of <D|H exp(-b H)|D>
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
                CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
+            ENDIF
+            IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
+C.. log every 1000
+               WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
             ENDIF
 C            WRITE(10,*) (LOCTAB(3,I),I=1,I_V-1)
 C            WRITE(6,*) "X"
@@ -1100,7 +1132,7 @@ C.. Get the H element so we can calculate the energy
      &                     G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
-     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E)
+     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF
@@ -1140,6 +1172,29 @@ C            CALL PRINT_MEMORY()
          IF(LTERM) WRITE(NUNIT,*)
          RETURN
       END
+
+      SUBROUTINE WRITEPATHEX(NUNIT,IPATH,I_V,NEL,LTERM)
+         IMPLICIT NONE
+         INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
+         LOGICAL LTERM
+         INTEGER J,K,EX(2,2)
+C.. First determine the excitation
+         WRITE(NUNIT,"(A,$)") "["
+         DO J=1,I_V-1
+            CALL GETEXCITATION(IPATH(1,0),IPATH(1,J),NEL,EX)
+            IF(EX(1,2).EQ.0) THEN
+               WRITE(NUNIT,"(A,I5,A,I5,A$)")
+     &         "(",EX(1,1),")->(",EX(2,1),"),"
+            ELSE
+               WRITE(NUNIT,"(A,I5,A,I5,A,I5,A,I5,A$)")
+     &         "(",EX(1,1),",",EX(1,2),")->(",EX(2,1),",",EX(2,2),"),"
+            ENDIF
+         ENDDO
+         WRITE(NUNIT,"(A,$)") "]"
+         IF(LTERM) WRITE(NUNIT,*)
+         RETURN
+      END
+
       SUBROUTINE WRITERHOMAT(NUNIT,RHOIJ,I_V,NEL,LTERM)
          IMPLICIT NONE
          INTEGER NUNIT,I_V,NEL

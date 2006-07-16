@@ -1801,7 +1801,7 @@ C         WRITE(17,*) CK(1,I),W(I)
          CALL TISET('CLCRHOPII2',ISUB)
          ILMAX=NDET
 C.. we don't need lists for I_HMAX=8
-         IF(I_HMAX.EQ.-9.OR.I_HMAX.EQ.-8.OR.I_HMAX.EQ.-7
+         IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)
      &      .OR.I_HMAX.LE.-12) ILMAX=1
 C         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
@@ -2284,7 +2284,7 @@ C.. Normal Hubbard
 C         ILMAX=NDET
 C.. We don't need to store lists for I_HMAX=-8
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
-         IF(I_HMAX.EQ.-9.OR.I_HMAX.EQ.-8.OR.I_HMAX.EQ.-7
+         IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)
      &     .OR.I_HMAX.LE.-12) ILMAX=1
          CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
          CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
