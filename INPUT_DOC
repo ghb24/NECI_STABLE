@@ -290,8 +290,10 @@ LOGGING
 MCPATHS     
     Log in MCPATHS to MCPATHS
 
-FMCPR <LABEL,RHO>
+FMCPR <LABEL,RHO,1000,EXCITATION>
     Log in FMCPR to PATHS and MP2PATHS.  Either just label logging or also log RHOIJ.
+    If 1000, log only every 1000 cycles
+    If EXCITATION then log excitations, not full determinants.
 
 CALPATH <LABEL,RHO>
     Log in CALCPATH_R to PATHS.  Either just label logging or also log RHOIJ.

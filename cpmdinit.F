@@ -4,7 +4,7 @@
          INCLUDE 'sym.inc'
          INTEGER NBASISMAX(5,2), BRR(LEN),LEN,G1(5,LEN)
          REAL*8 ARR(LEN,2)
-         INTEGER I,IDECOMP
+         INTEGER I,IDECOMP,J
          LOGICAL ALL1D
 C         NBASISMAX(1,1)=1
 C         NBASISMAX(1,2)=NSTATES
@@ -12,7 +12,13 @@ C         NBASISMAX(1,3)=2
 C         NBASISMAX(4,1)=-1
 C         NBASISMAX(4,2)=1
          NBASISMAX(1,1)=0
-         NBASISMAX(1,2)=0
+         NBASISMAX(2,1)=0
+         NBASISMAX(3,1)=0
+         IF(BIGCELL) THEN
+            NBASISMAX(1,2)=CELLSIZES(1)-1
+            NBASISMAX(2,2)=CELLSIZES(2)-1
+            NBASISMAX(3,2)=CELLSIZES(3)-1
+         ENDIF
          NBASISMAX(1,3)=2
          NBASISMAX(4,1)=-1
          NBASISMAX(4,2)=1
@@ -34,6 +40,12 @@ C         CALL FAKEEIGENVALUES
             G1(5,I*2)=IDECOMP
             G1(4,I*2-1)=-1
             G1(4,I*2)=1
+            IF(BIGCELL) THEN
+               DO J=1,3
+                  G1(J,I*2-1)=K_VECTORS(J,TRANS_LABEL(I))
+                  G1(J,I*2)=K_VECTORS(J,TRANS_LABEL(I))
+               ENDDO
+            ENDIF
 C.. Fake the eigenvalues
             ARR(2*I-1,1)=EIGENVALUES(I)+XI
             ARR(2*I,1)=EIGENVALUES(I)+XI
@@ -167,13 +179,13 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          INCLUDE 'cpmddata.inc'
          REAL*8 TMAT(NHG,NHG)
          REAL*8 CPMD1EINT(NSTATES,NSTATES)
-         INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED
+         INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
          REAL*8 TOT,F,U 
          REAL*8 GETUMATEL
          INTEGER ISS(*),G1(5,*),NBASISMAX(*)
          REAL*8 ECORE
          INTEGER NEL,SYMPROD
-         LOGICAL LSYMSYM
+         LOGICAL LCHKSYM
          CALL TISET('CPMDINIT2I',ISUB)
 
          ECORE=EIONION-NEL*NEL*XI/2.0
@@ -188,7 +200,9 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
          CALL CPMDANTISYMINTEL(G1)
          DO I=1,NSTATESUSED
            DO J=I,NSTATESUSED
-             IF(LSYMSYM(SYMPROD(G1(5,I*2-1),G1(5,J*2-1)))) THEN
+             II=I*2-1
+             JJ=J*2-1
+             IF(LCHKSYM(G1(1,II),G1(1,JJ))) THEN
               TOT=0.D0
                  IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
                  TOT=TOT-CPMD1EINT(I,J)
