@@ -14,10 +14,14 @@ C         NBASISMAX(4,2)=1
          NBASISMAX(1,1)=0
          NBASISMAX(2,1)=0
          NBASISMAX(3,1)=0
-         IF(BIGCELL) THEN
+         IF(BIGCELL.AND.PROJECT) THEN
             NBASISMAX(1,2)=CELLSIZES(1)-1
             NBASISMAX(2,2)=CELLSIZES(2)-1
             NBASISMAX(3,2)=CELLSIZES(3)-1
+         ELSE
+            NBASISMAX(1,2)=0
+            NBASISMAX(2,2)=0
+            NBASISMAX(3,2)=0
          ENDIF
          NBASISMAX(1,3)=2
          NBASISMAX(4,1)=-1
@@ -40,7 +44,7 @@ C         CALL FAKEEIGENVALUES
             G1(5,I*2)=IDECOMP
             G1(4,I*2-1)=-1
             G1(4,I*2)=1
-            IF(BIGCELL) THEN
+            IF(BIGCELL.AND.PROJECT) THEN
                DO J=1,3
                   G1(J,I*2-1)=K_VECTORS(J,TRANS_LABEL(I))
                   G1(J,I*2)=K_VECTORS(J,TRANS_LABEL(I))
