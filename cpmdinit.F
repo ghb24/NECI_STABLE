@@ -45,6 +45,11 @@ C         CALL FAKEEIGENVALUES
                   G1(J,I*2-1)=K_VECTORS(J,TRANS_LABEL(I))
                   G1(J,I*2)=K_VECTORS(J,TRANS_LABEL(I))
                ENDDO
+            ELSE
+               DO J=1,3
+                  G1(J,I*2-1)=0
+                  G1(J,I*2)=0
+               ENDDO
             ENDIF
 C.. Fake the eigenvalues
             ARR(2*I-1,1)=EIGENVALUES(I)+XI
