@@ -19,7 +19,9 @@ C     == IMPROPER_ROT: true if operation is improper.                 ==
 C     == UMAT2D : Stores the integrals of the form <ij|ij> and <ij|ji>==
 C     == <ij|ij> is stored in the upper diagaonal, <ij|ji> in the     ==
 C     == off-diagonal elements of the lower triangle.                 ==
-C     == K_VECTORS  Stores the momentum of each translational label   ==
+C     == K_VECTORS: Stores the momentum of each translational label   ==
+C     == PROJECT:  True if states are projected according to          ==
+C     == translational symmetry.                                      ==
 C     ==================================================================
       INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATES),
      &        TRANS_LABEL(NSTATES),NCOMPLETE
@@ -27,7 +29,7 @@ C     ==================================================================
      &        UMAT2D(NSTATES,NSTATES)
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT)
       INTEGER K_VECTORS(3,NTRANSLAT),CELLSIZES(3)
-      LOGICAL BIGCELL,IMPROPER_OP(NROTOP)
+      LOGICAL BIGCELL,IMPROPER_OP(NROTOP),PROJECT
       REAL*8 EIONION,DEGENTOL
       POINTER (IP_EIGENVALUES,EIGENVALUES),(IP_ROT_CHAR,ROT_CHAR),
      &        (IP_TRANS_CHAR,TRANS_CHAR),(IP_ROT_LABEL,ROT_LABEL),
