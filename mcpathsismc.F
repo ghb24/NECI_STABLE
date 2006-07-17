@@ -120,11 +120,11 @@ C     &               .FALSE.,NMEM,INODE2,ISEED,IEXCITS,0)
 C.. Setup the spin excit generator
             STORE(1)=0
             CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         .TRUE.,NMEMLEN,INODE2,I,0,STORE)
+     &         .TRUE.,NMEMLEN,INODE2,I,0,STORE,3)
             CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
             NMEM(1)=0
             CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         .TRUE.,NMEM,INODE2,I,0,STORE)
+     &         .TRUE.,NMEM,INODE2,I,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         NMEM,INODE2,ISEED,IEXCITS,0)
@@ -978,12 +978,12 @@ C.. If the new node is not in the path, add it.
 C.. Setup the spin excit generator
                STORE(1)=0
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE)
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE)
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            NEWEX,INODE2,ISEED,IC,0)
@@ -1606,12 +1606,12 @@ C     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
 C.. Setup the spin excit generator
                STORE(1)=0
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE)
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE)
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            NEWEX,INODE2,ISEED,IC,0)
@@ -2040,12 +2040,12 @@ C.. Create an excitation generator for this node
 C.. Setup the spin excit generator
                STORE(1)=0
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE)
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE)
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            NEWEX,INODE2,ISEED,IC,0)
