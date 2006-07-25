@@ -18,7 +18,7 @@ C.. SYMLABELS(2,ISYMLABEL)
 C.. The characters of this class are stored in SYMLABELCHARS(1:NROT, SYMLABELS(1,ISTATE))
 C.. The total number of symmetry labels is NSYMLABELS
          INTEGER SYMLABELS(2,*)
-         INTEGER SYMLABELCHARS(NROT,NSYMLABELS)
+         COMPLEX*16 SYMLABELCHARS(NROT,NSYMLABELS)
          INTEGER NSYMLABELS
          POINTER (IP_SYMLABELS,SYMLABELS)
          POINTER (IP_SYMLABELCHARS,SYMLABELCHARS)
@@ -33,7 +33,7 @@ C.. NROT is the number of symmetry operations
          INTEGER NROT
 C.. All symmetries are decomposable into component irreps.
 C.. The characters corresponding to each irrep are in IRREPCHARS
-         INTEGER IRREPCHARS(NROT,NSYM)
+         COMPLEX*16 IRREPCHARS(NROT,NSYM)
          POINTER (IP_IRREPCHARS,IRREPCHARS)
          INTEGER SYMLABELPAIRLIST(2,0:*),SYMLABELPAIRS(2,0:*)
          INTEGER SYMPAIRPRODS(*),NSYMPAIRPRODS
