@@ -567,6 +567,7 @@ C.. NMAX has ARR hidden in it.
             IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
 C.. log every 1000
                WRITE(10,*) L,NTOTAL,DLWDB,MP2E
+               CALL FLUSH(10)
             ENDIF
             RETURN
          ENDIF
@@ -904,6 +905,7 @@ C.. NMAX has ARR hidden in it.
             IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
 C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
+               CALL FLUSH(10)
             ENDIF
 C            WRITE(10,*) (LOCTAB(3,I),I=1,I_V-1)
 C            WRITE(6,*) "X"
