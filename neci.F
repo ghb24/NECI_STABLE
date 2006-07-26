@@ -638,7 +638,12 @@ C.. to UMAT2
             WRITE(6,*) "Active basis functions:",NHG
             CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
          ENDIF
-
+         IF(COULDAMPORB.GT.0) THEN
+            FCOULDAMPMU=(ARR(COULDAMPORB)+ARR(COULDAMPORB+1))/2
+            WRITE(6,*) "Setting Coulomb damping mu between orbitals ",
+     &         ARR(COULDAMPORB)," and ",ARR(COULDAMPORB+1)
+            WRITE(6,*) "MU=",FCOULDAMPMU
+         ENDIF
          IF(THFBASIS.OR.THFCALC.OR.THFORDER) THEN
 C.. We now generate a new U matrix corresponding to the HF basis fns
 C.. This requires a new matrix UMAT2 to be set up, as our HF basis is
@@ -1582,7 +1587,7 @@ C          CLOSE(11)
 
 C..
       CALL ENDSYM()
-C      CALL FREEM(IP_SPECDET)
+      CALL DESTROYUMATCACHE()
       CALL MEMORY_CHECK
 C ==-------------------------------------------------------------------==
       CALL TIHALT('NECICUBE  ',ISUB)

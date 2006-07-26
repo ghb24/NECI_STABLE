@@ -2,7 +2,7 @@ C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0(NEL,NBASISMAX,NDET1,NDET2,
      &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM) 
       IMPLICIT NONE
-      INCLUDE 'cpmddata.inc'
+      INCLUDE 'umatcache.inc'
       INTEGER G1(5,*),ISS
       REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -32,22 +32,8 @@ C..We must first do the one electron integrals
 C.. we extract the KEs from TMAT
          INDET=NDET1(I)
          SUM1=SUM1+TMAT(INDET,INDET)
-C        SUM1=SUM1+((ALAT(1)**2)*((G(1,NDET1(I))**2)/(ALAT(1)**2)+
-C     &      (G(2,NDET1(I))**2)/(ALAT(2)**2)+
-C     &      (G(3,NDET1(I))**2)/(ALAT(3)**2)))
         CALL GTID(NBASISMAX,NDET1(I),ID(I))
       ENDDO
-C..Cube multiplier
-C      CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
-C.. the UEG has k=2pi n/L rather than pi n/L, so we need to multiply the
-C.. KE up by 4
-C      IF(NBASISMAX(1,1).LE.0) CST=CST*4
-C      SUM1=CST*SUM1
-C.. If we're in the UEG, we need to add in the part of the background
-C.. contribution which doesn't cancel
-C         IF(NBASISMAX(1,1).LT.1) THEN
-C            SUM=SUM-NEL*UMAT(1,1,1,1)/2
-C         ENDIF
 C..Now for the two electron part
 C  JSS --access the <ij|ij> and <ij|ji> integrals directly.  Note J>I and how the integrals are
 C  stored in UMAT2D (see note in cpmddata.inc).   
@@ -56,21 +42,21 @@ C        SUM3=COULDAMP(NDET1(I),NHG)**2
          IG1I=G1(4,NDET1(I))
         DO J=I+1,NEL
           CALL CHK(IG1I,G1(4,NDET2(J)),IDS)
-C         SUM4=
-C    & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
+CCC          SUM4=
+CCC     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
           SUM4=UMAT2D(ID(I),ID(J))
           IF(IDS.NE.0) THEN 
               SUM4=SUM4-DFLOAT(IDS)*(UMAT2D(ID(J),ID(I)))
-C             SUM4=SUM4-DFLOAT(IDS)*
-C    & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
+CCC             SUM4=SUM4-DFLOAT(IDS)*
+CCC     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
           ENDIF
           SUM2=SUM2+SUM4
 C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
         ENDDO
       ENDDO
 C..
-      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
-     &   NEL,1,G1)
+C      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
+C     &   NEL,1,G1)
       SUM=SUM1+SUM2*COULCOUPLE
       CALL TIHALT('      SCR0',ISUB) 
       RETURN

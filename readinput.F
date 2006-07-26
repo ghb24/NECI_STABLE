@@ -99,6 +99,7 @@
       NSLOTSINIT=1024
       I_VMAX=0
       FCOULDAMPBETA=-1.D0
+      COULDAMPORB=0
 
 !     Values for old parameters.
       TRHOOFR = .false.
@@ -214,8 +215,18 @@ C.. the last number is the symmetry specification - and is placed in position 5
               case("COULOMB")
                   call getf(FCOUL)
               case("COULOMB-DAMPING")
-                  call getf(FCOULDAMPMU)
-                  call getf(FCOULDAMPBETA)
+                      call report("Coulomb damping feature removed"  
+     &                ,.true.)
+                  
+C                  call readu(w)
+C                  select case(w)
+C                  case("ENERGY")
+C                     call getf(FCOULDAMPMU)
+C                     call getf(FCOULDAMPBETA)
+C                  case("ORBITAL")
+C                     call geti(COULDAMPORB)
+C                     call getf(FCOULDAMPBETA)
+C                  end select
               case("U")
                   call getf(UHUB)
               case("B")

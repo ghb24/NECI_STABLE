@@ -71,7 +71,7 @@ C..The two electron integrals are to be done
       IF(ND1.EQ.ND2) STOP ' !!! PROBLEM IN SCR1 !!! '
       CALL GTID(NBASISMAX,ND1,ID1)
       CALL GTID(NBASISMAX,ND2,ID2)
-      CD=COULDAMP(ND1,NHG)*COULDAMP(ND2,NHG)
+C      CD=COULDAMP(ND1,NHG)*COULDAMP(ND2,NHG)
 C..
       CALL CHK(G1(4,ND1),G1(4,ND2),IDS)
 C..
@@ -81,9 +81,10 @@ C..
      &  GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID(I),ID2,ID(I))
      &           -DFLOAT(IDS1(I)*IDS2(I))*
      &  GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID(I),ID(I),ID2)
-        SUM2=SUM2+SUM3*(COULDAMP(NDET1(I),NHG)**2)*CD
+        SUM2=SUM2+SUM3
+C*(COULDAMP(NDET1(I),NHG)**2)*CD
       ENDDO
-      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,NEL,2,G1)
+C      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,NEL,2,G1)
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2

@@ -25,8 +25,7 @@ C     == translational symmetry.                                      ==
 C     ==================================================================
       INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATES),
      &        TRANS_LABEL(NSTATES),NCOMPLETE
-      REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI,
-     &        UMAT2D(NSTATES,NSTATES)
+      REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT)
       INTEGER K_VECTORS(3,NTRANSLAT),CELLSIZES(3)
       LOGICAL BIGCELL,IMPROPER_OP(NROTOP),PROJECT
@@ -34,10 +33,10 @@ C     ==================================================================
       POINTER (IP_EIGENVALUES,EIGENVALUES),(IP_ROT_CHAR,ROT_CHAR),
      &        (IP_TRANS_CHAR,TRANS_CHAR),(IP_ROT_LABEL,ROT_LABEL),
      &        (IP_TRANS_LABEL,TRANS_LABEL),(IP_IMPROPER_OP,IMPROPER_OP),
-     &        (IP_UMAT2D,UMAT2D),(IP_K_VECTORS,K_VECTORS)
+     &        (IP_K_VECTORS,K_VECTORS)
       COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,IP_ROT_CHAR,
      &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,
      &                  IP_ROT_LABEL,IP_TRANS_LABEL,IP_IMPROPER_OP,
-     &                  EIONION,NCOMPLETE,DEGENTOL,IP_UMAT2D,
+     &                  EIONION,NCOMPLETE,DEGENTOL,
      &                  IP_K_VECTORS
 C     ==================================================================

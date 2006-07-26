@@ -13,7 +13,7 @@
          INTEGER ICACHE,ICACHEI
          LOGICAL GETCACHEDUMATEL,LSYMSYM
          INTEGER SYMPROD
-         INCLUDE 'cpmddata.inc'
+         INCLUDE 'umatcache.inc'
          INTEGER ISUB
          CALL TISET(' GETUMATEL',ISUB)
 C         GETUMATEL=0.D0
@@ -22,19 +22,31 @@ C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
 C  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
+C.. Remember permutations
+C.. <ij|ji> = <ii|jj>
          IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
+C..  <ii|ii>
              GETUMATEL=UMAT2D(IDI,IDI)
              CALL TIHALT(' GETUMATEL',ISUB)
              RETURN
          ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL) THEN
+C.. <ij|ij>
              I=MIN(IDI,IDJ)
              J=MAX(IDI,IDJ)
              GETUMATEL=UMAT2D(I,J)
              CALL TIHALT(' GETUMATEL',ISUB)
              RETURN
          ELSE IF (IDI.eq.IDL.and.IDJ.eq.IDK) THEN
+C.. <ij|ji>
              I=MAX(IDI,IDJ)
              J=MIN(IDI,IDJ)
+             GETUMATEL=UMAT2D(I,J)
+             CALL TIHALT(' GETUMATEL',ISUB)
+             RETURN
+         ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL) THEN
+C.. <ii|jj> = <ij|ji>
+             I=MAX(IDI,IDK)
+             J=MIN(IDI,IDK)
              GETUMATEL=UMAT2D(I,J)
              CALL TIHALT(' GETUMATEL',ISUB)
              RETURN
@@ -69,9 +81,11 @@ C                 IF(I.EQ.K.AND.J.EQ.L)
 C    &               GETUMATEL=GETUMATEL-XI
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &               ICACHEI)
+                  NMISSES=NMISSES+1
                ELSE
 C                  WRITE(6,*) "HIT ",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
+                  NHITS=NHITS+1
                ENDIF
 C               GETUMATEL=0.5D0
             ELSE
@@ -132,11 +146,37 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
 c        NSLOTS=MIN(NPAIRS, 1024)
          NSLOTS=MIN(NPAIRS, NSLOTSINIT)
          UMATCACHEFLAG=0
+         NHITS=0
+         NMISSES=0
          WRITE(6,*) "UMAT NSLOTS,NPAIRS,TOT",NSLOTS,NPAIRS,NSLOTS*NPAIRS
          CALL MEMORY(IP_UMATCACHE,NSLOTS*NPAIRS,'UMATCACHE')
          CALL MEMORY(IP_UMATLABELS,NSLOTS*NPAIRS/IRAT+1,'UMATLABELS')
          CALL AZZERO(UMATCACHE,NPAIRS*NSLOTS)
          CALL IAZZERO(UMATLABELS,NPAIRS*NSLOTS)
+      END
+
+      SUBROUTINE SETUPUMAT2D(G1)
+         IMPLICIT NONE
+         INCLUDE 'umatcache.inc'
+         INTEGER G1(*)
+         CALL MEMORY(IP_UMAT2D,NSTATES*NSTATES,'UMAT2D')
+         CALL CPMDANTISYMINTEL(G1,UMAT2D)
+      END
+      
+      SUBROUTINE DESTROYUMATCACHE
+         IMPLICIT NONE
+         INCLUDE 'umatcache.inc'
+         IF(IP_UMATCACHE.NE.0) THEN
+            CALL FREEM(IP_UMATCACHE)
+            IP_UMATCACHE=0
+            CALL FREEM(IP_UMATLABELS)
+            IP_UMATLABELS=0
+            WRITE(6,*) "UMAT Cache Statistics"
+            WRITE(6,*) NHITS, " hits"
+            WRITE(6,*) NMISSES, " misses"
+            WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,
+     &      "% success"
+         ENDIF
       END
 
       SUBROUTINE SETUMATCACHEFLAG(NEWFLAG)
@@ -285,6 +325,7 @@ C.. middle of a block of duplicates
          REAL*8 UMATEL
          INCLUDE 'umatcache.inc'      
          INTEGER OLAB,IC1
+C         WRITE(6,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
          IF(NSLOTS.EQ.NPAIRS) THEN
 C.. small system.  only store a single element
             UMATLABELS(ICACHEI,ICACHE)=B

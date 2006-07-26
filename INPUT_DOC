@@ -61,9 +61,13 @@ B <BHUB> [only needed for HUBBARD.  default=0]
 COULOMB <FCOUL>
       Multiplies the strength of the coulomb interaction by FCOUL
 
-COULOMB-DAMPING <FCOULDAMPMU FCOULDAMPBETA>
+COULOMB-DAMPING ENERGY <FCOULDAMPMU FCOULDAMPBETA>
+COULOMB-DAMPING ORBITAL <COULDAMPORB FCOULDAMPBETA>
       Damps the two-electron coulomb integrals, <a b || c d> with factor f(Ea)f(Eb)f(Ec)f(Ed)
       where f(E)=ERFC(BETA*(E-MU)).  Beta of 1 gives a damping range of 2.  Beta of 40 gives a damping range of 0.05
+      ENERGY sets the MU manually.  ORBITAL sets MU half way between the energies of ORB and ORB+1
+COULOMB-DAMPING is now disabled [26/7/06]
+
 
 REAL        [HUBBARD ONLY}
 APERIODIC   {HUBBARD ONLY]

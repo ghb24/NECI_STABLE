@@ -207,7 +207,8 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
 C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
-         CALL CPMDANTISYMINTEL(G1)
+         CALL SETUPUMAT2D(G1)
+         WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
            DO J=I,NSTATESUSED
              II=I*2-1
@@ -226,7 +227,7 @@ C.. Get 4-index integral (ik|jk)
      &                          ,K," has occupation number ",F
                             STOP "TOP FROZEN STATE OCCUPIED"
                          ENDIF
-C                         WRITE(6,*) "U",I,K,J,K
+C                         WRITE(6,*) "U",I,K,J,K,F
                          U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
      &          I,K,J,K)
 C                         CALL INITFINDXI(I,K,J,K,U)
