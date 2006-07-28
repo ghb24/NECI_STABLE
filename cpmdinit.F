@@ -30,7 +30,7 @@ C         NBASISMAX(4,2)=1
 C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          NBASISMAX(2,3)=0
          CALL EXTRACTSYMLABELS
-         CALL GENIRREPS(IMPROPER_OP)
+         CALL GENIRREPS(IMPROPER_OP,NROTOP)
          CALL GENSYMTABLE
 
 C         CALL FAKEEIGENVALUES
@@ -86,7 +86,13 @@ C.. Called to retrieve number of basis functions from CPMD
          INTEGER LEN
 C         CALL FAKEREADCHARTABLE(NSTATES)
          LEN=NSTATES*2
-         NROT=NROTOP
+         IF(TSPACEGP) THEN
+C.. We're dealing with a complete space group rather than just a point
+C.. group
+            NROT=NROTOP*NTRANSLAT
+         ELSE
+            NROT=NROTOP
+         ENDIF
       END
       
       SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
@@ -102,24 +108,61 @@ C         CALL FAKEREADCHARTABLE(NSTATES)
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
          INCLUDE 'sym.inc'
-         INTEGER I,J
-         NSYMLABELS=0
-         DO I=1,NSTATES
-            IF(ROT_LABEL(I).GT.NSYMLABELS) NSYMLABELS=ROT_LABEL(I)
-         ENDDO
+         INTEGER I,J,K
+         INTEGER LABELS(2,NSTATES)
+         IF(TSPACEGP) THEN
+            NSYMLABELS=NSTATES
+         ELSE
+            NSYMLABELS=0
+            DO I=1,NSTATES
+               IF(ROT_LABEL(I).GT.NSYMLABELS) NSYMLABELS=ROT_LABEL(I)
+            ENDDO
+         ENDIF
          CALL MEMORY(IP_SYMLABELCHARS,NSYMLABELS*NROT*2,'SYMLABELCH')
          CALL AZZERO(SYMLABELCHARS,NSYMLABELS*NROT*2)
          CALL MEMORY(IP_SYMLABELS,NSTATES*2,'SYMLABELS')
-         DO I=1,NSTATES
-            IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
-C.. we've found an uninitialized symlabel - fill it
-               DO J=1,NROT
+C.. Two versions - one for space groups and one for point groups
+         IF(TSPACEGP) THEN
+C.. space group is more complex as we have separate translational and
+C.. rotational labels.  We will need to compare each pair of t&r labels
+C.. with a stored list.
+            WRITE(6,*) "Using space group representation."
+            NSYMLABELS=0
+            DO I=1,NSTATES
+               DO K=1,NSYMLABELS
+                  IF(LABELS(1,K).EQ.ROT_LABEL(I)
+     &               .AND.LABELS(2,K).EQ.TRANS_LABEL(I)) THEN
+C.. We can re-use the old label
+                     SYMLABELS(1,I)=K
+                     EXIT
+                  ENDIF
+               END DO
+               IF(K.GT.NSYMLABELS) THEN
+                  NSYMLABELS=K
+C.. we've found a new symlabel - fill it
+                  DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
-                  SYMLABELCHARS(J,ROT_LABEL(I))=NINT(ROT_CHAR(I,J))
-               ENDDO
-            ENDIF
-            SYMLABELS(1,I)=ROT_LABEL(I)
-         ENDDO
+                     SYMLABELCHARS(J,K)=GROUP_CHAR(I,J)
+                  ENDDO
+                  SYMLABELS(1,I)=K
+                  LABELS(1,K)=ROT_LABEL(I)
+                  LABELS(2,K)=TRANS_LABEL(I)
+               ENDIF
+            ENDDO
+         ELSE
+C.. point group
+            WRITE(6,*) "Using point group representation."
+            DO I=1,NSTATES
+               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
+C.. we've found an uninitialized symlabel - fill it
+                  DO J=1,NROT
+C.. Indices need to be inverted so cannot straight ICOPY
+                     SYMLABELCHARS(J,ROT_LABEL(I))=NINT(ROT_CHAR(I,J))
+                  ENDDO
+               ENDIF
+               SYMLABELS(1,I)=ROT_LABEL(I)
+            ENDDO
+         ENDIF
          WRITE(6,*) "SYMMETRY CLASSES"
          CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 C.. Allocate memory gor irreps.

@@ -345,7 +345,7 @@ C.. round the momentum
       END
 
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.
-      SUBROUTINE GENIRREPS(IMPROPER_OP)
+      SUBROUTINE GENIRREPS(IMPROPER_OP,NROTOP)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J,K
@@ -354,15 +354,15 @@ C.. Given a set of characters of states, generate all relevant irreps which span
          INTEGER NEXTSYMLAB
          LOGICAL GETIRREPDECOMP
          COMPLEX*16 REPCHARS(NROT,NSYMLABELS)
-         INTEGER NREPS
+         INTEGER NREPS,NROTOP
          REAL*8 NORM
-         LOGICAL INV,IMPROPER_OP(NROT)
+         LOGICAL INV,IMPROPER_OP(NROTOP)
          NREPS=0
 C.. Initialize the table with the totally symmetric rep.
          INV=.FALSE.
          DO I=1,NROT
             IRREPCHARS(I,1)=1
-            IF(IMPROPER_OP(I)) INV=.TRUE.
+            IF(IMPROPER_OP(MOD(I-1,NROTOP)+1)) INV=.TRUE.
          ENDDO
          NSYM=1
          IF(INV) THEN
@@ -370,7 +370,7 @@ C.. Initialize the table with the totally symmetric rep.
             NSYM=NSYM+1
 C.. There's an inversion centre, so we can immediately create an A1u irrep
             DO I=1,NROT
-               IF(IMPROPER_OP(I)) THEN
+               IF(IMPROPER_OP(MOD(I-1,NROTOP)+1)) THEN
                   IRREPCHARS(I,NSYM)=-1
                ELSE
                   IRREPCHARS(I,NSYM)=1
@@ -400,13 +400,14 @@ C                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,
      &               NSYM,NROT,IDECOMP,NORM)) THEN
 C.. CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
-                     IF(NORM.EQ.NROT) THEN
+                     IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
                         NSYM=NSYM+1
                         IF(NSYM.GT.32) STOP "MORE than 32 irreps"
                         DO K=1,NROT
                            IRREPCHARS(K,NSYM)=REPCHARS(K,NREPS)
                         ENDDO
+C                        CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
                         NREPS=NREPS-1
                         LDO=.TRUE.
                         EXIT lp1
@@ -415,8 +416,8 @@ C                        WRITE(6,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
 C                      CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
 C.. It's not an irrep, but we cannot reduce it.  Store only if we think we've got all the irreps.
                         IF(LDO2) NREPS=NREPS-1
-                           NREPS=NREPS-1
-                        ENDIF
+                        NREPS=NREPS-1
+                     ENDIF
                   ELSE
 C                     WRITE(6,*) "IDECOMP:", IDECOMP
                      NREPS=NREPS-1
@@ -436,18 +437,20 @@ C               CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDST ")
                IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,
      &               NSYM,NROT,IDECOMP,NORM)) THEN
 C.. CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
-                  IF(NORM.EQ.NROT) THEN
+                  IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
                      NSYM=NSYM+1
+                     IF(NSYM.GT.32) STOP "MORE than 32 irreps"
                      DO I=1,NROT
                         IRREPCHARS(I,NSYM)=REPCHARS(I,NREPS)
                      ENDDO
+C                     CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
                      NREPS=NREPS-1
                      LDO=.TRUE.
                      EXIT lp2
                   ELSE
-                     WRITE(6,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
-                     CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
+C                     WRITE(6,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
+C                     CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
 C.. It's not an irrep, but we cannot reduce it.  Store only if we think we've got all the irreps.
                      IF(LDO2) NREPS=NREPS-1
                   ENDIF
@@ -488,18 +491,28 @@ C..   Classify each of the symlabels with its decomposition into irreps
 
 
 C.. Display irrep table      
-      SUBROUTINE WRITEIRREPTAB(IUNIT,IRREPCHARS,NROT,NSYM)
+      SUBROUTINE WRITEIRREPTAB(IUNIT,CHARS,NROT,NSYM)
          IMPLICIT NONE
          INTEGER IUNIT,NROT,NSYM
-         COMPLEX*16 IRREPCHARS(NROT,NSYM)
+         COMPLEX*16 CHARS(NROT,NSYM)
+         CHARACTER*6 STR
          INTEGER I,J
+         LOGICAL LCOMP,LREAL
+         LCOMP=.FALSE.
+         LREAL=.FALSE.
          DO I=1,NSYM
-            WRITE(IUNIT,"(A,I3,A,$)"), "SYM ", I,":   "
             DO J=1,NROT
-C               WRITE(IUNIT,"(F6.3,$)") ABS(IRREPCHARS(J,I))
-               WRITE(IUNIT,"(I3,$)") NINT(REAL(IRREPCHARS(J,I)))
+               IF(ABS(REAL(CHARS(J,I))).GT.1.D-2.AND.
+     &            ABS(DIMAG(CHARS(J,I))).GT.1.D-2) LCOMP=.TRUE.
+              IF(ABS(REAL(CHARS(J,I))-NINT(REAL(CHARS(J,I))).GT.1.D-2))
+     &            LREAL=.TRUE.
+            IF(ABS(DIMAG(CHARS(J,I))-NINT(DIMAG(CHARS(J,I))).GT.1.D-2))
+     &            LREAL=.TRUE.
             ENDDO
-            WRITE(IUNIT,*)
+         ENDDO
+         DO I=1,NSYM
+            WRITE(STR,"(A,I3)"), "SYM", I
+            CALL WRITECHARSF(IUNIT,CHARS(1,I),NROT,STR,LCOMP,LREAL)
          ENDDO
          WRITE(IUNIT,*)
       END 
@@ -510,10 +523,61 @@ C.. Display a line of characters
          COMPLEX*16 CHARS(NROT)
          INTEGER I,J
          CHARACTER*6 STR
+         LOGICAL LCOMP,LREAL
+C.. First do a check for the format
+            LCOMP=.FALSE.
+            LREAL=.FALSE.
+            DO J=1,NROT
+               IF(ABS(REAL(CHARS(J))).GT.1.D-2.AND.
+     &            ABS(DIMAG(CHARS(J))).GT.1.D-2) LCOMP=.TRUE.
+               IF(ABS(REAL(CHARS(J))-NINT(REAL(CHARS(J))).GT.1.D-2))
+     &            LREAL=.TRUE.
+              IF(ABS(DIMAG(CHARS(J))-NINT(DIMAG(CHARS(J))).GT.1.D-2))
+     &            LREAL=.TRUE.
+            ENDDO
+            CALL WRITECHARSF(IUNIT,CHARS,NROT,STR,LCOMP,LREAL)
+      END
+      SUBROUTINE WRITECHARSF(IUNIT,CHARS,NROT,STR,LCOMP,LREAL)
+         IMPLICIT NONE
+         INTEGER IUNIT,NROT
+         COMPLEX*16 CHARS(NROT)
+         INTEGER I,J
+         CHARACTER*6 STR
+         LOGICAL LCOMP,LREAL
             WRITE(IUNIT,"(A6,A,$)"), STR,":   "
             DO J=1,NROT
-C               WRITE(IUNIT,"(F6.3,$)") ABS(CHARS(J))
-               WRITE(IUNIT,"(I3,$)") NINT(REAL(CHARS(J)))
+               IF(LCOMP) THEN
+                  IF(LREAL) THEN
+                     WRITE(IUNIT,"(A,2G16.9,A,$)") "(",
+     &                  NINT(REAL(CHARS(J))*1000)/1000.D0,
+     &                  NINT(DIMAG(CHARS(J))*1000)/1000.D0
+     &                  ,")"
+                  ELSE
+                     WRITE(IUNIT,"(A,2F6.3,A,$)") "(",CHARS(J),")"
+                  ENDIF
+               ELSE
+                  IF(DIMAG(CHARS(J)).GT.1.D-2) THEN
+C.. write in terms of I.
+                     IF(LREAL) THEN
+                        WRITE(IUNIT,"(G14.9,$)") " "
+                     ELSE                        
+                        IF(ABS(DIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
+                           WRITE(IUNIT,"(A,$)") " -I "
+                        ELSEIF(ABS(DIMAG(CHARS(J))+1.D0).LT.1.D-2) THEN
+                           WRITE(IUNIT,"(A,$)") "  I "
+                        ELSE 
+                         WRITE(IUNIT,"(I2,A,$)") NINT(DIMAG(CHARS(J))),
+     &                     "I "
+                        ENDIF
+                     ENDIF
+                  ELSE
+                     IF(LREAL) THEN
+                        WRITE(IUNIT,"(G14.9,$)") REAL(CHARS(J)), "    "
+                     ELSE
+                        WRITE(IUNIT,"(I3,$)") NINT(REAL(CHARS(J)))
+                     ENDIF
+                  ENDIF
+               ENDIF
             ENDDO
             WRITE(IUNIT,*)
       END
@@ -550,7 +614,7 @@ C.. Calculate the normalization of the state I which matches (if it's an irrep, 
                ENDDO
 C               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
                DIFF=ABS(TOT-NINT(ABS(TOT/NORM))*NORM)
-               IF(DIFF.GT.1.D-4) THEN
+               IF(DIFF.GT.1.D-2) THEN
                   WRITE(6,*) 'Symmetry decomposition not complete'
                   CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
                   CALL WRITECHARS(6,CHARS,NROT,"CHARS ")
@@ -558,7 +622,7 @@ C               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
                   STOP 'Incomplete symmetry decomposition'
 C.. The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
 C.. Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
-               ELSEIF(ABS(TOT).GT.1.D-4) THEN
+               ELSEIF(ABS(TOT).GT.1.D-2) THEN
 C.. We've found an (ir)rep which is wholly in CHARS
                   IDECOMP=IBSET(IDECOMP,I-1)
                   CNORM=0
@@ -592,14 +656,14 @@ C,, use DECOMPOSEREP
 C,. First check norm of this state
          CNORM=0
          DO J=1,NROT
-            CNORM=CNORM+CHARS(J)*CHARS(J)
+            CNORM=CNORM+DCONJG(CHARS(J))*CHARS(J)
          ENDDO
          DO I=1,NIRREPS
             TOT=0
             DO J=1,NROT
                TOT=TOT+DCONJG(IRREPCHARS(J,I))*CHARS(J)
             ENDDO
-            IF(ABS(TOT).GE.1.D-4) THEN
+            IF(ABS(TOT).GE.1.D-2) THEN
 C.. Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
                DO J=1,NROT
@@ -609,7 +673,7 @@ C               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
 C                CALL WRITECHARS(6,CHARS,NROT,"REP   ")
 C                CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
                DIFF=ABS(TOT-NINT(ABS(TOT/NORM))*NORM)
-               IF(DIFF.GE.1.D-4
+               IF(DIFF.GE.1.D-2
      &            .AND.CNORM.EQ.NROT) THEN
 C.. The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
 C.. Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
@@ -617,7 +681,7 @@ C                  DO J=1,NROT
 C                    IRREPCHARS(J,I)=IRREPCHARS(J,I)-CHARS(J)*TOT/CNORM
 C                  ENDDO
 C                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"NOW   ")
-               ELSEIF(DIFF.LT.1.D-4) THEN
+               ELSEIF(DIFF.LT.1.D-2) THEN
 C.. We've found an (ir)rep which is wholly in CHARS
                   IDECOMP=IBSET(IDECOMP,I-1)
                   CNORM=0
@@ -630,7 +694,7 @@ C.. We've found an (ir)rep which is wholly in CHARS
          ENDDO
          GETIRREPDECOMP=.FALSE.
          DO J=1,NROT
-            IF(ABS(CHARS(J)).GT.1.D-4) GETIRREPDECOMP=.TRUE.
+            IF(ABS(CHARS(J)).GT.1.D-2) GETIRREPDECOMP=.TRUE.
          ENDDO
       END
 
