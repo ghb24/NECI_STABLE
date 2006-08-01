@@ -317,8 +317,8 @@ C.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
 C.. L1B is set if the beta of the first virtual is not in NI, i.e. is allowed
 C.. The virtuals we are exciting to are the same state.  We're only allowed an AB excitation
                         IF(ICC1.EQ.ICC3) THEN
-                           NALLOWPPS(1,J)=NALLOWPPS(1,J)+1
-                           NALLOWPPS(3,J)=NALLOWPPS(3,J)+1
+C                           NALLOWPPS(1,J)=NALLOWPPS(1,J)+1
+C                           NALLOWPPS(3,J)=NALLOWPPS(3,J)+1
                          IF(L1B.AND.L2A) NALLOWPPS(2,J)=NALLOWPPS(2,J)+1
                         ELSE
                          IF(L1B.AND.L2B) NALLOWPPS(1,J)=NALLOWPPS(1,J)+1
@@ -533,10 +533,11 @@ C..      ENDIF(.NOT.TCOUNT)
          INTEGER ISYM(5)
          INTEGER G1(*),NBASISMAX(*)
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
+C         INTEGER ICLASSCOUNT
          INCLUDE 'sym.inc'
 
          ICOUNT=0
-
+C         ICLASSCOUNT=0
 C.. Now work out all the excitations
          DO IEXCIT=1,NEXCITTYPES
             IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
@@ -744,6 +745,10 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                   ENDDO
                ENDDO
             ENDIF
+C           WRITE(6,"(A,8I4)") "ICC",IEXCIT,(EXCITTYPES(I,IEXCIT),I=1,5),
+C     &         ICOUNT-ICLASSCOUNT,
+C     &         (EXCITTYPES(5,IEXCIT)-ICOUNT+ICLASSCOUNT)
+C            ICLASSCOUNT=ICOUNT
          ENDDO 
 C         WRITE(6,*) "COUNT:",ICOUNT
       END

@@ -225,7 +225,7 @@ C.. We only count differences from I to J
                IF(IC2.LE.2) EX(2,IC2)=NJ(J)
                J=J+1
             ENDDO
-            IF(I.LE.NEL.AND.J.NE.NEL.AND.NI(I).EQ.NJ(J)) THEN
+            IF(I.LE.NEL.AND.J.LE.NEL.AND.NI(I).EQ.NJ(J)) THEN
                I=I+1
                J=J+1
             ENDIF

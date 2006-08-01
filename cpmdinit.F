@@ -30,7 +30,8 @@ C         NBASISMAX(4,2)=1
 C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          NBASISMAX(2,3)=0
          CALL EXTRACTSYMLABELS
-         CALL GENIRREPS(IMPROPER_OP,NROTOP)
+         CALL GENIRREPS(IMPROPER_OP,NROTOP,TSPACEGP,TRANS_CHAR_TABLE,
+     &      NTRANSLAT)
          CALL GENSYMTABLE
 
 C         CALL FAKEEIGENVALUES
@@ -130,8 +131,8 @@ C.. with a stored list.
             NSYMLABELS=0
             DO I=1,NSTATES
                DO K=1,NSYMLABELS
-                  IF(LABELS(1,K).EQ.ROT_LABEL(I)
-     &               .AND.LABELS(2,K).EQ.TRANS_LABEL(I)) THEN
+                  IF(LABELS(1,K).EQ.ROT_LABEL(I).AND.
+     &            (.NOT.BIGCELL.OR.LABELS(2,K).EQ.TRANS_LABEL(I))) THEN
 C.. We can re-use the old label
                      SYMLABELS(1,I)=K
                      EXIT
@@ -167,7 +168,7 @@ C.. Indices need to be inverted so cannot straight ICOPY
          CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 C.. Allocate memory gor irreps.
 C.. Assume there will be no more than 32 irreps
-         CALL MEMORY(IP_IRREPCHARS,NROT*32*2,"IRREPCH")
+         CALL MEMORY(IP_IRREPCHARS,NROT*128*2,"IRREPCH")
       END
 
       SUBROUTINE FAKEEIGENVALUES

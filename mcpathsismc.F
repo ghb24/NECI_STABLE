@@ -299,7 +299,9 @@ C                     CALL FLUSH(24)
 C.. Deal with blocking
                   I=0
                   NN=ICOUNT*2
-                  CURBLOCK(0)=CURBLOCK(0)+FF
+C.. FF is the wi for this step
+                  CURBLOCK(0)=CURBLOCK(0)+DLWDB2
+                  CURBLOCK(0)=CURBLOCK(0)+0.D0
                   OBMAX=BMAX
                   DO WHILE(.NOT.BTEST(NN,0))
                      CURBLOCK(I+1)=CURBLOCK(I+1)+CURBLOCK(I)
@@ -1744,6 +1746,7 @@ C.. reject the new, and copy in the old
                ICLS=IOCLS
                WEIGHT=OWEIGHT
                IACC=0
+               CALL ICOPY(NEL*(I_V+1),OIPATH,1,IPATH,1)
             ELSE
                OETILDE=ETILDE
                OPROB=RH
@@ -1766,11 +1769,15 @@ C.. Unbias the sum
      &            I_V,IOCLS)
          CALL GETTREENESS(IOCLS,ITREE,FMCPR4D2,I_V)
           IF(BTEST(ILOGGING,2)) THEN
-            CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+            IF(BTEST(ILOGGING,12)) THEN
+               CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
+            ELSE
+               CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+            ENDIF
             IF(BTEST(ILOGGING,3))
      &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
             IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
-            WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
+            WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,IOCLS
          ENDIF   
       END
 

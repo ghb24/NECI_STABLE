@@ -240,7 +240,7 @@ C.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available.
          NSYMPAIRPRODS=0
          CALL GENALLSYMLABELPAIRS(NSTATES,.TRUE.)
 C         DO I=1,NSYMPAIRPRODS
-C            WRITE(6,*) "NSPP",I,SYMLABELPAIRLIST(1,SYMPAIRPRODS(I)),
+C        WRITE(6,"(A,3I5)") "NSPP",I,SYMLABELPAIRLIST(1,SYMPAIRPRODS(I)),
 C     &         SYMLABELPAIRLIST(2,SYMPAIRPRODS(I))
 C         ENDDO
       END
@@ -265,7 +265,8 @@ C.. put the pair into the list of pairs.
      &               SYMLABELPAIRLIST(2,PROD))=I
                   SYMLABELPAIRS(2,SYMLABELPAIRLIST(1,PROD)+
      &               SYMLABELPAIRLIST(2,PROD))=J
-C                  WRITE(6,"(2I4,3Z4,I4)") I,J,
+C                  WRITE(6,"(3I4,3Z4,I4)") SYMLABELPAIRLIST(1,PROD)+
+C     &               SYMLABELPAIRLIST(2,PROD),I,J,
 C     &               SYMLABELS(2,SYMLABELS(1,I)),
 C     &               SYMLABELS(2,SYMLABELS(1,J)),PROD,
 C     &               SYMLABELPAIRLIST(2,PROD)
@@ -345,7 +346,7 @@ C.. round the momentum
       END
 
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.
-      SUBROUTINE GENIRREPS(IMPROPER_OP,NROTOP)
+      SUBROUTINE GENIRREPS(IMPROPER_OP,NROTOP,TSPACEGP,TRANS_CHAR,NTRAN)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J,K
@@ -353,10 +354,11 @@ C.. Given a set of characters of states, generate all relevant irreps which span
          INTEGER IDECOMP
          INTEGER NEXTSYMLAB
          LOGICAL GETIRREPDECOMP
-         COMPLEX*16 REPCHARS(NROT,NSYMLABELS)
-         INTEGER NREPS,NROTOP
+         COMPLEX*16 REPCHARS(NROT,NSYMLABELS),TOT
+         INTEGER NREPS,NROTOP,NTRAN
          REAL*8 NORM
-         LOGICAL INV,IMPROPER_OP(NROTOP)
+         LOGICAL INV,IMPROPER_OP(NROTOP),TSPACEGP
+         COMPLEX*16 TRANS_CHAR(NTRAN,NTRAN)
          NREPS=0
 C.. Initialize the table with the totally symmetric rep.
          INV=.FALSE.
@@ -377,6 +379,30 @@ C.. There's an inversion centre, so we can immediately create an A1u irrep
                ENDIF
             ENDDO
 C            CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
+         ENDIF
+         WRITE(6,*) NROT,NROTOP,NTRAN,TSPACEGP
+         DO I=1,NTRAN
+            WRITE(6,*) (TRANS_CHAR(J,I),J=1,NTRAN)
+         ENDDO
+         IF(TSPACEGP) THEN
+            DO J=2,NTRAN
+               NSYM=NSYM+1
+               DO I=1,NROT
+                  IRREPCHARS(I,NSYM)=TRANS_CHAR((I-1)/NROTOP+1,J)
+               ENDDO
+C               CALL WRITECHARS(6,IRREPCHARS(1,NSYM),NROT,"ADDPRD")
+               IF(INV) THEN
+                  NSYM=NSYM+1
+                  DO I=1,NROT 
+                     IF(IMPROPER_OP(MOD(I-1,NROTOP)+1)) THEN
+                        IRREPCHARS(I,NSYM)=-TRANS_CHAR((I-1)/NROTOP+1,J)
+                     ELSE
+                        IRREPCHARS(I,NSYM)=TRANS_CHAR((I-1)/NROTOP+1,J)
+                     ENDIF
+                  ENDDO
+C               CALL WRITECHARS(6,IRREPCHARS(1,NSYM),NROT,"ADDPRD")
+               ENDIF
+            ENDDO
          ENDIF
          LDO=.TRUE.
          NEXTSYMLAB=1
@@ -403,10 +429,12 @@ C.. CHARWORK now contains the remainder, which will be a new irrep (or combinati
                      IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
                         NSYM=NSYM+1
-                        IF(NSYM.GT.32) STOP "MORE than 32 irreps"
+                        IF(NSYM.GT.128) STOP "MORE than 128 irreps"
                         DO K=1,NROT
                            IRREPCHARS(K,NSYM)=REPCHARS(K,NREPS)
                         ENDDO
+                     WRITE(6,*) NREPS
+                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
 C                        CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
                         NREPS=NREPS-1
                         LDO=.TRUE.
@@ -440,10 +468,12 @@ C.. CHARWORK now contains the remainder, which will be a new irrep (or combinati
                   IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
                      NSYM=NSYM+1
-                     IF(NSYM.GT.32) STOP "MORE than 32 irreps"
+                     IF(NSYM.GT.128) STOP "MORE than 128 irreps"
                      DO I=1,NROT
                         IRREPCHARS(I,NSYM)=REPCHARS(I,NREPS)
                      ENDDO
+                     WRITE(6,*) NREPS
+                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
 C                     CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
                      NREPS=NREPS-1
                      LDO=.TRUE.
@@ -468,6 +498,16 @@ C.. We've not manage to add any more irreps, so we have achieved self-consistenc
             END DO lp2
          ENDDO
 C.. 
+C.. Check all of the irreps are ok.
+         DO I=1,NSYM
+            DO K=I,NSYM
+               TOT=0.D0
+               DO J=1,NROT
+                  TOT=TOT+DCONJG(IRREPCHARS(J,K))*IRREPCHARS(J,I)
+               ENDDO
+               WRITE(6,*) I,K,TOT
+            ENDDO
+         ENDDO
          WRITE(6,*) "IRREP TABLE"
          CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
          IF(NREPS.GT.0) THEN
@@ -617,6 +657,7 @@ C               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
                IF(DIFF.GT.1.D-2) THEN
                   WRITE(6,*) 'Symmetry decomposition not complete'
                   CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
+                  CALL WRITECHARS(6,CHARSIN,NROT,"CHARSI")
                   CALL WRITECHARS(6,CHARS,NROT,"CHARS ")
                   WRITE(6,*) "Dot product: ",(TOT+0.D0)/NORM,TOT,NORM
                   STOP 'Incomplete symmetry decomposition'
