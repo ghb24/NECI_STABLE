@@ -572,7 +572,7 @@ C.. write in terms of I.
                      ENDIF
                   ELSE
                      IF(LREAL) THEN
-                        WRITE(IUNIT,"(G14.9,$)") REAL(CHARS(J)), "    "
+                        WRITE(IUNIT,"(G21.9,$)") REAL(CHARS(J)), "    "
                      ELSE
                         WRITE(IUNIT,"(I3,$)") NINT(REAL(CHARS(J)))
                      ENDIF
