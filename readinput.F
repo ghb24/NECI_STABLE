@@ -327,6 +327,7 @@ C                  end select
               case("ENDCALC")
                   exit calc
               case("METHODS")
+               if(I_HMAX.ne.0) call report("METHOD already set",.true.)
                I_HMAX=-10
                I_VMAX=1
                methods: do
@@ -358,6 +359,7 @@ C                  end select
                 end do methods
                
               case("METHOD")
+               if(I_HMAX.ne.0) call report("METHOD already set",.true.)
                   call inpgetmethod(I_HMAX,NWHTAY(1,1))
               case("CYCLES")
                   call readi(NWHTAY(1,1))

@@ -403,7 +403,7 @@ C.. CHARWORK now contains the remainder, which will be a new irrep (or combinati
                      IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
                         NSYM=NSYM+1
-                        IF(NSYM.GT.32) STOP "MORE than 32 irreps"
+                        IF(NSYM.GT.64) STOP "MORE than 64 irreps"
                         DO K=1,NROT
                            IRREPCHARS(K,NSYM)=REPCHARS(K,NREPS)
                         ENDDO
@@ -440,7 +440,7 @@ C.. CHARWORK now contains the remainder, which will be a new irrep (or combinati
                   IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
                      NSYM=NSYM+1
-                     IF(NSYM.GT.32) STOP "MORE than 32 irreps"
+                     IF(NSYM.GT.64) STOP "MORE than 64 irreps"
                      DO I=1,NROT
                         IRREPCHARS(I,NSYM)=REPCHARS(I,NREPS)
                      ENDDO

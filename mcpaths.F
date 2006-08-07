@@ -1093,6 +1093,7 @@ C..
                   DO WHILE(ICIL.LT.ICILMAX)
                    IF(IAND(NWHTAY,8).NE.0.AND.I_VIND.LT.(I_V-2)) THEN
                      IF(ICIL.EQ.0) THEN
+                        EX(1,1)=2
                         CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX)
 C                        WRITE(10,*) EX(1,1),EX(1,2),EX(2,1),EX(2,2)
                         ICILMAX=2
@@ -1183,7 +1184,13 @@ C            CALL PRINT_MEMORY()
 C.. First determine the excitation
          WRITE(NUNIT,"(A,$)") "["
          DO J=1,I_V-1
-            CALL GETEXCITATION(IPATH(1,0),IPATH(1,J),NEL,EX)
+            DO K=0,I_V-2
+               EX(1,1)=2
+C               WRITE(6,*) J,K
+               CALL GETEXCITATION(IPATH(1,K),IPATH(1,J),NEL,EX)
+C               WRITE(6,*) J,K
+               IF(EX(1,1).GE.0) EXIT
+            ENDDO
             IF(EX(1,2).EQ.0) THEN
                WRITE(NUNIT,"(A,I5,A,I5,A$)")
      &         "(",EX(1,1),")->(",EX(2,1),"),"

@@ -323,6 +323,7 @@ C..
                   DO WHILE(ICIL.LT.ICILMAX)
                    IF(IAND(NWHTAY,8).NE.0.AND.I_VIND.LT.(I_V-2)) THEN
                      IF(ICIL.EQ.0) THEN
+                        EX(1,1)=2
                         CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX)
                         ICILMAX=2
                         IF(EX(1,2).NE.0) ICILMAX=ICILMAX+1
