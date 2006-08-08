@@ -817,6 +817,7 @@ C.,             If 1, only allow doubles.
          REAL*8 FSCALE,FSC2
          REAL*8 MP2E,NTOTAL
          INTEGER EXFLAG
+         INCLUDE 'irat.inc'
    
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
@@ -944,7 +945,8 @@ C.. Initialiaze the excitation generators
      &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
 C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
-         CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
+         CALL MEMORY(IP_NMEM,NMEMLEN/IRAT+1,'NMEM')
+C         WRITE(6,"(A,Z8.8,Z,I)") "NMEM",IP_NMEM,NMEMLEN,NMEMLEN
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
@@ -993,7 +995,7 @@ C.. generator, as no other sub-recursion is using it yet
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. create a copy
 
-               CALL MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL),'CURGEN')
+               CALL MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL)/IRAT+1,'CURGEN')
                IP_OGEN=LOCTAB2(1,IVLEVEL)
                CALL ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
                IF(IAND(IFRZ(0,I_VIND+1),8).NE.0) THEN
@@ -1192,15 +1194,16 @@ C               WRITE(6,*) J,K
                IF(EX(1,1).GE.0) EXIT
             ENDDO
             IF(EX(1,2).EQ.0) THEN
-               WRITE(NUNIT,"(A,I5,A,I5,A$)")
+               WRITE(NUNIT,"(Z1,A,I5,A,I5,A$)"),K,
      &         "(",EX(1,1),")->(",EX(2,1),"),"
             ELSE
-               WRITE(NUNIT,"(A,I5,A,I5,A,I5,A,I5,A$)")
+               WRITE(NUNIT,"(Z1,A,I5,A,I5,A,I5,A,I5,A$)"),K,
      &         "(",EX(1,1),",",EX(1,2),")->(",EX(2,1),",",EX(2,2),"),"
             ENDIF
          ENDDO
          WRITE(NUNIT,"(A,$)") "]"
          IF(LTERM) WRITE(NUNIT,*)
+         CALL FLUSH(NUNIT)
          RETURN
       END
 

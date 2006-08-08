@@ -573,10 +573,10 @@ C.. We've found an orb in NI with the correct sym.  Now go through the list of p
                      L=0
                      DO WHILE(K.LT.SYMLABELCOUNTS(2,ITO))
                         L2=.TRUE.
+                        ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
+     &                              +ISPN
                         DO WHILE (L2)
                            L=L+1
-                           ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
-     &                              +ISPN
                            L2=L.LE.NEL.AND.NI(L).LT.ITOSL
                         ENDDO
                         IF(L.GT.NEL.OR.NI(L).NE.ITOSL) THEN
@@ -591,6 +591,7 @@ C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
 C                           WRITE(26,'(Z6)') ISYM(5) 
                         ENDIF
+                        L=L-1
                         K=K+1
                      ENDDO
                   ENDIF
@@ -776,7 +777,8 @@ C.. Just count.
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(NEL+1),ILEVEL)
                CALL FREEM(IP_DSTORE)
                STORE(1)=NEL+NBASIS/32+1
-               NMEM(1)=6+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
+               NMEM(1)=23+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
+C               WRITE(6,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
             ELSE
 C.. The second setup.  Now NMEM is allocated, we store all the info
 C.. NMEM is as follows:
@@ -803,16 +805,18 @@ C..   STORE(5)    -  ...         SYMPRODIND
 C..   DSTORE(1)   -  DSTORE(NEL) CLASSES
 C..   DSTORE(NEL+1) - ,,,        ILUT
 
-               CALL IAZZERO(NMEM,22)
-               NMEM(11)=-1
-               NMEM(7)=0
+               CALL IAZZERO(NMEM,23)
                ICOUNT=24
 C.. Put the addresses in store
                DO I=1,5
                   NMEM(I)=GET_ADDR(NMEM(ICOUNT))
                   ICOUNT=ICOUNT+STORE(I)
                ENDDO
+               CALL IAZZERO(NMEM(6),ICOUNT-6)
+               NMEM(11)=-1
+               NMEM(7)=0
                IP_DSTORE=NMEM(1)
+C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(1),
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(NEL+1),ILEVEL)
                NMEM(23)=ICOUNT
@@ -823,14 +827,24 @@ C.. and now instead the indices within NMEM
                   ICOUNT=ICOUNT+STORE(I)
                ENDDO
 C.. Second setup finally complete.
+C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
             ENDIF
          ELSE
 C.. Actually generate a det
+C            WRITE(6,"(A,Z10,8I4,$)") "GET",GET_ADDR(NMEM(1)),
+C     &         (NMEM(I),I=7,14)
             IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
             CALL SYMGENEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NJ,IC)
+C            CALL WRITEDET(6,NI,NEL,.FALSE.)
+C            WRITE(6,"(A,$)"), "->"
+C            IF(NJ(1).NE.0) THEN
+C               CALL WRITEDET(6,NJ,NEL,.TRUE.)
+C            ELSE 
+C               WRITE(6,*) "(    0,)"
+C            ENDIF
          ENDIF
       END
       SUBROUTINE RESETEXIT2(NI,NEL,G1,NBASIS,NBASISMAX,
@@ -941,6 +955,7 @@ C.. ITOSL is the orb it corresponds to
      &                              +ISPN
 C.. Check if it's in the det
             L2=.TRUE.
+            
             DO WHILE (L2)
                L=L+1
                L2=L.LE.NEL.AND.NI(L).LT.ITOSL
@@ -950,6 +965,7 @@ C.. We've found an L in the det which is the same as ITOSL.
 C.. we go round again, getting another K
                CYCLE
             ENDIF
+            L=L-1
 C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excitation
             CALL ICOPY(NEL,NI,1,NK,1)
             NK(I)=ITOSL
@@ -1384,3 +1400,63 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
          ENDDO
       ENDIF
       END 
+      SUBROUTINE DUMPIMEMORY(IUNIT,MEM,INLEN)
+         IMPLICIT NONE
+         INTEGER IUNIT,I,J
+         INTEGER*1 MEM(*),CH
+         INTEGER ILEN,IPOST,INLEN,LEN,ILEAD
+         INTEGER ADDR,GET_ADDR,LEAD,POST,LINES
+         PARAMETER LINELEN=16
+         ILEN=INLEN*4
+         LEN=ILEN
+         ADDR=16*(GET_ADDR(MEM)/LINELEN)
+         ILEAD=GET_ADDR(MEM)-ADDR
+         IPOST=MOD(LEAD+LEN,LINELEN)
+         IF(IPOST.NE.0) IPOST=16-IPOST
+         LINES=(ILEAD+ILEN+IPOST)/LINELEN
+         DO I=0,LINES-1
+            POST=IPOST
+            LEN=ILEN
+            LEAD=ILEAD
+            WRITE(IUNIT,"(Z8.8,$)") ADDR
+            DO J=0,LINELEN-1
+               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A2,$)') "  "
+               IF(LEAD.EQ.0) THEN
+                  IF(LEN.EQ.0) THEN
+                     WRITE(IUNIT,"(A3,$)") "   "
+                  ELSE
+                     WRITE(IUNIT,"(Z3.2,$)"),MEM(I*LINELEN+J+1)
+                     LEN=LEN-1
+                  ENDIF
+               ELSE
+                  WRITE(IUNIT,"(A3,$)") "   "
+                  LEAD=LEAD-1
+               ENDIF 
+            ENDDO
+            WRITE(IUNIT,"(A3,$)"),"   "
+            DO J=0,LINELEN-1
+               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A1,$)') " "
+               IF(ILEAD.EQ.0) THEN
+                  IF(ILEN.NE.0) THEN
+                     CH=MEM(I*LINELEN+J+1)
+                     IF(CH.GE.32) THEN
+                        WRITE(IUNIT,"(A1,$)"),CHAR(CH)
+                     ELSE
+                        WRITE(IUNIT,"(A1,$)"),"."
+                     ENDIF
+                     ILEN=ILEN-1
+                  ELSE
+                     WRITE(IUNIT,"(A1,$)")," "
+                  ENDIF
+               ELSE
+                  WRITE(IUNIT,"(A1,$)")," "
+                  ILEAD=ILEAD-1
+               ENDIF
+            ENDDO
+            ILEAD=LEAD
+            IPOST=POST
+            ILEN=LEN
+            WRITE(IUNIT,*)
+            ADDR=ADDR+LINELEN
+         ENDDO
+      END
