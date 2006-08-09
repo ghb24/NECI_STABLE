@@ -4,6 +4,7 @@ C.. Setup for symmetry routine below.
      &      ICOUNT,ILEVEL)
          IMPLICIT NONE
          INCLUDE 'irat.inc'
+         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL)
          INTEGER G1(5,NBASIS),NBASISMAX(*),NBASIS
          POINTER (IP_DSTORE,DSTORE)
@@ -12,11 +13,11 @@ C.. Setup for symmetry routine below.
          LOGICAL TCOUNT
          INTEGER ILEVEL
          CALL IAZZERO(STORE,6)
-         CALL MEMORY(IP_DSTORE,NEL+NBASIS/32+1,'DSTORE')
+         CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1,'DSTORE')
          STORE(1)=IP_DSTORE
          CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
-     &      DSTORE(NEL+1),ILEVEL)
+     &      DSTORE(SymClassSize*NEL+1),ILEVEL)
 C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) CALL FREEM(IP_DSTORE)
       END
@@ -42,8 +43,10 @@ C.. global symprods table multiply by [] to give the sym rep.
          LOGICAL TCOUNT
          INTEGER STORE(*)
 
-         INTEGER CLASSES(NEL),CLASSCOUNT(2,NEL)
-         INTEGER SYMPRODS(0:NEL*NEL),NPR,PR
+         TYPE(SymClass) CLASSES(*)
+         INTEGER CLASSCOUNT(2,NEL)
+         INTEGER SYMPRODS(0:NEL*NEL),PR,PR2
+         INTEGER NPR
          INTEGER SYMPRODCOUNT(3,0:NEL*NEL)
          INTEGER NPAIRS,ICC1,ICC2,ICC3,ICC,ICC4
          INTEGER I,J,NCL,K,L
@@ -78,7 +81,7 @@ C.. Each state's symmetry falls into a class SYMLABELS(1,ISTATE).
          DO I=1,NEL
             TNEW=.TRUE.
             DO J=1,NCL
-               IF(SYMLABELS(1,(NI(I)+1)/2).EQ.CLASSES(J)) THEN
+               IF(SYMLABELS(1,(NI(I)+1)/2).EQ.CLASSES(J)%SymLab) THEN
                   ISPN=(G1(4,NI(I))+3)/2
                   CLASSCOUNT(ISPN,J)=CLASSCOUNT(ISPN,J)+1
                   TNEW=.FALSE.
@@ -90,12 +93,24 @@ C.. add the new class
 C.. ISPN=1 is beta, ISPN=2 is alpha
                ISPN=(G1(4,NI(I))+3)/2
                NCL=NCL+1
-               CLASSES(NCL)=SYMLABELS(1,(NI(I)+1)/2)
+               CLASSES(NCL)%SymLab=SYMLABELS(1,(NI(I)+1)/2)
                CLASSCOUNT(ISPN,NCL)=1
                CLASSCOUNT(3-ISPN,NCL)=0
 C               WRITE(6,"(A,2I4,Z4,2I4)") "CLASS ",NCL,CLASSES(NCL),
 C     &            SYMLABELS(2,CLASSES(NCL)),I
             ENDIF
+         ENDDO
+C.. Now calculate the resultant symmetry from removing one of each of the classes
+         DO I=1,NCL
+            PR=1 
+            DO J=1,NCL
+               L=CLASSCOUNT(1,I)+CLASSCOUNT(2,I)
+               IF(J.EQ.I) L=L-1
+               DO K=1,L*2
+                  PR=SYMPROD( PR,SYMLABELS(2,CLASSES(J)%SymLab))
+               ENDDO
+            ENDDO
+            CLASSES(I)%SymRem=PR
          ENDDO
 C         WRITE(6,*) NCL," Symmetry Classes"
 C.. For each pair of symmetry classes, determine its symmetry product.
@@ -107,8 +122,8 @@ C.. We list them and then sort them
             DO J=I,NCL
 C.. The symmetry bit string, decomposing the sym label into its component irreps is in 
 C.. SYMLABELS(2,ISYMLABEL)
-               PR=SYMPROD( SYMLABELS(2,CLASSES(I)),
-     &                     SYMLABELS(2,CLASSES(J)))
+               PR=SYMPROD( SYMLABELS(2,CLASSES(I)%SymLab),
+     &                     SYMLABELS(2,CLASSES(J)%SymLab))
                TNEW=.TRUE.
                DO K=1,NPR
                   IF(SYMPRODS(K).EQ.PR) THEN
@@ -355,11 +370,16 @@ C.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
          DO I=1,NCL
 C.. For each class, see what sym prods it can interact with
             DO J=1,NSYMLABELS
-               IF(LSYMSYM(SYMPROD(SYMLABELS(2,J),
-     &                            SYMLABELS(2,CLASSES(I))))) THEN
+               IF(LSYMSYM(SYMPROD(CLASSES(I)%SymRem,
+     &                  SYMPROD(SYMLABELS(2,J),
+     &                         SYMLABELS(2,CLASSES(I)%SymLab))))) THEN
                   DO ISPN=1,2
+                     ICC=0
+                     DO K=1,NCL
+                       IF(CLASSES(K)%SymLab.EQ.J) ICC=CLASSCOUNT(ISPN,K)
+                     ENDDO
                      ICC=CLASSCOUNT(ISPN,I)*
-     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
+     &                  (SYMLABELCOUNTS(2,J)-ICC)
                      NSING=NSING+ICC
                      IF(ICC.NE.0) NEXCITTYPES=NEXCITTYPES+1
 C                     WRITE(6,"(2Z4,4I)") SYMLABELS(2,CLASSES(I)),
@@ -413,15 +433,30 @@ C.. 5  COUNT (Total number of excitations in this category)
 
 C.. Now store the singles:
          NEXCITTYPES=0
+C         CALL WRITEDET(6,NI,NEL,.TRUE.)
          IF(BTEST(ILEVEL,0)) THEN
             DO I=1,NCL
 C.. For each class, see what sym prods it can interact with
                DO J=1,NSYMLABELS
-                  IF(LSYMSYM(SYMPROD(SYMLABELS(2,J),
-     &                            SYMLABELS(2,CLASSES(I))))) THEN
+
+                  PR=SYMPROD(SYMLABELS(2,J),
+     &                       SYMLABELS(2,CLASSES(I)%SymLab))
+                  PR=PR+0
+                  PR2=SYMPROD(PR,Classes(I)%SymRem)
+C                  WRITE(6,"(2I4,5Z4)") I,J,
+C     &                        CLASSES(I)%SymRem,
+C     &                         SYMLABELS(2,J),
+C     &                         SYMLABELS(2,CLASSES(I)%SymLab),
+C     &                         PR,PR2
+                  IF(LSYMSYM(PR2)) THEN
                      DO ISPN=1,2
+                        ICC=0
+                        DO K=1,NCL
+                           IF(CLASSES(K)%SymLab.EQ.J) 
+     &                        ICC=CLASSCOUNT(ISPN,K)
+                        ENDDO
                         ICC=CLASSCOUNT(ISPN,I)*
-     &                     (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
+     &                     (SYMLABELCOUNTS(2,J)-ICC)
                         IF(ICC.NE.0) THEN
                            NEXCITTYPES=NEXCITTYPES+1
                            EXCITTYPES(1,NEXCITTYPES)=1
@@ -429,6 +464,11 @@ C.. For each class, see what sym prods it can interact with
                            EXCITTYPES(3,NEXCITTYPES)=I
                            EXCITTYPES(4,NEXCITTYPES)=J
                            EXCITTYPES(5,NEXCITTYPES)=ICC
+C                           WRITE(6,"(A,I,Z4,A,Z4,A,Z4)") "SINGLE",
+C     &                        NEXCITTYPES,
+C     &                        SymLabels(2,Classes(I)%SymLab),"(",
+C     &                        Classes(I)%SymRem,
+C     &                        ")->",SymLabels(2,J)
                         ENDIF
                      ENDDO
                   ENDIF
@@ -474,6 +514,7 @@ C..      ENDIF(.NOT.TCOUNT)
       SUBROUTINE SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,LSTE,
      &   ICLIST,ICOUNT)
          IMPLICIT NONE
+         INCLUDE 'sym.inc'
          INTEGER NI(NEL),NEL,G1(5,NBASIS),NBASIS,NBASISMAX(*)
          INTEGER STORE(6)
          INTEGER ORBPAIRS(2,*)
@@ -498,8 +539,8 @@ C..      ENDIF(.NOT.TCOUNT)
          IP_SYMPRODIND=STORE(5)
          
          CALL SYMGENALLEXCITS(NI,NEL,EXCITTYPES,STORE(6),DSTORE(1),
-     &            SYMPRODIND,DSTORE(NEL+1),ORBPAIRS,G1,NBASISMAX,
-     &            LSTE,ICLIST,ICOUNT)
+     &            SYMPRODIND,DSTORE(SymClassSize*NEL+1),ORBPAIRS,G1,
+     &            NBASISMAX,LSTE,ICLIST,ICOUNT)
    
          CALL FREEM(IP_EXCITTYPES)
          CALL FREEM(IP_NALLOWPPS)
@@ -518,7 +559,8 @@ C..      ENDIF(.NOT.TCOUNT)
          
          INTEGER I,J,K,L
          INTEGER NJ(NEL),NK(NEL)
-         INTEGER CLASSES(*)
+         INCLUDE 'sym.inc'
+         TYPE(SymClass) CLASSES(*)
          INTEGER IEXCIT
          INTEGER IFROM,ITO,ISPN
          INTEGER IFROMSL,ITOSL
@@ -533,7 +575,6 @@ C..      ENDIF(.NOT.TCOUNT)
          INTEGER ISYM(5)
          INTEGER G1(*),NBASISMAX(*)
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
-         INCLUDE 'sym.inc'
 
          ICOUNT=0
 
@@ -548,7 +589,7 @@ C.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
 C.. 4   TO   (for single, J in SYMLABELS(2,J); for double, J in SYMPAIRPRODS(J) )
 C.. 5  COUNT (Total number of excitations in this category)
                ISPN=EXCITTYPES(2,IEXCIT)-2
-               IFROM=CLASSES(EXCITTYPES(3,IEXCIT))
+               IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
                ITO=EXCITTYPES(4,IEXCIT)
                J=0
                I=1
@@ -757,6 +798,7 @@ C.. to actually generate the excitations
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL)
          IMPLICIT NONE
          INCLUDE 'irat.inc'
+         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL)
          INTEGER G1(5,NBASIS),NBASISMAX(*),NBASIS
          POINTER (IP_DSTORE,DSTORE)
@@ -770,13 +812,15 @@ C.. to actually generate the excitations
 C.. This is the first time we've been called for setup.
             IF(STORE(1).EQ.0) THEN
                CALL IAZZERO(STORE,6)
-               CALL MEMORY(IP_DSTORE,NEL+NBASIS/32+1,'DSTORE')
+               CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1,
+     &            'DSTORE')
                STORE(1)=IP_DSTORE
 C.. Just count.
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-     &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(NEL+1),ILEVEL)
+     &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
+     &            ILEVEL)
                CALL FREEM(IP_DSTORE)
-               STORE(1)=NEL+NBASIS/32+1
+               STORE(1)=SymClassSize*NEL+NBASIS/32+1
                NMEM(1)=23+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
 C               WRITE(6,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
             ELSE
@@ -802,8 +846,8 @@ C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
 C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
 C..   STORE(5)    -  ...         SYMPRODIND
 
-C..   DSTORE(1)   -  DSTORE(NEL) CLASSES
-C..   DSTORE(NEL+1) - ,,,        ILUT
+C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
+C..   DSTORE(NEL*SymClassSize+1) - ,,,        ILUT
 
                CALL IAZZERO(NMEM,23)
                ICOUNT=24
@@ -818,7 +862,8 @@ C.. Put the addresses in store
                IP_DSTORE=NMEM(1)
 C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(1),
-     &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(NEL+1),ILEVEL)
+     &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
+     &            ILEVEL)
                NMEM(23)=ICOUNT
 C.. and now instead the indices within NMEM
                ICOUNT=24
@@ -835,7 +880,7 @@ C            WRITE(6,"(A,Z10,8I4,$)") "GET",GET_ADDR(NMEM(1)),
 C     &         (NMEM(I),I=7,14)
             IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
             CALL SYMGENEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
-     &         NMEM(NMEM(5)),DSTORE(NEL+1),NMEM(NMEM(4)),
+     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NJ,IC)
 C            CALL WRITEDET(6,NI,NEL,.FALSE.)
@@ -868,7 +913,8 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       
       INTEGER I,J,K,L
       INTEGER NK(NEL)
-      INTEGER CLASSES(*)
+      INCLUDE 'sym.inc'
+      TYPE(SymClass) CLASSES(*)
       INTEGER IEXCIT
       INTEGER IFROM,ITO,ISPN
       INTEGER IFROMSL,ITOSL
@@ -882,7 +928,6 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER ILUT(0:*)
       INTEGER SYMPRODIND(2,3,0:*)
       INTEGER IC
-      INCLUDE 'sym.inc'
 
       DO WHILE(1)
 C.. see if we need a new EXCIT
@@ -897,7 +942,7 @@ C.. We're done
             IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
 C.. a single
                ISPN=EXCITTYPES(2,IEXCIT)-2
-               IFROM=CLASSES(EXCITTYPES(3,IEXCIT))
+               IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
                ITO=EXCITTYPES(4,IEXCIT)
                L=0
                K=SYMLABELCOUNTS(2,ITO)
@@ -955,7 +1000,7 @@ C.. ITOSL is the orb it corresponds to
      &                              +ISPN
 C.. Check if it's in the det
             L2=.TRUE.
-            
+C            WRITE(6,*) SYMLABELCOUNTS(2,ITO),ITOSL            
             DO WHILE (L2)
                L=L+1
                L2=L.LE.NEL.AND.NI(L).LT.ITOSL
@@ -1113,6 +1158,7 @@ C.. before this.
      &         NMEM,NJ,ISEED,IC,IFRZ)
          IMPLICIT NONE
          INCLUDE 'irat.inc'
+         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL)
          INTEGER G1(5,NBASIS),NBASISMAX(*),NBASIS
          POINTER (IP_DSTORE,DSTORE)
@@ -1134,12 +1180,12 @@ C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
 C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
 C..   STORE(5)    -  ...         SYMPRODIND
 
-C..   DSTORE(1)   -  DSTORE(NEL) CLASSES
-
+C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
+C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
          IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
          CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
-     &         NMEM(NMEM(5)),DSTORE(NEL+1),NMEM(NMEM(4)),
+     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC)
          IC=NMEM(23)
@@ -1155,7 +1201,8 @@ C.. Actually generate a det
       
       INTEGER I,J,K,L
       INTEGER NK(NEL)
-      INTEGER CLASSES(*)
+      INCLUDE 'sym.inc'
+      TYPE(SymClass) CLASSES(*)
       INTEGER IEXCIT
       INTEGER IFROM,ITO,ISPN
       INTEGER IFROMSL,ITOSL
@@ -1172,7 +1219,6 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       REAL*8 RAN2
          INTEGER ICC1,ICC2,ICC3,ICC4
          LOGICAL L1B,L1A,L2B,L2A
-      INCLUDE 'sym.inc'
 C.. First generate a random excitation 
       I=ITOTAL*RAN2(ISEED)
       IEXCIT=1
@@ -1184,7 +1230,7 @@ C.. We've chosen the excitation.  Now pick a random from and to
       IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
 C.. a single
          ISPN=EXCITTYPES(2,IEXCIT)-2
-         IFROM=CLASSES(EXCITTYPES(3,IEXCIT))
+         IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
          ITO=EXCITTYPES(4,IEXCIT)
          ICOUNT=0
          ot:DO K=0,1

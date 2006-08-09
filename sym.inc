@@ -47,3 +47,9 @@ C.. The characters corresponding to each irrep are in IRREPCHARS
      &               IP_SYMPAIRPRODS,NSYMPAIRPRODS,
      &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,
      &               TNEWEXCITATIONS
+
+         TYPE SymClass
+            INTEGER SymLab
+            INTEGER SymRem
+         ENDTYPE
+         PARAMETER SymClassSize=2
