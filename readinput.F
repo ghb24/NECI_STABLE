@@ -66,6 +66,8 @@
       G_VMC_SEED = -7
       G_VMC_FAC = 16
 
+      IP_SPECDET=0
+
       LMS=0
       STOT=0
       TSPN=.false.
@@ -118,7 +120,7 @@
       NMSH=32
 
       ir=1
-      IF(FILENAME.NE."") THEN
+      IF(FILENAME.NE.'') THEN
          WRITE(6,*) "Reading from file: ",TRIM(FILENAME)
          OPEN(1,FILE=FILENAME,STATUS="OLD",err=99,iostat=ios)
       ELSEIF(IARGC().GT.0) THEN
@@ -534,10 +536,6 @@ C                  end select
               case("FREEZE")
                   call readi(NFROZEN)
                   call readi(NTFROZEN)
-                  if ( NPATHS .ne. 1 ) then
-                      call report("Can only freeze orbitals when " 
-     &                 //"NPATHS=1",.true.)
-                  end if
                   if ( mod(NFROZEN,2).ne.0 .or. mod(NTFROZEN,2).ne.0 ) 
      &             then
                       call report("NFROZEN and NTFROZEN must be"  
@@ -644,9 +642,8 @@ C.. multiple of 2
             call report ("Keyword "//trim(w)//" not recognized",.true.)
         end select
       end do main
-C..   Not sure why this statement is necessary, even if TSPECDET =
-C..   false.
-      CALL MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
+C.. We still need a specdet space even if we don't have a specdet.
+      IF(IP_SPECDET.EQ.0) call MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
 C..   Testing ILOGGING
 C     ILOGGING = 0771
       IF(I_VMAX.EQ.0) STOP 'I_VMAX=0.  VERTEX SUM max level not set'

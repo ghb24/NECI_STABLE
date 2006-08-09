@@ -446,9 +446,10 @@ C..
         STOP ' !!! REFERENCE PARTICLE NOT IN BOX !!! '
       ENDIF
       WRITE(6,*) ' ETRIAL : ',ETRIAL
-
-      WRITE(6,*) 'MC Determinant Symmetry:'
-      WRITE(6,*) (MDK(I),I=1,4)
+      IF(TMONTE) THEN 
+         WRITE(6,*) 'MC Determinant Symmetry:'
+         WRITE(6,*) (MDK(I),I=1,4)
+      ENDIF
       IF(FCOUL.NE.1.D0)
      &   WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0)
@@ -1235,8 +1236,10 @@ C         CALL GENRANDOMDET(NEL,NBASIS,MCDET)
             MCDET(I)=FDET(I)
          ENDDO
       ENDIF
-      WRITE(6,"(A,$)") 'MC Start Det: '
-      CALL WRITEDET(6,MCDET,NEL,.TRUE.)
+      IF(TMONTE) THEN
+         WRITE(6,"(A,$)") 'MC Start Det: '
+         CALL WRITEDET(6,MCDET,NEL,.TRUE.)
+      ENDIF
 
       IF(TRHOIJ) THEN
 C.. Approx RHOS have been generated above, and written to the file RHOS

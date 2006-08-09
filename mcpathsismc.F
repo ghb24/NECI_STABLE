@@ -225,13 +225,25 @@ C.. see if we want to increase the number of vertices
                     ENDIF
                      IF(I_HMAX.EQ.-7) THEN
 C.. We decide on a graph size.  See 22/8/05 #1,2
-C.. Probability of graph size v is prop to 2**(3v)
+C.. Probability of graph size v is prop to G_VMC_FAC**(v)
                         I_VCUR=0
-                        DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
+                        IF(G_VMC_FAC.GT.0) THEN
+                           DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
+                              R=RAN2(ISEED)
+                              I_VCUR=I_VMAX+1+LOG(R)/LOG(G_VMC_FAC)
+                           ENDDO
+                           PFAC=G_VMC_FAC**(I_VCUR-1)
+                        ELSEIF(G_VMC_FAC.EQ.0) THEN
                            R=RAN2(ISEED)
-                           I_VCUR=I_VMAX+1+LOG(R)/LOG(G_VMC_FAC)
-                        ENDDO
-                        PFAC=G_VMC_FAC**(I_VCUR-1)
+                           I_VCUR=R*I_VMAX+1
+                           PFAC=1.D0/I_VMAX
+                        ELSE
+                           DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
+                              R=RAN2(ISEED)
+                              I_VCUR=-FLOOR(LOG(R)/LOG(-G_VMC_FAC))
+                           ENDDO
+                           PFAC=G_VMC_FAC**(-I_VCUR)
+                        ENDIF
 C                        PFAC=1.D0
                         I_VCUR=RAN2(ISEED)*I_VMAX+1.D0
 C.. Markov chain with random generation.
