@@ -5,7 +5,7 @@ C..
       POINTER (IP_CFS,CFS)
       SAVE IP_CFS
 C..
-      INTEGER G1(5,NHG)
+      INTEGER G1(*)
       DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION RHO(NMSH,NMSH,NMSH),AUX(NMSH,NMSH,NMSH)
       DIMENSION SITAB(NMSH,NMAX),CFS(*),ALAT(3)
@@ -80,7 +80,8 @@ C ==---------------------------------------------------------==
 C..
       DIMENSION NDET1(NEL),NDET2(NEL),AUX(NMSH,NMSH,NMSH)
       DIMENSION SITAB(NMSH,NMAX),AUXX(NEL),AUXY(NEL),AUXZ(NEL)
-      INTEGER G1(5,NHG)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFN) G1(NHG)
       INTEGER N1E(NHG),N2E(NHG)
 C..
       CALL IAZZERO(N1E,NHG)
@@ -132,14 +133,14 @@ C..Check spin indices
         CALL CKRN(NHG,G1,ND1,ND2,ID)
         IF(ID.EQ.1) THEN
           DO K=1,NMSH-1
-            AUXZ1=SITAB(K,G1(3,ND1))
-            AUXZ2=SITAB(K,G1(3,ND2))
+            AUXZ1=SITAB(K,G1(ND1)%k(3))
+            AUXZ2=SITAB(K,G1(ND2)%k(3))
             DO J=1,NMSH-1
-              AUXY1=SITAB(J,G1(2,ND1))
-              AUXY2=SITAB(J,G1(2,ND2))
+              AUXY1=SITAB(J,G1(ND1)%k(2))
+              AUXY2=SITAB(J,G1(ND2)%k(2))
               DO I=1,NMSH-1
-                AUXX1=SITAB(I,G1(1,ND1))
-                AUXX2=SITAB(I,G1(1,ND2))
+                AUXX1=SITAB(I,G1(ND1)%k(1))
+                AUXX2=SITAB(I,G1(ND2)%k(1))
 C..
 		AUX(I,J,K)=AUXZ1*AUXZ2*AUXY1*AUXY2*
      &			AUXX1*AUXX2
@@ -156,15 +157,15 @@ C..
 C..Differ by none
         DO K=1,NMSH-1
           DO IK=1,NEL
-            AUXZ(IK)=SITAB(K,G1(3,NDET1(IK)))
+            AUXZ(IK)=SITAB(K,G1(NDET1(IK))%k(3))
           ENDDO
           DO J=1,NMSH-1
             DO IJ=1,NEL
-              AUXY(IJ)=SITAB(J,G1(2,NDET1(IJ))) 
+              AUXY(IJ)=SITAB(J,G1(NDET1(IJ))%k(2)) 
             ENDDO
             DO I=1,NMSH-1
               DO II=1,NEL
-                AUXX(II)=SITAB(I,G1(1,NDET1(II)))
+                AUXX(II)=SITAB(I,G1(NDET1(II))%k(1))
               ENDDO
 C..
               DO IJK=1,NEL
@@ -202,9 +203,10 @@ C..
 C ==---------------------------------------------------------==
       SUBROUTINE CKRN(NHG,G1,ND1,ND2,ID)
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER G1(5,NHG)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFN) G1(NHG)
 C..
       ID=0
-      IF(G1(4,ND1).EQ.G1(4,ND2)) ID=1
+      IF(G1(ND1)%Ms.EQ.G1(ND2)%Ms) ID=1
       RETURN
       END

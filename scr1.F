@@ -2,7 +2,9 @@
      &	NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM)
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
-      INTEGER G1(5,*),NBASISMAX(5,2)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFN) G1(*)
+      INTEGER NBASISMAX(5,2)
       INTEGER ID(NEL-1),IDS1(NEL-1),IDS2(NEL-1)
       REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -62,8 +64,8 @@ C..The two electron integrals are to be done
         IF(NDET1(I).NE.ND1) THEN
           IQ=IQ+1
           CALL GTID(NBASISMAX,NDET1(I),ID(IQ))
-          CALL CHK(G1(4,NDET1(I)),G1(4,ND1),IDS1(IQ))
-          CALL CHK(G1(4,NDET1(I)),G1(4,ND2),IDS2(IQ))
+          CALL CHK(G1(NDET1(I))%Ms,G1(ND1)%Ms,IDS1(IQ))
+          CALL CHK(G1(NDET1(I))%Ms,G1(ND2)%Ms,IDS2(IQ))
           IF(IQ.GE.(NEL-1)) GOTO 500
         ENDIF 
       ENDDO 
@@ -73,7 +75,7 @@ C..The two electron integrals are to be done
       CALL GTID(NBASISMAX,ND2,ID2)
 C      CD=COULDAMP(ND1,NHG)*COULDAMP(ND2,NHG)
 C..
-      CALL CHK(G1(4,ND1),G1(4,ND2),IDS)
+      CALL CHK(G1(ND1)%Ms,G1(ND2)%Ms,IDS)
 C..
       SUM2=0.D0
       DO I=1,NEL-1

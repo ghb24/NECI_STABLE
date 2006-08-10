@@ -3,13 +3,14 @@
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION NDET1(NEL),AUXC(NMSH,NMSH,NMSH)
       DIMENSION SITAB(NMSH,NMAX)
-      INTEGER G1(5,NHG)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFN) G1(NHG)
 C..
       CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
       DO KI=1,NEL-1
         DO KJ=KI+1,NEL
 C..
-          CALL CHK(G1(4,NDET1(KI)),G1(4,NDET1(KJ)),IDS)
+          CALL CHK(G1(NDET1(KI))%Ms,G1(NDET1(KJ))%Ms,IDS)
           DO IZ=1,NMSH
 	    DO IY=1,NMSH
 	      DO IX=1,NMSH
@@ -42,9 +43,10 @@ C ==-----------------------------------------------------------------==
       FUNCTION U1(ND,NX,NMSH,NHG,G1,SITAB,I,J,K)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION SITAB(NMSH,NX)
-      INTEGER G1(5,NHG)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFN) G1(NHG)
 C..
       U1=
-     &	SITAB(I,G1(1,ND))*SITAB(J,G1(2,ND))*SITAB(K,G1(3,ND))
+     &	SITAB(I,G1(ND)%k(1))*SITAB(J,G1(ND)%k(2))*SITAB(K,G1(ND)%k(3))
       RETURN
       END

@@ -204,9 +204,11 @@ C.. test if NCI is a CSF
      &  G1,ISYM,NI)
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
-         INTEGER NMRKS(NEL,1),NDET,G1(5,NBASIS)
+         INTEGER NMRKS(NEL,1),NDET,G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
-         INTEGER LMS,IPARITY(5),IFDET
+         INTEGER LMS,IFDET
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) IPARITY
 
          INTEGER ORBS(NBASIS/2,2)
          INTEGER NORBS
@@ -217,15 +219,15 @@ C.. test if NCI is a CSF
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
-         INTEGER ISYM(5),KSYM(5)
+         TYPE(BASISFN) ISYM,KSYM
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
          INCLUDE 'csf.inc'
          LOGICAL LCHKSYM
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
-         CALL ICOPY(5,IPARITY,1,ISYM,1)
+         CALL ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
 C.. make sure Sz=0 as this is dealt with in the csfgen part
-         ISYM(4)=0
+         ISYM%MS=0
          IFDET=1
          NDET=0
          NORBS=NBASIS/2
@@ -276,7 +278,7 @@ C.. Now check the symmetry's right
 C.. we'll deal with spin in the CSF generation
                CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 C.. remove Ms value, as this is dealt with in csfgencsfs
-               KSYM(4)=0
+               KSYM%MS=0
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM))
 C.. go and create a set of CSFs from these electrons
      &           CALL CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
@@ -368,9 +370,12 @@ C.. IEXLEV from NDCH
      &  IPARITY,NDET,IFDET,TCHKEX,NDCH,ICLIST,TORDER,IEXLEV)
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
-         INTEGER NMRKS(NEL,*),NDET,G1(5,NBASIS)
+         INTEGER NMRKS(NEL,*),NDET,G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
-         INTEGER LMS,IPARITY(5),IFDET
+         INTEGER LMS,IFDET
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) IPARITY        
+ 
          LOGICAL TCHKEX,TORDER
          INTEGER NDCH(NEL),ICLIST(*)
 
@@ -385,7 +390,7 @@ C.. IEXLEV from NDCH
          INTEGER IBACK
          INTEGER NCLOSED
          INTEGER NOPEN
-         INTEGER ISYM(5),KSYM(5)
+         TYPE(BASISFN) ISYM,KSYM
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS(NEL+1),OIEX,IEXCITS2(NEL+1),OIEX2
          INTEGER ICLOSEDD(NEL),NCLOSEDD,IOPEND(NEL),NOPEND
@@ -409,9 +414,9 @@ C.. IEXLEV from NDCH
             ENDIF
          ENDDO
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
-         CALL ICOPY(5,IPARITY,1,ISYM,1)
+         CALL ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
 C.. ensure Ms=0 as this is dealt with later
-         ISYM(4)=0
+         ISYM%MS=0
          IFDET=1
          NDET=0
          NORBS=NBASIS/2
@@ -502,7 +507,7 @@ C.. First check if we have enough electrons for a CSF
 C.. Now check the symmetry's right
 C.. we'll deal with spin in the CSF generation
                CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
-               KSYM(4)=0
+               KSYM%MS=0
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM)) THEN
 C.. go and create a set of CSFs from these electrons
                 CALL ICOPY(NEL,NI,1,NJ,1)

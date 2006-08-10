@@ -2,9 +2,11 @@
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
          INCLUDE 'sym.inc'
-         INTEGER NBASISMAX(5,2), BRR(LEN),LEN,G1(5,LEN)
+         INTEGER NBASISMAX(5,2), BRR(LEN),LEN
+         TYPE(BASISFN) G1(LEN)
          REAL*8 ARR(LEN,2)
-         INTEGER I,IDECOMP,J
+         INTEGER I,J
+         TYPE(Symmetry) iDecomp
          LOGICAL ALL1D
 C         NBASISMAX(1,1)=1
 C         NBASISMAX(1,2)=NSTATES
@@ -38,22 +40,22 @@ C         CALL FAKEEIGENVALUES
          CALL IAZZERO(G1,LEN*5)
          ALL1D=.TRUE.
          DO I=1,NSTATES
-           CALL DECOMPOSEREP(SYMLABELCHARS(1,SYMLABELS(1,I)),IDECOMP)
-            IF(ABS(SYMLABELCHARS(1,SYMLABELS(1,I))-1.D0).GE.1.D-6)
+           CALL DECOMPOSEREP(SYMLABELCHARS(1,SymClasses(I)),IDECOMP)
+            IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.D0).GE.1.D-6)
      &          ALL1D=.FALSE.
-            G1(5,I*2-1)=IDECOMP
-            G1(5,I*2)=IDECOMP
-            G1(4,I*2-1)=-1
-            G1(4,I*2)=1
+            G1(I*2-1)%SYM=IDECOMP
+            G1(I*2)%SYM=IDECOMP
+            G1(I*2-1)%MS=-1
+            G1(I*2)%MS=1
             IF(BIGCELL.AND.PROJECT) THEN
                DO J=1,3
-                  G1(J,I*2-1)=K_VECTORS(J,TRANS_LABEL(I))
-                  G1(J,I*2)=K_VECTORS(J,TRANS_LABEL(I))
+                  G1(I*2-1)%K(J)=K_VECTORS(J,TRANS_LABEL(I))
+                  G1(I*2)%K(J)=K_VECTORS(J,TRANS_LABEL(I))
                ENDDO
             ELSE
                DO J=1,3
-                  G1(J,I*2-1)=0
-                  G1(J,I*2)=0
+                  G1(I*2-1)%K(J)=0
+                  G1(I*2)%K(J)=0
                ENDDO
             ENDIF
 C.. Fake the eigenvalues
@@ -98,10 +100,10 @@ C.. group
       SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
-         INTEGER BRR(NBASIS),NBASIS,G1(5,NBASIS)
+         INTEGER BRR(NBASIS),NBASIS,G1(*)
          REAL*8 ARR(NBASIS,2)
          CALL GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
-         CALL GENSYMLABELPAIRS(NBASIS/2)
+         CALL GENSymStatePairs(NBASIS/2)
       END
 
       SUBROUTINE EXTRACTSYMLABELS
@@ -120,7 +122,8 @@ C.. group
          ENDIF
          CALL MEMORY(IP_SYMLABELCHARS,NSYMLABELS*NROT*2,'SYMLABELCH')
          CALL AZZERO(SYMLABELCHARS,NSYMLABELS*NROT*2)
-         CALL MEMORY(IP_SYMLABELS,NSTATES*2,'SYMLABELS')
+         CALL MEMORY(IP_SYMLABELS,nSymLabels,'SYMLABELS')
+         CALL MEMORY(IP_SymClasses,NSTATES,'SymClasses')
 C.. Two versions - one for space groups and one for point groups
          IF(TSPACEGP) THEN
 C.. space group is more complex as we have separate translational and
@@ -133,7 +136,7 @@ C.. with a stored list.
                   IF(LABELS(1,K).EQ.ROT_LABEL(I)
      &               .AND.LABELS(2,K).EQ.TRANS_LABEL(I)) THEN
 C.. We can re-use the old label
-                     SYMLABELS(1,I)=K
+                     SymClasses(I)=K
                      EXIT
                   ENDIF
                END DO
@@ -144,7 +147,7 @@ C.. we've found a new symlabel - fill it
 C.. Indices need to be inverted so cannot straight ICOPY
                      SYMLABELCHARS(J,K)=GROUP_CHAR(I,J)
                   ENDDO
-                  SYMLABELS(1,I)=K
+                  SymClasses(I)=K
                   LABELS(1,K)=ROT_LABEL(I)
                   LABELS(2,K)=TRANS_LABEL(I)
                ENDIF
@@ -160,7 +163,7 @@ C.. Indices need to be inverted so cannot straight ICOPY
                      SYMLABELCHARS(J,ROT_LABEL(I))=NINT(ROT_CHAR(I,J))
                   ENDDO
                ENDIF
-               SYMLABELS(1,I)=ROT_LABEL(I)
+               SymClasses(I)=ROT_LABEL(I)
             ENDDO
          ENDIF
          WRITE(6,*) "SYMMETRY CLASSES"
@@ -201,18 +204,18 @@ C.. First set up the labels and chars
          NSYMLABELS=7
          NROT=16
          NSTATES=19
-         CALL MEMORY(IP_SYMLABELS,NSTATES*2,"SYMLABELS")
+         CALL MEMORY(IP_SYMLABELS,NSYMLABELS*SymmetrySize,"SYMLABELS")
+         CALL MEMORY(IP_SymClasses,NSTATES,"SymClasses")
          CALL MEMORY(IP_SYMLABELCHARS,NROT*NSYMLABELS*2,"SYMLABELCH")
          IP_ARRAY=IP_SYMLABELCHARS
          CALL MEMORY(IP_IRREPCHARS,NROT*NSYMLABELS*2,"IRREPCH")
-         I=IP_SYMLABELS
          DO I=1,7
             DO J=1,16
                ARRAY((I-1)*16+J)=CHARS(J,I)
             ENDDO
          ENDDO
          DO I=1,NSTATES
-            SYMLABELS(1,I)=LABS(I)
+            SymClasses(I)=LABS(I)
          ENDDO
          WRITE(6,*) "SYMMETRY CLASSES", IP_SYMLABELCHARS,
      &      LOC(SYMLABELCHARS)
@@ -235,9 +238,11 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
          REAL*8 TOT,F,U 
          REAL*8 GETUMATEL
-         INTEGER ISS(*),G1(5,*),NBASISMAX(*)
+         INTEGER ISS(*),NBASISMAX(*)
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) G1(NHG)
          REAL*8 ECORE
-         INTEGER NEL,SYMPROD
+         INTEGER NEL
          LOGICAL LCHKSYM
          CALL TISET('CPMDINIT2I',ISUB)
 
@@ -256,7 +261,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
            DO J=I,NSTATESUSED
              II=I*2-1
              JJ=J*2-1
-             IF(LCHKSYM(G1(1,II),G1(1,JJ))) THEN
+             IF(LCHKSYM(G1(II),G1(JJ))) THEN
               TOT=0.D0
                  IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
                  TOT=TOT-CPMD1EINT(I,J)

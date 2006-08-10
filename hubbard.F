@@ -2,7 +2,7 @@ C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
      &            UMAT)
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,NBASISMAX(5,3),G1(5,NBASIS)
+         INTEGER NEL,NBASIS,NBASISMAX(5,3),G1(*)
          REAL*8 UMAT(NBASIS,NBASIS,NBASIS,NBASIS)
          REAL*8 UHUB
          INTEGER I,J,K,IC
@@ -89,7 +89,9 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
       SUBROUTINE CALCTMATHUB(TMAT,NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
      &         TPBC)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS),NBASISMAX(5,2)
+         INTEGER NBASIS,NBASISMAX(5,2)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(nBasis)
          REAL*8 TMAT(NBASIS,NBASIS),BHUB
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
@@ -105,9 +107,9 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          IF(TREAL) THEN
             DO I=1,NBASIS
                DO J=1,NBASIS
-                  DX=ABS(G1(1,I)-G1(1,J))
-                  DY=ABS(G1(2,I)-G1(2,J))
-                  DZ=ABS(G1(3,I)-G1(3,J))
+                  DX=ABS(G1(I)%k(1)-G1(J)%k(1))
+                  DY=ABS(G1(I)%k(2)-G1(J)%k(2))
+                  DZ=ABS(G1(I)%k(3)-G1(J)%k(3))
                   SUM=BHUB
                   IF(TPBC) THEN
                      IF(DX.EQ.LX) THEN
@@ -123,7 +125,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                         IF(LZ.EQ.1) SUM=SUM+BHUB
                      ENDIF
                   ENDIF
-                  IF(DX+DY+DZ.EQ.1.AND.G1(4,I).EQ.G1(4,J)) THEN
+                  IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
                      TMAT(I,J)=SUM
                      WRITE(10,*) I,J,SUM
                   ENDIF
@@ -132,14 +134,16 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          ELSE
             IF(TPBC) THEN
                DO I=1,NBASIS
-                  CALL HUBKIN(G1(1,I),G1(2,I),G1(3,I),NBASISMAX,BHUB,
+                  CALL HUBKIN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
+     &               NBASISMAX,BHUB,
      &               TTILT,SUM)
                   TMAT(I,I)=SUM
                   WRITE(10,*) I,I,TMAT(I,I)
                ENDDO
             ELSE
                DO I=1,NBASIS
-                  CALL HUBKINN(G1(1,I),G1(2,I),G1(3,I),NBASISMAX,BHUB,
+                  CALL HUBKINN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
+     &               NBASISMAX,BHUB,
      &               TTILT,SUM)
                   TMAT(I,I)=SUM
                   WRITE(10,*) I,I,TMAT(I,I)

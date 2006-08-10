@@ -20,7 +20,9 @@ C..Diagonalisation vectors
 C..Diagonalisation vectors
       DIMENSION WORK(*),IWORK(*)
       COMPLEX*16 DMAT(NHG,*),CDET
-      INTEGER G1(5,NHG),INDX(*)
+      INCLUDE 'basis.inc'
+      TYPE(BASISFN) G1(NHG)
+      INTEGER INDX(*)
 C..
       WRITE(6,'(1X,A)') '*** NATURAL ORBITAL EVALUATION ***'
       WRITE(6,'(2X,A)') 'FILE ./NATURAL BEING UPDATED'
@@ -120,7 +122,8 @@ C..
         DO J=1,NHG
           SUMC=SUMC+Z(J,I)*Z(J,I)
           IF(ABS(Z(J,I)).GT.1.D-12) THEN
-            WRITE(10,'(I7,1X,5(I7,1X),E19.6)') J,(G1(K,J),K=1,5),Z(J,I)
+            WRITE(10,'(I7,1X,5(I7,1X),E19.6)') J,(G1(J)%K(K),K=1,5),
+     &         Z(J,I)
           ENDIF
         ENDDO
         WRITE(10,'(1X,A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , SUMC
@@ -142,8 +145,8 @@ C.. Population analysis
         DO J=1,NHG
           D=D+Z(I,J)**2*W(J)
         ENDDO
-         SUMA(G1(1,I),G1(2,I),G1(3,I))=
-     &			SUMA(G1(1,I),G1(2,I),G1(3,I))+D
+         SUMA(G1(I)%K(1),G1(I)%K(2),G1(I)%K(3))=
+     &			SUMA(G1(I)%K(1),G1(I)%K(2),G1(I)%K(3))+D
       ENDDO
       DO I=1,NMAXZ  ! over nmaxx 
         DO J=1,NMAXY  ! over nmaxy

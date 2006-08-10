@@ -2,17 +2,17 @@
      &      IDI,IDJ,IDK,IDL)
          IMPLICIT NONE
          INTEGER NBASISMAX(5,3),I,J,K,L,NHG,ISS
-         INTEGER G1(5,NHG)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NHG)
          REAL*8 ALAT(3)
          REAL*8 UMAT(*)
          INTEGER A,B,C
          INTEGER IDI,IDJ,IDK,IDL
-         INTEGER SYM
          REAL*8 SUM
          PARAMETER PI=3.14159265358979323846264338327950288419716939937510D0
          INTEGER ICACHE,ICACHEI
          LOGICAL GETCACHEDUMATEL,LSYMSYM
-         INTEGER SYMPROD
+         TYPE(Symmetry) SYM,SYMPROD
          INCLUDE 'umatcache.inc'
          INTEGER ISUB
          CALL TISET(' GETUMATEL',ISUB)
@@ -58,11 +58,11 @@ C.. Check to see if the umat element is in the cache
                J=IDJ
                K=IDK
                L=IDL
-               SYM=1
-               SYM=SYMPROD(SYM,G1(5,I*2-1))
-               SYM=SYMPROD(SYM,G1(5,J*2-1))
-               SYM=SYMPROD(SYM,G1(5,K*2-1))
-               SYM=SYMPROD(SYM,G1(5,L*2-1))
+               SYM%s=1
+               SYM=SYMPROD(SYM,G1(I*2-1)%Sym)
+               SYM=SYMPROD(SYM,G1(J*2-1)%Sym)
+               SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
+               SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
 C.. Check the symmetry of the 4-index integrals
                IF(.NOT.LSYMSYM(SYM)) THEN
                   GETUMATEL=0.D0
@@ -102,12 +102,12 @@ C               GETUMATEL=0.5D0
             K=(IDK-1)*ISS+1
             L=(IDL-1)*ISS+1
 C.. The Uniform electron gas
-                   A=G1(1,I)-G1(1,K)
-                   B=G1(2,I)-G1(2,K)
-                   C=G1(3,I)-G1(3,K)
-                   IF(    (G1(1,L)-G1(1,J)).EQ.A
-     &               .AND.(G1(2,L)-G1(2,J)).EQ.B
-     &               .AND.(G1(3,L)-G1(3,J)).EQ.C
+                   A=G1(I)%k(1)-G1(K)%k(1)
+                   B=G1(I)%k(2)-G1(K)%k(2)
+                   C=G1(I)%k(3)-G1(K)%k(3)
+                   IF(    (G1(L)%k(1)-G1(J)%k(1)).EQ.A
+     &               .AND.(G1(L)%k(2)-G1(J)%k(2)).EQ.B
+     &               .AND.(G1(L)%k(3)-G1(J)%k(3)).EQ.C
      &               .AND.((A.NE.0).OR.(B.NE.0).OR.(C.NE.0))) THEN
 C                     WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
 

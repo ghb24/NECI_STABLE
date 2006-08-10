@@ -22,15 +22,9 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           chebint.o sorti.o calcpathnci.o factorpoly.o rhodiag.o \
           hdiag.o gndts_blk.o mcpathsismc.o mcpathsmcmc.o \
           mcpathsch.o readint.o hubbard.o excit.o mcpathsold.o \
-          rootfind.o cpmdinit.o neci.o umatcache.o mcpathshdiag.o
+          rootfind.o cpmdinit.o neci.o umatcache.o mcpathshdiag.o \
+          oexcit.o
 
 OBJ_CPMDSTUB = cpmdstub.o init_coul.o init_coul2D.o
 OBJ_NOCPMDSTUB = nocpmdstub.o
 MAIN_OBJS = histogram.o
-
-#----------------------------------------------------------------------------
-# LIST OF INCLUDE FILES
-#----------------------------------------------------------------------------
-INCFILES = envj.inc geq0.inc irat.inc kb07ad.inc memc.inc system.h \
-           time.inc quant.inc tabul.inc cons.inc fcoul.inc sym.inc \
-           cpmddata.inc umatcache.inc

@@ -47,7 +47,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE READHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
      &            HFE,ARR,BRR)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,ISS,NBASISMAX(5,2),G1(*)
          REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 UMAT2(NBASIS,NBASIS,NBASIS,NBASIS),ARR(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
@@ -72,7 +72,9 @@ C..Symmetries
 
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS),NBASISMAX(5,2)
+         INTEGER NBASIS,NBASISMAX(5,2)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(nBasis)
          REAL*8 ARR(NBASIS,2)
          REAL*8 HFE(NBASIS)
          INTEGER BRR(NBASIS)
@@ -81,10 +83,11 @@ C..Symmetries
 C.. We now need to modify G1.  Pretend that all basis functions have
 C.. a different X quantum number, and all have the same spin.
          DO I=1,NBASIS
-            G1(1,I)=I-1
-            G1(2,I)=0
-            G1(3,I)=I
-            G1(4,I)=-2*(MOD(I,2))+1
+            G1(I)%k(1)=I-1
+            G1(I)%k(1)=0
+            G1(I)%k(1)=I
+            G1(I)%Ms=-2*(MOD(I,2))+1
+            G1(I)%Sym%s=0
             ARR(I,1)=HFE(I)
             ARR(I,2)=HFE(I)
             BRR(I)=I
@@ -109,7 +112,7 @@ C.. Generic spatial symmetry
       SUBROUTINE CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
      &            HFE,ARR,BRR)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 UMAT2(NBASIS,NBASIS,NBASIS,NBASIS),ARR(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
@@ -176,7 +179,9 @@ C..Symmetries
       END
       SUBROUTINE READHFBASIS(HFBASIS,HFE,G1,NBASIS)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS),NQNS(5),NN
+         INTEGER NBASIS,NQNS(5),NN
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(nBasis)
          REAL*8 HFBASIS(NBASIS,NBASIS),HFE(NBASIS)
          INTEGER I,L,J,NB,NE,IG,N
          REAL*8 VAL
@@ -214,7 +219,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
      &      TMAT,UMAT,HFE,HFBASIS,NHFIT,NEL,MS,HFMIX,EDELTA,CDELTA,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 TMAT(NBASIS,NBASIS),ECORE
          REAL*8 ARR(NBASIS)
@@ -288,7 +293,7 @@ C.. Unrestricted HF SCF code
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(5,NBASIS),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(NSBASIS,NSBASIS,NSBASIS,NSBASIS)
          REAL*8 TMAT(NBASIS,NBASIS),ECORE
          REAL*8 ARR(NBASIS)
@@ -553,7 +558,9 @@ C.. subtract out the double counting term, and add in the core energy
       SUBROUTINE WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,
      &         TRANSP)
          IMPLICIT NONE
-         INTEGER NBASIS,NSBASIS,NSPINS,G1(5,NBASIS),I,J,K
+         INTEGER NBASIS,NSBASIS,NSPINS,I,J,K
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(nBasis)
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),HFES(NSBASIS,NSPINS)
          LOGICAL TRANSP
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
@@ -568,10 +575,10 @@ C.. vector unless transposed
                DO I=1,NSBASIS
                   IF(TRANSP) THEN
                      WRITE(10,'(I7,1X,3I7,F19.9)') 
-     &               I,(G1(J,(I-1)*NSPINS+1),J=1,3),FMAT(K,I,1)
+     &               I,(G1((I-1)*NSPINS+1)%k(J),J=1,3),FMAT(K,I,1)
                   ELSE
                      WRITE(10,'(I7,1X,3I7,F19.9)') 
-     &               I,(G1(J,(I-1)*NSPINS+1),J=1,3),FMAT(I,K,1)
+     &               I,(G1((I-1)*NSPINS+1)%k(J),J=1,3),FMAT(I,K,1)
                   ENDIF
                ENDDO
             ENDIF
@@ -580,10 +587,10 @@ C.. vector unless transposed
             DO I=1,NSBASIS
                IF(TRANSP) THEN
                   WRITE(10,'(I7,1X,3I7,F19.9)') 
-     &            I,(G1(J,(I-1)*NSPINS+2),J=1,3),FMAT(K,I,2)
+     &            I,(G1((I-1)*NSPINS+2)%k(J),J=1,3),FMAT(K,I,2)
                ELSE
                   WRITE(10,'(I7,1X,3I7,F19.9)') 
-     &            I,(G1(J,(I-1)*NSPINS+2),J=1,3),FMAT(I,K,2)
+     &            I,(G1((I-1)*NSPINS+2)%k(J),J=1,3),FMAT(I,K,2)
                ENDIF
             ENDDO
          ENDDO
@@ -599,7 +606,9 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
          INTEGER ISPN,I,J,ISEED
          REAL*8 RAND
          INTEGER BRR(NSBASIS*NSPINS),NELR,IREAL,IS
-         INTEGER G1(5,*),LMS
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
+         INTEGER LMS
 C.. Working space
          REAL*8 R1(*),R2(*),WORK(*),FRAND
          LOGICAL TRANS
@@ -623,7 +632,7 @@ C.. vector unless transposed
             WRITE(6,"(A,I2,A,$)") "Spin ",IS,":"
             
             DO I=1,NSBASIS
-               DO WHILE(G1(4,BRR(IREAL)).NE.(-3+2*ISPN))
+               DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
                   IREAL=IREAL+1
                ENDDO
                NELR=(BRR(IREAL)-1)/NSPINS+1
@@ -803,7 +812,7 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(5,NBASIS),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(NSBASIS,NSBASIS,NSBASIS,NSBASIS)
          REAL*8 TMAT(NBASIS,NBASIS),ECORE
          REAL*8 ARR(NBASIS)
@@ -1239,7 +1248,7 @@ C.. Here A and C correspond to J and B corresponds to K
 
       SUBROUTINE READHFFMAT(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,TRANSP)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS),NQNS(5),NN,NSPINS,NSBASIS
+         INTEGER NBASIS,G1(*),NQNS(5),NN,NSPINS,NSBASIS
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),HFES(NSBASIS,NSPINS)
          INTEGER I,L,J,NB,NE,IG,N
          REAL*8 VAL
@@ -1280,7 +1289,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS,2),HFE(NBASIS),HFBASIS(NBASIS,NBASIS)
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
-         INTEGER I,J,IBF,G1(5,NBASIS),ITOT,NEL,FDET(NEL),ICUR
+         INTEGER I,J,IBF,G1(*),ITOT,NEL,FDET(NEL),ICUR
          REAL*8 MX,OEN
          ICUR=1
          DO I=1,NBASIS

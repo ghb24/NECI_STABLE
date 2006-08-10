@@ -6,7 +6,8 @@
          REAL*8 HAMIL(*),CK(NDET,NDET),W(NDET),WORK2
          INTEGER I,J,IND,INDZ,INFO,LDA,NBS
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS),ISUB
-         INTEGER BLOCKSYM(4,NBLOCKS)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) BLOCKSYM(NBLOCKS)
          REAL*8 GSEN
          CALL TISET('HDIAG     ',ISUB)
          GSEN=1.D100
@@ -48,7 +49,9 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
      &            BETA,I_P,ILOGGING,IFDET,ARR,BLOCKSYM)
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
-         INTEGER NBASISMAX(5,2),NBASIS,G1(5,NBASIS)
+         INTEGER NBASISMAX(5,2),NBASIS
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) ,G1(*)
          INTEGER NMSH,NMAX,I_P,ILOGGING,BRR(*),INFO
          REAL*8  TMAT(*),ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA
          LOGICAL TMC,TWARN
@@ -59,7 +62,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          REAL*8 CK(*),W(*),WORK(*),EXEN,GSEN,FLRI,FLSI,GSEN2
          POINTER (IP_CK,CK),(IP_W,W),(IP_WORK,WORK)
          REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
-         INTEGER GELOWEST,ISUB,BLOCKSYM(4,NBLOCKS),IDEG
+         INTEGER GELOWEST,ISUB,IDEG
+         TYPE(BasisFN) BLOCKSYM(NBLOCKS)
          CALL TISET('HDIAG_NH  ',ISUB)
 C.. Find the largest block
          NBLKMAX=0
@@ -100,7 +104,7 @@ C.. Diagonalize
                STOP
             ENDIF
 C.. Now work out exact wi etc.
-            CALL GETSYMDEGEN(BLOCKSYM(1,I+1),NBASISMAX,IDEG)
+            CALL GETSYMDEGEN(BLOCKSYM(I+1),NBASISMAX,IDEG)
             DO III=1,NBLK
                WRITE(15,"(2I4,I7,$)") I+1,III,NBS+III-1
                CALL WRITEDET(15,NMRKS(1,NBS+III-1),NEL,.FALSE.)
@@ -161,7 +165,7 @@ C        WRITE(6,*) "NORM: ",DNORM
          WRITE(6,"(A,F19.11,I4)") "GROUND E, g(E)=",ELOWEST,GELOWEST
          OPEN(16,FILE='GOFE',STATUS='UNKNOWN')
          DO J=1,NBASIS
-            WRITE(16,"(6I4,2G25.16)") BRR(J),(G1(K,BRR(J)),K=1,5),
+            WRITE(16,"(6I4,2G25.16)") BRR(J),(G1(BRR(J))%k(K),K=1,5),
      &         ARR(J),GOFE(BRR(J))/DNORM
          ENDDO
          CLOSE(16)

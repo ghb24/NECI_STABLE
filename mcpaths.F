@@ -29,7 +29,7 @@ C..  MCPATHSR10 allows different methods at each vertex level
          REAL*8 TOTAL,RHOII(0:I_VMAX),RHOIJ(0:I_VMAX,0:I_VMAX)
          REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
-         INTEGER  G1(5,NBASIS),NBASISMAX(5,2)
+         INTEGER  G1(*),NBASISMAX(5,2)
          INTEGER LSTE(*),ILMAX
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
@@ -273,7 +273,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          REAL*8 TOTAL,RHOII(0:I_VMAX),RHOIJ(0:I_VMAX,0:I_VMAX)
          REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
-         INTEGER  G1(5,NBASIS),NBASISMAX(5,2)
+         INTEGER  G1(*),NBASISMAX(5,2)
          INTEGER LSTE(*),ILMAX
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)

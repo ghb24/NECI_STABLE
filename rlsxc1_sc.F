@@ -4,7 +4,9 @@
       DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
 C..Cube array
       DIMENSION SITAB(NMSH,NMAX) 
-      INTEGER G1(5,NHG),TMP1(NEL),TMP2(NEL)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFN) G1(NHG)
+      INTEGER TMP1(NEL),TMP2(NEL)
       INTEGER IDS1(NEL-1),IDS2(NEL-1)
       EXTERNAL CHK,U1
 C..
@@ -65,14 +67,14 @@ C..Kronecker deltas
       DO I=1,NEL
         IF(NDET1(I).NE.ND1) THEN
           IQ=IQ+1
-          CALL CHK(G1(4,NDET1(I)),G1(4,ND1),IDS1(IQ))
-          CALL CHK(G1(4,NDET2(I)),G1(4,ND2),IDS2(IQ))
+          CALL CHK(G1(NDET1(I))%Ms,G1(ND1)%Ms,IDS1(IQ))
+          CALL CHK(G1(NDET2(I))%Ms,G1(ND2)%Ms,IDS2(IQ))
           IF(IQ.GE.(NEL-1)) GOTO 500
 	ENDIF
       ENDDO
 500   CONTINUE
 C..
-      CALL CHK(G1(4,ND1),G1(4,ND2),IDS)
+      CALL CHK(G1(ND1)%Ms,G1(ND2)%Ms,IDS)
       DO KI=1,NEL-1
        
         DO IZ=1,NMSH

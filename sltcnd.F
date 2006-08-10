@@ -82,12 +82,3 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
          ENDIF
          RETURN
       END
-C=================================================================
-C      SUBROUTINE GETIDM(NBASISMAX,N,G1,ID)
-C      IMPLICIT REAL*8 (A-H,O-Z)
-C      INTEGER G1(5,*),NBASISMAX(5,2),N
-C      ID=((G1(1,N)-NBASISMAX(1,1))*(NBASISMAX(2,2)-NBASISMAX(2,1)+1)+
-C     & (G1(2,N)-NBASISMAX(2,1)))*(NBASISMAX(3,2)-NBASISMAX(3,1)+1)+
-C     & (G1(3,N)-NBASISMAX(3,1))+1
-C      RETURN
-C      END

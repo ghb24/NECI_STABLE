@@ -5,7 +5,7 @@
 C      IMPLICIT REAL*8 (A-H,O-Z)
       REAL*8 HAMIL(*)
       INTEGER NDET,NEL,NMSH,NMAX
-      INTEGER G1(5,*),LAB(*)
+      INTEGER G1(*),LAB(*)
       INTEGER NMRKS(NEL,*)
       INTEGER NROW(NDET),GC
 C..Cube Arrays
@@ -95,13 +95,14 @@ C ==---------------------------------------------------------------==
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       DIMENSION ND1(NEL),ND2(NEL)
-      INTEGER G1(5,*)
+      INCLUDE 'basis.inc'
+      TYPE(BASISFN) G1(*)
 C..
       MS1=0
       MS2=0
       DO I=1,NEL
-        MS1=MS1+G1(4,ND1(I))
-        MS2=MS2+G1(4,ND2(I))
+        MS1=MS1+G1(ND1(I))%MS
+        MS2=MS2+G1(ND2(I))%MS
       ENDDO
       MS1=MS1/2
       MS2=MS2/2

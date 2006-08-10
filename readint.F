@@ -30,7 +30,9 @@ C.. SHow that there's no momentum conservation
       END
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),BRR(LEN),G1(5,LEN),LEN
+         INTEGER NBASISMAX(5,3),BRR(LEN),LEN
+         include 'basis.inc'
+         TYPE(BasisFN) G1(LEN)
          REAL*8 ARR(LEN,2)
          REAL*8 Z
          INTEGER I,J,K,L
@@ -41,7 +43,7 @@ C.. SHow that there's no momentum conservation
          READ(8,FCI)
          ISYMNUM=0
          ISNMAX=0
-         CALL IAZZERO(G1,5*LEN)
+         CALL IAZZERO(G1,BasisFNSize*LEN)
          CALL AZZERO(ARR,2*LEN)
 1        READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
 C.. Each orbital in the file corresponds to alpha and beta spinorbitals
@@ -65,19 +67,19 @@ C.. At the moment we're ignoring the core energy
             BRR(2*I)=2*I
 C            G1(1,2*I-1)=ISYMNUM-1
 C            G1(1,2*I)=ISYMNUM-1
-            G1(5,2*I-1)=IBSET(0,ORBSYM(I)-1)
-            G1(5,2*I)=IBSET(0,ORBSYM(I)-1)
+            G1(2*I-1)%Sym%s=IBSET(0,ORBSYM(I)-1)
+            G1(2*I)%Sym%s=IBSET(0,ORBSYM(I)-1)
 C            G1(3,2*I-1)=I
 C            G1(3,2*I)=I
 C.. set momentum to 0
-            G1(1,2*I-1)=0
-            G1(2,2*I)=0
-            G1(3,2*I-1)=0
-            G1(1,2*I)=0
-            G1(2,2*I-1)=0
-            G1(3,2*I)=0
-            G1(4,2*I-1)=-1
-            G1(4,2*I)=1
+            G1(2*I-1)%k(1)=0
+            G1(2*I)%k(2)=0
+            G1(2*I-1)%k(3)=0
+            G1(2*I)%k(1)=0
+            G1(2*I-1)%k(2)=0
+            G1(2*I)%k(3)=0
+            G1(2*I-1)%Ms=-1
+            G1(2*I)%Ms=1
          ENDDO
          IF(ISNMAX.EQ.1) THEN
          ELSEIF(ISNMAX.LE.2) THEN

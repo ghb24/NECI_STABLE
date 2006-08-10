@@ -150,7 +150,7 @@ C..
      &   NSBASIS,NSPINS,SUM)
          IMPLICIT NONE
          INTEGER NDET1(NEL),NDET2(NEL)
-         INTEGER G1(5,*),NBASISMAX(5,2)
+         INTEGER G1(*),NBASISMAX(5,2)
          INTEGER ID(NEL-1),IDS1(NEL-1),IDS2(NEL-1)
          REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -255,7 +255,7 @@ C..that are NOT common to both.
          IMPLICIT NONE
          INTEGER NDET1(NEL)
          INTEGER NDET2(NEL)
-         INTEGER G1(5,*),ISS
+         INTEGER G1(*),ISS
          INTEGER ND1(2),ND2(2),IDS(4)
          REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)

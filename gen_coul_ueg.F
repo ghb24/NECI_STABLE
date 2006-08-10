@@ -3,7 +3,9 @@ C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_HUBNPBC(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS,THUB,UHUB,OMEGA)
       IMPLICIT NONE
-      INTEGER G1(5,NHG),NBASISMAX(5,3),ISS,NEL
+      INCLUDE 'basis.inc'
+      TYPE(BASISFN) G1(NHG)
+      INTEGER NBASISMAX(5,3),ISS,NEL
       REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 UHUB,OMEGA
 C..Cube arrays
@@ -49,10 +51,10 @@ C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
                 SUMS(A)=0.D0
                 DO B=1,LL(A)
                  SUMS(A)=SUMS(A)
-     &            +SIN(B*PI*(G1(A,I)-NBASISMAX(A,1)+1)/(LL(A)+1))
-     &            *SIN(B*PI*(G1(A,J)-NBASISMAX(A,1)+1)/(LL(A)+1))
-     &            *SIN(B*PI*(G1(A,K)-NBASISMAX(A,1)+1)/(LL(A)+1))
-     &            *SIN(B*PI*(G1(A,L)-NBASISMAX(A,1)+1)/(LL(A)+1))
+     &            +SIN(B*PI*(G1(I)%K(A)-NBASISMAX(A,1)+1)/(LL(A)+1))
+     &            *SIN(B*PI*(G1(J)%K(A)-NBASISMAX(A,1)+1)/(LL(A)+1))
+     &            *SIN(B*PI*(G1(K)%K(A)-NBASISMAX(A,1)+1)/(LL(A)+1))
+     &            *SIN(B*PI*(G1(L)%K(A)-NBASISMAX(A,1)+1)/(LL(A)+1))
 C     &                          *SIN(B*PI*G1(A,J)/(LL(A)+1))
 C     &                          *SIN(B*PI*G1(A,K)/(LL(A)+1))
 C     &                          *SIN(B*PI*G1(A,L)/(LL(A)+1))
@@ -91,7 +93,9 @@ C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_UEG(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER G1(5,NHG),NBASISMAX(5,5),ISS 
+      INCLUDE 'basis.inc'
+      TYPE(BASISFN) G1(NHG)
+      INTEGER NBASISMAX(5,5),ISS 
       DIMENSION UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 C..Cube arrays
       COMPLEX*16 FCK(-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1)
@@ -154,16 +158,16 @@ C                 WRITE(40,*)
                  S=0.D0
                  CI=(0.D0,1.D0)         
 C.. Check the Coulomb matrix elements by summing manually
-                 C=G1(1,K)+G1(1,L)-G1(1,I)-G1(1,J)
-                 D=G1(2,K)+G1(2,L)-G1(2,I)-G1(2,J)
+                 C=G1(K)%K(1)+G1(L)%K(1)-G1(I)%K(1)-G1(J)%K(1)
+                 D=G1(K)%K(2)+G1(L)%K(2)-G1(I)%K(2)-G1(J)%K(2)
                  TX=NBASISMAX(1,4)
                  TY=NBASISMAX(2,4)
                  T2=TX*TX+TY*TY
                  LX=NBASISMAX(1,5)
                  LY=NBASISMAX(2,5)
                  DO A=1,NHG,2
-                  Q=(G1(1,A)*TX+G1(2,A)*TY)/T2
-                  P=(G1(1,A)*-TY+G1(2,A)*TX)/T2
+                  Q=(G1(A)%K(1)*TX+G1(A)%K(2)*TY)/T2
+                  P=(G1(A)%K(1)*-TY+G1(A)%K(2)*TX)/T2
                   S=S+EXP(CI*(P*C/LX+Q*D/LY)
      &            *2*PI)*UHUB/(OMEGA**2)
                  ENDDO
@@ -188,12 +192,12 @@ C                 CALL ADDELECSYM(J,G1,NBASISMAX,KB)
 C                 CALL ROUNDSYM(KA,NBASISMAX)
 C                 CALL ROUNDSYM(KB,NBASISMAX)
 C                 IF(LCHKSYM(KA,KB)) THEN
-                   A=G1(1,I)-G1(1,K)
-                   B=G1(2,I)-G1(2,K)
-                   C=G1(3,I)-G1(3,K)
-                   IF(    (G1(1,L)-G1(1,J)).EQ.A
-     &               .AND.(G1(2,L)-G1(2,J)).EQ.B
-     &               .AND.(G1(3,L)-G1(3,J)).EQ.C
+                   A=G1(I)%K(1)-G1(K)%K(1)
+                   B=G1(I)%K(2)-G1(K)%K(2)
+                   C=G1(I)%K(3)-G1(K)%K(3)
+                   IF(    (G1(L)%K(1)-G1(J)%K(1)).EQ.A
+     &               .AND.(G1(L)%K(2)-G1(J)%K(2)).EQ.B
+     &               .AND.(G1(L)%K(3)-G1(J)%K(3)).EQ.C
      &               .AND.((A.NE.0).OR.(B.NE.0).OR.(C.NE.0))) THEN
 C                     WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
                      

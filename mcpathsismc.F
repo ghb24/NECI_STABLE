@@ -22,7 +22,7 @@ C.. This is a simple importance sampling method
          REAL*8 FLNSUM,FLNRII,RH
          REAL*8 ALAT(3),RHOEPS,BETA,UMAT(*),ZIA(*),FCK(*)
          REAL*8 ECORE,WLRI,WLSI
-         INTEGER  G1(5,NBASIS),NBASISMAX(5,2),BRR(*)
+         INTEGER  G1(*),NBASISMAX(5,2),BRR(*)
          INTEGER LSTE(*),ILMAX,I_VMAX,NEL,NBASIS
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
@@ -1277,7 +1277,9 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
          INTEGER IGETEXCITLEVEL
-         INTEGER KSYM(5),G1(5,NBASIS),NBASISMAX(5,2)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) KSYM
+         INTEGER G1(*),NBASISMAX(5,2)
          LOGICAL LCHKSYM
          REAL*8 RAN2
          IF(IEXLEVEL.GT.2)
@@ -1317,8 +1319,10 @@ C.. If the new basis fn's in our original det or our new one, we loop again
       SUBROUTINE GETEXCITCOUNTSYM(INODE,NEL,NBASIS,G1,NBASISMAX,
      &            KSYM,BRR,ICOUNT)
          IMPLICIT NONE
-         INTEGER NEL,INODE(NEL),NBASIS,G1(5,NBASIS),NBASISMAX(5,2)
-         INTEGER KSYM(5),ICOUNT,BRR(NBASIS)
+         INTEGER NEL,INODE(NEL),NBASIS,G1(*),NBASISMAX(5,2)
+         INTEGER ICOUNT,BRR(NBASIS)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) KSYM
          ICOUNT=0
          CALL GENSYMDETSSD(INODE,KSYM,NEL,G1,BRR,NBASIS,0,
      &        ICOUNT,NBASISMAX,0.D0,0,0,0,0,0,0,0,0,0.D0,0.D0,0.D0,0.D0,
@@ -1334,17 +1338,19 @@ C.. If the new basis fn's in our original det or our new one, we loop again
          INTEGER IEX1,IEX2,IIEX1,IIEX2
          LOGICAL BR
          INTEGER NBASISMAX(5,6)
-         INTEGER KSYM(5),NEX1A,NEX1B,NEX2A,NEX2B,G1(5,*)
+         INTEGER NEX1A,NEX1B,NEX2A,NEX2B,G1(*)
          INTEGER NEXAB
          REAL*8 R,IEX
          LOGICAL ISUHFDET
          REAL*8 RAN2
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) KSym
 C         CALL WRITEDET(56,NI,NEL,.TRUE.)
 C         CALL FLUSH(56)
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
             CALL ICOPY(NEL,NI,1,NJ,1)
          NB2=NBASIS/2
-         NB=(NEL-KSYM(4))/2
+         NB=(NEL-KSYM%Ms)/2
          NA=NEL-NB
          NEX1A=NA*(NB2-NA)
          NEX1B=NB*(NB2-NB)
@@ -1408,28 +1414,32 @@ C         CALL FLUSH(57)
       
       SUBROUTINE FINDELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL,G1(5,*)
+         INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
          INTEGER NBASIS
          LOGICAL BR
          REAL*8 RAN2
          BR=.TRUE.
          DO WHILE(BR)
             IEL=RAN2(ISEED)*NEL+1
-            IF(G1(4,NI(IEL)).EQ.NSPIN.AND.IEL.NE.IEX) BR=.FALSE.
+            IF(G1(NI(IEL))%Ms.EQ.NSPIN.AND.IEL.NE.IEX) BR=.FALSE.
          ENDDO
          IEX=IEL
          RETURN
       END
       SUBROUTINE FINDNEWELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX,IEX1)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL,IEX1,G1(5,*),NBASIS
+         INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL,IEX1,NBASIS
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
          LOGICAL BR
          INTEGER I
          REAL*8 RAN2
          BR=.TRUE.
          DO WHILE(BR)
             IEL=RAN2(ISEED)*NBASIS+1
-            IF(G1(4,IEL).EQ.NSPIN) THEN
+            IF(G1(IEL)%Ms.EQ.NSPIN) THEN
                BR=.FALSE.
                IF(IEX1.EQ.IEL) BR=.TRUE.
                DO I=1,NEL

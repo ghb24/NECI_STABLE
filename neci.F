@@ -48,12 +48,16 @@ C..
       INTEGER GET_ADDR
 #endif
 C.. NEL now includes all electrons, and we'll only want active later
-      INTEGER NMRKS(NEL-NFROZEN,*),G1(5,*),LAB(*),NROW(*),IKILL(*)
+      INTEGER NMRKS(NEL-NFROZEN,*),LAB(*),NROW(*),IKILL(*)
       INTEGER IPARITY(5),GC,IMCSTEPS,IEQSTEPS,I_HMAX,NTAY,NWHTAY
       REAL*8 ARR(*),HAMIL(*),CKN(*),CK(*)
       INTEGER BRR(*)
       REAL*8 A(*),W(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*),TMAT(*)
       REAL*8 WH(*),WORK2(*),V2(*),RHO(*),SITAB(*),TKE(*),UMAT(*)
+      INCLUDE 'basis.inc'
+
+
+      TYPE(BASISFN) G1(*)
 
 C..Cube arrays
       REAL*8 ALAT(3),XCHOLE(*),SUMA(*)
@@ -79,21 +83,21 @@ C..
 
 
       POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS),(IP_BLOCKSYM,BLOCKSYM)
-      INTEGER NBLOCKS,NBLOCKSTARTS(*),BLOCKSYM(5,*)
+      INTEGER NBLOCKS,NBLOCKSTARTS(*)
+      TYPE(BasisFN) BLOCKSYM(*)
       INTEGER FDET(NEL),IFDET
       LOGICAL TBLOCK
 
       LOGICAL TMCDET,TRHF
-      INTEGER MDK(5),MCDET(NEL),DETINV
-
+      INTEGER MCDET(NEL),DETINV
+      TYPE(BasisFN) MDK,G,iSym
       LOGICAL TALLOW,TTILT,TREADINT,TPBC,TREAL,TREADHF
-      INTEGER G(5)
       LOGICAL KALLOWED
       INTEGER ORBORDER(8,2),ITILTX,ITILTY,NDETWORK
       INTEGER NFROZEN,IHFMETHOD
       INTEGER SPECDET(NEL-NFROZEN)
       LOGICAL TSPECDET,TREADTUMAT
-      INTEGER ISYM(5),IDEG
+      INTEGER IDEG
       LOGICAL THFORDER,TCSF
 C.. The spin including the total spin
       INTEGER LMS2,STOT,LMSBASIS
@@ -341,7 +345,7 @@ C.. ordering.
       CALL AZZERO(ARR,2*LEN)
       CALL MEMORY(IP_BRR,LEN,'BRR')
       CALL AZZERO(BRR,LEN)
-      CALL MEMORY(IP_G1,5*LEN,'G1')
+      CALL MEMORY(IP_G1,BASISFNSIZE*LEN,'G1')
       CALL IAZZERO(G1,5*LEN)
       IF(TCPMD) THEN
          WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM CPMD *** '
@@ -361,10 +365,10 @@ C.. Create plane wave basis functions
         DO J=NBASISMAX(2,1),NBASISMAX(2,2)
           DO K=NBASISMAX(3,1),NBASISMAX(3,2)
             DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
-               G(1)=I
-               G(2)=J
-               G(3)=K
-               G(4)=L
+               G%k(1)=I
+               G%k(2)=J
+               G%k(3)=K
+               G$Ms=L
                IF((THUB.AND.(TREAL.OR..NOT.TPBC))
      &            .OR.KALLOWED(G,NBASISMAX)) THEN
                  IG=IG+1
@@ -382,10 +386,10 @@ C..Note for the Hubbard model, the t is defined by ALAT(1)!
                  ARR(IG)=SUM
                  BRR(IG)=IG
 C..These are the quantum numbers: n,l,m and sigma
-                 G1(1,IG)=I
-                 G1(2,IG)=J
-                 G1(3,IG)=K
-                 G1(4,IG)=L
+                 G1(IG)%K(1)=I
+                 G1(IG)%K(2)=J
+                 G1(IG)%K(3)=K
+                 G1(IG)%MS=L
                ENDIF
             ENDDO
           ENDDO
@@ -839,8 +843,10 @@ C.. NEL now only includes active electrons
          CALL IAZZERO(NMRKS,(NEL)*II)
          CALL MEMORY(IP_NBLOCKSTARTS,(NBLOCKS+1)/IRAT+1,"NBLOCKSTARTS")
          CALL IAZZERO(NBLOCKSTARTS,NBLOCKS)
-         CALL MEMORY(IP_BLOCKSYM,((NBLOCKS+1)*5)/IRAT+1,"BLOCKSYM")
-         CALL IAZZERO(BLOCKSYM,NBLOCKS*5)
+         CALL MEMORY(IP_BLOCKSYM,((NBLOCKS+1)*BasisFNSize)/IRAT+1,
+     &         "BLOCKSYM")
+
+         CALL IAZZERO(BLOCKSYM,NBLOCKS*BasisFNSize)
 C..
 
 
@@ -879,7 +885,7 @@ C.. Use HAMIL to temporarily hold a list of excitation levels
          DO I=1,NDET
             CALL WRITEDET(8,NMRKS(1,I),NEL,.FALSE.)
             CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
-            WRITE(8,"(Z6)") ISYM(5)
+            CALL WRITESYM(8,ISym%Sym,.TRUE.)
          ENDDO
          CLOSE(8)
 C..
@@ -1605,7 +1611,9 @@ C ==-------------------------------------------------------------------==
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION CG(NDET,NEVAL),NM(NEL,*)
       DIMENSION ALAT(3),TKE(NEVAL)
-      INTEGER G1(5,*),NBASISMAX(3,2),NHG,ILOGGING
+      INTEGER NBASISMAX(3,2),NHG,ILOGGING
+      INCLUDE 'basis.inc'
+      TYPE(BASISFN) G1(*)
       CHARACTER*255 STR
       REAL*8 TMAT(NHG,NHG)
 C..Calculate the expectation value of the kinetic energy
@@ -1646,7 +1654,7 @@ C      IF(BTEST(ILOGGING,7)) THEN
         DO I=1,NDET
          IF(ABS(CG(I,J)).GT.1.D-15) THEN
             DO IEL=1,NEL
-               WRITE(10,"(I3,I3,2I3,2X,$)") (G1(L,NM(1,IEL)),L=1,5)
+               WRITE(10,"(I3,I3,2I3,2X,$)") (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO
             WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
          ENDIF
@@ -2025,7 +2033,7 @@ C.. This should only happen for HMAX
 
       REAL*8 FUNCTION CALCT(NI,NEL,G1,TMAT,NBASIS)
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),G1(5,NEL),NBASIS,I
+         INTEGER NEL,NI(NEL),G1(*),NBASIS,I
          REAL*8 TMAT(NBASIS,NBASIS)
          LOGICAL ISCSF
          CALCT=0.D0
@@ -2118,15 +2126,17 @@ C.. This should only happen for HMAX
       END    
       SUBROUTINE CALCTMAT(TMAT,NBASIS,ALAT,G1,CST)
          IMPLICIT NONE
-         INTEGER NBASIS,G1(5,NBASIS)
+         INTEGER NBASIS
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) G1(NBASIS)
          REAL*8 TMAT(NBASIS,NBASIS),ALAT(3),HFBASIS(NBASIS,NBASIS),CST
          INTEGER I,J
          REAL*8 SUM,S1
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
           DO I=1,NBASIS
-           TMAT(I,I)=((ALAT(1)**2)*((G1(1,I)**2)/(ALAT(1)**2)+
-     &         (G1(2,I)**2)/(ALAT(2)**2)+
-     &         (G1(3,I)**2)/(ALAT(3)**2)))
+           TMAT(I,I)=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+
+     &         (G1(I)%K(2)**2)/(ALAT(2)**2)+
+     &         (G1(I)%K(3)**2)/(ALAT(3)**2)))
            TMAT(I,I)=TMAT(I,I)*CST
             WRITE(10,*) I,I,TMAT(I,I)
          ENDDO
@@ -2269,16 +2279,19 @@ C.. Normal Hubbard
          INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 RIJLIST(*)
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),RHOEPS,DLWDB
-         INTEGER NPATHS,NI(NEL),I_P,NBASISMAX(5,5),G1(5,NBASIS)
+         INTEGER NPATHS,NI(NEL),I_P,NBASISMAX(5,5)
+         INCLUDE 'gndwork.inc'
+         INTEGER Work(GNDWorkSize+2*NEL)
+         TYPE(BASISFN) G1(NBASIS)
          INTEGER BRR(NBASIS),NMSH,NMAX(*),NTAY,ILOGGING
-         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,IPARITY(3),ISUB,ISYM(5)
+         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,IPARITY(3),ISUB
+         TYPE(BasisFN) ISYM
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM,TMAT(*)
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
          INTEGER ISTART,IEND,IDEG
-         INTEGER WORK(7*NEL+18)
          LOGICAL TSPECDET
          INTEGER SPECDET(NEL)
          REAL*8 DLWDB2,DLWDB3,DLWDB4,TOT2
@@ -2400,7 +2413,9 @@ C.. the Fermi determinant, otherwise the numbers blow up
 
       SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
          INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),NBASISMAX(5,3)
-         INTEGER BRR2(NBASIS),G1(5,NBASIS)
+         INTEGER BRR2(NBASIS)
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) G1(NBASIS)
          REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
          INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K
          REAL*8 OEN
@@ -2420,7 +2435,7 @@ C.. we use the symmetries of the spatial orbitals
              DO I=1,8
                DO J=1,ORBORDER(I,ITYPE)
                   DO WHILE(IBFN.LE.NBASIS
-     &                  .AND.(G1(5,IBFN).LT.2**(I-1).OR.BRR(IBFN).EQ.0))
+     &              .AND.(G1(IBFN)%SYM%s.LT.2**(I-1).OR.BRR(IBFN).EQ.0))
                      IBFN=IBFN+1
                   ENDDO
                   IF(IBFN.GT.NBASIS) THEN
@@ -2481,7 +2496,9 @@ C               G(3,BRR(I))=J
       SUBROUTINE FREEZEBASIS(NHG,NBASIS,UMAT,TMAT,UMAT2,TMAT2,ECORE,
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,ALAT)
          IMPLICIT NONE
-         INTEGER NHG,NBASIS,G1(5,NHG),NBASISMAX(5,6),ISS
+         INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) G1(NHG)
          REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          REAL*8 TMAT(NHG,NHG),ECORE
@@ -2489,7 +2506,8 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 TMAT2(NBASIS,NBASIS)
          REAL*8 ARR(NHG,2),ARR2(NBASIS,2)
-         INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),G2(5,NHG),GG(NHG)
+         INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),GG(NHG)
+         TYPE(BASISFN) G2(NHG)
          INTEGER NTFROZEN
          INTEGER I,J,K,L,A,B,IP,JP,KP,LP,IDI,IDJ,IDK,IDL
          INTEGER IB,JB,KB,LB,AB,BB,IPB,JPB,KPB,LPB
@@ -2502,17 +2520,19 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
 C.. Just check to see if we're not in the middle of a degenerate set with the same sym
          IF(NFROZEN.GT.0) THEN
          WRITE(6,*) (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)),
-     &        G1(5,BRR(NFROZEN)),G1(5,BRR(NFROZEN+1)))
+     &        G1(BRR(NFROZEN))%SYM,G1(BRR(NFROZEN+1))%SYM)
             IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.
-     &        G1(5,BRR(NFROZEN)).EQ.G1(5,BRR(NFROZEN+1))) THEN
+     &        G1(BRR(NFROZEN))%SYM%s.EQ.G1(BRR(NFROZEN+1))%SYM%s) THEN
                STOP "Cannot freeze in the middle of a degenerate set"
             ENDIF
          ENDIF
          IF(NTFROZEN.GT.0) THEN
          WRITE(6,*) ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)),
-     &     G1(5,BRR(NHG-NTFROZEN)),G1(5,BRR(NHG-NTFROZEN+1))
+     &     G1(BRR(NHG-NTFROZEN))%SYM,G1(BRR(NHG-NTFROZEN+1))%SYM
             IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6
-     &   .AND.G1(5,BRR(NHG-NTFROZEN)).EQ.G1(5,BRR(NHG-NTFROZEN+1))) THEN
+     &         .AND.G1(BRR(NHG-NTFROZEN))%SYM%s
+     &               .EQ.G1(BRR(NHG-NTFROZEN+1))%SYM%s)
+     &       THEN
           STOP "Cannot freeze in the middle of a degenerate virtual set"
             ENDIF
          ENDIF
@@ -2546,7 +2566,7 @@ C.. we've got an orb which is not to be frozen
 C.. GG(I) is the new position in G of the (old) orb I
                GG(I)=K
 C.. copy the eigenvalue table to the new location
-               CALL ICOPY(5,G1(1,I),1,G2(1,K),1)
+               CALL ICOPY(5,G1(I),1,G2(K),1)
             ENDIF
          ENDDO
 C.. Now construct the new BRR and ARR
@@ -2571,7 +2591,7 @@ C.. No sign problems from permuations here as all perms even
      &        +GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB)
 CCCC.. If we have spin-independent integrals, or 
 C.. if the spins are the same
-               IF(G1(4,AB).EQ.G1(4,BB))
+               IF(G1(AB)%MS.EQ.G1(BB)%MS)
      &            ECORE=ECORE
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDB,IDA)
             ENDDO
@@ -2595,13 +2615,13 @@ C.. SGN takes into account permutationnness.
 C                  SGN=1
 C                  IF(IB.GT.AB) SGN=-SGN
 C                  IF(JB.GT.AB) SGN=-SGN
-                  IF(G1(4,IB).EQ.G1(4,JB))
+                  IF(G1(IB)%MS.EQ.G1(JB)%MS)
      &               TMAT2(IPB,JPB)=
      &                  TMAT2(IPB,JPB)
      &        +GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
 CCCC.. If we have spin-independent integrals, ISS.EQ.2.OR
 C.. if the spins are the same
-                  IF(G1(4,IB).EQ.G1(4,AB).AND.G1(4,AB).EQ.G1(4,JB))
+                  IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS)
      &               TMAT2(IPB,JPB)=TMAT2(IPB,JPB)
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
                ENDDO
@@ -2614,25 +2634,25 @@ C.. the primed (...P) are the new versions
          DO I=1,NBASIS
             IB=BRR(I+NFROZEN)
             IPB=GG(IB)
-            IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
+            IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
              CALL GTID(NBASISMAX,IB,IDI)
              CALL GTID(NBASISMAX,IPB,IDIP)
              DO J=1,NBASIS
                JB=BRR(J+NFROZEN)
                JPB=GG(JB)
-               IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
+               IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                 CALL GTID(NBASISMAX,JB,IDJ)
                 CALL GTID(NBASISMAX,JPB,IDJP)
                 DO K=1,NBASIS
                   KB=BRR(K+NFROZEN)
                   KPB=GG(KB)
-                  IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
+                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                    CALL GTID(NBASISMAX,KB,IDK)
                    CALL GTID(NBASISMAX,KPB,IDKP)
                    DO L=1,NBASIS
                      LB=BRR(L+NFROZEN)
                      LPB=GG(LB)
-                     IF(ISS.NE.0.OR.G1(4,I).EQ.1) THEN
+                     IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                       CALL GTID(NBASISMAX,LB,IDL)
                       CALL GTID(NBASISMAX,LPB,IDLP)
                       UMAT2(IDIP+(NBASIS/ISS)*(IDJP-1+
@@ -2686,7 +2706,9 @@ C.. any orbitals which no longer exist, we move outside the basis
      &      LMS,BRR,HFBASIS)
          IMPLICIT NONE
          INTEGER NBASIS,NBASISMAX(5,5),NSPINS,NSBASIS
-         INTEGER G1(5,NBASIS),NEL,LMS,BRR(NBASIS)
+         INTEGER NEL,LMS,BRR(NBASIS)
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) G1(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS)
          
          REAL*8 DMAT(NBASIS,NBASIS)
@@ -2722,7 +2744,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
             DO ISPN=1,NSPINS
                IF(NSPN(ISPN).LT.NELS(ISPN)) THEN
                   BR(ISPN)=BR(ISPN)+1
-                  DO WHILE(G1(4,BRR(BR(ISPN))).NE.ISPN*2-3)
+                  DO WHILE(G1(BRR(BR(ISPN)))%MS.NE.ISPN*2-3)
                      BR(ISPN)=BR(ISPN)+1
                   ENDDO
                   NDET(I)=BRR(BR(ISPN))
@@ -2745,19 +2767,19 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          WRITE(6,*) "Calculate site spin density..."
          DO J=1,NBASIS
             STOT=(0.D0,0.D0)         
-            P=(G1(1,J)*AX+G1(2,J)*AY)/AA2
-            Q=(-G1(1,J)*AY+G1(2,J)*AX)/AA2
+            P=(G1(J)%K(1)*AX+G1(J)%K(2)*AY)/AA2
+            Q=(-G1(J)%K(1)*AY+G1(J)%K(2)*AX)/AA2
             DO K=1,NBASIS
                DO KP=1,NBASIS
 C.. Check spin
                   IF(MOD(K+J,2).EQ.0) 
      &             STOT=STOT+DMAT(K,KP)*EXP(2*PI*II*
-     &               ((G1(1,KP)-G1(1,K))*P/(NMAXX+0.D0)+
-     &               (G1(2,KP)-G1(2,K))*Q/(NMAXY+0.D0)))
+     &               ((G1(KP)%K(1)-G1(K)%K(1))*P/(NMAXX+0.D0)+
+     &               (G1(KP)%K(2)-G1(K)%K(2))*Q/(NMAXY+0.D0)))
                ENDDO
             ENDDO
             STOT=STOT/(NMAXX*NMAXY*NMAXZ*AA2)
-            WRITE(6,*) (G1(I,J),I=1,5),REAL(STOT)
+            WRITE(6,*) (G1(J)%K(I),I=1,5),REAL(STOT)
             STT=STT+REAL(STOT)
          ENDDO
          WRITE(6,*) NEL,STT
@@ -2765,14 +2787,15 @@ C.. Check spin
       END
       SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
          IMPLICIT NONE
-         INTEGER NUNIT,NHG,G1(5,NHG),BRR(NHG),I
+         INTEGER NUNIT,NHG,BRR(NHG),I
          INCLUDE 'sym.inc'
+         TYPE(BASISFN) G1(NHG)
          REAL*8 ARR(NHG,2)
          DO I=1,NHG
-           WRITE(NUNIT,'(6I7,Z6,2F19.9)') I,BRR(I),G1(1,BRR(I)),
-     &         G1(2,BRR(I)),G1(3,BRR(I)),
-     &         G1(4,BRR(I)),G1(5,BRR(I)),
-C     &         SYMLABELS(2,SYMLABELS(1,(BRR(I)+1)/2)),
+           WRITE(NUNIT,'(6I7,Z10,2F19.9)') I,BRR(I),G1(BRR(I))%K(1),
+     &         G1(BRR(I))%K(2),G1(BRR(I))%K(3),
+     &         G1(BRR(I))%MS,G1(BRR(I))%SYM,
+C     &         SymLabels(SymClasses((BRR(I)+1)/2)),
      &         ARR(I,1),ARR(BRR(I),2)
          ENDDO
          RETURN

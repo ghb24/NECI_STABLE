@@ -29,7 +29,9 @@
 C         INTEGER NI(4,NEL), NJ(4,NEL)
          LOGICAL LACC
          INTEGER BRR(NBASIS)
-         INTEGER G1(5,NBASIS),NMRKS(NEL,NDET),NBASISMAX(5,2)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NBASIS)
+         INTEGER ,NMRKS(NEL,NDET),NBASISMAX(5,2)
          POINTER (IP_LSTI,LSTI),(IP_DLWDBS,DLWDBS),(IP_WLRIS,WLRIS)
          POINTER (IP_WLSIS,WLSIS)
          INTEGER LSTI(3,*)
@@ -201,13 +203,15 @@ C.. change the spin
 C.. NJ is a list of Quantum numbers of basis fns for each electron
       INTEGER FUNCTION IFINDDET(NJ,NEL,G1,NMRKS,NBASIS,NDET)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NJ(4,NEL),G1(5,NBASIS),NMRKS(NEL,NDET)
+         INTEGER NJ(4,NEL),NMRKS(NEL,NDET)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
          LOGICAL TFOUND
          TFOUND=.FALSE.
          DO I=1,NDET
             DO J=1,NEL
                DO K=1,4
-                  IF(NJ(K,J).NE.G1(K,NMRKS(J,I))) GOTO 10
+                  IF(NJ(K,J).NE.G1(NMRKS(J,I))%k(K)) GOTO 10
                ENDDO
             ENDDO
             TFOUND=.TRUE.
@@ -222,7 +226,7 @@ C.. We couldn't find it
 C.. NJ is a list of basis fns - one for each electron
       INTEGER FUNCTION IFINDDET2(NJ,NEL,G1,NMRKS,NBASIS,NDET)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NJ(NEL),G1(5,NBASIS),NMRKS(NEL,NDET)
+         INTEGER NJ(NEL),G1(*),NMRKS(NEL,NDET)
          LOGICAL TFOUND
          TFOUND=.FALSE.
          DO I=1,NDET
@@ -250,7 +254,7 @@ C.. We couldn't find it
          INTEGER NI(NEL), NJ(NEL),MCDET(NEL)
          LOGICAL LACC,LISVALID
          INTEGER BRR(NBASIS),RHOEPS
-         INTEGER G1(5,NBASIS),NBASISMAX(5,2)
+         INTEGER G1(*),NBASISMAX(5,2)
          CHARACTER*50 STR
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)
          INTEGER LSTE(*)
@@ -565,7 +569,9 @@ C.. if there's space, we store
 
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),NI(NEL),NJ(NEL),NQN(5),G1(5,NBASIS)
+         INTEGER NBASISMAX(5,3),NI(NEL),NJ(NEL),NQN(5)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NBASIS)
          INTEGER NCH,ND,NEL,BRR(NBASIS),NBASIS,ISEED
          LOGICAL L
          CHARACTER*20 STR
@@ -584,7 +590,7 @@ C.. Copy NI to NJ
 C.. we need to keep on doing this until we make a valid choice
          DO WHILE(L)
             IEL=INT(RAN2(ISEED)*NEL)+1
-            CALL ICOPY(5,G1(1,NJ(IEL)),1,NQN,1)
+            CALL ICOPY(4,G1(NJ(IEL)),1,NQN,1)
             IQN=3+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
 C.. Sometimes no spin freedom
             IQN=INT(RAN2(ISEED)*IQN)+1
@@ -624,7 +630,7 @@ C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,2),NI(NEL),NJ(NEL),NQN(5),G1(5,NBASIS)
+         INTEGER NBASISMAX(5,2),NI(NEL),NJ(NEL),NQN(5),G1(*)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
          LOGICAL L
          CHARACTER*20 STR
@@ -675,12 +681,14 @@ C.. if we've more electrons to change, we go round again
       END
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NQNS(5),G1(5,NBASIS),NBASIS
+         INTEGER NQNS(5),NBASIS
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NBASIS)
          LOGICAL L
          DO I=1,NBASIS
             L=.TRUE.
             DO J=1,5
-               IF(G1(J,I).NE.NQNS(J)) L=.FALSE.
+               IF(G1(I)%k(J).NE.NQNS(J)) L=.FALSE.
             ENDDO
             IF(L) THEN
                IFINDBASISFN=I
@@ -788,7 +796,7 @@ C            WRITE(6,*) "Store ",NODE
          INTEGER NI(NEL), NJ(NEL)
          LOGICAL LACC
          INTEGER BRR(NBASIS)
-         INTEGER G1(5,NBASIS),NMRKS(NEL,NDET),NBASISMAX(5,2)
+         INTEGER G1(*),NMRKS(NEL,NDET),NBASISMAX(5,2)
          REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET)
          LOGICAL LISNAN
          REAL*8 RAN2
@@ -952,7 +960,9 @@ C.. non-PBC non-tilted - leave things as they are
       END
       INTEGER FUNCTION IGETENEIGHBOUR(IEL,NBASIS,BRR,ISGN,G1,IDIST)
          IMPLICIT NONE
-         INTEGER IEL,NBASIS,BRR(NBASIS),ISGN,G1(5,NBASIS)
+         INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NBASIS)
          INTEGER I,J,NQN4,IDIST,IDIST2
          DO I=1,NBASIS
             IF(BRR(I).EQ.IEL) J=I
@@ -963,7 +973,7 @@ C.. make sure we have an orbital of the correct spin
             J=J+ISGN
             IF(J.LT.1) J=NBASIS
             IF(J.GT.NBASIS) J=1
-            IF(G1(4,BRR(J)).EQ.G1(4,IEL)) IDIST2=IDIST2-1
+            IF(G1(BRR(J))%Ms.EQ.G1(IEL)%Ms) IDIST2=IDIST2-1
          ENDDO 
          IGETENEIGHBOUR=BRR(J)  
          RETURN
@@ -973,28 +983,30 @@ C.. Find a neighbour in a different degenerate manifold.
 C.. THIS IS NOT ERGODIC
       INTEGER FUNCTION IGETENEIGHBOURDEG(IEL,NBASIS,BRR,ISGN,G1,ISEED)
          IMPLICIT NONE
-         INTEGER IEL,NBASIS,BRR(NBASIS),ISGN,G1(5,NBASIS)
+         INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NBASIS)
          INTEGER I,J,NQN4,DEGS1,DEGS2,ODEG,NDEG,OJ,ISEED,J2
          REAL*8 RAN2
          DO I=1,NBASIS
             IF(BRR(I).EQ.IEL) J=I
          ENDDO
 C.. Old degeneracy level
-         ODEG=G1(3,IEL)
+         ODEG=G1(IEL)%k(3)
 C.. new degen level
          NDEG=ODEG+ISGN
 C.. if we fall off the bottom or top, wrap round
-         IF(NDEG.LT.1) NDEG=G1(3,BRR(NBASIS))
-         IF(NDEG.GT.G1(3,BRR(NBASIS))) NDEG=1
+         IF(NDEG.LT.1) NDEG=G1(BRR(NBASIS))%k(3)
+         IF(NDEG.GT.G1(BRR(NBASIS))%k(3)) NDEG=1
          DEGS1=0
          DEGS2=0
          OJ=J
          DO WHILE(DEGS2.EQ.0)
-            IF(DEGS1.EQ.0.AND.G1(3,BRR(J)).EQ.NDEG) THEN
+            IF(DEGS1.EQ.0.AND.G1(BRR(J))%k(3).EQ.NDEG) THEN
 C.. we've found the first of our new degen group
                DEGS1=J
             ENDIF
-            IF(DEGS1.NE.0.AND.G1(3,BRR(J)).NE.NDEG) THEN
+            IF(DEGS1.NE.0.AND.G1(BRR(J))%k(3).NE.NDEG) THEN
 C.. we found the last of our degeneracy group
                DEGS2=OJ
             ENDIF
@@ -1011,21 +1023,23 @@ C.. Now pick these orbitals randomly until we find one of the right spin
          DO WHILE(J.EQ.0)
             J=DEGS1+I+RAN2(ISEED)*(DEGS2-DEGS1+ISGN)
 C.. CHeck spin
-            IF(G1(4,BRR(J)).NE.G1(4,IEL)) J=0
+            IF(G1(BRR(J))%Ms.NE.G1(IEL)%Ms) J=0
          ENDDO
          IGETENEIGHBOURDEG=BRR(J)  
          RETURN
       END
       INTEGER FUNCTION IGETSNEIGHBOUR(IEL,NBASIS,BRR,ISGN,G1)
          IMPLICIT NONE
-         INTEGER IEL,NBASIS,BRR(NBASIS),ISGN,G1(5,NBASIS)
+         INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NBASIS)
          INTEGER I,J,NQN4
          DO I=1,NBASIS
             IF(BRR(I).EQ.IEL) J=I
          ENDDO
 C.. make sure we have an orbital of the correct spin
 C.. See if there's an orbital with the same energy
-         DO WHILE(G1(4,BRR(J)).EQ.G1(4,IEL).OR.IEL.EQ.BRR(J))
+         DO WHILE(G1(BRR(J))%Ms.EQ.G1(IEL)%Ms.OR.IEL.EQ.BRR(J))
             J=J+ISGN
             IF(J.LT.1) J=NBASIS
             IF(J.GT.NBASIS) J=1

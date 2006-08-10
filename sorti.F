@@ -133,3 +133,65 @@ C.. Based on SORTI, SORTIIARR sorts an arrays of integers and a 2D array of inte
         CALL ICOPY(NRB,RRB,1,RB(1,I),1)
       GO TO 10
       END
+C.. Based on SORTI, SORTSYMIARR sorts aan arrays of types whose first elements are symmetries and a 2D array of integers (ordering according to the symmetries)
+C.. RA is the array of types whose first element is a symmetry.
+C.. NRA is the length (in numbers of integers) of each element of NRA
+C.. RB is the 2D array of integers
+C.. NRB is the length of each row in RB
+      SUBROUTINE SORTSYMIARR(N,RA,NRA,RB,NRB)
+      IMPLICIT REAL*8 (A-H,O-Z) 
+      INTEGER N,I,L,IR,J
+      INTEGER RA(NRA,N)
+      INTEGER RB(NRB,N)
+      INTEGER RRA(NRA),RRB(NRB),NRB
+
+      LOGICAL SYMLT
+ 
+      IF(N.EQ.1) RETURN
+      L=N/2+1
+      IR=N
+10    CONTINUE
+        IF(L.GT.1)THEN
+          L=L-1
+          CALL ICOPY(NRA,RA(1,L),1,RRA,1)
+          CALL ICOPY(NRB,RB(1,L),1,RRB,1)
+        ELSE
+          CALL ICOPY(NRA,RA(1,IR),1,RRA,1)
+          CALL ICOPY(NRA,RA(1,1),1,RA(1,IR),1)
+          CALL ICOPY(NRB,RB(1,IR),1,RRB,1)
+          CALL ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
+          IR=IR-1
+          IF(IR.EQ.1)THEN
+            CALL ICOPY(NRA,RRA,1,RA(1,1),1)
+            CALL ICOPY(NRB,RRB,1,RB(1,1),1)
+            RETURN
+          ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J.LE.IR)THEN
+          IF(J.LT.IR)THEN
+            IF(SYMLT(RA(1,J),RA(1,J+1))) J=J+1
+          ENDIF
+          IF(SYMLT(RRA,RA(1,J)))THEN
+            CALL ICOPY(NRA,RA(1,J),1,RA(1,I),1)
+            CALL ICOPY(NRB,RB(1,J),1,RB(1,I),1)
+            I=J
+            J=J+J
+          ELSE
+            J=IR+1
+          ENDIF
+        GO TO 20
+        ENDIF
+        CALL ICOPY(NRA,RRA,1,RA(1,I),1)
+        CALL ICOPY(NRB,RRB,1,RB(1,I),1)
+      GO TO 10
+      END
+C.. Based on SORTSYMIARR, SORTSYMARR sorts an arrays of types whose first elements are symmetries ordering according to the symmetries
+C.. RA is the array of types whose first element is a symmetry.
+C.. NRA is the length (in numbers of integers) of each element of NRA
+      SUBROUTINE SORTSYMARR(N,RA,NRA)
+         IMPLICIT NONE
+         INTEGER N,NRA,RA(NRA)
+         CALL SORTSYMIARR(N,RA,NRA,0,0)
+      END

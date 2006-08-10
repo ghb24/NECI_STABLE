@@ -3,7 +3,9 @@ C.. TMAT has sometimes been hidden in ZIA
      &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM) 
       IMPLICIT NONE
       INCLUDE 'umatcache.inc'
-      INTEGER G1(5,*),ISS
+      INCLUDE 'basis.inc'
+      TYPE(BasisFn) G1(*)
+      INTEGER ISS
       REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER NDET1(NEL),NDET2(NEL)
@@ -39,9 +41,9 @@ C  JSS --access the <ij|ij> and <ij|ji> integrals directly.  Note J>I and how th
 C  stored in UMAT2D (see note in cpmddata.inc).   
       DO I=1,NEL-1
 C        SUM3=COULDAMP(NDET1(I),NHG)**2
-         IG1I=G1(4,NDET1(I))
+         IG1I=G1(NDET1(I))%Ms
         DO J=I+1,NEL
-          CALL CHK(IG1I,G1(4,NDET2(J)),IDS)
+          CALL CHK(IG1I,G1(NDET2(J))%Ms,IDS)
 CCC          SUM4=
 CCC     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
           SUM4=UMAT2D(ID(I),ID(J))

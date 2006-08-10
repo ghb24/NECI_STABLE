@@ -7,29 +7,27 @@ C.. This sets up variables, and calls the recursion
          INTEGER NEL,NHG,LMS,II
          INTEGER NMRKS(NEL,*)
          INTEGER BRR(NHG)
-         INTEGER G1(5,NHG)
-         INTEGER IPARITY(5)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(NHG),IParity,kJ
          LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
          INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
 C..  This will hold which determinant each electron is on at the moment
          INTEGER IELECS(NEL)
 C..  This will hold the spin of each electron
          INTEGER ISPINS(NEL)
-         INTEGER KJ(5),I
+         INTEGER I
             
 C.. Total number of determined determinants
          II=0
-         DO I=1,5
-            IF(TPARITY) THEN
-               KJ(I)=IPARITY(I)
-            ELSE
-               KJ(I)=0
-            ENDIF
-         ENDDO
-         IF(TSPN) THEN
-            KJ(4)=LMS
+         IF(TPARITY) THEN
+            kJ=IParity
          ELSE
-            KJ(4)=0 
+            CALL IAZZERO(kJ,BasisFNSize)
+         ENDIF
+         IF(TSPN) THEN
+            kJ%Ms=LMS
+         ELSE
+            kJ%Ms=0 
          ENDIF
 C.. Start with the first electron
          CALL GNDTS_R(NEL,NHG,BRR,NBASISMAX,
@@ -47,8 +45,8 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       INTEGER NEL,NHG,LMS,II
       INTEGER NMRKS(NEL,*)
       INTEGER BRR(NHG)
-      INTEGER G1(5,NHG)
-      INTEGER IPARITY(3)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFN) G1(nHG),iParity,kI,kJ,iPar
       LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
       INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
 
@@ -58,8 +56,6 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       INTEGER NI(NEL)
       INTEGER IELEC,IST,IEL,MSS,I,IP
 C.. This will hold the parity of the basis fn
-      INTEGER IPAR(3)
-      INTEGER KI(5),KJ(5)
       LOGICAL LCHKSYM
 C.. Iterate of the the spin basis functions available for this electron
 C.. I_(N+1) = I_N +1 .. NHG
@@ -67,7 +63,7 @@ C.. I_(N+1) = I_N +1 .. NHG
       IF(IELEC.GT.1) IST=IELECS(IELEC-1)+1
       DO IEL=IST,NHG
          IELECS(IELEC)=IEL
-         ISPINS(IELEC)=G1(4,BRR(IELECS(IELEC)))
+         ISPINS(IELEC)=G1(BRR(IELECS(IELEC)))%Ms
 C.. If we're on the last electron
          IF(NEL.EQ.IELEC) THEN
             DO I=1,NEL
@@ -75,13 +71,13 @@ C.. If we're on the last electron
             ENDDO
             CALL SORTI(NEL,NI)
             CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
-            IF(.NOT.TSPN) KI(4)=0
             IF(.NOT.TPARITY) THEN
                DO I=1,3
-                  KI(I)=0
+                  KI%k(I)=0
                ENDDO
-               KI(5)=0
+               KI%Sym%s=0
             ENDIF
+            IF(.NOT.TSPN) KI%Ms=0
             IF(LCHKSYM(KI,KJ)) THEN
                II=II+1
 C.. If we're generating rather than counting
