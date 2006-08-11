@@ -204,7 +204,7 @@ SEED <G_VMC_SEED>
     Random seed required for the MC routine.  This should be negative.  The default is -7
 
 BIAS <G_VMC_FAC>
-    Level bias for the MC routine.
+    Level bias for the MC routine. Positive biases toward larger graphs.  Negative towards smaller
 
 **If any of the options for MC are set and the vertex method is not MC, then an error is returned.**
 

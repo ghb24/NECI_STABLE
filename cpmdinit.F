@@ -112,14 +112,14 @@ C.. group
          INCLUDE 'sym.inc'
          INTEGER I,J,K
          INTEGER LABELS(2,NSTATES)
-         IF(TSPACEGP) THEN
-            NSYMLABELS=NSTATES
-         ELSE
+C         IF(TSPACEGP) THEN
+C            NSYMLABELS=NSTATES
+C         ELSE
             NSYMLABELS=0
             DO I=1,NSTATES
                IF(ROT_LABEL(I).GT.NSYMLABELS) NSYMLABELS=ROT_LABEL(I)
             ENDDO
-         ENDIF
+C         ENDIF
          CALL MEMORY(IP_SYMLABELCHARS,NSYMLABELS*NROT*2,'SYMLABELCH')
          CALL AZZERO(SYMLABELCHARS,NSYMLABELS*NROT*2)
          CALL MEMORY(IP_SYMLABELS,nSymLabels,'SYMLABELS')
@@ -130,27 +130,37 @@ C.. space group is more complex as we have separate translational and
 C.. rotational labels.  We will need to compare each pair of t&r labels
 C.. with a stored list.
             WRITE(6,*) "Using space group representation."
-            NSYMLABELS=0
+C            NSYMLABELS=0
+C            DO I=1,NSTATES
+C               DO K=1,NSYMLABELS
+C                  IF(LABELS(1,K).EQ.ROT_LABEL(I)
+C     &               .AND.LABELS(2,K).EQ.TRANS_LABEL(I)) THEN
+CC.. We can re-use the old label
+C                     SymClasses(I)=K
+C                     EXIT
+C                  ENDIF
+C               END DO
+C               IF(K.GT.NSYMLABELS) THEN
+C                  NSYMLABELS=K
+CC.. we've found a new symlabel - fill it
+C                  DO J=1,NROT
+CC.. Indices need to be inverted so cannot straight ICOPY
+C                     SYMLABELCHARS(J,K)=GROUP_CHAR(I,J)
+C                  ENDDO
+C                  SymClasses(I)=K
+C                  LABELS(1,K)=ROT_LABEL(I)
+C                  LABELS(2,K)=TRANS_LABEL(I)
+C               ENDIF
+C            ENDDO
             DO I=1,NSTATES
-               DO K=1,NSYMLABELS
-                  IF(LABELS(1,K).EQ.ROT_LABEL(I)
-     &               .AND.LABELS(2,K).EQ.TRANS_LABEL(I)) THEN
-C.. We can re-use the old label
-                     SymClasses(I)=K
-                     EXIT
-                  ENDIF
-               END DO
-               IF(K.GT.NSYMLABELS) THEN
-                  NSYMLABELS=K
-C.. we've found a new symlabel - fill it
+               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
+C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
-                     SYMLABELCHARS(J,K)=GROUP_CHAR(I,J)
+                     SYMLABELCHARS(J,ROT_LABEL(I))=GROUP_CHAR(I,J)
                   ENDDO
-                  SymClasses(I)=K
-                  LABELS(1,K)=ROT_LABEL(I)
-                  LABELS(2,K)=TRANS_LABEL(I)
                ENDIF
+               SymClasses(I)=ROT_LABEL(I)
             ENDDO
          ELSE
 C.. point group

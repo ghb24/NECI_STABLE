@@ -41,7 +41,7 @@ C.. product in the symmetry table, and OR that with the product.
          INCLUDE 'sym.inc'
          DO I=0,NSYM-1
             DO J=0,NSYM-1
-               WRITE(IUNIT,"(Z5,$)")SYMTABLE(I+1,J+1)
+               CALL WRITESYM(IUNIT,SYMTABLE(I+1,J+1),.FALSE.)
             ENDDO
             WRITE(IUNIT,*)
          ENDDO
@@ -1209,10 +1209,20 @@ C.. Initialize symmetry to take into account the core electrons
          TYPE(SYMMETRY) SYM
          LOGICAL LTERM
          INTEGER J
-         IF(NSYM.LT.32) THEN
+         IF(NSYM.LE.16) THEN
             WRITE(IUNIT,"(Z5,$)") SYM
-         ELSE
+         ELSEIF(NSYM.LE.24) THEN
+            WRITE(IUNIT,"(Z7,$)") SYM
+         ELSEIF(NSYM.LE.32) THEN
             WRITE(IUNIT,"(Z9,$)") SYM
+         ELSEIF(NSYM.LE.40) THEN
+            WRITE(IUNIT,"(Z11,$)") SYM
+         ELSEIF(NSYM.LE.48) THEN
+            WRITE(IUNIT,"(Z13,$)") SYM
+         ELSEIF(NSYM.LE.56) THEN
+            WRITE(IUNIT,"(Z15,$)") SYM
+         ELSE
+            WRITE(IUNIT,"(Z17,$)") SYM
          ENDIF
          IF(LTERM) WRITE(IUNIT,*)
       END
