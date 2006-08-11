@@ -157,7 +157,7 @@ C            ENDDO
 C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
-                     SYMLABELCHARS(J,ROT_LABEL(I))=GROUP_CHAR(I,J)
+                     SYMLABELCHARS(J,ROT_LABEL(I))=GROUP_CHAR(J,I)
                   ENDDO
                ENDIF
                SymClasses(I)=ROT_LABEL(I)

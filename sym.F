@@ -574,7 +574,7 @@ C.. First do a check for the format
                   IF(DIMAG(CHARS(J)).GT.1.D-2) THEN
 C.. write in terms of I.
                      IF(LREAL) THEN
-                        WRITE(IUNIT,"(G14.9,$)") " "
+                        WRITE(IUNIT,"(G14.9,A,$)") CHARS(J)," "
                      ELSE                        
                         IF(ABS(DIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
                            WRITE(IUNIT,"(A,$)") " -I "
