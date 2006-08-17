@@ -2566,7 +2566,7 @@ C.. we've got an orb which is not to be frozen
 C.. GG(I) is the new position in G of the (old) orb I
                GG(I)=K
 C.. copy the eigenvalue table to the new location
-               CALL ICOPY(5,G1(I),1,G2(K),1)
+               CALL ICOPY(BasisFNSize,G1(I),1,G2(K),1)
             ENDIF
          ENDDO
 C.. Now construct the new BRR and ARR
@@ -2675,7 +2675,7 @@ C.. Now setup the default symmetry to include the frozen electrons
          ENDDO
          CALL ICOPY(5,KSYM,1,NBASISMAX(1,6),1)
 C.. Copy the new G1 and BRR and ARR over the old ones
-         CALL ICOPY(5*NBASIS,G2,1,G1,1)
+         CALL ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)
          CALL DCOPY(NBASIS*2,ARR2,1,ARR,1)
 C.. Now reset the total number of orbitals

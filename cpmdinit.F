@@ -37,7 +37,7 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
 
 C         CALL FAKEEIGENVALUES
 
-         CALL IAZZERO(G1,LEN*5)
+         CALL IAZZERO(G1,LEN*BasisFNSize)
          ALL1D=.TRUE.
          DO I=1,NSTATES
            CALL DECOMPOSEREP(SYMLABELCHARS(1,SymClasses(I)),IDECOMP)
