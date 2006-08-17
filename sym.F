@@ -1187,8 +1187,10 @@ C.. Spin
 C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE SETUPSYM(NBASISMAX,ISYM)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,6),ISYM(5)
-         CALL ICOPY(5,NBASISMAX(1,6),1,ISYM,1)
+         INCLUDE 'sym.inc'
+         INTEGER NBASISMAX(5,6)
+         TYPE(BasisFN) ISym
+         ISym=FrozenSym
          RETURN
       END
 
@@ -1225,4 +1227,12 @@ C.. Initialize symmetry to take into account the core electrons
             WRITE(IUNIT,"(Z17,$)") SYM
          ENDIF
          IF(LTERM) WRITE(IUNIT,*)
+      END
+      SUBROUTINE SetupFreezeSym(Sym)
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         TYPE(Symmetry) Sym
+         CALL IAZZERO(FrozenSym,BasisFNSize)
+C.. Set to be totally symmetric
+         FrozenSym%Sym=Sym
       END

@@ -1,4 +1,5 @@
          INCLUDE 'symtypes.inc'
+         TYPE(BasisFN) FrozenSym
 C.. The number of symmetries (irreps), and a product table of irreps (the result being an irrep bitmask)
          INTEGER NSYM
          TYPE(Symmetry) SYMTABLE(NSYM,NSYM)

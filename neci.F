@@ -56,7 +56,7 @@ C.. NEL now includes all electrons, and we'll only want active later
       REAL*8 WH(*),WORK2(*),V2(*),RHO(*),SITAB(*),TKE(*),UMAT(*)
       INCLUDE 'basis.inc'
 
-
+      TYPE(Symmetry) FrzSym
       TYPE(BASISFN) G1(*)
 
 C..Cube arrays
@@ -333,7 +333,9 @@ C.. particle in box
       ENDIF
 C..         (.NOT.TREADINT)
 C.. Set the initial symmetry to be totally symmetric
-      NBASISMAX(5,6)=1
+      CALL IAZZERO(FrzSym,SymmetrySize)
+      FrzSym%s=1
+      CALL SetupFreezeSym(FrzSym)
 
 
 C.. we actually store twice as much in arr as we need.
@@ -2514,7 +2516,7 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          INTEGER IDIP,IDJP,IDKP,IDLP
          INTEGER IDA,IDB,SGN
          INTEGER FDET(NEL),NEL
-         INTEGER KSYM(5)
+         TYPE(Symmetry) KSYM
          REAL*8 GETUMATEL
          REAL*8 ALAT(3)
 C.. Just check to see if we're not in the middle of a degenerate set with the same sym
@@ -2669,11 +2671,9 @@ C.. the primed (...P) are the new versions
          ENDDO
          ENDIF
 C.. Now setup the default symmetry to include the frozen electrons
-         CALL SETUPSYM(NBASISMAX,KSYM)
-         DO I=1,NFROZEN
-            CALL ADDELECSYM(I,G1,NBASISMAX,KSYM)
-         ENDDO
-         CALL ICOPY(5,KSYM,1,NBASISMAX(1,6),1)
+C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
+         CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
+         CALL SetupFreezeSym(KSYM)
 C.. Copy the new G1 and BRR and ARR over the old ones
          CALL ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)
