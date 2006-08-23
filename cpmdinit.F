@@ -239,7 +239,7 @@ C.. delta_ij is the Dirac delta.
 C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
-     &      ECORE)
+     &      ECORE,TORDER,ARR,BRR)
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
@@ -254,11 +254,22 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          REAL*8 ECORE
          INTEGER NEL
          LOGICAL LCHKSYM
+         REAL*8 DIAGTMAT(NSTATES)
+         INTEGER STATEORDER(NSTATES)
+         LOGICAL TORDER
+         INTEGER BRR(NSTATES*2),NLOCK
+         REAL*8 ARR(NSTATES*2,2)
          CALL TISET('CPMDINIT2I',ISUB)
 
          ECORE=EIONION-NEL*NEL*XI/2.0
          WRITE(6,*) "Core Energy:", ECORE 
-         NSTATESUSED=NORBUSED/2
+         NLOCK=(NEL+1)/2
+         IF(TORDER) THEN
+C.. We have to cache all states, as we don't, as yet, know which ones we're going to freeze because we have to reorder.
+            NSTATESUSED=NSTATES
+         ELSE
+            NSTATESUSED=NORBUSED/2
+         ENDIF
          CALL SETUPUMATCACHE(NSTATESUSED)
          CALL CPMDGEN1EINTS(G1,CPMD1EINT)
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
@@ -268,41 +279,61 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
          CALL SETUPUMAT2D(G1)
          WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
-           DO J=I,NSTATESUSED
-             II=I*2-1
-             JJ=J*2-1
-             IF(LCHKSYM(G1(II),G1(JJ))) THEN
-              TOT=0.D0
-                 IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
-                 TOT=TOT-CPMD1EINT(I,J)
-                   DO K=1,NSTATES
-                      CALL CPMDGETOCC(K,F)
+            II=I*2-1
+            DO J=I,NSTATESUSED
+               JJ=J*2-1
+               IF(LCHKSYM(G1(II),G1(JJ))) THEN
+                  TOT=0.D0
+                  IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
+                  TOT=TOT-CPMD1EINT(I,J)
+                  DO K=1,NSTATES
+                     CALL CPMDGETOCC(K,F)
 C.. F now has the occupation number of state K
-                      IF(F.GT.1.D-5) THEN
+                     IF(F.GT.1.D-5) THEN
 C.. Get 4-index integral (ik|jk)
-                         IF(K.GT.NSTATESUSED) THEN
-                            WRITE(6,"(A,I2,A,F10.6)")"TOP FROZEN STATE "
+                        IF(K.GT.NSTATESUSED) THEN
+                           WRITE(6,"(A,I2,A,F10.6)")"TOP FROZEN STATE "
      &                          ,K," has occupation number ",F
-                            STOP "TOP FROZEN STATE OCCUPIED"
-                         ENDIF
-C                         WRITE(6,*) "U",I,K,J,K,F
-                         U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
-     &          I,K,J,K)
-C                         CALL INITFINDXI(I,K,J,K,U)
-C                         WRITE(6,*) F,U
-                         TOT=TOT-F*U
-                      ENDIF
-                   ENDDO
-                 TMAT(2*I-1,2*J-1)=TOT
-                 TMAT(2*I,2*J)=TOT
-                 TMAT(2*J-1,2*I-1)=TOT
-                 TMAT(2*J,2*I)=TOT
-                 WRITE(10,*) I,J,TOT
-              ENDIF
-           END DO
+                           STOP "TOP FROZEN STATE OCCUPIED"
+                        ENDIF
+                        U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
+     &                        I,K,J,K)
+                        TOT=TOT-F*U
+                     ENDIF
+                  ENDDO
+                  TMAT(II,JJ)=TOT
+                  TMAT(II+1,JJ+1)=TOT
+                  TMAT(JJ,II)=TOT
+                  TMAT(JJ+1,II+1)=TOT
+                  WRITE(10,*) I,J,TOT
+                  IF(I.EQ.J) THEN
+                     DIAGTMAT(I)=TOT
+                     STATEORDER(I)=I
+                  ENDIF
+               ENDIF
+            END DO
          END DO
+C.. Now we order it if we need to
+         IF(TORDER) THEN
+            WRITE(6,*) "Re-ordering CPMD orbitals according ",
+     &        "to one-electron energies."
+           CALL SORT2(NSTATESUSED-NLOCK,DIAGTMAT(NLOCK+1),
+     &         STATEORDER(NLOCK+1))
+C.. Now copy to BRR
+            DO I=1,NSTATES
+               BRR(2*I-1)=STATEORDER(I)*2-1
+               BRR(2*I)=STATEORDER(I)*2
+               ARR(2*I-1,1)=DIAGTMAT(I)
+               ARR(2*I,1)=DIAGTMAT(I)
+            ENDDO
+C.. we only need a translation table if we've reordered the states.
+C.. This should save some time in the UMAT lookup.
+            CALL SETUMATTRANS(STATEORDER)
+            CALL WRITEBASIS(6,G1,NSTATES*2,ARR,BRR)
+         ENDIF
 C.. Set the UMAT cache to cache normally again
          CALL SETUMATCACHEFLAG(0)
+         WRITE(6,*) "Finished TMAT"
          CLOSE(10)
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   

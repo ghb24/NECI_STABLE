@@ -126,13 +126,15 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
 
 
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER GIND,NBASISMAX(5,2)
-      IF(NBASISMAX(2,3).GT.0) THEN
-         ID=(GIND-1)/NBASISMAX(2,3)+1
-      ELSE
-         ID=(GIND-1)/2+1
-      ENDIF
+         IMPLICIT NONE
+         INCLUDE 'umatcache.inc'
+         INTEGER GIND,NBASISMAX(5,2),ID
+            IF(NBASISMAX(2,3).GT.0) THEN
+               ID=(GIND-1)/NBASISMAX(2,3)+1
+            ELSE
+               ID=(GIND-1)/2+1
+               IF(IP_TRANSTABLE.NE.0) ID=TRANSTABLE(ID)
+            ENDIF
       RETURN
       END
 
@@ -162,7 +164,15 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          CALL MEMORY(IP_UMAT2D,NSTATES*NSTATES,'UMAT2D')
          CALL CPMDANTISYMINTEL(G1,UMAT2D,NSTATES)
       END
-      
+     
+      SUBROUTINE SETUMATTRANS(TRANS)
+         IMPLICIT NONE
+         INCLUDE 'umatcache.inc'
+         INTEGER TRANS(NSTATES)
+         CALL MEMORY(IP_TRANSTABLE,NSTATES,'TRANSTABLE')
+         CALL ICOPY(NSTATES,TRANS,1,TRANSTABLE,1)
+      END
+ 
       SUBROUTINE DESTROYUMATCACHE
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
@@ -171,6 +181,12 @@ c        NSLOTS=MIN(NPAIRS, 1024)
             IP_UMATCACHE=0
             CALL FREEM(IP_UMATLABELS)
             IP_UMATLABELS=0
+            CALL FREEM(IP_UMAT2D)
+            IP_UMAT2D=0
+            IF(IP_TRANSTABLE.NE.0) THEN
+               CALL FREEM(IP_TRANSTABLE)
+               IP_TRANSTABLE=0
+            ENDIF
             WRITE(6,*) "UMAT Cache Statistics"
             WRITE(6,*) NHITS, " hits"
             WRITE(6,*) NMISSES, " misses"

@@ -158,6 +158,8 @@ C.. Encode the symmetry for the total spin in LMS
          IF(TPARITY) THEN
             WRITE(6,*) ' SYMMETRIES : ',(IPARITY(I),I=1,5)
          ENDIF
+         IF(THFORDER) WRITE(6,*)
+     &      "Ordering according to 1-electron energies."
       ELSEIF(TREADINT) THEN
 C.. we read in the integrals from FCIDUMP and ignore most config
 C..   
@@ -474,7 +476,7 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
                I=NHG-NTFROZEN
             ENDIF
             CALL CPMDINIT2INDINT(TMAT,NHG,I,NBASISMAX,
-     &         ISPINSKIP,G1,NEL,ECORE)
+     &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR)
          ELSEIF(TREADINT) THEN
             WRITE(6,*)
      &         ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
@@ -559,13 +561,13 @@ C.. If we are using an HF basis instead of our primitive basis, we need
 C.. to load in the coeffs of the HF eigenfunctions in terms of the
 C.. primitive basis.
 C.. We load the coeffs from a file HFBASIS
-         IF(THFBASIS.OR.THFCALC.OR.THFORDER) THEN
+         IF(THFBASIS.OR.THFCALC) THEN
             CALL MEMORY(IP_HFBASIS,NHG*NHG,'HFBASIS')
             CALL AZZERO(HFBASIS,NHG*NHG)
 C.. Allocate an array to store the HF Energies
             CALL MEMORY(IP_HFE,NHG,'HFE')
             CALL AZZERO(HFE,NHG)
-            IF(THFORDER.AND..NOT.THFBASIS) THEN
+            IF(THFORDER.AND.THFCALC.AND..NOT.THFBASIS) THEN
 C.. If we're not using HF, but just calculating the HF order
 C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 C.. re-order the orbitals and give us some energy)
@@ -579,7 +581,7 @@ C.. HF basis is NOT using the LMS value set in the input
      &         ECORE,TMAT,UMAT,HFE,HFBASIS,NHFIT,NEL,LMS,HFMIX,HFEDELTA,
      &            HFCDELTA,TRHF,IHFMETHOD,TREADHF,0.01D0,FDET,ILOGGING)
                CALL SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
-            ELSE
+            ELSEIF(THFBASIS) THEN
                CALL READHFBASIS(HFBASIS,HFE,G1,NBASIS)
                CALL SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
             ENDIF
@@ -594,7 +596,9 @@ C.. If in Hubbard, we generate site-spin occupations
                CALL GENSITESPINOCC(NBASIS,NBASIS/ISPINSKIP,ISPINSKIP,
      &            NBASISMAX,G1,NEL,LMS,BRR,HFBASIS)
             ENDIF
-
+C.. Now deallocate the HF arrays
+            CALL FREE(IP_HFBASIS)
+            CALL FREE(IP_HFE)
             CALL FLUSH(6)
          ENDIF
 
@@ -603,7 +607,7 @@ C.. If in Hubbard, we generate site-spin occupations
      &         " unfrozen virtuals."
             NTFROZEN=NTFROZEN+NHG-NEL
          ENDIF
-         IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0) THEN
+         IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.THFORDER) THEN
 C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 C.. TMAT and Ecore with the frozen orbitals factored in
 C..

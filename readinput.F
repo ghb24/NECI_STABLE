@@ -162,6 +162,11 @@
                 TUEG = .true.
             case("CPMD")
                 TCPMD = .true.
+                call readu(w)
+                select case(w)
+                case("ORDER")
+                    THFORDER = .true.
+                end select
             case default
                 call report ("System type "//trim(w)    
      &                       //" not valid",.true.)

@@ -32,7 +32,8 @@ SYSTEM <system type> [required]
                     BOX
                     HUBBARD
                     UEG
-One of these must be specified.  If READ or GENERIC is followed by ORDER, then a quick HF calculation is performed to give an ordering of the orbitals read in (THFORDER = .true.)
+                    CPMD
+One of these must be specified.  If READ or GENERIC is followed by ORDER, then a quick HF calculation is performed to give an ordering of the orbitals read in (THFORDER = .true.).  If CPMD is followed by ORDER, then the CPMD orbitals are ordered, not according to their CPMD eigenvalues, but instead according to their one-electron energies (i.e. with no exchange or correlation).
 
 ELECTRONS,NEL <NEL> [required]
 
