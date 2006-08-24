@@ -90,7 +90,12 @@ C.. Now generate a list of sym labels.
          DO I=1,NBASIS,2
 C.. place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
 C.. the log_2 of the symmetry bit string
+            IF(G1(I)%Sym%s.EQ.0) THEN
+C.. we don't have symmetry, so fake it.
+               SymClasses((I+1)/2)=1
+            ELSE
             SymClasses((I+1)/2)=INT(DLOG(G1(I)%Ms+0.D0)/DLOG(2.D0)+1.4)
+            ENDIF
          ENDDO
 C.. list the symmetry string of each sym label
          DO I=1,NSYM

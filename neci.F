@@ -364,48 +364,48 @@ C.. ordering.
          CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
       ELSE
 C.. Create plane wave basis functions
-      IG=0
-      DO I=NBASISMAX(1,1),NBASISMAX(1,2)
-        DO J=NBASISMAX(2,1),NBASISMAX(2,2)
-          DO K=NBASISMAX(3,1),NBASISMAX(3,2)
-            DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
-               G%k(1)=I
-               G%k(2)=J
-               G%k(3)=K
-               G$Ms=L
-               IF((THUB.AND.(TREAL.OR..NOT.TPBC))
-     &            .OR.KALLOWED(G,NBASISMAX)) THEN
-                 IG=IG+1
-                 IF(THUB) THEN
+         IG=0
+         DO I=NBASISMAX(1,1),NBASISMAX(1,2)
+           DO J=NBASISMAX(2,1),NBASISMAX(2,2)
+             DO K=NBASISMAX(3,1),NBASISMAX(3,2)
+               DO L=NBASISMAX(4,1),NBASISMAX(4,2),2
+                  G%k(1)=I
+                  G%k(2)=J
+                  G%k(3)=K
+                  G$Ms=L
+                  IF((THUB.AND.(TREAL.OR..NOT.TPBC))
+     &               .OR.KALLOWED(G,NBASISMAX)) THEN
+                    IG=IG+1
+                    IF(THUB) THEN
 C..Note for the Hubbard model, the t is defined by ALAT(1)!
-                    IF(TPBC) THEN
+                       IF(TPBC) THEN
                        CALL HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
-                    ELSE
+                       ELSE
                       CALL HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,SUM,TREAL)
+                       ENDIF
+                    ELSE
+                       SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+
+     &                   (K*K/ALAT(3)**2))
                     ENDIF
-                 ELSE
-                    SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+
-     &                (K*K/ALAT(3)**2))
-                 ENDIF
-                 ARR(IG)=SUM
-                 BRR(IG)=IG
+                    ARR(IG)=SUM
+                    BRR(IG)=IG
 C..These are the quantum numbers: n,l,m and sigma
-                 G1(IG)%K(1)=I
-                 G1(IG)%K(2)=J
-                 G1(IG)%K(3)=K
-                 G1(IG)%MS=L
-               ENDIF
-            ENDDO
-          ENDDO
-        ENDDO
-      ENDDO
+                    G1(IG)%K(1)=I
+                    G1(IG)%K(2)=J
+                    G1(IG)%K(3)=K
+                    G1(IG)%MS=L
+                  ENDIF
+               ENDDO
+             ENDDO
+           ENDDO
+         ENDDO
 C..Check to see if all's well
-      WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
-      NBASIS=IG
-      IF(LEN.NE.IG) THEN
-         WRITE(6,*) "LEN=",LEN,"IG=",IG
-         STOP ' LEN NE IG ' 
-      ENDIF
+         WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
+         NBASIS=IG
+         IF(LEN.NE.IG) THEN
+            WRITE(6,*) "LEN=",LEN,"IG=",IG
+            STOP ' LEN NE IG ' 
+         ENDIF
          CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
       ENDIF
 C..        (.NOT.TREADINT)
@@ -494,66 +494,65 @@ C... integrals will be the same
          ELSE
 C.. We need to init the arrays regardless of whether we're storing H
 C..Need to initialise the Fourier arrays
-         CALL MEMORY(IP_FCK,2*NMSH**3,'FCK')
-         CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
-         CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
+            CALL MEMORY(IP_FCK,2*NMSH**3,'FCK')
+            CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
+            CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
 C..
-         IF(NMAXZ.EQ.0) THEN
+            IF(NMAXZ.EQ.0) THEN
 C..   We're doing a 2D simulation
-            CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ZIA,ALAT,TALPHA,
-     &       ALPHA,OMEGA)
-         ELSE
-            CALL INITFOU(NMSH,FCK,COEFF,NMAX,ZIA,ALAT,TALPHA,
-     &       ALPHA,OMEGA)
-         ENDIF
-         ISPINSKIP=NBASISMAX(2,3)
-         IF(NBASISMAX(1,3).GE.0) THEN
+               CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ZIA,ALAT,TALPHA,
+     &            ALPHA,OMEGA)
+            ELSE
+               CALL INITFOU(NMSH,FCK,COEFF,NMAX,ZIA,ALAT,TALPHA,
+     &            ALPHA,OMEGA)
+            ENDIF
+            ISPINSKIP=NBASISMAX(2,3)
+            IF(NBASISMAX(1,3).GE.0) THEN
 C.. we pre-compute the 2-e integrals
-            WRITE(6,*) "Generating 2e integrals"
+               WRITE(6,*) "Generating 2e integrals"
 C.. Generate the 2e integrals (UMAT)
-            CALL MEMORY(IP_UMAT,(NHG/ISPINSKIP)**4,'UMAT')
-            CALL AZZERO(UMAT,(NHG/ISPINSKIP)**4)
-            IF(TUEG.OR.THUB) THEN
-               IF(THUB.AND.TREAL) THEN
+               CALL MEMORY(IP_UMAT,(NHG/ISPINSKIP)**4,'UMAT')
+               CALL AZZERO(UMAT,(NHG/ISPINSKIP)**4)
+               IF(TUEG.OR.THUB) THEN
+                  IF(THUB.AND.TREAL) THEN
 C.. Real space hubbard
-                  CALL CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
-     &            UMAT)
-               ELSEIF(THUB.AND..NOT.TPBC) THEN
+                     CALL CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
+     &                  UMAT)
+                  ELSEIF(THUB.AND..NOT.TPBC) THEN
 C.. Non-periodic hubbard (mom space)
-                  CALL GEN_COUL_HUBNPBC(NEL,NBASISMAX,NHG,G1,
-     &          NMSH,NMAX,FCK,ZIA,UMAT,ISPINSKIP,THUB,UHUB,OMEGA)
-               ELSE
+                     CALL GEN_COUL_HUBNPBC(NEL,NBASISMAX,NHG,G1,
+     &                 NMSH,NMAX,FCK,ZIA,UMAT,ISPINSKIP,THUB,UHUB,OMEGA)
+                  ELSE
 C.. Most normal Hubbards
-                  IF(.NOT.TUEG) THEN
-                     CALL GEN_COUL_UEG(NEL,NBASISMAX,NHG,G1,
+                     IF(.NOT.TUEG) THEN
+                        CALL GEN_COUL_UEG(NEL,NBASISMAX,NHG,G1,
      &          NMSH,NMAX,FCK,ZIA,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
-                  ENDIF
+                     ENDIF
 C.. The UEG doesn't store coul integrals
+                  ENDIF
+               ELSE
+                  CALL GEN_COUL(NEL,NBASISMAX,NHG,G1,
+     &               NMSH,NMAX,FCK,ZIA,UMAT,ISPINSKIP)
                ENDIF
             ELSE
-               CALL GEN_COUL(NEL,NBASISMAX,NHG,G1,
-     &          NMSH,NMAX,FCK,ZIA,UMAT,ISPINSKIP)
-
+               WRITE(6,*) "Not precomputing 2-e integrals"
+               CALL MEMORY(IP_UMAT,1,'UMAT')
             ENDIF
-         ELSE
-            WRITE(6,*) "Not precomputing 2-e integrals"
-            CALL MEMORY(IP_UMAT,1,'UMAT')
-         ENDIF
-         CALL MEMORY_CHECK()
+            CALL MEMORY_CHECK()
 C.. we need to generate TMAT
-         CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
-         CALL AZZERO(TMAT,NHG*NHG)
-         IF(THUB) THEN
-            CALL CALCTMATHUB(TMAT,NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
+            CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
+            CALL AZZERO(TMAT,NHG*NHG)
+            IF(THUB) THEN
+             CALL CALCTMATHUB(TMAT,NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
      &         TPBC)
-         ELSE
+            ELSE
 C..Cube multiplier
-            CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
+               CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
 C.. the UEG has k=2pi n/L rather than pi n/L, so we need to multiply the
 C.. KE up by 4
-            IF(NBASISMAX(1,1).LE.0) CST=CST*4
-            CALL CALCTMAT(TMAT,NBASIS,ALAT,G1,CST)
-         ENDIF
+               IF(NBASISMAX(1,1).LE.0) CST=CST*4
+               CALL CALCTMAT(TMAT,NBASIS,ALAT,G1,CST)
+            ENDIF
          ENDIF
 C..           (.NOT.TREADINT)
          FDET(1)=0
@@ -704,6 +703,7 @@ C.. single excitation
             ENDIF
          ENDIF
       ENDIF
+C           (.NOT.(TREAD.OR.TREADRHO))
 
 C.. Calculate relevant symmetry tables
       IF(TREADINT) THEN
@@ -718,7 +718,7 @@ C.. no symmetry, so a simple sym table
          CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
       ENDIF
 
-         WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
+      WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
       CALL WRITESYMTABLE(6)
 
       IF(TCSF.AND.TSPECDET) THEN

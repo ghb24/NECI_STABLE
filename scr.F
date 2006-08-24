@@ -44,13 +44,19 @@ C        SUM3=COULDAMP(NDET1(I),NHG)**2
          IG1I=G1(NDET1(I))%Ms
         DO J=I+1,NEL
           CALL CHK(IG1I,G1(NDET2(J))%Ms,IDS)
-CCC          SUM4=
-CCC     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
-          SUM4=UMAT2D(ID(I),ID(J))
+          IF(TUMAT2D) THEN
+             SUM4=UMAT2D(ID(I),ID(J))
+          ELSE
+            SUM4=
+     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
+          ENDIF
           IF(IDS.NE.0) THEN 
-              SUM4=SUM4-DFLOAT(IDS)*(UMAT2D(ID(J),ID(I)))
-CCC             SUM4=SUM4-DFLOAT(IDS)*
-CCC     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
+            IF(TUMAT2D) THEN
+               SUM4=SUM4-DFLOAT(IDS)*(UMAT2D(ID(J),ID(I)))
+            ELSE
+               SUM4=SUM4-DFLOAT(IDS)*
+     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
+            ENDIF
           ENDIF
           SUM2=SUM2+SUM4
 C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
