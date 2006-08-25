@@ -10,11 +10,17 @@
       LOGICAL TUMAT2D
       POINTER (IP_TRANSTABLE,TRANSTABLE)
       INTEGER TRANSTABLE(NSTATES)
-C.. UMATCACHEFLAG=0 is normal operation
-C.. UMATCACHEFLAG=1 means cache from bottom up
-C..      This is useful when lots of sequential pieces of data
-C..    are being sought.
+!.. UMATCACHEFLAG=0 is normal operation
+!.. UMATCACHEFLAG=1 means cache from bottom up
+!..      This is useful when lots of sequential pieces of data
+!..    are being sought.
       INTEGER UMATCACHEFLAG
-      COMMON /UMATCACHE/ NSLOTS,NPAIRS,IP_UMATCACHE,IP_UMATLABELS,
-     &   NSTATES,NSLOTSINIT,UMATCACHEFLAG,NHITS,NMISSES,IP_UMAT2D,
-     &   TUMAT2D,IP_TRANSTABLE
+         integer nAuxBasis,nBasisPairs
+         
+         Real*8 DFCoeffs(nAuxBasis,nBasisPairs)
+         Real*8 DFInts(nAuxBasis,nBasisPairs)
+         Pointer (IP_DFCoeffs,DFCoeffs)
+         Pointer (IP_DFInts,DFInts)
+      COMMON /UMATCACHE/ NSLOTS,NPAIRS,IP_UMATCACHE,IP_UMATLABELS,      &
+     &   NSTATES,NSLOTSINIT,UMATCACHEFLAG,NHITS,NMISSES,IP_UMAT2D,      &
+     &   TUMAT2D,IP_TRANSTABLE,nAuxBasis, nBasisPairs

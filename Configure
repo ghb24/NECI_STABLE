@@ -1068,13 +1068,13 @@ histogram.x : histogram.o \$(OBJECTS) \$(OBJ_CC)
 	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
 	 rm -f histogram.x
 	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/histogram.x histogram.x; fi
-	 \$(LD) -o \$(BIN)/histogram.x histogram.o timetag.o \$(OBJECTS) \$(OBJ_CC) input.o \$(LFLAGS)
+	 \$(LD) -o \$(BIN)/histogram.x histogram.o timetag.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
 
 neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 ld -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC) input.o
+	 ld -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 objcopy --keep-global-symbols=\$(SRC)/GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
 
 #----------------------------------------------------------------------------
@@ -1096,15 +1096,19 @@ clean :
 #----------------------------------------------------------------------------
 # Explicit rules
 #----------------------------------------------------------------------------
-ALLOBJECTS= \$(MAIN_OBJS) \$(OBJECTS) \$(OBJ_NOCPMDSTUB) input.mod
 .SUFFIXES:
-.SUFFIXES: .o .f .F .mod .F90
+.SUFFIXES: .o .f .F .mod .F90 .f90
 
-\$(ALLOBJECTS:.o=.f) : 
+\$(OBJECTSF:.o=.f) : 
 	rm -f \$@
-	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f=.F) \$(DEST)/\$@
+	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f=.F) \$(DEST)/\$@ 
+\$(OBJECTSF90:.o=.f90) : 
+	rm -f \$@
+	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f90=.F90) \$(DEST)/\$@
 .f.o :
-	\$(FC) \$(FFLAGS) \$<
+	\$(FC) \$(FFLAGS) \$< 
+.f90.o :
+	\$(FC) \$(FFLAGS) -Mfree \$<
 
 \$(OBJ_CC) :
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
@@ -1112,8 +1116,8 @@ ALLOBJECTS= \$(MAIN_OBJS) \$(OBJECTS) \$(OBJ_NOCPMDSTUB) input.mod
 util-sp.o :
 	\$(FCD) \$(FFLAGS) \$(DEST)/util-sp.f
 
-\$(DEST)/input.mod :
-	\$(FCD) -c \$(SRC)/input.F90
+%.mod :
+	\$(FC) -c -Mpreprocess  \$<
 
 #----------------------------------------------------------------------------
 
@@ -1124,7 +1128,7 @@ END
 echo "done." >&2
 
 printf "Create dependencies..." >&2
-FortranFiles=`ls *.F *.c`
+FortranFiles=`ls *.F *.c *.f90 *.F90`
 
 for name in ${FortranFiles}
 do
@@ -1135,6 +1139,7 @@ do
                OldInclude["pimd.inc"] = 0;
                OldInclude["mpif.h"] = 0;
                MaxLength=60;
+               linebuf="";
                ll = length(FILENAME);
                prefix = substr(FILENAME,1,ll-2);
                suffix = substr(FILENAME,ll-1,2);
@@ -1144,14 +1149,21 @@ do
                quote = sprintf("%c",39);
                if (suffix == ".F") {
                  line = sprintf("%s.f:", prefix);
-                 printf "%-16s%s/%s%s\n", line,src,prefix,suffix;
+                 printf "%-16s %s/%s%s\n", line,src,prefix,suffix;
                  suffix = ".f";
+               }
+               if (suffix == "90") {
+                 prefix = substr(FILENAME,1,ll-4);
+                 suffix = substr(FILENAME,ll-3,4);
+                 line = sprintf("%s.f90:", prefix);
+                 printf "%-16s %s/%s%s\n", line,src,prefix,suffix;
+                 suffix = ".f90";
                }
                line = sprintf("%s.o:", prefix);
                if (suffix == ".c") {
-                 line = sprintf("%-16s%s/%s%s",line,src,prefix,suffix);
+                 line = sprintf("%-16s %s/%s%s",line,src,prefix,suffix);
                } else {
-                 line = sprintf("%-16s%s%s",line,prefix,suffix);
+                 line = sprintf("%-16s %s%s",line,prefix,suffix);
                }
              }
        /^[ ]*INCLUDE/ || /^[ ]*include/ {
@@ -1169,11 +1181,6 @@ do
                if (no != 1) {
                  Ninclude=Ninclude+1;
                  OldInclude[Name] = 0;
-                 lline = length(line);
-                 if (lline+2 >= MaxLength) {
-                   printf "%s \\\n", line;
-                   line = sprintf("%-15s"," ");
-                 }
                  if (Name == "irat.inc") {
                    line=sprintf("%s %s/%s",line,dest,Name)
                  } else {
@@ -1182,8 +1189,14 @@ do
                }
        }
        /^[ ]*USE/ || /^[ ]*use/ {
-               split($0,a," *");
-               Name =  a[3] ".mod";
+               split($0,a,"[ ,]*");
+               if(a[1]=="use") {
+                  Name =  a[2] ".mod";
+               }
+               else
+               {
+                  Name =  a[3] ".mod";
+               }
                no = 0;
                if (Ninclude != 0) {
                  for ( Include in OldInclude ) {
@@ -1193,21 +1206,41 @@ do
                    }
                  }
                }
+               if (nModules != 0) {
+                 for ( Include in Modules ) {
+                   if (Include == Name ) { 
+                     no = 1;
+                     break;
+                   }
+                 }
+               }
                if (no != 1) {
                  Ninclude=Ninclude+1;
                  OldInclude[Name] = 0;
-                 lline = length(line);
-                 if (lline+2 >= MaxLength) {
-                   printf "%s \\\n", line;
-                   line = sprintf("%-15s"," ");
-                 }
-                 line=sprintf("%s %s/%s",line,dest,Name)
+                 line=sprintf("%s %s",line,Name)
                }
        }
-       END   { printf "%s\n", line }' ${name} >&3
+       /^[ ]*module/ || /^[ ]*MODULE/ {
+               split($0,a,"[ ,]*");
+               if(a[1]=="module") {
+                  Name =  a[2] ".mod";
+               }
+               else
+               {if(a[1]=="MODULE") {
+                  Name =  a[2] ".mod";
+               }
+               else
+                {
+                  Name =  a[3] ".mod";
+               }
+               }
+               Modules[Name]=1;
+               nModules=nModules+1
+               line=sprintf("%s %s",Name,line);
+      }
+       END   { printf "%s%s\n", linebuf,line }' ${name} >&3
 done
 
-echo "input.mod:     \$(SRC)/input.F90" >&3
 echo "done."  >&2
 echo "O.K." >&2
 exit 0

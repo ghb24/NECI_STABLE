@@ -29,11 +29,13 @@ SYSTEM <system type> [required]
     Starts system block.
     System types are:
                     READ,GENERIC
+                    DFREAD
                     BOX
                     HUBBARD
                     UEG
                     CPMD
-One of these must be specified.  If READ or GENERIC is followed by ORDER, then a quick HF calculation is performed to give an ordering of the orbitals read in (THFORDER = .true.).  If CPMD is followed by ORDER, then the CPMD orbitals are ordered, not according to their CPMD eigenvalues, but instead according to their one-electron energies (i.e. with no exchange or correlation).
+One of these must be specified.  If READ or GENERIC is followed by ORDER, then a quick HF calculation is performed to give an ordering of the orbitals read in (THFORDER = .true.).  If CPMD is followed by ORDER, then the CPMD orbitals are ordered, not according to their CPMD eigenvalues, but instead according to their one-electron energies (i.e. with no exchange or correlation). 
+   DFREAD reads in a set of density fitted coefficients and coulomb integrals from files SAV_DFaSOL and SAV_Ta_INT.  One-electron integrals are read in from XXX. 
 
 ELECTRONS,NEL <NEL> [required]
 

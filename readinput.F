@@ -10,7 +10,7 @@
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,ios)
+     &   TCPMD,ios,TDFREAD)
       USE input
       IMPLICIT REAL*8    (A-H,O-Z)
       INTEGER IPARITY(5)
@@ -18,7 +18,7 @@
      &   TREAD,TRHOOFR,TENERGY,TMC,TRHOIJ,TREADRHO,TMONTE,TTROT,  
      &   TBEGRAPH,THFBASIS,THUB,TNPDERIV,TMCDET,THFCALC,TTILT,    
      &   TBLOCK,TREADINT,TPBC,TREAL,TRHF,TREADHF,TSPECDET,TREADTUMAT,  
-     &   THFORDER,TCSF,TBETAP, eof,TCPMD
+     &   THFORDER,TCSF,TBETAP, eof,TCPMD,TDFREAD
       CHARACTER*255 INP
       INTEGER SPECDET(*)
 !
@@ -113,6 +113,7 @@
       TREADRHO = .false.
       TRHOIJ = .false.
       TBEGRAPH = .false.
+      TDFREAD=.false.
 
       IOBS=16
       JOBS=16
@@ -148,6 +149,14 @@
         case("SYSTEM")
             call readu(w)
             select case(w)
+            case("DFREAD")
+                TREADINT = .true.
+                TDFREAD = .true.
+                call readu(w)
+                select case(w)
+                case("ORDER")
+                    THFORDER = .true.
+                end select
             case("READ","GENERIC")
                 TREADINT = .true.
                 call readu(w)

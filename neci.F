@@ -9,7 +9,7 @@ C ==------------------------------------------------------------------==
      &   TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD)
+     &   TCPMD,TDFREAD)
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -69,7 +69,7 @@ C..Cube arrays
 C..
       INTEGER INDEX(*),ISCR(*)
       LOGICAL TSPN,TALPHA,TPARITY,TCORR,TFODM,TREAD,TRHOOFR,TENERGY,TMC,
-     &   TRHOIJ,TREADRHO,TMONTE,TTROT,TCALCHMAT,TRHOIJND,TUEG
+     &   TRHOIJ,TREADRHO,TMONTE,TTROT,TCALCHMAT,TRHOIJND,TUEG,TDFREAD
       REAL*8 RH,ETRIAL,ECORE
       REAL*8 RHOIJ(*),RHOIJ1(*),RHOIJ2(*)
       INTEGER RHOIJLAB(*),RHOIJROWS(*)
@@ -168,15 +168,20 @@ C..
             THUB=.FALSE.
             WRITE(6,*) "Setting THUB=.FALSE."
          ENDIF
-         LMSBASIS=LMS
-         CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS)
+         IF(TDFREAD) THEN
+            WRITE(6,*) "Reading Density fitted integrals."
+            LMSBASIS=LMS
+            CALL InitDFBasis(nEl,nBasisMax,Len,LMsBasis)
+         ELSE
+            LMSBASIS=LMS
+            CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS)
 C.. say we're a UHF det so all singles are 0
             IF(LMS.EQ.0) THEN
                NBASISMAX(4,5)=1
             ELSE
                NBASISMAX(4,5)=2
             ENDIF
-         
+         ENDIF 
       ELSE   
 
       IF(TUEG) THEN
@@ -356,6 +361,12 @@ C.. ordering.
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
          NBASIS=LEN
          NHG=LEN
+      ELSEIF(TREADINT.AND.TDFREAD) THEN
+         WRITE(6,*) ' *** Creating Basis Fns from Dalton output ***'
+         call InitDaltonBasis(nBasisMax,Arr,Brr,G1,Len)
+         nBasis=Len
+         nHG=Len
+         call GenMolpSymTable(1,G1,nBasis,Arr,Brr)
       ELSEIF(TREADINT) THEN
          WRITE(6,*) ' *** CREATING BASIS FNs FROM FCIDUMP *** '
          CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN) 
@@ -477,6 +488,11 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             ENDIF
             CALL CPMDINIT2INDINT(TMAT,NHG,I,NBASISMAX,
      &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR)
+         ELSEIF(TREADINT.AND.TDFREAD) THEN
+            CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
+            CALL AZZERO(TMAT,NHG*NHG)
+            Call ReadDalton1EIntegrals(TMAT,nBasis)
+            Call ReadDF2EIntegrals(nBasis)
          ELSEIF(TREADINT) THEN
             WRITE(6,*)
      &         ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
