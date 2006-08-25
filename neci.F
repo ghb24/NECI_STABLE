@@ -500,6 +500,7 @@ C.. Generate the 2e integrals (UMAT)
             NBASISMAX(2,3)=2
 C.. We can only do restricted systems, so alpha and beta spinorbital
 C... integrals will be the same 
+            WRITE(6,*) "Allocating UMAT:", NHG/2, "^4"
             CALL MEMORY(IP_UMAT,(NHG/2)**4,'UMAT')
             CALL AZZERO(UMAT,(NHG/2)**4)
             CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')

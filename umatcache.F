@@ -21,82 +21,68 @@ C         RETURN
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
+            IF(ISS.EQ.0) THEN
 C  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
 C.. Remember permutations
 C.. <ij|ji> = <ii|jj>
-         IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
-C..  <ii|ii>
-             GETUMATEL=UMAT2D(IDI,IDI)
-             CALL TIHALT(' GETUMATEL',ISUB)
-             RETURN
-         ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL) THEN
-C.. <ij|ij>
-             I=MIN(IDI,IDJ)
-             J=MAX(IDI,IDJ)
-             GETUMATEL=UMAT2D(I,J)
-             CALL TIHALT(' GETUMATEL',ISUB)
-             RETURN
-         ELSE IF (IDI.eq.IDL.and.IDJ.eq.IDK) THEN
+               IF (IDI.eq.IDK.and.IDJ.eq.IDL.and.IP_UMAT2D.ne.0) THEN
+C.. <ij|ij> and <ii|ii>
+                  I=MIN(IDI,IDJ)
+                  J=MAX(IDI,IDJ)
+                  GETUMATEL=UMAT2D(I,J)
+             ELSE IF (IDI.eq.IDL.and.IDJ.eq.IDK.and.IP_UMAT2D.ne.0) THEN
 C.. <ij|ji>
-             I=MAX(IDI,IDJ)
-             J=MIN(IDI,IDJ)
-             GETUMATEL=UMAT2D(I,J)
-             CALL TIHALT(' GETUMATEL',ISUB)
-             RETURN
-         ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL) THEN
+                  I=MAX(IDI,IDJ)
+                  J=MIN(IDI,IDJ)
+                  GETUMATEL=UMAT2D(I,J)
+             ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.and.IP_UMAT2D.ne.0) THEN
 C.. <ii|jj> = <ij|ji>
-             I=MAX(IDI,IDK)
-             J=MIN(IDI,IDK)
-             GETUMATEL=UMAT2D(I,J)
-             CALL TIHALT(' GETUMATEL',ISUB)
-             RETURN
-         ELSE
+                  I=MAX(IDI,IDK)
+                  J=MIN(IDI,IDK)
+                  GETUMATEL=UMAT2D(I,J)
+               ELSE
 C  /JSS             
-            IF(ISS.EQ.0) THEN
 C.. Check to see if the umat element is in the cache
-               I=IDI
-               J=IDJ
-               K=IDK
-               L=IDL
-               SYM%s=1
-               SYM=SYMPROD(SYM,G1(I*2-1)%Sym)
-               SYM=SYMPROD(SYM,G1(J*2-1)%Sym)
-               SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
-               SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
+                  I=IDI
+                  J=IDJ
+                  K=IDK
+                  L=IDL
+                  SYM%s=1
+                  SYM=SYMPROD(SYM,G1(I*2-1)%Sym)
+                  SYM=SYMPROD(SYM,G1(J*2-1)%Sym)
+                  SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
+                  SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
 C.. Check the symmetry of the 4-index integrals
-               IF(.NOT.LSYMSYM(SYM)) THEN
-                  GETUMATEL=0.D0
-                  CALL TIHALT(' GETUMATEL',ISUB)
-                  RETURN
-               ENDIF
-               
-               IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B))
-     &             THEN
+                  IF(.NOT.LSYMSYM(SYM)) THEN
+                     GETUMATEL=0.D0
+                  ELSE 
+                     IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,
+     &                  ICACHE,ICACHEI,A,B)) THEN
 C                  WRITE(6,*) "MISS",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
 C.. We don't have a stored UMAT - we call to generate it.
-                  CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
+                        CALL INITFINDXI(IDI,IDJ,IDK,IDL,GETUMATEL)
 C JSS: Elements <ij|ij> and <ii|ii> are no longer stored in the cache.
 C                 IF(I.EQ.K.AND.J.EQ.L)
 C    &               GETUMATEL=GETUMATEL-XI
-                  CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
-     &               ICACHEI)
-                  NMISSES=NMISSES+1
-               ELSE
+                        CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
+     &                     ICACHEI)
+                        NMISSES=NMISSES+1
+                     ELSE
 C                  WRITE(6,*) "HIT ",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
-                  NHITS=NHITS+1
-               ENDIF
+                        NHITS=NHITS+1
+                     ENDIF
 C               GETUMATEL=0.5D0
+                   ENDIF
+               ENDIF
             ELSE
                GETUMATEL=UMAT(IDI+(NHG/ISS)*(IDJ-1+
      &                     (NHG/ISS)*(IDK-1+(NHG/ISS)*(IDL-1))))
             ENDIF
             CALL TIHALT(' GETUMATEL',ISUB)
             RETURN
-         ENDIF
-         END IF   
-         IF(NBASISMAX(1,3).EQ.-1) THEN
+         ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
             I=(IDI-1)*ISS+1
             J=(IDJ-1)*ISS+1
             K=(IDK-1)*ISS+1

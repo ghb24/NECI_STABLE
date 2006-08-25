@@ -68,21 +68,20 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
-         INTEGER SYMT2(NSYMMAX,NSYMMAX)
+         TYPE(Symmetry) SYMT2(NSYMMAX,NSYMMAX)
          POINTER (IP_SYMT2,SYMT2)
          
 
 C.. Setup the symmetry product table
          NSYM=NSYMMAX
-         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM,'SYMTABLE')
+         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
          IP_SYMT2=IP_SYMTABLE
-         CALL IAZZERO(SYMTABLE,NSYM*NSYM)
+         CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
          DO I=0,NSYM-1
             DO J=0,NSYM-1
-               SYMT2(I+1,J+1)=IBSET(0,IEOR(I,J))
+               SYMT2(I+1,J+1)%s=IBSET(0,IEOR(I,J))
             ENDDO
          ENDDO
-
 C.. Now generate a list of sym labels.
          CALL MEMORY(IP_SYMLABELS,NSYM*SymmetrySize,"SYMLABELS")
          CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
@@ -94,7 +93,7 @@ C.. the log_2 of the symmetry bit string
 C.. we don't have symmetry, so fake it.
                SymClasses((I+1)/2)=1
             ELSE
-            SymClasses((I+1)/2)=INT(DLOG(G1(I)%Ms+0.D0)/DLOG(2.D0)+1.4)
+          SymClasses((I+1)/2)=INT(DLOG(G1(I)%Sym%s+0.D0)/DLOG(2.D0)+1.4)
             ENDIF
          ENDDO
 C.. list the symmetry string of each sym label

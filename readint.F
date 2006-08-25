@@ -37,7 +37,7 @@ C.. SHow that there's no momentum conservation
          REAL*8 Z
          INTEGER I,J,K,L
          INTEGER ISYMNUM,ISNMAX
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
@@ -81,17 +81,19 @@ C.. set momentum to 0
             G1(2*I-1)%Ms=-1
             G1(2*I)%Ms=1
          ENDDO
-         IF(ISNMAX.EQ.1) THEN
-         ELSEIF(ISNMAX.LE.2) THEN
-         ELSEIF(ISNMAX.LE.4) THEN
-            ISNMAX=4
+         SYMMAX=ORBSYM(LEN)
+         IF(SYMMAX.EQ.1) THEN
+         ELSEIF(SYMMAX.LE.2) THEN
+         ELSEIF(SYMMAX.LE.4) THEN
+            SYMMAX=4
          ELSEIF(ISNMAX.LE.8) THEN
-            ISNMAX=8
+            SYMMAX=8
          ENDIF
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
          NBASISMAX(5,1)=0
-         NBASISMAX(5,2)=ORBSYM(NORB)-1
+         NBASISMAX(5,2)=SYMMAX-1
+CORBSYM(NORB)-1
 CISNMAX-1
          NBASISMAX(2,1)=0
 C         NBASISMAX(2,2)=ORBSYM(NORB)-1
@@ -116,15 +118,6 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
 C.. 2-e integrals
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-CC            UMAT(I,K,J,L)=Z
-CC            UMAT(J,L,I,K)=Z
-CC            UMAT(K,I,L,J)=Z
-CC            UMAT(L,J,K,I)=Z
-CC            UMAT(J,K,I,L)=Z
-C            UMAT(I,K,J,L)=Z
-CC            UMAT(L,I,K,J)=Z
-CC            UMAT(K,J,L,I)=Z
-
             UMAT(I,K,J,L)=Z
             UMAT(J,L,I,K)=Z
             UMAT(K,I,L,J)=Z
@@ -137,12 +130,8 @@ CC            UMAT(K,J,L,I)=Z
 C.. 1-e integrals
 C.. These are stored as spinorbitals
             TMAT(2*I-1,2*J-1)=Z
-C            TMAT(2*I-1,2*J)=Z
-C            TMAT(2*I,2*J-1)=Z
             TMAT(2*I,2*J)=Z
             TMAT(2*J-1,2*I-1)=Z
-C            TMAT(2*J-1,2*I)=Z
-C            TMAT(2*J,2*I-1)=Z
             TMAT(2*J,2*I)=Z
          ELSE
             ECORE=Z
