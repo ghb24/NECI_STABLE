@@ -90,6 +90,30 @@ C.. pluses first then minuses
          RETURN
       END
          
+C.. Return true if two csfs have the same spin sym.
+      LOGICAL FUNCTION CSFCHKSPINSYM(NCI,NCJ,NEL)
+         IMPLICIT NONE
+         INTEGER NEL,NCI(NEL),NCJ(NEL)
+
+         INTEGER ICLOSEDI(NEL),NCLOSEDI,IOPENI(NEL),NOPENI,SZI,SI,
+     &      SORDERI(NEL)
+         INTEGER ICLOSEDJ(NEL),NCLOSEDJ,IOPENJ(NEL),NOPENJ,SZJ,SJ,
+     &      SORDERJ(NEL)
+         INTEGER I,J,K
+         INTEGER ICMPDETS
+         
+C         IEXLEVEL=1
+C         RETURN
+         CALL CSFGETCSFDATA(NCI,NEL,ICLOSEDI,NCLOSEDI,IOPENI,NOPENI,SZI,
+     &      SI,SORDERI)
+         CALL CSFGETCSFDATA(NCJ,NEL,ICLOSEDJ,NCLOSEDJ,IOPENJ,NOPENJ,SZJ,
+     &      SJ,SORDERJ)
+         CSFCHKSPINSYM=.TRUE.
+         IF(SZI.NE.SZJ) CSFCHKSPINSYM=.FALSE.
+         IF(SI.NE.SJ) CSFCHKSPINSYM=.FALSE.
+         RETURN
+      END
+
       SUBROUTINE GETCSFEXCITLEVEL(NCI,NCJ,NEL,IEXLEVEL)
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL),NCJ(NEL),IEXLEVEL
@@ -792,6 +816,13 @@ C.. Get the Hamiltonian Element between two CSFs
          REAL*8 COEFF1,COEFF2,HEL
          REAL*8 COEFFLIST2(*)
          POINTER (IP_COEFFLIST2,COEFFLIST2)
+         
+         LOGICAL CSFCHKSPINSYM
+         IF(.NOT.CSFCHKSPINSYM(NCI,NCJ,NEL)) THEN
+C.. If the Ms or S values differ, we return 0.
+            SUM=0.D0
+            RETURN
+         ENDIF
 C.. The SORDERS for dets 1 and 2
          CALL TISET('CSFGETHELE',ISUB)
 
