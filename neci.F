@@ -618,6 +618,21 @@ C.. Now deallocate the HF arrays
             CALL FLUSH(6)
          ENDIF
 
+C.. Calculate relevant symmetry tables
+         IF(TREADINT) THEN
+C.. we're reading in integrals and have a molpro symmetry table
+            CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
+         ELSEIF(TCPMD) THEN
+C.. If TCPMD, then we've generated the symmetry table earlier,
+C.. but we still need the sym reps table
+            CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
+         ELSE
+C.. no symmetry, so a simple sym table
+            CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
+         ENDIF
+
+         WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
+         CALL WRITESYMTABLE(6)
          IF(NTFROZEN.LT.0) THEN
             WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN,
      &         " unfrozen virtuals."
@@ -719,24 +734,13 @@ C.. single excitation
                ENDIF
             ENDIF
          ENDIF
+      ELSE
+C.. if reading in FCI solutions, then 
+C.. no symmetry, so a simple sym table
+            CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
       ENDIF
 C           (.NOT.(TREAD.OR.TREADRHO))
 
-C.. Calculate relevant symmetry tables
-      IF(TREADINT) THEN
-C.. we're reading in integrals and have a molpro symmetry table
-         CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
-      ELSEIF(TCPMD) THEN
-C.. If TCPMD, then we've generated the symmetry table earlier,
-C.. but we still need the sym reps table
-         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
-      ELSE
-C.. no symmetry, so a simple sym table
-         CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
-      ENDIF
-
-      WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
-      CALL WRITESYMTABLE(6)
 
       IF(TCSF.AND.TSPECDET) THEN
          WRITE(6,*) "TSPECDET set.  SPECDET is"

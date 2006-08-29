@@ -815,16 +815,22 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
          CALL CSFGENOPENDETS(NCI,NEL,LISTD1,DOLISTD1,SO1,1,NDETS1)
          CALL CSFGENOPENDETS(NCJ,NEL,LISTD2,DOLISTD2,SO2,1,NDETS2)
 
-C         WRITE(6,*) "GHEL"
-C         CALL WRITEDET(6,NCI,NEL,.TRUE.)
-C         DO I=1,NDETS1
-C            CALL CSFGETDETCOEFF(SO1,DOLISTD1((I-1)*NOPEN1+1),NOPEN1,
-C     &         COEFF1)
-C            CALL WRITEDET(6,LISTD1(1,I),NEL,.FALSE.)
-C            WRITE(6,*) COEFF1
-C         ENDDO
+!         WRITE(6,*) "GHEL"
+!         CALL WRITEDET(6,NCI,NEL,.TRUE.)
+!         DO I=1,NDETS1
+!            CALL CSFGETDETCOEFF(SO1,DOLISTD1((I-1)*NOPEN1+1),NOPEN1,
+!     &         COEFF1)
+!            CALL WRITEDET(6,LISTD1(1,I),NEL,.FALSE.)
+!            WRITE(6,*) COEFF1
+!         ENDDO
          
-C         CALL WRITEDET(6,NCJ,NEL,.TRUE.)
+!         CALL WRITEDET(6,NCJ,NEL,.TRUE.)
+!         DO I=1,NDETS2
+!            CALL CSFGETDETCOEFF(SO1,DOLISTD2((I-1)*NOPEN2+1),NOPEN2,
+!     &         COEFF2)
+!            CALL WRITEDET(6,LISTD2(1,I),NEL,.FALSE.)
+!            WRITE(6,*) COEFF2
+!         ENDDO
          SUM=0.D0
          DO I=1,NDETS1
             CALL CSFGETDETCOEFF(SO1,DOLISTD1((I-1)*NOPEN1+1),NOPEN1,
@@ -834,8 +840,8 @@ C         CALL WRITEDET(6,NCJ,NEL,.TRUE.)
                IF(I.EQ.1) THEN
                   CALL CSFGETDETCOEFF(SO2,DOLISTD2((J-1)*NOPEN2+1),
      &               NOPEN2,COEFF2)
-C                  CALL WRITEDET(6,LISTD2(1,J),NEL,.FALSE.)
-C                  WRITE(6,*) COEFF2
+!                  CALL WRITEDET(6,LISTD2(1,J),NEL,.FALSE.)
+!                  WRITE(6,*) COEFF2
                   COEFFLIST2(J)=COEFF2
                ELSE
                   COEFF2=COEFFLIST2(J)
@@ -874,7 +880,9 @@ C..  refer to as long as they are always ordered)
             S=S+SCUR-0.5D0
             M=M+MCUR-0.5D0
             CALL GETCLEBSCHGORDON(S,M,SCUR,MCUR,CG)
+!            WRITE(6,"(F6.3,A,$)") CG,"*"
             COEFF=COEFF*CG
+            IF(COEFF.EQ.0.D0) EXIT
          ENDDO
          RETURN
       END

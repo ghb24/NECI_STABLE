@@ -45,6 +45,9 @@ C.. product in the symmetry table, and OR that with the product.
             ENDDO
             WRITE(IUNIT,*)
          ENDDO
+         IF(NSYM.EQ.0) THEN
+            WRITE(6,*) "No Symmetry table found."
+         ENDIF 
       END
 
       LOGICAL FUNCTION LSYMSYM(ISYM)

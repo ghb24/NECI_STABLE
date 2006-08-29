@@ -62,7 +62,7 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
 C.. At the moment we're ignoring the core energy
          GOTO 1
 99       CONTINUE
-         DO I=1,LEN
+         DO I=1,LEN/2
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
 C            G1(1,2*I-1)=ISYMNUM-1
@@ -81,7 +81,7 @@ C.. set momentum to 0
             G1(2*I-1)%Ms=-1
             G1(2*I)%Ms=1
          ENDDO
-         SYMMAX=ORBSYM(LEN)
+         SYMMAX=ORBSYM(LEN/2)
          IF(SYMMAX.EQ.1) THEN
          ELSEIF(SYMMAX.LE.2) THEN
          ELSEIF(SYMMAX.LE.4) THEN
