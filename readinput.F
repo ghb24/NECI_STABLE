@@ -530,6 +530,8 @@ C                  end select
                       end select
                   case("STANDARD")
                       IHFMETHOD = 0
+                  case("MODIFIED")
+                     IHFMETHOD=3
                   case default
                       call report(trim(w)//" not valid HF method", 
      &                 .true.)

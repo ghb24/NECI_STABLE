@@ -272,6 +272,8 @@ HFMETHOD <HFMETTHOD>
         Use normal HF process.
     DESCENT <SINGLES,OTHER>
         Use singles or other gradient descent.
+    MODIFIED
+        Modify virtuals - under test
 
 READ <MATRIX BASIS>
     Read in U matrix and/or HF basis.
