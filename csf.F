@@ -89,7 +89,22 @@ C.. pluses first then minuses
          ENDDO 
          RETURN
       END
+      
+C.. Get an (S, Sz) encoded LMS from a CSF
+      SUBROUTINE CSFGETSPIN(NCI,NEL,LMS) 
+         IMPLICIT NONE
+         INTEGER NEL,NCI(NEL)
+         INTEGER LMS
+         INCLUDE 'csf.inc'
+
+         INTEGER ICLOSEDI(NEL),NCLOSEDI,IOPENI(NEL),NOPENI,SZI,SI,
+     &      SORDERI(NEL)
          
+         CALL CSFGETCSFDATA(NCI,NEL,ICLOSEDI,NCLOSEDI,IOPENI,NOPENI,SZI,
+     &      SI,SORDERI)
+         LMS=SI*CSF_NBSTART+SZI
+         RETURN
+      END        
 C.. Return true if two csfs have the same spin sym.
       LOGICAL FUNCTION CSFCHKSPINSYM(NCI,NCJ,NEL)
          IMPLICIT NONE

@@ -322,12 +322,18 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
          TYPE(Symmetry) SYMPROD
+         LOGICAL ISCSF,ISC
          I=1
          CALL IAZZERO(NREPS,NEL)
          CALL SETUPSYM(NBASISMAX,ISYM)
-         DO I=1,NEL
-            CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)
-         ENDDO
+         ISC=ISCSF(NI2)
+         IF(ISC) THEN
+            DO I=1,NEL
+               CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)
+            ENDDO
+         ELSE
+            CALL ICOPY(NEL,NI2,1,NI,1)
+         ENDIF
          DO I=1,NEL
 C.. Count all electrons in each rep
 C.. NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
@@ -363,6 +369,7 @@ C.. add the momentum
          ENDDO
 C.. round the momentum
          CALL ROUNDSYM(ISYM,NBASISMAX)
+         IF(ISC) CALL CSFGETSPIN(NI2,NEL,ISYM%Ms) 
          RETURN
       END
 
