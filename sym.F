@@ -326,7 +326,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          I=1
          CALL IAZZERO(NREPS,NEL)
          CALL SETUPSYM(NBASISMAX,ISYM)
-         ISC=ISCSF(NI2)
+         ISC=ISCSF(NI2,NEL)
          IF(ISC) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)
