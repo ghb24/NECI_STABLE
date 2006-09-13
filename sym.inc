@@ -53,9 +53,10 @@ C.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of states whose prod
          POINTER (IP_SymStatePairs,SymStatePairs)
          POINTER (IP_SYMPAIRPRODS,SYMPAIRPRODS)
          LOGICAL TNEWEXCITATIONS
-         COMMON/SYM/ IP_SYMTABLE,NSYM,IP_SYMREPS,NROT,NSYMLABELS,
-     &               IP_SYMLABELS,IP_SYMLABELCHARS,IP_IRREPCHARS,
-     &               IP_SymStatePairs,
-     &               IP_SYMPAIRPRODS,NSYMPAIRPRODS,
-     &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,
-     &               TNEWEXCITATIONS,IP_SymClasses
+         COMMON/SYM/ IP_SYMTABLE,NSYM,IP_SYMREPS,NROT,NSYMLABELS,       &
+     &               IP_SYMLABELS,IP_SYMLABELCHARS,IP_IRREPCHARS,       &
+     &               IP_SymStatePairs,                                  &
+     &               IP_SYMPAIRPRODS,NSYMPAIRPRODS,                     &
+     &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,                 &
+     &               TNEWEXCITATIONS,IP_SymClasses,                     &
+     &               FrozenSym

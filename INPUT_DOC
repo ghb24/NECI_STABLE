@@ -45,8 +45,10 @@ SPIN-RESTRICT <LMS> [default off.  default LMS=0]
 CSF <STOT> [default off.  default STOT=0]
     If specified, work in CSFs rather than determinants.  CSFs might not function properly for some monte carlo, but should work for vertex sums and diagonalization.   STOT is twice the magnitude of spin to restrict the resultant space
 
-SYM <SYM(I), I=1,3> [default off.  default SYM=(0,0,0)]
+SYM <SYM(I), I=1,3> <SYM(5)> [default off.  default SYM=(0,0,0,,0)]
    If specified, limit the working space to space with the specified symmetry quantum numbers.
+   The final quantum number corresponds to the irrep symmetry.  If working in an Abelian group, this symmetry achieved is 2**SYM(5), which 
+     corresponds to irrep SYM(5)+1.  SYM(5)=0 corresponds to the totally symmetric rep. This will not function without Abelian (1D) symmetry. 
 
 CELL <NMAXX NMAXY NMAXZ> [required for HUBBARD, UEG, and BOX]
    Maximum basis functions for each dimension.  For HUBBARD and UEG, functions range from -NMAX to NMAX, but for BOX, they range from 1 to NMAX

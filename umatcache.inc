@@ -23,4 +23,5 @@
          Pointer (IP_DFInts,DFInts)
       COMMON /UMATCACHE/ NSLOTS,NPAIRS,IP_UMATCACHE,IP_UMATLABELS,      &
      &   NSTATES,NSLOTSINIT,UMATCACHEFLAG,NHITS,NMISSES,IP_UMAT2D,      &
-     &   TUMAT2D,IP_TRANSTABLE,nAuxBasis, nBasisPairs
+     &   TUMAT2D,IP_TRANSTABLE,nAuxBasis, nBasisPairs,IP_DFCoeffs,      &
+     &   IP_DFInts

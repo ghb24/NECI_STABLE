@@ -39,6 +39,7 @@ C.. product in the symmetry table, and OR that with the product.
          IMPLICIT NONE
          INTEGER IUNIT,I,J
          INCLUDE 'sym.inc'
+         
          DO I=0,NSYM-1
             DO J=0,NSYM-1
                CALL WRITESYM(IUNIT,SYMTABLE(I+1,J+1),.FALSE.)
@@ -73,7 +74,9 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          REAL*8 ARR(NBASIS)
          TYPE(Symmetry) SYMT2(NSYMMAX,NSYMMAX)
          POINTER (IP_SYMT2,SYMT2)
-         
+        
+         WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",  &
+     &      INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4), " generators" 
 
 C.. Setup the symmetry product table
          NSYM=NSYMMAX
@@ -160,7 +163,6 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,I)=J
          ENDDO
-         CALL GENSymStatePairs(NBASIS/2)
       END
 
 C.. delete a symmetry table if one existed.
@@ -248,8 +250,8 @@ C.. Now sort the SymPairProds into order
             TOT=TOT+SymPairProds(I)%nPairs
             SymPairProds(I)%nPairs=0
          ENDDO
-         WRITE(6,*) TOT," SYM LABEL PAIRS"
-         WRITE(6,*) NSYMPAIRPRODS," DISTINCT ORBITAL PAIR PRODUCTS"
+         WRITE(6,*) TOT," STATE PAIRS"
+         WRITE(6,*) NSYMPAIRPRODS," DISTINCT ORBITAL PAIR PRODUCT SYMS"
          CALL MEMORY(IP_SymStatePairs,
      &         TOT*2,
      &      "SymStatePairs")
@@ -858,23 +860,24 @@ C.. This only works for momentum variables - 1-4
          CALL GETUNCSFELEC(IEL,IELEC,SSYM)
         IF(NBASISMAX(1,3).LT.4) THEN
 C.. Momentum space
-            DO I=1,4
+            DO I=1,3
                ISYM%K(I)=ISYM%K(I)+G1(IELEC)%K(I)
             ENDDO
 C.. Symmetry space
          ELSEIF(NBASISMAX(3,3).EQ.0.AND.NBASISMAX(1,3).GE.4) THEN
 C.. We have no symmetries, so do nothing. (we're in real space)
 C.. except Ms
-            ISYM%MS=ISYM%MS+G1(IELEC)%MS
          ELSEIF(NBASISMAX(3,3).EQ.1) THEN
 C.. deal with momentum
-            DO I=1,4
+            DO I=1,3
                ISYM%k(I)=ISYM%k(I)+G1(IELEC)%k(I)
             ENDDO
          ENDIF
+         ISYM%MS=ISYM%MS+G1(IELEC)%MS
 C.. SSYM keeps track of the total S change on adding this electron
 C.. (it is +/-CSF_NSBASIS)
-         ISYM%Ms=ISYM%Ms+SSYM
+         I=ISYM%MS+0
+         ISYM%Ms=I+SSYM
          RETURN
       END 
       
@@ -1106,7 +1109,7 @@ C.. we have a system with all 1D reducible orbs, then we put
 C.. that into IMAX
             IF(NBASISMAX(5,2).NE.0) THEN
                IF(TPARITY) THEN
-                  IMAX(1)%Sym%s=2**IPARITY%Sym%s
+                  IMAX(1)%Sym%s=IPARITY%Sym%s
                   IMAX(2)%Sym%s=IMAX(1)%Sym%s
                ELSE
                   IMAX(1)%Sym%s=1
@@ -1215,7 +1218,7 @@ C.. Initialize symmetry to take into account the core electrons
          TYPE(BASISFN) SYM
          LOGICAL LTERM
          INTEGER J
-         WRITE(IUNIT,"(4I5,Z5,$)") SYM%K(1),SYM%K(2),SYM%K(3),SYM%MS
+         WRITE(IUNIT,"(4I5,$)") SYM%K(1),SYM%K(2),SYM%K(3),SYM%MS
          CALL WRITESYM(IUNIT,SYM%SYM,LTERM)
       END
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
@@ -1241,6 +1244,13 @@ C.. Initialize symmetry to take into account the core electrons
             WRITE(IUNIT,"(Z17,$)") SYM
          ENDIF
          IF(LTERM) WRITE(IUNIT,*)
+      END
+      SUBROUTINE SetupFreezeAllSym(Sym)
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         TYPE(BasisFN) Sym
+C.. Set to be totally symmetric
+         FrozenSym=Sym
       END
       SUBROUTINE SetupFreezeSym(Sym)
          IMPLICIT NONE

@@ -1,16 +1,16 @@
 C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
-      SUBROUTINE CALCHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS)
+      SUBROUTINE CALCHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS,NORBUSED)
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 TMAT(NBASIS,NBASIS),HFBASIS(NBASIS,NBASIS)
          REAL*8 TMAT2(NBASIS,NBASIS)
-         INTEGER I,J,A,B
+         INTEGER I,J,A,B,NORBUSED
          REAL*8 SUM,S1
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          OPEN(10,FILE='TMAT2',STATUS='UNKNOWN')
-         DO I=1,NBASIS
-            DO J=1,NBASIS
+         DO I=1,NORBUSED
+            DO J=1,NORBUSED
                SUM=0.D0
                DO A=1,NBASIS
                   DO B=1,NBASIS
@@ -77,23 +77,19 @@ C..Symmetries
          TYPE(BasisFN) G1(nBasis)
          REAL*8 ARR(NBASIS,2)
          REAL*8 HFE(NBASIS)
-         INTEGER BRR(NBASIS)
+         INTEGER BRR(NBASIS),ORBORDER(8)
          INTEGER I
  
 C.. We now need to modify G1.  Pretend that all basis functions have
 C.. a different X quantum number, and all have the same spin.
          DO I=1,NBASIS
-            G1(I)%k(1)=I-1
             G1(I)%k(1)=0
-            G1(I)%k(1)=I
             G1(I)%Ms=-2*(MOD(I,2))+1
-            G1(I)%Sym%s=0
+            G1(I)%Sym%s=1
             ARR(I,1)=HFE(I)
             ARR(I,2)=HFE(I)
             BRR(I)=I
          ENDDO
-C.. This sorts ARR and BRR into order of ARR [AJWT]
-         CALL SORT2(NBASIS,ARR,BRR)
 C.. Now modify NBASISMAX
          NBASISMAX(4,2)=1
          NBASISMAX(4,1)=-1
@@ -103,63 +99,103 @@ C.. Now modify NBASISMAX
          NBASISMAX(2,2)=0
          NBASISMAX(1,1)=0
 C         NBASISMAX(1,2)=NBASIS-1
+         NBASISMAX(5,2)=0
 
 C.. Generic spatial symmetry
          NBASISMAX(3,3)=1
+         CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
+         CALL ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
+         CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR)
 
          RETURN
       END
       SUBROUTINE CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
-     &            HFE,ARR,BRR)
+     &            HFE,ARR,BRR,NORBUSED)
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 UMAT2(NBASIS,NBASIS,NBASIS,NBASIS),ARR(NBASIS)
+         REAL*8 UMATT(NBASIS,NBASIS,NBASIS,NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
          INTEGER I,J,K,L,A,B,C,D,ISUB
-         INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS)
+         INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
          LOGICAL LSPN
          NHG=NBASIS
          CALL TISET('CALCHFUMAT',ISUB)
-         DO I=1,NBASIS
-C            WRITE(6,*) I,I-1,-2*(MOD(I,2))+1,HFE(I)
-         ENDDO
          WRITE(6,*) 'CALCULATING HF UMAT'
 C ==--------------------------------------------------------------------==
          OPEN(10,FILE='UMAT2',STATUS='UNKNOWN')
-         DO A=1,NBASIS
-          DO B=1,NBASIS
-           DO C=1,NBASIS
-            DO D=1,NBASIS
 C.. A, B, C, D denote basis fns in the HF basis.  These basis fns
 C.. alternate in spin i.e. fn 1 has alpha, fn 2 beta, fn 3 alpha etc.
 C.. We need to take into account the spin when writing out the new U
 C.. matrix.  For <A(1) B(2) |U| C(1) D(2)> to be non-zero, A and C must
 C.. have the same spin, and B and D must have the same spin.
 C.. Thus the sum A+C must be even, as must B+D
+         WRITE(6,*) "Index 1..."
+         DO A=1,NORBUSED
+          DO J=1,NHG/ISS
+           DO K=1,NHG/ISS
+            DO L=1,NHG/ISS
+             SUM=0.D0
+             DO I=1,NHG
+              CALL GTID(NBASISMAX,I,ID1)
+              SUM=SUM+HFBASIS(A,I)
+     &               *UMAT(ID1,J,K,L)
+             ENDDO
+             UMATT(J,K,L,A)=SUM
+!             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) J,K,L,A,SUM
+            ENDDO
+           ENDDO
+          ENDDO
+         ENDDO
+         WRITE(6,*) "Index 2..."
+         DO A=1,NORBUSED
+          DO B=1,NORBUSED
+           DO K=1,NHG/ISS
+            DO L=1,NHG/ISS
+             SUM=0.D0
+             DO J=1,NHG
+              CALL GTID(NBASISMAX,J,ID2)
+              SUM=SUM+HFBASIS(B,J)
+     &               *UMATT(ID2,K,L,A)
+             ENDDO
+             UMAT2(K,L,A,B)=SUM
+!             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) K,L,A,B,SUM
+            ENDDO
+           ENDDO
+          ENDDO
+         ENDDO
+         WRITE(6,*) "Index 3..."
+         DO A=1,NORBUSED
+          DO B=1,NORBUSED
+           DO C=1,NORBUSED
+            DO L=1,NHG/ISS
+             SUM=0.D0
+             DO K=1,NHG
+              CALL GTID(NBASISMAX,K,ID3)
+              SUM=SUM+HFBASIS(C,K)
+     &               *UMAT2(ID3,L,A,B)
+             ENDDO
+             UMATT(L,A,B,C)=SUM
+!             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) L,A,B,C,SUM
+            ENDDO
+           ENDDO
+          ENDDO
+         ENDDO
+         CALL AZZERO(UMAT2,NBASIS**4)
+         WRITE(6,*) "Index 4..."
+         DO A=1,NORBUSED
+          DO B=1,NORBUSED
+           DO C=1,NORBUSED
+            DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
              IF(LSPN.AND.UMAT2(A,B,C,D).EQ.0.D0) THEN
               SUM=0.D0
-              DO I=1,NHG
-               DO J=1,NHG
-                DO K=1,NHG
-                 DO L=1,NHG
-                  CALL GTID(NBASISMAX,I,ID1)
-                  CALL GTID(NBASISMAX,J,ID2)
-                  CALL GTID(NBASISMAX,K,ID3)
-                  CALL GTID(NBASISMAX,L,ID4)
-                  OS=SUM
-                  SUM=SUM+HFBASIS(A,I)*HFBASIS(B,J)
-     &                   *HFBASIS(C,K)*HFBASIS(D,L)
-     &                   *UMAT(ID1,ID2,ID3,ID4)
-                  IF(SUM.NE.OS) THEN
-                     ISS=1
-                  ENDIF
-                 ENDDO
-                ENDDO
-               ENDDO
+              DO L=1,NHG
+               CALL GTID(NBASISMAX,L,ID4)
+               SUM=SUM+HFBASIS(D,L)
+     &                *UMATT(ID4,A,B,C)
               ENDDO
-               
               UMAT2(A,B,C,D)=SUM
 C..Symmetries
               UMAT2(C,D,A,B)=SUM

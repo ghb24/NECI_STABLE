@@ -2,13 +2,13 @@ C.. A recursive version of GNDTS which doesn't require #defines
 C.. This sets up variables, and calls the recursion 
       SUBROUTINE GNDTS(NEL,NHG,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
-     &  IPARITY,II,IFDET)
+     &  SymRestrict,II,IFDET)
          IMPLICIT NONE
          INTEGER NEL,NHG,LMS,II
          INTEGER NMRKS(NEL,*)
          INTEGER BRR(NHG)
          INCLUDE 'basis.inc'
-         TYPE(BasisFN) G1(NHG),IParity,kJ
+         TYPE(BasisFN) G1(NHG),SymRestrict,kJ
          LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
          INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
 C..  This will hold which determinant each electron is on at the moment
@@ -20,7 +20,7 @@ C..  This will hold the spin of each electron
 C.. Total number of determined determinants
          II=0
          IF(TPARITY) THEN
-            kJ=IParity
+            kJ=SymRestrict
          ELSE
             CALL IAZZERO(kJ,BasisFNSize)
          ENDIF
@@ -32,7 +32,7 @@ C.. Total number of determined determinants
 C.. Start with the first electron
          CALL GNDTS_R(NEL,NHG,BRR,NBASISMAX,
      &      NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
-     &      IPARITY,II,IELECS,ISPINS,1,KJ)
+     &      SymRestrict,II,IELECS,ISPINS,1,KJ)
          IFDET=1
          RETURN
       END
@@ -40,13 +40,13 @@ C.. Start with the first electron
 C.. The recursive routine in GNDTS.  IELEC is the current electron
       RECURSIVE SUBROUTINE GNDTS_R(NEL,NHG,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
-     &  IPARITY,II,IELECS,ISPINS,IELEC,KJ)
+     &  SymRestrict,II,IELECS,ISPINS,IELEC,KJ)
       IMPLICIT NONE
       INTEGER NEL,NHG,LMS,II
       INTEGER NMRKS(NEL,*)
       INTEGER BRR(NHG)
       INCLUDE 'basis.inc'
-      TYPE(BasisFN) G1(nHG),iParity,kI,kJ,iPar
+      TYPE(BasisFN) G1(nHG),kI,kJ,SymRestrict
       LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
       INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
 
@@ -90,34 +90,9 @@ C..If we're not on the last electron
 C..We recurse over the next electrons
             CALL GNDTS_R(NEL,NHG,BRR,NBASISMAX,
      &            NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
-     &            IPARITY,II,IELECS,ISPINS,IELEC+1,KJ)
+     &            SymRestrict,II,IELECS,ISPINS,IELEC+1,KJ)
          ENDIF
       ENDDO      
 
       RETURN
       END
-
-C ==--------------------------------------------------==
-      SUBROUTINE PARITY(IPAR,K,TPARITY)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      LOGICAL TPARITY
-      IF(IABS(K).NE.1) THEN
-         WRITE(6,*) K
-         CALL STOPGM('PARITY',' IABS(K) NE 1')
-      ENDIF
-      IF(MOD(IPAR,2).EQ.0) THEN
-         IF(K.EQ.1) THEN
-            TPARITY=.TRUE.
-         ELSEIF(K.EQ.-1) THEN
-            TPARITY=.FALSE.
-         ENDIF
-      ELSE
-         IF(K.EQ.1) THEN
-            TPARITY=.FALSE.
-         ELSEIF(K.EQ.-1) THEN
-            TPARITY=.TRUE.
-         ENDIF
-      ENDIF
-      RETURN
-      END
-

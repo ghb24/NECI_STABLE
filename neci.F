@@ -57,7 +57,7 @@ C.. NEL now includes all electrons, and we'll only want active later
       INCLUDE 'basis.inc'
 
       TYPE(Symmetry) FrzSym
-      TYPE(BASISFN) G1(*)
+      TYPE(BASISFN) G1(*),SymRestrict
 
 C..Cube arrays
       REAL*8 ALAT(3),XCHOLE(*),SUMA(*)
@@ -118,6 +118,10 @@ C..Input parameters
       WRITE(6,*) ' TSPN : ' , TSPN
       CALL IAZZERO(NBASISMAX,5*7)
       TSPINPOLAR=.FALSE.
+      DO I=1,4
+         SymRestrict%k(I)=IPARITY(I)
+      ENDDO
+      SymRestrict%Sym%s=IPARITY(5)
       IF(TSPN) THEN
 C.. If we're doing monte carlo without generating a list of
 C.. determinants, we cannot as yet force spin or parity, except by
@@ -156,7 +160,8 @@ C.. Encode the symmetry for the total spin in LMS
          WRITE(6,*) ' *** GENERIC SYSTEM USING KOHN-SHAM ORBITALS *** '
          CALL CPMDSYSTEMINIT(LEN)   
          IF(TPARITY) THEN
-            WRITE(6,*) ' SYMMETRIES : ',(IPARITY(I),I=1,5)
+            WRITE(6,"(A,$)") ' SYMMETRIES : '
+            CALL WRITEALLSYM(5,SymRestrict)
          ENDIF
          IF(THFORDER) WRITE(6,*)
      &      "Ordering according to 1-electron energies."
@@ -433,6 +438,19 @@ C.. we need to allow integrals between different spins
          NBASISMAX(2,3)=1
       ENDIF      
 
+C.. Calculate relevant symmetry tables
+      IF(TREADINT) THEN
+C.. we're reading in integrals and have a molpro symmetry table
+         CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
+      ELSEIF(TCPMD) THEN
+C.. If TCPMD, then we've generated the symmetry table earlier,
+C.. but we still need the sym reps table
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
+      ELSE
+C.. no symmetry, so a simple sym table
+         CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
+      ENDIF
+
 C..
       WRITE(6,*) ' ISTATE : ' , ISTATE 
       WRITE(6,*) ' NEVAL : ' , NEVAL
@@ -475,24 +493,25 @@ C..
      &   WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA,
      &      " Mu ",FCOULDAMPMU
       IF(.NOT.(TREAD.OR.TREADRHO)) THEN
+         IF(NTFROZEN.LT.0) THEN
+            I=NEL+(-NTFROZEN)
+         ELSE
+            I=NHG-NTFROZEN
+         ENDIF
          IF(TCPMD) THEN
 C.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
             WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
             CALL MEMORY(IP_UMAT,1,'UMAT')
             CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
             CALL AZZERO(TMAT,NHG*NHG)
-            IF(NTFROZEN.LT.0) THEN
-               I=NEL+(-NTFROZEN)
-            ELSE
-               I=NHG-NTFROZEN
-            ENDIF
             CALL CPMDINIT2INDINT(TMAT,NHG,I,NBASISMAX,
      &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR)
          ELSEIF(TREADINT.AND.TDFREAD) THEN
+            CALL MEMORY(IP_UMAT,1,'UMAT')
             CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
             CALL AZZERO(TMAT,NHG*NHG)
-            Call ReadDalton1EIntegrals(TMAT,nBasis)
-            Call ReadDF2EIntegrals(nBasis)
+            Call ReadDalton1EIntegrals(G1,nBasis,TMat,Arr,Brr,ECore)
+            Call ReadDF2EIntegrals(nBasis,I)
          ELSEIF(TREADINT) THEN
             WRITE(6,*)
      &         ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
@@ -500,12 +519,11 @@ C.. Generate the 2e integrals (UMAT)
             NBASISMAX(2,3)=2
 C.. We can only do restricted systems, so alpha and beta spinorbital
 C... integrals will be the same 
-            WRITE(6,*) "Allocating UMAT:", NHG/2, "^4"
             CALL MEMORY(IP_UMAT,(NHG/2)**4,'UMAT')
             CALL AZZERO(UMAT,(NHG/2)**4)
             CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
             CALL AZZERO(TMAT,NHG*NHG)
-            CALL READFCIINT(UMAT,TMAT,NBASIS,ECORE)
+            CALL READFCIINT(UMAT,TMAT,NBASIS,ECORE,ARR,BRR,G1)
             WRITE(6,*) ' ECORE=',ECORE
             ISPINSKIP=2
          ELSE
@@ -577,13 +595,13 @@ C.. If we are using an HF basis instead of our primitive basis, we need
 C.. to load in the coeffs of the HF eigenfunctions in terms of the
 C.. primitive basis.
 C.. We load the coeffs from a file HFBASIS
-         IF(THFBASIS.OR.THFCALC) THEN
+         IF(THFBASIS.OR.THFCALC.OR.(THFORDER.AND..NOT.TCPMD)) THEN
             CALL MEMORY(IP_HFBASIS,NHG*NHG,'HFBASIS')
             CALL AZZERO(HFBASIS,NHG*NHG)
 C.. Allocate an array to store the HF Energies
             CALL MEMORY(IP_HFE,NHG,'HFE')
             CALL AZZERO(HFE,NHG)
-            IF(THFORDER.AND.THFCALC.AND..NOT.THFBASIS) THEN
+            IF(THFORDER.AND..NOT.THFBASIS) THEN
 C.. If we're not using HF, but just calculating the HF order
 C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
 C.. re-order the orbitals and give us some energy)
@@ -612,27 +630,61 @@ C.. If in Hubbard, we generate site-spin occupations
                CALL GENSITESPINOCC(NBASIS,NBASIS/ISPINSKIP,ISPINSKIP,
      &            NBASISMAX,G1,NEL,LMS,BRR,HFBASIS)
             ENDIF
+         ENDIF
+         IF(THFBASIS.OR.THFCALC.OR.THFORDER) THEN
+C.. We now generate a new U matrix corresponding to the HF basis fns
+C.. This requires a new matrix UMAT2 to be set up, as our HF basis is
+C.. unrestricted
+            IF(THFBASIS) THEN
+               CALL MEMORY(IP_TMAT2,NHG**2,'TMAT2')
+               CALL AZZERO(TMAT2,NHG**2)
+               NORBUSED=NBASIS-NTFROZEN
+               IF(TREADTUMAT) THEN
+                  CALL READHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS)
+               ELSE
+                  CALL CALCHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS,NORBUSED)
+               ENDIF
+               CALL FREEM(IP_TMAT)
+               IP_TMAT=IP_TMAT2
+               IP_TMAT2=NULL
+C.. Allocate the new matrix
+               CALL MEMORY(IP_UMAT2,NHG**4,'UMAT2')
+               CALL AZZERO(UMAT2,NHG**4)
+C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
+C.. This also modified G1, ARR, BRR
+               IF(TREADTUMAT) THEN
+                 CALL READHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,
+     &            ISPINSKIP,HFE,ARR,BRR)
+               ELSE
+                 CALL CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,
+     &            ISPINSKIP,HFE,ARR,BRR,NORBUSED)
+               ENDIF
+C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
+C.. to UMAT2
+               CALL FREEM(IP_UMAT)
+               IP_UMAT=IP_UMAT2
+               IP_UMAT2=NULL
+C.. spinskip values
+               ISPINSKIP=1
+               NBASISMAX(2,3)=1
+C.. Indicate that we're in UHF and that <D0|H|D1>=0 for D1 being a
+C.. single excitation
+               IF(LMS.EQ.0) THEN
+                  NBASISMAX(4,5)=1
+                  DO I=1,NEL
+                     NUHFDET(I)=BRR(I)
+                  ENDDO
+                  CALL SORTI(NEL,UHFDET)
+               ELSE
+                  NBASISMAX(4,5)=2
+               ENDIF
+            ENDIF
 C.. Now deallocate the HF arrays
-            CALL FREE(IP_HFBASIS)
-            CALL FREE(IP_HFE)
+            CALL FREEM(IP_HFBASIS)
+            CALL FREEM(IP_HFE)
             CALL FLUSH(6)
          ENDIF
 
-C.. Calculate relevant symmetry tables
-         IF(TREADINT) THEN
-C.. we're reading in integrals and have a molpro symmetry table
-            CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
-         ELSEIF(TCPMD) THEN
-C.. If TCPMD, then we've generated the symmetry table earlier,
-C.. but we still need the sym reps table
-            CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
-         ELSE
-C.. no symmetry, so a simple sym table
-            CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
-         ENDIF
-
-         WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
-         CALL WRITESYMTABLE(6)
          IF(NTFROZEN.LT.0) THEN
             WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN,
      &         " unfrozen virtuals."
@@ -686,60 +738,13 @@ C.. to UMAT2
      &         ARR(COULDAMPORB)," and ",ARR(COULDAMPORB+1)
             WRITE(6,*) "MU=",FCOULDAMPMU
          ENDIF
-         IF(THFBASIS.OR.THFCALC.OR.THFORDER) THEN
-C.. We now generate a new U matrix corresponding to the HF basis fns
-C.. This requires a new matrix UMAT2 to be set up, as our HF basis is
-C.. unrestricted
-            IF(THFBASIS) THEN
-               CALL MEMORY(IP_TMAT2,NHG**2,'TMAT2')
-               CALL AZZERO(TMAT2,NHG**2)
-               IF(TREADTUMAT) THEN
-                  CALL READHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS)
-               ELSE
-                  CALL CALCHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS)
-               ENDIF
-               CALL FREEM(IP_TMAT)
-               IP_TMAT=IP_TMAT2
-               IP_TMAT2=NULL
-C.. Allocate the new matrix
-               CALL MEMORY(IP_UMAT2,NHG**4,'UMAT2')
-               CALL AZZERO(UMAT2,NHG**4)
-C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
-C.. This also modified G1, ARR, BRR
-               IF(TREADTUMAT) THEN
-                 CALL READHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,
-     &            ISPINSKIP,HFE,ARR,BRR)
-               ELSE
-                 CALL CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,
-     &            ISPINSKIP,HFE,ARR,BRR)
-               ENDIF
-C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
-C.. to UMAT2
-               CALL FREEM(IP_UMAT)
-               IP_UMAT=IP_UMAT2
-               IP_UMAT2=NULL
-C.. spinskip values
-               ISPINSKIP=1
-               NBASISMAX(2,3)=1
-C.. Indicate that we're in UHF and that <D0|H|D1>=0 for D1 being a
-C.. single excitation
-               IF(LMS.EQ.0) THEN
-                  NBASISMAX(4,5)=1
-                  DO I=1,NEL
-                     NUHFDET(I)=BRR(I)
-                  ENDDO
-                  CALL SORTI(NEL,UHFDET)
-               ELSE
-                  NBASISMAX(4,5)=2
-               ENDIF
-            ENDIF
-         ENDIF
-      ELSE
-C.. if reading in FCI solutions, then 
-C.. no symmetry, so a simple sym table
-            CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
       ENDIF
 C           (.NOT.(TREAD.OR.TREADRHO))
+
+      WRITE(6,*) "SYMMETRY MULTIPLICATION TABLE"
+      CALL WRITESYMTABLE(6)
+   
+      CALL GENSymStatePairs(NBASIS/2)
 
 
       IF(TCSF.AND.TSPECDET) THEN
@@ -842,21 +847,44 @@ C.. We need to add in the FDET
             NBLOCKS=1
          ELSEIF(TBLOCK) THEN
             WRITE(6,*) "Determining determinants and blocks."
+            IF(TPARITY) THEN
+               WRITE(6,*) "Using symmetry restriction:"
+               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
+            ENDIF
+            IF(TSPN) THEN
+               WRITE(6,*) "Using spin restriction:",LMS
+            ENDIF
             CALL GNDTS_BLK(NEL,NHG,BRR,NBASISMAX,NMRKS, .TRUE.,
-     &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,
-     &           TPARITY,IPARITY,IFDET,TMAT,.NOT.TREAD,NDETTOT,BLOCKSYM)
+     &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,
+     &           SymRestrict,IFDET,TMAT,.NOT.TREAD,NDETTOT,BLOCKSYM)
             WRITE(6,*) "NBLOCKS:",NBLOCKS
          ELSEIF(TCSF) THEN
             WRITE(6,*) "Determining CSFs."
 C determinants.
+            WRITE(6,*) "Determining determinants and blocks."
+            IF(TPARITY) THEN
+               WRITE(6,*) "Using symmetry restriction:"
+               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
+            ENDIF
+            IF(TSPN) THEN
+               WRITE(6,*) "Using spin restriction:",LMS
+            ENDIF
             CALL GNCSFS(NEL,NHG,BRR,NBASISMAX,
      &         NMRKS,.TRUE.,G1,TSPN,LMS2,TPARITY,
-     &         IPARITY,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
+     &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
             NBLOCKS=1
             II=NDET
          ELSE
+            WRITE(6,*) "Determining determinants."
+            IF(TPARITY) THEN
+               WRITE(6,*) "Using symmetry restriction:"
+               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
+            ENDIF
+            IF(TSPN) THEN
+               WRITE(6,*) "Using spin restriction:",LMS
+            ENDIF
             CALL GNDTS(NEL,NHG,BRR,NBASISMAX,NMRKS,.TRUE.,
-     &            G1,TSPN,LMS,TPARITY,IPARITY,II,IFDET)
+     &            G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
             NBLOCKS=1
             NDET=II
          ENDIF
@@ -893,18 +921,18 @@ C.. Use HAMIL to temporarily hold a list of excitation levels
             IFDET=1
          ELSEIF(TBLOCK) THEN 
             CALL GNDTS_BLK(NEL,NHG,BRR,NBASISMAX,NMRKS, .FALSE.,
-     &         NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,
-     &           TPARITY,IPARITY,IFDET,TMAT,.NOT.TREAD,NDETTOT,BLOCKSYM,
+     &         NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,
+     &           SymRestrict,IFDET,TMAT,.NOT.TREAD,NDETTOT,BLOCKSYM,
      &            TCSF)
          ELSEIF(TCSF) THEN
             CALL GNCSFS(NEL,NHG,BRR,NBASISMAX,
      &         NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY,
-     &         IPARITY,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
+     &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ELSE
             CALL GNDTS(NEL,NHG,BRR,NBASISMAX,NMRKS,.FALSE.,
-     &         G1,TSPN,LMS,TPARITY,IPARITY,II,IFDET)
+     &         G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
                NBLOCKSTARTS(1)=1
                NBLOCKSTARTS(2)=II+1
          ENDIF
@@ -1317,7 +1345,7 @@ C.. Init the Chebyshev integration tables for the Zsums MMAX=511
 C         IF((NPATHS.GT.0.OR.TMONTE).AND.(NWHTAY.EQ.-1)) CALL INITAL(511)
 
          
-
+C.. NB - still in TRHOIJ
          IF(NPATHS.GT.0.OR.DETINV.GT.0) THEN
             WRITE(6,*) "Calculating ",NPATHS," W_Is..."
             WRITE(6,*) "I_HMAX:",I_HMAX
@@ -1347,9 +1375,9 @@ C..     UMAT->RHOIJROWS
 C..     NMSH->NMRKS
 C..     BETA->NDET
                IF(TNPDERIV)
-     &   WRITE(6,*) " *** CANNOT CALCULATE RHOPII derivs **"
+     &            WRITE(6,*) " *** CANNOT CALCULATE RHOPII derivs **"
                IF(NTAY.GE.0) THEN
-        WRITE(6,*) "NTAY must be <0 to use NPATHS and TRHOIJ ",
+                 WRITE(6,*) "NTAY must be <0 to use NPATHS and TRHOIJ ",
      &           "and TENERGY together.  Setting NTAY=-NEL."
                   NTAY=-NEL
                ENDIF
@@ -1366,6 +1394,7 @@ C     &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,FLNRII,FLNSUM)
             ENDIF
             
          ENDIF
+C.. Still in IF(TRHOIJ)
          IF(TMONTE) THEN
             CALL MEMORY(IP_RHOIJ1,NRHOS,'RHOIJ1')
             CALL AZZERO(RHOIJ1,NRHOS)
@@ -1428,6 +1457,7 @@ C         CALL RHOHIST(RHOMIN,RHOMAX,NRHOS,NHISTBOXES)
          CALL FREEM(IP_RHOIJLAB)
          CALL FREEM(IP_RHOIJROWS)        
       ENDIF
+C..   ENDIF(TRHOIJ)
       IF(TMONTE.AND.TENERGY.AND.NTAY.EQ.-1) THEN
          WRITE(6,*) "Calculating Exact MC Energy..."
          EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.D0,
@@ -1458,7 +1488,6 @@ C..      ALAT=NMRKS
       ENDIF
 C.. We haven't calculated the RHOIJ matrix but can still do MC
       IF(TRHOIJND.OR..NOT.TRHOIJ) THEN 
-C.. beware with NPATHS - it requires the list of dets - Not any more
          IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
             IF(TRHOIJND) THEN
 C.. We're calculating the RHOs for interest's sake, and writing them,
@@ -1470,9 +1499,11 @@ C.. but not keeping them in memory
      &            NTAY,RHOEPS,NWHTAY,ECORE)
             ENDIF
             WRITE(6,*) "Calculating ",NPATHS," W_Is..."
-            OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-            CLOSE(11)
+            IF(BTEST(ILOGGING,1)) THEN
+               OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
+               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(11)
+            ENDIF
             IF(NTAY.EQ.0.AND.TENERGY) THEN
                WRITE(6,*) "Using exact RHOs generated on the fly"
 C.. we've calculated energies, and we're passing them through to
@@ -1491,6 +1522,7 @@ C..      NMAX=ARR
      &            DETINV,TSPECDET,SPECDET)
 
             ELSEIF(NTAY.GT.0) THEN
+               WRITE(6,*) "Using list of determinants."
                WRITE(6,*) "Using approx RHOs generated on the fly,",
      &            "NTAY=",NTAY
 C.. we haven't calculated the energy, so we're calculating the weights
@@ -1515,7 +1547,7 @@ C.. Instead of NMAX we have ARR
               CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,
      &           NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMAT,ARR,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
-     &            DETINV,TSPN,LMS2,TPARITY,IPARITY,TSPECDET,SPECDET)
+     &            DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET)
                ENDIF
             ELSE
                WRITE(6,*)
@@ -1877,6 +1909,7 @@ C         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
             IEND=NPATHS
          ENDIF
          DO III=ISTART,IEND
+            IF(NPATHS.EQ.1)  CALL WRITEDET(6,NMRKS(1,III),NEL,.TRUE.) 
             IF(III.NE.0) THEN
                CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
@@ -2297,7 +2330,7 @@ C.. Normal Hubbard
       SUBROUTINE CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
-     &            DETINV,TSPN,LMS,TPARITY,IPARITY,TSPECDET,SPECDET)
+     &            DETINV,TSPN,LMS,TPARITY,SymRestrict,TSPECDET,SPECDET)
          IMPLICIT NONE
          include 'irat.inc'
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE),(IP_RIJLIST,RIJLIST)
@@ -2311,8 +2344,8 @@ C.. Normal Hubbard
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(NBASIS)
          INTEGER BRR(NBASIS),NMSH,NMAX(*),NTAY,ILOGGING
-         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,IPARITY(3),ISUB
-         TYPE(BasisFN) ISYM
+         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,ISUB
+         TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM,TMAT(*)
@@ -2329,6 +2362,7 @@ C.. Normal Hubbard
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
          CALL TISET('CLCRHOPII3',ISUB)
+         WRITE(6,*) "Entering CALCRHOPII3..."
 C         ILMAX=NDET
 C.. We don't need to store lists for I_HMAX=-8
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
@@ -2370,7 +2404,7 @@ C:         CALL PRINT_MEMORY()
          TFIRST=.TRUE.
          IF(.NOT.TSPECDET)
      &       CALL GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &         TPARITY,IPARITY,ISYM,NI,.TRUE.,TDONE,WORK)
+     &         TPARITY,SymRestrict,ISYM,NI,.TRUE.,TDONE,WORK)
          DO WHILE(III.NE.IEND.AND..NOT.TDONE)
           III=III+1
           IF(TSPECDET) THEN
@@ -2379,10 +2413,11 @@ C:         CALL PRINT_MEMORY()
              IDEG=1
           ELSE
              CALL GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &           TPARITY,IPARITY,ISYM,NI,.FALSE.,TDONE,WORK)
+     &           TPARITY,SymRestrict,ISYM,NI,.FALSE.,TDONE,WORK)
              CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
           ENDIF
           IF(III.GE.ISTART.AND..NOT.TDONE) THEN
+            IF(NPATHS.EQ.1)  CALL WRITEDET(6,NI,NEL,.TRUE.) 
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
@@ -2489,7 +2524,7 @@ C.. we use the symmetries of the spatial orbitals
             CALL ICOPY(NBASIS,BRR2,1,BRR,1)
             CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
          ENDIF
-         CALL SORT2(NBASIS-ITOT,ARR(ITOT+1,1),BRR(ITOT+1))
+         CALL SORT2(NBASIS-IDONE,ARR(IDONE+1,1),BRR(IDONE+1))
 C.. We need to now go through each set of degenerate orbitals, and make
 C.. the correct ones are paired together in BRR otherwise bad things
 C.. happen in FREEZEBASIS
@@ -2546,16 +2581,12 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          REAL*8 ALAT(3)
 C.. Just check to see if we're not in the middle of a degenerate set with the same sym
          IF(NFROZEN.GT.0) THEN
-         WRITE(6,*) (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)),
-     &        G1(BRR(NFROZEN))%SYM,G1(BRR(NFROZEN+1))%SYM)
             IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.
      &        G1(BRR(NFROZEN))%SYM%s.EQ.G1(BRR(NFROZEN+1))%SYM%s) THEN
                STOP "Cannot freeze in the middle of a degenerate set"
             ENDIF
          ENDIF
          IF(NTFROZEN.GT.0) THEN
-         WRITE(6,*) ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)),
-     &     G1(BRR(NHG-NTFROZEN))%SYM,G1(BRR(NHG-NTFROZEN+1))%SYM
             IF(ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6
      &         .AND.G1(BRR(NHG-NTFROZEN))%SYM%s
      &               .EQ.G1(BRR(NHG-NTFROZEN+1))%SYM%s)
@@ -2604,7 +2635,6 @@ C.. Now construct the new BRR and ARR
          DO I=1,NHG
             IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
          ENDDO
-         CALL FREEZESYMLABELS(NHG,NBASIS,GG)
 C.. First deal with Ecore
          DO A=1,NFROZEN
             AB=BRR(A)
@@ -2698,7 +2728,9 @@ C.. the primed (...P) are the new versions
 C.. Now setup the default symmetry to include the frozen electrons
 C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
          CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
-         CALL SetupFreezeSym(KSYM)
+         CALL SetupFreezeAllSym(KSYM)
+C.. Freeze the sym labels
+         CALL FREEZESYMLABELS(NHG,NBASIS,GG)
 C.. Copy the new G1 and BRR and ARR over the old ones
          CALL ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)

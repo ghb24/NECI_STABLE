@@ -1,6 +1,6 @@
       SUBROUTINE GNDTS_BLK(NEL,NBASIS,BRR,NBASISMAX,NMRKS,TCOUNT,
      &         NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS,
-     &         TPARITY,IPARITY,IFDET,TMAT,TGENFDET,NDETTOT,BLOCKSYM
+     &         TPARITY,SymRestrict,IFDET,TMAT,TGENFDET,NDETTOT,BLOCKSYM
      &         )
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,2),NDET
@@ -8,12 +8,13 @@
          INTEGER II,NLMAX
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),ISYM,KJ,BLOCKSYM(NBLOCKS),IMAX(2)
+         TYPE(BasisFN) SymRestrict
          LOGICAL TCOUNT
          INTEGER I,J,NFAC,NI(NEL),NJ(NEL)
          INTEGER KI1,KI2,KI3,KI4
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS+1),OII
          LOGICAL TSPN,TPARITY,TDONE
-         INTEGER LMS,IPARITY(3),LMIN,LMAX
+         INTEGER LMS,LMIN,LMAX
          LOGICAL TGENFDET
          INTEGER IFDET,IC,NDETTOT,IDEG
          REAL*8 DETSC,TDETSC,TMAT(*)
@@ -32,9 +33,8 @@
 C.. set the comparison det to an invalid one, so all dets are counted
          NI(1)=0
          IF(TCOUNT) OPEN(14,FILE="BLOCKS",STATUS="UNKNOWN")
-         
          CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
-     &      TPARITY,IPARITY,.TRUE.,TDONE,IMAX,ISYM)
+     &      TPARITY,SymRestrict,.TRUE.,TDONE,IMAX,ISYM)
          DO WHILE(.NOT.TDONE)
             CALL SETUPSYM(NBASISMAX,KJ)
             CALL  GENSYMDETS_R(NI,ISYM,NEL,G1,BRR,NBASIS,NMRKS,
@@ -46,7 +46,7 @@ C.. we've found an occupied block
                NDETTOT=NDETTOT+(II-OII)*IDEG
                IF(TCOUNT) THEN
                   WRITE(14,"(I5,$)") I
-                  CALL WRITESYM(14,ISYM,.FALSE.)
+                  CALL WRITEALLSYM(14,ISYM,.FALSE.)
                   WRITE(14,"(2I10)")
      &               II-OII,
      &               (II-OII)*IDEG
@@ -65,7 +65,7 @@ C.. we've found an occupied block
             ENDIF
             OII=II
             CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
-     &         TPARITY,IPARITY,.FALSE.,TDONE,IMAX,ISYM)
+     &         TPARITY,SymRestrict,.FALSE.,TDONE,IMAX,ISYM)
          ENDDO
          NBLOCKS=I
          IF(.NOT.TCOUNT) NBLOCKSTARTS(I+1)=II+1
@@ -387,15 +387,15 @@ C.. Otherwise we need to go to the next slot
 
 C.. WORK(2*NEL+18)
       SUBROUTINE GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,IPARITY,ISYM,NI,TSETUP,TDONE,Work)
+     &      TPARITY,SymRestrict,ISYM,NI,TSETUP,TDONE,Work)
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3)
-         INTEGER LMS,IPARITY(3),NIWORK(NEL),NI(NEL)
+         INTEGER LMS,NIWORK(NEL),NI(NEL)
 C         INTEGER WORK(5*NEL+18)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE
          INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work
-         TYPE(BasisFN) G1(nBasis),ISym
+         TYPE(BasisFN) G1(nBasis),ISym,SymRestrict
 C.. WORK(7*NEL+18)
 C..  1-4                NSWORK
 C..  5-14               IMAX
@@ -404,7 +404,7 @@ C..  20                 NELEC
 C..  21-NEL+20          NIWORK
 C..  NEL+21 - 2*NEL+20  NINDJ
          CALL GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,IPARITY,NI,TSETUP,TDONE,Work)
+     &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work)
 CWORK(5),
 C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
          CALL ICOPY(BasisFNSize,Work%ISym,1,ISym,1)
@@ -412,15 +412,15 @@ C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
       END
 
       SUBROUTINE GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,IPARITY,NI,TSETUP,TDONE,Work)
+     &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work)
 C,IMAX,ISYM,NELEC,
 C     &      NIWORK,NINDJ)
          IMPLICIT NONE
          INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work 
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3)
-         TYPE (BasisFN) G1(NBASIS),ISym,IMax(2)
-         INTEGER LMS,IPARITY(3),NIWORK(NEL),NI(NEL)
+         TYPE (BasisFN) G1(NBASIS),ISym,IMax(2),SymRestrict
+         INTEGER LMS,NIWORK(NEL),NI(NEL)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
          INTEGER ILEV
 C..  1-4                NSWORK
@@ -432,7 +432,7 @@ C..  NEL+19 - 2*NEL+18  NINDJ
          INTEGER NELEC,NINDJ(NEL)
          IF(TSETUP) THEN
             CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
-     &         TPARITY,IPARITY,TSETUP,TDONE,Work%IMax,Work%ISym)
+     &         TPARITY,SymRestrict,TSETUP,TDONE,Work%IMax,Work%ISym)
 C,IMAX,ISYM)
             NELEC=1
             Work%niWork(nEl+1)=0
@@ -446,7 +446,7 @@ C.. Go to the next det.
      &            ,NELEC,NBASISMAX)
             IF(TDONE) THEN
                CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
-     &            TPARITY,IPARITY,TSETUP,TMORE,Work%IMax,Work%iSym)
+     &            TPARITY,SymRestrict,TSETUP,TMORE,Work%IMax,Work%iSym)
                TMORE=.NOT.TMORE
                NELEC=1
                NINDJ(1)=0

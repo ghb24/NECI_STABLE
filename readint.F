@@ -36,13 +36,14 @@ C.. SHow that there's no momentum conservation
          REAL*8 ARR(LEN,2)
          REAL*8 Z
          INTEGER I,J,K,L
-         INTEGER ISYMNUM,ISNMAX
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
+         INTEGER ISYMNUM,ISNMAX,SYMMAX
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
          ISYMNUM=0
          ISNMAX=0
+         IF(LEN.NE.2*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          CALL IAZZERO(G1,BasisFNSize*LEN)
          CALL AZZERO(ARR,2*LEN)
 1        READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
@@ -50,7 +51,6 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
          IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
             IF(I.GT.1) THEN
                IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
-                  WRITE(6,*) ISYMNUM
                   IF(ISYMNUM.GT.ISNMAX) ISNMAX=ISYMNUM
                   ISYMNUM=0
                ENDIF
@@ -58,11 +58,14 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
             ISYMNUM=ISYMNUM+1
             ARR(2*I-1,1)=Z
             ARR(2*I,1)=Z
+         ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
+            ARR(2*I-1,1)=Z
+            ARR(2*I,1)=Z
          ENDIF
 C.. At the moment we're ignoring the core energy
          GOTO 1
 99       CONTINUE
-         DO I=1,LEN/2
+         DO I=1,NORB
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
 C            G1(1,2*I-1)=ISYMNUM-1
@@ -81,40 +84,57 @@ C.. set momentum to 0
             G1(2*I-1)%Ms=-1
             G1(2*I)%Ms=1
          ENDDO
-         SYMMAX=ORBSYM(LEN/2)
+         SYMMAX=ORBSYM(NORB)
          IF(SYMMAX.EQ.1) THEN
          ELSEIF(SYMMAX.LE.2) THEN
          ELSEIF(SYMMAX.LE.4) THEN
             SYMMAX=4
-         ELSEIF(ISNMAX.LE.8) THEN
+         ELSEIF(SYMMAX.LE.8) THEN
             SYMMAX=8
          ENDIF
+        WRITE(6,"(A,I)") "Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
          NBASISMAX(5,1)=0
          NBASISMAX(5,2)=SYMMAX-1
-CORBSYM(NORB)-1
-CISNMAX-1
          NBASISMAX(2,1)=0
-C         NBASISMAX(2,2)=ORBSYM(NORB)-1
          NBASISMAX(2,2)=0
          CLOSE(8)
          RETURN
       END
-      SUBROUTINE READFCIINT(UMAT,TMAT,NBASIS,ECORE)
+      SUBROUTINE READFCIINT(UMAT,TMAT,NBASIS,ECORE,ARR,BRR,G1)
          IMPLICIT NONE
          INTEGER NBASIS
-         REAL*8 TMAT(NBASIS,NBASIS),ECORE
+         REAL*8 TMAT(NBASIS,NBASIS),ECORE,ARR(NBASIS,2)
          REAL*8 UMAT(NBASIS/2,NBASIS/2,NBASIS/2,NBASIS/2)
          REAL*8 Z
-         INTEGER I,J,K,L
+         INTEGER I,J,K,L,BRR(NBASIS),G1(*)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
+         LOGICAL LWRITE
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
+         LWRITE=.FALSE.
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
 101      READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
-C.. Each orbital in the file corresponds to alpha and beta spinorbitals
-         IF(K.NE.0) THEN
+C.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
+         IF(I.EQ.0) THEN
+C.. Core energy
+            ECORE=Z
+         ELSEIF(J.EQ.0) THEN
+!C.. HF Eigenvalues
+!            ARR(I*2-1,2)=Z
+!            ARR(I*2,2)=Z
+!            ARR(BRR(I*2-1),1)=Z
+!            ARR(BRR(I*2),1)=Z
+!            LWRITE=.TRUE.
+         ELSEIF(K.EQ.0) THEN
+C.. 1-e integrals
+C.. These are stored as spinorbitals (with elements between different spins being 0
+            TMAT(2*I-1,2*J-1)=Z
+            TMAT(2*I,2*J)=Z
+            TMAT(2*J-1,2*I-1)=Z
+            TMAT(2*J,2*I)=Z
+         ELSE
 C.. 2-e integrals
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
@@ -126,19 +146,15 @@ C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
             UMAT(I,L,J,K)=Z
             UMAT(L,I,K,J)=Z
             UMAT(K,J,L,I)=Z
-         ELSEIF(I.NE.0) THEN
-C.. 1-e integrals
-C.. These are stored as spinorbitals
-            TMAT(2*I-1,2*J-1)=Z
-            TMAT(2*I,2*J)=Z
-            TMAT(2*J-1,2*I-1)=Z
-            TMAT(2*J,2*I)=Z
-         ELSE
-            ECORE=Z
          ENDIF
          GOTO 101
 199      CONTINUE
          CLOSE(8)
+C.. If we've changed the eigenvalues, we write out the basis again
+!         IF(LWRITE) THEN
+!            WRITE(6,*) "1-electron energies have been read in."
+!            CALL WRITEBASIS(6,G1,NBASIS,ARR,BRR)
+!         ENDIF
          RETURN
       END
 
