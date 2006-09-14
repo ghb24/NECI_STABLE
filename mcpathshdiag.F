@@ -42,7 +42,7 @@ C.,             If 1, only allow doubles.
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
          REAL*8 RH,BETA,RHOEPS
-         LOGICAL TSYM
+         LOGICAL TSYM,T
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4
          REAL*8 DBETA,DLWDB,DLWDB2
          REAL*8 HIJS(0:I_V)
@@ -324,7 +324,7 @@ C..
                    IF(IAND(NWHTAY,8).NE.0.AND.I_VIND.LT.(I_V-2)) THEN
                      IF(ICIL.EQ.0) THEN
                         EX(1,1)=2
-                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX)
+                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX,T)
                         ICILMAX=2
                         IF(EX(1,2).NE.0) ICILMAX=ICILMAX+1
                      ENDIF

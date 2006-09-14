@@ -37,25 +37,25 @@ C..We now check to see which Slater-Condon rule to apply
       COULCOUPLE=FCOUL
       IF(IC.EQ.(NEL-2)) THEN
 C..Need to get the determinants in the form of max. coincidence
-        CALL IAZZERO(N1E,NHG)
-        CALL IAZZERO(N2E,NHG)
+!        CALL IAZZERO(N1E,NHG)
+!        CALL IAZZERO(N2E,NHG)
 C..Also returns the sign change IPTOT
-        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
+!        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..Differ by two 
         CALL SCR2(NEL,NBASISMAX,NDET1,NDET2,GBS,
      &         NHG,UMAT,ALAT,ISPINSKIP,COULCOUPLE,SUM)
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Need to get the determinants in the form of max. coincidence
-        CALL IAZZERO(N1E,NHG)
-        CALL IAZZERO(N2E,NHG)
+!        CALL IAZZERO(N1E,NHG)
+!        CALL IAZZERO(N2E,NHG)
 C..Also returns the sign change IPTOT
-        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
+!        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..Differ by one 
         CALL SCR1(NEL,NBASISMAX,NDET1,NDET2,GBS,
      &         NHG,UMAT,ALAT,ISPINSKIP,ZIA,COULCOUPLE,SUM)
       ELSEIF(IC.EQ.NEL) THEN
 C..Differ by none 
-        IPTOT=1
+!        IPTOT=1
         CALL SCR0(NEL,NBASISMAX,NDET1,NDET2,GBS,
      &         NHG,UMAT,ALAT,ISPINSKIP,ZIA,COULCOUPLE,SUM)
 C.. If we're in the UEG, we need to add in the part of the background
@@ -70,7 +70,7 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
         SUM=0.D0
         RETURN
       ENDIF
-      SUM=SUM*DFLOAT(IPTOT)
+!      SUM=SUM*DFLOAT(IPTOT)
 !      CALL TIHALT('SLTCND    ',ISUB)
       RETURN
       END

@@ -10,7 +10,7 @@ C..that are NOT common to both.
       INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(*)
       INTEGER ISS
-      INTEGER ND1(2),ND2(2),IDS(4)
+      INTEGER EX(2,2)
       REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 ALAT(3)
@@ -19,64 +19,33 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER NBASISMAX(5,3)
       REAL*8 COULCOUPLE,SUM,SUM2
       REAL*8 COULDAMP
-
+      LOGICAL TSIGN
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
 
       INTEGER ISUB
 !      CALL TISET('      SCR2',ISUB)
-C..Here we zero ND1 and ND2
-      DO I=1,2
-         ND1(I)=0
-         ND2(I)=0
-      ENDDO
-C..IQ ensures that only two differences are recorded
-C..This first routine compares NDET1 to NDET2
-      IQ=0
-      DO I=1,NEL
-         K=0
-         DO J=1,NEL
-            IF(NDET1(I).EQ.NDET2(J)) CONTINUE
-            IF(NDET1(I).NE.NDET2(J)) K=K+1
-         ENDDO
-         IF(K.EQ.NEL) THEN
-            IQ=IQ+1
-            ND1(IQ)=NDET1(I)
-            IF(IQ.GE.2) GOTO 100
-         ENDIF
-      ENDDO
- 100  CONTINUE
-C..This routine compares NDET2 to NDET1
-      IQ=0
-      DO I=1,NEL
-         K=0
-         DO J=1,NEL
-            IF(NDET2(I).EQ.NDET1(J)) CONTINUE
-            IF(NDET2(I).NE.NDET1(J)) K=K+1
-         ENDDO
-         IF(K.EQ.NEL) THEN
-            IQ=IQ+1
-            ND2(IQ)=NDET2(I)
-            IF(IQ.GE.2) GOTO 200
-         ENDIF
-      ENDDO
- 200  CONTINUE
-      CALL GTID(NBASISMAX,ND1(1),ID2)
-      CALL GTID(NBASISMAX,ND1(2),ID1)
+      EX(1,1)=2
+      CALL GETEXCITATION(NDET1,NDET2,NEL,EX,TSIGN)
+      CALL GTID(NBASISMAX,EX(1,1),ID2)
+      CALL GTID(NBASISMAX,EX(1,2),ID1)
 C..
-      CALL GTID(NBASISMAX,ND2(1),ID4)
-      CALL GTID(NBASISMAX,ND2(2),ID3)
-C..Check the spin combinations of N', N'-1, N and N-1 
-      CALL IAZZERO(IDS,4)
-      CALL GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
-C..N'>N'-1 and N>N-1 *See Levine for rule 3*
-      SUM=DFLOAT(IDS(1)*IDS(2))*
-     &   GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID3,ID4)
-     & -DFLOAT(IDS(3)*IDS(4))*
-     &   GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID4,ID3)
-      IF(SUM.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
-     &   NEL,3,G1)
+      CALL GTID(NBASISMAX,EX(2,1),ID4)
+      CALL GTID(NBASISMAX,EX(2,2),ID3)
+      IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,1))%Ms
+     &    .AND.G1(EX(1,2))%Ms.EQ.G1(EX(2,2))%Ms) THEN
+         SUM=GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID3,ID4)
+      ELSE
+         SUM=0.D0
+      ENDIF
+
+      IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,2))%Ms
+     &    .AND.G1(EX(1,2))%Ms.EQ.G1(EX(2,1))%Ms) THEN
+         SUM=SUM
+     &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID4,ID3)
+      ENDIF
+         
       SUM=SUM*COULCOUPLE
-C*
+      IF(TSIGN) SUM=-SUM
 C     &      COULDAMP(ND1(1),NHG)*COULDAMP(ND1(2),NHG)*
 C     &      COULDAMP(ND2(1),NHG)*COULDAMP(ND2(2),NHG)
 
@@ -84,17 +53,3 @@ C     &      COULDAMP(ND2(1),NHG)*COULDAMP(ND2(2),NHG)
       RETURN
       END 
 C ==----------------------------------------------------------------==
-      SUBROUTINE GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      INCLUDE 'basis.inc'
-      TYPE(BasisFN) G1(*)
-      INTEGER ND1(2),ND2(2),IDS(4)
-C..This routine generates all the requird Kronecker deltas
-C..See notes for full explanation
-      CALL CHK(G1(ND1(2))%Ms,G1(ND2(2))%Ms,IDS(1))
-      CALL CHK(G1(ND1(1))%Ms,G1(ND2(1))%Ms,IDS(2))
-      CALL CHK(G1(ND1(2))%Ms,G1(ND2(1))%Ms,IDS(3))
-      CALL CHK(G1(ND1(1))%Ms,G1(ND2(2))%Ms,IDS(4))
-C..
-      RETURN
-      END

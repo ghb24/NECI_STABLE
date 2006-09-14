@@ -807,7 +807,7 @@ C.,             If 1, only allow doubles.
          INTEGER CURGEN(*)
          INTEGER LOCTAB(3,I_V)
          INTEGER LOCTAB2(3,I_V)
-         LOGICAL TFAIL,TNEXT
+         LOGICAL TFAIL,TNEXT,T
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
          INTEGER IC
@@ -1096,7 +1096,7 @@ C..
                    IF(IAND(NWHTAY,8).NE.0.AND.I_VIND.LT.(I_V-2)) THEN
                      IF(ICIL.EQ.0) THEN
                         EX(1,1)=2
-                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX)
+                        CALL GETEXCITATION(IPATH(1,IEXFROM),NJ,NEL,EX,T)
 C                        WRITE(10,*) EX(1,1),EX(1,2),EX(2,1),EX(2,2)
                         ICILMAX=2
                         IF(EX(1,2).NE.0) ICILMAX=ICILMAX+1
@@ -1181,7 +1181,7 @@ C            CALL PRINT_MEMORY()
       SUBROUTINE WRITEPATHEX(NUNIT,IPATH,I_V,NEL,LTERM)
          IMPLICIT NONE
          INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
-         LOGICAL LTERM
+         LOGICAL LTERM,T
          INTEGER J,K,EX(2,2)
 C.. First determine the excitation
          WRITE(NUNIT,"(A,$)") "["
@@ -1189,7 +1189,7 @@ C.. First determine the excitation
             DO K=0,I_V-2
                EX(1,1)=2
 C               WRITE(6,*) J,K
-               CALL GETEXCITATION(IPATH(1,K),IPATH(1,J),NEL,EX)
+               CALL GETEXCITATION(IPATH(1,K),IPATH(1,J),NEL,EX,T)
 C               WRITE(6,*) J,K
                IF(EX(1,1).GE.0) EXIT
             ENDDO

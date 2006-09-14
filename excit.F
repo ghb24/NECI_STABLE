@@ -42,18 +42,20 @@ C.. The new node is connected to this node
 
 C.. Get the orbitals which are excited in going from I to J
 C.. IEX(1,*) are in I, and IEX(2,*) are in J
-      SUBROUTINE GETEXCITATION(NI,NJ,NEL,EX)
+      SUBROUTINE GETEXCITATION(NI,NJ,NEL,EX,TSIGN)
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NJ(NEL),EX(2,2)
-         INTEGER I,J
+         INTEGER NEL,NI(NEL),NJ(NEL),EX(2,*)
+         INTEGER I,J,IPAR
          INTEGER IC1,IC2
          INTEGER iMaxExcit
+         LOGICAL TSIGN
          iMaxExcit=EX(1,1)
-         CALL IAZZERO(EX,2*2)
+         CALL IAZZERO(EX,2*iMaxExcit)
          IC1=0
          IC2=0
          I=1
          J=1
+         IPAR=0
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
 C         CALL WRITEDET(6,NJ,NEL,.TRUE.)
          DO WHILE(I.LE.NEL.AND.J.LE.NEL)
@@ -61,13 +63,19 @@ C.. Differences from I to J
 C            WRITE(6,*) "GE",I,J
             DO WHILE(I.LE.NEL.AND.NI(I).LT.NJ(J))
                IC1=IC1+1
-               IF(IC1.LE.iMaxExcit) EX(1,IC1)=NI(I)
+               IF(IC1.LE.iMaxExcit) THEN
+                  EX(1,IC1)=NI(I)
+                  IPAR=IPAR+I
+               ENDIF
                I=I+1
             ENDDO
 C.. Differences from J to I
             DO WHILE(I.LE.NEL.AND.J.LE.NEL.AND.NI(I).GT.NJ(J))
                IC2=IC2+1
-               IF(IC2.LE.iMaxExcit) EX(2,IC2)=NJ(J)
+               IF(IC2.LE.iMaxExcit) THEN
+                  EX(2,IC2)=NJ(J)
+                  IPAR=IPAR+J
+               ENDIF
                J=J+1
             ENDDO
             IF(I.LE.NEL.AND.J.LE.NEL.AND.NI(I).EQ.NJ(J)) THEN
@@ -77,12 +85,18 @@ C.. Differences from J to I
          ENDDO
          DO WHILE(I.LE.NEL)
             IC1=IC1+1
-            IF(IC1.LE.iMaxExcit) EX(1,IC1)=NI(I)
+            IF(IC1.LE.iMaxExcit) THEN
+               IPAR=IPAR+I
+               EX(1,IC1)=NI(I)
+            ENDIF
             I=I+1
          ENDDO
          DO WHILE(J.LE.NEL)
             IC2=IC2+1
-            IF(IC2.LE.iMaxExcit) EX(2,IC2)=NJ(J)
+            IF(IC2.LE.iMaxExcit) THEN
+               EX(2,IC2)=NJ(J)
+               IPAR=IPAR+J
+            ENDIF
             J=J+1
          ENDDO
          IF(iC1.GT.iMaxExcit) THEN
@@ -100,6 +114,7 @@ C.. we actually needed more space.  Just list the excitation counts (-ve)
             EX(1,1)=0
             EX(2,1)=0
          ENDIF
+         TSIGN=IBSET(IPAR,0)
          RETURN
       END
 
