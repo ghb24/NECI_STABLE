@@ -55,6 +55,7 @@ C..Differ by one
      &         NHG,UMAT,ALAT,ISPINSKIP,ZIA,COULCOUPLE,SUM)
       ELSEIF(IC.EQ.NEL) THEN
 C..Differ by none 
+        IPTOT=1
         CALL SCR0(NEL,NBASISMAX,NDET1,NDET2,GBS,
      &         NHG,UMAT,ALAT,ISPINSKIP,ZIA,COULCOUPLE,SUM)
 C.. If we're in the UEG, we need to add in the part of the background
