@@ -23,7 +23,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
 
       INTEGER ISUB
-      CALL TISET('      SCR2',ISUB)
+!      CALL TISET('      SCR2',ISUB)
 C..Here we zero ND1 and ND2
       DO I=1,2
          ND1(I)=0
@@ -80,7 +80,7 @@ C*
 C     &      COULDAMP(ND1(1),NHG)*COULDAMP(ND1(2),NHG)*
 C     &      COULDAMP(ND2(1),NHG)*COULDAMP(ND2(2),NHG)
 
-      CALL TIHALT('      SCR2',ISUB)
+!      CALL TIHALT('      SCR2',ISUB)
       RETURN
       END 
 C ==----------------------------------------------------------------==

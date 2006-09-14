@@ -630,12 +630,11 @@ C.. If in Hubbard, we generate site-spin occupations
                CALL GENSITESPINOCC(NBASIS,NBASIS/ISPINSKIP,ISPINSKIP,
      &            NBASISMAX,G1,NEL,LMS,BRR,HFBASIS)
             ENDIF
-         ENDIF
-         IF(THFBASIS.OR.THFCALC.OR.THFORDER) THEN
 C.. We now generate a new U matrix corresponding to the HF basis fns
 C.. This requires a new matrix UMAT2 to be set up, as our HF basis is
 C.. unrestricted
             IF(THFBASIS) THEN
+               WRITE(6,*) "Allocating TMAT2"
                CALL MEMORY(IP_TMAT2,NHG**2,'TMAT2')
                CALL AZZERO(TMAT2,NHG**2)
                NORBUSED=NBASIS-NTFROZEN
@@ -690,7 +689,7 @@ C.. Now deallocate the HF arrays
      &         " unfrozen virtuals."
             NTFROZEN=NTFROZEN+NHG-NEL
          ENDIF
-         IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.THFORDER) THEN
+         IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0) THEN
 C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 C.. TMAT and Ecore with the frozen orbitals factored in
 C..
@@ -700,6 +699,7 @@ C.. t'_ii = t_ii+ sum_a ( <ai|ai> - <ai|ia> )
 C.. NHG contains the old number of orbitals
 C.. NBASIS contains the new
             NBASIS=NBASIS-NFROZEN-NTFROZEN
+C.. We need to transform some integrals
             CALL MEMORY(IP_TMAT2,(NBASIS)**2,'TMAT2')
             CALL AZZERO(TMAT2,(NBASIS)**2)
             IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
@@ -709,7 +709,7 @@ C.. allocate a UMAT
             ELSE
 C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
                CALL MEMORY(IP_UMAT2,1,'UMAT2')
-            ENDIF   
+            ENDIF 
             CALL FREEZEBASIS(NHG,NBASIS,UMAT,TMAT,UMAT2,TMAT2,ECORE,
      &         G1,NBASISMAX,ISPINSKIP,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,
      &         ALAT)

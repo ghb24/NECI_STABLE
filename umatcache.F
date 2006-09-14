@@ -14,8 +14,8 @@
          LOGICAL GETCACHEDUMATEL,LSYMSYM
          TYPE(Symmetry) SYM,SYMPROD
          INCLUDE 'umatcache.inc'
-         INTEGER ISUB
-         CALL TISET(' GETUMATEL',ISUB)
+         INTEGER ISUB,ISUB2
+!         CALL TISET(' GETUMATEL',ISUB)
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
@@ -88,10 +88,14 @@ C                  WRITE(6,*) A,B
               ENDIF
            ENDIF
           ELSE
+!         CALL TIHALT(' GETUMATEL',ISUB)
+!         CALL TISET('GETUMATEL2',ISUB2)
              GETUMATEL=UMAT(IDI+(NHG/ISS)*(IDJ-1+
      &                     (NHG/ISS)*(IDK-1+(NHG/ISS)*(IDL-1))))
+!         CALL TIHALT('GETUMATEL2',ISUB2)
+         RETURN
           ENDIF
-          CALL TIHALT(' GETUMATEL',ISUB)
+!          CALL TIHALT(' GETUMATEL',ISUB)
           RETURN
          END IF   
          IF(NBASISMAX(1,3).EQ.-1) THEN
@@ -119,7 +123,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
                    ENDIF
             GETUMATEL=SUM
          ENDIF
-         CALL TIHALT(' GETUMATEL',ISUB)
+!         CALL TIHALT(' GETUMATEL',ISUB)
       END
 
 
