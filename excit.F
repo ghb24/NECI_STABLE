@@ -114,7 +114,7 @@ C.. we actually needed more space.  Just list the excitation counts (-ve)
             EX(1,1)=0
             EX(2,1)=0
          ENDIF
-         TSIGN=IBSET(IPAR,0)
+         TSIGN=BTEST(IPAR,0)
          RETURN
       END
 
