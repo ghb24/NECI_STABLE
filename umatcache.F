@@ -61,7 +61,8 @@ C.. Check to see if the umat element is in the cache
 C.. Check the symmetry of the 4-index integrals
                IF(.NOT.LSYMSYM(SYM)) THEN
                   GETUMATEL=0.D0
-                  CALL TIHALT(' GETUMATEL',ISUB)
+! JSS --- comment out the following TIHALT.  (TISET commented out above.)
+!                 CALL TIHALT(' GETUMATEL',ISUB)
                   RETURN
                ENDIF
                
