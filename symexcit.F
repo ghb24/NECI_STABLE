@@ -1226,6 +1226,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       REAL*8 RAN2
          INTEGER ICC1,ICC2,ICC3,ICC4
          LOGICAL L1B,L1A,L2B,L2A
+      LOGICAL ISVALIDDET
 C.. First generate a random excitation 
       I=ITOTAL*RAN2(ISEED)
       IEXCIT=1
@@ -1279,11 +1280,11 @@ C Now go through the list of possible excitations of it
             K=0
             L=0
             DO WHILE(K.LT.SYMLABELCOUNTS(2,ITO))
-               L2=.TRUE.
+               ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
+     &                           +ISPN
+               L2=L.EQ.0.OR.NI(L).LT.ITOSL
                DO WHILE (L2)
                   L=L+1
-                  ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
-     &                           +ISPN
                   L2=L.LE.NEL.AND.NI(L).LT.ITOSL
                ENDDO
                IF(L.GT.NEL.OR.NI(L).NE.ITOSL) THEN
@@ -1294,6 +1295,17 @@ C.. We've found a virtual into which we can excite our occupied orb.
                      CALL ICOPY(NEL,NI,1,NK,1)
                      NK(I)=ITOSL
                      CALL SORTI(NEL,NK)
+                     IF(.NOT.ISVALIDDET(NK,NEL)) THEN
+            
+                       WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
+                       CALL WRITEDET(6,NK,NEL,.TRUE.)
+                       CALL WRITEDET(6,NI,NEL,.TRUE.)
+                       WRITE(6,*) I,ITOSL,K,L
+                       WRITE(6,*)
+     &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,
+     &                     K=0,SYMLABELCOUNTS(2,ITO)-1)
+                        STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
+                     ENDIF
                      IC=1
                      RETURN
                   ELSE
