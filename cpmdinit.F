@@ -239,14 +239,15 @@ C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE,TORDER,ARR,BRR)
+         USE HElement
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
-         REAL*8 TMAT(NHG,NHG)
-         REAL*8 CPMD1EINT(NSTATES,NSTATES)
+         TYPE(HElement) TMAT(NHG,NHG)
+         TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
-         REAL*8 TOT,F,U 
-         REAL*8 GETUMATEL
+         REAL*8 F
+         TYPE(HElement) GETUMATEL,U,TOT
          INTEGER ISS(*),NBASISMAX(*)
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)
@@ -270,7 +271,8 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
             NSTATESUSED=NORBUSED/2
          ENDIF
          CALL SETUPUMATCACHE(NSTATESUSED)
-         CALL CPMDGEN1EINTS(G1,CPMD1EINT)
+C         CALL CPMDGEN1EINTS(G1,CPMD1EINT)
+         CALL MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
@@ -283,7 +285,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                JJ=J*2-1
                IF(LCHKSYM(G1(II),G1(JJ))) THEN
                   TOT=0.D0
-                  IF(I.EQ.J) TOT=TOT+EIGENVALUES(I)
+                  IF(I.EQ.J) TOT=TOT+HElement(EIGENVALUES(I))
                   TOT=TOT-CPMD1EINT(I,J)
                   DO K=1,NSTATES
                      CALL CPMDGETOCC(K,F)
@@ -297,7 +299,8 @@ C.. Get 4-index integral (ik|jk)
                         ENDIF
                         U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
      &                        I,K,J,K)
-                        TOT=TOT-F*U
+                        WRITE(6,*) I,K,J,K,U
+                        TOT=TOT-HElement(F)*U
                      ENDIF
                   ENDDO
                   TMAT(II,JJ)=TOT
@@ -306,7 +309,7 @@ C.. Get 4-index integral (ik|jk)
                   TMAT(JJ+1,II+1)=TOT
                   WRITE(10,*) I,J,TOT
                   IF(I.EQ.J) THEN
-                     DIAGTMAT(I)=TOT
+                     DIAGTMAT(I)=SQRT(SQ(TOT))
                      STATEORDER(I)=I
                   ENDIF
                ENDIF

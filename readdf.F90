@@ -1,6 +1,7 @@
 ! lenrec is the number of auxiliary basis functions
 SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use record_handler
+         use HElement
          implicit none
          include 'umatcache.inc'
          integer nEl,nBasisMax(5,3),Len,lMs
@@ -35,6 +36,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       SUBROUTINE ReadDF2EIntegrals(nBasis,nOrbUsed)
          use precision
          use record_handler
+         use HElement
          implicit none
          INCLUDE 'umatcache.inc'
          parameter C_file='SAV_DFaSOL'
@@ -66,6 +68,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       
 !.. Get a 2-el integral.  a,b,c,d are indices.
       SUBROUTINE GetDF2EInt(a,b,c,d,res)
+         use HElement 
          implicit none
          include 'umatcache.inc'
          integer a,b,c,d

@@ -4,6 +4,7 @@ C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
+      USE HElement
       IMPLICIT NONE
       INTEGER NDET1(NEL)
       INTEGER NDET2(NEL)
@@ -11,13 +12,13 @@ C..that are NOT common to both.
       TYPE(BasisFN) G1(*)
       INTEGER ISS
       INTEGER EX(2,2)
-      REAL*8 UMAT(*)
+      TYPE(HElement) UMAT(*),SUM,SUM2
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 ALAT(3)
-      REAL*8 GETUMATEL
+      TYPE(HElement) GETUMATEL
       INTEGER NEL,NHG
       INTEGER NBASISMAX(5,3)
-      REAL*8 COULCOUPLE,SUM,SUM2
+      REAL*8 COULCOUPLE
       REAL*8 COULDAMP
       LOGICAL TSIGN
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
@@ -44,7 +45,7 @@ C..
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID4,ID3)
       ENDIF
          
-      SUM=SUM*COULCOUPLE
+      SUM=SUM*HElement(COULCOUPLE)
       IF(TSIGN) SUM=-SUM
 C     &      COULDAMP(ND1(1),NHG)*COULDAMP(ND1(2),NHG)*
 C     &      COULDAMP(ND2(1),NHG)*COULDAMP(ND2(2),NHG)

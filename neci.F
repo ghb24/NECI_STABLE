@@ -10,6 +10,7 @@ C ==------------------------------------------------------------------==
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
      &   TCPMD,TDFREAD)
+      USE HElement
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -50,10 +51,13 @@ C..
 C.. NEL now includes all electrons, and we'll only want active later
       INTEGER NMRKS(NEL-NFROZEN,*),LAB(*),NROW(*),IKILL(*)
       INTEGER IPARITY(5),GC,IMCSTEPS,IEQSTEPS,I_HMAX,NTAY,NWHTAY
-      REAL*8 ARR(*),HAMIL(*),CKN(*),CK(*)
+      REAL*8 ARR(*),CKN(*),CK(*)
       INTEGER BRR(*)
-      REAL*8 A(*),W(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*),TMAT(*)
-      REAL*8 WH(*),WORK2(*),V2(*),RHO(*),SITAB(*),TKE(*),UMAT(*)
+      REAL*8 A(*),W(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
+      TYPE(HElement) TMAT(*)
+      REAL*8 WH(*),WORK2(*),V2(*),RHO(*),SITAB(*),TKE(*)
+      TYPE(HElement) UMAT(*)
+      TYPE(HElement) HAMIL(*)
       INCLUDE 'basis.inc'
 
       TYPE(Symmetry) FrzSym
@@ -77,7 +81,10 @@ C..
       LOGICAL TSPINPOLAR,TBEGRAPH,THFBASIS,THUB,TNPDERIV,THFCALC
       POINTER (IP_HFBASIS,HFBASIS),(IP_UMAT2,UMAT2),(IP_HFE,HFE)
       POINTER (IP_TMAT2,TMAT2)
-      REAL*8 HFBASIS(*),UMAT2(*),HFE(*),TMAT2(*)
+      REAL*8 HFBASIS(*),HFE(*)
+      TYPE(HElement) TMAT2(*)
+
+      TYPE(HElement) UMAT2(*)
       REAL*8 UHUB,BHUB,HFCDELTA
       LOGICAL TWARN
 
@@ -502,14 +509,14 @@ C..
 C.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
             WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
             CALL MEMORY(IP_UMAT,1,'UMAT')
-            CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
-            CALL AZZERO(TMAT,NHG*NHG)
+            CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
+            CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             CALL CPMDINIT2INDINT(TMAT,NHG,I,NBASISMAX,
      &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR)
          ELSEIF(TREADINT.AND.TDFREAD) THEN
-            CALL MEMORY(IP_UMAT,1,'UMAT')
-            CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
-            CALL AZZERO(TMAT,NHG*NHG)
+            CALL MEMORY(IP_UMAT,HElementSize,'UMAT')
+            CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
+            CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             Call ReadDalton1EIntegrals(G1,nBasis,TMat,Arr,Brr,ECore)
             Call ReadDF2EIntegrals(nBasis,I)
          ELSEIF(TREADINT) THEN
@@ -519,10 +526,10 @@ C.. Generate the 2e integrals (UMAT)
             NBASISMAX(2,3)=2
 C.. We can only do restricted systems, so alpha and beta spinorbital
 C... integrals will be the same 
-            CALL MEMORY(IP_UMAT,(NHG/2)**4,'UMAT')
-            CALL AZZERO(UMAT,(NHG/2)**4)
-            CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
-            CALL AZZERO(TMAT,NHG*NHG)
+            CALL MEMORY(IP_UMAT,HElementSize*(NHG/2)**4,'UMAT')
+            CALL AZZERO(UMAT,HElementSize*(NHG/2)**4)
+            CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
+            CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             CALL READFCIINT(UMAT,TMAT,NBASIS,ECORE,ARR,BRR,G1)
             WRITE(6,*) ' ECORE=',ECORE
             ISPINSKIP=2
@@ -546,8 +553,9 @@ C..   We're doing a 2D simulation
 C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
 C.. Generate the 2e integrals (UMAT)
-               CALL MEMORY(IP_UMAT,(NHG/ISPINSKIP)**4,'UMAT')
-               CALL AZZERO(UMAT,(NHG/ISPINSKIP)**4)
+               CALL MEMORY(IP_UMAT,HElementSize*(NHG/ISPINSKIP)**4,
+     &            'UMAT')
+               CALL AZZERO(UMAT,HElementSize*(NHG/ISPINSKIP)**4)
                IF(TUEG.OR.THUB) THEN
                   IF(THUB.AND.TREAL) THEN
 C.. Real space hubbard
@@ -575,8 +583,8 @@ C.. The UEG doesn't store coul integrals
             ENDIF
             CALL MEMORY_CHECK()
 C.. we need to generate TMAT
-            CALL MEMORY(IP_TMAT,NHG*NHG,'TMAT')
-            CALL AZZERO(TMAT,NHG*NHG)
+            CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
+            CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             IF(THUB) THEN
              CALL CALCTMATHUB(TMAT,NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
      &         TPBC)
@@ -700,12 +708,13 @@ C.. NHG contains the old number of orbitals
 C.. NBASIS contains the new
             NBASIS=NBASIS-NFROZEN-NTFROZEN
 C.. We need to transform some integrals
-            CALL MEMORY(IP_TMAT2,(NBASIS)**2,'TMAT2')
-            CALL AZZERO(TMAT2,(NBASIS)**2)
+            CALL MEMORY(IP_TMAT2,HElementSize*(NBASIS)**2,'TMAT2')
+            CALL AZZERO(TMAT2,HElementSize*(NBASIS)**2)
             IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
 C.. allocate a UMAT
-               CALL MEMORY(IP_UMAT2,(NBASIS/ISPINSKIP)**4,'UMAT2')
-               CALL AZZERO(UMAT2,(NBASIS/ISPINSKIP)**4)
+               CALL MEMORY(IP_UMAT2,HElementSize*(NBASIS/ISPINSKIP)**4,
+     &            'UMAT2')
+               CALL AZZERO(UMAT2,HElementSize*(NBASIS/ISPINSKIP)**4)
             ELSE
 C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
                CALL MEMORY(IP_UMAT2,1,'UMAT2')
@@ -738,6 +747,58 @@ C.. to UMAT2
      &         ARR(COULDAMPORB)," and ",ARR(COULDAMPORB+1)
             WRITE(6,*) "MU=",FCOULDAMPMU
          ENDIF
+         IF(THFBASIS.OR.THFCALC.OR.THFORDER) THEN
+C.. We now generate a new U matrix corresponding to the HF basis fns
+C.. This requires a new matrix UMAT2 to be set up, as our HF basis is
+C.. unrestricted
+            IF(THFBASIS) THEN
+               CALL MEMORY(IP_TMAT2,HElementSize*NHG**2,'TMAT2')
+               CALL AZZERO(TMAT2,HElementSize*NHG**2)
+               IF(TREADTUMAT) THEN
+                  CALL READHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS)
+               ELSE
+                  CALL CALCHFTMAT(TMAT,TMAT2,NBASIS,HFBASIS)
+               ENDIF
+               CALL FREEM(IP_TMAT)
+               IP_TMAT=IP_TMAT2
+               IP_TMAT2=NULL
+C.. Allocate the new matrix
+               CALL MEMORY(IP_UMAT2,HElementSize*NHG**4,'UMAT2')
+               CALL AZZERO(UMAT2,HElementSize*NHG**4)
+C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
+C.. This also modified G1, ARR, BRR
+               IF(TREADTUMAT) THEN
+                 CALL READHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,
+     &            ISPINSKIP,HFE,ARR,BRR)
+               ELSE
+                 CALL CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,
+     &            ISPINSKIP,HFE,ARR,BRR)
+               ENDIF
+C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
+C.. to UMAT2
+               CALL FREEM(IP_UMAT)
+               IP_UMAT=IP_UMAT2
+               IP_UMAT2=NULL
+C.. spinskip values
+               ISPINSKIP=1
+               NBASISMAX(2,3)=1
+C.. Indicate that we're in UHF and that <D0|H|D1>=0 for D1 being a
+C.. single excitation
+               IF(LMS.EQ.0) THEN
+                  NBASISMAX(4,5)=1
+                  DO I=1,NEL
+                     NUHFDET(I)=BRR(I)
+                  ENDDO
+                  CALL SORTI(NEL,UHFDET)
+               ELSE
+                  NBASISMAX(4,5)=2
+               ENDIF
+            ENDIF
+         ENDIF
+      ELSE
+C.. if reading in FCI solutions, then 
+C.. no symmetry, so a simple sym table
+            CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
       ENDIF
 C           (.NOT.(TREAD.OR.TREADRHO))
 
@@ -910,7 +971,7 @@ C..
          IF(ICILEVEL.NE.0) THEN
 C.. Use HAMIL to temporarily hold a list of excitation levels
             CALL ICOPY(NEL,FDET,1,NMRKS,1)
-            CALL MEMORY(IP_HAMIL,II,'HAMIL')
+            CALL MEMORY(IP_HAMIL,II*HElementSize,'HAMIL')
             CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,NMRKS(1,2),HAMIL,
      &            NDET,1,
      &            G1,.TRUE.,NBASISMAX,.FALSE.)
@@ -1039,8 +1100,8 @@ C..We need to measure HAMIL and LAB first
          CALL FLUSH(6)
 C..Now we know size, allocate memory to HAMIL and LAB
          LENHAMIL=GC
-         CALL MEMORY(IP_HAMIL,LENHAMIL,'HAMIL')
-         CALL AZZERO(HAMIL,LENHAMIL)
+         CALL MEMORY(IP_HAMIL,LENHAMIL*HElementSize,'HAMIL')
+         CALL AZZERO(HAMIL,LENHAMIL*HElementSize)
 C..
          CALL MEMORY(IP_LAB,LENHAMIL/IRAT+1,'LAB')
          CALL IAZZERO(LAB,LENHAMIL)
@@ -1054,8 +1115,8 @@ C.. we write out H now
             OPEN(8,FILE='HAMIL',STATUS='UNKNOWN')
             J=0
             JR=0
-            HMAX=-dflmax()
-            HMIN=dflmax()
+C            HMAX=-dflmax()
+C            HMIN=dflmax()
             DO I=1,LENHAMIL
                DO WHILE(I.GT.J)
                   JR=JR+1
@@ -1070,8 +1131,9 @@ C               CALL WRITEDET(14,NMRKS(1,LAB(I)),NEL,.FALSE.)
 C               WRITE(14,"(A,$)"),"|"
 C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
 C               WRITE(14,"(F27.20)") HAMIL(I)
-               IF(HAMIL(I).GT.HMAX) HMAX=HAMIL(I)
-               IF(HAMIL(I).LT.HMIN) HMIN=HAMIL(I)
+
+C               IF(HAMIL(I).GT.HMAX) HMAX=HAMIL(I)
+C               IF(HAMIL(I).LT.HMIN) HMIN=HAMIL(I)
             ENDDO
             CLOSE(8)
          ENDIF
@@ -2064,15 +2126,24 @@ C.. This should only happen for HMAX
       END
 
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG,
-     &      BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,I_P,ECORE)
-         INTEGER NEL,NI(NEL),I,NBASISMAX,BRR(NBASISMAX),I_P
-         REAL*8 RHOEPSILON,BETA,ECORE
+     &      BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,I_P,ECORE)
+         USE HElement
+         IMPLICIT NONE
+         INCLUDE 'basis.inc'
+         INTEGER NEL,NI(NEL),I,NBASISMAX(5,2),I_P
+         INTEGER BRR(*),NMSH,NMAX,NHG
+         COMPLEX*16 FCK(*)
+         REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)
+         TYPE(HElement) BP,UMat(*),TMat(*)
+         TYPE(BasisFN) G1(*)
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
          CALL SORTI(NEL,NI)
-        GETRHOEPS=RHOEPSILON*EXP(-BETA*GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &             G1,NHG,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,0,ECORE)/I_P)
+         BP=HElement(-BETA/I_P)
+        GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON)*EXP(BP*GETHELEMENT2(NI,
+     &      NI,NEL,NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &         0,ECORE))))
          RETURN
       END
 
@@ -2331,14 +2402,15 @@ C.. Normal Hubbard
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
      &            DETINV,TSPN,LMS,TPARITY,SymRestrict,TSPECDET,SPECDET)
+         USE HElement
          IMPLICIT NONE
          include 'irat.inc'
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE),(IP_RIJLIST,RIJLIST)
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         REAL*8 RIJLIST(*)
-         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),RHOEPS,DLWDB
+         TYPE(HElement)  RIJLIST(*),UMAT(*),TMat(*)
+         REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
          INTEGER NPATHS,NI(NEL),I_P,NBASISMAX(5,5)
          INCLUDE 'gndwork.inc'
          INTEGER Work(GNDWorkSize+2*NEL)
@@ -2347,14 +2419,16 @@ C.. Normal Hubbard
          INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,ISUB
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
-         REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
-         REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM,TMAT(*)
+         REAL*8 DBETA,ECORE
+         TYPE(HDElement) WLRI,WLSI,WLRI1,WLRI2,WLSI1,WLSI2,WI,DLWDB
+         TYPE(HDElement) TOT,WLRI0,WLSI0,WINORM,HElP,NORM
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
          INTEGER ISTART,IEND,IDEG
          LOGICAL TSPECDET
          INTEGER SPECDET(NEL)
-         REAL*8 DLWDB2,DLWDB3,DLWDB4,TOT2
+         TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
+         HElP=HDElement(I_P)
          TSYM=.TRUE.
          TOT=0.D0
          TOT2=0.D0
@@ -2424,8 +2498,8 @@ C:         CALL PRINT_MEMORY()
      &         WLRI,WLSI,DBETA,DLWDB2)
             WRITE(15,"(I12,$)") III
             CALL WRITEDET(15,NI,NEL,.FALSE.)
-            WRITE(15,"(3G25.16,$)") EXP(WLSI+I_P*WLRI),
-     &         WLRI*I_P,WLSI
+            WRITE(15,"(3G25.16,$)") EXP(WLSI+HElP*WLRI),
+     &         WLRI*HElP,WLSI
             IF(TFIRST) THEN
                TFIRST=.FALSE.
                WLRI0=WLRI
@@ -2441,15 +2515,16 @@ C.. if we're calculating the derivatives too
      &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,
      &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,
      &            ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
-               DLWDB=-(I_P*(WLRI1-WLRI2)+(WLSI1-WLSI2))/(2*DBETA)
+               DLWDB=-(HElP*(WLRI1-WLRI2)+(WLSI1-WLSI2))
+     &                  /HDElement(2*DBETA)
             ELSE
                DLWDB=DLWDB2
             ENDIF
 C.. we calculate the energy with weightings normalized to the weight of
 C.. the Fermi determinant, otherwise the numbers blow up
-            WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
-            NORM=NORM+IDEG*WINORM
-            TOT=TOT+IDEG*WINORM*DLWDB
+            WINORM=EXP(HElP*(WLRI-WLRI0)+(WLSI-WLSI0))
+            NORM=NORM+HDElement(IDEG)*WINORM
+            TOT=TOT+HDElement(IDEG)*WINORM*DLWDB
             WRITE(15,"(G25.16,I5)") DLWDB,IDEG
             IF(DETINV.EQ.III) THEN
                CALL FLUSH(15)

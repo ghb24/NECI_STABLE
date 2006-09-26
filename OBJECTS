@@ -22,7 +22,8 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           rootfind.o cpmdinit.o neci.o umatcache.o mcpathshdiag.o \
           oexcit.o
 
-OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o
+OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElement.o \
+         RhoElement.o
 
 OBJ_CPMDSTUB = cpmdstub.o init_coul.o init_coul2D.o
 OBJ_NOCPMDSTUB = nocpmdstub.o

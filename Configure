@@ -760,7 +760,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT CMPLXFLAG'
      NCPUS=2
      #-sb is to use Workshop package
       FFLAGS='-I /usr/local/fftw-3.1/include -I /usr/local/fftw-3.0.1/include -Mr8 -Msignextend -Minform=warn'
@@ -1097,7 +1097,7 @@ clean :
 # Explicit rules
 #----------------------------------------------------------------------------
 .SUFFIXES:
-.SUFFIXES: .o .f .F .mod .F90 .f90
+.SUFFIXES: .o .f .F .f90 .F90 .mod .inc
 
 \$(OBJECTSF:.o=.f) : 
 	rm -f \$@
@@ -1191,11 +1191,11 @@ do
        /^[ ]*USE/ || /^[ ]*use/ {
                split($0,a,"[ ,]*");
                if(a[1]=="use") {
-                  Name =  a[2] ".mod";
+                  Name =  tolower(a[2]) ".mod";
                }
                else
                {
-                  Name =  a[3] ".mod";
+                  Name =  tolower(a[3]) ".mod";
                }
                no = 0;
                if (Ninclude != 0) {
@@ -1220,23 +1220,25 @@ do
                  line=sprintf("%s %s",line,Name)
                }
        }
-       /^[ ]*module/ || /^[ ]*MODULE/ {
+       (/^[ ]*module/ || /^[ ]*MODULE/){
+            if(!/PROCEDURE/i) {
                split($0,a,"[ ,]*");
                if(a[1]=="module") {
-                  Name =  a[2] ".mod";
+                  Name =  tolower(a[2]) ".mod";
                }
                else
                {if(a[1]=="MODULE") {
-                  Name =  a[2] ".mod";
+                  Name =  tolower(a[2]) ".mod";
                }
                else
                 {
-                  Name =  a[3] ".mod";
+                  Name =  tolower(a[3]) ".mod";
                }
                }
                Modules[Name]=1;
                nModules=nModules+1
                line=sprintf("%s %s",Name,line);
+            }
       }
        END   { printf "%s%s\n", linebuf,line }' ${name} >&3
 done

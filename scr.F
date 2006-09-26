@@ -1,12 +1,14 @@
 C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0(NEL,NBASISMAX,NDET1,NDET2,
-     &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM) 
+     &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM)
+      USE HElement
       IMPLICIT NONE
       INCLUDE 'umatcache.inc'
       INCLUDE 'basis.inc'
       TYPE(BasisFn) G1(*)
       INTEGER ISS
-      REAL*8 UMAT(*)
+      TYPE(HElement) UMAT(*),TMAT(NHG,NHG)
+
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER ID(NEL)
@@ -15,11 +17,10 @@ C..Cube array
       REAL*8 ALAT(3)
       REAL*8 KP
       LOGICAL TVAB
-      REAL*8 TMAT(NHG,NHG)
-      REAL*8 GETUMATEL
+      TYPE(HElement) GETUMATEL
       INTEGER NEL,NHG
-      REAL*8 SUM,COULCOUPLE
-      REAL*8 SUM1,SUM2,SUM3,SUM4
+      TYPE(HElement) SUM,SUM1,SUM2,SUM3,SUM4
+      REAL*8 COULCOUPLE
       INTEGER IDS,I,J,IG1I,INDET
       INTEGER ISUB
       REAL*8 COULDAMP
@@ -52,10 +53,10 @@ C        SUM3=COULDAMP(NDET1(I),NHG)**2
           ENDIF
           IF(IDS.NE.0) THEN 
             IF(TUMAT2D) THEN
-               SUM4=SUM4-DFLOAT(IDS)*(UMAT2D(ID(J),ID(I)))
+               SUM4=SUM4-HElement(IDS)*UMAT2D(ID(J),ID(I))
             ELSE
-               SUM4=SUM4-DFLOAT(IDS)*
-     & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
+               SUM4=SUM4-HElement(IDS)*
+     &GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
             ENDIF
           ENDIF
           SUM2=SUM2+SUM4
@@ -65,7 +66,7 @@ C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
 C..
 C      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
 C     &   NEL,1,G1)
-      SUM=SUM1+SUM2*COULCOUPLE
+      SUM=SUM1+SUM2*HElement(COULCOUPLE)
 !      CALL TIHALT('      SCR0',ISUB) 
       RETURN
       END

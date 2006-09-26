@@ -513,19 +513,22 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          RETURN
       END
 C.. See 1/7/04
-      RECURSIVE REAL*8 FUNCTION RHODIAG_CPP(RHOIJ,
+      RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
      &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
+         USE HElement
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
-         REAL*8 RHOIJ(I_V+1,I_V+1)
-         REAL*8 RIJMAT(I_V,I_V)
-         REAL*8 WLIST(I_V),WORK(3*I_V)         
+         TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
+         TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT
+         REAL*8 WORK(3*I_V),R
+         REAL*8 WLIST(I_V)         
          INTEGER INFO,I,J,IMISS,II,IJ
-         REAL*8 SI,SI2
+         TYPE(HDElement) SI,SI2,SS,SS2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
-         REAL*8 DBETA,DLWDB,DD2,HIJS(I_V+1),HIJS2(I_V)
-         REAL*8 RII
+         TYPE(HDElement) DLWDB,RII,DD2
+         TYPE(HDElement) RhoDiag_CPP
+         REAL*8 DBETA
          RII=RHOIJ(1,1)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
@@ -540,7 +543,7 @@ C         WRITE(6,*) "...",I_V,IMISS
                DO J=I,I_V+1
                   IF(J.NE.IMISS) THEN
                      IJ=IJ+1
-                     RIJMAT(II,IJ)=RHOIJ(I,J)+0.D0
+                     RIJMAT(II,IJ)=RHOIJ(I,J)
                   ENDIF
                ENDDO
                HIJS2(II)=HIJS(I)
@@ -552,7 +555,6 @@ C.. In order to count the subsets only once, we need to only
 C.. remove up to IMISS 
          IF(TSUB) THEN
             DO I=2,IMISS-1
-CIMISS-1
                DD2=0.D0
                SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2)
@@ -561,32 +563,67 @@ C            WRITE(6,*) "SI=",SI
             ENDDO
          ENDIF
 C         WRITE(6,*) I_V
-         CALL DSYEV('V','U',I_V,RIJMAT(1,1),I_V,
-     &            WLIST(1),WORK(1),3*I_V,INFO)
-         IF(INFO.NE.0) THEN
-            WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
-         ENDIF
+         IF(HElementSize.EQ.1) THEN
+            CALL DSYEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,WORK,3*I_V,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'DYSEV error: ',INFO
+               STOP
+            ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
-C         WRITE(6,*) (RIJMAT(1,I),I=1,I_V)
-C         WRITE(6,*) (WLIST(I),I=1,I_V)
-         SI2=0.D0
-         DO I=1,I_V
-C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
-            SI2=SI2+RIJMAT(1,I)*RIJMAT(1,I)
-     &               *((WLIST(I)/RII)**I_P)
-            IF(DBETA.NE.0.D0) THEN
+            DLWT=0.D0
+            SI2=0.D0
+            DO I=1,I_V
+               R=DREAL(RII)
+               R=((WLIST(I)/R)**I_P)
+               S=R
+               SS=S*RIJMAT(1,I)*RIJMAT(1,I)
+               SI2=SI2+SS
+               IF(DBETA.NE.0.D0) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
-               DO J=1,I_V
-                  DLWDB=DLWDB+HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
-     &               *((WLIST(I)/RII)**I_P)
-               ENDDO
+                  DO J=1,I_V
+                     S=S*RIJMAT(J,I)*RIJMAT(1,I)
+                     DLWT=DLWT+S*HIJS2(J)
+                  ENDDO
+               ENDIF
+            ENDDO
+            S=DLWDB
+            S=S+DLWT
+            DLWDB=S
+         ELSE
+!.. The complex case
+            CALL ZHEEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,NWORK,4*I_V,WORK,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'ZHEEV error: ',INFO
+               STOP
             ENDIF
-         ENDDO
-C         WRITE(6,*) I_V,IMISS,SI2,SI
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. divide through by RHOII^P
+            SI2=0.D0
+            DLWT=0.D0
+            DO I=1,I_V
+               R=DREAL(RII)
+               SS=((WLIST(I)/R)**I_P)
+               SS2=SQ(RIJMAT(1,I))
+               SI2=SI2+SS*SS2
+               IF(DBETA.NE.0.D0) THEN
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+                  DO J=1,I_V
+                     S=SS
+                     S=S*DCONJG(RIJMAT(J,I))*RIJMAT(1,I)
+                     DLWT=DLWT+S*HIJS2(J)
+                  ENDDO
+               ENDIF
+            ENDDO
+            S=DLWDB
+            S=S+DLWT
+            DLWDB=S
+         ENDIF
+
+
          RHODIAG_CPP=SI+SI2
-C         WRITE(6,*) SI         
          CALL TIHALT("RHODIAG_C2",ISUB)
          RETURN
       END

@@ -1,22 +1,23 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
      &	NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM)
+      USE HElement
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
       INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(*)
       INTEGER NBASISMAX(5,2)
       INTEGER ID,EX(2)
-      REAL*8 UMAT(*)
+      TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-      REAL*8 TMAT(NHG,NHG),ALAT(3)
-      REAL*8 GETUMATEL
+      TYPE(HElement) TMAT(NHG,NHG),SUM
+      TYPE(HElement) GETUMATEL
       LOGICAL TSIGN
       INTEGER NEL,NHG,ISS
-      REAL*8 COULCOUPLE,SUM,CD
+      REAL*8 COULCOUPLE,CD,ALAT(3)
       REAL*8 COULDAMP
 
       INTEGER IQ,I,J,K,ID1,ID2
-      REAL*8 SUM2,SUM3
+      TYPE(HElement) SUM2,SUM3
       INTEGER ISUB
       LOGICAL LCOUL
 !      CALL TISET('      SCR1',ISUB) 
@@ -55,7 +56,7 @@ C*(COULDAMP(NDET1(I),NHG)**2)*CD
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
-      SUM=SUM2*COULCOUPLE+TMAT(EX(1),EX(2))
+      SUM=SUM2*HElement(COULCOUPLE)+TMAT(EX(1),EX(2))
       IF(TSIGN) SUM=-SUM
 !      CALL TIHALT('      SCR1',ISUB) 
       RETURN

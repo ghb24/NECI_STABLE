@@ -1,25 +1,26 @@
       SUBROUTINE DETHAM(NDET,NEL,NMRKS,NBASISMAX,
-     &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,ZIA,
+     &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,TMat,
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+      USE HElement
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
-      REAL*8 HAMIL(*)
+      TYPE(HElement) HAMIL(*)
       INTEGER NDET,NEL,NMSH,NMAX
-      INTEGER G1(*),LAB(*)
+      INTEGER LAB(*)
+      INCLUDE 'basis.inc'
+      TYPE(BasisFn) G1(*)
       INTEGER NMRKS(NEL,*)
       INTEGER NROW(NDET),GC
 C..Cube Arrays
       COMPLEX*16 FCK(NMSH,NMSH,NMSH)
-      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
       REAL*8 ALAT(3),ECORE
       INTEGER NBASISMAX(*),NHG,BRR(*)
-      REAL*8 UMAT(*)
+      TYPE(HElement) TMat(*),UMat(*)
 C..
       INTEGER ICMAX,ISUB,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
-      REAL*8 GETHELEMENT2
-      REAL*8 SUM
       INTEGER IGETEXCITLEVEL
+      TYPE(HElement) SUM
 C ==-------------------------------------------------------------------==
       CALL TISET('    DETHAM',ISUB)
 C ==-------------------------------------------------------------------==
@@ -50,13 +51,13 @@ C..   If determinants differ by more than 2 spin orbitals IC < 2
             ENDIF
 C..
             SUM=GETHELEMENT2(NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),NEL,
-     &         NBASISMAX,G1,NHG,BRR,NMSH,FCK,ZIA,NMAX,
+     &         NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMat,NMAX,
      &         ALAT,UMAT,NEL-IC,ECORE)
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &		NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
 C     &		FCK,ZIA,NMAX,ALAT,UMAT,SUM)
-            IF(ABS(SUM).LT.1.D-10) SUM=0.D0
-            IF(ABS(SUM).GT.0.D0.OR.KI.EQ.KJ) THEN
+            IF(ABS(SUM%v).LT.1.D-10) SUM%v=0.D0
+            IF(SUM%v.NE.0.D0.OR.KI.EQ.KJ) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1

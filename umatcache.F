@@ -1,11 +1,13 @@
-      REAL*8 FUNCTION GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,
+      FUNCTION GetUMatEl(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,
      &      IDI,IDJ,IDK,IDL)
+         USE HElement
          IMPLICIT NONE
+         TYPE(HElement) GetUMatEl
          INTEGER NBASISMAX(5,3),I,J,K,L,NHG,ISS
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NHG)
          REAL*8 ALAT(3)
-         REAL*8 UMAT(*)
+         TYPE(HElement) UMAT(*)
          INTEGER A,B,C
          INTEGER IDI,IDJ,IDK,IDL
          REAL*8 SUM
@@ -129,6 +131,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
 
 
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
+         USE HElement
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
          INTEGER GIND,NBASISMAX(5,2),ID
@@ -142,6 +145,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
       END
 
       SUBROUTINE SETUPUMATCACHE(NSTATE)
+         USE HElement
          IMPLICIT NONE
          INTEGER NSTATE
          INCLUDE 'umatcache.inc'
@@ -155,22 +159,24 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          NMISSES=0
          WRITE(6,*) "UMAT NSLOTS,NPAIRS,TOT",NSLOTS,NPAIRS,NSLOTS*NPAIRS
          TUMAT2D=.FALSE.
-         CALL MEMORY(IP_UMATCACHE,NSLOTS*NPAIRS,'UMATCACHE')
+        CALL MEMORY(IP_UMATCACHE,HElementSize*NSLOTS*NPAIRS,'UMATCACHE')
          CALL MEMORY(IP_UMATLABELS,NSLOTS*NPAIRS/IRAT+1,'UMATLABELS')
-         CALL AZZERO(UMATCACHE,NPAIRS*NSLOTS)
+         CALL AZZERO(UMATCACHE,HElementSize*NPAIRS*NSLOTS)
          CALL IAZZERO(UMATLABELS,NPAIRS*NSLOTS)
       END
 
       SUBROUTINE SETUPUMAT2D(G1)
+         USE HElement
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
          INTEGER G1(*)
          TUMAT2D=.TRUE.
-         CALL MEMORY(IP_UMAT2D,NSTATES*NSTATES,'UMAT2D')
+         CALL MEMORY(IP_UMAT2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
          CALL CPMDANTISYMINTEL(G1,UMAT2D,NSTATES)
       END
      
       SUBROUTINE SETUMATTRANS(TRANS)
+         USE HElement
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
          INTEGER TRANS(NSTATES)
@@ -179,6 +185,7 @@ c        NSLOTS=MIN(NPAIRS, 1024)
       END
  
       SUBROUTINE DESTROYUMATCACHE
+         USE HElement
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
          IF(IP_UMATCACHE.NE.0) THEN
@@ -201,6 +208,7 @@ c        NSLOTS=MIN(NPAIRS, 1024)
       END
 
       SUBROUTINE SETUMATCACHEFLAG(NEWFLAG)
+         USE HElement
          IMPLICIT NONE
          INTEGER NEWFLAG
          INCLUDE 'umatcache.inc'
@@ -214,10 +222,11 @@ C.. (i,k)<=(j,l) and i<=k, j<=l.  ICACHE corresponds to the pair (i,j), and
 C.. ICACHEI is the index in that cache where the cache should be located.
       LOGICAL FUNCTION GETCACHEDUMATEL(IDI,IDJ,IDK,IDL,UMATEL,ICACHE,
      &      ICACHEI,A,B)
+         USE HElement
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI
          INTEGER ICACHEI1,ICACHEI2
-         REAL*8 UMATEL
+         TYPE(HElement) UMATEL
          INCLUDE 'umatcache.inc'      
          INTEGER I,A,B
 C.. First ensure the indices are in the correct order
@@ -341,6 +350,7 @@ C.. as the element we have to set is in (ICACHEI,ICACHE)
 C.. We still need to fill out the space before or after  us if we've been put in the 
 C.. middle of a block of duplicates
       SUBROUTINE CACHEUMATEL(A,B,UMATEL,ICACHE,ICACHEI)
+         USE HElement
          IMPLICIT NONE
          INTEGER A,B,ICACHE,ICACHEI
          REAL*8 UMATEL

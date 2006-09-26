@@ -1,6 +1,9 @@
 
-      REAL*8 FUNCTION CALCPATHS(IPATH,RHOII,RHOIJ,I_V,
+      FUNCTION CALCPATHS(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,NWHTAY,NEL,I_VMAX,ILOGGING)
+         USE HElement
+         IMPLICIT NONE
+         TYPE(HDElement) CALCPATHS
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
 C.. IPATH contains the vertices we can choose from
 C.. IPATH2 contains the path we are constructing (listing the dets)
@@ -11,9 +14,14 @@ C.. 12/7/05 - this should now just be the number 0.D0 - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         REAL*8 RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),TOTAL,RHOCUML,RH
-         REAL*8 RHOII2(0:I_HMAX)
-         REAL*8 DLWDB
+         TYPE(HElement) RHOIJ(0:I_V,0:I_V),RH
+         TYPE(HDElement) TOTAL,RHOCUML,RHOII(0:I_V),RHOII2(0:I_HMAX)
+         TYPE(HDElement) DLWDB
+         INTEGER ILOGGING,ISUB
+         TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
+     &      CalcPaths_4, CalcPaths_R
+         INTEGER I_HIND
+
          CALL TISET('CALCPATHS ',ISUB)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
 C.. REMEMBER TO MODIFY CALCPATHS_N too!
@@ -49,8 +57,11 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          RETURN
       END 
 
-      REAL*8 FUNCTION CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,
+      FUNCTION CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
+         USE HElement
+         IMPLICIT NONE
+         TYPE(HDElement) CalcPaths_N
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX,ICLS
 C.. IPATH contains the vertices we can choose from
 C.. IPATH2 contains the path we are constructing (listing the dets)
@@ -61,11 +72,17 @@ C.. 12/7/05 - this should now just be the number 0.D0 - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
-         REAL*8 RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),TOTAL,RHOCUML,RH
-         REAL*8 RHOII2(0:I_HMAX),CALCPATHS
-         REAL*8 HIJS(1:I_V)
+         TYPE(HDElement) RHOII(0:I_V),TOTAL,RHOCUML
+         TYPE(HDElement) RHOII2(0:I_HMAX),CALCPATHS
+         TYPE(HElement) HIJS(1:I_V),RHOIJ(0:I_V,0:I_V),RH
          INTEGER ICLASS,ILG,ISGN
          REAL*8 WEIGHT
+         REAL*8 DBETA
+         TYPE(HDElement) DLWDB
+         INTEGER ILOGGING,ISUB
+         TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
+     &      CalcPaths_4, CalcPaths_R,HDiag_CPP
+         INTEGER I_HIND
          CALL TISET('CALCPATHS ',ISUB)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
          IF(I_HMAX.EQ.-1.OR.(I_HMAX.LE.-3.AND.I_HMAX.GE.-8).OR.
@@ -73,7 +90,7 @@ C.. If we're using the contour integral trick to sum all possible graphs with th
 C.. we use a diagonalization version rather than contour etc.
 C.. subtracting out lower vertex paths at this level
 C            WRITE(6,*) "-----"
-            IF(RHOII(0).EQ.0.D0) THEN
+            IF(.NOT.(RHOII(0).AGT.0.D0)) THEN
 C.. We actually diagonalize a matrix of Hij elements rather than a matrix of
 C.. RHOIJ elements.  We send beta in from RHOII(1)
                CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
@@ -105,17 +122,20 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          ENDIF
          CALCPATHS_N=CALCPATHS
          IF(I_V.LE.5) THEN
-            IF(WEIGHT.NE.0.D0)
-     &       CALL CLASSPATHS(CALCPATHS/WEIGHT,DLWDB/WEIGHT,WEIGHT,RHOIJ,
+            IF(WEIGHT.GE.0.D0)
+     &       CALL CLASSPATHS(DREAL(CALCPATHS)/WEIGHT,
+     &            DREAL(DLWDB)/WEIGHT,WEIGHT,RHOIJ,
      &            I_V,ICLS)
          ENDIF
          CALL TIHALT('CALCPATHS ',ISUB)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
+         USE HElement
          IMPLICIT NONE
          INCLUDE 'calcp.inc'
-         REAL*8 RHOC,HC,RHOIJ(0:I_V,0:I_V),WEIGHT
+         TYPE(HElement) RHOIJ(0:I_V,0:I_V)
+         REAL*8 RHOC,HC,WEIGHT
          INTEGER I_V,ILG,ISGN,ICLASS
          INTEGER INCR
 C.. allow for subtractions

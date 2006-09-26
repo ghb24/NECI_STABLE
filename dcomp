@@ -1,8 +1,0 @@
-#!/bin/tcsh
-#./Configure PC-PGI -d -DEST=${PWD}/dest> Makefile
-#touch *.F
-#cp -f Makefile dest
-cd dest
-make histogram.x
-cd ..
-#touch *.F
