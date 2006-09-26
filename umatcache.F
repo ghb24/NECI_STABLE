@@ -83,7 +83,7 @@ C.. Otherwise we call CPMD
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &                  ICACHEI)
                   NMISSES=NMISSES+1
-                  WRITE(63,*) I,J,K,L,GETUMATEL
+C                  WRITE(10,*) I,J,K,L,GETUMATEL
                ELSE
 C                  WRITE(6,*) "HIT ",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B

@@ -299,7 +299,6 @@ C.. Get 4-index integral (ik|jk)
                         ENDIF
                         U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
      &                        I,K,J,K)
-                        WRITE(6,*) I,K,J,K,U
                         TOT=TOT-HElement(F)*U
                      ENDIF
                   ENDDO
