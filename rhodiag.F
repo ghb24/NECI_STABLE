@@ -519,7 +519,7 @@ C.. See 1/7/04
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
          TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
-         TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT
+         TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
          REAL*8 WLIST(I_V)         
          INTEGER INFO,I,J,IMISS,II,IJ
@@ -575,6 +575,7 @@ C.. divide through by RHOII^P
             DLWT=0.D0
             SI2=0.D0
             DO I=1,I_V
+C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=DREAL(RII)
                R=((WLIST(I)/R)**I_P)
                S=R
@@ -583,14 +584,16 @@ C.. divide through by RHOII^P
                IF(DBETA.NE.0.D0) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
-                     S=S*RIJMAT(J,I)*RIJMAT(1,I)
-                     DLWT=DLWT+S*HIJS2(J)
+                     S2=S*RIJMAT(J,I)*RIJMAT(1,I)
+                     DLWT=DLWT+S2*HIJS2(J)
                   ENDDO
                ENDIF
             ENDDO
-            S=DLWDB
-            S=S+DLWT
-            DLWDB=S
+C            S=DLWDB
+C            S=S+DLWT
+            SS=DLWT
+            DLWDB=DLWDB+SS
+C            WRITE(6,*) I_V,DLWDB
          ELSE
 !.. The complex case
             CALL ZHEEV('V','U',I_V,RIJMAT,I_V,

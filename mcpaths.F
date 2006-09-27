@@ -800,31 +800,34 @@ C.. Bit 3 (8).  If 0 allow all types of excitations
 C..             If 1 only allow singles.
 C.. Bit 4 (16)  If 0 allow all types of excitations
 C.,             If 1, only allow doubles.
-      RECURSIVE REAL*8 FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
+      RECURSIVE FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL)
-         
+         USE HElement
          IMPLICIT NONE
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
+         INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I
-         REAL*8 FCK(*), TMat(*),ALAT(*),UMAT(*),ECORE,TOTAL,R
-         REAL*8 CALCPATHS_N
+         COMPLEX*16 FCK(*)
+         TYPE(HElement) TMat(*),UMAT(*),R
+         REAL*8 ALAT(*),ECORE
+         TYPE(HDElement) TOTAL,FMCPR3B
+         TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
-         REAL*8 RHOII(0:I_V)
-         REAL*8 RHOIJ(0:I_V,0:I_V)
+         TYPE(HDElement) RHOII(0:I_V),DLWDB,DLWDB2
+         TYPE(HElement) RHOIJ(0:I_V,0:I_V),RH,HIJS(0:I_V)
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
-         REAL*8 RH,BETA,RHOEPS
+         REAL*8 BETA,RHOEPS
          LOGICAL TSYM
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4
-         REAL*8 DBETA,DLWDB,DLWDB2
-         REAL*8 HIJS(0:I_V)
+         REAL*8 DBETA
          INTEGER ICLS
-         REAL*8 GETHELEMENT2
          INTEGER NMEM(*),NMEMLEN
          POINTER(IP_NMEM,NMEM)
          POINTER(IP_CURGEN,CURGEN)
@@ -841,7 +844,7 @@ C.,             If 1, only allow doubles.
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
-         REAL*8 MP2E,NTOTAL
+         TYPE(HDElement) MP2E,NTOTAL
          INTEGER EXFLAG
          INCLUDE 'irat.inc'
    
@@ -890,7 +893,7 @@ C.. This is the current node (set by our parent)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
-         IF(RH.EQ.0.D0) THEN
+         IF(.NOT.(RH.AGT.0.D0)) THEN
             FMCPR3B=0.D0
             RETURN
          ENDIF
@@ -1076,7 +1079,7 @@ C.. see if we're connected to what we were excited from
                   CALL CALCRHO2(IPATH(1,IEXFROM),NJ,BETA,I_P,
      &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
      &                   ALAT,UMAT,RH,NTAY,IC,ECORE)
-                  IF(ABS(RH).LT.RHOEPS) THEN
+                  IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. if we're not connected to this node, we fail now
                      RH=0.D0
                      TFAIL=.TRUE.
@@ -1093,10 +1096,10 @@ C.. because we've just done that
                      CALL CALCRHO2(IPATH(1,II),NJ,BETA,I_P,
      &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
-                     IF(ABS(RH).LT.RHOEPS) RH=0.D0
+                     IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
                      RHOIJ(I_VIND+1,II)=RH
                      RHOIJ(II,I_VIND+1)=RH
-                     IF(RH.NE.0.D0) THEN
+                     IF(RH.AGT.0.D0) THEN
 C.. If the node to which this node (NJ) is attached was known about at
 C.. the time of node II, we are allowed to have a connection between
 C.. node NJ and II.  Otherwise, this node must not be attached to II, as
@@ -1434,7 +1437,7 @@ C.. LIST(J,2) = HIJ
                CALL CALCRHO2(NI,LSTE(1,I),BETA,I_P,NEL,
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &            RH,NTAY,ICE(I),ECORE)
-               IF(ABS(RH).GT.RHOEPS) THEN
+               IF(RH .GT. RHOEPS) THEN
                   IF(NLCUR.NE.I) 
      &              CALL ICOPY(NEL,LSTE(1,I),1,
      &                    LSTE(1,NLCUR),1)
