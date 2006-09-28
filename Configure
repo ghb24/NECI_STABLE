@@ -760,7 +760,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT CMPLXFLAG'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT #CMPLXFLAG'
      NCPUS=2
      #-sb is to use Workshop package
       FFLAGS='-I /usr/local/fftw-3.1/include -I /usr/local/fftw-3.0.1/include -Mr8 -Msignextend -Minform=warn'

@@ -229,7 +229,7 @@ MODULE HElement
          TYPE(HDElement) h
          TYPE(HElement) h2
 #ifdef __CMPLX
-         IF(DIMAG(h2%v).NE.0.D0) THEN
+         IF(ABS(DIMAG(h2%v)).lt.1.D-10) THEN
             WRITE(6,*) "Conversion from complex to real:",h2%v
             STOP "Imaginary part non-zero"
          ENDIF

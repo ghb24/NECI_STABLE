@@ -27,13 +27,21 @@ C     == translational symmetry.                                      ==
 C     == TSPACEGP:  True if using all space group operations, rather  ==
 C     ==            than considering rotational and translaitonal     ==
 C     ==            symmetries separately.                            ==
+C     == NKPOINTS:  Number of k-points.                               ==
+C     == KPNT_CHAR: Representation of a state with a given k-point    ==
+C     ==            the translational symmetry operations of the      ==
+C     ==            equivalent supercell.                             ==
+C     == NKPTRANS:  Number of translational operations of supercell   ==
+C     ==            equivalent to the k-point mesh.                   ==
+C     == NKPS: Number of k-points (excluding symmetry equivalent ones.)=
 C     ==================================================================
       INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATES),
-     &        TRANS_LABEL(NSTATES),NCOMPLETE
+     &        TRANS_LABEL(NSTATES),NCOMPLETE,NKPS,NKPTRANS
       REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT),
      &            GROUP_CHAR(NTRANSLAT*NROTOP,NSTATES),
-     &            TRANS_CHAR_TABLE(NTRANSLAT,NTRANSLAT)
+     &            TRANS_CHAR_TABLE(NTRANSLAT,NTRANSLAT),
+     &            KPNT_CHAR(NTRANSLAT,2*NKPS)
       INTEGER K_VECTORS(3,NTRANSLAT),CELLSIZES(3)
       LOGICAL BIGCELL,IMPROPER_OP(NROTOP*NTRANSLAT),PROJECT,TSPACEGP
       REAL*8 EIONION,DEGENTOL
@@ -41,10 +49,11 @@ C     ==================================================================
      &        (IP_TRANS_CHAR,TRANS_CHAR),(IP_ROT_LABEL,ROT_LABEL),
      &        (IP_TRANS_LABEL,TRANS_LABEL),(IP_IMPROPER_OP,IMPROPER_OP),
      &        (IP_K_VECTORS,K_VECTORS),(IP_GROUP_CHAR,GROUP_CHAR),
-     &        (IP_TRANS_CHAR_TABLE,TRANS_CHAR_TABLE)
-      COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,IP_ROT_CHAR,
+     &        (IP_TRANS_CHAR_TABLE,TRANS_CHAR_TABLE),
+     &        (IP_KPNT_CHAR,KPNT_CHAR)
+      COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,NKPTRANS,IP_ROT_CHAR,
      &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,
      &                  IP_ROT_LABEL,IP_TRANS_LABEL,IP_IMPROPER_OP,
-     &                  EIONION,NCOMPLETE,DEGENTOL,TSPACEGP,
-     &                  IP_K_VECTORS,IP_GROUP_CHAR,IP_TRANS_CHAR_TABLE
+     &                 EIONION,NCOMPLETE,DEGENTOL,TSPACEGP,IP_KPNT_CHAR,
+     &                 IP_K_VECTORS,IP_GROUP_CHAR,IP_TRANS_CHAR_TABLE
 C     ==================================================================
