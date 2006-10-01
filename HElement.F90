@@ -160,7 +160,11 @@ MODULE HElement
       END
       REAL*8 FUNCTION HElemSq(h1)
          TYPE(HElement) h1
+#ifdef __CMPLX
+         HElemSq=h1%v*dconjg(h1%v)
+#else
          HElemSq=h1%v**2
+#endif
          RETURN
       END
 
@@ -229,10 +233,11 @@ MODULE HElement
          TYPE(HDElement) h
          TYPE(HElement) h2
 #ifdef __CMPLX
-         IF(ABS(DIMAG(h2%v)).lt.1.D-10) THEN
-            WRITE(6,*) "Conversion from complex to real:",h2%v
-            STOP "Imaginary part non-zero"
-         ENDIF
+! JSS This tolerance is causing problems for now.
+!        IF(ABS(DIMAG(h2%v)).lt.1.D-10) THEN
+!           WRITE(6,*) "Conversion from complex to real:",h2%v
+!           STOP "Imaginary part non-zero"
+!        ENDIF
          h%v=DREAL(h2%v)
 #else
          h%v=h2%v

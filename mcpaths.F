@@ -308,7 +308,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDElement) FMCPR3B,DLWDB,DLWDB2
          REAL*8 NTIME,OTIME
          INTEGER IFRZ(0:NBASIS,I_VMAX)
-         TYPE(HDELement) MP2E
+         TYPE(HDELement) MP2E,H00
          REAL*8 NTOTAL
 
          TYPE(HDElement) FMCPR3STAR,FMCPR3B2
@@ -402,8 +402,9 @@ C     &            HIJS(0))
          TOTAL=1.D0
          NTOTAL=1.D0
          DLWDB=HIJS(0)
+         H00=HIJS(0)
          IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 
-     &         1,TOTAL,TOTAL,0.D0,1,1,HIJS(0)
+     &         1,TOTAL,TOTAL,0.D0,1,1,H00
 c         WRITE(6,*) 0,TOTAL,TOTAL,0
 C.. I_V is the number of vertices in the path
          DO I_V=2,I_VMAX
@@ -719,7 +720,7 @@ C.. LSTE(1:NEL,I,IVLEVEL) is the node we're attempting to connect to
                RH=RIJLIST(I,IVLEVEL)
 C.. see if it's worth going further
                RHOIJ(IVLEVEL,I_VIND+1)=RH
-               RHOIJ(I_VIND+1,IVLEVEL)=RH
+               RHOIJ(I_VIND+1,IVLEVEL)=DCONJG(RH)
                IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. we're not connected to this node, so we remove it from our list
                   DO II=1,NEL
@@ -745,7 +746,7 @@ C      STOP 'NB - LOOK AT RED GRAPH PIC'
 
 
                         RHOIJ(I_VIND+1,II)=RH
-                        RHOIJ(II,I_VIND+1)=RH
+                        RHOIJ(II,I_VIND+1)=DCONJG(RH)
                   ENDDO
 C.. 20050307 - At this point we note that if a vertex is connected to
 C.. any vertices before it in the path (excluding the one we excited 
@@ -1237,15 +1238,20 @@ C               WRITE(6,*) J,K
       END
 
       SUBROUTINE WRITERHOMAT(NUNIT,RHOIJ,I_V,NEL,LTERM)
+         USE HElement
          IMPLICIT NONE
          INTEGER NUNIT,I_V,NEL
          LOGICAL LTERM
-         REAL*8 RHOIJ(0:I_V,0:I_V)
+         TYPE(HElement) RHOIJ(0:I_V,0:I_V)
          INTEGER J,K
          WRITE(NUNIT,"(A,$)") "("
          DO J=0,I_V-1
             DO K=0,I_V-1
+#ifdef __CMPLX
+               WRITE(NUNIT,"(2E25.16,A,$)") RHOIJ(J,K),","
+#else
                WRITE(NUNIT,"(E25.16,A,$)") RHOIJ(J,K),","
+#endif
             ENDDO
             WRITE(NUNIT,"(A,$)") "|"
          ENDDO
