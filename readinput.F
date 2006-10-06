@@ -663,7 +663,8 @@ C.. We still need a specdet space even if we don't have a specdet.
       IF(IP_SPECDET.EQ.0) call MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
 C..   Testing ILOGGING
 C     ILOGGING = 0771
-      IF(I_VMAX.EQ.0) STOP 'I_VMAX=0.  VERTEX SUM max level not set'
+      IF(I_VMAX.EQ.0.AND.NPATHS.NE.0) 
+     &   STOP 'NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not set'
       WRITE (6,"(A,Z4)") 'ILOGGING after input routine', ILOGGING
       IF(IR.EQ.1) CLOSE(1)
    99 IF (ios.gt.0) THEN

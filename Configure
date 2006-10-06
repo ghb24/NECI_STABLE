@@ -2,7 +2,7 @@
 #      INTEGER*8 PLAN
 
 #--------------------------------------------------------------------#
-#Create Makefile for sort.x program.                                 #
+#Create Makefile for neci.x program.                                 #
 #--------------------------------------------------------------------#
 # Options for CPPFLAG                                                #
 #  -DLAPACK  Use LAPACK routine, you must have this option and       #
@@ -26,7 +26,7 @@
 #  -DJOBLIMIT    For batch job, try to know the remaining time       #
 #                (For CRAY only)                                     #
 #--------------------------------------------------------------------#
-#Create Makefile for sort.x program.
+#Create Makefile for neci.x program.
 
 #Display all configurations
 Message () {
@@ -80,8 +80,8 @@ Description of options:
      SRC      Source files directory (default=.)
      DEST     Object files directory (default=.)
               Use to write irat.inc in the right directory
-     BIN      Use to put the sort.x executable (default=.)
-Note: if you want to compile sort.x in a different directory
+     BIN      Use to put the neci.x executable (default=.)
+Note: if you want to compile neci.x in a different directory
       than the source files, use:
          Configure -DEST=destdir SUN > destdir/Makefile
       or Configure -makefile -DEST=destdir SUN
@@ -903,7 +903,7 @@ fi
 
 cat << END >&3
 #----------------------------------------------------------------------------
-# Makefile for sort.x (plane wave electronic calculation)
+# Makefile for neci.x (plane wave electronic calculation)
 # Configuration: ${Configuration}
 # Creation of Makefile: `date '+%b %e %Y'`
 # on `uname -a`
@@ -980,7 +980,7 @@ END
 END
   echo "done." >&2
   if [ -n "$BIN" ]; then
-    echo "sort.x executable will be in: $BIN" >&2
+    echo "neci.x executable will be in: $BIN" >&2
   fi
   
 fi #End of Personal Configuration.
@@ -1058,17 +1058,17 @@ echo "done." >&2
 printf "Add explicit rules..." >&2
 cat << END >&3
 #----------------------------------------------------------------------------
-# Compile sort.x
+# Compile neci.x
 #----------------------------------------------------------------------------
-#MAIN_OBJS=sort.o histogram.o
+#MAIN_OBJS=necimain.o
 
-histogram.x : histogram.o \$(OBJECTS) \$(OBJ_CC)
+neci.x : necimain.o \$(OBJECTS) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 rm -f histogram.x
-	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/histogram.x histogram.x; fi
-	 \$(LD) -o \$(BIN)/histogram.x histogram.o timetag.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
+	 rm -f neci.x
+	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/neci.x neci.x; fi
+	 \$(LD) -o \$(BIN)/neci.x necimain.o timetag.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
 
 neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 rm -f timetag.f

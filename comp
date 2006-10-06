@@ -3,7 +3,7 @@
 #touch *.F
 cp -f Makefile dest
 cd dest
-make histogram.x
+make neci.x
 if [ $? -ne 0 ] ; then
    exit
 fi

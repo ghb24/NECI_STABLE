@@ -1,8 +1,10 @@
 Usage:
 
-histogram.x < inputfile > outputfile
-(I prefer histogram.x < inputfile | tee outputfile if run interactively)
-[or just histogram.x inputfile > outputfile]
+neci.x inputfile > outputfile
+OR
+neci.x < inputfile > outputfile
+(I prefer neci.x inputfile | tee outputfile if run interactively)
+[or just neci.x inputfile > outputfile]
 
 The input file is keyword driven and requires the minimal amount of information.  Some flags can only be used for certain calculations (or rather, are irrelevant for othert types of runs).  The order of input blocks is not important, nor is the order within a block, unless an option is only valid when a logical statement is true, in which case the relevant keyword for the logical statement must precede its related keywords.  I have imposed a block structure on the input file to aid readability.
 

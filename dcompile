@@ -1,8 +1,8 @@
 #!/bin/tcsh
 ./Configure PC-PGI -d -DEST=${PWD}/dest> Makefile2
 touch *.F
-sed -e 's/#CMPLXFLAG/-D__CMPLX/' Makefile2 > Makefile
+sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
 cp -f Makefile dest
 cd dest
-make histogram.x
+make neci.x
 cd ..

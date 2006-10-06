@@ -5,5 +5,5 @@ sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
 cp Makefile dest
 touch *.F
 cd dest
-make histogram.x
+make neci.x
 cd ..

@@ -209,7 +209,8 @@ C.. see if we want to increase the number of vertices
                     R=RAN2(ISEED)
                     ICHANGED=0
                     IF(I_HMAX.EQ.-13) THEN
-                     IF(R.LT.0.40D0) THEN
+!                   !
+                       IF(R.LT.0.40D0) THEN
                         IF(I_HMAX.EQ.-13.AND.I_VCUR.GT.1) THEN
                          CALL MCPR4D4DEC(IPATH,NEL,I_VCUR,RHOIJ,I_HMAX,
      &                        I_P,HIJS,VWEIGHTS,VEXCITS,G1,NBASIS,
@@ -217,10 +218,11 @@ C.. see if we want to increase the number of vertices
      &                        ODLWDB,DLWDB2,FF,IOCLS,
      &                        ITREE,IACC,ISEED,PFAC,WMIN)
                            ICHANGED=1
+!                   ! 
                         ELSE
                            IF(I_VCUR.GT.1) I_VCUR=I_VCUR-1
                         ENDIF
-                     ELSEIF(R.LT.0.8D0) THEN
+                       ELSEIF(R.LT.0.8D0) THEN
                         IF(I_HMAX.EQ.-13.AND.I_VCUR.LT.I_VMAX) THEN
                          CALL MCPR4D4INC(IPATH,NEL,I_VCUR,RHOIJ,I_HMAX,
      &                        I_P,BETA,HIJS,VWEIGHTS,VEXCITS,G1,NBASIS,
@@ -232,7 +234,8 @@ C.. see if we want to increase the number of vertices
                         ELSE
                            IF(I_VCUR.LT.I_VMAX) I_VCUR=I_VCUR+1
                         ENDIF
-                     ENDIF
+                       ENDIF
+!                   !
                     ELSEIF(I_HMAX.EQ.-7) THEN
 C.. We decide on a graph size.  See 22/8/05 #1,2
 C.. Probability of graph size v is prop to G_VMC_FAC**(v)
@@ -266,6 +269,7 @@ C.. Markov chain with random generation.
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                     IACC,0.D0)
+!                   !
                         ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
 !.. or graphs of size I_VMIN=I_VMAX
@@ -289,6 +293,7 @@ C.. Markov chain with random generation.
      &                           WCORE,1,1,1,1)
                             ENDIF
                          ENDIF
+!                   !
 C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
                          IF(.NOT.TSEQ) THEN
 !.. We're at a V-graph. Consider all possible strings of rejected V->0 processes.
@@ -305,6 +310,7 @@ C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            CALL AddGraph(MCStat,L,I_OVCUR,FF,DLWDB2,
      &                        OWEIGHT,ITREE,0,I_OVCUR,1)
 C.. Now if we generate a 0, we are forced to accept it, but we need to consider any V's separately
+!                   !
                            IF(RAN(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
      &                           .GE.G_VMC_FAC) THEN
                               FF=1.D0
@@ -326,8 +332,8 @@ C.. Now if we generate a 0, we are forced to accept it, but we need to consider 
                               I_OVCUR=I_VMIN
                            ENDIF
                          ENDIF
-                        ENDIF
-                        IF(TSEQ) THEN
+!                   !
+                         IF(TSEQ) THEN
 !.. Generate an I_VMIN
                               IOV=I_OVCUR
                               I_VCUR=I_VMIN
@@ -342,8 +348,10 @@ C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
      &                         PFAC,IACC,0.D0)
 C                              WRITE(6,*) IACC
+                         ENDIF
                         ENDIF
-                     ELSEIF(I_HMAX.EQ.-12) THEN
+!                   !
+                    ELSEIF(I_HMAX.EQ.-12) THEN
 C.. Markov chain with special generation - does not work
                         FF=FMCPR4D3(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                  NBASISMAX,
@@ -352,7 +360,8 @@ C.. Markov chain with special generation - does not work
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                  ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
      &                  IACC)
-                     ELSEIF(I_HMAX.EQ.-13.AND.ICHANGED.EQ.0) THEN
+!                   !
+                    ELSEIF(I_HMAX.EQ.-13.AND.ICHANGED.EQ.0) THEN
 C.. Real Markov Chain MC with memory - i.e. move one node from the last
 C.. graph to generate the new one.
                         CALL MCPR4D4MOVE(NI,BETA,I_P,I_VCUR,NEL,
@@ -362,7 +371,8 @@ C.. graph to generate the new one.
      &                     HIJS,FF,ODLWDB,IOCLS,ITREE,OWEIGHT,IACC,
      &                     VWEIGHTS,VEXCITS,PFAC,TST,WMIN)
 C.. FF for ETILDE, ODLWDB for OETILDE, 
-                     ENDIF
+!                   !
+                    ENDIF
                   ENDIF
                   CALL AddGraph(MCStat,1,I_VCUR,FF,DLWDB2,OWEIGHT,ITREE,
      &               IACC,IOV,IGV)
