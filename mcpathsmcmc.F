@@ -120,11 +120,11 @@ C            WRITE(6,*) F(I_V),F(I_V)*RNORM*ND,RNORM,ND,RNORM*ND
             ENDIF
             CALL TIHALT(STR,ISUB2)
             TOTAL=TOTAL+F(I_V)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(STR,ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
             STD=SQRT(ABS(FSQ(I_V)-F(I_V)*F(I_V)))
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12,F19.7)")
-     &            I_V,F(I_V),TOTAL,TIGET(STR,ISUB2),L,STD
+     &            I_V,F(I_V),TOTAL,TIGET(ISUB2),L,STD
             IF(LISNAN(F(I_V))) THEN
 C.. save all log files
                ITIME=TIMEC()

@@ -9,71 +9,85 @@ C.. I_HMAX is the max number of hops in a path.
 C.. NWHTAY contains the number of samples to take for each level
 C.. This is a simple importance sampling method
       SUBROUTINE  MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &               NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
-     &               WLRI,WLSI,DBETA,DLWDB)
+     &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
+         USE HElement
+         USE MCStats
          IMPLICIT NONE
+         INCLUDE 'basis.inc'
+         TYPE(MCStats) MCStat
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY,NWHTAY
-         INTEGER ILOGGING,ISUB,I,J,K
-         REAL*8 F(2:I_VMAX),FSQ(2:I_VMAX),FF,STD
+         INTEGER ILOGGING,ISUB,I,J,K,I_VMIN
          CHARACTER*20 STR,STR2
-         REAL*8 TOTAL,RHOII(0:I_VMAX),RHOIJ(0:I_VMAX,0:I_VMAX)
-         REAL*8 FLNSUM,FLNRII,RH
-         REAL*8 ALAT(3),RHOEPS,BETA,UMAT(*),ZIA(*),FCK(*)
-         REAL*8 ECORE,WLRI,WLSI
-         INTEGER  G1(*),NBASISMAX(5,2),BRR(*)
+         TYPE(HDElement) TOTAL,RHOII(0:I_VMAX)
+         TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX),RH
+         TYPE(HDElement) FLNSUM,FLNRII
+         REAL*8 ALAT(3),RHOEPS,BETA
+         TYPE(HElement) UMAT(*),TMat(*)
+         COMPLEX*16 FCK(*)
+         REAL*8 ECORE
+         TYPE(HDElement) FF
+         TYPE(HDElement) WLRI,WLSI
+         TYPE(BasisFN) G1(*)
+         INTEGER NBASISMAX(5,2),BRR(*)
          INTEGER LSTE(*),ILMAX,I_VMAX,NEL,NBASIS
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
-         REAL*8 RIJLIST(*)
+         TYPE(HElement) RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM,LISNAN
          INTEGER ICOUNT,ISEED,I_V,ISUB2,L,LT
-         REAL*8 FNCR
+         REAL*8 FNCR,GETNLOOPS,DBETA
          INTEGER KSYM(5),IEXCITS,ITIME
-         REAL*8 FMCPR4,GETNLOOPS
-         INTEGER FSEEK,TIMEC
-         REAL*8 FMCPR4B,FMCPR4C,TIGET,FMCPR4D2
-         REAL*8 FMCPR4D3
-         REAL*8 DBETA,DLWDB,DLWDB2,DLWDB3
-         REAL*8 HIJS(0:I_VMAX)
-         REAL*8 GETHELEMENT2
+         TYPE(HDElement) FMCPR4
+         INTEGER FSEEK
+         TYPE(HDElement) FMCPR4B,FMCPR4C,FMCPR4D2
+         TYPE(HDElement) FMCPR4D3
+         TYPE(HDElement) DLWDB,DLWDB2,DLWDB3
+         TYPE(HElement) HIJS(0:I_VMAX)
          INTEGER INODE2(NEL)
          INTEGER NMEM(*),NMEMLEN
          POINTER (IP_NMEM,NMEM)
-         REAL*8 ODLWDB,OPROB,R
-         INTEGER NTREES(0:I_VMAX),ITREE
-         INTEGER I_VCUR,I_VM2,I_OVCUR,IOCLS,NTR
-         REAL*8 OWEIGHT,DLWDBSQ
-         INTEGER IVL(0:I_VMAX),NNTP(0:I_VMAX),NNTM(0:I_VMAX)
-         REAL*8 WGHTT(0:I_VMAX),WGHTP(0:I_VMAX),WGHTM(0:I_VMAX)
-         INTEGER IACCTOT,IACC,ICHANGED
+         TYPE(HDElement) ODLWDB,OWEIGHT,DLWDBSQ
+         REAL*8 OPROB,R
+         INTEGER ITREE
+         INTEGER I_VCUR,I_VM1,I_VM2,I_OVCUR,IOCLS,NTR
+         INTEGER ICHANGED
          REAL*8 VWEIGHTS(2,0:I_VMAX)
          INTEGER VEXCITS(0:I_VMAX),TST
-         REAL*8 PFAC,WMIN,SUMDLWDB
+         REAL*8 PFAC
+         TYPE(HDElement) WMIN,SUMDLWDB
          REAL*8 RAN2
 C.. do some blocking analysis
-         REAL*8 CURBLOCK(0:40),BLOCKSUM(0:40),BLOCKSUMSQ(0:40)
-         REAL*8 BB,CC,SS,EE,MM
          INTEGER NN,BMAX,OBMAX
          INTEGER STORE(6)
+         TYPE(HDElement) DLWDBCORE,WCORE
+         INTEGER IOV,IGV,IACC
+         INTEGER TIGET
+         LOGICAL TSEQ
+         REAL*8 PREJ,PGR
+         REAL*8 TIMEC,OTIME,NTIME
          INCLUDE 'vmc.inc'
+         OTIME=TIMEC()*0.001
+         IF(I_VMIN.NE.0) THEN
+            CALL Create(MCStat,I_VMAX,
+     &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1))
+         ELSE
+            CALL Create(MCStat,I_VMAX,
+     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1))
+         ENDIF
          TST=0
          CALL TISET('MCPATHSR4 ',ISUB)
          TLOG=BTEST(ILOGGING,1)
-         IF(TLOG) THEN
+         IF(TLOG.AND.I_VMIN.EQ.0) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
 C.. go to end of file
             I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
-         DO I=0,40
-            CURBLOCK(I)=0.D0
-            BLOCKSUM(I)=0.D0
-            BLOCKSUMSQ(I)=0.D0
-         ENDDO
          IF(BTEST(ILOGGING,2))
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
          IF(BTEST(ILOGGING,9))
@@ -83,17 +97,21 @@ C.. go to end of file
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          RHOIJ(0,0)=RHOII(0)
          WLRI=LOG(RHOII(0))
          HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &      G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,0,ECORE)
+     &      G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
          TOTAL=1.D0
+C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
+         DLWDBCORE=DLWDB
+         WCORE=WLSI
          IF(DBETA.LT.0.D0) THEN
-            DLWDB=HIJS(0)+0.D0
+            DLWDB=HIJS(0)
          ENDIF
-         IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 
+         IF(TLOG.AND.I_VMIN.EQ.0) 
+     &         WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 
      &         1,TOTAL,TOTAL,0.D0,1,1,DLWDB
 C.. we're working in block space, so we work out our current symmetry.
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
@@ -108,7 +126,8 @@ C.. we're working in block space, so we work out our current symmetry.
                DLWDB=0.D0
             ENDIF
          ENDIF
-         I_VM2=I_VMAX
+         I_VM1=2
+         I_VM2=2
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
 C            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
@@ -128,26 +147,19 @@ C.. Setup the spin excit generator
 C.. Count the excitations (and generate a random one which we throw)
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         NMEM,INODE2,ISEED,IEXCITS,0)
-            I_VM2=2
+            IF(I_VMIN.NE.0) THEN
+               I_VM1=I_VMIN
+               I_VM2=I_VMIN
+               I_OVCUR=1
+            ENDIF
             VEXCITS(0)=IP_NMEM
          ENDIF
-         DO I_V=0,I_VMAX
-            IVL(I_V)=0
-            WGHTT(I_V)=0.D0
-            WGHTP(I_V)=0.D0
-            WGHTM(I_V)=0.D0
-            NTREES(I_V)=0
-            NNTP(I_V)=0
-            NNTM(I_V)=0
-         ENDDO
-         DO I_V=2,I_VM2
-            WRITE(STR,"(A,I5)") "FMCPR",I_V
+         DO I_V=I_VM1,I_VM2
+            WRITE(STR,"(A,I4)") "FMCPR_",I_VMIN
             CALL TISET(STR,ISUB2)
             L=0
             LT=0
             BTABLE(0)=0
-            F(I_V)=0.D0
-            FSQ(I_V)=0.D0
             ISEED=G_VMC_SEED
             SUMDLWDB=0.D0
             IF((I_HMAX.NE.-3.AND.I_HMAX.NE.-4).OR.I_V.LE.IEXCITS+1) THEN
@@ -157,7 +169,6 @@ C.. Do importance sampling with probabilities.  No norm needed
                I_VCUR=1
                NTR=0
                ITREE=1
-               IACCTOT=0
                DLWDBSQ=0.D0
                PFAC=G_VMC_PI
                WMIN=1.D-8
@@ -181,22 +192,22 @@ C.. and for 2 (rho_jj/rhoii)**-P
      &               ,NWHTAY
                DO ICOUNT=1,NWHTAY
 C                  IF(ICOUNT.EQ.135) TST=1
-                  DLWDB2=0.D0
+C                  DLWDB2=0.D0
                   IF(I_HMAX.EQ.-3) THEN
-                  FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+                     FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ELSEIF(I_HMAX.EQ.-4) THEN
                      FF=FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ELSE
 C.. see if we want to increase the number of vertices
-                     I_OVCUR=I_VCUR
-                     R=RAN2(ISEED)
-                     ICHANGED=0
+                    I_OVCUR=I_VCUR
+                    R=RAN2(ISEED)
+                    ICHANGED=0
                     IF(I_HMAX.EQ.-13) THEN
                      IF(R.LT.0.40D0) THEN
                         IF(I_HMAX.EQ.-13.AND.I_VCUR.GT.1) THEN
@@ -215,50 +226,128 @@ C.. see if we want to increase the number of vertices
      &                        I_P,BETA,HIJS,VWEIGHTS,VEXCITS,G1,NBASIS,
      &                        NBASISMAX,OWEIGHT,ILOGGING,DBETA,RHOEPS,
      &                        ODLWDB,DLWDB2,FF,IOCLS,
-     &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,ZIA,NTAY,
+     &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,TMat,NTAY,
      &                        NMAX,ALAT,UMAT,ECORE,PFAC,WMIN)
                            ICHANGED=1
                         ELSE
                            IF(I_VCUR.LT.I_VMAX) I_VCUR=I_VCUR+1
                         ENDIF
-                     ENDIF 
-                    ENDIF
-                     IF(I_HMAX.EQ.-7) THEN
+                     ENDIF
+                    ELSEIF(I_HMAX.EQ.-7) THEN
 C.. We decide on a graph size.  See 22/8/05 #1,2
 C.. Probability of graph size v is prop to G_VMC_FAC**(v)
                         I_VCUR=0
-                        IF(G_VMC_FAC.GT.0) THEN
+                        IF(I_VMIN.EQ.0) THEN
+C.. we're doing MC with lots of different vertex levels
+                         IF(G_VMC_FAC.GT.0) THEN
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
                               I_VCUR=I_VMAX+1+LOG(R)/LOG(G_VMC_FAC)
                            ENDDO
                            PFAC=G_VMC_FAC**(I_VCUR-1)
-                        ELSEIF(G_VMC_FAC.EQ.0) THEN
+                         ELSEIF(G_VMC_FAC.EQ.0) THEN
                            R=RAN2(ISEED)
                            I_VCUR=R*I_VMAX+1
                            PFAC=1.D0/I_VMAX
-                        ELSE
+                         ELSE
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
                               I_VCUR=-FLOOR(LOG(R)/LOG(-G_VMC_FAC))
                            ENDDO
                            PFAC=G_VMC_FAC**(-I_VCUR)
-                        ENDIF
-C                        PFAC=1.D0
-                        I_VCUR=RAN2(ISEED)*I_VMAX+1.D0
+                         ENDIF
+                         IOV=I_OVCUR
+                         IGV=I_VCUR
 C.. Markov chain with random generation.
-                        FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
-     &                  NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
-     &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
-     &                  ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                  IACC)
+                         FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
+     &                     NBASISMAX,G1,
+     &                     NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
+     &                     IACC,0.D0)
+                        ELSE
+!..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
+!.. or graphs of size I_VMIN=I_VMAX
+
+!.. We choose the gestalt with probability G_VMC_FAC
+                         TSEQ=.FALSE.
+                         IF(I_OVCUR.EQ.1) TSEQ=.TRUE.
+                         IF(TSEQ) THEN
+                           I_VCUR=1
+!.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
+                           L=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           IF(L.GT.0) THEN
+                              IGV=1
+                              I_OVCUR=1
+                              OWEIGHT=WCORE
+                              ODLWDB=DLWDBCORE/WCORE
+                              OPROB=1.D0-G_VMC_FAC
+                              IOCLS=0
+                              FF=1.D0
+                              CALL AddGraph(MCStat,L,1,FF,ODLWDB,
+     &                           WCORE,1,1,1,1)
+                            ENDIF
+                         ENDIF
+C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
+                         IF(.NOT.TSEQ) THEN
+!.. We're at a V-graph. Consider all possible strings of rejected V->0 processes.
+!.. First work out the acceptance prob of V->0, pa, and thus the rejectance prob, pr=1-pa, which is high.
+!.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
+!.. get in a row
+                           PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+     &                              OPROB/(1.D0-G_VMC_FAC)
+                           PREJ=1.D0-MIN(PREJ,1.D0)
+                           PGR=PREJ*(1.D0-G_VMC_FAC)
+C.. L is the number of strings of rejections (i.e. of V's we add
+                           L=LOG((1-RAN2(ISEED)))/LOG(PGR)
+C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
+                           CALL AddGraph(MCStat,L,I_OVCUR,FF,DLWDB2,
+     &                        OWEIGHT,ITREE,0,I_OVCUR,1)
+C.. Now if we generate a 0, we are forced to accept it, but we need to consider any V's separately
+                           IF(RAN(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
+     &                           .GE.G_VMC_FAC) THEN
+                              FF=1.D0
+                              I_OVCUR=1
+                              IOV=1
+                              IGV=1
+                              DLWDB2=DLWDBCORE/WCORE
+                              ODLWDB=DLWDB2
+                              OWEIGHT=WCORE
+                              ITREE=1
+                              CALL AddGraph(MCStat,1,1,FF,DLWDB2,
+     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
+                              I_VCUR=1
+                              PFAC=1.D0-G_VMC_FAC
+                              IOCLS=0
+                              TSEQ=.FALSE.
+                           ELSE
+                              TSEQ=.TRUE.
+                              I_OVCUR=I_VMIN
+                           ENDIF
+                         ENDIF
+                        ENDIF
+                        IF(TSEQ) THEN
+!.. Generate an I_VMIN
+                              IOV=I_OVCUR
+                              I_VCUR=I_VMIN
+                              IGV=I_VCUR
+                              PFAC=G_VMC_FAC
+C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
+                              FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
+     &                         NBASISMAX,G1,NBASIS,BRR,
+     &                         NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &                         RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &                         ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
+     &                         PFAC,IACC,0.D0)
+C                              WRITE(6,*) IACC
+                        ENDIF
                      ELSEIF(I_HMAX.EQ.-12) THEN
 C.. Markov chain with special generation - does not work
                         FF=FMCPR4D3(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                  NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                  ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
@@ -267,132 +356,53 @@ C.. Markov chain with special generation - does not work
 C.. Real Markov Chain MC with memory - i.e. move one node from the last
 C.. graph to generate the new one.
                         CALL MCPR4D4MOVE(NI,BETA,I_P,I_VCUR,NEL,
-     &                     NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,
+     &                     NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
      &                     ALAT,UMAT,NTAY,RHOEPS,NWHTAY,I_HMAX,ILOGGING,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,IPATH,RHOIJ,
      &                     HIJS,FF,ODLWDB,IOCLS,ITREE,OWEIGHT,IACC,
      &                     VWEIGHTS,VEXCITS,PFAC,TST,WMIN)
-C.. ZIA has been substituted for TMAT, 
 C.. FF for ETILDE, ODLWDB for OETILDE, 
                      ENDIF
-C                     CALL MEMORY_CHECK()
-C                     CALL FLUSH(24)
-                     IVL(I_VCUR)=IVL(I_VCUR)+1
-                     IVL(0)=IVL(0)+1
-                     IACCTOT=IACCTOT+IACC
                   ENDIF
-                  F(I_V)=F(I_V)+FF
-                  FSQ(I_V)=FSQ(I_V)+FF*FF
-                  DLWDB3=DLWDB3+DLWDB2
-                  DLWDBSQ=DLWDBSQ+DLWDB2*DLWDB2
-                  SUMDLWDB=SUMDLWDB+DLWDB2*FF
-                  F(I_V)=F(I_V)+0.D0
-                  DLWDB3=DLWDB3+0.D0
-                  DLWDBSQ=DLWDBSQ+0.D0
-                  NTR=NTR+ITREE
-                  IF(ITREE.EQ.1) THEN
-                     WGHTT(I_VCUR)=WGHTT(I_VCUR)+OWEIGHT
-                     NTREES(I_VCUR)=NTREES(I_VCUR)+1
-                     WGHTT(0)=WGHTT(0)+OWEIGHT
-                     NTREES(0)=NTREES(0)+1
-                  ELSE
-                     IF(OWEIGHT.GT.0.D0) THEN
-                        WGHTP(I_VCUR)=WGHTP(I_VCUR)+OWEIGHT
-                        NNTP(I_VCUR)=NNTP(I_VCUR)+1
-                        WGHTP(0)=WGHTP(0)+OWEIGHT
-                        NNTP(0)=NNTP(0)+1
-                     ELSE
-                        WGHTM(I_VCUR)=WGHTM(I_VCUR)-OWEIGHT
-                        NNTM(I_VCUR)=NNTM(I_VCUR)+1
-                        WGHTM(0)=WGHTM(0)-OWEIGHT
-                        NNTM(0)=NNTM(0)+1
-                     ENDIF
-                  ENDIF
-C.. Deal with blocking
-                  I=0
-                  NN=ICOUNT*2
-                  CURBLOCK(0)=CURBLOCK(0)+FF
-                  OBMAX=BMAX
-                  DO WHILE(.NOT.BTEST(NN,0))
-                     CURBLOCK(I+1)=CURBLOCK(I+1)+CURBLOCK(I)
-                     BB=CURBLOCK(I)/(2**I)
-                     BLOCKSUM(I)=BLOCKSUM(I)+BB
-                     BLOCKSUMSQ(I)=BLOCKSUMSQ(I)+BB*BB
-                     CURBLOCK(I)=0
-                     I=I+1
-                     IF(I-2.GT.OBMAX) BMAX=I-2
-                     NN=NN/2
-                  ENDDO
-C.. Write out the blocking file every time we go past another power of 2
-                  IF(BMAX.NE.OBMAX) THEN
-                     OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
-                     NN=ICOUNT
-                     DO I=0,BMAX
-                        MM=BLOCKSUM(I)/NN
-                        CC=BLOCKSUMSQ(I)/NN-MM*MM
-                        SS=SQRT(ABS(CC)/(NN-1))
-                        EE=SS/SQRT(2.D0*(NN-1))
-                        WRITE(23,"(I,3G25.16)") I,SS,EE,MM
-                        NN=NN/2
-                     ENDDO
-                     CLOSE(23)
-                   ENDIF
-C                  WRITE(32,*) FF,DLWDB2,F(I_V),DLWDB3
+                  CALL AddGraph(MCStat,1,I_VCUR,FF,DLWDB2,OWEIGHT,ITREE,
+     &               IACC,IOV,IGV)
                   IF(BTEST(ILOGGING,10))
      &                    WRITE(22,"(2G25.16)") FF,DLWDB2
                   IF(BTEST(ILOGGING,9).AND.MOD(ICOUNT,1000).EQ.0) THEN
-                    WRITE(12,"(I3,I10,10G25.16)") I_V,ICOUNT/1000,
-     &                   F(I_V)/ICOUNT,
-     &                   SQRT(FSQ(I_V)/ICOUNT-(F(I_V)/ICOUNT)**2),
-     &                   DLWDB3/ICOUNT,
-     &                   (DLWDB+DLWDB3/ICOUNT)/(F(I_V)/ICOUNT+TOTAL),
-     &                   DLWDBSQ/ICOUNT,
-     &                   (IACCTOT+0.D0)/ICOUNT,
-     &                   (NTREES(0)+0.D0)/IVL(0),
-     &                   (NNTP(0)+0.D0)/IVL(0),
-     &                   (NNTM(0)+0.D0)/IVL(0),
-     &                   SUMDLWDB/ICOUNT
+                     CALL WriteStats(MCStat,12)
                      CALL FLUSH(12)
                   ENDIF
                ENDDO
             ENDIF
-
-            F(I_V)=F(I_V)/NWHTAY
-            FSQ(I_V)=FSQ(I_V)/NWHTAY
-            DLWDB=DLWDB+DLWDB3/NWHTAY
-            STD=SQRT(ABS(FSQ(I_V)-F(I_V)*F(I_V)))
             CALL TIHALT(STR,ISUB2)
-            TOTAL=TOTAL+F(I_V)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(STR,ISUB2),L,LT
-            IF(TLOG)
-     &         WRITE(11,"(I12,2G25.16,G19.7,I12,2G19.7)") I_V,F(I_V),
-     &            TOTAL,TIGET(STR,ISUB2),L,STD,DLWDB3/NWHTAY
+!            F(I_V)=F(I_V)/NWHTAY
+!            FSQ(I_V)=FSQ(I_V)/NWHTAY
+!            DLWDB=DLWDB+DLWDB3/NWHTAY
+!            STD=SQRT(ABS(DREAL(FSQ(I_V)-F(I_V)*F(I_V))))
+!            TOTAL=TOTAL+F(I_V)
+c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
+!            IF(TLOG)
+!     &         WRITE(11,"(I12,2G25.16,G19.7,I12,2G19.7)") I_V,F(I_V),
+!     &            TOTAL,TIGET(ISUB2),L,STD,DLWDB3/NWHTAY
 C ,F(I_V),FSQ(I_V)
+            NTIME=TIMEC()*0.001
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
-               WRITE(STR2,"(A,I5,A)") "(A,",I_VMAX+1,"I)"
-               WRITE(11,STR2) "GRAPHS(V)",(IVL(I),I=0,I_VMAX)
-               WRITE(11,STR2) "TREES(V)",(NTREES(I),I=0,I_VMAX)
-               WRITE(11,STR2) "NON-TR+(V)",(NNTP(I),I=0,I_VMAX)
-               WRITE(11,STR2) "NON-TR-(V)",(NNTM(I),I=0,I_VMAX)
-               WRITE(STR2,"(A,I5,A)") "(A,",I_VMAX+1,"G)"
-               WRITE(11,STR2) "WGHTT(V)",(WGHTT(I),I=0,I_VMAX)
-               WRITE(11,STR2) "WGHT+(V)",(WGHTP(I),I=0,I_VMAX)
-               WRITE(11,STR2) "WGHT-(V)",(WGHTM(I),I=0,I_VMAX)
+              CALL WriteLongStats(MCStat,11,WCORE,DLWDBCORE,NTIME-OTIME)
             ENDIF
             CALL FLUSH(11)
-            IF(LISNAN(F(I_V))) THEN
+!            IF(LISNAN(F(I_V))) THEN
 C.. save all log files
-               ITIME=TIMEC()
-               CALL FLUSH(11)
+!               ITIME=TIMEC()
+!               CALL FLUSH(11)
 caa            CALL FLUSH(10)
-               CALL LOGNAN(NI,NEL,BETA,ITIME)
-               WRITE(6,*) "WARNING: nan found at time",ITIME
-               WRITE(6,"(A,$)") "  nan det=("
-               DO K=1,NEL
-                  WRITE(6,"(I3,A,$)") NI(K),","
-               ENDDO
-               WRITE(6,"(A,$)") "),"
-            ENDIF
+!               CALL LOGNAN(NI,NEL,BETA,ITIME)
+!               WRITE(6,*) "WARNING: nan found at time",ITIME
+!               WRITE(6,"(A,$)") "  nan det=("
+!               DO K=1,NEL
+!                  WRITE(6,"(I3,A,$)") NI(K),","
+!               ENDDO
+!               WRITE(6,"(A,$)") "),"
+!            ENDIF
          ENDDO
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
@@ -402,9 +412,17 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF(BTEST(ILOGGING,10)) CLOSE(22)
-         WLSI=LOG(TOTAL)
-         DLWDB=DLWDB/TOTAL
+         IF(I_VMIN.EQ.0) THEN
+            Call GetStats(MCStat,0,TOTAL,DLWDB2)
+            WLSI=LOG(TOTAL)
+            DLWDB=DLWDB2/TOTAL
+         ELSE
+            Call GetStats(MCStat,0,TOTAL,DLWDB2)
+            WLSI=TOTAL-WCORE
+            DLWDB=DLWDB2
+         ENDIF
          CALL TIHALT('MCPATHSR4 ',ISUB)
+         CALL Delete(MCStat)
          RETURN
       END
 
@@ -1473,29 +1491,37 @@ C..
 C.. This does a markov chain monte carlo also - the probabilities are 
 C.. weighted with the values of S' (the double-counting corrected
 C.. weight.
-      REAL*8 FUNCTION FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+      FUNCTION FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
-     &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC)
+     &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI)
+         USE HElement
          IMPLICIT NONE
+         TYPE(HDElement) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
-         REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+         REAL*8 BETA,ALAT(*),ECORE
+         COMPLEX*16 FCK
+         TYPE(HElement) UMat(*), TMat(*)
+         REAL*8 RHOEPS
+         TYPE(HDElement) RHOII(0:I_V),INWI
+         TYPE(HElement) RHOIJ(0:I_V,0:I_V)
          INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
          INTEGER INODE(NEL),I_VNEXT,INODE2(NEL),ICOUNT
          INTEGER I,J,K,ICE,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
-         REAL*8 RH,CALCPATHS_N,X,GETPATHPROB2
+         TYPE(HDElement) CALCPATHS_N
+         REAL*8 X,GETPATHPROB2,RH
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA,DLWDB,DLWDB2
-         REAL*8 GETHELEMENT2,HIJS(0:I_V)
+         REAL*8 RP,DBETA
+         TYPE(HDElement) DLWDB,DLWDB2
+         TYPE(HElement)HIJS(0:I_V)
          LOGICAL ISUHFDET
          REAL*8 PEXCIT(I_V),R
          INTEGER NEXNODE
@@ -1504,10 +1530,12 @@ C.. weight.
          INTEGER PVERTMEMS(0:I_V)
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
-         REAL*8 ORHOII(0:I_V),ORHOIJ(0:I_V,0:I_V)
+         TYPE(HDElement) ORHOII(0:I_V)
+         TYPE(HElement) ORHOIJ(0:I_V,0:I_V)
          INTEGER OIPATH(NEL,0:I_V)
-         REAL*8 OHIJS(0:I_V),OXIJ(0:I_V-1,0:I_V-1)
-         REAL*8 OETILDE,OPROB,PR,R2,WEIGHT,OWEIGHT,ETILDE
+         TYPE(HElement) OHIJS(0:I_V)
+         REAL*8 OXIJ(0:I_V-1,0:I_V-1),OPROB,PR,R2
+         TYPE(HDElement) OETILDE,WEIGHT,OWEIGHT,ETILDE
          INTEGER I_OVCUR,IOCLS,ITREE
          LOGICAL LISNAN,ISVALIDDET
          INTEGER IACC
@@ -1515,223 +1543,38 @@ C.. weight.
          REAL*8 RAN2
          INTEGER STORE(6)
          INCLUDE 'vmc.inc'
-C         WRITE(6,*) "START:",LOC(NMEM)
-C.. PEXCIT(NODE) is the probability of selecting NODE and
-C.. those before it.
-         PEXCIT(1)=1.D0
-         PVERTMEMS(0)=LOC(NMEM)
-C.. we hard code RP as P/50, although this should be an empirical
-C.. parameter.
-         RP=0
-         I_VNEXT=1
-         CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
-         IC=0
+         
 C.. Take a copy of the old path and rho matrix etc.
          CALL DCOPY(I_V+1,RHOII,1,ORHOII,1)
          CALL DCOPY((I_V+1)**2,RHOIJ,1,ORHOIJ,1)
          CALL DCOPY(I_V+1,HIJS,1,OHIJS,1)
          CALL DCOPY(I_V*I_V,XIJ,1,OXIJ,1)
          CALL ICOPY(NEL*(1+I_V),IPATH,1,OIPATH,1)
-
-
-C         WRITE(56,*) "N"
-C         WRITE(57,*) "N"
-C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
-C.. doesn't bother calculating the RHO_JJ.
-C         CALL GENSYMDETSSDN(NI,KSYM,NEL,G1,BRR,NBASIS,0,
-C     &         IC,NBASISMAX,
-C     &      BETA,I_P,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,
-C     &      RHOEPS)
-CC         CALL GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,IC,
-CC     &      ISEED,INODE2)
-          CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,INODE2,ISEED,IC,0)
-C         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
-C     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
-C.. Diagonal X elements contain the normalization of that node
-C.. In this case that is the number of symmetric adjacent nodes
-
-         XIJ(0,0)=IC
-         NLIST=1
-         ICOUNT=0
-         DO WHILE(I_VNEXT.LT.I_V)
-C.. pick a random excitation of where we are (INODE) of the appropriate
-C.. symmetry.  We don't worry about weighting this at the moment
-C.. We pick which node we'regoing to excite from
-            IF(I_VNEXT.GT.1) THEN
-               DO I=2,I_VNEXT
-                  PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
-               ENDDO
-               PEXCIT(1)=G_VMC_PI
-            ENDIF
-C.. Just make really sure the last one catches everytihng
-            PEXCIT(I_VNEXT)=2.D0
-            R=RAN2(ISEED)
-            NEXNODE=0
-            DO WHILE(R.GE.0)
-               NEXNODE=NEXNODE+1
-               R=R-PEXCIT(NEXNODE)
-            ENDDO
-C            WRITE(56,*) NEXNODE
-CC            CALL GENRANDOMSPINEXCIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-CC     &      NBASISMAX,IC,ISEED,INODE2)
-
-C.. set the current to be the pivot
-            IP_CUREX=PVERTMEMS(NEXNODE-1)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-C.. generate a random excitation
-            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
-
-
-C            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-C     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
-            CALL ICOPY(NEL,INODE2,1,INODE,1)
-C            CALL WRITEDET(6,INODE,NEL,.TRUE.)
-
-C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
-C     &         NBASISMAX,KSYM,INODE2)
-C.. If the new node is not in the path, add it.
-            IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
-               WRITE(6,*) "INVALID DET"
-               STOP "INVALID DET"
-            ENDIF
-            IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
-               CALL ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)
-C.. Count the number of connections from this node (RP=0)
-C               NLIST=0
-C               CALL GENSYMDETSSDN(INODE2,KSYM,NEL,G1,BRR,NBASIS,LSTE,
-C     &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,ZIA,NMAX,
-C     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
-
-
-
-
-
-C.. Setup the spin excit generator
-               STORE(1)=0
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
-               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
-               NEWEX(1)=0
-               PVERTMEMS(I_VNEXT)=IP_NEWEX
-               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
-C.. Count the excitations (and generate a random one which we throw)
-               CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0)
-
-
-
-
-
-
-
-C               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-C     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
-C               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
-C               WRITE(6,*) "M",IP_NEWEX
-C               NEWEX(1)=0
-C               PVERTMEMS(I_VNEXT)=IP_NEWEX
-CC               WRITE(6,*) I_VNEXT,IP_NEWEX
-C               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
-C     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
-CCC               CALL GENRANDOMSPINEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,IC,
-CCC     &            ISEED,INODE2)
-
-
-
-
-
-               XIJ(I_VNEXT,I_VNEXT)=IC
-               NLIST=IC
-CNLIST
-C.. Update the rho and X (probability) matrices with this new node
-               CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
-     &             RH,NTAY,0,ECORE)
-               RHOII(I_VNEXT)=RH
-               RHOIJ(I_VNEXT,I_VNEXT)=RH
-               DO I=0,I_VNEXT-1
-                  ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
-                  IF(ICE.LE.2) THEN
-                     XIJ(I_VNEXT,I)=1.D0/NLIST
-                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
-                        IF(ICE.EQ.2) THEN
-                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
-                        ELSE
-                           XIJ(I,I_VNEXT)=0.D0
-                        ENDIF
-                     ELSE
-                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
-                     ENDIF   
-                  ELSE
-                     XIJ(I_VNEXT,I)=0.D0
-                     XIJ(I,I_VNEXT)=0.D0
-                  ENDIF
-                  IF(I.EQ.0) THEN
-                     HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
-     &                  ICE,ECORE)
-                  ENDIF
-                  CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
-     &             RH,NTAY,ICE,ECORE)
-                  IF(ABS(RH).GT.RHOEPS) THEN
-                     RHOIJ(I_VNEXT,I)=RH
-                     RHOIJ(I,I_VNEXT)=RH
-                  ELSE
-                     RHOIJ(I,I_VNEXT)=0.D0
-                     RHOIJ(I_VNEXT,I)=0.D0
-                  ENDIF
-               ENDDO
-               I_VNEXT=I_VNEXT+1
-            ENDIF
-            ICOUNT=ICOUNT+1
-            IF(ICOUNT.GT.500) THEN
-C.. give up trying to find something to attach, and go home
-               FMCPR4D2=0.D0
-               RETURN
-            ENDIF
-         ENDDO
-         DO I=1,I_V-1
-C            WRITE(6,*) "D",PVERTMEMS(I)
-            CALL FREEM(PVERTMEMS(I))
-C            WRITE(6,*) "N"
-         ENDDO
-         TLOG=BTEST(ILOGGING,2)
-         TLOG2=BTEST(ILOGGING,3)
-         TLOG3=BTEST(ILOGGING,6)
-C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
-C.. matrix elements.
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
-
+         IF(.NOT.(INWI.AGT.0.D0)) THEN
+!.. Generate a new graph
+            CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &         NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM)
+            TLOG=BTEST(ILOGGING,2)
+            TLOG2=BTEST(ILOGGING,3)
+            TLOG3=BTEST(ILOGGING,6)
 C.. Now get the parameters for the new path 
 
 C.. GETPATHPROB gives us the probability of generating the path
-         RH=GETPATHPROB2(XIJ,I_V)*PFAC
+            RH=GETPATHPROB2(XIJ,I_V)*PFAC
 C.. CALCPATHS gives us the contribution of the path
-         ICLS=0
-         WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
+            ICLS=0
+            WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &         I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,HIJS,ICLS)
-         IF(OWEIGHT.EQ.0.D0) THEN
+         ELSE
+C.. we use the gestalt 
+            RH=PFAC
+            ICLS=1
+            WEIGHT=INWI
+            ETILDE=DLWDB
+         ENDIF
+C.. Now do an accept/reject
+         IF(.NOT.(OWEIGHT.AGT.0.D0)) THEN
 C.. this is the first time round, so we automatically accept the new
 C.. configuration
             OETILDE=ETILDE
@@ -1749,8 +1592,8 @@ C.. Accept the new configuration with prob (|S'(new)|/|S'(old)|)*(OPROB/RH)
 C.. acc(A->B)/acc(B->A) = p(B) gen(B->A) / (p(A) gen(A->B))
 C..                     = p(B) gen(A) / (p(A) gen(B))
 
-            PR=(OPROB/RH)*ABS(WEIGHT/OWEIGHT)
-            IF(RH.EQ.0.D0.OR.OWEIGHT.EQ.0.D0) PR=0.D0
+            PR=(OPROB/RH)*ABS(DREAL(WEIGHT/OWEIGHT))
+            IF(RH.EQ.0.D0.OR..NOT.(OWEIGHT.AGT.0.D0)) PR=0.D0
             R2=RAN2(ISEED)
             IF(LISNAN(WEIGHT)) THEN
                WRITE(60,*) WEIGHT,ETILDE,RH
@@ -1776,10 +1619,10 @@ C.. reject the new, and copy in the old
                IACC=1
             ENDIF
          ENDIF
-         IF(RH.GT.0.D0.AND.WEIGHT.NE.0.D0) THEN
+         IF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
-            DLWDB=ETILDE/(ABS(WEIGHT))
-            FMCPR4D2=WEIGHT/(ABS(WEIGHT))
+            DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))
+            FMCPR4D2=WEIGHT/HDElement(ABS(DREAL(WEIGHT)))
          ELSE
             FMCPR4D2=0.D0
             DLWDB=0.D0
@@ -1795,6 +1638,184 @@ C.. Unbias the sum
             WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
          ENDIF   
       END
+
+
+
+
+
+
+
+
+
+
+
+!.. Generate a new graph.
+      SUBROUTINE FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,
+     &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI)
+         USE HElement
+         IMPLICIT NONE
+         INCLUDE 'vmc.inc'
+         INCLUDE 'basis.inc'
+         INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
+         REAL*8 BETA,ALAT(*),ECORE
+         TYPE(HElement) TMat(*),Umat(*)
+         TYPE(BasisFN) G1(*)
+         INTEGER I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH
+         INTEGER NMAX,NTAY
+         COMPLEX*16 FCK(*)
+      
+
+         REAL*8 RHOEPS
+         TYPE(HDElement) RHOII(0:I_V)
+         TYPE(HElement) RHOIJ(0:I_V,0:I_V)
+         REAL*8 XIJ(0:I_V-1,0:I_V-1)         
+         TYPE(HElement) HIJS(0:I_V)
+         INTEGER ISEED
+
+         REAL*8 PEXCIT(I_V)
+         INTEGER PVERTMEMS(0:I_V)
+         INTEGER I_VNEXT
+         INTEGER INODE(NEL),INODE2(NEL)
+         INTEGER NMEMNI(*)
+         INTEGER CUREX(*),NEWEX(*),NEWEXLEN
+         INTEGER NEXNODE
+         POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
+         INTEGER STORE(6)
+         REAL*8 R
+         TYPE(HElement) RH
+         INTEGER ICE,I,ICOUNT,IC
+
+         INTEGER IGETEXCITLEVEL
+         LOGICAL ISUHFDET,LISINPATH
+         LOGICAL LISNAN,ISVALIDDET
+         REAL*8 RAN2
+C.. PEXCIT(NODE) is the probability of selecting NODE and
+C.. those before it.
+         PEXCIT(1)=1.D0
+         PVERTMEMS(0)=LOC(NMEMNI)
+         I_VNEXT=1
+         CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
+         IC=0
+
+C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
+C.. doesn't bother calculating the RHO_JJ.
+          CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         NMEMNI,INODE2,ISEED,IC,0)
+C.. Diagonal X elements contain the normalization of that node
+C.. In this case that is the number of symmetric adjacent nodes
+
+         XIJ(0,0)=IC
+         ICOUNT=0
+         DO WHILE(I_VNEXT.LT.I_V)
+C.. pick a random excitation of where we are (INODE) of the appropriate
+C.. symmetry.  We don't worry about weighting this at the moment
+C.. We pick which node we'regoing to excite from
+            IF(I_VNEXT.GT.1) THEN
+               DO I=2,I_VNEXT
+                  PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
+               ENDDO
+               PEXCIT(1)=G_VMC_PI
+            ENDIF
+C.. Just make really sure the last one catches everytihng
+            PEXCIT(I_VNEXT)=2.D0
+            R=RAN2(ISEED)
+            NEXNODE=0
+            DO WHILE(R.GE.0)
+               NEXNODE=NEXNODE+1
+               R=R-PEXCIT(NEXNODE)
+            ENDDO
+
+C.. set the current to be the pivot
+            IP_CUREX=PVERTMEMS(NEXNODE-1)
+
+C.. generate a random excitation
+            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
+
+
+            CALL ICOPY(NEL,INODE2,1,INODE,1)
+
+C.. If the new node is not in the path, add it.
+            IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
+               WRITE(6,*) "INVALID DET"
+               STOP "INVALID DET"
+            ENDIF
+            IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
+               CALL ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)
+
+C.. Setup the spin excit generator
+               STORE(1)=0
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+               NEWEX(1)=0
+               PVERTMEMS(I_VNEXT)=IP_NEWEX
+               CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+C.. Count the excitations (and generate a random one which we throw)
+               CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+     &            NEWEX,INODE2,ISEED,IC,0)
+
+               XIJ(I_VNEXT,I_VNEXT)=IC
+C.. Update the rho and X (probability) matrices with this new node
+               CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,TMat,TMat,NMAX,ALAT,UMAT,
+     &             RH,NTAY,0,ECORE)
+               RHOII(I_VNEXT)=RH
+               RHOIJ(I_VNEXT,I_VNEXT)=RH
+               DO I=0,I_VNEXT-1
+                  ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
+                  IF(ICE.LE.2) THEN
+                     XIJ(I_VNEXT,I)=1.D0/IC
+                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
+                        IF(ICE.EQ.2) THEN
+                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+                        ELSE
+                           XIJ(I,I_VNEXT)=0.D0
+                        ENDIF
+                     ELSE
+                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+                     ENDIF   
+                  ELSE
+                     XIJ(I_VNEXT,I)=0.D0
+                     XIJ(I,I_VNEXT)=0.D0
+                  ENDIF
+                  IF(I.EQ.0) THEN
+                     HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                  ICE,ECORE)
+                  ENDIF
+                  CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &             RH,NTAY,ICE,ECORE)
+                  IF(RH.AGT.RHOEPS) THEN
+                     RHOIJ(I_VNEXT,I)=RH
+                     RHOIJ(I,I_VNEXT)=RH
+                  ELSE
+                     RHOIJ(I,I_VNEXT)=0.D0
+                     RHOIJ(I_VNEXT,I)=0.D0
+                  ENDIF
+               ENDDO
+               I_VNEXT=I_VNEXT+1
+            ENDIF
+            ICOUNT=ICOUNT+1
+            IF(ICOUNT.GT.500) THEN
+C.. give up trying to find something to attach, and go home
+               WRITE(6,*) "WARNING: Unable to find attachee to vertex"
+               CALL WRITEDET(IPATH(1,NEXNODE-1),NEL,.TRUE.)
+               RHOII(1)=0.D0
+               RETURN
+            ENDIF
+         ENDDO
+         DO I=1,I_V-1
+            CALL FREEM(PVERTMEMS(I))
+         ENDDO
+C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
+C.. matrix elements.
+         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+      END
+
 
       SUBROUTINE GETTREENESS(ICLASS,ITREE,WEIGHT,I_V)
          IMPLICIT NONE

@@ -190,6 +190,8 @@ METHOD <METHOD>
         Use the old, new, or H-diagonalizing vertex sum subroutine.
     VERTEX MC
         Monte Carlo procedure.
+    VERTEX SUM READ
+        Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
     VERTEX STAR DIAG,POLY
         Constructs a star from all determinants connected to the root (ignoring connections between those dets).
         DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
@@ -299,7 +301,7 @@ LOGGING
     Start of logging block.
      
 MCPATHS     
-    Log in MCPATHS to MCPATHS
+    Log in MCPATHS to MCPATHS for full vertex sum and MCSUMMARY when using a METHODS section.
 
 FMCPR <LABEL,RHO,1000,EXCITATION>
     Log in FMCPR to PATHS and MP2PATHS.  Either just label logging or also log RHOIJ.

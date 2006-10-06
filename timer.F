@@ -13,7 +13,7 @@ C     ==--------------------------------------------------------------==
 
 
 C     =============AJWT=========
-      REAL*8 FUNCTION  TIGET(SNAME,NSTIM)
+      REAL*8 FUNCTION  TIGET(NSTIM)
       IMPLICIT NONE
       INCLUDE 'time.inc'
 C     Arguments
@@ -22,16 +22,6 @@ C     Arguments
 C     Variables
       INTEGER   I
       REAL*8    TIMEC,TIMEF
-C     ==--------------------------------------------------------------==
-      DO I=1,NTIMER
-        IF(SNAME.EQ.TNAM(I)) THEN
-          NSTIM=I
-          GOTO 100
-        ENDIF
-      ENDDO
-      WRITE(*,*) ' TIMER',SNAME,' NOT FOUND'
-      CALL STOPGM('TISET',' PARAMETER')
-  100 CONTINUE
       TIGET=CTSUM(NSTIM)
 C     ==--------------------------------------------------------------==
       RETURN

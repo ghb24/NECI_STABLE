@@ -49,10 +49,10 @@ c            WRITE(6,"I2") I_H
      &            ECORE,ILMAX)
             CALL TIHALT(STR,ISUB2)
             TOTAL=TOTAL+F(I_H)
-c            WRITE(6,*) I_H,F(I_H),TOTAL,TIGET(STR,ISUB2),L,LT
+c            WRITE(6,*) I_H,F(I_H),TOTAL,TIGET(ISUB2),L,LT
             IF(TLOG)
      &            WRITE(11,"(I12,2G25.16,F19.7,2I12)")
-     &               I_H,F(I_H),TOTAL,TIGET(STR,ISUB2),L,LT
+     &               I_H,F(I_H),TOTAL,TIGET(ISUB2),L,LT
          ENDDO
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
@@ -241,11 +241,11 @@ c            WRITE(6,"I2") I_H
      &          ILOGGING)
             CALL TIHALT(STR,ISUB2)
             TOTAL=TOTAL+F(I_H)
-c            WRITE(6,*) I_H,F(I_H),TOTAL,TIGET(STR,ISUB2),L,LT
+c            WRITE(6,*) I_H,F(I_H),TOTAL,TIGET(ISUB2),L,LT
 c     &                  ,(L+0.D0)/LT
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,2I12)")
-     &         I_H,F(I_H),TOTAL,TIGET(STR,ISUB2),L,LT
+     &         I_H,F(I_H),TOTAL,TIGET(ISUB2),L,LT
          ENDDO
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,3)) CLOSE(10)

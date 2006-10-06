@@ -1411,9 +1411,15 @@ C.. NB - still in TRHOIJ
          IF(NPATHS.GT.0.OR.DETINV.GT.0) THEN
             WRITE(6,*) "Calculating ",NPATHS," W_Is..."
             WRITE(6,*) "I_HMAX:",I_HMAX
-            OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-            CLOSE(11)
+            IF(I_HMAX.EQ.-10) THEN
+               OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
+               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(11)
+            ELSE
+               OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
+               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(11)
+            ENDIF
              IF(I_VMAX.EQ.0.AND.I_HMAX.NE.0) THEN
                WRITE(6,*) "I_VMAX=0.  Using paths limited by hop number"
                OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
@@ -1562,9 +1568,15 @@ C.. but not keeping them in memory
             ENDIF
             WRITE(6,*) "Calculating ",NPATHS," W_Is..."
             IF(BTEST(ILOGGING,1)) THEN
-               OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-               CLOSE(11)
+               IF(I_HMAX.EQ.-10) THEN
+                  OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
+                  WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+                  CLOSE(11)
+               ELSE
+                  OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
+                  WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+                  CLOSE(11)
+               ENDIF
             ENDIF
             IF(NTAY.EQ.0.AND.TENERGY) THEN
                WRITE(6,*) "Using exact RHOs generated on the fly"
@@ -1954,9 +1966,15 @@ C         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          ELSE
             WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
          ENDIF
-         OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-         WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-         CLOSE(11)
+         IF(I_HMAX.EQ.-10) THEN
+            OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
+            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(11)
+         ELSE
+            OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
+            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(11)
+         ENDIF
          OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
          IF(DETINV.NE.0) THEN
             ISTART=ABS(DETINV)
@@ -2456,9 +2474,15 @@ C:         CALL PRINT_MEMORY()
          ELSE
             WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
          ENDIF
-         OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-         WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-         CLOSE(11)
+         IF(I_HMAX.EQ.-10) THEN
+            OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
+            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(11)
+         ELSE
+            OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
+            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(11)
+         ENDIF
          OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
          IF(DETINV.NE.0) THEN
             ISTART=ABS(DETINV)
@@ -2491,7 +2515,8 @@ C:         CALL PRINT_MEMORY()
              CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
           ENDIF
           IF(III.GE.ISTART.AND..NOT.TDONE) THEN
-            IF(NPATHS.EQ.1)  CALL WRITEDET(6,NI,NEL,.TRUE.) 
+            IF(NPATHS.EQ.1.AND..NOT.TSPECDET)
+     &         CALL WRITEDET(6,NI,NEL,.TRUE.) 
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,

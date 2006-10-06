@@ -361,7 +361,7 @@ C                  end select
                   case("EXCITATIONS")
                      call inpgetexcitations(NWHTAY(2,I_VMAX))
                   case("CYCLES")
-                     call readi(NWHTAY(1,1))
+                     call readi(NWHTAY(2,I_VMAX))
                      if ( NWHTAY(1,I_VMAX).ne. -7 ) then
                         call report(trim(w)//" only valid for MC " 
      &                   //"method",.true.)
@@ -391,22 +391,22 @@ C                  end select
                   call readi(I_VMAX)
               case("IMPORTANCE")
                   call readf(G_VMC_PI)
-                  if ( I_HMAX .ne. -7 ) then
-                      call report(trim(w)//" only valid for MC "  
-     &                  //"method",.true.)
-                  end if
+!                  if ( I_HMAX .ne. -7 ) then
+!                      call report(trim(w)//" only valid for MC "  
+!     &                  //"method",.true.)
+!                  end if
               case("SEED")
                   call readi(G_VMC_SEED)
-                  if ( I_HMAX .ne. -7 ) then
-                      call report(trim(w)//" only valid for MC " 
-     &                  //"method",.true.)
-                  end if
+!                  if ( I_HMAX .ne. -7 ) then
+!                      call report(trim(w)//" only valid for MC " 
+!     &                  //"method",.true.)
+!                  end if
               case("BIAS")
                   call readf(G_VMC_FAC)
-                  if ( I_HMAX .ne. -7 ) then
-                      call report(trim(w)//" only valid for MC " 
-     &                //" method",.true.)
-                  end if
+!                  if ( I_HMAX .ne. -7 ) then
+!                      call report(trim(w)//" only valid for MC " 
+!     &                //" method",.true.)
+!                  end if
               case("PATHS")
                   call readi(NPATHS)
               case("ALLPATHS")
@@ -711,6 +711,8 @@ C     ILOGGING = 0771
                                 I_HMAX = -8
                             case("HDIAG")
                                 I_HMAX = -20
+                            case("READ")
+                                I_HMAX=-14
                             case default
                                 call report("Error - must specify OLD" 
      &                         //" or NEW vertex sum method",.true.)

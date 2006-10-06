@@ -81,7 +81,7 @@ C.. This will store the MP2 energy
             TSYM=.TRUE.
          ENDIF
          IF(TLOG) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD")
+            OPEN(11,FILE="MCSUMMARY",STATUS="OLD")
 C.. go to end of file
             I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
@@ -140,6 +140,9 @@ C.. This code generates excitations on the fly
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &         MP2E,NTOTAL)
+            ELSEIF(I_CHMAX.EQ.-14) THEN
+!.. We read in this vertex level from the MCPATHS file
+               CALL ReadMCPaths(I_V,F(I_V),DLWDB2)
             ELSEIF(I_CHMAX.EQ.-20) THEN
 C.. This code generates excitations on the fly, and diagonalizes a
 C.. matrix of hij instead of rhoij
@@ -160,7 +163,7 @@ C.. forcing them to be disconnected.
                IF(I_V.EQ.I_VMAX) THEN
                F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
+     &   RHOEPS,0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,CNWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS
      &   )
                ELSE
@@ -168,17 +171,21 @@ C.. forcing them to be disconnected.
                   L=0
                   LT=0
                ENDIF
+            ELSEIF(I_CHMAX.EQ.-7) THEN
+C..   We couple a vertex monte carlo at this vertex level to a known result at previous
+C.. levels by regarding all previous levels as a composite object with the Et and wi
+C.. we have already worked out. 
+              WLSI=TOTAL
+              CALL MCPATHSR4(NI,BETA,I_P,I_CHMAX,I_V,NEL,NBASISMAX,G1,
+     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &               LSTE,ICE,RIJLIST,CNWHTAY,ILOGGING,ECORE,ILMAX,
+     &               WLRI,WLSI,DBETA,DLWDB,I_V)
+               F(I_V)=WLSI
+              CALL WRITECLASSPATHS()
             ELSE
                F(I_V)=0.D0
                FSQ(I_V)=0.D0
                DLWDB3=0.D0
-               IF(I_CHMAX.EQ.-7) THEN
-C.. setup spin excitation generator
-                  CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
-     &               .TRUE.,NMEMLEN,INODE2,ISEED,ICOUNT,0)
-                  CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
-                  NMEM(1)=0
-               ENDIF
                OSI=0.D0
                DO ICOUNT=1,CNWHTAY
                   DLWDB2=0.D0
@@ -192,12 +199,6 @@ C.. setup spin excitation generator
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
-                  ELSE
-                     FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
-     &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,TSYM,
-     &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OSI,
-     &                  ODLWDB,OPROB)
                   ENDIF
                   F(I_V)=F(I_V)+FF
                   FSQ(I_V)=FSQ(I_V)+SQ(FF)
@@ -342,7 +343,7 @@ C.. H=-3 is unbiased, and H=-4 is biased
             CALL MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
-     &               WLRI,WLSI,DBETA,DLWDB)
+     &               WLRI,WLSI,DBETA,DLWDB,0)
             CALL WRITECLASSPATHS()
             RETURN
          ELSEIF(I_HMAX.EQ.-5) THEN
@@ -452,7 +453,7 @@ C.. forcing them to be disconnected.
             NTIME=TIMEC()*0.001D0
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
-c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(STR,ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
             IF(TLOG) THEN
                WRITE(11,"(I12,3G25.16,2I12,G25.16)")
      &            I_V,F(I_V),TOTAL,NTIME-OTIME,L,LT,DLWDB2
@@ -2361,3 +2362,24 @@ C               WRITE(13,*) NJ(J),ARR(NJ(J),2)
          MP2E=MP2E-CONTR
          RETURN
       END
+!.. Read in values for a weight and ETilde from an MCPATHS file
+      SUBROUTINE ReadMCPaths(iV,wWeight,wETilde)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER iV,i1,i2,i3
+         CHARACTER*1 c
+         REAL*8 r1,r2,r3,r4
+         TYPE(HDElement) wWeight,wETilde
+         
+         OPEN(43,FILE="MCPATHS",STATUS="OLD")
+         READ(43,*) c
+         READ(43,*) c
+         i1=0
+         DO WHILE(i1.NE.iV)
+            READ(43,*) i1,r1,r2,r3,i2,i3,r4
+         ENDDO
+         wWeight=r1
+         wETilde=r4
+      END
+         
+         

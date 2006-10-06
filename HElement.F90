@@ -118,7 +118,11 @@ MODULE HElement
       END
       TYPE(HElement) FUNCTION HElemDConjg(h)
          TYPE(HElement) h
+#ifdef __CMPLX
          HElemDConjg%v=DCONJG(h%v)
+#else
+         HElemDConjg%v=h%v
+#endif
          RETURN
       END
       TYPE(HElement) FUNCTION HElemSub(h1,h2)
