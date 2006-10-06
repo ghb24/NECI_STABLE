@@ -1739,6 +1739,7 @@ C.. generate a random excitation
 C.. If the new node is not in the path, add it.
             IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                WRITE(6,*) "INVALID DET"
+               CALL WRITEDET(6,INODE,NEL,.TRUE.)
                STOP "INVALID DET"
             ENDIF
             IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
@@ -1997,6 +1998,7 @@ C     &            NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
                CALL ICOPY(NEL,INODE2,1,INODE,1)
                IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                   WRITE(6,*) "INVALID DET"
+                  CALL WRITEDET(6,INODE,NEL,.TRUE.)
                   STOP "INVALID DET"
                ENDIF
 
@@ -2300,6 +2302,7 @@ C.. generate an excitation from this vertex
      &           NBASISMAX,.FALSE.,CUREX,TENTDETS(1,ITENT),ISEED,ICE,0)
                IF(.NOT.ISVALIDDET(TENTDETS(1,ITENT),NEL)) THEN
                   WRITE(6,*) "INVALID DET"
+                  CALL WRITEDET(6,TENTDETS(1,ITENT),NEL,.TRUE.)
                   STOP "INVALID DET"
                ENDIF
 C.. We cannot deal with the case that the tentacle is already in the graph
@@ -2537,6 +2540,7 @@ C.. Now use the excitor for this vertex to generate a new vertex
      &         NBASISMAX,.FALSE.,CUREX,NL,ISEED,ICE,0)
             IF(.NOT.ISVALIDDET(NL,NEL)) THEN
                WRITE(6,*) "INVALID DET"
+               CALL WRITEDET(6,NL,NEL,.TRUE.)
                STOP "INVALID DET"
             ENDIF
             IF(.NOT.LISINPATH(NL,IPATH,NEL,I_V,-1)) THEN
