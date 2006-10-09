@@ -70,6 +70,7 @@ C.. do some blocking analysis
          LOGICAL TSEQ
          REAL*8 PREJ,PGR
          REAL*8 TIMEC,OTIME,NTIME
+         INTEGER*8 LP
          INCLUDE 'vmc.inc'
          OTIME=TIMEC()*0.001
          IF(I_VMIN.NE.0) THEN
@@ -92,7 +93,7 @@ C.. go to end of file
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
          IF(BTEST(ILOGGING,9))
      &      OPEN(12,FILE="VERTEXMC",STATUS="UNKNOWN")
-         IF(BTEST(ILOGGING,9))
+         IF(BTEST(ILOGGING,10))
      &      OPEN(22,FILE="VMC",STATUS="UNKNOWN")
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
@@ -280,8 +281,8 @@ C.. Markov chain with random generation.
                          IF(TSEQ) THEN
                            I_VCUR=1
 !.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
-                           L=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
-                           IF(L.GT.0) THEN
+                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           IF(LP.GT.0) THEN
                               IGV=1
                               I_OVCUR=1
                               OWEIGHT=WCORE
@@ -289,7 +290,7 @@ C.. Markov chain with random generation.
                               OPROB=1.D0-G_VMC_FAC
                               IOCLS=0
                               FF=1.D0
-                              CALL AddGraph(MCStat,L,1,FF,ODLWDB,
+                              CALL AddGraph(MCStat,LP,1,FF,ODLWDB,
      &                           WCORE,1,1,1,1)
                             ENDIF
                          ENDIF
@@ -305,9 +306,9 @@ C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
                            PREJ=1.D0-MIN(PREJ,1.D0)
                            PGR=PREJ*(1.D0-G_VMC_FAC)
 C.. L is the number of strings of rejections (i.e. of V's we add
-                           L=LOG((1-RAN2(ISEED)))/LOG(PGR)
+                           LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
-                           CALL AddGraph(MCStat,L,I_OVCUR,FF,DLWDB2,
+                           CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
      &                        OWEIGHT,ITREE,0,I_OVCUR,1)
 C.. Now if we generate a 0, we are forced to accept it, but we need to consider any V's separately
 !                   !
@@ -321,7 +322,8 @@ C.. Now if we generate a 0, we are forced to accept it, but we need to consider 
                               ODLWDB=DLWDB2
                               OWEIGHT=WCORE
                               ITREE=1
-                              CALL AddGraph(MCStat,1,1,FF,DLWDB2,
+                              LP=1
+                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
      &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
                               I_VCUR=1
                               PFAC=1.D0-G_VMC_FAC
@@ -374,7 +376,8 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
 !                   !
                     ENDIF
                   ENDIF
-                  CALL AddGraph(MCStat,1,I_VCUR,FF,DLWDB2,OWEIGHT,ITREE,
+                  LP=1
+                 CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,ITREE,
      &               IACC,IOV,IGV)
                   IF(BTEST(ILOGGING,10))
      &                    WRITE(22,"(2G25.16)") FF,DLWDB2

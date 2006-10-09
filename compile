@@ -3,7 +3,7 @@
 
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
 cp Makefile dest
-touch *.F
+touch *.F *.F90
 cd dest
 make neci.x
 cd ..

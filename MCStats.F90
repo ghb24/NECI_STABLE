@@ -6,8 +6,8 @@ MODULE MCStats
          TYPE(HDElement), POINTER :: wBlockSum(0:)
          TYPE(HDElement), POINTER :: wBlockSumSq(0:)
 !  Magically, F90 will know the relevant numbers of rows and columns in this once it has been created.
-         INTEGER, POINTER         :: nGen(0:,0:)
-         INTEGER, POINTER         :: nAcc(0:,0:)
+         INTEGER*8, POINTER         :: nGen(0:,0:)
+         INTEGER*8, POINTER         :: nAcc(0:,0:)
          TYPE(HDElement), POINTER :: wValue(0:)
          TYPE(HDElement), POINTER :: wValueSq(0:)
          TYPE(HDElement), POINTER :: wWeight(0:)
@@ -17,22 +17,26 @@ MODULE MCStats
          TYPE(HDElement), POINTER :: wTrees(0:)
          TYPE(HDElement), POINTER :: wNonTreesPos(0:)
          TYPE(HDElement), POINTER :: wNonTreesNeg(0:)
-         INTEGER, POINTER         :: nGraphs(0:)
-         INTEGER, POINTER         :: nNonTreesNeg(0:)
-         INTEGER, POINTER         :: nNonTreesPos(0:)
-         INTEGER, POINTER         :: nTrees(0:)
-         INTEGER                     iBlocks
-         INTEGER                     iBMax
-         INTEGER                     iAccTot
-         INTEGER                     iVMax
+         INTEGER*8, POINTER         :: nGraphs(0:)
+         INTEGER*8, POINTER         :: nNonTreesNeg(0:)
+         INTEGER*8, POINTER         :: nNonTreesPos(0:)
+         INTEGER*8, POINTER         :: nTrees(0:)
+         INTEGER                       iBlocks
+         INTEGER                       iBMax
+         INTEGER*8                     iAccTot
+         INTEGER                       iVMax
+         INTEGER*8                     iSeqLen
+         INTEGER                       nSeqs
+         REAL*8                        fSeqLenSq
+
       END TYPE
       CONTAINS
          SUBROUTINE GetStats(MCS,iV,wValue,wETilde)
             TYPE(MCStats) MCS
             INTEGER iV
             TYPE(HDElement) wValue,wETilde
-            wValue=MCS%wValue(iV)/MCS%nGraphs(iV)
-            wETilde=MCS%wETilde(iV)/MCS%nGraphs(iV)
+            wValue=MCS%wValue(iV)/HDElement(0.D0+MCS%nGraphs(iV))
+            wETilde=MCS%wETilde(iV)/HDElement(0.D0+MCS%nGraphs(iV))
          END
 !  The constructor
          SUBROUTINE Create(MCS,iV,iMaxCycles)
@@ -82,7 +86,9 @@ MODULE MCStats
             MCS%nNonTreesNeg=0
             MCS%nNonTreesPos=0
             MCS%nTrees=0
-           
+            MCS%iSeqLen=0
+            MCS%nSeqs=0
+            MCS%fSeqLenSq=0.D0
          END
          SUBROUTINE Delete(MCS)
             TYPE(MCStats) MCS
@@ -108,11 +114,20 @@ MODULE MCStats
          END
          SUBROUTINE AddGraph(M,nTimes, iV, wValue,wETilde,wWeight,iTree,iAcc,ioV,igV)
             TYPE(MCStats) M
-            INTEGER nTimes,iV,iTree,iAcc,ioV,igV
+            INTEGER*8 nTimes
+            INTEGER iV,iTree,iAcc,ioV,igV
             TYPE(HDElement) wValue,wETilde,wWeight,bb,ss,mm,ee,wVal
-            INTEGER i,nn,ioBMax,j
+            INTEGER i,ioBMax,j
             REAL*8 cc
-            INTEGER no,nc,nt
+            INTEGER*8 no,nc,nt,nn
+            IF(iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
+               M%iSeqLen=M%iSeqLen+nTimes
+            ELSE
+               M%nSeqs=M%nSeqs+1
+               M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
+               WRITE(6,*) M%fSeqLenSq
+               M%iSeqLen=1
+            ENDIF
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
             IF(iAcc.GT.0) THEN
                M%nAcc(ioV,igV)=M%nAcc(ioV,igV)+nTimes
@@ -283,10 +298,10 @@ MODULE MCStats
                OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
                nn=M%nGraphs(0)
                DO i=0,M%iBMax
-                  mm=M%wBlockSum(i)/nn
-                  cc=DREAL(M%wBlockSumSq(i)/nn-mm*mm)
-                  ss=SQRT(ABS(cc)/(nn-1))
-                  ee=ss/HDElement(SQRT(2.D0*(nn-1)))
+                  mm=M%wBlockSum(i)/HDElement(nn+0.D0)
+                  cc=DREAL(M%wBlockSumSq(i)/HDElement(nn+0.D0)-mm*mm)
+                  ss=SQRT(ABS(cc)/(nn-1.D0))
+                  ee=ss/HDElement(SQRT(2.D0*(nn-1.D0)))
                   WRITE(23,"(I,3G25.16)") i,ss,ee,mm
                   nn=nn/2
                ENDDO
@@ -318,7 +333,7 @@ MODULE MCStats
             CHARACTER*20 STR2
             INTEGER I,J
             TYPE(HDElement) OW,OE,iC
-            REAL*8 Time
+            REAL*8 Time,fAveSeqLen
             iC=HDElement(M%nGraphs(0))
             WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,F19.7)") ,M%iVMax,M%wValue(0)/iC-OW,M%wValue(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wETilde(0)/iC-OE
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
@@ -337,11 +352,15 @@ MODULE MCStats
             DO J=1,M%iVMax
                WRITE(iUnit,STR2) "ACC->",J,(M%nAcc(I,J),I=1,M%iVMax)
             ENDDO
+            WRITE(iUnit,*) "Sequences: ",M%nSeqs
+            fAveSeqLen=(M%nGraphs(0)+0.D0)/M%nSeqs
+            WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
          END
          SUBROUTINE AddWS(w,wSq,iV,nTimes,wV)
             TYPE(HDElement) :: w(0:iV),wSq(0:iV)
             TYPE(HDElement) wV,t
-            INTEGER iV,nTimes
+            INTEGER iV
+            INTEGER*8 nTimes
             t=nTimes+0.D0
             t=t*wV
             w(0)=w(0)+t
@@ -353,15 +372,16 @@ MODULE MCStats
          SUBROUTINE AddW(w,iV,nTimes,wV)
             TYPE(HDElement) :: w(0:iV)
             TYPE(HDElement) wV,t
-            INTEGER iV,nTimes
+            INTEGER iV
+            INTEGER*8 nTimes
             t=nTimes+0.D0
             t=t*wV
             w(0)=w(0)+t
             w(iV)=w(iV)+t
          END
          SUBROUTINE AddN(n,iV,nV)
-            INTEGER :: n(0:iV)
-            INTEGER iV,nV
+            INTEGER*8 :: n(0:iV),nV
+            INTEGER iV
             n(0)=n(0)+nV
             n(iV)=n(iV)+nV
          END
