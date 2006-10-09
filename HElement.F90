@@ -43,6 +43,9 @@ MODULE HElement
       interface DCONJG
          module procedure HElemDConjg
       end interface
+      interface DREAL
+         module procedure HElemDReal
+      end interface
       interface LOG
          module procedure HElemLog
       end interface
@@ -92,7 +95,6 @@ MODULE HElement
       end interface
       CONTAINS
 
-!  We always initialize from reals
       SUBROUTINE HElemFromVal(h,v)
          TYPE(HElement) h
          REAL*8  v
@@ -168,6 +170,15 @@ MODULE HElement
          HElemSq=h1%v*dconjg(h1%v)
 #else
          HElemSq=h1%v**2
+#endif
+         RETURN
+      END
+      REAL*8 FUNCTION HElemDReal(h1)
+         TYPE(HElement) h1
+#ifdef __CMPLX
+         HElemDReal=DREAL(h1%v)
+#else
+         HElemDReal=h1%v
 #endif
          RETURN
       END

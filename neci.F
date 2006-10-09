@@ -2181,14 +2181,15 @@ C.. This should only happen for HMAX
       END
 
       REAL*8 FUNCTION CALCT(NI,NEL,G1,TMAT,NBASIS)
+         USE HElement
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),G1(*),NBASIS,I
-         REAL*8 TMAT(NBASIS,NBASIS)
+         TYPE(HElement) TMAT(NBASIS,NBASIS)
          LOGICAL ISCSF
          CALCT=0.D0
          IF(ISCSF(NI,NEL)) RETURN
          DO I=1,NEL
-            CALCT=CALCT+TMAT(NI(I),NI(I))
+            CALCT=CALCT+DREAL(TMAT(NI(I),NI(I)))
          ENDDO
          RETURN
       END

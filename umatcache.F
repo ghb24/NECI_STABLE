@@ -353,7 +353,7 @@ C.. middle of a block of duplicates
          USE HElement
          IMPLICIT NONE
          INTEGER A,B,ICACHE,ICACHEI
-         REAL*8 UMATEL
+         TYPE(HElement) UMATEL
          INCLUDE 'umatcache.inc'      
          INTEGER OLAB,IC1
 C         WRITE(6,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
