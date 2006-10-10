@@ -2658,16 +2658,17 @@ C               G(3,BRR(I))=J
 
       SUBROUTINE FREEZEBASIS(NHG,NBASIS,UMAT,TMAT,UMAT2,TMAT2,ECORE,
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,ALAT)
+         USE HElement
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)
-         REAL*8 UMAT(*)
+         TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-         REAL*8 TMAT(NHG,NHG),ECORE
-         REAL*8 UMAT2(*)
+         TYPE(HElement) TMAT(NHG,NHG),UMAT2(*)
+         REAL*8 ECORE
 C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
-         REAL*8 TMAT2(NBASIS,NBASIS)
+         TYPE(HElement) TMAT2(NBASIS,NBASIS)
          REAL*8 ARR(NHG,2),ARR2(NBASIS,2)
          INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),GG(NHG)
          TYPE(BASISFN) G2(NHG)
@@ -2678,7 +2679,7 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          INTEGER IDA,IDB,SGN
          INTEGER FDET(NEL),NEL
          TYPE(Symmetry) KSYM
-         REAL*8 GETUMATEL
+         TYPE(HElement) GETUMATEL
          REAL*8 ALAT(3)
 C.. Just check to see if we're not in the middle of a degenerate set with the same sym
          IF(NFROZEN.GT.0) THEN
@@ -2739,19 +2740,19 @@ C.. Now construct the new BRR and ARR
 C.. First deal with Ecore
          DO A=1,NFROZEN
             AB=BRR(A)
-            ECORE=ECORE+TMAT(AB,AB)
+            ECORE=ECORE+DREAL(TMAT(AB,AB))
             DO B=A+1,NFROZEN
                BB=BRR(B)
                CALL GTID(NBASISMAX,AB,IDA)
                CALL GTID(NBASISMAX,BB,IDB)
 C.. No sign problems from permuations here as all perms even
-               ECORE=ECORE
-     &        +GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB)
+               ECORE=ECORE+DREAL(
+     &        GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
 CCCC.. If we have spin-independent integrals, or 
 C.. if the spins are the same
                IF(G1(AB)%MS.EQ.G1(BB)%MS)
-     &            ECORE=ECORE
-     &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDB,IDA)
+     &            ECORE=ECORE-DREAL(
+     &      GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDB,IDA))
             ENDDO
          ENDDO
 C.. now deal with the new TMAT
