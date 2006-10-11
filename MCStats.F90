@@ -125,7 +125,7 @@ MODULE MCStats
             ELSE
                M%nSeqs=M%nSeqs+1
                M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
-               WRITE(6,*) M%fSeqLenSq
+!               WRITE(6,*) M%fSeqLenSq
                M%iSeqLen=1
             ENDIF
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes

@@ -310,21 +310,23 @@ C.. L is the number of strings of rejections (i.e. of V's we add
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
      &                        OWEIGHT,ITREE,0,I_OVCUR,1)
-C.. Now if we generate a 0, we are forced to accept it, but we need to consider any V's separately
+C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
 !                   !
                            IF(RAN(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
      &                           .GE.G_VMC_FAC) THEN
                               FF=1.D0
+                              IOV=I_OVCUR
                               I_OVCUR=1
-                              IOV=1
                               IGV=1
                               DLWDB2=DLWDBCORE/WCORE
                               ODLWDB=DLWDB2
                               OWEIGHT=WCORE
                               ITREE=1
-                              LP=1
-                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
-     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
+!                              LP=1
+!  This addgraph occurs later.  We can just set it up
+                              IACC=1
+!                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
+!     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
                               I_VCUR=1
                               PFAC=1.D0-G_VMC_FAC
                               IOCLS=0
