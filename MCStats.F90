@@ -28,6 +28,8 @@ MODULE MCStats
          INTEGER*8                     iSeqLen
          INTEGER                       nSeqs
          REAL*8                        fSeqLenSq
+         TYPE(HDElement)               woWeight
+         TYPE(HDElement)               woETilde
 
       END TYPE
       CONTAINS
@@ -112,7 +114,7 @@ MODULE MCStats
             DEALLOCATE(MCS%nTrees)
            
          END
-         SUBROUTINE AddGraph(M,nTimes, iV, wValue,wETilde,wWeight,iTree,iAcc,ioV,igV)
+         SUBROUTINE AddGraph(M,nTimes, iV, wValue,wETilde,wWeight,iTree,iAcc,ioV,igV,tLog)
             TYPE(MCStats) M
             INTEGER*8 nTimes
             INTEGER iV,iTree,iAcc,ioV,igV
@@ -120,14 +122,19 @@ MODULE MCStats
             INTEGER i,ioBMax,j
             REAL*8 cc
             INTEGER*8 no,nc,nt,nn
+            LOGICAL tLog
+            
             IF(iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
                M%iSeqLen=M%iSeqLen+nTimes
             ELSE
                M%nSeqs=M%nSeqs+1
                M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
 !               WRITE(6,*) M%fSeqLenSq
+               IF(tLog) WRITE(22,"(I20,I15,I3,2G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%woWeight%v,M%woETilde%v
                M%iSeqLen=1
             ENDIF
+            M%woWeight=wWeight
+            M%woETilde=wETilde
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
             IF(iAcc.GT.0) THEN
                M%nAcc(ioV,igV)=M%nAcc(ioV,igV)+nTimes
