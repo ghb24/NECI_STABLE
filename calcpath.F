@@ -122,7 +122,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          ENDIF
          CALCPATHS_N=CALCPATHS
          IF(I_V.LE.5) THEN
-            IF(WEIGHT.GE.0.D0)
+            IF(WEIGHT.GT.0.D0)
      &       CALL CLASSPATHS(DREAL(CALCPATHS)/WEIGHT,
      &            DREAL(DLWDB)/WEIGHT,WEIGHT,RHOIJ,
      &            I_V,ICLS)
