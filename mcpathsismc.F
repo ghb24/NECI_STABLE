@@ -290,8 +290,9 @@ C.. Markov chain with random generation.
                               OPROB=1.D0-G_VMC_FAC
                               IOCLS=0
                               FF=1.D0
+                              ITREE=1
                               CALL AddGraph(MCStat,LP,1,FF,ODLWDB,
-     &                           WCORE,1,1,1,1,BTEST(ILOGGING,10))
+     &                           WCORE,0,ITREE,1,1,1,BTEST(ILOGGING,10))
                             ENDIF
                          ENDIF
 !                   !
@@ -309,7 +310,8 @@ C.. L is the number of strings of rejections (i.e. of V's we add
                            LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
-     &                    OWEIGHT,ITREE,0,I_OVCUR,1,BTEST(ILOGGING,10))
+     &                        OWEIGHT,IOCLS,ITREE,0,I_OVCUR,1,
+     &                        BTEST(ILOGGING,10))
 C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
 !                   !
                            IF(RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
@@ -379,7 +381,8 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                     ENDIF
                   ENDIF
                   LP=1
-                 CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,ITREE,
+                 CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,IOCLS,
+     &               ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10))
 !                  IF(BTEST(ILOGGING,10))
 !     &                    WRITE(22,"(2G25.16)") FF,DLWDB2

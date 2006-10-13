@@ -2380,6 +2380,7 @@ C               WRITE(13,*) NJ(J),ARR(NJ(J),2)
          ENDDO
          wWeight=r1
          wETilde=r4
+         CLOSE(43)
       END
          
          

@@ -114,13 +114,13 @@ MODULE MCStats
             DEALLOCATE(MCS%nTrees)
            
          END
-         SUBROUTINE AddGraph(M,nTimes, iV, wValue,wETilde,wWeight,iTree,iAcc,ioV,igV,tLog)
+         SUBROUTINE AddGraph(M,nTimes, iV, wValue,wETilde,wWeight,iClass,iTree,iAcc,ioV,igV,tLog)
             TYPE(MCStats) M
             INTEGER*8 nTimes
-            INTEGER iV,iTree,iAcc,ioV,igV
+            INTEGER iV,iTree,iAcc,ioV,igV,iClass
             TYPE(HDElement) wValue,wETilde,wWeight,bb,ss,mm,ee,wVal
             INTEGER i,ioBMax,j
-            REAL*8 cc
+            REAL*8 cc,ave1,ave2,std1,std2
             INTEGER*8 no,nc,nt,nn
             LOGICAL tLog
             
@@ -130,7 +130,12 @@ MODULE MCStats
                M%nSeqs=M%nSeqs+1
                M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
 !               WRITE(6,*) M%fSeqLenSq
-               IF(tLog) WRITE(22,"(I20,I15,I3,2G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%woWeight%v,M%woETilde%v
+               ave1=M%wETilde(0)%v/M%nGraphs(0)
+               std1=sqrt(M%wETildeSq(0)%v/M%nGraphs(0)-ave1*ave1)
+               ave2=M%wValue(0)%v/M%nGraphs(0)
+               std2=sqrt(1.D0-ave2*ave2)
+               cc=std1/ave1+std2/ave2
+               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,iClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
                M%iSeqLen=1
             ENDIF
             M%woWeight=wWeight
