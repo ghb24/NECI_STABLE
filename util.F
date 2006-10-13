@@ -1039,7 +1039,7 @@ C.. Modified this to use REAL*8s.
 
 C.. Numerical Recipes RAN2
 
-      REAL*8 FUNCTION RAN2(idum)
+      REAL*8 FUNCTION OORAN2(idum)
         IMPLICIT NONE
         INTEGER idum,IM1,IM2,IMM1,IA1,IA2,IQ1,IQ2,IR1,IR2,NTAB,NDIV
         REAL*8 AM,EPS,RNMX
@@ -1049,7 +1049,11 @@ C.. Numerical Recipes RAN2
      &          EPS=1.2D-7,RNMX=1.D0-EPS)
         INTEGER idum2,j,k,iv(NTAB),iy
         SAVE iv,iy,idum2
+!        INTEGER C
         DATA idum2/123456789/, iv/NTAB*0/,iy/0/
+!        SAVE C
+!        C=C+1
+!        IF(MOD(C,10000).EQ.0) WRITE(6,*) "PRNG: ",C
         if (idum.le.0) then
            idum=max(-idum,1)
            idum2=idum
@@ -1071,6 +1075,24 @@ C.. Numerical Recipes RAN2
         iy=iv(j)-idum2
         iv(j)=idum
         if(iy.lt.1) iy=iy+IMM1
-        ran2=min(AM*iy,RNMX)
+        ooran2=min(AM*iy,RNMX)
         return
+      END
+
+!  Following the same interface as RAN2, but using the RANLUX generator (lux level 3).
+!  If ISEED.NE.0, it is used as a seed, and reset to 0.
+!  Generates a 32-bit float (REAL*4), and stores this in a real*8
+      REAL*8 FUNCTION RAN2(ISEED)
+         IMPLICIT NONE
+         INTEGER ISEED
+         REAL*8 r
+         IF(ISEED.NE.0) THEN
+!  Init RANLUX
+            IF(ISEED.LT.0) ISEED=-ISEED
+            CALL RLUXGO(3,ISEED,0,0)
+            ISEED=0
+         ENDIF
+         CALL RANLUX(r,1)
+         RAN2=r
+         RETURN
       END

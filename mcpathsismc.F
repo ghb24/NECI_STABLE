@@ -312,7 +312,7 @@ C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
      &                    OWEIGHT,ITREE,0,I_OVCUR,1,BTEST(ILOGGING,10))
 C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
 !                   !
-                           IF(RAN(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
+                           IF(RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
      &                           .GE.G_VMC_FAC) THEN
                               FF=1.D0
                               IOV=I_OVCUR
