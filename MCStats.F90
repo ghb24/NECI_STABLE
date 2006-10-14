@@ -30,6 +30,7 @@ MODULE MCStats
          REAL*8                        fSeqLenSq
          TYPE(HDElement)               woWeight
          TYPE(HDElement)               woETilde
+         INTEGER                       ioClass
 
       END TYPE
       CONTAINS
@@ -135,9 +136,10 @@ MODULE MCStats
                ave2=M%wValue(0)%v/M%nGraphs(0)
                std2=sqrt(1.D0-ave2*ave2)
                cc=std1/ave1+std2/ave2
-               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,iClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
+               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
                M%iSeqLen=1
             ENDIF
+            M%ioClass=iClass
             M%woWeight=wWeight
             M%woETilde=wETilde
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
