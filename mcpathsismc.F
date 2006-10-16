@@ -397,7 +397,8 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10))
 !                  IF(BTEST(ILOGGING,10))
 !     &                    WRITE(22,"(2G25.16)") FF,DLWDB2
-                  IF(BTEST(ILOGGING,9).AND.MOD(ICOUNT,1000).EQ.0) THEN
+                  IF(BTEST(ILOGGING,9)) THEN
+C.AND.MOD(ICOUNT,1000).EQ.0) THEN
                      CALL WriteStats(MCStat,12)
                      CALL FLUSH(12)
                   ENDIF

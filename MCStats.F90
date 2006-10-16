@@ -13,6 +13,7 @@ MODULE MCStats
          TYPE(HDElement), POINTER :: wWeight(0:)
          TYPE(HDElement), POINTER :: wWeightSq(0:)
          TYPE(HDElement), POINTER :: wETilde(0:)
+         TYPE(HDElement), POINTER :: wWETilde(0:)
          TYPE(HDElement), POINTER :: wETildeSq(0:)
          TYPE(HDElement), POINTER :: wTrees(0:)
          TYPE(HDElement), POINTER :: wNonTreesPos(0:)
@@ -69,11 +70,13 @@ MODULE MCStats
             ALLOCATE(MCS%wWeightSq(0:iV))
             ALLOCATE(MCS%wETilde(0:iV))
             ALLOCATE(MCS%wETildeSq(0:iV))
+            ALLOCATE(MCS%wWETilde(0:iV))
             MCS%wValue=HDElement(0.D0)
             MCS%wValueSq=HDElement(0.D0)
             MCS%wWeight=HDElement(0.D0)
             MCS%wWeightSq=HDElement(0.D0)
             MCS%wETilde=HDElement(0.D0)
+            MCS%wWETilde=HDElement(0.D0)
             MCS%wETildeSq=HDElement(0.D0)
             ALLOCATE(MCS%wTrees(0:iV))
             ALLOCATE(MCS%wNonTreesPos(0:iV))
@@ -106,6 +109,7 @@ MODULE MCStats
             DEALLOCATE(MCS%wWeightSq)
             DEALLOCATE(MCS%wETilde)
             DEALLOCATE(MCS%wETildeSq)
+            DEALLOCATE(MCS%wWETilde)
             DEALLOCATE(MCS%wTrees)
             DEALLOCATE(MCS%wNonTreesPos)
             DEALLOCATE(MCS%wNonTreesNeg)
@@ -131,7 +135,7 @@ MODULE MCStats
                std2=sqrt(1.D0-ave2*ave2)
                cc=std1/ave1+std2/ave2
 !            WRITE(22,"(I5,I5,2I3,5G15.6)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
-            IF(iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
+            IF(M%nGraphs(0).EQ.0.OR.iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
                M%iSeqLen=M%iSeqLen+nTimes
                tNewSeq=.FALSE.
             ELSE
@@ -139,27 +143,6 @@ MODULE MCStats
                M%nSeqs=M%nSeqs+1
                M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
                tNewSeq=.TRUE.
-            ENDIF
-            M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
-            IF(iAcc.GT.0) THEN
-               M%nAcc(ioV,igV)=M%nAcc(ioV,igV)+nTimes
-               M%iAccTot=M%iAccTot+nTimes
-            ENDIF 
-            CALL AddN(M%nGraphs,iV,nTimes) 
-            CALL AddWS(M%wWeight,M%wWeightSq,iV,nTimes,wWeight)
-            CALL AddWS(M%wValue,M%wValueSq,iV,nTimes,wValue)
-            CALL AddWS(M%wETilde,M%wETildeSq,iV,nTimes,wETilde)
-            IF(iTree.EQ.1) THEN
-               CALL AddN(M%nTrees,iV,nTimes) 
-               CALL AddW(M%wTrees,iV,nTimes,wWeight)
-            ELSE
-               IF(wWeight%v.GT.0.D0) THEN
-                  CALL AddN(M%nNonTreesPos,iV,nTimes)
-                  CALL AddW(M%wNonTreesPos,iV,nTimes,wWeight)
-               ELSE
-                  CALL AddN(M%nNonTreesNeg,iV,nTimes)
-                  CALL AddW(M%wNonTreesNeg,iV,nTimes,wWeight)
-               ENDIF
             ENDIF
             IF(tNewSeq) THEN
                ave1=M%wETilde(0)%v/M%nGraphs(0)
@@ -173,6 +156,28 @@ MODULE MCStats
             M%ioClass=iClass
             M%woWeight=wWeight
             M%woETilde=wETilde
+            M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
+            IF(iAcc.GT.0) THEN
+               M%nAcc(ioV,igV)=M%nAcc(ioV,igV)+nTimes
+               M%iAccTot=M%iAccTot+nTimes
+            ENDIF 
+            CALL AddN(M%nGraphs,iV,nTimes) 
+            CALL AddWS(M%wWeight,M%wWeightSq,iV,nTimes,wWeight)
+            CALL AddWS(M%wValue,M%wValueSq,iV,nTimes,wValue)
+            CALL AddWS(M%wETilde,M%wETildeSq,iV,nTimes,wETilde)
+            CALL AddW(M%wWETilde,iV,nTimes,wETilde*wValue)
+            IF(iTree.EQ.1) THEN
+               CALL AddN(M%nTrees,iV,nTimes) 
+               CALL AddW(M%wTrees,iV,nTimes,wWeight)
+            ELSE
+               IF(wWeight%v.GT.0.D0) THEN
+                  CALL AddN(M%nNonTreesPos,iV,nTimes)
+                  CALL AddW(M%wNonTreesPos,iV,nTimes,wWeight)
+               ELSE
+                  CALL AddN(M%nNonTreesNeg,iV,nTimes)
+                  CALL AddW(M%wNonTreesNeg,iV,nTimes,wWeight)
+               ENDIF
+            ENDIF
 !.. Deal with blocking in a new way.
 !.. wCurBlock(i) contains the remainder of the sum of values after having removed blocks of length 2**i
 !
@@ -262,7 +267,7 @@ MODULE MCStats
 
             wVal=wETilde
 !            WRITE(6,*) nTimes,wETilde
-            IF(.FALSE.) THEN
+            IF(.TRUE.) THEN
             nn=1
             i=0
             ioBMax=M%iBMax
@@ -338,17 +343,17 @@ MODULE MCStats
             REAL*8 Time
             TYPE(HDElement) iC
             iC=M%nGraphs(0)+0.D0
-            WRITE(iUnit,"(I3,I10,10G25.16)") 0,M%nGraphs(0)/1000,                    &
+            WRITE(iUnit,"(I3,I10,10G25.16)") 0,M%nGraphs(0),                         &
      &                   M%wValue(0)/iC,                                             &
      &              SQRT(DREAL(M%wValueSq(0)/iC-(M%wValue(0)*M%wValue(0)/(iC*iC)))), &
-     &                   0.D0,                                                       &
+     &                   M%wETilde(0)/iC,                                                       &
      &                   M%wETilde(0)/M%wValue(0),                                   &
      &                   M%wETildeSq(0)/iC,                                          &
      &                   (M%iAccTot+0.D0)/M%nGraphs(0),                              &
      &                   (M%nTrees(0)+0.D0)/M%nGraphs(0),                            &
      &                   (M%nNonTreesPos(0)+0.D0)/M%nGraphs(0),                      &
      &                   (M%nNonTreesNeg(0)+0.D0)/M%nGraphs(0),                      &
-     &                   0.D0
+     &                   (M%wWETilde(0)/iC)
 !SUMDLWDB/ICOUNT
          END
          SUBROUTINE WriteLongStats(M,iUnit,OW,OE,Time)
