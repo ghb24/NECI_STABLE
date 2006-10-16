@@ -124,10 +124,17 @@ MODULE MCStats
             REAL*8 cc,ave1,ave2,std1,std2
             INTEGER*8 no,nc,nt,nn
             LOGICAL tLog
-            
+!            WRITE(22,"(2I5,G15.6,3I3,2G15.6)") iV,nTimes,wWeight,iAcc,ioV,igV,wETilde,wWeight           
+               ave1=M%wETilde(0)%v/M%nGraphs(0)
+               std1=sqrt(M%wETildeSq(0)%v/M%nGraphs(0)-ave1*ave1)
+               ave2=M%wValue(0)%v/M%nGraphs(0)
+               std2=sqrt(1.D0-ave2*ave2)
+               cc=std1/ave1+std2/ave2
+!            WRITE(22,"(I5,I5,2I3,5G15.6)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
             IF(iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
                M%iSeqLen=M%iSeqLen+nTimes
             ELSE
+!               WRITE(22,*) "NEWSEQ"
                M%nSeqs=M%nSeqs+1
                M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
 !               WRITE(6,*) M%fSeqLenSq

@@ -108,6 +108,8 @@ C.. Set the first node to I_I
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
          WCORE=WLSI
+         WRITE(6,*) "DLWDBCORE",DLWDBCORE
+         WRITE(6,*) "WCORE",WCORE
          IF(DBETA.LT.0.D0) THEN
             DLWDB=HIJS(0)
          ENDIF
@@ -189,6 +191,11 @@ C.. and for 2 (rho_jj/rhoii)**-P
                   OWEIGHT=0.D0
                   ODLWDB=0.D0
                ENDIF
+               IF(I_VMIN.NE.0) THEN
+                  ODLWDB=DLWDBCORE
+                  OWEIGHT=WCORE
+                  OPROB=1   
+               ENDIF
                IF(NWHTAY.LT.1) WRITE(6,*) "Warning: MC CYCLE count <0: "
      &               ,NWHTAY
                DO ICOUNT=1,NWHTAY
@@ -241,6 +248,7 @@ C.. see if we want to increase the number of vertices
 C.. We decide on a graph size.  See 22/8/05 #1,2
 C.. Probability of graph size v is prop to G_VMC_FAC**(v)
                         I_VCUR=0
+!                   !   .
                         IF(I_VMIN.EQ.0) THEN
 C.. we're doing MC with lots of different vertex levels
                          IF(G_VMC_FAC.GT.0) THEN
@@ -270,7 +278,7 @@ C.. Markov chain with random generation.
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                     IACC,0.D0)
-!                   !
+!                   !   .
                         ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
 !.. or graphs of size I_VMIN=I_VMAX
@@ -286,12 +294,13 @@ C.. Markov chain with random generation.
                               IGV=1
                               I_OVCUR=1
                               OWEIGHT=WCORE
-                              ODLWDB=DLWDBCORE/WCORE
+                              ODLWDB=DLWDBCORE
+                              DLWDB2=DLWDBCORE/WCORE
                               OPROB=1.D0-G_VMC_FAC
                               IOCLS=0
                               FF=1.D0
                               ITREE=1
-                              CALL AddGraph(MCStat,LP,1,FF,ODLWDB,
+                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
      &                           WCORE,0,ITREE,1,1,1,BTEST(ILOGGING,10))
                             ENDIF
                          ENDIF
@@ -309,9 +318,11 @@ C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
 C.. L is the number of strings of rejections (i.e. of V's we add
                            LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
-                           CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
-     &                        OWEIGHT,IOCLS,ITREE,0,I_OVCUR,1,
-     &                        BTEST(ILOGGING,10))
+                           IF(LP.GT.0) THEN
+                              CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
+     &                           OWEIGHT,IOCLS,ITREE,0,I_OVCUR,1,
+     &                           BTEST(ILOGGING,10))
+                           ENDIF
 C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
 !                   !
                            IF(RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
@@ -321,7 +332,7 @@ C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider a
                               I_OVCUR=1
                               IGV=1
                               DLWDB2=DLWDBCORE/WCORE
-                              ODLWDB=DLWDB2
+                              ODLWDB=DLWDBCORE
                               OWEIGHT=WCORE
                               ITREE=1
 !                              LP=1
