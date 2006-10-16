@@ -123,7 +123,7 @@ MODULE MCStats
             INTEGER i,ioBMax,j
             REAL*8 cc,ave1,ave2,std1,std2
             INTEGER*8 no,nc,nt,nn
-            LOGICAL tLog
+            LOGICAL tLog,tNewSeq
 !            WRITE(22,"(2I5,G15.6,3I3,2G15.6)") iV,nTimes,wWeight,iAcc,ioV,igV,wETilde,wWeight           
                ave1=M%wETilde(0)%v/M%nGraphs(0)
                std1=sqrt(M%wETildeSq(0)%v/M%nGraphs(0)-ave1*ave1)
@@ -133,22 +133,13 @@ MODULE MCStats
 !            WRITE(22,"(I5,I5,2I3,5G15.6)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
             IF(iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
                M%iSeqLen=M%iSeqLen+nTimes
+               tNewSeq=.FALSE.
             ELSE
 !               WRITE(22,*) "NEWSEQ"
                M%nSeqs=M%nSeqs+1
                M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
-!               WRITE(6,*) M%fSeqLenSq
-               ave1=M%wETilde(0)%v/M%nGraphs(0)
-               std1=sqrt(M%wETildeSq(0)%v/M%nGraphs(0)-ave1*ave1)
-               ave2=M%wValue(0)%v/M%nGraphs(0)
-               std2=sqrt(1.D0-ave2*ave2)
-               cc=std1/ave1+std2/ave2
-               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
-               M%iSeqLen=1
+               tNewSeq=.TRUE.
             ENDIF
-            M%ioClass=iClass
-            M%woWeight=wWeight
-            M%woETilde=wETilde
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
             IF(iAcc.GT.0) THEN
                M%nAcc(ioV,igV)=M%nAcc(ioV,igV)+nTimes
@@ -170,6 +161,18 @@ MODULE MCStats
                   CALL AddW(M%wNonTreesNeg,iV,nTimes,wWeight)
                ENDIF
             ENDIF
+            IF(tNewSeq) THEN
+               ave1=M%wETilde(0)%v/M%nGraphs(0)
+               std1=sqrt(M%wETildeSq(0)%v/M%nGraphs(0)-ave1*ave1)
+               ave2=M%wValue(0)%v/M%nGraphs(0)
+               std2=sqrt(1.D0-ave2*ave2)
+               cc=std1/ave1+std2/ave2
+               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
+               M%iSeqLen=1
+            ENDIF
+            M%ioClass=iClass
+            M%woWeight=wWeight
+            M%woETilde=wETilde
 !.. Deal with blocking in a new way.
 !.. wCurBlock(i) contains the remainder of the sum of values after having removed blocks of length 2**i
 !
@@ -259,7 +262,7 @@ MODULE MCStats
 
             wVal=wETilde
 !            WRITE(6,*) nTimes,wETilde
-            IF(.TRUE.) THEN
+            IF(.FALSE.) THEN
             nn=1
             i=0
             ioBMax=M%iBMax

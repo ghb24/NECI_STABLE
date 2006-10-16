@@ -433,6 +433,15 @@ caa            CALL FLUSH(10)
 !               WRITE(6,"(A,$)") "),"
 !            ENDIF
          ENDDO
+! Finish off any sequences
+         LP=0
+         I_VCUR=0
+         IOV=I_VMIN
+         IGV=0
+         IACC=1
+                 CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,IOCLS,
+     &               ITREE,
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10))
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
             CALL FREEM(IP_NMEM)
@@ -1595,6 +1604,7 @@ C.. CALCPATHS gives us the contribution of the path
             ICLS=0
             WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &         I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,HIJS,ICLS)
+            IF(.NOT.(WEIGHT.AGT.RHOEPS)) WEIGHT=0.D0
          ELSE
 C.. we use the gestalt 
             RH=PFAC
