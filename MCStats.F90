@@ -8,13 +8,13 @@ MODULE MCStats
 !  Magically, F90 will know the relevant numbers of rows and columns in this once it has been created.
          INTEGER*8, POINTER         :: nGen(0:,0:)
          INTEGER*8, POINTER         :: nAcc(0:,0:)
-         TYPE(HDElement), POINTER :: wValue(0:)
-         TYPE(HDElement), POINTER :: wValueSq(0:)
+         TYPE(HDElement), POINTER :: wSign(0:)
+         TYPE(HDElement), POINTER :: wSignSq(0:)
          TYPE(HDElement), POINTER :: wWeight(0:)
          TYPE(HDElement), POINTER :: wWeightSq(0:)
-         TYPE(HDElement), POINTER :: wETilde(0:)
-         TYPE(HDElement), POINTER :: wWETilde(0:)
-         TYPE(HDElement), POINTER :: wETildeSq(0:)
+         TYPE(HDElement), POINTER :: wDelta(0:)
+         TYPE(HDElement), POINTER :: wSDelta(0:)
+         TYPE(HDElement), POINTER :: wDeltaSq(0:)
          TYPE(HDElement), POINTER :: wTrees(0:)
          TYPE(HDElement), POINTER :: wNonTreesPos(0:)
          TYPE(HDElement), POINTER :: wNonTreesNeg(0:)
@@ -30,25 +30,28 @@ MODULE MCStats
          INTEGER                       nSeqs
          REAL*8                        fSeqLenSq
          TYPE(HDElement)               woWeight
-         TYPE(HDElement)               woETilde
+         TYPE(HDElement)               woDelta
          INTEGER                       ioClass
+         TYPE(HDElement)               wETReference
 
       END TYPE
       CONTAINS
-         SUBROUTINE GetStats(MCS,iV,wValue,wETilde)
+         SUBROUTINE GetStats(MCS,iV,wSign,wETilde)
             TYPE(MCStats) MCS
             INTEGER iV
-            TYPE(HDElement) wValue,wETilde
-            wValue=MCS%wValue(iV)/HDElement(0.D0+MCS%nGraphs(iV))
-            wETilde=MCS%wETilde(iV)/HDElement(0.D0+MCS%nGraphs(iV))
+            TYPE(HDElement) wSign,wETilde
+            wSign=MCS%wSign(iV)/HDElement(0.D0+MCS%nGraphs(iV))
+            wETilde=MCS%wETReference*wSign+MCS%wDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
+            WRITE(6,*) wSign,wETilde
          END
 !  The constructor
-         SUBROUTINE Create(MCS,iV,iMaxCycles)
+         SUBROUTINE Create(MCS,iV,iMaxCycles,wETReference)
             TYPE(MCStats) MCS
             INTEGER iV
             INTEGER iMaxCycles
             INTEGER i,j
             INTEGER iBlocks
+            TYPE(HDElement) wETReference
             iBlocks=iMaxCycles
             MCS%iBlocks=iBlocks
 !LOG(iMaxCycles+0.D0)/LOG(2.D0)+1
@@ -64,20 +67,20 @@ MODULE MCStats
             ALLOCATE(MCS%nAcc(0:iV,0:iV))
             MCS%nGen=0
             MCS%nAcc=0
-            ALLOCATE(MCS%wValue(0:iV))
-            ALLOCATE(MCS%wValueSq(0:iV))
+            ALLOCATE(MCS%wSign(0:iV))
+            ALLOCATE(MCS%wSignSq(0:iV))
             ALLOCATE(MCS%wWeight(0:iV))
             ALLOCATE(MCS%wWeightSq(0:iV))
-            ALLOCATE(MCS%wETilde(0:iV))
-            ALLOCATE(MCS%wETildeSq(0:iV))
-            ALLOCATE(MCS%wWETilde(0:iV))
-            MCS%wValue=HDElement(0.D0)
-            MCS%wValueSq=HDElement(0.D0)
+            ALLOCATE(MCS%wDelta(0:iV))
+            ALLOCATE(MCS%wDeltaSq(0:iV))
+            ALLOCATE(MCS%wSDelta(0:iV))
+            MCS%wSign=HDElement(0.D0)
+            MCS%wSignSq=HDElement(0.D0)
             MCS%wWeight=HDElement(0.D0)
             MCS%wWeightSq=HDElement(0.D0)
-            MCS%wETilde=HDElement(0.D0)
-            MCS%wWETilde=HDElement(0.D0)
-            MCS%wETildeSq=HDElement(0.D0)
+            MCS%wDelta=HDElement(0.D0)
+            MCS%wSDelta=HDElement(0.D0)
+            MCS%wDeltaSq=HDElement(0.D0)
             ALLOCATE(MCS%wTrees(0:iV))
             ALLOCATE(MCS%wNonTreesPos(0:iV))
             ALLOCATE(MCS%wNonTreesNeg(0:iV))
@@ -95,6 +98,7 @@ MODULE MCStats
             MCS%iSeqLen=0
             MCS%nSeqs=0
             MCS%fSeqLenSq=0.D0
+            MCS%wETReference=wETReference
          END
          SUBROUTINE Delete(MCS)
             TYPE(MCStats) MCS
@@ -103,13 +107,13 @@ MODULE MCStats
             DEALLOCATE(MCS%wBlockSumSq)
             DEALLOCATE(MCS%nGen)
             DEALLOCATE(MCS%nAcc)
-            DEALLOCATE(MCS%wValue)
-            DEALLOCATE(MCS%wValueSq)
+            DEALLOCATE(MCS%wSign)
+            DEALLOCATE(MCS%wSignSq)
             DEALLOCATE(MCS%wWeight)
             DEALLOCATE(MCS%wWeightSq)
-            DEALLOCATE(MCS%wETilde)
-            DEALLOCATE(MCS%wETildeSq)
-            DEALLOCATE(MCS%wWETilde)
+            DEALLOCATE(MCS%wDelta)
+            DEALLOCATE(MCS%wDeltaSq)
+            DEALLOCATE(MCS%wSDelta)
             DEALLOCATE(MCS%wTrees)
             DEALLOCATE(MCS%wNonTreesPos)
             DEALLOCATE(MCS%wNonTreesNeg)
@@ -119,53 +123,47 @@ MODULE MCStats
             DEALLOCATE(MCS%nTrees)
            
          END
-         SUBROUTINE AddGraph(M,nTimes, iV, wValue,wETilde,wWeight,iClass,iTree,iAcc,ioV,igV,tLog)
+!  What is passed in as wSETilde is the sign of the weight times Etilde.  wSign is the sign of the weight
+!  We store Delta=ETilde-ETReference
+         SUBROUTINE AddGraph(M,nTimes, iV, wSign,wSETilde,wWeight,iClass,iTree,iAcc,ioV,igV,tLog)
             TYPE(MCStats) M
             INTEGER*8 nTimes
             INTEGER iV,iTree,iAcc,ioV,igV,iClass
-            TYPE(HDElement) wValue,wETilde,wWeight,bb,ss,mm,ee,wVal
+            TYPE(HDElement) wSign,wETilde,wSETilde,wWeight,bb,ss,mm,ee,wVal,wDelta
             INTEGER i,ioBMax,j
             REAL*8 cc,ave1,ave2,std1,std2
-            INTEGER*8 no,nc,nt,nn
+            INTEGER*8 no,nc,nt,nn,nnn
             LOGICAL tLog,tNewSeq
-!            WRITE(22,"(2I5,G15.6,3I3,2G15.6)") iV,nTimes,wWeight,iAcc,ioV,igV,wETilde,wWeight           
-               ave1=M%wETilde(0)%v/M%nGraphs(0)
-               std1=sqrt(M%wETildeSq(0)%v/M%nGraphs(0)-ave1*ave1)
-               ave2=M%wValue(0)%v/M%nGraphs(0)
-               std2=sqrt(1.D0-ave2*ave2)
-               cc=std1/ave1+std2/ave2
-!            WRITE(22,"(I5,I5,2I3,5G15.6)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
+            SAVE nnn
+            wETilde=wSign*wSETilde
             IF(M%nGraphs(0).EQ.0.OR.iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
                M%iSeqLen=M%iSeqLen+nTimes
                tNewSeq=.FALSE.
             ELSE
-!               WRITE(22,*) "NEWSEQ"
                M%nSeqs=M%nSeqs+1
                M%fSeqLenSq=M%fSeqLenSq+(M%iSeqLen+0.D0)**2
                tNewSeq=.TRUE.
             ENDIF
             IF(tNewSeq) THEN
-               ave1=M%wETilde(0)%v/M%nGraphs(0)
-               std1=sqrt(M%wETildeSq(0)%v/M%nGraphs(0)-ave1*ave1)
-               ave2=M%wValue(0)%v/M%nGraphs(0)
+               ave1=M%wSDelta(0)%v/M%nGraphs(0)
+               std1=sqrt(M%wDeltaSq(0)%v/M%nGraphs(0)-ave1*ave1)
+               ave2=M%wSign(0)%v/M%nGraphs(0)
                std2=sqrt(1.D0-ave2*ave2)
                cc=std1/ave1+std2/ave2
-               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woETilde%v,ave2,ave1,cc
+               if(ave1.eq.0.or.ave2.eq.0) cc=0
+               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc
                M%iSeqLen=1
             ENDIF
-            M%ioClass=iClass
-            M%woWeight=wWeight
-            M%woETilde=wETilde
-            M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
             IF(iAcc.GT.0) THEN
                M%nAcc(ioV,igV)=M%nAcc(ioV,igV)+nTimes
                M%iAccTot=M%iAccTot+nTimes
             ENDIF 
+            wDelta=wETilde-M%wETReference
             CALL AddN(M%nGraphs,iV,nTimes) 
             CALL AddWS(M%wWeight,M%wWeightSq,iV,nTimes,wWeight)
-            CALL AddWS(M%wValue,M%wValueSq,iV,nTimes,wValue)
-            CALL AddWS(M%wETilde,M%wETildeSq,iV,nTimes,wETilde)
-            CALL AddW(M%wWETilde,iV,nTimes,wETilde*wValue)
+            CALL AddWS(M%wSign,M%wSignSq,iV,nTimes,wSign)
+            CALL AddWS(M%wDelta,M%wDeltaSq,iV,nTimes,wDelta)
+            CALL AddW(M%wSDelta,iV,nTimes,wDelta*wSign)
             IF(iTree.EQ.1) THEN
                CALL AddN(M%nTrees,iV,nTimes) 
                CALL AddW(M%wTrees,iV,nTimes,wWeight)
@@ -204,15 +202,15 @@ MODULE MCStats
 !0     1        11 =[1+2+0+2+1+3+2]/1
 !
 
-!  We now need to be able to add a chain of repeated wValues of length nTimes
+!  We now need to be able to add a chain of repeated wSigns of length nTimes
 !
 !  To do this we consider each level, i, of wCurBlock.  If non-zero, we take enough samples from nTimes to fill to 
 !   the length of the block, add these to what's present, divide by the block length, and add to the wBlockSum(i)
 !   (and also to wBlockSumSq)
 !  We then zero the wCurBlock(i).
 !  Now we may find how many complete blocks of length 2**i we can form from the remainder of nTimes, and add 
-!  their average (wValue) into wBlockSum that many times.
-!  Finally, any remainder of nTimes*wValue is added to wCurBlock(i)
+!  their average (wSign) into wBlockSum that many times.
+!  Finally, any remainder of nTimes*wSign is added to wCurBlock(i)
 
 !  An example of adding three samples of value 5 to this system is given below
 
@@ -265,13 +263,11 @@ MODULE MCStats
 !0     1        0          0                       26
 
 
-            wVal=wETilde
-!            WRITE(6,*) nTimes,wETilde
-            IF(.TRUE.) THEN
+            wVal=wDelta
+            IF(.FALSE.) THEN
             nn=1
             i=0
             ioBMax=M%iBMax
-!            WRITE(6,*) M%wETilde
             DO WHILE(nn.LE.M%nGraphs(0))
                nt=nTimes
 ! nc is the number of samples in the wCurBlock.
@@ -279,7 +275,7 @@ MODULE MCStats
                no=M%nGraphs(0)-nTimes
                nc=MOD(no,nn)
 ! If we don't already have a sum for this block size, get it from the stats
-               IF(.NOT.(M%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) M%wCurBlock(i)=M%wETilde(0)-HDElement(nTimes)*wVal
+               IF(.NOT.(M%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) M%wCurBlock(i)=(M%wDelta(0))-HDElement(nTimes)*wVal
                IF(nc+nt.GE.nn.AND.nc.NE.0) THEN
 !  Add enough from the new set to fill the old to nn, and send to BlockSum
                   bb=(wVal*HDElement(nn-nc)+M%wCurBlock(i))/HDElement(nn)
@@ -300,10 +296,14 @@ MODULE MCStats
             M%iBMax=i-2
             ELSE
 !.. Old Deal with blocking
+            wVal=M%woDelta
+            IF(M%nGraphs(0).GT.nTimes) THEN
+            nnn=nnn+1
             ioBMax=M%iBMax
             DO j=1,nTimes
             i=0
-            nn=(M%nGraphs(0)-nTimes+j)*2
+!            nn=(M%nGraphs(0)-nTimes+j)*2
+            nn=nnn*2
             M%wCurBlock(0)=M%wCurBlock(0)+wVal
             DO WHILE(.NOT.BTEST(nn,0))
                M%wCurBlock(i+1)=M%wCurBlock(i+1)+M%wCurBlock(i)
@@ -313,29 +313,43 @@ MODULE MCStats
                M%wBlockSumSq(i)=M%wBlockSumSq(i)+bb
                M%wCurBlock(i)=0.D0
                i=i+1
-               IF(i-1.GT.ioBMax) M%iBMax=i-2
+               IF(i-2.GT.ioBMax) M%iBMax=i-2
                IF(M%iBMax.GT.M%iBlocks) STOP "TOO many cycles"
                nn=nn/2
             ENDDO
             ENDDO
+            DO i=0,M%iBMax+1
+               cc=M%wBlockSum(i)%v/(nnn/2**i)
+               cc=M%wBlockSumSq(i)%v/(nnn/2**i)-cc*cc
+               cc=sqrt(abs(cc/(nnn/2**i-1.D0)))
+            ENDDO
+            ENDIF
             ENDIF
 !            DO i=M%iBMax,0,-1
 !               WRITE(6,"(I,3F,I)") i,m%wCurBlock(i),m%wBlockSum(i),m%wBlockSumSq(i),MOD(M%nGraphs(0),2**i)
 !            ENDDO
 !.. Write out the blocking file every time we go past another power of 2
-            IF(M%iBMax.NE.ioBMax) THEN
+            
+            IF(M%iBMax.NE.ioBMax.OR.iV.EQ.0) THEN
                OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
-               nn=M%nGraphs(0)
+               
+               nn=nnn
+!M%nGraphs(0)
+               WRITE(23,*) "#MCBLOCKS for ",nnn," steps."
                DO i=0,M%iBMax
                   mm=M%wBlockSum(i)/HDElement(nn+0.D0)
                   cc=DREAL(M%wBlockSumSq(i)/HDElement(nn+0.D0)-mm*mm)
-                  ss=SQRT(ABS(cc)/(nn-1.D0))
-                  ee=ss/HDElement(SQRT(2.D0*(nn-1.D0)))
+                  ss=SQRT(ABS(cc/(nn-1.D0)))
+                  ee=ss/HDElement(SQRT(ABS(2.D0*(nn-1.D0))))
                   WRITE(23,"(I,3G25.16)") i,ss,ee,mm
                   nn=nn/2
                ENDDO
                CLOSE(23)
              ENDIF
+            M%ioClass=iClass
+            M%woWeight=wWeight
+            M%woDelta=wDelta
+            M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
          END
          SUBROUTINE WriteStats(M,iUnit)
             TYPE(MCStats) M
@@ -343,17 +357,19 @@ MODULE MCStats
             REAL*8 Time
             TYPE(HDElement) iC
             iC=M%nGraphs(0)+0.D0
-            WRITE(iUnit,"(I3,I10,10G25.16)") 0,M%nGraphs(0),                         &
-     &                   M%wValue(0)/iC,                                             &
-     &              SQRT(DREAL(M%wValueSq(0)/iC-(M%wValue(0)*M%wValue(0)/(iC*iC)))), &
-     &                   M%wETilde(0)/iC,                                                       &
-     &                   M%wETilde(0)/M%wValue(0),                                   &
-     &                   M%wETildeSq(0)/iC,                                          &
+            WRITE(iUnit,"(I3,I10,11G25.16,I10)") 0,M%nGraphs(0),                         &
+     &                   M%wSign(0)/iC,                                             &
+     &              SQRT(DREAL(M%wSignSq(0)/iC-(M%wSign(0)*M%wSign(0)/(iC*iC)))), &
+     &                   M%wDelta(0)/iC,                                                       &
+     &                   M%wDelta(0)/M%wSign(0),                                   &
+     &                   M%wDeltaSq(0)/iC,                                          &
      &                   (M%iAccTot+0.D0)/M%nGraphs(0),                              &
      &                   (M%nTrees(0)+0.D0)/M%nGraphs(0),                            &
      &                   (M%nNonTreesPos(0)+0.D0)/M%nGraphs(0),                      &
      &                   (M%nNonTreesNeg(0)+0.D0)/M%nGraphs(0),                      &
-     &                   (M%wWETilde(0)/iC)
+     &                   (M%wSDelta(0)/iC),                                         &
+     &                   M%wETReference,                                            &
+     &                   M%nSeqs
 !SUMDLWDB/ICOUNT
          END
          SUBROUTINE WriteLongStats(M,iUnit,OW,OE,Time)
@@ -364,7 +380,7 @@ MODULE MCStats
             TYPE(HDElement) OW,OE,iC
             REAL*8 Time,fAveSeqLen
             iC=HDElement(M%nGraphs(0))
-            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,F19.7)") ,M%iVMax,M%wValue(0)/iC-OW,M%wValue(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wETilde(0)/iC-OE
+            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,F19.7)") ,M%iVMax,M%wSign(0)/iC-OW,M%wSign(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)

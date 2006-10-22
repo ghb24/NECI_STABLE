@@ -181,6 +181,7 @@ C.. we have already worked out.
      &               LSTE,ICE,RIJLIST,CNWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_V)
                F(I_V)=WLSI
+               DLWDB2=0.D0
               CALL WRITECLASSPATHS()
             ELSE
                F(I_V)=0.D0

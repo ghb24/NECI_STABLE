@@ -73,13 +73,6 @@ C.. do some blocking analysis
          INTEGER*8 LP
          INCLUDE 'vmc.inc'
          OTIME=TIMEC()*0.001
-         IF(I_VMIN.NE.0) THEN
-            CALL Create(MCStat,I_VMAX,
-     &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1))
-         ELSE
-            CALL Create(MCStat,I_VMAX,
-     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1))
-         ENDIF
          TST=0
          CALL TISET('MCPATHSR4 ',ISUB)
          TLOG=BTEST(ILOGGING,1)
@@ -108,8 +101,14 @@ C.. Set the first node to I_I
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
          WCORE=WLSI
-         WRITE(6,*) "DLWDBCORE",DLWDBCORE
-         WRITE(6,*) "WCORE",WCORE
+         IF(I_VMIN.NE.0) THEN
+            CALL Create(MCStat,I_VMAX,
+     &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
+     &      DLWDBCORE/WCORE)
+         ELSE
+            CALL Create(MCStat,I_VMAX,
+     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
+         ENDIF
          IF(DBETA.LT.0.D0) THEN
             DLWDB=HIJS(0)
          ENDIF
@@ -397,8 +396,7 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10))
 !                  IF(BTEST(ILOGGING,10))
 !     &                    WRITE(22,"(2G25.16)") FF,DLWDB2
-                  IF(BTEST(ILOGGING,9)) THEN
-C.AND.MOD(ICOUNT,1000).EQ.0) THEN
+                  IF(BTEST(ILOGGING,9).AND.MOD(ICOUNT,1000).EQ.0) THEN
                      CALL WriteStats(MCStat,12)
                      CALL FLUSH(12)
                   ENDIF
@@ -457,8 +455,13 @@ C.. setup spin excitation generator
             DLWDB=DLWDB2/TOTAL
          ELSE
             Call GetStats(MCStat,0,TOTAL,DLWDB2)
-            WLSI=TOTAL-WCORE
             DLWDB=DLWDB2
+            IF(TOTAL%v.LT.0) THEN
+               TOTAL%v=-TOTAL%v
+               DLWDB%v=-DLWDB%v
+            ENDIF
+            DLWDB=DLWDB
+            WLSI=TOTAL-WCORE
          ENDIF
          CALL TIHALT('MCPATHSR4 ',ISUB)
          CALL Delete(MCStat)
