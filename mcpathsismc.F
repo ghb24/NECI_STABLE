@@ -449,6 +449,8 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF(BTEST(ILOGGING,10)) CLOSE(22)
+         Call CalcStDev(MCStat,R)
+         WRITE(6,*) "Error in MC:",R
          IF(I_VMIN.EQ.0) THEN
             Call GetStats(MCStat,0,TOTAL,DLWDB2)
             WLSI=LOG(TOTAL)

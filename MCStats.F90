@@ -41,8 +41,7 @@ MODULE MCStats
             INTEGER iV
             TYPE(HDElement) wSign,wETilde
             wSign=MCS%wSign(iV)/HDElement(0.D0+MCS%nGraphs(iV))
-            wETilde=MCS%wETReference*wSign+MCS%wDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
-            WRITE(6,*) wSign,wETilde
+            wETilde=MCS%wETReference*wSign+MCS%wSDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
          END
 !  The constructor
          SUBROUTINE Create(MCS,iV,iMaxCycles,wETReference)
@@ -146,11 +145,11 @@ MODULE MCStats
             ENDIF
             IF(tNewSeq) THEN
                ave1=M%wSDelta(0)%v/M%nGraphs(0)
-               std1=sqrt(M%wDeltaSq(0)%v/M%nGraphs(0)-ave1*ave1)
+!               std1=sqrt(M%wDeltaSq(0)%v/M%nGraphs(0)-ave1*ave1)
                ave2=M%wSign(0)%v/M%nGraphs(0)
-               std2=sqrt(1.D0-ave2*ave2)
-               cc=std1/ave1+std2/ave2
-               if(ave1.eq.0.or.ave2.eq.0) cc=0
+!               std2=sqrt(1.D0-ave2*ave2)
+!               cc=std1/ave1+std2/ave2
+               CALL CalcStDev(M,cc)
                IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc
                M%iSeqLen=1
             ENDIF
@@ -354,14 +353,15 @@ MODULE MCStats
          SUBROUTINE WriteStats(M,iUnit)
             TYPE(MCStats) M
             INTEGER iUnit
-            REAL*8 Time
+            REAL*8 Time,rStDev
             TYPE(HDElement) iC
             iC=M%nGraphs(0)+0.D0
-            WRITE(iUnit,"(I3,I10,11G25.16,I10)") 0,M%nGraphs(0),                         &
+            CALL CalcStDev(M,rStDev)
+            WRITE(iUnit,"(I3,I10,11G25.16,I10,G25.16)") 0,M%nGraphs(0),                         &
      &                   M%wSign(0)/iC,                                             &
      &              SQRT(DREAL(M%wSignSq(0)/iC-(M%wSign(0)*M%wSign(0)/(iC*iC)))), &
-     &                   M%wDelta(0)/iC,                                                       &
-     &                   M%wDelta(0)/M%wSign(0),                                   &
+&                   M%wDelta(0)/iC,                                                       &
+     &                   M%wSDelta(0)/M%wSign(0),                                   &
      &                   M%wDeltaSq(0)/iC,                                          &
      &                   (M%iAccTot+0.D0)/M%nGraphs(0),                              &
      &                   (M%nTrees(0)+0.D0)/M%nGraphs(0),                            &
@@ -369,9 +369,62 @@ MODULE MCStats
      &                   (M%nNonTreesNeg(0)+0.D0)/M%nGraphs(0),                      &
      &                   (M%wSDelta(0)/iC),                                         &
      &                   M%wETReference,                                            &
-     &                   M%nSeqs
+     &                   M%nSeqs,                                                   &
+     &                   rStDev
 !SUMDLWDB/ICOUNT
          END
+!  Calculate the Standard deviation of the result stored in MCStats.
+!  The result is given by  wETReference + <sign*Delta>/<sign>.
+!  The Standard deviation regards sign as V and Delta as U, and uses the co-variance of U and V, and has X=<UV>/<U>
+
+!  (s(X)/X)^2   = (s(UV)/UV)^2 +(s(V)/V)^2 - 2 c(UV,V)^2 /(UV V)
+
+!    c(UV,V)^2    = <((uv)_i -<uv>) (v_i-<v>)> = ... = <(uv)_i v_i> - <uv> <v> = <u> - <uv> <v>
+
+! => (s(X)/X)^2 = (s(UV)/UV)^2 + (s(V)/V)^2 + 2 ( 1 - U/(UV V) )
+
+
+
+!OLD
+!  (s(UV)/UV)^2 = (s(U)/U)^2 + (s(V)/V)^2 + 2 (c(UV,V)/UV)^2
+!         c(UV) = {$nind=$n*(0.5**$corrt);}
+         SUBROUTINE CalcStDev(M,rStDev)
+            TYPE(MCStats) M
+            REAL*8 rStDev
+            REAL*8 x,sxbx2,sx,uv,suv2,u,su2,v,sv2,n,nind
+            n=M%nGraphs(0)
+            nind=M%nseqs/2
+!            WRITE(6,*) "N,NIND:",N,NIND
+
+            uv=M%wSDelta(0)%v/n
+            suv2=M%wDeltaSq(0)%v/n-uv*uv
+            suv2=suv2/nind
+!            WRITE(6,*) "UV, SUV2,%",uv,suv2, suv2/(uv*uv)
+         
+            v=M%wSign(0)%v/n
+            sv2=1.D0-v*v
+            sv2=sv2/nind
+!            WRITE(6,*) "V, SV2,%", v, sv2, sv2/(v*v)
+
+            u=M%wDelta(0)%v/n
+            su2=M%wDeltaSq(0)%v/n-u*u
+            su2=su2/nind
+!            WRITE(6,*) "U,SU2", u,su2,su2/(u*u)
+!            WRITE(6,*) "", u
+!            WRITE(6,*) "C(UV,V)i^2",u-uv*v
+            x=uv/v
+!            WRITE(6,*) "X", x
+!            WRITE(6,*) "2(1-u/(uv v))",2*(1-u/(uv*v))
+            sxbx2=suv2/(uv*uv)+sv2/(v*v) !+ 2*(1-u/(uv*v))
+!            WRITE(6,*) "SXBX2",SXBX2
+            sx=sqrt(sxbx2)*x
+!            WRITE(6,*) "SX",SX
+            if(x.eq.0) sx=0
+            rStDev=sx
+         END 
+            
+
+
          SUBROUTINE WriteLongStats(M,iUnit,OW,OE,Time)
             INTEGER iUnit
             TYPE(MCStats) M
