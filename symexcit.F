@@ -1588,13 +1588,14 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
          INTEGER I,J,K,L
          REAL*8 WEIGHT
          TYPE(HElement) GetUMatEl
-         TYPE(HElement) UMAT(*)
-         WEIGHT=1.D0
-         RETURN
-         ISS=0
+         TYPE(HElement) UMAT(*),W
+!         WEIGHT=1.D0
+!         RETURN
+         ISS=2
          CALL GTID(NBASISMAX,I,IDI)
          CALL GTID(NBASISMAX,J,IDJ)
          CALL GTID(NBASISMAX,K,IDK)
          CALL GTID(NBASISMAX,L,IDL)
-         WEIGHT=SQ(GetUMatEl(NBASISMAX,0,0,0,ISS,G1,IDI,IDJ,IDK,IDL))
+         W=GetUMatEl(NBASISMAX,UMAT,0,0,ISS,G1,IDI,IDJ,IDK,IDL)
+         WEIGHT=SQ(W)
       END
