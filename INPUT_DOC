@@ -206,14 +206,18 @@ CYCLES <NWHTAY(1,1)>
 MAXVERTICES <I_VMAX>
     Set the vertex level.
 
-IMPORTANCE <G_VMC_PI>
-    Set the generation probability for the MC routine.
+IMPORTANCE <G_VMC_PI> 
+    Set the generation probability for the MC routine.  This is the probability that new determinants are excitations of the pivot, i
+     The default 0.95.
 
 SEED <G_VMC_SEED>
     Random seed required for the MC routine.  This should be negative.  The default is -7
 
 BIAS <G_VMC_FAC>
-    Level bias for the MC routine. Positive biases toward larger graphs.  Negative towards smaller
+    Level bias for the MC routine when run over multiple vertex levels. Positive biases toward larger graphs.  Negative towards smaller
+        The default is 16.
+    For a single level MC (using a composite 1-vertex graph containing a full sum previously performed), this is the probability of generating
+     a graph which is not the composit graph.  The default is invalid, and this must be set manaully
 
 **If any of the options for MC are set and the vertex method is not MC, then an error is returned.**
 

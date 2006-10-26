@@ -148,7 +148,7 @@ C.. Setup the spin excit generator
      &         .TRUE.,NMEM,INODE2,I,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,INODE2,ISEED,IEXCITS,0)
+     &         NMEM,INODE2,ISEED,IEXCITS,0,UMAT)
             IF(I_VMIN.NE.0) THEN
                I_VM1=I_VMIN
                I_VM2=I_VMIN
@@ -1001,7 +1001,7 @@ C.. parameter.
          IC=0
 C.. Count the number of adjacent nodes to us in IC.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,INODE2,ISEED,IC,0)
+     &         NMEM,INODE2,ISEED,IC,0,UMAT)
 C         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
 C     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
 C.. Diagonal X elements contain the normalization of that node
@@ -1035,7 +1035,7 @@ C.. set the current to be the pivot
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT)
 
 C            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
 C     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
@@ -1060,7 +1060,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT)
 
 
 
@@ -1746,7 +1746,7 @@ C.. those before it.
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEMNI,INODE2,ISEED,IC,0)
+     &         NMEMNI,INODE2,ISEED,IC,0,UMAT)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 
@@ -1776,7 +1776,7 @@ C.. set the current to be the pivot
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT)
 
 
             CALL ICOPY(NEL,INODE2,1,INODE,1)
@@ -1801,7 +1801,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT)
 
                XIJ(I_VNEXT,I_VNEXT)=IC
 C.. Update the rho and X (probability) matrices with this new node
@@ -1975,7 +1975,7 @@ C.. Take a copy of the old path and rho matrix etc.
 
 C.. Get the excitation count
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,
-     &         NBASISMAX,NMEM,INODE2,ISEED,IC,0)
+     &         NBASISMAX,NMEM,INODE2,ISEED,IC,0,UMAT)
 
 
 
@@ -2034,7 +2034,7 @@ C.. Hard code at 4 excitations.
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0)
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT)
 
 
 CC.. Generate an excitation
@@ -2138,7 +2138,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT)
 
 
 
