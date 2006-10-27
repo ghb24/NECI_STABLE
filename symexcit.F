@@ -1196,7 +1196,7 @@ C.. Actually generate a det
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
-     &         G1,NBASISMAX,UMAT)
+     &         G1,NBASISMAX,UMAT,NBASIS)
          IC=NMEM(23)
       END
       
@@ -1204,8 +1204,9 @@ C.. Actually generate a det
      &               CLASSES,
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
      &               I,J,K,L,ICC,LS,ITOTAL,ISEED,
-     &               NK,IC,G1,NBASISMAX,UMAT)
+     &               NK,IC,G1,NBASISMAX,UMAT,NBASIS)
       IMPLICIT NONE
+      INTEGER NBASIS
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
       
       INTEGER I,J,K,L
@@ -1389,7 +1390,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
      &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
      &                     ICC1,
      &                     ICC3,
-     &                     R,G1,NBASISMAX,UMAT)
+     &                     R,G1,NBASISMAX,UMAT,NBASIS)
 !  Now add it into RCOUNT for the first time round, or subtract, second time round
                      IF(L.EQ.0) THEN
                         RCOUNT=RCOUNT+R
@@ -1421,7 +1422,7 @@ C.. If neither virtuals are in NI, then allow
      &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
      &                     ICC1,
      &                     ICC4,
-     &                     R,G1,NBASISMAX,UMAT)
+     &                     R,G1,NBASISMAX,UMAT,NBASIS)
 !  Now add it into RCOUNT for the first time round, or subtract, second time round
                      IF(L.EQ.0) THEN
                         RCOUNT=RCOUNT+R
@@ -1453,7 +1454,7 @@ C.. us the same excitation as previously), then allow
      &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
      &                     ICC2,
      &                     ICC3,
-     &                     R,G1,NBASISMAX,UMAT)
+     &                     R,G1,NBASISMAX,UMAT,NBASIS)
 !  Now add it into RCOUNT for the first time round, or subtract, second time round
                      IF(L.EQ.0) THEN
                         RCOUNT=RCOUNT+R
@@ -1485,7 +1486,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
      &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
      &                     ICC2,
      &                     ICC4,
-     &                     R,G1,NBASISMAX,UMAT)
+     &                     R,G1,NBASISMAX,UMAT,NBASIS)
 !  Now add it into RCOUNT for the first time round, or subtract, second time round
                      IF(L.EQ.0) THEN
                         RCOUNT=RCOUNT+R
@@ -1576,12 +1577,12 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
       END
 
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
-      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT)
+      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,NBASIS)
          USE HElement
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3)
+         INTEGER NBASISMAX(5,3),NBASIS
          INCLUDE 'basis.inc'
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(NBASIS)
 !  We fake ISS
          INTEGER ISS
          INTEGER IDI,IDJ,IDK,IDL
@@ -1591,11 +1592,12 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
          TYPE(HElement) UMAT(*),W
 !         WEIGHT=1.D0
 !         RETURN
-         ISS=2
+         ISS=NBASISMAX(2,3)
          CALL GTID(NBASISMAX,I,IDI)
          CALL GTID(NBASISMAX,J,IDJ)
          CALL GTID(NBASISMAX,K,IDK)
          CALL GTID(NBASISMAX,L,IDL)
-         W=GetUMatEl(NBASISMAX,UMAT,0,0,ISS,G1,IDI,IDJ,IDK,IDL)
+         W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
          WEIGHT=SQ(W)
       END
+
