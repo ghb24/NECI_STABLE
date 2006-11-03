@@ -263,7 +263,7 @@ MODULE MCStats
 
 
             wVal=wDelta
-            IF(.FALSE.) THEN
+            IF(.TRUE.) THEN
             nn=1
             i=0
             ioBMax=M%iBMax

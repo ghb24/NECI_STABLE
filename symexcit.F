@@ -13,28 +13,31 @@ C.. Setup for symmetry routine below.
          LOGICAL TCOUNT
          INTEGER ILEVEL
          CALL IAZZERO(STORE,6)
-         CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1,'DSTORE')
+         CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
+     &      +SymmetrySize*(NEL*NEL+1),
+     &      'DSTORE')
          STORE(1)=IP_DSTORE
          CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
-     &      DSTORE(SymClassSize*NEL+1),ILEVEL)
+     &      DSTORE(SymClassSize*NEL+1),
+     &      DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
 C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) CALL FREEM(IP_DSTORE)
       END
 
 
 C.. ILEVEL is 1 for singles, 2 for just doubles, and 3 for both.
-C.. A test subroutine to trial a new symmetry excitation generation algorithm
+C.. A a new symmetry excitation generation algorithm.
 C.. Algorithm: First list all the different symmetry classes in NI.
 C.. For each pair of symmetry classes, determine its symmetry product.
-C.. Classify and store each possible pair of orbitals under its symmetry product.
-C.. With each of the symmetry products, calculate []' such that []x[]'
+C.. Classify and store each possible pair of orbitals under its symmetry product, [].
+C.. With each of the symmetry products [], calculate []' such that []x[]'
 C.. contains the totally symmetric rep.
 C.. We do this by checking whether any of the []' in the 
-C.. global symprods table multiply by [] to give the sym rep.
+C.. global symprods table multiply by [] to give the symmetric rep.
 
       SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-     &   TCOUNT,ICOUNT,CLASSES,ILUT,ILEVEL)
+     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INCLUDE 'irat.inc'
@@ -73,6 +76,8 @@ C.. global symprods table multiply by [] to give the sym rep.
          INTEGER ILUT(0:NBASIS/32)
          INTEGER ISUB
          INTEGER ILEVEL
+
+         LOGICAL ISUHFDET
          
          CALL TISET('SYMSUEXCIT',ISUB)
 
@@ -218,8 +223,8 @@ C.. remainder after having removed the orbitals.
 
 C.. Now classify each pair of orbs under its sym prod
 C.. SYMPRODS(I) specifies a sym prod.  Orbitals for this are stored in
-C.. ORBPAIRS starting at index SYMPRODIND(1,I-1)+1.
-C.. The first free space is at SYMPRODCOUNT(I-1)+1.
+C.. ORBPAIRS starting at index SYMPRODIND(1,ISPN,I)+1.
+C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          CALL IAZZERO(ORBPAIRS,2*NPAIRS)
          L=0
          DO I=1,NEL
@@ -259,21 +264,13 @@ C.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN 
 C.. SYMPRODS(I) in ORBPAIRS
 C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
 
-C.. Now classify each pair of orbs under its sym prod
-C.. SYMPRODS(I) specifies a sym prod.  Orbitals for this are stored in
-C.. ORBPAIRS starting at index SYMPRODIND(1,I-1)+1 and have number SYMPRODIND(2,I-1)
-
-C         DO I=1,L
-C            WRITE(6,*) "OP",I,ORBPAIRS(1,I),ORBPAIRS(2,I)
-C         ENDDO
-
 C.. With each of the symmetry products, calculate []' such that []x[]'
 C.. contains the totally symmetric rep.
 C.. We do this by checking whether any of the []' in the 
 C.. global symprods table multiply by [] to give the sym rep.
 
 
-C.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
+C.. SYMPAIRPRODS(1:NSYMPAIRPRODS) is a global list of all SYMPRODs available, the number of pairs of
 C.. symlabels (listed in SymStatePairs), and the index of the start of this list
 C.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
 C.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of symlabels whose prod is of that symmetry.
@@ -282,7 +279,6 @@ C.. Now go through the list of all pairs, finding out how many pairs are to be e
 C.. orbitals in this determinant.
 C.. We first create a quick lookup table to enable us to quickly check whether a given orbital is in this determinant
 C.. in order 1, not order NEL.
-C         WRITE(6,*) NBASIS
          CALL IAZZERO(ILUT,NBASIS/32+1)
          DO I=1,NEL
             ILUT(NI(I)/32)=IBSET(ILUT(NI(I)/32),MOD(NI(I),32)-1)
@@ -308,7 +304,7 @@ C.. If it's the first time around, we flag NALLOWPPS as invalid
                   NALLOWPPS(2,J)=-1
                   NALLOWPPS(3,J)=-1
                ENDIF
-C.. For each sympairprod, check if [] x []' contains the sym rep
+C.. [] is the SymProd(I).  For each sympairprod, check if [] x []' contains the sym rep
 C               WRITE(6,*) SYMPRODS(I),SYMPAIRPRODS(J)
                SPP=SymPairProds(J)%Sym
                IF(LSYMSYM(SYMPROD(SYMPRODS(I), SPP))) THEN
@@ -338,8 +334,8 @@ C.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
                         L2A=.NOT.BTEST(ILUT(ICC4/32),
      &                        MOD(ICC4,32)-1)
 C.. L1B is set if the beta of the first virtual is not in NI, i.e. is allowed
-C.. The virtuals we are exciting to are the same state.  We're only allowed an AB excitation
                         IF(ICC1.EQ.ICC3) THEN
+C.. The virtuals we are exciting to are the same state.  We're only allowed an AB excitation
                            NALLOWPPS(1,J)=NALLOWPPS(1,J)+1
                            NALLOWPPS(3,J)=NALLOWPPS(3,J)+1
                          IF(L1B.AND.L2A) NALLOWPPS(2,J)=NALLOWPPS(2,J)+1
@@ -354,6 +350,7 @@ C     &                     SymStatePairs(2,K)*2-1
 C     &                     ,L1B,L1A,L2B,L2A
                      ENDDO
                   ENDIF
+!.. Now count all the excitations allowed for this set of []->[]'
                   DO ISPN=1,3
                      K=NALLOWPPS(ISPN,J)
                      L=SYMPRODIND(2,ISPN,I)
@@ -368,6 +365,8 @@ C     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
          ENDDO       
 
 C         WRITE(6,*) "Number of double excitations: ",NDOUB
+
+
 C.. Now calculate the number of single excitations
 
 C.. SYMLABELLIST holds a list of states grouped under symmlabel
@@ -426,7 +425,8 @@ C.. indicate that these are lengths
             CALL FREEM(IP_ORBPAIRS)
             CALL FREEM(IP_SYMPRODIND)
          ELSE
-C.. Now allocate memory to store all the excitation types
+C.. Now allocate memory to store all the excitation types if there hasn't been one already allocated.
+C.. This will have to be manually deallocated later.
 C.. We store each excitation type as:
 C.. 1   TYPE (single=1, double=2)
 C.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/beta; 3=alpha/alpha;)
@@ -442,7 +442,8 @@ C.. 5  COUNT (Total number of excitations in this category)
 C.. Now store the singles:
          NEXCITTYPES=0
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
-         IF(BTEST(ILEVEL,0)) THEN
+!         IF(.NOT.ISUHFDET(NI,NEL,NBASISMAX)) THEN
+          IF(BTEST(ILEVEL,0)) THEN
             DO I=1,NCL
 C.. For each class, see what sym prods it can interact with
                DO J=1,NSYMLABELS
@@ -481,7 +482,8 @@ C     &                        ")->",SymLabels(2,J)
                   ENDIF
                ENDDO
             ENDDO
-         ENDIF
+          ENDIF
+!         ENDIF
 C.. And the doubles
          IF(BTEST(ILEVEL,1)) THEN
             DO I=1,NPR
@@ -819,15 +821,16 @@ C.. to actually generate the excitations
 C.. This is the first time we've been called for setup.
             IF(STORE(1).EQ.0) THEN
                CALL IAZZERO(STORE,6)
-               CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1,
-     &            'DSTORE')
+               CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
+     &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
                STORE(1)=IP_DSTORE
 C.. Just count.
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &            ILEVEL)
+     &            DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
                CALL FREEM(IP_DSTORE)
-               STORE(1)=SymClassSize*NEL+NBASIS/32+1
+               STORE(1)=SymClassSize*NEL+NBASIS/32+1+
+     &            SymmetrySize*(NEL*NEL+1)
                NMEM(1)=23+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
 C               WRITE(6,"(A6,6I5)"), "SIZE:",NMEM(1),(STORE(I),I=1,5)
             ELSE
@@ -870,7 +873,7 @@ C.. Put the addresses in store
 C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(1),
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &            ILEVEL)
+     &            DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
                NMEM(23)=ICOUNT
 C.. and now instead the indices within NMEM
                ICOUNT=24
@@ -1162,7 +1165,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
 C.. before this.
       SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,NJ,ISEED,IC,IFRZ,UMAT)
+     &         NMEM,NJ,ISEED,IC,IFRZ,UMAT,PGEN)
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INCLUDE 'sym.inc'
@@ -1175,7 +1178,7 @@ C.. before this.
          LOGICAL TSETUP
          INTEGER GET_ADDR
          INTEGER ISEED
-         REAL*8 UMAT(*)
+         REAL*8 UMAT(*),PGEN
 C.. The second setup.  Now NMEM is allocated, we store all the info
 C.. NMEM is as follows:
 C..   1           -  5           STORE(1:5)
@@ -1196,16 +1199,16 @@ C.. Actually generate a det
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
-     &         G1,NBASISMAX,UMAT,NBASIS)
+     &         G1,NBASISMAX,UMAT,NBASIS,PGEN)
          IC=NMEM(23)
       END
-      
-      SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,
-     &               CLASSES,
-     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
-     &               I,J,K,L,ICC,LS,ITOTAL,ISEED,
-     &               NK,IC,G1,NBASISMAX,UMAT,NBASIS)
-      IMPLICIT NONE
+      SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
+     &               CLASSES,                                           &
+     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
+     &               I,J,K,L,ICC,LS,ITOTAL,ISEED,                       &
+     &               NK,IC,G1,NBASISMAX,UMAT,NBASIS,PGEN)               
+      USE HElement
+      USE symexcit2
       INTEGER NBASIS
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
       
@@ -1219,7 +1222,7 @@ C.. Actually generate a det
       TYPE(Symmetry) SPP
       LOGICAL L1,L2
       INTEGER ICC(4)
-C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
+!.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       LOGICAL LS(2,2)
 
       INTEGER ORBPAIRS(2,*)
@@ -1232,44 +1235,47 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       LOGICAL ISVALIDDET
       TYPE(BasisFN) G1(*)
       INTEGER NBASISMAX(*)
-      REAL*8 UMAT(*)
+      TYPE(HElement) UMAT(*)
       REAL*8 RCOUNT,R
-C.. First generate a random excitation 
+      REAL*8 PGEN
+      TYPE(ExcitWeight) ews(*)
+      POINTER (IP_ExcitWeight,ews)
+!.. First generate a random excitation 
+      PGEN=1.D0/ITOTAL
       I=ITOTAL*RAN2(ISEED)
       IEXCIT=1
       DO WHILE(EXCITTYPES(5,IEXCIT).LE.I)
          I=I-EXCITTYPES(5,IEXCIT)
          IEXCIT=IEXCIT+1
       ENDDO
-C.. We've chosen the excitation.  Now pick a random from and to
+!.. We've chosen the excitation.  Now pick a random from and to
       IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
-C.. a single
+!.. a single
          ISPN=EXCITTYPES(2,IEXCIT)-2
          IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
          ITO=EXCITTYPES(4,IEXCIT)
-         RCOUNT=0
+         ICOUNT=0
 !  K is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
          ot:DO K=0,1
             J=0
             I=1
-C               WRITE(6,*) ISPN,IFROM,ITO,EXCITTYPES(5,IEXCIT)
-C.. SYMLABELCOUNTS(1,I) is the index within SYMLABELLIST of the first state of symlabel I
-C.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
+!               WRITE(6,*) ISPN,IFROM,ITO,EXCITTYPES(5,IEXCIT)
+!.. SYMLABELCOUNTS(1,I) is the index within SYMLABELLIST of the first state of symlabel I
+!.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
             DO WHILE (I.LE.NEL)
                L1=J.LT.SYMLABELCOUNTS(2,IFROM)
                DO WHILE(L1)
                   IFROMSL=(SYMLABELLIST(SYMLABELCOUNTS(1,IFROM)+J)*2
-     &                  +ISPN)
-C                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+     &                        +ISPN)
+!                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
                   IF(IFROMSL.LT.NI(I)) J=J+1
-                  L1=IFROMSL.LT.NI(I)
-     &               .AND.J.LT.SYMLABELCOUNTS(2,IFROM)
+                  L1=IFROMSL.LT.NI(I).AND.J.LT.SYMLABELCOUNTS(2,IFROM)
                ENDDO
-C                  WRITE(6,*) I,J,SYMLABELCOUNTS(2,IFROM)
-               IF(J.LT.SYMLABELCOUNTS(2,IFROM).AND.IFROMSL.EQ.NI(I))
+!                  WRITE(6,*) I,J,SYMLABELCOUNTS(2,IFROM)
+               IF(J.LT.SYMLABELCOUNTS(2,IFROM).AND.IFROMSL.EQ.NI(I)) 
      &            THEN
-C.. We've found an orb in NI with the correct sym. 
+!.. We've found an orb in NI with the correct sym. 
                   IF(K.EQ.0) THEN
                      ICOUNT=ICOUNT+1
                   ELSEIF(ICOUNT.EQ.0) THEN
@@ -1282,8 +1288,8 @@ C.. We've found an orb in NI with the correct sym.
             ENDDO
             ICOUNT=ICOUNT*RAN2(ISEED)
          ENDDO ot
-C.. NI(I) is now the orbital to excite
-C Now go through the list of possible excitations of it
+!.. NI(I) is now the orbital to excite
+! Now go through the list of possible excitations of it
          ICOUNT=0
 !  J is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
@@ -1291,8 +1297,7 @@ C Now go through the list of possible excitations of it
             K=0
             L=0
             DO WHILE(K.LT.SYMLABELCOUNTS(2,ITO))
-               ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
-     &                           +ISPN
+               ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN
                L2=L.EQ.0.OR.NI(L).LT.ITOSL
                DO WHILE (L2)
                   L=L+1
@@ -1302,7 +1307,7 @@ C Now go through the list of possible excitations of it
                   IF(J.EQ.0) THEN
                      ICOUNT=ICOUNT+1
                   ELSEIF(ICOUNT.EQ.0) THEN
-C.. We've found a virtual into which we can excite our occupied orb.
+!.. We've found a virtual into which we can excite our occupied orb.
                      CALL ICOPY(NEL,NI,1,NK,1)
                      NK(I)=ITOSL
                      CALL SORTI(NEL,NK)
@@ -1312,8 +1317,8 @@ C.. We've found a virtual into which we can excite our occupied orb.
                        CALL WRITEDET(6,NK,NEL,.TRUE.)
                        CALL WRITEDET(6,NI,NEL,.TRUE.)
                        WRITE(6,*) I,ITOSL,K,L
-                       WRITE(6,*)
-     &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,
+                       WRITE(6,*)                                       &
+     &                  (2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)+ISPN,  &
      &                     K=0,SYMLABELCOUNTS(2,ITO)-1)
                         STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
                      ENDIF
@@ -1328,193 +1333,137 @@ C.. We've found a virtual into which we can excite our occupied orb.
             ICOUNT=ICOUNT*RAN2(ISEED)
          ENDDO
       ELSE
-C.. a double excitation
-C.. We store each excitation type as:
-C.. 1   TYPE (single=1, double=2)
-C.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/beta; 3=alpha/alpha;)
-C.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
-C.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
-C.. 5  COUNT (Total number of excitations in this category)
+!.. a double excitation
+!.. We store each excitation type as:
+!.. 1   TYPE (single=1, double=2)
+!.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/beta; 3=alpha/alpha;)
+!.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
+!.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
+!.. 5  COUNT (Total number of excitations in this category)
          ISPN=EXCITTYPES(2,IEXCIT)
          IFROM=EXCITTYPES(3,IEXCIT)
          ITO=EXCITTYPES(4,IEXCIT)
-C.. Go through the list of pairs with a given symprod.
-C.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
-C.. SYMPRODS(I) in ORBPAIRS
-C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
+!.. Go through the list of pairs with a given symprod.
+!.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
+!.. SYMPRODS(I) in ORBPAIRS
+!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
 
 !  We choose a symprod of this symmetry randomly (with equal probability) to excite FROM
          I=RAN2(ISEED)*SYMPRODIND(2,ISPN,IFROM)+1
-C.. Now go through the list of virtual pairs, excluding those with orbitals in NI 
-         SPP=SymPairProds(ITO)%Sym
-C.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
-C.. states (listed in SymStatePairs), and the index of the start of this list
-C.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
-C.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of states whose prod is of that symmetry.
-         RCOUNT=0
+!  I is the index of the specific SYM PAIR
+!         PGEN=1.D0/SYMPRODIND(2,ISPN,IFROM)
+
+!  Allocate memory to store all weights and excitations in this category
+         CALL MEMORY(IP_ExcitWeight,ExcitWeightSize*
+     &      EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
+
+!.. Now go through the list of virtual pairs, excluding those with orbitals in NI 
+!.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
+!.. states (listed in SymStatePairs), and the index of the start of this list
+!.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
+!.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of states whose prod is of that symmetry.
+         RCOUNT=0.D0
+         ICOUNT=0
 !  L is a loop variable.  We go through the loop once to count the number of possible excitations
 !  We then pick a random number up to that number, and choose that excitation
 !  This is modified to weight each excitation according to its U-matrix element, so each
 !  Excitation's weight is added to RCOUNT to give a normalization.  RCOUNT*RAND then corresponds to 
 !  a point in the sum of weights which is found by subtracting weights until we reach 0.
 !  This is only done for the excitations TO because we need to know the excitations FROM to generate the weight
-         DO L=0,1
-            DO K=SymPairProds(ITO)%nIndex,
-     &            SymPairProds(ITO)%nIndex+SymPairProds(ITO)%nPairs-1
-C.. Now check according to ISPN
-C.. ICC1 is the beta orbital corresponding to the first state, and ICC2 the alpha
-C.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
-               ICC1=SymStatePairs(1,K)*2-1
-               ICC2=ICC1+1
-               ICC3=SymStatePairs(2,K)*2-1
-               ICC4=ICC3+1
-C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
-C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
-C                     WRITE(6,*) ISPN,ICC1,ICC3
-               L1B=BTEST(ILUT(ICC1/32),
-     &                     MOD(ICC1,32)-1)
-               L1A=BTEST(ILUT(ICC2/32),
-     &                     MOD(ICC2,32)-1)
-               L2B=BTEST(ILUT(ICC3/32),
-     &                     MOD(ICC3,32)-1)
-               L2A=BTEST(ILUT(ICC4/32),
-     &                     MOD(ICC4,32)-1)
-C                     WRITE(6,*) L1B,L1A,L2B,L2A
-C.. L1B is set if the beta of the first virtual is in NI, i.e. is disallowed
-               IF(ISPN.EQ.1) THEN
-C.. If both virtuals aren't the samem and neither are in NI, then allow
-                  IF(ICC1.NE.ICC3.AND..NOT.(L1B.OR.L2B)) THEN
-! Get the weight of the excitation
-                     CALL EXCITWEIGHTING(
-     &                     ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ICC1,
-     &                     ICC3,
-     &                     R,G1,NBASISMAX,UMAT,NBASIS)
-!  Now add it into RCOUNT for the first time round, or subtract, second time round
-                     IF(L.EQ.0) THEN
-                        RCOUNT=RCOUNT+R
-                     ELSEIF(RCOUNT.GT.0) THEN
-                        RCOUNT=RCOUNT-R
-                     ELSE
-                        CALL ICOPY(NEL,NI,1,NK,1)
-                        DO J=1,NEL
-                          IF(NI(J).EQ.ORBPAIRS(1,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC1
-                           ENDIF
-                           IF(NI(J).EQ.ORBPAIRS(2,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC3
-                           ENDIF
-                        ENDDO
-                        CALL SORTI(NEL,NK)
-                        IC=2
-                        RETURN
-                     ENDIF
-                  ENDIF
-               ELSEIF(ISPN.EQ.2) THEN
-C.. If neither virtuals are in NI, then allow
-                  IF(.NOT.(L1B.OR.L2A)) THEN
-! Get the weight of the excitation
-                     CALL EXCITWEIGHTING(
-     &                     ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ICC1,
-     &                     ICC4,
-     &                     R,G1,NBASISMAX,UMAT,NBASIS)
-!  Now add it into RCOUNT for the first time round, or subtract, second time round
-                     IF(L.EQ.0) THEN
-                        RCOUNT=RCOUNT+R
-                     ELSEIF(RCOUNT.GT.0) THEN
-                        RCOUNT=RCOUNT-R
-                     ELSE
-                        CALL ICOPY(NEL,NI,1,NK,1)
-                        DO J=1,NEL
-                           IF(NI(J).EQ.ORBPAIRS(1,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC1
-                              ENDIF
-                           IF(NI(J).EQ.ORBPAIRS(2,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC4
-                           ENDIF
-                        ENDDO
-                        CALL SORTI(NEL,NK)
-                        IC=2
-                        RETURN
-                     ENDIF
-                  ENDIF
-C.. If neither virtuals are in NI, and they're not the same(which would give
-C.. us the same excitation as previously), then allow
-                  IF(.NOT.(L1A.OR.L2B).AND.ICC1.NE.ICC3) THEN
-! Get the weight of the excitation
-                     CALL EXCITWEIGHTING(
-     &                     ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ICC2,
-     &                     ICC3,
-     &                     R,G1,NBASISMAX,UMAT,NBASIS)
-!  Now add it into RCOUNT for the first time round, or subtract, second time round
-                     IF(L.EQ.0) THEN
-                        RCOUNT=RCOUNT+R
-                     ELSEIF(RCOUNT.GT.0) THEN
-                        RCOUNT=RCOUNT-R
-                     ELSE
-                        CALL ICOPY(NEL,NI,1,NK,1)
-                        DO J=1,NEL
-                           IF(NI(J).EQ.ORBPAIRS(1,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC2
-                           ENDIF
-                           IF(NI(J).EQ.ORBPAIRS(2,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC3
-                           ENDIF
-                        ENDDO
-                        CALL SORTI(NEL,NK)
-                        IC=2
-                        RETURN
-                     ENDIF
-                  ENDIF
-               ELSEIF(ISPN.EQ.3) THEN
-C.. If both virtuals aren't the samem and neither are in NI, then allow
-                  IF(ICC1.NE.ICC3.AND..NOT.(L1A.OR.L2A)) THEN
-! Get the weight of the excitation
-                     CALL EXCITWEIGHTING(
-     &                     ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
-     &                     ICC2,
-     &                     ICC4,
-     &                     R,G1,NBASISMAX,UMAT,NBASIS)
-!  Now add it into RCOUNT for the first time round, or subtract, second time round
-                     IF(L.EQ.0) THEN
-                        RCOUNT=RCOUNT+R
-                     ELSEIF(RCOUNT.GT.0) THEN
-                        RCOUNT=RCOUNT-R
-                     ELSE
-                        CALL ICOPY(NEL,NI,1,NK,1)
-                        DO J=1,NEL
-                           IF(NI(J).EQ.ORBPAIRS(1,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC2
-                           ENDIF
-                           IF(NI(J).EQ.ORBPAIRS(2,
-     &                        SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                              NK(J)=ICC4
-                           ENDIF
-                        ENDDO
-                        CALL SORTI(NEL,NK)
-                        IC=2
-                        RETURN
-                     ENDIF
-                  ENDIF
-               ENDIF
-            ENDDO
-            RCOUNT=RCOUNT*RAN2(ISEED)
+         CALL EnumExcitWeights(EXCITTYPES(1,IEXCIT),I,ILUT,ews,OrbPairs,
+     &      SymProdInd,RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,NBASIS)
+! The prob of all possible excitations in this iTo, iFrom, iSpn set.
+         pGen=(iCount+0.D0)/iTotal
+         pGen=pGen/rCount
+!  We've now got a list of iCount weights in ews, and total norm rCount.
+!  Select a random one
+         rCount=rCount*RAN2(ISEED)
+         K=0
+!  This is a little inefficient, and could perhaps be binary searched if cumulative weights were also stored
+         DO WHILE (rCount.GT.0.D0)
+            K=K+1
+            rCount=rCount-ews(K)%Weight
+         ENDDO   
+!  ews(K) is the excitation we've chosen
+         PGEN=PGEN*ews(K)%Weight
+         CALL ICOPY(NEL,NI,1,NK,1)
+         DO J=1,NEL
+            IF(NI(J).EQ.ews(K)%I) THEN
+               NK(J)=ews(K)%A
+            ENDIF
+            IF(NI(J).EQ.ews(K)%J) THEN
+               NK(J)=ews(K)%B
+            ENDIF
          ENDDO
+         CALL SORTI(NEL,NK)
+         IC=2
+         CALL FREEM(IP_ExcitWeight)
+         RETURN
       ENDIF
       END 
+      
+!We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate 
+! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
+! After that, we generate the probability that nJ would be an excitation from nI.
+! We require the excitation generator of I, which is used to pass info to GenExcitProbInternal (in symexcit2.F90)
+      SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,UMat,
+     &      nBasis,pGen)
+         USE HElement
+         IMPLICIT NONE
+         INCLUDE 'symtypes.inc'
+         INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
+         TYPE(BasisFN) G1(*) 
+         TYPE(HElement) UMat(*)
+         INTEGER DStore(*)
+         INTEGER GET_ADDR
+         POINTER(IP_DSTORE,DSTORE)
+         REAL*8 pGen
+         IP_DSTORE=GET_ADDR(nIExcitor(nIExcitor(1)))
+         CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,nBasis,
+     &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
+     &      DStore(SymClassSize*nEl+1),
+     &      DStore(SymClassSize*nEl+1+nBasis/32+1),
+     &      nIExcitor(nIExcitor(2)),nIExcitor(23),pGen)
+      END
+! For reference below is the call and declaration of SYMGENRANDEXCITIT to extract the locations of teh variables.
+!  NMEM is nIExcitor
+!         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
+!     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
+!     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
+!     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
+!     &         G1,NBASISMAX,UMAT,NBASIS,PGEN)
+!         IC=NMEM(23)
+!      END
+!     SymProds(0) = DSTORE(SymClassSize*NEL+1+nBasis/32+1))
+!      SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
+!     &               CLASSES,                                           &
+!     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
+!     &               I,J,K,L,ICC,LS,ITOTAL,ISEED,                       &
+!     &               NK,IC,G1,NBASISMAX,UMAT,NBASIS,PGEN)               
+
+
+!  We are required to enshroud GenExcitProbInternal as F90 doesn't seem to want to allow any casting.
+      SUBROUTINE GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,
+     &      nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,
+     &      pGen)
+         USE HElement
+         USE symexcit2
+         INCLUDE 'symtypes.inc'
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
+         INTEGER ExcitTypes(5,*)
+         TYPE(BasisFN) G1(*) 
+         TYPE(HElement) UMat(*)
+         INTEGER iLUT(*)
+         INTEGER OrbPairs(2,*)
+         INTEGER SymProdInd(2,3,0:*)
+         TYPE(Symmetry) SymProds(0:*)
+         REAL*8 pGen
+         CALL GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,nBasis,
+     &      OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
+      END
+
+
+
       SUBROUTINE DUMPIMEMORY(IUNIT,MEM,INLEN)
          IMPLICIT NONE
          INTEGER IUNIT,I,J
@@ -1574,30 +1523,5 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
             WRITE(IUNIT,*)
             ADDR=ADDR+LINELEN
          ENDDO
-      END
-
-!        A sub called to generate an unnormalised weight for a given ij->kl excitation
-      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,NBASIS)
-         USE HElement
-         IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),NBASIS
-         INCLUDE 'basis.inc'
-         TYPE(BasisFN) G1(NBASIS)
-!  We fake ISS
-         INTEGER ISS
-         INTEGER IDI,IDJ,IDK,IDL
-         INTEGER I,J,K,L
-         REAL*8 WEIGHT
-         TYPE(HElement) GetUMatEl
-         TYPE(HElement) UMAT(*),W
-!         WEIGHT=1.D0
-!         RETURN
-         ISS=NBASISMAX(2,3)
-         CALL GTID(NBASISMAX,I,IDI)
-         CALL GTID(NBASISMAX,J,IDJ)
-         CALL GTID(NBASISMAX,K,IDK)
-         CALL GTID(NBASISMAX,L,IDL)
-         W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
-         WEIGHT=SQ(W)
       END
 

@@ -42,6 +42,9 @@ C.. The new node is connected to this node
 
 C.. Get the orbitals which are excited in going from I to J
 C.. IEX(1,*) are in I, and IEX(2,*) are in J
+C.. TSIGN is set to the parity of the permutations required to line up the orbitals
+C..   TRUE means ODD.
+C.. If there are too many excitations to fit, then we put -excitlevel in EX(1,1) and EX(1,2)
       SUBROUTINE GETEXCITATION(NI,NJ,NEL,EX,TSIGN)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),EX(2,*)
@@ -83,6 +86,7 @@ C.. Differences from J to I
                J=J+1
             ENDIF
          ENDDO
+C.. Deal with remaining I
          DO WHILE(I.LE.NEL)
             IC1=IC1+1
             IF(IC1.LE.iMaxExcit) THEN
@@ -91,6 +95,7 @@ C.. Differences from J to I
             ENDIF
             I=I+1
          ENDDO
+C.. Deal with remaining J
          DO WHILE(J.LE.NEL)
             IC2=IC2+1
             IF(IC2.LE.iMaxExcit) THEN

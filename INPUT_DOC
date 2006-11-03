@@ -219,6 +219,10 @@ BIAS <G_VMC_FAC>
     For a single level MC (using a composite 1-vertex graph containing a full sum previously performed), this is the probability of generating
      a graph which is not the composit graph.  The default is invalid, and this must be set manaully
 
+EXCITWEIGHTING <G_VMC_EXCITWEIGHT>
+   A weighting factor for the generation of random excitations in the Vertex MC.  Default 0.D0
+      The probability of an excitation ij->kl is proportional to (|<ij|U|kl>|^2)^G_VMC_EXCITWEIGHT
+
 **If any of the options for MC are set and the vertex method is not MC, then an error is returned.**
 
 PATHS <NPATHS>
@@ -310,7 +314,7 @@ MCPATHS
     Log in MCPATHS to MCPATHS for full vertex sum and MCSUMMARY when using a METHODS section.
 
 FMCPR <LABEL,RHO,1000,EXCITATION>
-    Log in FMCPR to PATHS and MP2PATHS.  Either just label logging or also log RHOIJ.
+    Log in FMCPR to PATHS and MP2PATHS.  Either just label logging or also log RHOIJ.  This works for both full vertex sums as well as Graph Monte Carlo.
     If 1000, log only every 1000 cycles
     If EXCITATION then log excitations, not full determinants.
 
@@ -318,7 +322,7 @@ CALPATH <LABEL,RHO>
     Log in CALCPATH_R to PATHS.  Either just label logging or also log RHOIJ.
 
 XIJ
-    Log XIJ in FMCPR to PATHS.
+    Log XIJ in FMCPR to PATHS. [ Only for Graph Monte Carlo]
 
 HAMILTONIAN      
     Log HAMIL and PSI and PSI_LONG.

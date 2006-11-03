@@ -148,7 +148,7 @@ C.. Setup the spin excit generator
      &         .TRUE.,NMEM,INODE2,I,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,INODE2,ISEED,IEXCITS,0,UMAT,NBASIS)
+     &         NMEM,INODE2,ISEED,IEXCITS,0,UMAT,PGR)
             IF(I_VMIN.NE.0) THEN
                I_VM1=I_VMIN
                I_VM2=I_VMIN
@@ -988,6 +988,7 @@ C..
          INTEGER ICLS
          INTEGER STORE(6)
          REAL*8 RAN2
+         REAL*8 pGen,pGen2
          INCLUDE 'vmc.inc'
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
@@ -1001,7 +1002,7 @@ C.. parameter.
          IC=0
 C.. Count the number of adjacent nodes to us in IC.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,INODE2,ISEED,IC,0,UMAT,NBASIS)
+     &         NMEM,INODE2,ISEED,IC,0,UMAT,pGen)
 C         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
 C     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
 C.. Diagonal X elements contain the normalization of that node
@@ -1012,7 +1013,7 @@ C.. In this case that is the number of symmetric adjacent nodes
          ICOUNT=0
          DO WHILE(I_VNEXT.LT.I_V)
 C.. pick a random excitation of where we are (INODE) of the appropriate
-C.. symmetry.  We don't worry about weighting this at the moment
+C.. symmetry.  The prob of picking the root is G_VMC_PI, and the rest are split equally.
 C.. We pick which node we'regoing to excite from
             IF(I_VNEXT.GT.1) THEN
                DO I=2,I_VNEXT
@@ -1028,14 +1029,16 @@ C.. Just make really sure the last one catches everytihng
                NEXNODE=NEXNODE+1
                R=R-PEXCIT(NEXNODE)
             ENDDO
+! 0 is the first node
+            NEXNODE=NEXNODE-1
 
 C.. set the current to be the pivot
-            IP_CUREX=PVERTMEMS(NEXNODE-1)
+            IP_CUREX=PVERTMEMS(NEXNODE)
 
 
 C.. generate a random excitation
-            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NBASIS)
+            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE),NEL,G1,NBASIS,
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,pGen)
 
 C            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
 C     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
@@ -1060,7 +1063,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NBASIS)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT,pGen2)
 
 
 
@@ -1087,16 +1090,32 @@ C.. Update the rho and X (probability) matrices with this new node
                DO I=0,I_VNEXT-1
                   ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
                   IF(ICE.LE.2) THEN
-                     XIJ(I_VNEXT,I)=1.D0/NLIST
-                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
-                        IF(ICE.EQ.2) THEN
-                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
-                        ELSE
-                           XIJ(I,I_VNEXT)=0.D0
-                        ENDIF
+!  Find the prob that we would've generated this node INODE from any of the previous.
+                     IF(I.EQ.NEXNODE) THEN
+!  If this is the node we actually generated from, we have the prob in pGen, otherwise we calculate it
+                        pGen2=pGen
                      ELSE
-                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
-                     ENDIF   
+                        IP_CUREX=PVERTMEMS(I)
+                        CALL GenExcitProb(IPATH(1,I),INODE,nEl,
+     &                   CUREX,G1,nBasisMax,UMat,nBasis,pGen2)
+                     ENDIF
+                     XIJ(I,I_VNEXT)=pGen2
+!  Now work out the reverse prob of generation.
+                     CALL GenExcitProb(INODE,IPATH(1,I),nEl,
+     &                NEWEX,G1,nBasisMax,UMat,nBasis,pGen2)
+                     XIJ(I_VNEXT,I)=pGen2
+      
+! We supercede the unbiased generation probability with a weighted one.
+!                     XIJ(I_VNEXT,I)=1.D0/NLIST
+!                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
+!                        IF(ICE.EQ.2) THEN
+!                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+!                        ELSE
+!                           XIJ(I,I_VNEXT)=0.D0
+!                        ENDIF
+!                     ELSE
+!                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+!                     ENDIF   
                   ELSE
                      XIJ(I_VNEXT,I)=0.D0
                      XIJ(I,I_VNEXT)=0.D0
@@ -1654,6 +1673,7 @@ C.. reject the new, and copy in the old
                ICLS=IOCLS
                WEIGHT=OWEIGHT
                IACC=0
+               CALL ICOPY(NEL*(1+I_V),OIPATH,1,IPATH,1)
             ELSE
                OETILDE=ETILDE
                OPROB=RH
@@ -1735,6 +1755,7 @@ C.. Unbias the sum
          LOGICAL ISUHFDET,LISINPATH
          LOGICAL LISNAN,ISVALIDDET
          REAL*8 RAN2
+         REAL*8 pGen,pGen2
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
          PEXCIT(1)=1.D0
@@ -1746,7 +1767,7 @@ C.. those before it.
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,NBASIS)
+     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,pGen)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 
@@ -1770,13 +1791,14 @@ C.. Just make really sure the last one catches everytihng
                NEXNODE=NEXNODE+1
                R=R-PEXCIT(NEXNODE)
             ENDDO
-
-C.. set the current to be the pivot
-            IP_CUREX=PVERTMEMS(NEXNODE-1)
+! Vertex labels start at 0
+            NEXNODE=NEXNODE-1
+C.. set this chosen node to be the pivot
+            IP_CUREX=PVERTMEMS(NEXNODE)
 
 C.. generate a random excitation
-            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NBASIS)
+            CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE),NEL,G1,NBASIS,
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,pGen)
 
 
             CALL ICOPY(NEL,INODE2,1,INODE,1)
@@ -1801,7 +1823,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NBASIS)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT,pGen2)
 
                XIJ(I_VNEXT,I_VNEXT)=IC
 C.. Update the rho and X (probability) matrices with this new node
@@ -1813,16 +1835,32 @@ C.. Update the rho and X (probability) matrices with this new node
                DO I=0,I_VNEXT-1
                   ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
                   IF(ICE.LE.2) THEN
-                     XIJ(I_VNEXT,I)=1.D0/IC
-                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
-                        IF(ICE.EQ.2) THEN
-                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
-                        ELSE
-                           XIJ(I,I_VNEXT)=0.D0
-                        ENDIF
+!  Find the prob that we would've generated this node INODE from any of the previous.
+                     IF(I.EQ.NEXNODE) THEN
+!  If this is the node we actually generated from, we have the prob in pGen, otherwise we calculate it
+                        pGen2=pGen
                      ELSE
-                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
-                     ENDIF   
+                        IP_CUREX=PVERTMEMS(I)
+                        CALL GenExcitProb(IPATH(1,I),INODE,nEl,
+     &                   CUREX,G1,nBasisMax,UMat,nBasis,pGen2)
+                     ENDIF
+                     XIJ(I,I_VNEXT)=pGen2
+!  Now work out the reverse prob of generation.
+                     CALL GenExcitProb(INODE,IPATH(1,I),nEl,
+     &                NEWEX,G1,nBasisMax,UMat,nBasis,pGen2)
+                     XIJ(I_VNEXT,I)=pGen2
+      
+! We supercede the old unbiased random choice with a new one.
+!                     XIJ(I_VNEXT,I)=1.D0/IC
+!                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
+!                        IF(ICE.EQ.2) THEN
+!                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+!                        ELSE
+!                           XIJ(I,I_VNEXT)=0.D0
+!                        ENDIF
+!                     ELSE
+!                        XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
+!                     ENDIF   
                   ELSE
                      XIJ(I_VNEXT,I)=0.D0
                      XIJ(I,I_VNEXT)=0.D0
@@ -1849,7 +1887,7 @@ C.. Update the rho and X (probability) matrices with this new node
             IF(ICOUNT.GT.500) THEN
 C.. give up trying to find something to attach, and go home
                WRITE(6,*) "WARNING: Unable to find attachee to vertex"
-               CALL WRITEDET(IPATH(1,NEXNODE-1),NEL,.TRUE.)
+               CALL WRITEDET(6,IPATH(1,NEXNODE-1),NEL,.TRUE.)
                RHOII(1)=0.D0
                RETURN
             ENDIF
@@ -1975,7 +2013,7 @@ C.. Take a copy of the old path and rho matrix etc.
 
 C.. Get the excitation count
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,
-     &         NBASISMAX,NMEM,INODE2,ISEED,IC,0,UMAT,NBASIS)
+     &         NBASISMAX,NMEM,INODE2,ISEED,IC,0,UMAT,PGEN)
 
 
 
@@ -2034,7 +2072,7 @@ C.. Hard code at 4 excitations.
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NBASIS)
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,PGEN)
 
 
 CC.. Generate an excitation
@@ -2138,7 +2176,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NBASIS)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT,PGEN)
 
 
 

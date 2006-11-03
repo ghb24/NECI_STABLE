@@ -66,6 +66,7 @@
       G_VMC_PI = 0.95
       G_VMC_SEED = -7
       G_VMC_FAC = 16
+      G_VMC_EXCITWEIGHT=0.D0
 
       IP_SPECDET=0
 
@@ -407,6 +408,8 @@ C                  end select
 !                      call report(trim(w)//" only valid for MC " 
 !     &                //" method",.true.)
 !                  end if
+              case("EXCITWEIGHTING")
+                  call readf(G_VMC_EXCITWEIGHT)
               case("PATHS")
                   call readi(NPATHS)
               case("ALLPATHS")
