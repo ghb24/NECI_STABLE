@@ -334,7 +334,7 @@ VERTEX <1000 EVERY>
     Log vertex MC with E~ every 1000 cycles and/or log vertex MC contribution every cycle.  Delta=ETilde-ETildeReference (usually the 1-vertex graph)
       EVERY:
        write a VMC file with the following info
-         tot # virt steps, # steps in this graph, #verts, Class, Weight, Delta, <sign(W)>, <Delta sign(W)>, ~standard deviation <Delta sign>/<sign> 
+         tot # virt steps, # steps in this graph, #verts, Class, Weight, Delta, <sign(W)>, <Delta sign(W)>, ~standard deviation <Delta sign>/<sign>,pgen 
       1000:
        write a VERTEXMC file with the following info:
          0, #graphs, <sign(W)>, stdev(sign(W)), <Delta>, <sign Delta>/<sign>, <Delta^2>, acc ratio, trees ratio, nontree+ ratio, non-tree- ratio, <Delta sign(W)>, E~ reference, #sequences

@@ -33,6 +33,7 @@ MODULE MCStats
          TYPE(HDElement)               woDelta
          INTEGER                       ioClass
          TYPE(HDElement)               wETReference
+         REAL*8                        foProb
 
       END TYPE
       CONTAINS
@@ -124,9 +125,10 @@ MODULE MCStats
          END
 !  What is passed in as wSETilde is the sign of the weight times Etilde.  wSign is the sign of the weight
 !  We store Delta=ETilde-ETReference
-         SUBROUTINE AddGraph(M,nTimes, iV, wSign,wSETilde,wWeight,iClass,iTree,iAcc,ioV,igV,tLog)
+         SUBROUTINE AddGraph(M,nTimes, iV, wSign,wSETilde,wWeight,iClass,iTree,iAcc,ioV,igV,tLog,fProb)
             TYPE(MCStats) M
             INTEGER*8 nTimes
+            REAL*8 fProb
             INTEGER iV,iTree,iAcc,ioV,igV,iClass
             TYPE(HDElement) wSign,wETilde,wSETilde,wWeight,bb,ss,mm,ee,wVal,wDelta
             INTEGER i,ioBMax,j
@@ -150,7 +152,7 @@ MODULE MCStats
 !               std2=sqrt(1.D0-ave2*ave2)
 !               cc=std1/ave1+std2/ave2
                CALL CalcStDev(M,cc)
-               IF(tLog) WRITE(22,"(I20,I15,2I3,5G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc
+               IF(tLog) WRITE(22,"(I20,I15,2I3,6G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb
                M%iSeqLen=1
             ENDIF
             IF(iAcc.GT.0) THEN
@@ -263,6 +265,7 @@ MODULE MCStats
 
 
             wVal=wDelta
+!.. We enable the new blocking counting method if TRUE, and the old one if FALSE
             IF(.TRUE.) THEN
             nn=1
             i=0
@@ -348,6 +351,7 @@ MODULE MCStats
             M%ioClass=iClass
             M%woWeight=wWeight
             M%woDelta=wDelta
+            M%foProb=fProb
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
          END
          SUBROUTINE WriteStats(M,iUnit)

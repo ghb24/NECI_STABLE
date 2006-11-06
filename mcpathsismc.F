@@ -300,7 +300,8 @@ C.. Markov chain with random generation.
                               FF=1.D0
                               ITREE=1
                               CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
-     &                           WCORE,0,ITREE,1,1,1,BTEST(ILOGGING,10))
+     &                           WCORE,0,ITREE,1,1,1,BTEST(ILOGGING,10),
+     &                           OPROB)
                             ENDIF
                          ENDIF
 !                   !
@@ -320,7 +321,7 @@ C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
                               CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
      &                           OWEIGHT,IOCLS,ITREE,0,I_OVCUR,1,
-     &                           BTEST(ILOGGING,10))
+     &                           BTEST(ILOGGING,10),OPROB)
                            ENDIF
 C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
 !                   !
@@ -393,7 +394,7 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                   LP=1
                  CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,IOCLS,
      &               ITREE,
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10))
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB)
 !                  IF(BTEST(ILOGGING,10))
 !     &                    WRITE(22,"(2G25.16)") FF,DLWDB2
                   IF(BTEST(ILOGGING,9).AND.MOD(ICOUNT,1000).EQ.0) THEN
@@ -440,7 +441,7 @@ caa            CALL FLUSH(10)
          IACC=1
                  CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,IOCLS,
      &               ITREE,
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10))
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0)
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
             CALL FREEM(IP_NMEM)
