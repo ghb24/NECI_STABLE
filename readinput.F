@@ -67,6 +67,8 @@
       G_VMC_SEED = -7
       G_VMC_FAC = 16
       G_VMC_EXCITWEIGHT=0.D0
+      g_VMC_ExcitToWeight=0.D0
+      g_VMC_ExcitFromWeight=0.D0
 
       IP_SPECDET=0
 
@@ -409,6 +411,8 @@ C                  end select
 !     &                //" method",.true.)
 !                  end if
               case("EXCITWEIGHTING")
+                  call readf(g_VMC_ExcitFromWeight)
+                  call readf(g_VMC_ExcitToWeight)
                   call readf(G_VMC_EXCITWEIGHT)
               case("PATHS")
                   call readi(NPATHS)

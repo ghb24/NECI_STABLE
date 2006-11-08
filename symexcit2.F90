@@ -12,8 +12,47 @@ MODULE SymExcit2
       PARAMETER ExcitWeightSize=3
       CONTAINS 
 
+!  Enumerate the weights of all possible determinants to excite from in a given excittype.
+      SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+         USE HElement
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         INTEGER ExcitType(5)
+         INTEGER nBasis,nBasisMax(*)
+         INTEGER OrbPairs(2,*)
+         REAL*8 Norm
+         INTEGER iCount
+         TYPE(HElement) UMat(*)
+         REAL*8 Arr(nBasis,2)
+         TYPE(ExcitWeight) ews(*)
+         TYPE(BasisFN) G1(*)
+         INTEGER SymProdInd(2,3,0:*)
+         INTEGER iSpn,iFrom,iFromIndex
+         INTEGER I
+!.. We store each excitation type as:
+!.. 1   TYPE (single=1, double=2)
+!.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/beta; 3=alpha/alpha;)
+!.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
+!.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
+!.. 5  COUNT (Total number of excitations in this category)
+         iSpn=EXCITTYPE(2)
+         iFrom=EXCITTYPE(3)
+!.. Go through the list of pairs with a given symprod.
+!.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
+!.. SYMPRODS(I) in ORBPAIRS
+!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
+         iCount=0
+         Norm=0.D0
+         DO I=1,SYMPRODIND(2,iSpn,iFrom)
+            iFromIndex=I+SymProdInd(1,iSpn,iFrom)
+            CALL AddExcitFromWeight(                                    &
+     &                  OrbPairs(1,SymProdInd(1,iSpn,iFrom)+iFromIndex),&
+     &                  OrbPairs(2,SymProdInd(1,iSpn,iFrom)+iFromIndex),&
+     &                  ews,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+         ENDDO
+      END
 !  Enumerate the excitations and weights of excitations of a given ExcitType.
-      SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,NBASIS)
+      SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElement
          INCLUDE 'sym.inc'
          INTEGER ExcitType(5)
@@ -32,6 +71,7 @@ MODULE SymExcit2
          REAL*8 Norm
          TYPE(ExcitWeight) ews(*)
          INTEGER K
+         REAL*8 Arr(nBasis,2)
          ISPN=ExcitType(2)
          IFROM=ExcitType(3)
          ITO=ExcitType(4)
@@ -57,7 +97,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC1,                                           &
      &                  ICC3,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,NBASIS)
+     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
                ENDIF
             ELSEIF(ISPN.EQ.2) THEN
 !.. If neither virtuals are in NI, then allow
@@ -67,7 +107,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC1,                                           &
      &                  ICC4,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,NBASIS)
+     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
                ENDIF
 !.. If neither virtuals are in NI, and they're not the same(which would give
 !.. us the same excitation as previously), then allow
@@ -77,7 +117,7 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC2,                                           &
      &                  ICC3,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,NBASIS)
+     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
                ENDIF
             ELSEIF(ISPN.EQ.3) THEN
 !.. If both virtuals aren't the samem and neither are in NI, then allow
@@ -87,14 +127,14 @@ MODULE SymExcit2
      &                  ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+iFromIndex),&
      &                  ICC2,                                           &
      &                  ICC4,                                           &
-     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,NBASIS)
+     &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
                ENDIF
             ENDIF
          ENDDO
       END
 ! Add the weight of the excitation to the list in ExWeights
 ! I,J are from, K,L are to
-      SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,NBASIS)
+      SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElement
          INTEGER I,J,A,B
          REAL*8 R,Norm
@@ -104,7 +144,8 @@ MODULE SymExcit2
          TYPE(HElement) UMAT(*)
          TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
-         CALL ExcitWeighting(I,J,A,B,R,G1,NBASISMAX,UMAT,NBASIS)
+         REAL*8 Arr(nBasis,2)
+         CALL ExcitWeighting(I,J,A,B,R,G1,NBASISMAX,UMAT,Arr,NBASIS)
          iCount=iCount+1
          ExWeights(iCount)%I=I
          ExWeights(iCount)%J=J
@@ -114,14 +155,57 @@ MODULE SymExcit2
          Norm=Norm+R
       END
          
+! Add the weight of the 'from' excitation to the list in ExWeights
+! I,J are from
+      SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+         USE HElement
+         INTEGER I,J,A,B
+         REAL*8 R,Norm
+         INTEGER nBasisMax(*),nBasis
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
+         TYPE(HElement) UMat(*)
+         TYPE(ExcitWeight) ExWeights(iCount+1)
+         INTEGER iCount
+         REAL*8 Arr(nBasis,2)
+         CALL ExcitFromWeighting(I,J,R,G1,nBasisMax,UMat,Arr,nBasis)
+         iCount=iCount+1
+         ExWeights(iCount)%I=I
+         ExWeights(iCount)%J=J
+         ExWeights(iCount)%Weight=R
+         Norm=Norm+R
+      END
+!        A sub called to generate an unnormalised weight for an ij->?? excitation
+!          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
+      SUBROUTINE ExcitFromWeighting(I,J,Weight,G1,nBasisMax,UMat,Arr,nBasis)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER nBasisMax(5,3),nBasis
+         INCLUDE 'basis.inc'
+! We get G_VMC_EXCITWEIGHT from vmc.inc
+         INCLUDE 'vmc.inc'
+         TYPE(BasisFN) G1(nBasis)
+!  We fake ISS
+         INTEGER I,J,K,L
+         REAL*8 WEIGHT
+         TYPE(HElement) GetUMatEl
+         TYPE(HElement) UMAT(*),W
+         REAL*8 Arr(nBasis,2)
+         IF(g_VMC_ExcitFromWeight.EQ.0.D0) THEN
+            Weight=1.D0
+            RETURN
+         ENDIF
+         Weight=EXP((Arr(I,2)+Arr(J,2))/g_VMC_ExcitFromWeight)
+         RETURN
+      END
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
-      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,NBASIS)
+      SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElement
          IMPLICIT NONE
          INTEGER NBASISMAX(5,3),NBASIS
          INCLUDE 'basis.inc'
-! We get G_VMC_EXCITWEIGHT from vmc.inc
+! We get G_VMC_EXCITWEIGHT from vmc.inc, and g_VMC_ExcitToWeight
          INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(NBASIS)
 !  We fake ISS
@@ -131,24 +215,26 @@ MODULE SymExcit2
          REAL*8 WEIGHT
          TYPE(HElement) GetUMatEl
          TYPE(HElement) UMAT(*),W
+         REAL*8 Arr(nBasis,2)
          IF(G_VMC_EXCITWEIGHT.EQ.0.D0) THEN
             WEIGHT=1.D0
-            RETURN
+         ELSE
+            ISS=NBASISMAX(2,3)
+            CALL GTID(NBASISMAX,I,IDI)
+            CALL GTID(NBASISMAX,J,IDJ)
+            CALL GTID(NBASISMAX,K,IDK)
+            CALL GTID(NBASISMAX,L,IDL)
+            W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+            WEIGHT=EXP(-SQRT(SQ(W))/G_VMC_EXCITWEIGHT)
          ENDIF
-         ISS=NBASISMAX(2,3)
-         CALL GTID(NBASISMAX,I,IDI)
-         CALL GTID(NBASISMAX,J,IDJ)
-         CALL GTID(NBASISMAX,K,IDK)
-         CALL GTID(NBASISMAX,L,IDL)
-         W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
-         WEIGHT=SQ(W)**G_VMC_EXCITWEIGHT
+         IF(g_VMC_ExcitToWeight.NE.0.D0) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))/g_VMC_ExcitToWeight)
          RETURN
       END
 
 !We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate 
 ! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
 ! After that, we generate the probability that nJ would be an excitation from nI.
-      SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
+      SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
          USE HElement
          IMPLICIT NONE
          INTEGER iExcit(2,2)
@@ -170,9 +256,10 @@ MODULE SymExcit2
          INTEGER SymProdInd(2,3,0:*)
          INTEGER ExcitTypes(5,*)
          REAL*8 Norm
-         INTEGER K,NPR,I
-         INTEGER iSpn,iCount,nToPairs,iTotal
+         INTEGER K,NPR,I,iExcitType
+         INTEGER iSpn,iCount,nToPairs,iTotal,nFromPairs
          REAL*8 pGen
+         REAL*8 Arr(nBasis,2)
          iExcit(1,1)=2
          CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
@@ -193,19 +280,6 @@ MODULE SymExcit2
          DO WHILE(.NOT.SYMEQ(SymProds(iFrom),Sym))
             iFrom=iFrom+1
          ENDDO
-!.. We've worked out what class the IFROM was.  Now work out which member of the class it is
-!.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym SYMPRODS(I) in ORBPAIRS
-!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
-!.. There are three values of ISPN.  ISPN=1 is beta beta, ISPN=2 is alpha, beta and beta, alpha.  ISPN=3 is alpha alpha
-         iSpn=(G1(iExcit(1,1))%Ms+G1(iExcit(1,2))%Ms)/2+2
-         DO K=1,SymProdInd(2,iSpn,iFrom)
-            IF(iExcit(1,1).EQ.OrbPairs(1,SymProdInd(1,iSpn,iFrom)+K).AND. &
-     &         iExcit(1,2).EQ.OrbPairs(2,SymProdInd(1,iSpn,iFrom)+K)) THEN
-!.. We've found the index.  Save and leave
-               iFromIndex=K
-               EXIT
-            ENDIF
-         ENDDO
 !.. Now to find the appropriate iTo index:
          Sym=SYMPROD( G1(iExcit(2,1))%Sym, G1(iExcit(2,2))%Sym)
 !..  Find which SymPairProd it corresponds to 
@@ -214,27 +288,55 @@ MODULE SymExcit2
 !.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
 !.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of symlabels whose prod is of that symmetry.
          CALL FindSymProd(Sym,SymPairProds,nSymPairProds,iTo)
-!.. Now work out the index of the (a,b) pair within the prod
+!.. There are three values of ISPN.  ISPN=1 is beta beta, ISPN=2 is alpha, beta and beta, alpha.  ISPN=3 is alpha alpha
+         iSpn=(G1(iExcit(1,1))%Ms+G1(iExcit(1,2))%Ms)/2+2
+!.. Now find which excittype we correspons to 
          K=1
          DO WHILE(ExcitTypes(1,K).NE.2.OR.ExcitTypes(2,K).NE.iSpn.OR.ExcitTypes(3,K).NE.iFrom.OR.ExcitTypes(4,K).NE.iTo)
             K=K+1
          ENDDO
 !.. K is now the excitation
-         nToPairs=ExcitTypes(5,K)/SymProdInd(2,iSpn,iFrom)
+         iExcitType=K
+         pGen=(ExcitTypes(5,iExcitType)+0.D0)/iTotal  ! pGen is the prob of choosing excit iExcitType
+
+
+!.. We've worked out what class the IFROM was.  Now work out which member of the class it is
+!  Now enumerate all the FROMs, and their weightings
+         nFromPairs=SymProdInd(2,iSpn,iFrom)
+         CALL MEMORY(IP_ews,ExcitWeightSize*nFromPairs,'ExcitWGEPI')
+         iCount=0
+         Norm=0.D0
+         CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
+         pGen=pGen/Norm    ! divide through by the Norm of the FROMs
+         DO I=1,nFromPairs
+            IF(ews(I)%I.EQ.iExcit(1,1).AND.ews(I)%J.EQ.iExcit(1,2)) THEN
+               pGen=pGen*ews(I)%Weight !Multiply by the weight of the one chosen
+               EXIT
+            ENDIF
+         ENDDO
+         iFromIndex=I
+         CALL FREEM(IP_ews)
+!  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
+!           times the prob of choosing iExcitType
+
+!.. Now work out the index of the (a,b) pair within the prod
+         nToPairs=ExcitTypes(5,iExcitType)/SymProdInd(2,iSpn,iFrom)
          CALL MEMORY(IP_ews,ExcitWeightSize*nToPairs,'ExcitWGEPI')
          iCount=0
          Norm=0.D0
-         CALL EnumExcitWeights(ExcitTypes(1,K),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,nBasis)
+         CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
 !.. Find the (a,b) pair
 !.. The prob of all possible excitations in this iTo 
-         pGen=(iCount+0.D0)/iTotal
          DO I=1,nToPairs
             IF(ews(I)%A.EQ.iExcit(2,1).AND.ews(I)%B.EQ.iExcit(2,2)) THEN
                pGen=pGen*ews(I)%Weight
                EXIT
             ENDIF
          ENDDO
-         pGen=pGen/Norm
+         pGen=pGen/Norm    ! The norm of the TOs
+!  pGen is the prob of choosing a specific TO (given the FROM, and the iExcitType)
+!           times prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
+!           times the prob of choosing iExcitType
          CALL FREEM(IP_ews)
       END
 END MODULE SymExcit2

@@ -1165,7 +1165,7 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
 C.. before this.
       SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,NJ,ISEED,IC,IFRZ,UMAT,PGEN)
+     &         NMEM,NJ,ISEED,IC,IFRZ,UMAT,ARR,PGEN)
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INCLUDE 'sym.inc'
@@ -1179,6 +1179,7 @@ C.. before this.
          INTEGER GET_ADDR
          INTEGER ISEED
          REAL*8 UMAT(*),PGEN
+         REAL*8 ARR(NBASIS,2)
 C.. The second setup.  Now NMEM is allocated, we store all the info
 C.. NMEM is as follows:
 C..   1           -  5           STORE(1:5)
@@ -1199,14 +1200,14 @@ C.. Actually generate a det
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
-     &         G1,NBASISMAX,UMAT,NBASIS,PGEN)
+     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
          IC=NMEM(23)
       END
       SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
      &               CLASSES,                                           &
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
      &               I,J,K,L,ICC,LS,ITOTAL,ISEED,                       &
-     &               NK,IC,G1,NBASISMAX,UMAT,NBASIS,PGEN)               
+     &               NK,IC,G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)      
       USE HElement
       USE symexcit2
       INTEGER NBASIS
@@ -1240,6 +1241,7 @@ C.. Actually generate a det
       REAL*8 PGEN
       TYPE(ExcitWeight) ews(*)
       POINTER (IP_ExcitWeight,ews)
+      REAL*8 ARR(NBASIS,2)
 !.. First generate a random excitation 
       PGEN=1.D0/ITOTAL
       I=ITOTAL*RAN2(ISEED)
@@ -1347,11 +1349,29 @@ C.. Actually generate a det
 !.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !.. SYMPRODS(I) in ORBPAIRS
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
+         pGen=(0.D0+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
+!  Allocate memory to store all weights and excitations in this category
+         CALL MEMORY(IP_ExcitWeight,ExcitWeightSize*
+     &      SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
+         CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
+     &      SymProdInd,
+     &      RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,ARR,NBASIS)
+!  We choose a symprod of this symmetry to excite FROM with probs in ews
+         pGen=pGen/rCount  ! The norm factor for the FROMs
+         rCount=rCount*RAN2(ISEED)
+         I=0
+!  This is a little inefficient, and could perhaps be binary searched if cumulative weights were also stored
+         DO WHILE (rCount.GT.0.D0)
+            I=I+1
+            rCount=rCount-ews(I)%Weight
+         ENDDO   
+!  I is the index of the specific SYM PAIR FROM
+         pGen=pGen*ews(I)%Weight
+         
+!  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
+!           times the prob of choosing iExcit
+         CALL FREEM(IP_ExcitWeight)
 
-!  We choose a symprod of this symmetry randomly (with equal probability) to excite FROM
-         I=RAN2(ISEED)*SYMPRODIND(2,ISPN,IFROM)+1
-!  I is the index of the specific SYM PAIR
-!         PGEN=1.D0/SYMPRODIND(2,ISPN,IFROM)
 
 !  Allocate memory to store all weights and excitations in this category
          CALL MEMORY(IP_ExcitWeight,ExcitWeightSize*
@@ -1371,10 +1391,10 @@ C.. Actually generate a det
 !  a point in the sum of weights which is found by subtracting weights until we reach 0.
 !  This is only done for the excitations TO because we need to know the excitations FROM to generate the weight
          CALL EnumExcitWeights(EXCITTYPES(1,IEXCIT),I,ILUT,ews,OrbPairs,
-     &      SymProdInd,RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,NBASIS)
-! The prob of all possible excitations in this iTo, iFrom, iSpn set.
-         pGen=(iCount+0.D0)/iTotal
-         pGen=pGen/rCount
+     &      SymProdInd,RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,ARR,NBASIS)
+
+         pGen=pGen/rCount           ! Normalize for the sum of TOs
+         
 !  We've now got a list of iCount weights in ews, and total norm rCount.
 !  Select a random one
          rCount=rCount*RAN2(ISEED)
@@ -1385,7 +1405,10 @@ C.. Actually generate a det
             rCount=rCount-ews(K)%Weight
          ENDDO   
 !  ews(K) is the excitation we've chosen
-         PGEN=PGEN*ews(K)%Weight
+         PGEN=PGEN*ews(K)%Weight !weight with the weight of this TO
+!  pGen is the prob of choosing a specific TO (given the FROM, and the iExcit)
+!           times prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
+!           times the prob of choosing iExcit
          CALL ICOPY(NEL,NI,1,NK,1)
          DO J=1,NEL
             IF(NI(J).EQ.ews(K)%I) THEN
@@ -1406,7 +1429,7 @@ C.. Actually generate a det
 ! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
 ! After that, we generate the probability that nJ would be an excitation from nI.
 ! We require the excitation generator of I, which is used to pass info to GenExcitProbInternal (in symexcit2.F90)
-      SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,UMat,
+      SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,UMat,Arr,
      &      nBasis,pGen)
          USE HElement
          IMPLICIT NONE
@@ -1418,8 +1441,9 @@ C.. Actually generate a det
          INTEGER GET_ADDR
          POINTER(IP_DSTORE,DSTORE)
          REAL*8 pGen
+         REAL*8 Arr(nBasis,2)
          IP_DSTORE=GET_ADDR(nIExcitor(nIExcitor(1)))
-         CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,nBasis,
+         CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
      &      DStore(SymClassSize*nEl+1),
      &      DStore(SymClassSize*nEl+1+nBasis/32+1),
@@ -1443,7 +1467,7 @@ C.. Actually generate a det
 
 
 !  We are required to enshroud GenExcitProbInternal as F90 doesn't seem to want to allow any casting.
-      SUBROUTINE GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,
+      SUBROUTINE GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,
      &      nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,
      &      pGen)
          USE HElement
@@ -1458,10 +1482,82 @@ C.. Actually generate a det
          INTEGER SymProdInd(2,3,0:*)
          TYPE(Symmetry) SymProds(0:*)
          REAL*8 pGen
-         CALL GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,nBasis,
-     &      OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
+         REAL*8 Arr(nBasis,2)
+         CALL GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,
+     &  nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
       END
+!  Calculate the generation probability of a given graph for debugging purposes.
+!  if iUnit<>0, write this to this unit
+      SUBROUTINE CalcWriteGraphPGen(iUnit,iGraph,iV,nEl,LOCTAB,G1,
+     &            nBasisMax,UMat,Arr,nBasis,pGenGraph)
+         USE symexcit2
+         USE HElement
+         IMPLICIT NONE
+         INCLUDE 'basis.inc'
+         INTEGER iUnit
+         INTEGER iV,nEl       ! Vertices and number of electrons
+         INTEGER iGraph(nEl,0:iV)  ! The graph
+         INTEGER LOCTAB(3,iV)    ! Three components for each vertex in the graph: 
+C.. LOCTAB(1,V) is the address of the generator used to create node V in
+C.. the path (the first node is node 0).
+C.. LOCTAB(2,V) is the length of the generator (i.e. the amount of memory used to store it)
+C.. LOCTAB(3,V) is the vertex from which vertex V was were excited
+C.   The last node never has an excitation generator, as it never needs one in the full graph generation scheme.
+C.    We must create one.
+         INTEGER STORE(6)
+         POINTER (IP_NEWEX,NEWEX)
+         INTEGER NEWEX(*),NEWEXLEN
 
+         TYPE(BasisFN) G1(*)
+         INTEGER nBasisMax(*)
+         TYPE(HElement) UMat(*)
+         REAL*8 Arr(nBasis,2)
+         INTEGER nBasis,IC,INODE2(NEL)
+         REAL*8 pGen, pGenGraph
+
+         REAL*8 XIJ(0:iV-1,0:iV-1)  ! XIJ(I,J) is the pgen of J from I
+         REAL*8 GETPATHPROB2
+         INTEGER i,j,ISEED
+         ISEED=0
+         
+         DO i=0,iV-1
+!  First work out which exictor we need to work out the excitation i->?
+C            DO j=0,iV-1
+C!  See if vertex j was excited from vertex i.  If so, then LOCTAB(1,j) is the excitor for vertex i
+C               IF(LOCTAB(3,j).EQ.i) THEN
+C                  IP_NEWEX=LOCTAB(1,j)
+C                  EXIT
+C               ENDIF
+C            ENDDO
+C            IF(j.EQ.iV-1) THEN
+!We've not found an excitor, so we create one
+            STORE(1)=0
+C.. Setup the excit generator for the last vertex
+            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+            CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+            NEWEX(1)=0
+C.. Count the excitations (and generate a random one which we throw)
+            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
+     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+            CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT,Arr,PGEN)
+!
+            DO j=0,iV-1
+               IF(i.EQ.j) THEN
+                  XIJ(i,i)=IC
+               ELSE
+                  CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
+     &            NEWEX,G1,nBasisMax,UMat,Arr,nBasis,pGen)
+                  XIJ(i,j)=pGen
+               ENDIF
+            ENDDO
+            CALL FREEM(IP_NEWEX)
+         ENDDO
+         pGenGraph=GETPATHPROB2(XIJ,iV)
+         IF(iUnit.NE.0) CALL WRITE_XMATRIX(iUnit,XIJ,iV)
+
+      END
 
 
       SUBROUTINE DUMPIMEMORY(IUNIT,MEM,INLEN)

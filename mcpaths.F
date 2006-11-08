@@ -1,3 +1,4 @@
+! To allow linking of code with the old GetHElement2, but which will give an error when run.
       REAL*8 FUNCTION GETHELEMENT2()
          STOP 'Wrong GETHELEMENT2'
       END
@@ -526,7 +527,7 @@ C.. NLIST contains the legnth of LSTE for each node
          INTEGER IVLEVEL,I_HMAX,IC,BTABLE(0:I_V)
          REAL*8 BETA,RHOEPS,DBETA
          LOGICAL LSAME,TSYM
-         LOGICAL TLOG,TLOG2,TLOG3,TLOG4
+         LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5
          TYPE(HDElement) DLWDB,DLWDB2
          TYPE(HElement) HIJS(0:I_V),RH
          INTEGER ICLS
@@ -584,7 +585,7 @@ C..
             NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
-            IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
+               IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
 caa	    call flush(10) 
             L=L+1
             FMCPR3=TOTAL
@@ -828,7 +829,7 @@ C.,             If 1, only allow doubles.
          INTEGER I_HMAX
          REAL*8 BETA,RHOEPS
          LOGICAL TSYM
-         LOGICAL TLOG,TLOG2,TLOG3,TLOG4
+         LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5
          REAL*8 DBETA
          INTEGER ICLS
          INTEGER NMEM(*),NMEMLEN
@@ -886,6 +887,7 @@ C.. the amount of memory used to store it)
          TLOG2=BTEST(ILOGGING,3)
          TLOG3=BTEST(ILOGGING,12)
          TLOG4=BTEST(ILOGGING,9)
+         TLOG5=BTEST(ILOGGING,6)
          TLOG=TLOG.AND..NOT.TLOG4
          TOTAL=0.D0
          LT=LT+1
@@ -927,7 +929,15 @@ C..
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
             NTOTAL=NTOTAL+TOTAL
-            IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
+            IF(TLOG5) THEN
+!  Log XIJS (usually for debugging), and the pgen
+!  NMAX has Arr hidden in it
+              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
+     &            nBasisMax,UMat,NMAX,nBasis,R)
+                  WRITE(10,"(3E25.16, I7)") TOTAL,R,DLWDB2,ICLS
+            ELSE
+               IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
+            ENDIF
             L=L+1
             FMCPR3B=TOTAL
             IF(I_V.EQ.2) THEN

@@ -8,6 +8,7 @@ C.. I_VMAX is the max number of distinct vertices in a path.
 C.. I_HMAX is the max number of hops in a path.
 C.. NWHTAY contains the number of samples to take for each level
 C.. This is a simple importance sampling method
+C.. NMAX has ARR hidden in it.
       SUBROUTINE  MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
      &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
@@ -148,7 +149,7 @@ C.. Setup the spin excit generator
      &         .TRUE.,NMEM,INODE2,I,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,INODE2,ISEED,IEXCITS,0,UMAT,PGR)
+     &         NMEM,INODE2,ISEED,IEXCITS,0,UMAT,NMAX,PGR)
             IF(I_VMIN.NE.0) THEN
                I_VM1=I_VMIN
                I_VM2=I_VMIN
@@ -1003,7 +1004,7 @@ C.. parameter.
          IC=0
 C.. Count the number of adjacent nodes to us in IC.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,INODE2,ISEED,IC,0,UMAT,pGen)
+     &         NMEM,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
 C         CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
 C     &         .FALSE.,NMEM,INODE2,ISEED,IC,0)
 C.. Diagonal X elements contain the normalization of that node
@@ -1039,7 +1040,7 @@ C.. set the current to be the pivot
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,pGen)
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
 
 C            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
 C     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
@@ -1064,7 +1065,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,pGen2)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen2)
 
 
 
@@ -1097,13 +1098,15 @@ C.. Update the rho and X (probability) matrices with this new node
                         pGen2=pGen
                      ELSE
                         IP_CUREX=PVERTMEMS(I)
+!  NMAX is really Arr
                         CALL GenExcitProb(IPATH(1,I),INODE,nEl,
-     &                   CUREX,G1,nBasisMax,UMat,nBasis,pGen2)
+     &                   CUREX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
                      ENDIF
                      XIJ(I,I_VNEXT)=pGen2
 !  Now work out the reverse prob of generation.
+!  NMAX is really Arr
                      CALL GenExcitProb(INODE,IPATH(1,I),nEl,
-     &                NEWEX,G1,nBasisMax,UMat,nBasis,pGen2)
+     &                NEWEX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
                      XIJ(I_VNEXT,I)=pGen2
       
 ! We supercede the unbiased generation probability with a weighted one.
@@ -1555,6 +1558,7 @@ C..
 C.. This does a markov chain monte carlo also - the probabilities are 
 C.. weighted with the values of S' (the double-counting corrected
 C.. weight.
+!.. NMAX has ARR hidden in it
       FUNCTION FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
@@ -1715,7 +1719,8 @@ C.. Unbias the sum
 
 
 
-!.. Generate a new graph.
+!.. Generate a new graph.  Called from FMCPR4D2
+!.. NMAX has ARR  hidden in it
       SUBROUTINE FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI)
@@ -1768,7 +1773,7 @@ C.. those before it.
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,pGen)
+     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,NMAX,NMAX,pGen)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 
@@ -1799,7 +1804,7 @@ C.. set this chosen node to be the pivot
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,pGen)
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
 
 
             CALL ICOPY(NEL,INODE2,1,INODE,1)
@@ -1824,7 +1829,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,pGen2)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen2)
 
                XIJ(I_VNEXT,I_VNEXT)=IC
 C.. Update the rho and X (probability) matrices with this new node
@@ -1842,13 +1847,15 @@ C.. Update the rho and X (probability) matrices with this new node
                         pGen2=pGen
                      ELSE
                         IP_CUREX=PVERTMEMS(I)
+!  NMAX is really Arr
                         CALL GenExcitProb(IPATH(1,I),INODE,nEl,
-     &                   CUREX,G1,nBasisMax,UMat,nBasis,pGen2)
+     &                   CUREX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
                      ENDIF
                      XIJ(I,I_VNEXT)=pGen2
 !  Now work out the reverse prob of generation.
+!  NMAX is really Arr
                      CALL GenExcitProb(INODE,IPATH(1,I),nEl,
-     &                NEWEX,G1,nBasisMax,UMat,nBasis,pGen2)
+     &                NEWEX,G1,nBasisMax,UMat,NMAX,nBasis,pGen2)
                      XIJ(I_VNEXT,I)=pGen2
       
 ! We supercede the old unbiased random choice with a new one.
@@ -2014,7 +2021,7 @@ C.. Take a copy of the old path and rho matrix etc.
 
 C.. Get the excitation count
             CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,
-     &         NBASISMAX,NMEM,INODE2,ISEED,IC,0,UMAT,PGEN)
+     &         NBASISMAX,NMEM,INODE2,ISEED,IC,0,UMAT,NMAX,PGEN)
 
 
 
@@ -2073,7 +2080,7 @@ C.. Hard code at 4 excitations.
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,PGEN)
+     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NMAX,PGEN)
 
 
 CC.. Generate an excitation
@@ -2177,7 +2184,7 @@ C.. Setup the spin excit generator
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
 C.. Count the excitations (and generate a random one which we throw)
                CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,PGEN)
+     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NMAX,PGEN)
 
 
 
