@@ -222,7 +222,7 @@ BIAS <G_VMC_FAC>
 EXCITWEIGHTING <g_VMC_ExcitFromWeight g_VMC_ExcitToWeight G_VMC_EXCITWEIGHT>
    A weighting factor for the generation of random excitations in the Vertex MC.  Default for all is 0.D0 (meaning unweighted, where the weighting factors for that process are set to 1.).
       The probability of choosing pair ij is proportional to exp((e_i+e_j)/g_VMC_ExcitFromWeight)
-      The probability of choosing pair kl is proportional to exp(-(e_k+e_l)/g_VMC_ExcitToWeight) exp(-|<ij|U|kl>|)/G_VMC_EXCITWEIGHT)
+      The probability of choosing pair kl is proportional to exp(-(e_k+e_l)/g_VMC_ExcitToWeight) exp(-|<ij|U|kl>|/G_VMC_EXCITWEIGHT)
 
 **If any of the options for MC are set and the vertex method is not MC, then an error is returned.**
 
@@ -318,6 +318,7 @@ FMCPR <LABEL,RHO,1000,EXCITATION>
     Log in FMCPR to PATHS and MP2PATHS.  Either just label logging or also log RHOIJ.  This works for both full vertex sums as well as Graph Monte Carlo.
     If 1000, log only every 1000 cycles
     If EXCITATION then log excitations, not full determinants.
+      The values logged are Weight, Etilde, class.  If XIJ is specified, values are Weight, pGenGraph, Etilde, class.
 
 CALCPATH <LABEL,RHO>
     Log in CALCPATH_R to PATHS.  Either just label logging or also log RHOIJ.

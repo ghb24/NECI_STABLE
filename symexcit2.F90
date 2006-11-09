@@ -46,8 +46,8 @@ MODULE SymExcit2
          DO I=1,SYMPRODIND(2,iSpn,iFrom)
             iFromIndex=I+SymProdInd(1,iSpn,iFrom)
             CALL AddExcitFromWeight(                                    &
-     &                  OrbPairs(1,SymProdInd(1,iSpn,iFrom)+iFromIndex),&
-     &                  OrbPairs(2,SymProdInd(1,iSpn,iFrom)+iFromIndex),&
+     &                  OrbPairs(1,iFromIndex),                         &
+     &                  OrbPairs(2,iFromIndex),                         &
      &                  ews,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
          ENDDO
       END
