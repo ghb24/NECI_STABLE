@@ -195,7 +195,7 @@ MODULE SymExcit2
             Weight=1.D0
             RETURN
          ENDIF
-         Weight=EXP((Arr(I,2)+Arr(J,2))/g_VMC_ExcitFromWeight)
+         Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitFromWeight)
          RETURN
       END
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
@@ -225,9 +225,9 @@ MODULE SymExcit2
             CALL GTID(NBASISMAX,K,IDK)
             CALL GTID(NBASISMAX,L,IDL)
             W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
-            WEIGHT=EXP(-SQRT(SQ(W))/G_VMC_EXCITWEIGHT)
+            WEIGHT=EXP(-SQRT(SQ(W))*G_VMC_EXCITWEIGHT)
          ENDIF
-         IF(g_VMC_ExcitToWeight.NE.0.D0) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))/g_VMC_ExcitToWeight)
+         IF(g_VMC_ExcitToWeight.NE.0.D0) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitToWeight)
          RETURN
       END
 
