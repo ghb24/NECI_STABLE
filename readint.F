@@ -106,11 +106,12 @@ C.. set momentum to 0
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 TMAT(NBASIS,NBASIS),ECORE,ARR(NBASIS,2)
-         REAL*8 UMAT(NBASIS/2,NBASIS/2,NBASIS/2,NBASIS/2)
+         REAL*8 UMAT(*)
          REAL*8 Z
          INTEGER I,J,K,L,BRR(NBASIS),G1(*)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
          LOGICAL LWRITE
+         INTEGER UMatInd
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
          LWRITE=.FALSE.
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
@@ -138,14 +139,15 @@ C.. These are stored as spinorbitals (with elements between different spins bein
 C.. 2-e integrals
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-            UMAT(I,K,J,L)=Z
-            UMAT(J,L,I,K)=Z
-            UMAT(K,I,L,J)=Z
-            UMAT(L,J,K,I)=Z
-            UMAT(J,K,I,L)=Z
-            UMAT(I,L,J,K)=Z
-            UMAT(L,I,K,J)=Z
-            UMAT(K,J,L,I)=Z
+            UMAT(UMatInd(I,K,J,L))=Z
+!i            UMAT(I,K,J,L)=Z
+!            UMAT(J,L,I,K)=Z
+!            UMAT(K,I,L,J)=Z
+!            UMAT(L,J,K,I)=Z
+!            UMAT(J,K,I,L)=Z
+!            UMAT(I,L,J,K)=Z
+!            UMAT(L,I,K,J)=Z
+!            UMAT(K,J,L,I)=Z
          ENDIF
          GOTO 101
 199      CONTINUE

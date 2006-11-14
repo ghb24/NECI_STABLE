@@ -526,8 +526,9 @@ C.. Generate the 2e integrals (UMAT)
             NBASISMAX(2,3)=2
 C.. We can only do restricted systems, so alpha and beta spinorbital
 C... integrals will be the same 
-            CALL MEMORY(IP_UMAT,HElementSize*(NHG/2)**4,'UMAT')
-            CALL AZZERO(UMAT,HElementSize*(NHG/2)**4)
+            CALL GetUMatSize(nHG,2,I)
+            CALL MEMORY(IP_UMAT,HElementSize*I,'UMAT')
+            CALL AZZERO(UMAT,HElementSize*I)
             CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
             CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             CALL READFCIINT(UMAT,TMAT,NBASIS,ECORE,ARR,BRR,G1)
@@ -553,9 +554,10 @@ C..   We're doing a 2D simulation
 C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
 C.. Generate the 2e integrals (UMAT)
-               CALL MEMORY(IP_UMAT,HElementSize*(NHG/ISPINSKIP)**4,
+               CALL GetUMatSize(nHG,iSpinSkip,I)
+               CALL MEMORY(IP_UMAT,HElementSize*I,
      &            'UMAT')
-               CALL AZZERO(UMAT,HElementSize*(NHG/ISPINSKIP)**4)
+               CALL AZZERO(UMAT,HElementSize*I)
                IF(TUEG.OR.THUB) THEN
                   IF(THUB.AND.TREAL) THEN
 C.. Real space hubbard
@@ -655,8 +657,9 @@ C.. unrestricted
                IP_TMAT=IP_TMAT2
                IP_TMAT2=NULL
 C.. Allocate the new matrix
-               CALL MEMORY(IP_UMAT2,NHG**4,'UMAT2')
-               CALL AZZERO(UMAT2,NHG**4)
+               CALL GetUMatSize(nHG,1,I)
+               CALL MEMORY(IP_UMAT2,HElementSize*I,'UMAT2')
+               CALL AZZERO(UMAT2,HElementSize*I)
 C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN
@@ -712,9 +715,10 @@ C.. We need to transform some integrals
             CALL AZZERO(TMAT2,HElementSize*(NBASIS)**2)
             IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
 C.. allocate a UMAT
-               CALL MEMORY(IP_UMAT2,HElementSize*(NBASIS/ISPINSKIP)**4,
+               CALL GetUMatSize(nBasis,iSpinSkip,I) 
+               CALL MEMORY(IP_UMAT2,HElementSize*I,
      &            'UMAT2')
-               CALL AZZERO(UMAT2,HElementSize*(NBASIS/ISPINSKIP)**4)
+               CALL AZZERO(UMAT2,HElementSize*I)
             ELSE
 C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
                CALL MEMORY(IP_UMAT2,1,'UMAT2')
@@ -763,8 +767,9 @@ C.. unrestricted
                IP_TMAT=IP_TMAT2
                IP_TMAT2=NULL
 C.. Allocate the new matrix
-               CALL MEMORY(IP_UMAT2,HElementSize*NHG**4,'UMAT2')
-               CALL AZZERO(UMAT2,HElementSize*NHG**4)
+               CALL GetUMatSize(nHG,1,I)
+               CALL MEMORY(IP_UMAT2,HElementSize*I,'UMAT2')
+               CALL AZZERO(UMAT2,HElementSize*I)
 C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN
@@ -2681,6 +2686,7 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          TYPE(Symmetry) KSYM
          TYPE(HElement) GETUMATEL
          REAL*8 ALAT(3)
+         INTEGER UMatInd
 C.. Just check to see if we're not in the middle of a degenerate set with the same sym
          IF(NFROZEN.GT.0) THEN
             IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.
@@ -2802,22 +2808,22 @@ C.. the primed (...P) are the new versions
                IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                 CALL GTID(NBASISMAX,JB,IDJ)
                 CALL GTID(NBASISMAX,JPB,IDJP)
-                DO K=1,NBASIS
+                DO K=I,NBASIS
                   KB=BRR(K+NFROZEN)
                   KPB=GG(KB)
                   IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                    CALL GTID(NBASISMAX,KB,IDK)
                    CALL GTID(NBASISMAX,KPB,IDKP)
-                   DO L=1,NBASIS
-                     LB=BRR(L+NFROZEN)
-                     LPB=GG(LB)
-                     IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                      CALL GTID(NBASISMAX,LB,IDL)
-                      CALL GTID(NBASISMAX,LPB,IDLP)
-                      UMAT2(IDIP+(NBASIS/ISS)*(IDJP-1+
-     &                     (NBASIS/ISS)*(IDKP-1+(NBASIS/ISS)*(IDLP-1))))
-     &                    =UMAT(IDI+(NHG/ISS)*(IDJ-1+
-     &                     (NHG/ISS)*(IDK-1+(NHG/ISS)*(IDL-1))))
+                   DO L=J,NBASIS
+                     IF((K*(K-1))/2+I.GE.(L*(L-1))/2+J) THEN
+                        LB=BRR(L+NFROZEN)
+                        LPB=GG(LB)
+                        IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
+                         CALL GTID(NBASISMAX,LB,IDL)
+                         CALL GTID(NBASISMAX,LPB,IDLP)
+                         UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP))
+     &                     =UMAT(UMatInd(IDI,IDJ,IDK,IDL))
+                        ENDIF
                      ENDIF
                    ENDDO
                   ENDIF

@@ -1,3 +1,32 @@
+! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>K, J>L,(I,K)>(K,L) 
+      INTEGER FUNCTION UMatInd(I,J,K,L)
+         IMPLICIT NONE
+         INTEGER I,J,K,L,A,B
+         IF(I.GT.K) THEN
+            A=(I*(I-1))/2+K
+         ELSE
+            A=(K*(K-1))/2+I
+         ENDIF
+         
+         IF(J.GT.L) THEN
+            B=(J*(J-1))/2+L 
+         ELSE
+            B=(L*(L-1))/2+J
+         ENDIF
+         IF(A.GT.B) THEN
+            UMatInd=(A*(A-1))/2+B
+         ELSE
+            UMatInd=(B*(B-1))/2+A
+         ENDIF
+      END
+      SUBROUTINE GetUMatSize(nBasis,iSS,iSize)
+         IMPLICIT NONE
+         INTEGER nBasis,iSS
+         INTEGER iPairs,nBi,iSize
+         nBi=nBasis/iSS
+         iPairs=(nBi*(nBi+1))/2
+         iSize=(iPairs*(iPairs+1))/2
+      END
       FUNCTION GetUMatEl(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,
      &      IDI,IDJ,IDK,IDL)
          USE HElement
@@ -17,6 +46,7 @@
          TYPE(Symmetry) SYM,SYMPROD
          INCLUDE 'umatcache.inc'
          INTEGER ISUB,ISUB2
+         INTEGER UMatInd
 !         CALL TISET(' GETUMATEL',ISUB)
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
@@ -93,8 +123,7 @@ C                  WRITE(6,*) A,B
           ELSE
 !         CALL TIHALT(' GETUMATEL',ISUB)
 !         CALL TISET('GETUMATEL2',ISUB2)
-             GETUMATEL=UMAT(IDI+(NHG/ISS)*(IDJ-1+
-     &                     (NHG/ISS)*(IDK-1+(NHG/ISS)*(IDL-1))))
+             GETUMATEL=UMAT(UMatInd(IDI,IDJ,IDK,IDL))
 !         CALL TIHALT('GETUMATEL2',ISUB2)
          RETURN
           ENDIF
