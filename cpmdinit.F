@@ -7,6 +7,7 @@
          REAL*8 ARR(LEN,2)
          INTEGER I,J
          TYPE(Symmetry) iDecomp
+         LOGICAL IMPROP(NKPS)
          LOGICAL ALL1D
 C         NBASISMAX(1,1)=1
 C         NBASISMAX(1,2)=NSTATES
@@ -31,8 +32,18 @@ C         NBASISMAX(4,2)=1
 
 C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          NBASISMAX(2,3)=0
-         CALL EXTRACTSYMLABELS
-         CALL GENIRREPS(IMPROPER_OP,NROTOP)
+         IF(TKP) THEN
+!  We've got a k-point code, so we're not currently using spatial symmetry.  We use translational symmetry according to the k-points
+            CALL GenKPtIrreps(KPNT_CHAR,NKPTRANS,NKPS,KPNTIND,NSTATES)
+!Fake Improper Op code
+            DO I=1,NKPS
+               IMPROP(I)=.FALSE.
+            ENDDO
+            CALL GENIRREPS(IMPROP,NKPTRANS)
+         ELSE
+            CALL EXTRACTSYMLABELS
+            CALL GENIRREPS(IMPROPER_OP,NROTOP)
+         ENDIF
          CALL GENSYMTABLE
 
 C         CALL FAKEEIGENVALUES
@@ -94,6 +105,9 @@ C.. group
             NROT=NROTOP*NTRANSLAT
          ELSE
             NROT=NROTOP
+         ENDIF
+         IF(TKP) THEN
+            NROT=NKPTRANS
          ENDIF
       END
       
@@ -178,8 +192,8 @@ C.. Indices need to be inverted so cannot straight ICOPY
          WRITE(6,*) "SYMMETRY CLASSES"
          CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 C.. Allocate memory gor irreps.
-C.. Assume there will be no more than 32 irreps
-         CALL MEMORY(IP_IRREPCHARS,NROT*32*2,"IRREPCH")
+C.. Assume there will be no more than 64 irreps
+         CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
       END
 
       SUBROUTINE FAKEEIGENVALUES

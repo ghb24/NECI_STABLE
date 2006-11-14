@@ -41,7 +41,7 @@ C     ==================================================================
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT),
      &            GROUP_CHAR(NTRANSLAT*NROTOP,NSTATES),
      &            TRANS_CHAR_TABLE(NTRANSLAT,NTRANSLAT),
-     &            KPNT_CHAR(NTRANSLAT,2*NKPS)
+     &            KPNT_CHAR(NKPTRANS,NKPS)
       INTEGER K_VECTORS(3,NTRANSLAT),CELLSIZES(3)
       LOGICAL BIGCELL,IMPROPER_OP(NROTOP*NTRANSLAT),PROJECT,TSPACEGP
       REAL*8 EIONION,DEGENTOL
@@ -51,9 +51,13 @@ C     ==================================================================
      &        (IP_K_VECTORS,K_VECTORS),(IP_GROUP_CHAR,GROUP_CHAR),
      &        (IP_TRANS_CHAR_TABLE,TRANS_CHAR_TABLE),
      &        (IP_KPNT_CHAR,KPNT_CHAR)
+      LOGICAL TKP
+      POINTER (IP_KPNTINDEXNECI,KPNTIND)
+      INTEGER KPNTIND(*)
       COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,NKPTRANS,IP_ROT_CHAR,
      &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,
      &                  IP_ROT_LABEL,IP_TRANS_LABEL,IP_IMPROPER_OP,
      &                 EIONION,NCOMPLETE,DEGENTOL,TSPACEGP,IP_KPNT_CHAR,
-     &                 IP_K_VECTORS,IP_GROUP_CHAR,IP_TRANS_CHAR_TABLE
+     &                 IP_K_VECTORS,IP_GROUP_CHAR,IP_TRANS_CHAR_TABLE,
+     &                 TKP,NKPS,IP_KPNTINDEXNECI
 C     ==================================================================

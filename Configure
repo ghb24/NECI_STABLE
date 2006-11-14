@@ -1062,7 +1062,7 @@ cat << END >&3
 #----------------------------------------------------------------------------
 #MAIN_OBJS=necimain.o
 clean : 
-	  rm \$(DEST)/*.f90 \\$(DEST)/*.f \$(dest)/*.o \$(DEST)/*.mod
+	  rm \$(DEST)/*.f90 \$(DEST)/*.f \$(dest)/*.o \$(DEST)/*.mod
 
 neci.x : necimain.o \$(OBJECTS) \$(OBJ_CC)
 	 rm -f timetag.f

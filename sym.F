@@ -587,14 +587,14 @@ C.. First do a check for the format
                      WRITE(IUNIT,"(A,2F6.3,A,$)") "(",CHARS(J),")"
                   ENDIF
                ELSE
-                  IF(DIMAG(CHARS(J)).GT.1.D-2) THEN
+                  IF(ABS(DIMAG(CHARS(J))).GT.1.D-2) THEN
 C.. write in terms of I.
                      IF(LREAL) THEN
                         WRITE(IUNIT,"(G14.9,A,$)") CHARS(J)," "
                      ELSE                        
-                        IF(ABS(DIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
+                        IF(ABS(DIMAG(CHARS(J))+1.D0).LT.1.D-2) THEN
                            WRITE(IUNIT,"(A,$)") " -I "
-                        ELSEIF(ABS(DIMAG(CHARS(J))+1.D0).LT.1.D-2) THEN
+                        ELSEIF(ABS(DIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
                            WRITE(IUNIT,"(A,$)") "  I "
                         ELSE 
                          WRITE(IUNIT,"(I2,A,$)") NINT(DIMAG(CHARS(J))),
@@ -1260,3 +1260,32 @@ C.. Set to be totally symmetric
 C.. Set to be totally symmetric
          FrozenSym%Sym=Sym
       END
+ 
+!Deal with K-point symmetries, using translational symmetry operations.
+      SUBROUTINE GenKPtIrreps(cKptChars,nTranslat,nKps,KpntInd,nStates)
+      IMPLICIT NONE
+      COMPLEX*16 cKptChars(nTranslat,nKps)
+      INTEGER nTranslat,nKps,KpntInd(nStates)
+      INTEGER I,J,nStates
+      INCLUDE 'sym.inc'
+      nSymLabels=nKps
+      nRot=nTranslat
+      CALL MEMORY(IP_SYMLABELCHARS,nSymLabels*nRot*2,'SYMLABELCH')
+      CALL AZZERO(SYMLABELCHARS,nSymLabels*nRot*2)
+      CALL MEMORY(IP_SYMLABELS,nSymLabels,'SYMLABELS')
+      CALL MEMORY(IP_SymClasses,nStates,'SymClasses')
+      DO I=1,nKps
+         DO J=1,nRot
+            SymLabelChars(J,I)=cKptChars(J,I)
+         ENDDO
+      ENDDO
+      DO I=1,nStates
+         SymClasses(I)=KpntInd(I)
+      ENDDO
+         WRITE(6,*) "SYMMETRY CLASSES"
+         CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
+!.. Allocate memory gor irreps.
+!.. Assume there will be no more than 64 irreps
+         CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
+      END
+
