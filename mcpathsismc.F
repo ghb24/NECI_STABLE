@@ -354,15 +354,15 @@ C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider a
                          IF(TSEQ) THEN
 !.. Generate a graph between I_VMIN and I_VMAX
                               R=RAN2(ISEED)*g_MultiWeight(0)
-                              I_VCUR=I_VMIN
-                              DO WHILE (R.GT.0.AND.I_VCUR.LT.I_VMAX)
-                                 R=R-g_MultiWeight(I_VCUR)
+                              I_VCUR=I_VMIN-1
+                              DO WHILE (R.GE.0.AND.I_VCUR.LT.I_VMAX)
                                  I_VCUR=I_VCUR+1
+                                 R=R-g_MultiWeight(I_VCUR)
                               ENDDO
-                              
                               IOV=I_OVCUR
                               IGV=I_VCUR
-                              PFAC=G_VMC_FAC
+                              PFAC=G_VMC_FAC*g_MultiWeight(I_VCUR)
+     &                                       /g_MultiWeight(0)
 C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                         NBASISMAX,G1,NBASIS,BRR,
