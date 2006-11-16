@@ -34,7 +34,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          COMPLEX*16 FCK(*)
          INTEGER I_P,I_HMAX,BRR(*),NMSH(*),NMAX
          INTEGER NTAY,NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
-         INTEGER FSEEK,L,LT,ITIME,K
+         INTEGER FSEEK,L,LT,ITIME,K,J
          REAL*8 BETA,ECORE,TIMEC
          TYPE(HDElement) WLRI,WLSI,FMCPR3
          TYPE(HElement) UMat(*),TMat(*),RH
@@ -68,9 +68,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NMEM(*),NMEMLEN,INODE2(NEL)
          POINTER (IP_NMEM,NMEM)
          REAL*8 NTIME,OTIME
-         INTEGER IFRZ(0:NBASIS,I_VMAX)
+         INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2
          REAL*8 OSI,ODLWDB,OPROB
          TYPE(HDElement) MP2E
+         INCLUDE 'vmc.inc'
          CALL TISET('MCPATHSR10',ISUB)
 C.. This will store the MP2 energy
          MP2E=0.D0
@@ -112,6 +113,7 @@ C     &            HIJS(0))
 
 
          NTOTAL=1.D0
+         I_V1=0
 C.. I_V is the number of vertices in the path
          DO I=2,I_VMAX
             I_V=NWHTAY(3,I)
@@ -173,14 +175,28 @@ C.. forcing them to be disconnected.
                   LT=0
                ENDIF
             ELSEIF(I_CHMAX.EQ.-7) THEN
-C..   We couple a vertex monte carlo at this vertex level to a known result at previous
+C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
 C.. levels by regarding all previous levels as a composite object with the Et and wi
 C.. we have already worked out. 
+              g_MultiWeight(0)=0.D0
+              DO J=1,I_VMAX
+               IF(g_MultiWeight(J).NE.0.D0) THEN
+                  IF(g_MultiWeight(0).EQ.0.D0) THEN
+!  The first of the multi - get its vertex level
+                     I_V1=NWHTAY(3,J)
+                  ENDIF
+                  g_MultiWeight(0)=g_MultiWeight(0)+g_MultiWeight(J)
+               ENDIF
+              ENDDO
+!  The last of the multi
+              I_V2=NWHTAY(3,I_VMAX)
+   
+      
               WLSI=TOTAL
-              CALL MCPATHSR4(NI,BETA,I_P,I_CHMAX,I_V,NEL,NBASISMAX,G1,
+              CALL MCPATHSR4(NI,BETA,I_P,I_CHMAX,I_V2,NEL,NBASISMAX,G1,
      &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,CNWHTAY,ILOGGING,ECORE,ILMAX,
-     &               WLRI,WLSI,DBETA,DLWDB,I_V)
+     &               WLRI,WLSI,DBETA,DLWDB,I_V1)
                F(I_V)=WLSI
                DLWDB2=0.D0
               CALL WRITECLASSPATHS()
@@ -243,6 +259,8 @@ C.. save all log files
                CALL WRITEDET(6,NI,NEL,.TRUE.)
             ENDIF
             CALL WRITECLASSPATHS()
+! If we've done a multi, we don't need to do any more
+            IF(I_V1.NE.0) EXIT
          ENDDO
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) THEN

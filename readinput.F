@@ -371,6 +371,8 @@ C                  end select
                      end if
                   case("VERTICES")
                      call geti(NWHTAY(3,I_VMAX))
+                  case("MULTIMCWEIGHT")
+                     call getf(g_MultiWeight(I_VMAX))
                   case("ENDMETHODS")
                      exit methods
                   case default

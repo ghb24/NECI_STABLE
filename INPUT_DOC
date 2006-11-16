@@ -190,8 +190,17 @@ METHOD <METHOD>
     Specify the method for vertex summation routine.  Options currently are:
     VERTEX SUM OLD,NEW,HDIAG
         Use the old, new, or H-diagonalizing vertex sum subroutine.
-    VERTEX MC
+    VERTEX MC 
         Monte Carlo procedure.
+        This may be performed in a number of ways (The way is chosen by the location of the VERTEX MC command):
+         SINGLE
+            MC is performed at a single vertex level using a composite 1-vertex graph containing a full sum previously performed.  BIAS is used to choose whether a step selects a composite (all lower levels) or a normal (this level) graph.  Stochastic time MC is performed. This can only be specified in the METHODS section, and only at the last vertex level.  Uses EXCITWEIGHTING for excitation generation weighting and IMPORTANCE for graph generation weighting
+         MULTI
+            MC is performed at a multiple vertex levels, but still using a composite 1-vertex graph containing a full sum previously performed. MULTI should be specified in all the (contiguous) vertex levels to be included (not composited) in the MC.  BIAS is used to choose whether a step selects a composite (all lower levels) or a normal (the MULTI levels) graph.  MULTIMCWEIGHT is specified for each MULTI level, and gives a relative weighting of selecting the vertex level graphs once a non-composite graph is chosen.  Stochastic time MC is performed.  This can only be specified in the METHODS section.  Once MULTI has been specified, it must be specified on all subsequent vertex levels in a METHODS section.  Uses EXCITWEIGHTING for excitation generation weighting and IMPORTANCE for graph generation weighting
+         FULL
+            Does  MC at all levels (cannot be specified in a METHODS section) using BIAS to bias the levels, EXCITWEIGHTING for excitation generation, and IMPORTANCE to for graph generation weighting.
+
+
     VERTEX SUM READ
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
     VERTEX STAR DIAG,POLY
@@ -214,17 +223,17 @@ SEED <G_VMC_SEED>
     Random seed required for the MC routine.  This should be negative.  The default is -7
 
 BIAS <G_VMC_FAC>
-    Level bias for the MC routine when run over multiple vertex levels. Positive biases toward larger graphs.  Negative towards smaller
+    Level bias for the FULL MC routine. Positive biases toward larger graphs.  Negative towards smaller
         The default is 16.
-    For a single level MC (using a composite 1-vertex graph containing a full sum previously performed), this is the probability of generating
-     a graph which is not the composit graph.  The default is invalid, and this must be set manaully
+    For a SINGLE and MULTI level MC (using a composite 1-vertex graph containing a full sum previously performed), this is the probability of generating
+     a graph which is not the composite graph.  The default is invalid, and this must be set manaully
 
 EXCITWEIGHTING <g_VMC_ExcitFromWeight g_VMC_ExcitToWeight G_VMC_EXCITWEIGHT>
    A weighting factor for the generation of random excitations in the Vertex MC.  Default for all is 0.D0 (meaning unweighted, where the weighting factors for that process are set to 1.).
       The probability of choosing pair ij is proportional to exp((e_i+e_j)*g_VMC_ExcitFromWeight)
-      The probability of choosing pair kl is proportional to exp(-(e_k+e_l)*g_VMC_ExcitToWeight) exp(-|<ij|U|kl>|*G_VMC_EXCITWEIGHT)
+      The probability of choosing pair kl is proportional to exp(-(e_k+e_l)*g_VMC_ExcitToWeight) exp(|<ij|U|kl>|*G_VMC_EXCITWEIGHT)
 
-**If any of the options for MC are set and the vertex method is not MC, then an error is returned.**
+MULTIMCWEIGHT <g_
 
 PATHS <NPATHS>
     Choose the first NPATHS determinants and calculate RHOPII etc.

@@ -48,12 +48,13 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
      &            HFE,ARR,BRR)
          IMPLICIT NONE
          INTEGER NBASIS,ISS,NBASISMAX(5,2),G1(*)
-         REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
-         REAL*8 UMAT2(NBASIS,NBASIS,NBASIS,NBASIS),ARR(NBASIS)
+         REAL*8 UMAT(*)
+         REAL*8 UMAT2(*),ARR(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
          INTEGER I,J,K,L,A,B,C,D,ISUB
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS)
          LOGICAL LSPN
+         INTEGER UMatInd
          NHG=NBASIS
          WRITE(6,*) 'READING HF UMAT'
 C ==--------------------------------------------------------------------=
@@ -61,11 +62,11 @@ C ==--------------------------------------------------------------------=
          DO WHILE (.TRUE.)
             
             READ(10,*,END=12) A,B,C,D,SUM
-              UMAT2(A,B,C,D)=SUM
-C..Symmetries
-              UMAT2(C,D,A,B)=SUM
-              UMAT2(B,A,D,C)=SUM
-              UMAT2(D,C,B,A)=SUM
+              UMAT2(UMatInd(A,B,C,D))=SUM
+C..Symmetries not needed by UMatInd
+!              UMAT2(C,D,A,B)=SUM
+!              UMAT2(B,A,D,C)=SUM
+!              UMAT2(D,C,B,A)=SUM
          ENDDO
 12       CLOSE(10)
       END
@@ -113,16 +114,19 @@ C.. Generic spatial symmetry
      &            HFE,ARR,BRR,NORBUSED)
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
-         REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
-         REAL*8 UMAT2(NBASIS,NBASIS,NBASIS,NBASIS),ARR(NBASIS)
-         REAL*8 UMATT(NBASIS,NBASIS,NBASIS,NBASIS)
+         REAL*8 UMAT(*)
+         REAL*8 UMAT2(*),ARR(NBASIS)
+         REAL*8 UMATT((((NHG/ISS)*(NHG/ISS-1))/2)**2)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
          INTEGER I,J,K,L,A,B,C,D,ISUB
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
          LOGICAL LSPN
+         INTEGER UMatInd
          NHG=NBASIS
          CALL TISET('CALCHFUMAT',ISUB)
          WRITE(6,*) 'CALCULATING HF UMAT'
+         STOP "HF UMAT calculation broken through UMAT reindexing."
+     &      //"  Please fix"
 C ==--------------------------------------------------------------------==
          OPEN(10,FILE='UMAT2',STATUS='UNKNOWN')
 C.. A, B, C, D denote basis fns in the HF basis.  These basis fns
@@ -140,9 +144,9 @@ C.. Thus the sum A+C must be even, as must B+D
              DO I=1,NHG
               CALL GTID(NBASISMAX,I,ID1)
               SUM=SUM+HFBASIS(A,I)
-     &               *UMAT(ID1,J,K,L)
+     &               *UMAT(UMatInd(ID1,J,K,L))
              ENDDO
-             UMATT(J,K,L,A)=SUM
+             UMATT(UMatInd(J,K,L,A))=SUM
 !             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) J,K,L,A,SUM
             ENDDO
            ENDDO
@@ -157,9 +161,9 @@ C.. Thus the sum A+C must be even, as must B+D
              DO J=1,NHG
               CALL GTID(NBASISMAX,J,ID2)
               SUM=SUM+HFBASIS(B,J)
-     &               *UMATT(ID2,K,L,A)
+     &               *UMATT(UMatInd(ID2,K,L,A))
              ENDDO
-             UMAT2(K,L,A,B)=SUM
+             UMAT2(UMatInd(K,L,A,B))=SUM
 !             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) K,L,A,B,SUM
             ENDDO
            ENDDO
@@ -174,9 +178,9 @@ C.. Thus the sum A+C must be even, as must B+D
              DO K=1,NHG
               CALL GTID(NBASISMAX,K,ID3)
               SUM=SUM+HFBASIS(C,K)
-     &               *UMAT2(ID3,L,A,B)
+     &               *UMAT2(UMatInd(ID3,L,A,B))
              ENDDO
-             UMATT(L,A,B,C)=SUM
+             UMATT(UMatInd(L,A,B,C))=SUM
 !             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) L,A,B,C,SUM
             ENDDO
            ENDDO
@@ -189,18 +193,18 @@ C.. Thus the sum A+C must be even, as must B+D
            DO C=1,NORBUSED
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
-             IF(LSPN.AND.UMAT2(A,B,C,D).EQ.0.D0) THEN
+             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D)).EQ.0.D0) THEN
               SUM=0.D0
               DO L=1,NHG
                CALL GTID(NBASISMAX,L,ID4)
                SUM=SUM+HFBASIS(D,L)
-     &                *UMATT(ID4,A,B,C)
+     &                *UMATT(UMatInd(ID4,A,B,C))
               ENDDO
-              UMAT2(A,B,C,D)=SUM
-C..Symmetries
-              UMAT2(C,D,A,B)=SUM
-              UMAT2(B,A,D,C)=SUM
-              UMAT2(D,C,B,A)=SUM
+              UMAT2(UMatInd(A,B,C,D))=SUM
+C..Symmetries not needed by UMatInd
+!              UMAT2(C,D,A,B)=SUM
+!              UMAT2(B,A,D,C)=SUM
+!              UMAT2(D,C,B,A)=SUM
                IF(ABS(SUM).GT.1.D-10)
      &          WRITE(10,'(4I7,F19.9)') A,B,C,D,SUM
              ENDIF
@@ -256,7 +260,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
-         REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
+         REAL*8 UMAT(*)
          REAL*8 TMAT(NBASIS,NBASIS),ECORE
          REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
@@ -503,11 +507,12 @@ C.. vector
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
-         REAL*8 UMAT(NSBASIS,NSBASIS,NSBASIS,NSBASIS)
+         REAL*8 UMAT(*)
          INTEGER I,J,K,L,ISPN,ISPN2,ID1,ID2,ID3,ID4
          REAL*8 TOT
          LOGICAL TRHF,TTRANS
          REAL*8 RHFMUL
+         INTEGER UMatInd
 C         IF(TRHF) THEN
 C            RHFMUL=2.D0
 C         ELSE
@@ -529,10 +534,10 @@ C.. Now sum in the alpha and beta block of u matrix
                            CALL GTID(NBASISMAX,(K-1)*NSPINS+ISPN2,ID3)
                            CALL GTID(NBASISMAX,(L-1)*NSPINS+ISPN2,ID4)
                            TOT=TOT+RHFMUL*
-     &                           DMAT(K,L,ISPN2)*UMAT(ID1,ID3,ID2,ID4)
+     &                    DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID2,ID4))
                            IF(ISPN2.EQ.ISPN)
      &                        TOT=TOT-
-     &                           DMAT(K,L,ISPN2)*UMAT(ID1,ID3,ID4,ID2)
+     &                   DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID4,ID2))
                         ENDDO
                      ENDDO
                   ENDDO
@@ -849,7 +854,7 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
-         REAL*8 UMAT(NSBASIS,NSBASIS,NSBASIS,NSBASIS)
+         REAL*8 UMAT(*)
          REAL*8 TMAT(NBASIS,NBASIS),ECORE
          REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
@@ -1221,12 +1226,13 @@ C.. TOT now contains dE/dcij, so we store this
          REAL*8 DEDCIJ(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSBASIS,NSPINS,NBASIS
          INTEGER NDET1(0:NEL+1),NELS(NSPINS),NEL
-         REAL*8 UMAT(NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
+         REAL*8 UMAT(*)
          REAL*8 TMAT(NBASIS,NBASIS),ECORE
          INTEGER NBASISMAX(*),G1(*),ISS
          INTEGER ISPN,I,J,K,A,B,C,F,JSPN,KSPN,JJ
          INTEGER IDA,IDB,IDC,IDF
          REAL*8 TOT,TOT1,TOT2,ECUR,TOT1B
+         INTEGER UMatInd
 C.. We calculate dE/dcij as
 C.. dE/dc_kf = 2(Sum_a c_ka <a|h|f> 
 C.. +Sum_j Sum_abc c_ja c_kb c_jc (<af|U|cb>-<af|U|bc>+<ab|U|cf>-<ab|U|fc>)) 
@@ -1262,11 +1268,11 @@ C.. Here A and C correspond to J and B corresponds to K
                               TOT2=0.D0
                               CALL GTID(NBASISMAX,
      &                           (C-1)*NSPINS+1+JSPN-1,IDC)
-                              TOT2=TOT2+UMAT(IDA,IDF,IDC,IDB)
-                              TOT2=TOT2+UMAT(IDA,IDB,IDC,IDF)
+                              TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB))
+                              TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF))
                               IF(KSPN.EQ.JSPN) THEN                  
-                                 TOT2=TOT2-UMAT(IDA,IDF,IDB,IDC)
-                                 TOT2=TOT2-UMAT(IDA,IDB,IDF,IDC)
+                                TOT2=TOT2-UMAT(UmatInd(IDA,IDF,IDB,IDC))
+                                TOT2=TOT2-UMAT(UMatInd(IDA,IDB,IDF,IDC))
                               ENDIF
                               TOT1B=TOT1B+TOT2*CMAT(J,C,JSPN)
                            ENDDO
