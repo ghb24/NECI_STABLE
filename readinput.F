@@ -361,7 +361,7 @@ C                  end select
                      I_VMAX=I_VMAX+1
                      NWHTAY(3,I_VMAX)=I_VMAX
                     call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX))
-                    g_MultiWeight(I_VMAX)=1.D0
+                   if(NWHTAY(2,I_VMAX).EQ.-7) g_MultiWeight(I_VMAX)=1.D0
                   case("EXCITATIONS")
                      call inpgetexcitations(NWHTAY(2,I_VMAX))
                   case("CYCLES")
