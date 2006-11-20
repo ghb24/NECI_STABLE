@@ -1676,12 +1676,16 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
                CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
                CALL WRITE_XMATRIX(60,XIJ,I_V)
             ENDIF
-          IF(BTEST(ILOGGING,2)) THEN
-            CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-            IF(BTEST(ILOGGING,3))
+            CALL CLASSPATHS(FMCPR4D2,DLWDB,1.D0,RHOIJ,
+     &            I_V,ICLS)
+! If we're writing graphs, we write here before acceptance/rejectance
+            IF(BTEST(ILOGGING,2)) THEN
+               CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+               IF(BTEST(ILOGGING,3))
      &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
-            IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
-            WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
+               IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
+               WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
+            ENDIF
             IF(PR.LT.R2) THEN
 C.. reject the new, and copy in the old
                ETILDE=OETILDE
@@ -1701,6 +1705,14 @@ C.. reject the new, and copy in the old
                IACC=1
             ENDIF
          ENDIF
+! If we're not writing graphs, we write here after
+         IF(.NOT.BTEST(ILOGGING,2)) THEN
+            CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+            IF(BTEST(ILOGGING,3))
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+            IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
+            WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
+         ENDIF
          IF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))
@@ -1709,10 +1721,7 @@ C.. Unbias the sum
             FMCPR4D2=0.D0
             DLWDB=0.D0
          ENDIF
-         CALL CLASSPATHS(FMCPR4D2,DLWDB,1.D0,RHOIJ,
-     &            I_V,IOCLS)
-         CALL GETTREENESS(IOCLS,ITREE,FMCPR4D2,I_V)
-         ENDIF   
+         CALL GETTREENESS(ICLS,ITREE,FMCPR4D2,I_V)
       END
 
 

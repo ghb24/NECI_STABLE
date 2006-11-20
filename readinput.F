@@ -629,6 +629,8 @@ C.. multiple of 2
                       ILOGGING = IOR(ILOGGING,2**9)
                   case("EXCITATION")
                       ILOGGING = IOR(ILOGGING,2**12)
+                  case("XIJ")
+                      ILOGGING = IOR(ILOGGING,2**6)
                   case default
                       ILOGGING = IOR(ILOGGING,2**2)
                   end select
