@@ -1676,6 +1676,12 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
                CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
                CALL WRITE_XMATRIX(60,XIJ,I_V)
             ENDIF
+          IF(BTEST(ILOGGING,2)) THEN
+            CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+            IF(BTEST(ILOGGING,3))
+     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+            IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
+            WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
             IF(PR.LT.R2) THEN
 C.. reject the new, and copy in the old
                ETILDE=OETILDE
@@ -1706,12 +1712,6 @@ C.. Unbias the sum
          CALL CLASSPATHS(FMCPR4D2,DLWDB,1.D0,RHOIJ,
      &            I_V,IOCLS)
          CALL GETTREENESS(IOCLS,ITREE,FMCPR4D2,I_V)
-          IF(BTEST(ILOGGING,2)) THEN
-            CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-            IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
-            IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
-            WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
          ENDIF   
       END
 
