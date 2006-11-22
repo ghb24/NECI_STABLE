@@ -294,6 +294,7 @@ C.. Markov chain with random generation.
                            IF(G_VMC_FAC.LT.0) THEN
 !.. Non-stochastic-time if bias<0.  we use |bias|
                               LP=0
+                              IF(RAN2(ISEED).GT.ABS(G_VMC_FAC)) LP=1
                            ELSE
                               LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
                            ENDIF
@@ -303,7 +304,7 @@ C.. Markov chain with random generation.
                               OWEIGHT=WCORE
                               ODLWDB=DLWDBCORE
                               DLWDB2=DLWDBCORE/WCORE
-                              OPROB=1.D0-G_VMC_FAC
+                              OPROB=1.D0-ABS(G_VMC_FAC)
                               IOCLS=0
                               FF=1.D0
                               ITREE=1
@@ -341,7 +342,7 @@ C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
 C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
 !                   !
                            IF(RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
-     &                           .GE.G_VMC_FAC) THEN
+     &                           .GE.ABS(G_VMC_FAC)) THEN
                               FF=1.D0
                               IOV=I_OVCUR
                               I_OVCUR=1
@@ -356,12 +357,12 @@ C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider a
 !                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
 !     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
                               I_VCUR=1
-                              PFAC=1.D0-G_VMC_FAC
+                              PFAC=1.D0-ABS(G_VMC_FAC)
                               IOCLS=0
                               TSEQ=.FALSE.
                            ELSE
                               TSEQ=.TRUE.
-!                              I_OVCUR=I_VMIN
+                              I_OVCUR=I_VMIN
                            ENDIF
                          ENDIF
 !                   !
@@ -375,7 +376,7 @@ C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider a
                               ENDDO
                               IOV=I_OVCUR
                               IGV=I_VCUR
-                              PFAC=G_VMC_FAC*g_MultiWeight(I_VCUR)
+                              PFAC=ABS(G_VMC_FAC)*g_MultiWeight(I_VCUR)
      &                                       /g_MultiWeight(0)
 C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
