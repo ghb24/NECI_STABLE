@@ -88,7 +88,7 @@ C.. go to end of file
             I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
-         IF(BTEST(ILOGGING,2)) THEN
+         IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
             OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
          ENDIF
@@ -263,7 +263,7 @@ C.. save all log files
             IF(I_V1.NE.0) EXIT
          ENDDO
          IF(TLOG) CLOSE(11)
-         IF(BTEST(ILOGGING,2)) THEN
+         IF(BTEST(ILOGGING,0)) THEN
             CLOSE(10)
             CLOSE(13)
          ENDIF
@@ -406,7 +406,7 @@ C.. go to end of file
             I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
-         IF(BTEST(ILOGGING,2)) THEN
+         IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
             OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
          ENDIF
@@ -491,7 +491,7 @@ C.. save all log files
             CALL WRITECLASSPATHS()
          ENDDO
          IF(TLOG) CLOSE(11)
-         IF(BTEST(ILOGGING,2)) THEN
+         IF(BTEST(ILOGGING,0)) THEN
             CLOSE(10)
             CLOSE(13)
          ENDIF
@@ -553,7 +553,8 @@ C.. NLIST contains the legnth of LSTE for each node
          INTEGER EXFLAG
 C.. Allow both single and double excitations
          EXFLAG=3
-         TLOG=BTEST(ILOGGING,2)
+         TLOG=BTEST(ILOGGING,0)
+         TLOG5=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
          TLOG3=BTEST(ILOGGING,12)
          TLOG4=BTEST(ILOGGING,9)
@@ -586,7 +587,7 @@ C.. If we're at the last node we call CALCPATHS to generate all
 C.. the paths for it
             CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
             RHOII(I_V)=RHOII(0)
-            IF(TLOG) THEN
+            IF(TLOG5) THEN
                IF(.NOT.TLOG3) THEN
                   CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
                ELSE
@@ -847,7 +848,7 @@ C.,             If 1, only allow doubles.
          INTEGER I_HMAX
          REAL*8 BETA,RHOEPS
          LOGICAL TSYM
-         LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5
+         LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
          REAL*8 DBETA
          INTEGER ICLS
          INTEGER NMEM(*),NMEMLEN
@@ -901,7 +902,8 @@ C         WRITE(10,*) "V_",I_VIND
 C.. LOCTAB(1,1) is the address of the generator used to create node 1 in
 C.. the path (i.e. J).  LOCTAB(1,2) is the length of the generator (i.e. 
 C.. the amount of memory used to store it)
-         TLOG=BTEST(ILOGGING,2)
+         TLOG=BTEST(ILOGGING,0)
+         TLOG6=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
          TLOG3=BTEST(ILOGGING,12)
          TLOG4=BTEST(ILOGGING,9)
@@ -931,7 +933,7 @@ C               WRITE(10,"(I2,$)"),IFRZ(I,J)
 C            ENDDO
 C            WRITE(10,*) LOCTAB(3,J)
 C            ENDDO
-            IF(TLOG) THEN
+            IF(TLOG6) THEN
                IF(.NOT.TLOG3) THEN
                   CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
                ELSE

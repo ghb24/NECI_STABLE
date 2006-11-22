@@ -106,7 +106,7 @@ C.. These variables have been passed in and represent the precalculated values f
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
      &      DLWDBCORE/WCORE)
-            IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.0.D0)
+            IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)
      &          STOP "Invalid MULTI MC BIAS"
          ELSE
             CALL Create(MCStat,I_VMAX,
@@ -291,7 +291,12 @@ C.. Markov chain with random generation.
                          IF(TSEQ) THEN
                            I_VCUR=1
 !.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
-                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           IF(G_VMC_FAC.LT.0) THEN
+!.. Non-stochastic-time if bias<0.  we use |bias|
+                              LP=0
+                           ELSE
+                              LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           ENDIF
                            IF(LP.GT.0) THEN
                               IGV=1
                               I_OVCUR=1
@@ -314,12 +319,19 @@ C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
 !.. First work out the acceptance prob of V->0, pa, and thus the rejectance prob, pr=1-pa, which is high.
 !.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
 !.. get in a row
-                           PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+                           IF(G_VMC_FAC.LT.0) THEN
+!.. Non-stochastic-time if bias<0.  we use |bias|
+                              LP=0
+!.. Fudge PREJ to make code same for non-stoch-time as stoch-time
+                              PREJ=0.D0
+                           ELSE
+                              PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
      &                              OPROB/(1.D0-G_VMC_FAC)
-                           PREJ=1.D0-MIN(PREJ,1.D0)
-                           PGR=PREJ*(1.D0-G_VMC_FAC)
+                              PREJ=1.D0-MIN(PREJ,1.D0)
+                              PGR=PREJ*(1.D0-G_VMC_FAC)
 C.. L is the number of strings of rejections (i.e. of V's we add
-                           LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
+                              LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
+                           ENDIF
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
                               CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
@@ -349,7 +361,7 @@ C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider a
                               TSEQ=.FALSE.
                            ELSE
                               TSEQ=.TRUE.
-                              I_OVCUR=I_VMIN
+!                              I_OVCUR=I_VMIN
                            ENDIF
                          ENDIF
 !                   !
@@ -1708,11 +1720,7 @@ C.. reject the new, and copy in the old
             ENDIF
          ENDIF
 ! If we're not writing graphs, we write here after
-         IF(.NOT.BTEST(ILOGGING,2)) THEN
-            CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-            IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
-            IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
+         IF(BTEST(ILOGGING,0).AND..NOT.BTEST(ILOGGING,2)) THEN
             WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
          ENDIF
          IF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN

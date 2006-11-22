@@ -226,7 +226,8 @@ BIAS <G_VMC_FAC>
     Level bias for the FULL MC routine. Positive biases toward larger graphs.  Negative towards smaller
         The default is 16.
     For a SINGLE and MULTI level MC (using a composite 1-vertex graph containing a full sum previously performed), this is the probability of generating
-     a graph which is not the composite graph.  The default is invalid, and this must be set manaully
+     a graph which is not the composite graph.  The default is invalid, and this must be set manaully.  Stochastic time MC is used
+      If BIAS<0, |BIAS| is used, but stochastic-time MC is not performed
 
 EXCITWEIGHTING <g_VMC_ExcitFromWeight g_VMC_ExcitToWeight G_VMC_EXCITWEIGHT>
    A weighting factor for the generation of random excitations in the Vertex MC.  Default for all is 0.D0 (meaning unweighted, where the weighting factors for that process are set to 1.).
@@ -330,7 +331,7 @@ FMCPR <LABEL,RHO,1000,EXCITATION>
             [(D0),(D1),...,(Dv),]
           where each determinant is a comma separated list of orbital indices e.g. (D0) = (    1,    2,    9,   10,) .
           If CSFs are being used, then the CSF is printed (see end note).  There is no newline after this.
-          LABEL must be set for any of the following options to work.  For MULTI or SINGLE MC, only the non-composite graphs are printed.
+          For MULTI or SINGLE MC, only the non-composite graphs are printed.
 
       EXCITATION
          Log in excitation format instead of full format above.  Format is

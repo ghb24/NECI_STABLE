@@ -1,4 +1,5 @@
 LOGGING FLAGS
+0 Log in FMCPR to PATHS.  Just value logging
 1 Log in MCPATHS to MCPATHS
 2 Log in FMCPR to PATHS.  Just label logging
 3  "                      Adds RHOIJ logging
