@@ -631,18 +631,24 @@ C.. multiple of 2
                       ILOGGING = IOR(ILOGGING,2**12)
                   case("XIJ")
                       ILOGGING = IOR(ILOGGING,2**6)
-                  case default
+                  case("")
                       ILOGGING = IOR(ILOGGING,2**2)
+                  case default
+                     CALL report("Logging keyword FMCPR "//trim(w)
+     &                     //" not recognised",.true.)
                   end select
-              case("CALPATH")
+              case("CALCPATH")
                   call readu(w)
                   select case(w)
                   case("LABEL")
                       ILOGGING = IOR(ILOGGING,2**4)
                   case("RHO")
                       ILOGGING = IOR(ILOGGING,2**5)
-                  case default
+                  case("")
                       ILOGGING = IOR(ILOGGING,2**4)
+                  case default
+                     CALL report("Logging keyword CALCPATH "//trim(w)
+     &                     //" not recognised",.true.)
                   end select
               case("XIJ")
                   ILOGGING = IOR(ILOGGING,2**6)
@@ -657,11 +663,17 @@ C.. multiple of 2
                       ILOGGING = IOR(ILOGGING,2**9)
                   case("EVERY")
                       ILOGGING = IOR(ILOGGING,2**10)
+                  case default
+                     CALL report("Logging keyword VERTEX "//trim(w)
+     &                     //" not recognised",.true.)
                   end select
               case("HFBASIS")
                   ILOGGING = IOR(ILOGGING,2**11)
               case("ENDLOG")
                   exit logging
+              case default
+                 CALL report("Logging keyword "//trim(w)
+     &                     //" not recognised",.true.)
               end select
             end do logging
         case("END")

@@ -106,6 +106,8 @@ C.. These variables have been passed in and represent the precalculated values f
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
      &      DLWDBCORE/WCORE)
+            IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.0.D0)
+     &          STOP "Invalid MULTI MC BIAS"
          ELSE
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
@@ -2965,4 +2967,5 @@ C.. otherwise, we just reuse the old version
          ENDIF   
          RETURN
       END
+
 
