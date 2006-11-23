@@ -244,7 +244,7 @@ C.. setup spin excitation generator
             NTIME=TIMEC()*0.001D0
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
-            IF(TLOG) THEN
+            IF(TLOG.AND.I_V1.EQ.0) THEN
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2F19.7)") I_V,F(I_V),
      &            TOTAL,NTIME-OTIME,L,STD,DLWDB2
                CALL FLUSH(11)

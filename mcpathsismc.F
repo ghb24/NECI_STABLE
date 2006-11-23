@@ -468,7 +468,7 @@ caa            CALL FLUSH(10)
 C.. setup spin excitation generator
             CALL FREEM(IP_NMEM)
          ENDIF
-         IF(TLOG) CLOSE(11)
+         IF(TLOG.AND.I_VMIN.EQ.0) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF(BTEST(ILOGGING,10)) CLOSE(22)
