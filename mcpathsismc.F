@@ -285,19 +285,51 @@ C.. Markov chain with random generation.
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
 !.. or graphs of size I_VMIN=I_VMAX
 
+                         IF(G_VMC_FAC.LE.0.D0) THEN
+!.. We're doing non-stochastic time MC but with a renormalized composite gestalt.
+!.. G_VMC_FAC is the prob of generating a non-gestalt.
+                           IOV=I_OVCUR
+                           IF(RAN2(ISEED).GT.ABS(G_VMC_FAC)) THEN
+!.. We generate a gestalt
+                              I_VCUR=1
+                              IGV=1
+                              PFAC=1-ABS(G_VMC_FAC)
+                              FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
+     &                        NBASISMAX,G1,
+     &                     NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &                     ECORE,ISEED,KSYM,DBETA,DLWDBCORE,HIJS,NMEM,
+     &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
+     &                        IACC,WCORE)
+                           ELSE
+                              R=RAN2(ISEED)*g_MultiWeight(0)
+                              I_VCUR=I_VMIN-1
+                              DO WHILE (R.GE.0.AND.I_VCUR.LT.I_VMAX)
+                                 I_VCUR=I_VCUR+1
+                                 R=R-g_MultiWeight(I_VCUR)
+                              ENDDO
+                              IGV=I_VCUR
+                              PFAC=ABS(G_VMC_FAC)*g_MultiWeight(I_VCUR)
+     &                                       /g_MultiWeight(0)
+C.. Markov chain with random generation.
+                              FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
+     &                           NBASISMAX,G1,
+     &                     NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
+     &                           IACC,0.D0)
+                           ENDIF
+!                   !   .
+                         ELSE
+!.. Stochastic time MC
 !.. We choose the gestalt with probability G_VMC_FAC
                          TSEQ=.FALSE.
                          IF(I_OVCUR.EQ.1) TSEQ=.TRUE.
                          IF(TSEQ) THEN
                            I_VCUR=1
 !.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
-                           IF(G_VMC_FAC.LT.0) THEN
-!.. Non-stochastic-time if bias<0.  we use |bias|
-                              LP=0
-                              IF(RAN2(ISEED).GT.ABS(G_VMC_FAC)) LP=1
-                           ELSE
-                              LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
-                           ENDIF
+                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
                            IF(LP.GT.0) THEN
                               IGV=1
                               I_OVCUR=1
@@ -309,9 +341,9 @@ C.. Markov chain with random generation.
                               FF=1.D0
                               ITREE=1
                               CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
-     &                           WCORE,0,ITREE,1,1,1,BTEST(ILOGGING,10),
-     &                           OPROB)
-                            ENDIF
+     &                              WCORE,0,ITREE,1,1,1,
+     &                              BTEST(ILOGGING,10),OPROB)
+                           ENDIF
                          ENDIF
 !                   !
 C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
@@ -320,29 +352,22 @@ C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
 !.. First work out the acceptance prob of V->0, pa, and thus the rejectance prob, pr=1-pa, which is high.
 !.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
 !.. get in a row
-                           IF(G_VMC_FAC.LT.0) THEN
-!.. Non-stochastic-time if bias<0.  we use |bias|
-                              LP=0
-!.. Fudge PREJ to make code same for non-stoch-time as stoch-time
-                              PREJ=0.D0
-                           ELSE
-                              PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
-     &                              OPROB/(1.D0-G_VMC_FAC)
-                              PREJ=1.D0-MIN(PREJ,1.D0)
-                              PGR=PREJ*(1.D0-G_VMC_FAC)
+                           PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+     &                           OPROB/(1.D0-G_VMC_FAC)
+                           PREJ=1.D0-MIN(PREJ,1.D0)
+                           PGR=PREJ*(1.D0-G_VMC_FAC)
 C.. L is the number of strings of rejections (i.e. of V's we add
-                              LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
-                           ENDIF
+                           LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
-                              CALL AddGraph(MCStat,LP,I_OVCUR,FF,DLWDB2,
-     &                           OWEIGHT,IOCLS,ITREE,0,I_OVCUR,1,
-     &                           BTEST(ILOGGING,10),OPROB)
+                              CALL AddGraph(MCStat,LP,I_OVCUR,FF,
+     &                             DLWDB2,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
+     &                              1,BTEST(ILOGGING,10),OPROB)
                            ENDIF
 C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
 !                   !
                            IF(RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
-     &                           .GE.ABS(G_VMC_FAC)) THEN
+     &                              .GE.ABS(G_VMC_FAC)) THEN
                               FF=1.D0
                               IOV=I_OVCUR
                               I_OVCUR=1
@@ -389,6 +414,7 @@ C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
 C                              WRITE(6,*) IACC
                          ENDIF
                         ENDIF
+                       ENDIF
 !                   !
                     ELSEIF(I_HMAX.EQ.-12) THEN
 C.. Markov chain with special generation - does not work
@@ -1619,11 +1645,11 @@ C.. weight.
          INTEGER PVERTMEMS(0:I_V)
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
-         TYPE(HDElement) ORHOII(0:I_V)
-         TYPE(HElement) ORHOIJ(0:I_V,0:I_V)
-         INTEGER OIPATH(NEL,0:I_V)
-         TYPE(HElement) OHIJS(0:I_V)
-         REAL*8 OXIJ(0:I_V-1,0:I_V-1),OPROB,PR,R2
+         TYPE(HDElement) ORHOII(0:I_OVCUR)
+         TYPE(HElement) ORHOIJ(0:I_OVCUR,0:I_OVCUR)
+         INTEGER OIPATH(NEL,0:I_OVCUR)
+         TYPE(HElement) OHIJS(0:I_OVCUR)
+         REAL*8 OXIJ(0:I_OVCUR-1,0:I_OVCUR-1),OPROB,PR,R2
          TYPE(HDElement) OETILDE,WEIGHT,OWEIGHT,ETILDE
          INTEGER I_OVCUR,IOCLS,ITREE
          LOGICAL LISNAN,ISVALIDDET
@@ -1634,11 +1660,11 @@ C.. weight.
          INCLUDE 'vmc.inc'
          
 C.. Take a copy of the old path and rho matrix etc.
-         CALL DCOPY(I_V+1,RHOII,1,ORHOII,1)
-         CALL DCOPY((I_V+1)**2,RHOIJ,1,ORHOIJ,1)
-         CALL DCOPY(I_V+1,HIJS,1,OHIJS,1)
-         CALL DCOPY(I_V*I_V,XIJ,1,OXIJ,1)
-         CALL ICOPY(NEL*(1+I_V),IPATH,1,OIPATH,1)
+         CALL DCOPY(I_OVCUR+1,RHOII,1,ORHOII,1)
+         CALL DCOPY((I_OVCUR+1)**2,RHOIJ,1,ORHOIJ,1)
+         CALL DCOPY(I_OVCUR+1,HIJS,1,OHIJS,1)
+         CALL DCOPY(I_OVCUR*I_OVCUR,XIJ,1,OXIJ,1)
+         CALL ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
          IF(.NOT.(INWI.AGT.0.D0)) THEN
 !.. Generate a new graph
             CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
@@ -1657,7 +1683,7 @@ C.. CALCPATHS gives us the contribution of the path
      &         I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,HIJS,ICLS)
             IF(.NOT.(WEIGHT.AGT.RHOEPS)) WEIGHT=0.D0
          ELSE
-C.. we use the gestalt 
+C.. we use the gestalt
             RH=PFAC
             ICLS=1
             WEIGHT=INWI
@@ -1695,7 +1721,13 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
      &            I_V,ICLS)
 ! If we're writing graphs, we write here before acceptance/rejectance
             IF(BTEST(ILOGGING,2)) THEN
-               CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+               IF(BTEST(ILOGGING,12)) THEN
+! We log excitations
+                  CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
+               ELSE
+! We log dets
+                  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
+               ENDIF
                IF(BTEST(ILOGGING,3))
      &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
                IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)

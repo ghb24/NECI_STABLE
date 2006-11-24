@@ -208,8 +208,8 @@ C.. First deal with listing single states
 C.. order according to sym label, so SYMLABELLIST gets a list of states grouped under SYMLABEL
          CALL SORT2I(NSTATES,TEMPLIST,SYMLABELLIST)
          CALL IAZZERO(SYMLABELCOUNTS,2*NSYMLABELS)
-         SYMLABELCOUNTS(1,1)=1
-         SYMLABELCOUNTS(2,1)=1
+         SYMLABELCOUNTS(1,TEMPLIST(1))=1
+         SYMLABELCOUNTS(2,TEMPLIST(1))=1
          DO I=2,NSTATES
             IF(TEMPLIST(I).NE.TEMPLIST(I-1)) THEN
 C.. add a new sym label
@@ -225,10 +225,10 @@ C.. sort the symlabellist
          ENDDO
          CALL SORTI(SYMLABELCOUNTS(2,TEMPLIST(I-1)),
      &         SYMLABELLIST(SYMLABELCOUNTS(1,TEMPLIST(I-1))))
-C         DO I=1,NSYMLABELS
-C            WRITE(6,*) "NSL",I,SYMLABELCOUNTS(1,I),SYMLABELCOUNTS(2,I),
-C     &         SymLabels(I)
-C         ENDDO
+!         DO I=1,NSYMLABELS
+!            WRITE(6,*) "NSL",I,SYMLABELCOUNTS(1,I),SYMLABELCOUNTS(2,I),
+!     &         SymLabels(I)
+!         ENDDO
 
 C.. Now deal with pairs of states
 

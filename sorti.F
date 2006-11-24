@@ -4,7 +4,7 @@ C.. Based on SORT, SORTI sorts integers rather than reals
       IMPLICIT REAL*8 (A-H,O-Z) 
       INTEGER N,I,L,IR,J
       INTEGER RA(N)
-      IF(N.EQ.1) RETURN
+      IF(N.LE.1) RETURN
       L=N/2+1
       IR=N
 10    CONTINUE
@@ -46,7 +46,7 @@ C.. Based on SORTI, SORT2I sorts two arrays of integers (ordering according to t
       INTEGER RA(N)
       INTEGER RB(N)
       INTEGER RRA,RRB
-      IF(N.EQ.1) RETURN
+      IF(N.LE.1) RETURN
       L=N/2+1
       IR=N
 10    CONTINUE
@@ -93,7 +93,7 @@ C.. Based on SORTI, SORTIIARR sorts an arrays of integers and a 2D array of inte
       INTEGER RA(N)
       INTEGER RB(NRB,N)
       INTEGER RRA,RRB(NRB),NRB
-      IF(N.EQ.1) RETURN
+      IF(N.LE.1) RETURN
       L=N/2+1
       IR=N
 10    CONTINUE
@@ -147,7 +147,7 @@ C.. NRB is the length of each row in RB
 
       LOGICAL SYMLT
  
-      IF(N.EQ.1) RETURN
+      IF(N.LE.1) RETURN
       L=N/2+1
       IR=N
 10    CONTINUE
