@@ -343,6 +343,7 @@ C.. Markov chain with random generation.
                               CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
      &                              WCORE,0,ITREE,1,1,1,
      &                              BTEST(ILOGGING,10),OPROB)
+!                              WRITE(39,*) 1,1,LP,1
                            ENDIF
                          ENDIF
 !                   !
@@ -363,8 +364,9 @@ C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                               CALL AddGraph(MCStat,LP,I_OVCUR,FF,
      &                             DLWDB2,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
      &                              1,BTEST(ILOGGING,10),OPROB)
+!                              WRITE(39,*) I_OVCUR,1,LP,0
                            ENDIF
-C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider any V's separately, with prob p1
+C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), but we need to consider any V's separately, with prob p1
 !                   !
                            IF(RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
      &                              .GE.ABS(G_VMC_FAC)) THEN
@@ -382,12 +384,13 @@ C.. Now if we generate a 0, we accept with prob p0 pa, but we need to consider a
 !                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
 !     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
                               I_VCUR=1
-                              PFAC=1.D0-ABS(G_VMC_FAC)
+                              OPROB=1.D0-ABS(G_VMC_FAC)
                               IOCLS=0
                               TSEQ=.FALSE.
+!                              WRITE(39,*) IOV,IGV,1,IACC
                            ELSE
                               TSEQ=.TRUE.
-                              I_OVCUR=I_VMIN
+!                              I_OVCUR=I_VMIN
                            ENDIF
                          ENDIF
 !                   !
@@ -411,6 +414,7 @@ C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
      &                         ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
      &                         PFAC,IACC,0.D0)
+!                              WRITE(39,*) IOV,IGV,1,IACC
 C                              WRITE(6,*) IACC
                          ENDIF
                         ENDIF
@@ -1709,8 +1713,8 @@ C.. acc(A->B)/acc(B->A) = p(B) gen(B->A) / (p(A) gen(A->B))
 C..                     = p(B) gen(A) / (p(A) gen(B))
 
             PR=(OPROB/RH)*ABS(DREAL(WEIGHT/OWEIGHT))
+!            WRITE(40,"(5G,$)") OPROB,RH,DREAL(WEIGHT), DREAL(OWEIGHT),PR
             IF(RH.EQ.0.D0.OR..NOT.(OWEIGHT.AGT.0.D0)) PR=0.D0
-            R2=RAN2(ISEED)
             IF(LISNAN(WEIGHT)) THEN
                WRITE(60,*) WEIGHT,ETILDE,RH
                CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
@@ -1719,6 +1723,12 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             ENDIF
             CALL CLASSPATHS(FMCPR4D2,DLWDB,1.D0,RHOIJ,
      &            I_V,ICLS)
+            R2=RAN2(ISEED)
+            IF(PR.LT.R2) THEN
+               IACC=0
+            ELSE
+               IACC=1
+            ENDIF
 ! If we're writing graphs, we write here before acceptance/rejectance
             IF(BTEST(ILOGGING,2)) THEN
                IF(BTEST(ILOGGING,12)) THEN
@@ -1731,17 +1741,20 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
                IF(BTEST(ILOGGING,3))
      &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
                IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
-               WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
+               WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
             ENDIF
-            IF(PR.LT.R2) THEN
+!            CALL WRITEPATHEX(40,OIPATH,I_OVCUR,NEL,.FALSE.)
+!            WRITE(40,"(A,$)"),"--->"
+!            CALL WRITEPATHEX(40,IPATH,I_V,NEL,.FALSE.)
+!            WRITE(40,*) IACC
+            IF(IACC.EQ.0) THEN
 C.. reject the new, and copy in the old
                ETILDE=OETILDE
                RH=OPROB
                I_V=I_OVCUR
                ICLS=IOCLS
                WEIGHT=OWEIGHT
-               IACC=0
-               CALL ICOPY(NEL*(1+I_V),OIPATH,1,IPATH,1)
+               CALL ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
             ELSE
                OETILDE=ETILDE
                OPROB=RH
@@ -1754,7 +1767,7 @@ C.. reject the new, and copy in the old
          ENDIF
 ! If we're not writing graphs, we write here after
          IF(BTEST(ILOGGING,0).AND..NOT.BTEST(ILOGGING,2)) THEN
-            WRITE(10,"(3E25.16, I7)") WEIGHT,RH,ETILDE,ICLS
+            WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
          ENDIF
          IF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
@@ -3008,5 +3021,6 @@ C.. otherwise, we just reuse the old version
          ENDIF   
          RETURN
       END
+
 
 

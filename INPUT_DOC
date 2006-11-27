@@ -353,8 +353,9 @@ FMCPR <LABEL,RHO,1000,EXCITATION>
          The matrix is followed by a newline.
       
       After all these possible options, the following are printed:
-            Weight [pGen] ETilde Class
+            Weight [pGen] ETilde Class [Accepted]
          pGen is only printed for: Monte Carlo, or if doing a full sum and the XIJ logging option is set.
+         Accepted is only printed for the MC
          A newline is placed at the end.
       For MC, the values printed depend on the options.
          If LABEL is set, then the GENERATED graph and its values are printed.
