@@ -453,7 +453,7 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                      CALL WriteStats(MCStat,12)
                      CALL FLUSH(12)
                   ENDIF
-               ENDDO
+               ENDDO   ! end loop over mc cycles  nwhtay
             ENDIF
             CALL TIHALT(STR,ISUB2)
 !            F(I_V)=F(I_V)/NWHTAY
@@ -1706,7 +1706,6 @@ C.. configuration
             IACC=1
          ELSE
 C         CALL WRITEPATH(6,IPATH,I_V,NEL,.FALSE.)
-C         WRITE(6,*) I_V,WEIGHT,I_OVCUR,OWEIGHT
 C.. Accept the new configuration with prob (|S'(new)|/|S'(old)|)*(OPROB/RH)  
 
 C.. acc(A->B)/acc(B->A) = p(B) gen(B->A) / (p(A) gen(A->B))

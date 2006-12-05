@@ -287,9 +287,9 @@ MODULE MCStats
                   M%wCurBlock(i)=0.D0
                ENDIF
 !  Now add in all blocks of length nn from the remainder
-               bb=HDElement((nt/nn))
-               M%wBlockSum(i)=M%wBlockSum(i)+bb*wVal
-               M%wBlockSumSq(i)=M%wBlockSumSq(i)+bb*wVal*wVal
+               bb=HDElement(Int(nt/nn))*wVal/HDElement(nn)
+               M%wBlockSum(i)=M%wBlockSum(i)+bb
+               M%wBlockSumSq(i)=M%wBlockSumSq(i)+bb*bb
 !  Add in the remainder
                M%wCurBlock(i)=M%wCurBlock(i)+HDElement(MOD(nt,nn))*wVal
                nn=nn*2
@@ -334,17 +334,22 @@ MODULE MCStats
             
             IF(M%iBMax.NE.ioBMax.OR.iV.EQ.0) THEN
                OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
+              
+               !nn=nnn
                
-               nn=nnn
-!M%nGraphs(0)
-               WRITE(23,*) "#MCBLOCKS for ",nnn," steps."
+               !WRITE(23,*) "#MCBLOCKS for ",nnn," steps."
+              
+               WRITE(23,*) "#MCBLOCKS for ",M%nGraphs(0)," steps."
                DO i=0,M%iBMax
+                  nn=Int(M%nGraphs(0)/2**i)
                   mm=M%wBlockSum(i)/HDElement(nn+0.D0)
                   cc=DREAL(M%wBlockSumSq(i)/HDElement(nn+0.D0)-mm*mm)
-                  ss=SQRT(ABS(cc/(nn-1.D0)))
+                  !ss=SQRT(ABS(cc/(nn-1.D0)))
+                  ss=SQRT(cc/nn)
                   ee=ss/HDElement(SQRT(ABS(2.D0*(nn-1.D0))))
-                  WRITE(23,"(I,3G25.16)") i,ss,ee,mm
-                  nn=nn/2
+                  !WRITE(23,"(I,4G25.16)") i,ss,ee,mm
+                  WRITE(23,"(2I8,4G25.16)") i,nn,ss,ee,mm
+                  !nn=nn/2
                ENDDO
                CLOSE(23)
              ENDIF
