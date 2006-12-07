@@ -265,6 +265,7 @@ MODULE MCStats
 
 
             wVal=wDelta
+            !wVal=wDelta*wSign
 !.. We enable the new blocking counting method if TRUE, and the old one if FALSE
             IF(.TRUE.) THEN
             nn=1
@@ -277,6 +278,7 @@ MODULE MCStats
                no=M%nGraphs(0)-nTimes
                nc=MOD(no,nn)
 ! If we don't already have a sum for this block size, get it from the stats
+               !IF(.NOT.(M%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) M%wCurBlock(i)=(M%wDelta(0))-HDElement(nTimes)*wVal
                IF(.NOT.(M%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) M%wCurBlock(i)=(M%wDelta(0))-HDElement(nTimes)*wVal
                IF(nc+nt.GE.nn.AND.nc.NE.0) THEN
 !  Add enough from the new set to fill the old to nn, and send to BlockSum
@@ -287,7 +289,7 @@ MODULE MCStats
                   M%wCurBlock(i)=0.D0
                ENDIF
 !  Now add in all blocks of length nn from the remainder
-               bb=HDElement(Int(nt/nn))*wVal/HDElement(nn)
+               bb=HDElement(Int(nt/nn))*wVal !there are nn lots of wVal - but we want the average
                M%wBlockSum(i)=M%wBlockSum(i)+bb
                M%wBlockSumSq(i)=M%wBlockSumSq(i)+bb*bb
 !  Add in the remainder
@@ -347,8 +349,8 @@ MODULE MCStats
                   !ss=SQRT(ABS(cc/(nn-1.D0)))
                   ss=SQRT(cc/nn)
                   ee=ss/HDElement(SQRT(ABS(2.D0*(nn-1.D0))))
-                  !WRITE(23,"(I,4G25.16)") i,ss,ee,mm
-                  WRITE(23,"(2I8,4G25.16)") i,nn,ss,ee,mm
+                  WRITE(23,"(I,4G25.16)") i,ss,ee,mm
+                  !WRITE(23,"(2I8,4G25.16)") i,nn,ss,ee,mm
                   !nn=nn/2
                ENDDO
                CLOSE(23)
