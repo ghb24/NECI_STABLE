@@ -268,7 +268,7 @@ C.. we're doing MC with lots of different vertex levels
                               R=RAN2(ISEED)
                               I_VCUR=-FLOOR(LOG(R)/LOG(-G_VMC_FAC))
                            ENDDO
-                           PFAC=G_VMC_FAC**(-I_VCUR)
+                           PFAC=ABS(G_VMC_FAC)**(-I_VCUR)
                          ENDIF
                          IOV=I_OVCUR
                          IGV=I_VCUR
@@ -1685,7 +1685,7 @@ C.. CALCPATHS gives us the contribution of the path
             ICLS=0
             WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &         I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,HIJS,ICLS)
-            IF(.NOT.(WEIGHT.AGT.RHOEPS)) WEIGHT=0.D0
+!            IF(.NOT.(WEIGHT.AGT.RHOEPS)) WEIGHT=0.D0
          ELSE
 C.. we use the gestalt
             RH=PFAC

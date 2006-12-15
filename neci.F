@@ -1623,6 +1623,13 @@ C.. Instead of NMAX, we put ARR
                      ENDIF
                   ENDIF
 C.. Instead of NMAX we have ARR
+            IF(TPARITY) THEN
+               WRITE(6,*) "Using symmetry restriction:"
+               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
+            ENDIF
+            IF(TSPN) THEN
+               WRITE(6,*) "Using spin restriction:",LMS
+            ENDIF
               CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,
      &           NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMAT,ARR,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
