@@ -109,6 +109,7 @@ C.. These variables have been passed in and represent the precalculated values f
             IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)
      &          STOP "Invalid MULTI MC BIAS"
          ELSE
+            DLWDBCORE=HIJS(0)
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
          ENDIF
