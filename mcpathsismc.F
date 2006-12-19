@@ -1759,7 +1759,7 @@ C.. reject the new, and copy in the old
                OETILDE=ETILDE
                OPROB=RH
                I_OVCUR=I_V
-               ICLS=0
+!               ICLS=0
                IOCLS=ICLS
                OWEIGHT=WEIGHT
                IACC=1
