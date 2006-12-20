@@ -234,6 +234,8 @@ MODULE SymExcit2
 !We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate 
 ! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
 ! After that, we generate the probability that nJ would be an excitation from nI.
+
+!  WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
          USE HElement
          IMPLICIT NONE
@@ -266,6 +268,7 @@ MODULE SymExcit2
          IF(iExcit(1,1).LE.0) THEN
 ! More than a double excitation, so not allowed
             IFROM=0
+            pGen=0
             RETURN
          ENDIF
 !  See if we have a single
@@ -338,5 +341,49 @@ MODULE SymExcit2
 !           times prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
          CALL FREEM(IP_ews)
+      END
+
+!We wish to calculate whether NJ is an excitation of NI.
+!WARNING - this currently only works for abelian symmetry groups
+      SUBROUTINE IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnectedDet)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER iExcit(2,2)
+         LOGICAL L
+         INTEGER nI(nEl),nJ(nEl),nEl,nBasis
+         INTEGER iFrom,iFromIndex,iTo,iToIndex
+         INCLUDE 'sym.inc'
+         TYPE(BasisFn) G1(nBasis)
+         TYPE(Symmetry) Sym,Prod
+         TYPE(Symmetry) SYMPROD
+         TYPE(Symmetry) SymProds(0:*)
+         LOGICAL SYMEQ
+         INTEGER nBasisMax(*)
+         TYPE(ExcitWeight) ews(*)
+         POINTER(IP_ews,ews)
+         INTEGER iLUT(*)
+         INTEGER OrbPairs(2,*)
+         INTEGER SymProdInd(2,3,0:*)
+         INTEGER ExcitTypes(5,*)
+         REAL*8 Norm
+         INTEGER K,NPR,I,iExcitType
+         INTEGER iSpn,iCount,nToPairs,iTotal,nFromPairs
+         LOGICAL tIsConnectedDet
+         iExcit(1,1)=2
+         CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
+!EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
+         IF(iExcit(1,1).LE.0) THEN
+! More than a double excitation, so not allowed
+            tIsConnectedDet=.FALSE.
+            RETURN
+         ENDIF
+!  See if we have a single
+         IF(iExcit(1,2).EQ.0) THEN
+            tIsConnectedDet=.TRUE.
+!Warning - this is not necessarily the case, but will do for abelian symmetry groups
+            RETURN
+         ENDIF
+         tIsConnectedDet=.TRUE.
+         RETURN
       END
 END MODULE SymExcit2

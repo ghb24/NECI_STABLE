@@ -869,6 +869,7 @@ C.,             If 1, only allow doubles.
          REAL*8 FSCALE,FSC2
          TYPE(HDElement) MP2E,NTOTAL
          INTEGER EXFLAG
+         LOGICAL ISCONNECTEDDET
          INCLUDE 'irat.inc'
    
          SELECT CASE (IAND(NWHTAY,24))
@@ -1044,6 +1045,14 @@ C.. was generated from (or just the root if there is none)
          ENDIF
          IVLEVEL=IVLMAX
 
+!LOCTAB contains
+C.. LOCTAB(1,V) is the address of the generator used to create node V in
+C.. the path (the first node is node 0).
+C.. LOCTAB(2,V) is the length of the generator (i.e. the amount of memory used to store it)
+C.. LOCTAB(3,V) is the vertex from which vertex V was excited
+C.   The last node never has an excitation generator, as it never needs one in the full graph generation scheme.
+
+
 C.. Set these just in case
          IP_CURGEN=IP_NMEM
          LOCTAB(2,I_VIND+1)=NMEMLEN
@@ -1132,11 +1141,21 @@ C.. because we've just done that
                      IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
                      RHOIJ(I_VIND+1,II)=RH
                      RHOIJ(II,I_VIND+1)=RH
-                     IF(RH.AGT.0.D0) THEN
+!LOCTAB contains
+C.. LOCTAB(1,V) is the address of the generator used to create node V in
+C.. the path (the first node is node 0).
+C.. LOCTAB(2,V) is the length of the generator (i.e. the amount of memory used to store it)
+C.. LOCTAB(3,V) is the vertex from which vertex V was excited
+C.   The last node never has an excitation generator, as it never needs one in the full graph generation scheme.
+!                     IF(RH .AGT. 0.D0) THEN
+                     IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(1,II),
+     &                  G1,nBasisMax,nBasis)) THEN
 C.. If the node to which this node (NJ) is attached was known about at
 C.. the time of node II, we are allowed to have a connection between
 C.. node NJ and II.  Otherwise, this node must not be attached to II, as
 C.. it will've already been counted as one of those attached to II
+!                        CALL WRITEDET(6,NJ,NEL,.FALSE.)
+!                        CALL WRITEDET(6,IPATH(1,II),NEL,.TRUE.)
 
 C.. We disallow this connection if IAND(IFRZ2(0),2) to require that there are
 C.. no loops

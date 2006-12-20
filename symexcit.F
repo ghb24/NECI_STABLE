@@ -87,6 +87,7 @@ C.. Each state's symmetry falls into a class SymClasses(ISTATE).
          NCL=0
          DO I=1,NEL
             TNEW=.TRUE.
+!            WRITE(6,*) I,SymClasses((NI(I)+1)/2)
             DO J=1,NCL
                IF(SymClasses((NI(I)+1)/2).EQ.CLASSES(J)%SymLab) THEN
                   ISPN=(G1(NI(I))%Ms+3)/2
@@ -103,8 +104,8 @@ C.. ISPN=1 is beta, ISPN=2 is alpha
                CLASSES(NCL)%SymLab=SymClasses((NI(I)+1)/2)
                CLASSCOUNT(ISPN,NCL)=1
                CLASSCOUNT(3-ISPN,NCL)=0
-C               WRITE(6,"(A,2I4,Z4,2I4)") "CLASS ",NCL,CLASSES(NCL),
-C     &            SymLabels(CLASSES(NCL)),I
+!             WRITE(6,"(A,2I4,Z4,2I4)") "CLASS ",NCL,CLASSES(NCL)%SymLab,
+!     &            I
             ENDIF
          ENDDO
 C.. Now calculate the resultant symmetry from removing one of each of the classes
@@ -334,10 +335,11 @@ C.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
                         L2A=.NOT.BTEST(ILUT(ICC4/32),
      &                        MOD(ICC4,32)-1)
 C.. L1B is set if the beta of the first virtual is not in NI, i.e. is allowed
+!  NALLOWPPS is the number of ALLOWED virtuals
                         IF(ICC1.EQ.ICC3) THEN
+!                           NALLOWPPS(1,J)=NALLOWPPS(1,J)+1
+!                           NALLOWPPS(3,J)=NALLOWPPS(3,J)+1
 C.. The virtuals we are exciting to are the same state.  We're only allowed an AB excitation
-                           NALLOWPPS(1,J)=NALLOWPPS(1,J)+1
-                           NALLOWPPS(3,J)=NALLOWPPS(3,J)+1
                          IF(L1B.AND.L2A) NALLOWPPS(2,J)=NALLOWPPS(2,J)+1
                         ELSE
                          IF(L1B.AND.L2B) NALLOWPPS(1,J)=NALLOWPPS(1,J)+1
@@ -1424,7 +1426,44 @@ C.. Actually generate a det
          RETURN
       ENDIF
       END 
-      
+      LOGICAL FUNCTION IsConnectedDet(nI,nJ,nEl,nIExcitor,G1,nBasisMax,
+     &      nBasis)
+         IMPLICIT NONE
+         INCLUDE 'symtypes.inc'
+         INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
+         TYPE(BasisFN) G1(*) 
+         INTEGER DStore(*)
+         INTEGER GET_ADDR
+         POINTER(IP_DSTORE,DSTORE)
+         IP_DSTORE=GET_ADDR(nIExcitor(nIExcitor(1)))
+         CALL IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,nBasis,
+     &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
+     &      DStore(SymClassSize*nEl+1),
+     &      DStore(SymClassSize*nEl+1+nBasis/32+1),
+     &      nIExcitor(nIExcitor(2)),nIExcitor(23),IsConnectedDet)
+         RETURN
+      END
+
+!  We are required to enshroud GenExcitProbInternal as F90 doesn't seem to want to allow any casting.
+      SUBROUTINE IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,
+     &      nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,
+     &      tIsConnected)
+         USE HElement
+         USE symexcit2
+         IMPLICIT NONE
+         INCLUDE 'symtypes.inc'
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
+         INTEGER ExcitTypes(5,*)
+         TYPE(BasisFN) G1(*) 
+         INTEGER iLUT(*),iTotal
+         INTEGER OrbPairs(2,*)
+         INTEGER SymProdInd(2,3,0:*)
+         TYPE(Symmetry) SymProds(0:*)
+         LOGICAL tIsConnected
+         CALL IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,
+     & OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnected)
+      END
+
 !We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate 
 ! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
 ! After that, we generate the probability that nJ would be an excitation from nI.
@@ -1472,12 +1511,13 @@ C.. Actually generate a det
      &      pGen)
          USE HElement
          USE symexcit2
+         IMPLICIT NONE
          INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
          INTEGER ExcitTypes(5,*)
          TYPE(BasisFN) G1(*) 
          TYPE(HElement) UMat(*)
-         INTEGER iLUT(*)
+         INTEGER iLUT(*),iTotal
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,0:*)
          TYPE(Symmetry) SymProds(0:*)
