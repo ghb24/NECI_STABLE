@@ -77,7 +77,10 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          TYPE(HElement) HIJS(1:I_V),RHOIJ(0:I_V,0:I_V),RH
          INTEGER ICLASS,ILG,ISGN
          REAL*8 WEIGHT
-         REAL*8 DBETA
+!DBETA has two parts
+!DBETA(1) is DBETA
+!DBETA(2) is GRAPHEPSILON
+         REAL*8 DBETA(2)
          TYPE(HDElement) DLWDB
          INTEGER ILOGGING,ISUB
          TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
@@ -90,7 +93,8 @@ C.. If we're using the contour integral trick to sum all possible graphs with th
 C.. we use a diagonalization version rather than contour etc.
 C.. subtracting out lower vertex paths at this level
 C            WRITE(6,*) "-----"
-            IF(.NOT.(RHOII(0).AGT.0.D0)) THEN
+            IF(I_HMAX.EQ.-19.OR.I_HMAX.EQ.-20) THEN
+!.NOT.(RHOII(0).AGT.0.D0)) THEN
 C.. We actually diagonalize a matrix of Hij elements rather than a matrix of
 C.. RHOIJ elements.  We send beta in from RHOII(1)
                CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
@@ -119,6 +123,11 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
             CALCPATHS=CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,I_P,
      &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
      &               ILOGGING)
+         ENDIF
+!DBETA(2) is GRAPHEPSILON
+         IF(.NOT.(CALCPATHS.AGE.DBETA(2))) THEN
+            CALCPATHS=0.D0
+            DLWDB=0.D0
          ENDIF
          CALCPATHS_N=CALCPATHS
          IF(I_V.LE.5) THEN

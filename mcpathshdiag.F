@@ -24,30 +24,35 @@ C.. Bit 3 (8).  If 0 allow all types of excitations
 C..             If 1 only allow singles.
 C.. Bit 4 (16)  If 0 allow all types of excitations
 C.,             If 1, only allow doubles.
-      RECURSIVE REAL*8 FUNCTION FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+      RECURSIVE FUNCTION FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL)
-         
+         USE HElement 
          IMPLICIT NONE
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
+         INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I
-         REAL*8 FCK(*), ZIA(*),ALAT(*),UMAT(*),ECORE,TOTAL,R
-         REAL*8 CALCPATHS_N
+         COMPLEX*16 FCK(*)
+         TYPE(HElement) TMat(*), UMAT(*),R
+         REAL*8 ALAT(*),ECORE
+         TYPE(HDElement) TOTAL,FMCPR3B2
+         TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
-         REAL*8 HIJ(0:I_V,0:I_V)
+         TYPE(HElement) HIJ(0:I_V,0:I_V),RH
+         TYPE(HDElement) DLWDB,DLWDB2
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
-         REAL*8 RH,BETA,RHOEPS
+         REAL*8 BETA,RHOEPS
          LOGICAL TSYM,T
-         LOGICAL TLOG,TLOG2,TLOG3,TLOG4
-         REAL*8 DBETA,DLWDB,DLWDB2
-         REAL*8 HIJS(0:I_V)
+         LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
+         REAL*8 DBETA
+         TYPE(HElement) HIJS(0:I_V)
          INTEGER ICLS
-         REAL*8 GETHELEMENT2
          INTEGER NMEM(*),NMEMLEN
          POINTER(IP_NMEM,NMEM)
          POINTER(IP_CURGEN,CURGEN)
@@ -64,11 +69,12 @@ C.,             If 1, only allow doubles.
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
-         REAL*8 MP2E,NTOTAL
+         TYPE(HDElement) MP2E,NTOTAL
          INTEGER EXFLAG
 
          REAL*8 GETHELEMENT
          REAL*8 BETADATA(0:1)
+         LOGICAL ISCONNECTEDDET
    
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
@@ -101,20 +107,22 @@ C         WRITE(10,*) "V_",I_VIND
 C.. LOCTAB(1,1) is the address of the generator used to create node 1 in
 C.. the path (i.e. J).  LOCTAB(1,2) is the length of the generator (i.e. 
 C.. the amount of memory used to store it)
-         TLOG=BTEST(ILOGGING,2)
+         TLOG=BTEST(ILOGGING,0)
+         TLOG6=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
          TLOG3=BTEST(ILOGGING,12)
          TLOG4=BTEST(ILOGGING,9)
+         TLOG5=BTEST(ILOGGING,6)
          TLOG=TLOG.AND..NOT.TLOG4
          TOTAL=0.D0
          LT=LT+1
 C.. This is the current node (set by our parent)         
          CALL ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
          RH=GETHELEMENT2(INODE,INODE,NEL,NBASISMAX,
-     &           G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,0,ECORE)
+     &           G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
          HIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
-         IF(RH.EQ.0.D0) THEN
+         IF(.NOT.(RH.AGT.0.D0)) THEN
             FMCPR3B2=0.D0
             RETURN
          ENDIF
@@ -122,13 +130,14 @@ C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
 C.. If we're at the last node we call CALCPATHS to generate all 
 C.. the paths for it
             CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
-            IF(TLOG) THEN
+            IF(TLOG6) THEN
                IF(.NOT.TLOG3) THEN
                   CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
                ELSE
                   CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
                ENDIF
             ENDIF
+            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
 C.. 
             ICLS=0
 C.. Store beta in RHOII(1) (calling it BETADATA)
@@ -140,7 +149,15 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
             NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
-            IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
+            IF(TLOG5) THEN
+!  Log XIJS (usually for debugging), and the pgen
+!  NMAX has Arr hidden in it
+              CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
+     &            nBasisMax,UMat,NMAX,nBasis,R)
+                  WRITE(10,"(3E25.16, I7)") TOTAL,R,DLWDB2,ICLS
+            ELSE
+               IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
+            ENDIF
             L=L+1
             FMCPR3B2=TOTAL
             IF(I_V.EQ.2) THEN
@@ -151,6 +168,7 @@ C.. NMAX has ARR hidden in it.
             IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
 C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
+               CALL FLUSH(10)
             ENDIF
             RETURN
          ENDIF
@@ -277,8 +295,8 @@ C.. Now make sure it's not already in the path
                IF(.NOT.TFAIL) THEN
 C.. see if we're connected to what we were excited from
                  RH=GETHELEMENT2(IPATH(1,IEXFROM),NJ,NEL,NBASISMAX,
-     &               G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,IC,ECORE)
-                  IF(ABS(RH).LT.RHOEPS) THEN
+     &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+                  IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. if we're not connected to this node, we fail now
                      RH=0.D0
                      TFAIL=.TRUE.
@@ -293,12 +311,14 @@ C.. we don't need to calc the connection to the node we excited from
 C.. because we've just done that
                   IF(.NOT.TFAIL.AND.II.NE.IEXFROM) THEN
                      RH=GETHELEMENT2(IPATH(1,II),NJ,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,-1,
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,
      &                  ECORE)
-                     IF(ABS(RH).LT.RHOEPS) RH=0.D0
+                     IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
                      HIJ(I_VIND+1,II)=RH
                      HIJ(II,I_VIND+1)=RH
-                     IF(RH.NE.0.D0) THEN
+                   IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(1,II),
+     &                  G1,nBasisMax,nBasis)) THEN
+!                     IF(RH.NE.0.D0) THEN
 C.. If the node to which this node (NJ) is attached was known about at
 C.. the time of node II, we are allowed to have a connection between
 C.. node NJ and II.  Otherwise, this node must not be attached to II, as
@@ -359,7 +379,7 @@ C.. Get the H element so we can calculate the energy
                    HIJS(I_VIND+1)=HIJ(0,I_VIND+1)
                    TOTAL=TOTAL+
      &                  FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                     G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &                     G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL)

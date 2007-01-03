@@ -442,20 +442,27 @@ C.. a matrix of RHOIJ elements, and raising the result ^P,
 C.. we diagonalize the HIJ elements and work out e^-beta lambda.
 
 C.. See 1/7/04
-      RECURSIVE REAL*8 FUNCTION HDIAG_CPP(HIJ,
+      RECURSIVE FUNCTION HDIAG_CPP(HIJ,
      &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
+         USE HElement
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
-         REAL*8 HIJ(I_V+1,I_V+1)
-         REAL*8 RIJMAT(I_V,I_V)
+         TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
+         TYPE(HElement) NWORK(4*I_V)
          INTEGER INFO,I,J,IMISS,II,IJ
-         REAL*8 SI,SI2
+         TYPE(HDElement) SI,SI2
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
-         REAL*8 BETA,DLWDB,DD2,HIJS(I_V+1),HIJS2(I_V)
-         REAL*8 RII
-         RII=EXP(-BETA*HIJ(1,1))
+         REAL*8 BETA
+         TYPE(HElement) HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
+         TYPE(HDElement) HDiag_CPP
+         TYPE(HDElement) R,S,DLWDB,DD2
+         TYPE(HDElement) RII
+         R=HIJ(1,1)
+         S=-BETA
+         R=R*S
+         RII=EXP(R)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          CALL TISET('HDIAG_CPP',ISUB)
@@ -469,7 +476,7 @@ C         WRITE(6,*) "...",I_V,IMISS
                DO J=I,I_V+1
                   IF(J.NE.IMISS) THEN
                      IJ=IJ+1
-                     RIJMAT(II,IJ)=HIJ(I,J)+0.D0
+                     RIJMAT(II,IJ)=HIJ(I,J)
                   ENDIF
                ENDDO
                HIJS2(II)=HIJS(I)
@@ -488,26 +495,58 @@ CIMISS-1
                DLWDB=DLWDB-DD2
             ENDDO
          ENDIF
-         CALL DSYEV('V','U',I_V,RIJMAT(1,1),I_V,
-     &            WLIST(1),WORK(1),3*I_V,INFO)
-         IF(INFO.NE.0) THEN
-            WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
-         ENDIF
+         IF(HElementSize.EQ.1) THEN
+            CALL DSYEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,WORK,3*I_V,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'DYSEV error: ',INFO
+               STOP
+            ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
 C.. appropriate projection onto the root
-         SI2=0.D0
-         DO I=1,I_V
+            SI2=0.D0
+            DLWT=0.D0
+            DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
-            SI2=SI2+RIJMAT(1,I)*RIJMAT(1,I)
-     &               *DEXP(-BETA*WLIST(I))/RII
+               R=EXP(-BETA*WLIST(I))
+               S=RIJMAT(1,I)*RIJMAT(1,I)
+               SI2=SI2+S*R/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
-            DO J=1,I_V
-               DLWDB=DLWDB+HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
-     &               *DEXP(-BETA*WLIST(I))/RII
+               DO J=1,I_V
+                  U=HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
+                  T=R/RII
+                  DLWT=DLWT+U*T
+               ENDDO
             ENDDO
-         ENDDO
+         ELSE
+!.. The complex case
+            CALL ZHEEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,NWORK,4*I_V,WORK,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'ZHEEV error: ',INFO
+               STOP
+            ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. appropriate projection onto the root
+            SI2=0.D0
+            DLWT=0.D0
+            DO I=1,I_V
+C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
+               S=DCONJG(RIJMAT(1,I))*RIJMAT(1,I)
+               R=DEXP(-BETA*WLIST(I))
+               SI2=SI2+S*R/RII
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+               DO J=1,I_V
+                  T=HIJS2(J)*DCONJG(RIJMAT(J,I))*RIJMAT(1,I)
+                  U=R/RII
+                  DLWT=DLWT+T*U
+               ENDDO
+            ENDDO
+         ENDIF
+         S=DLWT
+         DLWDB=DLWDB+S
          HDIAG_CPP=SI+SI2
          CALL TIHALT("HDIAG_CPP",ISUB)
          RETURN

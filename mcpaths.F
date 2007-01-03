@@ -174,7 +174,7 @@ C.. forcing them to be disconnected.
                   L=0
                   LT=0
                ENDIF
-            ELSEIF(I_CHMAX.EQ.-7) THEN
+            ELSEIF(I_CHMAX.EQ.-7.OR.I_CHMAX.EQ.-19) THEN
 C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
 C.. levels by regarding all previous levels as a composite object with the Et and wi
 C.. we have already worked out. 
@@ -234,7 +234,7 @@ C.. we have already worked out.
                FSQ(I_V)=FSQ(I_V)/CNWHTAY
                DLWDB2=DLWDB3/CNWHTAY
                STD=SQRT(ABS(FSQ(I_V)-SQ(F(I_V))))
-               IF(I_CHMAX.EQ.-7) THEN
+               IF(I_CHMAX.EQ.-7.OR.I_CHMAX.EQ.-19) THEN
 C.. setup spin excitation generator
                   CALL FREEM(IP_NMEM)
                ENDIF

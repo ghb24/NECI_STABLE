@@ -32,6 +32,7 @@
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
       INTEGER ios
+      REAL*8 DBETA(2)
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'umatcache.inc'
@@ -78,7 +79,11 @@
       TCSF=.false.
 
       BETAP=1.D-4
-      DBETA=-1.D0
+!DBETA now has  two elements
+! DBETA(1) is DBETA
+! DBETA(2) is GRAPHEPSILON
+      DBETA(1)=-1.D0
+      DBETA(2)=0.D0
       RHOEPSILON=1.D-6
       TTROT=.true.
 
@@ -423,7 +428,7 @@ C                  end select
                   NPATHS = -1
               case("DERIV")
                   TNPDERIV = .true.
-                 if (DBETA .lt. 0 ) then
+                 if (DBETA(1) .lt. 0 ) then
                     call report("Only calculate energy with derivatives"
      &              //" if delta_beta positive",.true.)
                      TNPDERIV = .false.
@@ -483,9 +488,11 @@ C                  end select
      &                //"Using p.",.true.)
                   end if
               case("DELTABETA")
-                  call getf(DBETA)
+                  call getf(DBETA(1))
               case("RHOEPSILON")
                   call getf(RHOEPSILON)
+              case("GRAPHEPSILON")
+                  call getf(DBETA(2))
               case default
                   call report("Keyword "         
      &              //trim(w)//" not recognized in CALC block",.true.)
@@ -752,6 +759,11 @@ C     ILOGGING = 0771
                             end select
                         case("MC")
                            I_HMAX = -7
+                            call readu(w)
+                            select case(w)
+                            case("HDIAG")
+                                I_HMAX = -19
+                            end select
                         case("STAR")
                            I_HMAX = -9
                            call readu(w)

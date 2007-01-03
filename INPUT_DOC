@@ -152,6 +152,10 @@ DELTABETA <DBETA>
 RHOEPSILON <RHOEPSILON>
    Set the minimum significant value of RHO (as a fraction of RHOIIMAX).
 
+GRAPHEPSILON <RHOEPSILON>
+   Set the minimum significant value of the weight of a graph. Default 0.D0
+   If the magnitude of the weight is smaller than this, both the weight, and E~ contribution are set to zero.
+
 EXCITATIONS OLD,NEW
    For generation of up to double excitations use the old (completely reliable), or new
    (faster, but does not work for more than 2-vertex level SUMS) routine
@@ -190,7 +194,7 @@ METHOD <METHOD>
     Specify the method for vertex summation routine.  Options currently are:
     VERTEX SUM OLD,NEW,HDIAG
         Use the old, new, or H-diagonalizing vertex sum subroutine.
-    VERTEX MC 
+    VERTEX MC [HDIAG]
         Monte Carlo procedure.
         This may be performed in a number of ways (The way is chosen by the location of the VERTEX MC command):
          SINGLE
@@ -200,6 +204,7 @@ METHOD <METHOD>
          FULL
             Does  MC at all levels (cannot be specified in a METHODS section) using BIAS to bias the levels, EXCITWEIGHTING for excitation generation, and IMPORTANCE to for graph generation weighting.
 
+         If HDIAG is specified, the H-diagonalizing routine is used, otherwise, the rho-diagonalizer is used.
 
     VERTEX SUM READ
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]

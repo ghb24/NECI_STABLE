@@ -247,7 +247,7 @@ C.. see if we want to increase the number of vertices
                         ENDIF
                        ENDIF
 !                   !
-                    ELSEIF(I_HMAX.EQ.-7) THEN
+                    ELSEIF(I_HMAX.EQ.-7.OR.I_HMAX.EQ.-19) THEN
 C.. We decide on a graph size.  See 22/8/05 #1,2
 C.. Probability of graph size v is prop to G_VMC_FAC**(v)
                         I_VCUR=0
@@ -1674,7 +1674,7 @@ C.. Take a copy of the old path and rho matrix etc.
 !.. Generate a new graph
             CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
-     &         NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM)
+     &         NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX)
             TLOG=BTEST(ILOGGING,2)
             TLOG2=BTEST(ILOGGING,3)
             TLOG3=BTEST(ILOGGING,6)
@@ -1794,7 +1794,7 @@ C.. Unbias the sum
 !.. NMAX has ARR  hidden in it
       SUBROUTINE FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,
-     &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI)
+     &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX)
          USE HElement
          IMPLICIT NONE
          INCLUDE 'vmc.inc'
@@ -1806,7 +1806,7 @@ C.. Unbias the sum
          INTEGER I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH
          INTEGER NMAX,NTAY
          COMPLEX*16 FCK(*)
-      
+         INTEGER I_HMAX
 
          REAL*8 RHOEPS
          TYPE(HDElement) RHOII(0:I_V)
@@ -1835,6 +1835,12 @@ C.. Unbias the sum
          REAL*8 pGen,pGen2
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
+         IF(I_HMAX.EQ.-19) THEN
+!.. We're actually storing H matrices in RHOIJ rather than rho matrices
+            RHOIJ(0,0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                  0,ECORE)
+         ENDIF
          PEXCIT(1)=1.D0
          PVERTMEMS(0)=LOC(NMEMNI)
          I_VNEXT=1
@@ -1904,11 +1910,18 @@ C.. Count the excitations (and generate a random one which we throw)
 
                XIJ(I_VNEXT,I_VNEXT)=IC
 C.. Update the rho and X (probability) matrices with this new node
-               CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
+               IF(I_HMAX.EQ.-19) THEN
+!  using H-elements in the rho matrix
+                 RHOIJ(I_VNEXT,I_VNEXT)=GETHELEMENT2(INODE,INODE,NEL,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,
+     &                  UMAT,0,ECORE)
+               ELSE
+                  CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,TMat,TMat,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
-               RHOII(I_VNEXT)=RH
-               RHOIJ(I_VNEXT,I_VNEXT)=RH
+                  RHOII(I_VNEXT)=RH
+                  RHOIJ(I_VNEXT,I_VNEXT)=RH
+               ENDIF
                DO I=0,I_VNEXT-1
                   ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
                   IF(ICE.LE.2) THEN
@@ -1944,14 +1957,22 @@ C.. Update the rho and X (probability) matrices with this new node
                      XIJ(I_VNEXT,I)=0.D0
                      XIJ(I,I_VNEXT)=0.D0
                   ENDIF
-                  IF(I.EQ.0) THEN
-                     HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
+                  IF(I_HMAX.EQ.-19) THEN
+!  using H-elements in the rho matrix
+                     RH=GETHELEMENT2(INODE,IPATH(1,I),NEL,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,
+     &                  UMAT,0,ECORE)
+                     IF(I.EQ.0) HIJS(I_VNEXT)=RH
+                  ELSE
+                     IF(I.EQ.0) THEN
+                      HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &                  ICE,ECORE)
-                  ENDIF
-                  CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
+                     ENDIF
+                     CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
      &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
+                  ENDIF
                   IF(RH.AGT.RHOEPS) THEN
                      RHOIJ(I_VNEXT,I)=RH
                      RHOIJ(I,I_VNEXT)=RH
