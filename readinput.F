@@ -366,12 +366,14 @@ C                  end select
                      I_VMAX=I_VMAX+1
                      NWHTAY(3,I_VMAX)=I_VMAX
                     call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX))
-                   if(NWHTAY(1,I_VMAX).EQ.-7) g_MultiWeight(I_VMAX)=1.D0
+                   if(NWHTAY(1,I_VMAX).EQ.-7.or.
+     &               NWHTAY(1,I_VMAX).EQ.-19) g_MultiWeight(I_VMAX)=1.D0
                   case("EXCITATIONS")
                      call inpgetexcitations(NWHTAY(2,I_VMAX))
                   case("CYCLES")
                      call readi(NWHTAY(2,I_VMAX))
-                     if ( NWHTAY(1,I_VMAX).ne. -7 ) then
+                     if ( NWHTAY(1,I_VMAX).ne. -7.and.
+     &                    NWHTAY(1,I_VMAX).ne.-19 ) then
                         call report(trim(w)//" only valid for MC " 
      &                   //"method",.true.)
                      end if
@@ -391,7 +393,8 @@ C                  end select
                   call inpgetmethod(I_HMAX,NWHTAY(1,1))
               case("CYCLES")
                   call readi(NWHTAY(1,1))
-                  if ( I_HMAX .ne. -7 ) then
+                  if ( I_HMAX .ne. -7.and.
+     &                 I_HMAX .ne. -19) then
                       call report(trim(w)//" only valid for MC " 
      &                   //"method",.true.)
                   end if

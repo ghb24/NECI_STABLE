@@ -488,8 +488,8 @@ caa            CALL FLUSH(10)
          ENDDO
 ! Finish off any sequences
          LP=0
+         IOV=I_VCUR
          I_VCUR=0
-         IOV=I_VMIN
          IGV=0
          IACC=1
                  CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,IOCLS,
@@ -1840,6 +1840,7 @@ C.. those before it.
             RHOIJ(0,0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &                  0,ECORE)
+            RHOII(1)=BETA
          ENDIF
          PEXCIT(1)=1.D0
          PVERTMEMS(0)=LOC(NMEMNI)
@@ -1912,9 +1913,10 @@ C.. Count the excitations (and generate a random one which we throw)
 C.. Update the rho and X (probability) matrices with this new node
                IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
-                 RHOIJ(I_VNEXT,I_VNEXT)=GETHELEMENT2(INODE,INODE,NEL,
+                 RH=GETHELEMENT2(INODE,INODE,NEL,
      &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,
      &                  UMAT,0,ECORE)
+                  RHOIJ(I_VNEXT,I_VNEXT)=RH
                ELSE
                   CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,TMat,TMat,NMAX,ALAT,UMAT,
@@ -1961,7 +1963,7 @@ C.. Update the rho and X (probability) matrices with this new node
 !  using H-elements in the rho matrix
                      RH=GETHELEMENT2(INODE,IPATH(1,I),NEL,
      &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,
-     &                  UMAT,0,ECORE)
+     &                  UMAT,ICE,ECORE)
                      IF(I.EQ.0) HIJS(I_VNEXT)=RH
                   ELSE
                      IF(I.EQ.0) THEN
