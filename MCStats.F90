@@ -8,10 +8,16 @@ MODULE MCStats
          INTEGER                       iBlocks
          INTEGER                       iBMax
       END TYPE
+      TYPE BlockStatsCov
+         TYPE(HDElement), POINTER :: wBlockSum(0:)
+         INTEGER                       iBlocks
+         INTEGER                       iBMax
+      END TYPE
       TYPE MCStats
          TYPE(BlockStats)           BlockDeltaSign
          TYPE(BlockStats)           BlockSign
-!  Magically, F90 will know the relevant numbers of rows and columns in this once it has been created.
+         TYPE(BlockStatsCov)           BlockSignDeltaSign
+         !  Magically, F90 will know the relevant numbers of rows and columns in this once it has been created.
          INTEGER*8, POINTER         :: nGen(0:,0:)
          INTEGER*8, POINTER         :: nAcc(0:,0:)
          TYPE(HDElement), POINTER :: wSign(0:)
@@ -60,6 +66,17 @@ MODULE MCStats
             BS%wBlockSumSq=HDElement(0.D0)
             BS%iBlocks=iBlocks
          END
+         SUBROUTINE CreateBlockStatsCov(BSC,iBlocks)
+            TYPE(BlockStatsCov) BSC
+            INTEGER iBlocks
+            ALLOCATE(BSC%wBlockSum(0:iBlocks))
+            BSC%wBlockSum=HDElement(0.D0)
+            BSC%iBlocks=iBlocks
+         END
+         SUBROUTINE DestroyBlockStatsCov(BSC)
+            TYPE(BlockStatsCov) BSC
+            DEALLOCATE(BSC%wBlockSum)
+         END
          SUBROUTINE DestroyBlockStats(BS)
             TYPE(BlockStats) BS
             DEALLOCATE(BS%wCurBlock)
@@ -79,6 +96,7 @@ MODULE MCStats
             i=HDElementSize
             CALL CreateBlockStats(MCS%BlockDeltaSign,iBlocks)
             CALL CreateBlockStats(MCS%BlockSign,iBlocks)
+            CALL CreateBlockStatsCov(MCS%BlockSignDeltaSign,iBlocks)
             ALLOCATE(MCS%nGen(0:iV,0:iV))
             ALLOCATE(MCS%nAcc(0:iV,0:iV))
             MCS%nGen=0
@@ -136,7 +154,8 @@ MODULE MCStats
             DEALLOCATE(MCS%nTrees)
             CALL DestroyBlockStats(MCS%BlockDeltaSign)
             CALL DestroyBlockStats(MCS%BlockSign)
-           
+            CALL DestroyBlockStatsCov(MCS%BlockSignDeltaSign)
+            
          END
 !  What is passed in as wSETilde is the sign of the weight times Etilde.  wSign is the sign of the weight
 !  We store Delta=ETilde-ETReference
@@ -193,13 +212,19 @@ MODULE MCStats
                   CALL AddW(M%wNonTreesNeg,iV,nTimes,wWeight)
                ENDIF
             ENDIF
-            CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
-            IF(tNewPower.or.iV.EQ.0) THEN
+
+!!            CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
+
+               CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,wDelta*wSign,wSign,nTimes,M%wSDelta(0),M%wSign(0),M%nGraphs(0),tNewPower)
+               
+               IF(tNewPower.or.iV.EQ.0) THEN
                OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
                Call WriteBlockStats(23,M%BlockDeltaSign,M%nGraphs(0)) 
                CLOSE(23)
             ENDIF
-            CALL AddToBlockStats(M%BlockSign,wSign,nTimes,M%wSign(0),M%nGraphs(0),tNewPower)
+
+            
+            !!            CALL AddToBlockStats(M%BlockSign,wSign,nTimes,M%wSign(0),M%nGraphs(0),tNewPower)
 !.. Write out the blocking file every time we go past another power of 2
              
             IF(tNewPower.or.iV.EQ.0) THEN
@@ -207,12 +232,20 @@ MODULE MCStats
                Call WriteBlockStats(23,M%BlockSign,M%nGraphs(0)) 
                CLOSE(23)
              ENDIF
+
+            IF(tNewPower.or.iV.EQ.0) THEN
+               OPEN(23,FILE="MCBLOCKS3",STATUS="UNKNOWN")
+               CALL WriteBlockStatsII(23,M%BlockSignDeltaSign,M%BlockDeltaSign,M%BlockSign,M%nGraphs(0))
+               CLOSE(23)
+            ENDIF
+             
             M%ioClass=iClass
             M%woWeight=wWeight
             M%woDelta=wDelta
             M%foProb=fProb
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
          END
+         
       SUBROUTINE WriteBlockStats(iUnit,M,nGraphs)
          TYPE(BlockStats) M
          INTEGER iUnit
@@ -235,6 +268,34 @@ MODULE MCStats
                   !nn=nn/2
                ENDDO
       END
+
+      SUBROUTINE WriteBlockStatsII(iUnit,BSDS,BDS,BS,nGraphs)
+      TYPE(BlockStats) BDS,BS
+      TYPE(BlockStatsCov) BSDS
+      INTEGER iUnit
+      INTEGER*8 nn,nGraphs
+      TYPE(HDElement) ss,jj,ee,kk,mm,meanS,meanDS,varDS,varS,covar
+      REAL*8 cc
+      INTEGER i
+
+          WRITE(iUnit,*) "#MCBLOCKS for ",nGraphs," steps."
+          DO i=0,BS%iBMax
+              nn=Int(nGraphs/2**i)
+              mm=BSDS%wBlockSum(i)/HDElement(nn+0.D0)
+              meanS=BS%wBlockSum(i)/HDElement(nn+0.D0)
+              meanDS=BDS%wBlockSum(i)/HDElement(nn+0.D0)
+              varDS=DREAL(BDS%wBlockSumSq(i)/HDElement(nn+0.D0)-(meanDS*meanDS))
+              varS=DREAL(BS%wBlockSumSq(i)/HDElement(nn+0.D0)-(meanS*meanS))
+              covar=(BSDS%wBlockSum(i)/HDElement(nn+0.D0))-(meanS*meanDS)
+              jj=(meanDS/(meanS*HDElement(SQRT(nn-1.D0))))
+              kk=(varDS/(meanDS*meanDS))+(varS/(meanS*meanS))-((HDElement(2.D0)*covar)/(meanDS*meanS))              
+              ss=ABS((DREAL(jj))*SQRT(DREAL(kk)))
+              ee=ss/HDElement(SQRT(ABS(2.D0*(nn-1.D0))))
+              WRITE(iUnit,"(I,4G25.16)") i,ss,ee,mm
+          ENDDO
+      END
+
+      
 !.. Deal with blocking in a new way.
 !.. wCurBlock(i) contains the remainder of the sum of values after having removed blocks of length 2**i
 !
@@ -320,7 +381,63 @@ MODULE MCStats
 !2     4       10          2                       16/4
 !1     2        0          0                       26/2
 !0     1        0          0                       26
-      SUBROUTINE AddToBlockStats(M,wVal,nTimes,wValTot,nGraphs,tNewPower)
+
+
+    SUBROUTINE AddToBlockStatsII(BSDS,BS,BDS,wDS,wS,nTimes,wValTotDS,wValTotS,nGraphs,tNewPower)
+         TYPE(BlockStats) BS, BDS
+         TYPE(BlockStatsCov) BSDS
+         LOGICAL tNewPower
+         TYPE(HDElement) wDS,wS,wValTotDS,wValTotS
+         INTEGER*8 no,nc,nt,nn,nGraphs,nTimes
+         TYPE(HDElement) bbS,bbDS
+         INTEGER i,iobmax
+
+            nn=1
+            i=0
+            ioBMax=BS%iBMax
+            DO WHILE(nn.LE.nGraphs)
+               nt=nTimes
+! nc is the number of samples in the wCurBlock.
+! nn is the length of the cur block
+               no=nGraphs-nTimes
+               nc=MOD(no,nn)
+! If we don't already have a sum for this block size, get it from the stats
+               IF(.NOT.(BS%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) BS%wCurBlock(i)=(wValTotS)-HDElement(nTimes)*wS
+               IF(.NOT.(BDS%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) BDS%wCurBlock(i)=(wValTotDS)-HDElement(nTimes)*wDS
+               IF(nc+nt.GE.nn.AND.nc.NE.0) THEN
+!  Add enough from the new set to fill the old to nn, and send to BlockSum
+                  bbS=(wS*HDElement(nn-nc)+BS%wCurBlock(i))/HDElement(nn)
+                  bbDS=(wDS*HDElement(nn-nc)+BDS%wCurBlock(i))/HDElement(nn)
+                  BSDS%wBlockSum(i)=BSDS%wBlockSum(i)+(bbS*bbDS)
+                  BS%wBlockSum(i)=BS%wBlockSum(i)+bbS
+                  BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
+                  BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
+                  BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
+                  nt=nt-(nn-nc)
+                  BS%wCurBlock(i)=0.D0
+                  BDS%wCurBlock(i)=0.D0
+              ENDIF
+!  Now add in all blocks of length nn from the remainder
+               bbS=HDElement(Int(nt/nn))*wS !there are nn lots of wVal - but we want the average
+               bbDS=HDElement(Int(nt/nn))*wDS
+               BSDS%wBlockSum(i)=BSDS%wBlockSum(i)+(bbS*bbDS)
+               BS%wBlockSum(i)=BS%wBlockSum(i)+bbS
+               BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
+               BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
+               BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
+!  Add in the remainder
+               BS%wCurBlock(i)=BS%wCurBlock(i)+HDElement(MOD(nt,nn))*wS
+               BDS%wCurBlock(i)=BDS%wCurBlock(i)+HDElement(MOD(nt,nn))*wDS
+               nn=nn*2
+               i=i+1
+            ENDDO
+            BS%iBMax=i-2
+            BDS%iBMax=i-2
+            
+            END
+
+           !  This routine is now never called 
+            SUBROUTINE AddToBlockStats(M,wVal,nTimes,wValTot,nGraphs,tNewPower)
          TYPE(BlockStats) M
          LOGICAL tNewPower
          TYPE(HDElement) wVal,wvalTot
@@ -328,7 +445,6 @@ MODULE MCStats
          TYPE(HDElement)bb,ss,mm,ee
          REAL*8 cc
          INTEGER i,j,iobmax
-
 
 !.. We enable the new blocking counting method if TRUE, and the old one if FALSE
          IF(.TRUE.) THEN
