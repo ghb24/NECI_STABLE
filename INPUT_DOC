@@ -152,9 +152,18 @@ DELTABETA <DBETA>
 RHOEPSILON <RHOEPSILON>
    Set the minimum significant value of RHO (as a fraction of RHOIIMAX).
 
-GRAPHEPSILON <RHOEPSILON>
+GRAPHEPSILON <GRAPHEPSILON>
    Set the minimum significant value of the weight of a graph. Default 0.D0
    If the magnitude of the weight is smaller than this, both the weight, and E~ contribution are set to zero.
+
+PGENEPSILON <PGENEPSILON>
+   Set the minimum significant value of the generation probability of a graph. Default 0.D0
+      Because for larger graphs, the calculation of the generation probability is subject to numerical
+   truncation errors, pgens which are lower than a certain value are unreliable, and can cause the MC to 
+   get stuck (if e.g. pgen were very small, it would be difficult for an MC run to leave that graph).
+   If the magnitude of the pgen is smaller than PGENEPSILON, the a new graph is generated.
+      Setting this too high could cause the code to get stuck in the graph generation phase,
+   so the program will exit if it generates 10000 successive graphs with pgen too low.
 
 EXCITATIONS OLD,NEW
    For generation of up to double excitations use the old (completely reliable), or new

@@ -1639,7 +1639,7 @@ C.. weight.
          LOGICAL LISINPATH
          INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
-         REAL*8 RP,DBETA
+         REAL*8 RP,DBETA(3)
          TYPE(HDElement) DLWDB,DLWDB2
          TYPE(HElement)HIJS(0:I_V)
          LOGICAL ISUHFDET
@@ -1672,16 +1672,28 @@ C.. Take a copy of the old path and rho matrix etc.
          CALL ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
          IF(.NOT.(INWI.AGT.0.D0)) THEN
 !.. Generate a new graph
-            CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
-     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
-     &         NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX)
-            TLOG=BTEST(ILOGGING,2)
-            TLOG2=BTEST(ILOGGING,3)
-            TLOG3=BTEST(ILOGGING,6)
+!  DBETA(3) has PGENEPSILON hidden in it.
+            RH=-1
+            IC=0
+            DO WHILE (RH.LE.DBETA(3))
+               CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
+     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX)
+               TLOG=BTEST(ILOGGING,2)
+               TLOG2=BTEST(ILOGGING,3)
+               TLOG3=BTEST(ILOGGING,6)
 C.. Now get the parameters for the new path 
-
+            
 C.. GETPATHPROB gives us the probability of generating the path
-            RH=GETPATHPROB2(XIJ,I_V)*PFAC
+               RH=GETPATHPROB2(XIJ,I_V)*PFAC
+               IC=IC+1
+               IF(IC.GT.10000) THEN
+                  WRITE(6,*) "Have thrown away 10000 graphs with pGen<",
+     &               DBETA(3) 
+                  STOP "Have thrown away 10000 graphs with pGen<"
+     &               //"pGenEpsilon"
+               ENDIF
+            ENDDO
 C.. CALCPATHS gives us the contribution of the path
             ICLS=0
             WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
@@ -1882,7 +1894,7 @@ C.. set this chosen node to be the pivot
 
 C.. generate a random excitation
             CALL GENRANDSYMEXCITIT2(IPATH(1,NEXNODE),NEL,G1,NBASIS,
-     &         NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
+     &            NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
 
 
             CALL ICOPY(NEL,INODE2,1,INODE,1)

@@ -17,7 +17,7 @@
       LOGICAL TCPMD
       CHARACTER*255 FILENAME
       INTEGER ios
-      REAL*8 DBETA(2)
+      REAL*8 DBETA(3)
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
 

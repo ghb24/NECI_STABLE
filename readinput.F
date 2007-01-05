@@ -32,7 +32,7 @@
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
       INTEGER ios
-      REAL*8 DBETA(2)
+      REAL*8 DBETA(3)
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'umatcache.inc'
@@ -82,8 +82,10 @@
 !DBETA now has  two elements
 ! DBETA(1) is DBETA
 ! DBETA(2) is GRAPHEPSILON
+! DBETA(3) is PGENEPSILON
       DBETA(1)=-1.D0
       DBETA(2)=0.D0
+      DBETA(3)=0.D0
       RHOEPSILON=1.D-6
       TTROT=.true.
 
@@ -496,6 +498,8 @@ C                  end select
                   call getf(RHOEPSILON)
               case("GRAPHEPSILON")
                   call getf(DBETA(2))
+              case("PGENEPSILON")
+                  call getf(DBETA(3))
               case default
                   call report("Keyword "         
      &              //trim(w)//" not recognized in CALC block",.true.)
