@@ -42,7 +42,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          REAL*8 TIGET
 
          TYPE(HDElement) F(2:I_VMAX)
-         CHARACTER*20 STR
+         CHARACTER*40 STR
          TYPE(HDElement) TOTAL,RHOII(0:I_VMAX)
          TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX)
          TYPE(HDElement) FLNSUM,FLNRII
@@ -70,11 +70,13 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 NTIME,OTIME
          INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2
          REAL*8 OSI,ODLWDB,OPROB
-         TYPE(HDElement) MP2E
+         TYPE(HDElement) MP2E(2:I_VMAX)
          INCLUDE 'vmc.inc'
          CALL TISET('MCPATHSR10',ISUB)
 C.. This will store the MP2 energy
-         MP2E=0.D0
+         DO I=2,I_VMAX
+            MP2E(I)=0.D0
+         ENDDO
          ISEED=7
          TLOG=BTEST(ILOGGING,1)
          IF(NTAY.LE.0) THEN
@@ -153,7 +155,7 @@ C.. matrix of hij instead of rhoij
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL)
+     &         MP2E,NTOTAL,I_VMAX)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
@@ -268,9 +270,14 @@ C.. save all log files
             CLOSE(13)
          ENDIF
          IF(BTEST(ILOGGING,9)) CLOSE(12)
-         FF=HIJS(0)
-         IF(MP2E.AGE.0.D0) WRITE(6,*) "MP2 ENERGY = ",
-     &      FF+MP2E
+         IF(MP2E(2).AGE.0.D0) THEN
+            FF=HIJS(0)
+            DO I=2,I_VMAX
+               FF=FF+MP2E(I)
+               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
+               WRITE(6,"(A14,G)") STR,FF
+            ENDDO
+         ENDIF
          WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
 C.<D|H exp(-b H)|D> / <D|exp(-b H)|D>
@@ -311,7 +318,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          REAL*8 TIGET
          TYPE(HDElement) WLRI,WLSI,FMCPR3
          TYPE(HDElement) F(2:I_VMAX)
-         CHARACTER*20 STR
+         CHARACTER*40 STR
          TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX)
          TYPE(HDElement) RHOII(0:I_VMAX),TOTAL,FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
@@ -329,13 +336,15 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDElement) FMCPR3B,DLWDB,DLWDB2
          REAL*8 NTIME,OTIME
          INTEGER IFRZ(0:NBASIS,I_VMAX)
-         TYPE(HDELement) MP2E,H00
+         TYPE(HDELement) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
 
          TYPE(HDElement) FMCPR3STAR,FMCPR3B2
 
 C.. This is where we will store the MP2 energy
-         MP2E=0.D0
+         DO I=2,I_VMAX
+            MP2E(I)=0.D0
+         ENDDO
 C         CALL MEMORY_CHECK()
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
          CALL CLEARCLASSPATHS()
@@ -459,7 +468,7 @@ C.. HIJ rather than RHOIJ
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &        RHOEPS,0,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL)
+     &         MP2E,NTOTAL,I_VMAX)
             ELSEIF(I_HMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
@@ -502,7 +511,14 @@ C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
          DLWDB=DLWDB/TOTAL
          TOTAL=HIJS(0)
-         IF(MP2E.AGE.0.D0) WRITE(6,*) "MP2 ENERGY = ",TOTAL+MP2E
+         IF(MP2E(2).AGE.0.D0) THEN
+            FF=HIJS(0)
+            DO I=2,I_VMAX
+               FF=FF+MP2E(I)
+               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
+               WRITE(6,"(A14,G)") STR,FF
+            ENDDO
+         ENDIF
          CALL TIHALT('MCPATHSR3 ',ISUB)
          CALL MEMORY_CHECK()
          RETURN
@@ -2350,68 +2366,6 @@ C         DLWDB=DLWDB-LIST(1,2)
          RETURN
       END
 
-C.. Calculate the contribution to the MP2 energy from 
-C.. the determinant making this a 2-v graph.
-      SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
-         IMPLICIT NONE
-         REAL*8 HIJS(0:2)
-         REAL*8 ARR(NBASIS,2)
-         INTEGER IPATH(NEL,0:2),NEL,NBASIS
-         INTEGER NI(NEL),NJ(NEL)
-         REAL*8 MP2E
-         REAL*8 DENOM,CONTR
-         INTEGER I,J,S
-         LOGICAL TLOG
-         LOGICAL ISCSF
-
-
-C.. If we have CSFs, unCSF the elecs
-         IF(ISCSF(IPATH(1,0),NEL)) THEN
-            DO I=1,NEL
-               CALL GETUNCSFELEC(IPATH(I,0),NI(I),S)
-            ENDDO
-         ELSE
-            CALL ICOPY(NEL,IPATH(1,0),1,NI,1)
-         ENDIF
-         IF(ISCSF(IPATH(1,1),NEL)) THEN
-            DO I=1,NEL
-               CALL GETUNCSFELEC(IPATH(I,1),NJ(I),S)
-            ENDDO
-         ELSE
-            CALL ICOPY(NEL,IPATH(1,1),1,NJ,1)
-         ENDIF
-C         CALL WRITEDET(13,NI,NEL,.FALSE.)
-C         CALL WRITEDET(13,NJ,NEL,.TRUE.)
-C.. First find which orbitals have been excited
-         I=1
-         J=1
-         DENOM=0.D0
-         DO WHILE (I.LE.NEL.OR.J.LE.NEL)
-C            WRITE(13,*) I,J,NI(I),NJ(J)
-            IF(J.GT.NEL.OR.(I.LE.NEL.AND.NI(I).LT.NJ(J))) THEN
-C.. 0 has a lower orb than 1, so 0's must have been removed to get 1
-C               WRITE(13,*) NI(I),-ARR(NI(I),2)
-               DENOM=DENOM-ARR(NI(I),2)
-               I=I+1
-            ELSEIF(I.GT.NEL.OR.(J.LE.NEL.AND.NI(I).GT.NJ(J)))
-     &          THEN
-C.. 1 has a lower orb than 0, so 1's must have been added to get 1
-C               WRITE(13,*) NJ(J),ARR(NJ(J),2)
-               DENOM=DENOM+ARR(NJ(J),2)
-               J=J+1
-            ELSE
-               I=I+1
-               J=J+1
-            ENDIF
-         ENDDO
-         CONTR=HIJS(1)*HIJS(1)/DENOM
-         IF(TLOG) THEN
-            CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-            WRITE(13,*) HIJS(1),DENOM,CONTR
-         ENDIF
-         MP2E=MP2E-CONTR
-         RETURN
-      END
 !.. Read in values for a weight and ETilde from an MCPATHS file
       SUBROUTINE ReadMCPaths(iV,wWeight,wETilde)
          USE HElement

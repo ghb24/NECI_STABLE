@@ -28,7 +28,7 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL)
+     &   NTOTAL,I_VMAX)
          USE HElement 
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -160,11 +160,11 @@ C.. Sum up the components of <D|H exp(-b H)|D>
             ENDIF
             L=L+1
             FMCPR3B2=TOTAL
-            IF(I_V.EQ.2) THEN
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
-               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
-            ENDIF
+!               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
+               CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,
+     &            iPath,nEl,tLog,ECORE,MP2E)
             IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
 C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
@@ -382,7 +382,8 @@ C.. Get the H element so we can calculate the energy
      &                     G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
-     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL)
+     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
+     &                     I_VMAX)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF

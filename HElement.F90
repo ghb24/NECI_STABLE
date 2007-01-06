@@ -22,6 +22,9 @@ MODULE HElement
       interface operator (*)
          module procedure HElemMul
       end interface
+      interface operator (**)
+         module procedure HElemPow
+      end interface
       interface operator (/)
          module procedure HElemDiv
          module procedure HElemDivInt
@@ -135,6 +138,12 @@ MODULE HElement
       TYPE(HElement) FUNCTION HElemNeg(h1)
          TYPE(HElement) h1
          HElemNeg%v=-h1%v
+         RETURN
+      END
+      TYPE(HElement) FUNCTION HElemPow(h,r)
+         TYPE(HElement) h
+         REAL*8 r
+         HElemPow%v=h%v**r
          RETURN
       END
       TYPE(HElement) FUNCTION HElemMul(h1,h2)
