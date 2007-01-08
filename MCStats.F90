@@ -47,12 +47,13 @@ MODULE MCStats
 
       END TYPE
       CONTAINS
-         SUBROUTINE GetStats(MCS,iV,wSign,wETilde)
+         SUBROUTINE GetStats(MCS,iV,wSign,wETilde,wsETilde)
             TYPE(MCStats) MCS
             INTEGER iV
-            TYPE(HDElement) wSign,wETilde
+            TYPE(HDElement) wSign,wETilde,wsETilde
             wSign=MCS%wSign(iV)/HDElement(0.D0+MCS%nGraphs(iV))
             wETilde=MCS%wETReference*wSign+MCS%wSDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
+            wsETilde=MCS%wDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
          END
 !  The constructor
          SUBROUTINE CreateBlockStats(BS,iBlocks)
@@ -593,7 +594,7 @@ MODULE MCStats
             TYPE(HDElement) OW,OE,iC
             REAL*8 Time,fAveSeqLen
             iC=HDElement(M%nGraphs(0))
-            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,F19.7)") ,M%iVMax,M%wSign(0)/iC-OW,M%wSign(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
+            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,M%wSign(0)/iC-OW,M%wSign(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)

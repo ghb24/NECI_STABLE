@@ -102,7 +102,12 @@ C.. Set the first node to I_I
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
          WCORE=WLSI
-         IF(I_VMIN.NE.0) THEN
+         IF(TMPTHEORY) THEN
+            DLWDBCORE=0.D0
+            WCORE=0.D0
+            CALL Create(MCStat,I_VMAX,
+     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
+         ELSEIF(I_VMIN.NE.0) THEN
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
      &      DLWDBCORE/WCORE)
@@ -117,7 +122,7 @@ C.. These variables have been passed in and represent the precalculated values f
             DLWDB=HIJS(0)
          ENDIF
          IF(TLOG.AND.I_VMIN.EQ.0) 
-     &         WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 
+     &         WRITE(11,"(I12,2G25.16,F19.7,2I12,G25.12)") 
      &         1,TOTAL,TOTAL,0.D0,1,1,DLWDB
 C.. we're working in block space, so we work out our current symmetry.
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
@@ -178,7 +183,7 @@ C.. Do importance sampling with probabilities.  No norm needed
                DLWDBSQ=0.D0
                PFAC=G_VMC_PI
                WMIN=1.D-8
-               IF(I_HMAX.LT.-12) THEN
+               IF(I_HMAX.LT.-12.AND.I_HMAX.GT.-19) THEN
 C.. Setup the first graph for memory MC
                   OWEIGHT=1.D0
                   ODLWDB=HIJS(0)
@@ -262,8 +267,8 @@ C.. we're doing MC with lots of different vertex levels
                            PFAC=G_VMC_FAC**(I_VCUR-1)
                          ELSEIF(G_VMC_FAC.EQ.0) THEN
                            R=RAN2(ISEED)
-                           I_VCUR=R*I_VMAX+1
-                           PFAC=1.D0/I_VMAX
+                           I_VCUR=R*(I_VMAX-1)+2
+                           PFAC=1.D0/(I_VMAX-1)
                          ELSE
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
@@ -280,7 +285,7 @@ C.. Markov chain with random generation.
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                     IACC,0.D0)
+     &                     IACC,0.D0,I_VMAX)
 !                   !   .
                         ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
@@ -301,7 +306,7 @@ C.. Markov chain with random generation.
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDBCORE,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                        IACC,WCORE)
+     &                        IACC,WCORE,I_VMAX)
                            ELSE
                               R=RAN2(ISEED)*g_MultiWeight(0)
                               I_VCUR=I_VMIN-1
@@ -319,7 +324,7 @@ C.. Markov chain with random generation.
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                           IACC,0.D0)
+     &                           IACC,0.D0,I_VMAX)
                            ENDIF
 !                   !   .
                          ELSE
@@ -414,7 +419,7 @@ C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
      &                         RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                         ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
-     &                         PFAC,IACC,0.D0)
+     &                         PFAC,IACC,0.D0,I_VMAX)
 !                              WRITE(39,*) IOV,IGV,1,IACC
 C                              WRITE(6,*) IACC
                          ENDIF
@@ -505,12 +510,25 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,10)) CLOSE(22)
          Call CalcStDev(MCStat,R)
          WRITE(6,*) "Error in MC:",R
-         IF(I_VMIN.EQ.0) THEN
-            Call GetStats(MCStat,0,TOTAL,DLWDB2)
+         IF(TMPTHEORY) THEN
+            Call GetStats(MCStat,0,TOTAL,WLSI,DLWDB2)
+            WLSI=LOG(TOTAL)
+            DLWDB=DLWDB2
+            FF=HIJS(0)
+            FF=FF+DLWDB/TOTAL
+            WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
+            WRITE(6,"(A14,G)") STR,FF
+!            DO I=2,I_VMAX
+!               FF=FF+MP2E(I)
+!               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
+!               WRITE(6,"(A14,G)") STR,FF
+!            ENDDO
+         ELSEIF(I_VMIN.EQ.0) THEN
+            Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
             WLSI=LOG(TOTAL)
             DLWDB=DLWDB2/TOTAL
          ELSE
-            Call GetStats(MCStat,0,TOTAL,DLWDB2)
+            Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
             DLWDB=DLWDB2
             IF(TOTAL%v.LT.0) THEN
                TOTAL%v=-TOTAL%v
@@ -1615,11 +1633,11 @@ C.. weight.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
-     &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI)
+     &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX)
          USE HElement
          IMPLICIT NONE
          TYPE(HDElement) FMCPR4D2
-         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
+         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
@@ -1662,6 +1680,7 @@ C.. weight.
          REAL*8 PFAC
          REAL*8 RAN2
          INTEGER STORE(6)
+         TYPE(HDElement) MPEs(2:i_V)
          INCLUDE 'vmc.inc'
          
 C.. Take a copy of the old path and rho matrix etc.
@@ -1694,11 +1713,22 @@ C.. GETPATHPROB gives us the probability of generating the path
      &               //"pGenEpsilon"
                ENDIF
             ENDDO
-C.. CALCPATHS gives us the contribution of the path
             ICLS=0
-            WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &         I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,HIJS,ICLS)
-!            IF(.NOT.(WEIGHT.AGT.RHOEPS)) WEIGHT=0.D0
+            IF(TMPTHEORY) THEN
+! MP Theory requires HDIAG
+               CALL AZZERO(MPEs,I_VMAX-1)
+               CALL AddMPEnergy(RHOIJ,i_V,i_vmax,NMAX,nBasis,
+     &            iPath,nEl,.false.,ECORE,MPEs)
+               ETILDE=0.D0
+               DO I=2,I_VMAX
+                  ETILDE=ETILDE+MPEs(I)
+               ENDDO
+               WEIGHT=1.D0
+            ELSE
+C.. CALCPATHS gives us the contribution of the path
+               WEIGHT=CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
+     &            I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,HIJS,ICLS)
+            ENDIF
          ELSE
 C.. we use the gestalt
             RH=PFAC
@@ -1781,7 +1811,10 @@ C.. reject the new, and copy in the old
          IF(BTEST(ILOGGING,0).AND..NOT.BTEST(ILOGGING,2)) THEN
             WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
          ENDIF
-         IF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
+         IF(TMPTHEORY) THEN
+            DLWDB=ETILDE/HDElement(OPROB)
+            FMCPR4D2=OPROB
+         ELSEIF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))
             FMCPR4D2=WEIGHT/HDElement(ABS(DREAL(WEIGHT)))
@@ -1863,7 +1896,7 @@ C.. those before it.
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,NMAX,NMAX,pGen)
+     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 

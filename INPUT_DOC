@@ -229,6 +229,8 @@ CYCLES <NWHTAY(1,1)>
 MAXVERTICES <I_VMAX>
     Set the vertex level.
 
+MPTHEORY
+   Instead of a normal path-integral expansion MC, do a Moller Plesset MP.  Requires HDIAG, and BIAS=0.D0
 IMPORTANCE <G_VMC_PI> 
     Set the generation probability for the MC routine.  This is the probability that new determinants are excitations of the pivot, i
      The default 0.95.

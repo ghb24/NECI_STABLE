@@ -89,6 +89,7 @@
       RHOEPSILON=1.D-6
       TTROT=.true.
 
+      TMPTHEORY=.FALSE.
       TNEWEXCITATIONS=.FALSE.
 
       TNPDERIV = .false.
@@ -400,6 +401,13 @@ C                  end select
                       call report(trim(w)//" only valid for MC " 
      &                   //"method",.true.)
                   end if
+              case("MPTHEORY")
+                  TMPTHEORY=.TRUE.
+!                  if ( I_HMAX .ne. -7.and.
+!     &                 I_HMAX .ne. -19) then
+!                      call report(trim(w)//" only valid for MC " 
+!     &                   //"method",.true.)
+!                  end if
               case("MAXVERTICES")
                   if ( I_VMAX .ne. 0 ) then
                      call report("Cannot reset MAXVERTICES",.true.)

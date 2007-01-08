@@ -247,7 +247,7 @@ C.. setup spin excitation generator
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
             IF(TLOG.AND.I_V1.EQ.0) THEN
-                WRITE(11,"(I12,2G25.16,F19.7,I12,2F19.7)") I_V,F(I_V),
+                WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),
      &            TOTAL,NTIME-OTIME,L,STD,DLWDB2
                CALL FLUSH(11)
             ENDIF
