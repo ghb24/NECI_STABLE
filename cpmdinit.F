@@ -285,6 +285,7 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
             NSTATESUSED=NORBUSED/2
          ENDIF
          CALL SETUPUMATCACHE(NSTATESUSED)
+         CALL MEMORY(IP_PICorr,2*NSTATES,'PICorr')
          CALL CPMDGEN1EINTS(G1,CPMD1EINT)
          CALL MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
@@ -299,7 +300,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                JJ=J*2-1
                IF(LCHKSYM(G1(II),G1(JJ))) THEN
                   TOT=0.D0
-                  IF(I.EQ.J) TOT=TOT+HElement(EIGENVALUES(I))
+                 IF(I.EQ.J) TOT=TOT+HElement(EIGENVALUES(I))
+     &               -HElement(PICorr(I))
                   TOT=TOT-CPMD1EINT(I,J)
                   DO K=1,NSTATES
                      CALL CPMDGETOCC(K,F)
@@ -347,6 +349,7 @@ C.. This should save some time in the UMAT lookup.
             CALL WRITEBASIS(6,G1,NSTATES*2,ARR,BRR)
          ENDIF
 C.. Set the UMAT cache to cache normally again
+         CALL FREEM(IP_PICorr)
          CALL SETUMATCACHEFLAG(0)
          WRITE(6,*) "Finished TMAT"
          CLOSE(10)

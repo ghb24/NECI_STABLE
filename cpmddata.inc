@@ -54,10 +54,12 @@ C     ==================================================================
       LOGICAL TKP
       POINTER (IP_KPNTINDEXNECI,KPNTIND)
       INTEGER KPNTIND(*)
+      COMPLEX*16 PICorr(NSTATES)
+      POINTER    (IP_PICorr,PICorr)
       COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,NKPTRANS,IP_ROT_CHAR,
      &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,
      &                  IP_ROT_LABEL,IP_TRANS_LABEL,IP_IMPROPER_OP,
      &                 EIONION,NCOMPLETE,DEGENTOL,TSPACEGP,IP_KPNT_CHAR,
      &                 IP_K_VECTORS,IP_GROUP_CHAR,IP_TRANS_CHAR_TABLE,
-     &                 TKP,NKPS,IP_KPNTINDEXNECI
+     &                 TKP,NKPS,IP_KPNTINDEXNECI,IP_PICorr
 C     ==================================================================
