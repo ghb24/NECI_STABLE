@@ -7,6 +7,11 @@ MODULE MCStats
          TYPE(HDElement), POINTER :: wBlockSumSq(0:)
          INTEGER                       iBlocks
          INTEGER                       iBMax
+         !Histogram average value of block:
+         Integer                     bucketCount
+         Integer*8, Pointer       :: buckets(0:,0:)
+         Real*8, Pointer          :: bucketMin(0:)
+         Real*8, Pointer          :: bucketMax(0:)
       END TYPE
       TYPE BlockStatsCov
          TYPE(HDElement), POINTER :: wBlockSum(0:)
@@ -59,6 +64,9 @@ MODULE MCStats
          SUBROUTINE CreateBlockStats(BS,iBlocks)
             TYPE(BlockStats) BS
             INTEGER iBlocks
+            Real*8 bucketWidth
+            Real*8 bucketCentre
+            Integer i
             ALLOCATE(BS%wCurBlock(0:iBlocks))
             ALLOCATE(BS%wBlockSum(0:iBlocks))
             ALLOCATE(BS%wBlockSumSq(0:iBlocks))
@@ -66,6 +74,17 @@ MODULE MCStats
             BS%wBlockSum=HDElement(0.D0)
             BS%wBlockSumSq=HDElement(0.D0)
             BS%iBlocks=iBlocks
+            !Histogram setup
+            BS%bucketCount = 50
+            bucketCentre = -0.7514263584275787E-01
+            Allocate(BS%buckets(0:iBlocks,0:BS%bucketCount))
+            Allocate(BS%bucketMin(0:iBlocks))
+            Allocate(BS%bucketMax(0:iBlocks))
+            Do i=1,iBlocks
+               bucketWidth=3*500/(2**iBlocks)**0.5
+               BS%bucketMin(i)=bucketCentre - 0.5*bucketWidth
+               BS%bucketMax(i)=bucketCentre + 0.5*bucketWidth
+            EndDo
          END
          SUBROUTINE CreateBlockStatsCov(BSC,iBlocks)
             TYPE(BlockStatsCov) BSC
@@ -435,7 +454,38 @@ MODULE MCStats
             BS%iBMax=i-2
             BDS%iBMax=i-2
             
-            END
+    END
+
+    Subroutine AddToHistogram(BS, newBlock, blockSizeIndex)
+         Type(BlockStats) BS
+         Type(HDElement) newBlock
+         Integer blockSizeIndex, bucketIndex
+         Real*8 bucketWidth, newBlockV
+
+         newBlockV = newBlock%v         
+
+         If (newBlockV.GT.BS%bucketMax(blockSizeIndex)) Then 
+             BS%buckets(blockSizeIndex, BS%bucketCount)=BS%buckets(blockSizeIndex, BS%bucketCount)+1
+         ElseIf (newBlockV.LT.BS%bucketMin(blockSizeIndex)) Then
+             BS%buckets(blockSizeIndex, 1)=BS%buckets(blockSizeIndex, 1)+1
+         Else
+             bucketWidth = BS%bucketMax(blockSizeIndex)-BS%bucketMin(blockSizeIndex)
+             bucketIndex = Int(newBlockV/bucketWidth*Real(BS%bucketCount))
+             BS%buckets(blockSizeIndex, bucketIndex)=BS%buckets(blockSizeIndex, bucketIndex)+1
+         EndIf
+    End
+
+    Subroutine WriteHistogram(fileNumber, BS)
+         Type(BlockStats) BS
+         Integer fileNumber, iBuckets, iBlockSize
+         
+         Do iBuckets=1, BS%bucketCount
+             Do iBlockSize=0, BS%iBMax
+                 Write(fileNumber, "") BS%buckets(iBlockSize, iBuckets)
+             EndDo
+             !Write(fileNumber, "A") "\n"
+         EndDo
+    End  
 
            !  This routine is now never called 
             SUBROUTINE AddToBlockStats(M,wVal,nTimes,wValTot,nGraphs,tNewPower)
