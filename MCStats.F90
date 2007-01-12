@@ -80,8 +80,8 @@ MODULE MCStats
             Allocate(BS%buckets(0:iBlocks,0:BS%bucketCount))
             Allocate(BS%bucketMin(0:iBlocks))
             Allocate(BS%bucketMax(0:iBlocks))
-            Do i=1,iBlocks
-               bucketWidth=3*500/(2**iBlocks)**0.5
+            Do i=0,iBlocks
+               bucketWidth=3*1/(2**i)**0.5
                BS%bucketMin(i)=bucketCentre - 0.5*bucketWidth
                BS%bucketMax(i)=bucketCentre + 0.5*bucketWidth
             EndDo
@@ -240,6 +240,10 @@ MODULE MCStats
                IF(tNewPower.or.iV.EQ.0) THEN
                OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
                Call WriteBlockStats(23,M%BlockDeltaSign,M%nGraphs(0)) 
+               CLOSE(23)
+               
+               OPEN(23,FILE="MCBLOCKSHIST",STATUS="UNKNOWN")
+               Call WriteHistogram(23,M%BlockDeltaSign)
                CLOSE(23)
             ENDIF
 
@@ -433,6 +437,9 @@ MODULE MCStats
                   BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
                   BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
                   BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
+                  If (bbDS%v.GT.0) Then
+                      Call AddToHistogram(BDS, bbDS, i)
+                  EndIf
                   nt=nt-(nn-nc)
                   BS%wCurBlock(i)=0.D0
                   BDS%wCurBlock(i)=0.D0
@@ -445,6 +452,9 @@ MODULE MCStats
                BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
                BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
                BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
+               If (bbDS%v.GT.0) Then 
+                   Call AddToHistogram(BDS, bbDS, i) 
+               EndIf
 !  Add in the remainder
                BS%wCurBlock(i)=BS%wCurBlock(i)+HDElement(MOD(nt,nn))*wS
                BDS%wCurBlock(i)=BDS%wCurBlock(i)+HDElement(MOD(nt,nn))*wDS
@@ -463,27 +473,50 @@ MODULE MCStats
          Real*8 bucketWidth, newBlockV
 
          newBlockV = newBlock%v         
+         !Print *, 'adding:', newBlockV, 'block size:', blockSizeIndex
 
          If (newBlockV.GT.BS%bucketMax(blockSizeIndex)) Then 
              BS%buckets(blockSizeIndex, BS%bucketCount)=BS%buckets(blockSizeIndex, BS%bucketCount)+1
+             !Print *, BS%buckets(blockSizeIndex, BS%bucketCount)
          ElseIf (newBlockV.LT.BS%bucketMin(blockSizeIndex)) Then
              BS%buckets(blockSizeIndex, 1)=BS%buckets(blockSizeIndex, 1)+1
+             !Print *, BS%buckets(blockSizeIndex, 1)
          Else
              bucketWidth = BS%bucketMax(blockSizeIndex)-BS%bucketMin(blockSizeIndex)
+             newBlockV = newBlockV - BS%bucketMin(blockSizeIndex)
              bucketIndex = Int(newBlockV/bucketWidth*Real(BS%bucketCount))
              BS%buckets(blockSizeIndex, bucketIndex)=BS%buckets(blockSizeIndex, bucketIndex)+1
+             !Print *, BS%buckets(blockSizeIndex, bucketIndex), blockSizeIndex, bucketIndex
          EndIf
+         
+        ! OPEN(23,FILE="MCBLOCKSHIST",STATUS="UNKNOWN")
+        ! Call WriteHistogram(23,BS)
+        ! CLOSE(23)
     End
 
     Subroutine WriteHistogram(fileNumber, BS)
          Type(BlockStats) BS
          Integer fileNumber, iBuckets, iBlockSize
-         
+         Real*8 bucketWidth         
+
+         !Do iBuckets=1, BS%bucketCount
+         !    Do iBlockSize=0, BS%iBMax
+         !        bucketWidth = BS%bucketMax(iBlockSize)-BS%bucketMin(iBlockSize)
+         !        Write(fileNumber, "I3, 3F") iBlockSize, BS%bucketMax(iBlockSize), BS%bucketMin(iBlockSize), bucketWidth
+                 !Write(fileNumber, "I", ADVANCE='NO') BS%buckets(iBlockSize, iBuckets)
+         !    EndDo
+         !    Write(fileNumber, "A") ""
+         !EndDo
+
+         !Return
+
          Do iBuckets=1, BS%bucketCount
              Do iBlockSize=0, BS%iBMax
-                 Write(fileNumber, "") BS%buckets(iBlockSize, iBuckets)
+                 bucketWidth = BS%bucketMax(iBlockSize)-BS%bucketMin(iBlockSize)
+                 Write(fileNumber, "F", ADVANCE='NO') BS%bucketMin(iBlockSize)+bucketWidth/BS%bucketCount*(iBuckets-0.5)
+                 Write(fileNumber, "I", ADVANCE='NO') BS%buckets(iBlockSize, iBuckets)
              EndDo
-             !Write(fileNumber, "A") "\n"
+             Write(fileNumber, "A") ""
          EndDo
     End  
 
