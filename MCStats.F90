@@ -75,13 +75,14 @@ MODULE MCStats
             BS%wBlockSumSq=HDElement(0.D0)
             BS%iBlocks=iBlocks
             !Histogram setup
-            BS%bucketCount = 50
+            BS%bucketCount = 250
             bucketCentre = -0.7514263584275787E-01
             Allocate(BS%buckets(0:iBlocks,0:BS%bucketCount))
             Allocate(BS%bucketMin(0:iBlocks))
             Allocate(BS%bucketMax(0:iBlocks))
             Do i=0,iBlocks
-               bucketWidth=3*1/(2**i)**0.5
+               !bucketWidth=3*1/(2**i)**0.5
+               bucketWidth=3*3*3*0.452*(2**i)**-0.23
                BS%bucketMin(i)=bucketCentre - 0.5*bucketWidth
                BS%bucketMax(i)=bucketCentre + 0.5*bucketWidth
             EndDo
@@ -234,10 +235,15 @@ MODULE MCStats
             ENDIF
 
 !!            CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
+!CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,wDelta,wSign,nTimes,M%wSDelta(0),M%wSign(0),M%nGraphs(0),tNewPower)
 
-               CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,wDelta*wSign,wSign,nTimes,M%wSDelta(0),M%wSign(0),M%nGraphs(0),tNewPower)
+!If (wDelta%v.NE.0) Then
+!    Print *, nTimes, wDelta*wSign, wSign
+!EndIf
+        
+            CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,wDelta*wSign,wSign,nTimes,M%wSDelta(0),M%wSign(0),M%nGraphs(0),tNewPower)
                
-               IF(tNewPower.or.iV.EQ.0) THEN
+            IF(tNewPower.or.iV.EQ.0) THEN
                OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
                Call WriteBlockStats(23,M%BlockDeltaSign,M%nGraphs(0)) 
                CLOSE(23)
@@ -255,9 +261,7 @@ MODULE MCStats
                OPEN(23,FILE="MCBLOCKS2",STATUS="UNKNOWN")
                Call WriteBlockStats(23,M%BlockSign,M%nGraphs(0)) 
                CLOSE(23)
-             ENDIF
-
-            IF(tNewPower.or.iV.EQ.0) THEN
+               
                OPEN(23,FILE="MCBLOCKS3",STATUS="UNKNOWN")
                CALL WriteBlockStatsII(23,M%BlockSignDeltaSign,M%BlockDeltaSign,M%BlockSign,M%nGraphs(0))
                CLOSE(23)
@@ -287,8 +291,8 @@ MODULE MCStats
 !                  ss=SQRT(cc/nn)
 !ee is the error in the estimator ss.  
                   ee=ss/HDElement(SQRT(ABS(2.D0*(nn-1.D0))))
-                  WRITE(iUnit,"(I,4G25.16)") i,ss,ee,mm
-                  !WRITE(23,"(2I8,4G25.16)") i,nn,ss,ee,mm
+                  WRITE(iUnit,"(I,4G25.16)") i,ss,ee,mm,SQRT(cc)
+                  !WRITE(iUnit,"(2I8,4G25.16)") i,nn,cc,ss,mm
                   !nn=nn/2
                ENDDO
       END
@@ -437,8 +441,8 @@ MODULE MCStats
                   BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
                   BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
                   BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
-                  If (bbDS%v.GT.0) Then
-                      Call AddToHistogram(BDS, bbDS, i)
+                  If (bbDS%v.NE.0) Then
+                      Call AddToHistogram(BDS, bbDS, i, 1)
                   EndIf
                   nt=nt-(nn-nc)
                   BS%wCurBlock(i)=0.D0
@@ -452,8 +456,8 @@ MODULE MCStats
                BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
                BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
                BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
-               If (bbDS%v.GT.0) Then 
-                   Call AddToHistogram(BDS, bbDS, i) 
+               If (bbDS%v.NE.0) Then 
+                   Call AddToHistogram(BDS, wDS, i, Int(nt/nn)) 
                EndIf
 !  Add in the remainder
                BS%wCurBlock(i)=BS%wCurBlock(i)+HDElement(MOD(nt,nn))*wS
@@ -466,27 +470,29 @@ MODULE MCStats
             
     END
 
-    Subroutine AddToHistogram(BS, newBlock, blockSizeIndex)
+    Subroutine AddToHistogram(BS, newBlock, blockSizeIndex, blockCount)
          Type(BlockStats) BS
          Type(HDElement) newBlock
-         Integer blockSizeIndex, bucketIndex
+         Integer blockSizeIndex, bucketIndex, blockCount
          Real*8 bucketWidth, newBlockV
 
          newBlockV = newBlock%v         
-         !Print *, 'adding:', newBlockV, 'block size:', blockSizeIndex
+         !If (blockSizeIndex.EQ.0) Then
+         !    Print *,blockCount, newBlockV
+         !EndIf
 
          If (newBlockV.GT.BS%bucketMax(blockSizeIndex)) Then 
-             BS%buckets(blockSizeIndex, BS%bucketCount)=BS%buckets(blockSizeIndex, BS%bucketCount)+1
-             !Print *, BS%buckets(blockSizeIndex, BS%bucketCount)
+             BS%buckets(blockSizeIndex, BS%bucketCount)=BS%buckets(blockSizeIndex, BS%bucketCount)+blockCount
+             !Print *, blockSizeIndex, bucketIndex, BS%buckets(blockSizeIndex, BS%bucketCount)
          ElseIf (newBlockV.LT.BS%bucketMin(blockSizeIndex)) Then
-             BS%buckets(blockSizeIndex, 1)=BS%buckets(blockSizeIndex, 1)+1
-             !Print *, BS%buckets(blockSizeIndex, 1)
+             BS%buckets(blockSizeIndex, 1)=BS%buckets(blockSizeIndex, 1)+blockCount
+             !Print *, blockSizeIndex, bucketIndex, BS%buckets(blockSizeIndex, 1)
          Else
              bucketWidth = BS%bucketMax(blockSizeIndex)-BS%bucketMin(blockSizeIndex)
              newBlockV = newBlockV - BS%bucketMin(blockSizeIndex)
              bucketIndex = Int(newBlockV/bucketWidth*Real(BS%bucketCount))
-             BS%buckets(blockSizeIndex, bucketIndex)=BS%buckets(blockSizeIndex, bucketIndex)+1
-             !Print *, BS%buckets(blockSizeIndex, bucketIndex), blockSizeIndex, bucketIndex
+             BS%buckets(blockSizeIndex, bucketIndex)=BS%buckets(blockSizeIndex, bucketIndex)+blockCount
+             !Print *, blockSizeIndex, bucketIndex, BS%buckets(blockSizeIndex, bucketIndex)
          EndIf
          
         ! OPEN(23,FILE="MCBLOCKSHIST",STATUS="UNKNOWN")
