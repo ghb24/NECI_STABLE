@@ -275,7 +275,8 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          REAL*8 ARR(NSTATES*2,2)
          CALL TISET('CPMDINIT2I',ISUB)
 
-         ECORE=EIONION-NEL*NEL*XI/2.0
+         ECORE=EIONION
+!-NEL*NEL*XI/2.0
          WRITE(6,*) "Core Energy:", ECORE 
          NLOCK=(NEL+1)/2
          IF(TORDER) THEN
@@ -301,7 +302,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                IF(LCHKSYM(G1(II),G1(JJ))) THEN
                   TOT=0.D0
                  IF(I.EQ.J) TOT=TOT+HElement(EIGENVALUES(I))
-     &               -HElement(PICorr(I))
+                  IF(I.EQ.1.AND.J.EQ.1) WRITE(6,*) "PI",DREAL(PICorr(I))
                   TOT=TOT-CPMD1EINT(I,J)
                   DO K=1,NSTATES
                      CALL CPMDGETOCC(K,F)
@@ -315,7 +316,12 @@ C.. Get 4-index integral (ik|jk)
                         ENDIF
                         U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
      &                        I,K,J,K)
+                        WRITE(6,*) I,K,J,K,U
                         TOT=TOT-HElement(F)*U
+                        IF(I.EQ.K.AND.I.EQ.J)
+     &                     TOT=TOT+HElement(0.5)*(U-HElement(PICorr(I)))
+!  We don't subtract out this if I=J, as it is the interaction between the electron and its own periodic images
+!  Subject to the PICorr correction above.
                      ENDIF
                   ENDDO
                   TMAT(II,JJ)=TOT
