@@ -177,9 +177,11 @@ C.. forcing them to be disconnected.
                   LT=0
                ENDIF
             ELSEIF(I_CHMAX.EQ.-7.OR.I_CHMAX.EQ.-19) THEN
+             IF(G_VMC_FAC.NE.0.D0) THEN
 C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
 C.. levels by regarding all previous levels as a composite object with the Et and wi
 C.. we have already worked out. 
+
               g_MultiWeight(0)=0.D0
               DO J=1,I_VMAX
                IF(g_MultiWeight(J).NE.0.D0) THEN
@@ -192,6 +194,10 @@ C.. we have already worked out.
               ENDDO
 !  The last of the multi
               I_V2=NWHTAY(3,I_VMAX)
+             ELSE
+              I_V1=I_V
+              I_V2=I_VMAX
+             ENDIF
    
       
               WLSI=TOTAL
@@ -201,6 +207,9 @@ C.. we have already worked out.
      &               WLRI,WLSI,DBETA,DLWDB,I_V1)
                F(I_V)=WLSI
                DLWDB2=0.D0
+               IF(TMPTHEORY) THEN
+                  MP2E(I_V)=DLWDB
+               ENDIF
               CALL WRITECLASSPATHS()
             ELSE
                F(I_V)=0.D0
@@ -262,7 +271,7 @@ C.. save all log files
             ENDIF
             CALL WRITECLASSPATHS()
 ! If we've done a multi, we don't need to do any more
-            IF(I_V1.NE.0) EXIT
+            IF(I_V1.NE.0.AND.G_VMC_FAC.NE.0.D0) EXIT
          ENDDO
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,0)) THEN
@@ -274,9 +283,9 @@ C.. save all log files
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
-               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
-               WRITE(6,"(A14,G)") STR,FF
             ENDDO
+               WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
+               WRITE(6,"(A14,G)") STR,FF
          ENDIF
          WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
@@ -484,8 +493,14 @@ C.. forcing them to be disconnected.
             DLWDB=DLWDB+DLWDB2
 c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
             IF(TLOG) THEN
-               WRITE(11,"(I12,3G25.16,2I12,G25.16)")
+               WRITE(11,"(I12,3G25.16,2I12,G25.16,$)")
      &            I_V,F(I_V),TOTAL,NTIME-OTIME,L,LT,DLWDB2
+               IF(I_HMAX.EQ.-20) THEN
+                  DO I=2,I_VMAX
+                     WRITE(11,"(G25.16,$)") MP2E(I)
+                  ENDDO
+               ENDIF
+               WRITE(11,*)
                CALL FLUSH(11)
             ENDIF
             IF(LISNAN(TOTAL)) THEN

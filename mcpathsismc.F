@@ -202,7 +202,7 @@ C.. and for 2 (rho_jj/rhoii)**-P
                   OWEIGHT=0.D0
                   ODLWDB=0.D0
                ENDIF
-               IF(I_VMIN.NE.0) THEN
+               IF(I_VMIN.NE.0.AND.G_VMC_FAC.NE.0.D0) THEN
                   ODLWDB=DLWDBCORE
                   OWEIGHT=WCORE
                   OPROB=1   
@@ -260,7 +260,7 @@ C.. We decide on a graph size.  See 22/8/05 #1,2
 C.. Probability of graph size v is prop to G_VMC_FAC**(v)
                         I_VCUR=0
 !                   !   .
-                        IF(I_VMIN.EQ.0) THEN
+                        IF(I_VMIN.EQ.0.OR.G_VMC_FAC.EQ.0.D0) THEN
 C.. we're doing MC with lots of different vertex levels
                          IF(G_VMC_FAC.GT.0) THEN
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
@@ -269,9 +269,11 @@ C.. we're doing MC with lots of different vertex levels
                            ENDDO
                            PFAC=G_VMC_FAC**(I_VCUR-1)
                          ELSEIF(G_VMC_FAC.EQ.0) THEN
-                           R=RAN2(ISEED)
-                           I_VCUR=R*(I_VMAX-1)+2
-                           PFAC=1.D0/(I_VMAX-1)
+!                           R=RAN2(ISEED)
+!                           I_VCUR=R*(I_VMAX-1)+2
+!                           PFAC=1.D0/(I_VMAX-1)a
+                           I_VCUR=I_VMIN
+                           PFAC=1
                          ELSE
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
@@ -519,13 +521,16 @@ C.. setup spin excitation generator
          Call CalcStDev(MCStat,R)
          WRITE(6,*) "Error in MC:",R
          IF(TMPTHEORY) THEN
-            Call GetStats(MCStat,0,TOTAL,WLSI,DLWDB2)
-            WLSI=LOG(TOTAL)
-            DLWDB=DLWDB2
             FF=HIJS(0)
-            FF=FF+DLWDB/TOTAL
-            WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
-            WRITE(6,"(A14,G)") STR,FF
+!            DO I=I_VMIN,I_VMIN
+!2,I_VMAX
+               Call GetStats(MCStat,I_VMIN,TOTAL,WLSI,DLWDB2)
+!               WLSI=1.D0/(I_VMAX-1)
+               DLWDB=DLWDB2/TOTAL
+               FF=FF+DLWDB/(TOTAL/WLSI)
+!               WRITE(STR,"(A2,I1,A10)") "MP",I_VMIN," ENERGY = "
+!               WRITE(6,"(A14,G)") STR,FF
+!             ENDDO
 !            DO I=2,I_VMAX
 !               FF=FF+MP2E(I)
 !               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
@@ -1685,7 +1690,7 @@ C.. weight.
          INTEGER I_OVCUR,IOCLS,ITREE
          LOGICAL LISNAN,ISVALIDDET
          INTEGER IACC
-         REAL*8 PFAC
+         REAL*8 PFAC,PGEN
          REAL*8 RAN2
          INTEGER STORE(6)
          TYPE(HDElement) MPEs(2:i_V)
@@ -1714,7 +1719,8 @@ C.. Take a copy of the old path and rho matrix etc.
 C.. Now get the parameters for the new path 
             
 C.. GETPATHPROB gives us the probability of generating the path
-               RH=GETPATHPROB2(XIJ,I_V)*PFAC
+               PGEN=GETPATHPROB2(XIJ,I_V)
+               RH=PGEN*PFAC
                IC=IC+1
                IF(IC.GT.10000) THEN
                   WRITE(6,*) "Have thrown away 10000 graphs with pGen<",
@@ -1733,6 +1739,8 @@ C.. GETPATHPROB gives us the probability of generating the path
                DO I=2,I_VMAX
                   ETILDE=ETILDE+MPEs(I)
                ENDDO
+               RH=PFAC
+               ETILDE=ETILDE/HDElement(PGEN)
                WEIGHT=1.D0
             ELSE
 C.. CALCPATHS gives us the contribution of the path
@@ -1845,8 +1853,10 @@ C.. reject the new, and copy in the old
             WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
          ENDIF
          IF(TMPTHEORY) THEN
-            DLWDB=ETILDE/HDElement(OPROB)
-            FMCPR4D2=OPROB
+            DLWDB=ETILDE
+!/HDElement(OPROB)
+            FMCPR4D2=1.D0
+!OPROB
          ELSEIF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))
