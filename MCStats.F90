@@ -76,13 +76,13 @@ MODULE MCStats
             BS%iBlocks=iBlocks
             !Histogram setup
             BS%bucketCount = 250
-            bucketCentre = -0.7514263584275787E-01
+            bucketCentre = -0.07603822
             Allocate(BS%buckets(0:iBlocks,0:BS%bucketCount))
             Allocate(BS%bucketMin(0:iBlocks))
             Allocate(BS%bucketMax(0:iBlocks))
             Do i=0,iBlocks
-               !bucketWidth=3*1/(2**i)**0.5
-               bucketWidth=3*3*3*0.452*(2**i)**-0.23
+               bucketWidth=2*15/(2**i)**0.5
+               !bucketWidth=3*3*3*0.452*(2**i)**-0.23
                BS%bucketMin(i)=bucketCentre - 0.5*bucketWidth
                BS%bucketMax(i)=bucketCentre + 0.5*bucketWidth
             EndDo
@@ -208,7 +208,7 @@ MODULE MCStats
 !               std2=sqrt(1.D0-ave2*ave2)
 !               cc=std1/ave1+std2/ave2
                CALL CalcStDev(M,cc)
-               IF(tLog) WRITE(22,"(I20,I15,2I3,6G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb
+               IF(tLog.AND.(ioV.NE.1)) WRITE(22,"(I20,I15,2I3,6G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb
                M%iSeqLen=1
             ENDIF
             IF(iAcc.GT.0) THEN
