@@ -384,7 +384,7 @@ C.. Given a set of characters of states, generate all relevant irreps which span
          TYPE(Symmetry) iDecomp
          INTEGER NEXTSYMLAB
          LOGICAL GETIRREPDECOMP
-         COMPLEX*16 REPCHARS(NROT,NSYMLABELS)
+         COMPLEX*16 REPCHARS(NROT,NSYMLABELS*4)
          INTEGER NREPS,NROTOP
          REAL*8 NORM
          LOGICAL INV,IMPROPER_OP(NROTOP)
@@ -418,16 +418,19 @@ C            WRITE(6,*) NREPS," non-reducible"
 C            CALL WRITEIRREPTAB(6,REPCHARS,NROT,NREPS)
 C.. First see if all the products of chars are decomposable
             LDO=.FALSE.
+            NREPS=0
          lp1:DO I=1,NSYM
                DO J=I,NSYM
                   NREPS=NREPS+1
-                  IF(NREPS.GT.NSYMLABELS) STOP 'TOO MANY REPS'
+                  IF(NREPS.GT.NSYMLABELS*4) STOP 'TOO MANY REPS'
                   DO K=1,NROT
                      REPCHARS(K,NREPS)=DCONJG(IRREPCHARS(K,I))
      &                                    *IRREPCHARS(K,J)
                   ENDDO
-C                  WRITE(6,*) NREPS,"PROD",I,J
-C                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
+                  
+!                  WRITE(6,*) NREPS,"PROD",I,J
+                  CALL MEMORY_CHECK
+!                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,
      &               NSYM,NROT,IDECOMP,NORM)) THEN
 C.. CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
@@ -446,8 +449,9 @@ C                        CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
 C                        WRITE(6,*) "IDECOMP:", IDECOMP,NORM,"SYMS:",NSYM
 C                      CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"REMAIN")
 C.. It's not an irrep, but we cannot reduce it.  Store only if we think we've got all the irreps.
+!                        WRITE(6,*) "NR",NREPS,LDO2
                         IF(LDO2) NREPS=NREPS-1
-                        NREPS=NREPS-1
+!                        NREPS=NREPS-1
                      ENDIF
                   ELSE
 C                     WRITE(6,*) "IDECOMP:", IDECOMP
@@ -460,7 +464,7 @@ C            WRITE(6,*) LDO,NEXTSYMLAB,NSYMLABELS
 C.. Check to see if the next symlabel's char is decomposable
         lp2: DO WHILE (NEXTSYMLAB.LE.NSYMLABELS)
                NREPS=NREPS+1
-               IF(NREPS.GT.NSYMLABELS) STOP 'TOO MANY REPS'
+               IF(NREPS.GT.NSYMLABELS*4) STOP 'TOO MANY REPS'
                DO I=1,NROT
                   REPCHARS(I,NREPS)=SYMLABELCHARS(I,NEXTSYMLAB)
                ENDDO
