@@ -285,7 +285,7 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
             NSTATESUSED=NORBUSED/2
          ENDIF
          CALL SETUPUMATCACHE(NSTATESUSED)
-         CALL CPMDGEN1EINTS(G1,CPMD1EINT)
+         CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
          CALL MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
 C.. Set the UMAT cache to cache things in the lowest possible position
@@ -313,7 +313,7 @@ C.. Get 4-index integral (ik|jk)
                         ENDIF
                         U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
      &                        I,K,J,K)
-!                        WRITE(6,*) I,K,J,K,U
+!                       WRITE(6,*) I,K,J,K,U
                         TOT=TOT-HElement(F)*U
                      END IF
                   ENDDO
