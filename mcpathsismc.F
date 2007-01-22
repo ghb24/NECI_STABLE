@@ -401,10 +401,10 @@ c                           ENDIF
                            !we are currently at a 1-vertex graph (this is where we always start each cycle)
                            !note: if we generate a 1-vertex graph will must accept it (Pacc=1)
                            !see how many times we would have generated a 1-vertex graph & add that many 1-vertex graphs
-                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
-                           If (LP.GT.0) Call AddGraph(MCStat,LP, 1, 
-     $                                   HDElement(1.D0)
-     &                                 ,DLWDBCore/WCore,WCore,0,1,1,1,1,
+                           LP=LOG(RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           FF=HDElement(1.D0)
+                           If (LP.GT.0) Call AddGraph(MCStat,LP, 1, FF,
+     &                                 DLWDBCore/WCore,WCore,0,1,1,1,1,
      &                                   BTEST(ILOGGING,10),1-G_VMC_FAC)
                            !generate a new n-vertex graph and see if we accept, if we don't, we're back to 1
                            !choose what vertex level the generated graph should be
@@ -421,6 +421,7 @@ c                           ENDIF
                            !FMCPR4D2 will return a new n-vertex graph if it was accepted or return
                            !the 1-vertex graph if it was rejected
                            iGv = I_VCUR !for logging
+                           iOv = 1 !for logging
                            FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                        NBASISMAX,G1,NBASIS,BRR,
      &                        NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
@@ -433,13 +434,13 @@ c                           ENDIF
                            If (I_VCUR.NE.1) Then !if it was the 1-vertex then we finish & go back to the top
                             !we've just accepted a n-vertex graph, add that graph:
                             Call AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,
-     &                                  OWEIGHT,IOCLS,ITREE,IACC,1,
+     &                                  OWEIGHT,IOCLS,ITREE,1,1,
      &                                  I_VCUR,BTEST(ILOGGING,10),OPROB)
                             !note: the only graph we can generate now is the 1-vertex one
                             !see how many times we would have rejected 1-vertex graph & add that many n-vertex graphs
                             PGR=1.D0-
-     &           MIN(1.D0,OPROB/ABS(DREAL(OWEIGHT))*DREAL(WCORE))
-                            LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
+     &           MIN(1.D0,(OPROB/ABS(DREAL(OWEIGHT)))*DREAL(WCORE))
+                            LP=LOG((RAN2(ISEED)))/LOG(PGR)
                             !AddGraph(M,nTimes, iV, wSign,wSETilde,wWeight,iClass,iTree,iAcc,ioV,igV,tLog,fProb)
                             If (LP.GT.0) Call AddGraph(MCStat,LP,I_VCUR,
      &                                    FF,DLWDB2,OWEIGHT,IOCLS,ITREE,
