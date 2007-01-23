@@ -327,7 +327,7 @@ MODULE MCStats
 !.. Deal with blocking in a new way.
 !.. wCurBlock(i) contains the remainder of the sum of values after having removed blocks of length 2**i
 !
-!.. i.e. For a sequence  1 2 0 2 1 3 2
+!.. i.e. For a sequence with indicidual values 1 2 0 2 1 3 2
 !..  we would have wCurBlock being
 !
 !i  2**i   wCurBlock

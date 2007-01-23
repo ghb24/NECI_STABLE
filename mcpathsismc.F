@@ -360,7 +360,8 @@ C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
 !.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
 !.. get in a row
                            PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
-     &                           OPROB/(1.D0-G_VMC_FAC)
+     &                           OPROB
+!/(1.D0-G_VMC_FAC)
                            PREJ=1.D0-MIN(PREJ,1.D0)
                            PGR=PREJ*(1.D0) !-G_VMC_FAC)
 C.. L is the number of strings of rejections (i.e. of V's we add
