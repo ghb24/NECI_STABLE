@@ -116,6 +116,7 @@
       COULDAMPORB=0
 
 !     Values for old parameters.
+      TVVDISALLOW=.false.
       TRHOOFR = .false.
       TCORR = .false.
       TFODM = .false.
@@ -401,6 +402,8 @@ C                  end select
                       call report(trim(w)//" only valid for MC " 
      &                   //"method",.true.)
                   end if
+              case("VVDISALLOW")
+                  TVVDISALLOW=.TRUE.
               case("MPTHEORY")
                   TMPTHEORY=.TRUE.
 !                  if ( I_HMAX .ne. -7.and.

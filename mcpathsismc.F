@@ -359,11 +359,17 @@ C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
 !.. First work out the acceptance prob of V->0, pa, and thus the rejectance prob, pr=1-pa, which is high.
 !.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
 !.. get in a row
-                           PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+                           IF(TVVDISALLOW) THEN
+                              PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
      &                           OPROB
-!/(1.D0-G_VMC_FAC)
-                           PREJ=1.D0-MIN(PREJ,1.D0)
-                           PGR=PREJ*(1.D0) !-G_VMC_FAC)
+                              PREJ=1.D0-MIN(PREJ,1.D0)
+                              PGR=PREJ*(1.D0) !-G_VMC_FAC)
+                           ELSE
+                              PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+     &                           OPROB/(1.D0-G_VMC_FAC)
+                              PREJ=1.D0-MIN(PREJ,1.D0)
+                              PGR=PREJ*(1.D0-G_VMC_FAC)
+                           ENDIF
 C.. L is the number of strings of rejections (i.e. of V's we add
                            LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
@@ -375,9 +381,9 @@ C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            ENDIF
 C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), but we need to consider any V's separately, with prob p1
 !                   !
-                           IF(.TRUE.) THEN
-!RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
-!     &                              .GE.ABS(G_VMC_FAC)) THEN
+!Either we've disallowed V->V' transitions or we generate a 1-v graph
+                           IF(TVVDISALLOW.OR.
+     &   RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ).GE.ABS(G_VMC_FAC)) THEN
                               FF=1.D0
                               IOV=I_OVCUR
                               I_OVCUR=1
@@ -392,8 +398,11 @@ C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV
 !                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
 !     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
                               I_VCUR=1
-!                              OPROB=1.D0-ABS(G_VMC_FAC)
-                              OPROB=1
+                              IF(TVVDISALLOW) THEN
+                                 OPROB=1
+                              ELSE
+                                 OPROB=1.D0-ABS(G_VMC_FAC)
+                              ENDIF
                               IOCLS=0
                               TSEQ=.FALSE.
 !                              WRITE(39,*) IOV,IGV,1,IACC
@@ -416,7 +425,7 @@ C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV
                               PFAC=ABS(G_VMC_FAC)*g_MultiWeight(I_VCUR)
      &                                       /g_MultiWeight(0)
 C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
-                              OPROB=1
+                              IF(TVVDISALLOW) OPROB=1
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                         NBASISMAX,G1,NBASIS,BRR,
      &                         NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,

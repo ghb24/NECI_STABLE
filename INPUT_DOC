@@ -229,6 +229,8 @@ CYCLES <NWHTAY(1,1)>
 MAXVERTICES <I_VMAX>
     Set the vertex level.
 
+VVDISALLOW
+   Disallow V-vertex to V'-vertex transitions in stochastic time MC.
 MPTHEORY
    Instead of a normal path-integral expansion MC, do a Moller Plesset MP.  Requires HDIAG, and BIAS=0.D0
 IMPORTANCE <G_VMC_PI> 
