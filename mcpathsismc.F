@@ -72,9 +72,6 @@ C.. do some blocking analysis
          REAL*8 PREJ,PGR
          REAL*8 TIMEC,OTIME,NTIME
          INTEGER*8 LP
-!         INTEGER NVGEN
-!         DATA NVGEN/0/
-!         SAVE NVGEN
          INCLUDE 'vmc.inc'
          OTIME=TIMEC()*0.001
          TST=0
@@ -202,7 +199,7 @@ C.. and for 2 (rho_jj/rhoii)**-P
                   OWEIGHT=0.D0
                   ODLWDB=0.D0
                ENDIF
-               IF(I_VMIN.NE.0.AND.G_VMC_FAC.NE.0.D0) THEN
+               IF(I_VMIN.NE.0) THEN
                   ODLWDB=DLWDBCORE
                   OWEIGHT=WCORE
                   OPROB=1   
@@ -260,7 +257,7 @@ C.. We decide on a graph size.  See 22/8/05 #1,2
 C.. Probability of graph size v is prop to G_VMC_FAC**(v)
                         I_VCUR=0
 !                   !   .
-                        IF(I_VMIN.EQ.0.OR.G_VMC_FAC.EQ.0.D0) THEN
+                        IF(I_VMIN.EQ.0) THEN
 C.. we're doing MC with lots of different vertex levels
                          IF(G_VMC_FAC.GT.0) THEN
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
@@ -269,11 +266,9 @@ C.. we're doing MC with lots of different vertex levels
                            ENDDO
                            PFAC=G_VMC_FAC**(I_VCUR-1)
                          ELSEIF(G_VMC_FAC.EQ.0) THEN
-!                           R=RAN2(ISEED)
-!                           I_VCUR=R*(I_VMAX-1)+2
-!                           PFAC=1.D0/(I_VMAX-1)a
-                           I_VCUR=I_VMIN
-                           PFAC=1
+                           R=RAN2(ISEED)
+                           I_VCUR=R*(I_VMAX-1)+2
+                           PFAC=1.D0/(I_VMAX-1)
                          ELSE
                            DO WHILE(I_VCUR.LT.1.OR.I_VCUR.GT.I_VMAX)
                               R=RAN2(ISEED)
@@ -332,138 +327,80 @@ C.. Markov chain with random generation.
      &                           IACC,0.D0,I_VMAX)
                            ENDIF
 !                   !   .
-c                         ELSEIF (.FALSE.) !.. were doing Stochastic time MC
-c!.. We choose the gestalt with probability G_VMC_FAC
-c                         TSEQ=.FALSE.
-c                         IF(I_OVCUR.EQ.1) TSEQ=.TRUE.
-c                         IF(TSEQ) THEN
-c                           I_VCUR=1
-c!.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
-c                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
-c                           IF(LP.GT.0) THEN
-c                              IGV=1
-c                              I_OVCUR=1
-c                              OWEIGHT=WCORE
-c                              ODLWDB=DLWDBCORE
-c                              DLWDB2=DLWDBCORE/WCORE
-c                              OPROB=1.D0!-ABS(G_VMC_FAC)
-c                              IOCLS=0
-c                              FF=1.D0
-c                              ITREE=1
-c                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
-c     &                              WCORE,0,ITREE,1,1,IGV,
-c     &                              BTEST(ILOGGING,10),OPROB)
-c                           ENDIF
-c                         ENDIF
-c!                   !
-c                         IF(I_OVCUR.GT.1) THEN
-c!.. We're at a V-graph. Consider all possible strings of rejected V->0 processes.
-c!.. First work out the acceptance prob of V->0, pa, and thus the rejectance prob, pr=1-pa, which is high.
-c!.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
-c!.. get in a row
-c                           !PGR=(1.D0-G_VMC_FAC)*MIN(1.D0,OPROB/ABS(DREAL(OWEIGHT)*DREAL(WCORE)/(1.D0-G_VMC_FAC)))
-c                           PGR=1.D0-MIN(1.D0,OPROB/ABS(DREAL(OWEIGHT))
-c     &                     *DREAL(WCORE))
-cC.. L is the number of strings of rejections (i.e. of V's we add
-c                           LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
-c                           IF(LP.GT.0) THEN
-c                              CALL AddGraph(MCStat,LP,I_OVCUR,FF,
-c     &                             DLWDB2,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
-c     &                              1,BTEST(ILOGGING,10),OPROB)
-c                           ENDIF
-cC.. Now we generate a 1 with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr) (and must accept if we generate it), but we need to consider any V's separately.
-c!                   !
-c!  Now the algorithm only allows a transition from V->1, rather than a possibility of going to an nV graph
-c                           IF (.TRUE.) THEN !(RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
-c     &                       !               .GE.ABS(G_VMC_FAC)) THEN
-c                              FF=1.D0
-c                              IOV=I_OVCUR
-c                              I_OVCUR=1
-c                              IGV=1
-c                              DLWDB2=DLWDBCORE/WCORE
-c                              ODLWDB=DLWDBCORE
-c                              OWEIGHT=WCORE
-c                              ITREE=1
-c!  This addgraph occurs later.  We can just set it up
-c                              IACC=1
-c                              I_VCUR=1
-c                              OPROB=1.D0 !-ABS(G_VMC_FAC)
-c                              IOCLS=0
-c                              TSEQ=.FALSE.
-c                           
-c                       !reset stuck graph variable here - accepted 1v graph
-c!                              NVGEN=0
-c                            ELSE
-c                              TSEQ=.TRUE.
-c                           ENDIF
-                         ELSE !stocastic time MC re-written
-                          TSEQ=.FALSE. !just incase?
-                           !we are currently at a 1-vertex graph (this is where we always start each cycle)
-                           !note: if we generate a 1-vertex graph will must accept it (Pacc=1)
-                           !see how many times we would have generated a 1-vertex graph & add that many 1-vertex graphs
-                           LP=LOG(RAN2(ISEED))/LOG(1-G_VMC_FAC)
-                           FF=HDElement(1.D0)
-                           If (LP.GT.0) Call AddGraph(MCStat,LP, 1, FF,
-     &                                 DLWDBCore/WCore,WCore,0,1,1,1,1,
-     &                                   BTEST(ILOGGING,10),1-G_VMC_FAC)
-                           !generate a new n-vertex graph and see if we accept, if we don't, we're back to 1
-                           !choose what vertex level the generated graph should be
-                           R=RAN2(ISEED)*g_MultiWeight(0)
-                           I_VCUR=I_VMIN-1
-                           DO WHILE (R.GE.0.AND.I_VCUR.LT.I_VMAX)
-                            I_VCUR=I_VCUR+1
-                            R=R-g_MultiWeight(I_VCUR)
-                           ENDDO
-                           !print *, OWEIGHT, OPROB, ODLWDB          
-                           !now generate a I_VCUR-vertex graph!                         
-                           PFAC=ABS(G_VMC_FAC)*g_MultiWeight(I_VCUR)
-     &                                        /g_MultiWeight(0)
-                           !FMCPR4D2 will return a new n-vertex graph if it was accepted or return
-                           !the 1-vertex graph if it was rejected
-                           iGv = I_VCUR !for logging
-                           iOv = 1 !for logging
-                           FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
-     &                        NBASISMAX,G1,NBASIS,BRR,
-     &                        NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
-     &                        RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
-     &                        ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
-     &                        ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
-     &                        PFAC,IACC,0.D0,I_VMAX)
-                           !print *, I_VCUR
-                           LP = 1
-                           If (I_VCUR.NE.1) Then !if it was the 1-vertex then we finish & go back to the top
-                            !we've just accepted a n-vertex graph, add that graph:
-                            Call AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,
-     &                                  OWEIGHT,IOCLS,ITREE,1,1,
-     &                                  I_VCUR,BTEST(ILOGGING,10),OPROB)
-                            !note: the only graph we can generate now is the 1-vertex one
-                            !see how many times we would have rejected 1-vertex graph & add that many n-vertex graphs
-                            PGR=1.D0-
-     &           MIN(1.D0,(OPROB/ABS(DREAL(OWEIGHT)))*DREAL(WCORE))
-                            LP=LOG((RAN2(ISEED)))/LOG(PGR)
-                            !AddGraph(M,nTimes, iV, wSign,wSETilde,wWeight,iClass,iTree,iAcc,ioV,igV,tLog,fProb)
-                            If (LP.GT.0) Call AddGraph(MCStat,LP,I_VCUR,
-     &                                    FF,DLWDB2,OWEIGHT,IOCLS,ITREE,
-     &                                    0,I_VCUR,1,
-     &                                    BTEST(ILOGGING,10),OPROB)
-                            !only option now is to accept the 1-vertex graph. move to the 1-vertex graph.
-                            !1-vertex graph parameters are hard coded (the AddGraph occurs later) -----------
-                            FF = 1.D0 !sign
-                            ODLWDB = DLWDBCore !??
-                            DLWDB2 = DLWDBCore/WCore !Etilde
-                            OWEIGHT = WCore !weight
-                            IOCLS = 0 !class
-                            ITREE = 1 !tree/cycle
-                            IACC = 1 !this graph was accepted
-                            IOV = I_VCUR !old vertex level
-                            I_VCUR = 1 !vertex level
-                            IGV = 1 !vertex level of generated graph
-                            OPROB = 1 !probability of generating this graph from were we're going
-                            !------------
-                           EndIf
-c                          EndIf
-
-c                         ENDIF
+                         ELSE
+!.. Stochastic time MC
+!.. We choose the gestalt with probability G_VMC_FAC
+                         TSEQ=.FALSE.
+                         IF(I_OVCUR.EQ.1) TSEQ=.TRUE.
+                         IF(TSEQ) THEN
+                           I_VCUR=1
+!.. The last graph was a 1-vertex gestalt.  See how many 1->1 transitions we are likely to generate in a row
+                           LP=LOG(1-RAN2(ISEED))/LOG(1-G_VMC_FAC)
+                           IF(LP.GT.0) THEN
+                              IGV=1
+                              I_OVCUR=1
+                              OWEIGHT=WCORE
+                              ODLWDB=DLWDBCORE
+                              DLWDB2=DLWDBCORE/WCORE
+                              OPROB=1.D0-ABS(G_VMC_FAC)
+                              IOCLS=0
+                              FF=1.D0
+                              ITREE=1
+                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
+     &                              WCORE,0,ITREE,1,1,1,
+     &                              BTEST(ILOGGING,10),OPROB)
+!                              WRITE(39,*) 1,1,LP,1
+                           ENDIF
+                         ENDIF
+!                   !
+C                         WRITE(6,*) TSEQ,I_OVCUR,I_VCUR
+                         IF(.NOT.TSEQ) THEN
+!.. We're at a V-graph. Consider all possible strings of rejected V->0 processes.
+!.. First work out the acceptance prob of V->0, pa, and thus the rejectance prob, pr=1-pa, which is high.
+!.. The probability of a string of N of these rejectances is (p0 pr)^N, so work out how many we're going to
+!.. get in a row
+                           PREJ=(DREAL(WCORE)/ABS(DREAL(OWEIGHT)))*
+     &                           OPROB/(1.D0-G_VMC_FAC)
+                           PREJ=1.D0-MIN(PREJ,1.D0)
+                           PGR=PREJ*(1.D0) !-G_VMC_FAC)
+C.. L is the number of strings of rejections (i.e. of V's we add
+                           LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
+C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
+                           IF(LP.GT.0) THEN
+                              CALL AddGraph(MCStat,LP,I_OVCUR,FF,
+     &                             DLWDB2,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
+     &                              1,BTEST(ILOGGING,10),OPROB)
+!                              WRITE(39,*) I_OVCUR,1,LP,0
+                           ENDIF
+C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), but we need to consider any V's separately, with prob p1
+!                   !
+                           IF(.TRUE.) THEN
+!RAN2(ISEED)*(1-(1-G_VMC_FAC)*PREJ)
+!     &                              .GE.ABS(G_VMC_FAC)) THEN
+                              FF=1.D0
+                              IOV=I_OVCUR
+                              I_OVCUR=1
+                              IGV=1
+                              DLWDB2=DLWDBCORE/WCORE
+                              ODLWDB=DLWDBCORE
+                              OWEIGHT=WCORE
+                              ITREE=1
+!                              LP=1
+!  This addgraph occurs later.  We can just set it up
+                              IACC=1
+!                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
+!     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
+                              I_VCUR=1
+!                              OPROB=1.D0-ABS(G_VMC_FAC)
+                              OPROB=1
+                              IOCLS=0
+                              TSEQ=.FALSE.
+!                              WRITE(39,*) IOV,IGV,1,IACC
+                           ELSE
+                              TSEQ=.TRUE.
+!                              I_OVCUR=I_VMIN
+                           ENDIF
+                         ENDIF
 !                   !
                          IF(TSEQ) THEN
 !.. Generate a graph between I_VMIN and I_VMAX
@@ -473,12 +410,12 @@ c                         ENDIF
                                  I_VCUR=I_VCUR+1
                                  R=R-g_MultiWeight(I_VCUR)
                               ENDDO
-                              !add one to NVGEN here - generating nV graph
-!                              NVGEN=NVGEN+1
                               IOV=I_OVCUR
                               IGV=I_VCUR
                               PFAC=ABS(G_VMC_FAC)*g_MultiWeight(I_VCUR)
      &                                       /g_MultiWeight(0)
+C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
+                              OPROB=1
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                         NBASISMAX,G1,NBASIS,BRR,
      &                         NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
@@ -486,6 +423,8 @@ c                         ENDIF
      &                         ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
      &                         PFAC,IACC,0.D0,I_VMAX)
+!                              WRITE(39,*) IOV,IGV,1,IACC
+C                              WRITE(6,*) IACC
                          ENDIF
                         ENDIF
                        ENDIF
@@ -575,16 +514,13 @@ C.. setup spin excitation generator
          Call CalcStDev(MCStat,R)
          WRITE(6,*) "Error in MC:",R
          IF(TMPTHEORY) THEN
+            Call GetStats(MCStat,0,TOTAL,WLSI,DLWDB2)
+            WLSI=LOG(TOTAL)
+            DLWDB=DLWDB2
             FF=HIJS(0)
-!            DO I=I_VMIN,I_VMIN
-!2,I_VMAX
-               Call GetStats(MCStat,I_VMIN,TOTAL,WLSI,DLWDB2)
-!               WLSI=1.D0/(I_VMAX-1)
-               DLWDB=DLWDB2/TOTAL
-               FF=FF+DLWDB/(TOTAL/WLSI)
-!               WRITE(STR,"(A2,I1,A10)") "MP",I_VMIN," ENERGY = "
-!               WRITE(6,"(A14,G)") STR,FF
-!             ENDDO
+            FF=FF+DLWDB/TOTAL
+            WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
+            WRITE(6,"(A14,G)") STR,FF
 !            DO I=2,I_VMAX
 !               FF=FF+MP2E(I)
 !               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
@@ -1744,12 +1680,10 @@ C.. weight.
          INTEGER I_OVCUR,IOCLS,ITREE
          LOGICAL LISNAN,ISVALIDDET
          INTEGER IACC
-         REAL*8 PFAC,PGEN
+         REAL*8 PFAC
          REAL*8 RAN2
          INTEGER STORE(6)
          TYPE(HDElement) MPEs(2:i_V)
-!         INTEGER NVGEN
-         REAL*8 PROBOVERW 
          INCLUDE 'vmc.inc'
          
 C.. Take a copy of the old path and rho matrix etc.
@@ -1773,8 +1707,7 @@ C.. Take a copy of the old path and rho matrix etc.
 C.. Now get the parameters for the new path 
             
 C.. GETPATHPROB gives us the probability of generating the path
-               PGEN=GETPATHPROB2(XIJ,I_V)
-               RH=PGEN*PFAC
+               RH=GETPATHPROB2(XIJ,I_V)*PFAC
                IC=IC+1
                IF(IC.GT.10000) THEN
                   WRITE(6,*) "Have thrown away 10000 graphs with pGen<",
@@ -1793,8 +1726,6 @@ C.. GETPATHPROB gives us the probability of generating the path
                DO I=2,I_VMAX
                   ETILDE=ETILDE+MPEs(I)
                ENDDO
-               RH=PFAC
-               ETILDE=ETILDE/HDElement(PGEN)
                WEIGHT=1.D0
             ELSE
 C.. CALCPATHS gives us the contribution of the path
@@ -1841,8 +1772,6 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             IF(PR.LT.R2) THEN
                IACC=0
             ELSE
-               !Reset the graph stuck NVGEN variable here
-!               NVGEN=0
                IACC=1
             ENDIF
 ! If we're writing graphs, we write here before acceptance/rejectance
@@ -1870,28 +1799,7 @@ C.. reject the new, and copy in the old
                I_V=I_OVCUR
                ICLS=IOCLS
                WEIGHT=OWEIGHT
-               
-               ! Print out if current graph is stuck - 17/1/07
-!               CALL ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
-!               CALL DCOPY((I_OVCUR+1)**2,ORHOIJ,1,RHOIJ,1)
-!               CALL DCOPY(I_OVCUR*I_OVCUR,OXIJ,1,XIJ,1)
-!               IF(NVGEN.GT.5000) THEN
-               
-!                   PROBOVERW=ABS(OPROB/DREAL(OWEIGHT))
-!                   WRITE(6,'(/A,E22.16)') 
-!     &                     "Weight of stuck graph is   ", OWEIGHT
-!                   WRITE(6,'(A,E22.16)') 
-!     &                     "Pgen of stuck graph is   ", OPROB
-!                   WRITE(6,'(A,E22.16)') 
-!     &                     "Pgen/Weight of stuck graph is   ", PROBOVERW
-!                   WRITE(6,'(A,I3)')
-!     &                     "Class of stuck graph is   ", IOCLS
-!                   CALL WRITE_XMATRIX(6,XIJ,I_V)
-!                   CALL WRITERHOMAT(6,RHOIJ,I_V,NEL,.TRUE.)
-!                   CALL WRITEPATH(6,IPATH,I_V,NEL,.TRUE.)
-!                   
-!                   NVGEN=0
-!               ENDIF
+               CALL ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
             ELSE
                OETILDE=ETILDE
                OPROB=RH
@@ -1907,10 +1815,8 @@ C.. reject the new, and copy in the old
             WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
          ENDIF
          IF(TMPTHEORY) THEN
-            DLWDB=ETILDE
-!/HDElement(OPROB)
-            FMCPR4D2=1.D0
-!OPROB
+            DLWDB=ETILDE/HDElement(OPROB)
+            FMCPR4D2=OPROB
          ELSEIF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))
