@@ -231,6 +231,8 @@ MAXVERTICES <I_VMAX>
 
 VVDISALLOW
    Disallow V-vertex to V'-vertex transitions in stochastic time MC.
+MCDIRECTSUM
+   Monte Carlo on graphs summing in energies weighted with weight/pgen.
 MPTHEORY
    Instead of a normal path-integral expansion MC, do a Moller Plesset MP.  Requires HDIAG, and BIAS=0.D0
 IMPORTANCE <G_VMC_PI> 

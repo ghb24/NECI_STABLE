@@ -89,6 +89,8 @@ C.. go to end of file
      &      OPEN(12,FILE="VERTEXMC",STATUS="UNKNOWN")
          IF(BTEST(ILOGGING,10))
      &      OPEN(22,FILE="VMC",STATUS="UNKNOWN")
+         IF(tMCDirectSum)
+     &      OPEN(122,FILE="MCDIRECTSUM",STATUS="UNKNOWN")
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
@@ -102,7 +104,7 @@ C.. Set the first node to I_I
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
          WCORE=WLSI
-         IF(TMPTHEORY) THEN
+         IF(TMPTHEORY.OR.G_VMC_FAC.EQ.0.D0) THEN
             DLWDBCORE=0.D0
             WCORE=0.D0
             CALL Create(MCStat,I_VMAX,
@@ -118,7 +120,7 @@ C.. These variables have been passed in and represent the precalculated values f
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
          ENDIF
-         IF(DBETA.LT.0.D0) THEN
+         IF(DBETA.LT.0.D0.AND.I_VMIN.EQ.0) THEN
             DLWDB=HIJS(0)
          ENDIF
          IF(TLOG.AND.I_VMIN.EQ.0) 
@@ -133,12 +135,12 @@ C.. we're working in block space, so we work out our current symmetry.
      &      ISEED,INODE2)
          ELSE
             TOTAL=0.D0
-            IF(DBETA.LT.0.D0) THEN
+            IF(DBETA.LT.0.D0.AND.I_VMIN.EQ.0) THEN
                DLWDB=0.D0
             ENDIF
          ENDIF
          I_VM1=2
-         I_VM2=2
+         I_VM2=I_VMAX
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
 C            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
@@ -219,6 +221,29 @@ C                  DLWDB2=0.D0
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
+                  ElseIf(tMCDirectSum) Then
+                    oWeight=0.D0 !Ensure generated graph is "accepted"
+                    pFac=1
+                    !Generate an I_V vertex graph:
+                    FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,
+     &                   NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
+     &                   ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
+     &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
+     &                   IACC,0.D0,I_VMAX)
+                    !Set up values for the AddGraph routine later:
+                    ioV=i_v
+                    igV=i_v
+                    i_VCur=i_v
+                    FF=oWeight/HDElement(oProb) 
+                    DLWDB2=oWeight*DLWDB2/HDElement(oProb)
+!                    WRITE(6,*) FF,DLWDB2/FF
+                    !print estimated energy at this stage (debugging code)
+                    !If(Mod(iCount, 100).eq.0)
+     &              ! Write(122,"I5, 5G25.16") iCount,
+     &              ! (MCStat%wWeightedDelta(2)%v)
+     &              ! /(MCStat%wWeighting(2)%v+(iCount+1))
+     &              ! +MCStat%wRefValue%v
                   ELSE
 C.. see if we want to increase the number of vertices
                     I_OVCUR=I_VCUR
@@ -287,7 +312,7 @@ C.. Markov chain with random generation.
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                     IACC,0.D0,I_VMAX)
 !                   !   .
-                        ELSE
+                    ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
 !.. or graphs of size I_VMIN=I_VMAX
 
@@ -346,7 +371,7 @@ C.. Markov chain with random generation.
                               IOCLS=0
                               FF=1.D0
                               ITREE=1
-                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
+                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2/FF,
      &                              WCORE,0,ITREE,1,1,1,
      &                              BTEST(ILOGGING,10),OPROB)
 !                              WRITE(39,*) 1,1,LP,1
@@ -375,7 +400,7 @@ C.. L is the number of strings of rejections (i.e. of V's we add
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
                               CALL AddGraph(MCStat,LP,I_OVCUR,FF,
-     &                             DLWDB2,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
+     &                          DLWDB2/FF,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
      &                              1,BTEST(ILOGGING,10),OPROB)
 !                              WRITE(39,*) I_OVCUR,1,LP,0
                            ENDIF
@@ -395,7 +420,7 @@ C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV
 !                              LP=1
 !  This addgraph occurs later.  We can just set it up
                               IACC=1
-!                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2,
+!                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2/FF,
 !     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
                               I_VCUR=1
                               IF(TVVDISALLOW) THEN
@@ -463,11 +488,16 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                     ENDIF
                   ENDIF
                   LP=1
-                 CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,IOCLS,
+                  If (FF%v.eq.0) Then
+         CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
+     &               ,OWEIGHT,IOCLS, ITREE,
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0)
+                  Else
+
+              CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
      &               ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB)
-!                  IF(BTEST(ILOGGING,10))
-!     &                    WRITE(22,"(2G25.16)") FF,DLWDB2
+                  EndIf
                   IF(BTEST(ILOGGING,9).AND.MOD(ICOUNT,1000).EQ.0) THEN
                      CALL WriteStats(MCStat,12)
                      CALL FLUSH(12)
@@ -510,9 +540,15 @@ caa            CALL FLUSH(10)
          I_VCUR=0
          IGV=0
          IACC=1
-                 CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2,OWEIGHT,IOCLS,
+         If (FF%v.eq.0) Then
+         CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
+     &               ,OWEIGHT,IOCLS, ITREE,
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0)
+         Else
+         CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
      &               ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0)
+         EndIf
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
             CALL FREEM(IP_NMEM)
@@ -536,10 +572,24 @@ C.. setup spin excitation generator
 !               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
 !               WRITE(6,"(A14,G)") STR,FF
 !            ENDDO
-         ELSEIF(I_VMIN.EQ.0) THEN
-            Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
-            WLSI=LOG(TOTAL)
-            DLWDB=DLWDB2/TOTAL
+         ELSEIF(I_VMIN.EQ.0.OR.tMCDirectSum) THEN
+            IF(I_VMIN.NE.0) THEN  !We're just doing this vertex level, not the complete sum
+               Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
+               TOTAL=TOTAL
+               WLSI=TOTAL
+               DLWDB=DLWDB+DLWDB2
+            ELSE
+               WLSI=1.D0 !weight of 1v graph
+               TOTAL=TOTAL+WLSI
+               DLWDB=HIJS(0)
+               DO I_V=I_VM1,I_VM2
+                  Call GetStats(MCStat,I_V,FF,DLWDB2,WLSI)
+                  TOTAL=TOTAL+FF
+                  DLWDB=DLWDB+DLWDB2 
+               ENDDO
+               WLSI=LOG(TOTAL)
+               DLWDB=DLWDB/TOTAL   !DLWDBCORE is Etilde of 1v graph
+            ENDIF
          ELSE
             Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
             DLWDB=DLWDB2
@@ -1827,6 +1877,10 @@ C.. reject the new, and copy in the old
          IF(TMPTHEORY) THEN
             DLWDB=ETILDE/HDElement(OPROB)
             FMCPR4D2=OPROB
+         ELSEIF(tMCDirectSum.AND.RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
+C.. Unbias the sum 
+            DLWDB=ETILDE/WEIGHT
+            FMCPR4D2=WEIGHT/WEIGHT
          ELSEIF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))

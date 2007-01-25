@@ -404,6 +404,8 @@ C                  end select
                   end if
               case("VVDISALLOW")
                   TVVDISALLOW=.TRUE.
+              case("MCDIRECTSUM")
+                  TMCDIRECTSUM=.TRUE.
               case("MPTHEORY")
                   TMPTHEORY=.TRUE.
 !                  if ( I_HMAX .ne. -7.and.
