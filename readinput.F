@@ -693,13 +693,15 @@ C.. multiple of 2
                   do while(item.lt.nitems)
                      call readu(w)
                      select case(w)
-                     case("1000")
-                         ILOGGING = IOR(ILOGGING,2**9)
+                    ! case("1000")
+                    !     ILOGGING = IOR(ILOGGING,2**9)
                      case("EVERY")
                          ILOGGING = IOR(ILOGGING,2**10)
                      case default
-                        CALL report("Logging keyword VERTEX "//trim(w)
-     &                     //" not recognised",.true.)
+                        READ(w,"I") G_VMC_LOGCOUNT
+                        ILOGGING = IOR(ILOGGING,2**9)
+                      !  CALL report("Logging keyword VERTEX "//trim(w)
+     &                !     //" not recognised",.true.)
                      end select
                   end do
               case("HFBASIS")

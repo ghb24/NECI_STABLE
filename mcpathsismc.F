@@ -89,8 +89,8 @@ C.. go to end of file
      &      OPEN(12,FILE="VERTEXMC",STATUS="UNKNOWN")
          IF(BTEST(ILOGGING,10))
      &      OPEN(22,FILE="VMC",STATUS="UNKNOWN")
-         IF(tMCDirectSum)
-     &      OPEN(122,FILE="MCDIRECTSUM",STATUS="UNKNOWN")
+!         IF(tMCDirectSum)
+!     &      OPEN(122,FILE="MCDIRECTSUM",STATUS="UNKNOWN")
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
@@ -114,7 +114,7 @@ C.. These variables have been passed in and represent the precalculated values f
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
      &      DLWDBCORE/WCORE)
             IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)
-     &          STOP "Invalid MULTI MC BIAS"
+     &        STOP "Invalid MULTI MC BIAS"
          ELSE
             DLWDBCORE=HIJS(0)
             CALL Create(MCStat,I_VMAX,
@@ -498,7 +498,8 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
      &               ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB)
                   EndIf
-                  IF(BTEST(ILOGGING,9).AND.MOD(ICOUNT,1000).EQ.0) THEN
+                  IF(BTEST(ILOGGING,9).AND.
+     &              MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
                      CALL WriteStats(MCStat,12)
                      CALL FLUSH(12)
                   ENDIF
