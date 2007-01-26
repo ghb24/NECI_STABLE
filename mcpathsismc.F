@@ -104,17 +104,21 @@ C.. Set the first node to I_I
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
          WCORE=WLSI
-         IF(TMPTHEORY.OR.G_VMC_FAC.EQ.0.D0) THEN
+         IF(TMPTHEORY) THEN
             DLWDBCORE=0.D0
             WCORE=0.D0
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
+         ElseIf(tMCDirectSum) Then
+            CALL Create(MCStat,I_VMAX,
+     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
+     &          DLWDBCORE/WCore)
          ELSEIF(I_VMIN.NE.0) THEN
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
      &      DLWDBCORE/WCORE)
             IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)
-     &        STOP "Invalid MULTI MC BIAS"
+     &       STOP "Invalid MULTI MC BIAS"
          ELSE
             DLWDBCORE=HIJS(0)
             CALL Create(MCStat,I_VMAX,
@@ -500,7 +504,15 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                   EndIf
                   IF(BTEST(ILOGGING,9).AND.
      &              MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
-                     CALL WriteStats(MCStat,12)
+                 !    CALL WriteStats(MCStat,12)
+                     If(tMCDirectSum) Then
+                       Write(12, "I9, G25.16") iCount,
+     &                 MCStat%wWeightedDelta(0)%v
+     &                 /(MCStat%wWeighting(0)%v+(iCount+1)*WCore%v)
+                     Else
+                       Write(12, "I9, G25.16") iCount, 
+     &                  MCStat%wWeightedDelta(0)/MCStat%wWeighting(0)
+                     EndIf
                      CALL FLUSH(12)
                   ENDIF
                ENDDO   ! end loop over mc cycles  nwhtay
