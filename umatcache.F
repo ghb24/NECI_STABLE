@@ -1,4 +1,5 @@
 ! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>K, J>L,(I,K)>(K,L) 
+!NB This is a different order from UMatCache
       INTEGER FUNCTION UMatInd(I,J,K,L)
          IMPLICIT NONE
          INTEGER I,J,K,L,A,B
@@ -113,7 +114,7 @@ C.. Otherwise we call CPMD
                   CALL CACHEUMATEL(A,B,GETUMATEL,ICACHE,
      &                  ICACHEI)
                   NMISSES=NMISSES+1
-C                  WRITE(10,*) I,J,K,L,GETUMATEL
+!                  WRITE(6,*) "MISS",I,J,K,L,A,B,GETUMATEL
                ELSE
 C                  WRITE(6,*) "HIT ",IDI,IDJ,IDK,IDL,GETUMATEL
 C                  WRITE(6,*) A,B
@@ -241,8 +242,48 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          IMPLICIT NONE
          INTEGER NEWFLAG
          INCLUDE 'umatcache.inc'
+         SELECT CASE(UMATCACHEFLAG)
+         CASE(1)
+!  We were in direct cache mode where values were distributed correctly throughout the cache.
+            IF(NEWFLAG.EQ.0) THEN
+!  We need to fill the cache properly with values
+               CALL FILLUPCACHE()
+            ENDIF
+         ENDSELECT
          UMATCACHEFLAG=NEWFLAG
+         WRITE(69,*) "FLAG",NEWFLAG
+         SELECT CASE(NEWFLAG)
+         CASE(1)
+            CALL IAZZERO(UMATLABELS,NSLOTS*NPAIRS)
+!Turn on the direct caching, and clear the cache.
+         ENDSELECT
          RETURN
+      END
+
+!The cache consists of an unordered set of labels and elements.
+!We must order this, and then distribute the elements throughout each set of SLOTS.
+      SUBROUTINE FillUpCache()
+         USE HElement
+         IMPLICIT NONE
+         INCLUDE 'umatcache.inc'
+         INTEGER I,J,K,N,nK
+         DO I=1,nPairs
+!Find the last value in the cache
+            CALL BinarySearch(nPairs+1,UMatLabels(1,I),1,nSlots,N,
+     &         J,K)
+            N=J-1
+!  N is now the last element and thus number of elements.
+!  Sort according to label
+            CALL SortIC(N,UMatLabels(1,I),UMatCache(1,I))
+            K=nSlots
+!  Now disperse among the whole array, from the end
+            DO J=N,1,-1
+               nK=(nSlots*(J-1))/N+1
+               UMatLabels(nK:K,I)=UMatLabels(J,I)
+               UMatCache(nK:K,I)=UMatCache(J,I)
+               K=nK
+            ENDDO
+         ENDDO
       END
 
 C.. Lookup in the cache to see if there's a stored element.  If not, return TRUE.
@@ -263,7 +304,7 @@ C.. First ensure the indices are in the correct order
          IF(IDL.LT.IDJ) CALL SWAP(IDJ,IDL)
          CALL GETCACHEINDEX(IDI,IDK,NSTATES,A)
          CALL GETCACHEINDEX(IDJ,IDL,NSTATES,B)
-C         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
+!         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
          IF(A.GT.B) THEN
             CALL SWAP(A,B)
             CALL SWAP(IDI,IDJ)
@@ -274,10 +315,27 @@ C         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
 C.. we've a small enough system to store everything.
             ICACHEI=B
          ELSE
+            IF(UMATCACHEFLAG.EQ.1) THEN
+!  UMATCACHEFLAG=1 means we are storing a sequence of cache elements,
+!  in a blank cache
+!  We store them linearly in the cache, and distribute them around later
+
+!Find the last value in the cache
+            CALL BINARYSEARCH(NPAIRS+1,UMATLABELS(1,A),1,NSLOTS,ICACHEI,
+     &         ICACHEI1,ICACHEI2)
+               ICACHEI=ICACHEI1
+               ICACHEI2=ICACHEI1
+               IF(UMatLabels(iCacheI,A).NE.0)
+     &            WRITE(6,*) "Cache Overwrite", A,B
+   
+!                  WRITE(6,*) IDI,IDJ,IDK,IDL
+!                  WRITE(6,*) A,B,NSLOTS,NPAIRS
+!                  WRITE(6,*) ICACHEI1,ICACHEI2
+!                  WRITE(6,*) ICACHEI
+            ELSE
             CALL BINARYSEARCH(B,UMATLABELS(1,A),1,NSLOTS,ICACHEI,
      &         ICACHEI1,ICACHEI2)
-C.. UMATCACHEFLAG=1 means we store at the lowest possible position
-            IF(UMATCACHEFLAG.EQ.1) ICACHEI=ICACHEI1
+            ENDIF
          ENDIF
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN
             UMATEL=UMATCACHE(ICACHEI,ICACHE)
@@ -286,6 +344,7 @@ C.. signal success
          ELSE
 C.. signal failure
             GETCACHEDUMATEL=.TRUE.
+!            WRITE(68,*) A,B,ICACHEI1,ICACHEI2,ICACHEI
          ENDIF
          RETURN
       END
@@ -310,7 +369,7 @@ C         ENDDO
          ILAST=J
          DO WHILE(J-I.GE.1)
             N=(I+J)/2
-C            WRITE(6,"(A,5I3)") "TN",I,J,N,TAB(N),VAL
+!            WRITE(6,"(A,5I3)") "TN",I,J,N,TAB(N),VAL
             IF(TAB(N).LT.VAL.AND.TAB(N).NE.0.AND.I.NE.N) THEN
                IF(TAB(N).NE.TAB(IFIRST)) IFIRST=N
 C.. reset the lower limit
@@ -385,8 +444,8 @@ C.. middle of a block of duplicates
          TYPE(HElement) UMATEL
          INCLUDE 'umatcache.inc'      
          INTEGER OLAB,IC1
-C         WRITE(6,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
-         IF(NSLOTS.EQ.NPAIRS) THEN
+!         WRITE(69,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
+         IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1) THEN
 C.. small system.  only store a single element
             UMATLABELS(ICACHEI,ICACHE)=B
             UMATCACHE(ICACHEI,ICACHE)=UMATEL

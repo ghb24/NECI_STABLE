@@ -292,6 +292,7 @@ C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
 C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
          CALL SETUPUMAT2D(G1)
+         CALL SETUMATCACHEFLAG(0)
          WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
             II=I*2-1
@@ -348,7 +349,6 @@ C.. This should save some time in the UMAT lookup.
             CALL WRITEBASIS(6,G1,NSTATES*2,ARR,BRR)
          ENDIF
 C.. Set the UMAT cache to cache normally again
-         CALL SETUMATCACHEFLAG(0)
          WRITE(6,*) "Finished TMAT"
          CLOSE(10)
          CALL TIHALT('CPMDINIT2I',ISUB)
