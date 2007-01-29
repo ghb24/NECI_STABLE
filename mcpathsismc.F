@@ -495,7 +495,7 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                   If (FF%v.eq.0) Then
          CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0)
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB)
                   Else
 
               CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
@@ -1770,13 +1770,13 @@ C.. Take a copy of the old path and rho matrix etc.
 !  DBETA(3) has PGENEPSILON hidden in it.
             RH=-1
             IC=0
+            TLOG=BTEST(ILOGGING,2)
+            TLOG2=BTEST(ILOGGING,3)
+            TLOG3=BTEST(ILOGGING,6)
             DO WHILE (RH.LE.DBETA(3))
                CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX)
-               TLOG=BTEST(ILOGGING,2)
-               TLOG2=BTEST(ILOGGING,3)
-               TLOG3=BTEST(ILOGGING,6)
 C.. Now get the parameters for the new path 
             
 C.. GETPATHPROB gives us the probability of generating the path
@@ -1839,49 +1839,50 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
                CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
                CALL WRITE_XMATRIX(60,XIJ,I_V)
             ENDIF
-            CALL CLASSPATHS(FMCPR4D2,DLWDB,1.D0,RHOIJ,
-     &            I_V,ICLS)
             R2=RAN2(ISEED)
             IF(PR.LT.R2) THEN
                IACC=0
             ELSE
                IACC=1
             ENDIF
-! If we're writing graphs, we write here before acceptance/rejectance
-            IF(BTEST(ILOGGING,2)) THEN
-               IF(BTEST(ILOGGING,12)) THEN
-! We log excitations
-                  CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
-               ELSE
-! We log dets
-                  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
-               ENDIF
-               IF(BTEST(ILOGGING,3))
-     &         CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
-               IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
-               WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
-            ENDIF
 !            CALL WRITEPATHEX(40,OIPATH,I_OVCUR,NEL,.FALSE.)
 !            WRITE(40,"(A,$)"),"--->"
 !            CALL WRITEPATHEX(40,IPATH,I_V,NEL,.FALSE.)
 !            WRITE(40,*) IACC
-            IF(IACC.EQ.0) THEN
-C.. reject the new, and copy in the old
-               ETILDE=OETILDE
-               RH=OPROB
-               I_V=I_OVCUR
-               ICLS=IOCLS
-               WEIGHT=OWEIGHT
-               CALL ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
+         ENDIF
+         CALL CLASSPATHS(FMCPR4D2,DLWDB,1.D0,RHOIJ,
+     &            I_V,ICLS)
+! If we're writing graphs, we write here before acceptance/rejectance
+         IF(BTEST(ILOGGING,2)) THEN
+            IF(BTEST(ILOGGING,12)) THEN
+! We log excitations
+               CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
             ELSE
-               OETILDE=ETILDE
-               OPROB=RH
-               I_OVCUR=I_V
-!               ICLS=0
-               IOCLS=ICLS
-               OWEIGHT=WEIGHT
-               IACC=1
+! We log dets
+               CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             ENDIF
+            IF(BTEST(ILOGGING,3))
+     &            CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
+            IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
+            WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
+         ENDIF
+          
+         IF(IACC.EQ.0) THEN
+C.. reject the new, and copy in the old
+            ETILDE=OETILDE
+            RH=OPROB
+            I_V=I_OVCUR
+            ICLS=IOCLS
+            WEIGHT=OWEIGHT
+            CALL ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
+         ELSE
+            OETILDE=ETILDE
+            OPROB=RH
+            I_OVCUR=I_V
+!               ICLS=0
+            IOCLS=ICLS
+            OWEIGHT=WEIGHT
+            IACC=1
          ENDIF
 ! If we're not writing graphs, we write here after
          IF(BTEST(ILOGGING,0).AND..NOT.BTEST(ILOGGING,2)) THEN
