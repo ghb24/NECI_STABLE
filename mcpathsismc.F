@@ -1760,7 +1760,7 @@ C.. weight.
          REAL*8 PFAC
          REAL*8 RAN2
          INTEGER STORE(6)
-         TYPE(HDElement) MPEs(2:i_V)
+         TYPE(HDElement) MPEs(2:i_VMax)
          INCLUDE 'vmc.inc'
          
 C.. Take a copy of the old path and rho matrix etc.

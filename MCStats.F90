@@ -640,7 +640,7 @@ MODULE MCStats
 !            WRITE(6,*) "2(1-u/(uv v))",2*(1-u/(uv*v))
             sxbx2=suv2/(uv*uv)+sv2/(v*v) !+ 2*(1-u/(uv*v))
 !            WRITE(6,*) "SXBX2",SXBX2
-            sx=sqrt(abs(sxbx2))*x
+            sx=sqrt(abs(sxbx2))*abs(x)
 !            WRITE(6,*) "SX",SX
             if(x.eq.0) sx=0
             rStDev=sx
