@@ -616,7 +616,7 @@ MODULE MCStats
             REAL*8 rStDev
             REAL*8 x,sxbx2,sx,uv,suv2,u,su2,v,sv2,n,nind
             n=M%nGraphs(0)
-            nind=M%nseqs/2
+            nind=M%nseqs
 !            WRITE(6,*) "N,NIND:",N,NIND
 
             uv=M%wWeightedDelta(0)%v/n

@@ -68,6 +68,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
          WRITE(13,"(G,$)") E
       ENDIF
    ENDDO
+   IF(TLOG) WRITE(13,*)
    RETURN
 END
 
