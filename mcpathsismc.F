@@ -316,7 +316,7 @@ C.. Markov chain with random generation.
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                     IACC,0.D0,I_VMAX)
 !                   !   .
-                    ELSE
+                        ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
 !.. or graphs of size I_VMIN=I_VMAX
 
@@ -578,8 +578,12 @@ C.. setup spin excitation generator
             DLWDB=DLWDB2
             FF=HIJS(0)
             FF=FF+DLWDB/TOTAL
-            WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
-            WRITE(6,"(A14,G)") STR,FF
+!  If we're doing a full sum with all levels, then we print data out here.
+!  Otherwise it will be done in MCPATHSR10 which calls us
+            IF(I_VMIN.EQ.0) THEN
+               WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
+               WRITE(6,"(A14,G)") STR,FF
+            ENDIF
 !            DO I=2,I_VMAX
 !               FF=FF+MP2E(I)
 !               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
