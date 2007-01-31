@@ -240,7 +240,7 @@ c        NSLOTS=MIN(NPAIRS, 1024)
       SUBROUTINE SETUMATCACHEFLAG(NEWFLAG)
          USE HElement
          IMPLICIT NONE
-         INTEGER NEWFLAG
+         INTEGER NEWFLAG,NF
          INCLUDE 'umatcache.inc'
          SELECT CASE(UMATCACHEFLAG)
          CASE(1)
@@ -254,8 +254,12 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          WRITE(69,*) "FLAG",NEWFLAG
          SELECT CASE(NEWFLAG)
          CASE(1)
-            CALL IAZZERO(UMATLABELS,NSLOTS*NPAIRS)
+            IF(NSLOTS.EQ.NPAIRS) THEN ! we're storing every element, so we don't need to deal with different cacheing
+               UMATCACHEFLAG=0
+            ELSE
+               CALL IAZZERO(UMATLABELS,NSLOTS*NPAIRS)
 !Turn on the direct caching, and clear the cache.
+            ENDIF
          ENDSELECT
          RETURN
       END

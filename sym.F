@@ -638,9 +638,12 @@ C,. First check norm of this state
          ENDDO
          DO I=1,NSYM
             TOT=0
+!            CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IR")
+!            CALL WRITECHARS(6,CHARS(1),NROT,"CH")
             DO J=1,NROT
                TOT=TOT+DCONJG(IRREPCHARS(J,I))*CHARS(J)
             ENDDO
+!            WRITE(6,*) I,TOT
             IF(TOT.NE.0) THEN
 C.. Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
