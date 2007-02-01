@@ -4,6 +4,7 @@ C     ==================================================================
 C     == NSTATES:   number of states.                                 ==
 C     == NROTOP:    number of rotational symmetry operations.         ==
 C     == NTRANSLAT: number of translational symmetry operations.      ==
+C     == NSpGpOp:   number of space group operations of the cell.     ==
 C     == ROT_CHAR:  characters of (the degenerate sets of) the        ==
 C     ==            wavefunctions.                                    ==
 C     == TRANS_CHAR:characters of (the degenerate sets of) the        ==
@@ -36,7 +37,7 @@ C     ==            equivalent to the k-point mesh.                   ==
 C     == NKPS: Number of k-points (excluding symmetry equivalent ones.)=
 C     ==================================================================
       INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATES),
-     &        TRANS_LABEL(NSTATES),NCOMPLETE,NKPS,NKPTRANS
+     &        TRANS_LABEL(NSTATES),NCOMPLETE,NKPS,NKPTRANS,NSpGpOp
       REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT),
      &            GROUP_CHAR(NTRANSLAT*NROTOP,NSTATES),
@@ -57,7 +58,7 @@ C     ==================================================================
       COMPLEX*16 PICorr(NSTATES)
       POINTER    (IP_PICorr,PICorr)
       COMMON /CPMDDATA/ NSTATES,NROTOP,NTRANSLAT,NKPTRANS,IP_ROT_CHAR,
-     &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,
+     &                  IP_EIGENVALUES,XI,IP_TRANS_CHAR,BIGCELL,NSpGpOp,
      &                  IP_ROT_LABEL,IP_TRANS_LABEL,IP_IMPROPER_OP,
      &                 EIONION,NCOMPLETE,DEGENTOL,TSPACEGP,IP_KPNT_CHAR,
      &                 IP_K_VECTORS,IP_GROUP_CHAR,IP_TRANS_CHAR_TABLE,

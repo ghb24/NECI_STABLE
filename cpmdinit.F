@@ -102,7 +102,7 @@ C         CALL FAKEREADCHARTABLE(NSTATES)
          IF(TSPACEGP) THEN
 C.. We're dealing with a complete space group rather than just a point
 C.. group
-            NROT=NROTOP*NTRANSLAT
+            NROT=NSpGpOp
          ELSE
             NROT=NROTOP
          ENDIF
