@@ -75,7 +75,12 @@ C.,             If 1, only allow doubles.
          REAL*8 GETHELEMENT
          REAL*8 BETADATA(0:1)
          LOGICAL ISCONNECTEDDET
-   
+
+!----------------HACK to calculate the expected variance if we were doing MC
+         REAL*8 VarSum
+         SAVE VarSum
+!----------------END HACK
+
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
 C.. Allow both singles and doubles
@@ -149,6 +154,16 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
             NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
+
+!----------------HACK to calculate the expected variance if we were doing MC
+            If (I_V.eq.3) Then
+              Call CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
+     &            nBasisMax,UMat,NMAX,nBasis,R)
+      VarSum = VarSum+(DLWDB2%v+1.117998*TOTAL%v)**2/R%v
+      !VarSum = VarSum+((DLWDB2%v/TOTAL%v+109.127349511)*TOTAL%v)**2/R%v
+            End If
+!----------------END HACK
+
             IF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
@@ -405,5 +420,10 @@ C            CALL PRINT_MEMORY()
          CALL FREEM(IP_NMEM)
          LOCTAB(1,I_VIND+1)=0
          FMCPR3B2=TOTAL
+
+!----------------HACK to calculate the expected variance if we were doing MC
+         If (I_VIND.eq.0.and.I_V.eq.3) Print *, "VarSum: ", VarSum
+!----------------END HACK
+
          RETURN
       END

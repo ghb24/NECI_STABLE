@@ -241,13 +241,6 @@ C                  DLWDB2=0.D0
                     i_VCur=i_v
                     FF=oWeight/HDElement(oProb) 
                     DLWDB2=oWeight*DLWDB2/HDElement(oProb)
-!                    WRITE(6,*) FF,DLWDB2/FF
-                    !print estimated energy at this stage (debugging code)
-                    !If(Mod(iCount, 100).eq.0)
-     &              ! Write(122,"I5, 5G25.16") iCount,
-     &              ! (MCStat%wWeightedDelta(2)%v)
-     &              ! /(MCStat%wWeighting(2)%v+(iCount+1))
-     &              ! +MCStat%wRefValue%v
                   ELSE
 C.. see if we want to increase the number of vertices
                     I_OVCUR=I_VCUR
@@ -506,12 +499,19 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
      &              MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
                  !    CALL WriteStats(MCStat,12)
                      If(tMCDirectSum) Then
-                       Write(12, "I9, G25.16") iCount,
+                       Write(12, "I9, 6G25.16") iCount,
      &                 MCStat%wWeightedDelta(0)%v
-     &                 /(MCStat%wWeighting(0)%v+(iCount+1)*WCore%v)
+     &                 /(MCStat%wWeighting(0)%v+(iCount+1)*WCore%v),
+     &                 MCStat%wWeightedDelta(0)%v,
+     &                 MCStat%wWeighting(0)%v, (iCount+1)*WCore%v,
+     &      MCStat%wWeightedDeltaSq(0)%v/iCount
+     &             -(MCStat%wWeightedDelta(0)%v/iCount)**2,
+     &      MCStat%wWeightingSq(0)%v/iCount
+     &             -(MCStat%wWeighting(0)%v/iCount)**2
                      Else
-                       Write(12, "I9, G25.16") iCount, 
-     &                  MCStat%wWeightedDelta(0)/MCStat%wWeighting(0)
+                       Write(12, "I9, 3G25.16") iCount, 
+     &                  MCStat%wWeightedDelta(0)/MCStat%wWeighting(0),
+     &                  MCStat%wWeightedDelta(0),MCStat%wWeighting(0)
                      EndIf
                      CALL FLUSH(12)
                   ENDIF

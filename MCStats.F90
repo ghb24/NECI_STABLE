@@ -270,21 +270,20 @@ MODULE MCStats
          
       SUBROUTINE WriteBlockStats(iUnit,M,nGraphs)
          TYPE(BlockStats) M
-         INTEGER iUnit
+         INTEGER iUnit, i
          INTEGER*8 nBlocks,nGraphs
-         REAL*8 cc
-         TYPE(HDElement) mm,ee,ss
-         INTEGER i
+         REAL*8 blockVar, blockAvg, ee, ss
+         
          WRITE(iUnit,*) "#MCBLOCKS for ",nGraphs," steps."
          DO i=0,M%iBMax
             nBlocks=Int(nGraphs/2**i)
-            mm=M%wBlockSum(i)/HDElement(nBlocks+0.D0)
-            cc=DREAL(M%wBlockSumSq(i)/HDElement(nBlocks+0.D0)-mm*mm)
+            blockAvg=M%wBlockSum(i)%v/nBlocks
+            blockVar=M%wBlockSumSq(i)%v/nBlocks-blockAvg**2
 !This /(nBlocks-1) comes from Flyvbjerg's paper, and is because we are working out the best estimator of the stdev,not the actual stdev.
-            ss=SQRT(ABS(cc/(nBlocks-1.D0)))
+            ss=SQRT(ABS(blockVar/(nBlocks-1.D0)))
 !ee is the error in the estimator ss.  
-            ee=ss/HDElement(SQRT(ABS(2.D0*(nBlocks-1.D0))))
-            WRITE(iUnit,"(I,4G25.16)") i,ss,ee,mm,SQRT(cc)
+            ee=ss/SQRT(ABS(2.D0*(nBlocks-1.D0)))
+            WRITE(iUnit,"(I,4G25.16)") i,ss,ee,blockAvg,SQRT(blockVar)
          ENDDO
       END
 
