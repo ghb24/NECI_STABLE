@@ -376,7 +376,7 @@ C.. round the momentum
       END
 
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.
-      SUBROUTINE GENIRREPS(IMPROPER_OP,NROTOP)
+      SUBROUTINE GENIRREPS(TKP,IMPROPER_OP,NROTOP)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J,K
@@ -384,16 +384,16 @@ C.. Given a set of characters of states, generate all relevant irreps which span
          TYPE(Symmetry) iDecomp
          INTEGER NEXTSYMLAB
          LOGICAL GETIRREPDECOMP
-         COMPLEX*16 REPCHARS(NROT,NSYMLABELS*4)
+         COMPLEX*16 REPCHARS(NROT,NSYMLABELS*10)
          INTEGER NREPS,NROTOP
          REAL*8 NORM
-         LOGICAL INV,IMPROPER_OP(NROTOP)
+         LOGICAL TKP,INV,IMPROPER_OP(NROTOP)
          NREPS=0
 C.. Initialize the table with the totally symmetric rep.
          INV=.FALSE.
          DO I=1,NROT
             IRREPCHARS(I,1)=1
-            IF(IMPROPER_OP(MOD(I-1,NROTOP)+1)) INV=.TRUE.
+            IF(IMPROPER_OP(MOD(I-1,NROTOP)+1).and..not.TKP) INV=.TRUE.
          ENDDO
          NSYM=1
          IF(INV) THEN
@@ -422,7 +422,7 @@ C.. First see if all the products of chars are decomposable
          lp1:DO I=1,NSYM
                DO J=I,NSYM
                   NREPS=NREPS+1
-                  IF(NREPS.GT.NSYMLABELS*4) STOP 'TOO MANY REPS'
+                  IF(NREPS.GT.NSYMLABELS*10) STOP 'TOO MANY REPS'
                   DO K=1,NROT
                      REPCHARS(K,NREPS)=DCONJG(IRREPCHARS(K,I))
      &                                    *IRREPCHARS(K,J)
@@ -464,7 +464,7 @@ C            WRITE(6,*) LDO,NEXTSYMLAB,NSYMLABELS
 C.. Check to see if the next symlabel's char is decomposable
         lp2: DO WHILE (NEXTSYMLAB.LE.NSYMLABELS)
                NREPS=NREPS+1
-               IF(NREPS.GT.NSYMLABELS*4) STOP 'TOO MANY REPS'
+               IF(NREPS.GT.NSYMLABELS*10) STOP 'TOO MANY REPS'
                DO I=1,NROT
                   REPCHARS(I,NREPS)=SYMLABELCHARS(I,NEXTSYMLAB)
                ENDDO

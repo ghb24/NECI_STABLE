@@ -35,15 +35,10 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          IF(TKP) THEN
 !  We've got a k-point code, so we're not currently using spatial symmetry.  We use translational symmetry according to the k-points
             CALL GenKPtIrreps(KPNT_CHAR,NKPTRANS,NKPS,KPNTIND,NSTATES)
-!Fake Improper Op code
-            DO I=1,NKPS
-               IMPROP(I)=.FALSE.
-            ENDDO
-            CALL GENIRREPS(IMPROP,NKPTRANS)
          ELSE
-            CALL EXTRACTSYMLABELS
-            CALL GENIRREPS(IMPROPER_OP,NROTOP)
-         ENDIF
+             CALL ExtractSymLabels
+         END IF
+         CALL GENIRREPS(TKP,IMPROPER_OP,NROTOP)
          CALL GENSYMTABLE
 
 C         CALL FAKEEIGENVALUES
