@@ -7,32 +7,47 @@ C.. product in the symmetry table, and OR that with the product.
          INCLUDE 'sym.inc'
          TYPE(Symmetry) ISYM1, ISYM2
          TYPE(Symmetry) SYMPROD
-         INTEGER IS1,IS2
+         TYPE(Symmetry) IS1,IS2
          INTEGER I,J
          IF(ISYM1%s.EQ.0.OR.ISYM2%s.EQ.0) THEN
             SYMPROD%s=0
             RETURN
          ENDIF
          IF(IP_SYMTABLE.EQ.0) STOP 'SYMMETRY TABLE NOT ALLOCATED'
-         IS1=ISYM1%s
+         IS1=ISYM1
          I=1
          SYMPROD%s=0
-         DO WHILE(IS1.NE.0)
-            IF(IAND(IS1,1)) THEN
-               IS2=ISYM2%s
+         DO WHILE(IS1%s.NE.0)
+            IF(IAND(IS1%s,1)) THEN
+               IS2=ISYM2
                J=1
-               DO WHILE(IS2.NE.0)
-                  IF(IAND(IS2,1)) THEN
+               DO WHILE(IS2%s.NE.0)
+                  IF(IAND(IS2%s,1)) THEN
                      SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
                   ENDIF
-                  IS2=RSHIFT(IS2,1)
+                  IS2%s=RSHIFT(IS2%s,1)
                   J=J+1
                ENDDO
             ENDIF
-            IS1=RSHIFT(IS1,1)
+            IS1%s=RSHIFT(IS1%s,1)
             I=I+1
          ENDDO
          RETURN
+      END
+
+      FUNCTION SymConj(s2)
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         TYPE(Symmetry) s,SymConj,s2
+         INTEGER i
+         SymConj%s=0
+         s=s2
+         i=0
+         DO WHILE(s%s.NE.0)
+            IF(IAND(s%s,1)) SymConj%s=IOR(SymConj%s,SymConjTab(I))
+            s%s=RSHIFT(s%s,1)
+            i=i+1
+         ENDDO
       END
 
       SUBROUTINE WRITESYMTABLE(IUNIT)
@@ -82,8 +97,10 @@ C.. Setup the symmetry product table
          NSYM=NSYMMAX
          CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
          IP_SYMT2=IP_SYMTABLE
+         CALL MEMORY(IP_SymConjTab,NSYM,'SymConjTab')
          CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
          DO I=0,NSYM-1
+            SymConjTab(I+1)=I+1
             DO J=0,NSYM-1
                SYMT2(I+1,J+1)%s=IBSET(0,IEOR(I,J))
             ENDDO
@@ -170,6 +187,8 @@ C.. delete a symmetry table if one existed.
          INCLUDE 'sym.inc'
          IF(IP_SYMTABLE.NE.0) CALL FREEM(IP_SYMTABLE)
          IP_SYMTABLE=0
+         IF(IP_SymConjTab.NE.0) CALL FREEM(IP_SymConjTab)
+         IP_SymConjTab=0
          IF(IP_SYMREPS.NE.0) CALL FREEM(IP_SYMREPS)
          IP_SYMREPS=0
          IF(IP_SymClasses.NE.0) CALL FREEM(IP_SymClasses)
@@ -748,7 +767,29 @@ C.. We've found an (ir)rep which is wholly in CHARS
          TYPE(Symmetry) IDECOMP
          REAL*8 CNORM
          CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
+         CALL MEMORY(IP_SymConjTab,nSym,'SymConjTab')
          DO I=1,NSYM
+            DO K=1,NROT
+               CHARS(K)=DCONJG(IRREPCHARS(K,I))
+            ENDDO
+            IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,
+     &         IDECOMP,CNORM)) THEN
+               WRITE(6,*) "Conjugate of SYM ",I,
+     &            " not reducible,"
+               CALL WRITECHARS(6,CHARS,NROT,"REMAIN")
+               STOP "Symmetry table element not conjugable"
+            ENDIF
+            K=0
+            DO WHILE(.NOT.BTEST(IDECOMP%s,0))
+               K=K+1
+               IDECOMP%s=RSHIFT(IDECOMP%s,1)
+            ENDDO
+            IF(IDECOMP%s.NE.1) THEN
+               WRITE(6,*) "Conjugate of SYM ",I,
+     &            " not a single SYM,"
+               STOP
+            ENDIF
+            SymConjTab(I)=K
             DO J=I,NSYM
                DO K=1,NROT
                   CHARS(K)=DCONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)

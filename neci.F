@@ -1127,7 +1127,8 @@ C            HMIN=dflmax()
                   JR=JR+1
                   J=J+NROW(JR)
                ENDDO
-               WRITE(8,"(2I12,F27.20)") JR,LAB(I),HAMIL(I)
+               WRITE(8,"(2I12,$)") JR,LAB(I)
+               WRITE(8,*) HAMIL(I)
 C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
 C               WRITE(14,"(A,$)"),"|"
 C               CALL WRITEDET(14,NMRKS(1,LAB(I)),NEL,.FALSE.)
@@ -2674,6 +2675,7 @@ C               G(3,BRR(I))=J
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
          INCLUDE 'basis.inc'
+         INCLUDE 'umatcache.inc'
          TYPE(BASISFN) G1(NHG)
          TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -2839,6 +2841,12 @@ C.. the primed (...P) are the new versions
              ENDDO
             ENDIF
          ENDDO
+         ELSEIF(IP_UMAT2D.NE.0) THEN
+!.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
+C.. NHG contains the old number of orbitals
+C.. NBASIS contains the new
+C.. GG(I) is the new position in G of the (old) orb I
+            CALL FreezeUMatCache(GG,NHG,NBASIS)
          ENDIF
 C.. Now setup the default symmetry to include the frozen electrons
 C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym

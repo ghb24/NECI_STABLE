@@ -2,6 +2,8 @@
          TYPE(BasisFN) FrozenSym
 !.. The number of symmetries (irreps), and a product table of irreps (the result being an irrep bitmask)
          INTEGER NSYM
+         INTEGER SymConjTab(nSym)
+         POINTER (IP_SymConjTab,SymConjTab)
          TYPE(Symmetry) SYMTABLE(NSYM,NSYM)
          POINTER (IP_SYMTABLE,SYMTABLE)
 !.. SYMREPS is used to group together degenerate sets of orbitals of the same sym
@@ -59,4 +61,4 @@
      &               IP_SYMPAIRPRODS,NSYMPAIRPRODS,                     &
      &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,                 &
      &               TNEWEXCITATIONS,IP_SymClasses,                     &
-     &               FrozenSym
+     &               FrozenSym, IP_SymConjTab
