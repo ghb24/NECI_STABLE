@@ -65,7 +65,7 @@ C..  <ii|ii>
              GETUMATEL=UMAT2D(IDI,IDI)
            ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL
      &      .AND.TUMAT2D) THEN
-C.. <ij|ij>
+C.. <ij|ij>  (stored with i<j)
              I=MIN(IDI,IDJ)
              J=MAX(IDI,IDJ)
              GETUMATEL=UMAT2D(I,J)
@@ -107,7 +107,8 @@ C.. (i,k)<=(j,l) and i<=k, j<=l.
 C.. We don't have a stored UMAT - we call to generate it.
                   IF(IP_DFInts.NE.0) THEN
 C.. We're using density fitting
-                     Call GetDF2EInt(I,J,K,L,GETUMATEL)
+                     Call GetDF2EInt(I,J,K,L,UElems(0))
+                     GetUMatEl=UElems(0)
                   ELSE
 C.. Otherwise we call CPMD
                      CALL INITFINDXI(I,J,K,L,UElems)
@@ -210,6 +211,16 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          TUMAT2D=.TRUE.
          CALL MEMORY(IP_UMAT2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
          CALL CPMDANTISYMINTEL(G1,UMAT2D,NSTATES)
+      END
+
+!Set up the 2D Umatcache for density fitting
+      SUBROUTINE SETUPUMAT2D_DF()
+         USE HElement
+         IMPLICIT NONE
+         INCLUDE 'umatcache.inc'
+         TUMAT2D=.TRUE.
+         CALL MEMORY(IP_UMAT2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
+         CALL ReadDalton2EIntegrals(nStates,UMat2D) 
       END
      
       SUBROUTINE SETUMATTRANS(TRANS)

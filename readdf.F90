@@ -64,6 +64,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          call leave_record_handler(C_file,info)
          call leave_record_handler(I_file,info)
          call SetupUMatCache(nOrbUsed/2)
+         call SetupUMat2D_df
       END
       
 !.. Get a 2-el integral.  a,b,c,d are indices.
@@ -86,6 +87,25 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          INTEGER I,J
          GetDFIndex=i+j*(j-1)/2
       END 
+      SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D)
+         implicit none
+         include 'basis.inc'
+         integer nBasis,i,j,k
+         real*8 val,UMat2D(nBasis,nBasis)
+         open(11,file='HONEEL',status='unknown')
+         i=1
+         do while(i.ne.0)
+            read(11,*) i,j,val
+         enddo
+         i=1
+         do while(i.ne.0)
+            read(11,*) i,j,k,val
+            if(i.ne.0) then
+               UMat2D(i,j)=val
+            endif
+         enddo
+         close(11)
+      END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,TMat,Arr,Brr,ECore)
          implicit none
          include 'basis.inc'
@@ -98,9 +118,11 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          call iazZero(G1,nBasis*BasisFNSize)
          do while(i.ne.0)
             read(11,*) i,j,val
+!"(2I5,F)"
+!            write(6,*) i,j,val
             if(i.eq.0) then
                ECore=val
-            else
+            elseif(j.ne.0) then
                TMat(i*2-1,j*2-1)=val
                TMat(i*2,j*2)=val
                TMat(j*2-1,i*2-1)=val
@@ -111,9 +133,10 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          do i=1,nBasis
             G1(i)%Ms=1-2*iand(i,1)
             G1(i)%Sym%s=1
-            Arr(i,1)=TMat(i,i)
-            Arr(i,2)=TMat(i,i)
-            Brr(i)=i
+!  We've already read in and ordered the Energies
+!            Arr(i,1)=TMat(i,i)
+!            Arr(i,2)=TMat(i,i)
+!            Brr(i)=i
          enddo
       END
       SUBROUTINE InitDaltonBasis(nBasisMax,Arr,Brr,G1,nBasis)
@@ -127,7 +150,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          call iazZero(G1,nBasis*BasisFNSize)
          do while(i.ne.0)
             read(11,*) i,j,val
-            if(i.eq.j.and.i.ne.0) then
+            if(j.eq.0.and.i.ne.0) then
                Arr(i*2-1,1)=val
                Arr(i*2-1,2)=val
                Arr(i*2,1)=val
