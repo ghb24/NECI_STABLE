@@ -113,13 +113,6 @@ C.. Otherwise we call CPMD
                      CALL INITFINDXI(I,J,K,L,UElems)
                      GETUMATEL=UElems(IAND(ITYPE,1))
                      IF(ITYPE.GT.1) GETUMATEL=DCONJG(GETUMATEL)
-                     WRITE(6,*) "I",I,J,K,L,UElems
-                     CALL INITFINDXI(K,J,I,L,UElems)
-                     WRITE(6,*) "I",K,J,I,L,UElems
-                     CALL INITFINDXI(I,L,K,J,UElems)
-                     WRITE(6,*) "I",I,L,K,J,UElems
-                     CALL INITFINDXI(IDI,IDJ,IDK,IDL,UElems)
-                     WRITE(6,*) "I",IDI,IDJ,IDK,IDL,UElems
                   ENDIF
                   CALL CACHEUMATEL(A,B,UElems,ICACHE,
      &                  ICACHEI)
@@ -164,8 +157,8 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
                    ENDIF
             GETUMATEL=SUM
          ENDIF
-         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
-         WRITE(6,*) GETUMATEL
+!         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
+!         WRITE(6,*) GETUMATEL
          RETURN
 !         CALL TIHALT(' GETUMATEL',ISUB)
       END

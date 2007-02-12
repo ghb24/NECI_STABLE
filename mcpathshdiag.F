@@ -156,7 +156,7 @@ C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
 
 !----------------HACK to calculate the expected variance if we were doing MC
-            If (I_V.eq.3) Then
+            If (I_V.eq.3.AND.TLOG5) Then
               Call CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
      &            nBasisMax,UMat,NMAX,nBasis,R)
       VarSum = VarSum+(DLWDB2%v+1.117998*TOTAL%v)**2/R%v

@@ -2799,7 +2799,6 @@ C.. if the spins are the same
      &               TMAT2(IPB,JPB)=TMAT2(IPB,JPB)
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
                ENDDO
-               WRITE(6,*) "T",IPB,JPB,TMAT2(IPB,JPB)
             ENDDO
          ENDDO
          IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
