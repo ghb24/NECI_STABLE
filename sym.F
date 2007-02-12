@@ -42,9 +42,10 @@ C.. product in the symmetry table, and OR that with the product.
          INTEGER i
          SymConj%s=0
          s=s2
-         i=0
+         i=1
          DO WHILE(s%s.NE.0)
-            IF(IAND(s%s,1)) SymConj%s=IOR(SymConj%s,SymConjTab(I))
+            IF(IAND(s%s,1)) SymConj%s=IOR(SymConj%s,
+     &         LSHIFT(1,SymConjTab(I)-1))
             s%s=RSHIFT(s%s,1)
             i=i+1
          ENDDO
@@ -789,7 +790,7 @@ C.. We've found an (ir)rep which is wholly in CHARS
      &            " not a single SYM,"
                STOP
             ENDIF
-            SymConjTab(I)=K
+            SymConjTab(I)=K+1
             DO J=I,NSYM
                DO K=1,NROT
                   CHARS(K)=DCONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
@@ -805,6 +806,10 @@ C.. We've found an (ir)rep which is wholly in CHARS
                SYMTABLE(J,I)=IDECOMP
 C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
             ENDDO
+         ENDDO
+         WRITE(6,*) "Symmetry, Symmetry Conjugate"
+         DO I=1,NSYM
+            WRITE(6,*) I,SymConjTab(I)
          ENDDO
       END
 

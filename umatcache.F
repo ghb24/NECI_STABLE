@@ -38,7 +38,7 @@
          TYPE(BasisFN) G1(NHG)
          REAL*8 ALAT(3)
          TYPE(HElement) UMAT(*)
-         TYPE(HElement) UElems(2)
+         TYPE(HElement) UElems(0:nTypes-1)
          INTEGER A,B,C
          INTEGER IDI,IDJ,IDK,IDL
          REAL*8 SUM
@@ -102,20 +102,24 @@ C.. Check the symmetry of the 4-index integrals
                
 C..  This will rearrange I,J,K,L into the correct order
 C.. (i,k)<=(j,l) and i<=k, j<=l.
-               IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B))
-     &             THEN
+               IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B,
+     &            ITYPE)) THEN
 C.. We don't have a stored UMAT - we call to generate it.
                   IF(IP_DFInts.NE.0) THEN
 C.. We're using density fitting
                      Call GetDF2EInt(I,J,K,L,GETUMATEL)
                   ELSE
 C.. Otherwise we call CPMD
+                     CALL INITFINDXI(I,J,K,L,UElems)
+                     GETUMATEL=UElems(IAND(ITYPE,1))
+                     IF(ITYPE.GT.1) GETUMATEL=DCONJG(GETUMATEL)
+                     WRITE(6,*) "I",I,J,K,L,UElems
+                     CALL INITFINDXI(K,J,I,L,UElems)
+                     WRITE(6,*) "I",K,J,I,L,UElems
+                     CALL INITFINDXI(I,L,K,J,UElems)
+                     WRITE(6,*) "I",I,L,K,J,UElems
                      CALL INITFINDXI(IDI,IDJ,IDK,IDL,UElems)
-                     WRITE(6,*) IDI,IDJ,IDK,IDL,UElems
-                     CALL INITFINDXI(IDK,IDJ,IDI,IDL,UElems)
-                     WRITE(6,*) IDK,IDJ,IDI,IDL,UElems
-                     CALL INITFINDXI(IDI,IDL,IDK,IDJ,UElems)
-                     WRITE(6,*) IDI,IDL,IDK,IDJ,UElems
+                     WRITE(6,*) "I",IDI,IDJ,IDK,IDL,UElems
                   ENDIF
                   CALL CACHEUMATEL(A,B,UElems,ICACHE,
      &                  ICACHEI)
@@ -310,7 +314,7 @@ C..  This will rearrange IDI,IDJ,IDK,IDL into the correctkorder
 C.. (i,k)<=(j,l) and i<=k, j<=l.  ICACHE corresponds to the pair (i,j), and
 C.. ICACHEI is the index in that cache where the cache should be located.
       LOGICAL FUNCTION GETCACHEDUMATEL(IDI,IDJ,IDK,IDL,UMATEL,ICACHE,
-     &      ICACHEI,A,B)
+     &      ICACHEI,A,B,ITYPE)
          USE HElement
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI
@@ -515,10 +519,10 @@ C.. middle of a block of duplicates
          USE HElement
          IMPLICIT NONE
          INTEGER A,B,ICACHE,ICACHEI
-         TYPE(HElement) UMATEL(0:NTYPES)
+         TYPE(HElement) UMATEL(0:NTYPES-1)
          INCLUDE 'umatcache.inc'      
          INTEGER OLAB,IC1
-!         WRITE(69,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
+         WRITE(69,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
          IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1) THEN
 C.. small system.  only store a single element
             UMATLABELS(ICACHEI,ICACHE)=B
@@ -567,11 +571,11 @@ C            ENDIF
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          INCLUDE 'umatcache.inc'
-         TYPE(HElement) NUMat2D(nNew/2,nNew/2),El
+         TYPE(HElement) NUMat2D(nNew/2,nNew/2),El(0:nTypes-1)
          POINTER (IP_NUMat2D,NUMat2D)
          INTEGER i,j,k,l,m,n
-         INTEGER ni,nj,nk,nl,nm,nn,A,B
-         TYPE(HElement) OUMatCache(nSlots,nPairs)
+         INTEGER ni,nj,nk,nl,nm,nn,A,B,iType
+         TYPE(HElement) OUMatCache(0:nTypes-1,nSlots,nPairs)
          INTEGER OUMatLabels(nSlots,nPairs)
          
          POINTER (IP_OUmatCache,OUmatCache)
@@ -622,8 +626,8 @@ C            ENDIF
                 nj=OrbTrans(nj*2)/2
                 nl=OrbTrans(nl*2)/2
                 IF(nj.NE.0.AND.nl.NE.0) THEN
-                   CALL GetCachedUmatEl(ni,nj,nk,nl,El,nm,nn,A,B)
-                   CALL CacheUMatEl(A,B,OUMatCache(n,m),nm,nn)
+                   CALL GetCachedUmatEl(ni,nj,nk,nl,El,nm,nn,A,B,iType)
+                   CALL CacheUMatEl(A,B,OUMatCache(0,n,m),nm,nn)
                 ENDIF
               ENDIF
              ENDDO
