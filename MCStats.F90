@@ -290,26 +290,24 @@ MODULE MCStats
       SUBROUTINE WriteBlockStatsII(iUnit,BSDS,BDS,BS,nGraphs)
       TYPE(BlockStats) BDS,BS
       TYPE(BlockStatsCov) BSDS
-      INTEGER iUnit
-      INTEGER*8 nn,nGraphs
+      INTEGER iUnit, i
+      INTEGER*8 nBlocks,nGraphs
       TYPE(HDElement) ss,jj,ee,kk,mm,meanS,meanDS,varDS,varS,covar
-      REAL*8 cc
-      INTEGER i
 
           WRITE(iUnit,*) "#MCBLOCKS for ",nGraphs," steps."
           DO i=0,BS%iBMax
-              nn=Int(nGraphs/2**i)
-              mm=BSDS%wBlockSum(i)/HDElement(nn+0.D0)
-              meanS=BS%wBlockSum(i)/HDElement(nn+0.D0)
-              meanDS=BDS%wBlockSum(i)/HDElement(nn+0.D0)
-              varDS=DREAL(BDS%wBlockSumSq(i)/HDElement(nn+0.D0)-(meanDS*meanDS))
-              varS=DREAL(BS%wBlockSumSq(i)/HDElement(nn+0.D0)-(meanS*meanS))
-              covar=(BSDS%wBlockSum(i)/HDElement(nn+0.D0))-(meanS*meanDS)
-              jj=(meanDS/(meanS*HDElement(SQRT(nn-1.D0))))
+              nBlocks=Int(nGraphs/2**i)
+              mm=BSDS%wBlockSum(i)/HDElement(nBlocks+0.D0)
+              meanS=BS%wBlockSum(i)/HDElement(nBlocks+0.D0)
+              meanDS=BDS%wBlockSum(i)/HDElement(nBlocks+0.D0)
+              varDS=DREAL(BDS%wBlockSumSq(i)/HDElement(nBlocks+0.D0)-(meanDS*meanDS))
+              varS=DREAL(BS%wBlockSumSq(i)/HDElement(nBlocks+0.D0)-(meanS*meanS))
+              covar=(BSDS%wBlockSum(i)/HDElement(nBlocks+0.D0))-(meanS*meanDS)
+              jj=(meanDS/(meanS*HDElement(SQRT(nBlocks-1.D0))))
               kk=(varDS/(meanDS*meanDS))+(varS/(meanS*meanS))-((HDElement(2.D0)*covar)/(meanDS*meanS))              
               ss=ABS((DREAL(jj))*SQRT(DREAL(kk)))
-              ee=ss/HDElement(SQRT(ABS(2.D0*(nn-1.D0))))
-              WRITE(iUnit,"(I,4G25.16)") i,ss,ee,mm
+              ee=ss/HDElement(SQRT(ABS(2.D0*(nBlocks-1.D0))))
+              WRITE(iUnit,"(I, 7G25.16)") i,ss,ee,mm,BSDS%wBlockSum(i),varDS%v*2**i, varS%v*2**i
           ENDDO
       END
 
@@ -406,26 +404,24 @@ MODULE MCStats
          TYPE(BlockStatsCov) BSDS
          LOGICAL tNewPower
          TYPE(HDElement) wDS,wS,wValTotDS,wValTotS
-         INTEGER*8 no,nc,nt,nn,nGraphs,nTimes
+         INTEGER*8 no,nc,nt,iBlockSize,nGraphs,nTimes
          TYPE(HDElement) bbS,bbDS
          INTEGER i,iobmax
 
-            nn=1
+            iBlockSize=1
             i=0
             ioBMax=BS%iBMax
-            DO WHILE(nn.LE.nGraphs)
+            DO WHILE(iBlockSize.LE.nGraphs)
                nt=nTimes
-! nc is the number of samples in the wCurBlock.
-! nn is the length of the cur block
-               no=nGraphs-nTimes
-               nc=MOD(no,nn)
+               no=nGraphs-nTimes !number of graphs before this cycle
+               nc=MOD(no,iBlockSize) !number of samples currently in wCurBlock
 ! If we don't already have a sum for this block size, get it from the stats
-               IF(.NOT.(BS%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) BS%wCurBlock(i)=(wValTotS)-HDElement(nTimes)*wS
-               IF(.NOT.(BDS%wCurBlock(i).AGT.0.D0).AND.no.LT.nn) BDS%wCurBlock(i)=(wValTotDS)-HDElement(nTimes)*wDS
-               IF(nc+nt.GE.nn.AND.nc.NE.0) THEN
+               IF(.NOT.(BS%wCurBlock(i).AGT.0.D0).AND.no.LT.iBlockSize) BS%wCurBlock(i)=(wValTotS)-HDElement(nTimes)*wS
+               IF(.NOT.(BDS%wCurBlock(i).AGT.0.D0).AND.no.LT.iBlockSize) BDS%wCurBlock(i)=(wValTotDS)-HDElement(nTimes)*wDS
+               IF(nc+nt.GE.iBlockSize.AND.nc.NE.0) THEN
 !  Add enough from the new set to fill the old to nn, and send to BlockSum
-                  bbS=(wS*HDElement(nn-nc)+BS%wCurBlock(i))/HDElement(nn)
-                  bbDS=(wDS*HDElement(nn-nc)+BDS%wCurBlock(i))/HDElement(nn)
+                  bbS=(wS*HDElement(iBlockSize-nc)+BS%wCurBlock(i))/HDElement(iBlockSize)
+                  bbDS=(wDS*HDElement(iBlockSize-nc)+BDS%wCurBlock(i))/HDElement(iBlockSize)
                   BSDS%wBlockSum(i)=BSDS%wBlockSum(i)+(bbS*bbDS)
                   BS%wBlockSum(i)=BS%wBlockSum(i)+bbS
                   BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
@@ -434,25 +430,25 @@ MODULE MCStats
                   If (bbDS%v.NE.0) Then
                       Call AddToHistogram(BDS, bbDS, i, 1)
                   EndIf
-                  nt=nt-(nn-nc)
+                  nt=nt-(iBlockSize-nc)
                   BS%wCurBlock(i)=0.D0
                   BDS%wCurBlock(i)=0.D0
               ENDIF
 !  Now add in all blocks of length nn from the remainder
-               bbS=HDElement(Int(nt/nn))*wS !there are nn lots of wVal - but we want the average
-               bbDS=HDElement(Int(nt/nn))*wDS
+               bbS=HDElement(Int(nt/iBlockSize))*wS !there are nn lots of wVal - but we want the average
+               bbDS=HDElement(Int(nt/iBlockSize))*wDS
                BSDS%wBlockSum(i)=BSDS%wBlockSum(i)+(bbS*bbDS)
                BS%wBlockSum(i)=BS%wBlockSum(i)+bbS
                BS%wBlockSumSq(i)=BS%wBlockSumSq(i)+(bbS*bbS)
                BDS%wBlockSum(i)=BDS%wBlockSum(i)+bbDS
                BDS%wBlockSumSq(i)=BDS%wBlockSumSq(i)+(bbDS*bbDS)
                If (bbDS%v.NE.0) Then 
-                   Call AddToHistogram(BDS, wDS, i, Int(nt/nn)) 
+                   Call AddToHistogram(BDS, wDS, i, Int(nt/iBlockSize)) 
                EndIf
 !  Add in the remainder
-               BS%wCurBlock(i)=BS%wCurBlock(i)+HDElement(MOD(nt,nn))*wS
-               BDS%wCurBlock(i)=BDS%wCurBlock(i)+HDElement(MOD(nt,nn))*wDS
-               nn=nn*2
+               BS%wCurBlock(i)=BS%wCurBlock(i)+HDElement(MOD(nt,iBlockSize))*wS
+               BDS%wCurBlock(i)=BDS%wCurBlock(i)+HDElement(MOD(nt,iBlockSize))*wDS
+               iBlockSize=iBlockSize*2
                i=i+1
             ENDDO
             BS%iBMax=i-2
