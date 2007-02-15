@@ -1595,7 +1595,7 @@ C.. Count the excitations (and generate a random one which we throw)
             CALL FREEM(IP_NEWEX)
          ENDDO
          pGenGraph=GETPATHPROB2(XIJ,iV)
-         IF(iUnit.NE.0) CALL WRITE_XMATRIX(iUnit,XIJ,iV)
+!         IF(iUnit.NE.0) CALL WRITE_XMATRIX(iUnit,XIJ,iV)
 
       END
 

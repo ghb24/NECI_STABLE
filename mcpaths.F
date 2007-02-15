@@ -56,7 +56,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM,LISNAN
          REAL*8 DBETA
-         TYPE(HDElement) DLWDB,DLWDB2
+         TYPE(HDElement) DLWDB,DLWDB2,EREF
          TYPE(HElement)  HIJS(0:I_VMAX)
          INTEGER LOCTAB(3,I_VMAX)
          TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
@@ -151,11 +151,15 @@ C.. This code generates excitations on the fly
             ELSEIF(I_CHMAX.EQ.-20) THEN
 C.. This code generates excitations on the fly, and diagonalizes a
 C.. matrix of hij instead of rhoij
+
+        EREF=DLWDB/TOTAL
+!        write(*,*) "from mcpaths.F", EREF%v 
+            
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL,I_VMAX)
+     &         MP2E,NTOTAL,I_VMAX,EREF)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.

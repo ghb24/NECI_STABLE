@@ -192,7 +192,7 @@ MODULE MCStats
             INTEGER iV,iTree,iAcc,ioV,igV,iClass
             TYPE(HDElement) wWeighting,wValue,wWeightedValue,wGraphWeight,wVal,wDelta
             INTEGER i,ioBMax,j
-            REAL*8 cc,ave1,ave2,std1,std2
+            REAL*8 cc,ave1,ave2,std1,std2,hh,top,bot,calc
             INTEGER*8 no,nc,nt,nn,nnn
             LOGICAL tLog,tNewSeq,tNewPower
             SAVE nnn
@@ -207,12 +207,16 @@ MODULE MCStats
             ENDIF
             IF(tNewSeq) THEN
                ave1=M%wWeightedDelta(0)%v/M%nGraphs(0)
+               top=ave1
 !               std1=sqrt(M%wDeltaSq(0)%v/M%nGraphs(0)-ave1*ave1)
                ave2=M%wWeighting(0)%v/M%nGraphs(0)
+               bot=1.958944146040248+ave2
 !               std2=sqrt(1.D0-ave2*ave2)
 !               cc=std1/ave1+std2/ave2
                CALL CalcStDev(M,cc)
-               IF(tLog) WRITE(22,"(I20,I15,2I3,6G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb
+               hh=ave1/ave2
+               calc=top/bot
+               IF(tLog) WRITE(22,"(I20,I15,2I3,8G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb,hh,calc
                M%iSeqLen=1
             ENDIF
             IF(iAcc.GT.0) THEN
@@ -412,6 +416,7 @@ MODULE MCStats
             i=0
             ioBMax=BS%iBMax
             DO WHILE(iBlockSize.LE.nGraphs)
+               ! iBlockSize is length of the cur block
                nt=nTimes
                no=nGraphs-nTimes !number of graphs before this cycle
                nc=MOD(no,iBlockSize) !number of samples currently in wCurBlock

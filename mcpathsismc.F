@@ -113,6 +113,9 @@ C.. These variables have been passed in and represent the precalculated values f
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
      &          DLWDBCORE/WCore)
+            
+            write(6,*) DLWDBCORE/WCore
+            call flush(6)
          ELSEIF(I_VMIN.NE.0) THEN
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),

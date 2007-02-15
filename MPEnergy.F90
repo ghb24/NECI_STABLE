@@ -15,9 +15,9 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    TYPE(HElement) MPE
 !E1 is the HF Energy.  Ei are Fock energy differences.
    
-      IF(TLOG) THEN
-         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-      ENDIF
+!      IF(TLOG) THEN
+!         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+!      ENDIF
    MPE=ECore
    DO i=1,iV
 !      EX(1,1)=nEl
@@ -64,11 +64,11 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
       E=MPE
       MPEs(iOrder)=MPEs(iOrder)+E
       IF(TLOG) THEN
-         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-         WRITE(13,"(G,$)") E
+!         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+!         WRITE(13,"(G,$)") E
       ENDIF
    ENDDO
-   IF(TLOG) WRITE(13,*)
+!   IF(TLOG) WRITE(13,*)
    RETURN
 END
 
@@ -148,8 +148,8 @@ END
          ENDDO
          CONTR=HIJS(1)*HIJS(1)/DENOM
          IF(TLOG) THEN
-            CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-            WRITE(13,*) HIJS(1),DENOM,CONTR
+!            CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+!            WRITE(13,*) HIJS(1),DENOM,CONTR
          ENDIF
          MP2E=MP2E-CONTR
          RETURN

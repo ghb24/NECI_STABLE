@@ -70,6 +70,7 @@
       G_VMC_EXCITWEIGHT=0.D0
       g_VMC_ExcitToWeight=0.D0
       g_VMC_ExcitFromWeight=0.D0
+      TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
 
       IP_SPECDET=0
 
@@ -385,6 +386,14 @@ C                  end select
                      call geti(NWHTAY(3,I_VMAX))
                   case("MULTIMCWEIGHT")
                      call getf(g_MultiWeight(I_VMAX))
+                  case("CALCVAR")
+                      if ( NWHTAY(1,I_VMAX).NE.-20 ) then
+                          call report("Keyword "//trim(w)//" 
+     &                     only valid for HDIAG routine",.true.)
+                      else
+                     TVARCALC(I_VMAX)=.true.
+                      end if
+                     
                   case("ENDMETHODS")
                      exit methods
                   case default

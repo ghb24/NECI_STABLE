@@ -28,10 +28,11 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL,I_VMAX)
+     &   NTOTAL,I_VMAX,EREF)
          USE HElement 
          IMPLICIT NONE
          INCLUDE 'basis.inc'
+         INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
@@ -43,7 +44,7 @@ C.,             If 1, only allow doubles.
          TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
          TYPE(HElement) HIJ(0:I_V,0:I_V),RH
-         TYPE(HDElement) DLWDB,DLWDB2
+         TYPE(HDElement) DLWDB,DLWDB2,EREF
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
@@ -76,11 +77,8 @@ C.,             If 1, only allow doubles.
          REAL*8 BETADATA(0:1)
          LOGICAL ISCONNECTEDDET
 
-!----------------HACK to calculate the expected variance if we were doing MC
-         REAL*8 VarSum
-         SAVE VarSum
-!----------------END HACK
-
+         REAL*8 VarSumnu, VarSumde
+         SAVE VarSumnu, VarSumde
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
 C.. Allow both singles and doubles
@@ -142,7 +140,7 @@ C.. the paths for it
                   CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
                ENDIF
             ENDIF
-            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
+!            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
 C.. 
             ICLS=0
 C.. Store beta in RHOII(1) (calling it BETADATA)
@@ -154,15 +152,16 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
             NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
-
-!----------------HACK to calculate the expected variance if we were doing MC
-            If (I_V.eq.3.AND.TLOG5) Then
+!        write (*,*) "from mcpathshdiag, EREF=",EREF
+            If (TVARCALC(I_V).and.TOTAL%v.ne.0) Then
+              
               Call CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
      &            nBasisMax,UMat,NMAX,nBasis,R)
-      VarSum = VarSum+(DLWDB2%v+1.117998*TOTAL%v)**2/R%v
-      !VarSum = VarSum+((DLWDB2%v/TOTAL%v+109.127349511)*TOTAL%v)**2/R%v
+              
+              !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
+      VarSumnu = VarSumnu+(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
+      VarSumde = VarSumde+((TOTAL%v)**2)/R%v
             End If
-!----------------END HACK
 
             IF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
@@ -398,7 +397,7 @@ C.. Get the H element so we can calculate the energy
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
-     &                     I_VMAX)
+     &                     I_VMAX,EREF)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF
@@ -421,9 +420,14 @@ C            CALL PRINT_MEMORY()
          LOCTAB(1,I_VIND+1)=0
          FMCPR3B2=TOTAL
 
-!----------------HACK to calculate the expected variance if we were doing MC
-         If (I_VIND.eq.0.and.I_V.eq.3) Print *, "VarSum: ", VarSum
-!----------------END HACK
-
+        If (TVARCALC(I_V).and.I_VIND.eq.0) Then
+            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
+     &             "vertex level",I_V,", (Numerator): ", VarSumnu
+            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
+     &             "vertex level",I_V,", (Denominator): ", VarSumde
+        VarSumnu=0.D0
+        VarSumde=0.D0
+        End If
+         
          RETURN
       END

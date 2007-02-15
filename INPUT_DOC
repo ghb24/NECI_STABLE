@@ -171,7 +171,7 @@ EXCITATIONS OLD,NEW
 
 METHODS
    Begin a METHODS BLOCK.  This allows a different method for each vertex level.
-   Each vertex level can contain EXCITATIONS, VERTICES and CYCLES keywords
+   Each vertex level can contain EXCITATIONS, VERTICES, CYCLES and CALCVAR keywords
    The block terminates with ENDMETHODS
    e.g.
 
@@ -192,6 +192,9 @@ VERTICES
      index within the methods block, the first methods corresponding to the 2-vertex level, the second to the 
      3-vertex level etc. .  VERTICES overrides this, and allows you to specify the vertex level of each method, 
      allowing, for example, to split the 2-vertex level into doubles and singles which are handled separately.
+
+CALCVAR
+   This calculates a theoretical approximation to the expected variance if a non-stochastic MC run were to be performed, with the parameters given, at the chosen vertex level.  Currently the expected variance is output to stdout, as a variance for the denominator and numerator of the energy seperatly.  This option means the calculation takes longer since the Pgens of the graphs must all be calculated.  This option can only be used when calculating a full sum at the vertex level, using the HDIAG subroutine.
 
 ENDMETHODS
    Terminate a methods block
