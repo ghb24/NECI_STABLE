@@ -793,7 +793,7 @@ C.. We've found an (ir)rep which is wholly in CHARS
             SymConjTab(I)=K+1
             DO J=I,NSYM
                DO K=1,NROT
-                  CHARS(K)=DCONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
+                  CHARS(K)=IRREPCHARS(K,I)*IRREPCHARS(K,J)
                ENDDO
                IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,
      &            IDECOMP,CNORM)) THEN
@@ -854,7 +854,7 @@ C.. e.g. if irreps are a1,a2,b1,b2
          INCLUDE 'basis.inc'
          TYPE(BASISFN) ISYM,JSYM
          INTEGER I,IS,JS
-         TYPE(SYMMETRY) SYMPROD
+         TYPE(SYMMETRY) SYMPROD,SymConj
          LOGICAL LSYMSYM
          LCHKSYM=.TRUE.
          DO I=1,4
@@ -862,7 +862,7 @@ C.. e.g. if irreps are a1,a2,b1,b2
          ENDDO
 C.. if the symmetry product of I and J doesn't contain the totally
 C.. symmetric irrep, we set sym to .FALSE.
-         LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(ISYM%SYM,JSYM%SYM))
+        LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(SymConj(ISYM%SYM),JSYM%SYM))
       RETURN
       END
       

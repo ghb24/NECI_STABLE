@@ -55,6 +55,9 @@ MODULE HElement
       interface SQ
          module procedure HElemSq
       end interface
+      interface ABS
+         module procedure HElemABS
+      end interface
 
       TYPE HDElement
          REAL*8  v
@@ -173,6 +176,11 @@ MODULE HElement
          HElemLog%v=LOG(h1%v)
          RETURN
       END
+      TYPE(HDElement) FUNCTION HElemABS(h1)
+         TYPE(HElement) h1
+         HElemABS%v=ABS(h1%v)
+         RETURN
+      END
       REAL*8 FUNCTION HElemSq(h1)
          TYPE(HElement) h1
 #ifdef __CMPLX
@@ -241,6 +249,9 @@ MODULE HElement
          CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,TMat,NMAX,ALAT,UMat,Sum)
          GetHElement2=Sum
          IF(iC.EQ.0) GetHElement2%v=GetHElement2%v+ECore
+!         CALL WRITEDET(6,NI,NEL,.FALSE.)
+!         CALL WRITEDET(6,NJ,NEL,.FALSE.)
+!         WRITE(6,*) GetHElement2
          CALL TIHALT('GETHELEM2 ',ISUB)
          RETURN
       END

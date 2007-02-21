@@ -50,6 +50,8 @@ C..   If determinants differ by more than 2 spin orbitals IC < 2
               IF(IC.LT.(NEL-2)) GOTO 500
             ENDIF
 C..
+!            CALL WRITEDET(6,NMRKS(1,KI),NEL,.FALSE.)
+!            CALL WRITEDET(6,NMRKS(1,KJ),NEL,.TRUE.)
             SUM=GETHELEMENT2(NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),NEL,
      &         NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMat,NMAX,
      &         ALAT,UMAT,NEL-IC,ECORE)

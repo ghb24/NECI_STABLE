@@ -70,7 +70,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          POINTER (IP_EXCITTYPES,EXCITTYPES)
 
          INTEGER ICOUNT
-         TYPE(Symmetry) SYMPROD
+         TYPE(Symmetry) SYMPROD,SymConj
          LOGICAL LSYMSYM,SYMEQ
          INTEGER ISPN
          INTEGER ILUT(0:NBASIS/32)
@@ -114,7 +114,8 @@ C.. Now calculate the resultant symmetry from removing one of each of the classe
             DO J=1,NCL
                L=CLASSCOUNT(1,I)+CLASSCOUNT(2,I)
                IF(J.EQ.I) L=L-1
-               DO K=1,L*2
+               DO K=1,L
+                  PR=SYMPROD( PR,SymConj(SymLabels(CLASSES(J)%SymLab)))
                   PR=SYMPROD( PR,SymLabels(CLASSES(J)%SymLab))
                ENDDO
             ENDDO
@@ -308,7 +309,7 @@ C.. If it's the first time around, we flag NALLOWPPS as invalid
 C.. [] is the SymProd(I).  For each sympairprod, check if [] x []' contains the sym rep
 C               WRITE(6,*) SYMPRODS(I),SYMPAIRPRODS(J)
                SPP=SymPairProds(J)%Sym
-               IF(LSYMSYM(SYMPROD(SYMPRODS(I), SPP))) THEN
+               IF(LSYMSYM(SYMPROD(SymConj(SYMPRODS(I)), SPP))) THEN
 C.. Check if we've worked out the allowed number of excitation pairs, otherwise work it out
                   IF(NALLOWPPS(1,J).EQ.-1) THEN
 C.. Zero the counters
@@ -380,7 +381,7 @@ C.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
 C.. For each class, see what sym prods it can interact with
             DO J=1,NSYMLABELS
                IF(LSYMSYM(SYMPROD(CLASSES(I)%SymRem,
-     &                  SYMPROD(SymLabels(J),
+     &                  SYMPROD(SymConj(SymLabels(J)),
      &                         SymLabels(CLASSES(I)%SymLab))))) THEN
                   DO ISPN=1,2
                      ICC=0
@@ -450,7 +451,7 @@ C         CALL WRITEDET(6,NI,NEL,.TRUE.)
 C.. For each class, see what sym prods it can interact with
                DO J=1,NSYMLABELS
 
-                  PR=SYMPROD(SymLabels(J),
+                  PR=SYMPROD(SymConj(SymLabels(J)),
      &                       SymLabels(CLASSES(I)%SymLab))
                   PR2=SYMPROD(PR,Classes(I)%SymRem)
 C                  WRITE(6,"(2I4,5Z4)") I,J,
@@ -491,7 +492,7 @@ C.. And the doubles
             DO I=1,NPR
                DO J=1,nSymPairProds
                   SPP=SymPairProds(J)%Sym
-                  IF(LSYMSYM(SYMPROD(SYMPRODS(I), SPP))) THEN
+                  IF(LSYMSYM(SYMPROD(SymConj(SYMPRODS(I)), SPP))) THEN
                      DO ISPN=1,3
                         K=NALLOWPPS(ISPN,J)
                         L=SYMPRODIND(2,ISPN,I)

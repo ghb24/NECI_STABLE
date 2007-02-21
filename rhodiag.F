@@ -459,6 +459,12 @@ C.. do we subtract out lower vertices here or later?
          TYPE(HDElement) HDiag_CPP
          TYPE(HDElement) R,S,DLWDB,DD2
          TYPE(HDElement) RII
+! Optimise the 1V case
+         IF(I_V.EQ.1) THEN
+            DLWDB=HIJ(1,1)
+            HDIAG_CPP=1.D0
+            RETURN
+         ENDIF
          R=HIJ(1,1)
          S=-BETA
          R=R*S
@@ -512,11 +518,12 @@ C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                R=EXP(-BETA*WLIST(I))
                S=RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+S*R/RII
+               T=R/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                DO J=1,I_V
                   U=HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
-                  T=R/RII
                   DLWT=DLWT+U*T
+!                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),U,T,DLWT
                ENDDO
             ENDDO
          ELSE
@@ -534,14 +541,15 @@ C.. appropriate projection onto the root
             DLWT=0.D0
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
-               S=DCONJG(RIJMAT(1,I))*RIJMAT(1,I)
+               S=SQ(RIJMAT(1,I))
                R=DEXP(-BETA*WLIST(I))
                SI2=SI2+S*R/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+               U=R/RII
                DO J=1,I_V
-                  T=HIJS2(J)*DCONJG(RIJMAT(J,I))*RIJMAT(1,I)
-                  U=R/RII
+                  T=HIJS2(J)*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
                   DLWT=DLWT+T*U
+!                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),T,U,DLWT
                ENDDO
             ENDDO
          ENDIF
@@ -568,6 +576,12 @@ C.. do we subtract out lower vertices here or later?
          TYPE(HDElement) DLWDB,RII,DD2
          TYPE(HDElement) RhoDiag_CPP
          REAL*8 DBETA
+! Optimise the 1V case
+         IF(I_V.EQ.1) THEN
+            DLWDB=HIJS(1)
+            RHODIAG_CPP=1.D0
+            RETURN
+         ENDIF
          RII=RHOIJ(1,1)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
@@ -654,7 +668,7 @@ C.. divide through by RHOII^P
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
-                     S=S*DCONJG(RIJMAT(J,I))*RIJMAT(1,I)
+                     S=S*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
                      DLWT=DLWT+S*HIJS2(J)
                   ENDDO
                ENDIF

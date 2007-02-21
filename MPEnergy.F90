@@ -15,9 +15,9 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    TYPE(HElement) MPE
 !E1 is the HF Energy.  Ei are Fock energy differences.
    
-!      IF(TLOG) THEN
-!         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-!      ENDIF
+      IF(TLOG) THEN
+         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+      ENDIF
    MPE=ECore
    DO i=1,iV
 !      EX(1,1)=nEl
@@ -64,11 +64,11 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
       E=MPE
       MPEs(iOrder)=MPEs(iOrder)+E
       IF(TLOG) THEN
-!         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-!         WRITE(13,"(G,$)") E
+         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+         WRITE(13,"(G,$)") E
       ENDIF
    ENDDO
-!   IF(TLOG) WRITE(13,*)
+   IF(TLOG) WRITE(13,*)
    RETURN
 END
 
@@ -96,8 +96,9 @@ END
 !.. Calculate the contribution to the MP2 energy from 
 !.. the determinant making this a 2-v graph.
       SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
+         USE HElement
          IMPLICIT NONE
-         REAL*8 HIJS(0:2)
+         TYPE(HElement) HIJS(0:2)
          REAL*8 ARR(NBASIS,2)
          INTEGER IPATH(NEL,0:2),NEL,NBASIS
          INTEGER NI(NEL),NJ(NEL)
@@ -146,10 +147,10 @@ END
                J=J+1
             ENDIF
          ENDDO
-         CONTR=HIJS(1)*HIJS(1)/DENOM
-         IF(TLOG) THEN
-!            CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-!            WRITE(13,*) HIJS(1),DENOM,CONTR
+         CONTR=DCONJG(HIJS(1)%v)*HIJS(1)%v/DENOM
+         IF(TLOG.AND.CONTR.GT.1.D-9) THEN
+            CALL WRITEPATHEX(13,IPATH,2,NEL,.FALSE.)
+            WRITE(13,*) HIJS(1),DENOM,CONTR
          ENDIF
          MP2E=MP2E-CONTR
          RETURN

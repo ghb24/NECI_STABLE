@@ -636,6 +636,8 @@ C.. multiple of 2
                   ENDDO
               case("UMATCACHE")
                   call geti(NSLOTSINIT)
+              case("NOUMATCACHE")
+                  NSLOTSINIT=-1
               case("ENDINT")
                    exit integral
               case default

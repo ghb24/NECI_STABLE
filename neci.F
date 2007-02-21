@@ -23,7 +23,7 @@ C..Pointers
      &	(IP_W,W),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T),
      &	(IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR),(IP_INDEX,INDEX),
      &	(IP_WH,WH),(IP_WORK2,WORK2),(IP_V2,V2),(IP_IKILL,IKILL),
-     &	(IP_TKE,TKE),(IP_UMAT,UMAT)
+     &	(IP_TKE,TKE),(IP_UMAT,UMAT),(IP_WORK,WORK)
 C..These are the CUBE specific pointers
       POINTER (IP_FCK,FCK),(IP_COEFF,COEFF),(IP_ZIA,ZIA),
      &	(IP_RHO,RHO),(IP_SITAB,SITAB),(IP_XCHOLE,XCHOLE),
@@ -37,7 +37,7 @@ C..
       SAVE IP_NMRKS,IP_ARR,IP_BRR,IP_HAMIL,IP_CKN,
      &	IP_G1,IP_LAB,IP_NROW,IP_CK,IP_A,IP_W,IP_V,IP_AM,IP_BM,
      &	IP_T,IP_WT,IP_SCR,IP_ISCR,IP_INDEX,IP_WH,IP_WORK2,IP_V2,
-     &	IP_IKILL,IP_TKE,IP_UMAT
+     &	IP_IKILL,IP_TKE,IP_UMAT,IP_WORK
 C..Save the Cube specific pointers
       SAVE IP_FCK,IP_COEFF,IP_ZIA,IP_RHO,IP_SITAB,IP_XCHOLE,
      &	IP_PSIR,IP_DLINE,IP_SUMA,IP_SCRTCH
@@ -51,7 +51,8 @@ C..
 C.. NEL now includes all electrons, and we'll only want active later
       INTEGER NMRKS(NEL-NFROZEN,*),LAB(*),NROW(*),IKILL(*)
       INTEGER IPARITY(5),GC,IMCSTEPS,IEQSTEPS,I_HMAX,NTAY,NWHTAY
-      REAL*8 ARR(*),CKN(*),CK(*)
+      REAL*8 ARR(*)
+      TYPE(HElement) CKN(*),CK(*)
       INTEGER BRR(*)
       REAL*8 A(*),W(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
       TYPE(HElement) TMAT(*)
@@ -825,10 +826,7 @@ C           (.NOT.(TREAD.OR.TREADRHO))
 
 C.. Work out a preliminary Fermi det
       IF(IFDET.EQ.0.AND.FDET(1).EQ.0) THEN
-         DO I=1,NEL
-            FDET(I)=BRR(I)
-         ENDDO
-         CALL SORTI(NEL,FDET)
+         CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
       ENDIF
       WRITE(6,"(A,$)") "Fermi det (D0):"
       CALL WRITEDET(6,FDET,NEL,.TRUE.)
@@ -1050,11 +1048,12 @@ C         WRITE(6,*) ' TOTAL NUMBER OF DETS.' , NDETTOT
 C ==----------------------------------------------------------------==
 C..Set up memory for c's, nrow and the label
          IF(TCALCHMAT) THEN
-            CALL MEMORY(IP_CKN,NDET*NEVAL,'CKN')
-            CALL AZZERO(CKN,NDET*NEVAL)
+            WRITE(6,*) "CK Size",NDET*NEVAL*HElementSize
+            CALL MEMORY(IP_CKN,NDET*NEVAL*HElementSize,'CKN')
+            CALL AZZERO(CKN,NDET*NEVAL*HElementSize)
 C..
-            CALL MEMORY(IP_CK,NDET*NEVAL,'CK')
-            CALL AZZERO(CK,NDET*NEVAL)
+            CALL MEMORY(IP_CK,NDET*NEVAL*HElementSize,'CK')
+            CALL AZZERO(CK,NDET*NEVAL*HElementSize)
 C..
             CALL MEMORY(IP_W,NEVAL,'W')
             CALL AZZERO(W,NEVAL)
@@ -1128,7 +1127,11 @@ C            HMIN=dflmax()
                   J=J+NROW(JR)
                ENDDO
                WRITE(8,"(2I12,$)") JR,LAB(I)
-               WRITE(8,*) HAMIL(I)
+               IF(HElementSize.EQ.1) THEN
+                  WRITE(8,*) HAMIL(I)
+               ELSE
+                  WRITE(8,*) HAMIL(I),ABS(HAMIL(I))
+               ENDIF
 C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
 C               WRITE(14,"(A,$)"),"|"
 C               CALL WRITEDET(14,NMRKS(1,LAB(I)),NEL,.FALSE.)
@@ -1156,6 +1159,8 @@ C.. IF ENERGY CALC (for which we need to have calced H)
          IF(NBLK.NE.0) THEN
 C..Things needed for Friesner-Pollard diagonalisation
             IF(TMC) STOP 'TMC and TENERGY set - Stopping'
+            IF(HElementSize.NE.1)
+     &         STOP 'Cannot do Lanczos on Complex orbitals.'
             NKRY1=NKRY+1
             NBLOCK=MIN(NEVAL,NBLK)
             LSCR=MAX(NDET*NEVAL,8*NBLOCK*NKRY)
@@ -1214,9 +1219,9 @@ C.. We splice in a non-Lanczos diagonalisin routine if NBLOCK=0
             ENDIF
             WRITE(6,*) "NBLK=0.  Doing exact diagonalization."
             IF(TCALCHMAT) THEN
+               CALL MEMORY(IP_WORK,4*NDET*HElementSize,'WORK')
                CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
-               CALL AZZERO(WORK2,3*NDET)
-               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,LENHAMIL,
+               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,
      &                  NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
             ELSE
                CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,
@@ -1754,14 +1759,19 @@ C ==-------------------------------------------------------------------==
 C ==-------------------------------------------------------------------==
       SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,
 &	ALAT,TKE,TMAT,NHG,ILOGGING)
-      IMPLICIT REAL*8 (A-H,O-Z)
-      DIMENSION CG(NDET,NEVAL),NM(NEL,*)
-      DIMENSION ALAT(3),TKE(NEVAL)
+      USE HElement
+      IMPLICIT NONE
+      TYPE(HElement) CG(NDET,NEVAL)
+      INTEGER NM(NEL,*),NDET,NEL,NEVAL
+      REAL*8 ALAT(3),TKE(NEVAL)
       INTEGER NBASISMAX(3,2),NHG,ILOGGING
       INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(*)
       CHARACTER*255 STR
-      REAL*8 TMAT(NHG,NHG)
+      TYPE(HElement) TMAT(NHG,NHG)
+      REAL*8 PI,S,SUM
+      TYPE(HDElement) AUX
+      INTEGER I,J,IN,IEL,L
 C..Calculate the expectation value of the kinetic energy
 C..<Psi|T|Psi>
       PI=ACOS(-1.D0)
@@ -1774,14 +1784,14 @@ C..<Psi|T|Psi>
 C((ALAT(1)**2)*((G1(1,NM(J,I))**2)/(ALAT(1)**2)+
 C     &		(G1(2,NM(J,I))**2)/(ALAT(2)**2)+
 C     &		(G1(3,NM(J,I))**2)/(ALAT(3)**2)))
-            SUM=SUM+AUX
+            SUM=SUM+DREAL(AUX)
           ENDDO
 C..Cube multiplier
 C          CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
 C.. Deal with the UEG
 C          IF(NBASISMAX(1,1).LE.0) CST=CST*4.D0
 C          SUM=CST*SUM 
-          TKE(IN)=TKE(IN)+SUM*CG(I,IN)*CG(I,IN)
+          TKE(IN)=TKE(IN)+SUM*SQ(CG(I,IN))
         ENDDO
       ENDDO
 C ==--------------------------------------------------------------==
@@ -1795,16 +1805,18 @@ C      IF(BTEST(ILOGGING,7)) THEN
           WRITE(10,*) ' COEFFICIENTS FOR EXCITED STATE NUMBER : ' , J
         ENDIF
         S=0.D0
-        MS=0
-        TMS=0.D0
         DO I=1,NDET
-         IF(ABS(CG(I,J)).GT.1.D-15) THEN
+         IF(CG(I,J).AGT.1.D-15) THEN
             DO IEL=1,NEL
                WRITE(10,"(I3,I3,2I3,2X,$)") (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO
-            WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
+            IF(HElementSize.EQ.1) THEN
+               WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
+            ELSE
+               WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
+            ENDIF
          ENDIF
-         S=S+CG(I,J)*CG(I,J)
+         S=S+SQ(CG(I,J))
         ENDDO
         WRITE(10,'(A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , S
         WRITE(10,*)
@@ -1843,9 +1855,11 @@ C.. FLSI will remain usable, but will be equal to log RHII(P), so the
 C.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ETRIAL,
      &               FLRI,FLSI,TWARN)
+         USE HElement
          IMPLICIT NONE
          INTEGER NDET,NEVAL
-         REAL*8 CK(NDET,NEVAL),W(NEVAL)
+         TYPE(HElement) CK(NDET,NEVAL)
+         REAL*8 W(NEVAL)
          REAL*8 RHII,FLRI,FLSI,ETRIAL,BETA,RH,R
          INTEGER I_P,I,IK,ILOGGING
          LOGICAL LISNAN,TWARN
@@ -1857,7 +1871,8 @@ C.. We decompose ln(RHO^(P)_II) = p ln RHO_II + ln sI
 C.. First we work out RHO_II
 C         WRITE(6,*) BETA,I_P
          DO IK=1,NEVAL
-            R=CK(I,IK)*CK(I,IK)*EXP(-(W(IK)-W(1))*BETA/I_P)
+            R=SQ(CK(I,IK))
+            R=R*EXP(-(W(IK)-W(1))*BETA/I_P)
             RHII=RHII+R
          ENDDO
          IF(NEVAL.NE.NDET
@@ -1879,8 +1894,8 @@ C.. and Log it
          ENDIF
 C.. Now we work out RHO^(P)_II/RHO_II^P = sI         
          DO IK=1,NEVAL
-            RH=RH+CK(I,IK)*CK(I,IK)*EXP(-(W(IK)-W(1))*BETA
-     &            )
+            R=SQ(CK(I,IK))
+            RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
          IF(LISNAN((RH+1)-RH)) THEN
@@ -1892,9 +1907,11 @@ C         WRITE(17,*) CK(1,I),W(I)
       END
 
       REAL*8 FUNCTION CALCMCEN(NDET,NEVAL,CK,W,BETA,ETRIAL)
-         IMPLICIT REAL*8 (A-H,O-Z)
-         DIMENSION CK(NDET,NEVAL)
-         DIMENSION W(NEVAL)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER NDET,NEVAL,IK
+         TYPE(HElement) CK(NDET,NEVAL)
+         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
@@ -1906,16 +1923,17 @@ C         WRITE(17,*) CK(1,I),W(I)
       END
 
       REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ETRIAL)
-         IMPLICIT REAL*8 (A-H,O-Z)
-         DIMENSION CK(NDET,NEVAL)
-         DIMENSION W(NEVAL)
-         INTEGER I,NDET
+         USE HElement
+         IMPLICIT NONE
+         INTEGER NDET,NEVAL,IK,I
+         TYPE(HElement) CK(NDET,NEVAL)
+         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
          EN=0.D0
          DNORM=0.D0
          DO IK=1,NEVAL
-            EN=EN+CK(I,IK)*CK(I,IK)*(W(IK))
+            EN=EN+SQ(CK(I,IK))*(W(IK))
      &            *EXP(-(W(IK)-W(1))*BETA)
-            DNORM=DNORM+CK(I,IK)*CK(I,IK)*EXP(-(W(IK)-W(1))*BETA)
+            DNORM=DNORM+SQ(CK(I,IK))*EXP(-(W(IK)-W(1))*BETA)
          ENDDO
          CALCDLWDB=EN/DNORM
          RETURN
@@ -2799,6 +2817,8 @@ C.. if the spins are the same
      &               TMAT2(IPB,JPB)=TMAT2(IPB,JPB)
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
                ENDDO
+!               WRITE(6,*) "T",I,J,TMAT2(IPB,JPB)
+            IF(TMAT(IPB,JPB).AGT.1.D-9) WRITE(16,*) I,J,TMAT2(IPB,JPB)
             ENDDO
          ENDDO
          IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
@@ -2848,6 +2868,7 @@ C.. NBASIS contains the new
 C.. GG(I) is the new position in G of the (old) orb I
             CALL FreezeUMatCache(GG,NHG,NBASIS)
          ENDIF
+         IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
 C.. Now setup the default symmetry to include the frozen electrons
 C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
          CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)

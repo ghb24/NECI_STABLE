@@ -774,7 +774,10 @@ C.  removed them from the list of nodes connected to (e.g.) this level
 C.. for processing later (i.e. now).
 C.. Calculate RHO_IJ - the connection between the new node and this node
 C.. LSTE(1:NEL,I,IVLEVEL) is the node we're attempting to connect to
+!               WRITE(6,"(A,$)") "MCPR"
+!               CALL WRITEDET(6,LSTE(1,I,IVLEVEL),NEL,.FALSE.)
                RH=RIJLIST(I,IVLEVEL)
+!               WRITE(6,*) RH
 C.. see if it's worth going further
                RHOIJ(IVLEVEL,I_VIND+1)=RH
                RHOIJ(I_VIND+1,IVLEVEL)=DCONJG(RH)
@@ -802,8 +805,8 @@ C***********
 C      STOP 'NB - LOOK AT RED GRAPH PIC'
 
 
-                        RHOIJ(I_VIND+1,II)=RH
-                        RHOIJ(II,I_VIND+1)=DCONJG(RH)
+                        RHOIJ(I_VIND+1,II)=DCONJG(RH)
+                        RHOIJ(II,I_VIND+1)=RH
                   ENDDO
 C.. 20050307 - At this point we note that if a vertex is connected to
 C.. any vertices before it in the path (excluding the one we excited 
@@ -872,7 +875,7 @@ C.,             If 1, only allow doubles.
          INTEGER I
          COMPLEX*16 FCK(*)
          TYPE(HElement) TMat(*),UMAT(*),R
-         REAL*8 ALAT(*),ECORE
+         REAL*8 ALAT(*),ECORE,PR
          TYPE(HDElement) TOTAL,FMCPR3B
          TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
@@ -989,8 +992,8 @@ C.. Sum up the components of <D|H exp(-b H)|D>
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
               CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &            nBasisMax,UMat,NMAX,nBasis,R)
-                  WRITE(10,"(3E25.16, I7)") TOTAL,R,DLWDB2,ICLS
+     &            nBasisMax,UMat,NMAX,nBasis,PR)
+                  WRITE(10,"(3E25.16, I7)") TOTAL,PR,DLWDB2,ICLS
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             ENDIF
@@ -1161,7 +1164,7 @@ C.. if we're not connected to this node, we fail now
                      RH=0.D0
                      TFAIL=.TRUE.
                   ENDIF
-                  RHOIJ(I_VIND+1,IEXFROM)=RH
+                  RHOIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
                   RHOIJ(IEXFROM,I_VIND+1)=RH
                ENDIF
             
@@ -1174,7 +1177,7 @@ C.. because we've just done that
      &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                      IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
-                     RHOIJ(I_VIND+1,II)=RH
+                     RHOIJ(I_VIND+1,II)=DCONJG(RH)
                      RHOIJ(II,I_VIND+1)=RH
 !LOCTAB contains
 C.. LOCTAB(1,V) is the address of the generator used to create node V in

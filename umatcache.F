@@ -59,13 +59,20 @@ C.. See if we need to calculate on the fly
 C  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
 C.. Remember permutations.  Complex case is the same as real.
 C.. <ij|ji> = <ii|jj>
+
+!.. Complex case is more difficult.
+
+!  <ii|ii> is always real and allowed
+!  <ij|ij> is always real and allowed (densities i*i and j*j)
+!  <ij|ji> is always real and allowed (codensities i*j and j*i = (i*j)*)
+!  <ii|jj> is not stored in UMAT2D, and may not be allowed by symmetry.  It can be complex.
            IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL
      &      .AND.TUMAT2D) THEN
 C..  <ii|ii>
              GETUMATEL=UMAT2D(IDI,IDI)
            ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL
      &      .AND.TUMAT2D) THEN
-C.. <ij|ij>  (stored with i<j)
+C.. <ij|ij>
              I=MIN(IDI,IDJ)
              J=MAX(IDI,IDJ)
              GETUMATEL=UMAT2D(I,J)
@@ -76,8 +83,8 @@ C.. <ij|ji>
              J=MIN(IDI,IDJ)
              GETUMATEL=UMAT2D(I,J)
            ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL
-     &      .AND.TUMAT2D) THEN
-C.. <ii|jj> = <ij|ji>
+     &      .AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
+C.. <ii|jj> = <ij|ji> Only for real systems
              I=MAX(IDI,IDK)
              J=MIN(IDI,IDK)
              GETUMATEL=UMAT2D(I,J)
@@ -92,12 +99,13 @@ C.. Check to see if the umat element is in the cache
                SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
                SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
                SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
+!         WRITE(6,"(A,5I5)") "NN",IDI,IDJ,IDK,IDL,SYM%s
 C.. Check the symmetry of the 4-index integrals
               IF(.NOT.LSYMSYM(SYM)) THEN
                   GETUMATEL=0.D0
 ! JSS --- comment out the following TIHALT.  (TISET commented out above.)
 !                 CALL TIHALT(' GETUMATEL',ISUB)
-!                  RETURN
+                  RETURN
               ELSE
                
 C..  This will rearrange I,J,K,L into the correct order
@@ -107,15 +115,35 @@ C.. (i,k)<=(j,l) and i<=k, j<=l.
 C.. We don't have a stored UMAT - we call to generate it.
                   IF(IP_DFInts.NE.0) THEN
 C.. We're using density fitting
-                     Call GetDF2EInt(I,J,K,L,UElems(0))
-                     GetUMatEl=UElems(0)
+                     Call GetDF2EInt(I,J,K,L,GETUMATEL)
                   ELSE
 C.. Otherwise we call CPMD
-                     CALL INITFINDXI(I,J,K,L,UElems)
+                     IF(TTRANSFINDX) THEN
+!         WRITE(6,"(A,4I5,$)") "MM",TRANSTABLE(I),TRANSTABLE(J),
+!     &                     TRANSTABLE(K),TRANSTABLE(L)
+                        CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),
+     &                     TRANSTABLE(K),TRANSTABLE(L),UElems)
+                     ELSE
+                        CALL INITFINDXI(I,J,K,L,UElems)
+                     ENDIF
                      GETUMATEL=UElems(IAND(ITYPE,1))
                      IF(ITYPE.GT.1) GETUMATEL=DCONJG(GETUMATEL)
+!                     WRITE(6,*) "I",I,J,K,L,UElems
+!                     IF(TTRANSFINDX) THEN
+!                        CALL INITFINDXI(TRANSTABLE(K),TRANSTABLE(J),
+!     &                     TRANSTABLE(I),TRANSTABLE(L),UElems)
+!                     ELSE
+!                        CALL INITFINDXI(K,J,I,L,UElems)
+!                     ENDIF
+!                     WRITE(6,*) "I",K,J,I,L,UElems
+!                     CALL INITFINDXI(I,L,K,J,UElems)
+!                     WRITE(6,*) "I",I,L,K,J,UElems
+!                     CALL INITFINDXI(IDI,IDJ,IDK,IDL,UElems)
+!                     WRITE(6,*) "I",IDI,IDJ,IDK,IDL,UElems
+!                     CALL INITFINDXI(8,4,5,8,UElems)
+!                     WRITE(6,*) "I",8,4,5,8,UElems
                   ENDIF
-                  CALL CACHEUMATEL(A,B,UElems,ICACHE,
+                  IF(ICACHE.NE.0) CALL CACHEUMATEL(A,B,UElems,ICACHE,
      &                  ICACHEI)
                   NMISSES=NMISSES+1
 !                  WRITE(6,*) "MISS",I,J,K,L,A,B,GETUMATEL
@@ -159,7 +187,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
             GETUMATEL=SUM
          ENDIF
 !         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
-!         WRITE(6,*) GETUMATEL
+!         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)
          RETURN
 !         CALL TIHALT(' GETUMATEL',ISUB)
       END
@@ -174,7 +202,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
                ID=(GIND-1)/NBASISMAX(2,3)+1
             ELSE
                ID=(GIND-1)/2+1
-               IF(IP_TRANSTABLE.NE.0) ID=TRANSTABLE(ID)
+               IF(TTRANSGTID) ID=TRANSTABLE(ID)
             ENDIF
       RETURN
       END
@@ -185,22 +213,27 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
          INTEGER NSTATE
          INCLUDE 'umatcache.inc'
          INCLUDE 'irat.inc'
-         NSTATES=NSTATE
-         NPAIRS=NSTATES*(NSTATES+1)/2
-c        NSLOTS=MIN(NPAIRS, 1024)
-         NSLOTS=MIN(NPAIRS, NSLOTSINIT)
-         UMATCACHEFLAG=0
+         NTYPES=HElementSize
          NHITS=0
          NMISSES=0
-         NTYPES=HElementSize
-         WRITE(6,"(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT",
-     &      NTYPES,NSLOTS,NPAIRS,NSLOTS*NPAIRS*NTYPES
-         TUMAT2D=.FALSE.
-         CALL MEMORY(IP_UMATCACHE,
-     &      NTYPES*HElementSize*NSLOTS*NPAIRS,'UMATCACHE')
-         CALL MEMORY(IP_UMATLABELS,NSLOTS*NPAIRS/IRAT+1,'UMATLABELS')
-         CALL AZZERO(UMATCACHE,NTYPES*HElementSize*NPAIRS*NSLOTS)
-         CALL IAZZERO(UMATLABELS,NPAIRS*NSLOTS)
+         IF(NSLOTSINIT.LE.0) THEN
+            NSLOTS=0
+            WRITE(6,*) "Not using UMATCACHE."
+         ELSE
+            NSTATES=NSTATE
+            NPAIRS=NSTATES*(NSTATES+1)/2
+c        NSLOTS=MIN(NPAIRS, 1024)
+            NSLOTS=MIN(NPAIRS, NSLOTSINIT)
+            UMATCACHEFLAG=0
+            WRITE(6,"(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT",
+     &         NTYPES,NSLOTS,NPAIRS,NSLOTS*NPAIRS*NTYPES
+            TUMAT2D=.FALSE.
+            CALL MEMORY(IP_UMATCACHE,
+     &         NTYPES*HElementSize*NSLOTS*NPAIRS,'UMATCACHE')
+            CALL MEMORY(IP_UMATLABELS,NSLOTS*NPAIRS/IRAT+1,'UMATLABELS')
+            CALL AZZERO(UMATCACHE,NTYPES*HElementSize*NPAIRS*NSLOTS)
+            CALL IAZZERO(UMATLABELS,NPAIRS*NSLOTS)
+         ENDIF
       END
 
       SUBROUTINE SETUPUMAT2D(G1)
@@ -208,20 +241,31 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
          INTEGER G1(*)
-         TUMAT2D=.TRUE.
-         CALL MEMORY(IP_UMAT2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
-         CALL CPMDANTISYMINTEL(G1,UMAT2D,NSTATES)
+         IF(NSLOTSINIT.LT.0) THEN
+            TUMAT2D=.FALSE.
+            WRITE(6,*) "Not using UMAT2D."
+         ELSE
+            TUMAT2D=.TRUE.
+            CALL MEMORY(IP_UMAT2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
+            CALL CPMDANTISYMINTEL(G1,UMAT2D,NSTATES)
+         ENDIF
       END
 
-!Set up the 2D Umatcache for density fitting
+
       SUBROUTINE SETUPUMAT2D_DF()
          USE HElement
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
-         TUMAT2D=.TRUE.
-         CALL MEMORY(IP_UMAT2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
-         CALL ReadDalton2EIntegrals(nStates,UMat2D) 
+         IF(NSLOTSINIT.LT.0) THEN
+            TUMAT2D=.FALSE.
+            WRITE(6,*) "Not using UMAT2D."
+         ELSE
+            TUMAT2D=.TRUE.
+            CALL MEMORY(IP_UMAT2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
+            CALL ReadDalton2EIntegrals(nStates,UMat2D)
+         ENDIF
       END
+
      
       SUBROUTINE SETUMATTRANS(TRANS)
          USE HElement
@@ -230,8 +274,25 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          INTEGER TRANS(NSTATES)
          CALL MEMORY(IP_TRANSTABLE,NSTATES,'TRANSTABLE')
          CALL ICOPY(NSTATES,TRANS,1,TRANSTABLE,1)
+         TTRANSGTID=.TRUE.
       END
  
+      SUBROUTINE SetupUMatTransTable(OldNew,nOld,nNew)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER nNew,nOld,I
+         INTEGER OldNew(*)
+         INCLUDE 'umatcache.inc'
+         CALL MEMORY(IP_TRANSTABLE,nNew/2,'TRANSTABLE')
+         DO I=2,nOld,2
+            IF(OldNew(I).NE.0) TransTable(OldNew(I)/2)=I/2
+         ENDDO
+         Write(6,*) "New->Old State Translation Table"
+         DO I=1,nNew/2
+            WRITE(6,*) I,TransTable(I)
+         ENDDO
+         TTRANSFINDX=.TRUE.
+      END
       SUBROUTINE DESTROYUMATCACHE
          USE HElement
          IMPLICIT NONE
@@ -269,7 +330,7 @@ c        NSLOTS=MIN(NPAIRS, 1024)
             ENDIF
          ENDSELECT
          UMATCACHEFLAG=NEWFLAG
-         WRITE(69,*) "FLAG",NEWFLAG
+!         WRITE(69,*) "FLAG",NEWFLAG
          SELECT CASE(NEWFLAG)
          CASE(1)
             IF(NSLOTS.EQ.NPAIRS) THEN ! we're storing every element, so we don't need to deal with different cacheing
@@ -326,17 +387,24 @@ C.. ICACHEI is the index in that cache where the cache should be located.
          TYPE(HElement) UMATEL
          INCLUDE 'umatcache.inc'      
          INTEGER I,A,B,ITYPE,ISTAR,ISWAP
+         IF(NSLOTS.EQ.0) THEN
+!We don't have a cache so signal failure.
+            GETCACHEDUMATEL=.TRUE.
+            ICACHE=0
+            ITYPE=0
+            RETURN
+         ENDIF
 C.. First ensure the indices are in the correct order
          ITYPE=0
          ISTAR=0
          ISWAP=0
          IF(IDK.LT.IDI) THEN
             CALL SWAP(IDI,IDK)
-            ISTAR=ISTAR+1
+            ISTAR=IOR(ISTAR,1)
          ENDIF
          IF(IDL.LT.IDJ) THEN
             CALL SWAP(IDJ,IDL)
-            ISTAR=ISTAR+1
+            ISTAR=IOR(ISTAR,2)
          ENDIF
          CALL GETCACHEINDEX(IDI,IDK,NSTATES,A)
          CALL GETCACHEINDEX(IDJ,IDL,NSTATES,B)
@@ -352,14 +420,26 @@ C.. First ensure the indices are in the correct order
             ITYPE=0
          ELSE
 !  Complex orbitals and integrals, so we need to consider different types
-!  Using notation abcd rather than ijkl.  6/2/07
-            IF(BTEST(ISTAR,0)) THEN
-!  An odd number of stars, so must be of swapped type (i.e. cbad not abcd) (bit 0 of ITYPE)
-!     If we've swapped the pairs, then it needs to be DCONJGed (bit 1 of ITYPE)
-               ITYPE=1+ISWAP*2
-            ELSE
+!  Using notation abcd rather than ijkl.  6/2/07 and 19/2/06
+!  abcd   -> badc <>
+!->cbad *.-> cdab ** -> dcba **<>
+!         -> bcda *.<>
+!->adcb .*-> dabc .*<>
+
+            IF(ISTAR.EQ.1) THEN
+!  If we star the first pair, that corresponds to the plain TYPE 1
+               ITYPE=1
+            ELSEIF(ISTAR.EQ.2) THEN
+!  If we star the second pair, that corresponds to TYPE 1.
+!  If there's no swap, it's starred, otherwise it's not starred.
+               IF(ISWAP.EQ.0) THEN
+                  ITYPE=3
+               ELSE
+                  ITYPE=1
+               ENDIF
+            ELSEIF(ISTAR.EQ.3) THEN
 !  We complex conjg if we've swapped within each of the pairs, setting bit 1 if ISTAR=2 (ISTAR!=1)
-               ITYPE=ISTAR
+               ITYPE=2
             ENDIF
          ENDIF
          ICACHE=A
@@ -390,6 +470,8 @@ C.. we've a small enough system to store everything.
             ENDIF
          ENDIF
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN
+!            WRITE(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,
+!     &         UMATCACHE(0:nTypes-1,ICACHEI,ICACHE)
             UMATEL=UMATCACHE(IAND(ITYPE,1),ICACHEI,ICACHE)
             IF(ITYPE.GT.1) UMATEL=DCONJG(UMATEL)
 C.. signal success
@@ -526,11 +608,12 @@ C.. middle of a block of duplicates
          TYPE(HElement) UMATEL(0:NTYPES-1)
          INCLUDE 'umatcache.inc'      
          INTEGER OLAB,IC1
-         WRITE(69,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
+!         WRITE(69,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
          IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1) THEN
 C.. small system.  only store a single element
             UMATLABELS(ICACHEI,ICACHE)=B
             UMATCACHE(:,ICACHEI,ICACHE)=UMATEL
+!            WRITE(6,*),
             RETURN
          ENDIF
          IC1=ICACHEI
@@ -613,24 +696,29 @@ C            ENDIF
          CALL SetUMatcacheFlag(1)
          DO i=1,nOld/2
           IF(OrbTrans(i*2).NE.0) THEN
-           DO k=1,nOld/2
+           DO k=i,nOld/2
             IF(OrbTrans(k*2).NE.0) THEN
              CALL GetCacheIndex(i,k,nOld/2,m)
              DO n=1,onSlots
               IF(n.EQ.1.OR.
      &            (onSlots.EQ.onPairs.AND.OUMatLabels(n,m).NE.0)
-     &            .OR.OUMatLabels(n,m).NE.OUMatLabels(n-1,m)) THEN
+     &            .OR.(onSlots.NE.onPairs.AND.
+     &            OUMatLabels(n,m).NE.OUMatLabels(n-1,m))) THEN
                 ni=OrbTrans(i*2)/2
                 nk=OrbTrans(k*2)/2
                 IF(onSlots.EQ.onPairs) THEN
-                 CALL GetCacheIndexStates(n,nNew/2,nj,nl)
+                 CALL GetCacheIndexStates(n,nNew/2,j,l)
                 ELSE
-                 CALL GetCacheIndexStates(OUMatLabels(n,m),nNew/2,nj,nl)
+                 CALL GetCacheIndexStates(OUMatLabels(n,m),nNew/2,j,l)
                 ENDIF
-                nj=OrbTrans(nj*2)/2
-                nl=OrbTrans(nl*2)/2
+                nj=OrbTrans(j*2)/2
+                nl=OrbTrans(l*2)/2
                 IF(nj.NE.0.AND.nl.NE.0) THEN
+!                  WRITE(6,"(A,4I5,A,2I5,$)") "NC",I,J,K,L,"L",m,n
                    CALL GetCachedUmatEl(ni,nj,nk,nl,El,nm,nn,A,B,iType)
+!                   WRITE(6,"(A,4I5,I5,$)") "->",NI,NJ,NK,NL,
+!     &   OUMatLabels(n,m)
+!                   WRITE(6,*) OUMatCache(0,n,m)
                    CALL CacheUMatEl(A,B,OUMatCache(0,n,m),nm,nn)
                 ENDIF
               ENDIF

@@ -701,6 +701,44 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          CALL SORTI(NEL,HFDET)
          CALL WRITEDET(6,HFDET,NEL,.TRUE.)
       END
+C.. Generate an initial determinant of specified spin
+      SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+         IMPLICIT NONE
+         INTEGER BRR(*)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
+         INTEGER LMS
+C.. Working space
+         INTEGER NELS(2)
+         INTEGER FDET(*),NEL,NELR,IREAL,IS,ISPN,NBASIS,NSBASIS,I
+C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
+C.. vector unless transposed
+         NSBASIS=NBASIS/2
+         NELS(2)=(LMS+NEL)/2
+         NELS(1)=NEL-NELS(2)
+         NEL=0
+         DO IS=1,2
+            IF(LMS.GE.0) THEN
+               ISPN=IS
+            ELSE
+               ISPN=3-IS
+            ENDIF
+            IREAL=1
+            DO I=1,NSBASIS
+               DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
+                  IREAL=IREAL+1
+               ENDDO
+               NELR=(BRR(IREAL)-1)/2+1
+               IF(I.LE.NELS(IS)) THEN
+!                  WRITE(6,"(I4,A,$)"),BRR(IREAL),","
+                  NEL=NEL+1
+                  FDET(NEL)=BRR(IREAL)
+               ENDIF
+               IREAL=IREAL+1
+            ENDDO
+         ENDDO
+         CALL SORTI(NEL,FDET)
+      END
  
       SUBROUTINE GRAMSCHMIDT(MAT,LEN)
 C.. MAT(IELEMENT,IVECTOR)

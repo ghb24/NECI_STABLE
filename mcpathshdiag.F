@@ -315,7 +315,7 @@ C.. if we're not connected to this node, we fail now
                      RH=0.D0
                      TFAIL=.TRUE.
                   ENDIF
-                  HIJ(I_VIND+1,IEXFROM)=RH
+                  HIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
                   HIJ(IEXFROM,I_VIND+1)=RH
                ENDIF
             
@@ -328,7 +328,7 @@ C.. because we've just done that
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,
      &                  ECORE)
                      IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
-                     HIJ(I_VIND+1,II)=RH
+                     HIJ(I_VIND+1,II)=DCONJG(RH)
                      HIJ(II,I_VIND+1)=RH
                    IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(1,II),
      &                  G1,nBasisMax,nBasis)) THEN

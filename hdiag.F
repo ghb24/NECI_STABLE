@@ -1,9 +1,11 @@
-       SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,LENHAMIL,
+       SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,
      &                     NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
+         USE HElement
          IMPLICIT NONE
          INTEGER NDET,LENHAMIL
          INTEGER NROW(NDET),LAB(*)
-         REAL*8 HAMIL(*),CK(NDET,NDET),W(NDET),WORK2
+         TYPE(HElement)  HAMIL(*),CK(NDET,NDET),WORK2,WORK
+         REAL*8 W(NDET)
          INTEGER I,J,IND,INDZ,INFO,LDA,NBS
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS),ISUB
          INCLUDE 'basis.inc'
@@ -29,8 +31,13 @@ C.. Now we fill the RIJ array
 C.. Diagonalize
          DO I=1,NBLOCKS
             NBS=NBLOCKSTARTS(I)
-            CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
+            IF(HElementSize.EQ.1) THEN
+               CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK2,3*NDET,INFO)
+            ELSE
+                 CALL ZHEEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
+     &            NDET,W(NBS),WORK,4*NDET,WORK2,INFO)
+            ENDIF
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
                STOP

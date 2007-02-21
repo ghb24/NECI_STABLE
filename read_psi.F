@@ -61,11 +61,13 @@ C..
 C ==----------------------------------------------------------------==   
       SUBROUTINE WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,
      &	NBASISMAX,NEL,CK,W)
-      IMPLICIT REAL*8 (A-H,O-Z)
+      USE HElement
+      IMPLICIT NONE
       INTEGER NBASISMAX(5,2)
 C..
-      DIMENSION CK(NDET,NEVAL)
-      DIMENSION W(NEVAL)
+      TYPE(HElement) CK(NDET,NEVAL)
+      REAL*8 W(NEVAL),BOA,BOX,COA
+      INTEGER I,K,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),
@@ -73,7 +75,7 @@ C..
       WRITE(10,*) BOX,BOA,COA
       DO I=1,NEVAL
         DO J=1,NDET
-          WRITE(10,*) CK(J,I)
+          WRITE(10,*) CK(J,I),ABS(CK(J,I))
         ENDDO
       ENDDO
       DO I=1,NEVAL
@@ -86,11 +88,13 @@ C..
 
       SUBROUTINE WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,
      &	NBASISMAX,NEL,CK,W)
-      IMPLICIT REAL*8 (A-H,O-Z)
+      USE HElement
+      IMPLICIT NONE
       INTEGER NBASISMAX(5,2)
 C..
-      DIMENSION CK(NDET,NEVAL)
-      DIMENSION W(NEVAL)
+      TYPE(HElement) CK(NDET,NEVAL)
+      REAL*8 W(NEVAL),BOA,BOX,COA
+      INTEGER I,K,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_COMP',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),
@@ -98,7 +102,10 @@ C..
       WRITE(10,*) BOX,BOA,COA
       DO I=1,NEVAL
         DO J=1,NDET
-          IF(ABS(CK(J,I)).GT.1.D-2) WRITE(10,*) I,J,CK(J,I)
+          IF(CK(J,I).AGT. 1.D-2) THEN
+            WRITE(10,"(2I,$)") I,J
+            WRITE(10,*) CK(J,I),ABS(CK(J,I))
+         ENDIF
         ENDDO
       ENDDO
       WRITE(10,*) 0,0,0
