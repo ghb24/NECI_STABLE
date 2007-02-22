@@ -108,24 +108,24 @@ C.. These variables have been passed in and represent the precalculated values f
             DLWDBCORE=0.D0
             WCORE=0.D0
             CALL Create(MCStat,I_VMAX,
-     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
+     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
          ElseIf(tMCDirectSum) Then
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
-     &          DLWDBCORE/WCore)
+     &          DLWDBCORE/WCore,WCore)
             
             write(6,*) DLWDBCORE/WCore
             call flush(6)
          ELSEIF(I_VMIN.NE.0) THEN
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
-     &      DLWDBCORE/WCORE)
+     &      DLWDBCORE/WCORE,WCore)
             IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)
      &       STOP "Invalid MULTI MC BIAS"
          ELSE
             DLWDBCORE=HIJS(0)
             CALL Create(MCStat,I_VMAX,
-     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE)
+     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
          ENDIF
          IF(DBETA.LT.0.D0.AND.I_VMIN.EQ.0) THEN
             DLWDB=HIJS(0)
