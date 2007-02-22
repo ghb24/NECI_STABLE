@@ -77,8 +77,8 @@ C.,             If 1, only allow doubles.
          REAL*8 BETADATA(0:1)
          LOGICAL ISCONNECTEDDET
 
-         REAL*8 VarSumnu, VarSumde
-         SAVE VarSumnu, VarSumde
+         REAL*8 SumX, SumY, SumXY, SumXsq, SumYsq
+         SAVE SumX, SumY, SumXY, SumXsq, SumYsq
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
 C.. Allow both singles and doubles
@@ -154,13 +154,14 @@ C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
 !        write (*,*) "from mcpathshdiag, EREF=",EREF
             If (TVARCALC(I_V).and.TOTAL%v.ne.0) Then
-              
               Call CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &            nBasisMax,UMat,NMAX,nBasis,R)
-              
-              !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
-      VarSumnu = VarSumnu+(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
-      VarSumde = VarSumde+((TOTAL%v)**2)/R%v
+     &                                nBasisMax,UMat,NMAX,nBasis,R)
+              !X are the terms in the numerator, Y are the terms in the denominator
+              SumX  =SumX  + DLWDB2%v-EREF%v*TOTAL%v
+              SumY  =SumY  + TOTAL%v
+              SumXsq=SumXsq+ (DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
+              SumYsq=SumYsq+ ((TOTAL%v)**2)/R%v
+              SumXY =SumXY + TOTAL%v*(DLWDB2%v-(EREF%v*TOTAL%v))/R%v !w(G)^2*delta(G)/P(G)
             End If
 
             IF(TLOG5) THEN
@@ -421,13 +422,33 @@ C            CALL PRINT_MEMORY()
          FMCPR3B2=TOTAL
 
         If (TVARCALC(I_V).and.I_VIND.eq.0) Then
-            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
-     &             "vertex level",I_V,", (Numerator): ", VarSumnu
-            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
-     &             "vertex level",I_V,", (Denominator): ", VarSumde
-        VarSumnu=0.D0
-        VarSumde=0.D0
+           write(6,"A, 5G26.15") "Terms in estimated variance:", 
+     &        SumX, SumY, SumXsq, SumYsq, SumXY
+           write(6,"(2A,I3,G25.16)") "Expected MC Variance for ratio ",
+     &       "vertex level", I_V, (SumX/SumY)**2*(SumXsq/SumX**2
+     &                      +SumYsq/SumY**2-2*SumXY/(SumX*SumY))
+          SumX=0
+          SumY=0
+          SumXsq=0
+          SumYsq=0
+          SumXY=0
         End If
          
          RETURN
       END
+
+      Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
+        Use HElement
+        Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
+        Real*8 Arr(nBasis, 2)
+        Type(HDElement) Weight
+        EX(1,1)=2
+        Call GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
+        If(Ex(1,2).eq.0) Then !we have a single excitation
+          Write(56, "5G25.16") Weight, Arr(EX(1,1),2), 0,
+     &                                 Arr(EX(2,1),2), 0
+        Else
+          Write(56, "5G25.16") Weight, Arr(EX(1,1),2), Arr(EX(1,2),2),
+     &                                 Arr(EX(2,1),2), Arr(EX(2,2),2)
+        End If
+      End
