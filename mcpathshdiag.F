@@ -28,7 +28,7 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL,I_VMAX,EREF)
+     &   NTOTAL,I_VMAX,EREF,WREF)
          USE HElement 
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -44,7 +44,7 @@ C.,             If 1, only allow doubles.
          TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
          TYPE(HElement) HIJ(0:I_V,0:I_V),RH
-         TYPE(HDElement) DLWDB,DLWDB2,EREF
+         TYPE(HDElement) DLWDB,DLWDB2,EREF,WREF
          INTEGER INODE(NEL)
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
@@ -153,15 +153,16 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
 !        write (*,*) "from mcpathshdiag, EREF=",EREF
-            If (TVARCALC(I_V).and.TOTAL%v.ne.0) Then
+            If (TVARCALC(I_V)) Then
               Call CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
      &                                nBasisMax,UMat,NMAX,nBasis,R)
               !X are the terms in the numerator, Y are the terms in the denominator
-              SumX  =SumX  + DLWDB2%v-EREF%v*TOTAL%v
-              SumY  =SumY  + TOTAL%v
-              SumXsq=SumXsq+ (DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
-              SumYsq=SumYsq+ ((TOTAL%v)**2)/R%v
-              SumXY =SumXY + TOTAL%v*(DLWDB2%v-(EREF%v*TOTAL%v))/R%v !w(G)^2*delta(G)/P(G)
+              SumX  =SumX   + DLWDB2%v-EREF%v*TOTAL%v
+              SumY  =SumY   + TOTAL%v+WREF%v*R%v
+              SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
+              SumYsq=SumYsq + R%v*(TOTAL%v/R%v+WREF%v)**2
+              SumXY =SumXY  + (TOTAL%v/R%v+WREF%v)
+     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
             End If
 
             IF(TLOG5) THEN
@@ -398,7 +399,7 @@ C.. Get the H element so we can calculate the energy
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
-     &                     I_VMAX,EREF)
+     &                     I_VMAX,EREF,WREF)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF

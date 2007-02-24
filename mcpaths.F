@@ -159,7 +159,7 @@ C.. matrix of hij instead of rhoij
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL,I_VMAX,EREF)
+     &         MP2E,NTOTAL,I_VMAX,EREF,TOTAL)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
