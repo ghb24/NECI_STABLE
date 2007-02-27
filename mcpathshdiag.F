@@ -28,7 +28,7 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL,I_VMAX,EREF,WREF)
+     &   NTOTAL,I_VMAX,EREF,VARSUM,PREVAR,WREF)
          USE HElement 
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -49,7 +49,7 @@ C.,             If 1, only allow doubles.
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
          REAL*8 BETA,RHOEPS
-         LOGICAL TSYM,T
+         LOGICAL TSYM,T,PREVAR
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
          REAL*8 DBETA
          TYPE(HElement) HIJS(0:I_V)
@@ -76,21 +76,20 @@ C.,             If 1, only allow doubles.
          REAL*8 GETHELEMENT
          REAL*8 BETADATA(0:1)
          LOGICAL ISCONNECTEDDET
-
-         REAL*8 SumX, SumY, SumXY, SumXsq, SumYsq
-         SAVE SumX, SumY, SumXY, SumXsq, SumYsq
-         SELECT CASE (IAND(NWHTAY,24))
-         CASE(0)
+         REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+         SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+            SELECT CASE (IAND(NWHTAY,24))
+            CASE(0)
 C.. Allow both singles and doubles
-            EXFLAG=3
-         CASE(8)
+                EXFLAG=3
+            CASE(8)
 C.. only singles
-            EXFLAG=1
-         CASE(16)
-            EXFLAG=2
-         CASE(24)
-            STOP "Invalid combination of flags in NWHTAY"
-         END SELECT
+                EXFLAG=1
+            CASE(16)
+                EXFLAG=2
+            CASE(24)
+                STOP "Invalid combination of flags in NWHTAY"
+            END SELECT
          IF(I_VIND.EQ.0) THEN
 C.. 1st time in
             CALL IAZZERO(IFRZ(0,1),NBASIS+1) 
@@ -152,19 +151,34 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
             NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
-!        write (*,*) "from mcpathshdiag, EREF=",EREF
-            If (TVARCALC(I_V)) Then
+             IF (TVARCALC(I_V).and.(.not.PREVAR)) THEN             
               Call CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &                                nBasisMax,UMat,NMAX,nBasis,R)
-              !X are the terms in the numerator, Y are the terms in the denominator
-              SumX  =SumX   + DLWDB2%v-EREF%v*TOTAL%v
-              SumY  =SumY   + TOTAL%v+WREF%v*R%v
-              SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
-              SumYsq=SumYsq + R%v*(TOTAL%v/R%v+WREF%v)**2
-              SumXY =SumXY  + (TOTAL%v/R%v+WREF%v)
-     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
-            End If
+     &            nBasisMax,UMat,NMAX,nBasis,R)
+              
+              !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
+                !X are terms in the numerator, Y are the terms in the denominator
+                SumX   =SumX   +DLWDB2%v-EREF%v*TOTAL%v
+                SumY   =SumY   +TOTAL%v+WREF%v*R%v
+                SumXsq =SumXsq +(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
+                SumYsq =SumYsq +R%v*(TOTAL%v/R%v+WREF%v)**2
+                SumXY  =SumXY  +(TOTAL%v/R%v+WREF%v)
+     &                              *(DLWDB2%v-(EREF%v*TOTAL%v))
+                SumP=SumP+R%v
+             End If
+             IF (PREVAR) THEN
+                Call CalcWriteGraphPgen(10,IPATH,I_V,nEl,LOCTAB,G1,
+     &                nBasisMax,UMat,NMAX,nBasis,R)
 
+!                VarSumnu = VarSumnu+(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
+!                VarSumde = VarSumde+((TOTAL%v)**2)/R%v
+                SumX   =SumX   +DLWDB2%v-EREF%v*TOTAL%v
+                SumY   =SumY   +TOTAL%v+WREF%v*R%v
+                SumXsq =SumXsq +(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
+                SumYsq =SumYsq +R%v*(TOTAL%v/R%v+WREF%v)**2
+                SumXY  =SumXY  +(TOTAL%v/R%v+WREF%v)
+     &                              *(DLWDB2%v-(EREF%v*TOTAL%v))
+            End If
+            
             IF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
@@ -399,7 +413,7 @@ C.. Get the H element so we can calculate the energy
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
-     &                     I_VMAX,EREF,WREF)
+     &                    I_VMAX,EREF,VARSUM,PREVAR,WREF)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF
@@ -422,34 +436,55 @@ C            CALL PRINT_MEMORY()
          LOCTAB(1,I_VIND+1)=0
          FMCPR3B2=TOTAL
 
-        If (TVARCALC(I_V).and.I_VIND.eq.0) Then
-           write(6,"A, 5G26.15") "Terms in estimated variance:", 
-     &        SumX, SumY, SumXsq, SumYsq, SumXY
-           write(6,"(2A,I3,G25.16)") "Expected MC Variance for ratio ",
+        If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.PREVAR)) Then
+!            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
+!     &             "vertex level",I_V,", (Numerator): ", VarSumnu
+!            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
+!     &             "vertex level",I_V,", (Denominator): ", VarSumde
+        
+            write(6,"(2A,I3,G25.16)") "Expected MC Variance for ratio ",
      &       "vertex level", I_V, (SumX/SumY)**2*(SumXsq/SumX**2
      &                      +SumYsq/SumY**2-2*SumXY/(SumX*SumY))
-          SumX=0
-          SumY=0
-          SumXsq=0
-          SumYsq=0
-          SumXY=0
+
+!           write(6,"A, 5G26.15") "Terms in estimated variance:",
+!     &        SumX, SumY, SumXsq, SumYsq, SumXY
+            write(6,"(A,G25.16)") "Sum of Pgens of graphs is", SumP
+            SumP=0.D0
+            VARSUM=0.D0
+            SumX=0.D0
+            SumY=0.D0
+            SumXsq=0.D0
+            SumYsq=0.D0
+            SumXY=0.D0
+    
         End If
-         
+        
+        IF (PREVAR.and.I_VIND.eq.0) THEN
+
+            VARSUM=(SumX/SumY)**2*(SumXsq/SumX**2+SumYsq/SumY**2
+     &          -2*SumXY/(SumX*SumY))
+            SumX=0.D0
+            SumY=0.D0
+            SumXsq=0.D0
+            SumYsq=0.D0
+            SumXY=0.D0
+        ENDIF
+        
          RETURN
       END
 
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
-        Use HElement
-        Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
-        Real*8 Arr(nBasis, 2)
-        Type(HDElement) Weight
-        EX(1,1)=2
-        Call GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
-        If(Ex(1,2).eq.0) Then !we have a single excitation
-          Write(56, "5G25.16") Weight, Arr(EX(1,1),2), 0,
+         Use HElement
+         Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
+         Real*8 Arr(nBasis, 2)
+         Type(HDElement) Weight
+         EX(1,1)=2
+         Call GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
+         If(Ex(1,2).eq.0) Then !we have a single excitation
+             Write(56, "5G25.16") Weight, Arr(EX(1,1),2), 0,
      &                                 Arr(EX(2,1),2), 0
-        Else
-          Write(56, "5G25.16") Weight, Arr(EX(1,1),2), Arr(EX(1,2),2),
+         Else
+            Write(56, "5G25.16") Weight, Arr(EX(1,1),2), Arr(EX(1,2),2),
      &                                 Arr(EX(2,1),2), Arr(EX(2,2),2)
-        End If
-      End
+         End If
+         End

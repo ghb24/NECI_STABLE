@@ -67,10 +67,11 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 FSQ(2:I_VMAX),STD
          INTEGER NMEM(*),NMEMLEN,INODE2(NEL)
          POINTER (IP_NMEM,NMEM)
-         REAL*8 NTIME,OTIME
-         INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2
+         REAL*8 NTIME,OTIME,VARSUM
+         INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2,T
          REAL*8 OSI,ODLWDB,OPROB
          TYPE(HDElement) MP2E(2:I_VMAX)
+         LOGICAL PREVAR
          INCLUDE 'vmc.inc'
          CALL TISET('MCPATHSR10',ISUB)
 C.. This will store the MP2 energy
@@ -116,7 +117,28 @@ C     &            HIJS(0))
 
          NTOTAL=1.D0
          I_V1=0
+         
+         if(PREIV_MAX.ne.0) then
+             
+            write(6,*) "XXX"
+            write(6,*) pre_TAY(1,1)
+            write(6,*) pre_TAY(1,2)
+            write(6,*) pre_TAY(1,3)
+            write(6,*) pre_TAY(1,4)
+            write(6,*) "XXX"
+            
+           PREVAR=.TRUE. 
+            CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
+     &       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
+     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR)
+            
+         end if
+
+
+         
 C.. I_V is the number of vertices in the path
+         
          DO I=2,I_VMAX
             I_V=NWHTAY(3,I)
 CI_P
@@ -127,6 +149,16 @@ c            WRITE(6,"I2") I_V
             L=0
             LT=0
             BTABLE(0)=-1
+            IF(PREVAR) THEN
+                DO T=2,I_VMAX
+                    MP2E(T)=0.D0
+                ENDDO
+                NTOTAL=1
+                TOTAL=1.D0
+                DLWDB=HIJS(0)
+                PREVAR=.FALSE.
+            ENDIF
+
             DLWDB2=0.D0
             I_CHMAX=NWHTAY(1,I)
             CNWHTAY=NWHTAY(2,I)
@@ -159,7 +191,7 @@ C.. matrix of hij instead of rhoij
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL,I_VMAX,EREF,TOTAL)
+     &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,PREVAR,TOTAL)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
@@ -318,6 +350,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE HElement
          IMPLICIT NONE
          INCLUDE 'basis.inc'
+         INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
@@ -342,12 +375,12 @@ CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HElement) RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM,LISNAN
+         LOGICAL TLOG,TSYM,LISNAN,PREVAR
          REAL*8 DBETA
          TYPE(HElement) HIJS(0:I_VMAX)
          INTEGER LOCTAB(3,I_VMAX)
-         TYPE(HDElement) FMCPR3B,DLWDB,DLWDB2
-         REAL*8 NTIME,OTIME
+         TYPE(HDElement) FMCPR3B,DLWDB,DLWDB2,EREF
+         REAL*8 NTIME,OTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          TYPE(HDELement) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
@@ -355,8 +388,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDElement) FMCPR3STAR,FMCPR3B2
 
 C.. This is where we will store the MP2 energy
+         PREVAR=.FALSE.
          DO I=2,I_VMAX
             MP2E(I)=0.D0
+            
          ENDDO
 C         CALL MEMORY_CHECK()
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
@@ -477,11 +512,14 @@ C.. This code generates excitations on the fly
             ELSEIF(I_HMAX.EQ.-20) THEN
 C.. This code generates excitations on the fly, and diagonalizes a matrix of
 C.. HIJ rather than RHOIJ
+
+            EREF=DLWDB/TOTAL
+            
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &        RHOEPS,0,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL,I_VMAX)
+     &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,PREVAR,TOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.

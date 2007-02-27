@@ -28,6 +28,7 @@
       INTEGER NPATHS,STOT
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER NWHTAY(3,10)
+      INTEGER PREIH
       REAL*8  ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
@@ -116,6 +117,14 @@
       FCOULDAMPBETA=-1.D0
       COULDAMPORB=0
 
+      !Precalc defaults
+      PRE_IVMAX=0      
+      PRE_TAY=0
+      PRE_TAYLOG=.false.
+      PRE_TAYREAL=0.D0
+      PRE_TAYREAL(2,:)=0.1      !TOLERANCE   
+
+      
 !     Values for old parameters.
       TVVDISALLOW=.false.
       TRHOOFR = .false.
@@ -298,6 +307,63 @@ C                  end select
      &            call report("TILT can only be specified with "
      &         //"HUBBARD.",.true.)
             endif
+        case("PRECALC")
+            preIV_MAX=1
+            preIH=-10
+            precalc: do
+               call read_line(eof)
+               if (eof) then
+                   call report("No arguments for PRECALC block",.true.)
+               end if
+               call readu(w)
+               select case(trim(w))
+               case("VERTEX")
+                   preIV_MAX=preIV_MAX+1
+                   pre_TAY(3,preIV_MAX)=preIV_MAX
+                   call inpgetprecalc(pre_TAY(1,preIV_MAX))
+                
+               case("TOLERANCE")
+                   call readf(pre_TAYREAL(2,preIV_MAX))
+                   if ( pre_TAYREAL(2,preIV_MAX) .le. 0.D0 ) then
+                       call report(trim(w)//" must take a value "
+     &                  //"more than 0.D0",.true.)
+                   endif
+               case("USE")
+                    pre_TAYLOG(1,preIV_MAX)=.true.    
+          
+               case("NONE")
+                    pre_TAY(3,preIV_MAX)=0
+               case("CYCLES")
+                   call readi(pre_TAY(2,preIV_MAX))
+                   if ( pre_TAY(1,preIV_MAX).ne. -7.and.
+     &                  pre_TAY(1,preIV_MAX).ne. -19) then
+                      call report(trim(w)//" only valid for MC"
+     &                 //"method",.true.)
+                   end if
+               case("UEPSILON")
+                   call readf(pre_TAYREAL(1,preIV_MAX))
+               case("FINDC")
+                   pre_TAYLOG(2,preIV_MAX)=.true.
+               case("FINDIMPORT")
+                   if ( preIV_MAX .lt. 3 ) then
+                       call report(trim(w)//" only valid for vertex "
+     &                  //"levels of 3 or higher",.true.)
+                   endif
+                   pre_TAYLOG(3,preIV_MAX)=.true.
+               case("USEIMPORT")
+                   if ( preIV_MAX .lt. 3 ) then
+                       call report(trim(w)//" only valid for vertex "
+     &                  //"levels of 3 or higher",.true.)
+                   endif
+                   pre_TAYLOG(4,preIV_MAX)=.true.
+               case("ENDPRECALC")
+                   exit precalc
+               case default
+                   call report ("Keyword "//trim(w)//
+     &              " not recognised",.true.)
+               end select
+               end do precalc
+                   
         case("CALC")
             calc: do
               call read_line(eof)
@@ -656,6 +722,10 @@ C.. multiple of 2
               select case(w)
               case("MCPATHS")
                   ILOGGING = IOR(ILOGGING,2**1)
+              case("BLOCKS")
+                  ILOGGING = IOR(ILOGGING,2**13)
+              case("PREVAR")
+                  ILOGGING = IOR(ILOGGING,2**14)
               case("FMCPR")
 !  We log the value
                   ILOGGING = IOR(ILOGGING,2**0)
@@ -764,6 +834,45 @@ C     ILOGGING = 0771
      &                          .true.)
                   end select
       end
+      subroutine inpgetprecalc(preIH)
+         use input
+         implicit none
+         integer preIH
+         CHARACTER(LEN=16) w
+                do while ( item .lt. nitems )
+                  call readu(w)
+                  select case(w)
+                  case("HDIAG")
+                      call readu(w)
+                      select case(w)
+                      case("FULL")
+                          preIH=-20
+                      case("MC")
+                          preIH=-19
+                      case default
+                         call report("Error - must specify FULL"
+     &                   //" or MC after HDIAG in PRECALC block",.true.)
+                      end select
+                   case("RHODIAG")
+                         call readu(w)
+                         select case(w)
+                         case("FULL")
+                             preIH=-8
+                         case("MC")
+                             preIH=-7
+                         case default
+                           call report("Error - must specify FULL or "
+     &                     //"MC after RHODIAG in PRECALC block",.true.)
+                         end select
+                     case default
+                           call report("Keyword error with "//trim(w),
+     &                     .true.)
+                     end select
+                 end do
+        end
+                   
+                  
+         
       subroutine inpgetmethod(I_HMAX,NWHTAY)
          use input
          implicit none
