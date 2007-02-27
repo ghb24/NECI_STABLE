@@ -120,12 +120,12 @@ C     &            HIJS(0))
          
          if(PREIV_MAX.ne.0) then
              
-            write(6,*) "XXX"
-            write(6,*) pre_TAY(1,1)
-            write(6,*) pre_TAY(1,2)
-            write(6,*) pre_TAY(1,3)
-            write(6,*) pre_TAY(1,4)
-            write(6,*) "XXX"
+!            write(6,*) "XXX"
+!            write(6,*) pre_TAY(1,1)
+!            write(6,*) pre_TAY(1,2)
+!            write(6,*) pre_TAY(1,3)
+!            write(6,*) pre_TAY(1,4)
+!            write(6,*) "XXX"
             
            PREVAR=.TRUE. 
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
