@@ -242,7 +242,10 @@ C                  DLWDB2=0.D0
                     ioV=i_v
                     igV=i_v
                     i_VCur=i_v
-                    FF=oWeight/HDElement(oProb) 
+!MPTheory has weights = 1, and does not need to be further divided.
+                    IF(.NOT.tMPTheory) THEN
+                     FF=oWeight/HDElement(oProb) 
+                    ENDIF
                     DLWDB2=oWeight*DLWDB2/HDElement(oProb)
                   ELSE
 C.. see if we want to increase the number of vertices
@@ -1895,7 +1898,7 @@ C.. reject the new, and copy in the old
          IF(BTEST(ILOGGING,0).AND..NOT.BTEST(ILOGGING,2)) THEN
             WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
          ENDIF
-         IF(TMPTHEORY) THEN
+         IF(TMPTHEORY.AND..NOT.tMCDirectSum) THEN
             DLWDB=ETILDE/HDElement(OPROB)
             FMCPR4D2=OPROB
          ELSEIF(tMCDirectSum.AND.RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN

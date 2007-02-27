@@ -40,7 +40,7 @@ C.,             If 1, only allow doubles.
          COMPLEX*16 FCK(*)
          TYPE(HElement) TMat(*), UMAT(*),R
          REAL*8 ALAT(*),ECORE
-         TYPE(HDElement) TOTAL,FMCPR3B2
+         TYPE(HDElement) TOTAL,FMCPR3B2,Prob
          TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
          TYPE(HElement) HIJ(0:I_V,0:I_V),RH
@@ -70,7 +70,7 @@ C.,             If 1, only allow doubles.
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
          REAL*8 FSCALE,FSC2
-         TYPE(HDElement) MP2E,NTOTAL
+         TYPE(HDElement) MP2E(2:i_VMax),MPEs(2:i_VMax),NTOTAL,MPEn
          INTEGER EXFLAG
 
          REAL*8 GETHELEMENT
@@ -151,50 +151,56 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
             NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
-             IF (TVARCALC(I_V).and.(.not.PREVAR)) THEN             
-              Call CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &            nBasisMax,UMat,NMAX,nBasis,R)
-              
+C.. Calculate the MP2 Energy
+C.. NMAX has ARR hidden in it.
+!               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
+            IF(tMPTheory) THEN
+               CALL AZZERO(MPEs,i_VMax-1)
+               CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,
+     &            iPath,nEl,tLog,ECORE,MPEs)
+               MPEn=0.D0
+               DO i=2,i_VMax
+                  MP2E(i)=MPEs(i)
+                  MPEn=MPEn+MPEs(i)
+               ENDDO
+            ENDIF
+                
+!        write (*,*) "from mcpathshdiag, EREF=",EREF
+            IF (TVARCALC(I_V).or.PREVAR) THEN             
+              J=0
+              IF(tLog5) J=10
+              Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
+     &                                nBasisMax,UMat,NMAX,nBasis,Prob)
+              IF(tMPTheory) THEN
+! When we do MC on MP, we sum MPEn/pgen in the numerator and 1 in the denominator
+                 SumX  =SumX   + DREAL(MPEn)
+                 SumY  =SumY   + DREAL(Prob)
+                 SumXsq=SumXsq + DREAL(MPEn*MPEn/Prob)
+                 SumYsq=SumYsq + DREAL(Prob)
+                 SumXY =SumXY  + DREAL(MPEn)
+              ELSE
+              !X are the terms in the numerator, Y are the terms in the denominator
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
-                SumX   =SumX   +DLWDB2%v-EREF%v*TOTAL%v
-                SumY   =SumY   +TOTAL%v+WREF%v*R%v
-                SumXsq =SumXsq +(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
-                SumYsq =SumYsq +R%v*(TOTAL%v/R%v+WREF%v)**2
-                SumXY  =SumXY  +(TOTAL%v/R%v+WREF%v)
-     &                              *(DLWDB2%v-(EREF%v*TOTAL%v))
-                SumP=SumP+R%v
-             End If
-             IF (PREVAR) THEN
-                Call CalcWriteGraphPgen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &                nBasisMax,UMat,NMAX,nBasis,R)
-
-!                VarSumnu = VarSumnu+(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
-!                VarSumde = VarSumde+((TOTAL%v)**2)/R%v
-                SumX   =SumX   +DLWDB2%v-EREF%v*TOTAL%v
-                SumY   =SumY   +TOTAL%v+WREF%v*R%v
-                SumXsq =SumXsq +(DLWDB2%v-(EREF%v*TOTAL%v))**2/R%v
-                SumYsq =SumYsq +R%v*(TOTAL%v/R%v+WREF%v)**2
-                SumXY  =SumXY  +(TOTAL%v/R%v+WREF%v)
-     &                              *(DLWDB2%v-(EREF%v*TOTAL%v))
-            End If
-            
-            IF(TLOG5) THEN
+                 SumX  =SumX   + DLWDB2%v-EREF%v*TOTAL%v
+                 SumY  =SumY   + TOTAL%v+WREF%v*Prob%v
+                 SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
+                 SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
+                 SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
+     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
+                 SumP=SumP+DREAL(Prob)
+               ENDIF
+            ELSEIF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
               CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &            nBasisMax,UMat,NMAX,nBasis,R)
-                  WRITE(10,"(3E25.16, I7)") TOTAL,R,DLWDB2,ICLS
+     &            nBasisMax,UMat,NMAX,nBasis,Prob)
+                  WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             ENDIF
             L=L+1
             FMCPR3B2=TOTAL
-C.. Calculate the MP2 Energy
-C.. NMAX has ARR hidden in it.
-!               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
-               CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,
-     &            iPath,nEl,tLog,ECORE,MP2E)
             IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
 C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
@@ -488,3 +494,4 @@ C            CALL PRINT_MEMORY()
      &                                 Arr(EX(2,1),2), Arr(EX(2,2),2)
          End If
          End
+
