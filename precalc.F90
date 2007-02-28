@@ -25,7 +25,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
       
      !Loop over vertex levels to look at
      DO Q=I,PREIV_MAX
-
+         WRITE(6,*) ""
          WRITE(6,"(A,I2,A)") "For a vertex level of", Q, ", PRECALC finds:"
      !IF ... do for a&b
 !     IF(PRE_TAYLOG(3,K)) THEN   !wants to use a&b calculated earlier (k should be more than 3)
@@ -49,10 +49,10 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 
             IF (PRE_TAYLOG(3,Q)) THEN
                 G_VMC_PI=originalimport
-                WRITE(6,"(A,G20.12,A,F12.8)") "Optimum importance parameter found to be", xmin, ", but using", originalimport
+                WRITE(6,"(A,F15.12,A,F5.3)") "Optimum importance parameter found to be ", xmin, ", but using ", originalimport
             ELSEIF (PRE_TAYLOG(4,Q)) THEN
                 G_VMC_PI=xmin
-                WRITE(6,"(A,G20.12)") "Importance parameter optimised to", xmin
+                WRITE(6,"(A,F15.12)") "Importance parameter optimised to", xmin
 
             ENDIF
         ENDIF
@@ -89,12 +89,12 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 WRITE(6,"(A)") "Optimum U weighting within UEPSILON bounds, so using C=0"
             ELSE
                 G_VMC_EXCITWEIGHT=originalc
-                WRITE(6,"(A,G20.12,A,F12.8)") "Optimum U weighting found to be", xmin, ", but using", originalc
+                WRITE(6,"(A,G20.12,A,F14.8)") "Optimum U weighting found to be", xmin, ", but using", originalc
             END IF
         END IF
     
     ENDDO
-
+    WRITE(6,*) ""
 
     CLOSE(31)
     RETURN
