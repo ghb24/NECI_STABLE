@@ -25,7 +25,7 @@
 !
       CHARACTER(LEN=16) title  
       CHARACTER(LEN=16) w
-      INTEGER NPATHS,STOT
+      INTEGER NPATHS,STOT,z,zz
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER NWHTAY(3,10)
       INTEGER PREIH
@@ -330,7 +330,12 @@ C                  end select
                    endif
                case("USE")
                     pre_TAYLOG(1,preIV_MAX)=.true.    
-          
+                    do z=1,(preIV_MAX-1)
+                        if (pre_TAYLOG(1,z)) then
+                            call report(trim(w)//" can only be applied"
+     &                      //" to a single vertex level",.true.)
+                        endif
+                    enddo
                case("NONE")
                     pre_TAY(3,preIV_MAX)=0
                case("CYCLES")
@@ -356,6 +361,12 @@ C                  end select
      &                  //"levels of 3 or higher",.true.)
                    endif
                    pre_TAYLOG(4,preIV_MAX)=.true.
+                       do zz=1,(preIV_MAX-1)
+                          if ( pre_TAYLOG(4,zz) ) then
+                             call report(trim(w)//" can only be applied"
+     &                       //" to a single vertex level",.true.)
+                         endif
+                       enddo
                case("ENDPRECALC")
                    exit precalc
                case default

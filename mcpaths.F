@@ -71,7 +71,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2,T
          REAL*8 OSI,ODLWDB,OPROB
          TYPE(HDElement) MP2E(2:I_VMAX)
-         LOGICAL PREVAR
+         LOGICAL PREVAR,TLOGP
          INCLUDE 'vmc.inc'
          CALL TISET('MCPATHSR10',ISUB)
 C.. This will store the MP2 energy
@@ -79,6 +79,7 @@ C.. This will store the MP2 energy
             MP2E(I)=0.D0
          ENDDO
          ISEED=7
+         TLOGP=BTEST(ILOGGING,14)
          TLOG=BTEST(ILOGGING,1)
          IF(NTAY.LE.0) THEN
             TSYM=.FALSE.
@@ -131,7 +132,7 @@ C     &            HIJS(0))
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
-     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR)
+     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,TLOGP)
             
          end if
 

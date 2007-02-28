@@ -1,6 +1,6 @@
 SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,              &
      &         FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,     &
-     &         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR)
+     &         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,TLOGP)
 
      USE HElement
      IMPLICIT NONE
@@ -14,38 +14,55 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM
      REAL*8 ax,bx,cx,minvar,xmin,originalc,originalimport
      REAL*8 ZEROVAR
-     LOGICAL TSYM,PREVAR
+     LOGICAL TSYM,PREVAR,NOTHING,TLOGP
      TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
      TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
      TYPE(HElement) HIJS(0:PREIV_MAX)
      TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
      
-     !Only open if logging option on
-     OPEN(31,FILE="PRECALC",STATUS="UNKNOWN")
+     !Only open PRECALC file if logging option on
+     IF (TLOGP) THEN
+        OPEN(31,FILE="PRECALC",STATUS="UNKNOWN")
+     ENDIF
       
      !Loop over vertex levels to look at
      DO Q=I,PREIV_MAX
+         
+         NOTHING=.FALSE.
+     
+         ! IF NONE IS SPECIFIED
+         IF (PRE_TAY(3,Q).eq.0) CYCLE
+     
          WRITE(6,*) ""
          WRITE(6,"(A,I2,A)") "For a vertex level of", Q, ", PRECALC finds:"
      !IF ... do for a&b
 !     IF(PRE_TAYLOG(3,K)) THEN   !wants to use a&b calculated earlier (k should be more than 3)
          !Find import
 !     ENDIF
-            
+        
+        !IF NOTHING SPECIFIED
+        IF (PRE_TAYLOG(1,Q).and.PRE_TAYLOG(2,Q).and.PRE_TAYLOG(3,Q).and.PRE_TAYLOG(4,Q).and.            &
+     &      (PRE_TAYREAL(1,Q).eq.0.D0).and.(PRE_TAYREAL(2,Q).eq.1.D-01).and.(PRE_TAY(3,Q).ne.0)) THEN
+            NOTHING=.TRUE.
+        ENDIF
+
         !Looking for importance parameter
         IF (PRE_TAYLOG(3,Q).or.PRE_TAYLOG(4,Q)) THEN
-            WRITE(31,*) ""
-            WRITE(31,"(A)") "Importance Parameter: (Vertex level, Iteration number, Importance Parameter, Expected Variance)"
+            IF (TLOGP) THEN
+                WRITE(31,*) ""
+                WRITE(31,"(A)") "Importance Parameter: (Vertex level, Iteration number, Importance Parameter, Expected Variance)"
+            ENDIF
+            
             !Initial bracketing
-            ax=0.5
-            bx=0.9
+            ax=0.6
+            bx=0.85
             cx=0.99
 
             GIDHO=2
             originalimport=G_VMC_PI
             CALL BRENTALGO(minvar,ax,bx,cx,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
                        G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,       &
-                       TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR)
+                       TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR,TLOGP)
 
             IF (PRE_TAYLOG(3,Q)) THEN
                 G_VMC_PI=originalimport
@@ -58,9 +75,13 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
         ENDIF
 
         !Looking for C Excitweighting parameter
-        IF (PRE_TAYLOG(2,Q).or.(PRE_TAYREAL(1,Q).gt.0)) THEN
-            WRITE(31,*) ""
-            WRITE(31,"(A)") "U Parameter: (Vertex level, Iteration number, C Weighting parameter, Expected Variance)"
+        IF (PRE_TAYLOG(2,Q).or.(PRE_TAYREAL(1,Q).gt.0).or.NOTHING) THEN
+            
+            IF (TLOGP) THEN
+                WRITE(31,*) ""
+                WRITE(31,"(A)") "U Parameter: (Vertex level, Iteration number, C Weighting parameter, Expected Variance)"
+            ENDIF
+            
          !Initial bracketing
             ax=0
             bx=60
@@ -73,18 +94,21 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,VARSUM,PREVAR)
             ZEROVAR=VARSUM
-            WRITE(31,"(2I3,2G25.16)")  Q, 0, 0.D0, VARSUM
-            CALL FLUSH(31)
+            
+            IF (TLOGP) THEN
+                WRITE(31,"(2I3,2G25.16)")  Q, 0, 0.D0, VARSUM
+                CALL FLUSH(31)
+            ENDIF
             
             CALL BRENTALGO(minvar,ax,bx,cx,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,      &
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,                          &
      &                  RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
-     &                  NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR)
+     &                  NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR,TLOGP)
            
-            IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).gt.PRE_TAYREAL(1,Q))) THEN
+            IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).gt.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
                 G_VMC_EXCITWEIGHT=xmin
                 WRITE(6,"(A,G25.12)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin
-            ELSE IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).le.PRE_TAYREAL(1,Q))) THEN
+            ELSE IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).le.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
                 G_VMC_EXCITWEIGHT=0
                 WRITE(6,"(A)") "Optimum U weighting within UEPSILON bounds, so using C=0"
             ELSE
@@ -92,11 +116,13 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 WRITE(6,"(A,G20.12,A,F14.8)") "Optimum U weighting found to be", xmin, ", but using", originalc
             END IF
         END IF
-    
     ENDDO
     WRITE(6,*) ""
-
-    CLOSE(31)
+    
+    IF (TLOGP) THEN
+        CLOSE(31)
+    ENDIF
+    
     RETURN
 END SUBROUTINE GETVARS
 
@@ -163,7 +189,7 @@ SUBROUTINE MCPATHSPRE(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,     
 SUBROUTINE BRENTALGO(brent,ax,bx,cx,tol,xmin,NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,        &
      &                 G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,   &
      &                 RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,       &
-     &                 NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR)
+     &                 NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR,TLOGP)
     USE HElement
     IMPLICIT NONE
     include 'vmc.inc'
@@ -173,7 +199,7 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,tol,xmin,NI,BETA,I_P,IPATH,I,NEL,NBASISMAX, 
     INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX)
     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),NBASIS,GIDHO
     COMPLEX*16 FCK(*)
-    LOGICAL TSYM,PREVAR
+    LOGICAL TSYM,PREVAR,TLOGP
     REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM
 !    REAL*8 VARIANCE(2,2:PREIV_MAX)
     TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
@@ -209,8 +235,10 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,tol,xmin,NI,BETA,I_P,IPATH,I,NEL,NBASISMAX, 
     &        FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
     &        DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,VARSUM,PREVAR)
     ! Vertex level, iteration number, C weight value, Varsumnu value
-    WRITE(31,"(2I3,2G25.16)")  I, 0, x, VARSUM
-    CALL FLUSH(31)
+    IF (TLOGP) THEN
+        WRITE(31,"(2I3,2G25.16)")  I, 0, x, VARSUM
+        CALL FLUSH(31)
+    ENDIF
     fx=VARSUM
     fv=fx
     fw=fx
@@ -261,9 +289,10 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,tol,xmin,NI,BETA,I_P,IPATH,I,NEL,NBASISMAX, 
         &        DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,VARSUM,PREVAR)
         
         ! Vertex level, iteration number, value, Varsumnu value
-        WRITE(31,"(2I3,2G25.16)")  I, iter, u, VARSUM
-        CALL FLUSH(31)
-        
+        IF (TLOGP) THEN
+            WRITE(31,"(2I3,2G25.16)")  I, iter, u, VARSUM
+            CALL FLUSH(31)
+        ENDIF
         fu=VARSUM                 ! This is the one function evaluation per iteration
         if(fu.le.fx) then       ! What to do with function
             if(u.ge.x) then

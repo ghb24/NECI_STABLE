@@ -77,6 +77,7 @@ C.,             If 1, only allow doubles.
          REAL*8 BETADATA(0:1)
          LOGICAL ISCONNECTEDDET
          REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+         DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
             SELECT CASE (IAND(NWHTAY,24))
             CASE(0)
@@ -188,7 +189,9 @@ C.. NMAX has ARR hidden in it.
                  SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
                  SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
      &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
-                 SumP=SumP+DREAL(Prob)
+                 IF(.not.PREVAR) THEN
+                    SumP=SumP+DREAL(Prob)
+                ENDIF
                ENDIF
             ELSEIF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
@@ -448,13 +451,13 @@ C            CALL PRINT_MEMORY()
 !            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
 !     &             "vertex level",I_V,", (Denominator): ", VarSumde
         
-            write(6,"(2A,I3,G25.16)") "Expected MC Variance for ratio ",
-     &       "vertex level", I_V, (SumX/SumY)**2*(SumXsq/SumX**2
+          write(6,"(2A,I3,A,G23.16)") "Expected MC Variance for ratio ",
+     &       "vertex level", I_V," is ", (SumX/SumY)**2*(SumXsq/SumX**2
      &                      +SumYsq/SumY**2-2*SumXY/(SumX*SumY))
 
 !           write(6,"A, 5G26.15") "Terms in estimated variance:",
 !     &        SumX, SumY, SumXsq, SumYsq, SumXY
-            write(6,"(A,G25.16)") "Sum of Pgens of graphs is", SumP
+            write(6,"(A,G24.16)") "Sum of Pgens of graphs is ", SumP
             SumP=0.D0
             VARSUM=0.D0
             SumX=0.D0

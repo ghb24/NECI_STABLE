@@ -89,6 +89,47 @@ ALPHA <ALPHA>
 ENDSYS
     End system block.
 
+PRECALC
+    Start Precalculation block.  This chooses which weighting parameters to use in the main calculation block, in order to give minimum MC variance.  This is an optional input block, and is not required if the default parameters want to be used, or for them to be specified explicitly in the CALC input block.  Currently, (28/2/07), only the IMPORTANCE parameter, and the C EXCITWEIGHTING parameter can be optimised and parsed through the the main program.
+
+VERTEX <HDIAG/RHODIAG> <SUM/MC>
+    Similar to the methods section in the CALC block, this specifies a vertex level (from a vertex level of two), and the method that is to be used in searching for the best parameters, using the hamiltonian matrix diagonaltisation (HDIAG) or the RHO matrix diagonalisation (RHODIAG). After this is specified, on the same line, whether to calculate the expected variance from the full sum at this vertex level (SUM), or a Monte Carlo sum (MC) should also be specified.  Currently, (28/2/07), only the HDIAG routine, with the full sum expected variance is working with the PRECALC block, e.g.
+        
+        VERTEX HDIAG SUM
+        XXX
+        XXX
+        VERTEX HDIAG SUM
+        XXX
+
+If nothing is specified after this line, the optimum values of all the EXCITWEIGHTING variables will be found, but not parsed through to the main program.
+
+CYCLES <CYCLES>
+    This can only be applied to a vertex level which is specified to use the MC algorithm in the VERTEX line.  This give the number of graphs to generate in the MC algorithm, for each expected variance calculation in the parameter minimisation algorithm.
+
+USE
+    This will signify that the parameters calculated from this vertex level, rather than any other, are to be parsed through and used in the main program.  This statement can only be given for a single vertex level.
+
+NONE
+    This is to specify that no calculations or optimisations are to be performed on this vertex level.
+
+TOLERANCE <TOLERANCE>
+    The fractional precision to which the optimum parameter is obtained, using the minimisation method. Default value is 0.1
+
+UEPSILON <UEPSILON>
+    Since the calculation of the U matrix elements can be time-consuming in a real MC simulation, the optimum C EXCITWEIGHTING parameter found from the PRECALC algorithms may not want to be parsed through to the main MC program if the reduction of the expected variance from the case where the C EXCITWEIGHTING coefficient is zero, to the optimum value, is small.  If this option is set, it will find the optimum C EXCITWEIGHTING parameter, but will parse through a value of zero if the reduction in expected variance between the optimum value, and that of C = zero, is less that UEPSILON.  This will then save time in the full MC simulation.  The default value is 0 (i.e. the optimum value will always be used in the main program).
+
+FINDC
+    The optimum C EXCITWEIGHTING parameter will only be found if this flag is set, or if a UEPSILON is set, otherwise, the optimisation will only seek to find the values which give the minimum expected variance by varying the A and B EXCITWEIGHTING parameters.
+
+FINDIMPORT
+    This flag will run the optimisation algorithm for the IMPORTANCE parameter.  The optimised value will be found and output to stdout, but will not be parsed through to the main calculation block.  This flag can only be set for a vertex level of three or higher for obvious reasons.
+
+USEIMPORT
+    This flag will not only find the optimal IMPORTANCE parameter, but will also parse it through to the main program, to be used there. Again, for obvious reasons, this flag can only be set for vertex levels of three or higher.
+
+ENDPRECALC
+    This ends the PRECALC input block.
+    
 CALC
     Start calculation block.  This chooses what calculation to do.
 
@@ -194,7 +235,7 @@ VERTICES
      allowing, for example, to split the 2-vertex level into doubles and singles which are handled separately.
 
 CALCVAR
-   This calculates a theoretical approximation to the expected variance if a non-stochastic MC run were to be performed, with the parameters given, at the chosen vertex level.  Currently the expected variance is output to stdout, as a variance for the denominator and numerator of the energy seperatly.  This option means the calculation takes longer since the Pgens of the graphs must all be calculated.  This option can only be used when calculating a full sum at the vertex level, using the HDIAG subroutine.
+   This calculates a theoretical approximation to the expected variance if a non-stochastic MC run were to be performed, with the parameters given, at the chosen vertex level.  Currently the expected variance is output to stdout, and now as a full variance for the total energy ratio.  This option means the calculation takes longer since the Pgens of the graphs must all be calculated.  This option can only be used when calculating a full sum at the vertex level, using the HDIAG subroutine. This option will also output a value for the sum of the Pgens of the graphs, for each vertex level.  This should equal 1, since we are woking with normalised probabilities.
 
 ENDMETHODS
    Terminate a methods block
@@ -348,6 +389,9 @@ LOGGING
      
 MCPATHS     
     Log in MCPATHS to MCPATHS for full vertex sum and MCSUMMARY when using a METHODS section.
+
+PREVAR
+    Log the Vertex level, Iteration number, parameter, and expected variance, for each parameter which was looked for in the PRECALC block, showing the convergence on the optimum value.  This is output to a file called PRECALC.
 
 FMCPR <LABEL,RHO,1000,EXCITATION>
     Log the following to PATHS.
