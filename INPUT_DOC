@@ -107,7 +107,7 @@ CYCLES <CYCLES>
     This can only be applied to a vertex level which is specified to use the MC algorithm in the VERTEX line.  This give the number of graphs to generate in the MC algorithm, for each expected variance calculation in the parameter minimisation algorithm.
 
 USE
-    This will signify that the parameters calculated from this vertex level, rather than any other, are to be parsed through and used in the main program.  This statement can only be given for a single vertex level.
+    This will signify that the parameters calculated from this vertex level, rather than any other, are to be parsed through and used in the main program.  This statement can only be given for a single vertex level. This will only calculate the A and B EXCITWEIGHTING parameters and use them, unless FINDC or a UEPSILON is specified for the C parameter to also be used.
 
 NONE
     This is to specify that no calculations or optimisations are to be performed on this vertex level.

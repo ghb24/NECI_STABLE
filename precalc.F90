@@ -55,7 +55,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
             !Initial bracketing
             ax=0.6
-            bx=0.85
+            bx=0.9
             cx=0.99
 
             GIDHO=2
@@ -84,8 +84,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
          !Initial bracketing
             ax=0
-            bx=60
-            cx=100
+            bx=30
+            cx=90
 
             GIDHO=3
             originalc=G_VMC_EXCITWEIGHT

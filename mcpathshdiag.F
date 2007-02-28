@@ -180,7 +180,6 @@ C.. NMAX has ARR hidden in it.
                  SumYsq=SumYsq + DREAL(Prob)
                  SumXY =SumXY  + DREAL(MPEn)
               ELSE
-              !X are the terms in the numerator, Y are the terms in the denominator
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
                  SumX  =SumX   + DLWDB2%v-EREF%v*TOTAL%v
