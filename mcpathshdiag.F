@@ -170,10 +170,12 @@ C.. NMAX has ARR hidden in it.
             IF (TVARCALC(I_V).or.PREVAR) THEN             
               J=0
               IF(tLog5) J=10
-              Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
-     &                                nBasisMax,UMat,NMAX,nBasis,Prob)
+              
               IF(tMPTheory) THEN
 ! When we do MC on MP, we sum MPEn/pgen in the numerator and 1 in the denominator
+                 
+                Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
+     &                   nBasisMax,UMat,NMAX,nBasis,Prob)
                  SumX  =SumX   + DREAL(MPEn)
                  SumY  =SumY   + DREAL(Prob)
                  SumXsq=SumXsq + DREAL(MPEn*MPEn/Prob)
@@ -182,15 +184,39 @@ C.. NMAX has ARR hidden in it.
               ELSE
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
-                 SumX  =SumX   + DLWDB2%v-EREF%v*TOTAL%v
-                 SumY  =SumY   + TOTAL%v+WREF%v*Prob%v
-                 SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
-                 SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
-                 SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
-     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
-                 IF(.not.PREVAR) THEN
-                    SumP=SumP+DREAL(Prob)
-                ENDIF
+                 
+               IF (ABS(TOTAL%v).gt.1.D-08) THEN!.and.(RHOEPS.le.1.D-08)) THEN
+!     &        .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
+                     
+                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
+     &                       nBasisMax,UMat,NMAX,nBasis,Prob)
+                   
+                   SumX  =SumX   + DLWDB2%v-EREF%v*TOTAL%v
+                   SumY  =SumY   + TOTAL%v
+                   SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
+                   SumYsq=SumYsq + ((TOTAL%v)**2)/Prob%v
+!                   SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
+!     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
+                    IF(.not.PREVAR) THEN
+                        SumP=SumP+DREAL(Prob)
+                    ENDIF
+                 
+!                 ELSEIF ((RHOEPS.gt.1.D-08)) THEN!.or.(DBETA(2).gt.1.D-08).or.
+!     &              (DBETA(3).gt.1.D-08)) THEN
+
+!                   CALL CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
+!     &                       nBasisMax,UMat,NMAX,nBasis,Prob)
+!                   SumX=SumX   + DLWDB2%v-EREF%v*TOTAL%v
+!                   SumY  =SumY   + TOTAL%v+WREF%v*Prob%v
+!                   SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
+!                   SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
+!                   SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
+!     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
+                  
+!                    IF(.not.PREVAR) THEN
+!                        SumP=SumP+DREAL(Prob)
+!                    ENDIF
+                ENDIF   
                ENDIF
             ELSEIF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
@@ -445,30 +471,46 @@ C            CALL PRINT_MEMORY()
          FMCPR3B2=TOTAL
 
         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.PREVAR)) Then
-!            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
-!     &             "vertex level",I_V,", (Numerator): ", VarSumnu
-!            write(6,"(2A,I3,A,G25.16)") "Expected MC Variance for ",
-!     &             "vertex level",I_V,", (Denominator): ", VarSumde
         
+!            IF ((RHOEPS.le.1.D-08)) THEN
+!     &       .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
+        
+                SumYsq=SumYsq+(2*WREF%v*SumY)+(WREF%v)**2
+                SumY=SumY+WREF%v
+                SumXY=SumXsq+(WREF%v*SumX)
+
+!            ENDIF
+            
+!           write(6,"A, 5G26.15") "Terms in estimated variance:",
+!     &        SumX, SumY, SumXsq, SumYsq, SumXY
+
           write(6,"(2A,I3,A,G23.16)") "Expected MC Variance for ratio ",
      &       "vertex level", I_V," is ", (SumX/SumY)**2*(SumXsq/SumX**2
      &                      +SumYsq/SumY**2-2*SumXY/(SumX*SumY))
 
-!           write(6,"A, 5G26.15") "Terms in estimated variance:",
-!     &        SumX, SumY, SumXsq, SumYsq, SumXY
-            write(6,"(A,G24.16)") "Sum of Pgens of graphs is ", SumP
-            SumP=0.D0
-            VARSUM=0.D0
-            SumX=0.D0
-            SumY=0.D0
-            SumXsq=0.D0
-            SumYsq=0.D0
-            SumXY=0.D0
+          write(6,"(2A,G24.16)") "Sum of Pgens of graphs included", 
+     &         " in variance is ", SumP
+          SumP=0.D0
+          VARSUM=0.D0
+          SumX=0.D0
+          SumY=0.D0
+          SumXsq=0.D0
+          SumYsq=0.D0
+          SumXY=0.D0
     
         End If
         
         IF (PREVAR.and.I_VIND.eq.0) THEN
 
+!            IF ((RHOEPS.le.1.D-08)) THEN
+!     &       .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
+            
+                SumYsq=SumYsq+(2*WREF%v*SumY)+(WREF%v)**2
+                SumY=SumY+WREF%v
+                SumXY=SumXsq+(WREF%v*SumX)
+
+!            ENDIF    
+            
             VARSUM=(SumX/SumY)**2*(SumXsq/SumX**2+SumYsq/SumY**2
      &          -2*SumXY/(SumX*SumY))
             SumX=0.D0

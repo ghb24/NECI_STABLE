@@ -107,7 +107,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
            
             IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).gt.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
                 G_VMC_EXCITWEIGHT=xmin
-                WRITE(6,"(A,G25.12)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin
+                WRITE(6,"(A,F17.12)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin
             ELSE IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).le.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
                 G_VMC_EXCITWEIGHT=0
                 WRITE(6,"(A)") "Optimum U weighting within UEPSILON bounds, so using C=0"
