@@ -140,7 +140,7 @@ C.. the paths for it
                   CALL WRITEPATHEX(10,IPATH,I_V,NEL,.FALSE.)
                ENDIF
             ENDIF
-!            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
+            IF(TLOG2) CALL WRITERHOMAT(10,HIJ,I_V,NEL,.TRUE.)
 C.. 
             ICLS=0
 C.. Store beta in RHOII(1) (calling it BETADATA)
@@ -161,7 +161,7 @@ C.. NMAX has ARR hidden in it.
      &            iPath,nEl,tLog,ECORE,MPEs)
                MPEn=0.D0
                DO i=2,i_VMax
-                  MP2E(i)=MPEs(i)
+                  MP2E(i)=MP2E(i)+MPEs(i)
                   MPEn=MPEn+MPEs(i)
                ENDDO
             ENDIF
@@ -218,6 +218,7 @@ C.. NMAX has ARR hidden in it.
 !                    ENDIF
                 ENDIF   
                ENDIF
+              IF(TLOG5) WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
             ELSEIF(TLOG5) THEN
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it

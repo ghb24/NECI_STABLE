@@ -70,6 +70,7 @@
       G_VMC_FAC = 16
       G_VMC_EXCITWEIGHT=0.D0
       g_VMC_ExcitToWeight=0.D0
+      g_VMC_ExcitToWeight2=0.D0
       g_VMC_ExcitFromWeight=0.D0
       TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
 
@@ -526,6 +527,7 @@ C                  end select
                   call readf(g_VMC_ExcitFromWeight)
                   call readf(g_VMC_ExcitToWeight)
                   call readf(G_VMC_EXCITWEIGHT)
+                  IF(item.lt.nitems) call readf(g_VMC_ExcitToWeight2)
               case("PATHS")
                   call readi(NPATHS)
               case("ALLPATHS")

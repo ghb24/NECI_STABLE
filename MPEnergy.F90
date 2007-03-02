@@ -64,7 +64,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
       E=MPE
       MPEs(iOrder)=MPEs(iOrder)+E
       IF(TLOG) THEN
-         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+!         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
          WRITE(13,"(G,$)") E
       ENDIF
    ENDDO

@@ -212,7 +212,7 @@ MODULE SymExcit2
          INTEGER ISS
          INTEGER IDI,IDJ,IDK,IDL
          INTEGER I,J,K,L
-         REAL*8 WEIGHT
+         REAL*8 WEIGHT,W2
          TYPE(HElement) GetUMatEl
          TYPE(HElement) UMAT(*),W
          REAL*8 Arr(nBasis,2)
@@ -226,6 +226,11 @@ MODULE SymExcit2
             CALL GTID(NBASISMAX,L,IDL)
             W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
             WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT)
+         ENDIF
+         IF(G_VMC_ExcitToWeight2.NE.0.D0) THEN
+            W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
+            IF(ABS(W2).LT.1.D-2) W2=1.D-2
+            Weight=Weight*W2**g_VMC_ExcitToWeight2
          ENDIF
          IF(g_VMC_ExcitToWeight.NE.0.D0) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitToWeight)
          RETURN
