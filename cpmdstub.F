@@ -28,3 +28,9 @@ C         OCC=F(ISTATE)
          INCLUDE 'cpmddata.inc'
          CALL AZZERO(INTS,NSTATES*NSTATES)
       END
+
+      subroutine GetKPInd(IndA,IndB,IndC,IndD)
+         implicit none
+         integer  IndA,IndB,IndC,IndD
+         return
+      end subroutine GetKPInd
