@@ -7,7 +7,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    TYPE(HElement) V(1:iV,1:iV)
    REAL*8 Arr(nBasis,2)
    INTEGER iPath(nEl,0:iV)
-   LOGICAL tLog,tSign
+   LOGICAL tLog,tSign,tLogged
    INTEGER i,j
    TYPE(HElement) Fi(1:iV),E1
    INTEGER iOrder
@@ -15,9 +15,6 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    TYPE(HElement) MPE
 !E1 is the HF Energy.  Ei are Fock energy differences.
    
-      IF(TLOG) THEN
-         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-      ENDIF
    MPE=ECore
    DO i=1,iV
 !      EX(1,1)=nEl
@@ -27,6 +24,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
          Fi(i)=Fi(i)+HElement(Arr(iPath(j,i-1),2))
       ENDDO
    ENDDO
+   tLogged=.FALSE.
    E1=Hij(0,0)
    E1=E1-Fi(1)
    CALL CalcVij(Hij,V,Fi,E1,iV)
@@ -59,16 +57,16 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
                              V(1,4)*V(4,3)*V(3,2)*V(2,1))  &
                            /((Fi(1)-Fi(2))*(Fi(1)-Fi(3))*(Fi(1)-Fi(4)))
 
-
       END SELECT
       E=MPE
       MPEs(iOrder)=MPEs(iOrder)+E
-      IF(TLOG) THEN
-!         CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+      IF(TLOG.AND. ABS(E%v) .GT. 1.D-9) THEN
+         IF(iOrder.EQ.2) CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
          WRITE(13,"(G,$)") E
+         tLogged=.TRUE.
       ENDIF
    ENDDO
-   IF(TLOG) WRITE(13,*)
+   IF(tLogged) WRITE(13,*)
    RETURN
 END
 
@@ -149,8 +147,9 @@ END
          ENDDO
          CONTR=DCONJG(HIJS(1)%v)*HIJS(1)%v/DENOM
          IF(TLOG.AND.CONTR.GT.1.D-9) THEN
-            CALL WRITEPATHEX(13,IPATH,2,NEL,.FALSE.)
-            WRITE(13,*) HIJS(1),DENOM,CONTR
+            CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
+            WRITE(13,"G,$") -CONTR
+            WRITE(13,*) HIJS(1),DENOM
          ENDIF
          MP2E=MP2E-CONTR
          RETURN
