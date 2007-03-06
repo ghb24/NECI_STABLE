@@ -8,8 +8,9 @@
       TYPE(HElement) UMAT2D(NSTATES,NSTATES)
       POINTER (IP_UMAT2D,UMAT2D)
       LOGICAL TUMAT2D,TTRANSGTID,TTRANSFINDX
-      POINTER (IP_TRANSTABLE,TRANSTABLE)
-      INTEGER TRANSTABLE(NSTATES)
+      POINTER (IP_TransTable,TransTable)
+      POINTER (IP_InvTransTable,InvTransTable)
+      INTEGER TransTable(NSTATES),InvTransTable(NSTATES)
 !.. UMATCACHEFLAG=0 is normal operation
 !.. UMATCACHEFLAG=1 means cache from bottom up
 !..      This is useful when lots of sequential pieces of data
@@ -23,5 +24,5 @@
          Pointer (IP_DFInts,DFInts)
       COMMON /UMATCACHE/ NSLOTS,NPAIRS,IP_UMATCACHE,IP_UMATLABELS,      &
      &   NSTATES,NSLOTSINIT,UMATCACHEFLAG,NHITS,NMISSES,IP_UMAT2D,      &
-     &   TUMAT2D,IP_TRANSTABLE,nAuxBasis, nBasisPairs,IP_DFCoeffs,      &
-     &   IP_DFInts,NTYPES,TTRANSGTID,TTRANSFINDX
+     &   TUMAT2D,IP_TransTable,nAuxBasis, nBasisPairs,IP_DFCoeffs,      &
+     &   IP_DFInts,NTYPES,TTRANSGTID,TTRANSFINDX,IP_InvTransTable

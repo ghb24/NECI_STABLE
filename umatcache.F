@@ -49,6 +49,7 @@
          INCLUDE 'umatcache.inc'
          INTEGER ISUB,ISUB2
          INTEGER UMatInd
+         LOGICAL HasKPoints
 !         CALL TISET(' GETUMATEL',ISUB)
 C.. IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 C.. Otherwise we just look it up in umat
@@ -108,6 +109,22 @@ C.. Check the symmetry of the 4-index integrals
                   RETURN
               ELSE
                
+!First check whether we can reduce a set of k-points to a simpler symmetry related one
+              If(HasKPoints()) THEN
+                IF(TTRANSFINDX) THEN
+                 I=TransTable(I)
+                 J=TransTable(J)
+                 K=TransTable(K)
+                 L=TransTable(L)
+                ENDIF
+!                CALL GetKPInd(I,J,K,L)
+                IF(TTRANSFINDX) THEN
+                 I=InvTransTable(I)
+                 J=InvTransTable(J)
+                 K=InvTransTable(K)
+                 L=InvTransTable(L)
+                ENDIF
+               ENDIF
 C..  This will rearrange I,J,K,L into the correct order
 C.. (i,k)<=(j,l) and i<=k, j<=l.
                IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B,
@@ -192,6 +209,16 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
 !         CALL TIHALT(' GETUMATEL',ISUB)
       END
 
+      logical function HasKPoints()
+         IMPLICIT NONE
+         include 'cpmddata.inc'
+         INTEGER I,J,K,L
+         IF(NKPS.GT.1) THEN
+            HasKPoints=.TRUE.
+         ELSE
+            HasKPoints=.FALSE.
+         ENDIF
+      end
 
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
          USE HElement
@@ -272,8 +299,8 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          IMPLICIT NONE
          INCLUDE 'umatcache.inc'
          INTEGER TRANS(NSTATES)
-         CALL MEMORY(IP_TRANSTABLE,NSTATES,'TRANSTABLE')
-         CALL ICOPY(NSTATES,TRANS,1,TRANSTABLE,1)
+         CALL MEMORY(IP_TransTable,NSTATES,'TransTable')
+         CALL ICOPY(NSTATES,TRANS,1,TransTable,1)
          TTRANSGTID=.TRUE.
       END
  
@@ -282,15 +309,25 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          IMPLICIT NONE
          INTEGER nNew,nOld,I
          INTEGER OldNew(*)
+         LOGICAL tDiff
          INCLUDE 'umatcache.inc'
-         CALL MEMORY(IP_TRANSTABLE,nNew/2,'TRANSTABLE')
+         CALL MEMORY(IP_TransTable,nNew/2,'TransTable')
+         CALL MEMORY(IP_InvTransTable,nOld/2,'InvTransTable')
+         CALL IAZZERO(InvTransTable, nOld/2)
+         tDiff=.FALSE.
          DO I=2,nOld,2
-            IF(OldNew(I).NE.0) TransTable(OldNew(I)/2)=I/2
+            IF(OldNew(I).NE.0) THEN
+               TransTable(OldNew(I)/2)=I/2
+               InvTransTable(I/2)=OldNew(I)/2
+               IF(OldNew(I)/2.NE.I/2) tDiff=.TRUE.
+            ENDIF
          ENDDO
-         Write(6,*) "New->Old State Translation Table"
-         DO I=1,nNew/2
-            WRITE(6,*) I,TransTable(I)
-         ENDDO
+         IF(tDiff) THEN
+            Write(6,*) "New->Old State Translation Table"
+            DO I=1,nNew/2
+               WRITE(6,*) I,TransTable(I)
+            ENDDO
+         ENDIF
          TTRANSFINDX=.TRUE.
       END
       SUBROUTINE DESTROYUMATCACHE
@@ -307,6 +344,10 @@ c        NSLOTS=MIN(NPAIRS, 1024)
             IF(IP_TRANSTABLE.NE.0) THEN
                CALL FREEM(IP_TRANSTABLE)
                IP_TRANSTABLE=0
+            ENDIF
+            IF(IP_InvTRANSTABLE.NE.0) THEN
+               CALL FREEM(IP_InvTRANSTABLE)
+               IP_InvTRANSTABLE=0
             ENDIF
             WRITE(6,*) "UMAT Cache Statistics"
             WRITE(6,*) NHITS, " hits"
