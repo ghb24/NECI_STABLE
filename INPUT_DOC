@@ -90,7 +90,7 @@ ENDSYS
     End system block.
 
 PRECALC
-    Start Precalculation block.  This chooses which weighting parameters to use in the main calculation block, in order to give minimum MC variance.  This is an optional input block, and is not required if the default parameters want to be used, or for them to be specified explicitly in the CALC input block.  Currently, (28/2/07), only the IMPORTANCE parameter, and the C EXCITWEIGHTING parameter can be optimised and parsed through the the main program.
+    Start Precalculation block.  This chooses which weighting parameters to use in the main calculation block, in order to give minimum MC variance.  This is an optional input block, and is not required if the default parameters want to be used, or for them to be specified explicitly in the CALC input block.  Currently, (28/2/07), only the IMPORTANCE parameter, and the C EXCITWEIGHTING parameter can be optimised and parsed through the the main program. Now, (06/3/07), the a & b optimal parameters are searched for simultaneously.
 
 VERTEX <HDIAG/RHODIAG> <SUM/MC>
     Similar to the methods section in the CALC block, this specifies a vertex level (from a vertex level of two), and the method that is to be used in searching for the best parameters, using the hamiltonian matrix diagonaltisation (HDIAG) or the RHO matrix diagonalisation (RHODIAG). After this is specified, on the same line, whether to calculate the expected variance from the full sum at this vertex level (SUM), or a Monte Carlo sum (MC) should also be specified.  Currently, (28/2/07), only the HDIAG routine, with the full sum expected variance is working with the PRECALC block, e.g.
