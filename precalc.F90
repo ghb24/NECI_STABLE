@@ -40,7 +40,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
          WRITE(6,"(A,I2,A)") "For a vertex level of", Q, ", PRECALC finds:"
          
         !IF NOTHING SPECIFIED
-        IF (PRE_TAYLOG(1,Q).and.PRE_TAYLOG(2,Q).and.PRE_TAYLOG(3,Q).and.PRE_TAYLOG(4,Q).and.            &
+        IF ((.not.PRE_TAYLOG(1,Q)).and.(.not.PRE_TAYLOG(2,Q)).and.(.not.PRE_TAYLOG(3,Q)).and.(.not.PRE_TAYLOG(4,Q)).and.            &
      &      (PRE_TAYREAL(1,Q).eq.0.D0).and.(PRE_TAY(3,Q).ne.0)) THEN
             NOTHING=.TRUE.
         ENDIF
