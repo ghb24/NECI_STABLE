@@ -171,13 +171,12 @@ C                  WRITE(6,*) A,B
               ENDIF
              ENDIF
            ENDIF
+          ELSEIF(ISS.EQ.-1) THEN
+!  A  non-stored hubbard integral.
+          CALL GetHubUMatEl(IDI,IDJ,IDK,IDL,UMat,nBasisMax,G1,GetUMatEl)
           ELSE
-!         CALL TIHALT(' GETUMATEL',ISUB)
-!         CALL TISET('GETUMATEL2',ISUB2)
              GETUMATEL=UMAT(UMatInd(IDI,IDJ,IDK,IDL))
-!         CALL TIHALT('GETUMATEL2',ISUB2)
           ENDIF
-!          CALL TIHALT(' GETUMATEL',ISUB)
          ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
             I=(IDI-1)*ISS+1
             J=(IDJ-1)*ISS+1

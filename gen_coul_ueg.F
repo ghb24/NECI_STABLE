@@ -18,6 +18,7 @@ C..Cube arrays
       INTEGER ISUB,II,ISPINSKIP
       REAL*8 SUMS(3),SUM
       INTEGER I,J,K,L,ID1,ID2,ID3,ID4
+      INTEGER UMatInd
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
@@ -34,9 +35,9 @@ C ==--------------------------------------------------------------------==
       LL(2)=NBASISMAX(2,2)-NBASISMAX(2,1)+1
       LL(3)=NBASISMAX(3,2)-NBASISMAX(3,1)+1
       DO I=1,NHG,ISPINSKIP
-        DO J=1,NHG,ISPINSKIP
-          DO K=1,NHG,ISPINSKIP
-            DO L=1,NHG,ISPINSKIP
+        DO J=I,NHG,ISPINSKIP
+          DO K=1,I,ISPINSKIP
+            DO L=1,J,ISPINSKIP
               SUM=1.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
@@ -45,7 +46,6 @@ C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
               CALL GTID(NBASISMAX,L,ID4)
-              IF(UMAT(ID1,ID2,ID3,ID4).NE.0.D0) GOTO 1000
               SUM=UHUB
               DO A=1,3
                 SUMS(A)=0.D0
@@ -62,15 +62,12 @@ C     &                          *SIN(B*PI*G1(A,L)/(LL(A)+1))
                 SUM=SUM*SUMS(A)*(2.D0/(LL(A)+1))**2
               ENDDO
 
-C..Original call
-              UMAT(ID1,ID2,ID3,ID4)=SUM
-C..Symmetries
-              UMAT(ID3,ID4,ID1,ID2)=SUM
-              UMAT(ID2,ID1,ID4,ID3)=SUM
-              UMAT(ID4,ID3,ID2,ID1)=SUM
-              IF(ABS(SUM).LE.1.D-10) GOTO 1000 
-              WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
-1000           CONTINUE
+C.. UMAT is stored as just spatial orbitals (not spinorbitals)
+C..   we store <IJ|KL>  (
+! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>=K, J>=L,(I,K)>=(J,L)
+              UMAT(UMatInd(ID1,ID2,ID3,ID4))=SUM
+              IF(ABS(SUM).GT.1.D-10)
+     &            WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
             ENDDO
           ENDDO
         ENDDO
@@ -106,6 +103,7 @@ C..Cube arrays
       REAL*8 LX,LY,P,Q,R,T2
       REAL*8 ALAT(3)
       COMPLEX*16 S,CI
+      INTEGER UMatInd
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
@@ -119,9 +117,9 @@ C ==--------------------------------------------------------------------==
       II=0
       ISPINSKIP=NBASISMAX(2,3)
       DO I=1,NHG,ISPINSKIP
-        DO J=1,NHG,ISPINSKIP
-          DO K=1,NHG,ISPINSKIP
-            DO L=1,NHG,ISPINSKIP
+        DO J=I,NHG,ISPINSKIP
+          DO K=1,I,ISPINSKIP
+            DO L=1,J,ISPINSKIP
               SUM=0.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
@@ -130,7 +128,6 @@ C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
               CALL GTID(NBASISMAX,L,ID4)
-              IF(UMAT(ID1,ID2,ID3,ID4).NE.0.D0) GOTO 100
               IF(THUB) THEN
                  CALL SETUPSYM(NBASISMAX,KA)
                  CALL SETUPSYM(NBASISMAX,KB)
@@ -215,15 +212,12 @@ C                 CALL SLATCOULFOUCOU(G1(1,I),G1(1,J),
 C     &            G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
 C                 ENDIF
                ENDIF
-C..Original call
-              UMAT(ID1,ID2,ID3,ID4)=SUM
-C..Symmetries
-              UMAT(ID3,ID4,ID1,ID2)=SUM
-              UMAT(ID2,ID1,ID4,ID3)=SUM
-              UMAT(ID4,ID3,ID2,ID1)=SUM
-              IF(SUM.LE.1.D-10) GOTO 100 
-              WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
-100           CONTINUE
+C.. UMAT is stored as just spatial orbitals (not spinorbitals)
+C..   we store <IJ|KL>  (
+! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>=K, J>=L,(I,K)>=(J,L)
+              UMAT(UMatInd(ID1,ID2,ID3,ID4))=SUM
+              IF(ABS(SUM).GT.1.D-10)
+     &            WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
             ENDDO
           ENDDO
         ENDDO
@@ -329,3 +323,28 @@ C.. we have a tilted lattice
          RETURN
       END
  
+      SUBROUTINE GetHubUMatEl(I,J,K,L,UMAT,NBASISMAX,G1,SUM)
+         IMPLICIT NONE
+         INCLUDE 'basis.inc'
+         TYPE(BASISFN) G1(*)
+         INTEGER NBASISMAX(5,5)
+C..Cube arrays
+         LOGICAL CHKMOMEQ,LCHKSYM
+      INTEGER KA(4),KB(4)
+         INTEGER I,J,K,L
+         REAL*8 SUM,UMAT
+                 CALL SETUPSYM(NBASISMAX,KA)
+                 CALL SETUPSYM(NBASISMAX,KB)
+                 CALL ADDELECSYM(K*2,G1,NBASISMAX,KA)
+                 CALL ADDELECSYM(L*2,G1,NBASISMAX,KA)
+                 CALL ADDELECSYM(I*2,G1,NBASISMAX,KB)
+                 CALL ADDELECSYM(J*2,G1,NBASISMAX,KB)
+                 CALL ROUNDSYM(KA,NBASISMAX)
+                 CALL ROUNDSYM(KB,NBASISMAX)
+                 IF(LCHKSYM(KA,KB)) THEN
+                    SUM=UMAT
+                 ELSE
+                    SUM=0.D0
+                 ENDIF
+      RETURN
+      END

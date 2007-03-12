@@ -418,6 +418,7 @@ C..These are the quantum numbers: n,l,m and sigma
                     G1(IG)%K(2)=J
                     G1(IG)%K(3)=K
                     G1(IG)%MS=L
+                    G1(IG)%Sym%s=1
                   ENDIF
                ENDDO
              ENDDO
@@ -542,6 +543,7 @@ C..Need to initialise the Fourier arrays
             CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
             CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
 C..
+            CALL MEMORY_CHECK()
             IF(NMAXZ.EQ.0) THEN
 C..   We're doing a 2D simulation
                CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ZIA,ALAT,TALPHA,
@@ -550,6 +552,7 @@ C..   We're doing a 2D simulation
                CALL INITFOU(NMSH,FCK,COEFF,NMAX,ZIA,ALAT,TALPHA,
      &            ALPHA,OMEGA)
             ENDIF
+            CALL MEMORY_CHECK()
             ISPINSKIP=NBASISMAX(2,3)
             IF(NBASISMAX(1,3).GE.0) THEN
 C.. we pre-compute the 2-e integrals
@@ -571,8 +574,13 @@ C.. Non-periodic hubbard (mom space)
                   ELSE
 C.. Most normal Hubbards
                      IF(.NOT.TUEG) THEN
-                        CALL GEN_COUL_UEG(NEL,NBASISMAX,NHG,G1,
-     &          NMSH,NMAX,FCK,ZIA,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
+!                        CALL GEN_COUL_UEG(NEL,NBASISMAX,NHG,G1,
+!     &          NMSH,NMAX,FCK,ZIA,UMAT,ISPINSKIP,THUB,UHUB,OMEGA,ALAT)
+                        ISPINSKIP=-1
+                        NBASISMAX(2,3)=-1
+                     WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
+                        CALL MEMORY(IP_UMAT,1,'UMAT')
+                        UMAT(1)=UHUB/OMEGA
                      ENDIF
 C.. The UEG doesn't store coul integrals
                   ENDIF
