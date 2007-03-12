@@ -17,7 +17,7 @@
          POINTER (IP_SYMREPS,SYMREPS)
 !.. SymClasses is used to classify all states which transform with the same symmetry
 !.. for the excitation generation routines
-!.. Each state's symmetry falls into a class SymClasses(ISTATE).
+!.. Each state's symmetry falls into a class ISYMLABEL=SymClasses(ISTATE).
 !.. The symmetry bit string, decomposing the sym label into its component irreps is in 
 !.. SYMLABELS(ISYMLABEL)
 !.. The characters of this class are stored in SYMLABELCHARS(1:NROT, SymClasses(ISTATE))

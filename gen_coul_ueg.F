@@ -326,11 +326,10 @@ C.. we have a tilted lattice
       SUBROUTINE GetHubUMatEl(I,J,K,L,UMAT,NBASISMAX,G1,SUM)
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         TYPE(BASISFN) G1(*)
+         TYPE(BASISFN) G1(*),KA,KB
          INTEGER NBASISMAX(5,5)
 C..Cube arrays
          LOGICAL CHKMOMEQ,LCHKSYM
-      INTEGER KA(4),KB(4)
          INTEGER I,J,K,L
          REAL*8 SUM,UMAT
                  CALL SETUPSYM(NBASISMAX,KA)

@@ -455,6 +455,10 @@ C.. we're reading in integrals and have a molpro symmetry table
 C.. If TCPMD, then we've generated the symmetry table earlier,
 C.. but we still need the sym reps table
          CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
+      ELSEIF(THUB.AND..NOT.TREAL) THEN
+         CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         CALL GENHUBSYMREPS(nBasis/2,G1,NBASIS,ARR,BRR)
+         CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
       ELSE
 C.. no symmetry, so a simple sym table
          CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 

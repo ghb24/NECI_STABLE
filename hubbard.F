@@ -251,3 +251,107 @@ C         LEN=NMAXX*NMAXY*2
 C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
       END
 
+!Generate the Sym table for a Hubbard Lattice
+      Subroutine GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         INTEGER nBasis,nBasisMax(*)
+         TYPE(BasisFN) G1(*)
+         INTEGER I,J,nSyms,K
+         TYPE(Symmetry) SYMT2(nBasis/2,nBasis/2)
+         TYPE(BasisFN) NQNS,S
+         POINTER (IP_SYMT2,SYMT2)
+         INTEGER iFindBasisFn
+         nSym=nBasis/2
+         WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",  &
+     &    nBasis/2 , " generators for Hubbard momentum" 
+
+C.. Now generate a list of sym labels.
+         CALL MEMORY(IP_SYMLABELS,NSYM*SymmetrySize,"SYMLABELS")
+         CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
+         NSYMLABELS=NSYM
+         nSyms=1
+         DO I=1,NBASIS/2
+C.. place the sym label of each state in SymClasses(ISTATE).
+            IF(ALL(G1(I*2)%k.EQ.0)) THEN
+               SymClasses(I)=1
+               NQNS=G1(I*2)
+            ELSE
+               nSyms=nSyms+1
+               SymClasses(I)=nSyms
+            ENDIF
+C.. list the symmetry string of each sym label
+            SymLabels(I)%s=2**(I-1)
+         ENDDO
+C.. Setup the symmetry product table
+         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
+         IP_SYMT2=IP_SYMTABLE
+         CALL MEMORY(IP_SymConjTab,NSYM,'SymConjTab')
+         CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
+         DO I=1,nBasis/2
+            NQNS%k=-G1(I*2)%k
+            CALL RoundSym(NQNS,nBasisMax)
+            J=iFindBasisFn(NQNS,G1,nBasis)
+            IF(J.EQ.0) THEN 
+               WRITE(6,*) "Cannot Find symmetry conjugate to basis fn ",
+     &            I*2
+               STOP "Cannot find symmetry conjugate."
+            ENDIF
+            SymConjTab(SymClasses(I))=SymClasses(J/2)
+            DO J=1,nBasis/2
+               S=G1(I*2)
+               CALL AddElecSym(J*2,G1,nBasisMax,S)
+               CALL RoundSym(S,nBasisMax)
+               NQNs%k=S%k
+               K=iFindBasisFn(NQNS,G1,nBasis)
+               IF(K.EQ.0) THEN 
+                WRITE(6,*) "Cannot find symmetry product of basis fns ",
+     &               I*2, J*2
+                  STOP "Cannot find symmetry product."
+               ENDIF
+               SymT2(SymClasses(I),SymClasses(J))=
+     &            SymLabels(SymClasses(K/2))
+            ENDDO
+         ENDDO
+         DO I=1,nBasis/2
+            G1(I*2-1)%Sym=SymLabels(SymClasses(I))
+            G1(I*2)%Sym=SymLabels(SymClasses(I))
+         ENDDO
+         WRITE(6,*) "Symmetry, Symmetry Conjugate"
+         DO I=1,NSYM
+            WRITE(6,*) I,SymConjTab(I)
+         ENDDO
+      End
+
+!Hubbard Sym Reps are different from normal ones.  In hubbard, we have split degenerate sets into 1D subcomponents,
+!  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
+!  not just one of the subcomponents
+      SUBROUTINE GENHUBSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
+         IMPLICIT NONE
+         INCLUDE 'sym.inc'
+         INTEGER NSYMMAX
+         INTEGER I,J
+         TYPE(BasisFN) G1(NBASIS)
+         INTEGER NBASIS,BRR(NBASIS)
+         REAL*8 ARR(NBASIS)
+         
+C.. now work out which reps are degenerate and label them
+         CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
+         J=0
+         
+         DO I=1,NBASIS
+            IF(I.GT.1.AND.ABS(ARR(I)-ARR(I-1)).LT.1.D-5) THEN
+C.. we have the same degenerate rep as the previous entry
+               SYMREPS(2,J)=SYMREPS(2,J)+1
+            ELSE
+C.. we have a new rep
+               J=J+1
+               SYMREPS(2,J)=1
+            ENDIF
+            SYMREPS(1,BRR(I))=J
+         ENDDO
+         DO I=1,NBASIS
+            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
+         ENDDO
+      END
+

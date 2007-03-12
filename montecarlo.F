@@ -681,15 +681,17 @@ C.. if we've more electrons to change, we go round again
       END
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NQNS(5),NBASIS
+         INTEGER NBASIS
          INCLUDE 'basis.inc'
-         TYPE(BasisFN) G1(NBASIS)
+         TYPE(BasisFN) G1(NBASIS),NQNS
          LOGICAL L
          DO I=1,NBASIS
             L=.TRUE.
-            DO J=1,5
-               IF(G1(I)%k(J).NE.NQNS(J)) L=.FALSE.
+            DO J=1,3
+               IF(G1(I)%k(J).NE.NQNS%k(J)) L=.FALSE.
             ENDDO
+            IF(G1(I)%Sym%s.NE.NQNS%Sym%s) L=.FALSE.
+            IF(G1(I)%Ms.NE.NQNS%Ms) L=.FALSE.
             IF(L) THEN
                IFINDBASISFN=I
                RETURN

@@ -170,8 +170,8 @@ C.. now work out which reps are degenerate and label them
          CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
          J=0
          DO I=1,NBASIS
-            IF(I.GT.1.AND.ARR(I).EQ.ARR(I-1)
-     &         .AND.G1(BRR(I))%Sym%s.EQ.G1(BRR(I-1))%Sym%s) THEN
+            IF(I.GT.1.AND.(ABS(ARR(I)-ARR(I-1)).LT.1.D-5
+     &         .AND.G1(BRR(I))%Sym%s.EQ.G1(BRR(I-1))%Sym%s)) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1
             ELSE
@@ -179,7 +179,7 @@ C.. we have a new rep
                J=J+1
                SYMREPS(2,J)=1
             ENDIF
-            SYMREPS(1,I)=J
+            SYMREPS(1,BRR(I))=J
          ENDDO
       END
 
@@ -359,6 +359,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          DO I=1,NEL
 C.. Count all electrons in each rep
 C.. NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
+
             J=1
             DO WHILE(NREPS(J).NE.0.AND.J.LT.NEL)
                IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
