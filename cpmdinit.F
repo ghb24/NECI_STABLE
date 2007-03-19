@@ -276,12 +276,11 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          IF(TORDER) THEN
 C.. We have to cache all states, as we don't, as yet, know which ones we're going to freeze because we have to reorder.
             NSTATESUSED=NSTATES
-C.. We allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
-            CALL SETUPUMATCACHE(NSTATESUSED,.TRUE.)
          ELSE
             NSTATESUSED=NORBUSED/2
-            CALL SETUPUMATCACHE(NSTATESUSED,.FALSE.)
          ENDIF
+C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
+         CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
          CALL MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
