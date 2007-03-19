@@ -252,7 +252,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
             NPAIRS=NSTATES*(NSTATES+1)/2
 c        NSLOTS=MIN(NPAIRS, 1024)
             IF(TSMALL) THEN
-               NSLOTS=MIN(NSTATES, NSLOTSINIT)
+               NSLOTS=NSTATES
             ELSE
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
             ENDIF
