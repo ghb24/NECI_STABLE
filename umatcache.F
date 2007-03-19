@@ -233,10 +233,12 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
       RETURN
       END
 
-      SUBROUTINE SETUPUMATCACHE(NSTATE)
+!  TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals
+      SUBROUTINE SETUPUMATCACHE(NSTATE,TSMALL)
          USE HElement
          IMPLICIT NONE
          INTEGER NSTATE
+         LOGICAL TSMALL
          INCLUDE 'umatcache.inc'
          INCLUDE 'irat.inc'
          NTYPES=HElementSize
@@ -249,7 +251,11 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
             NSTATES=NSTATE
             NPAIRS=NSTATES*(NSTATES+1)/2
 c        NSLOTS=MIN(NPAIRS, 1024)
-            NSLOTS=MIN(NPAIRS, NSLOTSINIT)
+            IF(TSMALL) THEN
+               NSLOTS=MIN(NSTATES, NSLOTSINIT)
+            ELSE
+               NSLOTS=MIN(NPAIRS, NSLOTSINIT)
+            ENDIF
             UMATCACHEFLAG=0
             WRITE(6,"(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT",
      &         NTYPES,NSLOTS,NPAIRS,NSLOTS*NPAIRS*NTYPES
@@ -731,7 +737,7 @@ C            ENDIF
          IP_UMatCache=0
          IP_UMatLabels=0
 !Now reinitialize the cache.
-         CALL SetupUMatCache(nNew/2)
+         CALL SetupUMatCache(nNew/2,.FALSE.)
          TUMAT2D=.TRUE.
          CALL SetUMatcacheFlag(1)
          DO i=1,nOld/2

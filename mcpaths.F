@@ -94,7 +94,7 @@ C.. go to end of file
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
-            OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
+            IF(TMPTHEORY) OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
          ENDIF
          IF(BTEST(ILOGGING,9))
      &      OPEN(12,FILE="VERTEXMC",STATUS="UNKNOWN")
@@ -313,10 +313,10 @@ C.. save all log files
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,0)) THEN
             CLOSE(10)
-            CLOSE(13)
+            IF(TMPTHEORY) CLOSE(13)
          ENDIF
          IF(BTEST(ILOGGING,9)) CLOSE(12)
-         IF(MP2E(2).AGE.0.D0) THEN
+         IF(TMPTHEORY.AND.(MP2E(2).AGE.0.D0)) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
@@ -466,7 +466,7 @@ C.. go to end of file
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
             OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
-            OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
+            IF(TMPTHEORY) OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
          ENDIF
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
@@ -560,7 +560,7 @@ C.. save all log files
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,0)) THEN
             CLOSE(10)
-            CLOSE(13)
+            IF(TMPTHEORY) CLOSE(13)
          ENDIF
          WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
@@ -569,7 +569,7 @@ C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
          DLWDB=DLWDB/TOTAL
          TOTAL=HIJS(0)
-         IF(MP2E(2).AGE.0.D0) THEN
+         IF(TMPTHEORY.AND.(MP2E(2).AGE.0.D0)) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)

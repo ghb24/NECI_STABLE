@@ -63,7 +63,12 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          enddo
          call leave_record_handler(C_file,info)
          call leave_record_handler(I_file,info)
-         call SetupUMatCache(nOrbUsed/2)
+         IF(nBasis.NE.nOrbUsed) THEN
+! We allocate a small preliminary cache before freezing.
+            call SetupUMatCache(nOrbUsed/2,.TRUE.)
+         ELSE
+            call SetupUMatCache(nOrbUsed/2,.FALSE.)
+         ENDIF
          call SetupUMat2D_df
       END
       
