@@ -8,6 +8,8 @@
       TYPE(HElement) UMAT2D(NSTATES,NSTATES)
       POINTER (IP_UMAT2D,UMAT2D)
       LOGICAL TUMAT2D,TTRANSGTID,TTRANSFINDX
+!tSmallUMat is set if we have nStates slots per pair for storing the <ik|jk> integrals.
+      LOGICAL tSmallUMat
       POINTER (IP_TransTable,TransTable)
       POINTER (IP_InvTransTable,InvTransTable)
       INTEGER TransTable(NSTATES),InvTransTable(NSTATES)
@@ -25,4 +27,5 @@
       COMMON /UMATCACHE/ NSLOTS,NPAIRS,IP_UMATCACHE,IP_UMATLABELS,      &
      &   NSTATES,NSLOTSINIT,UMATCACHEFLAG,NHITS,NMISSES,IP_UMAT2D,      &
      &   TUMAT2D,IP_TransTable,nAuxBasis, nBasisPairs,IP_DFCoeffs,      &
-     &   IP_DFInts,NTYPES,TTRANSGTID,TTRANSFINDX,IP_InvTransTable
+     &   IP_DFInts,NTYPES,TTRANSGTID,TTRANSFINDX,IP_InvTransTable,      &
+     &   tSmallUmat

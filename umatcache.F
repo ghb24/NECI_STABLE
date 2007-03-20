@@ -253,8 +253,11 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
 c        NSLOTS=MIN(NPAIRS, 1024)
             IF(TSMALL) THEN
                NSLOTS=NSTATES
+               tSmallUMat=.TRUE.
+               WRITE(6,*) "Using small pre-freezing UMat Cache."
             ELSE
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
+               tSmallUMat=.FALSE.
             ENDIF
             UMATCACHEFLAG=0
             WRITE(6,"(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT",
@@ -370,7 +373,7 @@ c        NSLOTS=MIN(NPAIRS, 1024)
          SELECT CASE(UMATCACHEFLAG)
          CASE(1)
 !  We were in direct cache mode where values were distributed correctly throughout the cache.
-            IF(NEWFLAG.EQ.0) THEN
+            IF(NEWFLAG.EQ.0.AND..NOT.tSmallUMat) THEN
 !  We need to fill the cache properly with values
                CALL FILLUPCACHE()
             ENDIF
@@ -441,30 +444,56 @@ C.. ICACHEI is the index in that cache where the cache should be located.
             RETURN
          ENDIF
 C.. First ensure the indices are in the correct order
-         ITYPE=0
-         ISTAR=0
-         ISWAP=0
-         IF(IDK.LT.IDI) THEN
-            CALL SWAP(IDI,IDK)
-            ISTAR=IOR(ISTAR,1)
-         ENDIF
-         IF(IDL.LT.IDJ) THEN
-            CALL SWAP(IDJ,IDL)
-            ISTAR=IOR(ISTAR,2)
-         ENDIF
-         CALL GETCACHEINDEX(IDI,IDK,NSTATES,A)
-         CALL GETCACHEINDEX(IDJ,IDL,NSTATES,B)
-!         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
-         IF(A.GT.B) THEN
-            CALL SWAP(A,B)
-            CALL SWAP(IDI,IDJ)
-            CALL SWAP(IDK,IDL)
-            ISWAP=1
-         ENDIF
-         IF(HElementSize.EQ.1) THEN
-!  Eight integrals from ijkl are the same.
+         IF(tSmallUMat) THEN
+!tSmallUMat is set if we have nStates slots per pair for storing the <ik|jk> integrals.
             ITYPE=0
+            IF(IDI.EQ.IDK) THEN
+               B=IDI
+               IF(IDL.LT.IDJ) THEN
+                  CALL SWAP(IDJ,IDL)
+                  ITYPE=2
+               ENDIF
+               CALL GETCACHEINDEX(IDJ,IDL,NSTATES,A)
+            ELSEIF(IDJ.EQ.IDL) THEN
+               B=IDJ
+               IF(IDK.LT.IDI) THEN
+                  CALL SWAP(IDI,IDK)
+                  ITYPE=2
+               ENDIF
+               CALL GETCACHEINDEX(IDI,IDK,NSTATES,A)
+            ELSE !Can't find a pair the same
+!We don't have a cache for this type of element so signal failure.
+               GETCACHEDUMATEL=.TRUE.
+               ICACHE=0
+               ITYPE=0
+               RETURN
+            ENDIF
          ELSE
+!Otherwise Normal caching
+            ITYPE=0
+            ISTAR=0
+            ISWAP=0
+            IF(IDK.LT.IDI) THEN
+               CALL SWAP(IDI,IDK)
+               ISTAR=IOR(ISTAR,1)
+            ENDIF
+            IF(IDL.LT.IDJ) THEN
+               CALL SWAP(IDJ,IDL)
+               ISTAR=IOR(ISTAR,2)
+            ENDIF
+            CALL GETCACHEINDEX(IDI,IDK,NSTATES,A)
+            CALL GETCACHEINDEX(IDJ,IDL,NSTATES,B)
+!         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
+            IF(A.GT.B) THEN
+               CALL SWAP(A,B)
+               CALL SWAP(IDI,IDJ)
+               CALL SWAP(IDK,IDL)
+               ISWAP=1
+            ENDIF
+            IF(HElementSize.EQ.1) THEN
+!  Eight integrals from ijkl are the same.
+               ITYPE=0
+            ELSE
 !  Complex orbitals and integrals, so we need to consider different types
 !  Using notation abcd rather than ijkl.  6/2/07 and 19/2/06
 !  abcd   -> badc <>
@@ -472,24 +501,25 @@ C.. First ensure the indices are in the correct order
 !         -> bcda *.<>
 !->adcb .*-> dabc .*<>
 
-            IF(ISTAR.EQ.1) THEN
+               IF(ISTAR.EQ.1) THEN
 !  If we star the first pair, that corresponds to the plain TYPE 1
-               ITYPE=1
-            ELSEIF(ISTAR.EQ.2) THEN
+                  ITYPE=1
+               ELSEIF(ISTAR.EQ.2) THEN
 !  If we star the second pair, that corresponds to TYPE 1.
 !  If there's no swap, it's starred, otherwise it's not starred.
-               IF(ISWAP.EQ.0) THEN
-                  ITYPE=3
-               ELSE
-                  ITYPE=1
-               ENDIF
-            ELSEIF(ISTAR.EQ.3) THEN
+                  IF(ISWAP.EQ.0) THEN
+                     ITYPE=3
+                  ELSE
+                     ITYPE=1
+                  ENDIF
+               ELSEIF(ISTAR.EQ.3) THEN
 !  We complex conjg if we've swapped within each of the pairs, setting bit 1 if ISTAR=2 (ISTAR!=1)
-               ITYPE=2
+                  ITYPE=2
+               ENDIF
             ENDIF
          ENDIF
          ICACHE=A
-         IF(NSLOTS.EQ.NPAIRS) THEN
+         IF(NSLOTS.EQ.NPAIRS.OR.tSmallUMat) THEN
 C.. we've a small enough system to store everything.
             ICACHEI=B
          ELSE
@@ -643,6 +673,13 @@ C.. return I<=J
          RETURN
       END
 
+      REAL*8  FUNCTION WR
+         USE HElement
+         INCLUDE 'umatcache.inc'
+         WRITE(70,*) UMatCache(0,2,7)
+         CALL FLUSH(70)
+         WR=sq(UMatCache(0,2,7))
+      END
 C..   Set an element in the cache.  All the work has been done for us before
 C.. as the element we have to set is in (ICACHEI,ICACHE)
 C.. We still need to fill out the space before or after  us if we've been put in the 
@@ -653,13 +690,15 @@ C.. middle of a block of duplicates
          INTEGER A,B,ICACHE,ICACHEI
          TYPE(HElement) UMATEL(0:NTYPES-1)
          INCLUDE 'umatcache.inc'      
-         INTEGER OLAB,IC1
-!         WRITE(69,*) "CACHE",A,B,UMATEL,ICACHE,ICACHEI
-         IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1) THEN
+         INTEGER OLAB,IC1,I,J,ITOTAL
+         SAVE ITOTAL
+         DATA ITOTAL /0/
+!         WRITE(69,*) NSLOTS,A,B,UMATEL,ICACHE,ICACHEI
+         IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1.OR.tSmallUMat) THEN
 C.. small system.  only store a single element
             UMATLABELS(ICACHEI,ICACHE)=B
             UMATCACHE(:,ICACHEI,ICACHE)=UMATEL
-!            WRITE(6,*),
+            ITOTAL=ITOTAL+1
             RETURN
          ENDIF
          IC1=ICACHEI
@@ -702,18 +741,35 @@ C            ENDIF
       SUBROUTINE FreezeUMatCache(OrbTrans,nOld,nNew)
          USE HElement
          IMPLICIT NONE
+         INCLUDE 'umatcache.inc'
+         INTEGER nOld,nNew,OrbTrans(nOld)
+         INTEGER onSlots,onPairs
+         INTEGER I,J
+         onSlots=nSlots
+         onPairs=nPairs
+         DO J=1,nPairs
+         DO I=1,nSlots
+            WRITE(70,*) I,J,UMatLabels(I,J),UMatCache(0,I,J)
+         ENDDo
+         ENDDO
+         CALL FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
+      END
+      SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
+         USE HElement
+         IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          INCLUDE 'umatcache.inc'
          TYPE(HElement) NUMat2D(nNew/2,nNew/2),El(0:nTypes-1)
          POINTER (IP_NUMat2D,NUMat2D)
          INTEGER i,j,k,l,m,n
          INTEGER ni,nj,nk,nl,nm,nn,A,B,iType
-         TYPE(HElement) OUMatCache(0:nTypes-1,nSlots,nPairs)
-         INTEGER OUMatLabels(nSlots,nPairs)
+         TYPE(HElement) OUMatCache(0:nTypes-1,onSlots,onPairs)
+         INTEGER OUMatLabels(onSlots,onPairs)
          
          POINTER (IP_OUmatCache,OUmatCache)
          POINTER (IP_OUmatLabels,OUmatLabels)
          INTEGER onSlots,onPairs
+         LOGICAL toSmallUMat
                   
          CALL MEMORY(IP_NUMat2D,HElementSize*(nNew/2)**2,'NUMat2D')
 ! /2 because UMat2D works in states, not in orbitals
@@ -730,10 +786,11 @@ C            ENDIF
          IP_UMat2D=IP_NUMat2D
 ! Now go through the other cache.
 ! First save the memory used for it.
-         onSlots=nSlots
-         onPairs=nPairs
+!         onSlots=nSlots
+!         onPairs=nPairs
          IP_OUMatCache=IP_UMatCache
          IP_OUMatLabels=IP_UMatLabels
+         toSmallUMat=tSmallUMat
          IP_UMatCache=0
          IP_UMatLabels=0
 !Now reinitialize the cache.
@@ -746,27 +803,33 @@ C            ENDIF
             IF(OrbTrans(k*2).NE.0) THEN
              CALL GetCacheIndex(i,k,nOld/2,m)
              DO n=1,onSlots
-              IF(n.EQ.1.OR.
-     &            (onSlots.EQ.onPairs.AND.OUMatLabels(n,m).NE.0)
-     &            .OR.(onSlots.NE.onPairs.AND.
-     &            OUMatLabels(n,m).NE.OUMatLabels(n-1,m))) THEN
+              IF((onSlots.EQ.onPairs.OR.toSmallUMat)
+     &            .OR.((onSlots.NE.onPairs).AND.((n.EQ.1).OR.
+     &            OUMatLabels(n,m).NE.OUMatLabels(n-1,m)))) THEN
+               IF(OUMatLabels(n,m).NE.0) THEN
                 ni=OrbTrans(i*2)/2
                 nk=OrbTrans(k*2)/2
+!Now get the label of the slot and convert to orbitals
                 IF(onSlots.EQ.onPairs) THEN
-                 CALL GetCacheIndexStates(n,nNew/2,j,l)
+                 CALL GetCacheIndexStates(n,nOld/2,j,l)
+                ELSEIF(toSmallUMat) THEN
+                  j=n
+                  l=n
                 ELSE
-                 CALL GetCacheIndexStates(OUMatLabels(n,m),nNew/2,j,l)
+                 CALL GetCacheIndexStates(OUMatLabels(n,m),nOld/2,j,l)
                 ENDIF
                 nj=OrbTrans(j*2)/2
                 nl=OrbTrans(l*2)/2
                 IF(nj.NE.0.AND.nl.NE.0) THEN
 !                  WRITE(6,"(A,4I5,A,2I5,$)") "NC",I,J,K,L,"L",m,n
                    CALL GetCachedUmatEl(ni,nj,nk,nl,El,nm,nn,A,B,iType)
-!                   WRITE(6,"(A,4I5,I5,$)") "->",NI,NJ,NK,NL,
-!     &   OUMatLabels(n,m)
+!                   WRITE(6,"(A,4I5,2I5,$)") "->",NI,NJ,NK,NL,
+!     &   A,B
+!OUMatLabels(n,m)
 !                   WRITE(6,*) OUMatCache(0,n,m)
                    CALL CacheUMatEl(A,B,OUMatCache(0,n,m),nm,nn)
                 ENDIF
+               ENDIF
               ENDIF
              ENDDO
             ENDIF
