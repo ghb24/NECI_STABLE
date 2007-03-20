@@ -145,7 +145,7 @@ END
                J=J+1
             ENDIF
          ENDDO
-         CONTR=DCONJG(HIJS(1)%v)*HIJS(1)%v/DENOM
+         CONTR=SQ(HIJS(1))/DENOM
          IF(TLOG.AND.CONTR.GT.1.D-9) THEN
             CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
             WRITE(13,"G,$") -CONTR
