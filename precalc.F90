@@ -14,7 +14,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      COMPLEX*16 FCK(*)
      REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM
      REAL*8 ax,bx,cx,minvar,xmin,originalc,originalimport
-     REAL*8 ZEROVAR,p(2),pl(2),ph(2),xi(2,2),originala,originalb
+     REAL*8 ZEROVAR,p(2),pl(2),ph(2),xi(2,2),originala,originalb,originald
      REAL*8 fret,MCPATHSPRE,fa,fb,fc
      REAL*8 originalpolyb1,originalpolyb2,originalpolya
      REAL*8 polyp(3),polyxi(3,3)
@@ -42,8 +42,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
          WRITE(6,"(A,I2,A)") "For a vertex level of", Q, ", PRECALC finds:"
          
         !IF NOTHING SPECIFIED
-        IF ((.not.PRE_TAYLOG(1,Q)).and.(.not.PRE_TAYLOG(2,Q)).and.(.not.PRE_TAYLOG(3,Q)).and.(.not.PRE_TAYLOG(4,Q)).and.            &
-     &      (PRE_TAYREAL(1,Q).eq.0.D0).and.(PRE_TAY(3,Q).ne.0)) THEN
+        IF ((.not.PRE_TAYLOG(1,Q)).and.(.not.PRE_TAYLOG(2,Q)).and.(.not.PRE_TAYLOG(3,Q)).and.(.not.PRE_TAYLOG(4,Q)).and.  &
+     &      (PRE_TAYREAL(1,Q).eq.0.D0).and.(PRE_TAY(3,Q).ne.0).and.(.not.PRE_TAYLOG(5,Q)).and.(.not.PRE_TAYLOG(6,Q))) THEN
             NOTHING=.TRUE.
         ENDIF
         
@@ -160,7 +160,43 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 
             ENDIF
         ENDIF
+        
+        !Looking for D Excitweighting parameter
+        IF (PRE_TAYLOG(5,Q).or.PRE_TAYLOG(6,Q)) THEN
 
+            IF (TLOGP) THEN
+                WRITE(31,*) ""
+                WRITE(31,"(A)") "D Parameter: (Vertex level, Iteration number, D Weighting parameter, Expected Variance)"
+            ENDIF
+            
+            !Initial bracketing guess
+            ax=-0.8
+            bx=-1.0
+            
+            GIDHO=5
+            originald=g_VMC_ExcitToWeight2
+
+            CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,  &
+                    FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
+                    DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,GIDHO)
+            IF (TLOGP) THEN
+                WRITE(31,"(A,F16.12,A,F16.12)") "From mnbrak routine, minimum is between ", ax, " and ", cx
+            ENDIF
+
+            CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,      &
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,                          &
+     &                  RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
+     &                  NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR,TLOGP,fb)
+            
+            IF (PRE_TAYLOG(5,Q)) THEN
+                g_VMC_ExcitToWeight2=originald
+                WRITE(6,"(A,F15.12,A,F5.3)") "Optimum D parameter found to be ", xmin, ", but using ", originald
+            ELSEIF (PRE_TAYLOG(6,Q)) THEN
+                g_VMC_ExcitToWeight2=xmin
+                WRITE(6,"(A,F15.12)") "D parameter optimised to", xmin
+            ENDIF
+        ENDIF
+        
         !Looking for C Excitweighting parameter
         IF (PRE_TAYLOG(2,Q).or.(PRE_TAYREAL(1,Q).gt.0).or.NOTHING) THEN
             
@@ -292,6 +328,9 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     !U weighting
     CASE(3)
         G_VMC_EXCITWEIGHT=point
+    !D Weighting
+    CASE(5)
+        g_VMC_ExcitToWeight2=point
     ENDSELECT
     
     NTOTAL=1.D0

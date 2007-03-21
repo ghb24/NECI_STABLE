@@ -121,6 +121,12 @@ UEPSILON <UEPSILON>
 FINDC
     The optimum C EXCITWEIGHTING parameter will only be found if this flag is set, or if a UEPSILON is set, otherwise, the optimisation will only seek to find the values which give the minimum expected variance by varying the A and B EXCITWEIGHTING parameters.
 
+FINDD
+    The optimum D EXCITWEIGHTING parameter will be found for this vertex level (g_VMC_ExcitToWeight2).
+
+USED
+    The optimum D EXCITWEIGHTING parameter found at this vertex level will be passed through to the main program.
+
 FINDIMPORT
     This flag will run the optimisation algorithm for the IMPORTANCE parameter.  The optimised value will be found and output to stdout, but will not be parsed through to the main calculation block.  This flag can only be set for a vertex level of three or higher for obvious reasons.
 

@@ -354,6 +354,10 @@ C                  end select
                    call readf(pre_TAYREAL(1,preIV_MAX))
                case("FINDC")
                    pre_TAYLOG(2,preIV_MAX)=.true.
+               case("FINDD")
+                   pre_TAYLOG(5,preIV_MAX)=.true.
+               case("USED")
+                   pre_TAYLOG(6,preIV_MAX)=.true.
                case("FINDIMPORT")
                    if ( preIV_MAX .lt. 3 ) then
                        call report(trim(w)//" only valid for vertex "
