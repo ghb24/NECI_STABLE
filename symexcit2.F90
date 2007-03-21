@@ -232,7 +232,13 @@ MODULE SymExcit2
             IF(ABS(W2).LT.1.D-2) W2=1.D-2
             Weight=Weight*W2**g_VMC_ExcitToWeight2
          ENDIF
-         IF(g_VMC_ExcitToWeight.NE.0.D0) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitToWeight)
+         IF((g_VMC_ExcitToWeight.NE.0.D0)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitToWeight)
+         IF((g_VMC_PolyExcitToWeight1.NE.0.D0).and.(g_VMC_PolyExcitToWeight2.NE.0.D0)) THEN
+             IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_PolyExcitToWeight1) Weight=Weight
+             IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_PolyExcitToWeight1) THEN
+                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_PolyExcitToWeight1+1.D0)**g_VMC_PolyExcitToWeight2))
+             ENDIF
+         ENDIF
          RETURN
       END
 

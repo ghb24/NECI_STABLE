@@ -34,6 +34,7 @@
       CHARACTER*255 FILENAME
       INTEGER ios
       REAL*8 DBETA(3)
+      LOGICAL TEXCITWEIGHT
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'umatcache.inc'
@@ -73,7 +74,10 @@
       g_VMC_ExcitToWeight2=0.D0
       g_VMC_ExcitFromWeight=0.D0
       TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
-
+      TPOLYEXCIT=.false.
+      TEXCITWEIGHT=.false.
+      g_VMC_PolyExcitToWeight1=0.D0
+      g_VMC_PolyExcitToWeight2=0.D0
       IP_SPECDET=0
 
       LMS=0
@@ -523,11 +527,26 @@ C                  end select
 !                      call report(trim(w)//" only valid for MC " 
 !     &                //" method",.true.)
 !                  end if
+              case("POLYEXCITWEIGHT")
+                  call readf(g_VMC_ExcitFromWeight)
+                  call readf(g_VMC_PolyExcitToWeight1)
+                  call readf(g_VMC_PolyExcitToWeight2)
+                  call readf(G_VMC_EXCITWEIGHT)
+                  TPOLYEXCIT=.true.
+                  IF(TEXCITWEIGHT) THEN
+                      call report(trim(w)//" only valid if "
+     &                 //" EXCITWEIGHTING is not specified",.true.)
+                  ENDIF
               case("EXCITWEIGHTING")
                   call readf(g_VMC_ExcitFromWeight)
                   call readf(g_VMC_ExcitToWeight)
                   call readf(G_VMC_EXCITWEIGHT)
                   IF(item.lt.nitems) call readf(g_VMC_ExcitToWeight2)
+                  TEXCITWEIGHT=.true.
+                  IF(TPOLYEXCIT) THEN
+                      call report(trim(w)//" only valid if "
+     &                 //" POLYEXCITWEIGHTING is not specified",.true.)
+                  ENDIF
               case("PATHS")
                   call readi(NPATHS)
               case("ALLPATHS")

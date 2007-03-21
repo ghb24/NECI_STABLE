@@ -298,6 +298,10 @@ EXCITWEIGHTING <g_VMC_ExcitFromWeight g_VMC_ExcitToWeight G_VMC_EXCITWEIGHT> [g_
       The probability of choosing pair ij is proportional to exp((e_i+e_j)*g_VMC_ExcitFromWeight)
       The probability of choosing pair kl is proportional to exp(-(e_k+e_l)*g_VMC_ExcitToWeight) exp(|<ij|U|kl>|*G_VMC_EXCITWEIGHT) *abs(e_i+e_j-e_k-e_l)**g_VMC_ExcitToWeight2
 
+POLYEXCITWEIGHT <g_VMC_ExcitFromWeight g_VMC_PolyExcitToWeight1 g_VMC_PolyExcitToWeight2 G_VMC_EXCITWEIGHT>
+    A new weighting system for the choice of virtual orbitals in the excitations.  Default for all is 0.D0 (meaning unweighted, where the weighting factors for that process are set to 1.).
+    The probability of choosing pair kl in this scheme, is constant up to the point where (e_k+e_l) is less than g_VMC_PolyExcitToWeight1, and then as the energy of the virtual orbitals increases further, the weighting goes as a decaying polynomial as 1/((e_k+e_l)-g_VMC_PolyExcitToWeight1-1)^g_VMC_PolyExcitToWeight2.  g_VMC_PolyExcitToWeight1 is constrained to be positive.
+
 MULTIMCWEIGHT <g_
 
 PATHS <NPATHS>
