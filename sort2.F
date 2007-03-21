@@ -195,12 +195,12 @@ C.. This version has ARR as an int and BRR as a real
       END 
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
 C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
-C.. This version has ARR as an int and BRR as a complex 
+C.. This version has ARR as an int and BRR as an array of length BD of reals
       SUBROUTINE SORTIRN(N,ARR,BRR,BD)
       IMPLICIT NONE
       PARAMETER(M=7,NSTACK=50)
       INTEGER ARR(N),A,L,IR,N,M,JSTACK,ISTACK,NSTACK,I,J,K,ITEMP,BD
-      COMPLEX*16 BRR(BD,N),B(BD),TEMP(BD)
+      REAL*8 BRR(BD,N),B(BD),TEMP(BD)
       DIMENSION ISTACK(NSTACK)
       JSTACK=0
       L=1

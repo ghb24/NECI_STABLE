@@ -408,8 +408,6 @@ c        NSLOTS=MIN(NPAIRS, 1024)
 !  Sort according to label
             CALL SortIRN(N,UMatLabels(1,I),UMatCache(0,1,I),
      &         nTypes*HElementSize)
-            CALL SortIRN(N,UMatLabels(1,I),UMatCache(0,1,I),
-     &         nTypes*HElementSize)
             K=nSlots
 !  Now disperse among the whole array, from the end
             DO J=N,1,-1
@@ -747,11 +745,6 @@ C            ENDIF
          INTEGER I,J
          onSlots=nSlots
          onPairs=nPairs
-         DO J=1,nPairs
-         DO I=1,nSlots
-            WRITE(70,*) I,J,UMatLabels(I,J),UMatCache(0,I,J)
-         ENDDo
-         ENDDO
          CALL FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
       END
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
