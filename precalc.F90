@@ -17,13 +17,17 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      REAL*8 ZEROVAR,p(2),pl(2),ph(2),xi(2,2),originala,originalb,originald
      REAL*8 fret,MCPATHSPRE,fa,fb,fc
      REAL*8 originalpolyb1,originalpolyb2,originalpolya
-     REAL*8 polyp(3),polyxi(3,3)
+     REAL*8 polyp(3),polyxi(3,3),bestvalues(2,PREIV_MAX),bestvaluespoly(3,PREIV_MAX)
+     REAL*8 bestxipoly(3,3),bestxi(2,2)
      LOGICAL TSYM,PREVAR,NOTHING,TLOGP
      TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
      TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
      TYPE(HElement) HIJS(0:PREIV_MAX)
      TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
      EXTERNAL MCPATHSPRE
+     
+     bestvalues=0.D0
+     bestvaluespoly=0.D0
      
      !Only open PRECALC file if logging option on
      IF (TLOGP) THEN
@@ -55,8 +59,15 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             ENDIF
 
             !Initial bracketing
-            polyp=(/ 0.1,0.1,0.1 /)     !Initial A, sigma and n.
-            polyxi=RESHAPE( (/ 1.D0,0.D0,0.D0,0.D0,1.D0,0.D0,0.D0,0.D0,1.D0 /), (/ 3, 3 /) )!Initial directions - unit vectors
+            IF((bestvaluespoly(1,(Q-1)).eq.0.D0).and.(bestvaluespoly(2,(Q-1)).eq.0.D0).and.(bestvaluespoly(3,(Q-1)).eq.0.D0)) THEN
+                polyp=(/ 0.1,0.1,0.1 /)     !Initial A, sigma and n.
+                polyxi=RESHAPE( (/ 1.D0,0.D0,0.D0,0.D0,1.D0,0.D0,0.D0,0.D0,1.D0 /), (/ 3, 3 /) )!Initial directions - unit vectors
+            ELSE
+                !Choose values which the previous vertex level found as optimum
+!                polyp=(/ bestvaluespoly(1,(Q-1)),bestvaluespoly(2,(Q-1)),bestvaluespoly(3,(Q-1)) /)
+                polyp=bestvaluespoly(:,(Q-1)) 
+                polyxi=bestxipoly
+            ENDIF
             n=3                 !Dimensions
             GIDHO=4
 
@@ -67,7 +78,14 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             CALL POWELL(polyp,polyxi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
      &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,              &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR,TLOGP)
-
+            
+            bestvaluespoly(:,Q)=polyp(:)
+     
+!            bestvaluespoly(1,Q)=polyp(1)
+!            bestvaluespoly(2,Q)=polyp(2)
+!            bestvaluespoly(3,Q)=polyp(3)
+            bestxipoly=polyxi
+            
             IF (NOTHING) THEN
 
                 g_VMC_ExcitFromWeight=originalpolya
@@ -91,12 +109,17 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 WRITE(31,*) ""
                 WRITE(31,"(A)") "A and B EXCITWEIGHTING: (Vertex level, Iteration number, Parameter Values, Expected Variance)"
             ENDIF
-
+            
             !Initial bracketing
-            p=(/ 0.1,0.5 /)     !Initial a and b values
-!            pl=(/ 0.D0,0.D0 /)  !Lower bounds
-!            ph=(/ 2.5,2.5 /)    !Upper bounds
-            xi= RESHAPE( (/ 1.D0, 0.D0, 0.D0, 1.D0 /), (/ 2, 2 /) ) !Initial directions
+            IF((bestvalues(1,(Q-1)).eq.0.D0).and.(bestvalues(2,(Q-1)).eq.0.D0)) THEN
+                p=(/ 0.1,0.5 /)     !Initial a and b values
+                xi= RESHAPE( (/ 1.D0, 0.D0, 0.D0, 1.D0 /), (/ 2, 2 /) ) !Initial directions
+            ELSE
+                !Choose values which the previous vertex level found as optimum
+!                p=(/ bestvalues(1,(Q-1)),bestvalues(2,(Q-1)) /)
+                p=bestvalues(:,(Q-1))
+                xi=bestxi
+            ENDIF
             n=2                 !Dimensions
             GIDHO=1             !To tell brentalgo that we are looking at a & b parameters
 
@@ -107,6 +130,11 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,           &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,PREVAR,TLOGP)
 
+            bestvalues(:,Q)=p(:)
+!            bestvalues(1,Q)=p(1)
+!            bestvalues(2,Q)=p(2)
+!            bestvalues(3,Q)=p(3)
+            bestxi=xi
 
             IF (NOTHING) THEN
                 
@@ -354,7 +382,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         ELSEIF(METH.eq.-20) then !Full H-diag method
             EREF=DLWDB/TOTAL
 
-            F(K)=FMCPR3B2(NI,BETA,I_P,IPATH,D,NEL,                               &
+            F(D)=FMCPR3B2(NI,BETA,I_P,IPATH,D,NEL,                               &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,         &
      &         RHOEPS,0,RHOIJ,0,METH,LOCTAB,                                     &
      &         0,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                    &
