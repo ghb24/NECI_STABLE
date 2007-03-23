@@ -40,7 +40,15 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
          NOTHING=.FALSE.
      
          ! IF NONE IS SPECIFIED
-         IF (PRE_TAY(3,Q).eq.0) CYCLE
+         IF (PRE_TAY(3,Q).eq.0) THEN
+             
+             GIDHO=6
+             VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,   &
+     &                  FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,  &
+     &                  DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,GIDHO)
+             
+             CYCLE
+         ENDIF
      
          WRITE(6,*) ""
          WRITE(6,"(A,I2,A)") "For a vertex level of", Q, ", PRECALC finds:"
@@ -317,14 +325,14 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
         g_VMC_PolyExcitToWeight2=pointab(3)
     ENDSELECT
     
-    IF ((GIDHO.eq.4).and.(pointab(2).lt.0.D0)) THEN
-        VARIANCEAB=HUGE(VARIANCEAB)
-    ELSE
+!    IF ((GIDHO.eq.4).and.(pointab(2).lt.0.D0)) THEN
+!        VARIANCEAB=HUGE(VARIANCEAB)
+!    ELSE
     
     VARIANCEAB=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,    &
                     FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,  &
                     DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,GIDHO)
-    ENDIF
+!    ENDIF
                     
 END FUNCTION VARIANCEAB
            
@@ -338,16 +346,23 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     include 'vmc.inc'
     include 'basis.inc'
     TYPE(BasisFN) G1(*)
-    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH(*),NMAX,NTAY,L,LT,K,D
+    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH(*),NMAX,NTAY,L,LT,K
     INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX)
     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),NBASIS,GIDHO
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,PREVAR
-    REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
+    REAL*8 NTOTAL,BETA,ECORE,ALAT(3),RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
     TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
-    TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
+    TYPE(HDElement) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
     TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+    ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
+    REAL*8 NTOTSAV(1:7)
+    TYPE(HDElement) DLWSAV(1:7),TOTSAV(1:7)
+    DATA NTOTSAV/7*1.D0/
+    DATA TOTSAV/7*HDElement(1.D0)/
+    DATA DLWSAV/7*HDElement(0.D0)/
+    SAVE NTOTSAV,TOTSAV,DLWSAV
     
     SELECT CASE (GIDHO)
     !Importance
@@ -359,41 +374,51 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     !D Weighting
     CASE(5)
         g_VMC_ExcitToWeight2=point
+    !NONE specified
+    CASE(6)
+        G_VMC_EXCITWEIGHT=point
     ENDSELECT
     
-    NTOTAL=1.D0
-    TOTAL=1.D0
-    DLWDB=HIJS(0)
+    IF(K.eq.2) THEN
+        DLWSAV(1)=HIJS(0)
+    ENDIF
+        
+!    NTOTAL=1.D0
+!    TOTAL=1.D0
+!    DLWDB=HIJS(0)
 !OPEN(PRECALC)
-    do D=2,K
+!    do D=2,K
         L=0
         LT=0
         VARSUM=0.D0
         DLWDB2=0.D0
-        METH=pre_TAY(1,D)   !Method for vertex level
-        CYCLES=pre_TAY(2,D)
+        METH=pre_TAY(1,K)   !Method for vertex level
+        CYCLES=pre_TAY(2,K)
         IF(METH.eq.-8) then !Full Rho-diag method
 !   This code generates excitations on the fly, and gets
-!            F(D)=FMCPR3B(NI,BETA,I_P,IPATH,D,NEL,                                &
+!            F(K)=FMCPR3B(NI,BETA,I_P,IPATH,K,NEL,                                &
 !     &          NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,       &
 !     &          RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                     &
 !     &          ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,            &
 !     &          MP2E,NTOTAL)
         ELSEIF(METH.eq.-20) then !Full H-diag method
-            EREF=DLWDB/TOTAL
+            EREF=DLWSAV(K-1)/TOTSAV(K-1)
 
-            F(D)=FMCPR3B2(NI,BETA,I_P,IPATH,D,NEL,                               &
+            !EREF=DLWDB/TOTAL
+
+            F(K)=FMCPR3B2(NI,BETA,I_P,IPATH,K,NEL,                               &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,         &
      &         RHOEPS,0,RHOIJ,0,METH,LOCTAB,                                     &
      &         0,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                    &
-     &         MP2E,NTOTAL,PREIV_MAX,EREF,VARSUM,PREVAR,TOTAL)
+     &         MP2E,NTOTSAV(K-1),PREIV_MAX,EREF,VARSUM,PREVAR,TOTSAV(K-1))
 
 !        ELSEIF(METH.eq.-7.or.METH.eq.-19) THEN
 
             ENDIF
-            TOTAL=TOTAL+F(D)
-            DLWDB=DLWDB+DLWDB2
-        ENDDO
+            TOTSAV(K)=TOTSAV(K-1)+F(K)
+            DLWSAV(K)=DLWSAV(K-1)+DLWDB2
+!            WRITE(6,*) K,TOTSAV(K),DLWSAV(K)
+!        ENDDO
         MCPATHSPRE=VARSUM
 
 END FUNCTION MCPATHSPRE
@@ -610,7 +635,7 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
             WRITE(31,"(2I3,3G25.16)") Q, iter, p(1), p(2), fret
             CALL FLUSH(31)
         ELSEIF (TLOGP.and.(GIDHO.eq.4)) THEN
-            WRITE(31,"(2I3,4G25.16)") Q, 0, p(1), p(2), p(3), fret
+            WRITE(31,"(2I3,4G25.16)") Q, iter, p(1), p(2), p(3), fret
             CALL FLUSH(31)
         ENDIF
         if(abs(fptt-fret).gt.del) then      !And record it if it is the largest decrease so far.
