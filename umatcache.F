@@ -671,13 +671,13 @@ C.. return I<=J
          RETURN
       END
 
-      REAL*8  FUNCTION WR
-         USE HElement
-         INCLUDE 'umatcache.inc'
-         WRITE(70,*) UMatCache(0,2,7)
-         CALL FLUSH(70)
-         WR=sq(UMatCache(0,2,7))
-      END
+!      REAL*8  FUNCTION WR
+!         USE HElement
+!         INCLUDE 'umatcache.inc'
+!         WRITE(70,*) UMatCache(0,2,7)
+!         CALL FLUSH(70)
+!         WR=sq(UMatCache(0,2,7))
+!      END
 C..   Set an element in the cache.  All the work has been done for us before
 C.. as the element we have to set is in (ICACHEI,ICACHE)
 C.. We still need to fill out the space before or after  us if we've been put in the 
