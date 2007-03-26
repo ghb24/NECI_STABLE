@@ -13,6 +13,7 @@
      &   TCPMD,ios,TDFREAD)
       USE input
       USE HElement
+      USE UMatCache
       IMPLICIT REAL*8    (A-H,O-Z)
       INTEGER IPARITY(5)
       LOGICAL TSPN,TALPHA,TPARITY,TCORR,TFODM,TCALCHMAT,TUEG,     
@@ -37,7 +38,6 @@
       LOGICAL TEXCITWEIGHT
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
-      INCLUDE 'umatcache.inc'
       INCLUDE 'sym.inc'
 !     --------------------------------------------
 !     Set some sensible defaults here

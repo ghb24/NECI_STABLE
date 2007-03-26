@@ -188,7 +188,6 @@ MODULE SymExcit2
 !  We fake ISS
          INTEGER I,J,K,L
          REAL*8 WEIGHT
-         TYPE(HElement) GetUMatEl
          TYPE(HElement) UMAT(*),W
          REAL*8 Arr(nBasis,2)
          IF(g_VMC_ExcitFromWeight.EQ.0.D0) THEN
@@ -202,6 +201,7 @@ MODULE SymExcit2
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElement
+         USE UMatCache , only : GetUMatEl
          IMPLICIT NONE
          INTEGER NBASISMAX(5,3),NBASIS
          INCLUDE 'basis.inc'
@@ -213,7 +213,6 @@ MODULE SymExcit2
          INTEGER IDI,IDJ,IDK,IDL
          INTEGER I,J,K,L
          REAL*8 WEIGHT,W2
-         TYPE(HElement) GetUMatEl
          TYPE(HElement) UMAT(*),W
          REAL*8 Arr(nBasis,2)
          IF(G_VMC_EXCITWEIGHT.EQ.0.D0) THEN

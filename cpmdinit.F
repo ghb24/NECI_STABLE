@@ -249,6 +249,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE,TORDER,ARR,BRR)
          USE HElement
+         USE UMatCache , nstatesumat=>nstates
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
@@ -256,7 +257,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
          REAL*8 F
-         TYPE(HElement) GETUMATEL,U,TOT
+         TYPE(HElement) U,TOT
          INTEGER ISS(*),NBASISMAX(*)
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)

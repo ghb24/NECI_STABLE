@@ -5,6 +5,7 @@ C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
       USE HElement
+      USE UMatCache , Only : GetUMatEl
       IMPLICIT NONE
       INTEGER NDET1(NEL)
       INTEGER NDET2(NEL)
@@ -15,7 +16,6 @@ C..that are NOT common to both.
       TYPE(HElement) UMAT(*),SUM,SUM2
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 ALAT(3)
-      TYPE(HElement) GETUMATEL
       INTEGER NEL,NHG
       INTEGER NBASISMAX(5,3)
       REAL*8 COULCOUPLE

@@ -2,8 +2,8 @@ C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0(NEL,NBASISMAX,NDET1,NDET2,
      &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM)
       USE HElement
+      USE UMatCache
       IMPLICIT NONE
-      INCLUDE 'umatcache.inc'
       INCLUDE 'basis.inc'
       TYPE(BasisFn) G1(*)
       INTEGER ISS
@@ -17,7 +17,6 @@ C..Cube array
       REAL*8 ALAT(3)
       REAL*8 KP
       LOGICAL TVAB
-      TYPE(HElement) GETUMATEL
       INTEGER NEL,NHG
       TYPE(HElement) SUM,SUM1,SUM2,SUM3,SUM4
       REAL*8 COULCOUPLE

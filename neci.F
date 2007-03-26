@@ -11,6 +11,7 @@ C ==------------------------------------------------------------------==
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
      &   TCPMD,TDFREAD)
       USE HElement
+      USE UMatCache , only : GetUMatSize, DestroyUMatCache
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -2702,10 +2703,10 @@ C               G(3,BRR(I))=J
       SUBROUTINE FREEZEBASIS(NHG,NBASIS,UMAT,TMAT,UMAT2,TMAT2,ECORE,
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,ALAT)
          USE HElement
+         USE UMatCache
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
          INCLUDE 'basis.inc'
-         INCLUDE 'umatcache.inc'
          TYPE(BASISFN) G1(NHG)
          TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -2723,9 +2724,7 @@ C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
          INTEGER IDA,IDB,SGN
          INTEGER FDET(NEL),NEL
          TYPE(Symmetry) KSYM
-         TYPE(HElement) GETUMATEL
          REAL*8 ALAT(3)
-         INTEGER UMatInd
 C.. Just check to see if we're not in the middle of a degenerate set with the same sym
          IF(NFROZEN.GT.0) THEN
             IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.
@@ -2873,7 +2872,7 @@ C.. the primed (...P) are the new versions
              ENDDO
             ENDIF
          ENDDO
-         ELSEIF(IP_UMAT2D.NE.0) THEN
+         ELSEIF(TUMAT2D) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 C.. NHG contains the old number of orbitals
 C.. NBASIS contains the new

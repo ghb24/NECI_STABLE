@@ -2,8 +2,8 @@
 SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use record_handler
          use HElement
+         use UMatCache
          implicit none
-         include 'umatcache.inc'
          integer nEl,nBasisMax(5,3),Len,lMs
          parameter C_file='SAV_DFaSOL'
          parameter nolabel='        '
@@ -37,14 +37,14 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use precision
          use record_handler
          use HElement
+         use UMatCache
          implicit none
-         INCLUDE 'umatcache.inc'
          parameter C_file='SAV_DFaSOL'
          parameter I_file='SAV_Ta_INT'
          parameter nolabel='        '
          character(3) file_status
          integer info,i
-         integer nBasis,nOrbUsed
+         integer nBasis,nOrbUsed,ierr
          real(dp) array(1000)
 
          file_status= 'ADD'
@@ -55,8 +55,11 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          WRITE(6,*) "Basis Size:", nBasis/2
          WRITE(6,*) "Auxiliary Basis Size:", nAuxBasis
 
-         call Memory(IP_DFCoeffs,nBasisPairs*nAuxBasis,"DFCoeffs")
-         call Memory(IP_DFInts,nBasisPairs*nAuxBasis,"DFInts")
+         tDFInts=.TRUE.
+         Allocate(DFCoeffs(nBasisPairs,nAuxBasis),STAT=ierr)
+         call MemAlloc(ierr,DFCoeffs,nBasisPairs*nAuxBasis,"DFCoeffs")
+         Allocate(DFInts(nBasisPairs,nAuxBasis),STAT=ierr)
+         call Memory(ierr,DFInts,nBasisPairs*nAuxBasis,"DFInts")
          do i=1,nBasisPairs
             call read_record(C_file,i,nolabel,DFCoeffs(:,i),info)
             call read_record(I_file,i,nolabel,DFInts(:,i),info)
@@ -75,8 +78,8 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !.. Get a 2-el integral.  a,b,c,d are indices.
       SUBROUTINE GetDF2EInt(a,b,c,d,res)
          use HElement 
+         use UMatCache
          implicit none
-         include 'umatcache.inc'
          integer a,b,c,d
          integer i,GetDFIndex
          real*8 res

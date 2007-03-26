@@ -2,6 +2,7 @@ C.. This is based upon the GEN_COUL for electrons in a cubic box
 C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_HUBNPBC(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS,THUB,UHUB,OMEGA)
+      USE UMatCache , only : UMatInd
       IMPLICIT NONE
       INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
@@ -18,7 +19,6 @@ C..Cube arrays
       INTEGER ISUB,II,ISPINSKIP
       REAL*8 SUMS(3),SUM
       INTEGER I,J,K,L,ID1,ID2,ID3,ID4
-      INTEGER UMatInd
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
@@ -89,6 +89,7 @@ C.. This is based upon the GEN_COUL for electrons in a cubic box
 C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_UEG(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
+      USE UMatCache , only : UMatInd
       IMPLICIT REAL*8 (A-H,O-Z)
       INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
@@ -103,7 +104,6 @@ C..Cube arrays
       REAL*8 LX,LY,P,Q,R,T2
       REAL*8 ALAT(3)
       COMPLEX*16 S,CI
-      INTEGER UMatInd
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)

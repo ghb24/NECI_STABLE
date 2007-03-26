@@ -91,7 +91,10 @@ C     ==--------------------------------------------------------------==
       DO I=1,I_BLOCK
         IP_X1=I_AD1(I)
         IP_X2=I_AD2(I)
-        IF(ZFIRST.NE.X1(1).OR.ZLAST.NE.X2(1)) ERROR=.TRUE.
+        IF(IP_X2.NE.0) THEN
+            IF(ZFIRST.NE.X1(1)) ERROR=.TRUE.
+            IF(ZLAST.NE.X2(1)) ERROR=.TRUE.
+        ENDIF
       ENDDO
       IF(.NOT.ERROR) THEN
         IF(PARENT.AND.MEMCHK)
@@ -151,16 +154,22 @@ C     ==--------------------------------------------------------------==
         II=INDEX(I)
         IP_X1=I_AD1(II)
         IP_X2=I_AD2(II)
-        IF(ZFIRST.NE.X1(1)) THEN
-          IC1=2
+        IF(IP_X2.NE.0) THEN
+           IF(ZFIRST.NE.X1(1)) THEN
+             IC1=2
+           ELSE
+             IC1=1
+           ENDIF
+           IF(ZLAST.NE.X2(1)) THEN
+             IC2=2
+           ELSE
+             IC2=1
+           ENDIF
         ELSE
-          IC1=1
+         IC1=1
+         IC2=1
         ENDIF
-        IF(ZLAST.NE.X2(1)) THEN
-          IC2=2
-        ELSE
-          IC2=1
-        ENDIF
+      
         WRITE(6,'(1X,A10,I14,A10,I14,A10,I8)') 
      *      I_TAG(II),I_AD1(II),TTT(IC1),I_AD2(II),TTT(IC2),I_LEN(II)
       ENDDO
@@ -214,3 +223,64 @@ C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
+!! AJWT 26/3/07 A routine to integrate Fortran 90 memory and array management with FREEM
+!! NB This does not deallocate memory.
+!! this should be called in statements like
+!!
+!!  TYPE(HElement), Pointer :: UMat(:,:)
+!!  CALL MemDealloc(UMat)
+!!  DEALLOCATE(UMat)
+!!
+!!  the memory should have been ALLOCATEd and MemAlloc called previously.
+C     ==================================================================
+      SUBROUTINE MemDealloc(XM)
+C     ==--------------------------------------------------------------==
+      IMPLICIT NONE
+      REAL*8  POINTDUMMY
+      POINTER (IP_POINT,POINTDUMMY)
+#ifdef POINTER8
+      INTEGER*8 GET_ADDR
+      INTEGER*8 I_AD1,I_AD2
+      INTEGER*8 IP_XM
+#else
+      INTEGER GET_ADDR
+      INTEGER  I_AD1,I_AD2
+      INTEGER*8 IP_XM
+#endif
+      INCLUDE 'system.h'
+      INCLUDE 'memc.inc'
+      LOGICAL ERROR
+      REAL*8  XM(0:*)
+#ifdef CRAY
+      INTEGER IERR
+#endif
+      INTEGER I,II,LENGTH
+C     ==--------------------------------------------------------------==
+C     ==  FREE MEMORY ASSOCIATED WITH POINTER IP_POINT                ==
+C     ==--------------------------------------------------------------==
+      IP_XM=GET_ADDR(XM)
+C..Statistics and memory checks
+      DO I=1,I_BLOCK
+        IF(IP_XM.EQ.I_AD1(I)) THEN
+          II=I
+          GOTO 100
+        ENDIF
+      ENDDO
+      WRITE(*,*) ' FREEM | Could not find pointer ',IP_XM
+      CALL PRINT_MEMORY
+      CALL STOPGM('FREEM',' NO SUCH POINTER')
+  100 CONTINUE
+      LENGTH=I_LEN(II)
+      ERROR=.FALSE.
+      IF(ERROR) CALL MEMORY_CHECK
+      IF(MEMCHK) CALL MEMORY_CHECK
+      DO I=II,I_BLOCK-1
+        I_AD1(I)=I_AD1(I+1)
+        I_AD2(I)=I_AD2(I+1)
+        I_LEN(I)=I_LEN(I+1)
+        I_TAG(I)=I_TAG(I+1)
+      ENDDO
+      I_BLOCK=I_BLOCK-1
+      MEMTOT=MEMTOT-LENGTH
+      RETURN
+      END

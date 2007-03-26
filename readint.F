@@ -103,6 +103,7 @@ C.. set momentum to 0
          RETURN
       END
       SUBROUTINE READFCIINT(UMAT,TMAT,NBASIS,ECORE,ARR,BRR,G1)
+         USE UMatCache , only : UMatInd
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 TMAT(NBASIS,NBASIS),ECORE,ARR(NBASIS,2)
@@ -111,7 +112,6 @@ C.. set momentum to 0
          INTEGER I,J,K,L,BRR(NBASIS),G1(*)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
          LOGICAL LWRITE
-         INTEGER UMatInd
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
          LWRITE=.FALSE.
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')

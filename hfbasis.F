@@ -46,6 +46,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       END
       SUBROUTINE READHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
      &            HFE,ARR,BRR)
+         USE UMatCache , only : UMatInd
          IMPLICIT NONE
          INTEGER NBASIS,ISS,NBASISMAX(5,2),G1(*)
          REAL*8 UMAT(*)
@@ -54,7 +55,6 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER I,J,K,L,A,B,C,D,ISUB
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS)
          LOGICAL LSPN
-         INTEGER UMatInd
          NHG=NBASIS
          WRITE(6,*) 'READING HF UMAT'
 C ==--------------------------------------------------------------------=
@@ -112,6 +112,7 @@ C.. Generic spatial symmetry
       END
       SUBROUTINE CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
      &            HFE,ARR,BRR,NORBUSED)
+         USE UMatCache , only : UMatInd
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(*)
@@ -121,7 +122,6 @@ C.. Generic spatial symmetry
          INTEGER I,J,K,L,A,B,C,D,ISUB
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
          LOGICAL LSPN
-         INTEGER UMatInd
          NHG=NBASIS
          CALL TISET('CALCHFUMAT',ISUB)
          WRITE(6,*) 'CALCULATING HF UMAT'
@@ -502,6 +502,7 @@ C.. vector
       END 
       SUBROUTINE GENFMAT(FMAT,DMAT,TMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
      &                  TRHF)
+         USE UMatCache , only : UMatInd
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,NBASISMAX(5,2)
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
@@ -512,7 +513,6 @@ C.. vector
          REAL*8 TOT
          LOGICAL TRHF,TTRANS
          REAL*8 RHFMUL
-         INTEGER UMatInd
 C         IF(TRHF) THEN
 C            RHFMUL=2.D0
 C         ELSE
@@ -1259,6 +1259,7 @@ C.. TOT now contains dE/dcij, so we store this
 
       SUBROUTINE CALCDEDCIJ2(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,TMAT,UMAT,
      &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR,ISS)            
+         USE UMatCache , only : UMatInd
          IMPLICIT NONE
          REAL*8 CMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DEDCIJ(NSBASIS,NSBASIS,NSPINS)
@@ -1270,7 +1271,6 @@ C.. TOT now contains dE/dcij, so we store this
          INTEGER ISPN,I,J,K,A,B,C,F,JSPN,KSPN,JJ
          INTEGER IDA,IDB,IDC,IDF
          REAL*8 TOT,TOT1,TOT2,ECUR,TOT1B
-         INTEGER UMatInd
 C.. We calculate dE/dcij as
 C.. dE/dc_kf = 2(Sum_a c_ka <a|h|f> 
 C.. +Sum_j Sum_abc c_ja c_kb c_jc (<af|U|cb>-<af|U|bc>+<ab|U|cf>-<ab|U|fc>)) 
