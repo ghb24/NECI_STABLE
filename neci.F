@@ -116,7 +116,9 @@ C.. The spin including the total spin
       INCLUDE 'csf.inc'
       INCLUDE 'uhfdet.inc'
 C ==-------------------------------------------------------------------==
+      CALL TIMETAG()
       ECORE=0.D0
+
       CALL TISET('NECICUBE  ',ISUB)
 
 C..      CALL DOZSUM()

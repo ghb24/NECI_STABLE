@@ -760,7 +760,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT #CMPLXFLAG'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)"'
      NCPUS=2
      #-sb is to use Workshop package
       FFLAGS='-I /usr/local/fftw-3.1/include -I /usr/local/fftw-3.0.1/include -Mr8 -Msignextend -Minform=warn -Msecond_underscore'
@@ -913,6 +913,7 @@ cat << END >&3
 SHELL = /bin/sh
 #
 #--------------- Default Configuration for $Configuration ---------------
+SVNVER := \$(shell svn info | grep Revision |sed "s/Revision://")
 SRC  = .
 DEST = ${DEST}
 BIN  = .
@@ -1064,7 +1065,7 @@ cat << END >&3
 clean : 
 	  rm \$(DEST)/*.f90 \$(DEST)/*.f \$(dest)/*.o \$(DEST)/*.mod
 
-neci.x : necimain.o \$(OBJECTS) \$(OBJ_CC)
+neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
