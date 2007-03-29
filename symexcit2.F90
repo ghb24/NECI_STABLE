@@ -190,11 +190,18 @@ MODULE SymExcit2
          REAL*8 WEIGHT
          TYPE(HElement) UMAT(*),W
          REAL*8 Arr(nBasis,2)
-         IF(g_VMC_ExcitFromWeight.EQ.0.D0) THEN
+         IF((g_VMC_ExcitFromWeight.EQ.0.D0).and.(g_VMC_PolyExcitFromWeight1.EQ.0.D0).and.(g_VMC_PolyExcitFromWeight2.EQ.0.D0)) THEN
             Weight=1.D0
-            RETURN
+         ELSEIF(g_VMC_ExcitFromWeight.NE.0.D0) THEN
+            Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitFromWeight)
+         !PolyExcitWeighting (for both real & virtual orbs)
+         ELSE
+            IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_PolyExcitFromWeight1) Weight=1.D0
+            IF((Arr(I,2)+Arr(J,2)).LE.g_VMC_PolyExcitFromWeight1) THEN
+                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+g_VMC_PolyExcitFromWeight1+1.D0)**g_VMC_PolyExcitFromWeight2))
+            ENDIF
          ENDIF
-         Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitFromWeight)
+!         write(83,"(4G25.16)") (Arr(I,2)+Arr(J,2)), g_VMC_PolyExcitFromWeight1, g_VMC_PolyExcitFromWeight2, Weight
          RETURN
       END
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
@@ -232,11 +239,14 @@ MODULE SymExcit2
             Weight=Weight*W2**g_VMC_ExcitToWeight2
          ENDIF
          IF((g_VMC_ExcitToWeight.NE.0.D0)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitToWeight)
-         IF((g_VMC_PolyExcitToWeight1.NE.0.D0).and.(g_VMC_PolyExcitToWeight2.NE.0.D0)) THEN
+         
+         !PolyExcitWeighting
+         IF((g_VMC_PolyExcitToWeight1.NE.0.D0).or.(g_VMC_PolyExcitToWeight2.NE.0.D0)) THEN
              IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_PolyExcitToWeight1) Weight=Weight
              IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_PolyExcitToWeight1) THEN
                  Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_PolyExcitToWeight1+1.D0)**g_VMC_PolyExcitToWeight2))
              ENDIF
+!         write(52,"(4G25.16)") g_vmc_polyExcitToWeight1,g_vmc_polyexcittoweight2,(Arr(K,2)+Arr(L,2)),Weight
          ENDIF
          RETURN
       END

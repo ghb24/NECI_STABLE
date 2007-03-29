@@ -2447,5 +2447,14 @@ C         DLWDB=DLWDB-LIST(1,2)
          wETilde=r4
          CLOSE(43)
       END
-         
-         
+      
+!.. Function to get Arr out of NMAX - passed in two integers      
+      FUNCTION ORBENERGY(ARR,orbnum)
+          USE HElement
+          IMPLICIT NONE
+          REAL*8 ARR(*)
+          INTEGER orbnum
+          REAL*8 ORBENERGY
+          ORBENERGY=ARR(orbnum)
+          RETURN
+      END FUNCTION ORBENERGY

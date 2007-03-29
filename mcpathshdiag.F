@@ -228,6 +228,10 @@ C.. NMAX has ARR hidden in it.
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             ENDIF
+!            IF((.not.PREVAR).and.(I_V.eq.3)) THEN
+                
+!               CALL WriteGraphEnergies(IPATH, I_V,nEl,nBasis,NMAX,TOTAL)
+!            ENDIF
             L=L+1
             FMCPR3B2=TOTAL
             IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
@@ -527,16 +531,41 @@ C            CALL PRINT_MEMORY()
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
          Use HElement
          Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
-         Real*8 Arr(nBasis, 2)
+         Real*8 Arr(nBasis, 2),Energytonew,Energyfromnew
+         REAL*8 Energyfromold,Energytoold
+         REAL*8 totWeight,avWeight
          Type(HDElement) Weight
+         INTEGER g
+         DATA g/0/
+         DATA totWeight/0.D0/
+         DATA Energytoold/0.D0/
+         SAVE g,Energytoold,totWeight
          EX(1,1)=2
          Call GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
          If(Ex(1,2).eq.0) Then !we have a single excitation
-             Write(56, "5G25.16") Weight, Arr(EX(1,1),2), 0,
-     &                                 Arr(EX(2,1),2), 0
+!             Write(56, "5G25.16") Weight, Arr(EX(1,1),2), 0,
+!     &                                 Arr(EX(2,1),2), 0
+            Energytonew=Arr(EX(2,1),2)
+!            Energyfromnew=Arr(Ex(1,1),2)
          Else
-            Write(56, "5G25.16") Weight, Arr(EX(1,1),2), Arr(EX(1,2),2),
-     &                                 Arr(EX(2,1),2), Arr(EX(2,2),2)
+!            Write(56, "5G25.16") Weight, Arr(EX(1,1),2), Arr(EX(1,2),2),
+!     &                                 Arr(EX(2,1),2), Arr(EX(2,2),2)
+             Energytonew=Arr(EX(2,1),2)+Arr(EX(2,2),2)
+!             Energyfromnew=Arr(EX(1,1),2)+Arr(EX(1,2),2)
          End If
+         IF (Energytonew.eq.Energytoold) THEN
+             totWeight=totWeight+Weight%v
+             g=g+1
+         ELSE
+             avWeight=totWeight/g
+             Write(56, "G25.16,I6,G25.16") avWeight,g,                  
+     &        Energytoold
+             avWeight=0.D0
+             totWeight=Weight%v
+             g=1
+         ENDIF
+             Energytoold=Energytonew
+!             Write(56, "3G25.16") Weight,Energyfrom,Energyto 
+         
          End
 

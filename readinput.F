@@ -75,9 +75,12 @@
       g_VMC_ExcitFromWeight=0.D0
       TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
       TPOLYEXCIT=.false.
+      TPOLYEXCITBOTH=.false.
       TEXCITWEIGHT=.false.
       g_VMC_PolyExcitToWeight1=0.D0
       g_VMC_PolyExcitToWeight2=0.D0
+      g_VMC_PolyExcitFromWeight1=0.D0
+      g_VMC_PolyExcitFromWeight2=0.D0
       IP_SPECDET=0
 
       LMS=0
@@ -537,9 +540,20 @@ C                  end select
                   call readf(g_VMC_PolyExcitToWeight2)
                   call readf(G_VMC_EXCITWEIGHT)
                   TPOLYEXCIT=.true.
-                  IF(TEXCITWEIGHT) THEN
+                  IF(TEXCITWEIGHT.or.TPOLYEXCITBOTH) THEN
                       call report(trim(w)//" only valid if "
-     &                 //" EXCITWEIGHTING is not specified",.true.)
+     &              //" another weighting scheme not specified",.true.)
+                  ENDIF
+              case("POLYEXCITBOTH")
+                  call readf(g_VMC_PolyExcitFromWeight1)
+                  call readf(g_VMC_PolyExcitFromWeight2)
+                  call readf(g_VMC_PolyExcitToWeight1)
+                  call readf(g_VMC_PolyExcitToWeight2)
+                  call readf(G_VMC_EXCITWEIGHT)
+                  TPOLYEXCITBOTH=.true.
+                  IF(TPOLYEXCIT.or.TEXCITWEIGHT) THEN
+                      call report(trim(w)//" only valid if "
+     &               //" another weighting scheme not specified",.true.)
                   ENDIF
               case("EXCITWEIGHTING")
                   call readf(g_VMC_ExcitFromWeight)
@@ -549,7 +563,7 @@ C                  end select
                   TEXCITWEIGHT=.true.
                   IF(TPOLYEXCIT) THEN
                       call report(trim(w)//" only valid if "
-     &                 //" POLYEXCITWEIGHTING is not specified",.true.)
+     &              //"  another weighting scheme not specified",.true.)
                   ENDIF
               case("PATHS")
                   call readi(NPATHS)

@@ -107,7 +107,7 @@ CYCLES <CYCLES>
     This can only be applied to a vertex level which is specified to use the MC algorithm in the VERTEX line.  This give the number of graphs to generate in the MC algorithm, for each expected variance calculation in the parameter minimisation algorithm.
 
 USE
-    This will signify that the parameters calculated from this vertex level, rather than any other, are to be parsed through and used in the main program.  This statement can only be given for a single vertex level. This will only calculate the A and B EXCITWEIGHTING parameters and use them, unless FINDC or a UEPSILON is specified for the C parameter to also be used.
+    This will signify that the parameters calculated from this vertex level, rather than any other, are to be parsed through and used in the main program.  This statement can only be given for a single vertex level. This will only calculate the A and B EXCITWEIGHTING parameters, (or any of the other weighting scheme parameters specified) and use them, unless FINDC or a UEPSILON is specified for the C parameter to also be used.
 
 NONE
     This is to specify that no calculations or optimisations are to be performed on this vertex level.
@@ -119,7 +119,7 @@ UEPSILON <UEPSILON>
     Since the calculation of the U matrix elements can be time-consuming in a real MC simulation, the optimum C EXCITWEIGHTING parameter found from the PRECALC algorithms may not want to be parsed through to the main MC program if the reduction of the expected variance from the case where the C EXCITWEIGHTING coefficient is zero, to the optimum value, is small.  If this option is set, it will find the optimum C EXCITWEIGHTING parameter, but will parse through a value of zero if the reduction in expected variance between the optimum value, and that of C = zero, is less that UEPSILON.  This will then save time in the full MC simulation.  The default value is 0 (i.e. the optimum value will always be used in the main program).
 
 FINDC
-    The optimum C EXCITWEIGHTING parameter will only be found if this flag is set, or if a UEPSILON is set, otherwise, the optimisation will only seek to find the values which give the minimum expected variance by varying the A and B EXCITWEIGHTING parameters.
+    The optimum C EXCITWEIGHTING parameter will only be found if this flag is set, or if a UEPSILON is set, otherwise, the optimisation will only seek to find the values which give the minimum expected variance by varying the A and B EXCITWEIGHTING parameters, (or the parameters in another weighting scheme specified).
 
 FINDD
     The optimum D EXCITWEIGHTING parameter will be found for this vertex level (g_VMC_ExcitToWeight2).
@@ -306,7 +306,11 @@ EXCITWEIGHTING <g_VMC_ExcitFromWeight g_VMC_ExcitToWeight G_VMC_EXCITWEIGHT> [g_
 
 POLYEXCITWEIGHT <g_VMC_ExcitFromWeight g_VMC_PolyExcitToWeight1 g_VMC_PolyExcitToWeight2 G_VMC_EXCITWEIGHT>
     A new weighting system for the choice of virtual orbitals in the excitations.  Default for all is 0.D0 (meaning unweighted, where the weighting factors for that process are set to 1.).
-    The probability of choosing pair kl in this scheme, is constant up to the point where (e_k+e_l) is less than g_VMC_PolyExcitToWeight1, and then as the energy of the virtual orbitals increases further, the weighting goes as a decaying polynomial as 1/((e_k+e_l)-g_VMC_PolyExcitToWeight1-1)^g_VMC_PolyExcitToWeight2.  g_VMC_PolyExcitToWeight1 is constrained to be positive.
+    The probability of choosing pair kl in this scheme, is constant up to the point where (e_k+e_l) is less than g_VMC_PolyExcitToWeight1, and then as the energy of the virtual orbitals increases further, the weighting goes as a decaying polynomial as 1/((e_k+e_l)-g_VMC_PolyExcitToWeight1+1)^g_VMC_PolyExcitToWeight2. g_VMC_PolyExcitToWeight1 is constrained to be not more than the energy of the highest virtual orbital.
+
+POLYEXCITBOTH <g_VMC_PolyExcitFromWeight1 g_VMC_PolyExcitFromWeight2 g_VMC_PolyExcitToWeight1 g_VMC_PolyExcitToWeight2 G_VMC_EXCITWEIGHT>
+
+    This weighting system is the same as the previous weighting system, apart from the fact that now the polynomial weighting function applies also to the occupied orbitals.  This means that there is another variable, since now the 'ExcitFrom' calculation also needs a value for sigma, and for the exponent.  The sigma variables are now both under similar constraints as specified above, which means that they cannot be larger or smaller than the highest and lowest energy orbital respectivly.  This prevents the PRECALC block from getting stuck, or from finding local variance minima.
 
 MULTIMCWEIGHT <g_
 
