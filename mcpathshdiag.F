@@ -229,7 +229,7 @@ C.. NMAX has ARR hidden in it.
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             ENDIF
 !            IF((.not.PREVAR).and.(I_V.eq.3)) THEN
-                
+!                
 !               CALL WriteGraphEnergies(IPATH, I_V,nEl,nBasis,NMAX,TOTAL)
 !            ENDIF
             L=L+1
@@ -538,33 +538,35 @@ C            CALL PRINT_MEMORY()
          INTEGER g
          DATA g/0/
          DATA totWeight/0.D0/
-         DATA Energytoold/0.D0/
-         SAVE g,Energytoold,totWeight
+!         DATA Energytoold/0.D0/
+         DATA Energyfromold/0.D0/
+         SAVE g,Energyfromold,totWeight
+         OPEN(56,FILE="WEIGHTDATA",STATUS="UNKNOWN")
          EX(1,1)=2
          Call GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
          If(Ex(1,2).eq.0) Then !we have a single excitation
 !             Write(56, "5G25.16") Weight, Arr(EX(1,1),2), 0,
 !     &                                 Arr(EX(2,1),2), 0
-            Energytonew=Arr(EX(2,1),2)
-!            Energyfromnew=Arr(Ex(1,1),2)
+!            Energytonew=Arr(EX(2,1),2)
+            Energyfromnew=Arr(Ex(1,1),2)
          Else
 !            Write(56, "5G25.16") Weight, Arr(EX(1,1),2), Arr(EX(1,2),2),
 !     &                                 Arr(EX(2,1),2), Arr(EX(2,2),2)
-             Energytonew=Arr(EX(2,1),2)+Arr(EX(2,2),2)
-!             Energyfromnew=Arr(EX(1,1),2)+Arr(EX(1,2),2)
+!             Energytonew=Arr(EX(2,1),2)+Arr(EX(2,2),2)
+             Energyfromnew=Arr(EX(1,1),2)+Arr(EX(1,2),2)
          End If
-         IF (Energytonew.eq.Energytoold) THEN
+         IF (Energyfromnew.eq.Energyfromold) THEN
              totWeight=totWeight+Weight%v
              g=g+1
          ELSE
              avWeight=totWeight/g
-             Write(56, "G25.16,I6,G25.16") avWeight,g,                  
-     &        Energytoold
+             Write(56, "G25.16,I9,G25.16") avWeight,g,                  
+     &        Energyfromold
              avWeight=0.D0
              totWeight=Weight%v
              g=1
          ENDIF
-             Energytoold=Energytonew
+             Energyfromold=Energyfromnew
 !             Write(56, "3G25.16") Weight,Energyfrom,Energyto 
          
          End

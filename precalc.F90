@@ -28,8 +28,10 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
      EXTERNAL MCPATHSPRE
      
-     ENERGYLIMS(1)=ORBENERGY(NMAX,1)
-     ENERGYLIMS(2)=ORBENERGY(NMAX,NBASIS)
+     IF (TPOLYEXCIT.or.TPOLYEXCITBOTH) THEN
+        ENERGYLIMS(1)=ORBENERGY(NMAX,1)
+        ENERGYLIMS(2)=ORBENERGY(NMAX,NBASIS)
+     ENDIF
      
 !     do b=1,nbasis
 !        energy=ORBENERGY(NMAX,b)
@@ -42,7 +44,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      bestvalpolyboth=0.D0
      
      !Only open PRECALC file if logging option on
-     IF (TLOGP) THEN
+     IF (TLOGP.and.(TPOLYEXCIT.or.TPOLYEXCITBOTH)) THEN
         OPEN(31,FILE="PRECALC",STATUS="UNKNOWN")
         WRITE(31,"(A,G25.16,A,G25.16)") "Energy limits on sigma given by:",ENERGYLIMS(1),", and ",ENERGYLIMS(2)
      ENDIF
@@ -134,6 +136,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             IF((bestvaluespoly(1,(Q-1)).eq.0.D0).and.(bestvaluespoly(2,(Q-1)).eq.0.D0).and.(bestvaluespoly(3,(Q-1)).eq.0.D0)) THEN
                 polyp=(/ 0.1,0,1 /)     !Initial A, sigma and n.
                 polyxi=RESHAPE( (/ 1.D0,0.D0,0.D0,0.D0,1.D0,0.D0,0.D0,0.D0,1.D0 /), (/ 3, 3 /) )!Initial directions - unit vectors
+!                polyxi=RESHAPE( (/ 1.D0,0.D0,0.D0,0.D0,0.D0,1.D0,0.D0,1.D0,0.D0 /), (/ 3, 3 /) )!Initial directions -find n before sigma 
             ELSE
                 !Choose values which the previous vertex level found as optimum
 !                polyp=(/ bestvaluespoly(1,(Q-1)),bestvaluespoly(2,(Q-1)),bestvaluespoly(3,(Q-1)) /)
@@ -527,9 +530,9 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
     x=v
     e=0.D0
 
-    write(31,*) "BRENT ALGO STARTING"
+    IF (TLOGP) write(31,*) "BRENT ALGO STARTING"
     IF (INITFUNC.eq.0.D0) THEN
-        WRITE(31,*) "INITFUNC EQUAL 0.D0 - redo initial point"
+        IF (TLOGP) WRITE(31,*) "INITFUNC EQUAL 0.D0 - redo initial point"
         VARSUM=fun(x,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                &
               FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
               DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,GIDHO,ENERGYLIMS)
@@ -647,7 +650,7 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
         write (31,*) "***Brent algorithm exceeds maximum iterations of ", ITMAX ," Correct values may not have been found"
      3  xmin=x
         brent=fx
-        write(31,*) "BRENT ALGO FINISHED"
+        IF (TLOGP) write(31,*) "BRENT ALGO FINISHED"
     return
 END SUBROUTINE BRENTALGO
 

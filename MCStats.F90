@@ -249,7 +249,7 @@ MODULE MCStats
 !            CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
             CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,M%BlockRatio,wDelta*wWeighting,wWeighting,nTimes,M%wWeightedDelta(0),M%wWeighting(0),M%nGraphs(0),tNewPower, M)
                
-            IF(tNewPower.or.iV.EQ.0) THEN
+            IF(tNewPower.or.(iV.EQ.0)) THEN
 !.. Write out the blocking file every time we go past another power of 2
 
 !               OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
@@ -285,7 +285,7 @@ MODULE MCStats
          INTEGER iUnit, i
          INTEGER*8 nBlocks,nGraphs
          REAL*8 blockVar, blockAvg, blockError, blockErrorError
-         
+!         WRITE(iUnit,*) "it is WriteBlockStats which is printed" 
          WRITE(iUnit,*) "#MCBLOCKS for ",nGraphs," steps."
          DO i=0,M%iBMax
             nBlocks=Int(nGraphs/2**i)
@@ -339,7 +339,8 @@ MODULE MCStats
          INTEGER*8 nBlocks
          Real*8 ratioAvg, ratioVar, estimatedError, ratioError
          BlockRatio = MCStat%BlockRatio
-
+         
+!         WRITE(iUnit,*) "It is writeblockstatsII which is printed"
          Write(iUnit,*) "#MCBLOCKS for ",MCStat%nGraphs(0)," steps."
          DO i=0,BlockRatio%iBMax
             nBlocks=Int(MCStat%nGraphs(0)/2**i)
@@ -350,7 +351,7 @@ MODULE MCStats
             ratioVar=DReal(BlockRatio%wBlockSumSq(i))/nBlocks-ratioAvg**2
             ratioError=Sqrt(ratioVar/(nBlocks-1))
             !Write to 'blocking' file:
-            Write(iUnit, "I3, 8G25.16") i, ratioAvg, ratioError, estimatedError
+            Write(iUnit, "I3, 3G25.16") i, ratioAvg, ratioError, estimatedError
             !ee=/HDElement(SQRT(ABS(2.D0*(nBlocks-1.D0))))
          ENDDO
       END
