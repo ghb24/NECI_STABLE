@@ -376,7 +376,8 @@ C.. Markov chain with random generation.
                               ITREE=1
                               CALL AddGraph(MCStat,LP,1,FF,DLWDB2/FF,
      &                              WCORE,0,ITREE,1,1,1,
-     &                              BTEST(ILOGGING,10),OPROB)
+     &                              BTEST(ILOGGING,10),OPROB,
+     &                              BTEST(ILOGGING,13))
 !                              WRITE(39,*) 1,1,LP,1
                            ENDIF
                          ENDIF
@@ -404,7 +405,8 @@ C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
                               CALL AddGraph(MCStat,LP,I_OVCUR,FF,
      &                          DLWDB2/FF,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
-     &                              1,BTEST(ILOGGING,10),OPROB)
+     &                              1,BTEST(ILOGGING,10),OPROB,
+     &                          BTEST(ILOGGING,13))
 !                              WRITE(39,*) I_OVCUR,1,LP,0
                            ENDIF
 C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), but we need to consider any V's separately, with prob p1
@@ -494,12 +496,14 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                   If (FF%v.eq.0) Then
          CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB)
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,
+     &               BTEST(ILOGGING,13))
                   Else
 
               CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
      &               ITREE,
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB)
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,
+     &                  BTEST(ILOGGING,13))
                   EndIf
                   IF(BTEST(ILOGGING,9).AND.
      &              MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
@@ -562,11 +566,13 @@ caa            CALL FLUSH(10)
          If (FF%v.eq.0) Then
          CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0)
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,
+     &               BTEST(ILOGGING,13))
          Else
          CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
      &               ITREE,
-     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0)
+     &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,
+     &               BTEST(ILOGGING,13))
          EndIf
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator

@@ -20,7 +20,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      REAL*8 polyp(3),polyxi(3,3),bestvalues(2,PREIV_MAX),bestvaluespoly(3,PREIV_MAX)
      REAL*8 bestvalpolyboth(4,PREIV_MAX),bestxipolyboth(4,4),polypboth(4)
      REAL*8 bestxipoly(3,3),bestxi(2,2),polyxiboth(4,4)
-     REAL*8 origpolyboth(4),ORBENERGY,ENERGYLIMS(2)
+     REAL*8 origpolyboth(4),ORBENERGY,ENERGYLIMS(2),ZeroE,HOMO,LUMO
      LOGICAL TSYM,PREVAR,NOTHING,TLOGP
      TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
      TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
@@ -38,7 +38,9 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 !        WRITE(6,*) "ENERGIES ARE", b, energy
 !     enddo
 !     CALL FLUSH(6)
-     
+     HOMO=ORBENERGY(NMAX,10)
+     LUMO=ORBENERGY(NMAX,11)
+     zeroE=((LUMO-HOMO)/2)+HOMO
      bestvalues=0.D0
      bestvaluespoly=0.D0
      bestvalpolyboth=0.D0
@@ -105,7 +107,9 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
             bestvalpolyboth(:,Q)=polypboth(:)
             bestxipolyboth=polyxiboth
-        
+            
+            WRITE(6,"(A,4G25.16)") "HOMO LUMO info: ",ZeroE,(LUMO-HOMO)/2,polypboth(1)-ZeroE,polypboth(3)-ZeroE
+            
             IF (NOTHING) THEN
 
                 g_VMC_PolyExcitFromWeight1=origpolyboth(1)

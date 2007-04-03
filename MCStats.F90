@@ -188,7 +188,7 @@ MODULE MCStats
          END
 !  What is passed in as wSETilde is the sign of the weight times Etilde.  wSign is the sign of the weight
 !  We store Delta=ETilde-ETReference
-         SUBROUTINE AddGraph(M,nTimes, iV, wWeighting,wValue,wGraphWeight,iClass,iTree,iAcc,ioV,igV,tLog,fProb)
+         SUBROUTINE AddGraph(M,nTimes, iV, wWeighting,wValue,wGraphWeight,iClass,iTree,iAcc,ioV,igV,tLog,fProb,TBLOCKING)
             IMPLICIT NONE
             TYPE(MCStats) M
             INTEGER*8 nTimes
@@ -198,7 +198,7 @@ MODULE MCStats
             INTEGER i,ioBMax,j
             REAL*8 cc,ave1,ave2,std1,std2,hh,top,bot,calc
             INTEGER*8 no,nc,nt,nn,nnn
-            LOGICAL tLog,tNewSeq,tNewPower
+            LOGICAL tLog,tNewSeq,tNewPower,TBLOCKING
             SAVE nnn
             wWeightedValue=wWeighting*wValue
             IF(M%nGraphs(0).EQ.0.OR.iAcc.EQ.0.OR.(iV.EQ.ioV.AND.iV.EQ.1)) THEN
@@ -246,31 +246,35 @@ MODULE MCStats
                ENDIF
             ENDIF
 
-!            CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
-            CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,M%BlockRatio,wDelta*wWeighting,wWeighting,nTimes,M%wWeightedDelta(0),M%wWeighting(0),M%nGraphs(0),tNewPower, M)
+            !Only do blocking analysis if blocking tag is on
+            IF(TBLOCKING) THEN
+            
+!               CALL AddToBlockStats(M%BlockDeltaSign,wDelta*wSign,nTimes,M%wSDelta(0),M%nGraphs(0),tNewPower)
+                CALL AddToBlockStatsII(M%BlockSignDeltaSign,M%BlockSign,M%BlockDeltaSign,M%BlockRatio,wDelta*wWeighting,wWeighting,nTimes,M%wWeightedDelta(0),M%wWeighting(0),M%nGraphs(0),tNewPower, M)
                
-            IF(tNewPower.or.(iV.EQ.0)) THEN
+                IF(tNewPower.or.(iV.EQ.0)) THEN
 !.. Write out the blocking file every time we go past another power of 2
 
-!               OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
-!               Call WriteBlockStats(23,M%BlockDeltaSign,M%nGraphs(0)) 
-!               CLOSE(23)
+!                   OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
+!                   Call WriteBlockStats(23,M%BlockDeltaSign,M%nGraphs(0)) 
+!                   CLOSE(23)
                
-!               OPEN(23,FILE="MCBLOCKSHIST",STATUS="UNKNOWN")
-!               Call WriteHistogram(23,M%BlockDeltaSign)
-!               CLOSE(23)
+!                   OPEN(23,FILE="MCBLOCKSHIST",STATUS="UNKNOWN")
+!                   Call WriteHistogram(23,M%BlockDeltaSign)
+!                   CLOSE(23)
              
-!               OPEN(23,FILE="MCBLOCKS2",STATUS="UNKNOWN")
-!               Call WriteBlockStats(23,M%BlockSign,M%nGraphs(0)) 
-!               CLOSE(23)
+!                   OPEN(23,FILE="MCBLOCKS2",STATUS="UNKNOWN")
+!                   Call WriteBlockStats(23,M%BlockSign,M%nGraphs(0)) 
+!                   CLOSE(23)
 
-!               OPEN(23,FILE="MCBLOCKSRatio",STATUS="UNKNOWN")
-!               Call WriteBlockStats(23,M%BlockRatio,M%nGraphs(0))
-!               CLOSE(23)
+!                   OPEN(23,FILE="MCBLOCKSRatio",STATUS="UNKNOWN")
+!                   Call WriteBlockStats(23,M%BlockRatio,M%nGraphs(0))
+!                   CLOSE(23)
                
-               OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
-               CALL WriteBlockStatsII(23,M)
-               CLOSE(23)
+                    OPEN(23,FILE="MCBLOCKS",STATUS="UNKNOWN")
+                    CALL WriteBlockStatsII(23,M)
+                    CLOSE(23)
+                ENDIF
             ENDIF
              
             M%ioClass=iClass

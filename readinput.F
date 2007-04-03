@@ -772,7 +772,7 @@ C.. multiple of 2
               select case(w)
               case("MCPATHS")
                   ILOGGING = IOR(ILOGGING,2**1)
-              case("BLOCKS")
+              case("BLOCKING")
                   ILOGGING = IOR(ILOGGING,2**13)
               case("PREVAR")
                   ILOGGING = IOR(ILOGGING,2**14)

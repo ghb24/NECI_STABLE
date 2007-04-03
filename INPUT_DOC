@@ -407,6 +407,9 @@ MCPATHS
 PREVAR
     Log the Vertex level, Iteration number, parameter, and expected variance, for each parameter which was looked for in the PRECALC block, showing the convergence on the optimum value.  This is output to a file called PRECALC.
 
+BLOCKING
+    Perform a blocking analysis on the MC run.  This will only make a difference if a MC run is being performed, rather than a full sum. An MCBLOCKS file will be produced, which lists log(2)[blocksize], the average of the blocks, the error in the blocks(where the blocks are the energy ratio), and the full error, treating the energy estimator as a correlated ratio of two quantities.
+    
 FMCPR <LABEL,RHO,1000,EXCITATION>
     Log the following to PATHS.
       LABEL
