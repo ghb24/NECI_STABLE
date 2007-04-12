@@ -74,6 +74,7 @@
       g_VMC_ExcitToWeight2=0.D0
       g_VMC_ExcitFromWeight=0.D0
       TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
+      TEXCITPOLY=.false.
       TPOLYEXCIT=.false.
       TPOLYEXCITBOTH=.false.
       TEXCITWEIGHT=.false.
@@ -534,13 +535,22 @@ C                  end select
 !                      call report(trim(w)//" only valid for MC " 
 !     &                //" method",.true.)
 !                  end if
+              case("EXCITPOLYWEIGHT")
+                  call readf(g_VMC_PolyExcitFromWeight2)
+                  call readf(g_VMC_PolyExcitToWeight2)
+                  call readf(G_VMC_EXCITWEIGHT)
+                  TEXCITPOLY=.true.
+                  IF(TPOLYEXCIT.or.TEXCITWEIGHT.or.TPOLYEXCITBOTH) THEN
+                      call report(trim(w)//" only valid if "
+     &               //" another weighting scheme not specified",.true.)
+                  ENDIF
               case("POLYEXCITWEIGHT")
                   call readf(g_VMC_ExcitFromWeight)
                   call readf(g_VMC_PolyExcitToWeight1)
                   call readf(g_VMC_PolyExcitToWeight2)
                   call readf(G_VMC_EXCITWEIGHT)
                   TPOLYEXCIT=.true.
-                  IF(TEXCITWEIGHT.or.TPOLYEXCITBOTH) THEN
+                  IF(TEXCITWEIGHT.or.TPOLYEXCITBOTH.or.TEXCITPOLY) THEN
                       call report(trim(w)//" only valid if "
      &              //" another weighting scheme not specified",.true.)
                   ENDIF
@@ -551,7 +561,7 @@ C                  end select
                   call readf(g_VMC_PolyExcitToWeight2)
                   call readf(G_VMC_EXCITWEIGHT)
                   TPOLYEXCITBOTH=.true.
-                  IF(TPOLYEXCIT.or.TEXCITWEIGHT) THEN
+                  IF(TPOLYEXCIT.or.TEXCITWEIGHT.or.TEXCITPOLY) THEN
                       call report(trim(w)//" only valid if "
      &               //" another weighting scheme not specified",.true.)
                   ENDIF
@@ -561,7 +571,7 @@ C                  end select
                   call readf(G_VMC_EXCITWEIGHT)
                   IF(item.lt.nitems) call readf(g_VMC_ExcitToWeight2)
                   TEXCITWEIGHT=.true.
-                  IF(TPOLYEXCIT) THEN
+                  IF(TPOLYEXCIT.or.TPOLYEXCITBOTH.or.TEXCITPOLY) THEN
                       call report(trim(w)//" only valid if "
      &              //"  another weighting scheme not specified",.true.)
                   ENDIF

@@ -711,6 +711,8 @@ C.. Now deallocate the HF arrays
             CALL FLUSH(6)
          ENDIF
 
+         CHEMPOT=(ARR(NEL)+ARR(NEL+1))/2.D0
+         WRITE(6,*) "Chemical Potential: ",CHEMPOT
          IF(NTFROZEN.LT.0) THEN
             WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN,
      &         " unfrozen virtuals."

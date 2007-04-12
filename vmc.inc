@@ -5,12 +5,14 @@
       REAL*8 g_VMC_PolyExcitFromWeight1,g_VMC_PolyExcitFromWeight2
       INTEGER G_VMC_SEED, G_VMC_LOGCOUNT,PREIV_MAX
       REAL*8 g_MultiWeight(0:10)
+      REAL*8 CHEMPOT
       REAL*8 PRE_TAYREAL(2,10)
       LOGICAL PRE_TAYLOG(6,10)
       INTEGER PRE_TAY(3,10)
       LOGICAL TVARCALC(0:10)
       LOGICAL TMPTHEORY
       LOGICAL TPOLYEXCIT
+      LOGICAL TEXCITPOLY
       LOGICAL TPOLYEXCITBOTH
       LOGICAL TVVDISALLOW
       LOGICAL TMCDIRECTSUM
@@ -20,5 +22,5 @@
      &   TVVDISALLOW,TMCDIRECTSUM,G_VMC_LOGCOUNT,                       &
      &   TVARCALC,TPOLYEXCIT,PRE_TAYREAL, PRE_TAYLOG, PRE_TAY,          &
      &   PREIV_MAX,g_VMC_ExcitToWeight2,g_VMC_PolyExcitToWeight1,       &
-     &   g_VMC_PolyExcitToWeight2,TPOLYEXCITBOTH,                       &
+     &   g_VMC_PolyExcitToWeight2,TPOLYEXCITBOTH,TEXCITPOLY,            &
      &   g_VMC_PolyExcitFromWeight1,g_VMC_PolyExcitFromWeight2
