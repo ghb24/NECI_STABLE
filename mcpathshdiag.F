@@ -28,7 +28,7 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL,I_VMAX,EREF,VARSUM,PREVAR,WREF)
+     &   NTOTAL,I_VMAX,EREF,VARSUM,WREF)
          USE HElement 
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -49,7 +49,7 @@ C.,             If 1, only allow doubles.
          INTEGER NI(NEL),NJ(NEL)
          INTEGER I_HMAX
          REAL*8 BETA,RHOEPS
-         LOGICAL TSYM,T,PREVAR
+         LOGICAL TSYM,T
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
          REAL*8 DBETA
          TYPE(HElement) HIJS(0:I_V)
@@ -167,7 +167,7 @@ C.. NMAX has ARR hidden in it.
             ENDIF
                 
 !        write (*,*) "from mcpathshdiag, EREF=",EREF
-            IF (TVARCALC(I_V).or.PREVAR) THEN             
+            IF (TVARCALC(I_V).or.TPREVAR) THEN             
               J=0
               IF(tLog5) J=10
               
@@ -197,7 +197,7 @@ C.. NMAX has ARR hidden in it.
                    SumYsq=SumYsq + ((TOTAL%v)**2)/Prob%v
 !                   SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
 !     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
-                    IF(.not.PREVAR) THEN
+                    IF(.not.TPREVAR) THEN
                         SumP=SumP+DREAL(Prob)
                     ENDIF
                  
@@ -213,7 +213,7 @@ C.. NMAX has ARR hidden in it.
 !                   SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
 !     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
                   
-!                    IF(.not.PREVAR) THEN
+!                    IF(.not.TPREVAR) THEN
 !                        SumP=SumP+DREAL(Prob)
 !                    ENDIF
                 ENDIF   
@@ -228,7 +228,7 @@ C.. NMAX has ARR hidden in it.
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             ENDIF
-!            IF((.not.PREVAR).and.(I_V.eq.3)) THEN
+!            IF((.not.TPREVAR).and.(I_V.eq.3)) THEN
 !                
 !               CALL WriteGraphEnergies(IPATH, I_V,nEl,nBasis,NMAX,TOTAL)
 !            ENDIF
@@ -452,7 +452,7 @@ C.. Get the H element so we can calculate the energy
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
-     &                    I_VMAX,EREF,VARSUM,PREVAR,WREF)
+     &                    I_VMAX,EREF,VARSUM,WREF)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF
@@ -475,7 +475,7 @@ C            CALL PRINT_MEMORY()
          LOCTAB(1,I_VIND+1)=0
          FMCPR3B2=TOTAL
 
-        If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.PREVAR)) Then
+        If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
         
 !            IF ((RHOEPS.le.1.D-08)) THEN
 !     &       .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
@@ -505,7 +505,7 @@ C            CALL PRINT_MEMORY()
     
         End If
         
-        IF (PREVAR.and.I_VIND.eq.0) THEN
+        IF (TPREVAR.and.I_VIND.eq.0) THEN
 
 !            IF ((RHOEPS.le.1.D-08)) THEN
 !     &       .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN

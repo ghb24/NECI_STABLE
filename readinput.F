@@ -73,6 +73,7 @@
       g_VMC_ExcitToWeight=0.D0
       g_VMC_ExcitToWeight2=0.D0
       g_VMC_ExcitFromWeight=0.D0
+      TPREVAR=.false.
       TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
       TEXCITPOLY=.false.
       TPOLYEXCIT=.false.
@@ -535,7 +536,7 @@ C                  end select
 !                      call report(trim(w)//" only valid for MC " 
 !     &                //" method",.true.)
 !                  end if
-              case("CHEMPOTPOLYWEIGHT")
+              case("CHEMPOTWEIGHTING")
                   call readf(g_VMC_PolyExcitFromWeight2)
                   call readf(g_VMC_PolyExcitToWeight2)
                   call readf(G_VMC_EXCITWEIGHT)

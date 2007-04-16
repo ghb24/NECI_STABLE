@@ -71,7 +71,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2,T
          REAL*8 OSI,ODLWDB,OPROB
          TYPE(HDElement) MP2E(2:I_VMAX)
-         LOGICAL PREVAR,TLOGP
+         LOGICAL TLOGP
          INCLUDE 'vmc.inc'
          CALL TISET('MCPATHSR10',ISUB)
          WRITE(6,*) "Running Multi-level graph calculation."
@@ -130,7 +130,7 @@ C     &            HIJS(0))
 !            write(6,*) pre_TAY(1,4)
 !            write(6,*) "XXX"
             
-           PREVAR=.TRUE. 
+           TPREVAR=.TRUE. 
             
             IF(.not.TMCDIRECTSUM) THEN
                 WRITE(6,*) "PRECALC only valid if "
@@ -143,7 +143,7 @@ C     &            HIJS(0))
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
-     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,TLOGP)
+     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP)
             CALL TIHALT('PRECALC ',ISUBPRE)
          end if
 
@@ -159,14 +159,14 @@ c            WRITE(6,"I2") I_V
             L=0
             LT=0
             BTABLE(0)=-1
-            IF(PREVAR) THEN
+            IF(TPREVAR) THEN
                 DO T=2,I_VMAX
                     MP2E(T)=0.D0
                 ENDDO
                 NTOTAL=1
                 TOTAL=1.D0
                 DLWDB=HIJS(0)
-                PREVAR=.FALSE.
+                TPREVAR=.FALSE.
             ENDIF
 
             DLWDB2=0.D0
@@ -209,7 +209,7 @@ C.. matrix of hij instead of rhoij
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,PREVAR,TOTAL)
+     &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
@@ -404,7 +404,7 @@ CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HElement) RIJLIST(*)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
-         LOGICAL TLOG,TSYM,LISNAN,PREVAR
+         LOGICAL TLOG,TSYM,LISNAN
          REAL*8 DBETA
          TYPE(HElement) HIJS(0:I_VMAX)
          INTEGER LOCTAB(3,I_VMAX)
@@ -417,7 +417,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDElement) FMCPR3STAR,FMCPR3B2
 
 C.. This is where we will store the MP2 energy
-         PREVAR=.FALSE.
+         TPREVAR=.FALSE.
          DO I=2,I_VMAX
             MP2E(I)=0.D0
             
@@ -548,7 +548,7 @@ C.. HIJ rather than RHOIJ
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &        RHOEPS,0,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,PREVAR,TOTAL)
+     &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
