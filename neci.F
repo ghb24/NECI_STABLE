@@ -2876,7 +2876,7 @@ C.. the primed (...P) are the new versions
              ENDDO
             ENDIF
          ENDDO
-         ELSEIF(IP_UMATCACHE.NE.0) THEN
+         ELSEIF(Allocated(UMatCacheData)) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 C.. NHG contains the old number of orbitals
 C.. NBASIS contains the new
