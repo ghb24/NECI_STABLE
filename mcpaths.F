@@ -118,7 +118,8 @@ C     &            HIJS(0))
 
          NTOTAL=1.D0
          I_V1=0
-         
+
+         !PRECALC block called
          if(PREIV_MAX.ne.0) then
              
 !            write(6,*) "XXX"
@@ -129,6 +130,14 @@ C     &            HIJS(0))
 !            write(6,*) "XXX"
             
            PREVAR=.TRUE. 
+            
+            IF(.not.TMCDIRECTSUM) THEN
+                WRITE(6,*) "PRECALC only valid if "
+     &          //" MCDIRECTSUM is being used"
+                CALL FLUSH(6)
+                STOP
+            ENDIF
+            
             CALL TISET('PRECALC ',ISUBPRE)
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
@@ -137,8 +146,6 @@ C     &            HIJS(0))
             CALL TIHALT('PRECALC ',ISUBPRE)
          end if
 
-
-         
 C.. I_V is the number of vertices in the path
          
          DO I=2,I_VMAX

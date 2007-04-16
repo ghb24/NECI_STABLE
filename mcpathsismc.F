@@ -113,9 +113,9 @@ C.. These variables have been passed in and represent the precalculated values f
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
      &          DLWDBCORE/WCore,WCore)
-            
-            write(6,*) DLWDBCORE/WCore
-            call flush(6)
+            !Print out Eref
+!            write(6,*) DLWDBCORE/WCore
+            !call flush(6)
          ELSEIF(I_VMIN.NE.0) THEN
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
@@ -582,8 +582,10 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF(BTEST(ILOGGING,10)) CLOSE(22)
-         Call CalcStDev(MCStat,R)
-         WRITE(6,*) "Error in MC:",R
+         IF(BTEST(ILOGGING,13)) THEN
+            Call CalcStDev(MCStat,R)
+            WRITE(6,*) "Error in MC:",R
+        ENDIF
          IF(TMPTHEORY) THEN
             Call GetStats(MCStat,0,TOTAL,WLSI,DLWDB2)
             WLSI=LOG(TOTAL)
