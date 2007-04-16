@@ -87,6 +87,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          do i=1,nAuxBasis
            res=res+DFCoeffs(i,GetDFIndex(a,c))*DFInts(i,GetDFIndex(b,d)) 
          enddo
+!         WRITE(6,*) "D",a,b,c,d,res
       END
      
 !.. return a DF pair index - i<j (although the pairs are ordered 11 21 22 31 32 33 41 42 ...
@@ -95,24 +96,32 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          INTEGER I,J
          GetDFIndex=i+j*(j-1)/2
       END 
-      SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D)
+      SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D,tUMat2D)
          implicit none
          include 'basis.inc'
          integer nBasis,i,j,k
          real*8 val,UMat2D(nBasis,nBasis)
+         logical tUMat2D
+         tUMat2D=.false.
          open(11,file='HONEEL',status='unknown')
          i=1
          do while(i.ne.0)
             read(11,*) i,j,val
          enddo
          i=1
-         do while(i.ne.0)
-            read(11,*) i,j,k,val
-            if(i.ne.0) then
+         do while(i.ne.0.and.i.le.nBasis.and.j.le.nBasis)
+            read(11,*,end=20) i,j,k,val
+            if(i.ne.0.and.i.le.nBasis.and.j.le.nBasis) then
                UMat2D(i,j)=val
             endif
          enddo
-         close(11)
+         tUMat2D=.true.
+20       close(11)
+         IF(tUMat2D) THEN
+            WRITE(6,*) "Read in 2-index 2-electron integrals."
+         ELSE
+            WRITE(6,*) "Have not read in 2-index 2-electron integrals."
+         ENDIF
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,TMat,Arr,Brr,ECore)
          implicit none

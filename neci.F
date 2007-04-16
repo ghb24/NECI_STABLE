@@ -2832,7 +2832,7 @@ C.. if the spins are the same
      &               TMAT2(IPB,JPB)=TMAT2(IPB,JPB)
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
                ENDDO
-!               WRITE(6,*) "T",I,J,TMAT2(IPB,JPB)
+!               WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
 !            IF(TMAT(IPB,JPB).AGT.1.D-9) WRITE(16,*) I,J,TMAT2(IPB,JPB)
             ENDDO
          ENDDO
@@ -2876,7 +2876,7 @@ C.. the primed (...P) are the new versions
              ENDDO
             ENDIF
          ENDDO
-         ELSEIF(TUMAT2D) THEN
+         ELSEIF(IP_UMATCACHE.NE.0) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 C.. NHG contains the old number of orbitals
 C.. NBASIS contains the new

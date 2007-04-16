@@ -301,7 +301,7 @@ C.. setup spin excitation generator
 C.. save all log files
                ITIME=TIMEC()
                CALL FLUSH(11)
-               CALL LOGNAN(NI,NEL,BETA,ITIME)
+!               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A,$)") "  nan det="
                CALL WRITEDET(6,NI,NEL,.TRUE.)
@@ -550,7 +550,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
 C.. save all log files
                ITIME=TIMEC()
                CALL FLUSH(11)
-               CALL LOGNAN(NI,NEL,BETA,ITIME)
+!               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A,$)") "  nan det="
                CALL WRITEDET(6,NI,NEL,.TRUE.)
