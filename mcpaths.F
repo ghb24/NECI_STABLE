@@ -74,6 +74,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          LOGICAL PREVAR,TLOGP
          INCLUDE 'vmc.inc'
          CALL TISET('MCPATHSR10',ISUB)
+         WRITE(6,*) "Running Multi-level graph calculation."
 C.. This will store the MP2 energy
          DO I=2,I_VMAX
             MP2E(I)=0.D0
@@ -173,6 +174,8 @@ c            WRITE(6,"I2") I_V
             CNWHTAY=NWHTAY(2,I)
             IF(I_CHMAX.EQ.-1) THEN
 C.. This code generates list of all excitations at each level
+            WRITE(6,"(A6,I3,A,I3,A)") "Level ",I," Full Sum Old ",
+     &         I_V," Vertex"
             F(I_V)=FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
@@ -180,6 +183,8 @@ C.. This code generates list of all excitations at each level
      &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,
      &            MP2E,NTOTAL)
             ELSEIF(I_CHMAX.EQ.-8) THEN
+            WRITE(6,"(A6,I3,A,I3,A)") "Level ",I," Full Sum New ",
+     &         I_V," Vertex"
 C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
@@ -188,8 +193,12 @@ C.. This code generates excitations on the fly
      &         MP2E,NTOTAL)
             ELSEIF(I_CHMAX.EQ.-14) THEN
 !.. We read in this vertex level from the MCPATHS file
+            WRITE(6,"(A6,I3,A,I3,A)") "Level ",I," MCPATHS read ",
+     &         I_V," Vertex"
                CALL ReadMCPaths(I_V,F(I_V),DLWDB2)
             ELSEIF(I_CHMAX.EQ.-20) THEN
+            WRITE(6,"(A6,I3,A,I3,A)") "Level ",I," Full Sum HDiag ",
+     &         I_V," Vertex"
 C.. This code generates excitations on the fly, and diagonalizes a
 C.. matrix of hij instead of rhoij
 
@@ -242,6 +251,13 @@ C.. we have already worked out.
              ELSE
               I_V1=I_V
               I_V2=I_VMAX
+             ENDIF
+             IF(tMCDirectSum) THEN
+            WRITE(6,"(A,I3,A,I3,A)") "Level ",I," Full Sum HDiag ",
+     &         I_V1," Vertex"
+             ELSE
+            WRITE(6,"(A,I3,A,I3,A,I3,A)") "Level ",I," Full Sum HDiag ",
+     &         I_V1," to ",I_V2," Vertex"
              ENDIF
    
       

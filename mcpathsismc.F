@@ -109,10 +109,12 @@ C.. These variables have been passed in and represent the precalculated values f
             WCORE=0.D0
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
+            WRITE(6,*) "MCPATHSR4 MP Theory"
          ElseIf(tMCDirectSum) Then
             CALL Create(MCStat,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
      &          DLWDBCORE/WCore,WCore)
+            WRITE(6,*) "MCPATHSR4 Direct Sum"
             !Print out Eref
 !            write(6,*) DLWDBCORE/WCore
             !call flush(6)
@@ -122,6 +124,7 @@ C.. These variables have been passed in and represent the precalculated values f
      &      DLWDBCORE/WCORE,WCore)
             IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)
      &       STOP "Invalid MULTI MC BIAS"
+            WRITE(6,*) "MCPATHSR4 MultiMC.  Bias=",G_VMC_FAC
          ELSE
             DLWDBCORE=HIJS(0)
             CALL Create(MCStat,I_VMAX,
@@ -215,6 +218,7 @@ C.. and for 2 (rho_jj/rhoii)**-P
                ENDIF
                IF(NWHTAY.LT.1) WRITE(6,*) "Warning: MC CYCLE count <0: "
      &               ,NWHTAY
+               WRITE(6,*) NWHTAY, " MC Cycles"
                DO ICOUNT=1,NWHTAY
 C                  IF(ICOUNT.EQ.135) TST=1
 C                  DLWDB2=0.D0
