@@ -214,12 +214,17 @@ MODULE MCStats
                top=ave1
 !               std1=sqrt(M%wDeltaSq(0)%v/M%nGraphs(0)-ave1*ave1)
                ave2=M%wWeighting(0)%v/M%nGraphs(0)
-               bot=1.958944146040248+ave2
+               !bot is Wref + running average of the weighting
+               bot=5.779127038230938+ave2
 !               std2=sqrt(1.D0-ave2*ave2)
 !               cc=std1/ave1+std2/ave2
                CALL CalcStDev(M,cc)
                hh=ave1/ave2
+               !calc gives us the running deltas for the MC run
                calc=top/bot
+               
+!               write(12,*) M%nGraphs(0), calc !a running count of how delta changes
+               !VMC file - No. graphs, Sequence length, vertex level, Class, 
                IF(tLog) WRITE(22,"(I20,I15,2I3,8G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb,hh,calc
                M%iSeqLen=1
             ENDIF

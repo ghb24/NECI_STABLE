@@ -622,7 +622,7 @@ C.. setup spin excitation generator
          ELSE
             Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
             DLWDB=DLWDB2
-            IF(TOTAL%v.LT.0) THEN
+            IF(TOTAL%v.LT.0.D0) THEN
                TOTAL%v=-TOTAL%v
                DLWDB%v=-DLWDB%v
             ENDIF

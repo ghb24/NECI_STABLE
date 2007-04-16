@@ -535,7 +535,7 @@ C                  end select
 !                      call report(trim(w)//" only valid for MC " 
 !     &                //" method",.true.)
 !                  end if
-              case("EXCITPOLYWEIGHT")
+              case("CHEMPOTPOLYWEIGHT")
                   call readf(g_VMC_PolyExcitFromWeight2)
                   call readf(g_VMC_PolyExcitToWeight2)
                   call readf(G_VMC_EXCITWEIGHT)

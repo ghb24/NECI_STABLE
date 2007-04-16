@@ -48,7 +48,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          TYPE(HDElement) FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER  NBASISMAX(5,2)
-         INTEGER LSTE(*),ILMAX
+         INTEGER LSTE(*),ILMAX,ISUBPRE
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
          TYPE(HElement) RIJLIST(*)
@@ -129,11 +129,12 @@ C     &            HIJS(0))
 !            write(6,*) "XXX"
             
            PREVAR=.TRUE. 
+            CALL TISET('PRECALC ',ISUBPRE)
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,PREVAR,TLOGP)
-            
+            CALL TIHALT('PRECALC ',ISUBPRE)
          end if
 
 
@@ -323,6 +324,10 @@ C.. save all log files
             ENDDO
                WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
                WRITE(6,"(A14,G)") STR,FF
+         ENDIF
+         IF(TOTAL%v.LT.0) THEN
+            DLWDB=-DLWDB
+            TOTAL=-TOTAL
          ENDIF
          WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
