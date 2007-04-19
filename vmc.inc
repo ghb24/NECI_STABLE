@@ -24,4 +24,5 @@
      &   TVARCALC,TPOLYEXCIT,PRE_TAYREAL, PRE_TAYLOG, PRE_TAY,          &
      &   PREIV_MAX,g_VMC_ExcitToWeight2,g_VMC_PolyExcitToWeight1,       &
      &   g_VMC_PolyExcitToWeight2,TPOLYEXCITBOTH,TEXCITPOLY,            &
-     &   g_VMC_PolyExcitFromWeight1,g_VMC_PolyExcitFromWeight2,TPREVAR
+     &   g_VMC_PolyExcitFromWeight1,g_VMC_PolyExcitFromWeight2,TPREVAR, &
+     &   CHEMPOT

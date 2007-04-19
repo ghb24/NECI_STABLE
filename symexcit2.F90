@@ -196,8 +196,8 @@ MODULE SymExcit2
             Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitFromWeight)
          !Polynomial weighting with a cut-off at the chemical potential
          ELSEIF(TEXCITPOLY) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.CHEMPOT) Weight=1.D0
-            IF((Arr(I,2)+Arr(J,2)).LE.CHEMPOT) THEN
+            IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) Weight=1.D0
+            IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
                 Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_PolyExcitFromWeight2))
             ENDIF
          !PolyExcitWeighting (for both real & virtual orbs)
@@ -247,8 +247,8 @@ MODULE SymExcit2
          IF((g_VMC_ExcitToWeight.NE.0.D0)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitToWeight)
          !ExcitPolyWeight - using a chemical potential cut-off
          IF(TEXCITPOLY) THEN
-             IF((Arr(K,2)+Arr(L,2)).LT.CHEMPOT) Weight=Weight
-             IF((Arr(K,2)+Arr(L,2)).GE.CHEMPOT) THEN
+             IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
+             IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_PolyExcitToWeight2))
              ENDIF
          ENDIF
