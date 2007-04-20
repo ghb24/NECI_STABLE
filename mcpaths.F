@@ -920,9 +920,9 @@ C.. scaling should be better. (9/3/05)
 C.. Various flags are available in NWHTAY
 C.. Bit 8 (512).  If set the lowest 8 bits of NWHTAY correspond to freezing data.
 C..                  (which is no longer implemented)
-C.. Bit 1 (2).  If 0, then allow connections to anywhere in a graph
+C.. Bit 0 (1).  If 0, then allow connections to anywhere in a graph
 C..             If 1, then only allow connections to the root
-C.. Bit 2 (4).  If 0 allow all topologies.
+C.. Bit 1 (2).  If 0 allow all topologies.
 C..             If 1, disallow a det if it's already connected to one in the graph
 C.. Bit 3 (8).  If 0 allow all types of excitations
 C..             If 1 only allow singles.

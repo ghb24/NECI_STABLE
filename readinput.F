@@ -465,7 +465,8 @@ C                  end select
                    if(NWHTAY(1,I_VMAX).EQ.-7.or.
      &               NWHTAY(1,I_VMAX).EQ.-19) g_MultiWeight(I_VMAX)=1.D0
                   case("EXCITATIONS")
-                     call inpgetexcitations(NWHTAY(2,I_VMAX))
+                     call readu(w)
+                     call inpgetexcitations(NWHTAY(2,I_VMAX),w)
                   case("CYCLES")
                      call readi(NWHTAY(2,I_VMAX))
                      if ( NWHTAY(1,I_VMAX).ne. -7.and.
@@ -881,12 +882,16 @@ C     ILOGGING = 0771
          IMPLICIT NONE
          INTEGER NWHTAY
          CHARACTER(LEN=16) w
-                  call readu(w)
+!                  call readu(w)
                   select case(w)
+                  case("FORCEROOT")
+                     NWHTAY=IOR(NWHTAY,1)
+                  case("FORCETREE")
+                     NWHTAY=IOR(NWHTAY,2)
                   case("SINGLES")
-                     NWHTAY=8
+                     NWHTAY=IOR(NWHTAY,8)
                   case("DOUBLES")
-                     NWHTAY=16
+                     NWHTAY=IOR(NWHTAY,16)
                   case("ALL")
                      NWHTAY=0
                   case default

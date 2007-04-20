@@ -515,10 +515,13 @@ C.. appropriate projection onto the root
             DLWT=0.D0
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
-               R=EXP(-BETA*WLIST(I))
+               R=HIJ(1,1)
+               R=EXP(-BETA*(WLIST(I)-R%v))
                S=RIJMAT(1,I)*RIJMAT(1,I)
-               SI2=SI2+S*R/RII
-               T=R/RII
+               SI2=SI2+S*R
+C/RII
+               T=R
+C/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                DO J=1,I_V
                   U=HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
@@ -542,10 +545,13 @@ C.. appropriate projection onto the root
             DO I=1,I_V
 C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=SQ(RIJMAT(1,I))
-               R=DEXP(-BETA*WLIST(I))
-               SI2=SI2+S*R/RII
+               R=HIJ(1,1)
+               R=DEXP(-BETA*(WLIST(I)-R%v))
+               SI2=SI2+S*R
+C%/RII
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
-               U=R/RII
+               U=R
+C/RII
                DO J=1,I_V
                   T=HIJS2(J)*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
                   DLWT=DLWT+T*U
