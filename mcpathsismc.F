@@ -235,17 +235,27 @@ C                  DLWDB2=0.D0
                   ElseIf(tMCDirectSum) Then
                     oWeight=0.D0 !Ensure generated graph is "accepted"
                     pFac=1
+                    IF(I_VMIN.NE.0) THEN
+                     R=RAN2(ISEED)*g_MultiWeight(0)
+                     I_VCUR=I_VMIN-1
+                     DO WHILE (R.GE.0.AND.I_VCUR.LT.I_VMAX)
+                        I_VCUR=I_VCUR+1
+                        R=R-g_MultiWeight(I_VCUR)
+                     ENDDO
+                    ELSE
+                     I_VCUR=I_V
+                    ENDIF
                     !Generate an I_V vertex graph:
-                    FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,
-     &                   NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+                    FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,NBASISMAX,
+     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                   ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
      &                   IACC,0.D0,I_VMAX)
                     !Set up values for the AddGraph routine later:
-                    ioV=i_v
-                    igV=i_v
-                    i_VCur=i_v
+                    ioV=i_vcur
+                    igV=i_vcur
+!                    i_VCur=i_v
 !MPTheory has weights = 1, and does not need to be further divided.
                     IF(.NOT.tMPTheory) THEN
                      FF=oWeight/HDElement(oProb) 

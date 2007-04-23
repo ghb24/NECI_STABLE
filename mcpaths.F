@@ -252,13 +252,27 @@ C.. we have already worked out.
               I_V1=I_V
               I_V2=I_VMAX
              ENDIF
-             IF(tMCDirectSum) THEN
-            WRITE(6,"(A,I3,A,I3,A)") "Level ",I," Full Sum HDiag ",
-     &         I_V1," Vertex"
+             IF(I_V1.EQ.I_V2) THEN
+                IF(tMCDirectSum) THEN
+                  WRITE(6,"(A,I3,A,I3,A)") "Level ",I,
+     &               " Direct MC Sum HDiag ",
+     &               I_V1," Vertex"
+               ELSE
+                  WRITE(6,"(A,I3,A,I3,A)") "Level ",I,
+     &               " Bias MC Sum HDiag ",
+     &               I_V1," Vertex"
+               ENDIF
              ELSE
-            WRITE(6,"(A,I3,A,I3,A,I3,A)") "Level ",I," Full Sum HDiag ",
-     &         I_V1," to ",I_V2," Vertex"
-             ENDIF
+               IF(tMCDirectSum) THEN
+                  WRITE(6,"(A,I3,A,I3,A,I3,A)") "Level ",I,
+     &               " Direct MC Sum HDiag ",
+     &               I_V1," to ",I_V2," Vertex"
+               ELSE
+                  WRITE(6,"(A,I3,A,I3,A,I3,A)") "Level ",I,
+     &               " Bias MC Sum HDiag ",
+     &               I_V1," to ",I_V2," Vertex"
+               ENDIF
+            ENDIF
    
       
               WLSI=TOTAL
