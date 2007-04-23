@@ -234,7 +234,6 @@ C                  DLWDB2=0.D0
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ElseIf(tMCDirectSum) Then
                     oWeight=0.D0 !Ensure generated graph is "accepted"
-                    pFac=1
                     IF(I_VMIN.NE.0) THEN
                      R=RAN2(ISEED)*g_MultiWeight(0)
                      I_VCUR=I_VMIN-1
@@ -242,9 +241,12 @@ C                  DLWDB2=0.D0
                         I_VCUR=I_VCUR+1
                         R=R-g_MultiWeight(I_VCUR)
                      ENDDO
+                     pFac=g_MultiWeight(I_VCUR)/g_MultiWeight(0)
                     ELSE
+                     pFac=1
                      I_VCUR=I_V
                     ENDIF
+                  
                     !Generate an I_V vertex graph:
                     FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
