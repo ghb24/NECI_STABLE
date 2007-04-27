@@ -540,6 +540,8 @@ c            WRITE(6,"I2") I_V
             DLWDB2=0.D0
             IF(I_HMAX.EQ.-1) THEN
 C.. This code generates list of all excitations at each level
+            WRITE(6,"(A,I3,A)") " Full Sum Old ",
+     &         I_V," Vertex"
             F(I_V)=FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
@@ -548,6 +550,8 @@ C.. This code generates list of all excitations at each level
      &            MP2E,NTOTAL)
             ELSEIF(I_HMAX.EQ.-8) THEN
 C.. This code generates excitations on the fly
+            WRITE(6,"(A,I3,A)") " Full Sum New ",
+     &         I_V," Vertex"
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &        RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
@@ -556,6 +560,8 @@ C.. This code generates excitations on the fly
             ELSEIF(I_HMAX.EQ.-20) THEN
 C.. This code generates excitations on the fly, and diagonalizes a matrix of
 C.. HIJ rather than RHOIJ
+            WRITE(6,"(A,I3,A)") " Full Sum HDiag ",
+     &         I_V," Vertex"
 
             EREF=DLWDB/TOTAL
             
@@ -993,15 +999,20 @@ C.,             If 1, only allow doubles.
          LOGICAL ISCONNECTEDDET
          INCLUDE 'irat.inc'
          INCLUDE 'vmc.inc'
-   
+         IF(IAND(NWHTAY,1).AND.I_VIND.EQ.0)
+     &      WRITE(6,*) "FMCPR3 ForceRoot."
+         IF(IAND(NWHTAY,2).AND.I_VIND.EQ.0)
+     &      WRITE(6,*) "FMCPR3 ForceStar."
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
 C.. Allow both singles and doubles
             EXFLAG=3
          CASE(8)
 C.. only singles
+            IF(I_VIND.EQ.0) WRITE(6,*) "FMCPR3 Only singles."
             EXFLAG=1
          CASE(16)
+            IF(I_VIND.EQ.0) WRITE(6,*) "FMCPR3 Only doubles."
             EXFLAG=2
          CASE(24)
             STOP "Invalid combination of flags in NWHTAY"
