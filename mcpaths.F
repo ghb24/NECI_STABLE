@@ -246,8 +246,14 @@ C.. we have already worked out.
                   g_MultiWeight(0)=g_MultiWeight(0)+g_MultiWeight(J)
                ENDIF
               ENDDO
+              IF(g_MultiWeight(0).EQ.0.D0) THEN
+! In fact we're not doing a multi
+                 I_V1=I_V
+                 I_V2=I_V
+              ELSE
 !  The last of the multi
-              I_V2=NWHTAY(3,I_VMAX)
+                 I_V2=NWHTAY(3,I_VMAX)
+              ENDIF
              ELSE
               I_V1=I_V
               I_V2=I_VMAX

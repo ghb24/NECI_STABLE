@@ -461,12 +461,11 @@ C                  end select
                   case("METHOD")
                      I_VMAX=I_VMAX+1
                      NWHTAY(3,I_VMAX)=I_VMAX
-                    call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX))
-                   if(NWHTAY(1,I_VMAX).EQ.-7.or.
-     &               NWHTAY(1,I_VMAX).EQ.-19) g_MultiWeight(I_VMAX)=1.D0
+                    call inpgetmethod(NWHTAY(1,I_VMAX),NWHTAY(2,I_VMAX),
+     &               I_VMAX)
                   case("EXCITATIONS")
                      call readu(w)
-                     call inpgetexcitations(NWHTAY(2,I_VMAX),w)
+                     call inpgetexcitations(NWHTAY(2,I_VMAX),w,I_VMAX)
                   case("CYCLES")
                      call readi(NWHTAY(2,I_VMAX))
                      if ( NWHTAY(1,I_VMAX).ne. -7.and.
@@ -495,7 +494,7 @@ C                  end select
                
               case("METHOD")
                if(I_HMAX.ne.0) call report("METHOD already set",.true.)
-                  call inpgetmethod(I_HMAX,NWHTAY(1,1))
+                  call inpgetmethod(I_HMAX,NWHTAY(1,1),0)
               case("CYCLES")
                   call readi(NWHTAY(1,1))
                   if ( I_HMAX .ne. -7.and.
@@ -939,10 +938,11 @@ C     ILOGGING = 0771
                    
                   
          
-      subroutine inpgetmethod(I_HMAX,NWHTAY)
+      subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use input
          implicit none
-         integer I_HMAX,NWHTAY
+         include 'vmc.inc'
+         integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
                   do while ( item .lt. nitems )
                     call readu(w)
@@ -965,13 +965,27 @@ C     ILOGGING = 0771
                                 call report("Error - must specify OLD" 
      &                         //" or NEW vertex sum method",.true.)
                             end select
-                        case("MC")
+                        case("MC","MCMETROPOLIS")
                            I_HMAX = -7
                             call readu(w)
                             select case(w)
                             case("HDIAG")
                                 I_HMAX = -19
                             end select
+                           tMCDirectSum=.FALSE.
+                           IF(I_V.GT.0) g_MultiWeight(I_V)=1.D0
+                        case("MCDIRECT")
+                           tMCDirectSum=.TRUE.
+                            call readu(w)
+                            select case(w)
+                            case("HDIAG")
+                                I_HMAX = -19
+                            end select
+                           G_VMC_FAC=0.D0
+                        case("MCMP")
+                           tMCDirectSum=.TRUE.
+                           G_VMC_FAC=0.D0
+                           TMPTHEORY=.TRUE.
                         case("STAR")
                            I_HMAX = -9
                            call readu(w)

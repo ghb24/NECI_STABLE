@@ -234,7 +234,7 @@ C                  DLWDB2=0.D0
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ElseIf(tMCDirectSum) Then
                     oWeight=0.D0 !Ensure generated graph is "accepted"
-                    IF(I_VMIN.NE.0) THEN
+                    IF(g_MultiWeight(0).NE.0) THEN
                      R=RAN2(ISEED)*g_MultiWeight(0)
                      I_VCUR=I_VMIN-1
                      DO WHILE (R.GE.0.AND.I_VCUR.LT.I_VMAX)

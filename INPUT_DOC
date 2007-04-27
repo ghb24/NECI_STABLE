@@ -257,17 +257,27 @@ METHOD <METHOD>
     Specify the method for vertex summation routine.  Options currently are:
     VERTEX SUM OLD,NEW,HDIAG
         Use the old, new, or H-diagonalizing vertex sum subroutine.
-    VERTEX MC [HDIAG]
+    VERTEX MC|MCMETROPOLIS|MCDIRECT|MCMP [HDIAG]
         Monte Carlo procedure.
-        This may be performed in a number of ways (The way is chosen by the location of the VERTEX MC command):
-         SINGLE
-            MC is performed at a single vertex level using a composite 1-vertex graph containing a full sum previously performed.  BIAS is used to choose whether a step selects a composite (all lower levels) or a normal (this level) graph.  Stochastic time MC is performed. This can only be specified in the METHODS section, and only at the last vertex level.  Uses EXCITWEIGHTING for excitation generation weighting and IMPORTANCE for graph generation weighting
-         MULTI
-            MC is performed at a multiple vertex levels, but still using a composite 1-vertex graph containing a full sum previously performed. MULTI should be specified in all the (contiguous) vertex levels to be included (not composited) in the MC.  BIAS is used to choose whether a step selects a composite (all lower levels) or a normal (the MULTI levels) graph.  MULTIMCWEIGHT is specified for each MULTI level, and gives a relative weighting of selecting the vertex level graphs once a non-composite graph is chosen.  Stochastic time MC is performed.  This can only be specified in the METHODS section.  Once MULTI has been specified, it must be specified on all subsequent vertex levels in a METHODS section.  Uses EXCITWEIGHTING for excitation generation weighting and IMPORTANCE for graph generation weighting
-         FULL
-            Does  MC at all levels (cannot be specified in a METHODS section) using BIAS to bias the levels, EXCITWEIGHTING for excitation generation, and IMPORTANCE to for graph generation weighting.
+        MCDIRECT
+            Perform direct stochastic sampling for the PI method, dividing each freshly generated graph by its normalized generation probability.
+            If MULTIMCWEIGHT is specified then the sampling generates graphs from all weighted levels using the weighting - a single MC calculation is performed.
+            If MULTIMCWEIGHT is not specified (default), a separate MC calculation is performed at each vertex level.  Combined statistics are printed.
+        MCMP
+            Perform direct stochastic sampling as above, but for the MP method.
+        MC or MCMETROPOLIS
+            Perform Metropolis Monte Carlo.  
+        This may be performed in a number of ways (The way is chosen by the location of the VERTEX MC command).  STOCHASTICTIME may also be specified to perform stochastic time simulations with a given BIAS
+           SINGLE
+            MC is performed at a single vertex level using a composite 1-vertex graph containing a full sum previously performed.  
+            BIAS is used to choose whether a step selects a composite (all lower levels) or a normal (this level) graph.  Stochastic time MC is performed. This can only be specified in the METHODS section, and only at the last vertex level.  Uses EXCITWEIGHTING for excitation generation weighting and IMPORTANCE for graph generation weighting
+           MULTI
+            MC is performed at a multiple vertex levels, but still using a composite 1-vertex graph containing a full sum previously performed. MULTI should be specified in all the (contiguous) vertex levels to be included (not composited) in the MC.  
+            BIAS is used to choose whether a step selects a composite (all lower levels) or a normal (the MULTI levels) graph.  MULTIMCWEIGHT is specified for each MULTI level, and gives a relative weighting of selecting the vertex level graphs once a non-composite graph is chosen.  Stochastic time MC is performed.  This can only be specified in the METHODS section.  Once MULTI has been specified, it must be specified on all subsequent vertex levels in a METHODS section.  Uses EXCITWEIGHTING for excitation generation weighting and IMPORTANCE for graph generation weighting
+           FULL
+            Does  MC at all levels using BIAS to bias the levels, EXCITWEIGHTING for excitation generation, and IMPORTANCE to for graph generation weighting.  This is only available WITHOUT a METHODS section
 
-         If HDIAG is specified, the H-diagonalizing routine is used, otherwise, the rho-diagonalizer is used.
+         If HDIAG is specified, the H-diagonalizing routine is used, otherwise, the rho-diagonalizer is used.  HDIAG is automatically specified for MCMP.
 
     VERTEX SUM READ
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
