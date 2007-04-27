@@ -234,9 +234,9 @@ C.. NMAX has ARR hidden in it.
 !            ENDIF
             L=L+1
             FMCPR3B2=TOTAL
-            IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
+            IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 C.. log every 1000
-               WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
+               WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E(2)
                CALL FLUSH(10)
             ENDIF
             RETURN

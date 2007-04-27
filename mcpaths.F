@@ -307,7 +307,8 @@ C.. we have already worked out.
                   F(I_V)=F(I_V)+FF
                   FSQ(I_V)=FSQ(I_V)+SQ(FF)
                   DLWDB3=DLWDB3+DLWDB2
-                  IF(BTEST(ILOGGING,9).AND.MOD(ICOUNT,1000).EQ.0) THEN
+                  IF(BTEST(ILOGGING,9).AND.
+     &               MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
                     WRITE(12,"(I3,I10,4F19.7)") I_V,ICOUNT/1000,
      &                   F(I_V)/ICOUNT,
      &                   SQRT(FSQ(I_V)/ICOUNT-SQ(F(I_V)/ICOUNT)),
@@ -667,6 +668,7 @@ C.. NLIST contains the legnth of LSTE for each node
          INTEGER ICLS
          TYPE(HDElement) MP2E,NTOTAL
          INTEGER EXFLAG
+         INCLUDE 'vmc.inc'
 C.. Allow both single and double excitations
          EXFLAG=3
          TLOG=BTEST(ILOGGING,0)
@@ -729,7 +731,7 @@ C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
                CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
             ENDIF
-            IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
+            IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 C.. log every 1000
                WRITE(10,*) L,NTOTAL,DLWDB,MP2E
                CALL FLUSH(10)
@@ -990,6 +992,7 @@ C.,             If 1, only allow doubles.
          INTEGER EXFLAG
          LOGICAL ISCONNECTEDDET
          INCLUDE 'irat.inc'
+         INCLUDE 'vmc.inc'
    
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)
@@ -1085,7 +1088,7 @@ C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
                CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
             ENDIF
-            IF(TLOG4.AND.MOD(L,1000).EQ.0) THEN
+            IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
                CALL FLUSH(10)
