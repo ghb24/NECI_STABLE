@@ -976,7 +976,7 @@ C.. TYPE(5,*)=number of excitations of this type (calculated later)
 C.. Loop over all four possible symmetry labels
 C.. (in principle, but given we only take into account spatial and spin
 C.. symmetries here, we only loop over indices 2 and 4
-         NOSING=ISUHFDET(NI,NEL,NBASISMAX).OR.(IAND(IFRZ(0),4).NE.0)
+         NOSING=ISUHFDET(NI,NEL).OR.(IAND(IFRZ(0),4).NE.0)
          TYP(1)=0
          TYP(3)=0
          TYP(5)=0

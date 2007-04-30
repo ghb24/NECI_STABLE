@@ -387,11 +387,12 @@ C.. because we've just done that
                      HIJ(II,I_VIND+1)=RH
                    IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(1,II),
      &                  G1,nBasisMax,nBasis)) THEN
-!                     IF(RH.NE.0.D0) THEN
+                     IF(RH%v.NE.0.D0.AND.RHOEPS.NE.0.D0) THEN
 C.. If the node to which this node (NJ) is attached was known about at
 C.. the time of node II, we are allowed to have a connection between
 C.. node NJ and II.  Otherwise, this node must not be attached to II, as
 C.. it will've already been counted as one of those attached to II
+!    If we excluded it through a rhoeps cutoff, we ARE allowed to connect to it
 
 C.. We disallow this connection if IAND(IFRZ2(0),2) to require that there are
 C.. no loops
@@ -399,6 +400,7 @@ C.. no loops
 C.. we're not allowed to count this node
                            TFAIL=.TRUE.                  
                         ENDIF
+                      ENDIF
                      ENDIF
                   ENDIF
                ENDDO

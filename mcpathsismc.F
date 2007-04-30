@@ -900,7 +900,7 @@ C.. Update the rho and X (probability) matrices with this new node
                   ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
                   IF(ICE.LE.2) THEN
                      XIJ(I_VNEXT,I)=1.D0/NLIST
-                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
+                     IF(ISUHFDET(IPATH(1,I),NEL)) THEN
                         IF(ICE.EQ.2) THEN
                            XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
                         ELSE
@@ -1291,7 +1291,7 @@ C.. Update the rho and X (probability) matrices with this new node
       
 ! We supercede the unbiased generation probability with a weighted one.
 !                     XIJ(I_VNEXT,I)=1.D0/NLIST
-!                     IF(ISUHFDET(IPATH(1,I),NEL,NBASISMAX)) THEN
+!                     IF(ISUHFDET(IPATH(1,I),NEL)) THEN
 !                        IF(ICE.EQ.2) THEN
 !                           XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
 !                        ELSE
@@ -1619,7 +1619,7 @@ C         CALL FLUSH(56)
          NA=NEL-NB
          NEX1A=NA*(NB2-NA)
          NEX1B=NB*(NB2-NB)
-         IF(ISUHFDET(NI,NEL,NBASISMAX)) THEN
+         IF(ISUHFDET(NI,NEL)) THEN
             NEX1A=0
             NEX1B=0
          ENDIF
@@ -1715,18 +1715,17 @@ C         CALL FLUSH(57)
          IEX=IEL
          RETURN
       END
-      LOGICAL FUNCTION ISUHFDET(NI,NEL,NBASISMAX)
+      LOGICAL FUNCTION ISUHFDET(NI,NEL)
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASISMAX(5,6)
+         INTEGER NEL,NI(NEL)
          INTEGER I
          INCLUDE 'uhfdet.inc'
          ISUHFDET=.FALSE.
-         IF(NBASISMAX(4,5).EQ.1) THEN
+         IF(.NOT.TUSEBRILLOUIN) RETURN
             ISUHFDET=.TRUE.
             DO I=1,NEL
                IF(NI(I).NE.NUHFDET(I)) ISUHFDET=.FALSE.
             ENDDO
-         ENDIF
 C         ISUHFDET=.FALSE.
          RETURN
       END
@@ -2366,7 +2365,7 @@ C.. we will later.  Just put a dummy value in for now
 C.. We don't know how many connections there are from the new node, but
 C.. we will later.  Just put a dummy value in for now
                         NXIJ(I_VNEXT,I)=1.D0
-                        IF(ISUHFDET(NIPATH(1,I),NEL,NBASISMAX)) THEN
+                        IF(ISUHFDET(NIPATH(1,I),NEL)) THEN
                            IF(ICE.EQ.2) THEN
                               NXIJ(I,I_VNEXT)=1.D0/NXIJ(I,I)
                            ELSE

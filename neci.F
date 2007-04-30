@@ -847,6 +847,7 @@ C.. Work out a preliminary Fermi det
       ENDIF
       WRITE(6,"(A,$)") "Fermi det (D0):"
       CALL WRITEDET(6,FDET,NEL,.TRUE.)
+      CALL ICOPY(NEL,FDET,1,NUHFDET,1)
       IF(TSPECDET.AND.SPECDET(1).EQ.0) THEN
          WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
          CALL ICOPY(NEL,FDET,1,SPECDET,1)

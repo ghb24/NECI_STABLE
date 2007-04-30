@@ -6,8 +6,8 @@
          ICE=IGETEXCITLEVEL(D1,D2,NEL)
          IF(ICE.LE.2) THEN
 C.. The new node is connected to this node
-            IF(ISUHFDET(D1,NEL,NBASISMAX).OR.
-     &         ISUHFDET(D2,NEL,NBASISMAX)) THEN
+            IF(ISUHFDET(D1,NEL).OR.
+     &         ISUHFDET(D2,NEL)) THEN
                IF(ICE.NE.1) THEN
                   AREDETSEXCITS=.TRUE.
                ELSE

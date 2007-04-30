@@ -39,6 +39,7 @@
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'sym.inc'
+      INCLUDE 'uhfdet.inc'
 !     --------------------------------------------
 !     Set some sensible defaults here
       title = ""
@@ -259,6 +260,8 @@ C.. the last number is the symmetry specification - and is placed in position 5
                      BOA=1.D0
                      COA=1.D0
                   endif
+              case("USEBRILLOUINTHEOREM")
+                TUSEBRILLOUIN=.TRUE. 
               case("RS")
                   call getf(FUEGRS)
               case("COULOMB")

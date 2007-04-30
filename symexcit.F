@@ -377,7 +377,8 @@ C.. SYMLABELCOUNTS(1,I) is the index within SYMLABELLIST of the first state of s
 C.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
 
          NSING=0
-         DO I=1,NCL
+         IF(.NOT.ISUHFDET(NI,NEL)) THEN
+          DO I=1,NCL
 C.. For each class, see what sym prods it can interact with
             DO J=1,NSYMLABELS
                IF(LSYMSYM(SYMPROD(CLASSES(I)%SymRem,
@@ -399,7 +400,8 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
                   ENDDO
                ENDIF
             ENDDO
-         ENDDO         
+          ENDDO         
+         ENDIF
 
 C         WRITE(6,*) "Number of single excitations: ",NSING
          NEXCITS=0
@@ -445,7 +447,7 @@ C.. 5  COUNT (Total number of excitations in this category)
 C.. Now store the singles:
          NEXCITTYPES=0
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
-!         IF(.NOT.ISUHFDET(NI,NEL,NBASISMAX)) THEN
+         IF(.NOT.ISUHFDET(NI,NEL)) THEN
           IF(BTEST(ILEVEL,0)) THEN
             DO I=1,NCL
 C.. For each class, see what sym prods it can interact with
@@ -486,7 +488,7 @@ C     &                        ")->",SymLabels(2,J)
                ENDDO
             ENDDO
           ENDIF
-!         ENDIF
+         ENDIF
 C.. And the doubles
          IF(BTEST(ILEVEL,1)) THEN
             DO I=1,NPR

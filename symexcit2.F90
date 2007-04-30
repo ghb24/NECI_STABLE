@@ -400,6 +400,7 @@ MODULE SymExcit2
          INTEGER K,NPR,I,iExcitType
          INTEGER iSpn,iCount,nToPairs,iTotal,nFromPairs
          LOGICAL tIsConnectedDet
+         LOGICAL IsUHFDet
          iExcit(1,1)=2
          CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
@@ -410,8 +411,13 @@ MODULE SymExcit2
          ENDIF
 !  See if we have a single
          IF(iExcit(1,2).EQ.0) THEN
-            tIsConnectedDet=.TRUE.
 !Warning - this is not necessarily the case, but will do for abelian symmetry groups
+            IF(.NOT.(ISUHFDET(NI,NEL).OR.ISUHFDET(NJ,NEL))) THEN
+!  The UHF det isn't set if Brillouin's Theorem is disabled, and we end up here.
+               tIsConnectedDet=.TRUE.
+            ELSE
+               tIsConnectedDet=.FALSE.
+            ENDIF
             RETURN
          ENDIF
          tIsConnectedDet=.TRUE.
