@@ -93,7 +93,7 @@ C.. only singles
             END SELECT
          IF(I_VIND.EQ.0) THEN
 C.. 1st time in
-            CALL IAZZERO(IFRZ(0,1),NBASIS+1) 
+            CALL IAZZERO(IFRZ,(NBASIS+1)*I_V) 
             IF(IAND(NWHTAY,8).NE.0) THEN
 C.. Force freexing
                IFRZ(0,1)=NWHTAY
@@ -101,6 +101,7 @@ C.. Force freexing
                IFRZ(0,1)=0
             ENDIF
          ENDIF
+         CALL IAZZERO(IFRZ2,(NBASIS+1)*I_V) 
          CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1) 
          
 C            DO I=0,NBASIS
@@ -345,6 +346,8 @@ C.. create a copy
                CALL MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL),'CURGEN')
                IP_OGEN=LOCTAB2(1,IVLEVEL)
                CALL ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
+               I_VIND=I_VIND+1
+               I_VIND=I_VIND-1
                IF(IAND(IFRZ(0,I_VIND+1),8).NE.0) THEN
 C.. We need to reset the generator if we're only generating stars.
 C.. Because we now have some frozen orbitals, the original excitation

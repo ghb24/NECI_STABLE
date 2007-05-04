@@ -971,8 +971,8 @@ C.. a double
                I=0
                L=5
                K=-2
-C               WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
-C     &            IFROM)
+!              WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
+!     &            IFROM)
             ENDIF
          ENDIF
          IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
