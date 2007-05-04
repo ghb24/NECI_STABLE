@@ -988,6 +988,13 @@ C.. no more possible K, so we get a new I
                L=0
 C.. I and J run in parallel, and for each J, we check whether it's in 
 C.. the det.  If it is, then we carry on.
+C.. SYMLABELLIST holds a list of states grouped under symmlabel, and ordered within that symlabel
+C.. SYMLABELCOUNTS(1,J) is the index within SYMLABELLIST of the first state of symlabel I
+C.. SYMLABELCOUNTS(2,J) is the number of states with symlabel I
+!..  J runs along the symlabel looking for states of that symmetry
+!..  I runs along the determinant comparing against electrons of that symmetry.
+!..  We're looking for electrons in the det which are also in the SYMLABELLIST, and we run I and J
+!..   in parallel along each to keep the search efficient.
                L2=I.LT.NEL
                L1=.TRUE.
                DO WHILE(L2)

@@ -129,9 +129,10 @@ C..Input parameters
       WRITE(6,*) ' TSPN : ' , TSPN
       CALL IAZZERO(NBASISMAX,5*7)
       TSPINPOLAR=.FALSE.
-      DO I=1,4
+      DO I=1,3
          SymRestrict%k(I)=IPARITY(I)
       ENDDO
+      SymRestrict%Ms=IPARITY(4)
       SymRestrict%Sym%s=IPARITY(5)
       IF(TSPN) THEN
 C.. If we're doing monte carlo without generating a list of

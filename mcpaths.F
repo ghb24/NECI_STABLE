@@ -1289,7 +1289,8 @@ C.   The last node never has an excitation generator, as it never needs one in t
 !                     IF(RH .AGT. 0.D0) THEN
                      IF(IsConnectedDet(IPATH(1,II),NJ,nEl,LOCTAB(1,II),
      &                  G1,nBasisMax,nBasis)) THEN
-                     IF(RH%v.NE.0.D0.AND.RHOEPS.NE.0.D0) THEN
+!if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
+                     IF(RH%v.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
 C.. If the node to which this node (NJ) is attached was known about at
 C.. the time of node II, we are allowed to have a connection between
 C.. node NJ and II.  Otherwise, this node must not be attached to II, as
