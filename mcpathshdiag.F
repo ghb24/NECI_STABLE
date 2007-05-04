@@ -42,7 +42,7 @@ C.,             If 1, only allow doubles.
          REAL*8 ALAT(*),ECORE
          TYPE(HDElement) TOTAL,FMCPR3B2,Prob
          TYPE(HDElement) CALCPATHS_N
-         INTEGER IPATH(NEL,0:I_V)
+         INTEGER IPATH(NEL,0:I_V),DUMMY(0:I_V)
          TYPE(HElement) HIJ(0:I_V,0:I_V),RH
          TYPE(HDElement) DLWDB,DLWDB2,EREF,WREF
          INTEGER INODE(NEL)
@@ -166,6 +166,8 @@ C.. NMAX has ARR hidden in it.
                ENDDO
             ENDIF
                 
+                   !WRITE(43,*) DLWDB2, EREF
+                   !CALL FLUSH(43)
 !        write (*,*) "from mcpathshdiag, EREF=",EREF
             IF (TVARCALC(I_V).or.TPREVAR) THEN             
               J=0
@@ -175,7 +177,7 @@ C.. NMAX has ARR hidden in it.
 ! When we do MC on MP, we sum MPEn/pgen in the numerator and 1 in the denominator
                  
                 Call CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
-     &                   nBasisMax,UMat,NMAX,nBasis,Prob)
+     &                   nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
                  SumX  =SumX   + DREAL(MPEn)
                  SumY  =SumY   + DREAL(Prob)
                  SumXsq=SumXsq + DREAL(MPEn*MPEn/Prob)
@@ -185,28 +187,47 @@ C.. NMAX has ARR hidden in it.
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
                  
-               IF (ABS(TOTAL%v).gt.1.D-08) THEN!.and.(RHOEPS.le.1.D-08)) THEN
+               IF (ABS(TOTAL%v).gt.1.D-09) THEN!.and.(RHOEPS.le.1.D-08)) THEN
 !     &        .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
                      
                    CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
-     &                       nBasisMax,UMat,NMAX,nBasis,Prob)
-                   
-                   SumX  =SumX   + DLWDB2%v-EREF%v*TOTAL%v
+     &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+                  
+                   SumX  =SumX   + DLWDB2%v-(EREF%v*TOTAL%v)
                    SumY  =SumY   + TOTAL%v
                    SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
+!                   SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
                    SumYsq=SumYsq + ((TOTAL%v)**2)/Prob%v
+                   SumXY =SumXY  + (DLWDB2%v-(EREF%v*TOTAL%v))*TOTAL%v/
+     &                                  Prob%v
 !                   SumXY =SumXY  + (TOTAL%v/Prob%v+WREF%v)
 !     &                                  *(DLWDB2%v-(EREF%v*TOTAL%v))
-                    IF(.not.TPREVAR) THEN
-                        SumP=SumP+DREAL(Prob)
-                    ENDIF
-                 
-!                 ELSEIF ((RHOEPS.gt.1.D-08)) THEN!.or.(DBETA(2).gt.1.D-08).or.
-!     &              (DBETA(3).gt.1.D-08)) THEN
+                   SumP=SumP+Prob%v
+          
+!                    WRITE(29,*) EREF%v, WREF%v
+!                    CALL FLUSH(29)
+          
+           !FullEnergy Representation - WRONG(with DLWDB2=DLWDB2/TOTAL)
+!           SumX=SumX+DLWDB2%v*TOTAL%v
+!           SumY=SumY+TOTAL%v
+!           SumXsq=SumXsq+(((TOTAL%v*DLWDB2%v)**2)/Prob%v)
+!           SumYsq=SumYsq+(((TOTAL%v)**2)/Prob%v)
+!           SumXY=SumXY+((TOTAL%v**2)*DLWDB2%v)/Prob%v
+           
+           
+           
+           
+           !Delta representation, written out in full(with DLWDB2=DLWDB2/TOTAL)
+!           SumX=SumX+(DLWDB2%v-EREF%v)*TOTAL%v
+!           SumY=SumY+TOTAL%v+(Prob%v*WREF%v)
+!           SumY=SumY+TOTAL%v
+!           SumXsq=SumXsq+(((TOTAL%v*(DLWDB2%v-EREF%v))**2)/Prob%v)
+!           SumYsq=SumYsq+(((TOTAL%v)**2)/Prob%v)+
+!     &                   (2*WREF%v*TOTAL%v)+((WREF%v**2)*Prob%v)
+!           SumXY=SumXY+(((TOTAL%v**2)*(DLWDB2%v-EREF%v))/Prob%v)+
+!     &                  (WREF%v*TOTAL%v*(DLWDB2%v-EREF%v))      
 
-!                   CALL CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
-!     &                       nBasisMax,UMat,NMAX,nBasis,Prob)
-!                   SumX=SumX   + DLWDB2%v-EREF%v*TOTAL%v
+!                   SumX=SumX   + DLWDB2%v-(EREF%v*TOTAL%v)
 !                   SumY  =SumY   + TOTAL%v+WREF%v*Prob%v
 !                   SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
 !                   SumYsq=SumYsq + Prob%v*(TOTAL%v/Prob%v+WREF%v)**2
@@ -223,7 +244,7 @@ C.. NMAX has ARR hidden in it.
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
               CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &            nBasisMax,UMat,NMAX,nBasis,Prob)
+     &            nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
                   WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
@@ -456,6 +477,7 @@ C.. Get the H element so we can calculate the energy
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
      &                    I_VMAX,EREF,VARSUM,WREF)
+!                   WRITE(43,*) WREF, NTOTAL
                    ICIL=ICIL+1
                   ENDDO
                ENDIF
@@ -480,15 +502,11 @@ C            CALL PRINT_MEMORY()
 
         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
         
-!            IF ((RHOEPS.le.1.D-08)) THEN
-!     &       .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
         
-                SumYsq=SumYsq+(2*WREF%v*SumY)+(WREF%v)**2
-                SumY=SumY+WREF%v
-                SumXY=SumXsq+(WREF%v*SumX)
+                 SumYsq=SumYsq+(2*WREF%v*SumY)+(((WREF%v)**2)*SumP)
+                 SumY=SumY+(WREF%v*SumP)
+                 SumXY=SumXY+(WREF%v*SumX)
 
-!            ENDIF
-            
 !           write(6,"A, 5G26.15") "Terms in estimated variance:",
 !     &        SumX, SumY, SumXsq, SumYsq, SumXY
 
@@ -510,17 +528,20 @@ C            CALL PRINT_MEMORY()
         
         IF (TPREVAR.and.I_VIND.eq.0) THEN
 
-!            IF ((RHOEPS.le.1.D-08)) THEN
-!     &       .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
-            
-                SumYsq=SumYsq+(2*WREF%v*SumY)+(WREF%v)**2
-                SumY=SumY+WREF%v
-                SumXY=SumXsq+(WREF%v*SumX)
+                SumYsq=SumYsq+(2*WREF%v*SumY)+(((WREF%v)**2)*SumP)
+                SumY=SumY+(WREF%v*SumP)
+                SumXY=SumXY+(WREF%v*SumX)
+                
+!          OPEN(44,FILE="HDIAGVARTERMS",STATUS="UNKNOWN")
 
-!            ENDIF    
-            
-            VARSUM=(SumX/SumY)**2*(SumXsq/SumX**2+SumYsq/SumY**2
+!            WRITE(43,*) EREF%v,WREF%v
+          VARSUM=((SumX/SumY)**2)*((SumXsq/(SumX**2))+(SumYsq/(SumY**2))
      &          -2*SumXY/(SumX*SumY))
+!            WRITE(44,*) g_VMC_ExcitWeights
+!            WRITE(44,("6G25.16")) SumX,SumY,(SumXsq-(SumX**2)),
+!     &               (SumYsq-(SumY**2)),(SumXY-(SumX*SumY)),VARSUM
+            
+            SumP=0.D0
             SumX=0.D0
             SumY=0.D0
             SumXsq=0.D0

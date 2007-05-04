@@ -45,6 +45,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER KSYM(5),IEXCITS,ITIME
          TYPE(HDElement) FMCPR4
          INTEGER FSEEK
+         INTEGER EXCITGEN(:) 
          TYPE(HDElement) FMCPR4B,FMCPR4C,FMCPR4D2
          TYPE(HDElement) FMCPR4D3
          TYPE(HDElement) DLWDB,DLWDB2,DLWDB3
@@ -247,13 +248,20 @@ C                  DLWDB2=0.D0
                      I_VCUR=I_V
                     ENDIF
                   
+                  !  write(6,*) ODLWDB,OPROB
                     !Generate an I_V vertex graph:
+!      WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2%v, ODLWDB%v,OWEIGHT%v
+                            
                     FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,NBASISMAX,
      &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                   ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                   IACC,0.D0,I_VMAX)
+     &                   IACC,0.D0,I_VMAX,EXCITGEN)
+                    
+!     WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2%v, ODLWDB%v,OWEIGHT%v
+!                  CALL FLUSH(43)
+                    
                     !Set up values for the AddGraph routine later:
                     ioV=i_vcur
                     igV=i_vcur
@@ -329,7 +337,7 @@ C.. Markov chain with random generation.
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                     IACC,0.D0,I_VMAX)
+     &                     IACC,0.D0,I_VMAX,EXCITGEN)
 !                   !   .
                         ELSE
 !..   We're doing MC where we have either the gestalt 1..I_VMIN-1 vertex object
@@ -350,7 +358,7 @@ C.. Markov chain with random generation.
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDBCORE,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                        IACC,WCORE,I_VMAX)
+     &                        IACC,WCORE,I_VMAX,EXCITGEN)
                            ELSE
                               R=RAN2(ISEED)*g_MultiWeight(0)
                               I_VCUR=I_VMIN-1
@@ -368,7 +376,7 @@ C.. Markov chain with random generation.
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
-     &                           IACC,0.D0,I_VMAX)
+     &                           IACC,0.D0,I_VMAX,EXCITGEN)
                            ENDIF
 !                   !   .
                          ELSE
@@ -478,7 +486,7 @@ C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
      &                         RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                         ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
-     &                         PFAC,IACC,0.D0,I_VMAX)
+     &                         PFAC,IACC,0.D0,I_VMAX,EXCITGEN)
 !                              WRITE(39,*) IOV,IGV,1,IACC
 C                              WRITE(6,*) IACC
                          ENDIF
@@ -1742,7 +1750,7 @@ C.. weight.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
-     &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX)
+     &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          USE HElement
          IMPLICIT NONE
          TYPE(HDElement) FMCPR4D2
@@ -1762,9 +1770,9 @@ C.. weight.
          INTEGER I,J,K,ICE,IC
          REAL*8 XIJ(0:I_V-1,0:I_V-1)         
          TYPE(HDElement) CALCPATHS_N
-         REAL*8 X,GETPATHPROB2,RH
+         REAL*8 X,GETPATHPROB2,RHX
          LOGICAL LISINPATH
-         INTEGER IGETEXCITLEVEL
+         INTEGER IGETEXCITLEVEL,EXCITGEN(0:I_V)
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,DBETA(3)
          TYPE(HDElement) DLWDB,DLWDB2
@@ -1793,27 +1801,30 @@ C.. weight.
          INCLUDE 'vmc.inc'
          
 C.. Take a copy of the old path and rho matrix etc.
-         CALL DCOPY(I_OVCUR+1,RHOII,1,ORHOII,1)
-         CALL DCOPY((I_OVCUR+1)**2,RHOIJ,1,ORHOIJ,1)
-         CALL DCOPY(I_OVCUR+1,HIJS,1,OHIJS,1)
-         CALL DCOPY(I_OVCUR*I_OVCUR,XIJ,1,OXIJ,1)
-         CALL ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
+         IF(OWEIGHT%v.ne.0.D0) THEN
+            CALL DCOPY(I_OVCUR+1,RHOII,1,ORHOII,1)
+            CALL DCOPY((I_OVCUR+1)**2,RHOIJ,1,ORHOIJ,1)
+            CALL DCOPY(I_OVCUR+1,HIJS,1,OHIJS,1)
+            CALL DCOPY(I_OVCUR*I_OVCUR,XIJ,1,OXIJ,1)
+            CALL ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
+        ENDIF
          IF(.NOT.(INWI.AGT.0.D0)) THEN
 !.. Generate a new graph
 !  DBETA(3) has PGENEPSILON hidden in it.
-            RH=-1
+            RHX=-1
             IC=0
             TLOG=BTEST(ILOGGING,2)
             TLOG2=BTEST(ILOGGING,3)
             TLOG3=BTEST(ILOGGING,6)
-            DO WHILE (RH.LE.DBETA(3))
+            DO WHILE (RHX.LE.DBETA(3))
                CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
-     &           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX)
+     &           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX,
+     &           EXCITGEN)
 C.. Now get the parameters for the new path 
             
 C.. GETPATHPROB gives us the probability of generating the path
-               RH=GETPATHPROB2(XIJ,I_V)*PFAC
+               RHX=GETPATHPROB2(XIJ,I_V)*PFAC
                IC=IC+1
                IF(IC.GT.10000) THEN
                   WRITE(6,*) "Have thrown away 10000 graphs with pGen<",
@@ -1840,7 +1851,7 @@ C.. CALCPATHS gives us the contribution of the path
             ENDIF
          ELSE
 C.. we use the gestalt
-            RH=PFAC
+            RHX=PFAC
             ICLS=1
             WEIGHT=INWI
             ETILDE=DLWDB
@@ -1850,7 +1861,7 @@ C.. Now do an accept/reject
 C.. this is the first time round, so we automatically accept the new
 C.. configuration
             OETILDE=ETILDE
-            OPROB=RH
+            OPROB=RHX
             I_OVCUR=I_V
             ICLS=0
             IOCLS=ICLS
@@ -1863,20 +1874,24 @@ C.. Accept the new configuration with prob (|S'(new)|/|S'(old)|)*(OPROB/RH)
 C.. acc(A->B)/acc(B->A) = p(B) gen(B->A) / (p(A) gen(A->B))
 C..                     = p(B) gen(A) / (p(A) gen(B))
 
-            PR=(OPROB/RH)*ABS(DREAL(WEIGHT/OWEIGHT))
+            PR=(OPROB/RHX)*ABS(DREAL(WEIGHT/OWEIGHT))
 !            WRITE(40,"(5G,$)") OPROB,RH,DREAL(WEIGHT), DREAL(OWEIGHT),PR
-            IF(RH.EQ.0.D0.OR..NOT.(OWEIGHT.AGT.0.D0)) PR=0.D0
-            IF(LISNAN(WEIGHT)) THEN
-               WRITE(60,*) WEIGHT,ETILDE,RH
-               CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
-               CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
-               CALL WRITE_XMATRIX(60,XIJ,I_V)
-            ENDIF
-            R2=RAN2(ISEED)
-            IF(PR.LT.R2) THEN
-               IACC=0
+            IF(RHX.EQ.0.D0.OR..NOT.(OWEIGHT.AGT.0.D0)) PR=0.D0
+            IF(.not.TPREVAR) THEN
+                IF(LISNAN(WEIGHT)) THEN
+                    WRITE(60,*) WEIGHT,ETILDE,RHX
+                    CALL WRITEPATH(60,IPATH,I_V,NEL,.FALSE.)
+                    CALL WRITERHOMAT(60,RHOIJ,I_V,NEL,.TRUE.)
+                    CALL WRITE_XMATRIX(60,XIJ,I_V)
+                ENDIF
+                R2=RAN2(ISEED)
+                IF(PR.LT.R2) THEN
+                    IACC=0
+                ELSE
+                    IACC=1
+                ENDIF
             ELSE
-               IACC=1
+                IACC=1
             ENDIF
 !            CALL WRITEPATHEX(40,OIPATH,I_OVCUR,NEL,.FALSE.)
 !            WRITE(40,"(A,$)"),"--->"
@@ -1897,20 +1912,20 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
             IF(BTEST(ILOGGING,3))
      &            CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
             IF(BTEST(ILOGGING,6)) CALL WRITE_XMATRIX(10,XIJ,I_V)
-            WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
+            WRITE(10,"(3E25.16, 2I7)") WEIGHT,RHX,ETILDE,ICLS,IACC
          ENDIF
           
          IF(IACC.EQ.0) THEN
 C.. reject the new, and copy in the old
             ETILDE=OETILDE
-            RH=OPROB
+            RHX=OPROB
             I_V=I_OVCUR
             ICLS=IOCLS
             WEIGHT=OWEIGHT
             CALL ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
          ELSE
             OETILDE=ETILDE
-            OPROB=RH
+            OPROB=RHX
             I_OVCUR=I_V
 !               ICLS=0
             IOCLS=ICLS
@@ -1919,16 +1934,16 @@ C.. reject the new, and copy in the old
          ENDIF
 ! If we're not writing graphs, we write here after
          IF(BTEST(ILOGGING,0).AND..NOT.BTEST(ILOGGING,2)) THEN
-            WRITE(10,"(3E25.16, 2I7)") WEIGHT,RH,ETILDE,ICLS,IACC
+            WRITE(10,"(3E25.16, 2I7)") WEIGHT,RHX,ETILDE,ICLS,IACC
          ENDIF
          IF(TMPTHEORY.AND..NOT.tMCDirectSum) THEN
             DLWDB=ETILDE/HDElement(OPROB)
             FMCPR4D2=OPROB
-         ELSEIF(tMCDirectSum.AND.RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
+         ELSEIF(tMCDirectSum.AND.RHX.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/WEIGHT
             FMCPR4D2=WEIGHT/WEIGHT
-         ELSEIF(RH.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
+         ELSEIF(RHX.GT.0.D0.AND.(WEIGHT.AGT.0.D0)) THEN
 C.. Unbias the sum 
             DLWDB=ETILDE/HDElement(ABS(DREAL(WEIGHT)))
             FMCPR4D2=WEIGHT/HDElement(ABS(DREAL(WEIGHT)))
@@ -1953,7 +1968,8 @@ C.. Unbias the sum
 !.. NMAX has ARR  hidden in it
       SUBROUTINE FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,
-     &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX)
+     &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
+     &   PVERTMEMS2)
          USE HElement
          IMPLICIT NONE
          INCLUDE 'vmc.inc'
@@ -1964,6 +1980,7 @@ C.. Unbias the sum
          TYPE(BasisFN) G1(*)
          INTEGER I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH
          INTEGER NMAX,NTAY
+         INTEGER PVERTMEMS2(0:I_V)
          COMPLEX*16 FCK(*)
          INTEGER I_HMAX
 
@@ -1992,6 +2009,15 @@ C.. Unbias the sum
          LOGICAL LISNAN,ISVALIDDET
          REAL*8 RAN2
          REAL*8 pGen,pGen2
+
+         !Deallocate Excitation Generators after precalc
+         IF(I_HMAX.EQ.154) THEN
+!             DO I=1,I_V-1
+!                 CALL FREEM(PVERTMEMS(I))
+!             ENDDO
+!             RETURN
+          STOP 'I_HMAX of 154 should not be called here (mcpathsismc.F)'
+          ENDIF
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
          IF(I_HMAX.EQ.-19) THEN
@@ -2009,8 +2035,11 @@ C.. those before it.
 
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
-          CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
+
+!24/04/07 - ghb24 - Removing (hopefully) redundant routine calls - now
+!       that there is a separate weighting routine, it is not needed...
+!          CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+!     &         NMEMNI,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
 
@@ -2057,16 +2086,26 @@ C.. If the new node is not in the path, add it.
 
 C.. Setup the spin excit generator
                STORE(1)=0
+               !determine how much memory needed
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+               !allocate memory
                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
+               !Generate Excitation generator
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+               !Save the pointers to the excitation generator
+               IF(TPREVAR) THEN
+                    PVERTMEMS2=PVERTMEMS
+               ENDIF
 C.. Count the excitations (and generate a random one which we throw)
-               CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen2)
+ 
+!24/04/07 - ghb24 - Removing (hopefully) redundant routine calls - now
+!       that there is a separate weighting routine, it is not needed..
+!               CALL GENRANDSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
+!     &            NEWEX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen2)
 
                XIJ(I_VNEXT,I_VNEXT)=IC
 C.. Update the rho and X (probability) matrices with this new node
@@ -2153,9 +2192,12 @@ C.. give up trying to find something to attach, and go home
                RETURN
             ENDIF
          ENDDO
-         DO I=1,I_V-1
-            CALL FREEM(PVERTMEMS(I))
-         ENDDO
+         !Don't deallocate if want to use the graphs later for MC precalc
+         IF(.NOT.TPREVAR) THEN
+            DO I=1,I_V-1
+                CALL FREEM(PVERTMEMS(I))
+            ENDDO
+         ENDIF
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.
          CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)

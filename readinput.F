@@ -29,13 +29,13 @@
       INTEGER NPATHS,STOT,z,zz
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER NWHTAY(3,10)
+      INTEGER vv
       INTEGER PREIH
       REAL*8  ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
       INTEGER ios
       REAL*8 DBETA(3)
-      LOGICAL TEXCITWEIGHT
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'sym.inc'
@@ -71,19 +71,22 @@
       G_VMC_SEED = -7
       G_VMC_FAC = 16
       G_VMC_EXCITWEIGHT=0.D0
-      g_VMC_ExcitToWeight=0.D0
-      g_VMC_ExcitToWeight2=0.D0
-      g_VMC_ExcitFromWeight=0.D0
+!      g_VMC_ExcitToWeight=0.D0
+!      g_VMC_ExcitToWeight2=0.D0
+!      g_VMC_ExcitFromWeight=0.D0
       TPREVAR=.false.
       TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
-      TEXCITPOLY=.false.
-      TPOLYEXCIT=.false.
-      TPOLYEXCITBOTH=.false.
-      TEXCITWEIGHT=.false.
-      g_VMC_PolyExcitToWeight1=0.D0
-      g_VMC_PolyExcitToWeight2=0.D0
-      g_VMC_PolyExcitFromWeight1=0.D0
-      g_VMC_PolyExcitFromWeight2=0.D0
+!      TEXCITPOLY=.false.
+!      TPOLYEXCIT=.false.
+!      TPOLYEXCITBOTH=.false.
+!      TEXCITWEIGHT=.false.
+      g_VMC_ExcitWeights=0.D0
+      EXCITFUNCS=.false.
+      EXCITFUNCS(10)=.true.
+!      g_VMC_PolyExcitToWeight1=0.D0
+!      g_VMC_PolyExcitToWeight2=0.D0
+!      g_VMC_PolyExcitFromWeight1=0.D0
+!      g_VMC_PolyExcitFromWeight2=0.D0
       IP_SPECDET=0
 
       LMS=0
@@ -540,42 +543,42 @@ C                  end select
 !     &                //" method",.true.)
 !                  end if
               case("CHEMPOTWEIGHTING")
-                  call readf(g_VMC_PolyExcitFromWeight2)
-                  call readf(g_VMC_PolyExcitToWeight2)
+                  call readf(g_VMC_ExcitWeights(1))
+                  call readf(g_VMC_ExcitWeights(2))
                   call readf(G_VMC_EXCITWEIGHT)
-                  TEXCITPOLY=.true.
-                  IF(TPOLYEXCIT.or.TEXCITWEIGHT.or.TPOLYEXCITBOTH) THEN
+                  EXCITFUNCS(4)=.true.
+                IF(EXCITFUNCS(2).or.EXCITFUNCS(1).or.EXCITFUNCS(3)) THEN
                       call report(trim(w)//" only valid if "
      &               //" another weighting scheme not specified",.true.)
                   ENDIF
               case("POLYEXCITWEIGHT")
-                  call readf(g_VMC_ExcitFromWeight)
-                  call readf(g_VMC_PolyExcitToWeight1)
-                  call readf(g_VMC_PolyExcitToWeight2)
+                  call readf(g_VMC_ExcitWeights(1))
+                  call readf(g_VMC_ExcitWeights(2))
+                  call readf(g_VMC_ExcitWeights(3))
                   call readf(G_VMC_EXCITWEIGHT)
-                  TPOLYEXCIT=.true.
-                  IF(TEXCITWEIGHT.or.TPOLYEXCITBOTH.or.TEXCITPOLY) THEN
+                  EXCITFUNCS(2)=.true.
+               IF(EXCITFUNCS(1).or.EXCITFUNCS(3).or.EXCITFUNCS(4)) THEN
                       call report(trim(w)//" only valid if "
      &              //" another weighting scheme not specified",.true.)
                   ENDIF
               case("POLYEXCITBOTH")
-                  call readf(g_VMC_PolyExcitFromWeight1)
-                  call readf(g_VMC_PolyExcitFromWeight2)
-                  call readf(g_VMC_PolyExcitToWeight1)
-                  call readf(g_VMC_PolyExcitToWeight2)
+                  call readf(g_VMC_ExcitWeights(1))
+                  call readf(g_VMC_ExcitWeights(2))
+                  call readf(g_VMC_ExcitWeights(3))
+                  call readf(g_VMC_ExcitWeights(4))
                   call readf(G_VMC_EXCITWEIGHT)
-                  TPOLYEXCITBOTH=.true.
-                  IF(TPOLYEXCIT.or.TEXCITWEIGHT.or.TEXCITPOLY) THEN
+                  EXCITFUNCS(3)=.true.
+                IF(EXCITFUNCS(2).or.EXCITFUNCS(1).or.EXCITFUNCS(4)) THEN
                       call report(trim(w)//" only valid if "
      &               //" another weighting scheme not specified",.true.)
                   ENDIF
               case("EXCITWEIGHTING")
-                  call readf(g_VMC_ExcitFromWeight)
-                  call readf(g_VMC_ExcitToWeight)
+                  call readf(g_VMC_ExcitWeights(1))
+                  call readf(g_VMC_ExcitWeights(2))
                   call readf(G_VMC_EXCITWEIGHT)
-                  IF(item.lt.nitems) call readf(g_VMC_ExcitToWeight2)
-                  TEXCITWEIGHT=.true.
-                  IF(TPOLYEXCIT.or.TPOLYEXCITBOTH.or.TEXCITPOLY) THEN
+                  IF(item.lt.nitems) call readf(g_VMC_ExcitWeights(3))
+                  EXCITFUNCS(1)=.true.
+                IF(EXCITFUNCS(2).or.EXCITFUNCS(3).or.EXCITFUNCS(4)) THEN
                       call report(trim(w)//" only valid if "
      &              //"  another weighting scheme not specified",.true.)
                   ENDIF
@@ -876,6 +879,22 @@ C     ILOGGING = 0771
    99 IF (ios.gt.0) THEN
           WRITE (6,*) 'Problem reading input file ',TRIM(FILENAME)
       END IF
+      !IF THERE IS NO WEIGHTING FUNCTION
+      do vv=1,9
+          IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
+      enddo
+      !IF FINDD or USED specified without using Excitweighting option
+      do vv=2,preIV_MAX
+          IF((pre_TAYLOG(5,vv).or.pre_TAYLOG(6,vv)).and.                &
+     &           (.not.EXCITFUNCS(1))) THEN
+          CALL report("Logging keyword FINDD and USED"
+     &            //" can only be used with EXCITWEIGHTING",.true.)
+          ENDIF
+      ENDDO
+      IF((preIV_MAX.ne.0).AND.(.NOT.TMCDIRECTSUM)) THEN
+          CALL report("Precalculation can only work with the"
+     &          //" MCDIRECTSUM option enabled",.true.)
+      ENDIF
       RETURN
       END
 
@@ -905,6 +924,7 @@ C     ILOGGING = 0771
       subroutine inpgetprecalc(preIH)
          use input
          implicit none
+         include 'uhfdet.inc'
          integer preIH
          CHARACTER(LEN=16) w
                 do while ( item .lt. nitems )
@@ -917,6 +937,11 @@ C     ILOGGING = 0771
                           preIH=-20
                       case("MC")
                           preIH=-19
+                          IF(.NOT.TUSEBRILLOUIN) THEN
+                              call report("Error - USEBRILLOUINTHEOREM"
+     &                       //" must be specified in system block to "
+     &                       //"use MC-PRECALC",.true.)
+                          ENDIF
                       case default
                          call report("Error - must specify FULL"
      &                   //" or MC after HDIAG in PRECALC block",.true.)

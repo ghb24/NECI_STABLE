@@ -1539,11 +1539,12 @@ C.. Actually generate a det
 !  Calculate the generation probability of a given graph for debugging purposes.
 !  if iUnit<>0, write this to this unit
       SUBROUTINE CalcWriteGraphPGen(iUnit,iGraph,iV,nEl,LOCTAB,G1,
-     &            nBasisMax,UMat,Arr,nBasis,pGenGraph)
+     &            nBasisMax,UMat,Arr,nBasis,pGenGraph,EXCITGEN)
          USE symexcit2
          USE HElement
          IMPLICIT NONE
          INCLUDE 'basis.inc'
+         INCLUDE 'vmc.inc'
          INTEGER iUnit
          INTEGER iV,nEl       ! Vertices and number of electrons
          INTEGER iGraph(nEl,0:iV)  ! The graph
@@ -1557,7 +1558,8 @@ C.    We must create one.
          INTEGER STORE(6)
          POINTER (IP_NEWEX,NEWEX)
          INTEGER NEWEX(*),NEWEXLEN
-
+         !Array of pointers - exciting problems if ever move to 64 bit(would have to be integer*8)
+         INTEGER EXCITGEN(0:iV)
          TYPE(BasisFN) G1(*)
          INTEGER nBasisMax(*)
          TYPE(HElement) UMat(*)
@@ -1570,7 +1572,27 @@ C.    We must create one.
          INTEGER i,j,ISEED
          ISEED=0
          
-         DO i=0,iV-1
+         IF(TPREVAR.AND.((PRE_TAY(1,iV).EQ.-7).OR.                      
+     &                       (PRE_TAY(1,iV).EQ.-19))) THEN
+
+            DO i=0,iV-1
+                IP_NEWEX=EXCITGEN(i)
+                DO j=0,iV-1
+                    IF(i.EQ.j) THEN
+                        !Don't think this is used
+                        XIJ(i,i)=0
+                    ELSE
+                        CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
+     &                      NEWEX,G1,nBasisMax,UMat,Arr,nBasis,pGen)
+                        XIJ(i,j)=pGen
+                    ENDIF
+                ENDDO
+            ENDDO
+            pGenGraph=GETPATHPROB2(XIJ,iV)
+            
+         ELSE
+         
+            DO i=0,iV-1
 !  First work out which exictor we need to work out the excitation i->?
 C            DO j=0,iV-1
 C!  See if vertex j was excited from vertex i.  If so, then LOCTAB(1,j) is the excitor for vertex i
@@ -1581,30 +1603,32 @@ C               ENDIF
 C            ENDDO
 C            IF(j.EQ.iV-1) THEN
 !We've not found an excitor, so we create one
-            STORE(1)=0
+                STORE(1)=0
 C.. Setup the excit generator for the last vertex
-            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
-            CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
-            NEWEX(1)=0
+                CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
+     &              .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
+                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+                NEWEX(1)=0
 C.. Count the excitations (and generate a random one which we throw)
-            CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
-     &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
-            CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
-     &            NEWEX,INODE2,ISEED,IC,0,UMAT,Arr,PGEN)
+                CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
+     &              .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
+                CALL GENRANDSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,
+     &               NBASISMAX,NEWEX,INODE2,ISEED,IC,0,UMAT,Arr,PGEN)
 !
-            DO j=0,iV-1
-               IF(i.EQ.j) THEN
-                  XIJ(i,i)=IC
-               ELSE
-                  CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
-     &            NEWEX,G1,nBasisMax,UMat,Arr,nBasis,pGen)
-                  XIJ(i,j)=pGen
-               ENDIF
+                DO j=0,iV-1
+                    IF(i.EQ.j) THEN
+                        XIJ(i,i)=IC
+                    ELSE
+                        CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
+     &                      NEWEX,G1,nBasisMax,UMat,Arr,nBasis,pGen)
+                        XIJ(i,j)=pGen
+                    ENDIF
+                ENDDO
+                CALL FREEM(IP_NEWEX)
             ENDDO
-            CALL FREEM(IP_NEWEX)
-         ENDDO
-         pGenGraph=GETPATHPROB2(XIJ,iV)
+            pGenGraph=GETPATHPROB2(XIJ,iV)
+         ENDIF
+         
          IF(iUnit.NE.0) CALL WRITE_XMATRIX(iUnit,XIJ,iV)
 
       END

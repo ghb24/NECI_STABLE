@@ -5,7 +5,7 @@ C     == ZFIRST   VALUE OF XM(0) TO CHECK MEMORY                      ==
 C     == ZLAST    VALUE OF XM(N+1)                                    ==
 C     ==--------------------------------------------------------------==
       INTEGER   MEM_LEN,MBM
-      PARAMETER (MEM_LEN=1024)
+      PARAMETER (MEM_LEN=16384)
       PARAMETER (MBM=10)
       REAL*8    ZFIRST,ZLAST
 C     PARAMETER (ZFIRST=Z'EFFFFFFFFFFFFFFF')

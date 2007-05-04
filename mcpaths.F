@@ -25,6 +25,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElement
+         USE PreCalc ,  only: GETVARS
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -123,13 +124,6 @@ C     &            HIJS(0))
          !PRECALC block called
          if(PREIV_MAX.ne.0) then
              
-!            write(6,*) "XXX"
-!            write(6,*) pre_TAY(1,1)
-!            write(6,*) pre_TAY(1,2)
-!            write(6,*) pre_TAY(1,3)
-!            write(6,*) pre_TAY(1,4)
-!            write(6,*) "XXX"
-            
            TPREVAR=.TRUE. 
             
             IF(.not.TMCDIRECTSUM) THEN
@@ -143,7 +137,7 @@ C     &            HIJS(0))
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
-     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP)
+     &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM)
             CALL TIHALT('PRECALC ',ISUBPRE)
          end if
 
@@ -234,18 +228,18 @@ C.. forcing them to be disconnected.
              IF(G_VMC_FAC.NE.0.D0) THEN
 C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
 C.. levels by regarding all previous levels as a composite object with the Et and wi
-C.. we have already worked out. 
+C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightings of the levels 
 
-              g_MultiWeight(0)=0.D0
-              DO J=1,I_VMAX
-               IF(g_MultiWeight(J).NE.0.D0) THEN
-                  IF(g_MultiWeight(0).EQ.0.D0) THEN
+                g_MultiWeight(0)=0.D0
+                DO J=1,I_VMAX
+                  IF(g_MultiWeight(J).NE.0.D0) THEN
+                      IF(g_MultiWeight(0).EQ.0.D0) THEN
 !  The first of the multi - get its vertex level
-                     I_V1=NWHTAY(3,J)
+                          I_V1=NWHTAY(3,J)
+                      ENDIF
+                      g_MultiWeight(0)=g_MultiWeight(0)+g_MultiWeight(J)
                   ENDIF
-                  g_MultiWeight(0)=g_MultiWeight(0)+g_MultiWeight(J)
-               ENDIF
-              ENDDO
+                ENDDO
               IF(g_MultiWeight(0).EQ.0.D0) THEN
 ! In fact we're not doing a multi
                  I_V1=I_V
@@ -255,8 +249,8 @@ C.. we have already worked out.
                  I_V2=NWHTAY(3,I_VMAX)
               ENDIF
              ELSE
-              I_V1=I_V
-              I_V2=I_VMAX
+                I_V1=I_V
+                I_V2=I_VMAX
              ENDIF
              IF(I_V1.EQ.I_V2) THEN
                 IF(tMCDirectSum) THEN
@@ -996,6 +990,7 @@ C.,             If 1, only allow doubles.
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
          INTEGER IC
+         INTEGER DUMMY(0:I_V)
          INTEGER IFRZ(0:NBASIS,I_V),IFRZ2(0:NBASIS)
          INTEGER EX(2,2),ICIL,ICILMAX
          INTEGER STORE(6)
@@ -1093,7 +1088,7 @@ C.. Sum up the components of <D|H exp(-b H)|D>
 !  Log XIJS (usually for debugging), and the pgen
 !  NMAX has Arr hidden in it
               CALL CalcWriteGraphPGen(10,IPATH,I_V,nEl,LOCTAB,G1,
-     &            nBasisMax,UMat,NMAX,nBasis,PR)
+     &            nBasisMax,UMat,NMAX,nBasis,PR,DUMMY)
                   WRITE(10,"(3E25.16, I7)") TOTAL,PR,DLWDB2,ICLS
             ELSE
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
