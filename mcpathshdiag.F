@@ -101,7 +101,7 @@ C.. Force freexing
                IFRZ(0,1)=0
             ENDIF
          ENDIF
-         CALL IAZZERO(IFRZ2,(NBASIS+1)*I_V) 
+         CALL IAZZERO(IFRZ2,(NBASIS+1)) 
          CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1) 
          
 C            DO I=0,NBASIS
