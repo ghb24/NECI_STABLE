@@ -281,10 +281,13 @@ C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightin
      &               LSTE,ICE,RIJLIST,CNWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_V1)
                F(I_V)=WLSI
-               DLWDB2=0.D0
                IF(TMPTHEORY) THEN
                   MP2E(I_V)=DLWDB
                ENDIF
+!If the routine does many levels of MC, it rebiases them itself, taking into account 
+!the DLWDB2 we give it, and adds them into DLWDB.
+!If it just does a single level of MC, it does the same.
+               DLWDB2=0.D0
               CALL WRITECLASSPATHS()
             ELSE
                F(I_V)=0.D0
@@ -331,6 +334,7 @@ C.. setup spin excitation generator
             NTIME=TIMEC()*0.001D0
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
+!            WRITE(6,*) "MCP",I_V,TOTAL,DLWDB
             IF(TLOG.AND.I_V1.EQ.0) THEN
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),
      &            TOTAL,NTIME-OTIME,L,STD,DLWDB2

@@ -635,6 +635,7 @@ MODULE MCStats
             
 
 
+!.. rejig the sums so the result is Sum w Delta / Sum w
          SUBROUTINE WriteLongStats(M,iUnit,OW,OE,Time)
             INTEGER iUnit
             TYPE(MCStats) M
@@ -644,6 +645,38 @@ MODULE MCStats
             REAL*8 Time,fAveSeqLen
             iC=HDElement(M%nGraphs(0))
             WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,M%wWeighting(0)/iC-OW,M%wWeighting(0)/iC,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),M%wDelta(0)/iC-OE
+            WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
+            WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
+            WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)
+            WRITE(iUnit,STR2) "NON-TR+(V)",(M%nNonTreesPos(I),I=0,M%iVMax)
+            WRITE(iUnit,STR2) "NON-TR-(V)",(M%nNonTreesNeg(I),I=0,M%iVMax)
+            WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"G)"
+            WRITE(iUnit,STR2) "WGHTT(V)",(M%wTrees(I),I=0,M%iVMax)
+            WRITE(iUnit,STR2) "WGHT+(V)",(M%wNonTreesPos(I),I=0,M%iVMax)
+            WRITE(iUnit,STR2) "WGHT-(V)",(M%wNonTreesNeg(I),I=0,M%iVMax)
+            WRITE(STR2,"(A,I5,A)") "(A,I2,",M%iVMax,"I)"
+            DO J=1,M%iVMax
+               WRITE(iUnit,STR2) "GEN->",J,(M%nGen(I,J),I=1,M%iVMax)
+            ENDDO
+            DO J=1,M%iVMax
+               WRITE(iUnit,STR2) "ACC->",J,(M%nAcc(I,J),I=1,M%iVMax)
+            ENDDO
+            WRITE(iUnit,*) "Sequences: ",M%nSeqs
+            fAveSeqLen=(M%nGraphs(0)+0.D0)/M%nSeqs
+            WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
+         END
+
+!.. just give the additional components for this vertex level
+         SUBROUTINE WriteLongStats2(M,iUnit,OW,OE,Time)
+            INTEGER iUnit
+            TYPE(MCStats) M
+            CHARACTER*20 STR2
+            INTEGER I,J
+            TYPE(HDElement) OW,OE,iC,wAvgWeighting,wAvgWeightedValue,wAvgDelta
+            REAL*8 Time,fAveSeqLen
+            iC=HDElement(M%nGraphs(0))
+            Call GetStats(M,0,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
+            WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),wAvgWeightedValue
             WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)

@@ -112,9 +112,15 @@ C.. These variables have been passed in and represent the precalculated values f
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
             WRITE(6,*) "MCPATHSR4 MP Theory"
          ElseIf(tMCDirectSum) Then
-            CALL Create(MCStat,I_VMAX,
+            IF(I_VMIN.NE.0) THEN
+              CALL Create(MCStat,I_VMIN,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
      &          DLWDBCORE/WCore,WCore)
+            ELSE
+              CALL Create(MCStat,I_VMAX,
+     &            INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
+     &            DLWDBCORE/WCore,WCore)
+            ENDIF
             WRITE(6,*) "MCPATHSR4 Direct Sum"
             !Print out Eref
 !            write(6,*) DLWDBCORE/WCore
@@ -564,7 +570,13 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
 C ,F(I_V),FSQ(I_V)
             NTIME=TIMEC()*0.001
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
+              IF(I_VM1.EQ.I_VM2) THEN
+!.. just give the additional components for this vertex level
+             CALL WriteLongStats2(MCStat,11,WCORE,DLWDBCORE,NTIME-OTIME)
+               ELSE
+!.. rejig the sums so the result is Sum w Delta / Sum w
               CALL WriteLongStats(MCStat,11,WCORE,DLWDBCORE,NTIME-OTIME)
+               ENDIF
             ENDIF
             CALL FLUSH(11)
 !            IF(LISNAN(F(I_V))) THEN
@@ -608,7 +620,7 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,10)) CLOSE(22)
          IF(BTEST(ILOGGING,13)) THEN
             Call CalcStDev(MCStat,R)
-            WRITE(6,*) "Error in MC:",R
+            WRITE(6,"(A,I4,A,G)") "Error in MC ",I_VM2,":",R
         ENDIF
          IF(TMPTHEORY) THEN
             Call GetStats(MCStat,0,TOTAL,WLSI,DLWDB2)
@@ -629,9 +641,14 @@ C.. setup spin excitation generator
 !            ENDDO
          ELSEIF(I_VMIN.EQ.0.OR.tMCDirectSum) THEN
             IF(I_VMIN.NE.0) THEN  !We're just doing this vertex level, not the complete sum
+! GetStats(MCS,iV,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
                Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
+!               WRITE(6,"(A,I3,4G)") "MCStat:",I_VMIN,TOTAL,WLSI,
+!     &            DLWDB2,DLWDB
                TOTAL=TOTAL
                WLSI=TOTAL
+!WLSI gets the weight of this level
+!DLWDB has the  w E~ sum of past levels, and we add the w E~ of this level to it.
                DLWDB=DLWDB+DLWDB2
             ELSE
                WLSI=1.D0 !weight of 1v graph
