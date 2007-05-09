@@ -188,7 +188,8 @@ MODULE UMatCache
 !   We don't have a stored UMAT - we call to generate it.
                   IF(tDFInts) THEN
 !   We're using density fitting
-                     Call GetDF2EInt(I,J,K,L,GETUMATEL)
+                     Call GetDF2EInt(I,J,K,L,UElems)
+                     GetUMatEl=UElems(0)
                   ELSE
 !   Otherwise we call CPMD
                      IF(TTRANSFINDX) THEN

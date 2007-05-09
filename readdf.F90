@@ -19,6 +19,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          nBasisPairs=nrec
          nBasis=int(dsqrt(nBasisPairs*2.D0))
          nAuxBasis=lenrec
+         WRITE(6,*) "DALTON/SITUS basis.", nBasis, " basis functions."
          call iAzZero(nBasisMax,15)
          Len=2*nBasis 
 !.. Note that it's a read in basis.
@@ -56,10 +57,10 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          WRITE(6,*) "Auxiliary Basis Size:", nAuxBasis
 
          tDFInts=.TRUE.
-         Allocate(DFCoeffs(nBasisPairs,nAuxBasis),STAT=ierr)
+         Allocate(DFCoeffs(nAuxBasis,nBasisPairs),STAT=ierr)
          call MemAlloc(ierr,DFCoeffs,nBasisPairs*nAuxBasis,"DFCoeffs")
-         Allocate(DFInts(nBasisPairs,nAuxBasis),STAT=ierr)
-         call Memory(ierr,DFInts,nBasisPairs*nAuxBasis,"DFInts")
+         Allocate(DFInts(nAuxBasis,nBasisPairs),STAT=ierr)
+         call MemAlloc(ierr,DFInts,nBasisPairs*nAuxBasis,"DFInts")
          do i=1,nBasisPairs
             call read_record(C_file,i,nolabel,DFCoeffs(:,i),info)
             call read_record(I_file,i,nolabel,DFInts(:,i),info)
@@ -87,6 +88,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          do i=1,nAuxBasis
            res=res+DFCoeffs(i,GetDFIndex(a,c))*DFInts(i,GetDFIndex(b,d)) 
          enddo
+!         WRITE(79,"(4I4,G)") a,b,c,d,res
 !         WRITE(6,*) "D",a,b,c,d,res
       END
      
@@ -99,7 +101,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D,tUMat2D)
          implicit none
          include 'basis.inc'
-         integer nBasis,i,j,k
+         integer nBasis,i,j,k,ilast
          real*8 val,UMat2D(nBasis,nBasis)
          logical tUMat2D
          tUMat2D=.false.
@@ -113,15 +115,34 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             read(11,*,end=20) i,j,k,val
             if(i.ne.0.and.i.le.nBasis.and.j.le.nBasis) then
                UMat2D(i,j)=val
+               ilast=i
             endif
          enddo
          tUMat2D=.true.
 20       close(11)
          IF(tUMat2D) THEN
-            WRITE(6,*) "Read in 2-index 2-electron integrals."
+            WRITE(6,*) "Read in 2-index 2-electron integrals up to orbital ", ilast*2
          ELSE
             WRITE(6,*) "Have not read in 2-index 2-electron integrals."
          ENDIF
+         IF(ilast.lt.nBasis) THEN
+            WRITE(6,*) "Calculating remaining 2-index 2-electron integrals with density fitting."
+            OPEN(78,file='UMAT',status='UNKNOWN')
+            do i=ilast+1,nBasis
+               do j=1,i
+                  if(i.lt.j) then
+                     call GetDF2EInt(i,j,i,j,UMat2D(i,j))
+                     call GetDF2EInt(i,j,j,i,UMat2D(j,i))
+                  else
+                     call GetDF2EInt(i,j,i,j,UMat2D(j,i))
+                     call GetDF2EInt(i,j,j,i,UMat2D(i,j))
+                  endif
+                  WRITE(78,"(3I5,G)") i,j,0,UMat2D(i,j)
+                  IF(i.ne.j) WRITE(78,"(3I5,G)") j,i,0,UMat2D(j,i)
+               enddo
+            enddo
+            close(78)
+         endif
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,TMat,Arr,Brr,ECore)
          implicit none
@@ -136,7 +157,6 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          do while(i.ne.0)
             read(11,*) i,j,val
 !"(2I5,F)"
-!            write(6,*) i,j,val
             if(i.eq.0) then
                ECore=val
             elseif(j.ne.0) then

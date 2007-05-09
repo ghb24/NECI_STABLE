@@ -478,7 +478,6 @@ contains
   integer :: stat, curr, next, length
   integer :: i
   !------------
-  !
   info = 0
   !
   if (present(printinfo)) then
@@ -613,8 +612,7 @@ contains
   logical :: last
   integer :: ierr
   !------------
-  integer :: toc_of_file_indx
-  save toc_of_file_indx
+  integer, save :: toc_of_file_indx
   !-----------
   if (allocated(toc)) then
     if (toc_of_file_indx.eq.file_indx) then
@@ -749,7 +747,6 @@ contains
   character(8) :: readlabel
   integer :: next_rec
   !------------
-  !
   info = 0
   !
   if (present(printinfo)) then
@@ -765,7 +762,8 @@ contains
   if (.not.allocated(toc)) then
     iam_init_toc = .false.
   endif
-  if (.not.(iam_init_record_handler.and.iam_init_toc)) then
+  !
+  if (.not.iam_init_record_handler) then
     if (l_print) then
       write(*,*)'WARNING: Record_handler not initialized for file ',filename
     endif
@@ -776,6 +774,13 @@ contains
       print *,'file ',trim(filename)
       info = -1
       return
+    endif
+  else
+    call read_toc(filename,info)
+    if (info.lt.0) then
+     print *,'read_record: Internal error while reading TOC for ',trim(filename)
+     info = -1
+     return
     endif
   endif
   !
@@ -966,7 +971,6 @@ contains
   integer :: i, j
   integer :: ierr
   !------------
-  !
   info = 0
   !
   if (present(printinfo)) then
@@ -1187,7 +1191,7 @@ contains
 
   subroutine find_file(filename,file_indx,info,actual_file_status,query)
   !determine the index of the file in the list. If it is not present, add it to
-  !the list and return the file_indx. actual_file_status is the (percieved)
+  !the list and return the file_indx. actual_file_status is the (perceived)
   !actual status of the file (OLD if it is already on the list, NEW otherwise).
   use common_routines
   implicit none
@@ -1254,7 +1258,7 @@ contains
   end subroutine find_file
 
   subroutine initialize_file_variables
-  use bookkeeper_pointers , only : curr_rec, next_rec
+  use bookkeeper_pointers, only : curr_rec, next_rec
   implicit none
   iam_init_toc = .false.
   iam_init_record_handler = .false.

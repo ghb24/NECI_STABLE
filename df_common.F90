@@ -1,132 +1,15 @@
 !Miscellaneous MODULEs and SUBROUTINES common to the code go here.
 !-----------------------------------------------------------------
-module precision
-!define single and double precision REALs
-!USAGE: 
-!   USE precision
-!   real(dp) :: X
-!   X = 1.0e-12_dp
-integer, parameter :: sp = selected_real_kind(6,37)
-integer, parameter :: dp = selected_real_kind(15,307)
-!Same for integers:
-integer, parameter :: si = selected_int_kind(9)  !ints between +-10^9
-integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
-!
-!Number of bytes in reals and integers
-integer, parameter :: int_bytes = si
-integer, parameter :: real_bytes = dp
-end module precision
-
-module parameters
-use precision
-save
-!Parameters setting various limits of the modules
-!(A) Integrals: limits imposed by GAMINT
-integer, parameter :: par_max_l = 5  !max number of symmetries for integrals
-                                     !max ang mom is l=4, thus max_l = 4 + 1
-                                     !(for s-functions)
-                                     !NOTE: All basis sets must be defined to be
-                                     !have max_l = par_max_l even if they do not
-                                     !contain symmetries up to G.
-integer, parameter :: par_max_isymm = par_max_l - 1
-!
-!(B) Parameters used by basis_parser: 
-!    Parameters for large_atom:
-integer, parameter :: par_maxprims = 1000    !maximum number of primitives
-integer, parameter :: par_maxshells = 1000   !maximum number of shells
-integer, parameter :: par_maxsites = 1       !This is *one* atom.
-!
-!(C) Parameters in polarizability and multipole moment modules:
-integer, parameter :: par_max_freq = 500     !max number of frequencies 
-integer, parameter :: par_max_sites = 500    !max number of sites
-!Maximum order upto which transformation matrices have been coded for
-!transforming polarizabilities/moments computed using primitive multipole moment
-!operators to the Cartesian or spherical representations (if orders larger than
-!these are requested, the polarizability tensors are still computed, but are
-!returned in terms of the primitive multipole moment operators that will be
-!defined in the output. There are no intrinsic upper bounds to the order of the
-!polarizability tensors that can be computed by this code.):
-integer, parameter :: par_maxrank_cart_trans = 3
-integer, parameter :: par_maxrank_spher_trans = 4
-!For most applications the maximum rank of polarizabilities/moments will be 
-!equal to par_maxrank_spher_trans. So define a maximum rank parameter for
-!properties:
-integer, parameter :: par_maxrank_prop = par_maxrank_spher_trans
-!
-!(D) Machine precision parameters:
-real(dp), parameter :: epsilon_machine = 1.0e-15_dp
-real(dp), parameter :: epsilon_significant = 1.0e-8_dp
-!
-!(E) Number of temp and molecule files that can be generated and the 
-!default name:
-integer, parameter :: max_tmp_files = 1000
-character(10), parameter :: tmp_file_name = 'TMP_______'
-integer, parameter :: max_mol_files = 100
-character(80), parameter :: tmp_mol_file_name = 'MOL_______'
-!
-!(F) Maximum number of basis functions (including symmetry components)
-integer, parameter :: max_orbitals = 2000
-!
-!(G) Conversion factors and constants
-!------------------------------------
-! 1 a.u.  = au2<X> in X units
-! Source: www.nist.gov
-real(dp), parameter :: au2cm = 219474.6313710_dp
-real(dp), parameter :: au2kcal = 627.510_dp   !kcal/mol
-real(dp), parameter :: au2kJ = 2625.499_dp    !kJ/mol
-real(dp), parameter :: au2kelvin = 3.1577465E+05_dp
-real(dp), parameter :: au2Hz = 6.579683920735e+15_dp
-real(dp), parameter :: au2eV = 27.211383_dp
-real(dp), parameter :: bohr2ang = 0.529177249_dp
-real(dp), parameter :: a_o = 0.529177249_dp
-real(dp), parameter :: pi = 3.1415926535897932384626433832795028841968_dp
-!
-!(H) Integral parameters
-!=======================
-!(1) Integral cutoff value:
-real(dp), parameter :: par_integral_cutoff = 1.0e-16_dp
-!(2) Exponent of dummy s-function used to obtain 2- and 3-index integrals 
-!from the 4-index integrals computed by GAMINT:
-!This choice of the dummy s-function exponent gives > 16 decimal accuracy for
-!integrals of basis functions less than 10 a.u. from the s-function, and
-!about 11 decimal accuracy for integrals of functions 100 a.u. away.
-!This should be more than adequate for almost every application.
-real(dp), parameter :: par_dummy_s_exponent = 1.0e-18_dp
-!
-!(I) File names used by the code
-!===============================
-!(1) Molecular orbital coefficients and energies:
-!    See module molecular_orbitals
-character(10), parameter :: vector_file_a = 'vecta.data'
-character(10), parameter :: vector_file_b = 'vectb.data'
-!
-!(J) Misc Parameters
-!===================
-integer, parameter :: max_titles = 10
-!
-end module parameters
-
-!-----------------------------------------------------------------------
-
-module run_data
-use precision
-use parameters , only : max_titles
-save
-! Data pertaining to a calculation
-!(1) TITLE
-integer :: num_titles = 0
-character(80), dimension(max_titles) :: title = ''
-
-end module run_data
-
-!-----------------------------------------------------------------------
 
 module common_routines
+use precision
+!use global_data     !AJWT
 private
 public :: check_info, check_a_file, check_allocate, check_deallocate
 public :: getunit, my_timer, get_available_file
 public :: name_tmp_file, name_mol_file
 public :: internal_error, general_error, close_file_units
+public :: warning
 contains
 
 subroutine check_info(info,from_routine,called_by_routine,line_no,do_i_stop)
@@ -153,6 +36,11 @@ if (info.lt.0) then
     call internal_error('check_info',__LINE__,'INFO flagged error')
   endif
 endif
+!if ((info.gt.0).and.g_debug) then     AJWT
+!  print *,'WARNING code ',info,' passed by ',trim(from_routine)
+!  write(*,*)'which was called by routine ',trim(called_by_routine)
+!  write(*,*)'at line number ',line_no
+!endif
 return
 end subroutine check_info
 
@@ -192,44 +80,72 @@ end subroutine check_a_file
 
 !----------------------------------------------------------------------
 
-subroutine get_available_file(file_prefix,file_suffix,filename,fileunit,info)
+subroutine get_available_file(file_prefix,file_suffix,filename,fileunit,info,&
+     & overwrite)
 !INPUT:
 !  file_prefix,file_suffix: prefix and suffix of file name
 !OUTPUT:
-!  filename: = file_prefixNNNfile_suffix NNN= 3 digit integer
+!  filename: = file_prefix//file_suffix unless this file already exists in which
+!           case it sill be
+!              file_prefixNNNfile_suffix 
+!           where NNN is a 3 digit integer
 !  fileunit: unit number available for file to be opened
 !  info: 0 = all's well
 !       -1 = no available file for NNN between 0 and 999
 !            In this case, NNN=999
+!  overwrite: LOGICAL (optional) : If TRUE, if the default file name exists,
+!            overwrite it.
+!use global_data, only : g_overwrite   !AJWT
 implicit none
 character(80), intent(in) :: file_prefix, file_suffix
 character(80), intent(out) :: filename
 integer, intent(out) :: fileunit
 integer, intent(out) :: info
+logical, optional, intent(in) :: overwrite
 !------------
 character(len=*), parameter :: this_routine = 'get_available_file'
 character(80) :: myfilename
 character(3) :: string_i
-integer :: i, myinfo
-logical :: got_file
+integer :: i, myinfo, iunit
+logical :: got_file, overwrite_file
 !------------
+if (present(overwrite)) then
+  overwrite_file = overwrite
+!else       !AJWT
+!  overwrite_file = g_overwrite
+endif
+!
 filename = ''
 fileunit = -1
 got_file = .false.
 !
-file_loop: do i = 0, 999
-  call number2ascii(i,string_i)
-  myfilename = trim(file_prefix)//trim(string_i)//trim(file_suffix)
-  call check_a_file(myfilename,myinfo,flag=1)
-  if (myinfo.eq.-1) then
-    !got a file name not in use
-    got_file = .true.
-    exit file_loop
-  endif
-enddo file_loop
+myfilename = trim(file_prefix)//trim(file_suffix)
+call check_a_file(myfilename,myinfo,flag=1)
+if ((myinfo.eq.-1).or.overwrite_file) then
+  !got a file name not in use or has been requested to be overwritten so
+  !we have our filename
+  filename = myfilename
+  !If it is to be overwritten, first close it if it is open:
+  inquire(file=filename,number=iunit)
+  if (iunit.gt.0) close(iunit)
+  got_file = .true.
+else
+  !Look for an alternative name
+  file_loop: do i = 1, 999
+    call number2ascii(i,string_i)
+    myfilename = trim(file_prefix)//'_'//trim(string_i)//trim(file_suffix)
+    call check_a_file(myfilename,myinfo,flag=1)
+    if (myinfo.eq.-1) then
+      !got a file name not in use
+      got_file = .true.
+      exit file_loop
+    endif
+  enddo file_loop
+  filename = myfilename
+  !
+endif
 !
 call getunit(fileunit)
-filename = myfilename
 !
 if (got_file) then
   info = 0
@@ -281,13 +197,16 @@ end subroutine name_mol_file
 
 !----------------------------------------------------------------------
 
-subroutine name_tmp_file(tmpfile,operation,info,filetag)
+subroutine name_tmp_file(tmpfile,operation,info,filetag,inlist)
 !USAGE:
 !  call name_tmp_file(tmpfile,'get') = get a name. See note below.
 !  call name_tmp_file(tmpfile,'rel') = release a name
 !  call name_tmp_file(tmpfile,'add') = add a name to the list. Enforces the
 !                                      chosen name and flags an error if there
 !                                      is a conflict.
+!  call name_tmp_file(tmpfile,'inq',inuse) = inquire if the file is in use.
+!                                      inlist = .true. if file is in list 
+!                                             = .false. if not.
 !  call name_tmp_file(tmpfile,'out') = write out file information to standard
 !                                      output.
 !The optional third argument governs stopping:
@@ -316,12 +235,13 @@ subroutine name_tmp_file(tmpfile,operation,info,filetag)
 !                 This is similar to using 'add' as the operation, only, 'add'
 !                 enforces the same name and flags an error if there is a
 !                 conflict.
-use parameters , only : max_tmp_files, tmp_file_name
+use parameters, only : max_tmp_files, tmp_file_name
 implicit none
 character(10), intent(inout) :: tmpfile
 character(3), intent(in) :: operation
 integer, intent(out), optional :: info
 character(80), intent(in), optional :: filetag
+logical, intent(out), optional :: inlist
 !------------
 !Data types to be saved:
 character(10), dimension(max_tmp_files), save :: tmp_file_list = ''
@@ -331,7 +251,6 @@ integer, save :: num_files = 0
 character(len=*), parameter :: this_routine = 'name_tmp_file'
 character(7), parameter :: tmp_name7 = 'TMP____'
 character(10) :: filename
-character(7) :: name7
 character(3) :: name3
 character(80) :: my_tag
 integer, parameter :: max_count = 999 !maximum count possible due to subroutine
@@ -373,7 +292,6 @@ case('get','GET')
     call check_if_exists(tmpfile,it_exists,at_indx)
     if (it_exists) then
       !Find a alternative file name
-      name7 = tmpfile(1:7)
       loop2: do indx = 0, max_count
         call number2ascii(indx,name3)
         filename = tmp_name7//name3
@@ -399,16 +317,23 @@ case('add','ADD')
   select case(tmpfile)
   case('',tmp_file_name)
     !These names are not allowed. Flag an error.
-    print *,'ERROR in ',trim(this_routine)
+    print *,'INTERNAL ERROR in ',trim(this_routine)
     print *,'Illegal choice of name chosen is :',trim(tmpfile)
-    my_info = -1
+    if (no_stops) then
+      my_info = -1
+    else
+      call internal_error(this_routine,__LINE__,'Illegal file name chosen')
+    endif
   case default
     !Check to see if exactly the supplied name is available
     call check_if_exists(tmpfile,it_exists,at_indx)
     if (it_exists) then
-      print *,'ERROR in ',trim(this_routine)
-      print *,'The file name requested is already in use. Name: ',trim(tmpfile)
-      my_info = -1
+      print *,'INTERNAL ERROR: File requested is in use. : ',trim(tmpfile)
+      if (no_stops) then
+        my_info = -1
+      else
+        call internal_error(this_routine,__LINE__,'File in use')
+      endif
     else
       !This one (tmpfile) is OK
       got_file = .true.
@@ -423,27 +348,37 @@ case('add','ADD')
 case('rel','REL')
   call remove_file_from_list(tmpfile,my_info)
   num_files = num_files - 1
+case('inq','INQ')
+  call check_if_exists(tmpfile,it_exists,at_indx)
+  if (present(inlist)) then
+    inlist = it_exists
+  else
+    print *,'INTERNAL ERROR: Variable INLIST not passed in call'
+    if (no_stops) then
+      my_info = -1
+    else
+      call internal_error(this_routine,__LINE__,'Variable missing in call')
+    endif
+  endif
 case('out','OUT')
   call write_file_list
 case default
-  print *,'INTERNAL ERROR: Illegal value of operation =',operation
-  print *,'Temp file name passed is ',tmpfile
-  my_info = -1
+  if (no_stops) then
+    my_info = -1
+  else
+    print *,'INTERNAL ERROR: Illegal value of operation =',operation
+    print *,'Temp file name passed is ',tmpfile
+    call internal_error(this_routine,__LINE__,'Illegal value of operation')
+  endif
 end select
 !
-if ((my_info.lt.0).and..not.no_stops) then
-  print *,'Stopping in ',trim(this_routine)
-  stop
-endif
-if (no_stops) then
- info = my_info
-endif
+if (present(info)) info = my_info
 !
 return
 contains
   subroutine check_if_exists(filename,it_exists,at_indx)
   implicit none
-  character(10), intent(in) :: filename
+  character(*), intent(in) :: filename
   logical, intent(out) :: it_exists
   integer, intent(out) :: at_indx
   !------------
@@ -464,7 +399,7 @@ contains
 
   subroutine add_file_to_list(filename,info,filetag)
   implicit none
-  character(10), intent(in) :: filename
+  character(*), intent(in) :: filename
   integer, intent(inout) :: info
   character(80), intent(in) :: filetag
   !------------
@@ -493,19 +428,22 @@ contains
 
   subroutine remove_file_from_list(filename,info)
   implicit none
-  character(10), intent(in) :: filename
+  character(*), intent(in) :: filename
   integer, intent(inout) :: info
   !------------
-  integer :: at_indx, sys_result
+  integer :: at_indx
   logical :: it_exists
-  character(40) :: sys_command
+  !character(40) :: sys_command
+  !integer :: sys_result
   !------------
   call check_if_exists(filename,it_exists,at_indx)
   if (it_exists) then
     tmp_file_list(at_indx) = ''
     tmp_file_tags(at_indx) = ''
-    !sys_command = 'rm -f '//trim(filename)
-    !call system(sys_command,sys_result)
+    !Do not use these till record_handler is re-written. It doesn't like to find
+    !file missing at present.
+    ! sys_command = 'rm -f '//trim(filename)
+    ! call system(sys_command,sys_result)
   else
     print *,'WARNING: Temporary file to be removed does not exist in the list'
     print *,'File name is ',trim(filename)
@@ -608,7 +546,7 @@ subroutine close_file_units
 implicit none
 integer, parameter :: maxunit=100
 integer, parameter :: isp=10 !Max number of special restricted unit nos.
-integer :: iunit, ispecial(isp)
+integer :: ispecial(isp)
 integer :: i,j
 logical :: isitopen
 data ispecial/5,6,8*0/
@@ -641,10 +579,13 @@ subroutine getunit(iunit)
 !-------
 !IUNIT = INTEGER : first available free unit number.
 !
+use parameters, only : maximum_unit_numbers
 implicit none
-integer, parameter :: maxunit=100 ! Maximum unit number to scan upto.
+integer, intent(out) :: iunit
+!------------
+character(len=*), parameter :: this_routine='getunit'
 integer, parameter :: isp=10 !Max number of special restricted unit nos.
-integer :: iunit, ispecial(isp)
+integer :: ispecial(isp)
 integer :: i,j
 logical :: isitopen
 data ispecial/5,6,8*0/
@@ -652,7 +593,7 @@ data ispecial/5,6,8*0/
 !
 iunit = -1
 !
-unit: do i = 1, maxunit
+unit: do i = 1, maximum_unit_numbers
  special: do j = 1, isp
   !check to see if this is a special unit number
   if (i.eq.ispecial(j)) cycle unit
@@ -668,10 +609,12 @@ enddo unit
 select case(iunit)
  case (-1)
    !if you come here then no unit is available (amazing!)
-   write(*,*)'Subroutine GETUNIT: No unit number <=100 available'
-   write(*,*)'Why the heck do you have so many files open?'
-   write(*,*)'Stopping: change value of MAXUNIT and recompile'
-   stop
+   print '(1x,a,i5,a)','Subroutine GETUNIT: No unit number <=',&
+      & maximum_unit_numbers,' available'
+   print *,'Why the heck do you have so many files open?'
+   print *,'Stopping: change value of MAXIMUM_UNIT_NUMBERS in '
+   print *,'module parameters and recompile'
+   call internal_error(this_routine,__LINE__,'Too many open files')
  case default
 end select
 !
@@ -680,19 +623,24 @@ end subroutine getunit
 
 !----------------------------------------------------------------------
 
-  subroutine my_timer(operation,title)
+  subroutine my_timer(operation,title,debug)
   !Based on Wojtek's timing routine.
   !operation : One of 
   !           'enter' : entering routine/function
   !           'exit'  : exiting
   !           'report': write it all out nicely
   !title     : 20 character title of the routine/function you are timing.
+  !debug     : (OPTIONAL) LOGICAL
+  !            If present and TRUE, a single line stating the name of the
+  !            subroutine entered is printed.
   !
+!  use global_data, only : g_timer_debug  !AJWT
   use precision
   implicit none
   save
   character(len=*), intent(in) :: operation
   character(len=*), intent(in) :: title
+  logical, intent(in), optional :: debug
   !------------
   character(20) :: my_operation, my_title
   logical :: iam_init = .FALSE.  !Initial value. Lost after updating
@@ -709,6 +657,10 @@ end subroutine getunit
   !------------
   my_operation = trim(operation)
   my_title = trim(title)
+!  if (present(debug)) then      !AJWT
+!    if (debug.and.g_timer_debug) print *,'Subroutine ',trim(my_title),&
+!      & '  ',trim(my_operation)
+!  endif
   !
   if (.not.iam_init) then
     titles = ''
@@ -830,6 +782,18 @@ end subroutine getunit
 
   end subroutine my_timer
 
+  subroutine warning(routine_name,line_no,warn_str)
+  implicit none
+  character(len=*), intent(in) :: routine_name
+  integer, intent(in) :: line_no
+  character(len=*), intent(in) :: warn_str
+  !------------
+  print *,'WARNING: in subroutine ',trim(routine_name),' line ',line_no
+  print *,trim(warn_str)
+  call flush(6)
+  stop
+  end subroutine warning
+
   subroutine internal_error(routine_name,line_no,error_str)
   implicit none
   character(len=*), intent(in) :: routine_name
@@ -882,6 +846,7 @@ end module common_routines
 module memory_manager
 use precision
 use common_routines
+!  use global_data, only : g_mem_debug    !AJWT
 private
 public :: memory_left, max_memory
 public :: init_memory_manager, memory_logger, leave_memory_manager
@@ -895,6 +860,7 @@ logical, save :: i_have_warned = .false.
 integer, parameter :: max_warn = 10 !maximum number of low memory 
                                     !warning messages to be printed.
 integer, save :: nwarn
+logical, save :: debug = .false.
 !Arrays containing log of results
 integer, parameter :: max_len = 5000
 integer, save :: curr_posn
@@ -907,11 +873,13 @@ contains
   subroutine init_memory_manager(max_mem_bytes)
   implicit none
   integer(li), intent(in) :: max_mem_bytes
+  character(len=*), parameter :: this_routine = 'init_memory_manager'
   !------------
   if (max_mem_bytes.le.0) then
     print *,'Illegal maximum memory value passed to memory_manager.'
     print *,'max_mem_bytes = ',max_mem_bytes
-    stop
+    call internal_error(this_routine,__LINE__,&
+       & 'Illegal maximum memory. Check MEMORY in your input file.')
   endif
   !
   max_memory = max_mem_bytes
@@ -920,6 +888,7 @@ contains
   max_memory_used = 0
   iam_initialized = .true.
   nwarn = 0
+  debug = 0  !g_mem_debug   AJWT
   !
   curr_posn = 0
   object = ''
@@ -949,7 +918,8 @@ contains
   !------------
   integer(li), parameter :: default_mem = 512*1024*1024/8  !512 MB
   integer(li) :: mem_bytes
-  integer :: my_rows, my_cols, my_bytes
+  integer(li) :: my_rows, my_cols, my_bytes
+  character(len=*), parameter :: fmt1='(1x,a,i4,1x,i14,1x,i14,1x,a10,2x,a25)'
   !------------
   if (.not.iam_initialized) then
     print *,'Memory manager not initialized. Doing so now with 512 MB limit'
@@ -980,8 +950,15 @@ contains
     endif
     nwarn = nwarn + 1
   endif
-  !update arrays
+  !
   curr_posn = curr_posn + 1
+  !
+  if (debug) then
+    write(*,fmt1)'MEM ',curr_posn,memory_used,mem_bytes,trim(object_name),&
+       & trim(routine_name)
+  endif
+  !
+  !update arrays
   if (curr_posn.gt.max_len) then
     if (.not.i_have_warned) then
       print *,'WARNING: Array capacity of memory manager exceeded.'
@@ -1046,17 +1023,20 @@ subroutine number2ascii(nr,str)
 !command like CHAR(). Apparently the Lahey F95 compiler (from
 !Fijitsu) has this command (called ACHAR), but G77 doesn't hence
 !this bit of code...
+use common_routines
+use parameters, only : max_tmp_files
 implicit none
 integer, intent(in) :: nr
 character(3), intent(out) :: str
 !------------
+character(len=*), parameter :: this_routine = 'number2ascii'
 integer :: i, j, k
 character(1), dimension(0:9) :: digits
 data digits/'0','1','2','3','4','5','6','7','8','9'/
 !------------
-if (nr.gt.999) then
+if (nr.ge.max_tmp_files) then
    write (6,*) 'ERROR: Number too big for number2ascii'
-   stop
+   call internal_error(this_routine,__LINE__,'Probably too many files open')
 endif
 i=nr/100
 j=(nr-100*i)/10

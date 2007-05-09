@@ -1,0 +1,112 @@
+module parameters
+use precision
+save
+!Parameters setting various limits of the modules
+!(A) Integrals: limits imposed by GAMINT
+integer, parameter :: par_max_l = 5  !max number of symmetries for integrals
+                                     !max ang mom is l=4, thus max_l = 4 + 1
+                                     !(for s-functions)
+                                     !NOTE: All basis sets must be defined to be
+                                     !have max_l = par_max_l even if they do not
+                                     !contain symmetries up to G.
+integer, parameter :: par_max_rank = par_max_l - 1
+!
+!(B) Parameters used by basis_parser: 
+integer, parameter :: par_maxprims = 1000    !maximum number of primitives
+integer, parameter :: par_maxshells = 1000   !maximum number of shells
+integer, parameter :: par_maxatoms = 500     !max no of atoms
+!
+!(C) Parameters in polarizability and multipole moment modules:
+integer, parameter :: par_max_freq = 500     !max number of frequencies 
+integer, parameter :: par_max_sites = 500    !max number of sites
+!Maximum order upto which transformation matrices have been coded for
+!transforming polarizabilities/moments computed using primitive multipole moment
+!operators to the Cartesian or spherical representations (if orders larger than
+!these are requested, the polarizability tensors are still computed, but are
+!returned in terms of the primitive multipole moment operators that will be
+!defined in the output. There are no intrinsic upper bounds to the order of the
+!polarizability tensors that can be computed by this code.):
+integer, parameter :: par_maxrank_cart_trans = 3
+integer, parameter :: par_maxrank_spher_trans = 4
+!For most applications the maximum rank of polarizabilities/moments will be 
+!equal to par_maxrank_spher_trans. So define a maximum rank parameter for
+!properties:
+integer, parameter :: par_maxrank_prop = par_maxrank_spher_trans
+!
+!(D) Machine precision parameters:
+real(dp), parameter :: epsilon_machine = 1.0e-15_dp
+real(dp), parameter :: epsilon_significant = 1.0e-8_dp
+!
+!(E) Number of temp and molecule files that can be generated and the 
+!default name:
+integer, parameter :: max_tmp_files = 1000
+character(10), parameter :: tmp_file_name = 'TMP_______'
+integer, parameter :: max_mol_files = 100
+character(80), parameter :: tmp_mol_file_name = 'MOL_______'
+!
+!(F) Maximum number of basis functions (including symmetry components)
+integer, parameter :: max_orbitals = 2000
+!
+!(G) Conversion factors and constants
+!------------------------------------
+! 1 a.u.  = au2<X> in X units
+! Source: www.nist.gov
+real(dp), parameter :: au2cm = 219474.6313710_dp
+real(dp), parameter :: au2kcal = 627.510_dp   !kcal/mol
+real(dp), parameter :: au2kJ = 2625.499_dp    !kJ/mol
+real(dp), parameter :: au2kelvin = 3.1577465E+05_dp
+real(dp), parameter :: au2Hz = 6.579683920735e+15_dp
+real(dp), parameter :: au2eV = 27.211383_dp
+real(dp), parameter :: bohr2ang = 0.529177249_dp
+real(dp), parameter :: a_o = 0.529177249_dp
+real(dp), parameter :: pi = 3.1415926535897932384626433832795028841968_dp
+!
+!(H) Integral parameters
+!=======================
+!(1) Integral cutoff value:
+real(dp), parameter :: par_integral_cutoff = 1.0e-16_dp
+!(2) Exponent of dummy s-function used to obtain 2- and 3-index integrals 
+!from the 4-index integrals computed by GAMINT:
+!This choice of the dummy s-function exponent gives > 16 decimal accuracy for
+!integrals of basis functions less than 10 a.u. from the s-function, and
+!about 11 decimal accuracy for integrals of functions 100 a.u. away.
+!This should be more than adequate for almost every application.
+real(dp), parameter :: par_dummy_s_exponent = 1.0e-18_dp
+!
+!(I) File names used by the code
+!===============================
+!(1) Molecular orbital coefficients and energies:
+!    See module molecular_orbitals
+!    These can be overridden. See module molecule_operations
+character(10), parameter :: vector_file_a = 'vecta.data'
+character(10), parameter :: vector_file_b = 'vectb.data'
+character(10), parameter :: h1_file_a = 'h1A.data'
+character(10), parameter :: h1_file_b = 'h1B.data'
+character(10), parameter :: h2_file_a = 'h2A.data'
+character(10), parameter :: h2_file_b = 'h2B.data'
+!
+!(J) Misc Parameters
+!===================
+integer, parameter :: max_titles = 10
+integer, parameter :: maximum_unit_numbers = 200
+!
+!(K) Maximum number of molecules
+!===============================
+integer, parameter :: max_molecules = 2
+!
+end module parameters
+
+!-----------------------------------------------------------------------
+
+module run_data
+use precision
+use parameters, only : max_titles
+save
+! Data pertaining to a calculation
+!(1) TITLE
+integer :: num_titles = 0
+character(80), dimension(max_titles) :: title = ''
+
+end module run_data
+
+
