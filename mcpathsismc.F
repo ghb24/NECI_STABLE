@@ -621,6 +621,7 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,13)) THEN
             Call CalcStDev(MCStat,R)
             WRITE(6,"(A,I4,A,G)") "Error in MC ",I_VM2,":",R
+            CALL FLUSH(6)
         ENDIF
          IF(TMPTHEORY) THEN
             Call GetStats(MCStat,0,TOTAL,WLSI,DLWDB2)
