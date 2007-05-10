@@ -6,6 +6,16 @@ module PreCalc
     INTEGER, POINTER, DIMENSION(:,:,:) :: GRAPHS
     INTEGER, POINTER, DIMENSION(:,:) :: PVERTMEMS
     SAVE PGENLIST,NMEM,GRAPHPARAMS,GRAPHS,PVERTMEMS
+   
+!    TYPE MCG
+!        REAL*8, POINTER, DIMENSION(:)       ::  Weights
+!        REAL*8, POINTER, DIMENSION(:)       ::  Deltas
+!        REAL*8, POINTER, DIMENSION(:)       ::  Probs
+!        INTEGER, POINTER, DIMENSION(:,:)    ::  GRAPHS
+!    END TYPE
+   
+!    SAVE MCG
+    
     contains
 
 SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,              &
@@ -233,7 +243,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                    
             !Initial bracketing
             IF((bestvals(1,(Q-1)).eq.0.D0).and.(bestvals(2,(Q-1)).eq.0.D0)) THEN
-                p=(/ 0.1,0.5 /)     !Initial a and b values
+                p=(/ 0.5,0.5 /)     !Initial a and b values
                 xi= RESHAPE( (/ 1.D0, 0.D0, 0.D0, 1.D0 /), (/ 2, 2 /) ) !Initial directions
             ELSE
                 !Choose values which the previous vertex level found as optimum
@@ -475,7 +485,6 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     include 'vmc.inc'
     include 'basis.inc'
     include 'irat.inc'
-!    include 'tester.inc'
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH(*),NMAX,NTAY,L,LT,K
     INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX),I
@@ -485,7 +494,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,FIRST(2:8)
     REAL*8 NTOTAL,BETA,ECORE,ALAT(3),RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
-    REAL*8 PROB,SumX,SumY,SumXsq,SumYsq,SumXY,SUMPGENS
+    REAL*8 PROB,SumX,SumY,SumXsq,SumYsq,SumXY
     TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
@@ -493,15 +502,15 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
     REAL*8 NTOTSAV(1:7),ENERGYLIMS(2),PGR,SUMPGEN,NTOTAL2
     TYPE(HDElement) DLWSAV(1:7),TOTSAV(1:7),RH,DLWDBCORE,WCORE,FF,OWEIGHT,OETILDE,FMCPR4D2
-    REAL*8 INWI,PFAC,OPROB,VarX,VarY,Covar,MeanX,MeanY,NORMALISE
+    REAL*8 INWI,PFAC,OPROB,VarX,VarY,Covar,NORMALISE
     DATA NTOTSAV/7*1.D0/
     DATA TOTSAV/7*HDElement(1.D0)/
     DATA DLWSAV/7*HDElement(0.D0)/
     DATA FIRST/7*.TRUE. /
     SAVE NTOTSAV,TOTSAV,DLWSAV
-    SAVE FIRST
-!    INTEGER NMEM(*)
-    INTEGER ISEED,aaa,t,tt,nn
+    SAVE FIRST,NORMALISE
+    LOGICAL LISNAN
+    INTEGER ISEED,aaa,t,tt
     INTEGER I_OCLS,ITREE,ILOGGING,I_OVCUR,IACC
     REAL*8 ORIGEXCITWEIGHTS(6)
     
@@ -578,7 +587,6 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             !Will only need to run everytime a new vertex MC level is used
             !Deallocate the arrays if already been used by previous vertex level
             IF(FIRST(K)) THEN
-!                OPEN(43,FILE="MCVARTERMS",STATUS="UNKNOWN")
                 IF (ALLOCATED(PVERTMEMS)) THEN
                     DO t=1,pre_TAY(2,K-1)
                         DO tt=1,K-2
@@ -641,12 +649,12 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                 ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:)
                 g_VMC_ExcitWeights=0.D0
                 NORMALISE=0.D0
-                
+
+!                OPEN(43,FILE="MCGRAPHS",STATUS="UNKNOWN")
                 DO b=1,CYCLES
                    OWEIGHT=0.D0
                    EXCITGEN=0
                    INWI=0.D0
-!                   WRITE(43,("I3,3G25.16")) K, DLWDB2, OETILDE, OWEIGHT
                    
                    !DLWDB2 is just the energy, OETILDE is energy*weight
                    FF=FMCPR4D2(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                            &
@@ -656,6 +664,8 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
 !                   WRITE(43,("I3,3G25.16")) K, DLWDB2, OETILDE, OWEIGHT
 !                   WRITE(43,*) DLWDB2, OETILDE/OWEIGHT
 !                   WRITE(43,*) DLWDB2
+!                   CALL WRITEPATH(43,IPATH(:,0:K),K,NEL,.TRUE.)
+
                    GRAPHS(:,:,b)=IPATH(:,0:K)
                    GRAPHPARAMS(1,b)=OWEIGHT%v
                    GRAPHPARAMS(2,b)=(DLWDB2%v-EREF%v)
@@ -666,6 +676,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
 !                   WRITE(6,("5G25.16")) FF%v,OWEIGHT%v,DLWDB2%v,OPROB,OETILDE%v
 !                   CALL FLUSH(6)
                 ENDDO
+!                CLOSE(43)
                 g_VMC_ExcitWeights(:)=ORIGEXCITWEIGHTS(:)
             
 !                CALL GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1, &
@@ -678,11 +689,11 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             ENDIF 
                 
                 J=0
-                PROB=0.D0
                 
                 DO bb=1,CYCLES
                    
                     
+                    PROB=0.D0
                     IPATH(:,0:K)=GRAPHS(:,0:K,bb)
                     EXCITGEN(0:K)=PVERTMEMS(:,bb)
                     CALL  CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
@@ -690,13 +701,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     
                     PGENLIST(bb)=PROB
 
-!                   IF(FIRST(K)) THEN
-!                        OPEN(62,FILE="GRAPHS",STATUS="UNKNOWN")
-!                        WRITE(62,*) g_VMC_ExcitWeights
-!                        WRITE(62,*) GRAPHPARAMS(1,bb),GRAPHPARAMS(2,bb),GRAPHPARAMS(3,bb),PGENLIST(bb),EREF%v,WCORE%v
-!                   ENDIF
                ENDDO
-!            CLOSE(62)
             SumX=0.D0
             SumY=0.D0
             SumXsq=0.D0
@@ -705,49 +710,37 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             VarX=0.D0
             VarY=0.D0
             Covar=0.D0
-            MeanX=0.D0
-            MeanY=0.D0
-            SUMPGENS=0.D0
+!            SUMPGENS=0.D0
             
             !CALCULATE VARIANCE
             !Does EREF/WREF want to change as we go to higher MC vertex levels?
             DO aa=1,CYCLES
 
-                  SumX=SumX+((GRAPHPARAMS(2,aa)*GRAPHPARAMS(1,aa))/(PGENLIST(aa)*GRAPHPARAMS(3,aa)))
-                  SumY=SumY+((GRAPHPARAMS(1,aa)+WCORE%v*PGENLIST(aa))/(PGENLIST(aa)*GRAPHPARAMS(3,aa)))
-                  SumXsq=SumXsq+( ( GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa)/PGENLIST(aa) )**2)/GRAPHPARAMS(3,aa)
-                  SumYsq=SumYsq+(((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)**2)/GRAPHPARAMS(3,aa)
-                  SumXY=SumXY+((((GRAPHPARAMS(1,aa)**2)*GRAPHPARAMS(2,aa))+(WCORE%v*GRAPHPARAMS(1,aa)*          &
-                        GRAPHPARAMS(2,aa)*PGENLIST(aa)))/((PGENLIST(aa)**2)*GRAPHPARAMS(3,aa)))
-
-                 SUMPGENS=SUMPGENS+PGENLIST(aa)
-!                 WRITE(36,*) EREF%v, WCORE%v
-!                 CALL FLUSH(36)
+                SumX=SumX+((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))/GRAPHPARAMS(3,aa))
+                SumY=SumY+((GRAPHPARAMS(1,aa)+(WCORE%v*PGENLIST(aa)))/GRAPHPARAMS(3,aa))
+                SumXsq=SumXsq+(((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))**2)/(GRAPHPARAMS(3,aa)*PGENLIST(aa)))
+                SumYsq=SumYsq+((((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)**2)*(PGENLIST(aa)/GRAPHPARAMS(3,aa)))
+                SumXY=SumXY+(((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)*(GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa)/PGENLIST(aa))*    &
+                        (PGENLIST(aa)/GRAPHPARAMS(3,aa)))
+            
+            
+!                 SUMPGENS=SUMPGENS+PGENLIST(aa)
             ENDDO                                                         
             
-            MeanX=NORMALISE*(SumX/(CYCLES**2))
-            MeanY=NORMALISE*(SumY/(CYCLES**2))
-            SumXsq=(NORMALISE/(CYCLES**2))*SumXsq
-            SumYsq=(NORMALISE/(CYCLES**2))*SumYsq
-            SumXY=(NORMALISE/(CYCLES**2))*SumXY
-            VarX=SumXsq-(MeanX**2)
-            VarY=SumYsq-(MeanY**2)
-            Covar=SumXY-(MeanX*MeanY)
+            SumX=SumX/(CYCLES+0.D0)
+            SumY=SumY/(CYCLES+0.D0)
+            SumXsq=SumXsq/(CYCLES+0.D0)
+            SumYsq=SumYsq/(CYCLES+0.D0)
+            SumXY=SumXY/(CYCLES+0.D0)
+            VarX=SumXsq-(SumX**2)
+            VarY=SumYsq-(SumY**2)
+            Covar=SumXY-(SumX*SumY)
             
-!            TotXsav=TotXsav+MeanX
-!            TotMeanX=TotXsav/nn
-!            nn=nn+1
+            WRITE(18,*) g_VMC_ExcitWeights(1),g_VMC_ExcitWeights(2)
+            WRITE(18,*) SumX,SumY,VarX,VarY,Covar
+
+            VARSUM=((SumX/SumY)**2)*((VarX/SumX**2)+(VarY/SumY**2)-(2*Covar/(SumX*SumY)))
             
-            VARSUM=((MeanX/MeanY)**2)*((VarX/MeanX**2)+(VarY/MeanY**2)-(2*Covar/(MeanX*MeanY)))
-            
-!            WRITE(43,("6G25.16")) MeanX,MeanY,VarX,VarY,Covar,VARSUM
-!            WRITE(43,*) "SUM OF PGENS IS: ", SUMPGENS
-!            CALL FLUSH(43)
-!            
-!            WRITE(6,*) "SUM OF PGENS IS: ", SUMPGENS
-!            WRITE(6,*) "NEW VARSUM IS: ", VARSUM
-!            CALL FLUSH(6)
-           
         ENDIF
         
         IF(FIRST(K)) THEN
@@ -759,10 +752,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             ELSEIF(METH.EQ.-19) THEN
             
                 SUMPGEN=0.D0 
-                WRITE(6,*) "SUM OF UNBIASED PGENS IN MCPRECALC: ", SUMPGEN
-!                WRITE(6,*) g_VMC_ExcitWeights
-                WRITE(6,("A,6G25.16")) "CONVERGENCE: ",MeanX,MeanY,VarX,VarY,Covar,VARSUM                
-                CALL FLUSH(6)
+                WRITE(6,*) "SUM OF UNBIASED PGENS IN MCPRECALC: ", NORMALISE
                 !???
                 TOTSAV(K)=TOTSAV(K-1)
                 DLWSAV(K)=DLWSAV(K-1)
@@ -1204,7 +1194,7 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          
     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),NBASIS,GIDHO
     INTEGER KSYM(5)
     COMPLEX*16 FCK(*)
-    LOGICAL TSYM
+    LOGICAL TSYM,LISNAN
     REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA
     TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
@@ -1221,6 +1211,11 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          
     COMMON /f1com/ pcom,xicom,ncom
     do j=1,ncom
         xt(j)=pcom(j)+x*xicom(j)
+!        IF(LISNAN(xt(j))) THEN
+!            WRITE(6,*) xt(j)
+!            WRITE(6,*) pcom(j),x,xicom(j)
+!            CALL FLUSH(6)
+!        ENDIF
     enddo
     f1dim=varianceab(xt,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
               FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
@@ -1259,18 +1254,26 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
 !    WRITE(31,*) "MNBRAK ALGO STARTING"
 2   savedax=ax
     savedbx=bx
+                WRITE(6,*) ax 
     fa= func(ax,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                  &
                FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,   &
                KSYM)
+    WRITE(6,*) fa
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
 !    IF (TLOGP.and.(GIDHO.eq.4)) THEN
 !        WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fa
 !        CALL FLUSH(31)
 !    ENDIF
+                WRITE(6,*) bx 
     fb= func(bx,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                  &
                FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,   &
                KSYM)
+    WRITE(6,*) fb
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
 !    IF (TLOGP.and.(GIDHO.eq.4)) THEN
 !        WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fb
 !        CALL FLUSH(31)
@@ -1284,10 +1287,14 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
          fa=dum
     ENDIF
     cx=bx+GOLD*(bx-ax)     !First guess for c
+                WRITE(6,*) cx
     fc=func(cx,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,            &
           FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
           KSYM)
+    WRITE(6,*) fc
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
 !    IF (TLOGP.and.(GIDHO.eq.4)) THEN
 !        WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fc
 !        CALL FLUSH(31)
@@ -1308,10 +1315,14 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
             u=bx-((bx-cx)*qu-(bx-ax)*r)/(2.D0*sign(max(abs(qu-r),MINI),qu-r))
             ulim=bx+GLIMIT*(cx-bx)   !We won't go father than this.  Test various possibilities:
             IF((bx-u)*(u-cx).gt.0.D0) THEN  !Parabolic u is between b and c: try it
+                WRITE(6,*) u
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
+    WRITE(6,*) fu
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
      
                 IF (fu.lt.fc) THEN      !Got a minimum between b and c
                     ax=bx
@@ -1325,42 +1336,67 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
                     return
                 ENDIF
                 u=cx+GOLD*(cx-bx)       !Parabolic fit was no use. Use default magnification
+                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
+    WRITE(6,*) fu
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
 !                IF (TLOGP.and.(GIDHO.eq.4)) THEN
 !                    WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fu
 !                    CALL FLUSH(31)
 !                ENDIF
             ELSEIF((cx-u)*(u-ulim).gt.0.D0) THEN    !Parabolic fit is between c and its allowed limit
+                
+                IF((u.GT.-82.35).AND.(u.LT.-82.34)) THEN
+                    WRITE(6,*) ""
+                ENDIF
+            
+                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
+    WRITE(6,*) fu
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
                 IF(fu.lt.fc) THEN
                     bx=cx
                     cx=u
                     u=cx+GOLD*(cx-bx)
                     fb=fc
                     fc=fu
+                WRITE(6,*) u 
                     fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                           FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                           KSYM)
+    WRITE(6,*) fu
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
                 ENDIF
             ELSEIF((u-ulim)*(ulim-cx).ge.0.D0) THEN     !Limit parabolic u to maximum allowed value
                 u=ulim
+                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
+    WRITE(6,*) fu
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
             ELSE        !Reject parabolic u, use default magnification
                 u=cx+GOLD*(cx-bx)
+                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
+    WRITE(6,*) fu
+    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
+    CALL FLUSH(6)
 !                IF (TLOGP.and.(GIDHO.eq.4)) THEN
 !                    WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fu
 !                    CALL FLUSH(31)
@@ -1404,8 +1440,8 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,       
     origvals(:)=g_VMC_ExcitWeights(1:2)
     
 OPEN(45,FILE="GRIDVAR",STATUS="UNKNOWN")
-DO A=-0.4,1,0.1
-    DO B=-0.4,1,0.1
+DO A=-0.4,1,0.05
+    DO B=-0.4,1,0.05
         p=(/ A,B /)     !Initial a and b values
         g_VMC_ExcitWeights(1:2)=p(:)
         

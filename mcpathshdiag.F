@@ -153,6 +153,9 @@ C.. Store beta in RHOII(1) (calling it BETADATA)
             NTOTAL=NTOTAL+TOTAL
 C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
+!            WRITE(18,*) IPATH
+!            WRITE(18,*) TOTAL
+!            WRITE(18,*) (DLWDB2/TOTAL)-EREF
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
 !               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
@@ -170,6 +173,11 @@ C.. NMAX has ARR hidden in it.
                    !WRITE(43,*) DLWDB2, EREF
                    !CALL FLUSH(43)
 !        write (*,*) "from mcpathshdiag, EREF=",EREF
+!            IF (TVARCALC(I_V)) THEN
+!                CALL WRITEPATH(43,IPATH,I_V,NEL,.TRUE.)
+!            ENDIF
+            
+            
             IF (TVARCALC(I_V).or.TPREVAR) THEN             
               J=0
               IF(tLog5) J=10
