@@ -256,9 +256,11 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          TYPE(HElement) TMAT(NHG,NHG)
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
-         REAL*8 F
+         REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
          TYPE(HElement) U,TOT
-         INTEGER ISS(*),NBASISMAX(*)
+         INTEGER ISS,NBASISMAX(*)
+         TYPE(HElement) UMAT(:)  ! UMAT dummy for GetUMatEl.
+
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)
          REAL*8 ECORE
@@ -309,7 +311,7 @@ C.. Get 4-index integral (ik|jk)
      &                          ,K," has occupation number ",F
                            STOP "TOP FROZEN STATE OCCUPIED"
                         ENDIF
-                        U=GETUMATEL(NBASISMAX,0.D0,0.D0,NHG,ISS,G1,
+                        U=GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,
      &                        I,K,J,K)
 !                       WRITE(6,*) I,K,J,K,U
                         TOT=TOT-HElement(F)*U

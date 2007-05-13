@@ -33,7 +33,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
          COMPLEX*16 FCK(*)
-         INTEGER I_P,I_HMAX,BRR(*),NMSH(*),NMAX
+         INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
          INTEGER FSEEK,L,LT,ITIME,K,J
          REAL*8 BETA,ECORE,TIMEC
@@ -405,7 +405,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          INTEGER NI(NEL)
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMat(*), TMat(*),RH
-         INTEGER I_P,I_HMAX,BRR(*),NMSH(*),NMAX
+         INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,ISUB,I,I_V,ISUB2
          INTEGER FSEEK,L,LT,ITIME,K
          REAL*8 BETA,ECORE,TIMEC
