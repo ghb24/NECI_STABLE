@@ -1186,7 +1186,7 @@ do
                  }
                }
        }
-       /^[ ]*USE/ || /^[ ]*use/ || /^[ ]*Use/ {
+       /^[ ]*USE / || /^[ ]*use / || /^[ ]*Use / {
                split($0,a,"[ ,]*");
                if(tolower(a[1])=="use") {
                   Name =  tolower(a[2]) ".mod";

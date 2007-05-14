@@ -79,6 +79,7 @@ C.,             If 1, only allow doubles.
          REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+            
             SELECT CASE (IAND(NWHTAY,24))
             CASE(0)
 C.. Allow both singles and doubles

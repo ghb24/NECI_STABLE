@@ -7,15 +7,6 @@ module PreCalc
     INTEGER, POINTER, DIMENSION(:,:) :: PVERTMEMS
     SAVE PGENLIST,NMEM,GRAPHPARAMS,GRAPHS,PVERTMEMS
    
-!    TYPE MCG
-!        REAL*8, POINTER, DIMENSION(:)       ::  Weights
-!        REAL*8, POINTER, DIMENSION(:)       ::  Deltas
-!        REAL*8, POINTER, DIMENSION(:)       ::  Probs
-!        INTEGER, POINTER, DIMENSION(:,:)    ::  GRAPHS
-!    END TYPE
-   
-!    SAVE MCG
-    
     contains
 
 SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,              &
@@ -30,22 +21,24 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY,I,L,LT,Q
      INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX),NBASIS
      INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),GIDHO,n
-     INTEGER iters,r,s,rr,KSYM(5)
+     INTEGER iters,r,s,rr,KSYM(5),UNITNO,vv,kk,cc
      COMPLEX*16 FCK(*)
      REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM
-     REAL*8 originalvals(6),bestvals(6,PREIV_MAX)
+     REAL*8 bestvals(6,PREIV_MAX)!,originalvals(6)
      REAL*8 ax,bx,cx,minvar,xmin,originalc,originalimport
      REAL*8 ZEROVAR,p(2),pl(2),ph(2),xi(2,2)
-     REAL*8 fret,fa,fb,fc
+     REAL*8 fret,fa,fb,fc!,distance
      REAL*8 polyp(3),polyxi(3,3)
      REAL*8 bestxipolyboth(4,4),polypboth(4)
      REAL*8 bestxipoly(3,3),bestxi(2,2),polyxiboth(4,4)
-     REAL*8 ORBENERGY,ENERGYLIMS(2),xxx
-     LOGICAL TSYM,NOTHING,TLOGP,DEALLOC,LOWNEL
+     REAL*8 ORBENERGY,ENERGYLIMS(2),xxx,g_VMC_FINAL(6,2:10)
+     REAL*8 G_VMC_EXCITFINAL(2:10)
+     LOGICAL TSYM,NOTHING,TLOGP,DEALLOC,LOWNEL,check
      TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
      TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
      TYPE(HElement) HIJS(0:PREIV_MAX)
      TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+     CHARACTER(len=12) :: abstr
 !    REAL*8 MCPATHSPRE
 !     EXTERNAL MCPATHSPRE
      
@@ -80,6 +73,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      !Loop over vertex levels to look at
      DO Q=I,PREIV_MAX
          
+         CUR_VERT=Q
          NOTHING=.FALSE.
      
          ! IF NONE IS SPECIFIED
@@ -92,10 +86,14 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &                  KSYM)
              
              CYCLE
+         
+         
          ENDIF
      
          WRITE(6,*) ""
          WRITE(6,"(A,I2,A)") "For a vertex level of", Q, ", PRECALC finds:"
+        
+         
          
         !IF NOTHING SPECIFIED
         IF ((.not.PRE_TAYLOG(1,Q)).and.(.not.PRE_TAYLOG(2,Q)).and.(.not.PRE_TAYLOG(3,Q)).and.(.not.PRE_TAYLOG(4,Q)).and.  &
@@ -117,14 +115,12 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 polyxiboth=RESHAPE( (/ 1.D0,((0.D0,r=1,4),1.D0,s=1,3) /), (/ 4, 4 /) )!Initial directions - unit vectors
             ELSE
                 !Choose values which the previous vertex level found as optimum
-                polypboth=bestvals(1:4,(Q-1))  !CAN I DO THIS?!
+                polypboth=bestvals(1:4,(Q-1))  
                 polyxiboth=bestxipolyboth
             ENDIF
             n=4                 !Dimensions
             GIDHO=7
             
-            originalvals=g_VMC_ExcitWeights
-
             CALL POWELL(polypboth,polyxiboth,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,    & 
      &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                     &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM,LOWNEL)             
@@ -134,14 +130,17 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
             IF (NOTHING) THEN
 
-                g_VMC_ExcitWeights=originalvals
-                WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,F16.12,A,F6.3,A,F6.3,A,F6.3,A,F6.3)") "Optimum SigmaA POLYEXCITWEIGHT found to be ", polypboth(1), "nA POLYEXCITWEIGHT as ", polypboth(2),           &
-     &           ", sigmaB POLYEXCITWEIGHT as ", polypboth(3), ", and nB POLYEXCITWEIGHT as ", polypboth(4),", but using values of ",     &
-     &                    originalvals(1), ", ", originalvals(2), ", ", originalvals(3), ", and ", originalvals(4)
+                WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,F16.12,A,I3,A)") "Optimum SigmaA POLYEXCITWEIGHT found to be ", polypboth(1), "nA POLYEXCITWEIGHT as ", polypboth(2),           &
+     &           ", sigmaB POLYEXCITWEIGHT as ", polypboth(3), ", and nB POLYEXCITWEIGHT as ", polypboth(4),", at vertex level ",     &
+     &                    Q, ", but not using these values"
 
             ELSE
-                g_VMC_ExcitWeights(1:4)=polypboth(:)
-                WRITE(6,"(A,F16.12,A,F16.12,A,F16.12)") "POLYEXCITWEIGHTING parameters optimised to SigmaA=", polypboth(1), ", nA=",polypboth(2),", sigmaB=",polypboth(3), ", and nB=",polypboth(4)
+                DO r=1,8
+                    IF(USEVAR(Q,r).ne.0) THEN
+                        g_VMC_FINAL(1:4,USEVAR(Q,r))=polypboth(:)
+                        WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,I3)") "POLYEXCITWEIGHTING parameters optimised to SigmaA=", polypboth(1), ", nA=",polypboth(2),", sigmaB=",polypboth(3), ", and nB=",polypboth(4)," for vertex level ",USEVAR(Q,r)
+                    ENDIF
+                ENDDO
             ENDIF
         ENDIF
             
@@ -165,8 +164,6 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             n=3                 !Dimensions
             GIDHO=4
 
-            originalvals=g_VMC_ExcitWeights
-        
             CALL POWELL(polyp,polyxi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
      &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,              &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,  &
@@ -177,21 +174,22 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
             IF (NOTHING) THEN
 
-                g_VMC_ExcitWeights=originalvals
-                
-                WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,F6.3,A,F6.3,A,F6.3)") "Optimum A POLYEXCITWEIGHT found to be ", polyp(1), ", sigma POLYEXCITWEIGHT as ", polyp(2), ", and n POLYEXCITWEIGHT as ", polyp(3),", but using values of ",     &
-     &           originalvals(1), ", ", originalvals(2), ", and ", originalvals(3)
+                WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,I3,A)") "Optimum A POLYEXCITWEIGHT found to be ", polyp(1), ", sigma POLYEXCITWEIGHT as ", polyp(2), ", and n POLYEXCITWEIGHT as ", polyp(3),", at vertex level ", Q,     &
+     &           ", but not using these values"
 
             ELSE
-                g_VMC_ExcitWeights(1:3)=polyp(:)
-                
-                WRITE(6,"(A,F16.12,A,F16.12,A,F16.12)") "POLYEXCITWEIGHTING parameters optimised to A=", polyp(1), ", sigma=",polyp(2), ", and n=",polyp(3)
-
+                DO r=1,8
+                    IF(USEVAR(Q,r).ne.0) THEN
+                        g_VMC_FINAL(1:3,USEVAR(Q,r))=polyp(:)
+                        WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,I3)") "POLYEXCITWEIGHTING parameters optimised to A=", polyp(1), ", sigma=",polyp(2), ", and n=",polyp(3)," for vertex level ",USEVAR(Q,r)
+                    ENDIF
+                ENDDO
             ENDIF
         ENDIF
         
         !Looking through the parameters for a polynomial function for occupied and virtual orbitals, with a cut-off at the chemical potential
         IF (EXCITFUNCS(4).and.(PRE_TAYLOG(1,Q).or.NOTHING)) THEN
+            IF(.not.TGRIDVAR(Q)) THEN    
             IF (TLOGP) THEN
                 WRITE(31,*) ""
                 WRITE(31,"(A)") "An and Bn CHEMPOTWEIGHTING: (Vertex level, Iteration number, Parameter Values, Expected Variance)"
@@ -208,7 +206,6 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
            ENDIF
            n=2
            GIDHO=8
-           originalvals=g_VMC_ExcitWeights
            
             CALL POWELL(p,xi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,          &
      &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,           &
@@ -219,28 +216,43 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             bestxi=xi
 
             IF (NOTHING) THEN
-                g_VMC_ExcitWeights=originalvals
              
-                WRITE(6,"(A,F16.12,A,F16.12,A,F6.3,A,F6.3)") "Optimum An CHEMPOTWEIGHTING found to be ", p(1), ", and Bn CHEMPOTWEIGHTING as ", p(2), ", but using values of ", originalvals(1), ", and ", originalvals(2)
+                WRITE(6,"(A,F16.12,A,F16.12,A,I3,A)") "Optimum An CHEMPOTWEIGHTING found to be ", p(1), ", and Bn CHEMPOTWEIGHTING as ", p(2), ", at vertex level ", Q, ",but not using these values"
             ELSE
-                g_VMC_ExcitWeights(1:2)=p(:)
+                DO r=1,8
+                    IF(USEVAR(Q,r).ne.0) THEN
+                        
+                        g_VMC_FINAL(1:2,USEVAR(Q,r))=p(:)
                 
-                WRITE(6,"(A,F16.12,A,F16.12)") "CHEMPOTWEIGHTING parameters optimised to An= ", p(1), " and Bn= ",p(2)
+                        WRITE(6,"(A,F16.12,A,F16.12,A,I3)") "CHEMPOTWEIGHTING parameters optimised to An= ", p(1), " and Bn= ",p(2)," for vertex level ",USEVAR(Q,r)
+                    ENDIF
+                ENDDO
             ENDIF
+        !to print out landscape    
+        ELSE
+
+            abstr=''
+            write (abstr,'(I1)') Q
+            abstr='GRIDVAR-'//abstr
+            n=2
+            GIDHO=8
+            UNITNO=100+Q
+            OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
+            CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
+                         FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+                  DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
+            CLOSE(UNITNO)
+        ENDIF
         ENDIF
         
         !Looking for a & b parameters
         IF ((EXCITFUNCS(1)).and.(PRE_TAYLOG(1,Q).or.NOTHING)) THEN
+            IF(.not.TGRIDVAR(Q)) THEN 
             IF (TLOGP) THEN
                 WRITE(31,*) ""
                 WRITE(31,"(A)") "A and B EXCITWEIGHTING: (Vertex level, Iteration number, Parameter Values, Expected Variance)"
             ENDIF
            
-!            CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,               &
-!                    FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
-!                    DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
-            
-                   
             !Initial bracketing
             IF((bestvals(1,(Q-1)).eq.0.D0).and.(bestvals(2,(Q-1)).eq.0.D0)) THEN
                 p=(/ 0.5,0.5 /)     !Initial a and b values
@@ -253,8 +265,6 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             n=2                 !Dimensions
             GIDHO=1             !To tell brentalgo that we are looking at a & b parameters
 
-            originalvals=g_VMC_ExcitWeights
-            
             CALL POWELL(p,xi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,          &
      &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,           &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,&
@@ -265,16 +275,36 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 
             IF (NOTHING) THEN
                 
-                g_VMC_ExcitWeights=originalvals
-                
-                WRITE(6,"(A,F16.12,A,F16.12,A,F6.3,A,F6.3)") "Optimum A EXCITWEIGHT found to be ", p(1), ", and B EXCITWEIGHT as ", p(2), ", but using values of ", originalvals(1), ", and ", originalvals(2)
+                WRITE(6,"(A,F16.12,A,F16.12,A,I3,A)") "Optimum A EXCITWEIGHT found to be ", p(1), ", and B EXCITWEIGHT as ", p(2), ", at vertex level ", Q, ", but not using these values"
                 
             ELSE
-                g_VMC_ExcitWeights(1:2)=p(:)
-                
-                WRITE(6,"(A,F16.12,A,F16.12)") "EXCITWEIGHTING parameters optimised to A=", p(1), " and B=",p(2)
+                DO r=1,8
+                    IF(USEVAR(Q,r).ne.0) THEN
+                        
+                        g_VMC_FINAL(1:2,USEVAR(Q,r))=p(:)
+                        WRITE(6,"(A,F16.12,A,F16.12,A,I3)") "EXCITWEIGHTING parameters optimised to A=", p(1), " and B=",p(2)," for vertex level ",USEVAR(Q,r)
+                    ENDIF
+                ENDDO
             
             ENDIF
+            
+        !Print out landscape
+        ELSE
+            abstr=''
+            write (abstr,'(I1)') Q
+            abstr='GRIDVAR-'//abstr
+            n=2
+            GIDHO=1
+            UNITNO=100+Q
+            OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
+            CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
+                         FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+                  DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
+            CLOSE(UNITNO)
+        ENDIF
+!            distance=SQRT((ABS(xxxx-g_VMC_ExcitWeights(1))**2)+(ABS(xxxx-g_VMC_ExcitWeights(2))**2))
+!            WRITE(6,*) "DISTANCE AWAY FROM EXACT VALUE IS: ", distance
+            
         ENDIF
             
         !Looking for importance parameter
@@ -329,7 +359,6 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             bx=-1.0
             
             GIDHO=5
-            originalvals(3)=g_VMC_ExcitWeights(3)
 
             CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,  &
                     FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
@@ -344,11 +373,15 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
             
             IF (PRE_TAYLOG(5,Q)) THEN
-                g_VMC_ExcitWeights(3)=originalvals(3)
-                WRITE(6,"(A,F15.12,A,F5.3)") "Optimum D parameter found to be ", xmin, ", but using ", originalvals(3)
+                WRITE(6,"(A,F15.12,A,F5.3)") "Optimum D parameter found to be ", xmin, ", but not using this value"
             ELSEIF (PRE_TAYLOG(6,Q)) THEN
-                g_VMC_ExcitWeights(3)=xmin
-                WRITE(6,"(A,F15.12)") "D parameter optimised to ", xmin
+                DO r=1,8
+                    IF(USEVAR(Q,r).ne.0) THEN
+                        
+                        g_VMC_FINAL(3,USEVAR(Q,r))=xmin
+                        WRITE(6,"(A,F15.12,A,I3)") "D parameter optimised to ", xmin," for vertex level ",USEVAR(Q,r)
+                    ENDIF
+                ENDDO
             ENDIF
         ENDIF
         
@@ -366,7 +399,6 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 !            cx=90
 
             GIDHO=3
-            originalc=G_VMC_EXCITWEIGHT
             VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
      &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
@@ -392,22 +424,55 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
            
             IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).gt.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
-                G_VMC_EXCITWEIGHT=xmin
-                WRITE(6,"(A,F17.12)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin
+
+                DO r=1,8
+                    IF(USEVAR(Q,r).ne.0) THEN
+                        G_VMC_EXCITFINAL(USEVAR(Q,r))=xmin
+                        WRITE(6,"(A,F17.12,A,I3)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin," for vertex level ",USEVAR(Q,r)
+                    ENDIF
+                ENDDO
+                
             ELSE IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).le.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
-                G_VMC_EXCITWEIGHT=0.D0
-                WRITE(6,"(A)") "Optimum U weighting within UEPSILON bounds, so using C=0"
+                
+                DO r=1,8
+                    IF(USEVAR(Q,r).ne.0) THEN
+                    
+                        G_VMC_EXCITFINAL(USEVAR(Q,r))=0.D0
+                        WRITE(6,"(A,I3)") "Optimum U weighting within UEPSILON bounds, so using C=0, for vertex level ",USEVAR(Q,r)
+                    ENDIF
+                ENDDO
             ELSE
-                G_VMC_EXCITWEIGHT=originalc
-                WRITE(6,"(A,G20.12,A,F14.8)") "Optimum U weighting found to be", xmin, ", but using", originalc
+                
+                WRITE(6,"(A,G20.12,A,I3,A)") "Optimum U weighting found to be", xmin, " for vertex level ",Q, "but not using this value"
             END IF
         END IF
+    
+    CALL FLUSH(6)
+
+    !End of vertex level
     ENDDO
     WRITE(6,*) ""
     
     IF (TLOGP) THEN
         CLOSE(31)
     ENDIF
+    
+    g_VMC_ExcitWeights(:,2:10)=G_VMC_FINAL
+    g_VMC_EXCITWEIGHT(2:10)=G_VMC_EXCITFINAL
+    
+    do vv=2,10
+        check=.false.
+        do kk=2,preIV_MAX
+            do cc=1,8
+                IF(USEVAR(kk,cc).eq.vv) check=.true.
+            enddo
+        enddo
+    !If use isn't specified for a vertex level, use the values given in the input file
+        IF(.not.check) THEN
+            g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
+            G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
+        ENDIF
+    enddo
     
     !Deallocate array
     DO rr=1,7
@@ -418,6 +483,11 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,154,ENERGYLIMS,KSYM)
     ENDIF
+    
+!    write(6,*) g_VMC_Excitweights
+!    call flush(6)
+    
+    
     
     RETURN
 END SUBROUTINE GETVARS
@@ -449,14 +519,14 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
     
     SELECT CASE (GIDHO)
     CASE(1)
-        g_VMC_ExcitWeights(1:2)=pointab(1:2)
+        g_VMC_ExcitWeights(1:2,K)=pointab(1:2)
     CASE(8)
-        g_VMC_ExcitWeights(1:2)=pointab(1:2)
+        g_VMC_ExcitWeights(1:2,K)=pointab(1:2)
     CASE(4)
-        g_VMC_ExcitWeights(1:3)=pointab(1:3)
+        g_VMC_ExcitWeights(1:3,K)=pointab(1:3)
         IF ((pointab(2).gt.ENERGYLIMS(2)).or.(pointab(2).lt.ENERGYLIMS(1))) G=.true.
     CASE(7)
-        g_VMC_ExcitWeights(1:4)=pointab(1:4)
+        g_VMC_ExcitWeights(1:4,K)=pointab(1:4)
         IF ((pointab(1).lt.ENERGYLIMS(1)).or.(pointab(1).gt.ENERGYLIMS(2))) G=.true.
         IF ((pointab(3).lt.ENERGYLIMS(1)).or.(pointab(3).gt.ENERGYLIMS(2))) G=.true.
     ENDSELECT
@@ -520,13 +590,13 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         G_VMC_PI=point
     !U weighting
     CASE(3)
-        G_VMC_EXCITWEIGHT=point
+        G_VMC_EXCITWEIGHT(K)=point
     !D Weighting
     CASE(5)
-        g_VMC_ExcitWeights(3)=point
+        g_VMC_ExcitWeights(3,K)=point
     !NONE specified
     CASE(6)
-        G_VMC_EXCITWEIGHT=point
+        G_VMC_EXCITWEIGHT(K)=point
     CASE(154)
         CALL MemDealloc(PVERTMEMS)
         CALL MemDealloc(GRAPHPARAMS)
@@ -645,9 +715,10 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                 OPROB=1.D0 !come from 1v graph
                 ISEED=g_VMC_SEED
                 PFAC=1.D0
+                !*** Would want to use gidho here to determine which parameters we want to unbias for ***
 !Unbias graph generation (still relative probabilities of generating different classes)
-                ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:)
-                g_VMC_ExcitWeights=0.D0
+                ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:,K)
+                g_VMC_ExcitWeights(:,K)=0.D0
                 NORMALISE=0.D0
 
 !                OPEN(43,FILE="MCGRAPHS",STATUS="UNKNOWN")
@@ -677,7 +748,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
 !                   CALL FLUSH(6)
                 ENDDO
 !                CLOSE(43)
-                g_VMC_ExcitWeights(:)=ORIGEXCITWEIGHTS(:)
+                g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
             
 !                CALL GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1, &
 !                          NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,TSYM,               &
@@ -736,8 +807,8 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             VarY=SumYsq-(SumY**2)
             Covar=SumXY-(SumX*SumY)
             
-            WRITE(18,*) g_VMC_ExcitWeights(1),g_VMC_ExcitWeights(2)
-            WRITE(18,*) SumX,SumY,VarX,VarY,Covar
+!            WRITE(18,*) g_VMC_ExcitWeights(1,K),g_VMC_ExcitWeights(2,K)
+!            WRITE(18,*) SumX,SumY,VarX,VarY,Covar
 
             VARSUM=((SumX/SumY)**2)*((VarX/SumX**2)+(VarY/SumY**2)-(2*Covar/(SumX*SumY)))
             
@@ -749,9 +820,12 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                 NTOTSAV(K)=NTOTAL2
                 TOTSAV(K)=TOTSAV(K-1)+F(K)
                 DLWSAV(K)=DLWSAV(K-1)+DLWDB2
+!                WRITE(6,*) g_VMC_Excitweights(:,K)
+!                WRITE(6,*) "EXACT EXPECTED VARIANCE: ", VARSUM
             ELSEIF(METH.EQ.-19) THEN
             
-                SUMPGEN=0.D0 
+!                WRITE(6,*) g_VMC_Excitweights(:,K)
+!                WRITE(6,*) "CONVERGENCE: ", VARSUM
                 WRITE(6,*) "SUM OF UNBIASED PGENS IN MCPRECALC: ", NORMALISE
                 !???
                 TOTSAV(K)=TOTSAV(K-1)
@@ -805,8 +879,8 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
     PFAC=1.D0
 
     !Unbias graph generation (still relative probabilities of generating different classes)
-    ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:)
-    g_VMC_ExcitWeights=0.D0
+    ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:,I_V)
+    g_VMC_ExcitWeights(:,I_V)=0.D0
     
     WRITE(6,*) "WEIGHT       OWEIGHT      DLWDB2        PGEN         OETILDE"
     DO b=1,CYCLES
@@ -829,7 +903,7 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
         CALL FLUSH(6)
     ENDDO
 
-    g_VMC_ExcitWeights(:)=ORIGEXCITWEIGHTS(:)
+    g_VMC_ExcitWeights(:,I_V)=ORIGEXCITWEIGHTS(:)
 
     RETURN
     END SUBROUTINE GETGRAPHS 
@@ -888,19 +962,19 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
             CALL FLUSH(31)
         ENDIF
         IF (TLOGP.AND.(GIDHO.EQ.8)) THEN
-            WRITE(31,"(I3,A,3G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2), VARSUM
+            WRITE(31,"(I3,A,3G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1,K), g_VMC_ExcitWeights(2,K), VARSUM
             CALL FLUSH(31)
         ENDIF
         IF (TLOGP.AND.(GIDHO.EQ.1)) THEN
-            WRITE(31,"(I3,A,3G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2), VARSUM
+            WRITE(31,"(I3,A,3G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1,K), g_VMC_ExcitWeights(2,K), VARSUM
             CALL FLUSH(31)
         ENDIF
         IF (TLOGP.and.(GIDHO.eq.4)) THEN
-            WRITE(31,"(I3,A,4G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2), g_VMC_ExcitWeights(3), VARSUM
+            WRITE(31,"(I3,A,4G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1,K), g_VMC_ExcitWeights(2,K), g_VMC_ExcitWeights(3,K), VARSUM
             CALL FLUSH(31)
         ENDIF
         IF (TLOGP.and.(GIDHO.eq.7)) THEN
-            WRITE(31,"(I3,A,5G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1),g_VMC_ExcitWeights(2),g_VMC_ExcitWeights(3),g_VMC_ExcitWeights(4),VARSUM
+            WRITE(31,"(I3,A,5G25.16)")  K, " brent  0", g_VMC_ExcitWeights(1,K),g_VMC_ExcitWeights(2,K),g_VMC_ExcitWeights(3,K),g_VMC_ExcitWeights(4,K),VARSUM
             CALL FLUSH(31)
         ENDIF
     ENDIF
@@ -945,19 +1019,19 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
                   FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
                   DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
              IF (TLOGP.and.(GIDHO.eq.7)) THEN
-                 WRITE(31,"(I3,A,I3,5G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1),g_VMC_ExcitWeights(2), g_VMC_ExcitWeights(3), g_VMC_ExcitWeights(4), VARSUM
+                 WRITE(31,"(I3,A,I3,5G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1,K),g_VMC_ExcitWeights(2,K), g_VMC_ExcitWeights(3,K), g_VMC_ExcitWeights(4,K), VARSUM
                  CALL FLUSH(31)
              ENDIF
              IF (TLOGP.and.(GIDHO.eq.4)) THEN
-                 WRITE(31,"(I3,A,I3,4G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2), g_VMC_ExcitWeights(3), VARSUM
+                 WRITE(31,"(I3,A,I3,4G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1,K), g_VMC_ExcitWeights(2,K), g_VMC_ExcitWeights(3,K), VARSUM
                  CALL FLUSH(31)
              ENDIF
              IF (TLOGP.and.(GIDHO.eq.8)) THEN
-                 WRITE(31,"(I3,A,I3,3G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2), VARSUM
+                 WRITE(31,"(I3,A,I3,3G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1,K), g_VMC_ExcitWeights(2,K), VARSUM
                  CALL FLUSH(31)
              ENDIF                                  
              IF (TLOGP.and.(GIDHO.eq.1)) THEN
-                 WRITE(31,"(I3,A,I3,3G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2), VARSUM
+                 WRITE(31,"(I3,A,I3,3G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1,K), g_VMC_ExcitWeights(2,K), VARSUM
                  CALL FLUSH(31)
              ENDIF                                  
              IF (TLOGP.and.(GIDHO.ne.1).and.(GIDHO.ne.4).and.(GIDHO.ne.7).and.(GIDHO.ne.8)) THEN
@@ -1254,30 +1328,14 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
 !    WRITE(31,*) "MNBRAK ALGO STARTING"
 2   savedax=ax
     savedbx=bx
-                WRITE(6,*) ax 
     fa= func(ax,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                  &
                FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,   &
                KSYM)
-    WRITE(6,*) fa
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
-!    IF (TLOGP.and.(GIDHO.eq.4)) THEN
-!        WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fa
-!        CALL FLUSH(31)
-!    ENDIF
-                WRITE(6,*) bx 
     fb= func(bx,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                  &
                FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,   &
                KSYM)
-    WRITE(6,*) fb
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
-!    IF (TLOGP.and.(GIDHO.eq.4)) THEN
-!        WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fb
-!        CALL FLUSH(31)
-!    ENDIF
     IF(fb.gt.fa) THEN      !Switch roles of a & b so that we can go downhill in direction from a to b
          dum=ax
          ax=bx
@@ -1287,18 +1345,10 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
          fa=dum
     ENDIF
     cx=bx+GOLD*(bx-ax)     !First guess for c
-                WRITE(6,*) cx
     fc=func(cx,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,            &
           FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
           KSYM)
-    WRITE(6,*) fc
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
-!    IF (TLOGP.and.(GIDHO.eq.4)) THEN
-!        WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fc
-!        CALL FLUSH(31)
-!    ENDIF
 1      IF (fb.ge.fc) THEN      !"do while": keep returning here until we bracket.
             IF(fb.eq.fc) THEN
                 t=t+1
@@ -1315,14 +1365,10 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
             u=bx-((bx-cx)*qu-(bx-ax)*r)/(2.D0*sign(max(abs(qu-r),MINI),qu-r))
             ulim=bx+GLIMIT*(cx-bx)   !We won't go father than this.  Test various possibilities:
             IF((bx-u)*(u-cx).gt.0.D0) THEN  !Parabolic u is between b and c: try it
-                WRITE(6,*) u
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
-    WRITE(6,*) fu
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
      
                 IF (fu.lt.fc) THEN      !Got a minimum between b and c
                     ax=bx
@@ -1336,71 +1382,39 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
                     return
                 ENDIF
                 u=cx+GOLD*(cx-bx)       !Parabolic fit was no use. Use default magnification
-                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
-    WRITE(6,*) fu
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
-!                IF (TLOGP.and.(GIDHO.eq.4)) THEN
-!                    WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fu
-!                    CALL FLUSH(31)
-!                ENDIF
             ELSEIF((cx-u)*(u-ulim).gt.0.D0) THEN    !Parabolic fit is between c and its allowed limit
                 
-                IF((u.GT.-82.35).AND.(u.LT.-82.34)) THEN
-                    WRITE(6,*) ""
-                ENDIF
-            
-                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
-    WRITE(6,*) fu
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
                 IF(fu.lt.fc) THEN
                     bx=cx
                     cx=u
                     u=cx+GOLD*(cx-bx)
                     fb=fc
                     fc=fu
-                WRITE(6,*) u 
                     fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                           FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                           KSYM)
-    WRITE(6,*) fu
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
                 ENDIF
             ELSEIF((u-ulim)*(ulim-cx).ge.0.D0) THEN     !Limit parabolic u to maximum allowed value
                 u=ulim
-                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
-    WRITE(6,*) fu
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
             ELSE        !Reject parabolic u, use default magnification
                 u=cx+GOLD*(cx-bx)
-                WRITE(6,*) u 
                 fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
                       FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
-    WRITE(6,*) fu
-    WRITE(6,*) g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2)
-    CALL FLUSH(6)
-!                IF (TLOGP.and.(GIDHO.eq.4)) THEN
-!                    WRITE(31,"(2I3,4G25.16)") Q, 0, g_VMC_ExcitFromWeight,g_VMC_PolyExcitToWeight1,g_VMC_PolyExcitToWeight2, fu
-!                    CALL FLUSH(31)
-!                ENDIF
             ENDIF
             ax=bx           !Eliminate oldest point and continue
             bx=cx
@@ -1415,7 +1429,7 @@ END SUBROUTINE mnbrak
 
 SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,         &
         FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
-        DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
+        DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
 
     USE HElement
     IMPLICIT NONE
@@ -1426,7 +1440,7 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,       
     INTEGER L,LT,NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX)
     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),NBASIS,GIDHO
     INTEGER KSYM(5)
-    INTEGER IEXCITS
+    INTEGER IEXCITS,UNITNO
     COMPLEX*16 FCK(*)
     LOGICAL TSYM
     REAL*8 NTOTAL,BETA,ECORE,ALAT(3),RHOEPS,DBETA,VARSUM,A,B
@@ -1437,24 +1451,22 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,       
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
     REAL*8 ENERGYLIMS(2),origvals(2),p(2)!,MCPATHSPRE
 
-    origvals(:)=g_VMC_ExcitWeights(1:2)
+    origvals(:)=g_VMC_ExcitWeights(1:2,K)
     
-OPEN(45,FILE="GRIDVAR",STATUS="UNKNOWN")
-DO A=-0.4,1,0.05
-    DO B=-0.4,1,0.05
+DO A=GRIDVARPAR(K,1),GRIDVARPAR(K,2),GRIDVARPAR(K,3)
+    DO B=GRIDVARPAR(K,4),GRIDVARPAR(K,5),GRIDVARPAR(K,6)
         p=(/ A,B /)     !Initial a and b values
-        g_VMC_ExcitWeights(1:2)=p(:)
+        g_VMC_ExcitWeights(1:2,K)=p(:)
         
         VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
      &      FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
      &      DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,0,ENERGYLIMS,KSYM)
-        WRITE(45,"(2F9.3,G25.16)") A,B,VARSUM
-        CALL FLUSH(45)
+        WRITE(UNITNO,"(2F9.3,G25.16)") A,B,VARSUM
+        CALL FLUSH(UNITNO)
     ENDDO
-    WRITE(45,*) ""
+    WRITE(UNITNO,*) ""
 ENDDO
-CLOSE(45)
-g_VMC_ExcitWeights(1:2)=origvals(:)
+g_VMC_ExcitWeights(1:2,K)=origvals(:)
 ENDSUBROUTINE MAKEGRID
 
 end module PreCalc

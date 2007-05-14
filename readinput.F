@@ -20,16 +20,16 @@
      &   TREAD,TRHOOFR,TENERGY,TMC,TRHOIJ,TREADRHO,TMONTE,TTROT,  
      &   TBEGRAPH,THFBASIS,THUB,TNPDERIV,TMCDET,THFCALC,TTILT,    
      &   TBLOCK,TREADINT,TPBC,TREAL,TRHF,TREADHF,TSPECDET,TREADTUMAT,  
-     &   THFORDER,TCSF,TBETAP, eof,TCPMD,TDFREAD
+     &   THFORDER,TCSF,TBETAP, eof,TCPMD,TDFREAD,check
       CHARACTER*255 INP
       INTEGER SPECDET(*)
 !
       CHARACTER(LEN=32) title  
       CHARACTER(LEN=32) w
-      INTEGER NPATHS,STOT,z,zz
+      INTEGER NPATHS,STOT,z,zz,k
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER NWHTAY(3,10)
-      INTEGER vv
+      INTEGER vv,cc,kk
       INTEGER PREIH
       REAL*8  ORBORDER2(8)
       POINTER (IP_SPECDET,SPECDET)
@@ -70,19 +70,14 @@
       G_VMC_PI = 0.95
       G_VMC_SEED = -7
       G_VMC_FAC = 16
-      G_VMC_EXCITWEIGHT=0.D0
-!      g_VMC_ExcitToWeight=0.D0
-!      g_VMC_ExcitToWeight2=0.D0
-!      g_VMC_ExcitFromWeight=0.D0
+      G_VMC_EXCITWEIGHT(:)=0.D0
       TPREVAR=.false.
       TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
-!      TEXCITPOLY=.false.
-!      TPOLYEXCIT=.false.
-!      TPOLYEXCITBOTH=.false.
-!      TEXCITWEIGHT=.false.
+      USEVAR=0
       g_VMC_ExcitWeights=0.D0
       EXCITFUNCS=.false.
       EXCITFUNCS(10)=.true.
+      TGRIDVAR=.false.
 !      g_VMC_PolyExcitToWeight1=0.D0
 !      g_VMC_PolyExcitToWeight2=0.D0
 !      g_VMC_PolyExcitFromWeight1=0.D0
@@ -344,14 +339,38 @@ C                  end select
                        call report(trim(w)//" must take a value "
      &                  //"more than 0.D0",.true.)
                    endif
+               case("GRIDVAR")
+                   TGRIDVAR(preIV_MAX)=.true.
+                   IF(pre_TAYLOG(1,preIV_MAX)) THEN
+                       call report(trim(w)//" can not be applied"
+     &                      //" in conjunction with USE",.true.)
+                   ENDIF
+                   do zz=1,6
+                       call readf(GRIDVARPAR(preIV_MAX,zz))
+                   enddo
                case("USE")
                     pre_TAYLOG(1,preIV_MAX)=.true.    
-                    do z=1,(preIV_MAX-1)
-                        if (pre_TAYLOG(1,z)) then
-                            call report(trim(w)//" can only be applied"
-     &                      //" to a single vertex level",.true.)
+                    IF(TGRIDVAR(preIV_MAX)) THEN
+                        call report(trim(w)//" can not be applied"
+     &                      //" in conjunction with GRIDVAR",.true.)
+                    ENDIF
+                    call readi(USEVAR(preIV_MAX,1))
+                    do k=2,8
+                        if(item.lt.nitems) THEN
+                            call readi(USEVAR(preIV_MAX,k))
+                    
+                        do z=1,(preIV_MAX-1)
+                            do zz=1,8
+                           if (USEVAR(z,zz).eq.USEVAR(preIV_MAX,k)) then
+                           call report(trim(w)//" can only be applied"
+     &                      //" to a vertex level once",.true.)
+                            endif
+                            enddo
+                        enddo
+                    
                         endif
                     enddo
+                    
                case("NONE")
                     pre_TAY(3,preIV_MAX)=0
                case("CYCLES")
@@ -543,40 +562,40 @@ C                  end select
 !     &                //" method",.true.)
 !                  end if
               case("CHEMPOTWEIGHTING")
-                  call readf(g_VMC_ExcitWeights(1))
-                  call readf(g_VMC_ExcitWeights(2))
-                  call readf(G_VMC_EXCITWEIGHT)
+                  call readf(g_VMC_ExcitWeights(1,1))
+                  call readf(g_VMC_ExcitWeights(2,1))
+                  call readf(G_VMC_EXCITWEIGHT(1))
                   EXCITFUNCS(4)=.true.
                 IF(EXCITFUNCS(2).or.EXCITFUNCS(1).or.EXCITFUNCS(3)) THEN
                       call report(trim(w)//" only valid if "
      &               //" another weighting scheme not specified",.true.)
                   ENDIF
               case("POLYEXCITWEIGHT")
-                  call readf(g_VMC_ExcitWeights(1))
-                  call readf(g_VMC_ExcitWeights(2))
-                  call readf(g_VMC_ExcitWeights(3))
-                  call readf(G_VMC_EXCITWEIGHT)
+                  call readf(g_VMC_ExcitWeights(1,1))
+                  call readf(g_VMC_ExcitWeights(2,1))
+                  call readf(g_VMC_ExcitWeights(3,1))
+                  call readf(G_VMC_EXCITWEIGHT(1))
                   EXCITFUNCS(2)=.true.
                IF(EXCITFUNCS(1).or.EXCITFUNCS(3).or.EXCITFUNCS(4)) THEN
                       call report(trim(w)//" only valid if "
      &              //" another weighting scheme not specified",.true.)
                   ENDIF
               case("POLYEXCITBOTH")
-                  call readf(g_VMC_ExcitWeights(1))
-                  call readf(g_VMC_ExcitWeights(2))
-                  call readf(g_VMC_ExcitWeights(3))
-                  call readf(g_VMC_ExcitWeights(4))
-                  call readf(G_VMC_EXCITWEIGHT)
+                  call readf(g_VMC_ExcitWeights(1,1))
+                  call readf(g_VMC_ExcitWeights(2,1))
+                  call readf(g_VMC_ExcitWeights(3,1))
+                  call readf(g_VMC_ExcitWeights(4,1))
+                  call readf(G_VMC_EXCITWEIGHT(1))
                   EXCITFUNCS(3)=.true.
                 IF(EXCITFUNCS(2).or.EXCITFUNCS(1).or.EXCITFUNCS(4)) THEN
                       call report(trim(w)//" only valid if "
      &               //" another weighting scheme not specified",.true.)
                   ENDIF
               case("EXCITWEIGHTING")
-                  call readf(g_VMC_ExcitWeights(1))
-                  call readf(g_VMC_ExcitWeights(2))
-                  call readf(G_VMC_EXCITWEIGHT)
-                  IF(item.lt.nitems) call readf(g_VMC_ExcitWeights(3))
+                  call readf(g_VMC_ExcitWeights(1,1))
+                  call readf(g_VMC_ExcitWeights(2,1))
+                  call readf(G_VMC_EXCITWEIGHT(1))
+                  IF(item.lt.nitems) call readf(g_VMC_ExcitWeights(3,1))
                   EXCITFUNCS(1)=.true.
                 IF(EXCITFUNCS(2).or.EXCITFUNCS(3).or.EXCITFUNCS(4)) THEN
                       call report(trim(w)//" only valid if "
@@ -879,6 +898,29 @@ C     ILOGGING = 0771
    99 IF (ios.gt.0) THEN
           WRITE (6,*) 'Problem reading input file ',TRIM(FILENAME)
       END IF
+      !We make sure that in precalc, a use statement is not specified more than once for any vertex level
+      IF(preIV_MAX.ne.0) THEN
+          do vv=2,I_VMAX
+            check=.false.
+            do kk=2,preIV_MAX
+                do cc=1,8
+                    IF((USEVAR(kk,cc).eq.vv).and.(check)) THEN
+                     CALL report("Can only specify to use precalc "
+     &               //"parameters on a given vertex level once",.true.)
+                    ENDIF
+                    IF(USEVAR(kk,cc).eq.vv) check=.true.
+                enddo
+            enddo
+            !If use isn't specified for a vertex level, use the values given in the input file
+            !Done later now
+!            IF(.not.check) THEN
+!                g_VMC_ExcitWeights(:,cc)=g_VMC_ExcitWeights(:,1)
+!                G_VMC_EXCITWEIGHT(cc)=G_VMC_EXCITWEIGHT(1)
+!            ENDIF
+        enddo
+      ENDIF
+      
+      
       !IF THERE IS NO WEIGHTING FUNCTION
       do vv=1,9
           IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
@@ -886,9 +928,14 @@ C     ILOGGING = 0771
       !IF FINDD or USED specified without using Excitweighting option
       do vv=2,preIV_MAX
           IF((pre_TAYLOG(5,vv).or.pre_TAYLOG(6,vv)).and.                &
-     &           (.not.EXCITFUNCS(1))) THEN
-          CALL report("Logging keyword FINDD and USED"
-     &            //" can only be used with EXCITWEIGHTING",.true.)
+     &         (.not.EXCITFUNCS(1))) THEN
+               CALL report("Logging keyword FINDD and USED"
+     &         //" can only be used with EXCITWEIGHTING",.true.)
+          ENDIF
+          IF(TGRIDVAR(vv).and.((.not.EXCITFUNCS(1)).and.(.not.          &
+     &         EXCITFUNCS(4)))) THEN
+               CALL report("GRIDVAR option only available with" 
+     &          //" excitation functions with two variables",.true.)
           ENDIF
       ENDDO
       IF((preIV_MAX.ne.0).AND.(.NOT.TMCDIRECTSUM)) THEN

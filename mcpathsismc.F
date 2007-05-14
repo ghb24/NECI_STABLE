@@ -185,6 +185,7 @@ C.. Count the excitations (and generate a random one which we throw)
             VEXCITS(0)=IP_NMEM
          ENDIF
          DO I_V=I_VM1,I_VM2
+            CUR_VERT=I_V
             WRITE(STR,"(A,I4)") "FMCPR_",I_VMIN
             CALL TISET(STR,ISUB2)
             L=0
@@ -226,6 +227,9 @@ C.. and for 2 (rho_jj/rhoii)**-P
                IF(NWHTAY.LT.1) WRITE(6,*) "Warning: MC CYCLE count <0: "
      &               ,NWHTAY
                WRITE(6,*) NWHTAY, " MC Cycles"
+!               WRITE(6,*) I_V
+!               WRITE(6,*) G_VMC_EXCITWEIGHTS(:,CUR_VERT)
+!               CALL FLUSH(6)
                DO ICOUNT=1,NWHTAY
 C                  IF(ICOUNT.EQ.135) TST=1
 C                  DLWDB2=0.D0

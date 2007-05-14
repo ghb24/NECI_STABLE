@@ -195,21 +195,21 @@ MODULE SymExcit2
             Weight=1.D0
          !Exponential weighting
          ELSEIF(EXCITFUNCS(1)) THEN
-            Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitWeights(1))
+            Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitWeights(1,CUR_VERT))
          !Polynomial weighting with a cut-off at the chemical potential
          ELSEIF(EXCITFUNCS(4)) THEN
             IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) Weight=1.D0
             IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1)))
+                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1,CUR_VERT)))
             ENDIF
          !PolyExcitWeighting (for both real & virtual orbs)
          ELSEIF(EXCITFUNCS(3)) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_ExcitWeights(1)) Weight=1.D0
-            IF((Arr(I,2)+Arr(J,2)).LE.g_VMC_ExcitWeights(1)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+g_VMC_ExcitWeights(1)+1.D0)**g_VMC_ExcitWeights(2)))
+            IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_ExcitWeights(1,CUR_VERT)) Weight=1.D0
+            IF((Arr(I,2)+Arr(J,2)).LE.g_VMC_ExcitWeights(1,CUR_VERT)) THEN
+                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+g_VMC_ExcitWeights(1,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
             ENDIF
          ENDIF
-!         write(83,"(4G25.16)") (Arr(I,2)+Arr(J,2)), g_VMC_ExcitWeights(1), g_VMC_ExcitWeights(2), Weight
+!         write(83,"(4G25.16)") (Arr(I,2)+Arr(J,2)), g_VMC_ExcitWeights(1,CUR_VERT), g_VMC_ExcitWeights(2,CUR_VERT), Weight
          RETURN
       END
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
@@ -230,7 +230,7 @@ MODULE SymExcit2
          REAL*8 WEIGHT,W2
          TYPE(HElement) UMAT(*),W
          REAL*8 Arr(nBasis,2)
-         IF(G_VMC_EXCITWEIGHT.EQ.0.D0) THEN
+         IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
          ELSE
             ISS=NBASISMAX(2,3)
@@ -239,26 +239,26 @@ MODULE SymExcit2
             CALL GTID(NBASISMAX,K,IDK)
             CALL GTID(NBASISMAX,L,IDL)
             W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
-            WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT)
+            WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
          ENDIF
-         IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3).NE.0.D0)) THEN
+         IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN
             W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
             IF(ABS(W2).LT.1.D-2) W2=1.D-2
-            Weight=Weight*W2**g_VMC_ExcitWeights(3)
+            Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
          ENDIF
-         IF(EXCITFUNCS(1)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2))
+         IF(EXCITFUNCS(1)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2,CUR_VERT))
          !chempotweighting - using a chemical potential cut-off
          IF(EXCITFUNCS(4)) THEN
              IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
              IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
-                Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2)))
+                Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
              ENDIF
          ENDIF
          !PolyExcitWeighting
          IF(EXCITFUNCS(2)) THEN
-             IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2)) Weight=Weight
-             IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2)) THEN
-                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_ExcitWeights(2)+1.D0)**g_VMC_ExcitWeights(3)))
+             IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2,CUR_VERT)) Weight=Weight
+             IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2,CUR_VERT)) THEN
+                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
              ENDIF
          ENDIF
          RETURN

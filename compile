@@ -1,4 +1,4 @@
-#!/bin/tcsh
+#!/bin/bash
 ./Configure PC-PGI -DEST=${PWD}/dest> Makefile2
 
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile

@@ -147,6 +147,7 @@ C.. I_V is the number of vertices in the path
             I_V=NWHTAY(3,I)
 CI_P
 c            WRITE(6,"I2") I_V
+            CUR_VERT=I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
             CALL TISET(STR,ISUB2)
             OTIME=TIMEC()*0.001D0
