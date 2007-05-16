@@ -1,4 +1,4 @@
-!     ==================================================================
+           !     ==================================================================
 !     == Data passed from CPMD.                                       ==
 !     ==================================================================
 !     == NSTATES:   number of states.                                 ==
@@ -38,7 +38,8 @@
 !     ==================================================================
       INTEGER NSTATES,NROTOP,NTRANSLAT,ROT_LABEL(NSTATES),              &
      &        TRANS_LABEL(NSTATES),NCOMPLETE,NKPS,NKPTRANS,NSpGpOp      
-      REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI          
+      REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI,         &
+     &        PIInt(NStates)
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT),                        &
      &            GROUP_CHAR(NTRANSLAT*NROTOP,NSTATES),                 &
      &            TRANS_CHAR_TABLE(NTRANSLAT,NTRANSLAT),                &
@@ -51,7 +52,7 @@
      &        (IP_TRANS_LABEL,TRANS_LABEL),(IP_IMPROPER_OP,IMPROPER_OP),&
      &        (IP_K_VECTORS,K_VECTORS),(IP_GROUP_CHAR,GROUP_CHAR),      &
      &        (IP_TRANS_CHAR_TABLE,TRANS_CHAR_TABLE),                   &
-     &        (IP_KPNT_CHAR,KPNT_CHAR)
+     &        (IP_KPNT_CHAR,KPNT_CHAR),(IP_PIInt,PIInt)
       LOGICAL TKP
       POINTER (IP_KPNTINDEXNECI,KPNTIND)
       INTEGER KPNTIND(*)
@@ -62,5 +63,5 @@
      &                  IP_ROT_LABEL,IP_TRANS_LABEL,IP_IMPROPER_OP,     &
      &                 EIONION,NCOMPLETE,DEGENTOL,TSPACEGP,IP_KPNT_CHAR,&
      &                 IP_K_VECTORS,IP_GROUP_CHAR,IP_TRANS_CHAR_TABLE,  &
-     &                 TKP,NKPS,IP_KPNTINDEXNECI,IP_PICorr
+     &                 TKP,NKPS,IP_KPNTINDEXNECI,IP_PICorr,IP_PIInt
 !     ==================================================================

@@ -273,7 +273,8 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          REAL*8 ARR(NSTATES*2,2)
          CALL TISET('CPMDINIT2I',ISUB)
 
-         ECORE=EIONION+NEL*XI/2.0
+         call Memory(IP_PIInt,NStates,'PIInt')
+         ECORE=EIONION
          WRITE(6,*) "Core Energy:", ECORE 
          NLOCK=(NEL+1)/2
          IF(TORDER) THEN
@@ -299,7 +300,9 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                JJ=J*2-1
                IF(LCHKSYM(G1(II),G1(JJ))) THEN
                   TOT=0.D0
-                 IF(I.EQ.J) TOT=TOT+HElement(EIGENVALUES(I))
+                  IF(I.EQ.J) THEN
+                      TOT=TOT+HElement(EIGENVALUES(I)+PIInt(I)/2.d0)
+                  END IF
                   TOT=TOT-CPMD1EINT(I,J)
                   DO K=1,NSTATES
                      CALL CPMDGETOCC(K,F)
@@ -350,5 +353,6 @@ C.. This should save some time in the UMAT lookup.
 C.. Set the UMAT cache to cache normally again
          WRITE(6,*) "Finished TMAT"
          CLOSE(10)
+         call FreeM(IP_PIInt)
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   
