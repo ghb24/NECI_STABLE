@@ -78,10 +78,7 @@
       EXCITFUNCS=.false.
       EXCITFUNCS(10)=.true.
       TGRIDVAR=.false.
-!      g_VMC_PolyExcitToWeight1=0.D0
-!      g_VMC_PolyExcitToWeight2=0.D0
-!      g_VMC_PolyExcitFromWeight1=0.D0
-!      g_VMC_PolyExcitFromWeight2=0.D0
+      MEMSAV=.false.
       IP_SPECDET=0
 
       LMS=0
@@ -370,15 +367,21 @@ C                  end select
                     
                         endif
                     enddo
-                    
+               case("MEMORISE")
+                   MEMSAV(preIV_MAX)=.true.
+                   if ((pre_TAY(1,preIV_MAX).ne.-7).and.
+     &              (pre_TAY(1,preIV_MAX).ne.-19)) then
+                        call report(trim(w)//" not yet valid for full"
+     &                  //" sum precalc",.true.)
+                   endif
                case("NONE")
                     pre_TAY(3,preIV_MAX)=0
                case("CYCLES")
                    call readi(pre_TAY(2,preIV_MAX))
-                   if ( pre_TAY(1,preIV_MAX).ne. -7.and.
-     &                  pre_TAY(1,preIV_MAX).ne. -19) then
+                   if ((pre_TAY(1,preIV_MAX).ne. -7).and.
+     &                  (pre_TAY(1,preIV_MAX).ne. -19)) then
                       call report(trim(w)//" only valid for MC"
-     &                 //"method",.true.)
+     &                 //" method",.true.)
                    end if
                case("UEPSILON")
                    call readf(pre_TAYREAL(1,preIV_MAX))

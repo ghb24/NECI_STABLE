@@ -116,6 +116,9 @@ USE <MC_VERTEX_LEVEL_1> <MC_VERTEX_LEVEL_2> ...
 GRIDVAR <ExcitFromStart> <ExcitFromEnd> <ExcitFromStep> <ExcitToStart> <ExcitToEnd> <ExcitToStep>
     If this is specified for a precalc vertex level, a 3D map of the variance landscape will be produced, but the minimum will not be explicitly calculated. The A parameter start, end, and step must be specified, followed by the same for the B parameter.
 
+MEMORISE
+    This indicates that all the graphs, their excitation generators, weights, energies, and unbiased probabilities should be stored in the memory.  This speeds up the calculation of the variance by ~2x, however, cannot be used for big systems.  ~31000 4v graphs, or 22000 3v graphs was the maximum for NN VQZ. This setting is currently only available for MC precalc. If this is not set, then only the first node excitation generators are stored - there should be enough memory for these.
+
 NONE
     This is to specify that no calculations or optimisations are to be performed on this vertex level.
 

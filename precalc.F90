@@ -476,7 +476,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
     
     !Deallocate array
     DO rr=1,7
-        IF((pre_TAY(1,rr).eq.-7).or.(pre_TAY(1,rr).eq.-19)) DEALLOC=.true.
+        IF(((pre_TAY(1,rr).eq.-7).or.(pre_TAY(1,rr).eq.-19)).and.(MEMSAV(rr))) DEALLOC=.true.
     ENDDO
     IF(DEALLOC) THEN
         xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
@@ -653,13 +653,30 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
 
                
         ELSEIF(METH.eq.-19) THEN
-            
+           
+            SumX=0.D0
+            SumY=0.D0
+            SumXsq=0.D0
+            SumYsq=0.D0
+            SumXY=0.D0
+            VarX=0.D0
+            VarY=0.D0
+            Covar=0.D0
+        
             !Will only need to run everytime a new vertex MC level is used
             !Deallocate the arrays if already been used by previous vertex level
             IF(FIRST(K)) THEN
                 IF (ALLOCATED(PVERTMEMS)) THEN
                     DO t=1,pre_TAY(2,K-1)
                         DO tt=1,K-2
+                            CALL FREEM(PVERTMEMS(tt,t))
+                        ENDDO
+                    ENDDO
+                ENDIF
+                
+                IF (ALLOCATED(PVERTMEMS)) THEN
+                    DO t=1,pre_TAY(2,K-2)
+                        DO tt=1,K-3
                             CALL FREEM(PVERTMEMS(tt,t))
                         ENDDO
                     ENDDO
@@ -671,27 +688,26 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     DEALLOCATE(GRAPHPARAMS)
                 ENDIF
                 
-                ALLOCATE(PVERTMEMS(0:K,CYCLES),STAT=ierr4)
-                CALL MemAlloc(ierr4,PVERTMEMS,(K+1)*CYCLES/IRAT,'PRECALC_PVERTMEMS')
-                ALLOCATE(GRAPHS(NEL,0:K,CYCLES),STAT=ierr)
-                CALL MemAlloc(ierr,GRAPHS,NEL*(K+1)*CYCLES/IRAT,'PRECALC_GRAPHS')
-                ALLOCATE(GRAPHPARAMS(3,CYCLES),STAT=ierr2)
-                CALL MemAlloc(ierr2,GRAPHPARAMS,3*CYCLES,'PRECALC_GRAPHPARAMS')
-                ALLOCATE(PGENLIST(CYCLES),STAT=ierr2)
-                CALL MemAlloc(ierr2,PGENLIST,CYCLES,'PRECALC_GRAPHPARAMS')
+                IF(MEMSAV(K)) THEN
+                
+                    ALLOCATE(PVERTMEMS(0:K,CYCLES),STAT=ierr4)
+                    CALL MemAlloc(ierr4,PVERTMEMS,(K+1)*CYCLES/IRAT,'PRECALC_PVERTMEMS')
+                    ALLOCATE(GRAPHS(NEL,0:K,CYCLES),STAT=ierr)
+                    CALL MemAlloc(ierr,GRAPHS,NEL*(K+1)*CYCLES/IRAT,'PRECALC_GRAPHS')
+                    ALLOCATE(GRAPHPARAMS(3,CYCLES),STAT=ierr2)
+                    CALL MemAlloc(ierr2,GRAPHPARAMS,3*CYCLES,'PRECALC_GRAPHPARAMS')
+                    ALLOCATE(PGENLIST(CYCLES),STAT=ierr2)
+                    CALL MemAlloc(ierr2,PGENLIST,CYCLES,'PRECALC_GRAPHPARAMS')
+                ENDIF
+
                 CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
                 CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
                 RHOII(0)=RH
                 RHOIJ(0,0)=RHOII(0)
                 HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,                   &
      &          G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
-                TOTAL=1.D0
 ! These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
 !Do these variable want to stay the same no matter what vertex level MC we are on?
-                DLWDBCORE=DLWSAV(K-1)
-                WCORE=TOTSAV(K-1)
-                !EREF IS 1v DLWDB2
-                EREF=DLWDBCORE/WCORE
                 CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 !Setup the spin excit generator
                 STORE(1)=0
@@ -704,60 +720,95 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                 ISEED=G_VMC_SEED
                 CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM,INODE2,ISEED,IEXCITS,0,UMAT,NMAX,PGR)
             
-                !Now generate the graphs needed at that vertex
-                OETILDE=EREF
-                DLWDB2=0.D0
-                TSYM=.false.
-                ILOGGING=0
-                I_OVCUR=1
-                I_OCLS=0
-                ITREE=1
-                OPROB=1.D0 !come from 1v graph
-                ISEED=g_VMC_SEED
-                PFAC=1.D0
+            ENDIF
+                
+                IF((FIRST(K).and.MEMSAV(K)).or.(.not.MEMSAV(K))) THEN 
+                
+                    !Now generate the graphs needed at that vertex
+                    TOTAL=1.D0
+                    DLWDBCORE=DLWSAV(K-1)
+                    WCORE=TOTSAV(K-1)
+                    !EREF IS 1v DLWDB2
+                    EREF=DLWDBCORE/WCORE
+                    OETILDE=EREF
+                    DLWDB2=0.D0
+                    TSYM=.false.
+                    ILOGGING=0
+                    I_OVCUR=1
+                    I_OCLS=0
+                    ITREE=1
+                    OPROB=1.D0 !come from 1v graph
+                    ISEED=g_VMC_SEED
+                    PFAC=1.D0
                 !*** Would want to use gidho here to determine which parameters we want to unbias for ***
 !Unbias graph generation (still relative probabilities of generating different classes)
-                ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:,K)
-                g_VMC_ExcitWeights(:,K)=0.D0
-                NORMALISE=0.D0
+                    ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:,K)
+                    g_VMC_ExcitWeights(:,K)=0.D0
+                    NORMALISE=0.D0
+
+                    !If MEMSAV not on, then don't save excitation generators
 
 !                OPEN(43,FILE="MCGRAPHS",STATUS="UNKNOWN")
-                DO b=1,CYCLES
-                   OWEIGHT=0.D0
-                   EXCITGEN=0
-                   INWI=0.D0
+                    DO b=1,CYCLES
+                        OWEIGHT=0.D0
+                        EXCITGEN=0
+                        INWI=0.D0
                    
-                   !DLWDB2 is just the energy, OETILDE is energy*weight
-                   FF=FMCPR4D2(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                            &
-                                         TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
-                                        ILOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
-                                        I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,K,EXCITGEN(0:K))
+                        !DLWDB2 is just the energy, OETILDE is energy*weight
+                        FF=FMCPR4D2(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                            &
+                                              TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
+                                             ILOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
+                                              I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,K,EXCITGEN(0:K))
 !                   WRITE(43,("I3,3G25.16")) K, DLWDB2, OETILDE, OWEIGHT
 !                   WRITE(43,*) DLWDB2, OETILDE/OWEIGHT
 !                   WRITE(43,*) DLWDB2
 !                   CALL WRITEPATH(43,IPATH(:,0:K),K,NEL,.TRUE.)
+                        NORMALISE=NORMALISE+OPROB
 
-                   GRAPHS(:,:,b)=IPATH(:,0:K)
-                   GRAPHPARAMS(1,b)=OWEIGHT%v
-                   GRAPHPARAMS(2,b)=(DLWDB2%v-EREF%v)
-                   GRAPHPARAMS(3,b)=OPROB
-                   PVERTMEMS(0,b)=EXCITGEN(0)
-                   PVERTMEMS(0:K,b)=EXCITGEN(0:K)
-                   NORMALISE=NORMALISE+OPROB
+                   IF(MEMSAV(K)) THEN
+                        GRAPHS(:,:,b)=IPATH(:,0:K)
+                        GRAPHPARAMS(1,b)=OWEIGHT%v
+                        GRAPHPARAMS(2,b)=(DLWDB2%v-EREF%v)
+                        GRAPHPARAMS(3,b)=OPROB
+                        !PVERTMEMS(0,b)=EXCITGEN(0)
+                        PVERTMEMS(0:K,b)=EXCITGEN(0:K)
 !                   WRITE(6,("5G25.16")) FF%v,OWEIGHT%v,DLWDB2%v,OPROB,OETILDE%v
 !                   CALL FLUSH(6)
+                   
+                    ELSE
+
+                        DLWDB2=DLWDB2-EREF
+                        J=0
+                        PROB=0.D0
+                        g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
+                        CALL CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
+                                  NBASISMAX,UMat,NMAX,NBASIS,PROB,EXCITGEN(0:K))
+                   
+                        SumX=SumX+((OWEIGHT%v*DLWDB2%v)/OPROB)
+                        SumY=SumY+((OWEIGHT%v+(WCORE%v*PROB))/OPROB)
+                        SumXsq=SumXsq+(((OWEIGHT%v*DLWDB2%v)**2)/(OPROB*PROB))
+                        SumYsq=SumYsq+((((OWEIGHT%v/PROB)+WCORE%v)**2)*(PROB/OPROB))
+                        SumXY=SumXY+(((OWEIGHT%v/PROB)+WCORE%v)*(OWEIGHT%v*DLWDB2%v/PROB)*    &
+                                (PROB/OPROB))
+
+                        g_VMC_ExcitWeights(:,K)=0.D0
+                        
+                        DO tt=1,K-1
+                            CALL FREEM(EXCITGEN(tt))
+                        ENDDO
+                        
+                    ENDIF
+                    
                 ENDDO
-!                CLOSE(43)
+
                 g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
+            !Choosing whether to look at graphs or not
+            ENDIF                
+!                CLOSE(43)
             
-!                CALL GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1, &
-!                          NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,TSYM,               &
-!                          ECORE,KSYM,DBETA,EREF,HIJS,NMEM,ISEED)
-                
             !So what is av. Energy for this vertex level??
                           
-            !Run if this is not the first time at this MC-vertex level(so graphs and exit. gens. stored)
-            ENDIF 
+            IF(MEMSAV(K)) THEN
                 
                 J=0
                 
@@ -772,31 +823,24 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     
                     PGENLIST(bb)=PROB
 
-               ENDDO
-            SumX=0.D0
-            SumY=0.D0
-            SumXsq=0.D0
-            SumYsq=0.D0
-            SumXY=0.D0
-            VarX=0.D0
-            VarY=0.D0
-            Covar=0.D0
-!            SUMPGENS=0.D0
-            
-            !CALCULATE VARIANCE
-            !Does EREF/WREF want to change as we go to higher MC vertex levels?
-            DO aa=1,CYCLES
+                ENDDO
+           
+                !CALCULATE VARIANCE
+                !Does EREF/WREF want to change as we go to higher MC vertex levels?
+                DO aa=1,CYCLES
 
-                SumX=SumX+((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))/GRAPHPARAMS(3,aa))
-                SumY=SumY+((GRAPHPARAMS(1,aa)+(WCORE%v*PGENLIST(aa)))/GRAPHPARAMS(3,aa))
-                SumXsq=SumXsq+(((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))**2)/(GRAPHPARAMS(3,aa)*PGENLIST(aa)))
-                SumYsq=SumYsq+((((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)**2)*(PGENLIST(aa)/GRAPHPARAMS(3,aa)))
-                SumXY=SumXY+(((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)*(GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa)/PGENLIST(aa))*    &
+                    SumX=SumX+((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))/GRAPHPARAMS(3,aa))
+                    SumY=SumY+((GRAPHPARAMS(1,aa)+(WCORE%v*PGENLIST(aa)))/GRAPHPARAMS(3,aa))
+                    SumXsq=SumXsq+(((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))**2)/(GRAPHPARAMS(3,aa)*PGENLIST(aa)))
+                    SumYsq=SumYsq+((((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)**2)*(PGENLIST(aa)/GRAPHPARAMS(3,aa)))
+                    SumXY=SumXY+(((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)*(GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa)/PGENLIST(aa))*    &
                         (PGENLIST(aa)/GRAPHPARAMS(3,aa)))
             
             
 !                 SUMPGENS=SUMPGENS+PGENLIST(aa)
-            ENDDO                                                         
+                ENDDO    
+
+            ENDIF
             
             SumX=SumX/(CYCLES+0.D0)
             SumY=SumY/(CYCLES+0.D0)
