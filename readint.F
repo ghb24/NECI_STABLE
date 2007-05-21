@@ -63,7 +63,7 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
             ARR(2*I,1)=Z
          ENDIF
 C.. At the moment we're ignoring the core energy
-         GOTO 1
+         IF(I.NE.0) GOTO 1
 99       CONTINUE
          DO I=1,NORB
             BRR(2*I-1)=2*I-1
@@ -149,7 +149,7 @@ C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
 !            UMAT(L,I,K,J)=Z
 !            UMAT(K,J,L,I)=Z
          ENDIF
-         GOTO 101
+         IF(I.NE.0) GOTO 101
 199      CONTINUE
          CLOSE(8)
 C.. If we've changed the eigenvalues, we write out the basis again
