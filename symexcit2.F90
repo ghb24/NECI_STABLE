@@ -233,6 +233,7 @@ MODULE SymExcit2
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
          ELSE
+         !Put timing around here
             ISS=NBASISMAX(2,3)
             CALL GTID(NBASISMAX,I,IDI)
             CALL GTID(NBASISMAX,J,IDJ)
@@ -240,6 +241,7 @@ MODULE SymExcit2
             CALL GTID(NBASISMAX,L,IDL)
             W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
             WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
+         !to here
          ENDIF
          IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN
             W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))

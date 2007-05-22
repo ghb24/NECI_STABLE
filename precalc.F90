@@ -582,7 +582,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     LOGICAL LISNAN
     INTEGER ISEED,aaa,t,tt
     INTEGER I_OCLS,ITREE,ILOGGING,I_OVCUR,IACC
-    REAL*8 ORIGEXCITWEIGHTS(6)
+    REAL*8 ORIGEXCITWEIGHTS(6),ORIGEXCITWEIGHT
     
     SELECT CASE (GIDHO)
     !Importance
@@ -742,8 +742,15 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     PFAC=1.D0
                 !*** Would want to use gidho here to determine which parameters we want to unbias for ***
 !Unbias graph generation (still relative probabilities of generating different classes)
-                    ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:,K)
-                    g_VMC_ExcitWeights(:,K)=0.D0
+                    IF(GIDHO.eq.3) THEN
+                        !baising against U parameter
+                        ORIGEXCITWEIGHT=G_VMC_EXCITWEIGHT(K)
+                        G_VMC_EXCITWEIGHT(K)=0.D0
+                    ELSE
+                        !biasing against other excitation parameters
+                        ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:,K)
+                        g_VMC_ExcitWeights(:,K)=0.D0
+                    ENDIF
                     NORMALISE=0.D0
 
                     !If MEMSAV not on, then don't save excitation generators
@@ -780,7 +787,11 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                         DLWDB2=DLWDB2-EREF
                         J=0
                         PROB=0.D0
-                        g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
+                        IF(GIDHO.eq.3) THEN
+                            G_VMC_EXCITWEIGHT(K)=ORIGEXCITWEIGHT
+                        ELSE
+                            g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
+                        ENDIF
                         CALL CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
                                   NBASISMAX,UMat,NMAX,NBASIS,PROB,EXCITGEN(0:K))
                    
@@ -791,8 +802,11 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                         SumXY=SumXY+(((OWEIGHT%v/PROB)+WCORE%v)*(OWEIGHT%v*DLWDB2%v/PROB)*    &
                                 (PROB/OPROB))
 
-                        g_VMC_ExcitWeights(:,K)=0.D0
-                        
+                        IF(GIDHO.eq.3) THEN
+                            G_VMC_EXCITWEIGHT(K)=0.D0
+                        ELSE
+                            g_VMC_ExcitWeights(:,K)=0.D0
+                        ENDIF
                         DO tt=1,K-1
                             CALL FREEM(EXCITGEN(tt))
                         ENDDO
@@ -800,8 +814,11 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     ENDIF
                     
                 ENDDO
-
-                g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
+                IF(GIDHO.eq.3) THEN
+                    G_VMC_EXCITWEIGHT(K)=ORIGEXCITWEIGHT
+                ELSE
+                    g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
+                ENDIF
             !Choosing whether to look at graphs or not
             ENDIF                
 !                CLOSE(43)
@@ -883,7 +900,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         RETURN
 END FUNCTION MCPATHSPRE
 
-!Now not called as didn't seem to like having an allocatable array passed to it
+!Now not called as didn't seem to like having an allocatable array passed to it - wanted to have pointer passed to it
 SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,  &
                     NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,TSYM,              &
                     ECORE,KSYM,DBETA,DLWDB2,HIJS,NMEM,ISEED)
