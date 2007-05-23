@@ -351,6 +351,17 @@ C                  end select
                         call report(trim(w)//" can not be applied"
      &                      //" in conjunction with GRIDVAR",.true.)
                     ENDIF
+                    !USE is specified on its own - all vertex levels take this value
+                    IF(nitems.eq.1) THEN
+                        do k=2,10
+                            IF(k.ne.preIV_MAX) USEVAR(k,:)=0
+                            IF(k.eq.preIV_MAX) THEN
+                                do z=1,8
+                                    USEVAR(preIV_MAX,z)=z+1
+                                ENDDO
+                            ENDIF
+                        enddo
+                    ELSE
                     call readi(USEVAR(preIV_MAX,1))
                     do k=2,8
                         if(item.lt.nitems) THEN
@@ -367,6 +378,7 @@ C                  end select
                     
                         endif
                     enddo
+                    ENDIF
                case("MEMORISE")
                    MEMSAV(preIV_MAX)=.true.
                    if ((pre_TAY(1,preIV_MAX).ne.-7).and.
