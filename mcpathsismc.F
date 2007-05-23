@@ -229,6 +229,7 @@ C.. and for 2 (rho_jj/rhoii)**-P
                WRITE(6,*) NWHTAY, " MC Cycles"
 !               WRITE(6,*) I_V
 !               WRITE(6,*) G_VMC_EXCITWEIGHTS(:,CUR_VERT)
+!               WRITE(6,*) G_VMC_EXCITWEIGHT(CUR_VERT)
 !               CALL FLUSH(6)
                DO ICOUNT=1,NWHTAY
 C                  IF(ICOUNT.EQ.135) TST=1

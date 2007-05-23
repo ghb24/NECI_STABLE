@@ -915,15 +915,22 @@ C     ILOGGING = 0771
                 enddo
             enddo
             !If use isn't specified for a vertex level, use the values given in the input file
-            !Done later now
+!           Done later now
 !            IF(.not.check) THEN
-!                g_VMC_ExcitWeights(:,cc)=g_VMC_ExcitWeights(:,1)
-!                G_VMC_EXCITWEIGHT(cc)=G_VMC_EXCITWEIGHT(1)
+!                g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
+!                G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
 !            ENDIF
         enddo
       ENDIF
       
-      
+      !If not doing precalc, set all weighting parameters to the ones in the input file
+      IF(preIV_MAX.eq.0) THEN
+        do vv=2,I_VMAX
+            g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
+            G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
+        enddo
+      ENDIF
+
       !IF THERE IS NO WEIGHTING FUNCTION
       do vv=1,9
           IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
