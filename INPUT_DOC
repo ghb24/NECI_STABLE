@@ -507,6 +507,9 @@ VERTEX <n EVERY>
 HFBASIS
     Log HFBASIS.
 
+TIMING <iGlobalTimerLevel> (default 40)
+   Timing information is only recorded for routines with level <=iGlobalTimerLevel.  <10 means general high level subroutines. >=50 means very low level.  Routines without a level are always timed (most of them).
+
 ENDLOG
     End of logging block.
 

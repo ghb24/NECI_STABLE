@@ -471,7 +471,7 @@ C.. do we subtract out lower vertices here or later?
          RII=EXP(R)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         CALL TISET('HDIAG_CPP ',ISUB)
+         CALL TISETL('HDIAG_CPP ',ISUB,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          DLWDB=0.D0
          II=0
@@ -562,7 +562,7 @@ C/RII
          S=DLWT
          DLWDB=DLWDB+S
          HDIAG_CPP=SI+SI2
-         CALL TIHALT("HDIAG_CPP ",ISUB)
+         CALL TIHALTL("HDIAG_CPP ",ISUB,55)
          RETURN
       END
 C.. See 1/7/04
@@ -591,7 +591,7 @@ C.. do we subtract out lower vertices here or later?
          RII=RHOIJ(1,1)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         CALL TISET('RHODIAG_C2',ISUB)
+         CALL TISETL('RHODIAG_C2',ISUB,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          IF(DBETA.NE.0.D0) DLWDB=0.D0
          II=0
@@ -686,6 +686,6 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 
 
          RHODIAG_CPP=SI+SI2
-         CALL TIHALT("RHODIAG_C2",ISUB)
+         CALL TIHALTL("RHODIAG_C2",ISUB,55)
          RETURN
       END

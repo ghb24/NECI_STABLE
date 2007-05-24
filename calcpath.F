@@ -22,7 +22,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
      &      CalcPaths_4, CalcPaths_R
          INTEGER I_HIND
 
-         CALL TISET('CALCPATHS ',ISUB)
+         CALL TISETL('CALCPATHS ',ISUB,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
 C.. REMEMBER TO MODIFY CALCPATHS_N too!
          IF(I_HMAX.EQ.-1.OR.(I_HMAX.LE.-3.AND.I_HMAX.GE.-8)) THEN
@@ -53,7 +53,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
      &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
      &               ILOGGING)
          ENDIF
-         CALL TIHALT('CALCPATHS ',ISUB)
+         CALL TIHALTL('CALCPATHS ',ISUB,50)
          RETURN
       END 
 
@@ -86,7 +86,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, CalcPaths_R,HDiag_CPP
          INTEGER I_HIND
-         CALL TISET('CALCPATHS ',ISUB)
+         CALL TISETL('CALCPATHS ',ISUB,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
          IF(I_HMAX.EQ.-1.OR.(I_HMAX.LE.-3.AND.I_HMAX.GE.-8).OR.
      &      I_HMAX.LE.-12) THEN
@@ -136,7 +136,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
      &            DREAL(DLWDB)/WEIGHT,WEIGHT,RHOIJ,
      &            I_V,ICLS)
          ENDIF
-         CALL TIHALT('CALCPATHS ',ISUB)
+         CALL TIHALTL('CALCPATHS ',ISUB,50)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)

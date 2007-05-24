@@ -40,6 +40,7 @@
       INCLUDE 'fcoul.inc'
       INCLUDE 'sym.inc'
       INCLUDE 'uhfdet.inc'
+      INCLUDE 'time.inc'
 !     --------------------------------------------
 !     Set some sensible defaults here
       title = ""
@@ -149,6 +150,7 @@
       KOBS=16
       NMSH=32
 
+      iGlobalTimerLevel=40
       ir=1
       IF(FILENAME.NE.'') THEN
          WRITE(6,*) "Reading from file: ",TRIM(FILENAME)
@@ -871,6 +873,8 @@ C.. multiple of 2
                   ILOGGING = IOR(ILOGGING,2**7)
               case("PSI")
                   ILOGGING = IOR(ILOGGING,2**8)
+              case("TIMING")
+                  call readi(iGlobalTimerLevel)
               case("VERTEX")
                   do while(item.lt.nitems)
                      call readu(w)
@@ -1007,9 +1011,9 @@ C     ILOGGING = 0771
                       case("MC")
                           preIH=-19
                           IF(.NOT.TUSEBRILLOUIN) THEN
-                              call report("Error - USEBRILLOUINTHEOREM"
-     &                       //" must be specified in system block to "
-     &                       //"use MC-PRECALC",.true.)
+                              write(6,*) "Warning  USEBRILLOUINTHEOREM"
+     &                       //" might need to be specified in system "
+     &                       //"block to use MC-PRECALC"
                           ENDIF
                       case default
                          call report("Error - must specify FULL"

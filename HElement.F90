@@ -245,14 +245,14 @@ MODULE HElement
 !.. if we differ by more than 2 spin orbital, then the hamiltonian element is 0         
          IF(IC.GT.2) RETURN
 !.. SLTCND has IC is # electrons the same in 2 dets
-         CALL TISET('GETHELEM2 ',ISUB)
+         CALL TISETL('GETHELEM2 ',ISUB,60)
          CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,TMat,NMAX,ALAT,UMat,Sum)
          GetHElement2=Sum
          IF(iC.EQ.0) GetHElement2%v=GetHElement2%v+ECore
 !         CALL WRITEDET(6,NI,NEL,.FALSE.)
 !         CALL WRITEDET(6,NJ,NEL,.FALSE.)
 !         WRITE(6,*) GetHElement2
-         CALL TIHALT('GETHELEM2 ',ISUB)
+         CALL TIHALTL('GETHELEM2 ',ISUB,60)
          RETURN
       END
 

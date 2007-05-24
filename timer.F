@@ -12,22 +12,14 @@ C     ==--------------------------------------------------------------==
       END
 
 
-C     =============AJWT=========
-      REAL*8 FUNCTION  TIGET(NSTIM)
+
+      SUBROUTINE tiSetL(sName,nSTim,iLevel)
       IMPLICIT NONE
       INCLUDE 'time.inc'
-C     Arguments
-      INTEGER   NSTIM
-      CHARACTER SNAME*10
-C     Variables
-      INTEGER   I
-      REAL*8    TIMEC,TIMEF
-      TIGET=CTSUM(NSTIM)
-C     ==--------------------------------------------------------------==
-      RETURN
+      CHARACTER*10 sName
+      INTEGER nSTim,iLevel
+      IF(iLevel.le.iGlobalTimerLevel) call tiSet(sName,nSTim)
       END
-C     ============/AJWT=====================    
-
 C     ==================================================================
       SUBROUTINE TISET(SNAME,NSTIM)
 C     ==--------------------------------------------------------------==
@@ -63,6 +55,13 @@ C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
+      SUBROUTINE tiHaltL(sName,nSTim,iLevel)
+      IMPLICIT NONE
+      INCLUDE 'time.inc'
+      CHARACTER*10 sName
+      INTEGER nSTim,iLevel
+      IF(iLevel.le.iGlobalTimerLevel) call tiHalt(sName,nSTim)
+      END
       SUBROUTINE TIHALT(SNAME,NSTIM)
 C     ==--------------------------------------------------------------==
 C     ==  STOP THE CPU AND WALL CLOCK TIME FOR ROUTINE SNAME          ==
@@ -108,20 +107,20 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       SUBROUTINE TIPRI
 C     ==--------------------------------------------------------------==
-C     ==  PRINT TIMING INFO                                           ==
-C     ==--------------------------------------------------------------==
       IMPLICIT NONE
       INCLUDE 'time.inc'
 C     Variables
       INTEGER J,IMAX,I
       REAL*8  CPMAX,CPTHRS,TOTALCT,TOTALWT
 C     ==--------------------------------------------------------------==
-      WRITE(6,'(/,/,1X,64(1H*))')
-      WRITE(6,'(" *",62X,"*")')
-      WRITE(6,'(" *",27X,A,27X,"*")') ' TIMING '
-      WRITE(6,'(" *",62X,"*")')
-      WRITE(6,'(1X,64(1H*))')
-      WRITE(6,'(A,A)') ' SUBROUTINE',
+C     ==  PRINT TIMING INFO                                           ==
+C     ==--------------------------------------------------------------==
+      WRITE(*,'(/,/,1X,64(1H*))')
+      WRITE(*,'(" *",62X,"*")')
+      WRITE(*,'(" *",27X,A,27X,"*")') ' TIMING '
+      WRITE(*,'(" *",62X,"*")')
+      WRITE(*,'(1X,64(1H*))')
+      WRITE(*,'(A,A)') ' SUBROUTINE',
      *      '            CALLS         CPU TIME        ELAPSED TIME'
       TOTALCT=0.D0
       TOTALWT=0.D0
@@ -134,10 +133,11 @@ C     ==--------------------------------------------------------------==
             CPMAX=CTSUM(I)
           ENDIF
         ENDDO
-        IF(J.EQ.1) CPTHRS=CPMAX/100.D0
+        IF(J.EQ.1) CPTHRS=CPMAX/1000.D0
+Cdeb        IF(J.EQ.1) CPTHRS=CPMAX/100.D0
         IF(CPMAX.LT.CPTHRS) GOTO 100
         I=IMAX
-        WRITE(6,'(1X,A10,7X,I13,5X,F12.2,8X,F12.2)') 
+        WRITE(*,'(1X,A10,5X,I12,5X,F12.2,8X,F12.2)') 
      *                    TNAM(I),NCALLS(I),CTSUM(I),WTSUM(I)
         TOTALCT=TOTALCT+CTSUM(I)
         TOTALWT=TOTALWT+WTSUM(I)
@@ -145,111 +145,176 @@ C     ==--------------------------------------------------------------==
       ENDDO
   100 CONTINUE
       WRITE(6,'(1X,64(1H-))')
-      WRITE(6,*) "TOTAL TIME",TOTALCT,TOTALWT
-C      WRITE(6,'(1X,"TOTAL TIME",T34,F12.2,8X,F12.2)')
-C     &                    TOTALCT,TOTALWT
+C      WRITE(6,*) "TOTAL TIME",TOTALCT,TOTALWT
+      WRITE(6,'(1X,"TOTAL TIME",T34,F12.2,8X,F12.2)')
+     &                    TOTALCT,TOTALWT
 C      WRITE(6,'(1X,64(1H*),/)')
+C     ==--------------------------------------------------------------==
+      WRITE(*,'(1X,64(1H*),/)')
 C     ==--------------------------------------------------------------==
       RETURN
       END
+
 C     ==================================================================
-      SUBROUTINE TISTART(TIME1)
-C     ==--------------------------------------------------------------==
-C     == CALLED ONCE AT THE BEGINNING IN ORDER TO START THE TIMER     ==
-C     == AND DO SOME INITIALISATION [CRAY]                            ==
-C     ==--------------------------------------------------------------==
+!      SUBROUTINE TISTART(TIME1)
+!C     ==--------------------------------------------------------------==
+!C     == CALLED ONCE AT THE BEGINNING IN ORDER TO START THE TIMER     ==
+!C     == AND DO SOME INITIALISATION [CRAY]                            ==
+!C     ==--------------------------------------------------------------==
+!      IMPLICIT NONE
+!      INCLUDE 'time.inc'
+!C     Arguments
+!      REAL*8 TIME1
+!C     Variables
+!      REAL*8  TIMEC
+!      INTEGER IFIRST
+!      DATA    IFIRST /0/
+!C     ==--------------------------------------------------------------==
+!      IF(IFIRST.EQ.0) THEN
+!        TIME1=TIMEC()*1.D-3
+!        IFIRST=1
+!        TJSTART=TIME1
+!        TJSLOOP=TJSTART
+!      ELSE
+!        CALL STOPGM('TISTART','CALLED ONCE')
+!      ENDIF
+!C     ==--------------------------------------------------------------==
+!      RETURN
+!      END
+C     =============AJWT=========
+      REAL*8 FUNCTION  TIGET(NSTIM)
       IMPLICIT NONE
       INCLUDE 'time.inc'
 C     Arguments
-      REAL*8 TIME1
+      INTEGER   NSTIM
+      CHARACTER SNAME*10
 C     Variables
-      REAL*8  TIMEC
-      INTEGER IFIRST
-      DATA    IFIRST /0/
-C     ==--------------------------------------------------------------==
-      IF(IFIRST.EQ.0) THEN
-        TIME1=TIMEC()*1.D-3
-        IFIRST=1
-        TJSTART=TIME1
-        TJSLOOP=TJSTART
-      ELSE
-        CALL STOPGM('TISTART','CALLED ONCE')
-      ENDIF
+      INTEGER   I
+      REAL*8    TIMEC,TIMEF
+      TIGET=CTSUM(NSTIM)
 C     ==--------------------------------------------------------------==
       RETURN
       END
+C     ============/AJWT=====================    
+!C     ==================================================================
+!      SUBROUTINE TILIMIT(TSTOP)
+!C     ==--------------------------------------------------------------==
+!C     == .TRUE. IF THE JOB TIME IS TOO SHORT FOR ANOTHER LOOP         ==
+!C     == A LOOP IS DEFINED BY 2 CALLS TO TILIMIT (TESTEX)             ==
+!C     ==--------------------------------------------------------------==
+!      IMPLICIT NONE
+!      INCLUDE 'time.inc'        !TJSTART
+!      INCLUDE 'envj.inc'        !TJLIMIT
+!C     Arguments
+!      LOGICAL TSTOP
+!C     Variables
+!      REAL*8  TJELOOP,TREMAIN,
+!     &        TIMEC
+!C     ==--------------------------------------------------------------==
+!      IF(TIMESTOP) THEN
+!        TSTOP=.TRUE.
+!        RETURN
+!      ENDIF
+!      TSTOP=.FALSE.
+!      TIMESTOP=.FALSE.
+!      IF(TJLIMIT.EQ.0) RETURN
+!C     End of time for the last loop
+!      TJELOOP=TIMEC()*1.D-3
+!C     Total time for the last loop
+!      TIMELOOP=TJELOOP-TJSLOOP
+!C     Remaining job time 
+!      TREMAIN=TJLIMIT-(TJELOOP-TJSTART)
+!C     We add 10%.
+!      IF(TREMAIN.LT.(1.01D0*TIMELOOP)) THEN
+!        TSTOP=.TRUE.
+!        TIMESTOP=.TRUE.
+!      ENDIF
+!      TJSLOOP=TJELOOP
+!C     ==--------------------------------------------------------------==
+!      RETURN
+!      END
 C     ==================================================================
-      SUBROUTINE TILIMIT(TSTOP)
+!      SUBROUTINE TILIMEX
+!C     ==--------------------------------------------------------------==
+!C     == EXIT IF THE JOB TIME LIMIT IS REACHED                        ==
+!C     ==--------------------------------------------------------------==
+!      IMPLICIT NONE
+!      INCLUDE 'time.inc'        !TJSTART
+!      INCLUDE 'envj.inc'        !TJLIMIT
+!C     Variables
+!      REAL*8    TREMAIN,TIME1,
+!     &          TIMEC
+!      CHARACTER DATX*26
+!C     ==--------------------------------------------------------------==
+!      IF(.NOT.TIMESTOP) RETURN
+!C     Remaining job time
+!      TIME1=TIMEC()*1.D-3
+!      TREMAIN=TJLIMIT-(TIME1-TJSTART)
+!      CALL DATUM(DATX)
+!      WRITE(6,'(1X,64(1H*))') 
+!      WRITE(6,'(1X,"*",62X,"*")')
+!      WRITE(6,'(1X,"*",12X,A,T65,"*")') 
+!     *     'JOB LIMIT TIME EXCEEDED FOR A NEW LOOP'
+!      WRITE(6,'(1X,"*",62X,"*")')
+!      WRITE(6,'(1X,64(1H*))') 
+!      WRITE(6,'(1X,"*",A,T43,F13.3," SECONDS *")')
+!     &     ' THE JOB TIME LIMIT IS:',TJLIMIT
+!      WRITE(6,'(1X,"*",A,T43,F13.3," SECONDS *")')
+!     &     ' THE TIME OF THE LAST LOOP IS:',TIMELOOP
+!      WRITE(6,'(1X,"*",A,T43,F13.3," SECONDS *")')
+!     &     ' THE REMAINING JOB TIME IS:',TREMAIN
+!      WRITE(6,'(A,A,A,A)')
+!     *  ' *     ',' THE COMMAND WAS ISSUED AT ',DATX(1:24),'      *'
+!      WRITE(6,'(1X,"*",62X,"*")')
+!      WRITE(6,'(1X,64(1H*))')
+!C     ==--------------------------------------------------------------==
+!      RETURN
+!      END
+C     ==================================================================
+C     ==================================================================
+C      SUBROUTINE STOPGM(A,B)
 C     ==--------------------------------------------------------------==
-C     == .TRUE. IF THE JOB TIME IS TOO SHORT FOR ANOTHER LOOP         ==
-C     == A LOOP IS DEFINED BY 2 CALLS TO TILIMIT (TESTEX)             ==
-C     ==--------------------------------------------------------------==
-      IMPLICIT NONE
-      INCLUDE 'time.inc'        !TJSTART
-      INCLUDE 'envj.inc'        !TJLIMIT
+C      IMPLICIT NONE
 C     Arguments
-      LOGICAL TSTOP
+C      CHARACTER*(*) A,B
 C     Variables
-      REAL*8  TJELOOP,TREMAIN,
-     &        TIMEC
-C     ==--------------------------------------------------------------==
-      IF(TIMESTOP) THEN
-        TSTOP=.TRUE.
-        RETURN
-      ENDIF
-      TSTOP=.FALSE.
-      TIMESTOP=.FALSE.
-      IF(TJLIMIT.EQ.0) RETURN
-C     End of time for the last loop
-      TJELOOP=TIMEC()*1.D-3
-C     Total time for the last loop
-      TIMELOOP=TJELOOP-TJSLOOP
-C     Remaining job time 
-      TREMAIN=TJLIMIT-(TJELOOP-TJSTART)
-C     We add 10%.
-      IF(TREMAIN.LT.(1.01D0*TIMELOOP)) THEN
-        TSTOP=.TRUE.
-        TIMESTOP=.TRUE.
-      ENDIF
-      TJSLOOP=TJELOOP
-C     ==--------------------------------------------------------------==
-      RETURN
-      END
-C     ==================================================================
-      SUBROUTINE TILIMEX
-C     ==--------------------------------------------------------------==
-C     == EXIT IF THE JOB TIME LIMIT IS REACHED                        ==
-C     ==--------------------------------------------------------------==
+C     ==---------------------------------------------------------==
+C      WRITE(*,'(//,A,A,A,A)') ' PROGRAM STOPS IN SUBROUTINE ',A,'| ',B
+C      STOP 999
+C     ==---------------------------------------------------------==
+C      END
+C     =============================================================
+      FUNCTION TIMEC()
+C     ==---------------------------------------------------------==
+C     ==  GENERALL CPU TIME ROUTINE                              ==
+C     ==  CPU TIME IS RETURNED IN msec                           ==
+C     ==---------------------------------------------------------==
       IMPLICIT NONE
-      INCLUDE 'time.inc'        !TJSTART
-      INCLUDE 'envj.inc'        !TJLIMIT
-C     Variables
-      REAL*8    TREMAIN,TIME1,
-     &          TIMEC
-      CHARACTER DATX*26
-C     ==--------------------------------------------------------------==
-      IF(.NOT.TIMESTOP) RETURN
-C     Remaining job time
-      TIME1=TIMEC()*1.D-3
-      TREMAIN=TJLIMIT-(TIME1-TJSTART)
-      CALL DATUM(DATX)
-      WRITE(6,'(1X,64(1H*))') 
-      WRITE(6,'(1X,"*",62X,"*")')
-      WRITE(6,'(1X,"*",12X,A,T65,"*")') 
-     *     'JOB LIMIT TIME EXCEEDED FOR A NEW LOOP'
-      WRITE(6,'(1X,"*",62X,"*")')
-      WRITE(6,'(1X,64(1H*))') 
-      WRITE(6,'(1X,"*",A,T43,F13.3," SECONDS *")')
-     &     ' THE JOB TIME LIMIT IS:',TJLIMIT
-      WRITE(6,'(1X,"*",A,T43,F13.3," SECONDS *")')
-     &     ' THE TIME OF THE LAST LOOP IS:',TIMELOOP
-      WRITE(6,'(1X,"*",A,T43,F13.3," SECONDS *")')
-     &     ' THE REMAINING JOB TIME IS:',TREMAIN
-      WRITE(6,'(A,A,A,A)')
-     *  ' *     ',' THE COMMAND WAS ISSUED AT ',DATX(1:24),'      *'
-      WRITE(6,'(1X,"*",62X,"*")')
-      WRITE(6,'(1X,64(1H*))')
-C     ==--------------------------------------------------------------==
+      REAL*8 TIMEC
+
+      REAL*4 ETIME,TARRAY(2),D
+      EXTERNAL ETIME
+C     ==---------------------------------------------------------==
+      D=ETIME(TARRAY)
+      TIMEC = DBLE(TARRAY(1))*1000.D0
+
+C     ==---------------------------------------------------------==
       RETURN
       END
-C     ==================================================================
+C==================================================================
+      FUNCTION TIMEF()
+C     ==--------------------------------------------------------==
+C     ==  GENERAL TIME ROUTINE FOR ELAPSED TIME			==
+C     ==  ELAPSED TIME IS RETURNED IN msec			==
+C     ==--------------------------------------------------------==
+      IMPLICIT NONE
+      REAL*8 TIMEF
+
+      REAL*4 TARRAY(2),ETIME
+C==-------------------------------------------------------------==
+      TIMEF=ETIME(TARRAY)*1000.D0
+
+C==-------------------------------------------------------------==
+      RETURN
+      END
+C=================================================================

@@ -79,7 +79,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
 
          LOGICAL ISUHFDET
          
-         CALL TISET('SYMSUEXCIT',ISUB)
+         CALL TISETL('SYMSUEXCIT',ISUB,65)
 
 C.. List the symmetry classes in NI.
 C.. For each orb, just see if its class is in the list, and if not add it
@@ -522,7 +522,7 @@ C.. Store all the pointers we need
          STORE(6)=NEXCITTYPES
          ENDIF
 C..      ENDIF(.NOT.TCOUNT)
-         CALL TIHALT('SYMSUEXCIT',ISUB)
+         CALL TIHALTL('SYMSUEXCIT',ISUB,65)
       END
 
       SUBROUTINE SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,LSTE,
@@ -545,7 +545,7 @@ C..      ENDIF(.NOT.TCOUNT)
          INTEGER DSTORE(*)
          INTEGER ISUB,I
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
-         CALL TISET('SYMGNEXCIT',ISUB)
+         CALL TISETL('SYMGNEXCIT',ISUB,65)
 
          IP_DSTORE=STORE(1)
          IP_EXCITTYPES=STORE(2)
@@ -563,7 +563,7 @@ C..      ENDIF(.NOT.TCOUNT)
          CALL FREEM(IP_SYMPRODIND)
          CALL FREEM(IP_DSTORE)
 
-         CALL TIHALT('SYMGNEXCIT',ISUB)
+         CALL TIHALTL('SYMGNEXCIT',ISUB,65)
  
       END
       SUBROUTINE SYMGENALLEXCITS(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
