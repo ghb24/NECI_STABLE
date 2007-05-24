@@ -129,7 +129,7 @@
       PRE_TAYLOG=.false.
       PRE_TAYREAL=0.D0
       PRE_TAYREAL(2,:)=0.1      !TOLERANCE   
-
+      TRUECYCLES=0
       
 !     Values for old parameters.
       TVVDISALLOW=.false.
@@ -348,6 +348,8 @@ C                  end select
                    do zz=1,6
                        call readf(GRIDVARPAR(preIV_MAX,zz))
                    enddo
+               case("TRUECYCLES")
+                   call readi(TRUECYCLES)
                case("USE")
                     pre_TAYLOG(1,preIV_MAX)=.true.    
                     IF(TGRIDVAR(preIV_MAX)) THEN

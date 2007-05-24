@@ -143,6 +143,9 @@ FINDIMPORT
 USEIMPORT
     This flag will not only find the optimal IMPORTANCE parameter, but will also parse it through to the main program, to be used there. Again, for obvious reasons, this flag can only be set for vertex levels of three or higher.
 
+TRUECYCLES <No.of cycles>
+    If this is specified, then this indicates the total number of cycles that we want to use in the main program.  The precalc will then automatically split these cycles between the levels in the main program, according to how the use statements indicate the parameters are to be split.  This will split the cycles in the way to best minimise the overall variance of the run, under the assumption that the variance of the whole run is simply the sum of the variances of the individual vertex results.
+
 ENDPRECALC
     This ends the PRECALC input block.
     

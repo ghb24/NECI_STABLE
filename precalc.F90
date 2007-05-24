@@ -11,7 +11,7 @@ module PreCalc
 
 SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,              &
      &         FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,     &
-     &         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM)
+     &         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,I_VMAX)
 
      USE HElement
      IMPLICIT NONE
@@ -20,19 +20,19 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      TYPE(BasisFN) G1(*)
      INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY,I,L,LT,Q
      INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX),NBASIS
-     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),GIDHO,n
-     INTEGER iters,r,s,rr,KSYM(5),UNITNO,vv,kk,cc
+     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),GIDHO,n,gg
+     INTEGER iters,r,s,rr,KSYM(5),UNITNO,vv,kk,cc,I_VMAX,NWHTAY(3,I_VMAX)
      COMPLEX*16 FCK(*)
      REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM
      REAL*8 bestvals(6,PREIV_MAX)!,originalvals(6)
      REAL*8 ax,bx,cx,minvar,xmin,originalc,originalimport
      REAL*8 ZEROVAR,p(2),pl(2),ph(2),xi(2,2)
      REAL*8 fret,fa,fb,fc!,distance
-     REAL*8 polyp(3),polyxi(3,3)
+     REAL*8 polyp(3),polyxi(3,3),SUMSD
      REAL*8 bestxipolyboth(4,4),polypboth(4)
      REAL*8 bestxipoly(3,3),bestxi(2,2),polyxiboth(4,4)
      REAL*8 ORBENERGY,ENERGYLIMS(2),xxx,g_VMC_FINAL(6,2:10)
-     REAL*8 G_VMC_EXCITFINAL(2:10)
+     REAL*8 G_VMC_EXCITFINAL(2:10),VARIANCES(2:PREIV_MAX)
      LOGICAL TSYM,NOTHING,TLOGP,DEALLOC,LOWNEL,check
      TYPE(HElement) UMat(*),TMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
      TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
@@ -73,6 +73,12 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      !Loop over vertex levels to look at
      DO Q=I,PREIV_MAX
          
+     !if usevar has vertex levels specified which are larger than I_VMAX, then set them to zero (caused if USE has no arguments specified)
+        DO rr=1,8
+            IF(USEVAR(Q,rr).gt.I_VMAX) USEVAR(Q,rr)=0
+        ENDDO
+     
+     
          CUR_VERT=Q
          NOTHING=.FALSE.
      
@@ -128,6 +134,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             bestvals(1:4,Q)=polypboth(:)
             bestxipolyboth=polyxiboth
             
+            VARIANCES(Q)=fret
+            
             IF (NOTHING) THEN
 
                 WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,F16.12,A,I3,A)") "Optimum SigmaA POLYEXCITWEIGHT found to be ", polypboth(1), "nA POLYEXCITWEIGHT as ", polypboth(2),           &
@@ -135,7 +143,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &                    Q, ", but not using these values"
 
             ELSE
-                DO r=1,8
+                DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                         g_VMC_FINAL(1:4,USEVAR(Q,r))=polypboth(:)
                         WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,I3)") "POLYEXCITWEIGHTING parameters optimised to SigmaA=", polypboth(1), ", nA=",polypboth(2),", sigmaB=",polypboth(3), ", and nB=",polypboth(4)," for vertex level ",USEVAR(Q,r)
@@ -171,6 +179,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
             bestvals(1:3,Q)=polyp(:)
             bestxipoly=polyxi
+        
+            VARIANCES(Q)=fret
             
             IF (NOTHING) THEN
 
@@ -178,7 +188,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &           ", but not using these values"
 
             ELSE
-                DO r=1,8
+                DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                         g_VMC_FINAL(1:3,USEVAR(Q,r))=polyp(:)
                         WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,I3)") "POLYEXCITWEIGHTING parameters optimised to A=", polyp(1), ", sigma=",polyp(2), ", and n=",polyp(3)," for vertex level ",USEVAR(Q,r)
@@ -215,11 +225,13 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             bestvals(1:2,Q)=p(:)
             bestxi=xi
 
+            VARIANCES(Q)=fret
+
             IF (NOTHING) THEN
              
                 WRITE(6,"(A,F16.12,A,F16.12,A,I3,A)") "Optimum An CHEMPOTWEIGHTING found to be ", p(1), ", and Bn CHEMPOTWEIGHTING as ", p(2), ", at vertex level ", Q, ",but not using these values"
             ELSE
-                DO r=1,8
+                DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                         
                         g_VMC_FINAL(1:2,USEVAR(Q,r))=p(:)
@@ -273,12 +285,14 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             bestvals(1:2,Q)=p(:)
             bestxi=xi
 
+            VARIANCES(Q)=fret
+
             IF (NOTHING) THEN
                 
                 WRITE(6,"(A,F16.12,A,F16.12,A,I3,A)") "Optimum A EXCITWEIGHT found to be ", p(1), ", and B EXCITWEIGHT as ", p(2), ", at vertex level ", Q, ", but not using these values"
                 
             ELSE
-                DO r=1,8
+                DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                         
                         g_VMC_FINAL(1:2,USEVAR(Q,r))=p(:)
@@ -336,6 +350,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                        TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,   &
                        KSYM)
 
+            VARIANCES(Q)=minvar
+
             IF (PRE_TAYLOG(3,Q)) THEN
                 G_VMC_PI=originalimport
                 WRITE(6,"(A,F15.12,A,F5.3)") "Optimum importance parameter found to be ", xmin, ", but using ", originalimport
@@ -372,10 +388,12 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &                  RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
      &                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
             
+            VARIANCES(Q)=minvar
+            
             IF (PRE_TAYLOG(5,Q)) THEN
                 WRITE(6,"(A,F15.12,A,F5.3)") "Optimum D parameter found to be ", xmin, ", but not using this value"
             ELSEIF (PRE_TAYLOG(6,Q)) THEN
-                DO r=1,8
+                DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                         
                         g_VMC_FINAL(3,USEVAR(Q,r))=xmin
@@ -423,9 +441,11 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &                  RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
      &                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
            
+            VARIANCES(Q)=minvar
+     
             IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).gt.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
 
-                DO r=1,8
+                DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                         G_VMC_EXCITFINAL(USEVAR(Q,r))=xmin
                         WRITE(6,"(A,F17.12,A,I3)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin," for vertex level ",USEVAR(Q,r)
@@ -434,7 +454,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 
             ELSE IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).le.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
                 
-                DO r=1,8
+                DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                     
                         G_VMC_EXCITFINAL(USEVAR(Q,r))=0.D0
@@ -449,6 +469,9 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
     
     CALL FLUSH(6)
 
+
+    !Save & print variances for each precalc vertex level!
+    
     !End of vertex level
     ENDDO
     WRITE(6,*) ""
@@ -460,10 +483,10 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
     g_VMC_ExcitWeights(:,2:10)=G_VMC_FINAL
     g_VMC_EXCITWEIGHT(2:10)=G_VMC_EXCITFINAL
     
-    do vv=2,10
+    do vv=2,I_VMAX
         check=.false.
         do kk=2,preIV_MAX
-            do cc=1,8
+            do cc=1,I_VMAX
                 IF(USEVAR(kk,cc).eq.vv) check=.true.
             enddo
         enddo
@@ -471,10 +494,40 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
         IF(.not.check) THEN
             g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
             G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
+            IF((TRUECYCLES.ne.0).and.(NWHTAY(1,vv).eq.-19)) THEN
+                WRITE(6,*) "***VERTEX WEIGHTING PRECALCULATION not possible, since USE statement not attributed to all true MC levels***"
+                TRUECYCLES=0
+            ENDIF
         ENDIF
     enddo
     
-    !Deallocate array
+    !calculate vertex level splitting!
+    IF(TRUECYCLES.ne.0) THEN
+        do vv=2,preIV_MAX
+            do kk=1,I_VMAX
+                IF(USEVAR(vv,kk).ne.0) THEN
+                    gg=USEVAR(vv,kk)
+                    IF(NWHTAY(1,gg).eq.-19) THEN
+                        SUMSD=SUMSD+sqrt(VARIANCES(vv))
+                        WRITE(6,"(A,I3,A,G20.12,A,I3)") "Expected MC variance for ",gg," vertices, is ", VARIANCES(vv)," taken from precalc level ",vv
+                    ENDIF
+                ENDIF
+            enddo
+        enddo
+        do vv=2,preIV_MAX
+            do kk=1,I_VMAX
+                IF(USEVAR(vv,kk).ne.0) THEN
+                    gg=USEVAR(vv,kk)
+                    IF(NWHTAY(1,gg).eq.-19) THEN
+                        NWHTAY(2,gg)=NINT(TRUECYCLES*(sqrt(VARIANCES(vv)))/SUMSD)
+                        WRITE(6,"(A,I2,A,I9,A)") "Vertex weighting optimised, so that vertex level ", gg," has ",NWHTAY(2,gg)," cycles"
+                    ENDIF
+                ENDIF
+            enddo
+        enddo
+    ENDIF
+
+    !Deallocate arrays
     DO rr=1,7
         IF(((pre_TAY(1,rr).eq.-7).or.(pre_TAY(1,rr).eq.-19)).and.(MEMSAV(rr))) DEALLOC=.true.
     ENDDO
@@ -1171,9 +1224,9 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
 !       Parameters:  Maximum expected value of n, and maximum allowed iterations.
     INTEGER i,ibig,j
     REAL*8 del,fp,fptt,t,pt(NMAXI),ptt(NMAXI),xit(NMAXI)
-    fret=varianceab(p,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,   &
-           FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE, &
-           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,&
+    fret=varianceab(p,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,      &
+           FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
            KSYM)
     IF (TLOGP.and.(GIDHO.eq.7)) THEN
         WRITE(31,"(2I3,5G25.16)") Q, 0, p(1), p(2), p(3), p(4), fret
