@@ -231,29 +231,7 @@ MODULE UMatCache
              GETUMATEL=UMAT(UMatInd(IDI,IDJ,IDK,IDL))
           ENDIF
          ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
-            I=(IDI-1)*ISS+1
-            J=(IDJ-1)*ISS+1
-            K=(IDK-1)*ISS+1
-            L=(IDL-1)*ISS+1
-!   The Uniform electron gas
-                   A=G1(I)%k(1)-G1(K)%k(1)
-                   B=G1(I)%k(2)-G1(K)%k(2)
-                   C=G1(I)%k(3)-G1(K)%k(3)
-                   IF(    (G1(L)%k(1)-G1(J)%k(1)).EQ.A                  &
-     &               .AND.(G1(L)%k(2)-G1(J)%k(2)).EQ.B                  &
-     &               .AND.(G1(L)%k(3)-G1(J)%k(3)).EQ.C                  &
-     &               .AND.((A.NE.0).OR.(B.NE.0).OR.(C.NE.0))) THEN
-!                     WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
-
-!   AJWT  <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
-!   v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
-                     SUM=((A/ALAT(1))**2+(B/ALAT(2))**2)
-                     IF(ALAT(3).NE.0.D0) SUM=SUM+(C/ALAT(3))**2
-                     SUM=1/(PI*SUM*ALAT(1)*ALAT(2)*ALAT(3))
-                   ELSE
-                     SUM=0.D0
-                   ENDIF
-            GETUMATEL=SUM
+            CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,GetUMatEl)
          ENDIF
 !         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
 !         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)

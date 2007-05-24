@@ -1,6 +1,6 @@
 C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0(NEL,NBASISMAX,NDET1,NDET2,
-     &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM)
+     &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,TOTSUM)
       USE HElement
       USE UMatCache
       IMPLICIT NONE
@@ -18,7 +18,7 @@ C..Cube array
       REAL*8 KP
       LOGICAL TVAB
       INTEGER NEL,NHG
-      TYPE(HElement) SUM,SUM1,SUM2,SUM3,SUM4
+      TYPE(HElement) TOTSUM,SUM1,SUM2,SUM3,SUM4,SUM5
       REAL*8 COULCOUPLE
       INTEGER IDS,I,J,IG1I,INDET
       INTEGER ISUB
@@ -56,6 +56,7 @@ C        SUM3=COULDAMP(NDET1(I),NHG)**2
             ELSE
                SUM4=SUM4-HElement(IDS)*
      &GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
+               
             ENDIF
           ENDIF
           SUM2=SUM2+SUM4
@@ -65,7 +66,7 @@ C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
 C..
 C      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
 C     &   NEL,1,G1)
-      SUM=SUM1+SUM2*HElement(COULCOUPLE)
+      TOTSUM=SUM1+SUM2*HElement(COULCOUPLE)
 !      CALL TIHALT('      SCR0',ISUB) 
       RETURN
       END

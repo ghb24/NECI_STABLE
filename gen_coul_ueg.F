@@ -347,3 +347,49 @@ C..Cube arrays
                  ENDIF
       RETURN
       END
+
+      SUBROUTINE GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,SUM)
+         IMPLICIT NONE
+         INTEGER IDI,IDJ,IDK,IDL,ISS
+         INCLUDE 'basis.inc'
+         TYPE(BasisFn) G1(*)
+         INTEGER I,J,K,L,A,B,C
+         REAL*8 SUM,ALAT(4),G
+         LOGICAL TCOULOMB
+         REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
+         I=(IDI-1)*ISS+1
+         J=(IDJ-1)*ISS+1
+         K=(IDK-1)*ISS+1
+         L=(IDL-1)*ISS+1
+         TCOULOMB=.FALSE.
+         IF(I.EQ.K.AND.J.EQ.L) TCOULOMB=.TRUE.
+!   The Uniform electron gas
+         A=G1(I)%k(1)-G1(K)%k(1)
+         B=G1(I)%k(2)-G1(K)%k(2)
+         C=G1(I)%k(3)-G1(K)%k(3)
+         IF(    (G1(L)%k(1)-G1(J)%k(1)).EQ.A                  
+     &      .AND.(G1(L)%k(2)-G1(J)%k(2)).EQ.B                  
+     &      .AND.(G1(L)%k(3)-G1(J)%k(3)).EQ.C                  
+     &      .AND.((A.NE.0).OR.(B.NE.0).OR.(C.NE.0))) THEN
+!            WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
+!   Coulomb integrals are long-ranged, so calculated with 4 pi/G**2
+!   AJWT  <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
+!   v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
+!    For Coulomb interactions <ij|ij> we have explicitly excluded the G=0 component as it is divergent.
+!    This is the equivalent of adding a positive uniform background.
+!    The effects
+
+             SUM=((A/ALAT(1))**2+(B/ALAT(2))**2)
+             IF(ALAT(3).NE.0.D0) SUM=SUM+(C/ALAT(3))**2
+             G=SQRT(2*PI*SUM)
+             SUM=4*PI/(SUM*ALAT(1)*ALAT(2)*ALAT(3))
+!  ALAT(4) is Rc, a cutoff length.
+!  For non-Coulomb integrals we calculate <ij|kl>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
+             IF(.NOT.TCOULOMB) SUM=SUM*(1.D0-COS(G*ALAT(4)))
+          ELSE
+            SUM=0.D0
+!..  The G=0 component is explicitly calculated for non-Coulomb interactions as 2 PI Rc**2
+            IF(.NOT.TCOULOMB) SUM=2*PI*ALAT(4)**2
+     &         /(ALAT(1)*ALAT(2)*ALAT(3))
+          ENDIF
+      END

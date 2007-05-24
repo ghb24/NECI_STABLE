@@ -10,7 +10,7 @@
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,ios,TDFREAD)
+     &   TCPMD,ios,TDFREAD,OrbECutoff)
       USE input
       USE HElement
       USE UMatCache
@@ -35,6 +35,7 @@
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
       INTEGER ios
+      REAL*8 OrbECutoff,GetNan
       REAL*8 DBETA(3)
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
@@ -81,7 +82,7 @@
       TGRIDVAR=.false.
       MEMSAV=.false.
       IP_SPECDET=0
-
+      OrbECutoff=GetNan()
       LMS=0
       STOT=0
       TSPN=.false.
@@ -297,6 +298,8 @@ C                  end select
                       call report("Require ISTATE to be left set as"  
      &                //" 1",.true.)
                   end if
+              case("ORBITAL CUTOFF")
+                  call getf(OrbECutoff)
               case("ENDSYS") 
                   exit system
               case default

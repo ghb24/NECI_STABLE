@@ -66,7 +66,7 @@ C.. NEL now includes all electrons, and we'll only want active later
       TYPE(BASISFN) G1(*),SymRestrict
 
 C..Cube arrays
-      REAL*8 ALAT(3),XCHOLE(*),SUMA(*)
+      REAL*8 ALAT(5),XCHOLE(*),SUMA(*)
       REAL*8 PSIR(*),DLINE(*),SCRTCH(*)
       COMPLEX*16 FCK(*)
       COMPLEX*16 COEFF(*)
@@ -272,6 +272,9 @@ C..
       ALAT(1)=BOX
       ALAT(2)=BOX*BOA
       ALAT(3)=BOX*COA
+!      ALAT(4)=BOX*((BOA*COA)/(4*PI/3))**THIRD
+      ALAT(4)=2*BOX*(BOA*COA)**(1/3.D0)
+      
       IF(THUB) THEN
          WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:',(NMAXX)
          WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:',(NMAXY)
@@ -287,6 +290,14 @@ C..
       ELSE
          OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
          RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD
+         ALAT(5)=RS
+         WRITE(6,*) "Rc cutoff: ",ALAT(4)
+         WRITE(6,*) "Wigner-Seitz radius Rs=",RS
+         FKF=(9*PI/4)**THIRD/RS
+         WRITE(6,*) "Fermi vector kF=",FKF
+         WRITE(6,*) "Fermi Energy EF=",FKF*FKF/2
+         WRITE(6,*) "Unscaled Fermi Energy nmax**2=",
+     &      (FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
       ENDIF
       WRITE(6,'(1X,A,F19.5)') ' VOLUME : ' , OMEGA
       WRITE(6,*) ' TALPHA : ' , TALPHA
@@ -613,7 +624,8 @@ C..Cube multiplier
 C.. the UEG has k=2pi n/L rather than pi n/L, so we need to multiply the
 C.. KE up by 4
                IF(NBASISMAX(1,1).LE.0) CST=CST*4
-               CALL CALCTMAT(TMAT,NBASIS,ALAT,G1,CST)
+               CALL CALCTMATUEG(TMAT,NBASIS,ALAT,G1,CST,
+     &            NBASISMAX(1,1).LE.0,OMEGA)
             ENDIF
          ENDIF
 C..           (.NOT.TREADINT)
@@ -1374,6 +1386,10 @@ C      DBETA=DBRAT*BETA
          WRITE(6,*) '<D0|H|D0>=',GETHELEMENT2(FDET,FDET,NEL,NBASISMAX,
      &             G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,IC,ECORE)
          WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,TMAT,NBASIS)
+         IF(TUEG) THEN
+!  The actual KE rather than the one-electron part of the Hamiltonian
+            WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,NBASIS,CST)
+         ENDIF
       ENDIF
       IF(TMCDET) THEN
 C.. Generate the determinant from which we start the MC
@@ -2244,6 +2260,26 @@ C.. This should only happen for HMAX
          RETURN
       END
 
+      REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL),NBASIS,I,J
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(*)
+         REAL*8 ALAT(4),CST,TMAT
+         LOGICAL ISCSF
+         CALCT2=0.D0
+         IF(ISCSF(NI,NEL)) RETURN
+         DO J=1,NEL
+            I=NI(J)
+           TMAT=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+
+     &         (G1(I)%K(2)**2)/(ALAT(2)**2)+
+     &         (G1(I)%K(3)**2)/(ALAT(3)**2)))
+           TMAT=TMAT*CST
+           CALCT2=CALCT2+TMAT
+         ENDDO
+         RETURN
+      END
        REAL*8 FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,
      &     IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
          INTEGER NDET,NEVAL,I_P,ILOGGING
@@ -2324,20 +2360,33 @@ C.. This should only happen for HMAX
          CALL TIHALT('BEGRAPHAP ',ISUB)
          RETURN
       END    
-      SUBROUTINE CALCTMAT(TMAT,NBASIS,ALAT,G1,CST)
+! Calculate the diagonal matrix elements for the Uniform electron gas
+!  CST is PI*PI/2L*L for the non-periodic case, and
+!  CST is 4*PI*PI/2L*L for the periodic case, and
+
+!  For the periodic case we must also add in a periodic images correction
+!  which is 1/2 (<ii|ii> - <ii|ii>cell) for each orbital
+!  We calculate <ii|ii>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
+!  Rc=ALAT(4).
+
+      SUBROUTINE CALCTMATUEG(TMAT,NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
          IMPLICIT NONE
          INTEGER NBASIS
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS)
-         REAL*8 TMAT(NBASIS,NBASIS),ALAT(3),HFBASIS(NBASIS,NBASIS),CST
+         REAL*8 TMAT(NBASIS,NBASIS),ALAT(4),HFBASIS(NBASIS,NBASIS),CST
          INTEGER I,J
-         REAL*8 SUM,S1
+         REAL*8 SUM,S1,OMEGA
+         LOGICAL TPERIODIC
+         REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
           DO I=1,NBASIS
            TMAT(I,I)=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+
      &         (G1(I)%K(2)**2)/(ALAT(2)**2)+
      &         (G1(I)%K(3)**2)/(ALAT(3)**2)))
            TMAT(I,I)=TMAT(I,I)*CST
+!..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2
+           IF(TPERIODIC) TMAT(I,I)=TMAT(I,I)-PI*ALAT(4)**2/OMEGA
             WRITE(10,*) I,I,TMAT(I,I)
          ENDDO
          CLOSE(10)
