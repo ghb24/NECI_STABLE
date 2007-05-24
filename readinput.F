@@ -10,7 +10,7 @@
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,ios,TDFREAD,OrbECutoff)
+     &   TCPMD,ios,TDFREAD)
       USE input
       USE HElement
       USE UMatCache
@@ -35,7 +35,6 @@
       POINTER (IP_SPECDET,SPECDET)
       CHARACTER*255 FILENAME
       INTEGER ios
-      REAL*8 OrbECutoff,GetNan
       REAL*8 DBETA(3)
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
@@ -82,7 +81,6 @@
       TGRIDVAR=.false.
       MEMSAV=.false.
       IP_SPECDET=0
-      OrbECutoff=GetNan()
       LMS=0
       STOT=0
       TSPN=.false.

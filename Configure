@@ -764,7 +764,7 @@ case ${Configuration}
      NCPUS=2
      #-sb is to use Workshop package
       FFLAGS='-I /usr/local/fftw-3.1/include -I /usr/local/fftw-3.0.1/include -Mr8 -Msignextend -Minform=warn -Msecond_underscore'
-      LFLAGS='-L /usr/local/shared/fftw3/lib -L /usr/local/fftw-3.1/lib -L /usr/local/fftw-3.0.1/lib -lfftw3 -L /usr/local/pgi5/linux86/5.2/lib -L /usr/local/pgi/linux86/lib -L /usr/local/pgi/linux86/5.2/lib -llapack -lblas  $(QMMM_LIBS) -lpghpf'
+      LFLAGS='-L  /usr/local/shared/suse-10.1-1/fftw-3.1.2/lib -L /usr/local/shared/fftw3/lib -L /usr/local/fftw-3.1/lib -L /usr/local/fftw-3.0.1/lib -lfftw3 -L /usr/local/pgi5/linux86/5.2/lib -L /usr/local/pgi/linux86/lib -L /usr/local/pgi/linux86/5.2/lib -llapack -lblas  $(QMMM_LIBS) -lpghpf'
      if [ $debug ]; then
        FC='pgf90 -c -g '
        CC='cc -g -sb -C -errtags'
