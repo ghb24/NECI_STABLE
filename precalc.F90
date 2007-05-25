@@ -327,7 +327,12 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 WRITE(31,*) ""
                 WRITE(31,"(A)") "Importance Parameter: (Vertex level, Iteration number, Importance Parameter, Expected Variance)"
             ENDIF
-            
+       
+            !Reset 'FIRST(K)' in MCPATHSPRE     
+        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
+     &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+     &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
+     
             !Initial bracketing guess
             ax=0.7
             bx=0.9
@@ -370,6 +375,11 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 WRITE(31,"(A)") "D Parameter: (Vertex level, Iteration number, D Weighting parameter, Expected Variance)"
             ENDIF
             
+            !Reset 'FIRST(K)' in MCPATHSPRE     
+        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
+     &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+     &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
+            
             !Initial bracketing guess
             ax=-0.8
             bx=-1.0
@@ -410,7 +420,12 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 WRITE(31,*) ""
                 WRITE(31,"(A)") "U Parameter: (Vertex level, Iteration number, C Weighting parameter, Expected Variance)"
             ENDIF
-            
+           
+            !Reset 'FIRST(K)' in MCPATHSPRE     
+        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
+     &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+     &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
+        
          !Initial bracketing
             ax=20
             bx=30
@@ -667,6 +682,9 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         ENDDO
         IF(ALLOCATED(PVERTMEMS)) DEALLOCATE(PVERTMEMS)
         DEALLOCATE(PGENLIST)
+        RETURN
+    CASE(155)
+        FIRST(K)=.TRUE.
         RETURN
     ENDSELECT
     
