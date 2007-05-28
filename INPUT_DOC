@@ -146,6 +146,9 @@ USEIMPORT
 TRUECYCLES <No.of cycles>
     If this is specified, then this indicates the total number of cycles that we want to use in the main program.  The precalc will then automatically split these cycles between the levels in the main program, according to how the use statements indicate the parameters are to be split.  This will split the cycles in the way to best minimise the overall variance of the run, under the assumption that the variance of the whole run is simply the sum of the variances of the individual vertex results.
 
+TOTALERROR <Desired Error from main program>
+    This calculates the required number of cycles, so that the final error from the simulation is equal to the error given.  This will only work if the precalc levels go as high as the full program MC levels, i.e. the highest MC vertex level is independantly optimised for. The precalc also calculates the optimum vertex splitting. 
+
 ENDPRECALC
     This ends the PRECALC input block.
     

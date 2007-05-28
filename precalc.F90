@@ -84,7 +84,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      
          ! IF NONE IS SPECIFIED
          IF (PRE_TAY(3,Q).eq.0) THEN
-             
+              
              GIDHO=6
              VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,   &
      &                  FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,  &
@@ -497,7 +497,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
     
     g_VMC_ExcitWeights(:,2:10)=G_VMC_FINAL
     g_VMC_EXCITWEIGHT(2:10)=G_VMC_EXCITFINAL
-    
+   
     do vv=2,I_VMAX
         check=.false.
         do kk=2,preIV_MAX
@@ -509,7 +509,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
         IF(.not.check) THEN
             g_VMC_ExcitWeights(:,vv)=g_VMC_ExcitWeights(:,1)
             G_VMC_EXCITWEIGHT(vv)=G_VMC_EXCITWEIGHT(1)
-            IF((TRUECYCLES.ne.0).and.(NWHTAY(1,vv).eq.-19)) THEN
+            IF(((TRUECYCLES.ne.0).or.(TOTALERROR.ne.0.D0)).and.(NWHTAY(1,vv).eq.-19)) THEN
                 WRITE(6,*) "***VERTEX WEIGHTING PRECALCULATION not possible, since USE statement not attributed to all true MC levels***"
                 TRUECYCLES=0
             ENDIF
@@ -517,7 +517,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
     enddo
     
     !calculate vertex level splitting!
-    IF(TRUECYCLES.ne.0) THEN
+    IF((TRUECYCLES.ne.0).or.(TOTALERROR.ne.0.D0)) THEN
         do vv=2,preIV_MAX
             do kk=1,I_VMAX
                 IF(USEVAR(vv,kk).ne.0) THEN
@@ -529,6 +529,13 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 ENDIF
             enddo
         enddo
+    ENDIF
+
+    IF(TOTALERROR.ne.0.D0) THEN
+        TRUECYCLES=(SUMSD/TOTALERROR)**2
+    ENDIF
+    
+    IF(TRUECYCLES.ne.0) THEN
         do vv=2,preIV_MAX
             do kk=1,I_VMAX
                 IF(USEVAR(vv,kk).ne.0) THEN
@@ -628,7 +635,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX),I
     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),NBASIS,GIDHO
     INTEGER KSYM(5),sss,ierr,ierr2,ierr3,STORE(6),NMEMLEN,INODE2(NEL)
-    INTEGER IEXCITS,J,EXCITGEN(0:PREIV_MAX),ierr4,b,dd,bb,aa
+    INTEGER IEXCITS,J,EXCITGEN(0:PREIV_MAX),ierr4,b,dd,bb,aa,DEALLOCYC(2)
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,FIRST(2:8)
     REAL*8 NTOTAL,BETA,ECORE,ALAT(3),RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
@@ -646,7 +653,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     DATA DLWSAV/7*HDElement(0.D0)/
     DATA FIRST/7*.TRUE. /
     SAVE NTOTSAV,TOTSAV,DLWSAV
-    SAVE FIRST,NORMALISE
+    SAVE FIRST,NORMALISE,DEALLOCYC
     LOGICAL LISNAN
     INTEGER ISEED,aaa,t,tt
     INTEGER I_OCLS,ITREE,ILOGGING,I_OVCUR,IACC
@@ -668,20 +675,20 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     CASE(154)
         CALL MemDealloc(PVERTMEMS)
         CALL MemDealloc(GRAPHPARAMS)
-        DEALLOCATE(GRAPHPARAMS)
+        IF (ALLOCATED(GRAPHPARAMS)) DEALLOCATE(GRAPHPARAMS)
         CALL MemDealloc(GRAPHS)
-        DEALLOCATE(GRAPHS)
+        IF (ALLOCATED(GRAPHS)) DEALLOCATE(GRAPHS)
         IF (ALLOCATED(NMEM)) THEN
-        CALL MemDealloc(NMEM)
+            CALL MemDealloc(NMEM)
             DEALLOCATE(NMEM)
         ENDIF
-        DO t=1,pre_TAY(2,K-1)
-            DO tt=1,K-2
+        DO t=1,DEALLOCYC(2)
+            DO tt=1,(DEALLOCYC(1)-1)
                 CALL FREEM(PVERTMEMS(tt,t))
             ENDDO
         ENDDO
         IF(ALLOCATED(PVERTMEMS)) DEALLOCATE(PVERTMEMS)
-        DEALLOCATE(PGENLIST)
+        IF(ALLOCATED(PGENLIST)) DEALLOCATE(PGENLIST)
         RETURN
     CASE(155)
         FIRST(K)=.TRUE.
@@ -738,23 +745,16 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             !Deallocate the arrays if already been used by previous vertex level
             IF(FIRST(K)) THEN
                 IF (ALLOCATED(PVERTMEMS)) THEN
-                    DO t=1,pre_TAY(2,K-1)
-                        DO tt=1,K-2
+                    DO t=1,DEALLOCYC(2)
+                        DO tt=1,(DEALLOCYC(1)-1)
                             CALL FREEM(PVERTMEMS(tt,t))
                         ENDDO
                     ENDDO
                 ENDIF
                 
-                IF (ALLOCATED(PVERTMEMS)) THEN
-                    DO t=1,pre_TAY(2,K-2)
-                        DO tt=1,K-3
-                            CALL FREEM(PVERTMEMS(tt,t))
-                        ENDDO
-                    ENDDO
-                ENDIF
                 IF (ALLOCATED(PVERTMEMS)) DEALLOCATE(PVERTMEMS)
                 IF (ALLOCATED(GRAPHS)) DEALLOCATE(GRAPHS)
-                IF (ALLOCATED(PGENLIST)) DEALLOCATE(GRAPHS)
+                IF (ALLOCATED(PGENLIST)) DEALLOCATE(PGENLIST)
                 IF (ALLOCATED(GRAPHPARAMS)) THEN
                     DEALLOCATE(GRAPHPARAMS)
                 ENDIF
@@ -769,6 +769,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     CALL MemAlloc(ierr2,GRAPHPARAMS,3*CYCLES,'PRECALC_GRAPHPARAMS')
                     ALLOCATE(PGENLIST(CYCLES),STAT=ierr2)
                     CALL MemAlloc(ierr2,PGENLIST,CYCLES,'PRECALC_GRAPHPARAMS')
+                    DEALLOCYC=(/ K,CYCLES /)
                 ENDIF
 
                 CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
