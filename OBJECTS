@@ -24,7 +24,7 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
 
 OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElement.o \
          RhoElement.o MCStats.o symexcit2.o MPEnergy.o precalc.o UMatCache.o \
-         df_precision.o df_parameters.o
+         df_precision.o df_parameters.o stardiag.o
 
 OBJ_CPMDSTUB = cpmdstub.o init_coul.o init_coul2D.o
 OBJ_NOCPMDSTUB = nocpmdstub.o

@@ -880,6 +880,7 @@ C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &            DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
                NMEM(23)=ICOUNT
+               IC=ICOUNT
 C.. and now instead the indices within NMEM
                ICOUNT=24
                DO I=1,5

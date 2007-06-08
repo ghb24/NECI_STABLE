@@ -160,7 +160,7 @@ C     ==================================================================
 !!  TYPE(HElement), Pointer :: UMat(:,:)
 !!  INTEGER ierr
 !!  ALLOCATE(UMat(10,20),STAT=ierr
-!!  CALL MemAlloc(ierr,10*20*HElementSize,"UMat")
+!!  CALL MemAlloc(ierr,UMat,10*20*HElementSize,"UMat")
 !!
 
 C     ==================================================================

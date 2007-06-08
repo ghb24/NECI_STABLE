@@ -10,7 +10,7 @@
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,ios,TDFREAD)
+     &   TCPMD,ios,TDFREAD,fRc)
       USE input
       USE HElement
       USE UMatCache
@@ -36,6 +36,7 @@
       CHARACTER*255 FILENAME
       INTEGER ios
       REAL*8 DBETA(3)
+      REAL*8 fRc
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'sym.inc'
@@ -111,6 +112,7 @@
       TMCDET = .false.
       FCOUL=1.D0
       FUEGRS=0.D0
+      fRc=0.D0
       do I = 1,5
         MDK(I) = 0
       end do
@@ -261,6 +263,16 @@ C.. the last number is the symmetry specification - and is placed in position 5
                 TUSEBRILLOUIN=.TRUE. 
               case("RS")
                   call getf(FUEGRS)
+              case("EXCHANGE-CUTOFF")
+                  iPeriodicDampingType=2
+                  if(item.lt.nitems) then
+                     call getf(fRc)
+                  endif
+              case("EXCHANGE-ATTENUATE")
+                  iPeriodicDampingType=1
+                  if(item.lt.nitems) then
+                     call getf(fRc)
+                  endif
               case("COULOMB")
                   call getf(FCOUL)
               case("COULOMB-DAMPING")
@@ -1103,17 +1115,32 @@ C     ILOGGING = 0771
                            G_VMC_FAC=0.D0
                            TMPTHEORY=.TRUE.
                         case("STAR")
-                           I_HMAX = -9
-                           call readu(w)
-                           select case(w)
-                           case("DIAG")
-                               NWHTAY=IBCLR(NWHTAY,0)
-                           case("POLY")
-                               NWHTAY=IBSET(NWHTAY,0)
-                           case default
+                           I_HMAX=0
+                           do while(item.lt.nitems)
+                              call readu(w)
+                              select case(w)
+                              case("NEW")
+                                 I_HMAX=-21
+                              case("OLD")
+                                 I_HMAX=-9
+                              case("DIAG")
+                                  NWHTAY=IBCLR(NWHTAY,0)
+                              case("POLY")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                              case("POLYMAX")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                                  NWHTAY=IBSET(NWHTAY,1)
+                              case("POLYCONVERGE")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                                  NWHTAY=IBSET(NWHTAY,2)
+                              case default
                                 call report("Error - must specify DIAG" 
-     &                         //" or POLY vertex star method",.true.)
-                            end select
+     &                        //" or POLY vertex star method",.true.)
+                               end select
+                           enddo
+                           if(i_hmax.eq.0)
+     &                   call report("OLD/NEW not specified for STAR",
+     &                          .true.)
                         case default
                         call report("Keyword error with "//trim(w),  
      &                          .true.)

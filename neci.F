@@ -9,9 +9,10 @@ C ==------------------------------------------------------------------==
      &   TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,TDFREAD)
+     &   TCPMD,TDFREAD,fRc)
       USE HElement
-      USE UMatCache , only : GetUMatSize, DestroyUMatCache
+      USE UMatCache , only : GetUMatSize, DestroyUMatCache              &
+     &   ,iPeriodicDampingType
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -113,6 +114,7 @@ C.. The spin including the total spin
       INTEGER ICILEVEL
       REAL*8 FUEGRS
       LOGICAL TCPMD
+      REAL*8 fRc
       INCLUDE 'csf.inc'
       INCLUDE 'uhfdet.inc'
 C ==-------------------------------------------------------------------==
@@ -272,8 +274,12 @@ C..
       ALAT(1)=BOX
       ALAT(2)=BOX*BOA
       ALAT(3)=BOX*COA
-!      ALAT(4)=BOX*((BOA*COA)/(4*PI/3))**THIRD
-      ALAT(4)=2*BOX*(BOA*COA)**(1/3.D0)
+      IF(fRc.EQ.0.0.AND.iPeriodicDampingType.NE.0) THEN
+         ALAT(4)=BOX*((BOA*COA)/(4*PI/3))**THIRD
+      ELSE
+         ALAT(4)=fRc
+      ENDIF
+!      ALAT(4)=2*BOX*(BOA*COA)**(1/3.D0)
       
       IF(THUB) THEN
          WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:',(NMAXX)
@@ -291,7 +297,17 @@ C..
          OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
          RS=(3.D0*OMEGA/(4.D0*PI*NEL))**THIRD
          ALAT(5)=RS
-         WRITE(6,*) "Rc cutoff: ",ALAT(4)
+         IF(iPeriodicDampingType.NE.0) THEN
+            IF(iPeriodicDampingType.EQ.1) THEN
+               WRITE(6,*) "Using attenuated Coulomb potential for " //
+     &            "exchange interactions."
+            ELSEIF(iPeriodicDampingType.EQ.2) THEN
+               WRITE(6,*) "Using cut-off Coulomb potential for " //
+     &            "exchange interactions."
+            ENDIF
+      
+            WRITE(6,*) "Rc cutoff: ",ALAT(4)
+         ENDIF
          WRITE(6,*) "Wigner-Seitz radius Rs=",RS
          FKF=(9*PI/4)**THIRD/RS
          WRITE(6,*) "Fermi vector kF=",FKF
@@ -2379,13 +2395,15 @@ C.. This should only happen for HMAX
          REAL*8 SUM,S1,OMEGA
          LOGICAL TPERIODIC
          REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
+         IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
           DO I=1,NBASIS
            TMAT(I,I)=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+
      &         (G1(I)%K(2)**2)/(ALAT(2)**2)+
      &         (G1(I)%K(3)**2)/(ALAT(3)**2)))
            TMAT(I,I)=TMAT(I,I)*CST
-!..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2
+!..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
+!     we *1/2 as we attribute only half the interaction to this cell.
            IF(TPERIODIC) TMAT(I,I)=TMAT(I,I)-PI*ALAT(4)**2/OMEGA
             WRITE(10,*) I,I,TMAT(I,I)
          ENDDO

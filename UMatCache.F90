@@ -26,6 +26,11 @@ MODULE UMatCache
          SAVE tUMat2D ,UMat2D
       
 
+! For the UEG, we damp the exchange interactions.
+!    0 means none
+!    1 means attenuated (using an erfc)
+!    2 means cut-off    (at a distance Rc=ALAT(4))
+      INTEGER iPeriodicDampingType
 
 !  Book-keeping information
 !  nSlotsInit is the number of slots requested on input.  If the number required is less, then the lower value is allocated
@@ -231,7 +236,7 @@ MODULE UMatCache
              GETUMATEL=UMAT(UMatInd(IDI,IDJ,IDK,IDL))
           ENDIF
          ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
-            CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,GetUMatEl)
+            CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
          ENDIF
 !         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
 !         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)

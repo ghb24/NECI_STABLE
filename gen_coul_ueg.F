@@ -89,7 +89,7 @@ C.. This is based upon the GEN_COUL for electrons in a cubic box
 C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_UEG(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
-      USE UMatCache , only : UMatInd
+      USE UMatCache , only : UMatInd, iPeriodicDampingType
       IMPLICIT REAL*8 (A-H,O-Z)
       INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
@@ -348,9 +348,11 @@ C..Cube arrays
       RETURN
       END
 
-      SUBROUTINE GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,SUM)
+      SUBROUTINE GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,
+     &      iExchangeDampingType,SUM)
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ISS
+         INTEGER iExchangeDampingType
          INCLUDE 'basis.inc'
          TYPE(BasisFn) G1(*)
          INTEGER I,J,K,L,A,B,C
@@ -369,8 +371,8 @@ C..Cube arrays
          C=G1(I)%k(3)-G1(K)%k(3)
          IF(    (G1(L)%k(1)-G1(J)%k(1)).EQ.A                  
      &      .AND.(G1(L)%k(2)-G1(J)%k(2)).EQ.B                  
-     &      .AND.(G1(L)%k(3)-G1(J)%k(3)).EQ.C                  
-     &      .AND.((A.NE.0).OR.(B.NE.0).OR.(C.NE.0))) THEN
+     &      .AND.(G1(L)%k(3)-G1(J)%k(3)).EQ.C) THEN
+          IF((A.NE.0).OR.(B.NE.0).OR.(C.NE.0)) THEN
 !            WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
 !   Coulomb integrals are long-ranged, so calculated with 4 pi/G**2
 !   AJWT  <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
@@ -381,15 +383,26 @@ C..Cube arrays
 
              SUM=((A/ALAT(1))**2+(B/ALAT(2))**2)
              IF(ALAT(3).NE.0.D0) SUM=SUM+(C/ALAT(3))**2
-             G=SQRT(2*PI*SUM)
-             SUM=4*PI/(SUM*ALAT(1)*ALAT(2)*ALAT(3))
+!Sum is G^2 / 4 Pi*Pi
+             G=2*PI*SQRT(SUM)
+             SUM=(1.D0/PI)/(SUM*ALAT(1)*ALAT(2)*ALAT(3))
+!  Sum is now (4 Pi / G^2 ) / Omega
 !  ALAT(4) is Rc, a cutoff length.
 !  For non-Coulomb integrals we calculate <ij|kl>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
-             IF(.NOT.TCOULOMB) SUM=SUM*(1.D0-COS(G*ALAT(4)))
-          ELSE
-            SUM=0.D0
+             IF(.NOT.TCOULOMB) THEN
+               IF(iExchangeDampingType.Eq.2) THEN
+                  SUM=SUM*(1.D0-COS(G*ALAT(4)))
+               ELSEIF(iExchangeDampingType.EQ.1) THEN
+                  SUM=SUM*(1.D0-EXP(-(G*ALAT(4))**2/2.D0))
+               ENDIF
+             ENDIF
+           ELSE
 !..  The G=0 component is explicitly calculated for non-Coulomb interactions as 2 PI Rc**2
+            sum=0.d0
             IF(.NOT.TCOULOMB) SUM=2*PI*ALAT(4)**2
      &         /(ALAT(1)*ALAT(2)*ALAT(3))
+           ENDIF
+          ELSE
+            SUM=0.D0
           ENDIF
       END

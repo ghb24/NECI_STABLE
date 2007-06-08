@@ -10,17 +10,18 @@ C.. star.  THere are N spokes and 1 pivot, and thus N+1 roots
 
 C.. A and B are sorted in ascending order of A
 
-      SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS)
+      SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS,NROOTS)
          IMPLICIT NONE
-         INTEGER N,I,J
-         REAL*8 A(0:N),B(0:N),ROOTS(0:N)
+         INTEGER N,I,J,NROOTS,NMIN
+         REAL*8 A(0:N),B(0:N),ROOTS(0:NROOTS)
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX
+         NMIN=N-NROOTS
 C.. We find the first root by starting very slightly above the highest
 C.. pole
          XLOW=A(N)
          XHIGH=2*A(N)
 C.. The value at XHIGH is always bigger than at XLOW
-         I=N
+         I=NROOTS
          DO WHILE(I.GE.0)
 C            WRITE(6,*),I,A(I),B(I)
             VAL=1.D0
@@ -50,19 +51,19 @@ C               WRITE(6,"(4G15.9)") X,VAL
                J=J+1
             ENDDO
             ROOTS(I)=X
-C            WRITE(6,*) "Root found: ",X
-            DO WHILE(I.GT.0.AND.ABS(A(I)-A(I-1)).LT.1.D-9)
+!            WRITE(76,*) "Root found: ",X
+            DO WHILE(I.GT.0.AND.ABS(A(NMIN+I)-A(NMIN+I-1)).LT.1.D-9)
                I=I-1
-               ROOTS(I)=A(I)
+               ROOTS(I)=A(NMIN+I)
 C               WRITE(6,*),I,A(I),B(I)
-C               WRITE(6,*) "Root found2:",A(I)
+!               WRITE(76,*) "Root found2:",A(I)
             ENDDO
-            XHIGH=A(I)
+            XHIGH=A(NMIN+I)
             I=I-1
             IF(I.EQ.0) THEN
                XLOW=-1.D0
             ELSE
-               XLOW=A(I)
+               XLOW=A(NMIN+I)
             ENDIF
          ENDDO
          RETURN
@@ -91,6 +92,8 @@ C               WRITE(6,*) "Root found2:",A(I)
          ENDDO
          RETURN
       END
+!  This is used by the READSTARDIAG called from FMCPR3NVSTAR routine.  It allows contributions multiple times from some spokes.
+!  It probably doesn't work (AJWT 6/6/07)
       SUBROUTINE FINDROOTSTAR2(N,A,B,NR,ROOTS,IRMIN)
          IMPLICIT NONE
          INTEGER N,I,J

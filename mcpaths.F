@@ -62,6 +62,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER LOCTAB(3,I_VMAX)
          TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          TYPE(HDElement) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
+         TYPE(HDElement) fMCPR3StarNewExcit
          INTEGER KSYM(5),I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          TYPE(HDElement) FF,DLWDB3
@@ -214,6 +215,14 @@ C.. forcing them to be disconnected.
      &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            LSTE,ICE,RIJLIST,L,LT,
      &            CNWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
+            ELSEIF(I_CHMAX.EQ.-21) THEN
+C.. This code generates a star consisting of all the two-vertex terms,
+C.. forcing them to be disconnected. - this uses new excitation generators
+               F(I_V)=fMCPR3StarNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,
+     &            NBASIS,
+     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            L,LT,
+     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
                F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
@@ -435,7 +444,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDELement) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
 
-         TYPE(HDElement) FMCPR3STAR,FMCPR3B2
+         TYPE(HDElement) FMCPR3STAR,FMCPR3B2,fMCPR3StarNewExcit
 
 C.. This is where we will store the MP2 energy
          TPREVAR=.FALSE.
@@ -584,6 +593,14 @@ C.. forcing them to be disconnected.
      &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            LSTE,ICE,RIJLIST,L,LT,
      &            NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
+            ELSEIF(I_HMAX.EQ.-21) THEN
+C.. This code generates a star consisting of all the two-vertex terms,
+C.. forcing them to be disconnected. - this uses new excitation generators
+               F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,
+     &            NBASIS,
+     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            L,LT,
+     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
             ENDIF
             CALL TIHALT(STR,ISUB2)
             NTIME=TIMEC()*0.001D0
@@ -1516,298 +1533,6 @@ C.. we can go to the next new element
       END
 
 
-C.. This version creates a star of all 2-vertex terms.
-C.. This sets up the excitation generators and the memory
-      REAL*8 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,
-     &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
-            
-         IMPLICIT NONE
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,NWHTAY,ILOGGING,LT
-         REAL*8 FCK(*), TMat(*),ALAT(*),UMAT(*),ECORE
-         INTEGER NI(NEL),ILMAX
-C.. These are old and no longer used
-C.. LSTE is a list of excitations (which we will generate)
-C.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
-         INTEGER LSTE(NEL,0:ILMAX)
-         INTEGER ICE(0:ILMAX)
-         REAL*8 LIST(0:ILMAX,0:2)
-C.. New lists are generated here
-         INTEGER NLSTE(NEL,0:*)
-         REAL*8  NLIST(0:*)
-         INTEGER NICE(0:*)
-
-         POINTER (IP_NLIST,NLIST)
-         POINTER (IP_NLSTE,NLSTE)
-         POINTER (IP_NICE,NICE)
-
-C.. This will contain all the info needed to work out the value of the
-C.. star
-C.. LIST(0,...) corresponds to J=I
-C.. LIST(J,0) = RHOJJ
-C.. LIST(J,1) = RHOIJ
-C.. LIST(J,2) = HIJ
-
-         REAL*8 BETA,RHOEPS
-         LOGICAL TSYM
-         REAL*8 DBETA,DLWDB
-         REAL*8 GETHELEMENT2
-         INTEGER NLENLIST,NLCUR,I,J,L
-
-         REAL*8 RH,RHII
-
-         INTEGER NORDER,NMIN
-         REAL*8 FMCPR3STAR2
-         include 'irat.inc'
-   
-         SELECT CASE (IAND(NWHTAY,24))
-         CASE(0)
-C.. Allow both singles and doubles
-            NORDER=2
-            NMIN=1
-         CASE(8)
-C.. only singles
-            NORDER=1
-            NMIN=1
-         CASE(16)
-            NORDER=2
-            NMIN=2
-         CASE(24)
-            STOP "Invalid combination of flags in NWHTAY"
-         END SELECT
-C.. Count the excitations.
-         CALL GENEXCIT(NI,NORDER,NBASIS,NEL,LSTE,ICE,NLENLIST,NMIN,
-     &            G1,TSYM,NBASISMAX,.TRUE.)
-C.. Allocate memory for the lists
-         ILMAX=NLENLIST
-         CALL MEMORY(IP_NLIST,(NLENLIST+1)*3,'NLIST')
-         CALL MEMORY(IP_NLSTE,((NLENLIST+1)*NEL)/IRAT+1,'NLSTE')
-         CALL MEMORY(IP_NICE,(NLENLIST+1)/IRAT+1,'NICE')
-
-         CALL ICOPY(NEL,NI,1,NLSTE(1,0),1)
-         NICE(0)=0
-C.. Now generate the excitations
-         CALL GENEXCIT(NI,NORDER,NBASIS,NEL,NLSTE(1,1),NICE(1),NLENLIST,
-     &         NMIN,
-     &            G1,TSYM,NBASISMAX,.FALSE.)
-
-         FMCPR3STAR=FMCPR3STAR2(NI,BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
-     &      RHOEPS,NLSTE,NICE,NLIST,L,LT,NWHTAY,
-     &      ILOGGING,TSYM,ECORE,NLENLIST,DBETA,DLWDB)
-
-         CALL FREEM(IP_NLIST)
-         CALL FREEM(IP_NLSTE)
-         CALL FREEM(IP_NICE)
-         RETURN
-      END
-C.. This version creates a star of all 2-vertex terms.
-C..   This is the heart of the function, called once the excitations are found.
-      REAL*8 FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
-     &   RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,
-     &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
-            
-         IMPLICIT NONE
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,NWHTAY,ILOGGING,LT
-         REAL*8 FCK(*), TMat(*),ALAT(*),UMAT(*),ECORE
-         INTEGER NI(NEL),ILMAX
-C.. LSTE is a list of excitations (which we will generate)
-C.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
-         INTEGER LSTE(NEL,0:ILMAX)
-         INTEGER ICE(0:ILMAX)
-C.. This will contain all the info needed to work out the value of the
-C.. star
-C.. LIST(0,...) corresponds to J=I
-C.. LIST(J,0) = RHOJJ
-C.. LIST(J,1) = RHOIJ
-C.. LIST(J,2) = HIJ
-
-         REAL*8 LIST(0:ILMAX,0:2)
-         REAL*8 BETA,RHOEPS
-         LOGICAL TSYM
-         REAL*8 DBETA,DLWDB
-         REAL*8 GETHELEMENT2
-         INTEGER NLIST,NLCUR,I,J,L
-
-         REAL*8 RH,RHII
-         NLIST=ILMAX
-
-         NLCUR=0
-         DO I=0,NLIST
-            IF(ICE(I).EQ.0.AND.I.GT.0) LSTE(1,I)=0
-            IF(LSTE(1,I).NE.0) THEN
-               CALL CALCRHO2(NI,LSTE(1,I),BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
-     &            RH,NTAY,ICE(I),ECORE)
-               IF(RH .GT. RHOEPS) THEN
-                  IF(NLCUR.NE.I) 
-     &              CALL ICOPY(NEL,LSTE(1,I),1,
-     &                    LSTE(1,NLCUR),1)
-                  ICE(NLCUR)=ICE(I)
-                  IF(NLCUR.EQ.0) RHII=RH
-                  LIST(NLCUR,1)=RH/RHII
-                  CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
-     &              RH,NTAY,0,ECORE)
-                  LIST(NLCUR,0)=RH/RHII
-                  LIST(NLCUR,2)=GETHELEMENT2(NI,
-     &               LSTE(1,I),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,ECORE)
-C                  CALL WRITEDET(6,LSTE(1,I),NEL,.FALSE.)
-C                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
-                  NLCUR=NLCUR+1
-               ENDIF
-            ENDIF
-         ENDDO
-         L=NLCUR
-         LT=ILMAX+1
-C.. we now have a list length NLCUR of dets in the star.
-C.. Call a routine to generate the value of the star
-         WRITE(6,*) NLCUR," determinants in star"
-         IF(.NOT.BTEST(NWHTAY,0)) THEN
-            WRITE(6,*) "Beginning Complete Star Diagonalization"
-            CALL STARDIAG(LSTE,NEL,NLCUR,LIST,
-     &         ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB)
-         ELSE
-            WRITE(6,*) "Beginning Polynomial Star Diagonalization"
-            CALL STARDIAG2(LSTE,NEL,NLCUR,LIST,
-     &         ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB)
-         ENDIF
-      END
-
-
-
-      SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         IMPLICIT NONE
-         INTEGER NEL,I_P
-         INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         REAL*8 LIST(ILMAX,0:2)
-         REAL*8 RIJMAT(*),WLIST(*)
-         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
-         INTEGER ISUB
-         INTEGER WORKL,WORK(*),INFO
-         REAL*8 SI,DLWDB,DBETA,OD
-         INTEGER I,J
-
-
-         CALL TISET('STARDIAG  ',ISUB)
-         CALL MEMORY(IP_RIJMAT,NLIST*NLIST,"RIJMAT")
-         CALL MEMORY(IP_WLIST,NLIST,"WLIST")
-         WORKL=3*NLIST
-         CALL MEMORY(IP_WORK,WORKL,"WORK")
-
-
-         CALL AZZERO(RIJMAT,NLIST*NLIST)
-C.. Now we fill the RIJ array
-         DO I=0,NLIST-1
-            RIJMAT(I*NLIST+I+1)=LIST(I+1,0)
-            RIJMAT(I+1)=LIST(I+1,1)
-         ENDDO
-
-C.. Diagonalize
-         CALL DSYEV('V','L',NLIST,RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
-         IF(INFO.NE.0) THEN
-            WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
-         ENDIF
-         CALL FREEM(IP_WORK)
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-         SI=0.D0
-         DO I=0,NLIST-1
-C            WRITE(6,*) WLIST(I+1)
-            SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
-     &               *(WLIST(I+1)**I_P)
-            IF(DBETA.NE.0.D0) THEN
-C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
-               OD=DLWDB
-               DO J=1,NLIST
-                  DLWDB=DLWDB+
-     &               LIST(J,2)*RIJMAT(I*NLIST+J)*RIJMAT(I*NLIST+1)
-     &               *(WLIST(I+1)**I_P)
-C                  WRITE(6,*) LIST(J,2),RIJMAT(I*NLIST+J)
-               ENDDO
-C               WRITE(6,*) WLIST(I+1)**I_P,DLWDB-OD
-C               WRITE(6,*)
-            ENDIF
-         ENDDO
-         SI=SI-1.D0
-         DLWDB=DLWDB-LIST(1,2)
-         CALL FREEM(IP_WLIST)
-         CALL FREEM(IP_RIJMAT)
-         CALL TIHALT("STARDIAG  ",ISUB)
-         RETURN
-      END
-
-
-C.. Use an iterative Order(N) root-finding method to diagonalize the
-C.. star matrix.
-      SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         IMPLICIT NONE
-         INTEGER NEL,I_P
-         INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         REAL*8 LIST(ILMAX,0:2)
-         INTEGER ISUB
-         REAL*8 SI,DLWDB,DBETA,NORM,DLWDB2
-         INTEGER I,J
-         REAL*8 ROOTS(1:NLIST)
-         CALL TISET('STARDIAG2 ',ISUB)
-      
-C.. we need to sort A and B (and the list of hamil values) into ascending A order
-C         WRITE(6,*) (LIST(I,2),I=1,NLIST)
-C         WRITE(6,*) (LIST(I,1),I=1,NLIST)
-         CALL SORT3R(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2))
-C         WRITE(6,*) (LIST(I,2),I=1,NLIST)
-C         WRITE(6,*) (LIST(I,1),I=1,NLIST)
-
-C.. Find the eigenvalues
-         CALL FINDROOTSTAR(NLIST-1,LIST(1,0),LIST(1,1),ROOTS)
-         SI=0.D0
-C.. divide through by highest eigenvalue to stop things blowing up
-         DO I=NLIST-1,0,-1
-            IF(ROOTS(I+1).EQ.LIST(I+1,0)) THEN
-C.. If we're in a degenerate set of eigenvectors, we calculate things a
-C.. little differently
-C.. k is the vertex which the degeneracies couple to
-C.. and j is the current degenerate element
-C.. <Di|H|Dj><Dj|Psi> L**P <Psi|Di>
-C.. <Dk|Psi>=rho_ij/NORM
-C.. <Dj|Psi>=-rho_ik/NORM
-C.. NORM=rho_ij**2+rho_ik**2
-C.. <Di|Psi>=0 so we have no contributions at all!
-
-
-            ELSE
-C.. We need to calculate the normalization of each eigenvector
-               NORM=1.D0
-               DO J=2,NLIST
-                  NORM=NORM+(LIST(J,1)/(ROOTS(I+1)-LIST(J,0)))**2
-               ENDDO
-C.. We add in the first element of the eigenvector * lambda**P
-               SI=SI+(ROOTS(I+1)**I_P)*1.D0/NORM
-               IF(DBETA.NE.0.D0) THEN
-                  DLWDB2=LIST(1,2)
-C                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
-                  DO J=2,NLIST
-                     DLWDB2=DLWDB2+
-     &                  LIST(J,2)*(LIST(J,1)/(ROOTS(I+1)-LIST(J,0)))
-C                WRITE(6,*) LIST(J,2),
-C     &            LIST(J,1)/((ROOTS(I+1)-LIST(J,0))*SQRT(NORM))
-                  ENDDO
-                  DLWDB=DLWDB+DLWDB2*(ROOTS(I+1)**I_P)/NORM
-               ENDIF
-C               WRITE(6,*) ROOTS(I+1)**I_P,DLWDB2*(ROOTS(I+1)**I_P)/NORM
-C               WRITE(6,*)
-            ENDIF
-         ENDDO
-         SI=SI-1.D0
-         DLWDB=DLWDB-LIST(1,2)
-         CALL TIHALT("STARDIAG2 ",ISUB)
-         RETURN
-      END
 
 C.. This version creates a star of all 2-vertex terms by using Jacobi
 C.. Rotations to disconnect terms in the star
