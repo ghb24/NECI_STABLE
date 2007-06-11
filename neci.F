@@ -315,6 +315,8 @@ C..
          WRITE(6,*) "Unscaled Fermi Energy nmax**2=",
      &      (FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
       ENDIF
+      IF(OrbECutoff.gt.-1e-50) WRITE(6,*) "Orbital Energy Cutoff:",
+     &       OrbECutoff
       WRITE(6,'(1X,A,F19.5)') ' VOLUME : ' , OMEGA
       WRITE(6,*) ' TALPHA : ' , TALPHA
       WRITE(6,'(1X,A,F19.5)') ' ALPHA : ' , ALPHA
@@ -430,7 +432,6 @@ C.. Create plane wave basis functions
                   G$Ms=L
                   IF((THUB.AND.(TREAL.OR..NOT.TPBC))
      &               .OR.KALLOWED(G,NBASISMAX)) THEN
-                    IG=IG+1
                     IF(THUB) THEN
 C..Note for the Hubbard model, the t is defined by ALAT(1)!
                        IF(TPBC) THEN
@@ -442,6 +443,8 @@ C..Note for the Hubbard model, the t is defined by ALAT(1)!
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+
      &                   (K*K/ALAT(3)**2))
                     ENDIF
+                    IF(SUM.GT.OrbECutoff) CYCLE
+                    IG=IG+1
                     ARR(IG)=SUM
                     BRR(IG)=IG
 C..These are the quantum numbers: n,l,m and sigma
@@ -459,8 +462,13 @@ C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
          IF(LEN.NE.IG) THEN
-            WRITE(6,*) "LEN=",LEN,"IG=",IG
-            STOP ' LEN NE IG ' 
+            IF(OrbECutoff.gt.-1e50) then
+               write(6,*) "Have removed ", LEN-IG, 
+     &            " high energy orbitals"
+            else
+               WRITE(6,*) "LEN=",LEN,"IG=",IG
+               STOP ' LEN NE IG ' 
+            endif
          ENDIF
          CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
       ENDIF

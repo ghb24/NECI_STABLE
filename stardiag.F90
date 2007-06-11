@@ -14,7 +14,7 @@
          REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
          TYPE(HDElement) dLWdB
          TYPE(HDElement) fMCPR3StarNewExcit
-         TYPE(HDElement), Allocatable :: ExcitInfo(:,:)
+         TYPE(HElement), Allocatable :: ExcitInfo(:,:)
          LOGICAL tSym
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
@@ -260,7 +260,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
             CALL STARDIAG2(LSTE,NEL,NLCUR,LIST,ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB,NROOTS)
          ENDIF
       END
-
 
 
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)

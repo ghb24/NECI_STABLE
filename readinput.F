@@ -151,7 +151,7 @@
       JOBS=16
       KOBS=16
       NMSH=32
-
+      OrbECutoff=-1e50
       iGlobalTimerLevel=40
       ir=1
       IF(FILENAME.NE.'') THEN
@@ -309,7 +309,7 @@ C                  end select
                       call report("Require ISTATE to be left set as"  
      &                //" 1",.true.)
                   end if
-              case("ORBITAL CUTOFF")
+              case("ENERGY-CUTOFF")
                   call getf(OrbECutoff)
               case("ENDSYS") 
                   exit system
