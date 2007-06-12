@@ -450,6 +450,12 @@ UMATCACHE NSLOTSINIT (default 1024)
 
 NOUMATCACHE
    Disable all UMAT caching (same as UMATCACHE -1)
+   
+FOCK-PARTITION
+   For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation
+DIAG-PARTITION
+   (default) For calculation of Rhos with Trotter, Partition the Hamiltonian as the diagonal and non-diagonal matrix elements between the determinants
+
 ENDINT
     End of integral block.
 

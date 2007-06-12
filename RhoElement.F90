@@ -10,7 +10,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
       USE HElement
       TYPE(HElement) UMat(*),TMat(*),RH
-      INTEGER I_P,I_HMAX,NTAY,NTRUNC,NEL,NBASIS,NBASISMAX(5,2)
+      INTEGER I_P,I_HMAX,NTAY(2),NTRUNC,NEL,NBASIS,NBASISMAX(5,2)
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       REAL*8 BETA
       LOGICAL LSAME      
@@ -19,12 +19,12 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
       TYPE(BasisFN) G1(*)
       COMPLEX*16 FCK(*)
       REAL*8 ALAT(3)  
-      TYPE(HElement) hE,hE2,UExp,B
-      IF(NTAY.LT.0) THEN
+      TYPE(HElement) hE,hE2,UExp,B,EDIAG
+      IF(NTAY(1).LT.0) THEN
 !.. We've actually hidden a matrix of rhos in the coeffs for calcing RHO
          CALL GETRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,ZIA,UMAT,RH)
          RETURN
-      ELSEIF(NTAY.EQ.0) THEN
+      ELSEIF(NTAY(1).EQ.0) THEN
 !.. NTAY=0 signifying we're going to calculate the RHO values when we
 !.. need them from the list of eigenvalues.
 !.. Hide NMSH=NEVAL
@@ -47,23 +47,39 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
       ENDIF
           
 
-      IF(LSAME) THEN
-         UExp=UExp+HElement(1.D0)
-      ELSE
+      IF(NTAY(2).EQ.1) THEN
+!Partition with Trotter using H(0) containing the complete diagonal
+         IF(LSAME) THEN
+            UExp=UExp+HElement(1.D0)
+         ELSE
 !.. Now do the first order term, which only exists for non-diag
-         IF(NTAY.GE.1) THEN
             UExp=UExp-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,&
      &      NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
          ENDIF
-      ENDIF
 !.. Now the 2nd order term
-      IF(NTAY.GE.2) UExp=UExp+B*B*HElement(RHO2ORDERND2(NI,NJ,NEL,NBASISMAX,    &
-     &            G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)/2.D0)
+!      IF(NTAY.GE.2) UExp=UExp+B*B*HElement(RHO2ORDERND2(NI,NJ,NEL,NBASISMAX,    &
+!     &            G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)/2.D0)
 
-      hE =(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE) &
+         hE =(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE) &
           +GETHELEMENT2(NJ,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE))&
             /HElement(2.D0)
-      RH=EXP(HElement(-BETA/I_P)*hE)*UExp
+         RH=EXP(HElement(-BETA/I_P)*hE)*UExp
+      ELSEIF(NTAY(2).EQ.2) THEN
+!Partition with Trotter with H(0) having just the Fock Operators
+         IF(LSAME) THEN
+            call GetH0Element(nI,nEl,nMax,nBasis,EDiag)
+            UExp=1.D0
+            UExp=UExp-B*GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
+            RH=EXP(-B*EDiag)*UExp
+         ELSE
+            call GetH0Element(nI,nEl,nMax,nBasis,UExp)
+            call GetH0Element(nJ,nEl,nMax,nBasis,EDiag)
+            EDiag=(UExp+EDiag)/HElement(2.D0)
+            UExp=-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            RH=EXP(-B*EDiag)*UExp
+         ENDIF
+      ENDIF
+
 !WRDET
 !      WRITE(6,"(A,$)") "RHO:"
 !      CALL WRITEDET(6,NI,NEL,.FALSE.)

@@ -37,6 +37,7 @@
       INTEGER ios
       REAL*8 DBETA(3)
       REAL*8 fRc
+      INTEGER NTAY(2)
       INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
       INCLUDE 'sym.inc'
@@ -141,7 +142,8 @@
       TFODM = .false.
       TMC = .false.
       NHISTBOXES = 0
-      NTAY = 1
+      NTAY(1) = 1
+      NTAY(2) = 1
       TREADRHO = .false.
       TRHOIJ = .false.
       TBEGRAPH = .false.
@@ -722,6 +724,10 @@ C                  end select
               end if
               call readu(w)
               select case(w)
+              case("FOCK-PARTITION")
+                  NTAY(2)=2
+              case("DIAG-PARTITION")
+                  NTAY(2)=1
               case("HF")
                   THFBASIS = .true.
               case("CALCULATE")
