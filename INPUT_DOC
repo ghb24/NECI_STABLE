@@ -306,7 +306,7 @@ METHOD <METHOD>
 
     VERTEX SUM READ
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
-    VERTEX STAR DIAG,POLY,POLYMAX  OLD,NEW
+    VERTEX STAR DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
         Constructs a star from all determinants connected to the root (ignoring connections between those dets).
         DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
         POLY uses the special properties of the matrix to find the roots of the polynomial and uses them to calculate the relevant values.  This is order Ngraph**2
@@ -315,6 +315,7 @@ METHOD <METHOD>
         OLD specifies to use a pre-generated list of determinants using the excitation routine version 
                specified in EXCITATIONS OLD,NEW.
         NEW specifies to generate determinants on the fly without storing them, using the NEW excitation routine.
+        NEW H0 uses the zeroth order N-particle Hamiltonian (shifted such that H0_ii = H_ii) rather than the fully interacting Hamiltonian to generate the roots of the polynomial.
 
 CYCLES <NWHTAY(1,1)>
     Specifies the number of cycles of the MC routine.

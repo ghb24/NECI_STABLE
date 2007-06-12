@@ -344,5 +344,19 @@ MODULE HElement
          HDElemDReal=h%v
          RETURN
       END
+
 END MODULE HElement
+
+      subroutine GetH0Element(nI,nEl,Arr,nBasis,hEl)
+         use HElement
+         implicit none
+         integer nI(nEl),nEl,nBasis
+         type(HElement) hEl
+         real*8 Arr(nBasis,2)
+         integer i
+         hEl=0.D0
+         do i=1,nEl
+            hEl=hEl+HElement(Arr(nI(i),2))
+         enddo
+      end
 

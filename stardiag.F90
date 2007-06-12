@@ -30,7 +30,7 @@
          INTEGER nJ(nEl),iExcit,iMaxExcit
          INTEGER iErr
          INTEGER nRoots,i
-         TYPE(HElement) rh,rhii
+         TYPE(HElement) rh,rhii,EHFDiff
          
    
          SELECT CASE (IAND(nWHTay,24))
@@ -64,10 +64,17 @@
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
          i=0
-         CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rhii,nTay,0,ECore)
          ExcitInfo(i,0)=1.D0
          ExcitInfo(i,1)=1.D0
          ExcitInfo(i,2)=GetHElement2(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,00,ECore)
+         if(BTEST(nWhTay,5)) then
+! We use the Zeroth order N-particle Hartree-Fock hamiltonian (as MP theory), but shifted by E_HF-E0.
+
+!nMax has Arr hidden in it
+            call GetH0Element(nI,nEl,nMax,nBasis,rhii)
+            EHFDiff=ExcitInfo(i,2)-rhii
+         endif
+         CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rhii,nTay,0,ECore)
     lp:  do while(.true.)
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit lp
@@ -75,7 +82,14 @@
             if(rh .agt. RhoEps) then
                i=i+1
                ExcitInfo(i,1)=rh/rhii
-               CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               if(btest(nwhtay,5)) then
+                  call GetH0Element(nJ,nEl,nMax,nBasis,rh)
+                  rh=rh+EHFDiff
+                  rh=rh*HElement(-Beta/I_P)
+                  rh=exp(rh)
+               else
+                  CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               endif
                ExcitInfo(i,0)=rh/rhii
                ExcitInfo(i,2)=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,-1,ECore)
             endif
@@ -355,12 +369,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                i=i-1
             enddo
             nRoots=nRoots-1-i
-            write(6,*) nRoots, " needed for convergence 1.d-5."
+            write(6,*) nRoots+1, " needed for convergence 1.d-5."
          endif
 
 !.. Find the eigenvalues
          CALL FINDROOTSTAR(NLIST-1,LIST(1,0),LIST(1,1),ROOTS,NROOTS)
          SI=0.D0
+         WRITE(6,*) "Highest root:",ROOTS(NROOTS+1)
 !.. divide through by highest eigenvalue to stop things blowing up
          DO I=NROOTS,0,-1
             IF(ROOTS(I+1).EQ.LIST(NLIST-NROOTS+I,0)%v) THEN

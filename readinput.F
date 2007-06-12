@@ -1133,6 +1133,10 @@ C     ILOGGING = 0771
                               case("POLYCONVERGE")
                                   NWHTAY=IBSET(NWHTAY,0)
                                   NWHTAY=IBSET(NWHTAY,2)
+                              case("H0")
+                                  NWHTAY=IBSET(NWHTAY,5)
+                                  if(I_HMAX.ne.-21) call report ("H0 "
+     &                       //"can only be specified with POLY... NEW")
                               case default
                                 call report("Error - must specify DIAG" 
      &                        //" or POLY vertex star method",.true.)
