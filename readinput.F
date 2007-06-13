@@ -25,7 +25,7 @@
       INTEGER SPECDET(*)
 !
       CHARACTER(LEN=32) title  
-      CHARACTER(LEN=32) w
+      CHARACTER(LEN=100) w
       INTEGER NPATHS,STOT,z,zz,k
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER NWHTAY(3,10)
@@ -724,8 +724,12 @@ C                  end select
               end if
               call readu(w)
               select case(w)
+              case("RHO-1STORDER")
+                  NTAY(2)=4
               case("FOCK-PARTITION")
                   NTAY(2)=2
+              case("FOCK-PARTITION-LOWDIAG")
+                  NTAY(2)=3
               case("DIAG-PARTITION")
                   NTAY(2)=1
               case("HF")

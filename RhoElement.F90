@@ -69,15 +69,37 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
          IF(LSAME) THEN
             call GetH0Element(nI,nEl,nMax,nBasis,EDiag)
             UExp=1.D0
-            UExp=UExp-B*GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
+            UExp=UExp-B*(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)-RH)
             RH=EXP(-B*EDiag)*UExp
          ELSE
             call GetH0Element(nI,nEl,nMax,nBasis,UExp)
             call GetH0Element(nJ,nEl,nMax,nBasis,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
-            UExp=-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
+      ELSEIF(NTAY(2).EQ.3) THEN
+!Partition with Trotter with H(0) having just the Fock Operators
+         IF(LSAME) THEN
+            call GetH0Element(nI,nEl,nMax,nBasis,EDiag)
+            RH=EXP(-B*EDiag)
+         ELSE
+            call GetH0Element(nI,nEl,nMax,nBasis,UExp)
+            call GetH0Element(nJ,nEl,nMax,nBasis,EDiag)
+            EDiag=(UExp+EDiag)/HElement(2.D0)
+            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=-B*UExp
+            RH=EXP(-B*EDiag)*UExp
+         ENDIF
+      ELSEIF(NTAY(2).EQ.4) THEN
+!         Do a simple Taylor expansion on the whole lot
+         IF(LSAME) THEN
+            UEXP=1.D0
+         ELSE
+            UEXP=0.D0
+         ENDIF
+         RH=UEXP-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
       ENDIF
 
 !WRDET

@@ -212,7 +212,7 @@ TROTTER
 BETA <BETA>
    Set BETA.
 
-BETAOVERP <BETAP>
+BETAOVERP <BETAP> default= 1.d-4
    Set BETA/P.
 
 TIMESTEPS <I_P>
@@ -453,8 +453,12 @@ NOUMATCACHE
    
 FOCK-PARTITION
    For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation
+FOCK-PARTITION-LOWDIAG
+   For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation.  Only take the first order approximation to the diagonal terms (i.e. no BETA/P term)
 DIAG-PARTITION
    (default) For calculation of Rhos with Trotter, Partition the Hamiltonian as the diagonal and non-diagonal matrix elements between the determinants
+RHO-1STORDER
+   Calculate rho elements to only 1st order taylor (without trotter etc.)
 
 ENDINT
     End of integral block.
