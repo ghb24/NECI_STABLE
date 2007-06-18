@@ -16,6 +16,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
       LOGICAL LSAME      
       INTEGER NMSH,ISUB,I,BRR(NBASIS),J
       INCLUDE 'basis.inc'
+      INCLUDE 'uhfdet.inc'
       TYPE(BasisFN) G1(*)
       COMPLEX*16 FCK(*)
       REAL*8 ALAT(3)  
@@ -67,13 +68,13 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
       ELSEIF(NTAY(2).EQ.2) THEN
 !Partition with Trotter with H(0) having just the Fock Operators
          IF(LSAME) THEN
-            call GetH0Element(nI,nEl,nMax,nBasis,EDiag)
+            call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             UExp=1.D0
-            UExp=UExp-B*(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)-RH)
+            UExp=UExp-B*(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)-EDiag)
             RH=EXP(-B*EDiag)*UExp
          ELSE
-            call GetH0Element(nI,nEl,nMax,nBasis,UExp)
-            call GetH0Element(nJ,nEl,nMax,nBasis,EDiag)
+            call GetH0Element(nI,nEl,nMax,nBasis,ECore,UExp)
+            call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
             UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
             UExp=-B*UExp
@@ -82,11 +83,11 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
       ELSEIF(NTAY(2).EQ.3) THEN
 !Partition with Trotter with H(0) having just the Fock Operators
          IF(LSAME) THEN
-            call GetH0Element(nI,nEl,nMax,nBasis,EDiag)
+            call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             RH=EXP(-B*EDiag)
          ELSE
-            call GetH0Element(nI,nEl,nMax,nBasis,UExp)
-            call GetH0Element(nJ,nEl,nMax,nBasis,EDiag)
+            call GetH0Element(nI,nEl,nMax,nBasis,ECore,UExp)
+            call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
             UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
             UExp=-B*UExp
@@ -100,6 +101,20 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
             UEXP=0.D0
          ENDIF
          RH=UEXP-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+      ELSEIF(NTAY(2).EQ.5) THEN
+!Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
+! Instead of 
+         IF(LSAME) THEN
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECore,EDiag)
+            RH=EXP(-B*EDiag)
+         ELSE
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECore,UExp)
+            call GetH0ElementDCCorr(nUHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECore,EDiag)
+            EDiag=(UExp+EDiag)/HElement(2.D0)
+            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=-B*UExp
+            RH=EXP(-B*EDiag)*UExp
+         ENDIF
       ENDIF
 
 !WRDET

@@ -730,6 +730,8 @@ C                  end select
                   NTAY(2)=2
               case("FOCK-PARTITION-LOWDIAG")
                   NTAY(2)=3
+              case("FOCK-PARTITION-DCCORRECT-LOWDIAG")
+                  NTAY(2)=5
               case("DIAG-PARTITION")
                   NTAY(2)=1
               case("HF")

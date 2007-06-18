@@ -347,16 +347,60 @@ MODULE HElement
 
 END MODULE HElement
 
-      subroutine GetH0Element(nI,nEl,Arr,nBasis,hEl)
+!  Get a matrix element of the unperturbed Hamiltonian.  This is just the sum of the Hartree-Fock eigenvalues
+      subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
          use HElement
          implicit none
          integer nI(nEl),nEl,nBasis
          type(HElement) hEl
-         real*8 Arr(nBasis,2)
+         real*8 Arr(nBasis,2),ECore
          integer i
-         hEl=0.D0
+         hEl=ECore
          do i=1,nEl
             hEl=hEl+HElement(Arr(nI(i),2))
          enddo
+         call writedet(77,nI,nel,.false.)
+         write(77,*) "H0",hEl
+         call flush(77)
+      end
+
+!  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
+!  This is just the sum of the Hartree-Fock eigenvalues 
+!   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
+      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,Arr,ALAT,UMat,ECore,hEl)
+         use HElement
+         use UMatCache
+         implicit none
+         include 'basis.inc'
+         integer nHFDet(nEl),nJ(nEl),nEl,nBasis
+         type(BasisFN) G1(*)
+         integer Brr(nBasis),nBasisMax(5,2)
+         type(HElement) TMat(*), UMat(*)  
+         type(HElement) hEl
+         real*8 Arr(nBasis,2),ECore
+         integer i,j
+         INTEGER NMSH
+         COMPLEX*16 FCK(*)
+         REAL*8 ALAT(*)
+         integer IDHF(nEl),IDJ(nEl)
+         hEl=HElement(ECore)
+         do i=1,nEl
+            hEl=hEl+HElement(Arr(nJ(i),2))
+            call gtID(nBasisMax,nHFDet(i),IDHF(i))
+            call gtID(nBasisMax,nJ(i),IDJ(i))
+         enddo
+         do i=1,nEl
+            do j=1,nEl
+!Coulomb term
+               hEl=hEl-HElement(0.5d0)*GetUMatEl(nBasisMax,UMat,ALat,nBasis,nBasisMax(2,3),G1,IDHF(i),IDJ(j),IDHF(i),IDJ(j))
+               if(G1(nHFDet(i))%Ms.eq.G1(nJ(j))%Ms) then
+!Exchange term
+                  hEl=hEl+HElement(0.5d0)*GetUMatEl(nBasisMax,UMat,ALat,nBasis,nBasisMax(2,3),G1,IDHF(i),IDJ(j),IDJ(j),IDHF(i))
+               endif
+            enddo
+         enddo
+         call writedet(77,nj,nel,.false.)
+         write(77,*) "H0DC",hEl
+         call flush(77)
       end
 

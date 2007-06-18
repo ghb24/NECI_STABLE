@@ -455,6 +455,8 @@ FOCK-PARTITION
    For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation
 FOCK-PARTITION-LOWDIAG
    For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation.  Only take the first order approximation to the diagonal terms (i.e. no BETA/P term)
+FOCK-PARTITION-DCCORRECT-LOWDIAG
+   For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation.  Remove the coulomb double counting in the Fock Operator. Only take the first order approximation to the diagonal terms (i.e. no BETA/P term).
 DIAG-PARTITION
    (default) For calculation of Rhos with Trotter, Partition the Hamiltonian as the diagonal and non-diagonal matrix elements between the determinants
 RHO-1STORDER

@@ -8,7 +8,7 @@
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
-         INTEGER nMax,nTay,L,LT,nWHTay,iLogging
+         INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
          TYPE(HElement) TMat(*),UMat(*)
          REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
@@ -71,10 +71,15 @@
 ! We use the Zeroth order N-particle Hartree-Fock hamiltonian (as MP theory), but shifted by E_HF-E0.
 
 !nMax has Arr hidden in it
-            call GetH0Element(nI,nEl,nMax,nBasis,rhii)
+            IF(nTay(2).eq.5) THEN
+               call GetH0ElementDCCorr(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,nMax,ALAT,UMat,ECore,rhii)
+            ELSE
+               call GetH0Element(nI,nEl,nMax,nBasis,rhii)
+            ENDIF
             EHFDiff=ExcitInfo(i,2)-rhii
          endif
          CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rhii,nTay,0,ECore)
+         write(75,*) rhii
     lp:  do while(.true.)
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit lp
@@ -92,6 +97,7 @@
                endif
                ExcitInfo(i,0)=rh/rhii
                ExcitInfo(i,2)=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,-1,ECore)
+               write(75,*) rh,rh/rhii
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping
