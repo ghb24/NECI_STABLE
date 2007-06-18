@@ -360,7 +360,7 @@ END MODULE HElement
             hEl=hEl+HElement(Arr(nI(i),2))
          enddo
          call writedet(77,nI,nel,.false.)
-         write(77,*) "H0",hEl
+!         write(77,*) "H0",hEl
          call flush(77)
       end
 
@@ -400,7 +400,7 @@ END MODULE HElement
             enddo
          enddo
          call writedet(77,nj,nel,.false.)
-         write(77,*) "H0DC",hEl
+!         write(77,*) "H0DC",hEl
          call flush(77)
       end
 

@@ -79,7 +79,7 @@
             EHFDiff=ExcitInfo(i,2)-rhii
          endif
          CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rhii,nTay,0,ECore)
-         write(75,*) rhii
+!         write(75,*) rhii
     lp:  do while(.true.)
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit lp
@@ -97,7 +97,7 @@
                endif
                ExcitInfo(i,0)=rh/rhii
                ExcitInfo(i,2)=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,-1,ECore)
-               write(75,*) rh,rh/rhii
+!               write(75,*) rh,rh/rhii
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping
