@@ -371,7 +371,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 !  nRoots is one more than the number of excitations
 !we've been asked to search to see how many roots we need for convergence.
             i=nRoots-1
-            do while (i.gt.0.and.((nRoots-i)*(List(i,0)%v**I_P)).ge.1.d-5)
+            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)%v**I_P)).ge.1.d-5)
                i=i-1
             enddo
             nRoots=nRoots-1-i
