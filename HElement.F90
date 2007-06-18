@@ -359,9 +359,9 @@ END MODULE HElement
          do i=1,nEl
             hEl=hEl+HElement(Arr(nI(i),2))
          enddo
-         call writedet(77,nI,nel,.false.)
+!         call writedet(77,nI,nel,.false.)
 !         write(77,*) "H0",hEl
-         call flush(77)
+!         call flush(77)
       end
 
 !  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
@@ -399,8 +399,8 @@ END MODULE HElement
                endif
             enddo
          enddo
-         call writedet(77,nj,nel,.false.)
+!         call writedet(77,nj,nel,.false.)
 !         write(77,*) "H0DC",hEl
-         call flush(77)
+!         call flush(77)
       end
 
