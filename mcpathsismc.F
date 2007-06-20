@@ -69,7 +69,7 @@ C.. do some blocking analysis
          TYPE(HDElement) DLWDBCORE,WCORE
          INTEGER IOV,IGV,IACC
          INTEGER TIGET
-         LOGICAL TSEQ
+         LOGICAL TSEQ,TBLOCKING
          REAL*8 PREJ,PGR
          REAL*8 TIMEC,OTIME,NTIME
          INTEGER*8 LP
@@ -78,6 +78,7 @@ C.. do some blocking analysis
          TST=0
          CALL TISET('MCPATHSR4 ',ISUB)
          TLOG=BTEST(ILOGGING,1)
+         TBLOCKING=BTEST(ILOGGING,13)
          IF(TLOG.AND.I_VMIN.EQ.0) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
 C.. go to end of file
@@ -113,13 +114,13 @@ C.. These variables have been passed in and represent the precalculated values f
             WRITE(6,*) "MCPATHSR4 MP Theory"
          ElseIf(tMCDirectSum) Then
             IF(I_VMIN.NE.0) THEN
-              CALL Create(MCStat,I_VMIN,
-     &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
+                CALL Create(MCStat,I_VMIN,
+     &          INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
      &          DLWDBCORE/WCore,WCore)
             ELSE
-              CALL Create(MCStat,I_VMAX,
-     &            INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
-     &            DLWDBCORE/WCore,WCore)
+                CALL Create(MCStat,I_VMAX,
+     &          INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
+     &          DLWDBCORE/WCore,WCore)
             ENDIF
             WRITE(6,*) "MCPATHSR4 Direct Sum"
             !Print out Eref
@@ -412,7 +413,7 @@ C.. Markov chain with random generation.
                               CALL AddGraph(MCStat,LP,1,FF,DLWDB2/FF,
      &                              WCORE,0,ITREE,1,1,1,
      &                              BTEST(ILOGGING,10),OPROB,
-     &                              BTEST(ILOGGING,13))
+     &                              TBLOCKING)
 !                              WRITE(39,*) 1,1,LP,1
                            ENDIF
                          ENDIF
@@ -532,13 +533,13 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
          CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,
-     &               BTEST(ILOGGING,13))
-                  Else
+     &               TBLOCKING)
+                Else
 
               CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
      &               ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,
-     &                  BTEST(ILOGGING,13))
+     &                  TBLOCKING)
                   EndIf
                   IF(BTEST(ILOGGING,9).AND.
      &              MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
@@ -2035,11 +2036,11 @@ C.. Unbias the sum
 
          !Deallocate Excitation Generators after precalc
          IF(I_HMAX.EQ.154) THEN
-!             DO I=1,I_V-1
-!                 CALL FREEM(PVERTMEMS(I))
-!             ENDDO
-!             RETURN
-          STOP 'I_HMAX of 154 should not be called here (mcpathsismc.F)'
+             DO I=1,I_V-1
+                 CALL FREEM(PVERTMEMS2(I))
+             ENDDO
+             RETURN
+!          STOP 'I_HMAX of 154 should not be called here (mcpathsismc.F)'
           ENDIF
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
@@ -2051,6 +2052,7 @@ C.. those before it.
             RHOII(1)=BETA
          ENDIF
          PEXCIT(1)=1.D0
+         !LOC(NMEMNI) is a pointer to NMEM
          PVERTMEMS(0)=LOC(NMEMNI)
          I_VNEXT=1
          CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)

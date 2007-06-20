@@ -39,7 +39,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      TYPE(HElement) HIJS(0:PREIV_MAX)
      TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
      CHARACTER(len=12) :: abstr
-!    REAL*8 MCPATHSPRE
+!     REAL*8 MCPATHSPRE
 !     EXTERNAL MCPATHSPRE
      
      DEALLOC=.FALSE.
@@ -478,7 +478,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 ENDDO
             ELSE
                 
-                WRITE(6,"(A,G20.12,A,I3,A)") "Optimum U weighting found to be", xmin, " for vertex level ",Q, "but not using this value"
+                WRITE(6,"(A,G20.12,A,I3,A)") "Optimum U weighting found to be", xmin, " for vertex level ",Q, " ,but not using this value"
             END IF
         END IF
     
@@ -551,7 +551,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 
     !Deallocate arrays
     DO rr=1,7
-        IF(((pre_TAY(1,rr).eq.-7).or.(pre_TAY(1,rr).eq.-19)).and.(MEMSAV(rr))) DEALLOC=.true.
+        IF((pre_TAY(1,rr).eq.-7).or.(pre_TAY(1,rr).eq.-19)) DEALLOC=.true.
     ENDDO
     IF(DEALLOC) THEN
         xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
@@ -575,8 +575,9 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
     IMPLICIT NONE
     include 'vmc.inc'
     include 'basis.inc'
-    REAL*8 pointab(*),VARIANCEAB!,MCPATHSPRE
+    REAL*8 pointab(*),VARIANCEAB
 !    EXTERNAL MCPATHSPRE
+!    REAL*8 MCPATHSPRE
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY,L,LT,K,D
     INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX),GIDHO
@@ -658,7 +659,8 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     INTEGER ISEED,aaa,t,tt
     INTEGER I_OCLS,ITREE,ILOGGING,I_OVCUR,IACC
     REAL*8 ORIGEXCITWEIGHTS(6),ORIGEXCITWEIGHT
-    
+    REAL*8 XIJ(0:PREIV_MAX-1,0:PREIV_MAX-1)
+   
     SELECT CASE (GIDHO)
     !Importance
     CASE(2)
@@ -673,22 +675,37 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     CASE(6)
         G_VMC_EXCITWEIGHT(K)=point
     CASE(154)
-        CALL MemDealloc(PVERTMEMS)
-        CALL MemDealloc(GRAPHPARAMS)
-        IF (ALLOCATED(GRAPHPARAMS)) DEALLOCATE(GRAPHPARAMS)
-        CALL MemDealloc(GRAPHS)
-        IF (ALLOCATED(GRAPHS)) DEALLOCATE(GRAPHS)
-        IF (ALLOCATED(NMEM)) THEN
+        IF(ALLOCATED(GRAPHPARAMS)) THEN
+            CALL MemDealloc(GRAPHPARAMS)
+            DEALLOCATE(GRAPHPARAMS)
+        ENDIF
+        IF(ALLOCATED(GRAPHS)) THEN
+            CALL MemDealloc(GRAPHS)
+            DEALLOCATE(GRAPHS)
+        ENDIF
+        IF(ALLOCATED(NMEM)) THEN
             CALL MemDealloc(NMEM)
             DEALLOCATE(NMEM)
         ENDIF
-        DO t=1,DEALLOCYC(2)
-            DO tt=1,(DEALLOCYC(1)-1)
-                CALL FREEM(PVERTMEMS(tt,t))
+        IF(ALLOCATED(PVERTMEMS)) THEN
+!            DO t=1,DEALLOCYC(2)
+!                CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,K,XIJ,          &
+!     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,   &
+!     &              NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,0,154,         &
+!     &              PVERTMEMS(:,t))
+!            ENDDO
+            CALL MemDealloc(PVERTMEMS)
+            DO t=1,DEALLOCYC(2)
+                DO tt=1,(DEALLOCYC(1)-1)
+                    CALL FREEM(PVERTMEMS(tt,t))
+                ENDDO
             ENDDO
-        ENDDO
-        IF(ALLOCATED(PVERTMEMS)) DEALLOCATE(PVERTMEMS)
-        IF(ALLOCATED(PGENLIST)) DEALLOCATE(PGENLIST)
+            DEALLOCATE(PVERTMEMS)
+        ENDIF
+        IF(ALLOCATED(PGENLIST)) THEN
+            CALL MemDealloc(PGENLIST)
+            DEALLOCATE(PGENLIST)
+        ENDIF
         RETURN
     CASE(155)
         FIRST(K)=.TRUE.
@@ -699,10 +716,6 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         DLWSAV(1)=HIJS(0)
     ENDIF
         
-!    NTOTAL=1.D0
-!    TOTAL=1.D0
-!    DLWDB=HIJS(0)
-!OPEN(PRECALC)
 !    do D=2,K
         NTOTAL2=NTOTSAV(K-1)
         TOTAL2=TOTSAV(K-1)%v
@@ -750,17 +763,37 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                             CALL FREEM(PVERTMEMS(tt,t))
                         ENDDO
                     ENDDO
+!                    DO t=1,DEALLOCYC(2)
+                
+!                        CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,K,XIJ,          &
+!                           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,    &
+!                           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,0,154,          &
+!                           PVERTMEMS(:,t))
+!                    ENDDO
+
                 ENDIF
                 
-                IF (ALLOCATED(PVERTMEMS)) DEALLOCATE(PVERTMEMS)
-                IF (ALLOCATED(GRAPHS)) DEALLOCATE(GRAPHS)
-                IF (ALLOCATED(PGENLIST)) DEALLOCATE(PGENLIST)
+                IF (ALLOCATED(PVERTMEMS)) THEN
+                    CALL MemDealloc(PVERTMEMS)
+                    DEALLOCATE(PVERTMEMS)
+                ENDIF
+                IF (ALLOCATED(GRAPHS)) THEN
+                    CALL MemDealloc(GRAPHS)
+                    DEALLOCATE(GRAPHS)
+                ENDIF
+                IF (ALLOCATED(PGENLIST)) THEN
+                    CALL MemDealloc(PGENLIST)
+                    DEALLOCATE(PGENLIST)
+                ENDIF
                 IF (ALLOCATED(GRAPHPARAMS)) THEN
+                    CALL MemDealloc(GRAPHPARAMS)
                     DEALLOCATE(GRAPHPARAMS)
                 ENDIF
-                
+                IF (ALLOCATED(NMEM)) THEN
+                    CALL MemDealloc(NMEM)
+                    DEALLOCATE(NMEM)
+                ENDIF
                 IF(MEMSAV(K)) THEN
-                
                     ALLOCATE(PVERTMEMS(0:K,CYCLES),STAT=ierr4)
                     CALL MemAlloc(ierr4,PVERTMEMS,(K+1)*CYCLES/IRAT,'PRECALC_PVERTMEMS')
                     ALLOCATE(GRAPHS(NEL,0:K,CYCLES),STAT=ierr)
@@ -832,7 +865,6 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                         OWEIGHT=0.D0
                         EXCITGEN=0
                         INWI=0.D0
-                   
                         !DLWDB2 is just the energy, OETILDE is energy*weight
                         FF=FMCPR4D2(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                            &
                                               TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
@@ -879,9 +911,13 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                         ELSE
                             g_VMC_ExcitWeights(:,K)=0.D0
                         ENDIF
-                        DO tt=1,K-1
-                            CALL FREEM(EXCITGEN(tt))
-                        ENDDO
+                    CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,K,XIJ,          &
+                       NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,    &
+                       NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,0,154,          &
+                       EXCITGEN)
+!                        DO tt=1,K-1
+!                            CALL FREEM(EXCITGEN(tt))
+!                        ENDDO
                         
                     ENDIF
                     
@@ -900,10 +936,10 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             IF(MEMSAV(K)) THEN
                 
                 J=0
-                
+            !    
                 DO bb=1,CYCLES
                    
-                    
+            !        
                     PROB=0.D0
                     IPATH(:,0:K)=GRAPHS(:,0:K,bb)
                     EXCITGEN(0:K)=PVERTMEMS(:,bb)
@@ -911,24 +947,24 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                                NBASISMAX,UMat,NMAX,NBASIS,PROB,EXCITGEN(0:K))
                     
                     PGENLIST(bb)=PROB
-
+            !
                 ENDDO
-           
+            !
                 !CALCULATE VARIANCE
                 !Does EREF/WREF want to change as we go to higher MC vertex levels?
                 DO aa=1,CYCLES
-
+            !
                     SumX=SumX+((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))/GRAPHPARAMS(3,aa))
                     SumY=SumY+((GRAPHPARAMS(1,aa)+(WCORE%v*PGENLIST(aa)))/GRAPHPARAMS(3,aa))
                     SumXsq=SumXsq+(((GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa))**2)/(GRAPHPARAMS(3,aa)*PGENLIST(aa)))
                     SumYsq=SumYsq+((((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)**2)*(PGENLIST(aa)/GRAPHPARAMS(3,aa)))
                     SumXY=SumXY+(((GRAPHPARAMS(1,aa)/PGENLIST(aa))+WCORE%v)*(GRAPHPARAMS(1,aa)*GRAPHPARAMS(2,aa)/PGENLIST(aa))*    &
                         (PGENLIST(aa)/GRAPHPARAMS(3,aa)))
-            
+            !
             
 !                 SUMPGENS=SUMPGENS+PGENLIST(aa)
                 ENDDO    
-
+            !
             ENDIF
             
             SumX=SumX/(CYCLES+0.D0)
@@ -1062,7 +1098,7 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
     TYPE(HElement) HIJS(0:PREIV_MAX)
     TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     INTEGER ITMAX
-    EXTERNAL fun
+!    EXTERNAL fun
     REAL*8 brent,ax,bx,cx,tol,xmin,CGOLD,ZEPS,ENERGYLIMS(2)
     PARAMETER (ITMAX=100,CGOLD=.3819660,ZEPS=1.D-10)
         !  Given a function f, and given a bracketing triplet of abscissas ax,bx,cx (such that bx is between ax and cx, and f(bx) is less than both f(ax) and f(cx)), this routine isolated the minimum to a fractional precision of about tol using Brents method.
@@ -1233,6 +1269,7 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
     TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
+!    REAL*8 varianceab
 !    EXTERNAL varianceab 
     PARAMETER (NMAXI=4,ITMAX=200)
 !    USES func,linmin
@@ -1358,6 +1395,7 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NM
     REAL*8 ax,bx,fa,fb,fx,xmin,xx,pcom(NMAXI),xicom(NMAXI),brent
     COMMON /f1com/ pcom,xicom,ncom
 !    EXTERNAL f1dim
+!    REAL*8 f1dim    
     ncom=n                  !Set up the common block
     do j=1,n
         pcom(j)=p(j)
@@ -1411,6 +1449,7 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          
     REAL*8 f1dim,func,x,ENERGYLIMS(2)
     PARAMETER (NMAXI=4)
 !    EXTERNAL varianceab
+!    REAL*8 varianceab
     !USES func
 !Used by linmin as the function passed to mnbrak and brentalgo
     INTEGER j,ncom
@@ -1453,7 +1492,7 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
     TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
-    EXTERNAL func
+!    EXTERNAL func
     !Given a function 'func', and given distinct initial points ax and bx, this routine searches in the downhill direction (defined by the function as evaluated at the initial points) and returns new points ax,bx,cx that bracket a minimum of the function.
     !Also returned are the function values at the three points, fa, fb, fc.
     !Parameters: GOLD in the default ratio by which successive intervals are magnified; GLIMIT is the maximum magnification allowed for a parabolic-fit step.
@@ -1582,8 +1621,10 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,       
     TYPE(HElement) HIJS(0:PREIV_MAX)
     TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
-    REAL*8 ENERGYLIMS(2),origvals(2),p(2)!,MCPATHSPRE
-
+    REAL*8 ENERGYLIMS(2),origvals(2),p(2)
+!    EXTERNAL MCPATHSPRE
+!    REAL*8 MCPATHSPRE
+    
     origvals(:)=g_VMC_ExcitWeights(1:2,K)
     
 DO A=GRIDVARPAR(K,1),GRIDVARPAR(K,2),GRIDVARPAR(K,3)

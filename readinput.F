@@ -947,6 +947,13 @@ C     ILOGGING = 0771
    99 IF (ios.gt.0) THEN
           WRITE (6,*) 'Problem reading input file ',TRIM(FILENAME)
       END IF
+      
+      !Make sure there aren't more precalc levels than true vertex levels - problems otherwise
+      IF(preIV_MAX.gt.I_VMAX) THEN
+          CALL report("There cannot be more precalc vertex levels "
+     &     //"than vertex levels in the main program",.true.)
+      ENDIF
+      
       !We make sure that in precalc, a use statement is not specified more than once for any vertex level
       IF(preIV_MAX.ne.0) THEN
           do vv=2,I_VMAX
