@@ -26,7 +26,7 @@
 !
       CHARACTER(LEN=32) title  
       CHARACTER(LEN=100) w
-      INTEGER NPATHS,STOT,z,zz,k
+      INTEGER NPATHS,STOT,z,zz,k,l
       INTEGER MDK(5),DETINV,ORBORDER(8,2)
       INTEGER NWHTAY(3,10)
       INTEGER vv,cc,kk
@@ -602,42 +602,62 @@ C                  end select
                   call readf(g_VMC_ExcitWeights(1,1))
                   call readf(g_VMC_ExcitWeights(2,1))
                   call readf(G_VMC_EXCITWEIGHT(1))
-                  EXCITFUNCS(4)=.true.
-                IF(EXCITFUNCS(2).or.EXCITFUNCS(1).or.EXCITFUNCS(3)) THEN
-                      call report(trim(w)//" only valid if "
+                  DO l=1,5
+                    IF(EXCITFUNCS(l)) THEN
+                        call report(trim(w)//" only valid if "
      &               //" another weighting scheme not specified",.true.)
-                  ENDIF
+                    ENDIF
+                  ENDDO
+                  EXCITFUNCS(4)=.true.
+              case("CHEMPOT-TWOFROM")
+                  call readf(g_VMC_ExcitWeights(1,1))
+                  call readf(g_VMC_ExcitWeights(2,1))
+                  call readf(g_VMC_ExcitWeights(3,1))
+                  call readf(G_VMC_EXCITWEIGHT(1))
+                  DO l=1,5
+                    IF(EXCITFUNCS(l)) THEN
+                        call report(trim(w)//" only valid if "
+     &               //" another weighting scheme not specified",.true.)
+                    ENDIF
+                  ENDDO
+                  EXCITFUNCS(5)=.true.
               case("POLYEXCITWEIGHT")
                   call readf(g_VMC_ExcitWeights(1,1))
                   call readf(g_VMC_ExcitWeights(2,1))
                   call readf(g_VMC_ExcitWeights(3,1))
                   call readf(G_VMC_EXCITWEIGHT(1))
+                  DO l=1,5
+                    IF(EXCITFUNCS(l)) THEN
+                        call report(trim(w)//" only valid if "
+     &               //" another weighting scheme not specified",.true.)
+                    ENDIF
+                  ENDDO
                   EXCITFUNCS(2)=.true.
-               IF(EXCITFUNCS(1).or.EXCITFUNCS(3).or.EXCITFUNCS(4)) THEN
-                      call report(trim(w)//" only valid if "
-     &              //" another weighting scheme not specified",.true.)
-                  ENDIF
               case("POLYEXCITBOTH")
                   call readf(g_VMC_ExcitWeights(1,1))
                   call readf(g_VMC_ExcitWeights(2,1))
                   call readf(g_VMC_ExcitWeights(3,1))
                   call readf(g_VMC_ExcitWeights(4,1))
                   call readf(G_VMC_EXCITWEIGHT(1))
-                  EXCITFUNCS(3)=.true.
-                IF(EXCITFUNCS(2).or.EXCITFUNCS(1).or.EXCITFUNCS(4)) THEN
-                      call report(trim(w)//" only valid if "
+                  DO l=1,5
+                    IF(EXCITFUNCS(l)) THEN
+                        call report(trim(w)//" only valid if "
      &               //" another weighting scheme not specified",.true.)
-                  ENDIF
+                    ENDIF
+                  ENDDO
+                  EXCITFUNCS(3)=.true.
               case("EXCITWEIGHTING")
                   call readf(g_VMC_ExcitWeights(1,1))
                   call readf(g_VMC_ExcitWeights(2,1))
                   call readf(G_VMC_EXCITWEIGHT(1))
                   IF(item.lt.nitems) call readf(g_VMC_ExcitWeights(3,1))
+                  DO l=1,5
+                    IF(EXCITFUNCS(l)) THEN
+                        call report(trim(w)//" only valid if "
+     &               //" another weighting scheme not specified",.true.)
+                    ENDIF
+                  ENDDO
                   EXCITFUNCS(1)=.true.
-                IF(EXCITFUNCS(2).or.EXCITFUNCS(3).or.EXCITFUNCS(4)) THEN
-                      call report(trim(w)//" only valid if "
-     &              //"  another weighting scheme not specified",.true.)
-                  ENDIF
               case("PATHS")
                   call readi(NPATHS)
               case("ALLPATHS")

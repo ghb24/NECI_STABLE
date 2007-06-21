@@ -202,6 +202,14 @@ MODULE SymExcit2
             IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
                 Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1,CUR_VERT)))
             ENDIF
+         !CHEMPOT-TWOFROM
+         ELSEIF(EXCITFUNCS(5)) THEN
+            IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) THEN
+                Weight=(1.D0/(((Arr(I,2)+Arr(J,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+            ENDIF
+            IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
+                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1,CUR_VERT)))
+            ENDIF
          !PolyExcitWeighting (for both real & virtual orbs)
          ELSEIF(EXCITFUNCS(3)) THEN
             IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_ExcitWeights(1,CUR_VERT)) Weight=1.D0
@@ -254,6 +262,13 @@ MODULE SymExcit2
              IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
              IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+             ENDIF
+         ENDIF
+         !CHEMPOT-TWOFROM
+         IF(EXCITFUNCS(5)) THEN
+             IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
+             IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
+                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
              ENDIF
          ENDIF
          !PolyExcitWeighting

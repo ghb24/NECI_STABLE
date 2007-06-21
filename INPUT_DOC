@@ -359,6 +359,9 @@ POLYEXCITBOTH <g_VMC_PolyExcitFromWeight1 g_VMC_PolyExcitFromWeight2 g_VMC_PolyE
 CHEMPOTWEIGHTING <g_VMC_PolyExcitFromWeight2 g_VMC_PolyExcitToWeight2 G_VMC_EXCITWEIGHT>
     A new weighting system, with the same form as POLYEXCITBOTH, apart from the fact that sigma is now constrained to be at the chemical potential of the molecule.  This means that there are now only two parameters with which to minimise the expected variance.
 
+CHEMPOT-TWOFROM <g_VMC_ExcitWeights(1) g_VMC_ExcitWeights(2) g_VMC_ExcitWeights(3) G_VMC_EXCITWEIGHT>
+    When choosing the electron to excit, this weighting system has a growing polynomial up to the chemical potential, but now also a decaying one after this, to encourage mixing of the configurations around the HF state. However, this does mean that there are now three adjustable parameters, and testing needs to be done to see if this is beneficial. This is expected to make more of a difference as the vertex level increases.
+
 MULTIMCWEIGHT <g_
 
 PATHS <NPATHS>
