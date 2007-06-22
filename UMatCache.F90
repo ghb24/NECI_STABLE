@@ -572,24 +572,27 @@ MODULE UMatCache
          INTEGER,Pointer :: OUMatLabels(:,:) !(onSlots,onPairs)
          
          INTEGER onSlots,onPairs,ierr
-         LOGICAL toSmallUMat,tlog
+         LOGICAL toSmallUMat,tlog,toUMat2D
          LOGICAL GetCachedUMatEl
                   
-         Allocate(NUMat2D(nNew/2,nNew/2),STAT=ierr)
-         CALL MemAlloc(ierr,NUMat2D,HElementSize*(nNew/2)**2,'NUMat2D')
+         toUMat2D=tUMat2D
+         IF(tUMat2D) then
+            Allocate(NUMat2D(nNew/2,nNew/2),STAT=ierr)
+            CALL MemAlloc(ierr,NUMat2D,HElementSize*(nNew/2)**2,'NUMat2D')
 ! /2 because UMat2D works in states, not in orbitals
-         DO i=1,nOld/2
-            IF(OrbTrans(i*2).NE.0) THEN
-               DO j=1,nOld/2
-                  IF(OrbTrans(j*2).NE.0) THEN
-                    NUMat2D(OrbTrans(i*2)/2,OrbTrans(j*2)/2)=UMat2D(i,j)
-                  ENDIF
-               ENDDO
-            ENDIF
-         ENDDO    
-         CALL MemDealloc(UMat2D)
-         Deallocate(UMat2D)
-         UMat2D=>NUMat2D
+            DO i=1,nOld/2
+               IF(OrbTrans(i*2).NE.0) THEN
+                  DO j=1,nOld/2
+                     IF(OrbTrans(j*2).NE.0) THEN
+                       NUMat2D(OrbTrans(i*2)/2,OrbTrans(j*2)/2)=UMat2D(i,j)
+                     ENDIF
+                  ENDDO
+               ENDIF
+            ENDDO    
+            CALL MemDealloc(UMat2D)
+            Deallocate(UMat2D)
+            UMat2D=>NUMat2D
+         endif
 ! Now go through the other cache.
 ! First save the memory used for it.
 !         onSlots=nSlots
@@ -601,7 +604,7 @@ MODULE UMatCache
          Nullify(UMatLabels)
 !Now reinitialize the cache.
          CALL SetupUMatCache(nNew/2,.FALSE.)
-         TUMAT2D=.TRUE.
+         TUMAT2D=toUMat2D
          CALL SetUMatcacheFlag(1)
          DO i=1,nOld/2
           IF(OrbTrans(i*2).NE.0) THEN
