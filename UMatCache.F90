@@ -124,7 +124,7 @@ MODULE UMatCache
           IF(ISS.EQ.0) THEN
 
 !  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
-!   Remember permutations.  Complex case is the same as real.
+!   Remember permutations.  
 !   <ij|ji> = <ii|jj>
 
 !.. Complex case is more difficult.
@@ -146,11 +146,11 @@ MODULE UMatCache
              I=MAX(IDI,IDJ)
              J=MIN(IDI,IDJ)
              GETUMATEL=UMAT2D(I,J)
-           ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
+!          ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
 !   <ii|jj> = <ij|ji> Only for real systems
-             I=MAX(IDI,IDK)
-             J=MIN(IDI,IDK)
-             GETUMATEL=UMAT2D(I,J)
+!            I=MAX(IDI,IDK)
+!            J=MIN(IDI,IDK)
+!            GETUMATEL=UMAT2D(I,J)
            ELSE
 !   Check to see if the umat element is in the cache
                I=IDI
