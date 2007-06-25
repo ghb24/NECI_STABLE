@@ -226,12 +226,12 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 
             IF(NOTHING) THEN
                 
-                WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,I3,A)") "Optimum An CHEMPOT-TWOFROM parameters found to be ", polyp(1), " , An' as ", polyp(2), " , and Bn as ", polyp(3), " , at vertex level ", Q, " , but not using these values"
+                WRITE(6,"(A,F17.12,A,F17.12,A,F17.12,A,I3,A)") "Optimum An CHEMPOT-TWOFROM parameters found to be ", polyp(1), " , An' as ", polyp(2), " , and Bn as ", polyp(3), " , at vertex level ", Q, " , but not using these values"
             ELSE
                 DO r=1,I_VMAX
                     IF(USEVAR(Q,r).ne.0) THEN
                         g_VMC_FINAL(1:3,USEVAR(Q,r))=polyp(:)
-                        WRITE(6,"(A,F16.12,A,F16.12,A,F16.12,A,I3)") "CHEMPOT-TWOFROM parameters optimised to An= ", polyp(1), " , An'= ",polyp(2)," and Bn= ",polyp(3)," for vertex level ",USEVAR(Q,r)
+                        WRITE(6,"(A,F17.12,A,F17.12,A,F17.12,A,I3)") "CHEMPOT-TWOFROM parameters optimised to An= ", polyp(1), " , An'= ",polyp(2)," and Bn= ",polyp(3)," for vertex level ",USEVAR(Q,r)
                     ENDIF
                 ENDDO
             ENDIF
