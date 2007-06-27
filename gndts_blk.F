@@ -419,7 +419,7 @@ C     &      NIWORK,NINDJ)
          INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work 
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3)
-         TYPE (BasisFN) G1(NBASIS),ISym,IMax(2),SymRestrict
+         TYPE (BasisFN) G1(NBASIS),SymRestrict
          INTEGER LMS,NIWORK(NEL),NI(NEL)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
          INTEGER ILEV
@@ -441,7 +441,7 @@ C,IMAX,ISYM)
 C.. Go to the next det.
          TMORE=.TRUE.
          DO WHILE(TMORE)
-            CALL GENNEXTSYMDET(ISYM,NEL,G1,BRR,NBASIS,
+            CALL GENNEXTSYMDET(Work%ISYM,NEL,G1,BRR,NBASIS,
      &           TDONE,Work%niWork,NI,Work%niWork(nEl+1)
      &            ,NELEC,NBASISMAX)
             IF(TDONE) THEN
