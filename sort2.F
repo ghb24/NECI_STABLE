@@ -544,3 +544,126 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
       GOTO 10
       RETURN
       END 
+
+
+C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
+C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
+C.. This version has ARR BRR and CRR as arrays of length BD of reals.  Sort is based on Arr(1,:)
+      SUBROUTINE SORT3RN(N,ARR,BRR,CRR,BD)
+      IMPLICIT NONE
+      PARAMETER (M=7,NSTACK=50)
+      INTEGER L,IR,N,M,JSTACK,NSTACK,I,J,K,BD
+      REAL*8 ARR(BD,N),A(BD),ATEMP(BD)
+      REAL*8 BRR(BD,N),B(BD),BTEMP(BD)
+      REAL*8 CRR(BD,N),C(BD),CTEMP(BD)
+      integer ISTACK(NSTACK)
+      JSTACK=0
+      L=1
+      IR=N
+10    IF(IR-L.LT.M) THEN
+        DO J=L+1,IR
+          A=ARR(:,J)
+          B=BRR(:,J)
+          C=CRR(:,J)
+          DO I=J-1,1,-1
+            IF(ARR(1,I).LE.A(1)) GOTO 20
+            ARR(:,I+1)=ARR(:,I)
+            BRR(:,I+1)=BRR(:,I)
+            CRR(:,I+1)=CRR(:,I)
+          ENDDO
+          I=0
+20        ARR(:,I+1)=A
+          BRR(:,I+1)=B
+          CRR(:,I+1)=C
+        ENDDO
+        IF(JSTACK.EQ.0) RETURN
+        IR=ISTACK(JSTACK)
+        L=ISTACK(JSTACK-1)
+        JSTACK=JSTACK-2
+      ELSE
+        K=(L+IR)/2
+        ATEMP=ARR(:,K)
+        ARR(:,K)=ARR(:,L+1)
+        ARR(:,L+1)=ATEMP
+        BTEMP=BRR(:,K)
+        BRR(:,K)=BRR(:,L+1)
+        BRR(:,L+1)=BTEMP
+        CTEMP=CRR(:,K)
+        CRR(:,K)=CRR(:,L+1)
+        CRR(:,L+1)=CTEMP
+        IF(ARR(1,L+1).GT.ARR(1,IR)) THEN
+          ATEMP=ARR(:,L+1)
+          ARR(:,L+1)=ARR(:,IR)
+          ARR(:,IR)=ATEMP
+          BTEMP=BRR(:,L+1)
+          BRR(:,L+1)=BRR(:,IR)
+          BRR(:,IR)=BTEMP
+          CTEMP=CRR(:,L+1)
+          CRR(:,L+1)=CRR(:,IR)
+          CRR(:,IR)=CTEMP
+        ENDIF
+        IF(ARR(1,L).GT.ARR(1,IR)) THEN
+          ATEMP=ARR(:,L)
+          ARR(:,L)=ARR(:,IR)
+          ARR(:,IR)=ATEMP
+          BTEMP=BRR(:,L)
+          BRR(:,L)=BRR(:,IR)
+          BRR(:,IR)=BTEMP
+          CTEMP=CRR(:,L)
+          CRR(:,L)=CRR(:,IR)
+          CRR(:,IR)=CTEMP
+        ENDIF 
+        IF(ARR(1,L+1).GT.ARR(1,L)) THEN
+          ATEMP=ARR(:,L+1)
+          ARR(:,L+1)=ARR(:,L)
+          ARR(:,L)=ATEMP
+          BTEMP=BRR(:,L+1)
+          BRR(:,L+1)=BRR(:,L)
+          BRR(:,L)=BTEMP
+          CTEMP=CRR(:,L+1)
+          CRR(:,L+1)=CRR(:,L)
+          CRR(:,L)=CTEMP
+        ENDIF
+        I=L+1
+        J=IR
+        A=ARR(:,L)
+        B=BRR(:,L)
+        C=CRR(:,L)
+30      CONTINUE
+        I=I+1
+        IF(ARR(1,I).LT.A(1)) GOTO 30
+40      CONTINUE
+        J=J-1
+        IF(ARR(1,J).GT.A(1)) GOTO 40
+        IF(J.LT.I) GOTO 50
+        ATEMP=ARR(:,I)
+        ARR(:,I)=ARR(:,J)
+        ARR(:,J)=ATEMP
+        BTEMP=BRR(:,I)
+        BRR(:,I)=BRR(:,J)
+        BRR(:,J)=BTEMP
+        CTEMP=CRR(:,I)
+        CRR(:,I)=CRR(:,J)
+        CRR(:,J)=CTEMP
+        GOTO 30
+50      ARR(:,L)=ARR(:,J)
+        ARR(:,J)=A
+        BRR(:,L)=BRR(:,J)
+        BRR(:,J)=B
+        CRR(:,L)=CRR(:,J)
+        CRR(:,J)=C
+        JSTACK=JSTACK+2
+        IF(JSTACK.GT.NSTACK) PAUSE ' NSTACK TOO SMALL INSORT2 '
+        IF(IR-I+1.GE.J-L) THEN
+          ISTACK(JSTACK)=IR
+          ISTACK(JSTACK-1)=I
+          IR=J-1
+        ELSE
+          ISTACK(JSTACK)=J-1
+          ISTACK(JSTACK-1)=L
+          L=I
+        ENDIF
+      ENDIF
+      GOTO 10
+      RETURN
+      END 

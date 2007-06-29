@@ -360,7 +360,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
-         CALL SORT3R(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2))
+         CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
 
@@ -403,6 +403,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   NORM=NORM+SQ(LIST(J,1)/(HElement(ROOTS(I+1))-LIST(J,0)))
                ENDDO
 !.. We add in the first element of the eigenvector * lambda**P
+!               write(6,*) ROOTS(i+1),NORM
                RPN=(ROOTS(I+1)**I_P)*1.D0/NORM
                SI=SI+RPN
                IF(DBETA.NE.0.D0) THEN
