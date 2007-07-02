@@ -43,7 +43,7 @@ MODULE UMatCache
 !..      This is useful when lots of sequential pieces of data are being stored.
 !..  When UMatCacheFlag is reset to 0, the data which are present are spread evenly around the slots for a given Pair.
       INTEGER UMatCacheFlag
-         SAVE nSlotsInit,nHits,nMisses,UMatCacheFlag
+         SAVE nSlotsInit,nHits,nMisses,UMatCacheFlag,iCacheOvCount
 
 !.. Some various translation tables to convert between different orderings of states.
       LOGICAL tTransGTID,tTransFindx
@@ -266,6 +266,7 @@ MODULE UMatCache
          NTYPES=HElementSize
          NHITS=0
          NMISSES=0
+         iCacheOvCount=0
          IF(NSLOTSINIT.LE.0) THEN
             NSLOTS=0
             WRITE(6,*) "Not using UMATCACHE."
@@ -381,6 +382,7 @@ MODULE UMatCache
             WRITE(6,*) "UMAT Cache Statistics"
             WRITE(6,*) NHITS, " hits"
             WRITE(6,*) NMISSES, " misses"
+            WRITE(6,*) iCacheOvCount, " overwrites"
             WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,"% success"
          ENDIF
       END
@@ -831,7 +833,8 @@ END MODULE UMatCache
             CALL BINARYSEARCH(NPAIRS+1,UMATLABELS(1,A),1,NSLOTS,ICACHEI,ICACHEI1,ICACHEI2)
                ICACHEI=ICACHEI1
                ICACHEI2=ICACHEI1
-               IF(UMatLabels(iCacheI,A).NE.0) WRITE(6,*) "Cache Overwrite", A,B
+               IF(UMatLabels(iCacheI,A).NE.0) iCacheOvCount=iCacheOvCount+1
+!WRITE(6,*) "Cache Overwrite", A,B
    
 !                  WRITE(6,*) IDI,IDJ,IDK,IDL
 !                  WRITE(6,*) A,B,NSLOTS,NPAIRS

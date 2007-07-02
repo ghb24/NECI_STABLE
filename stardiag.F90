@@ -2,7 +2,7 @@
 !    The rho_jj, rho_ij and H_ij values are stored for each connected determinant.
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay, &
-               RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB)
+               RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
          USE HElement      
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -15,6 +15,8 @@
          TYPE(HDElement) dLWdB
          TYPE(HDElement) fMCPR3StarNewExcit
          TYPE(HElement), Allocatable :: ExcitInfo(:,:)
+         TYPE(HElement) HIJS(0:2)
+         INTEGER iPath(nEl,0:2)
          LOGICAL tSym
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
@@ -31,7 +33,8 @@
          INTEGER iErr
          INTEGER nRoots,i
          TYPE(HElement) rh,rhii,EHFDiff
-         
+
+         TYPE(HDElement) MP2E         
    
          SELECT CASE (IAND(nWHTay,24))
          CASE(0)
@@ -80,6 +83,12 @@
          endif
          CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rhii,nTay,0,ECore)
 !         write(75,*) rhii
+! Setup MP info
+         CALL iCopy(nEl,nI,1,iPath(1,0),1)
+         CALL iCopy(nEl,nI,1,iPath(1,2),1)
+         HIJS(0)=ExcitInfo(0,2)
+         HIJS(2)=ExcitInfo(0,2)
+
     lp:  do while(.true.)
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit lp
@@ -98,6 +107,11 @@
                ExcitInfo(i,0)=rh/rhii
                ExcitInfo(i,2)=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,-1,ECore)
 !               write(75,*) rh,rh/rhii
+!Now do MP2
+               Hijs(1)=ExcitInfo(i,2)
+               call iCopy(nEl,nJ,1,iPath(1,1),1)
+!nMax has Arr hidden in it
+               Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping
@@ -123,7 +137,7 @@
             ELSE
                WRITE(6,*) "Searching for all roots"
             ENDIF
-            CALL StarDiag2(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,nRoots)
+            CALL StarDiag2(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,Beta,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,nRoots,iLogging)
          ENDIF
          call MemDealloc(ExcitInfo)
          Deallocate(ExcitInfo)
@@ -277,7 +291,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
             WRITE(6,*) "Beginning Polynomial Star Diagonalization"
             NROOTS=NLCUR
             IF(BTEST(NWHTAY,1)) NROOTS=1
-            CALL STARDIAG2(LSTE,NEL,NLCUR,LIST,ILMAX+1,I_P,FMCPR3STAR2,DBETA,DLWDB,NROOTS)
+            CALL STARDIAG2(LSTE,NEL,NLCUR,LIST,ILMAX+1,BETA,I_P,FMCPR3STAR2,DBETA,DLWDB,NROOTS,iLogging)
          ENDIF
       END
 
@@ -344,19 +358,22 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 
 !.. Use an iterative Order(N) root-finding method to diagonalize the
 !.. star matrix.
-      SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,NROOTS)
+      SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
          USE HElement
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
          TYPE(HElement) LIST(ILMAX,0:2)
          INTEGER ISUB
-         REAL*8 SI,DLWDB,DBETA,NORM
+         REAL*8 SI,DLWDB,DBETA,NORM,E0,BETA
          TYPE(HElement) DLWDB2
          INTEGER I,J,NROOTS
          REAL*8 ROOTS(1:NROOTS+1),RPN,R
+         INTEGER iLogging
+         INTEGER iEigv,iDegen
          CALL TISET('STARDIAG2 ',ISUB)
-      
+         iEigv=0 
+         iDegen=0
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
@@ -376,14 +393,17 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
             enddo
             nRoots=nRoots-1-i
             write(6,*) nRoots+1, " needed for convergence 1.d-5."
+            nRoots=nRoots+1
          endif
 
 !.. Find the eigenvalues
          CALL FINDROOTSTAR(NLIST-1,LIST(1,0),LIST(1,1),ROOTS,NROOTS)
          SI=0.D0
          WRITE(6,*) "Highest root:",ROOTS(NROOTS+1)
+         E0=List(1,2)%v
 !.. divide through by highest eigenvalue to stop things blowing up
          DO I=NROOTS,0,-1
+            iDegen=iDegen+1
             IF(ROOTS(I+1).EQ.LIST(NLIST-NROOTS+I,0)%v) THEN
 !.. If we're in a degenerate set of eigenvectors, we calculate things a
 !.. little differently
@@ -398,7 +418,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 
             ELSE
 !.. We need to calculate the normalization of each eigenvector
+               iEigv=iEigv+1
                NORM=1.D0
+               if(iEigv.gt.1.and.iEigv.le.3) then
+                  write(6,*) iDegen-1
+                  iDegen=1
+               endif
+               IF(iEigv.le.2) then
+                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i+1),E0-(i_P/Beta)*log(roots(i+1))
+               endif
                DO J=2,NLIST
                   NORM=NORM+SQ(LIST(J,1)/(HElement(ROOTS(I+1))-LIST(J,0)))
                ENDDO
@@ -420,6 +448,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 !               WRITE(6,*)
             ENDIF
          ENDDO
+               if(iEigv.gt.1.and.iEigv.le.3) then
+                  write(6,*) iDegen-1
+                  iDegen=1
+               endif
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)%v
          CALL TIHALT("STARDIAG2 ",ISUB)

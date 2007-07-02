@@ -222,7 +222,7 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NBASIS,
      &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
-     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
+     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
                F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
@@ -370,7 +370,7 @@ C.. save all log files
             IF(TMPTHEORY) CLOSE(13)
          ENDIF
          IF(BTEST(ILOGGING,9)) CLOSE(12)
-         IF(TMPTHEORY.AND.(MP2E(2).AGE.0.D0)) THEN
+         IF((MP2E(2).AGE.0.D0)) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
@@ -600,7 +600,7 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NBASIS,
      &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
-     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
+     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
             ENDIF
             CALL TIHALT(STR,ISUB2)
             NTIME=TIMEC()*0.001D0
@@ -641,7 +641,7 @@ C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
          DLWDB=DLWDB/TOTAL
          TOTAL=HIJS(0)
-         IF(TMPTHEORY.AND.(MP2E(2).AGE.0.D0)) THEN
+         IF((MP2E(2).AGE.0.D0)) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
