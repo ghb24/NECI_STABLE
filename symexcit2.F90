@@ -312,6 +312,7 @@ MODULE SymExcit2
          INTEGER iSpn,iCount,nToPairs,iTotal,nFromPairs
          REAL*8 pGen
          REAL*8 Arr(nBasis,2)
+         LOGICAL IsUHFDet
          iExcit(1,1)=2
          CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
@@ -323,7 +324,13 @@ MODULE SymExcit2
          ENDIF
 !  See if we have a single
          IF(iExcit(1,2).EQ.0) THEN
-            pGen=1.D0/iTotal
+            if(isUHFDet(nI,nEl)) then
+               pGen=0.D0      !HF -> single has 0 prob
+            ELSE
+!  The UHF det isn't set if Brillouin's Theorem is disabled, and we end up here.
+!  NB we can still generate the HF det from a single excitation, and that would end up here.
+               pGen=1.D0/iTotal
+            ENDIF
             RETURN
          ENDIF
 !  We have a double
