@@ -196,8 +196,8 @@ C.. NMAX has ARR hidden in it.
               ELSE
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
-                 
-               IF (TOTAL .agt. DBETA(2)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
+!DBETA(2) is GraphEpsilon                 
+               IF (TOTAL .age. DBETA(2)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
 !     &        .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
                      
                    CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
