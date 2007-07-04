@@ -248,7 +248,11 @@ MODULE SymExcit2
             CALL GTID(NBASISMAX,K,IDK)
             CALL GTID(NBASISMAX,L,IDL)
             W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
-            WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
+            IF(TUPOWER) THEN
+                WEIGHT=(SQRT(SQ(W)))**(G_VMC_EXCITWEIGHT(CUR_VERT))
+            ELSE
+                WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
+            ENDIF
 !            CALL TIHALT('UMATELWT',ISUB)
          ENDIF
          IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN

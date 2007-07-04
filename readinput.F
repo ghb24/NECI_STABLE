@@ -81,7 +81,9 @@
       EXCITFUNCS=.false.
       EXCITFUNCS(10)=.true.
       TGRIDVAR=.false.
+      TLINEVAR=.false.
       MEMSAV=.false.
+      TUPOWER=.false.
       IP_SPECDET=0
       LMS=0
       STOT=0
@@ -354,6 +356,15 @@ C                  end select
                        call report(trim(w)//" must take a value "
      &                  //"more than 0.D0",.true.)
                    endif
+               case("LINEVAR")
+                   TLINEVAR(preIV_MAX)=.true.
+                   IF(pre_TAYLOG(4,preIV_MAX)) THEN
+                       call report(trim(w)//" can not be applied"
+     &                 //" in conjunction with USEIMPORT",.true.)
+                   ENDIF
+                   do zz=1,3
+                       call readf(LINEVARPAR(preIV_MAX,zz))
+                   enddo
                case("GRIDVAR")
                    TGRIDVAR(preIV_MAX)=.true.
                    IF(pre_TAYLOG(1,preIV_MAX)) THEN
@@ -598,6 +609,8 @@ C                  end select
 !                      call report(trim(w)//" only valid for MC " 
 !     &                //" method",.true.)
 !                  end if
+              case("UFORM-POWER")
+                  TUPOWER=.true.
               case("CHEMPOTWEIGHTING")
                   call readf(g_VMC_ExcitWeights(1,1))
                   call readf(g_VMC_ExcitWeights(2,1))
@@ -1024,6 +1037,11 @@ C     ILOGGING = 0771
      &         EXCITFUNCS(4)))) THEN
                CALL report("GRIDVAR option only available with" 
      &          //" excitation functions with two variables",.true.)
+          ENDIF
+          IF(TLINEVAR(vv).and.((.not.pre_TAYLOG(3,vv)).and.             &
+     &              (.not.pre_TAYLOG(2,vv)))) THEN
+              CALL report("LINEVAR option only available with"
+     &          //" FINDIMPORT or FINDC",.true.)
           ENDIF
       ENDDO
       IF((preIV_MAX.ne.0).AND.(.NOT.TMCDIRECTSUM)) THEN

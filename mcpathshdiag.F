@@ -265,6 +265,10 @@ C.. NMAX has ARR hidden in it.
 !                
 !               CALL WriteGraphEnergies(IPATH, I_V,nEl,nBasis,NMAX,TOTAL)
 !            ENDIF
+!            IF((.not.TPREVAR).and.(I_V.eq.3)) THEN
+!                CALL GetGraphstats(IPATH,I_V,NEL,NBASIS,NMAX,TOTAL,
+!     &              NBASISMAX,UMAT,G1,DLWDB2)
+!            ENDIF
             L=L+1
             FMCPR3B2=TOTAL
             IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
@@ -608,4 +612,92 @@ C            CALL PRINT_MEMORY()
 !             Write(56, "3G25.16") Weight,Energyfrom,Energyto 
          
          End
-
+         Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,
+     &      NBASISMAX,UMAT,G1,DLWDB2)
+         Use HElement
+         USE UMatCache , only : GetUMatEl
+         IMPLICIT NONE
+         INCLUDE 'basis.inc'
+         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T
+         REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
+         INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,NBASISMAX(5,3),c
+         INTEGER EXCITLEV,IGETEXCITLEVEL_,SINGLE,DOUBLE
+         TYPE(HDElement) Weight,DLWDB2
+         TYPE(HElement) UMAT(*),ME
+         TYPE(BasisFN) G1(NBASIS)
+         SAVE c,SINGLE,DOUBLE,Percendoub
+         
+         IF(I_V.eq.2) THEN
+            EX(1,1)=2
+            OPEN(56,FILE="GRAPHSTATS",STATUS="UNKNOWN")
+            CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
+         
+            IF((EX(1,2).eq.0).and.(Weight%v.gt.0.D0)) THEN
+!               Energy=Arr(Ex(1,1),2)
+                STOP 'Should not be here for 2v graphs'
+                RETURN
+            ELSEIF(EX(1,2).ne.0) THEN   !only consider doubles
+                ISS=NBASISMAX(2,3)
+                I=EX(1,1)
+                J=EX(1,2)
+                K=EX(2,1)
+                L=EX(2,2)
+                CALL GTID(NBASISMAX,I,IDI)
+                CALL GTID(NBASISMAX,J,IDJ)
+                CALL GTID(NBASISMAX,K,IDK)
+                CALL GTID(NBASISMAX,L,IDL)
+                ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,
+     &              IDK,IDL)
+                EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
+                EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
+            ENDIF
+            WRITE(56,"3G25.16") Weight%v,Energyto,ME%v
+        ELSEIF(I_V.eq.3) THEN
+            c=c+1
+            IF(c.eq.1) THEN
+                OPEN(56,FILE="GRAPHSTATS1",STATUS="UNKNOWN")
+                OPEN(57,FILE="GRAPHSTATS2",STATUS="UNKNOWN")
+                OPEN(58,FILE="GRAPHSTATS3",STATUS="UNKNOWN")
+            ENDIF
+            IF((MOD(c,150).eq.0).or.(MOD(c,150).eq.50).or.
+     &             (MOD(c,150).eq.100)) THEN
+                EX(1,1)=2
+                CALL GetEXCITATION(IPATH(1:NEL,1),IPATH(1:NEL,2),
+     &                      NEL,EX,T)
+                IF(EX(1,2).ne.0) THEN
+                    DOUBLE=DOUBLE+1
+                    ISS=NBASISMAX(2,3)
+                    I=EX(1,1)
+                    J=EX(1,2)
+                    K=EX(2,1)
+                    L=EX(2,2)
+                    CALL GTID(NBASISMAX,I,IDI)
+                    CALL GTID(NBASISMAX,J,IDJ)
+                    CALL GTID(NBASISMAX,K,IDK)
+                    CALL GTID(NBASISMAX,L,IDL)
+                    ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,
+     &                      IDJ,IDK,IDL)
+                    EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
+                    EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
+                    EXCITLEV=IGETEXCITLEVEL_(IPATH(1:NEL,0),
+     &                           IPATH(1:NEL,2),NEL)
+                    IF(MOD(c,150).eq.0) THEN
+                        WRITE(56,"4G25.16,I3,G25.16") Weight%v,
+     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                    ELSEIF(MOD(c,150).eq.50) THEN
+                        WRITE(57,"4G25.16,I3,G25.16") Weight%v,
+     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                    ELSEIF(MOD(c,150).eq.100) THEN
+                        WRITE(58,"4G25.16,I3,G25.16") Weight%v,
+     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                    ENDIF
+                ELSE
+                    SINGLE=SINGLE+1
+                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
+                    WRITE(124,*) Percendoub
+                ENDIF
+            ENDIF
+        ENDIF
+        RETURN
+         
+         END

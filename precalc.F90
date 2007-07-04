@@ -365,47 +365,63 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
         !Looking for importance parameter
         IF (PRE_TAYLOG(3,Q).or.PRE_TAYLOG(4,Q)) THEN
-            IF (TLOGP) THEN
-                WRITE(31,*) ""
-                WRITE(31,"(A)") "Importance Parameter: (Vertex level, Iteration number, Importance Parameter, Expected Variance)"
-            ENDIF
+            IF(.NOT.TLINEVAR(Q)) THEN
+            
+                IF (TLOGP) THEN
+                    WRITE(31,*) ""
+                    WRITE(31,"(A)") "Importance Parameter: (Vertex level, Iteration number, Importance Parameter, Expected Variance)"
+                ENDIF
        
             !Reset 'FIRST(K)' in MCPATHSPRE     
-        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
-     &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
-     &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
+                xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
+     &                  FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+     &                  DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
      
-            !Initial bracketing guess
-            ax=0.7
-            bx=0.9
-!           cx=0.99 
+                !Initial bracketing guess
+                ax=0.7
+                bx=0.9
+!               cx=0.99 
 
-            GIDHO=2
-            originalimport=G_VMC_PI
+                GIDHO=2
+                originalimport=G_VMC_PI
             
-            !Ensuring correct bracketing
-            CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,      &
-                    FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                          &
-                    DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
+                !Ensuring correct bracketing
+                CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,      &
+                        FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                          &
+                        DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
             
-            IF (TLOGP) THEN
-                WRITE(31,"(A,F16.12,A,F16.12)") "From mnbrak routine, minimum is between ", ax, " and ", bx
-            ENDIF
+                IF (TLOGP) THEN
+                    WRITE(31,"(A,F16.12,A,F16.12)") "From mnbrak routine, minimum is between ", ax, " and ", bx
+                ENDIF
 
-            CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
-                       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                  &
-                       TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,   &
-                       KSYM)
+                CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
+                           G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                  &
+                           TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,   &
+                           KSYM)
 
-            VARIANCES(Q)=minvar
+                VARIANCES(Q)=minvar
 
-            IF (PRE_TAYLOG(3,Q)) THEN
-                G_VMC_PI=originalimport
-                WRITE(6,"(A,F15.12,A,F5.3)") "Optimum importance parameter found to be ", xmin, ", but using ", originalimport
-            ELSEIF (PRE_TAYLOG(4,Q)) THEN
-                G_VMC_PI=xmin
-                WRITE(6,"(A,F15.12)") "Importance parameter optimised to", xmin
+                IF (PRE_TAYLOG(3,Q)) THEN
+                    G_VMC_PI=originalimport
+                    WRITE(6,"(A,F15.12,A,F5.3)") "Optimum importance parameter found to be ", xmin, ", but using ", originalimport
+                ELSEIF (PRE_TAYLOG(4,Q)) THEN
+                    G_VMC_PI=xmin
+                    WRITE(6,"(A,F15.12)") "Importance parameter optimised to", xmin
 
+                ENDIF
+            ELSE
+
+                abstr=''
+                write (abstr,'(I1)') Q
+                abstr='LINEVAR-'//abstr
+                n=1
+                GIDHO=2
+                UNITNO=150+Q
+                OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
+                CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
+                             FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+                      DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
+                CLOSE(UNITNO)
             ENDIF
         ENDIF
         
@@ -457,71 +473,87 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
         
         !Looking for C Excitweighting parameter
         IF (PRE_TAYLOG(2,Q).or.(PRE_TAYREAL(1,Q).gt.0).or.NOTHING) THEN
+            IF(.not.TLINEVAR(Q)) THEN    
             
-            IF (TLOGP) THEN
-                WRITE(31,*) ""
-                WRITE(31,"(A)") "U Parameter: (Vertex level, Iteration number, C Weighting parameter, Expected Variance)"
-            ENDIF
+                IF (TLOGP) THEN
+                    WRITE(31,*) ""
+                    WRITE(31,"(A)") "U Parameter: (Vertex level, Iteration number, C Weighting parameter, Expected Variance)"
+                ENDIF
            
-            !Reset 'FIRST(K)' in MCPATHSPRE     
-        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
-     &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
-     &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
+                !Reset 'FIRST(K)' in MCPATHSPRE     
+            xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
+     &              FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+     &              DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
         
-         !Initial bracketing
-            ax=20
-            bx=30
-!            cx=90
+                !Initial bracketing
+                ax=20
+                bx=30
+!               cx=90
 
-            GIDHO=3
-            VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
-     &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
-     &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
-            ZEROVAR=VARSUM
+                GIDHO=3
+                VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
+     &              FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
+     &              DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
+                ZEROVAR=VARSUM
             
-            IF (TLOGP) THEN
-                WRITE(31,"(2I3,2G25.16)")  Q, 0, 0.D0, VARSUM
-                CALL FLUSH(31)
-            ENDIF
+                IF (TLOGP) THEN
+                    WRITE(31,"(2I3,2G25.16)")  Q, 0, 0.D0, VARSUM
+                    CALL FLUSH(31)
+                ENDIF
             
-            !To ensure correct bracketing
-            CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,  &
-                    FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
-                    DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
+                !To ensure correct bracketing
+                CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,  &
+                        FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
+                        DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
             
-            IF (TLOGP) THEN
-                WRITE(31,"(A,F16.12,A,F13.9)") "From mnbrak routine, minimum is between ", ax, " and ", cx
-            ENDIF
+                IF (TLOGP) THEN
+                    WRITE(31,"(A,F16.12,A,F13.9)") "From mnbrak routine, minimum is between ", ax, " and ", cx
+                ENDIF
                     
-            CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,      &
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,                          &
-     &                  RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
-     &                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
+                CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,      &
+     &                                 G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,                          &
+     &                                 RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
+     &                                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
            
-            VARIANCES(Q)=minvar
+                VARIANCES(Q)=minvar
      
-            IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).gt.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
+                IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).gt.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
 
-                DO r=1,I_VMAX
-                    IF(USEVAR(Q,r).ne.0) THEN
-                        G_VMC_EXCITFINAL(USEVAR(Q,r))=xmin
-                        WRITE(6,"(A,F17.12,A,I3)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin," for vertex level ",USEVAR(Q,r)
-                    ENDIF
-                ENDDO
+                    DO r=1,I_VMAX
+                        IF(USEVAR(Q,r).ne.0) THEN
+                            G_VMC_EXCITFINAL(USEVAR(Q,r))=xmin
+                            WRITE(6,"(A,F17.12,A,I3)") "Optimum U weighting outside UEPSILON bounds, so using C=",xmin," for vertex level ",USEVAR(Q,r)
+                        ENDIF
+                    ENDDO
                 
-            ELSE IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).le.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
+                ELSE IF ((PRE_TAYLOG(1,Q).or.(PRE_TAYREAL(1,Q).gt.0)).and.((zerovar-minvar).le.PRE_TAYREAL(1,Q)).and..not.NOTHING) THEN
                 
-                DO r=1,I_VMAX
-                    IF(USEVAR(Q,r).ne.0) THEN
+                    DO r=1,I_VMAX
+                        IF(USEVAR(Q,r).ne.0) THEN
                     
-                        G_VMC_EXCITFINAL(USEVAR(Q,r))=0.D0
-                        WRITE(6,"(A,I3)") "Optimum U weighting within UEPSILON bounds, so using C=0, for vertex level ",USEVAR(Q,r)
-                    ENDIF
-                ENDDO
-            ELSE
+                            G_VMC_EXCITFINAL(USEVAR(Q,r))=0.D0
+                            WRITE(6,"(A,I3)") "Optimum U weighting within UEPSILON bounds, so using C=0, for vertex level ",USEVAR(Q,r)
+                        ENDIF
+                    ENDDO
+                ELSE
                 
-                WRITE(6,"(A,G20.12,A,I3,A)") "Optimum U weighting found to be", xmin, " for vertex level ",Q, " ,but not using this value"
-            END IF
+                    WRITE(6,"(A,G20.12,A,I3,A)") "Optimum U weighting found to be", xmin, " for vertex level ",Q, " ,but not using this value"
+                END IF
+        
+            ELSE
+                abstr=''
+                write (abstr,'(I1)') Q
+                abstr='LINEVAR-'//abstr
+                n=1
+                GIDHO=3
+                UNITNO=151+Q
+                OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
+                CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
+                             FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+                             DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
+                CLOSE(UNITNO)
+            ENDIF
+            
         END IF
     
     CALL FLUSH(6)
@@ -711,7 +743,12 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     SELECT CASE (GIDHO)
     !Importance
     CASE(2)
-        G_VMC_PI=point
+        IF(point.GE.1.D0) THEN
+            MCPATHSPRE=HUGE(MCPATHSPRE)
+            RETURN
+        ELSE
+            G_VMC_PI=point
+        ENDIF
     !U weighting
     CASE(3)
         G_VMC_EXCITWEIGHT(K)=point
@@ -901,7 +938,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     ELSEIF(GIDHO.eq.2) THEN 
                         !Biasing against importance parameter
                         ORIGIMPORT=G_VMC_PI
-                        G_VMC_PI=0.5
+                        G_VMC_PI=-1.D0             !If Importance parameter set to -1, this means that we want an equal weighting
                     ELSE
                         !biasing against other excitation parameters
                         ORIGEXCITWEIGHTS(:)=g_VMC_ExcitWeights(:,K)
@@ -921,6 +958,8 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                                               TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
                                              ILOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
                                               I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,K,EXCITGEN(0:K))
+!                        WRITE(60,*) IPATH(:,0),IPATH(:,1),IPATH(:,2),OPROB
+!                        WRITE(60,*) OPROB
 !                   WRITE(43,("I3,3G25.16")) K, DLWDB2, OETILDE, OWEIGHT
 !                   WRITE(43,*) DLWDB2, OETILDE/OWEIGHT
 !                   WRITE(43,*) DLWDB2
@@ -962,7 +1001,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                         IF(GIDHO.eq.3) THEN
                             G_VMC_EXCITWEIGHT(K)=0.D0
                         ELSEIF(GIDHO.eq.2) THEN
-                            G_VMC_PI=0.5
+                            G_VMC_PI=-1.D0
                         ELSE
                             g_VMC_ExcitWeights(:,K)=0.D0
                         ENDIF
@@ -1679,26 +1718,50 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,       
     TYPE(HElement) HIJS(0:PREIV_MAX)
     TYPE(HDElement) MP2E(2:PREIV_MAX),RHOII(0:PREIV_MAX)
     ! Saved values only go up to a vertex level of 6 - increase values if we want to go to higher vertex levels
-    REAL*8 ENERGYLIMS(2),origvals(2),p(2)
+    REAL*8 ENERGYLIMS(2),origvals(2),p(2),origval
 !    EXTERNAL MCPATHSPRE
 !    REAL*8 MCPATHSPRE
-    
-    origvals(:)=g_VMC_ExcitWeights(1:2,K)
-    
-DO A=GRIDVARPAR(K,1),GRIDVARPAR(K,2),GRIDVARPAR(K,3)
-    DO B=GRIDVARPAR(K,4),GRIDVARPAR(K,5),GRIDVARPAR(K,6)
-        p=(/ A,B /)     !Initial a and b values
-        g_VMC_ExcitWeights(1:2,K)=p(:)
+IF(TLINEVAR(K)) THEN
+    IF(GIDHO.eq.2) THEN
+        origval=g_VMC_PI
+    ELSEIF(GIDHO.eq.3) THEN
+        origval=G_VMC_EXCITWEIGHT(K)
+    ENDIF
+
+    DO A=LINEVARPAR(K,1),LINEVARPAR(K,2),LINEVARPAR(K,3)
         
-        VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
+        VARSUM=MCPATHSPRE(A,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,              &
      &      FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
-     &      DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,0,ENERGYLIMS,KSYM)
-        WRITE(UNITNO,"(2F9.3,G25.16)") A,B,VARSUM
+     &      DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
+        WRITE(UNITNO,"(F9.3,G25.16)") A,VARSUM
         CALL FLUSH(UNITNO)
     ENDDO
-    WRITE(UNITNO,*) ""
-ENDDO
-g_VMC_ExcitWeights(1:2,K)=origvals(:)
+    
+    IF(GIDHO.eq.2) THEN
+        g_VMC_PI=origval
+    ELSEIF(GIDHO.eq.3) THEN
+        G_VMC_EXCITWEIGHT(K)=origval
+    ENDIF
+    
+ELSE
+    origvals(:)=g_VMC_ExcitWeights(1:2,K)
+    
+    DO A=GRIDVARPAR(K,1),GRIDVARPAR(K,2),GRIDVARPAR(K,3)
+        DO B=GRIDVARPAR(K,4),GRIDVARPAR(K,5),GRIDVARPAR(K,6)
+            p=(/ A,B /)     !Initial a and b values
+            g_VMC_ExcitWeights(1:2,K)=p(:)
+        
+            VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
+     &          FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
+     &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
+            WRITE(UNITNO,"(2F9.3,G25.16)") A,B,VARSUM
+            CALL FLUSH(UNITNO)
+        ENDDO
+        WRITE(UNITNO,*) ""
+    ENDDO
+    g_VMC_ExcitWeights(1:2,K)=origvals(:)
+ENDIF
+
 ENDSUBROUTINE MAKEGRID
 
 end module PreCalc

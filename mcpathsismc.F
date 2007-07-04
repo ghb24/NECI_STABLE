@@ -1230,10 +1230,16 @@ C.. pick a random excitation of where we are (INODE) of the appropriate
 C.. symmetry.  The prob of picking the root is G_VMC_PI, and the rest are split equally.
 C.. We pick which node we'regoing to excite from
             IF(I_VNEXT.GT.1) THEN
-               DO I=2,I_VNEXT
-                  PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
-               ENDDO
-               PEXCIT(1)=G_VMC_PI
+                IF(G_VMC_PI.eq.-1.D0) THEN
+                    DO I=1,I_VNEXT
+                        PEXCIT(I)=1.D0/(I_VNEXT+0.D0)
+                    ENDDO
+                ELSE
+                    DO I=2,I_VNEXT
+                        PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
+                    ENDDO
+                PEXCIT(1)=G_VMC_PI
+                ENDIF
             ENDIF
 C.. Just make really sure the last one catches everytihng
             PEXCIT(I_VNEXT)=2.D0
@@ -1412,8 +1418,13 @@ C.. algorithm in FMCPR4D
          IF(I_V.EQ.2) THEN
             GETPATHPROB2=XIJ(1,2)
          ELSEIF(I_V.EQ.3) THEN
-            PI=G_VMC_PI
-            PJ=1.D0-PI
+            IF(G_VMC_PI.EQ.-1.D0) THEN
+                PI=0.5
+                PJ=0.5
+            ELSE
+                PI=G_VMC_PI
+                PJ=1.D0-PI
+            ENDIF
             GETPATHPROB2= XIJ(1,2)*(PI*XIJ(1,3)+PJ*XIJ(2,3))/
      &                     (1-PI*XIJ(1,2)-PJ*XIJ(2,1))
      &                  +XIJ(1,3)*(PI*XIJ(1,2)+PJ*XIJ(3,2))/
@@ -1490,14 +1501,20 @@ C.. If we're not already in the path
             IF(T) THEN
                IPATH(I_V)=J
 C.. Create the prob matrix
-               IF(I_V.GT.2) THEN
-                  P(1)=G_VMC_PI
+               IF(G_VMC_PI.eq.-1.D0) THEN
+                   DO I=1,I_V-1
+                    P(I)=1.D0/(I_V-1.D0)
+                   ENDDO
                ELSE
+                IF(I_V.GT.2) THEN
+                  P(1)=G_VMC_PI
+                ELSE
                   P(1)=1.D0
-               ENDIF
-               DO I=2,I_V-1
+                ENDIF
+                DO I=2,I_V-1
                      P(I)=(1.D0-G_VMC_PI)/(I_V-2.D0)
-               ENDDO
+                ENDDO
+               ENDIF
                P(I_V)=0.D0
 C.. Create matrix M 
                DO I=1,I_V
@@ -2075,10 +2092,17 @@ C.. pick a random excitation of where we are (INODE) of the appropriate
 C.. symmetry.  We don't worry about weighting this at the moment
 C.. We pick which node we'regoing to excite from
             IF(I_VNEXT.GT.1) THEN
-               DO I=2,I_VNEXT
-                  PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
-               ENDDO
-               PEXCIT(1)=G_VMC_PI
+                IF(G_VMC_PI.eq.-1.D0) THEN
+                    
+                    DO I=1,I_VNEXT
+                        PEXCIT(I)=1.D0/(I_VNEXT+0.D0)
+                    ENDDO
+                ELSE
+                    DO I=2,I_VNEXT
+                        PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
+                    ENDDO
+                    PEXCIT(1)=G_VMC_PI
+                ENDIF
             ENDIF
 C.. Just make really sure the last one catches everytihng
             PEXCIT(I_VNEXT)=2.D0
@@ -2366,10 +2390,16 @@ C.. pick a random excitation of where we are (INODE) of the appropriate
 C.. symmetry.  We don't worry about weighting this at the moment
 C.. We pick which node we'regoing to excite from
             IF(I_VNEXT.GT.1) THEN
-               DO I=2,I_VNEXT
-                  PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
-               ENDDO
-               PEXCIT(1)=G_VMC_PI
+                IF(G_VMC_PI.eq.-1.D0) THEN
+                    DO I=1,I_VNEXT
+                        PEXCIT(I)=1.D0/(I_VNEXT+0.D0)
+                    ENDDO
+                ELSE
+                    DO I=2,I_VNEXT
+                        PEXCIT(I)=(1.D0-G_VMC_PI)/(I_VNEXT-1.D0)
+                    ENDDO
+                    PEXCIT(1)=G_VMC_PI
+                ENDIF
             ENDIF
 C.. Just make really sure the last one catches everytihng
             PEXCIT(I_VNEXT)=2.D0
