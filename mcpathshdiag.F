@@ -51,7 +51,7 @@ C.,             If 1, only allow doubles.
          REAL*8 BETA,RHOEPS
          LOGICAL TSYM,T
          LOGICAL TLOG,TLOG2,TLOG3,TLOG4,TLOG5,TLOG6
-         REAL*8 DBETA
+         REAL*8 DBETA(*)
          TYPE(HElement) HIJS(0:I_V)
          INTEGER ICLS
          INTEGER NMEM(*),NMEMLEN
@@ -197,7 +197,7 @@ C.. NMAX has ARR hidden in it.
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
                  
-               IF (ABS(TOTAL%v).gt.1.D-09) THEN!.and.(RHOEPS.le.1.D-08)) THEN
+               IF (TOTAL .agt. DBETA(2)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
 !     &        .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
                      
                    CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
@@ -247,6 +247,8 @@ C.. NMAX has ARR hidden in it.
 !                    IF(.not.TPREVAR) THEN
 !                        SumP=SumP+DREAL(Prob)
 !                    ENDIF
+                ELSE 
+                  Prob=0.d0                  
                 ENDIF   
                ENDIF
               IF(TLOG5) WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
