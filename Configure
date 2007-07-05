@@ -764,7 +764,7 @@ case ${Configuration}
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-Mr8 -Msignextend -Minform=warn -Msecond_underscore'
-     LFLAGS=' -L /usr/local/shared/suse-10.1-1/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf -lpgsse1 -lpgsse2'
+     LFLAGS='-L /usr/local/shared/suse-10.1-1/fftw-3.1.2/lib -L /usr/local/shared/fftw3/lib -L /usr/local/fftw-3.1/lib -L /usr/local/fftw-3.0.1/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf -lpgsse1 -lpgsse2'
      LDFLAGS='-Mnostdlib -Mnostartup' 
      if [ $debug ]; then
        FC='pgf90 -c -g '
