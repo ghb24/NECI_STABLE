@@ -3,7 +3,7 @@ C     ==================================================================
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
 #ifdef PARALLEL
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
 #endif
 C     Arguments
       CHARACTER*(*) A,B

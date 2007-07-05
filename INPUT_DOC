@@ -99,6 +99,9 @@ TILT <ITILTX ITILTY> [HUBBARD only.  default off]
 ALPHA <ALPHA>
     Sets TALPHA=.true. and defines ALPHA.
 
+BANDGAP
+    Calculate for NEL, NEL+1, and NEL-1, and extract the band gap energy.
+
 ENDSYS
     End system block.
 

@@ -9,7 +9,7 @@ C     ==--------------------------------------------------------------==
 #else
       INTEGER  I_AD1,I_AD2
 #endif
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
       LOGICAL ERROR
       REAL*8  XM(0:*)
@@ -78,7 +78,7 @@ C     ==--------------------------------------------------------------==
 #else
       INTEGER   I_AD1,I_AD2
 #endif
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
       LOGICAL ERROR
       REAL*8  X1(*),X2(*)
@@ -97,8 +97,10 @@ C     ==--------------------------------------------------------------==
         ENDIF
       ENDDO
       IF(.NOT.ERROR) THEN
-        IF(PARENT.AND.MEMCHK)
+        IF(MEMCHK)
      *  WRITE(6,'(A)') ' MEMORY_CHECK| ALL ARRAY BOUNDARIES ARE OK '
+!        IF(PARENT.AND.MEMCHK)
+!     *  WRITE(6,'(A)') ' MEMORY_CHECK| ALL ARRAY BOUNDARIES ARE OK '
       ELSE
         CALL PRINT_MEMORY
         CALL STOPGM('MEMORY_CHECK',' CORRUPTED MEMORY')
@@ -116,7 +118,7 @@ C     ==--------------------------------------------------------------==
 #else
       INTEGER   I_AD1,I_AD2
 #endif
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
 #ifdef POINTER8
       INTEGER*8 I_SORT(MEM_LEN)
@@ -194,7 +196,7 @@ C     ==--------------------------------------------------------------==
 #else
       INTEGER   I_AD1,I_AD2
 #endif
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
       INTEGER INDEX(MBM),I_SORT(MBM), I,I1,I2
       INTEGER IMAX
@@ -247,7 +249,7 @@ C     ==--------------------------------------------------------------==
       INTEGER  I_AD1,I_AD2
       INTEGER*8 IP_XM
 #endif
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
       LOGICAL ERROR
       REAL*8  XM(0:*)

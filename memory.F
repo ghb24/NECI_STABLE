@@ -2,7 +2,7 @@ C     ==================================================================
       SUBROUTINE MEMORY(IP_POINT,LENGTH,TAG)
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
       INCLUDE 'irat.inc'
 C     Arguments
@@ -52,7 +52,6 @@ C     ==--------------------------------------------------------------==
         NUMPEAK=0
         MEMPEAK=0
         MEMTOT=0
-        MEMCHK=TMEMCHK
       ENDIF
       IERROR=0
       LEN=LENGTH+2
@@ -110,7 +109,8 @@ CC /AJWT
 #endif
       IF(IERROR.NE.0) THEN
         WRITE(*,'(/,1X,64("*"))')
-        WRITE(*,'(1X,A9,I6,A14,I12,A28,A10)') 'PROCESSOR',ME,
+!Used to be processor ME
+        WRITE(*,'(1X,A9,I6,A14,I12,A28,A10)') 'PROCESSOR',1,
      *             ' ALLOCATION OF',LENGTH,' WORDS OF MEMORY FAILED
      *             FOR ',TAG
         WRITE(*,'(1X,64("*"),/)')
@@ -167,7 +167,7 @@ C     ==================================================================
       SUBROUTINE MemAlloc(IERROR,XM,LENGTH,TAG)
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
-      INCLUDE 'system.h'
+!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
       INCLUDE 'irat.inc'
 C     Arguments
@@ -202,7 +202,8 @@ C      WRITE(14,*) TAG,LENGTH
 
       IF(IERROR.NE.0) THEN
         WRITE(*,'(/,1X,64("*"))')
-        WRITE(*,'(1X,A9,I6,A14,I12,A28,A10)') 'PROCESSOR',ME,
+!Used to be processor ME
+        WRITE(*,'(1X,A9,I6,A14,I12,A28,A10)') 'PROCESSOR',1,
      *             ' ALLOCATION OF',LENGTH,' WORDS OF MEMORY FAILED
      *             FOR ',TAG
         WRITE(*,'(1X,64("*"),/)')
