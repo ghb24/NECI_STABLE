@@ -618,14 +618,19 @@ C            CALL PRINT_MEMORY()
          USE UMatCache , only : GetUMatEl
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T
+         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p
          REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
-         INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,NBASISMAX(5,3),c
-         INTEGER EXCITLEV,IGETEXCITLEVEL_,SINGLE,DOUBLE
+         INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,NBASISMAX(5,3)
+         INTEGER EXCITLEV,IGETEXCITLEVEL_,hist
          TYPE(HDElement) Weight,DLWDB2
          TYPE(HElement) UMAT(*),ME
          TYPE(BasisFN) G1(NBASIS)
-         SAVE c,SINGLE,DOUBLE,Percendoub
+         INTEGER*8 SINGLE,DOUBLE,c,histogram(-20:3)
+         SAVE c,SINGLE,DOUBLE,Percendoub,histogram
+         DATA histogram/24*0/
+         DATA c/0/
+         DATA SINGLE/0/
+         DATA DOUBLE/0/
          
          IF(I_V.eq.2) THEN
             EX(1,1)=2
@@ -654,13 +659,16 @@ C            CALL PRINT_MEMORY()
             WRITE(56,"3G25.16") Weight%v,Energyto,ME%v
         ELSEIF(I_V.eq.3) THEN
             c=c+1
+            EXCITLEV=IGETEXCITLEVEL_(IPATH(1:NEL,1),
+     &                           IPATH(1:NEL,2),NEL)
+            IF(EXCITLEV.ge.3) RETURN
             IF(c.eq.1) THEN
                 OPEN(56,FILE="GRAPHSTATS1",STATUS="UNKNOWN")
                 OPEN(57,FILE="GRAPHSTATS2",STATUS="UNKNOWN")
                 OPEN(58,FILE="GRAPHSTATS3",STATUS="UNKNOWN")
             ENDIF
-            IF((MOD(c,150).eq.0).or.(MOD(c,150).eq.50).or.
-     &             (MOD(c,150).eq.100)) THEN
+            IF((MOD(c,75).eq.0).or.(MOD(c,75).eq.25).or.
+     &             (MOD(c,75).eq.50)) THEN
                 EX(1,1)=2
                 CALL GetEXCITATION(IPATH(1:NEL,1),IPATH(1:NEL,2),
      &                      NEL,EX,T)
@@ -681,23 +689,40 @@ C            CALL PRINT_MEMORY()
                     EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                     EXCITLEV=IGETEXCITLEVEL_(IPATH(1:NEL,0),
      &                           IPATH(1:NEL,2),NEL)
-                    IF(MOD(c,150).eq.0) THEN
+                    IF(MOD(c,75).eq.0) THEN
                         WRITE(56,"4G25.16,I3,G25.16") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
-                    ELSEIF(MOD(c,150).eq.50) THEN
+                    ELSEIF(MOD(c,75).eq.25) THEN
                         WRITE(57,"4G25.16,I3,G25.16") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
-                    ELSEIF(MOD(c,150).eq.100) THEN
+                    ELSEIF(MOD(c,75).eq.50) THEN
                         WRITE(58,"4G25.16,I3,G25.16") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
                     ENDIF
-                ELSE
+                ELSEIF(EX(1,2).eq.0) THEN
                     SINGLE=SINGLE+1
-                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
-                    WRITE(124,*) Percendoub
-                ENDIF
+!                   WRITE(124,"30I3") IPATH(1:NEL,0),IPATH(1:NEL,1),
+!     &                      IPATH(1:NEL,2)
+                    hist=NINT(log10(Weight%v))
+                    IF(Weight%v.lt.1D-20) hist=-20
+                        do p=-20,3
+                            IF(hist.eq.p) THEN
+                                histogram(p)=histogram(p)+1
+                            ENDIF
+                        enddo
+                    ENDIF
+                    IF(c.gt.16157864) THEN
+                        write(125,"24I9") histogram
+                        write(125,*) ""
+                        write(125,*) ""
+                    ENDIF
+                            
             ENDIF
         ENDIF
+                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
+                    IF((MOD(c,10000).eq.0).or.(c.gt.16157864)) THEN
+            WRITE(124,"A,3I13,G25.16") "  ",c,SINGLE,DOUBLE,Percendoub
+                    ENDIF
         RETURN
          
          END
