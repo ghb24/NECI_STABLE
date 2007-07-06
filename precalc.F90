@@ -743,7 +743,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     SELECT CASE (GIDHO)
     !Importance
     CASE(2)
-        IF(point.GE.1.D0) THEN
+        IF((point.GE.1.D0).or.(point.LE.0.D0)) THEN
             MCPATHSPRE=HUGE(MCPATHSPRE)
             RETURN
         ELSE

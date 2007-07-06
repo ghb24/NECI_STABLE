@@ -625,6 +625,7 @@ C            CALL PRINT_MEMORY()
          TYPE(HDElement) Weight,DLWDB2
          TYPE(HElement) UMAT(*),ME
          TYPE(BasisFN) G1(NBASIS)
+         LOGICAL AREDETSEXCITS,CONNECT23
          INTEGER*8 SINGLE,DOUBLE,c,histogram(-20:3)
          SAVE c,SINGLE,DOUBLE,Percendoub,histogram
          DATA histogram/24*0/
@@ -659,70 +660,112 @@ C            CALL PRINT_MEMORY()
             WRITE(56,"3G25.16") Weight%v,Energyto,ME%v
         ELSEIF(I_V.eq.3) THEN
             c=c+1
-            EXCITLEV=IGETEXCITLEVEL_(IPATH(1:NEL,1),
-     &                           IPATH(1:NEL,2),NEL)
-            IF(EXCITLEV.ge.3) RETURN
+            
+!            EXCITLEV=IGETEXCITLEVEL_(IPATH(1:NEL,1),
+!     &                           IPATH(1:NEL,2),NEL)
+!            IF(EXCITLEV.ge.3) RETURN
             IF(c.eq.1) THEN
-                OPEN(56,FILE="GRAPHSTATS1",STATUS="UNKNOWN")
-                OPEN(57,FILE="GRAPHSTATS2",STATUS="UNKNOWN")
-                OPEN(58,FILE="GRAPHSTATS3",STATUS="UNKNOWN")
+                OPEN(56,FILE="GRAPHSTAT57_1",STATUS="UNKNOWN")
+                OPEN(57,FILE="GRAPHSTAT57_2",STATUS="UNKNOWN")
+                OPEN(58,FILE="GRAPHSTAT57_3",STATUS="UNKNOWN")
+                OPEN(59,FILE="GRAPHSTAT6_1",STATUS="UNKNOWN")
+                OPEN(60,FILE="GRAPHSTAT6_2",STATUS="UNKNOWN")
+                OPEN(61,FILE="GRAPHSTAT6_3",STATUS="UNKNOWN")
             ENDIF
             IF((MOD(c,75).eq.0).or.(MOD(c,75).eq.25).or.
      &             (MOD(c,75).eq.50)) THEN
+                
+                CONNECT23=AREDETSEXCITS(IPATH(1:NEL,1),
+     &                IPATH(1:NEL,2),NEL,NBASISMAX,EXCITLEV)
                 EX(1,1)=2
-                CALL GetEXCITATION(IPATH(1:NEL,1),IPATH(1:NEL,2),
+                
+                IF(CONNECT23) THEN  !Nodes 2&3 connected
+                    CALL GetEXCITATION(IPATH(1:NEL,1),IPATH(1:NEL,2),
      &                      NEL,EX,T)
-                IF(EX(1,2).ne.0) THEN
-                    DOUBLE=DOUBLE+1
-                    ISS=NBASISMAX(2,3)
-                    I=EX(1,1)
-                    J=EX(1,2)
-                    K=EX(2,1)
-                    L=EX(2,2)
-                    CALL GTID(NBASISMAX,I,IDI)
-                    CALL GTID(NBASISMAX,J,IDJ)
-                    CALL GTID(NBASISMAX,K,IDK)
-                    CALL GTID(NBASISMAX,L,IDL)
-                    ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,
+                    IF(EX(1,2).ne.0) THEN
+                        DOUBLE=DOUBLE+1
+                        ISS=NBASISMAX(2,3)
+                        I=EX(1,1)
+                        J=EX(1,2)
+                        K=EX(2,1)
+                        L=EX(2,2)
+                        CALL GTID(NBASISMAX,I,IDI)
+                        CALL GTID(NBASISMAX,J,IDJ)
+                        CALL GTID(NBASISMAX,K,IDK)
+                        CALL GTID(NBASISMAX,L,IDL)
+                      ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,
      &                      IDJ,IDK,IDL)
-                    EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
-                    EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
-                    EXCITLEV=IGETEXCITLEVEL_(IPATH(1:NEL,0),
-     &                           IPATH(1:NEL,2),NEL)
-                    IF(MOD(c,75).eq.0) THEN
-                        WRITE(56,"4G25.16,I3,G25.16") Weight%v,
+                        EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
+                        EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
+                        IF(MOD(c,75).eq.0) THEN
+                            WRITE(56,"4G25.16,I3,G25.16") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
-                    ELSEIF(MOD(c,75).eq.25) THEN
-                        WRITE(57,"4G25.16,I3,G25.16") Weight%v,
+                        ELSEIF(MOD(c,75).eq.25) THEN
+                            WRITE(57,"4G25.16,I3,G25.16") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
-                    ELSEIF(MOD(c,75).eq.50) THEN
-                        WRITE(58,"4G25.16,I3,G25.16") Weight%v,
+                        ELSEIF(MOD(c,75).eq.50) THEN
+                            WRITE(58,"4G25.16,I3,G25.16") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
-                    ENDIF
-                ELSEIF(EX(1,2).eq.0) THEN
-                    SINGLE=SINGLE+1
-!                   WRITE(124,"30I3") IPATH(1:NEL,0),IPATH(1:NEL,1),
+                        ENDIF
+                    ELSEIF(EX(1,2).eq.0) THEN
+                        SINGLE=SINGLE+1
+                        !Histogramming
+!                       WRITE(124,"30I3") IPATH(1:NEL,0),IPATH(1:NEL,1),
 !     &                      IPATH(1:NEL,2)
-                    hist=NINT(log10(Weight%v))
-                    IF(Weight%v.lt.1D-20) hist=-20
-                        do p=-20,3
-                            IF(hist.eq.p) THEN
-                                histogram(p)=histogram(p)+1
-                            ENDIF
-                        enddo
-                    ENDIF
-                    IF(c.gt.16157864) THEN
-                        write(125,"24I9") histogram
-                        write(125,*) ""
-                        write(125,*) ""
-                    ENDIF
+!                        hist=NINT(log10(Weight%v))
+!                        IF(Weight%v.lt.1D-20) hist=-20
+!                            do p=-20,3
+!                                IF(hist.eq.p) THEN
+!                                    histogram(p)=histogram(p)+1
+!                                ENDIF
+!                            enddo
+!                         ENDIF
+!                        IF(c.gt.16157864) THEN
+!                           write(125,"24I9") histogram
+!                           write(125,*) ""
+!                           write(125,*) ""
+!                        ENDIF
                             
+                    ENDIF
+                ELSE    !We have a class 6 graph where nodes 2&3 are disconnected
+
+                    CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,2),
+     &                      NEL,EX,T)
+                    IF(EX(1,2).eq.0) THEN
+                        STOP 'Should not be single excits here'
+                    ELSE
+                        DOUBLE=DOUBLE+1
+                        ISS=NBASISMAX(2,3)
+                        I=EX(1,1)
+                        J=EX(1,2)
+                        K=EX(2,1)
+                        L=EX(2,2)
+                        CALL GTID(NBASISMAX,I,IDI)
+                        CALL GTID(NBASISMAX,J,IDJ)
+                        CALL GTID(NBASISMAX,K,IDK)
+                        CALL GTID(NBASISMAX,L,IDL)
+                      ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,
+     &                      IDJ,IDK,IDL)
+                        EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
+                        EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
+                        IF(MOD(c,75).eq.0) THEN
+                            WRITE(59,"4G25.16,I3,G25.16") Weight%v,
+     &                        DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                        ELSEIF(MOD(c,75).eq.25) THEN
+                            WRITE(60,"4G25.16,I3,G25.16") Weight%v,
+     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                        ELSEIF(MOD(c,75).eq.50) THEN
+                            WRITE(61,"4G25.16,I3,G25.16") Weight%v,
+     &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
+                        ENDIF
+                    ENDIF
+                ENDIF
+                IF((MOD(c,100000).eq.0)) THEN
+                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
+                    WRITE(124,*) c,(SINGLE+DOUBLE),Percendoub
+                ENDIF
             ENDIF
         ENDIF
-                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
-                    IF((MOD(c,10000).eq.0).or.(c.gt.16157864)) THEN
-            WRITE(124,"A,3I13,G25.16") "  ",c,SINGLE,DOUBLE,Percendoub
-                    ENDIF
         RETURN
          
          END

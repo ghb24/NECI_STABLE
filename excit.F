@@ -2,8 +2,8 @@
          IMPLICIT NONE
          INTEGER ICE,NEL,D1(NEL),D2(NEL),NBASISMAX(*)
          LOGICAL ISUHFDET
-         INTEGER IGETEXCITLEVEL
-         ICE=IGETEXCITLEVEL(D1,D2,NEL)
+         INTEGER IGETEXCITLEVEL_
+         ICE=IGETEXCITLEVEL_(D1,D2,NEL)
          IF(ICE.LE.2) THEN
 C.. The new node is connected to this node
             IF(ISUHFDET(D1,NEL).OR.
