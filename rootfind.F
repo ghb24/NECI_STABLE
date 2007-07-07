@@ -11,15 +11,17 @@ C.. star.  THere are N spokes and 1 pivot, and thus N+1 roots
 C.. A and B are sorted in ascending order of A
 
       SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS,NROOTS)
+         USE HElement
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS,NMIN
-         REAL*8 A(0:N),B(0:N),ROOTS(0:NROOTS)
+         TYPE(HElement) A(0:N),B(0:N)
+         real*8 ROOTS(0:NROOTS)
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX
          NMIN=N-NROOTS
 C.. We find the first root by starting very slightly above the highest
 C.. pole
-         XLOW=A(N)
-         XHIGH=2*A(N)
+         XLOW=DREAL(A(N))
+         XHIGH=2*DREAL(A(N))
 C.. The value at XHIGH is always bigger than at XLOW
          I=NROOTS
          DO WHILE(I.GE.0)
@@ -52,18 +54,19 @@ C               WRITE(6,"(4G15.9)") X,VAL
             ENDDO
             ROOTS(I)=X
 !            WRITE(76,*) "Root found: ",X
-            DO WHILE(I.GT.0.AND.ABS(A(NMIN+I)-A(NMIN+I-1)).LT.1.D-9)
+            DO WHILE(I.GT.0.AND.
+     &          ABS(DREAL(A(NMIN+I))-DREAL(A(NMIN+I-1))).LT.1.D-9)
                I=I-1
-               ROOTS(I)=A(NMIN+I)
+               ROOTS(I)=DREAL(A(NMIN+I))
 C               WRITE(6,*),I,A(I),B(I)
 !               WRITE(76,*) "Root found2:",A(I)
             ENDDO
-            XHIGH=A(NMIN+I)
+            XHIGH=DREAL(A(NMIN+I))
             I=I-1
             IF(I.EQ.0) THEN
                XLOW=-1.D0
             ELSE
-               XLOW=A(NMIN+I)
+               XLOW=DREAL(A(NMIN+I))
             ENDIF
          ENDDO
          RETURN
@@ -71,24 +74,28 @@ C               WRITE(6,*),I,A(I),B(I)
          
 
       SUBROUTINE CALCSTARPOLYVALUE(N,A,B,X,VAL)
+         USE HElement
          IMPLICIT NONE
          INTEGER N
-         REAL*8 A(0:N),B(0:N),X,VAL
+         TYPE(HElement) A(0:N),B(0:N)
+         REAL*8 X,VAL
          INTEGER I
-         VAL=A(0)-X
+         VAL=DREAL(A(0))-X
          DO I=1,N
-            VAL=VAL+B(I)*B(I)/(X-A(I))
+            VAL=VAL+SQ(B(I))/(X-DREAL(A(I)))
          ENDDO
          RETURN
       END
       SUBROUTINE CALCSTARPOLYDERIV(N,A,B,X,VAL)
+         USE HElement
          IMPLICIT NONE
          INTEGER N
-         REAL*8 A(0:N),B(0:N),X,VAL
+         TYPE(HElement) A(0:N),B(0:N)
+         REAL*8 X,VAL
          INTEGER I
          VAL=-1.D0
          DO I=1,N
-            VAL=VAL-B(I)*B(I)/((X-A(I))**2)
+            VAL=VAL-SQ(B(I))/((X-DREAL(A(I)))**2)
          ENDDO
          RETURN
       END
