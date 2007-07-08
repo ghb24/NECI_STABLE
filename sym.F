@@ -1056,7 +1056,19 @@ C.. T1= highest integer less than R1
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(Symmetry) A,B
-         SYMLT=A%s.LT.B%s
+         IF(A%s.GE.0) THEN
+            IF(B%s.GE.0) THEN
+               SYMLT=A%s.LT.B%s
+            ELSE
+               SYMLT=.TRUE.
+            ENDIF
+         ELSE
+            IF(B%s.GE.0) THEN
+               SYMLT=.FALSE.
+            ELSE
+               SYMLT=A%s.LT.B%s
+            ENDIF
+         ENDIF    
          RETURN
       END
       LOGICAL FUNCTION SYMNE(A,B)
@@ -1072,12 +1084,25 @@ C.. T1= highest integer less than R1
          TYPE(Symmetry) A,B
          SYMEQ=A%s.EQ.B%s
          RETURN
+!Need to cope with 'unsigned integers'
       END
       LOGICAL FUNCTION SYMGT(A,B)
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(Symmetry) A,B
-         SYMGT=A%s.GT.B%s
+         IF(A%s.GE.0) THEN
+            IF(B%s.GE.0) THEN
+               SYMGT=A%s.GT.B%s
+            ELSE
+               SYMGT=.FALSE.
+            ENDIF
+         ELSE
+            IF(B%s.GE.0) THEN
+               SYMGT=.TRUE.
+            ELSE
+               SYMGT=A%s.GT.B%s
+            ENDIF
+         ENDIF    
          RETURN
       END
 C.. A binary search to find VAL in TAB.  TAB is sorted

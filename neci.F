@@ -3085,10 +3085,12 @@ C.. Check spin
          TYPE(BASISFN) G1(NHG)
          REAL*8 ARR(NHG,2)
          DO I=1,NHG
-           WRITE(NUNIT,'(6I7,Z10,2F19.9)') I,BRR(I),G1(BRR(I))%K(1),
+           WRITE(NUNIT,'(6I7,$)')
+     &            I,BRR(I),G1(BRR(I))%K(1),
      &         G1(BRR(I))%K(2),G1(BRR(I))%K(3),
-     &         G1(BRR(I))%MS,G1(BRR(I))%SYM,
-C     &         SymLabels(SymClasses((BRR(I)+1)/2)),
+     &         G1(BRR(I))%MS
+            CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
+            WRITE(NUNIT,'(2F19.9)') 
      &         ARR(I,1),ARR(BRR(I),2)
          ENDDO
          RETURN
