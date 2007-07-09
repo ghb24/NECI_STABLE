@@ -712,7 +712,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     include 'irat.inc'
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY,L,LT,K
-    INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX),I
+    INTEGER NI(NEL),NBASISMAX(5,2),IFRZ(0:NBASIS,PREIV_MAX),I,CNWHTAY
     INTEGER IPATH(NEL,0:PREIV_MAX),LOCTAB(3,PREIV_MAX),NBASIS,GIDHO
     INTEGER KSYM(5),sss,ierr,ierr2,ierr3,STORE(6),NMEMLEN,INODE2(NEL)
     INTEGER IEXCITS,J,EXCITGEN(0:PREIV_MAX),ierr4,b,dd,bb,aa,DEALLOCYC(2)
@@ -809,14 +809,16 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         DLWDB2=0.D0
         METH=pre_TAY(1,K)   !Method for vertex level
         CYCLES=pre_TAY(2,K)
-        IF((METH.eq.-8).or.(METH.eq.-7)) then !Full Rho-diag method
-!   This code generates excitations on the fly, and gets
-!            F(K)=FMCPR3B(NI,BETA,I_P,IPATH,K,NEL,                                &
-!     &          NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,       &
-!     &          RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                     &
-!     &          ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,            &
-!     &          MP2E,NTOTAL)
-            STOP 'Rho-Diag not yet working for precalc'
+        IF(METH.eq.-8) then !Full Rho-diag method
+
+            CNWHTAY=0   !options for disallowing certain connections/graphs
+            F(K)=FMCPR3B(NI,BETA,I_P,IPATH,K,NEL,                                &
+     &          NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,       &
+     &          RHOEPS,0,RHOII,RHOIJ,CNWHTAY,METH,LOCTAB,                        &
+     &          0,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                   &
+     &          MP2E,NTOTAL,EREF,VARSUM,TOTAL2)
+        ELSEIF(METH.eq.-7) THEN !RHO-diag MC precalc
+            STOP 'Rho-Diag not yet working for MC precalc'
         ELSEIF(METH.eq.-20) then !Full H-diag method
             EREF=DLWSAV(K-1)/TOTSAV(K-1)
 

@@ -1165,6 +1165,7 @@ C     ILOGGING = 0771
                            tMCDirectSum=.FALSE.
                            IF(I_V.GT.0) g_MultiWeight(I_V)=1.D0
                         case("MCDIRECT")
+                           I_HMAX = -7
                            tMCDirectSum=.TRUE.
                             call readu(w)
                             select case(w)
