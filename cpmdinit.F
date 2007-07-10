@@ -257,7 +257,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
          REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
-         TYPE(HElement) U,TOT
+         TYPE(HElement) U,TOT,sum1
          INTEGER ISS,NBASISMAX(*)
          TYPE(HElement) UMAT(:)  ! UMAT dummy for GetUMatEl.
 
@@ -271,6 +271,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          LOGICAL TORDER
          INTEGER BRR(NSTATES*2),NLOCK
          REAL*8 ARR(NSTATES*2,2)
+         complex*16,allocatable :: HarInt(:,:)
          CALL TISET('CPMDINIT2I',ISUB)
 
          call Memory(IP_PIInt,NStates,'PIInt')
@@ -283,6 +284,7 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
          ELSE
             NSTATESUSED=NORBUSED/2
          ENDIF
+         allocate(HarInt(NStatesUsed,NStatesUsed))
 C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
          CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
@@ -291,7 +293,7 @@ C.. If we're freezing we allocate a small cache first to store the <ij|kj> integ
 C.. Set the UMAT cache to cache things in the lowest possible position
          CALL SETUMATCACHEFLAG(1)
 C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
-         CALL SETUPUMAT2D(G1)
+         CALL SETUPUMAT2D(G1,HarInt)
          CALL SETUMATCACHEFLAG(0)
          WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
@@ -304,22 +306,26 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                       TOT=TOT+HElement(EIGENVALUES(I)+PIInt(I)/2.d0)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
-                  DO K=1,NSTATES
-                     CALL CPMDGETOCC(K,F)
-C.. F now has the occupation number of state K
-                     IF(F.GT.1.D-5) THEN
-C.. Get 4-index integral (ik|jk)
-                        IF(K.GT.NSTATESUSED) THEN
-                           WRITE(6,"(A,I2,A,F10.6)")"TOP FROZEN STATE "
-     &                          ,K," has occupation number ",F
-                           STOP "TOP FROZEN STATE OCCUPIED"
-                        ENDIF
-                        U=GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,
-     &                        I,K,J,K)
-!                       WRITE(6,*) I,K,J,K,U
-                        TOT=TOT-HElement(F)*U
-                     END IF
-                  ENDDO
+!                  sum1=dcmplx(0.d0,0.d0)
+!                  DO K=1,NSTATES
+!                     CALL CPMDGETOCC(K,F)
+!C.. F now has the occupation number of state K
+!                     IF(F.GT.1.D-5) THEN
+!C.. Get 4-index integral (ik|jk)
+!                        IF(K.GT.NSTATESUSED) THEN
+!                           WRITE(6,"(A,I2,A,F10.6)")"TOP FROZEN STATE "
+!     &                          ,K," has occupation number ",F
+!                           STOP "TOP FROZEN STATE OCCUPIED"
+!                        ENDIF
+!                        U=GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,
+!     &                        I,K,J,K)
+!!                       WRITE(6,*) I,K,J,K,U
+!                        TOT=TOT-HElement(F)*U
+!                        sum1=sum1+HElement(F)*U
+!                     END IF
+!                  ENDDO
+!                  write (6,*) i,j,sum1,HarInt(i,j)
+                  TOT=TOT-HElement(HarInt(i,j))
                   TMAT(II,JJ)=TOT
                   TMAT(II+1,JJ+1)=TOT
                   TMAT(JJ,II)=TOT
@@ -354,5 +360,6 @@ C.. Set the UMAT cache to cache normally again
          WRITE(6,*) "Finished TMAT"
          CLOSE(10)
          call FreeM(IP_PIInt)
+         deallocate(HarInt)
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   

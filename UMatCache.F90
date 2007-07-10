@@ -293,11 +293,12 @@ MODULE UMatCache
          ENDIF
       END
 
-      SUBROUTINE SETUPUMAT2D(G1)
+      SUBROUTINE SETUPUMAT2D(G1,HarInt)
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER ierr
+         complex*16 HarInt(nStates,nStates)
          IF(NSLOTSINIT.LT.0) THEN
             TUMAT2D=.FALSE.
             WRITE(6,*) "Not using UMAT2D."
@@ -305,7 +306,7 @@ MODULE UMatCache
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
             Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
-            CALL CPMDANTISYMINTEL(G1,UMAT2D,NSTATES)
+            CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
          ENDIF
       END
 
