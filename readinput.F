@@ -834,10 +834,15 @@ C                  end select
               case("FREEZE")
                   call readi(NFROZEN)
                   call readi(NTFROZEN)
-                  if ( mod(NFROZEN,2).ne.0 .or. mod(NTFROZEN,2).ne.0 ) 
-     &             then
-                      call report("NFROZEN and NTFROZEN must be"  
+                  if ( mod(NFROZEN,2).ne.0 .or.
+     &             (NTFROZEN.GT.0 .and. mod(NTFROZEN,2).ne.0) ) then
+                      call report("NFROZEN and (+ve) NTFROZEN must be"  
      &                //"multiples of 2",.true.)
+                  end if
+                  if (
+     &             (NTFROZEN.LT.0 .and. mod(NEL-NTFROZEN,2).ne.0) ) then
+                      call report("-ve NTFROZEN must be same parity  "
+     &                //"as NEL",.true.)
                   end if
               case("ORDER")
                   I = 1

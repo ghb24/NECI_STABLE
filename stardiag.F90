@@ -58,6 +58,7 @@
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 !.. iC now contains the number of excitations.
 !.. Allocate memory for the lists
+         Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
          CALL MemAlloc(iErr,ExcitInfo,(iMaxExcit+1)*3*HElementSize,"ExcitInfo")
 !.. This will contain all the info needed to work out the value of the
