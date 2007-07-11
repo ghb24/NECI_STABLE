@@ -100,7 +100,8 @@
       DBETA(3)=0.D0
       RHOEPSILON=1.D-6
       TTROT=.true.
-
+      PREWEIGHTEPS=1.D-8
+      
       TMPTHEORY=.FALSE.
       TNEWEXCITATIONS=.FALSE.
 
@@ -378,6 +379,8 @@ C                  end select
                    call readf(TOTALERROR)
                case("TRUECYCLES")
                    call readi(TRUECYCLES)
+               case("PREGRAPHEPSILON")
+                   call readf(PREWEIGHTEPS)
                case("USE")
                     pre_TAYLOG(1,preIV_MAX)=.true.    
                     IF(TGRIDVAR(preIV_MAX)) THEN

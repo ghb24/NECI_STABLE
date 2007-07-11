@@ -182,12 +182,15 @@ C.. This code generates list of all excitations at each level
             ELSEIF(I_CHMAX.EQ.-8) THEN
             WRITE(6,"(A6,I3,A,I3,A)") "Level ",I," Full Sum New ",
      &         I_V," Vertex"
+
+               EREF=DLWDB/TOTAL
+            
 C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL)
+     &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-14) THEN
 !.. We read in this vertex level from the MCPATHS file
             WRITE(6,"(A6,I3,A,I3,A)") "Level ",I," MCPATHS read ",
@@ -567,11 +570,14 @@ C.. This code generates list of all excitations at each level
 C.. This code generates excitations on the fly
             WRITE(6,"(A,I3,A)") " Full Sum New ",
      &         I_V," Vertex"
+
+               EREF=DLWDB/TOTAL
+            
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &        RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
-     &         MP2E,NTOTAL)
+     &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-20) THEN
 C.. This code generates excitations on the fly, and diagonalizes a matrix of
 C.. HIJ rather than RHOIJ
@@ -977,7 +983,7 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL)
+     &   NTOTAL,EREF,VARSUM,WREF)
          USE HElement
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -988,7 +994,7 @@ C.,             If 1, only allow doubles.
          COMPLEX*16 FCK(*)
          TYPE(HElement) TMat(*),UMAT(*),R
          REAL*8 ALAT(*),ECORE,PR
-         TYPE(HDElement) TOTAL,FMCPR3B
+         TYPE(HDElement) TOTAL,FMCPR3B,WREF,EREF,PROB
          TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
          TYPE(HDElement) RHOII(0:I_V),DLWDB,DLWDB2
@@ -1021,6 +1027,9 @@ C.,             If 1, only allow doubles.
          TYPE(HDElement) MP2E,NTOTAL
          INTEGER EXFLAG
          LOGICAL ISCONNECTEDDET
+         REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+         DATA SumP/0.D0/
+         SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          INCLUDE 'irat.inc'
          INCLUDE 'vmc.inc'
          IF(IAND(NWHTAY,1).AND.I_VIND.EQ.0)
@@ -1132,8 +1141,25 @@ C.. log every 1000
             ENDIF
 C            WRITE(10,*) (LOCTAB(3,I),I=1,I_V-1)
 C            WRITE(6,*) "X"
+        
+            IF (TVARCALC(I_V).or.TPREVAR) THEN
+                J=0
+                IF(TOTAL%v.ge.PREWEIGHTEPS) THEN
+
+                   CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
+     &                       nBasisMax,UMat,NMAX,nBasis,Prob,DUMMY)
+                   SumX  =SumX   + DLWDB2%v-(EREF%v*TOTAL%v)
+                   SumY  =SumY   + TOTAL%v
+                   SumXsq=SumXsq + (DLWDB2%v-(EREF%v*TOTAL%v))**2/Prob%v
+                   SumYsq=SumYsq + ((TOTAL%v)**2)/Prob%v
+                   SumXY =SumXY  + (DLWDB2%v-(EREF%v*TOTAL%v))*TOTAL%v/
+     &                                  Prob%v
+                   SumP=SumP+Prob%v
+     
+                 ENDIF
+             ENDIF
             RETURN
-         ENDIF
+        ENDIF
 C.. We recurse over all possibilities for the next node:
 C..  1) Nodes connected to us (excluding those connected to previous nodes)
 C..     We perform this exclusion by looking at whether a newly
@@ -1384,7 +1410,8 @@ C.. Get the H element so we can calculate the energy
      &                     G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
-     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL)
+     &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
+     &                     EREF,VARSUM,WREF)
                    ICIL=ICIL+1
                   ENDDO
                ENDIF
@@ -1406,7 +1433,50 @@ C            CALL PRINT_MEMORY()
          CALL FREEM(IP_NMEM)
          LOCTAB(1,I_VIND+1)=0
          FMCPR3B=TOTAL
-         RETURN
+
+         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
+
+
+            SumYsq=SumYsq+(2*WREF%v*SumY)+(((WREF%v)**2)*SumP)
+            SumY=SumY+(WREF%v*SumP)
+            SumXY=SumXY+(WREF%v*SumX)
+!           write(6,"A, 5G26.15") "Terms in estimated variance:",
+!     &        SumX, SumY, SumXsq, SumYsq, SumXY
+         write(6,"(2A,I3,A,G23.16)") "Expected MC Variance for ratio ",
+     &       "vertex level", I_V," is ", (SumX/SumY)**2*(SumXsq/SumX**2
+     &                      +SumYsq/SumY**2-2*SumXY/(SumX*SumY))
+            write(6,"(2A,G24.16)") "Sum of Pgens of graphs included",
+     &         " in variance is ", SumP
+            SumP=0.D0
+            VARSUM=0.D0
+            SumX=0.D0
+            SumY=0.D0
+            SumXsq=0.D0
+            SumYsq=0.D0
+            SumXY=0.D0
+        End If
+                          
+        IF (TPREVAR.and.I_VIND.eq.0) THEN
+
+           SumYsq=SumYsq+(2*WREF%v*SumY)+(((WREF%v)**2)*SumP)
+           SumY=SumY+(WREF%v*SumP)
+           SumXY=SumXY+(WREF%v*SumX)
+!           OPEN(44,FILE="HDIAGVARTERMS",STATUS="UNKNOWN")
+!           WRITE(43,*) EREF%v,WREF%v
+          VARSUM=((SumX/SumY)**2)*((SumXsq/(SumX**2))+(SumYsq/(SumY**2))
+     &          -2*SumXY/(SumX*SumY))
+!           WRITE(44,*) g_VMC_ExcitWeights
+!            WRITE(44,("6G25.16")) SumX,SumY,(SumXsq-(SumX**2)),
+!     &               (SumYsq-(SumY**2)),(SumXY-(SumX*SumY)),VARSUM
+           SumP=0.D0
+           SumX=0.D0
+           SumY=0.D0
+           SumXsq=0.D0
+           SumYsq=0.D0
+           SumXY=0.D0
+       ENDIF
+         
+       RETURN
       END
 
       SUBROUTINE WRITEPATH(NUNIT,IPATH,I_V,NEL,LTERM)

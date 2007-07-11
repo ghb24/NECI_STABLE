@@ -109,7 +109,7 @@ PRECALC
     Start Precalculation block.  This chooses which weighting parameters to use in the main calculation block, in order to give minimum MC variance.  This is an optional input block, and is not required if the default parameters want to be used, or for them to be specified explicitly in the CALC input block.  Currently, (28/2/07), only the IMPORTANCE parameter, and the C EXCITWEIGHTING parameter can be optimised and parsed through the the main program. Now, (06/3/07), the a & b optimal parameters are searched for simultaneously.
 
 VERTEX <HDIAG/RHODIAG> <SUM/MC>
-    Similar to the methods section in the CALC block, this specifies a vertex level (from a vertex level of two), and the method that is to be used in searching for the best parameters, using the hamiltonian matrix diagonaltisation (HDIAG) or the RHO matrix diagonalisation (RHODIAG). After this is specified, on the same line, whether to calculate the expected variance from the full sum at this vertex level (SUM), or a Monte Carlo sum (MC) should also be specified.  Currently, (04/5/07), only the HDIAG routine, with the full sum or MC expected variance is working with the PRECALC block, e.g.
+    Similar to the methods section in the CALC block, this specifies a vertex level (from a vertex level of two), and the method that is to be used in searching for the best parameters, using the hamiltonian matrix diagonaltisation (HDIAG) or the RHO matrix diagonalisation (RHODIAG). After this is specified, on the same line, whether to calculate the expected variance from the full sum at this vertex level (SUM), or a Monte Carlo sum (MC) should also be specified.  Currently, (11/7/07), only the HDIAG routine works when performing a MC expected variance, though the rho diagonalisation now works with the full sum. Notation is:
         
         VERTEX HDIAG SUM
         XXX
@@ -163,6 +163,9 @@ TRUECYCLES <No.of cycles>
 
 TOTALERROR <Desired Error from main program>
     This calculates the required number of cycles, so that the final error from the simulation is equal to the error given.  This will only work if the precalc levels go as high as the full program MC levels, i.e. the highest MC vertex level is independantly optimised for. The precalc also calculates the optimum vertex splitting. 
+
+PREGRAPHEPSILON <PREWEIGHTEPS>
+    This gives a threshold above which the weight of a graph must come if they are to be included in the full precalc variance calculation. If the graph weight comes below this, then the probability of obtaining the graph does not need to be calculated, and so the optimisation routine is faster. Default is 1E-8.
 
 ENDPRECALC
     This ends the PRECALC input block.

@@ -810,13 +810,16 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         METH=pre_TAY(1,K)   !Method for vertex level
         CYCLES=pre_TAY(2,K)
         IF(METH.eq.-8) then !Full Rho-diag method
-
             CNWHTAY=0   !options for disallowing certain connections/graphs
+            EREF=DLWSAV(K-1)/TOTSAV(K-1)
+            
             F(K)=FMCPR3B(NI,BETA,I_P,IPATH,K,NEL,                                &
      &          NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,       &
      &          RHOEPS,0,RHOII,RHOIJ,CNWHTAY,METH,LOCTAB,                        &
      &          0,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                   &
      &          MP2E,NTOTAL,EREF,VARSUM,TOTAL2)
+        
+        
         ELSEIF(METH.eq.-7) THEN !RHO-diag MC precalc
             STOP 'Rho-Diag not yet working for MC precalc'
         ELSEIF(METH.eq.-20) then !Full H-diag method
@@ -1082,7 +1085,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
         ENDIF
         
         IF(FIRST(K)) THEN
-            IF(METH.EQ.-20) THEN
+            IF((METH.EQ.-20).or.(METH.EQ.-8)) THEN
                 
                 NTOTSAV(K)=NTOTAL2
                 TOTSAV(K)=TOTSAV(K-1)+F(K)

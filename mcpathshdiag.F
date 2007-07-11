@@ -197,7 +197,8 @@ C.. NMAX has ARR hidden in it.
               !Variance given by ((w*E)**2)/P, but DLWDB2 is E*w and want deltas
                 !X are terms in the numerator, Y are the terms in the denominator
 !DBETA(2) is GraphEpsilon                 
-               IF (TOTAL .age. DBETA(2)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
+               IF ((TOTAL.age.DBETA(2)).and.
+     &                (TOTAL%v.ge.PREWEIGHTEPS)) THEN!.and.(RHOEPS.le.1.D-08)) THEN
 !     &        .and.(DBETA(2).le.1.D-08).and.(DBETA(3).le.1.D-08)) THEN
                      
                    CALL  CalcWriteGraphPGen(J,IPATH,I_V,nEl,LOCTAB,G1,
@@ -247,8 +248,8 @@ C.. NMAX has ARR hidden in it.
 !                    IF(.not.TPREVAR) THEN
 !                        SumP=SumP+DREAL(Prob)
 !                    ENDIF
-                ELSE 
-                  Prob=0.d0                  
+!                ELSE 
+!                  Prob=0.d0        DO NOT WANT TO SHOW NORM PROBS IF NOT INCLUDING THEM ALL             
                 ENDIF   
                ENDIF
               IF(TLOG5) WRITE(10,"(3E25.16, I7)") TOTAL,Prob,DLWDB2,ICLS
