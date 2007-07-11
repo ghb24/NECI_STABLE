@@ -115,6 +115,10 @@ C.. The spin including the total spin
       REAL*8 FUEGRS
       LOGICAL TCPMD
       REAL*8 fRc
+!nActiveBasis(1) is the lowest non-active orbital
+!nActiveBasis(2) is the highest active orbital.  There can be virtuals above this.
+!  Active orbitals are used for generating the determinants whose energy/weight is to be found
+      Integer nActiveBasis(2)
       INCLUDE 'csf.inc'
       INCLUDE 'uhfdet.inc'
 C ==-------------------------------------------------------------------==
@@ -878,6 +882,12 @@ C           (.NOT.(TREAD.OR.TREADRHO))
          CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
       ENDIF
 
+      IF(nPaths.eq.-2) then
+         Call GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis)
+      else
+         nActiveBasis(1)=1
+         nActiveBasis(2)=nBasis
+      endif
 C.. Work out a preliminary Fermi det
       IF(IFDET.EQ.0.AND.FDET(1).EQ.0) THEN
          CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
@@ -1698,7 +1708,8 @@ C.. Instead of NMAX we have ARR
               CALL CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,
      &           NBASISMAX,G1,NHG,BRR,NMSH,FCK,TMAT,ARR,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
-     &            DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET)
+     &            DETINV,TSPN,LMS2,TPARITY,SymRestrict,TSPECDET,SPECDET,
+     &            nActiveBasis)
                ENDIF
             ELSE
                WRITE(6,*)
@@ -2545,7 +2556,8 @@ C.. Normal Hubbard
       SUBROUTINE CALCRHOPII3(BETA,I_P,I_HMAX,I_VMAX,NEL,
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
-     &            DETINV,TSPN,LMS,TPARITY,SymRestrict,TSPECDET,SPECDET)
+     &            DETINV,TSPN,LMS,TPARITY,SymRestrict,TSPECDET,SPECDET,
+     &            nActiveBasis)
          USE HElement
          IMPLICIT NONE
          include 'irat.inc'
@@ -2572,6 +2584,7 @@ C.. Normal Hubbard
          LOGICAL TSPECDET
          INTEGER SPECDET(NEL)
          TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
+         INTEGER nActiveBasis(2)
          HElP=HDElement(I_P)
          TSYM=.TRUE.
          TOT=0.D0
@@ -2628,7 +2641,8 @@ C:         CALL PRINT_MEMORY()
          TFIRST=.TRUE.
          IF(.NOT.TSPECDET)
      &       CALL GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &         TPARITY,SymRestrict,ISYM,NI,.TRUE.,TDONE,WORK)
+     &         TPARITY,SymRestrict,ISYM,NI,.TRUE.,TDONE,WORK,
+     &         nActiveBasis)
          DO WHILE(III.NE.IEND.AND..NOT.TDONE)
           III=III+1
           IF(TSPECDET) THEN
@@ -2637,7 +2651,8 @@ C:         CALL PRINT_MEMORY()
              IDEG=1
           ELSE
              CALL GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &           TPARITY,SymRestrict,ISYM,NI,.FALSE.,TDONE,WORK)
+     &           TPARITY,SymRestrict,ISYM,NI,.FALSE.,TDONE,WORK,
+     &            nActiveBasis)
              CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
           ENDIF
           IF(III.GE.ISTART.AND..NOT.TDONE) THEN
@@ -2691,6 +2706,7 @@ C.. the Fermi determinant, otherwise the numbers blow up
          IF(TFIRST) THEN
             WRITE(6,*) "*** NO determinants found to calculate***"
          ENDIF
+         WRITE(6,*) "Total ",III," determinants summed."
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
          CALL FREEM(IP_RIJLIST)
          CALL FREEM(IP_LSTE)
@@ -3094,4 +3110,35 @@ C.. Check spin
      &         ARR(I,1),ARR(BRR(I),2)
          ENDDO
          RETURN
+      END
+      SUBROUTINE GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis)
+         IMPLICIT NONE
+         REAL*8 ARR(nBasis)
+         INTEGER BRR(nBasis)
+         INCLUDE 'basis.inc'
+         TYPE(BasisFN) G1(nBasis)
+         INTEGER LMS,nEl,nActiveBasis(2),nBasis
+         INTEGER I
+         I=nEl+1
+         DO WHILE (ABS(ARR(I)-ARR(I-1)).LT.1.d-5)
+            I=I+1
+         ENDDO
+         IF(I.EQ.nEl+1) THEN
+!We have no degeneracies at the Fermi Energy
+            nActiveBasis(1)=nEl+1
+            nActiveBasis(2)=nEl
+            WRITE(6,*) "Fermi determinant non-degenerate.  " //
+     &         "Active space empty."
+            RETURN
+         ENDIF
+         nActiveBasis(2)=I-1
+         I=nEl
+         DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
+            I=I-1
+         ENDDO
+         nActiveBasis(1)=I+1
+         WRITE(6,*) "Fermi determinant degenerate.  " //
+     &         "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2),
+     &         " (ordered labels)."
+         RETURN 
       END

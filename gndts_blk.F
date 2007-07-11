@@ -334,7 +334,7 @@ C.. Get the next symmetric determinant in sequence.
 C.. TDONE will be set to TRUE if there are no more dets.
 C.. KI is the sym, NJ contains the working
       SUBROUTINE GENNEXTSYMDET(KI,NEL,G1,BRR,NBASIS,
-     &            TDONE,NJ,NN,INDJ,NELEC,NBASISMAX)
+     &            TDONE,NJ,NN,INDJ,NELEC,NBASISMAX,nActiveBasis)
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis),kI,kJ,kJ2
@@ -342,6 +342,7 @@ C.. KI is the sym, NJ contains the working
          INTEGER NJ(NEL),NELEC,INDJ(NEL),NLAST
          INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
          LOGICAL LCHKSYM,LCONT,TDONE
+         INTEGER nActiveBasis(2)
          TDONE=.FALSE.
          LCONT=.TRUE.
          DO WHILE (LCONT)
@@ -351,13 +352,13 @@ C            IF((NELEC.GT.1.AND.INDJ(NELEC).GT.(INDJ(NELEC-1)))
 C     &               .OR.(NELEC.EQ.1.AND.INDJ(1).GT.0)) THEN
 C.. we don't even have to set it to zero, as it'll be overwritten
 C            ENDIF
-            NLAST=NBASIS-(NEL-NELEC)
+            NLAST=NActiveBasis(2)-(NEL-NELEC)
 C.. if we've past the last allowable electron in our position
             IF(INDJ(NELEC).GE.NLAST) THEN
 C.. Move back a slot
                NELEC=NELEC-1
 C.. If we move back past the beginning
-               IF(NELEC.EQ.0) THEN
+               IF(NELEC.LT.nActiveBasis(1)) THEN
 C.. we're done
                   TDONE=.TRUE.
                   LCONT=.FALSE.
@@ -366,11 +367,11 @@ C.. we're done
 C..Increment this slot
                I=INDJ(NELEC)+1
                INDJ(NELEC)=I
-               IF(I.LE.NBASIS) NJ(NELEC)=BRR(I)
+               IF(I.LE.nActiveBasis(2)) NJ(NELEC)=BRR(I)
 C.. Check if we've filled all the electrons
                IF(NELEC.EQ.NEL) THEN
                   CALL GETSYM(NJ,NEL,G1,NBASISMAX,KJ2)
-                  IF(I.LE.NBASIS.AND.LCHKSYM(KI,KJ2)) THEN
+                  IF(I.LE.nActiveBasis(2).AND.LCHKSYM(KI,KJ2)) THEN
                      CALL ICOPY(NEL,NJ,1,NN,1)
                      CALL SORTI(NEL,NN)
                      LCONT=.FALSE.
@@ -387,7 +388,7 @@ C.. Otherwise we need to go to the next slot
 
 C.. WORK(2*NEL+18)
       SUBROUTINE GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,SymRestrict,ISYM,NI,TSETUP,TDONE,Work)
+     &      TPARITY,SymRestrict,ISYM,NI,TSETUP,TDONE,Work,nActiveBasis)
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3)
          INTEGER LMS,NIWORK(NEL),NI(NEL)
@@ -396,6 +397,7 @@ C         INTEGER WORK(5*NEL+18)
          INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work
          TYPE(BasisFN) G1(nBasis),ISym,SymRestrict
+         INTEGER nActiveBasis(2)
 C.. WORK(7*NEL+18)
 C..  1-4                NSWORK
 C..  5-14               IMAX
@@ -404,7 +406,7 @@ C..  20                 NELEC
 C..  21-NEL+20          NIWORK
 C..  NEL+21 - 2*NEL+20  NINDJ
          CALL GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work)
+     &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work,nActiveBasis)
 CWORK(5),
 C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
          CALL ICOPY(BasisFNSize,Work%ISym,1,ISym,1)
@@ -412,7 +414,7 @@ C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
       END
 
       SUBROUTINE GENNEXTDET_(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
-     &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work)
+     &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work,nActiveBasis)
 C,IMAX,ISYM,NELEC,
 C     &      NIWORK,NINDJ)
          IMPLICIT NONE
@@ -423,6 +425,7 @@ C     &      NIWORK,NINDJ)
          INTEGER LMS,NIWORK(NEL),NI(NEL)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
          INTEGER ILEV
+         INTEGER nActiveBasis(2)
 C..  1-4                NSWORK
 C..  5-12               IMAX
 C..  13-17              ISYM
@@ -443,7 +446,7 @@ C.. Go to the next det.
          DO WHILE(TMORE)
             CALL GENNEXTSYMDET(Work%ISYM,NEL,G1,BRR,NBASIS,
      &           TDONE,Work%niWork,NI,Work%niWork(nEl+1)
-     &            ,NELEC,NBASISMAX)
+     &            ,NELEC,NBASISMAX,nActiveBasis)
             IF(TDONE) THEN
                CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &            TPARITY,SymRestrict,TSETUP,TMORE,Work%IMax,Work%iSym)

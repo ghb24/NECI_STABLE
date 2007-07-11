@@ -675,7 +675,15 @@ C                  end select
                   ENDDO
                   EXCITFUNCS(1)=.true.
               case("PATHS")
-                  call readi(NPATHS)
+                  call readu(w)
+                  select case(w)
+                  case("ALL")
+                     NPATHS=-1
+                  case("ACTIVE")
+                     NPATHS=-2
+                  case default
+                     read(w,"(I)") NPATHS
+                  end select
               case("ALLPATHS")
                   NPATHS = -1
               case("DERIV")

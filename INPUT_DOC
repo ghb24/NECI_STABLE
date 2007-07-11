@@ -376,8 +376,10 @@ CHEMPOT-TWOFROM <g_VMC_ExcitWeights(1) g_VMC_ExcitWeights(2) g_VMC_ExcitWeights(
 
 MULTIMCWEIGHT <g_
 
-PATHS <NPATHS>
+PATHS (<NPATHS> | ALL | ACTIVE)
     Choose the first NPATHS determinants and calculate RHOPII etc.
+      ALL chooses all determinants (same as ALLPATHS).
+      ACTIVE chooses only the active space of determinants.
 
 ALLPATHS
     Choose all determinants (i.e. set NPATHS = -1).
