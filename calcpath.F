@@ -3,6 +3,7 @@
      &      I_HMAX,I_P,NWHTAY,NEL,I_VMAX,ILOGGING)
          USE HElement
          IMPLICIT NONE
+         include 'calcp.inc'
          TYPE(HDElement) CALCPATHS
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
 C.. IPATH contains the vertices we can choose from
@@ -61,6 +62,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
      &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
          USE HElement
          IMPLICIT NONE
+         include 'calcp.inc'
          TYPE(HDElement) CalcPaths_N
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX,ICLS
 C.. IPATH contains the vertices we can choose from
@@ -85,6 +87,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          INTEGER ILOGGING,ISUB
          TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, CalcPaths_R,HDiag_CPP
+         TYPE(HDElement) RhoDiag_CPPS2VS,HDiag_CPPS2VS
          INTEGER I_HIND
          CALL TISETL('CALCPATHS ',ISUB,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
@@ -97,11 +100,25 @@ C            WRITE(6,*) "-----"
 !.NOT.(RHOII(0).AGT.0.D0)) THEN
 C.. We actually diagonalize a matrix of Hij elements rather than a matrix of
 C.. RHOIJ elements.  We send beta in from RHOII(1)
-               CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
+               if(calcp_sub2vstar) then
+                  CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.FALSE.,
+     &                RHOII(1),DLWDB,HIJS)
+                 CALCPATHS=CALCPATHS+HDIAG_CPPS2VS(RHOIJ,I_P,I_V,I_V+1,
+     &               .TRUE.,RHOII(1),DLWDB,HIJS)
+               else
+                  CALCPATHS=HDIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
      &            RHOII(1),DLWDB,HIJS)
+               endif
             ELSE
-               CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.TRUE.,
-     &            DBETA,DLWDB,HIJS)
+               if(calcp_sub2vstar) then
+                  CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
+     &            .FALSE.,DBETA,DLWDB,HIJS)
+               CALCPATHS=CALCPATHS+RHODIAG_CPPS2VS(RHOIJ,I_P,I_V,I_V+1,
+     &            .TRUE.,DBETA,DLWDB,HIJS)
+               else
+                  CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
+     &            .TRUE.,DBETA,DLWDB,HIJS)
+               endif
             ENDIF
          ELSEIF(I_HMAX.EQ.-2.OR.I_HMAX.EQ.-6) THEN
 C.. we use a diagonalization version rather than contour etc.

@@ -689,3 +689,214 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          CALL TIHALTL("RHODIAG_C2",ISUB,55)
          RETURN
       END
+!  As rhodiag_cpp, but only deal with this vertex level, and subtract out the two-vertex star contribtion from this vertex level.
+      FUNCTION RHODIAG_CPPS2VS(RHOIJ,
+     &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER I_P,I_V,ISUB
+         TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
+         TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
+         REAL*8 WORK(3*I_V),R
+         REAL*8 WLIST(I_V)         
+         INTEGER INFO,I,J,IMISS,II,IJ
+         TYPE(HDElement) SI,SI2,SS,SS2
+C.. do we subtract out lower vertices here or later?
+         LOGICAL TSUB
+         TYPE(HDElement) DLWDB,RII,DD2
+         TYPE(HDElement) RhoDiag_CPPS2VS
+         REAL*8 DBETA
+! Optimise the 1V case
+         IF(I_V.EQ.1) THEN
+            RII=HIJS(1)
+            DLWDB=DLWDB-RII
+            RHODIAG_CPPS2VS=-1.D0
+            RETURN
+         ENDIF
+         RII=RHOIJ(1,1)
+C.. Diagonalize
+C         WRITE(6,*) "...",I_V,IMISS
+         CALL TISETL('RHODIAG_C2',ISUB,55)
+         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         DO J=1,I_V
+            RIJMAT(1,J)=RHOIJ(1,J)
+            RIJMAT(J,J)=RHOIJ(J,J)
+            HIJS2(J)=HIJS(J)
+         ENDDO
+         SI=0.D0
+!  No need to deal with small submatrices
+         IF(HElementSize.EQ.1) THEN
+            CALL DSYEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,WORK,3*I_V,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'DYSEV error: ',INFO
+               STOP
+            ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. divide through by RHOII^P
+            DLWT=0.D0
+            SI2=0.D0
+            DO I=1,I_V
+C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
+               R=DREAL(RII)
+               R=((WLIST(I)/R)**I_P)
+               S=R
+               SS=S*RIJMAT(1,I)*RIJMAT(1,I)
+               SI2=SI2+SS
+               IF(DBETA.NE.0.D0) THEN
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+                  DO J=1,I_V
+                     S2=S*RIJMAT(J,I)*RIJMAT(1,I)
+                     DLWT=DLWT+S2*HIJS2(J)
+                  ENDDO
+               ENDIF
+            ENDDO
+C            S=DLWDB
+C            S=S+DLWT
+            SS=DLWT
+!We're doing a subtraction
+            DLWDB=DLWDB-SS
+C            WRITE(6,*) I_V,DLWDB
+         ELSE
+!.. The complex case
+            CALL ZHEEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,NWORK,4*I_V,WORK,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'ZHEEV error: ',INFO
+               STOP
+            ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. divide through by RHOII^P
+            SI2=0.D0
+            DLWT=0.D0
+            DO I=1,I_V
+               R=DREAL(RII)
+               SS=((WLIST(I)/R)**I_P)
+               SS2=SQ(RIJMAT(1,I))
+               SI2=SI2+SS*SS2
+               IF(DBETA.NE.0.D0) THEN
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+                  DO J=1,I_V
+                     S=SS
+                     S=S*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+                     DLWT=DLWT+S*HIJS2(J)
+                  ENDDO
+               ENDIF
+            ENDDO
+            S=DLWDB
+! In subtraction mode
+            S=S-DLWT
+            DLWDB=S
+         ENDIF
+         RHODIAG_CPPS2VS=SI-SI2
+         CALL TIHALTL("RHODIAG_C2",ISUB,55)
+         RETURN
+      END
+! As HDIAG_CPP, but return the subtraction out of the 2-vertex star part.
+      FUNCTION HDIAG_CPPS2VS(HIJ,
+     &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER I_P,I_V,ISUB
+         TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
+         REAL*8 WLIST(I_V),WORK(3*I_V)         
+         TYPE(HElement) NWORK(4*I_V)
+         INTEGER INFO,I,J,IMISS,II,IJ
+         TYPE(HDElement) SI,SI2
+C.. do we subtract out lower vertices here or later?
+         LOGICAL TSUB
+         REAL*8 BETA
+         TYPE(HElement) HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
+         TYPE(HDElement) HDiag_CPPS2VS
+         TYPE(HDElement) R,S,DLWDB,DD2
+         TYPE(HDElement) RII
+! Optimise the 1V case
+         IF(I_V.EQ.1) THEN
+            RII=HIJ(1,1)
+            DLWDB=DLWDB-RII
+            HDIAG_CPPS2VS=-1.D0
+            RETURN
+         ENDIF
+         R=HIJ(1,1)
+         S=-BETA
+         R=R*S
+         RII=EXP(R)
+C.. Diagonalize
+C         WRITE(6,*) "...",I_V,IMISS
+         CALL TISETL('HDIAG_CPP ',ISUB,55)
+         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         II=0
+         DO I=1,I_V
+            RIJMAT(I,J)=HIJ(I,J)
+            RIJMAT(J,J)=HIJ(J,J)
+            HIJS2(I)=HIJS(I)
+         ENDDO
+         SI=0.D0
+C.. Now subtract out the smaller submatrices first
+C.. In order to count the subsets only once, we need to only
+C.. remove up to IMISS 
+         IF(HElementSize.EQ.1) THEN
+            CALL DSYEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,WORK,3*I_V,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'DYSEV error: ',INFO
+               STOP
+            ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. appropriate projection onto the root
+            SI2=0.D0
+            DLWT=0.D0
+            DO I=1,I_V
+C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
+               R=HIJ(1,1)
+               R=EXP(-BETA*(WLIST(I)-R%v))
+               S=RIJMAT(1,I)*RIJMAT(1,I)
+               SI2=SI2+S*R
+C/RII
+               T=R
+C/RII
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+               DO J=1,I_V
+                  U=HIJS2(J)*RIJMAT(J,I)*RIJMAT(1,I)
+                  DLWT=DLWT+U*T
+!                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),U,T,DLWT
+               ENDDO
+            ENDDO
+         ELSE
+!.. The complex case
+            CALL ZHEEV('V','U',I_V,RIJMAT,I_V,
+     &            WLIST,NWORK,4*I_V,WORK,INFO)
+            IF(INFO.NE.0) THEN
+               WRITE(6,*) 'ZHEEV error: ',INFO
+               STOP
+            ENDIF
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. appropriate projection onto the root
+            SI2=0.D0
+            DLWT=0.D0
+            DO I=1,I_V
+C            WRITE(6,*) WLIST(I),RIJMAT(1,I)
+               S=SQ(RIJMAT(1,I))
+               R=HIJ(1,1)
+               R=DEXP(-BETA*(WLIST(I)-R%v))
+               SI2=SI2+S*R
+C%/RII
+C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+               U=R
+C/RII
+               DO J=1,I_V
+                  T=HIJS2(J)*RIJMAT(J,I)*DCONJG(RIJMAT(1,I))
+                  DLWT=DLWT+T*U
+!                 WRITE(6,*) I,J,HIJS(J),RIJMAT(J,I),RIJMAT(1,I),T,U,DLWT
+               ENDDO
+            ENDDO
+         ENDIF
+         S=DLWT
+!Subtraction mode
+         DLWDB=DLWDB-S
+         HDIAG_CPPS2VS=SI-SI2
+         CALL TIHALTL("HDIAG_CPP ",ISUB,55)
+         RETURN
+      END

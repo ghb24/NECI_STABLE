@@ -43,6 +43,7 @@
       INCLUDE 'sym.inc'
       INCLUDE 'uhfdet.inc'
       INCLUDE 'time.inc'
+      include 'calcp.inc'
 !     --------------------------------------------
 !     Set some sensible defaults here
       title = ""
@@ -137,7 +138,7 @@
       PRE_TAYREAL(2,:)=0.1      !TOLERANCE   
       TRUECYCLES=0
       TOTALERROR=0.D0
-      
+      calcp_sub2vstar=.false.
 !     Values for old parameters.
       TVVDISALLOW=.false.
       TRHOOFR = .false.
@@ -1148,6 +1149,7 @@ C     ILOGGING = 0771
          use input
          implicit none
          include 'vmc.inc'
+         include 'calcp.inc'
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
                   do while ( item .lt. nitems )
@@ -1157,6 +1159,7 @@ C     ILOGGING = 0771
                         call readu(w)
                         select case(w)
                         case("SUM")
+                           do while(item.lt.nitems)
                             call readu(w)
                             select case(w)
                             case("OLD")
@@ -1167,10 +1170,13 @@ C     ILOGGING = 0771
                                 I_HMAX = -20
                             case("READ")
                                 I_HMAX=-14
+                            case("SUB2VSTAR")
+                                CALCP_SUB2VSTAR=.TRUE.
                             case default
                                 call report("Error - must specify OLD" 
      &                         //" or NEW vertex sum method",.true.)
                             end select
+                           enddo
                         case("MC","MCMETROPOLIS")
                            I_HMAX = -7
                             call readu(w)
