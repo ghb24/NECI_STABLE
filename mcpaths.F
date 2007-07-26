@@ -113,7 +113,7 @@ C     &            HIJS(0))
          WLRI=LOG(RHOII(0))
          TOTAL=1.D0
          DLWDB=HIJS(0)
-         IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 
+         IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,2F19.7)") 
      &         1,TOTAL,TOTAL,0.D0,1,1,HIJS(0)
 
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
