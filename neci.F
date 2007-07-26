@@ -9,7 +9,7 @@ C ==------------------------------------------------------------------==
      &   TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,TDFREAD,fRc)
+     &   TCPMD,TDFREAD,fRc,iCacheFlag)
       USE HElement
       USE UMatCache , only : GetUMatSize, DestroyUMatCache              &
      &   ,iPeriodicDampingType
@@ -119,6 +119,7 @@ C.. The spin including the total spin
 !nActiveBasis(2) is the highest active orbital.  There can be virtuals above this.
 !  Active orbitals are used for generating the determinants whose energy/weight is to be found
       Integer nActiveBasis(2)
+      INTEGER iCacheFlag
       INCLUDE 'csf.inc'
       INCLUDE 'uhfdet.inc'
 C ==-------------------------------------------------------------------==
@@ -561,7 +562,7 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
             CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             CALL CPMDINIT2INDINT(TMAT,NHG,I,NBASISMAX,
-     &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR)
+     &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
          ELSEIF(TREADINT.AND.TDFREAD) THEN
             CALL MEMORY(IP_UMAT,HElementSize,'UMAT')
             CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
@@ -1817,7 +1818,8 @@ C          CLOSE(11)
 
 C..
       CALL ENDSYM()
-      CALL DESTROYUMATCACHE()
+!If we're told explicitly not to destroy the cache, we don't
+      if(.NOT.BTEST(iCacheFlag,0)) CALL DESTROYUMATCACHE()
       CALL MEMORY_CHECK
 C ==-------------------------------------------------------------------==
       CALL TIHALT('NECICUBE  ',ISUB)
@@ -2705,8 +2707,9 @@ C.. the Fermi determinant, otherwise the numbers blow up
          CLOSE(15)
          IF(TFIRST) THEN
             WRITE(6,*) "*** NO determinants found to calculate***"
+         ELSE
+            WRITE(6,*) "Total ",III," determinants summed."
          ENDIF
-         WRITE(6,*) "Total ",III," determinants summed."
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
          CALL FREEM(IP_RIJLIST)
          CALL FREEM(IP_LSTE)

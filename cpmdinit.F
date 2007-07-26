@@ -65,10 +65,10 @@ C         CALL FAKEEIGENVALUES
                ENDDO
             ENDIF
 C.. Fake the eigenvalues
-            ARR(2*I-1,1)=EIGENVALUES(I)+XI
-            ARR(2*I,1)=EIGENVALUES(I)+XI
-            ARR(2*I-1,2)=EIGENVALUES(I)+XI
-            ARR(2*I,2)=EIGENVALUES(I)+XI
+            ARR(2*I-1,1)=EIGENVALUES(I)
+            ARR(2*I,1)=EIGENVALUES(I)
+            ARR(2*I-1,2)=EIGENVALUES(I)
+            ARR(2*I,2)=EIGENVALUES(I)
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
          ENDDO
@@ -247,7 +247,7 @@ C.. delta_ij is the Dirac delta.
 C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
-     &      ECORE,TORDER,ARR,BRR)
+     &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElement
          USE UMatCache , nstatesumat=>nstates
          IMPLICIT NONE
@@ -271,10 +271,10 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          LOGICAL TORDER
          INTEGER BRR(NSTATES*2),NLOCK
          REAL*8 ARR(NSTATES*2,2)
-         complex*16,allocatable :: HarInt(:,:)
+         complex*16,allocatable,save :: HarInt(:,:)
+         INTEGER iCacheFlag
          CALL TISET('CPMDINIT2I',ISUB)
 
-         call Memory(IP_PIInt,NStates,'PIInt')
          ECORE=EIONION
          WRITE(6,*) "Core Energy:", ECORE 
          NLOCK=(NEL+1)/2
@@ -284,17 +284,24 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
          ELSE
             NSTATESUSED=NORBUSED/2
          ENDIF
-         allocate(HarInt(NStatesUsed,NStatesUsed))
+         IF(.NOT.BTEST(iCacheFlag,1)) THEN
+!Don't initialize the cache if it's already there
+            allocate(HarInt(NStatesUsed,NStatesUsed))
+            call Memory(IP_PIInt,NStates,'PIInt')
 C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
-         CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
+            CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
+         ENDIF
          CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
          CALL MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
+         IF(.NOT.BTEST(iCacheFlag,1)) THEN
+!Don't initialize the cache if it's already there
 C.. Set the UMAT cache to cache things in the lowest possible position
-         CALL SETUMATCACHEFLAG(1)
+            CALL SETUMATCACHEFLAG(1)
 C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
-         CALL SETUPUMAT2D(G1,HarInt)
-         CALL SETUMATCACHEFLAG(0)
+            CALL SETUPUMAT2D(G1,HarInt)
+            CALL SETUMATCACHEFLAG(0)
+         ENDIF
          WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
             II=I*2-1
@@ -359,7 +366,9 @@ C.. This should save some time in the UMAT lookup.
 C.. Set the UMAT cache to cache normally again
          WRITE(6,*) "Finished TMAT"
          CLOSE(10)
-         call FreeM(IP_PIInt)
-         deallocate(HarInt)
+         IF(.not.BTEST(iCacheFlag,0)) THEN
+            deallocate(HarInt)
+            call FreeM(IP_PIInt)
+         endif
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   
