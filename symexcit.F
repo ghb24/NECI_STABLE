@@ -76,6 +76,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          INTEGER ILUT(0:NBASIS/32)
          INTEGER ISUB
          INTEGER ILEVEL
+         integer*8 TotSymRep
 
          LOGICAL ISUHFDET
          
@@ -110,7 +111,7 @@ C.. ISPN=1 is beta, ISPN=2 is alpha
          ENDDO
 C.. Now calculate the resultant symmetry from removing one of each of the classes
          DO I=1,NCL
-            PR%s=1 
+            PR%s=TotSymRep()
             DO J=1,NCL
                L=CLASSCOUNT(1,I)+CLASSCOUNT(2,I)
                IF(J.EQ.I) L=L-1
@@ -165,7 +166,7 @@ C                  WRITE(6,"(A,I6,Z4,5I6)") "SYMPROD ",K,SYMPRODS(K),I,J,
 C     &               ICC1,ICC2,ICC3
             ENDDO
          ENDDO
-         SYMPRODS(0)%s=0
+         SYMPRODS(0)%s=0 ! For historical reasons.  Should never be needed.
          SYMPRODCOUNT(1,0)=0
          SYMPRODCOUNT(2,0)=0
          SYMPRODCOUNT(3,0)=0
@@ -173,7 +174,8 @@ C         DO I=1,NPR
 C            WRITE(6,"(Z4,3I4)") SYMPRODS(I),SYMPRODCOUNT(1,I),
 C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 C         ENDDO
-         CALL SORTSYMIARR(NPR+1,SymProds,SymmetrySize,SymProdCount,3)
+         CALL SORTSYMIARR(NPR,SymProds(1:),SymmetrySize,
+     &                                             SymProdCount(:,1:),3)
 C         WRITE(6,*) NPR," Symmetry Products"
 C         WRITE(6,*) NPAIRS," Orbital Pairs"
 C.. Create a cumulative sum.

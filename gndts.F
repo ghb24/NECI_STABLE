@@ -75,7 +75,7 @@ C.. If we're on the last electron
                DO I=1,3
                   KI%k(I)=0
                ENDDO
-               KI%Sym%s=0
+               KI%Sym%s=0 ! Ignore symmetry in generation of determinants.
             ENDIF
             IF(.NOT.TSPN) KI%Ms=0
             IF(LCHKSYM(KI,KJ)) THEN

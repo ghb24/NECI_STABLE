@@ -150,6 +150,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          integer nBasis,Brr(nBasis),i,j
          real*8 Arr(nBasis,2),val,ECore,TMat(nBasis,nBasis)
          type(BasisFN) G1(nBasis)
+         integer*8 TotSymRep
          open(11,file='HONEEL',status='unknown')
          i=1
          call azZero(TMat,nBasis*nBasis)
@@ -169,7 +170,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          close(11)
          do i=1,nBasis
             G1(i)%Ms=1-2*iand(i,1)
-            G1(i)%Sym%s=1
+            G1(i)%Sym%s=TotSymRep()
 !  We've already read in and ordered the Energies
 !            Arr(i,1)=TMat(i,i)
 !            Arr(i,2)=TMat(i,i)
@@ -182,6 +183,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          integer nBasis,Brr(nBasis),i,j,nBasisMax(5,3)
          real*8 Arr(nBasis,2),val,ECore,TMat(nBasis,nBasis)
          type(BasisFN) G1(nBasis)
+         integer*8 TotSymRep
          open(11,file='HONEEL',status='unknown')
          i=1
          call iazZero(G1,nBasis*BasisFNSize)
@@ -197,7 +199,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          close(11)
          do i=1,nBasis
             G1(i)%Ms=1-2*iand(i,1)
-            G1(i)%Sym%s=1
+            G1(i)%Sym%s=TotSymRep()
             Brr(i)=i
          enddo
       END 

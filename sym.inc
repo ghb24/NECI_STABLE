@@ -2,10 +2,15 @@
          TYPE(BasisFN) FrozenSym
 !.. The number of symmetries (irreps), and a product table of irreps (the result being an irrep bitmask)
          INTEGER NSYM
+!   For translational symmetry groups, we need to know the periodic condition of propogation, as the 
+!   multiplication of two irreps is equivalent to the addition of their propogators subject to the modulus 
+!   of the identity operation (ie supercell dimension), and the k-vectors in the dimensions of the symmetry 
+!   supercell.
+         integer Nprop(3),KPntSym(3,*)
          INTEGER SymConjTab(nSym)
          POINTER (IP_SymConjTab,SymConjTab)
          TYPE(Symmetry) SYMTABLE(NSYM,NSYM)
-         POINTER (IP_SYMTABLE,SYMTABLE)
+         POINTER (IP_SYMTABLE,SYMTABLE),(IP_KPntSym,KPntSym)
 !.. SYMREPS is used to group together degenerate sets of orbitals of the same sym
 !.. (e.g. the six orbitals which might make up a T2g set), and is used for working 
 !.. out the symmetry of a determinant in GETSYM
@@ -54,11 +59,11 @@
 
          POINTER (IP_SymStatePairs,SymStatePairs)
          POINTER (IP_SYMPAIRPRODS,SYMPAIRPRODS)
-         LOGICAL TNEWEXCITATIONS
-         COMMON/SYM/ IP_SYMTABLE,NSYM,IP_SYMREPS,NROT,NSYMLABELS,       &
+         LOGICAL TNEWEXCITATIONS,TAbelian  ! TAbelian for Abelian point groups (specifically k-point symmetry).
+         COMMON/SYM/ IP_SYMTABLE,NSYM,Nprop,IP_SYMREPS,NROT,NSYMLABELS, &
      &               IP_SYMLABELS,IP_SYMLABELCHARS,IP_IRREPCHARS,       &
-     &               IP_SymStatePairs,                                  &
+     &               IP_SymStatePairs,IP_KPntSym,                       &
      &               IP_SYMPAIRPRODS,NSYMPAIRPRODS,                     &
      &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,                 &
-     &               TNEWEXCITATIONS,IP_SymClasses,                     &
-     &               FrozenSym, IP_SymConjTab
+     &               TNEWEXCITATIONS,TAbelian,IP_SymClasses,            &
+     &               FrozenSym, IP_SymConjTab,

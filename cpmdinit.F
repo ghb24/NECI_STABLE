@@ -9,6 +9,7 @@
          TYPE(Symmetry) iDecomp
          LOGICAL IMPROP(NKPS)
          LOGICAL ALL1D
+         integer*8  ComposeAbelianSym
 C         NBASISMAX(1,1)=1
 C         NBASISMAX(1,2)=NSTATES
 C         NBASISMAX(1,3)=2
@@ -34,19 +35,24 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          NBASISMAX(2,3)=0
          IF(TKP) THEN
 !  We've got a k-point code, so we're not currently using spatial symmetry.  We use translational symmetry according to the k-points
-            CALL GenKPtIrreps(KPNT_CHAR,NKPTRANS,NKPS,KPNTIND,NSTATES)
+!            JSS: Use Abelian symmetry formulation.
+             CALL GenKPtIrreps(KPNT_CHAR,NKPTRANS,NKPS,KPNTIND,NSTATES)
          ELSE
              CALL ExtractSymLabels
+             CALL GENIRREPS(TKP,IMPROPER_OP,NROTOP)
+             CALL GENSYMTABLE
          END IF
-         CALL GENIRREPS(TKP,IMPROPER_OP,NROTOP)
-         CALL GENSYMTABLE
 
 C         CALL FAKEEIGENVALUES
 
          CALL IAZZERO(G1,LEN*BasisFNSize)
          ALL1D=.TRUE.
          DO I=1,NSTATES
-           CALL DECOMPOSEREP(SYMLABELCHARS(1,SymClasses(I)),IDECOMP)
+           if (TAbelian) then
+               IDECOMP%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))
+           else
+               CALL DECOMPOSEREP(SYMLABELCHARS(1,SymClasses(I)),IDECOMP)
+           end if
             IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.D0).GE.1.D-6)
      &          ALL1D=.FALSE.
             G1(I*2-1)%SYM=IDECOMP
@@ -72,7 +78,11 @@ C.. Fake the eigenvalues
             BRR(2*I-1)=2*I-1
             BRR(2*I)=2*I
          ENDDO
-         IF(ALL1D) THEN
+         IF (TAbelian) THEN
+            WRITE (6,*) 'Using Abelian symmetry formulation.'
+            NBASISMAX(5,1)=0
+            NBASISMAX(5,2)=NSYM-1
+         ELSE IF (ALL1D) THEN
 C.. If all reps are 1D, we can block determinants in different symmetries
             NBASISMAX(5,1)=0
             NBASISMAX(5,2)=NSYM-1

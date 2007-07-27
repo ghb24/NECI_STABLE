@@ -116,6 +116,7 @@ MODULE UMatCache
          TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
          INTEGER ISUB,ISUB2
          LOGICAL GetCachedUMatEl
+         integer*8 TotSymRep
 !         CALL TISET(' GETUMATEL',ISUB)
 !   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 !   Otherwise we just look it up in umat
@@ -157,7 +158,7 @@ MODULE UMatCache
                J=IDJ
                K=IDK
                L=IDL
-               SYM%s=1
+               SYM%s=TotSymRep()
                SYM=SYMPROD(SYM,SYMCONJ(G1(I*2-1)%Sym))
                SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
                SYM=SYMPROD(SYM,G1(K*2-1)%Sym)

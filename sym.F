@@ -1,37 +1,58 @@
 C.. Symmetries can be unset(=0), or have bits set for the different irreps included
 C.. bit 0 corresponds to totally symmetric.
+      
+! JSS: if Abelian symmetry (currently just k-point symmetry), then
+! symmetry=0 corresponds to the symmetric representation.  It is not
+! possible to unset symmetries for k-point jobs.
+      
 C.. To multiply symmetries, for each bit set in each of the two symmetries, we look up the 
 C.. product in the symmetry table, and OR that with the product.
+
+! JSS: In Abelian (k-point) symmetry, a representation can be described by "quantum" numbers.  
+! The multiplication of two irreps is equal to the sum of such vectors
+! describing the irreps, subject to a modulo of the periodic conditions
+! due to the size of the symmetry cell (which corresponds to the k-point
+! mesh).
          FUNCTION SYMPROD(ISYM1,ISYM2)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          TYPE(Symmetry) ISYM1, ISYM2
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) IS1,IS2
-         INTEGER I,J
-         IF(ISYM1%s.EQ.0.OR.ISYM2%s.EQ.0) THEN
-            SYMPROD%s=0
-            RETURN
-         ENDIF
-         IF(IP_SYMTABLE.EQ.0) STOP 'SYMMETRY TABLE NOT ALLOCATED'
-         IS1=ISYM1
-         I=1
-         SYMPROD%s=0
-         DO WHILE(IS1%s.NE.0)
-            IF(IAND(IS1%s,1)) THEN
-               IS2=ISYM2
-               J=1
-               DO WHILE(IS2%s.NE.0)
-                  IF(IAND(IS2%s,1)) THEN
-                     SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
-                  ENDIF
-                  IS2%s=RSHIFT(IS2%s,1)
-                  J=J+1
-               ENDDO
-            ENDIF
-            IS1%s=RSHIFT(IS1%s,1)
-            I=I+1
-         ENDDO
+         INTEGER I,J,Abel1(3),Abel2(3)
+         integer*8  ComposeAbelianSym
+         if (TAbelian) then
+             call DecomposeAbelianSym(ISym1%s,Abel1)
+             call DecomposeAbelianSym(ISym2%s,Abel2)
+             do i=1,3
+               Abel1(i)=modulo(Abel1(i)+Abel2(i),NProp(i))
+             end do
+             SymProd%s=ComposeAbelianSym(Abel1)
+         else
+             IF(ISYM1%s.EQ.0.OR.ISYM2%s.EQ.0) THEN
+                SYMPROD%s=0
+                RETURN
+             ENDIF
+             IF(IP_SYMTABLE.EQ.0) STOP 'SYMMETRY TABLE NOT ALLOCATED'
+             IS1=ISYM1
+             I=1
+             SYMPROD%s=0
+             DO WHILE(IS1%s.NE.0)
+                IF(IAND(IS1%s,1)) THEN
+                   IS2=ISYM2
+                   J=1
+                   DO WHILE(IS2%s.NE.0)
+                      IF(IAND(IS2%s,1)) THEN
+                         SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
+                      ENDIF
+                      IS2%s=RSHIFT(IS2%s,1)
+                      J=J+1
+                   ENDDO
+                ENDIF
+                IS1%s=RSHIFT(IS1%s,1)
+                I=I+1
+             ENDDO
+         end if
          RETURN
       END
 
@@ -39,16 +60,28 @@ C.. product in the symmetry table, and OR that with the product.
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          TYPE(Symmetry) s,SymConj,s2
-         INTEGER i
-         SymConj%s=0
-         s=s2
-         i=1
-         DO WHILE(s%s.NE.0)
-            IF(IAND(s%s,1)) SymConj%s=IOR(SymConj%s,
+         INTEGER i,AbelConj(3)
+         integer*8 ComposeAbelianSym
+         if (TAbelian) then
+             ! K-point symmetry has k_-i=k_i.  We store k-vectors from 0
+             ! to N rather than -N/2 to N.  Hence k_-i=mod(-k_i+N,N) for
+             ! each component of the vector.
+             call DecomposeAbelianSym(s2%s,AbelConj)
+             do i=1,3
+               AbelConj(i)=modulo(-AbelConj(i)+NProp(i),NProp(i))
+             end do
+             SymConj%s=ComposeAbelianSym(AbelConj)
+         else
+             SymConj%s=0
+             s=s2
+             i=1
+             DO WHILE(s%s.NE.0)
+                IF(IAND(s%s,1)) SymConj%s=IOR(SymConj%s,
      &         LSHIFT(1,SymConjTab(I)-1))
-            s%s=RSHIFT(s%s,1)
-            i=i+1
-         ENDDO
+                s%s=RSHIFT(s%s,1)
+                i=i+1
+             ENDDO
+         end if
       END
 
       SUBROUTINE WRITESYMTABLE(IUNIT)
@@ -67,9 +100,14 @@ C.. product in the symmetry table, and OR that with the product.
          ENDIF 
       END
 
-      LOGICAL FUNCTION LSYMSYM(ISYM)
-         INTEGER ISYM
-         LSYMSYM=(ISYM.EQ.0.OR.BTEST(ISYM,0))
+      LOGICAL FUNCTION LSYMSYM(SYM)
+         include 'sym.inc'
+         Type(Symmetry) SYM
+         if (TAbelian) then
+             LSymSym=Sym%s.eq.0
+         else
+             LSYMSYM=(SYM%s.EQ.0.OR.BTEST(SYM%s,0))
+         end if
          RETURN
       END
 
@@ -453,7 +491,7 @@ C.. First see if all the products of chars are decomposable
                   CALL MEMORY_CHECK
 !                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,
-     &               NSYM,NROT,IDECOMP,NORM)) THEN
+     &               NSYM,NROT,IDECOMP,NORM,TAbelian)) THEN
 C.. CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
                      IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
@@ -491,7 +529,7 @@ C.. Check to see if the next symlabel's char is decomposable
                ENDDO
 C               CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDST ")
                IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,
-     &               NSYM,NROT,IDECOMP,NORM)) THEN
+     &               NSYM,NROT,IDECOMP,NORM,TAbelian)) THEN
 C.. CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
                   IF(ABS(NORM-NROT).LE.1.D-2) THEN
 C.. if it's an irrep
@@ -648,6 +686,12 @@ C.. CHARS at the end contains the remainder after the decomposition.
          REAL*8 CNORM
          INTEGER I,J
          REAL*8 NORM,DIFF
+         if (TAbelian) then
+             ! We shouldn't be here!  Using symmetry "quantum" numbers
+             ! rather than irreps.
+             stop "Should not be decomposing irreps with Abelian "//
+     &             "symmetry option on."
+         end if
          IDECOMP%s=0
          CALL DCOPY(NROT*2,CHARSIN,1,CHARS,1)
 C         WRITE(6,*) "Decompose Rep"
@@ -704,7 +748,7 @@ C.. Return .FALSE. if the decomposition is complete and CHARS contains only 0.
 C.. This is used internally in the symmetry routine and destroys CHARS.  For general decomposition,
 C,, use DECOMPOSEREP
       LOGICAL FUNCTION GETIRREPDECOMP(CHARS,IRREPCHARS,NIRREPS,NROT,
-     &         IDECOMP,CNORM)
+     &         IDECOMP,CNORM,TAbelian)
          IMPLICIT NONE
          INTEGER NIRREPS, NROT
          INCLUDE 'basis.inc'
@@ -713,6 +757,13 @@ C,, use DECOMPOSEREP
          REAL*8 CNORM, NORM,DIFF
          COMPLEX*16 TOT
          INTEGER I,J
+         logical TAbelian
+         if (TAbelian) then
+             ! We shouldn't be here!  Using symmetry "quantum" numbers
+             ! rather than irreps.
+             stop "Should not be decomposing irreps with Abelian "//
+     &             "symmetry option on."
+         end if
          IDECOMP%s=0
 C,. First check norm of this state
          CNORM=0
@@ -775,7 +826,7 @@ C.. We've found an (ir)rep which is wholly in CHARS
                CHARS(K)=DCONJG(IRREPCHARS(K,I))
             ENDDO
             IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,
-     &         IDECOMP,CNORM)) THEN
+     &         IDECOMP,CNORM,TAbelian)) THEN
                WRITE(6,*) "Conjugate of SYM ",I,
      &            " not reducible,"
                CALL WRITECHARS(6,CHARS,NROT,"REMAIN")
@@ -797,7 +848,7 @@ C.. We've found an (ir)rep which is wholly in CHARS
                   CHARS(K)=IRREPCHARS(K,I)*IRREPCHARS(K,J)
                ENDDO
                IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,
-     &            IDECOMP,CNORM)) THEN
+     &            IDECOMP,CNORM,TAbelian)) THEN
                   WRITE(6,*) "Multiplication of SYMS ",I,J,
      &               " not reducible,"
                   CALL WRITECHARS(6,CHARS,NROT,"REMAIN")
@@ -1161,6 +1212,7 @@ C.. Failure
          TYPE(BasisFN) IPARITY,ISYM,IMax(2)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
          INTEGER ILEV
+         integer*8 TotSymRep
          IF(TSETUP) THEN
             DO ILEV=1,3
                IF(TPARITY) THEN
@@ -1191,12 +1243,20 @@ C.. that into IMAX
                   IMAX(1)%Sym%s=IPARITY%Sym%s
                   IMAX(2)%Sym%s=IMAX(1)%Sym%s
                ELSE
-                  IMAX(1)%Sym%s=1
+                  IMAX(1)%Sym%s=TotSymRep()
                   IMAX(2)%Sym%s=2**NBASISMAX(5,2)
                ENDIF
             ELSE
 C.. we've got a sym system with polydimensional irreps, which leads to
 C.. dets with combinations of irreps, so we cannot put sym into blocks
+                
+!  JSS: if only 1D symmetries, then a determinant can only interact with
+!  other determinants of the same symmetry.  This applies to Abelian
+!  groups.  If there are multi-dimensional irreps, then this is no
+!  longer the case, so we set the symmetries to be 0 (i.e. ignore
+!  symmetry when generating determinants which interact).  This is not
+!  equivalent to setting %s=0 if the Abelian case (which corresponds to
+!  the totally symmetric irrep).
                IMAX(1)%Sym%s=0
                IMAX(2)%Sym%s=0
             ENDIF
@@ -1341,30 +1401,89 @@ C.. Set to be totally symmetric
       END
  
 !Deal with K-point symmetries, using translational symmetry operations.
+      ! JSS: use Abelian symmetry formulation (allows us to go beyond 64
+      ! symmetry operations, and hence deal with larger k-point meshes).
       SUBROUTINE GenKPtIrreps(cKptChars,nTranslat,nKps,KpntInd,nStates)
       IMPLICIT NONE
       COMPLEX*16 cKptChars(nTranslat,nKps)
       INTEGER nTranslat,nKps,KpntInd(nStates)
       INTEGER I,J,nStates
+      integer*8  ComposeAbelianSym
       INCLUDE 'sym.inc'
+      type(Symmetry) SymConj,SymProd
       nSymLabels=nKps
       nRot=nTranslat
       CALL MEMORY(IP_SYMLABELCHARS,nSymLabels*nRot*2,'SYMLABELCH')
       CALL AZZERO(SYMLABELCHARS,nSymLabels*nRot*2)
       CALL MEMORY(IP_SYMLABELS,nSymLabels,'SYMLABELS')
       CALL MEMORY(IP_SymClasses,nStates,'SymClasses')
-      DO I=1,nKps
-         DO J=1,nRot
-            SymLabelChars(J,I)=cKptChars(J,I)
-         ENDDO
-      ENDDO
+!     DO I=1,nKps
+!        DO J=1,nRot
+!           SymLabelChars(J,I)=cKptChars(J,I)
+!        ENDDO
+!     ENDDO
       DO I=1,nStates
-         SymClasses(I)=KpntInd(I)
-      ENDDO
-         WRITE(6,*) "SYMMETRY CLASSES"
-         CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
+        SymClasses(I)=KpntInd(I)
+        SymLabels(KPntInd(I))%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))
+      END DO
+      do i=1,nSymLabels
+        write (6,*) KpntSym(:,I),SymLabels(I),SymConj(SymLabels(I))
+      end do
+      do i=1,nSymLabels
+        do j=1,nSymLabels
+          write (6,'i2,$') SymProd(SymLabels(I),SymLabels(J))
+        end do
+        write (6,*) 
+      end do
+!        WRITE(6,*) "SYMMETRY CLASSES"
+!        CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 !.. Allocate memory gor irreps.
 !.. Assume there will be no more than 64 irreps
-         CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
+!        CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
       END
 
+      subroutine  DecomposeAbelianSym(ISym,AbelSym)
+      ! Store the symmetry index as integer*8.  For Abelian symmetry
+      ! we need to have 3 numbers stored in this index.  We store
+      ! according to isym=\sum_i AbelSym(i)*32768**(i-1).
+      ! This allows point groups with more than 64 irreps to be used in
+      ! the point group is Abelian (as all translational/k-point
+      ! symmetries are).
+      ! Decompose the symmetry label back into the appropriate "quantum"
+      ! numbers.
+      ! Store the symmetry index as integer*8.  For Abelian symmetry
+      ! we need to have 3 numbers stored in this index.  We store
+      ! according to isym=1+\sum_i AbelSym(i)*32768**(i-1).
+      ! Decompose the symmetry label back into the appropriate
+      ! numbers...
+      implicit none
+      integer*8 Isym
+      integer  AbelSym(3)
+      AbelSym(3)=RShift(Isym,30)
+      AbelSym(2)=Iand(RShift(ISym,15),32767)
+      AbelSym(1)=Iand(Isym,32767)
+      return
+      end subroutine DecomposeAbelianSym
+
+      integer*8 function ComposeAbelianSym(AbelSym)
+          implicit none
+          integer  AbelSym(3)
+          integer*8 TempVar
+          TempVar=AbelSym(3)
+          ComposeAbelianSym=LShift(Tempvar,30)+LShift(AbelSym(2),15)
+     &                      +AbelSym(1)
+      end function ComposeAbelianSym
+
+
+      integer*8 function TotSymRep
+          ! Our definition of the totally symmetric representation
+          ! changes according to whether we're using Abelian/k-point
+          ! symmetry or the standard symmetry.  It's just a matter of
+          ! convenience, rather than some deep theoretical insight!
+          include 'sym.inc'
+          if (TAbelian) then
+              TotSymRep=0
+          else
+              TotSymRep=1
+          end if
+      end function TotSymRep

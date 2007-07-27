@@ -119,6 +119,7 @@ C.. The spin including the total spin
 !nActiveBasis(2) is the highest active orbital.  There can be virtuals above this.
 !  Active orbitals are used for generating the determinants whose energy/weight is to be found
       Integer nActiveBasis(2)
+      integer*8 TotSymRep
       INTEGER iCacheFlag
       INCLUDE 'csf.inc'
       INCLUDE 'uhfdet.inc'
@@ -392,7 +393,7 @@ C.. particle in box
 C..         (.NOT.TREADINT)
 C.. Set the initial symmetry to be totally symmetric
       CALL IAZZERO(FrzSym,SymmetrySize)
-      FrzSym%s=1
+      FrzSym%s=TotSymRep()
       CALL SetupFreezeSym(FrzSym)
 
 
@@ -457,7 +458,7 @@ C..These are the quantum numbers: n,l,m and sigma
                     G1(IG)%K(2)=J
                     G1(IG)%K(3)=K
                     G1(IG)%MS=L
-                    G1(IG)%Sym%s=1
+                    G1(IG)%Sym%s=TotSymRep()
                   ENDIF
                ENDDO
              ENDDO
