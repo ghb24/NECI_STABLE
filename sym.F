@@ -1367,7 +1367,9 @@ C.. Initialize symmetry to take into account the core electrons
          TYPE(SYMMETRY) SYM
          LOGICAL LTERM
          INTEGER J
-         IF(NSYM.LE.16) THEN
+         IF(TAbelian) THEN
+            WRITE(IUNIT,"(Z12,$)") SYM
+         ELSEIF(NSYM.LE.16) THEN
             WRITE(IUNIT,"(Z5,$)") SYM
          ELSEIF(NSYM.LE.24) THEN
             WRITE(IUNIT,"(Z7,$)") SYM
@@ -1426,15 +1428,21 @@ C.. Set to be totally symmetric
         SymClasses(I)=KpntInd(I)
         SymLabels(KPntInd(I))%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))
       END DO
+      write (6,*) 
+      write(6,'(a11," |",a9," |",a10)')' K-vector','  Label','Conjugate'
+      write (6,'(34("-"))')
       do i=1,nSymLabels
-        write (6,*) KpntSym(:,I),SymLabels(I),SymConj(SymLabels(I))
+        write (6,'("(",3i3,")"," | ",z8," | ",z8)') 
+     &                   KpntSym(:,I),SymLabels(I),SymConj(SymLabels(I))
       end do
+      write (6,'(/,a)') 'Symmetry Multiplication Table'
       do i=1,nSymLabels
         do j=1,nSymLabels
-          write (6,'i2,$') SymProd(SymLabels(I),SymLabels(J))
+          write (6,'(z12,$)') SymProd(SymLabels(I),SymLabels(J))
         end do
         write (6,*) 
       end do
+      write (6,'(/)') 
 !        WRITE(6,*) "SYMMETRY CLASSES"
 !        CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 !.. Allocate memory gor irreps.
