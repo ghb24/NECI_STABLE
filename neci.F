@@ -550,6 +550,20 @@ C..
       IF(FCOULDAMPBETA.GT.0)
      &   WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA,
      &      " Mu ",FCOULDAMPMU
+      IF(I_VMAX.EQ.1.AND..NOT.TENERGY.AND.NTFROZEN.EQ.0) THEN
+         WRITE(6,*) "MaxVertices=1 and NTFROZEN=0."
+         IF(ABS(ARR(NEL)-ARR(NEL+1)).GT.1.d-3) THEN
+           WRITE(6,*) "NEL spinorbitals completely fills up "
+     &      //"degenerate set."
+           WRITE(6,*) "Only calculating vertex sum,"
+     &      // " so freezing all virtuals."
+           NTFROZEN=NBASIS-NEL
+         ELSE
+           WRITE(6,*) "NEL spinorbitals does not completely fill up "
+     &      //"degenerate set."
+           WRITE(6,*) "NOT freezing all virtuals."
+         ENDIF
+      ENDIF
       IF(.NOT.(TREAD.OR.TREADRHO)) THEN
          IF(NTFROZEN.LT.0) THEN
             I=NEL+(-NTFROZEN)
@@ -760,20 +774,6 @@ C.. Now deallocate the HF arrays
             WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN,
      &         " unfrozen virtuals."
             NTFROZEN=NTFROZEN+NHG-NEL
-         ENDIF
-         IF(I_VMAX.EQ.1.AND..NOT.TENERGY.AND.NTFROZEN.EQ.0) THEN
-            WRITE(6,*) "MaxVertices=1 and NTFROZEN=0."
-            IF(ABS(ARR(NEL)-ARR(NEL+1)).GT.1.d-3) THEN
-              WRITE(6,*) "NEL spinorbitals completely fills up "
-     &         //"degenerate set."
-              WRITE(6,*) "Only calculating vertex sum,"
-     &         // " so freezing all virtuals."
-              NTFROZEN=NBASIS-NEL
-            ELSE
-              WRITE(6,*) "NEL spinorbitals does not completely fill up "
-     &         //"degenerate set."
-              WRITE(6,*) "NOT freezing all virtuals."
-            ENDIF
          ENDIF
          IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0) THEN
 C.. At this point, we transform the UMAT and TMAT into a new UMAT and

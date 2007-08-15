@@ -81,6 +81,9 @@ EXCHANGE-DAMPING [Rc]
 COULOMB <FCOUL>
       Multiplies the strength of the coulomb interaction by FCOUL
 
+EXCHANGE (ON|OFF) [default ON]
+      Specify whether to include Exchange in the Slater-Condon rules.  If off, we are effectively 
+         reduced to a using Hartree multi-electron wavefunctions rather than Slater determinants.
 COULOMB-DAMPING ENERGY <FCOULDAMPMU FCOULDAMPBETA>
 COULOMB-DAMPING ORBITAL <COULDAMPORB FCOULDAMPBETA>
       Damps the two-electron coulomb integrals, <a b || c d> with factor f(Ea)f(Eb)f(Ec)f(Ed)

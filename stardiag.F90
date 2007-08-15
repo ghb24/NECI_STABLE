@@ -6,6 +6,7 @@
          USE HElement      
          IMPLICIT NONE
          INCLUDE 'basis.inc'
+         INCLUDE 'vmc.inc'
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
@@ -112,7 +113,7 @@
                Hijs(1)=ExcitInfo(i,2)
                call iCopy(nEl,nJ,1,iPath(1,1),1)
 !nMax has Arr hidden in it
-               Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
+               IF (TMPTHEORY) Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping

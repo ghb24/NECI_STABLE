@@ -116,6 +116,7 @@
       TREADUMAT = .false.
       TMCDET = .false.
       FCOUL=1.D0
+      TEXCH=.true.
       FUEGRS=0.D0
       fRc=0.D0
       do I = 1,5
@@ -279,6 +280,17 @@ C.. the last number is the symmetry specification - and is placed in position 5
                   if(item.lt.nitems) then
                      call getf(fRc)
                   endif
+              case("EXCHANGE")
+                  call readu(w)
+                  select case(w)
+                     case("ON")
+                        TEXCH=.TRUE.
+                     case("OFF")
+                        TEXCH=.FALSE.
+                     case default
+                        call report ("EXCHANGE "//trim(w)    
+     &                       //" not valid",.true.)
+                  end select
               case("COULOMB")
                   call getf(FCOUL)
               case("COULOMB-DAMPING")

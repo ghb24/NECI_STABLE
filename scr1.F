@@ -1,5 +1,5 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,SUM)
+     &	NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,TEXCH,SUM)
       USE HElement
       USE UMatCache , Only : GetUMatEl
       IMPLICIT NONE
@@ -19,7 +19,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER IQ,I,J,K,ID1,ID2
       TYPE(HElement) SUM2,SUM3
       INTEGER ISUB
-      LOGICAL LCOUL
+      LOGICAL LCOUL,TEXCH
 !      CALL TISET('      SCR1',ISUB) 
 C.. NB in HF we need to include TMAT element
 
@@ -44,8 +44,8 @@ C..
             ELSE
                SUM3=0.D0
             ENDIF
-            IF(      G1(EX(1))%Ms.EQ.G1(NDET1(I))%Ms
-     &         .AND. G1(EX(2))%Ms.EQ.G1(NDET1(I))%Ms) THEN
+            IF(TEXCH.AND.G1(EX(1))%Ms.EQ.G1(NDET1(I))%Ms
+     &         .AND.     G1(EX(2))%Ms.EQ.G1(NDET1(I))%Ms) THEN
                SUM3=SUM3-
      &     GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID,ID,ID2)
             ENDIF

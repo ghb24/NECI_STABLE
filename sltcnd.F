@@ -41,7 +41,7 @@ C..Also returns the sign change IPTOT
 !        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..Differ by two 
         CALL SCR2(NEL,NBASISMAX,NDET1,NDET2,GBS,
-     &         NHG,UMAT,ALAT,ISPINSKIP,COULCOUPLE,SUM)
+     &         NHG,UMAT,ALAT,ISPINSKIP,COULCOUPLE,TEXCH,SUM)
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Need to get the determinants in the form of max. coincidence
 !        CALL IAZZERO(N1E,NHG)
@@ -50,12 +50,12 @@ C..Also returns the sign change IPTOT
 !        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..Differ by one 
         CALL SCR1(NEL,NBASISMAX,NDET1,NDET2,GBS,
-     &         NHG,UMAT,ALAT,ISPINSKIP,TMat,COULCOUPLE,SUM)
+     &         NHG,UMAT,ALAT,ISPINSKIP,TMat,COULCOUPLE,TEXCH,SUM)
       ELSEIF(IC.EQ.NEL) THEN
 C..Differ by none 
 !        IPTOT=1
         CALL SCR0(NEL,NBASISMAX,NDET1,NDET2,GBS,
-     &         NHG,UMAT,ALAT,ISPINSKIP,TMat,COULCOUPLE,SUM)
+     &         NHG,UMAT,ALAT,ISPINSKIP,TMat,COULCOUPLE,TEXCH,SUM)
 C.. If we're in the UEG, we need to add in the part of the background
 C.. contribution which doesn't cancel
          IF(NBASISMAX(1,3).EQ.-1) THEN

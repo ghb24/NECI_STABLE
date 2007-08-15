@@ -1,6 +1,6 @@
 C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0(NEL,NBASISMAX,NDET1,NDET2,
-     &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,TOTSUM)
+     &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,TEXCH,TOTSUM)
       USE HElement
       USE UMatCache
       IMPLICIT NONE
@@ -16,7 +16,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 C..Cube array
       REAL*8 ALAT(3)
       REAL*8 KP
-      LOGICAL TVAB
+      LOGICAL TVAB,TEXCH
       INTEGER NEL,NHG
       TYPE(HElement) TOTSUM,SUM1,SUM2,SUM3,SUM4,SUM5
       REAL*8 COULCOUPLE
@@ -39,30 +39,34 @@ C.. we extract the KEs from TMAT
 C..Now for the two electron part
 C  JSS --access the <ij|ij> and <ij|ji> integrals directly.  Note J>I and how the integrals are
 C  stored in UMAT2D (see note in cpmddata.inc).   
+      SUM4=HElement(0)
+      SUM5=HElement(0)
       DO I=1,NEL-1
 C        SUM3=COULDAMP(NDET1(I),NHG)**2
          IG1I=G1(NDET1(I))%Ms
         DO J=I+1,NEL
           CALL CHK(IG1I,G1(NDET2(J))%Ms,IDS)
           IF(TUMAT2D) THEN
-             SUM4=UMAT2D(ID(I),ID(J))
+             SUM4=SUM4+UMAT2D(ID(I),ID(J))
           ELSE
-            SUM4=
+            SUM4=SUM4+
      & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
           ENDIF
-          IF(IDS.NE.0) THEN 
+          IF(TEXCH.AND.IDS.NE.0) THEN 
             IF(TUMAT2D) THEN
-               SUM4=SUM4-HElement(IDS)*UMAT2D(ID(J),ID(I))
+               SUM5=SUM5-HElement(IDS)*UMAT2D(ID(J),ID(I))
             ELSE
-               SUM4=SUM4-HElement(IDS)*
+               SUM5=SUM5-HElement(IDS)*
      &GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
                
             ENDIF
           ENDIF
-          SUM2=SUM2+SUM4
 C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
         ENDDO
       ENDDO
+      SUM2=SUM4+SUM5
+!      WRITE(6,*) "Coulomb:", SUM4
+!      WRITE(6,*) "Exchange:", SUM5
 C..
 C      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
 C     &   NEL,1,G1)

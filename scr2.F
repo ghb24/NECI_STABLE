@@ -1,5 +1,5 @@
       SUBROUTINE SCR2(NEL,NBASISMAX,NDET1,NDET2,
-     &     G1,NHG,UMAT,ALAT,ISS,COULCOUPLE,SUM)
+     &     G1,NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM)
 C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
@@ -20,7 +20,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER NBASISMAX(5,3)
       REAL*8 COULCOUPLE
       REAL*8 COULDAMP
-      LOGICAL TSIGN
+      LOGICAL TSIGN,TEXCH
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
 
       INTEGER ISUB
@@ -39,7 +39,7 @@ C..
          SUM=0.D0
       ENDIF
 
-      IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,2))%Ms
+      IF(TEXCH.AND.G1(EX(1,1))%Ms.EQ.G1(EX(2,2))%Ms
      &    .AND.G1(EX(1,2))%Ms.EQ.G1(EX(2,1))%Ms) THEN
          SUM=SUM
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID4,ID3)
