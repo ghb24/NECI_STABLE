@@ -173,7 +173,7 @@
       ENDIF
 
 !     --------------------------------------------
-      write (6,'64("*")')
+      write (6,'(/,64("*"),/)')
       call input_options(echo_lines=.true.,skip_blank_lines=.true.)
       main: do
         call read_line(eof)
@@ -986,7 +986,7 @@ C.. multiple of 2
             call report ("Keyword "//trim(w)//" not recognized",.true.)
         end select
       end do main
-      write (6,'64("*")')
+      write (6,'(/,64("*"),/)')
 C.. We still need a specdet space even if we don't have a specdet.
       IF(IP_SPECDET.EQ.0) call MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
 C..   Testing ILOGGING
