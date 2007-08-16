@@ -164,7 +164,7 @@ C.. list the symmetry string of each sym label
          ENDDO
       END
 
-C.. Freeze the SYM LABELS
+C.. Freeze the SYM LABELS and reps
 C.. NHG is the old number of orbs
 C.. NBASIS is the new number of orbs
 C.. GG(I) is the new index of the (old) orb I
@@ -182,6 +182,8 @@ C.. The symmetry bit string, decomposing the sym label into its component irreps
 C.. SymLabels(ISYMLABEL)
 C.. The characters of this class are stored in SYMLABELCHARS(1:NROT, SymClasses(ISTATE))
 C.. The total number of symmetry labels is NSYMLABELS
+!.. SYMREPS(1,IBASISFN) contains the numnber of the representation
+!.. of which IBASISFN is a part.
          DO I=1,NHG,2
             IF(GG(I).NE.0) THEN
                NSL((GG(I)+1)/2)=SymClasses((I+1)/2)
@@ -191,6 +193,12 @@ C.. The total number of symmetry labels is NSYMLABELS
             SymClasses(I)=NSL(I)
 C            WRITE(6,*) "SL",I,SymClasses(I)
          ENDDO
+         DO i=1,nhg
+            IF(GG(i).ne.0) NSL(GG(i))=Symreps(1,i)
+         enddo
+         DO i=1,nbasis
+            Symreps(1,i)=NSL(i)
+         enddo
       END
 
       SUBROUTINE GENMOLPSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
@@ -362,6 +370,11 @@ C.. incrememnt the counter in the pairlist
             IF(SYMEQ(SymPairProds(iProd)%Sym,Prod)) EXIT
          ENDDO
       END
+!.. SYMREPS is used to group together degenerate sets of orbitals of the same sym
+!.. (e.g. the six orbitals which might make up a T2g set), and is used for working 
+!.. out the symmetry of a determinant in GETSYM
+!.. It uses that fact that even for non-abelian groups a completely filled degenerate symmetry set is totally symmetric.
+!..  Thus each member of a set of states which when completely filled gives a totally symmetric det should be labelled with the same symrep
 C..   SYMREPS(2,*) has two sets of data:
 C.. SYMREPS(1,IBASISFN) contains the numnber of the representation
 C.. of which IBASISFN is a part.
@@ -881,7 +894,7 @@ C.. now work out which reps are degenerate and label them
          DO I=1,NBASIS
 C            WRITE(6,*) "SR2",I
             IF(I.GT.1.AND.ABS(ARR(I,2)-ARR(I-1,2)).LT.DEGENTOL
-     &         .AND.SYMEQ(G1(I)%Sym,G1(I-1))) THEN
+     &         .AND.(TAbelian.OR.SYMEQ(G1(I)%Sym,G1(I-1)%Sym))) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1
             ELSE
@@ -1212,7 +1225,7 @@ C.. Failure
          TYPE(BasisFN) IPARITY,ISYM,IMax(2)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
          INTEGER ILEV
-         integer*8 TotSymRep
+         integer*8 TotSymRep,MinSymRep,MaxSymRep
          IF(TSETUP) THEN
             DO ILEV=1,3
                IF(TPARITY) THEN
@@ -1238,13 +1251,13 @@ C                  ENDIF
 C.. If we're specifying a sym (TPARITY) in IPARITY(5), and
 C.. we have a system with all 1D reducible orbs, then we put
 C.. that into IMAX
-            IF(NBASISMAX(5,2).NE.0) THEN
+            IF(NBASISMAX(5,2).NE.0.OR.TAbelian) THEN
                IF(TPARITY) THEN
                   IMAX(1)%Sym%s=IPARITY%Sym%s
                   IMAX(2)%Sym%s=IMAX(1)%Sym%s
                ELSE
-                  IMAX(1)%Sym%s=TotSymRep()
-                  IMAX(2)%Sym%s=2**NBASISMAX(5,2)
+                  IMAX(1)%Sym%s=MinSymRep()
+                  IMAX(2)%Sym%s=MaxSymRep()
                ENDIF
             ELSE
 C.. we've got a sym system with polydimensional irreps, which leads to
@@ -1271,29 +1284,44 @@ C.. Go to the next sym.
          ILEV=5
          DO WHILE(TMORE2)
             DO WHILE (ILEV.GT.0)
-               IF(ILEV.EQ.5.AND.ISYM%k(ILEV).NE.0) THEN
+               IF(ILEV.EQ.5) THEN
+                  IF(IMAX(1)%Sym%s.NE.0) THEN
 C.. symmetry specifiers are incremented by multiplying*2 (unless there are no syms counted)
-                  ISYM%k(ILEV)=ISYM%k(ILEV)*2
+                     ISYM%Sym%s=ISYM%Sym%s*2
+                  ELSE
+                     Call IncrSym(ISym%Sym)
+                  ENDIF
+                  IF(ISYM%Sym%s.EQ.IMAX(1)%Sym%s) THEN
+                     ILEV=ILEV-1
+                     IF(ILEV.EQ.0) THEN
+                        TMORE2=.FALSE.
+C.. If we've run out of syms, we give up
+                        TMORE=.FALSE.
+                     ENDIF
+                  ELSEIF(KALLOWED(ISYM,NBASISMAX)) THEN
+                     TMORE2=.FALSE.
+                     ILEV=0
+                  ENDIF
                ELSE
                   ISYM%k(ILEV)=ISYM%k(ILEV)+1
-               ENDIF
-               IF(ISYM%k(ILEV).GT.IMAX(2)%k(ILEV)) THEN
-                  ISYM%k(ILEV)=IMAX(1)%k(ILEV)
-                  ILEV=ILEV-1
-                  IF(ILEV.EQ.0) THEN
-                     TMORE2=.FALSE.
+                  IF(ISYM%k(ILEV).GT.IMAX(2)%k(ILEV)) THEN
+                     ISYM%k(ILEV)=IMAX(1)%k(ILEV)
+                     ILEV=ILEV-1
+                     IF(ILEV.EQ.0) THEN
+                        TMORE2=.FALSE.
 C.. If we've run out of syms, we give up
-                     TMORE=.FALSE.
-                  ENDIF
-               ELSEIF(ILEV.LT.4) THEN
+                        TMORE=.FALSE.
+                     ENDIF
+                  ELSEIF(ILEV.LT.4) THEN
 C.. We've just incremented one of the higher columns, now go down to the
 C.. lower ones.
-                  ILEV=ILEV+1
-                  ISYM%k(ILEV)=IMAX(1)%k(ILEV)-1
-                  
-               ELSEIF(KALLOWED(ISYM,NBASISMAX)) THEN
-                  TMORE2=.FALSE.
-                  ILEV=0
+                     ILEV=ILEV+1
+                     ISYM%k(ILEV)=IMAX(1)%k(ILEV)-1
+                     
+                  ELSEIF(KALLOWED(ISYM,NBASISMAX)) THEN
+                     TMORE2=.FALSE.
+                     ILEV=0
+                  ENDIF
                ENDIF
             ENDDO
          ENDDO
@@ -1504,3 +1532,44 @@ C.. Set to be totally symmetric
               TotSymRep=1
           end if
       end function TotSymRep
+
+      integer*8 function MinSymRep(nBasisMax)
+         implicit none
+         integer nbasismax(5,3)
+         include 'sym.inc'
+         if(TAbelian) then
+            MinSymRep=0
+         else
+            MinSymRep=0
+         endif
+      end function MinSymRep
+      integer*8 function MaxSymRep(nBasisMax)
+         implicit none
+         include 'sym.inc'
+         integer nbasismax(5,3)
+         integer abel(3)
+         integer*8 ComposeAbelianSym
+         abel(:)=nprop(:)-1
+         if(TAbelian) then
+            MaxSymRep=ComposeAbelianSym(abel)
+         else
+            MaxSymRep=0
+         endif
+      end function MaxSymRep
+      subroutine IncrSym(Sym)
+         implicit none
+         include 'sym.inc'
+         type(Symmetry) Sym
+         integer abel(3),i
+         logical lcont
+         integer*8 ComposeAbelianSym
+         call DecomposeAbelianSym(Sym%s,abel)
+         i=1
+         lcont=.true.
+         do while(i.lt.4.and.lcont)
+            abel(i)=mod(abel(i)+1,nprop(i))
+            lcont=abel(i).eq.0
+            i=i+1
+         enddo
+         Sym%s=ComposeAbelianSym(abel)
+      end subroutine IncrSym

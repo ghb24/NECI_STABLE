@@ -14,6 +14,8 @@
 !.. SYMREPS is used to group together degenerate sets of orbitals of the same sym
 !.. (e.g. the six orbitals which might make up a T2g set), and is used for working 
 !.. out the symmetry of a determinant in GETSYM
+!.. It uses that fact that even for non-abelian groups a completely filled degenerate symmetry set is totally symmetric.
+!..  Thus each member of a set of states which when completely filled gives a totally symmetric det should be labelled with the same symrep
 !..   SYMREPS(2,*) has two sets of data:
 !.. SYMREPS(1,IBASISFN) contains the numnber of the representation
 !.. of which IBASISFN is a part.
