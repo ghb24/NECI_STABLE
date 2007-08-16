@@ -364,7 +364,9 @@ MODULE UMatCache
       END
       SUBROUTINE DESTROYUMATCACHE
          IMPLICIT NONE
+         CALL WriteUMatCacheStats()
          IF(Allocated(UMatCacheData)) THEN
+            WRITE(6,*) "Destroying UMatCache"
             CALL MemDealloc(UMatCacheData)
             Deallocate(UMatCacheData)
             CALL MemDealloc(UMATLABELS)
@@ -381,14 +383,19 @@ MODULE UMatCache
                CALL MemDealloc(InvTransTable)
                Deallocate(InvTRANSTABLE)
             ENDIF
+         ENDIF
+      END
+
+      SUBROUTINE WriteUMatCacheStats
+         IMPLICIT NONE
+         IF(Allocated(UMatCacheData)) THEN
             WRITE(6,*) "UMAT Cache Statistics"
             WRITE(6,*) NHITS, " hits"
             WRITE(6,*) NMISSES, " misses"
             WRITE(6,*) iCacheOvCount, " overwrites"
             WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,"% success"
          ENDIF
-      END
-
+      END SUBROUTINE
       SUBROUTINE SETUMATCACHEFLAG(NEWFLAG)
          IMPLICIT NONE
          INTEGER NEWFLAG,NF
@@ -561,9 +568,14 @@ MODULE UMatCache
          INTEGER nOld,nNew,OrbTrans(nOld)
          INTEGER onSlots,onPairs
          INTEGER I,J
-         onSlots=nSlots
-         onPairs=nPairs
-         CALL FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
+         if(nNew/2.NE.nStates.OR.tSmallUMat) THEN
+            WRITE(6,*) "Reordering UMatCache for freezing"
+            onSlots=nSlots
+            onPairs=nPairs
+            CALL FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
+         else
+            WRITE(6,*) "UMatCache size not changing.  Not reordering."
+         endif
       END
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
          IMPLICIT NONE

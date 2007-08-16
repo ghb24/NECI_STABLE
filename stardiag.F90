@@ -36,7 +36,6 @@
          TYPE(HElement) rh,rhii,EHFDiff
 
          TYPE(HDElement) MP2E         
-   
          SELECT CASE (IAND(nWHTay,24))
          CASE(0)
 !.. Allow both singles and doubles

@@ -373,13 +373,13 @@ C.. save all log files
             IF(TMPTHEORY) CLOSE(13)
          ENDIF
          IF(BTEST(ILOGGING,9)) CLOSE(12)
-         IF((MP2E(2).AGE.0.D0)) THEN
+         IF((MP2E(2).AGt.0.D0)) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
-            ENDDO
-               WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
+               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
                WRITE(6,"(A14,G)") STR,FF
+            ENDDO
          ENDIF
          IF(TOTAL%v.LT.0) THEN
             DLWDB=-DLWDB
@@ -647,7 +647,7 @@ C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
          DLWDB=DLWDB/TOTAL
          TOTAL=HIJS(0)
-         IF((MP2E(2).AGE.0.D0)) THEN
+         IF((MP2E(2).AGT.0.D0)) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
@@ -761,14 +761,18 @@ C.. Sum up the components of <D|H exp(-b H)|D>
 caa	    call flush(10) 
             L=L+1
             FMCPR3=TOTAL
-            IF(I_V.EQ.2) THEN
+            IF(I_V.EQ.2.AND.TMPTHEORY) THEN
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
                CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
             ENDIF
             IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 C.. log every 1000
-               WRITE(10,*) L,NTOTAL,DLWDB,MP2E
+               IF(TMPTHEORY) THEN
+                  WRITE(10,*) L,NTOTAL,DLWDB,MP2E
+               ELSE
+                  WRITE(10,*) L,NTOTAL,DLWDB
+               ENDIF
                CALL FLUSH(10)
             ENDIF
             RETURN
@@ -1129,14 +1133,18 @@ C.. Sum up the components of <D|H exp(-b H)|D>
             ENDIF
             L=L+1
             FMCPR3B=TOTAL
-            IF(I_V.EQ.2) THEN
+            IF(I_V.EQ.2.AND.TMPTHEORY) THEN
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
                CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
             ENDIF
             IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 C.. log every 1000
-               WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
+               IF(TMPTHEORY) THEN
+                  WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E
+               ELSE
+                  WRITE(10,"(I10,2E25.16)") L,NTOTAL,DLWDB
+               ENDIF
                CALL FLUSH(10)
             ENDIF
 C            WRITE(10,*) (LOCTAB(3,I),I=1,I_V-1)

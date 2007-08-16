@@ -490,7 +490,7 @@ LOGGING
     Start of logging block.
      
 MCPATHS     
-    Log in MCPATHS to MCPATHS for full vertex sum and MCSUMMARY when using a METHODS section.
+    Log in MCPATHS to MCPATHS for full vertex sum and MCSUMMARY when using a METHODS section.  Also log to RHOPII
 
 PREVAR
     Log the Vertex level, Iteration number, parameter, and expected variance, for each parameter which was looked for in the PRECALC block, showing the convergence on the optimum value.  This is output to a file called PRECALC.

@@ -12,7 +12,7 @@ C ==------------------------------------------------------------------==
      &   TCPMD,TDFREAD,fRc,iCacheFlag)
       USE HElement
       USE UMatCache , only : GetUMatSize, DestroyUMatCache              &
-     &   ,iPeriodicDampingType
+     &   ,iPeriodicDampingType,WriteUMatCacheStats
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -1834,7 +1834,11 @@ C          CLOSE(11)
 C..
       CALL ENDSYM()
 !If we're told explicitly not to destroy the cache, we don't
-      if(.NOT.BTEST(iCacheFlag,0)) CALL DESTROYUMATCACHE()
+      if(.NOT.BTEST(iCacheFlag,0)) THEN
+         CALL DESTROYUMATCACHE()
+      ELSE
+         Call WriteUMatCacheStats()
+      ENDIF
       CALL MEMORY_CHECK
 C ==-------------------------------------------------------------------==
       CALL TIHALT('NECICUBE  ',ISUB)
@@ -2598,10 +2602,11 @@ C.. Normal Hubbard
          LOGICAL TNPDERIV,TDONE,TFIRST
          INTEGER DETINV
          INTEGER ISTART,IEND,IDEG
-         LOGICAL TSPECDET
+         LOGICAL TSPECDET,TLOG
          INTEGER SPECDET(NEL)
          TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
          INTEGER nActiveBasis(2)
+         TLOG=BTEST(ILOGGING,1)
          HElP=HDElement(I_P)
          TSYM=.TRUE.
          TOT=0.D0
@@ -2630,16 +2635,18 @@ C:         CALL PRINT_MEMORY()
          ELSE
             WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
          ENDIF
-         IF(I_HMAX.EQ.-10) THEN
-            OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
-            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-            CLOSE(11)
-         ELSE
-            OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
-            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
-            CLOSE(11)
+         IF(TLOG) THEN
+            IF(I_HMAX.EQ.-10) THEN
+               OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
+               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(11)
+            ELSE
+               OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
+               WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+               CLOSE(11)
+            ENDIF
+            OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
          ENDIF
-         OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
          IF(DETINV.NE.0) THEN
             ISTART=ABS(DETINV)
             IEND=ABS(DETINV)
@@ -2679,10 +2686,12 @@ C:         CALL PRINT_MEMORY()
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &         WLRI,WLSI,DBETA,DLWDB2)
-            WRITE(15,"(I12,$)") III
-            CALL WRITEDET(15,NI,NEL,.FALSE.)
-            WRITE(15,"(3G25.16,$)") EXP(WLSI+HElP*WLRI),
-     &         WLRI*HElP,WLSI
+            IF(TLOG) THEN
+               WRITE(15,"(I12,$)") III
+               CALL WRITEDET(15,NI,NEL,.FALSE.)
+               WRITE(15,"(3G25.16,$)") EXP(WLSI+HElP*WLRI),
+     &            WLRI*HElP,WLSI
+            ENDIF
             IF(TFIRST) THEN
                TFIRST=.FALSE.
                WLRI0=WLRI
@@ -2708,9 +2717,9 @@ C.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(HElP*(WLRI-WLRI0)+(WLSI-WLSI0))
             NORM=NORM+HDElement(IDEG)*WINORM
             TOT=TOT+HDElement(IDEG)*WINORM*DLWDB
-            WRITE(15,"(G25.16,I5)") DLWDB,IDEG
+            IF(TLOG) WRITE(15,"(G25.16,I5)") DLWDB,IDEG
             IF(DETINV.EQ.III) THEN
-               CALL FLUSH(15)
+               IF(TLOG) CALL FLUSH(15)
                WRITE(6,*) "Investigating det ",DETINV
                CALL FLUSH(6)
                CALL WIRD_SUBSET(NI,BETA,I_P,NEL,
@@ -2719,7 +2728,7 @@ C.. the Fermi determinant, otherwise the numbers blow up
             ENDIF
            ENDIF
           ENDDO
-         CLOSE(15)
+         IF(TLOG) CLOSE(15)
          IF(TFIRST) THEN
             WRITE(6,*) "*** NO determinants found to calculate***"
          ELSE
