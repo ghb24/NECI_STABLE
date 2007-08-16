@@ -126,7 +126,7 @@ C.. The spin including the total spin
 C ==-------------------------------------------------------------------==
       CALL TIMETAG()
       ECORE=0.D0
-
+      IFDET=0
       CALL TISET('NECICUBE  ',ISUB)
 
 C..      CALL DOZSUM()
