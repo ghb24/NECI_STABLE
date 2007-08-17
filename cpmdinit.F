@@ -323,25 +323,6 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                       TOT=TOT+HElement(EIGENVALUES(I)+PIInt(I)/2.d0)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
-!                  sum1=dcmplx(0.d0,0.d0)
-!                  DO K=1,NSTATES
-!                     CALL CPMDGETOCC(K,F)
-!C.. F now has the occupation number of state K
-!                     IF(F.GT.1.D-5) THEN
-!C.. Get 4-index integral (ik|jk)
-!                        IF(K.GT.NSTATESUSED) THEN
-!                           WRITE(6,"(A,I2,A,F10.6)")"TOP FROZEN STATE "
-!     &                          ,K," has occupation number ",F
-!                           STOP "TOP FROZEN STATE OCCUPIED"
-!                        ENDIF
-!                        U=GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,
-!     &                        I,K,J,K)
-!!                       WRITE(6,*) I,K,J,K,U
-!                        TOT=TOT-HElement(F)*U
-!                        sum1=sum1+HElement(F)*U
-!                     END IF
-!                  ENDDO
-!                  write (6,*) i,j,sum1,HarInt(i,j)
                   TOT=TOT-HElement(HarInt(i,j))
                   TMAT(II,JJ)=TOT
                   TMAT(II+1,JJ+1)=TOT
