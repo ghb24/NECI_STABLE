@@ -899,7 +899,16 @@ C           (.NOT.(TREAD.OR.TREADRHO))
       ENDIF
 
       IF(nPaths.eq.-2) then
-         Call GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis)
+!  PATHS ACTIVE SETS
+         Call GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis,
+     &      nActiveSpace(1),nActiveSpace(2))
+      elseif(nPaths.eq.-3) then
+!  PATHS ACTIVE ORBITALS
+         nActiveBasis(1)=nEl+1-nActiveSpace(1)
+         nActiveBasis(2)=nEl+nActiveSpace(2)
+         WRITE(6,*) "Active space:", nActiveBasis(1)," TO ",
+     &      nActiveBasis(2)," (ordered labels)."
+         WRITE(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
       else
          nActiveBasis(1)=1
          nActiveBasis(2)=nBasis
@@ -3138,34 +3147,47 @@ C.. Check spin
          ENDDO
          RETURN
       END
-      SUBROUTINE GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis)
+      SUBROUTINE GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis,
+     &      nDown,nUp)
          IMPLICIT NONE
          REAL*8 ARR(nBasis)
          INTEGER BRR(nBasis)
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          INTEGER LMS,nEl,nActiveBasis(2),nBasis
-         INTEGER I
+         INTEGER I,nDown,nUp,nLeft
          I=nEl+1
-         DO WHILE (ABS(ARR(I)-ARR(I-1)).LT.1.d-5)
-            I=I+1
+         nLeft=1+nUp
+         IF(nDown.NE.0.AND.nUp.NE.0) WRITE(6,*) "Including ",-nDown,","
+     &   ,nUp," extra degenerate sets in active space."
+         DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
+            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.d-5)
+               I=I+1
+            ENDDO
+            nLeft=nLeft-1
+            IF(nLeft.EQ.nUp.AND.I.NE.nEl+1)
+     &         WRITE(6,*) "Fermi determinant degenerate.  "
+            IF(nLeft.ne.0) I=I+2
          ENDDO
-         IF(I.EQ.nEl+1) THEN
+         IF(I.EQ.nEl+1.and.nDown.eq.0) THEN
 !We have no degeneracies at the Fermi Energy
-            nActiveBasis(1)=nEl+1
-            nActiveBasis(2)=nEl
-            WRITE(6,*) "Fermi determinant non-degenerate.  " //
-     &         "Active space empty."
-            RETURN
+            WRITE(6,*) "Fermi determinant non-degenerate.  "
+            IF(nDown.eq.0) THEN
+               WRITE(6,*) "Active space empty."
+               nActiveBasis(1)=nEl+1
+               nActiveBasis(2)=nEl
+               RETURN
+            ENDIF
          ENDIF
          nActiveBasis(2)=I-1
          I=nEl
+         nLeft=nDown
          DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
             I=I-1
          ENDDO
          nActiveBasis(1)=I+1
-         WRITE(6,*) "Fermi determinant degenerate.  " //
-     &         "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2),
-     &         " (ordered labels)."
+         WRITE(6,*) "Active space:", nActiveBasis(1)," TO ",
+     &      nActiveBasis(2)," (ordered labels)."
+         WRITE(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
          RETURN 
       END

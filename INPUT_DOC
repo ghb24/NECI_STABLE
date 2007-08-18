@@ -380,10 +380,12 @@ CHEMPOT-TWOFROM <g_VMC_ExcitWeights(1) g_VMC_ExcitWeights(2) g_VMC_ExcitWeights(
 
 MULTIMCWEIGHT <g_
 
-PATHS (<NPATHS> | ALL | ACTIVE)
+PATHS (<NPATHS> | ALL | ACTIVE [ORBITALS nDown nUP | SETS nDown nUp])
     Choose the first NPATHS determinants and calculate RHOPII etc.
       ALL chooses all determinants (same as ALLPATHS).
-      ACTIVE chooses only the active space of determinants.
+      ACTIVE chooses only the active space of determinants: The degenerate set containing the highest energy electron.
+      ACTIVE ORBITALS nDown nUp   Set the active space to be nDown and nUp orbitals respectively from the Fermi level
+      ACTIVE SETS nDown nUp   Set the active space to be nDown and nUp degenerate sets respectively from the Fermi level
 
 ALLPATHS
     Choose all determinants (i.e. set NPATHS = -1).

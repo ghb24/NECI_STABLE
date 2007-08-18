@@ -693,7 +693,21 @@ C                  end select
                   case("ALL")
                      NPATHS=-1
                   case("ACTIVE")
-                     NPATHS=-2
+                     if(item.lt.nitems) then
+                        call readu(w)
+                        select case(w)
+                        case("ORBITALS")
+                           NPATHS=-3
+                           call readi(nActiveSpace(1))
+                           call readi(nActiveSpace(2))
+                        case("SETS")
+                           NPATHS=-2
+                           call readi(nActiveSpace(1))
+                           call readi(nActiveSpace(2))
+                        case default
+                            call report(trim(w)//" unknown",.true.)
+                        end select
+                     endif
                   case default
                      read(w,"(I)") NPATHS
                   end select
