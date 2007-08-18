@@ -35,7 +35,7 @@ MODULE UMatCache
 !  Book-keeping information
 !  nSlotsInit is the number of slots requested on input.  If the number required is less, then the lower value is allocated
 !  If nSlotsInit is set to 0, then general <ij|u|kl> element caching is not performed, but UMat2D <ij|u|ij> and <ij|u|ji> is.  For nSlotsInit=-1 neither is performed.
-      INTEGER nSlotsInit
+      INTEGER nSlotsInit,nMemInit
 ! nHits and nMisses are the number of cache hits and misses.
       INTEGER nHits,nMisses
 !.. UMatCacheFlag=0 is normal operation
@@ -43,7 +43,7 @@ MODULE UMatCache
 !..      This is useful when lots of sequential pieces of data are being stored.
 !..  When UMatCacheFlag is reset to 0, the data which are present are spread evenly around the slots for a given Pair.
       INTEGER UMatCacheFlag
-         SAVE nSlotsInit,nHits,nMisses,UMatCacheFlag,iCacheOvCount
+         SAVE nSlotsInit,nMemInit,nHits,nMisses,UMatCacheFlag,iCacheOvCount
 
 !.. Some various translation tables to convert between different orderings of states.
       LOGICAL tTransGTID,tTransFindx
@@ -279,6 +279,10 @@ MODULE UMatCache
                tSmallUMat=.TRUE.
                WRITE(6,*) "Using small pre-freezing UMat Cache."
             ELSE
+               IF(nMemInit.NE.0) THEN
+                  WRITE(6,*) "Allocating ",nMemInit,"Mb for UMatCache+Labels."
+                  nSlotsInit=(nMemInit*1048576/8)/(nPairs*(nTypes*HElementSize+1.D0/irat))
+               ENDIF
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
                tSmallUMat=.FALSE.
             ENDIF

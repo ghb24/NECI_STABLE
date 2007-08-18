@@ -468,8 +468,11 @@ ORDER <ORBORDER(I), I=1,8)>
             but say 5.002 would be meaningless as the integral part must be a
             multiple of 2
 
-UMATCACHE NSLOTSINIT (default 1024)
+UMATCACHE nSlotsInit (default 1024)
+UMATCACHE SLOTS nSlotsInit
    For CPMD-generated 2-electron integrals, set the number of slots per state-pair of cache to reserve.  The total amount of cache will be in the order of NSLOTS*NSTATES*(NSTATES-1)/2  words.  If 0 then disable on-the-fly cacheing, but retain precomputation of 2-index 2-electron integrals.  If -1, calculate all integrals on the fly.
+UMATCACHE MB nMemInit
+   Number of megabytes to allocate to the UMAT cache.
 
 NOUMATCACHE
    Disable all UMAT caching (same as UMATCACHE -1)

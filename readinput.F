@@ -910,7 +910,17 @@ C.. multiple of 2
                      ENDIF
                   ENDDO
               case("UMATCACHE")
-                  call geti(NSLOTSINIT)
+                  call readu(w)
+                  select case(w)
+                     case("SLOTS")
+                        call geti(NSLOTSINIT)
+                        nMemInit=0
+                     case("MB")
+                        call geti(NMEMINIT)
+                        nSlotsInit=1
+                     case default
+                        read(w,"(I)") NSLOTSINIT
+                  end select
               case("NOUMATCACHE")
                   NSLOTSINIT=-1
               case("ENDINT")
