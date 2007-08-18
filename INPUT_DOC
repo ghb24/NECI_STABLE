@@ -324,7 +324,8 @@ METHOD <METHOD>
         DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
         POLY uses the special properties of the matrix to find the roots of the polynomial and uses them to calculate the relevant values.  This is order Ngraph**2
         POLYMAX is POLY but only finds the highest root of the polynomial, so is order Ngraph.  It can be used when P is very large (i.e. BETA is very large (say 40))
-        POLYCONVERGE is poly but adds i out of N roots lambda_i such that (N-i) lamba_i**P < 10**-6, i.e. we evaluate enough roots such that a very conservative error estimate of the contribution of the remaining roots is negligible.
+        POLYCONVERGE is poly but adds i out of N roots lambda_i such that (N-i) lamba_i**P < 10**-3, i.e. we evaluate enough roots such that a very conservative error estimate of the contribution of the remaining roots is negligible.
+        POLYCONVERGE2 is POLYCONVERGE but requires   w(1..i) (N-i) lamba_i**P < 10**-3, where w(1..i) is the cumulative sum of lambda_i**P, which should be a better estimate of the convergence
         OLD specifies to use a pre-generated list of determinants using the excitation routine version 
                specified in EXCITATIONS OLD,NEW.
         NEW specifies to generate determinants on the fly without storing them, using the NEW excitation routine.

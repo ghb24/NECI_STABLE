@@ -707,6 +707,9 @@ C                  end select
                         case default
                             call report(trim(w)//" unknown",.true.)
                         end select
+                     else
+                       NPATHS=-2
+                       nActiveSpace(:)=0 
                      endif
                   case default
                      read(w,"(I)") NPATHS
@@ -1255,6 +1258,9 @@ C     ILOGGING = 0771
                               case("POLYCONVERGE")
                                   NWHTAY=IBSET(NWHTAY,0)
                                   NWHTAY=IBSET(NWHTAY,2)
+                              case("POLYCONVERGE2")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                                  NWHTAY=IBSET(NWHTAY,6)
                               case("H0")
                                   NWHTAY=IBSET(NWHTAY,5)
                                   if(I_HMAX.ne.-21) call report ("H0 "

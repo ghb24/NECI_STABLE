@@ -135,6 +135,9 @@
             ELSEIF(BTEST(NWHTAY,2)) THEN
                WRITE(6,*) "Searching for enough roots to converge sum"
                nRoots=iExcit+1
+            ELSEIF(BTEST(NWHTAY,6)) THEN
+               WRITE(6,*) "Searching for enough roots to converge sum - Method 2"
+               nRoots=iExcit+2
             ELSE
                WRITE(6,*) "Searching for all roots"
             ENDIF
@@ -366,12 +369,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
          TYPE(HElement) LIST(ILMAX,0:2)
          INTEGER ISUB
-         REAL*8 SI,DLWDB,DBETA,NORM,E0,BETA
+         REAL*8 SI,DLWDB,DBETA,NORM,E0,BETA,osi
          TYPE(HElement) DLWDB2
          INTEGER I,J,NROOTS
          REAL*8 ROOTS(1:NROOTS+1),RPN,R
          INTEGER iLogging
          INTEGER iEigv,iDegen
+         LOGICAL lWarned
          CALL TISET('STARDIAG2 ',ISUB)
          iEigv=0 
          iDegen=0
@@ -395,6 +399,19 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
             nRoots=nRoots-1-i
             write(6,*) nRoots+1, " needed for convergence 1.d-3."
             nRoots=nRoots+1
+         elseif(nRoots.eq.nList+1) then
+!  nRoots is one more than the number of excitations
+!we've been asked to search to see how many roots we need for convergence. - Method 2
+!  Take into account the cumulative values as we go down the list, not just the absolute value of the rest
+            i=nRoots-1
+            si=1
+            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)%v**I_P)/si).ge.1.d-2)
+               Si=SI+List(i,0)%v**I_P
+               i=i-1
+            enddo
+            nRoots=nRoots-1-i
+            write(6,*) nRoots+1, " needed for method 2 convergence 1.d-3."
+            nRoots=nRoots+1
          endif
 
 !.. Find the eigenvalues
@@ -402,6 +419,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
          SI=0.D0
          WRITE(6,*) "Highest root:",ROOTS(NROOTS+1)
          E0=List(1,2)%v
+         lWarned=.false.
 !.. divide through by highest eigenvalue to stop things blowing up
          DO I=NROOTS,0,-1
             iDegen=iDegen+1
@@ -425,16 +443,21 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   write(6,*) iDegen-1
                   iDegen=1
                endif
-               IF(iEigv.le.2) then
-                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i+1),E0-(i_P/Beta)*log(roots(i+1))
-               endif
                DO J=2,NLIST
                   NORM=NORM+SQ(LIST(J,1)/(HElement(ROOTS(I+1))-LIST(J,0)))
                ENDDO
 !.. We add in the first element of the eigenvector * lambda**P
 !               write(6,*) ROOTS(i+1),NORM
                RPN=(ROOTS(I+1)**I_P)*1.D0/NORM
+               IF(.not.lWarned.and.RPN/SI.LT.1.d-3) then
+                  lWarned=.true.
+                  WRITE(6,*) "Root ",NROOTS-I," has low contribution."
+                  WRITE(6,*) "SI=",SI
+               ENDIF
                SI=SI+RPN
+               IF(iEigv.le.2) then
+                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i+1),E0-(i_P/Beta)*log(roots(i+1))
+               endif
                IF(DBETA.NE.0.D0) THEN
                   DLWDB2=LIST(1,2)
 !                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
@@ -453,6 +476,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   write(6,*) iDegen-1
                   iDegen=1
                endif
+         WRITE(6,*) "Final SI=",SI
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)%v
          CALL TIHALT("STARDIAG2 ",ISUB)
