@@ -44,12 +44,12 @@ C..   Now we need to match up any two determinants
            IF(TSTAR) THEN
                IF(KI.EQ.1) THEN
                   IBEGJ=1
-                  IMAX=NDET
+                  IMAXJ=NDET
                   STEP=1
                ELSE
-                  IBEGJ=1
+                  IBEGJ=KI
                   IMAXJ=KI
-                  STEP=KI-1
+                  STEP=1
                ENDIF
            ELSE
                IBEGJ=KI
