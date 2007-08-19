@@ -42,9 +42,15 @@ C..   Now we need to match up any two determinants
            IMAXJ=NDET
 	 ELSE
            IF(TSTAR) THEN
-               IBEGJ=1
-               IMAXJ=KI
-               STEP=KI-1
+               IF(KI.EQ.1) THEN
+                  IBEGJ=1
+                  IMAX=NDET
+                  STEP=1
+               ELSE
+                  IBEGJ=1
+                  IMAXJ=KI
+                  STEP=KI-1
+               ENDIF
            ELSE
                IBEGJ=KI
                IMAXJ=NDET
