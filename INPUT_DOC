@@ -176,8 +176,9 @@ ENDPRECALC
 CALC
     Start calculation block.  This chooses what calculation to do.
 
-HAMILTONIAN
+HAMILTONIAN [STAR]
     Store the Hamiltonian.  This is defaulted to ON if ENERGY is set, but can be used without ENERGY.
+      STAR indicates only the connections between the fermi det and its excitations should be included in the Hamiltonian, not off-diagonal elements between excited dets.
 
 EXCITE <ICILEVEL> [default=0]
    Excitiation level at which to truncate determinant list.  If ICILEVEL=0 then all determinants are enumerated.

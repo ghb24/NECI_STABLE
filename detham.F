@@ -1,6 +1,7 @@
       SUBROUTINE DETHAM(NDET,NEL,NMRKS,NBASISMAX,
      &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,TMat,
-     &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+     &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR,
+     &  TSTAR)
       USE HElement
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
@@ -19,8 +20,9 @@ C..Cube Arrays
 C..
       INTEGER ICMAX,ISUB,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
-      INTEGER IGETEXCITLEVEL
+      INTEGER IGETEXCITLEVEL,STEP,IMAXJ
       TYPE(HElement) SUM
+      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       CALL TISET('    DETHAM',ISUB)
 C ==-------------------------------------------------------------------==
@@ -36,10 +38,21 @@ C..   Now we need to match up any two determinants
          ENDIF
          IF(TMC) THEN 
            IBEGJ=1
+           STEP=1
+           IMAXJ=NDET
 	 ELSE
-	   IBEGJ=KI
+           IF(TSTAR) THEN
+               IBEGJ=1
+               IMAXJ=KI
+               STEP=KI-1
+           ELSE
+               IBEGJ=KI
+               IMAXJ=NDET
+               STEP=1
+           ENDIF
 	 ENDIF
-         DO KJ=IBEGJ,NDET
+         IF(STEP.EQ.0) STEP=1
+         DO KJ=IBEGJ,IMAXJ,STEP
 C..   IC is the number of pairs which are the *SAME* in both determinants
             IC=0
             IF(KI.EQ.KJ) THEN

@@ -1189,7 +1189,8 @@ C..We need to measure HAMIL and LAB first
          ICMAX=1
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,
      &         NHG,HAMIL,G1,LAB,NROW,.TRUE.,
-     &         NMSH,FCK,TMAT,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+     &         NMSH,FCK,TMAT,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR,
+     &         TSTAR)
          WRITE(6,*) ' FINISHED COUNTING '
          CALL FLUSH(6)
 C..Now we know size, allocate memory to HAMIL and LAB
@@ -1202,7 +1203,8 @@ C..
 C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,
      &      NHG,HAMIL,G1,LAB,NROW,.FALSE.,
-     &      NMSH,FCK,TMAT,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+     &      NMSH,FCK,TMAT,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR,
+     &      TSTAR)
 
          IF(BTEST(ILOGGING,7)) THEN
 C.. we write out H now

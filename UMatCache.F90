@@ -203,6 +203,10 @@ MODULE UMatCache
                         CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems)
                      ELSE
                         CALL INITFINDXI(I,J,K,L,UElems)
+!InitFindxI returns up to two integrals in UElems
+!  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).
+!  TYPE 0          TYPE 1
+
                      ENDIF
                      GETUMATEL=UElems(IAND(ITYPE,1))
                      IF(ITYPE.GT.1) GETUMATEL=DCONJG(GETUMATEL)

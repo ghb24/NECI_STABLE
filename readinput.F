@@ -488,6 +488,16 @@ C                  end select
               select case(w)
               case("HAMILTONIAN")
                   TCALCHMAT = .true.
+                  IF(item.lt.nitems) THEN
+                     call readu(w)
+                     select case(w)
+                     case("STAR")
+                        TSTAR=.TRUE. 
+                     case default
+                     call report ("Keyword "//trim(w)//
+     &                  " not recognised",.true.)
+                     end select
+                  ENDIF
               case("ENERGY")
                   TENERGY = .true.
                   TCALCHMAT = .true.
