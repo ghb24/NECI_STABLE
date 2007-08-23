@@ -1258,6 +1258,11 @@ C     ILOGGING = 0771
                                  I_HMAX=-21
                               case("OLD")
                                  I_HMAX=-9
+                              case("ADDSINGLES")
+                                 NWHTAY=IBSET(NWHTAY,7)
+                                 IF(I_HMAX.NE.-21)  call report(
+     &                              "Error - cannot use ADDSINGLES"
+     &                              //" without STAR NEW",.true.)
                               case("DIAG")
                                   NWHTAY=IBCLR(NWHTAY,0)
                               case("POLY")

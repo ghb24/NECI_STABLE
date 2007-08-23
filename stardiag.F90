@@ -36,6 +36,8 @@
          TYPE(HElement) rh,rhii,EHFDiff
 
          TYPE(HDElement) MP2E         
+         LOGICAL tStarSingles
+         tStarSingles=BTEST(nWHTay,7)
          SELECT CASE (IAND(nWHTay,24))
          CASE(0)
 !.. Allow both singles and doubles
@@ -56,8 +58,12 @@
          Allocate(nExcit(nExcitMemLen))
          nExcit(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
-!.. iC now contains the number of excitations.
+!.. iMaxExcit now contains the number of excitations.
 !.. Allocate memory for the lists
+         IF(tStarSingles) THEN
+            iMaxExcit=iMaxExcit*5
+            WRITE(6,*) "Adding StarSingles.  (5x storage space used)."
+         ENDIF
          Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
          CALL MemAlloc(iErr,ExcitInfo,(iMaxExcit+1)*3*HElementSize,"ExcitInfo")
@@ -113,6 +119,7 @@
                call iCopy(nEl,nJ,1,iPath(1,1),1)
 !nMax has Arr hidden in it
                IF (TMPTHEORY) Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
+               IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping
@@ -449,7 +456,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 !.. We add in the first element of the eigenvector * lambda**P
 !               write(6,*) ROOTS(i+1),NORM
                RPN=(ROOTS(I+1)**I_P)*1.D0/NORM
-               IF(.not.lWarned.and.RPN/SI.LT.1.d-3) then
+               IF(.not.lWarned.and.RPN/SI.LT.1.d-4) then
                   lWarned=.true.
                   WRITE(6,*) "Root ",NROOTS-I," has low contribution."
                   WRITE(6,*) "SI=",SI
@@ -476,6 +483,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   write(6,*) iDegen-1
                   iDegen=1
                endif
+         write(6,*)
          WRITE(6,*) "Final SI=",SI
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)%v
@@ -483,3 +491,130 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
          RETURN
       END
 
+!        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
+!  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
+      SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
+         USE HElement      
+         IMPLICIT NONE
+         INCLUDE 'basis.inc'
+         Type(BasisFN) G1(*)
+         INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
+         INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
+         COMPLEX*16 fck(*)
+         TYPE(HElement) TMat(*),UMat(*)
+         REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
+         TYPE(HElement)  ExcitInfo(0:iMaxExcit,0:2)
+!.. New lists are generated here
+!.. This will contain all the info needed to work out the value of the
+!.. star
+!.. LIST(0,...) corresponds to J=I
+!.. LIST(J,0) = RHOJJ
+!.. LIST(J,1) = RHOIJ
+!.. LIST(J,2) = HIJ
+
+         INTEGER nJ(nEl),iExcit,iEx(2,2),nK(nEl)
+         LOGICAL tDummy
+         type(HElement) StarMat(5,5),rh,rhii
+         integer i,iExc,iMaxExcit
+
+!Needed for diagonalizer
+         REAL*8 WLIST(5),WORK(3*5)         
+         TYPE(HElement) NWORK(4*5)
+         INTEGER INFO
+
+         call azzero(StarMat,25*HElementSize)
+         iEx(1,1)=2
+!.. Get the orbitals which are excited in going from I to J
+!.. IEX(1,*) are in I, and IEX(2,*) are in J
+         CALL GetExcitation(nI,nJ,nEl,iEx,tDummy)
+         IF(iEx(1,1).GT.0.AND.iEx(1,2).GT.0) THEn
+!  We've got a double excitation
+            StarMat(1,1)=ExcitInfo(iExcit,0)
+!  Now generate all possible singles between nI and nJ, and put them into StarMat
+!(i,a)
+            CALL ICOPY(nEl,nI,1,nK,1)
+      lp0:  DO i=1,nEl
+               IF(nK(i).EQ.iEx(1,1)) THEN
+                  nK(i)=iEx(2,1)
+                  CALL SORTI(nEl,nK)
+                  exit lp0
+               endif
+            end do lp0
+            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+            StarMat(2,2)=rh/rhii
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            StarMat(1,2)=rh/rhii
+!(i,b)
+            CALL ICOPY(nEl,nI,1,nK,1)
+        lp1:DO i=1,nEl
+               IF(nK(i).EQ.iEx(1,1)) THEN
+                  nK(i)=iEx(2,2)
+                  CALL SORTI(nEl,nK)
+                  exit lp1
+               endif
+            end do lp1
+            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+            StarMat(3,3)=rh/rhii
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            StarMat(1,3)=rh/rhii
+!(j,a)
+            CALL ICOPY(nEl,nI,1,nK,1)
+       lp2: DO i=1,nEl
+               IF(nK(i).EQ.iEx(1,2)) THEN
+                  nK(i)=iEx(2,1)
+                  CALL SORTI(nEl,nK)
+                  exit lp2
+               endif
+            end do lp2
+            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+            StarMat(4,4)=rh/rhii
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            StarMat(1,4)=rh/rhii
+            CALL ICOPY(nEl,nI,1,nK,1)
+!(j,b)
+   lp3:     DO i=1,nEl
+               IF(nK(i).EQ.iEx(1,2)) THEN
+                  nK(i)=iEx(2,2)
+                  CALL SORTI(nEl,nK)
+                  exit lp3
+               endif
+            end do lp3
+            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+            StarMat(5,5)=rh/rhii
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            StarMat(1,5)=rh/rhii
+
+! Now diagonalize.
+            iExc=5
+            IF(HElementSize.EQ.1) THEN
+!real case
+               CALL DSYEV('V','U',iExc,StarMat,iExc,WLIST,WORK,3*iExc,INFO)
+               IF(INFO.NE.0) THEN
+                  WRITE(6,*) 'DYSEV error: ',INFO
+                  STOP
+               ENDIF
+            ELSE
+!.. The complex case
+               CALL ZHEEV('V','U',iExc,StarMat,iExc,WLIST,NWORK,4*iExc,WORK,INFO)
+               IF(INFO.NE.0) THEN
+                  WRITE(6,*) 'ZHEEV error: ',INFO
+                  STOP
+               ENDIF
+            ENDIF
+!.. StarMat now contains the eigenvectors, and WLIST the eigenvalues         
+            do i=5,1,-1
+               
+!.. LIST(J,0) = RHOJJ
+!.. LIST(J,1) = RHOIJ
+!.. LIST(J,2) = HIJ
+!(rho__^P)_{jj}=sum_l v*_{lj} (r_j)^P v_{lj}
+!  r_j -> rho_jj
+!  |v_{lj}|^2 is the amount of the original j there is in each of the new eigenvectors l.
+               ExcitInfo(iExcit+i-1,0)=WList(i)
+               rh=sqrt(dreal(StarMat(1,i)*DCONJG(StarMat(1,I))))
+               ExcitInfo(iExcit+i-1,1)=ExcitInfo(iExcit,1)*rh
+               ExcitInfo(iExcit+i-1,2)=ExcitInfo(iExcit,2)*rh
+            enddo
+            iExcit=iExcit+4
+         ENDIF
+      END
