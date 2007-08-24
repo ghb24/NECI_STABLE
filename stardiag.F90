@@ -119,7 +119,7 @@
                call iCopy(nEl,nJ,1,iPath(1,1),1)
 !nMax has Arr hidden in it
                IF (TMPTHEORY) Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
-               IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
+               IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping
@@ -493,7 +493,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 
 !        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
-      SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
+      SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
          USE HElement      
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -530,6 +530,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
          IF(iEx(1,1).GT.0.AND.iEx(1,2).GT.0) THEn
 !  We've got a double excitation
             StarMat(1,1)=ExcitInfo(iExcit,0)
+            iExc=1
 !  Now generate all possible singles between nI and nJ, and put them into StarMat
 !(i,a)
             CALL ICOPY(nEl,nI,1,nK,1)
@@ -540,10 +541,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp0
                endif
             end do lp0
-            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
-            StarMat(2,2)=rh/rhii
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
-            StarMat(1,2)=rh/rhii
+!            call writedet(6,nk,nel,.false.)
+!            write(6,*) rh
+            IF(rh.age.rhoeps) then
+               iExc=iExc+1
+               StarMat(1,iExc)=rh/rhii
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               StarMat(iExc,iExc)=rh/rhii
+            ENDIF
 !(i,b)
             CALL ICOPY(nEl,nI,1,nK,1)
         lp1:DO i=1,nEl
@@ -553,10 +559,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp1
                endif
             end do lp1
-            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
-            StarMat(3,3)=rh/rhii
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
-            StarMat(1,3)=rh/rhii
+!            call writedet(6,nk,nel,.false.)
+!            write(6,*) rh
+            IF(rh.age.rhoeps) then
+               iExc=iExc+1
+               StarMat(1,iExc)=rh/rhii
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               StarMat(iExc,iExc)=rh/rhii
+            ENDIF
 !(j,a)
             CALL ICOPY(nEl,nI,1,nK,1)
        lp2: DO i=1,nEl
@@ -566,12 +577,17 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp2
                endif
             end do lp2
-            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
-            StarMat(4,4)=rh/rhii
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
-            StarMat(1,4)=rh/rhii
-            CALL ICOPY(nEl,nI,1,nK,1)
+!            call writedet(6,nk,nel,.false.)
+!            write(6,*) rh
+            IF(rh.age.rhoeps) then
+               iExc=iExc+1
+               StarMat(1,iExc)=rh/rhii
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               StarMat(iExc,iExc)=rh/rhii
+            ENDIF
 !(j,b)
+            CALL ICOPY(nEl,nI,1,nK,1)
    lp3:     DO i=1,nEl
                IF(nK(i).EQ.iEx(1,2)) THEN
                   nK(i)=iEx(2,2)
@@ -579,31 +595,35 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp3
                endif
             end do lp3
-            CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
-            StarMat(5,5)=rh/rhii
             CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
-            StarMat(1,5)=rh/rhii
+!            call writedet(6,nk,nel,.false.)
+!            write(6,*) rh
+            IF(rh.age.rhoeps) then
+               iExc=iExc+1
+               StarMat(1,iExc)=rh/rhii
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               StarMat(iExc,iExc)=rh/rhii
+            ENDIF
 
 ! Now diagonalize.
-            iExc=5
             IF(HElementSize.EQ.1) THEN
 !real case
-               CALL DSYEV('V','U',iExc,StarMat,iExc,WLIST,WORK,3*iExc,INFO)
+               CALL DSYEV('V','U',iExc,StarMat,5,WLIST,WORK,3*iExc,INFO)
                IF(INFO.NE.0) THEN
                   WRITE(6,*) 'DYSEV error: ',INFO
                   STOP
                ENDIF
             ELSE
 !.. The complex case
-               CALL ZHEEV('V','U',iExc,StarMat,iExc,WLIST,NWORK,4*iExc,WORK,INFO)
+               CALL ZHEEV('V','U',iExc,StarMat,5,WLIST,NWORK,4*iExc,WORK,INFO)
                IF(INFO.NE.0) THEN
                   WRITE(6,*) 'ZHEEV error: ',INFO
                   STOP
                ENDIF
             ENDIF
 !.. StarMat now contains the eigenvectors, and WLIST the eigenvalues         
-            do i=5,1,-1
-               
+            do i=iExc,1,-1
+!               write(6,"(I,6F)") i,StarMat(1:iExc,i),wlist(i)
 !.. LIST(J,0) = RHOJJ
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
@@ -615,6 +635,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                ExcitInfo(iExcit+i-1,1)=ExcitInfo(iExcit,1)*rh
                ExcitInfo(iExcit+i-1,2)=ExcitInfo(iExcit,2)*rh
             enddo
-            iExcit=iExcit+4
+            iExcit=iExcit+iExc-1
          ENDIF
       END
