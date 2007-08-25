@@ -11,8 +11,9 @@ C ==------------------------------------------------------------------==
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
      &   TCPMD,TDFREAD,fRc,iCacheFlag)
       USE HElement
-      USE UMatCache , only : GetUMatSize, DestroyUMatCache              &
-     &   ,iPeriodicDampingType,WriteUMatCacheStats
+      USE UMatCache , only : GetUMatSize, DestroyUMatCache,DumpUmatCache&
+     & ,iPeriodicDampingType,WriteUMatCacheStats,iDumpCacheFlag,
+     &  tReadInCache
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -1843,10 +1844,15 @@ C          CLOSE(11)
       ENDIF
 
 C..
+      if ((btest(iDumpCacheFlag,0)
+     &              .and.(nStatesRead.lt.nStates.or..not.tReadInCache))
+     &              .or.btest(iDumpCacheFlag,1)) then
+          call DumpUMatCache(NHG,G1)
+      end if
       CALL ENDSYM()
 !If we're told explicitly not to destroy the cache, we don't
       if(.NOT.BTEST(iCacheFlag,0)) THEN
-         CALL DESTROYUMATCACHE()
+          CALL DESTROYUMATCACHE()
       ELSE
          Call WriteUMatCacheStats()
       ENDIF

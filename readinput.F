@@ -931,6 +931,12 @@ C.. multiple of 2
                      case("MB")
                         call geti(NMEMINIT)
                         nSlotsInit=1
+                     case("READ")
+                         tReadInCache=.true.
+                     case("DUMP")
+                         if (iDumpCacheFlag.eq.0) iDumpCacheFlag=1
+                     case("FORCE")
+                         iDumpCacheFlag=2
                      case default
                         read(w,"(I)") NSLOTSINIT
                   end select

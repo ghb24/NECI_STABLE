@@ -18,6 +18,16 @@ MODULE UMatCache
 !  For each pair (i,j), we store the <ik|jk> integral in slot k.
       LOGICAL tSmallUMat
          SAVE nSlots,nPairs,nTypes,nStates,tSmallUMat,UMatCacheData,UMatLabels
+!  iDumpCacheFlag: Dumps the cache if we're told to.
+!    =0: No cache dumping.
+!    =1: Dump cache unless we've read in a cache dump that's from a larger
+!    calculation than the current one.
+!    =2: Force dumping of cache (over-writing previous cache level).
+!  nStatesDump: number of states used in calculation which produced dump file.
+!  tReadInCache: does what it says on the tin.
+      integer iDumpCacheFlag,nStatesDump
+      logical tReadInCache
+         save iDumpCacheFlag,nStatesDump,tReadInCache
 
 
 ! For the more requently used <ij|u|ij> and <ij|u|ji> integrals, we store them in a separate cache (if TUMat2D is true)
@@ -198,6 +208,7 @@ MODULE UMatCache
                      GetUMatEl=UElems(0)
                   ELSE
 !   Otherwise we call CPMD
+!                    write (6,*) TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L)
                      IF(TTRANSFINDX) THEN
 !         WRITE(6,"(A,4I5,$)") "MM",TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L)
                         CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems)
@@ -243,6 +254,7 @@ MODULE UMatCache
          ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
             CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
          ENDIF
+!        write (6,*) idi,idj,idk,idl,GetUMatEl
 !         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
 !         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)
          RETURN
@@ -299,6 +311,10 @@ MODULE UMatCache
             CALL MemAlloc(ierr,UMatLabels,nSlots*nPairs/irat+1,'UMATLABELS')
             CALL AZZERO(UMatCacheData,nTypes*HElementSize*nPairs*nSlots)
             CALL IAZZERO(UMATLABELS,nPairs*nSlots)
+            if (.not.tSmallUMat.and.tReadInCache) then
+                write (6,*) 'reading in cache'
+                call ReadInUMatCache
+            end if
          ENDIF
       END
 
@@ -316,6 +332,7 @@ MODULE UMatCache
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
             Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
             CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
+            write (65,*) UMAT2D
          ENDIF
       END
 
@@ -674,8 +691,87 @@ MODULE UMatCache
          Deallocate(OUMatCacheData)
          CALL SetUMatCacheFlag(0)               
       END
-END MODULE UMatCache
 
+
+! JSS: Read in cache file.
+      subroutine ReadInUMatCache()
+      implicit none
+      integer  i,j,k,l,iCache1,iCache2,A,B,readerr,iType
+      integer  iSlot,iPair
+      type(HElement) UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
+      logical  tDummy,GetCachedUMatEl
+      open (21,file="CacheDump",status="old")
+      read (21,*) nStatesDump
+      readerr=0
+      do while (readerr.eq.0)
+        read (21,*,iostat=readerr) i,j,k,l,iSlot,iPair,UMatEl
+        write (22,*) i,j,k,l,iSlot,iPair,UMatEl
+        if (i.eq.1.and.j.eq.1.and.k.eq.4.and.l.eq.5) then
+            write (6,*)
+        end if
+        DummyUMatEl=UMatEl
+        if (TTRANSFINDX) then
+            i=TransTable(i)
+            j=TransTable(j)
+            k=TransTable(k)
+            l=TransTable(l)
+        end if
+        if (min(i,j,k,l).gt.0) then
+            tDummy=GetCachedUMatEl(i,j,k,l,DummyUmatEl,iCache1,iCache2,A,B,iType)
+!           write(6,*) i,j,k,l,tDummy,DummyUmatEl
+            call CacheUMatEl(A,B,UMatEl,iCache1,iCache2)
+        end if
+      end do
+      close(21)
+      return
+      end subroutine
+
+!  JSS: Print out the cache contents so they can be read back in for a future
+!  calculation.  Need to print out the full set of indices, as the number of
+!  states may change with the next calculation.
+      subroutine DumpUMatCache(NHG,G1)
+      implicit none
+      include  'basis.inc'
+      integer  NHG
+      type(BasisFN) G1(NHG)
+      ! Variables
+      integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
+      logical GetCachedUMatEl,LSymSym
+      integer*8 TotSymRep
+      type(HElement) UMatEl(0:nTypes-1)
+      type(Symmetry) Sym,Symprod,SymConj
+      ! 1. test read in.
+      ! 2. binary file.
+      open (21,file="CacheDump",status="unknown")
+      write (21,*) nStates
+      do iPair=1,nPairs
+        do iSlot=iPair,nSlots
+          call GetCacheIndexStates(iPair,nStates,i,k)
+          call GetCacheIndexStates(iSlot,nStates,j,l)
+          Sym%s=TotSymRep()
+!          Sym=SymProd(Sym,SymConj(G1(I*2-1)%Sym))
+!          Sym=SymProd(Sym,SymConj(G1(J*2-1)%Sym))
+!          Sym=SymProd(Sym,G1(K*2-1)%Sym)
+!          Sym=SymProd(Sym,G1(L*2-1)%Sym)
+          if (LSymSym(Sym)) then
+              if (.not.GetCachedUMatEl(i,j,k,l,UMatEl,iCache1,iCache2,A,B,iType)) then
+                  if (TTRANSFINDX) then
+                      i=InvTransTable(i)
+                      j=InvTransTable(j)
+                      k=InvTransTable(k)
+                      l=InvTransTable(l)
+                  end if
+                  write (21,*) i,j,k,l,iSlot,iPair,UMatCacheData(:,ICACHE2,ICACHE1)
+              end if
+          end if
+        end do
+      end do
+      close(21,status="keep")
+      return
+      end subroutine DumpUMatCache
+      
+END MODULE UMatCache
+ 
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
          USE UMatCache
          IMPLICIT NONE
@@ -748,6 +844,7 @@ END MODULE UMatCache
          ENDDO
       END
 !   Lookup in the cache to see if there's a stored element.  If not, return TRUE.
+!   If there is, return the stored element in UMatEl.
 !    This will rearrange IDI,IDJ,IDK,IDL into the correctkorder
 !   (i,k)<=(j,l) and i<=k, j<=l.  ICACHE corresponds to the pair (i,j), and
 !   ICACHEI is the index in that cache where the cache should be located.
