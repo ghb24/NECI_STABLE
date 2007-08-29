@@ -226,7 +226,21 @@ MODULE MCStats
                !Gives convergence of energy estimator and denominator
 !               write (22,"(2G25.16)") calc, bot
 !               write(12,*) M%nGraphs(0), calc !a running count of how delta changes
-               !VMC file - No. graphs, Sequence length, vertex level, Class, 
+               
+                !To create movie
+!                WRITE(6,*) M%wRefValue%v  
+!                IF((ioV.eq.2).and.(MOD(M%nGraphs(0),500).eq.0)) THEN    
+!              !      WRITE(102,*) "*********"
+!                    WRITE(102,"(I12,I4,2G25.16)") M%nGraphs(0),ioV,calc,cc
+!                ENDIF
+!                IF((ioV.eq.3).and.(MOD(M%nGraphs(0),20000).eq.0)) THEN
+!                    WRITE(103,"(I12,I4,2G25.16)") M%nGraphs(0),ioV,calc,cc
+!                ENDIF
+!                IF((ioV.eq.4).and.(MOD(M%nGraphs(0),1000).eq.0)) THEN
+!                    WRITE(104,"(I12,I4,2G25.16)") M%nGraphs(0),iov,calc,cc
+!                ENDIF
+                
+!VMC file - No. graphs, Sequence length, vertex level, Class, 
                IF(tLog) WRITE(22,"(I20,I15,2I3,8G25.16)") M%nGraphs(0),M%iSeqLen,ioV,M%ioClass,M%woWeight%v,M%woDelta%v,ave2,ave1,cc,M%foProb,hh,calc
                M%iSeqLen=1
             ENDIF

@@ -1096,11 +1096,11 @@ C     ILOGGING = 0771
       enddo
       !IF FINDD or USED specified without using Excitweighting option
       do vv=2,preIV_MAX
-         IF((pre_TAY(1,vv).eq.-20).and.((NWHTAY(1,vv).eq.-7).or.        &
-     &    (NWHTAY(1,vv).eq.-19))) THEN
-         CALL report("Full precalc cannot be used on a vertex level"
-     &   //" which is only sampled using MC in the main program",.true.)
-          ENDIF
+!    IF((pre_TAY(1,vv).eq.-20).and.((NWHTAY(1,vv).eq.-7).or.        &
+!&    (NWHTAY(1,vv).eq.-19))) THEN
+!    CALL report("Full precalc cannot be used on a vertex level"
+!&   //" which is only sampled using MC in the main program",.true.)
+!     ENDIF
           IF((pre_TAYLOG(5,vv).or.pre_TAYLOG(6,vv)).and.                &
      &         (.not.EXCITFUNCS(1))) THEN
                CALL report("Logging keyword FINDD and USED"
