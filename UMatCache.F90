@@ -67,7 +67,8 @@ MODULE UMatCache
       logical tDFInts      
       Real*8,Pointer :: DFCoeffs(:,:) !(nAuxBasis,nBasisPairs)
       Real*8,Pointer :: DFInts(:,:) !(nAuxBasis,nBasisPairs)
-         SAVE nAuxBasis,nBasisPairs,tDFInts,DFCoeffs,DFInts
+      Real*8,Pointer :: DFFitInts(:,:) !(nAuxBasis,nAuxBasis)
+         SAVE nAuxBasis,nBasisPairs,tDFInts,DFCoeffs,DFInts,DFFitInts
 
       Contains
 
