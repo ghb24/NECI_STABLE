@@ -5,7 +5,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use UMatCache
          implicit none
          integer nEl,nBasisMax(5,3),Len,lMs
-         parameter C_file='SAV_DFaSOL'
+         parameter C_file='SAV_D____A'
          parameter nolabel='        '
          character(3) file_status
          integer info,lenrec,nrec,i
