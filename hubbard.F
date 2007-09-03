@@ -86,18 +86,24 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
       RETURN
       END
 
-      SUBROUTINE CALCTMATHUB(TMAT,NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
+      SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
      &         TPBC)
+         USE HElement
+         USE UMatCache , only : TMat2D,TMATSYM,
+     &          TSTARBIN,TMatInd,SetupTMAT
          IMPLICIT NONE
          INTEGER NBASIS,NBASISMAX(5,2)
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
-         REAL*8 TMAT(NBASIS,NBASIS),BHUB
+         REAL*8 BHUB
+         INTEGER*8 iSize
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
          REAL*8 SUM,S1
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
+         IF(TSTARBIN) STOP 'Using TSTARBIN with HUB??!'
+         CALL SetupTMAT(NBASIS,2,iSize)
          SUM=0.D0
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
          LY=NBASISMAX(2,2)-NBASISMAX(2,1)
@@ -126,8 +132,13 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                      ENDIF
                   ENDIF
                   IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
-                     TMAT(I,J)=SUM
-                     WRITE(10,*) I,J,SUM
+                     IF(TSTARBIN) THEN
+                        TMATSYM(TMatInd(I,J))=SUM
+                        WRITE(10,*) I,J,SUM
+                     ELSE
+                        TMAT2D(I,J)=SUM
+                        WRITE(10,*) I,J,SUM
+                     ENDIF
                   ENDIF
                ENDDO
             ENDDO
@@ -137,16 +148,16 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                   CALL HUBKIN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
      &               NBASISMAX,BHUB,
      &               TTILT,SUM)
-                  TMAT(I,I)=SUM
-                  WRITE(10,*) I,I,TMAT(I,I)
+                  TMAT2D(I,I)=SUM
+                  WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
             ELSE
                DO I=1,NBASIS
                   CALL HUBKINN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
      &               NBASISMAX,BHUB,
      &               TTILT,SUM)
-                  TMAT(I,I)=SUM
-                  WRITE(10,*) I,I,TMAT(I,I)
+                  TMAT2D(I,I)=SUM
+                  WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
             ENDIF
          ENDIF

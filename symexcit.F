@@ -176,8 +176,8 @@ C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 C         ENDDO
          CALL SORTSYMIARR(NPR,SymProds(1:),SymmetrySize,
      &                                             SymProdCount(:,1:),3)
-C         WRITE(6,*) NPR," Symmetry Products"
-C         WRITE(6,*) NPAIRS," Orbital Pairs"
+!         WRITE(6,*) NPR," Symmetry Products"
+!         WRITE(6,*) NPAIRS," Orbital Pairs"
 C.. Create a cumulative sum.
          DO I=1,NPR
             SYMPRODCOUNT(1,I)=SYMPRODCOUNT(3,I-1)+SYMPRODCOUNT(1,I)
@@ -258,8 +258,8 @@ C..                 The index          +  offset of the element
                ORBPAIRS(1,ICC)=NI(I)
                ORBPAIRS(2,ICC)=NI(J)
                
-C               WRITE(6,"(A,2I4,2Z4,2I4)") 
-C     &            "SP",ICC,ISPN,PR,SYMPRODS(K),NI(I),NI(J)
+!               WRITE(6,"(A,2I4,2Z4,2I4)") 
+!     &            "SP",ICC,ISPN,PR,SYMPRODS(K),NI(I),NI(J)
 C               WRITE(6,*) L,NI(I),NI(J),PR,K
             ENDDO
          ENDDO

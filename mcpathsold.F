@@ -2,7 +2,7 @@ C.. Calculate RHO^(P)_II without having a stored H matrix
 C.. Sum over gradually increasing H.  Paths generated are e.g. IJIKLI
 C.. which do not necessarily have distinct nodes
       SUBROUTINE  MCPATHSR2(NI,BETA,I_P,I_HMAX,NEL,NBASISMAX,G1,
-     &               NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,
      &               TSYM)
          IMPLICIT REAL*8 (A-H,O-Z)
@@ -29,7 +29,7 @@ C.. Set the first node to I_I
 c         OPEN(10,FILE="HPATHS",STATUS="UNKNOWN")
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          WLRI=LOG(RHOII(0))
          TOTAL=1.D0
@@ -44,7 +44,7 @@ c            WRITE(6,"I2") I_H
             L=0
             LT=0
             F(I_H)=FMCPR2(NI,BETA,I_P,IPATH,I_H,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,1.D0,RHOII,LSTE,ICE,NWHTAY,L,LT,ILOGGING,TSYM,
      &            ECORE,ILMAX)
             CALL TIHALT(STR,ISUB2)
@@ -67,7 +67,7 @@ C.. node for each set. (7/11/03)
 C..  It then weights using CALCPATHn (n=5 for rec/taylor2 hybrid) (18/11/03)
 C.. This does not use a stored RHO or H matrix
       RECURSIVE REAL*8 FUNCTION FMCPR2(NI,BETA,I_P,IPATH,I_H,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_HIND,RHOCUML,RHOII,LSTE,ICE,NWHTAY,L,LT,ILOGGING,
      &   TSYM,ECORE,ILMAX)
          
@@ -119,13 +119,13 @@ C.. 1 at end means we need at least 1 excitation
          ENDIF
 C.. Find RHO_II for this node
          CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_HIND)=RH
          I=1
 C.. We must recurse over all the nodes connected to this node
          DO WHILE (I.LE.NLIST)
           CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_HIND),BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,RH,NTAY,
+     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,
      &            ICE(I,I_HIND),ECORE)
 C.. see if it's worth going further
           IF(ABS(RH).GT.RHOEPS) THEN
@@ -177,7 +177,7 @@ C,, I_I as the ultimate node
      &                  IPATH(1:NEL,I_HIND+1),1)
                   TOTAL=TOTAL+
      &                  FMCPR2(NI,BETA,I_P,IPATH,I_H,NEL,NBASISMAX,
-     &                   G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &                   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                   NTAY,RHOEPS,I_HIND+1,RHOCUML*RH,RHOII,LSTE,ICE,
      &                   NWHTAY,L,LT,ILOGGING,TSYM,ECORE,ILMAX)
                ENDIF

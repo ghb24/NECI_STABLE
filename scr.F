@@ -1,13 +1,13 @@
 C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0(NEL,NBASISMAX,NDET1,NDET2,
-     &	G1,NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,TEXCH,TOTSUM)
+     &	G1,NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,TOTSUM)
       USE HElement
       USE UMatCache
       IMPLICIT NONE
       INCLUDE 'basis.inc'
       TYPE(BasisFn) G1(*)
       INTEGER ISS
-      TYPE(HElement) UMAT(*),TMAT(NHG,NHG)
+      TYPE(HElement) UMAT(*)
 
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER NDET1(NEL),NDET2(NEL)
@@ -33,7 +33,7 @@ C..We must first do the one electron integrals
       DO I=1,NEL
 C.. we extract the KEs from TMAT
          INDET=NDET1(I)
-         SUM1=SUM1+TMAT(INDET,INDET)
+         SUM1=SUM1+GetTMATEl(INDET,INDET)
         CALL GTID(NBASISMAX,NDET1(I),ID(I))
       ENDDO
 C..Now for the two electron part

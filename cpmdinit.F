@@ -256,14 +256,13 @@ C.. f_i is the occupation number for state i.
 C.. delta_ij is the Dirac delta.
 C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
-      SUBROUTINE CPMDINIT2INDINT(TMAT,NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
+      SUBROUTINE CPMDINIT2INDINT(NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElement
          USE UMatCache , nstatesumat=>nstates
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
-         TYPE(HElement) TMAT(NHG,NHG)
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
          REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
@@ -324,10 +323,14 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
                   TOT=TOT-HElement(HarInt(i,j))
-                  TMAT(II,JJ)=TOT
-                  TMAT(II+1,JJ+1)=TOT
-                  TMAT(JJ,II)=TOT
-                  TMAT(JJ+1,II+1)=TOT
+                  IF (TSTARBIN) THEN
+                      !GHB Yet to optimise CPMD TMAT for memory saving symmetry
+                  ELSE
+                      TMAT2D(II,JJ)=TOT
+                      TMAT2D(II+1,JJ+1)=TOT
+                      TMAT2D(JJ,II)=TOT
+                      TMAT2D(JJ+1,II+1)=TOT
+                  ENDIF
                   WRITE(10,*) I,J,TOT
                   IF(I.EQ.J) THEN
                      DIAGTMAT(I)=SQRT(SQ(TOT))

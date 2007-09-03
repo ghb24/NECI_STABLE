@@ -2,7 +2,9 @@
          IMPLICIT NONE
          INTEGER NEL,NBASISMAX(5,3),LEN,LMS
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
+!         USE UmatCache, only : TSTARBIN
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
+         !Will need to read in binary if TSTARBIN is set
          OPEN(8,FILE='FCIDUMP',STATUS='OLD' )
          READ(8,FCI)
          CLOSE(8)
@@ -31,6 +33,7 @@ C.. SHow that there's no momentum conservation
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN)
          IMPLICIT NONE
          INTEGER NBASISMAX(5,3),BRR(LEN),LEN
+         LOGICAL TSTARBIN
          include 'basis.inc'
          TYPE(BasisFN) G1(LEN)
          REAL*8 ARR(LEN,2)
@@ -38,7 +41,9 @@ C.. SHow that there's no momentum conservation
          INTEGER I,J,K,L
          INTEGER ISYMNUM,ISNMAX,SYMMAX
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
+!         USE UMatCache, only : TSTARBIN
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
+         !Will need to read in binary if TSTARBIN is set
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
          ISYMNUM=0
@@ -48,6 +53,7 @@ C.. SHow that there's no momentum conservation
          CALL AZZERO(ARR,2*LEN)
 1        READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
 C.. Each orbital in the file corresponds to alpha and beta spinorbitals
+         !Fill ARR with the energy levels
          IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
             IF(I.GT.1) THEN
                IF(ORBSYM(I).NE.ORBSYM(I-1)) THEN
@@ -102,16 +108,19 @@ C.. set momentum to 0
          CLOSE(8)
          RETURN
       END
-      SUBROUTINE READFCIINT(UMAT,TMAT,NBASIS,ECORE,ARR,BRR,G1)
-         USE UMatCache , only : UMatInd
+      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+         USE HElement
+         USE UMatCache , only : UMatInd,TMatind,TMat2D,TMATSYM,
+     &                          TSTARBIN
          IMPLICIT NONE
          INTEGER NBASIS
-         REAL*8 TMAT(NBASIS,NBASIS),ECORE,ARR(NBASIS,2)
+         REAL*8 ECORE,ARR(NBASIS,2)
          REAL*8 UMAT(*)
          REAL*8 Z
          INTEGER I,J,K,L,BRR(NBASIS),G1(*)
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
          LOGICAL LWRITE
+         include 'sym.inc'
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
          LWRITE=.FALSE.
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
@@ -130,11 +139,16 @@ C.. Core energy
 !            LWRITE=.TRUE.
          ELSEIF(K.EQ.0) THEN
 C.. 1-e integrals
+            IF(TSTARBIN) THEN
+! If TSTARBIN, the one-el integrals are stored in symmetry classes, as spatial orbitals
+                TMATSYM(TMatInd(2*J,2*I))=Z
+            ELSE
 C.. These are stored as spinorbitals (with elements between different spins being 0
-            TMAT(2*I-1,2*J-1)=Z
-            TMAT(2*I,2*J)=Z
-            TMAT(2*J-1,2*I-1)=Z
-            TMAT(2*J,2*I)=Z
+                TMAT2D(2*I-1,2*J-1)=Z
+                TMAT2D(2*I,2*J)=Z
+                TMAT2D(2*J-1,2*I-1)=Z
+                TMAT2D(2*J,2*I)=Z
+            ENDIF
          ELSE
 C.. 2-e integrals
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)

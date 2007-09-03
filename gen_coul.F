@@ -1,5 +1,5 @@
       SUBROUTINE GEN_COUL(NEL,NBASISMAX,
-     &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS)
+     &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS)
       IMPLICIT REAL*8 (A-H,O-Z)
       INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
@@ -7,7 +7,7 @@
       DIMENSION UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 C..Cube arrays
       COMPLEX*16 FCK(NMSH,NMSH,NMSH)
-      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
+!      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
 C..
@@ -26,14 +26,14 @@ C ==--------------------------------------------------------------------==
               SUM=0.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
-C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
+C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               CALL GTID(NBASISMAX,I,ID1)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
               CALL GTID(NBASISMAX,L,ID4)
               IF(UMAT(ID1,ID2,ID3,ID4).NE.0.D0) GOTO 100
               CALL SLATCOULFOU(G1(I),G1(J),
-     &		G1(K),G1(L),NMSH,FCK,ZIA,NMAX,SUM)
+     &		G1(K),G1(L),NMSH,FCK,NMAX,SUM)
 c              SUM=SUM*COUPLE 
 C..Original call
               UMAT(ID1,ID2,ID3,ID4)=SUM

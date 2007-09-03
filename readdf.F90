@@ -188,16 +188,18 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             close(78)
          endif
       END
-      SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,TMat,Arr,Brr,ECore)
+      SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
+         USE HElement
+         USE UMatcache , only : TMATind,TMAT2D,TMATSYM,TSTARBIN
          implicit none
          include 'basis.inc'
          integer nBasis,Brr(nBasis),i,j
-         real*8 Arr(nBasis,2),val,ECore,TMat(nBasis,nBasis)
+         real*8 Arr(nBasis,2),val,ECore
          type(BasisFN) G1(nBasis)
          integer*8 TotSymRep
          open(11,file='HONEEL',status='unknown')
          i=1
-         call azZero(TMat,nBasis*nBasis)
+         !call azZero(TMat,nBasis*nBasis)
          call iazZero(G1,nBasis*BasisFNSize)
          do while(i.ne.0)
             read(11,*) i,j,val
@@ -205,10 +207,17 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             if(i.eq.0) then
                ECore=val
             elseif(j.ne.0) then
-               TMat(i*2-1,j*2-1)=val
-               TMat(i*2,j*2)=val
-               TMat(j*2-1,i*2-1)=val
-               TMat(j*2,i*2)=val
+                IF(TSTARBIN) THEN
+                    TMatSYM(TMATInd(i*2-1,j*2-1))=HElement(val)
+                    TMatSYM(TMATInd(i*2,j*2))=HElement(val)
+                    TMatSYM(TMATInd(j*2-1,i*2-1))=HElement(val)
+                    TMatSYM(TMATInd(j*2,i*2))=HElement(val)
+                ELSE
+                    TMat2D(i*2-1,j*2-1)=HElement(val)
+                    TMat2D(i*2,j*2)=HElement(val)
+                    TMat2D(j*2-1,i*2-1)=HElement(val)
+                    TMat2D(j*2,i*2)=HElement(val)
+                ENDIF
             endif
          enddo
          close(11)
@@ -225,7 +234,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          implicit none
          include 'basis.inc'
          integer nBasis,Brr(nBasis),i,j,nBasisMax(5,3)
-         real*8 Arr(nBasis,2),val,ECore,TMat(nBasis,nBasis)
+         real*8 Arr(nBasis,2),val,ECore
          type(BasisFN) G1(nBasis)
          integer*8 TotSymRep
          open(11,file='HONEEL',status='unknown')

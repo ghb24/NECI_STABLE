@@ -6,10 +6,10 @@
 !.. NTAY is the order of the Taylor expansion for U'
 !.. IC is the number of basis fns by which NI and NJ differ (or -1 if not known)
 !.. 
-SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
+SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
       USE HElement
-      TYPE(HElement) UMat(*),TMat(*),RH
+      TYPE(HElement) UMat(*),RH
       INTEGER I_P,I_HMAX,NTAY(2),NTRUNC,NEL,NBASIS,NBASISMAX(5,2)
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       REAL*8 BETA
@@ -23,7 +23,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
       TYPE(HElement) hE,hE2,UExp,B,EDIAG
       IF(NTAY(1).LT.0) THEN
 !.. We've actually hidden a matrix of rhos in the coeffs for calcing RHO
-         CALL GETRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,ZIA,UMAT,RH)
+         CALL GETRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,RH)
          RETURN
       ELSEIF(NTAY(1).EQ.0) THEN
 !.. NTAY=0 signifying we're going to calculate the RHO values when we
@@ -33,7 +33,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
 !..      ZIA=CK
 !..      UMAT=NDET
 !..      ALAT=NMRKS
-          CALL CALCRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,TMat,UMAT,ALAT,NBASIS,I_P,ECORE,RH)
+          CALL CALCRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,ALAT,NBASIS,I_P,ECORE,RH)
          RETURN
       ENDIF
       CALL TISET('CALCRHO2  ',ISUB)
@@ -55,14 +55,14 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
          ELSE
 !.. Now do the first order term, which only exists for non-diag
             UExp=UExp-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,&
-     &      NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+     &      NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
          ENDIF
 !.. Now the 2nd order term
 !      IF(NTAY.GE.2) UExp=UExp+B*B*HElement(RHO2ORDERND2(NI,NJ,NEL,NBASISMAX,    &
-!     &            G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)/2.D0)
+!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)/2.D0)
 
-         hE =(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE) &
-          +GETHELEMENT2(NJ,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE))&
+         hE =(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE) &
+          +GETHELEMENT2(NJ,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE))&
             /HElement(2.D0)
          RH=EXP(HElement(-BETA/I_P)*hE)*UExp
       ELSEIF(NTAY(2).EQ.2) THEN
@@ -70,13 +70,13 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
          IF(LSAME) THEN
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             UExp=1.D0
-            UExp=UExp-B*(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)-EDiag)
+            UExp=UExp-B*(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)-EDiag)
             RH=EXP(-B*EDiag)*UExp
          ELSE
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,UExp)
             call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
-            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
             UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
@@ -89,7 +89,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,UExp)
             call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
-            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
             UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
@@ -100,18 +100,18 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
          ELSE
             UEXP=0.D0
          ENDIF
-         RH=UEXP-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+         RH=UEXP-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
       ELSEIF(NTAY(2).EQ.5) THEN
 !Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
 ! Instead of 
          IF(LSAME) THEN
-            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECore,EDiag)
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,EDiag)
             RH=EXP(-B*EDiag)
          ELSE
-            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECore,UExp)
-            call GetH0ElementDCCorr(nUHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECore,EDiag)
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,UExp)
+            call GetH0ElementDCCorr(nUHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,EDiag)
             EDiag=(UExp+EDiag)/HElement(2.D0)
-            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
             UExp=-B*UExp
             RH=EXP(-B*EDiag)*UExp
          ENDIF
@@ -129,7 +129,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
 !.. Calculate the 2nd order term in rho for non diag elements
 !.. IC2 is the number of basis fns that differ in NI and NJ (or -1 if not known)
 
-     FUNCTION Rho2OrderND2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,IC2,ECORE)
+     FUNCTION Rho2OrderND2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,IC2,ECORE)
 !.. We use a crude method and generate all possible 0th, 1st, and 2nd
 !.. excitations of I and of J.  The intersection of these lists is the
 !.. selection of dets we want.
@@ -140,7 +140,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
          TYPE(HElement) Rho2OrderND2
          COMPLEX*16 FCK(*)
          REAL*8 ALAT(*),ECORE
-         TYPE(HElement) UMat(*),TMat(*)
+         TYPE(HElement) UMat(*)
          INTEGER NEL,NBASIS,NBASISMAX(5,2),BRR(*)
          INTEGER NI(NEL),NJ(NEL),IC2,NMSH,NMAX
          INTEGER LSTI(NEL,NBASIS*NBASIS*NEL*NEL)
@@ -173,9 +173,9 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
             ENDDO
             IF(CMP.EQ.0) THEN 
                SUM=SUM+  GETHELEMENT2(NI,LSTI(1,I),NEL,NBASISMAX,       &
-     &      G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,ICI(I),ECORE)     &
+     &      G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ICI(I),ECORE)     &
      &               *GETHELEMENT2(LSTJ(1,J),NJ,NEL,NBASISMAX,          &
-     &      G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,ICJ(J),ECORE)
+     &      G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ICJ(J),ECORE)
             ENDIF
             I=I+1
          
@@ -187,7 +187,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
 !  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
 !  This is just the sum of the Hartree-Fock eigenvalues 
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
-      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,Arr,ALAT,UMat,ECore,hEl)
+      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,Arr,ALAT,UMat,ECore,hEl)
          use HElement
          use UMatCache
          implicit none
@@ -195,7 +195,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,&
          integer nHFDet(nEl),nJ(nEl),nEl,nBasis
          type(BasisFN) G1(*)
          integer Brr(nBasis),nBasisMax(5,2)
-         type(HElement) TMat(*), UMat(*)  
+         type(HElement) UMat(*)  
          type(HElement) hEl
          real*8 Arr(nBasis,2),ECore
          integer i,j

@@ -1,6 +1,6 @@
       SUBROUTINE GNDTS_BLK(NEL,NBASIS,BRR,NBASISMAX,NMRKS,TCOUNT,
      &         NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS,
-     &         TPARITY,SymRestrict,IFDET,TMAT,TGENFDET,NDETTOT,BLOCKSYM
+     &         TPARITY,SymRestrict,IFDET,TGENFDET,NDETTOT,BLOCKSYM
      &         )
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,2),NDET
@@ -17,7 +17,7 @@
          INTEGER LMS,LMIN,LMAX
          LOGICAL TGENFDET
          INTEGER IFDET,IC,NDETTOT,IDEG
-         REAL*8 DETSC,TDETSC,TMAT(*)
+         REAL*8 DETSC,TDETSC
          REAL*8 CALCT
          DETSC=1D200
          II=0
@@ -55,7 +55,7 @@ C.. we've found an occupied block
                   CALL ICOPY(BASISFNSIZE,ISYM,1,BLOCKSYM(I),1)
                   IF(TGENFDET) THEN
                      TDETSC=CALCT(NMRKS(1:NEL,OII+1),NEL,
-     &                 G1,TMAT,NBASIS)
+     &                 G1,NBASIS)
                      IF(TDETSC.LT.DETSC) THEN
                         IFDET=OII+1
                         DETSC=TDETSC
@@ -222,7 +222,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
 
       RECURSIVE SUBROUTINE GENSYMDETSSDN_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &                NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX,BETA,I_P,
-     &       NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,PP,RHOEPS)
+     &       NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,PP,RHOEPS)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
@@ -230,7 +230,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          LOGICAL LCMP,LCHKSYM,TTILT
          INTEGER IGETEXCITLEVEL,ICE
          REAL*8 RN,RP,RH,PP,RH2,RHOEPS
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
@@ -252,13 +252,13 @@ C.. Check the connectivity
                      NLIST=NLIST+1
                      IF(RP.NE.0.D0) THEN
                         CALL CALCRHO2(NI,NN,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH2,NTAY,ICE,ECORE)
                         IF(RP.GE.0.D0) THEN
                            RN=RN+RH2**RP
                         ELSEIF(ABS(RH2).GT.RHOEPS) THEN
                            CALL CALCRHO2(NN,NN,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
                            RN=RN+RH**ABS(RP)
                         ENDIF
@@ -281,7 +281,7 @@ C.. if there's space, we save it
 C.. otherwise we need to add more electrons:
                   CALL GENSYMDETSSDN_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &           NLIST,NLMAX,NJ,KJ2,NELEC+1,I+1,NBASISMAX,BETA,I_P,
-     &         NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,PP,RHOEPS)
+     &         NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,PP,RHOEPS)
                ENDIF
             ENDIF
          ENDDO
@@ -307,7 +307,7 @@ C.. the first NLIST are stored.
 
       SUBROUTINE GENSYMDETSSDN(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &         NLIST,NBASISMAX,
-     &         BETA,I_P,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,
+     &         BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,
      &         PP,RHOEPS)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
@@ -315,7 +315,7 @@ C.. the first NLIST are stored.
          INTEGER NJ(NEL),NBASISMAX(5,2)
          INTEGER I,J,NLMAX
          REAL*8 RN,RP,PP,RHOEPS
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ
@@ -326,7 +326,7 @@ C.. the first NLIST are stored.
          RN=0.D0
          CALL GENSYMDETSSDN_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,
      &                        NLMAX,NJ,KJ,1,1,NBASISMAX,
-     &         BETA,I_P,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,
+     &         BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,
      &         PP,RHOEPS)
          RETURN
       END

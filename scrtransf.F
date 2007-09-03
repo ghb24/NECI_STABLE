@@ -5,10 +5,10 @@ Cknown)
 C.. ECORE is the uniform background energy.  It has been renamed from
 C.. ETRIAL, but ETRIAL not longer has a function
       REAL*8 FUNCTION GETHELEMENT2T(NI,NJ,NEL,NBASISMAX,
-     &   G1,NBASIS,TMAT,UMAT,ECORE,IC2,BTRANS,NSBASIS,NSPINS)
+     &   G1,NBASIS,UMAT,ECORE,IC2,BTRANS,NSBASIS,NSPINS)
          IMPLICIT NONE      
          INTEGER G1(*),NBASIS,NSBASIS,NSPINS
-         REAL*8 UMAT(*),TMAT(*)
+         REAL*8 UMAT(*)
          INTEGER I,NEL,NI(NEL),NJ(NEL),IC,NBASISMAX(5,2),IC2
          REAL*8 SUM,ECORE
          INTEGER IGETEXCITLEVEL
@@ -21,7 +21,7 @@ Celement is 0
          IF(IC.GT.2) RETURN
 C.. SLTCND has IC is # electrons the same in 2 dets
          CALL SLTCNDT(NEL,NBASISMAX,
-     &         NBASIS,NI,NJ,G1,NEL-IC,TMAT,UMAT,BTRANS,NSBASIS,
+     &         NBASIS,NI,NJ,G1,NEL-IC,UMAT,BTRANS,NSBASIS,
      &         NSPINS,SUM)
          GETHELEMENT2T=SUM
          IF(IC.EQ.0) GETHELEMENT2T=GETHELEMENT2T+ECORE
@@ -30,7 +30,7 @@ C.. SLTCND has IC is # electrons the same in 2 dets
 
 C.. The Slater Condon Rules for a transformed basis
       SUBROUTINE SLTCNDT(NEL,NBASISMAX,
-     &   NHG,NDET1,NDET2,GBS,IC,TMAT,
+     &   NHG,NDET1,NDET2,GBS,IC,
      &   UMAT,BTRANS,NSBASIS,NSPINS,SUM)
       IMPLICIT NONE
 C..
@@ -44,7 +44,7 @@ C..
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER N1E(NHG),N2E(NHG)
       INTEGER GBS(4,*)
-      REAL*8 UMAT(*),TMAT(*)
+      REAL*8 UMAT(*)
       INTEGER NBASISMAX(5,3),IFLAG,IPTOT
       REAL*8 COULCOUPLE,BTRANS(*),SUM
       INTEGER ISPINSKIP,NSBASIS,NSPINS
@@ -67,12 +67,12 @@ C..Differ by two
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Differ by one 
         CALL SCR1T(NEL,NBASISMAX,NDET1,NDET2,GBS,
-     &         NHG,UMAT,ISPINSKIP,TMAT,COULCOUPLE,BTRANS,
+     &         NHG,UMAT,ISPINSKIP,COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,SUM)
       ELSEIF(IC.EQ.NEL) THEN
 C..Differ by none 
         CALL SCR0T(NEL,NBASISMAX,NDET1,NDET2,GBS,
-     &         NHG,UMAT,ISPINSKIP,TMAT,COULCOUPLE,BTRANS,
+     &         NHG,UMAT,ISPINSKIP,COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,SUM)
 C.. If we're in the UEG, we need to add in the part of the background
 C.. contribution which doesn't cancel
@@ -92,7 +92,7 @@ C         ENDIF
 C.. Slater-Condon Rules in a transformed basis.   based on SCR0 and SCR1
 C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0T(NEL,NBASISMAX,NDET1,NDET2,
-     &   G,NHG,UMAT,ISS,TMAT,COULCOUPLE,BTRANS,
+     &   G,NHG,UMAT,ISS,COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,SUM)
          IMPLICIT NONE
          INTEGER G(4,*),ISS
@@ -101,7 +101,6 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER NDET1(NEL),NDET2(NEL)
          INTEGER ID(NEL)
          INTEGER NBASISMAX(5,2)
-         REAL*8 TMAT(NHG,NHG)
          REAL*8 TRUMAT,TRTMAT
          INTEGER NEL,NHG,NSBASIS,NSPINS
          REAL*8 COULCOUPLE,SUM
@@ -118,7 +117,7 @@ C*SAME*
 C..We must first do the one electron integrals
          DO I=1,NEL
 C.. we extract the KEs from TMAT
-            CALL GETTRTMATEL(NDET1(I),NDET1(I),TMAT,NHG,BTRANS,NSBASIS,
+            CALL GETTRTMATEL(NDET1(I),NDET1(I),NHG,BTRANS,NSBASIS,
      &               NSPINS,TRTMAT)
             SUM1=SUM1+TRTMAT
          ENDDO
@@ -146,7 +145,7 @@ C..
 
 
       SUBROUTINE SCR1T(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &   NHG,UMAT,ISS,TMAT,COULCOUPLE,BTRANS,
+     &   NHG,UMAT,ISS,COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,SUM)
          IMPLICIT NONE
          INTEGER NDET1(NEL),NDET2(NEL)
@@ -154,7 +153,6 @@ C..
          INTEGER ID(NEL-1),IDS1(NEL-1),IDS2(NEL-1)
          REAL*8 UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-         REAL*8 TMAT(NHG,NHG)
          REAL*8 TRTMAT,TRUMAT
          INTEGER NEL,NHG,ISS
          REAL*8 COULCOUPLE,SUM,SUM2
@@ -239,7 +237,7 @@ C            SUM2=SUM2-UMAT(ID(I),ID(J),ID(J),ID(I))
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
-         CALL GETTRTMATEL(ND1,ND2,TMAT,NHG,BTRANS,NSBASIS,
+         CALL GETTRTMATEL(ND1,ND2,NHG,BTRANS,NSBASIS,
      &            NSPINS,TRTMAT)
          SUM=SUM2*COULCOUPLE+TRTMAT
          RETURN
@@ -389,12 +387,13 @@ C     &                  UMAT(IDI,IDJ,IDK,IDL)
       END
 
 C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
-      SUBROUTINE GETTRTMATEL(A,C,TMAT,NHG,BTRANS,NSBASIS,
+      SUBROUTINE GETTRTMATEL(A,C,NHG,BTRANS,NSBASIS,
      &            NSPINS,SUM)
+         USE HElement
+         USE UMatCache , Only : GetTMatEl
          IMPLICIT NONE
          INTEGER A,C
          INTEGER I,K
-         REAL*8 TMAT(NHG,NHG)
          REAL*8 BTRANS(NSBASIS,NSBASIS,NSPINS)
          INTEGER NSPINS,NSBASIS
          INTEGER NHG
@@ -419,7 +418,7 @@ C.. We have to generate the normal basis number corresponding to I
             DO K=1,NSBASIS
                IDK=(K-1)*NSPINS+1+CSPN-1
                SUM2=SUM2+BTRANS(CE,K,CSPN)*
-     &            TMAT(IDI,IDK)
+     &            DREAL(GetTMATEl(IDI,IDK))
             ENDDO
             SUM=SUM+SUM2*BTRANS(AE,I,ASPN)
          ENDDO

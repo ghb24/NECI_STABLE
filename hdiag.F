@@ -52,8 +52,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
       END
  
       SUBROUTINE HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,
-     &            NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR,ZIA,
-     &            FCK,TMAT,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,
+     &            NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR,
+     &            FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,
      &            BETA,I_P,ILOGGING,IFDET,ARR,BLOCKSYM)
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
@@ -61,9 +61,9 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INCLUDE 'basis.inc'
          TYPE(BasisFN) ,G1(*)
          INTEGER NMSH,NMAX,I_P,ILOGGING,BRR(*),INFO
-         REAL*8  TMAT(*),ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA
+         REAL*8  ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA
          LOGICAL TMC,TWARN
-         REAL*8  FCK(*),ECORE,GETHELEMENT2,ZIA(*),DNORM
+         REAL*8  FCK(*),ECORE,GETHELEMENT2,DNORM
          REAL*8  CALCDLWDB,CALCMCEN,ARR(NBASIS)
          
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
@@ -102,7 +102,7 @@ C.. Go through the blocks forming the hamil matrix
                DO K=J,NBLK-1
                   CK(J*NBLK+K+1)=GETHELEMENT2(NMRKS(1,NBS+J),
      &                      NMRKS(1,NBS+K),NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,-1,ECORE)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
                ENDDO
             ENDDO
 C.. Diagonalize

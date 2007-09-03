@@ -812,14 +812,14 @@ C.. do it now.
 
 C.. Get the Hamiltonian Element between two CSFs
       SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECORE,SUM)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,SUM)
          USE HElement
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*),NMSH,NMAX
          REAL*8 ALAT(*)
-         TYPE(HElement) TMat(*),UMat(*)
+         TYPE(HElement) UMat(*)
          COMPLEX*16 FCK(*)
          INTEGER NEL,NCI(NEL),NCJ(NEL),NBASISMAX(5,2)
          TYPE(HElement) SUM,SUM2,HEL
@@ -897,7 +897,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
                   COEFF2=COEFFLIST2(J)
                ENDIF
                HEL=GETHELEMENT2(LISTD1(1,I),LISTD2(1,J),NEL,NBASISMAX,
-     &            G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,-1,ECORE)
+     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,-1,ECORE)
                SUM2=SUM2+HEL*HElement(COEFF2)
             ENDDO
             SUM=SUM+SUM2*HElement(COEFF1)

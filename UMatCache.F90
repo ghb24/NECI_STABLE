@@ -34,6 +34,14 @@ MODULE UMatCache
       TYPE(HElement), Pointer :: UMat2D(:,:) !(nStates,nStates)
       LOGICAL tUMat2D
          SAVE tUMat2D ,UMat2D
+
+! This is for the storage of the one-electron integrals
+      TYPE(HElement), dimension(:,:), POINTER :: TMAT2D
+      TYPE(HElement), dimension(:), POINTER :: TMATSYM
+      TYPE(HElement), dimension(:), POINTER :: TMATSYM2
+      TYPE(HElement), dimension(:,:), POINTER :: TMAT2D2
+      logical TSTARBIN
+        SAVE TMAT2D,TMATSYM,TSTARBIN,TMATSYM2,TMAT2D2
       
 
 ! For the UEG, we damp the exchange interactions.
@@ -95,6 +103,85 @@ MODULE UMatCache
          ENDIF
       END
 
+!Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARBIN, where the TMAT is compressed to only store states, not spin-orbitals,
+!Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
+    INTEGER FUNCTION TMatInd(I,J)
+        IMPLICIT NONE
+        INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
+        include 'sym.inc'
+        A=mod(I,2)
+        B=mod(J,2)
+        !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
+        IF(A.ne.B) THEN
+            TMatInd=-1
+            RETURN
+        ENDIF
+        !To convert to spatial orbitals
+        K=(I+1)/2
+        L=(J+1)/2
+        
+        symI=SYMCLASSES(K)
+        symJ=SYMCLASSES(L)
+
+        IF(symI.ne.symJ) THEN
+            TMatInd=-1
+            RETURN
+        ELSE
+            IF(symI.eq.1) THEN
+                Block=0
+            ELSE
+                Block=SYMLABELINTSCUM(symI-1)
+            ENDIF
+                cumulative=SYMLABELCOUNTSCUM(symI)
+            IF(K.ge.L) THEN
+                ind=(((K-cumulative)*((K-cumulative)-1))/2)+(L-cumulative)
+            ELSE
+                ind=(((L-cumulative)*((L-cumulative)-1))/2)+(K-cumulative) 
+            ENDIF
+            TMatInd=Block+ind
+            RETURN
+        ENDIF
+      END
+      
+     INTEGER FUNCTION NEWTMatInd(I,J)
+        IMPLICIT NONE
+        INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
+        include 'sym.inc'
+        A=mod(I,2)
+        B=mod(J,2)
+        !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
+        IF(A.ne.B) THEN
+            NEWTMatInd=-1
+            RETURN
+        ENDIF
+        !To convert to spatial orbitals
+        K=(I+1)/2
+        L=(J+1)/2
+        
+        symI=SYMCLASSES2(K)
+        symJ=SYMCLASSES2(L)
+
+        IF(symI.ne.symJ) THEN
+            NEWTMatInd=-1
+            RETURN
+        ELSE
+            IF(symI.eq.1) THEN
+                Block=0
+            ELSE
+                Block=SYMLABELINTSCUM2(symI-1)
+            ENDIF
+                cumulative=SYMLABELCOUNTSCUM2(symI)
+            IF(K.ge.L) THEN
+                ind=(((K-cumulative)*((K-cumulative)-1))/2)+(L-cumulative)
+            ELSE
+                ind=(((L-cumulative)*((L-cumulative)-1))/2)+(K-cumulative) 
+            ENDIF
+            NEWTMatInd=Block+ind
+            RETURN
+        ENDIF
+      END
+     
+      
 !Get the prospective size of a UMat (not a UMatCache) for completely storing FCIDUMP 2-e integrals
 !  The UMat is currently passed as a parameter, but in future be absorbed into UMatCache.
       SUBROUTINE GetUMatSize(nBasis,iSS,iSize)
@@ -105,7 +192,260 @@ MODULE UMatCache
          iPairs=(nBi*(nBi+1))/2
          iSize=(iPairs*(iPairs+1))/2
       END
+      
+      !Input at spin orbitals
+      FUNCTION GetTMatEl(I,J)
+        IMPLICIT NONE
+        INTEGER I,J
+        TYPE(HElement) GetTMatEl
 
+        IF(TSTARBIN) THEN
+            GetTMatEl=TMATSYM(TMatInd(I,J))
+        ELSE
+            GetTMatEl=TMAT2D(I,J)
+        ENDIF
+      END
+
+      FUNCTION GetNEWTMATEl(I,J)
+        IMPLICIT NONE
+        INTEGER I,J
+        TYPE(HElement) GetNEWTMATEl
+
+        IF(TSTARBIN) THEN
+            GetNEWTMATEl=TMATSYM2(NEWTMATInd(I,J))
+        ELSE
+            GetNEWTMATEl=TMAT2D2(I,J)
+        ENDIF
+      END
+     
+      SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
+        IMPLICIT NONE
+        include 'sym.inc'
+         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr
+        integer*8 iSize
+        
+        IF(TSTARBIN) THEN 
+            Nirrep=NSYMLABELS
+            nBi=nBasisFRZ/iSS
+            iSize=0
+            IF(IP_SYMLABELINTSCUM2.ne.0) CALL FREEM(IP_SYMLABELINTSCUM2)
+            IF(IP_SYMLABELCOUNTSCUM2.ne.0) CALL FREEM(IP_SYMLABELCOUNTSCUM2)
+            CALL MEMORY(IP_SYMLABELINTSCUM2,Nirrep,'SYMLABELINTSCUM2')
+            CALL IAZZERO(SYMLABELINTSCUM2,Nirrep)
+            CALL MEMORY(IP_SYMLABELCOUNTSCUM2,Nirrep,'SYMLABELCOUNTSCUM2')
+            CALL IAZZERO(SYMLABELCOUNTSCUM2,Nirrep)
+            do i=1,Nirrep
+            !SYMLABELCOUNTS is now mbas only for the frozen orbitals
+                basirrep=SYMLABELCOUNTS(2,i)
+                iSize=iSize+(basirrep*(basirrep+1))/2
+                SYMLABELINTSCUM2(i)=iSize
+                IF(i.eq.1) THEN
+                    SYMLABELCOUNTSCUM2(i)=0
+                ELSE
+                    DO t=1,(i-1)
+                        SYMLABELCOUNTSCUM2(i)=SYMLABELCOUNTSCUM2(i)+SYMLABELCOUNTS(2,t)
+                    ENDDO
+                ENDIF
+!                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
+!                call flush(6)
+            enddo
+            IF((SYMLABELCOUNTSCUM2(Nirrep)+basirrep).ne.nBI) THEN
+                DO i=1,Nirrep
+                    WRITE(14,*) SYMLABELCOUNTS(2,i)
+                    CALL FLUSH(14)
+                ENDDO
+                STOP 'Not all basis functions found while setting up TMAT2'
+            ENDIF
+            !iSize=iSize+2
+            !This is to allow the index of '-1' in the array to give a zero value
+            
+            Allocate(TMATSYM2(-1:iSize),STAT=ierr)
+            CALL MemAlloc(ierr,TMATSYM2,HElementSize*(iSize+2),'TMATSYM2')
+            CALL AZZERO(TMATSYM2,HElementSize*(iSize+2))
+
+        ELSE
+
+            iSize=nBasisFRZ*nBasisFRZ
+            Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
+            Call MemAlloc(ierr,TMAT2D2,HElementSize*iSize,'TMAT2D2')
+            Call AZZERO(TMAT2D2,HElementSize*iSize)
+        
+        ENDIF
+      END
+    
+      SUBROUTINE DestroyTMAT(NEWTMAT)
+        IMPLICIT NONE
+        LOGICAL :: NEWTMAT
+
+        IF(TSTARBIN) THEN
+            IF(NEWTMAT) THEN
+                IF(ALLOCATED(TMATSYM2)) THEN
+                    CALL MemDealloc(TMATSYM2)
+                    Deallocate(TMATSYM2)
+                    NULLIFY(TMATSYM2)
+                ENDIF
+            ELSE
+                IF(ALLOCATED(TMATSYM)) THEN
+                    CALL MemDealloc(TMATSYM)
+                    Deallocate(TMATSYM)
+                    NULLIFY(TMATSYM)
+                ENDIF
+            ENDIF
+        ELSE
+            IF(NEWTMAT) THEN
+                IF(ALLOCATED(TMAT2D2)) THEN
+                    CALL MemDealloc(TMAT2D2)
+                    Deallocate(TMAT2D2)
+                    NULLIFY(TMAT2D2)
+                ENDIF
+            ELSE
+                IF(ALLOCATED(TMAT2D)) THEN
+                    CALL MemDealloc(TMAT2D)
+                    Deallocate(TMAT2D)
+                    NULLIFY(TMAT2D)
+                ENDIF
+            ENDIF
+        ENDIF
+      END
+      SUBROUTINE WRITETMAT(NBASIS)
+        IMPLICIT NONE
+        include 'sym.inc'
+        INTEGER II,I,J,NBASIS
+        
+        IF(IP_SYMLABELINTSCUM.ne.0) THEN
+            write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
+            DO I=1,NSYMLABELS
+                WRITE(12,"(I5,$)") SYMLABELCOUNTS(2,I)
+                CALL FLUSH(12)
+            ENDDO
+            WRITE(12,*) ""
+            DO I=1,NSYMLABELS
+                WRITE(12,"(I5,$)") SYMLABELCOUNTSCUM(I)
+                CALL FLUSH(12)
+            ENDDO
+            WRITE(12,*) ""
+            DO I=1,NSYMLABELS
+                WRITE(12,"(I5,$)") SYMLABELINTSCUM(I)
+                CALL FLUSH(12)
+            ENDDO
+            WRITE(12,*) ""
+            WRITE(12,*) "**********************************"
+        ENDIF
+        IF(IP_SYMLABELINTSCUM2.ne.0) THEN
+            write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
+            DO I=1,NSYMLABELS
+                WRITE(12,"(I5,$)") SYMLABELCOUNTS(2,I)
+                CALL FLUSH(12)
+            ENDDO
+            WRITE(12,*) ""
+            DO I=1,NSYMLABELS
+                WRITE(12,"(I5,$)") SYMLABELCOUNTSCUM2(I)
+                CALL FLUSH(12)
+            ENDDO
+            WRITE(12,*) ""
+            DO I=1,NSYMLABELS
+                WRITE(12,"(I5,$)") SYMLABELINTSCUM2(I)
+                CALL FLUSH(12)
+            ENDDO
+            WRITE(12,*) ""
+            WRITE(12,*) "**********************************"
+            CALL FLUSH(12)
+        ENDIF
+        WRITE(12,*) "TMAT:"
+        IF(TSTARBIN) THEN
+            DO II=1,NSYMLABELS
+                DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
+                    DO J=SYMLABELCOUNTSCUM(II-1)+1,I
+                        WRITE(12,*) I,J,DREAL(GetTMATEl((2*I),(2*J)))
+                        CALL FLUSH(12)
+                    ENDDO
+                ENDDO
+            ENDDO
+        ELSE
+            DO I=1,NBASIS,2
+                DO J=1,NBASIS,2
+                    WRITE(12,*) (I+1)/2,(J+1)/2,DREAL(GetTMATEl(I,J))
+                ENDDO
+            ENDDO
+        ENDIF
+        WRITE(12,*) "**********************************"
+        CALL FLUSH(12)
+        IF(Allocated(TMATSYM2).or.Allocated(TMAT2D2)) THEN
+            WRITE(12,*) "TMAT2:"
+            DO II=1,NSYMLABELS
+                DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
+                    DO J=SYMLABELCOUNTSCUM(II-1)+1,I
+                        WRITE(12,*) I,J,DREAL(GetNEWTMATEl((2*I),(2*J)))
+                        CALL FLUSH(12)
+                    ENDDO
+                ENDDO
+            ENDDO
+        ENDIF
+        WRITE(12,*) "*********************************"
+        WRITE(12,*) "*********************************"
+        CALL FLUSH(12)
+      END
+        
+      SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
+        IMPLICIT NONE
+        include 'sym.inc'
+        integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr
+        integer*8 iSize
+        
+        IF(TSTARBIN) THEN 
+            Nirrep=NSYMLABELS
+            nBi=nBasis/iSS
+            iSize=0
+            IF(IP_SYMLABELINTSCUM.ne.0) CALL FREEM(IP_SYMLABELINTSCUM)
+            IF(IP_SYMLABELCOUNTSCUM.ne.0) CALL FREEM(IP_SYMLABELCOUNTSCUM)
+            CALL MEMORY(IP_SYMLABELINTSCUM,Nirrep,'SYMLABELINTSCUM')
+            CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
+            CALL MEMORY(IP_SYMLABELCOUNTSCUM,Nirrep,'SYMLABELCOUNTSCUM')
+            CALL IAZZERO(SYMLABELCOUNTSCUM,Nirrep)
+            do i=1,Nirrep
+                basirrep=SYMLABELCOUNTS(2,i)
+                iSize=iSize+(basirrep*(basirrep+1))/2
+                SYMLABELINTSCUM(i)=iSize
+                IF(i.eq.1) THEN
+                    SYMLABELCOUNTSCUM(i)=0
+                ELSE
+                    DO t=1,(i-1)
+                        SYMLABELCOUNTSCUM(i)=SYMLABELCOUNTSCUM(i)+SYMLABELCOUNTS(2,t)
+                    ENDDO
+                ENDIF
+!                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
+!                call flush(6)
+            enddo
+            IF((SYMLABELCOUNTSCUM(Nirrep)+basirrep).ne.nBI) THEN
+                DO i=1,Nirrep
+                    WRITE(12,*) SYMLABELCOUNTSCUM(i)
+                ENDDO
+                write(12,*) "***************"
+                write(12,*) NBI
+                CALL FLUSH(12)
+                STOP 'Not all basis functions found while setting up TMAT'
+            ENDIF
+            !iSize=iSize+2
+            !This is to allow the index of '-1' in the array to give a zero value
+            
+            Allocate(TMATSYM(-1:iSize),STAT=ierr)
+            Call MemAlloc(ierr,TMATSYM,HElementSize*(iSize+2),'TMATSYM')
+            Call AZZERO(TMATSYM,HElementSize*(iSize+2))
+
+        ELSE
+
+            iSize=nBasis*nBasis
+            Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
+            Call MemAlloc(ierr,TMAT2D,HElementSize*iSize,'TMAT2D')
+            Call AZZERO(TMAT2D,HElementSize*iSize)
+        
+        ENDIF
+    
+      END SUBROUTINE SetupTMAT
+
+
+
+ 
 !Get a U matrix element <ij|u|kl> in multifarious ways.  Either from a passed-in UMAT, or ALAT parameters, 
 ! or from UMatcache.
       FUNCTION GetUMatEl(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)

@@ -1,7 +1,7 @@
 !  A function to generate all possible excitations of a determinant and link them together in a star
 !    The rho_jj, rho_ij and H_ij values are stored for each connected determinant.
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
-   FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay, &
+   FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
          USE HElement      
          IMPLICIT NONE
@@ -11,7 +11,7 @@
          INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
-         TYPE(HElement) TMat(*),UMat(*)
+         TYPE(HElement) UMat(*)
          REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
          TYPE(HDElement) dLWdB
          TYPE(HDElement) fMCPR3StarNewExcit
@@ -76,19 +76,19 @@
          i=0
          ExcitInfo(i,0)=1.D0
          ExcitInfo(i,1)=1.D0
-         ExcitInfo(i,2)=GetHElement2(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,00,ECore)
+         ExcitInfo(i,2)=GetHElement2(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,00,ECore)
          if(BTEST(nWhTay,5)) then
 ! We use the Zeroth order N-particle Hartree-Fock hamiltonian (as MP theory), but shifted by E_HF-E0.
 
 !nMax has Arr hidden in it
             IF(nTay(2).eq.5) THEN
-               call GetH0ElementDCCorr(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,nMax,ALAT,UMat,ECore,rhii)
+               call GetH0ElementDCCorr(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,nMax,ALAT,UMat,ECore,rhii)
             ELSE
                call GetH0Element(nI,nEl,nMax,nBasis,rhii)
             ENDIF
             EHFDiff=ExcitInfo(i,2)-rhii
          endif
-         CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rhii,nTay,0,ECore)
+         CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
 !         write(75,*) rhii
 ! Setup MP info
          CALL iCopy(nEl,nI,1,iPath(1,0),1)
@@ -99,7 +99,7 @@
     lp:  do while(.true.)
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit lp
-            CALL CalcRho2(nI,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,-1,ECore)
+            CALL CalcRho2(nI,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,-1,ECore)
             if(rh .agt. RhoEps) then
                i=i+1
                ExcitInfo(i,1)=rh/rhii
@@ -109,17 +109,17 @@
                   rh=rh*HElement(-Beta/I_P)
                   rh=exp(rh)
                else
-                  CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+                  CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                endif
                ExcitInfo(i,0)=rh/rhii
-               ExcitInfo(i,2)=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,-1,ECore)
+               ExcitInfo(i,2)=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,-1,ECore)
 !               write(75,*) rh,rh/rhii
 !Now do MP2
                Hijs(1)=ExcitInfo(i,2)
                call iCopy(nEl,nJ,1,iPath(1,1),1)
 !nMax has Arr hidden in it
                IF (TMPTHEORY) Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
-               IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
+               IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
             endif
          enddo lp
 !Tell MCPATHS how many excitations there were and how many we are keeping
@@ -155,13 +155,13 @@
       END
 !.. This version creates a star of all 2-vertex terms.
 !.. This sets up the excitation generators and the memory - using the old excitation generators
-FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY, &
+FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
                      RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElement      
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
-         REAL*8 FCK(*), TMat(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE
          INTEGER NI(NEL),ILMAX
 !.. These are old and no longer used
 !.. LSTE is a list of excitations (which we will generate)
@@ -225,7 +225,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 !.. Now generate the excitations
          CALL GENEXCIT(NI,NORDER,NBASIS,NEL,NLSTE(1,1),NICE(1),NLENLIST,NMIN,G1,TSYM,NBASISMAX,.FALSE.)
 
-         FMCPR3STAR=FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY, &
+         FMCPR3STAR=FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
            RHOEPS,NLSTE,NICE,NLIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,NLENLIST,DBETA,DLWDB)
 
          CALL FREEM(IP_NLIST)
@@ -235,7 +235,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
       END
 !.. This version creates a star of all 2-vertex terms.
 !..   This is the heart of the function, called once the excitations are found.
-      FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY, &
+      FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
            RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElement     
          IMPLICIT NONE
@@ -245,7 +245,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
          INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
          REAL*8 ALAT(*),ECORE
-         TYPE(HElement) TMat(*),UMat(*)
+         TYPE(HElement) UMat(*)
          COMPLEX*16 FCK(*)
          INTEGER NI(NEL),ILMAX
 !.. LSTE is a list of excitations (which we will generate)
@@ -273,17 +273,17 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
          DO I=0,NLIST
             IF(ICE(I).EQ.0.AND.I.GT.0) LSTE(1,I)=0
             IF(LSTE(1,I).NE.0) THEN
-               CALL CALCRHO2(NI,LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT, &
+               CALL CALCRHO2(NI,LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT, &
                   RH,NTAY,ICE(I),ECORE)
                IF(RH .AGT. RHOEPS) THEN
                   IF(NLCUR.NE.I) CALL ICOPY(NEL,LSTE(1,I),1,LSTE(1,NLCUR),1)
                   ICE(NLCUR)=ICE(I)
                   IF(NLCUR.EQ.0) RHII=RH
                   LIST(NLCUR,1)=RH/RHII
-                  CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT, &
+                  CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT, &
                     RH,NTAY,0,ECORE)
                   LIST(NLCUR,0)=RH/RHII
-                  LIST(NLCUR,2)=GETHELEMENT2(NI,LSTE(1,I),NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,ECORE)
+                  LIST(NLCUR,2)=GETHELEMENT2(NI,LSTE(1,I),NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
 !                  CALL WRITEDET(6,LSTE(1,I),NEL,.FALSE.)
 !                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
                   NLCUR=NLCUR+1
@@ -493,7 +493,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
 
 !        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
-      SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,nTay,ECore)
+      SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
          USE HElement      
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -501,7 +501,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
          INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
-         TYPE(HElement) TMat(*),UMat(*)
+         TYPE(HElement) UMat(*)
          REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
          TYPE(HElement)  ExcitInfo(0:iMaxExcit,0:2)
 !.. New lists are generated here
@@ -541,13 +541,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp0
                endif
             end do lp0
-            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
             IF(rh.age.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
-               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                StarMat(iExc,iExc)=rh/rhii
             ENDIF
 !(i,b)
@@ -559,13 +559,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp1
                endif
             end do lp1
-            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
             IF(rh.age.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
-               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                StarMat(iExc,iExc)=rh/rhii
             ENDIF
 !(j,a)
@@ -577,13 +577,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp2
                endif
             end do lp2
-            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
             IF(rh.age.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
-               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                StarMat(iExc,iExc)=rh/rhii
             ENDIF
 !(j,b)
@@ -595,13 +595,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,A
                   exit lp3
                endif
             end do lp3
-            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,1,ECore)
+            CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,1,ECore)
 !            call writedet(6,nk,nel,.false.)
 !            write(6,*) rh
             IF(rh.age.rhoeps) then
                iExc=iExc+1
                StarMat(1,iExc)=rh/rhii
-               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,TMat,nMax,ALat,UMat,rh,nTay,0,ECore)
+               CALL CalcRho2(nK,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                StarMat(iExc,iExc)=rh/rhii
             ENDIF
 

@@ -1,8 +1,8 @@
       SUBROUTINE WIRHODIAG(NI,BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
          IMPLICIT NONE
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(3),UMAT(*),RHOEPS,ECORE
+         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
 
          INTEGER NEL,NBASIS,NBASISMAX(5,2),G1(*)
@@ -41,7 +41,7 @@ C.. account for LSTE(0)
          ENDIF
 
          CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
-     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &         RH,NTAY,0,ECORE)
          WRITE(35,"(A,$)") "("
          DO K=1,NEL
@@ -58,7 +58,7 @@ C.. account for LSTE(0)
      &               NEL,G1,NBASISMAX)
                IF(LACC) THEN
                   CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
-     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &               RH,NTAY,0,ECORE)
 C                  WRITE(35,"(G25.16,$)") -(I_P/BETA)*LOG(RH)
                   IF(RH/RHII.GT.RHRATMAX) THEN
@@ -86,7 +86,7 @@ C.. Now we fill the RIJ array
             RIJMAT(I*NLIST+I+1)=RJJLIST(I)
             DO J=I+1,NLIST-1
                CALL CALCRHO2(LSTE(1,I),LSTE(1,J),BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &            RH,NTAY,-1,ECORE)
                RIJMAT(I*NLIST+J+1)=RH
             ENDDO
@@ -128,10 +128,10 @@ C         ENDDO
       END
  
          SUBROUTINE WIRD_SUBSET(NI,BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      RHOEPS,ILOGGING,TSYM,ECORE)
          IMPLICIT NONE
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(3),UMAT(*),RHOEPS,ECORE
+         REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
 
          INTEGER K,ID,IDI,IDJ
@@ -178,7 +178,7 @@ C.. account for LSTE(0)
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
 
          CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
-     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &         RH,NTAY,0,ECORE)
          LSTP(0)=0
 
@@ -215,7 +215,7 @@ C.. List all the dets
          SNC=0.D0
          DO I=1,NLIST
             CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
-     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &               RH,NTAY,0,ECORE)
             IF(LSUB)
      &         WRITE(36,"(I5,G25.16,A,$)") I,-(I_P/BETA)*LOG(RH)
@@ -247,7 +247,7 @@ C            ENDIF
                       WRITE(38,"(I5,A,$)") ID,","
                   ENDIF
                   CALL CALCRHO2(LSTE(1,ID),LSTE(1,ID),BETA,I_P,NEL,
-     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &               RH,NTAY,0,ECORE)
                   RJJLIST(ILFREE)=RH
                   ILFREE=ILFREE+1
@@ -260,7 +260,7 @@ C.. Now we fill the RIJ array
                   DO J=I+1,NLIST-1
                      IDJ=LSTP(J)
                      CALL CALCRHO2(LSTE(1,IDI),LSTE(1,IDJ),BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &            RH,NTAY,-1,ECORE)
                      RIJMAT(I*NLIST+J+1)=RH
                   ENDDO

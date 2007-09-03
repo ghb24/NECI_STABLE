@@ -11,7 +11,7 @@ C.. NWHTAY contains the number of samples to take for each level
 C.. This approach creates a cluster of increasing size by adding to it
 C.. the best vertex at each level.
       SUBROUTINE  MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &               NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI)
          IMPLICIT REAL*8 (A-H,O-Z)
@@ -54,7 +54,7 @@ C.. go to end of file
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          IADJ(0,0)=1
@@ -77,7 +77,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
             CALL WIDENRHOMAT(RHOIJ,I_V,I_VMAX)
             NVALUE=
      &            FMCPR6(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &             ECORE,ICOUNT)
             F(I_V)=NVALUE
@@ -109,7 +109,7 @@ C.. save all log files
       END
 
       REAL*8 FUNCTION FMCPR6(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ICOUNT)
          IMPLICIT NONE
@@ -117,7 +117,7 @@ C.. save all log files
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER I,J,K,NELEC,NADJ,ICE,NBEST
          REAL*8 RH,CALCPATHS,VALUE,NVALUE,RAT
@@ -152,7 +152,7 @@ C.. The relevant elements of IADJ and RHOIJ are copied to the new path's
                DO J=0,I_V-1
                   ICE=IGETEXCITLEVEL(IPATH(1,I_V-1),IPATH(1,J),NEL)
                   CALL CALCRHO2(IPATH(1,I_V-1),IPATH(1,J),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   IF(ICE.LE.2) THEN
                      ICE=1
@@ -196,7 +196,7 @@ C.. Restore the best one
             DO J=0,I_V-1
                ICE=IGETEXCITLEVEL(IPATH(1,I_V-1),IPATH(1,J),NEL)
                CALL CALCRHO2(IPATH(1,I_V-1),IPATH(1,J),BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &           RH,NTAY,ICE,ECORE)
                IF(ICE.LE.2) THEN
                   ICE=1

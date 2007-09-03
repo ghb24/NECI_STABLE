@@ -9,7 +9,7 @@ C.. I_HMAX is the max number of hops in a path.
 C.. NWHTAY contains the number of samples to take for each level
 C.. This is an approach based on Markov Chains
       SUBROUTINE  MCPATHSR5(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &               NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI)
          IMPLICIT REAL*8 (A-H,O-Z)
@@ -53,7 +53,7 @@ C.. go to end of file
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          IADJ(0,0)=1
@@ -74,7 +74,7 @@ C.. I_V is the number of vertices in the path
             ISEED=7
 C.. I_VMOVE=0 indicates we need to generate a valid path.
             CALL GENVALIDPATH(NI,BETA,I_P,IPATH,I_V,NEL,
-     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4WFUNC,FMCPR4VFUNC,WEIGHT)
@@ -83,7 +83,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
                OVALUE=NVALUE
                NVALUE=
      &            FMCPR5(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &             ECORE,ISEED,I_VMOVE,OVALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
      &               FMCPR4WFUNC,FMCPR4VFUNC)
@@ -94,7 +94,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
             FSQ(I_V)=FSQ(I_V)/NWHTAY
             ISEED=7
             CALL GENVALIDPATH(NI,BETA,I_P,IPATH,I_V,NEL,
-     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4UFUNC,FMCPR4WFUNC,WEIGHT)
@@ -103,7 +103,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
                OVALUE=NVALUE
                NVALUE=
      &            FMCPR5(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &             ECORE,ISEED,I_VMOVE,OVALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
      &               FMCPR4UFUNC,FMCPR4WFUNC)
@@ -182,7 +182,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATHS.(03/07/04).
 C.. This function assumes that there are enough available excitations to 
 C.. form a loop of length I_V.  If not it will probably hang.
       REAL*8 FUNCTION FMCPR5(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,I_VMOVE,VALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
      &   WFUNC,VFUNC)
@@ -191,7 +191,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          REAL*8 NRHOII(0:I_V),NRHOIJ(0:I_V,0:I_V)
          INTEGER I_NVMOVE,INPATH(NEL,0:I_V)
@@ -230,7 +230,7 @@ C.. The relevant elements of IADJ and RHOIJ are copied to the new path's
      &               NRHOII,NRHOIJ,NIADJ,I_NVMOVE,NEL,INPATH,I_V)
             CALL MODIFYADJCONMAT(INPATH,I_NVMOVE,NRHOIJ,NRHOII,NIADJ,
      &               INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,RHOEPS,
-     &           NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,NADJ,I_V-1)
+     &           NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,NADJ,I_V-1)
 C.. NIADJ now contains the adjacency matrix, and NRHOIJ the connectivity
 C.. of the new path
 C.. We now must calculate the weight of the new move
@@ -410,14 +410,14 @@ C.. double-counted, but that bias is dealt with elsewhere.
 
       SUBROUTINE MODIFYADJCONMAT(IPATH,I_NVMOVE,NRHOIJ,NRHOII,NIADJ,
      &               INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,RHOEPS,
-     &               NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,NADJ,
+     &               NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,NADJ,
      &               I_VMAX)
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NIADJ(0:I_V-1,0:I_V-1),NADJ
          INTEGER INODE(NEL),I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*)
          INTEGER NMSH,NMAX,NTAY,I_NVMOVE,I_VMAX
          REAL*8 NRHOIJ(0:I_V,0:I_V),NRHOII(0:I_V),RHOEPS
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER J,ICE
          REAL*8 RH
          INTEGER IGETEXCITLEVEL
@@ -426,7 +426,7 @@ C.. Now generate all the RHOIJ elements for this new node
          DO J=0,I_VMAX
             ICE=IGETEXCITLEVEL(INODE,IPATH(1,J),NEL)
             CALL CALCRHO2(INODE,IPATH(1,J),BETA,I_P,NEL,
-     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &        RH,NTAY,ICE,ECORE)
             IF(ICE.LE.2) THEN
                ICE=1
@@ -566,7 +566,7 @@ C.. add that node to the path, and recurse
          RETURN
       END
       SUBROUTINE GENVALIDPATH(NI,BETA,I_P,IPATH,I_V,NEL,
-     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &         ECORE,ISEED,I_VMOVE,OVALUE,IADJ,ADJ,LCANMOVE,
      &         WFUNC,VFUNC,WEIGHT)
@@ -575,7 +575,7 @@ C.. add that node to the path, and recurse
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER I,J,K,INODE(NEL),I_VMOVE,ADJ
          INTEGER IADJ(0:I_V-1,0:I_V-1),ICE,IPATH2(0:I_V-1)
@@ -596,7 +596,7 @@ C.. we need to generate a valid path
      &            ABS(NTAY*2),ISEED,INODE)
                IF(.NOT.LISINPATH(INODE,IPATH,NEL,I,-1)) THEN
                   CALL CALCRHO2(IPATH(1,K),INODE,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,-1,ECORE)
                   IF(ABS(RH).GT.RHOEPS) BR=.FALSE.
                   ICOUNT=ICOUNT+1
@@ -607,7 +607,7 @@ C.. If we cannot find a det that's connected, we give up
             CALL ICOPY(NEL,INODE,1,IPATH(1,I),1)
             CALL MODIFYADJCONMAT(IPATH,I,RHOIJ,RHOII,IADJ,
      &               INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,RHOEPS,
-     &               NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,ADJ,I)
+     &               NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,ADJ,I)
          ENDDO
          I_VMOVE=I_V-1
          OVALUE=VFUNC(IPATH,RHOII,RHOIJ,I_V,I_HMAX,

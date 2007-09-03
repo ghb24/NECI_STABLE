@@ -2,7 +2,7 @@ C==========================================================
 C.. Routines needed for the initialisation of the Fourier 
 C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
-      SUBROUTINE INITFOU(NMESHX,CK,COEFF,NMAX,ZIA,
+      SUBROUTINE INITFOU(NMESHX,CK,COEFF,NMAX,
      &     A,TALPHA,ALPHA,OMEGA)
          STOP 'FFTW library not installed for CPMD NECI'
       RETURN 
@@ -13,7 +13,7 @@ C =========================================================
       RETURN
       END
 C ============================================================
-      SUBROUTINE GEN_ZIA(KMAX,NMAX,ZIA)
+      SUBROUTINE GEN_ZIA(KMAX,NMAX)
          STOP 'FFTW library not installed for CPMD NECI'
       RETURN
       END
@@ -25,7 +25,7 @@ C==========================================================
 C.. Routines needed for the initialisation of the Fourier 
 C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
-      SUBROUTINE INITFOU2D(NMESHX,CK,COEFF,NMAX,ZIA,
+      SUBROUTINE INITFOU2D(NMESHX,CK,COEFF,NMAX,
      &     A,TALPHA,ALPHA,OMEGA)
          STOP 'FFTW library not installed for CPMD NECI'
       RETURN 

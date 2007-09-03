@@ -1,6 +1,6 @@
 !.. Use the Slater-Condon Rules to evaluate the H matrix element between two dets
       SUBROUTINE SLTCND(NEL,NBASISMAX,
-     &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,TMat,
+     &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
      &	NMAX,ALAT,UMat,SUM)
       USE HElement
       IMPLICIT NONE
@@ -14,7 +14,7 @@ C..
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER N1E(NHG),N2E(NHG)
       INTEGER GBS(4,*)
-      TYPE(HElement) UMAT(*),TMat(*),SUM
+      TYPE(HElement) UMAT(*),SUM
       REAL*8 KP
       INTEGER NBASISMAX(5,3)
 C..Cube Arrays
@@ -50,12 +50,12 @@ C..Also returns the sign change IPTOT
 !        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..Differ by one 
         CALL SCR1(NEL,NBASISMAX,NDET1,NDET2,GBS,
-     &         NHG,UMAT,ALAT,ISPINSKIP,TMat,COULCOUPLE,TEXCH,SUM)
+     &         NHG,UMAT,ALAT,ISPINSKIP,COULCOUPLE,TEXCH,SUM)
       ELSEIF(IC.EQ.NEL) THEN
 C..Differ by none 
 !        IPTOT=1
         CALL SCR0(NEL,NBASISMAX,NDET1,NDET2,GBS,
-     &         NHG,UMAT,ALAT,ISPINSKIP,TMat,COULCOUPLE,TEXCH,SUM)
+     &         NHG,UMAT,ALAT,ISPINSKIP,COULCOUPLE,TEXCH,SUM)
 C.. If we're in the UEG, we need to add in the part of the background
 C.. contribution which doesn't cancel
          IF(NBASISMAX(1,3).EQ.-1) THEN

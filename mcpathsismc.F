@@ -10,7 +10,7 @@ C.. NWHTAY contains the number of samples to take for each level
 C.. This is a simple importance sampling method
 C.. NMAX has ARR hidden in it.
       SUBROUTINE  MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElement
@@ -26,7 +26,7 @@ C.. NMAX has ARR hidden in it.
          TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX),RH
          TYPE(HDElement) FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS,BETA
-         TYPE(HElement) UMAT(*),TMat(*)
+         TYPE(HElement) UMAT(*)
          COMPLEX*16 FCK(*)
          REAL*8 ECORE
          TYPE(HDElement) FF
@@ -96,12 +96,12 @@ C.. go to end of file
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
          RHOIJ(0,0)=RHOII(0)
          WLRI=LOG(RHOII(0))
          HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &      G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
+     &      G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
          TOTAL=1.D0
 C.. These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
          DLWDBCORE=DLWDB
@@ -237,12 +237,12 @@ C                  IF(ICOUNT.EQ.135) TST=1
 C                  DLWDB2=0.D0
                   IF(I_HMAX.EQ.-3) THEN
                      FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ELSEIF(I_HMAX.EQ.-4) THEN
                      FF=FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ElseIf(tMCDirectSum) Then
@@ -265,7 +265,7 @@ C                  DLWDB2=0.D0
 !      WRITE(43,"(I3,4G25.16)") I_VCUR,ECORE,DLWDB2%v, ODLWDB%v,OWEIGHT%v
                             
                     FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                   ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                   ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
@@ -308,7 +308,7 @@ C.. see if we want to increase the number of vertices
      &                        I_P,BETA,HIJS,VWEIGHTS,VEXCITS,G1,NBASIS,
      &                        NBASISMAX,OWEIGHT,ILOGGING,DBETA,RHOEPS,
      &                        ODLWDB,DLWDB2,FF,IOCLS,
-     &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,TMat,NTAY,
+     &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,NTAY,
      &                        NMAX,ALAT,UMAT,ECORE,PFAC,WMIN)
                            ICHANGED=1
                         ELSE
@@ -345,7 +345,7 @@ C.. we're doing MC with lots of different vertex levels
 C.. Markov chain with random generation.
                          FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                     NBASISMAX,G1,
-     &                     NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                     NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
@@ -366,7 +366,7 @@ C.. Markov chain with random generation.
                               PFAC=1-ABS(G_VMC_FAC)
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                        NBASISMAX,G1,
-     &                     NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                     NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDBCORE,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
@@ -384,7 +384,7 @@ C.. Markov chain with random generation.
 C.. Markov chain with random generation.
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                           NBASISMAX,G1,
-     &                     NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                     NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                    ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,
@@ -494,7 +494,7 @@ C                           WRITE(6,*) IOV,I_VCUR,I_OVCUR
                               IF(TVVDISALLOW) OPROB=1
                               FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                         NBASISMAX,G1,NBASIS,BRR,
-     &                         NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &                         NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &                         RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                         ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                         ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
@@ -509,7 +509,7 @@ C                              WRITE(6,*) IACC
 C.. Markov chain with special generation - does not work
                         FF=FMCPR4D3(NI,BETA,I_P,IPATH,I_VCUR,NEL,
      &                  NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                  RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,
      &                  ODLWDB,OPROB,I_OVCUR,IOCLS,ITREE,OWEIGHT,
@@ -519,7 +519,7 @@ C.. Markov chain with special generation - does not work
 C.. Real Markov Chain MC with memory - i.e. move one node from the last
 C.. graph to generate the new one.
                         CALL MCPR4D4MOVE(NI,BETA,I_P,I_VCUR,NEL,
-     &                     NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
+     &                     NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,
      &                     ALAT,UMAT,NTAY,RHOEPS,NWHTAY,I_HMAX,ILOGGING,
      &                     ECORE,ISEED,KSYM,DBETA,DLWDB2,IPATH,RHOIJ,
      &                     HIJS,FF,ODLWDB,IOCLS,ITREE,OWEIGHT,IACC,
@@ -693,7 +693,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATHS.(03/07/04).
 C.. This function assumes that there are enough available excitations to 
 C.. form a loop of length I_V.  If not it will probably hang.
       REAL*8 FUNCTION FMCPR4(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED)
          IMPLICIT NONE
@@ -701,7 +701,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER I,J,K,INODE(NEL)
          INTEGER IADJ(0:I_V-1,0:I_V-1),ICE,IPATH2(0:I_V-1)
@@ -735,7 +735,7 @@ C.. Pick random elements of the path and generate excitations
                   IADJ(J,I)=0
                ENDIF
                CALL CALCRHO2(INODE,IPATH(1,J),BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &            RH,NTAY,ICE,ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
                   RHOIJ(I,J)=RH
@@ -857,7 +857,7 @@ C..
 C.. All singles and doubles are allowed (even if RHO_IJ=0) so this is
 C.. not very efficient.
       REAL*8 FUNCTION FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          IMPLICIT NONE
@@ -865,7 +865,7 @@ C.. not very efficient.
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
@@ -888,7 +888,7 @@ C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
 C         CALL GENSYMDETSSDN(NI,KSYM,NEL,G1,BRR,NBASIS,0,
 C     &         IC,NBASISMAX,
-C     &      BETA,I_P,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,
+C     &      BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,
 C     &      RHOEPS)
          CALL GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,IC,
      &      ISEED,INODE2)
@@ -914,7 +914,7 @@ C.. If the new node is not in the path, add it.
 C.. Count the number of connections from this node (RP=0)
 C               NLIST=0
 C               CALL GENSYMDETSSDN(INODE2,KSYM,NEL,G1,BRR,NBASIS,LSTE,
-C     &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,ZIA,NMAX,
+C     &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,
 C     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
                CALL GENRANDOMSPINEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,IC,
      &            ISEED,INODE2)
@@ -924,7 +924,7 @@ C     &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
 CNLIST
 C.. Update the rho and X (probability) matrices with this new node
                CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
                RHOII(I_VNEXT)=RH
                RHOIJ(I_VNEXT,I_VNEXT)=RH
@@ -947,11 +947,11 @@ C.. Update the rho and X (probability) matrices with this new node
                   ENDIF
                   IF(I.EQ.0) THEN
                      HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                  ICE,ECORE)
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   IF(ABS(RH).GT.RHOEPS) THEN
                      RHOIJ(I_VNEXT,I)=RH
@@ -1015,7 +1015,7 @@ C.. (26/09/04)
 C.. If a RHOIJ is non-zero, then its weight XIJ will be non-zero.
 C.. XIJ is proportional to RHO_JJ**ABS(RP). 
       REAL*8 FUNCTION FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          IMPLICIT NONE
@@ -1023,7 +1023,7 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
@@ -1049,7 +1049,7 @@ C..I_P
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
          CALL GENSYMDETSSDN(NI,KSYM,NEL,G1,BRR,NBASIS,0,
-     &         IC,NBASISMAX,BETA,I_P,NMSH,FCK,ZIA,NMAX,ALAT,
+     &         IC,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,ALAT,
      &         UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
 C.. Diagonal X elements contain the normalization of that node
 C.. In this case that is the number of symmetric adjacent nodes
@@ -1068,7 +1068,7 @@ C.. XIJ(ICURNODE,ICURNDOE) is the norm const for the current node
             PP=RAN2(ISEED)*XIJ(ICURNODE,ICURNODE)
             IC=1
             CALL GENSYMDETSSDN(IPATH(1,ICURNODE),KSYM,NEL,G1,BRR,NBASIS,
-     &         INODE2,IC,NBASISMAX,BETA,I_P,NMSH,FCK,ZIA,NMAX,ALAT,
+     &         INODE2,IC,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,ALAT,
      &         UMAT,NTAY,ECORE,X,RP,PP,RHOEPS)
             CALL ICOPY(NEL,INODE2,1,INODE,1)
 C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
@@ -1082,19 +1082,19 @@ C.. If the new node is not in the path, add it.
 C.. Count the number of connections from this node (RP=0)
                NLIST=0
                CALL GENSYMDETSSDN(INODE,KSYM,NEL,G1,BRR,NBASIS,LSTE,
-     &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,ZIA,NMAX,
+     &            NLIST,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,
      &            ALAT,UMAT,NTAY,ECORE,X,RP,0.D0,RHOEPS)
                XIJ(I_VNEXT,I_VNEXT)=X
 C.. Update the rho and X (probability) matrices with this new node
                CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
                RHOII(I_VNEXT)=RH
                RHOIJ(I_VNEXT,I_VNEXT)=RH
                DO I=0,I_VNEXT-1
                   ICE=IGETEXCITLEVEL(INODE,IPATH(1,I),NEL)
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   IF(ABS(RH).GT.RHOEPS) THEN
                      RHOIJ(I_VNEXT,I)=RH
@@ -1107,7 +1107,7 @@ C                     XIJ(I,I_VNEXT)=1.D0/XIJ(I,I)
      &                  RHOII(I_VNEXT)**ABS(RP)/XIJ(I,I)
                   IF(I.EQ.0)
      &               HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                  ICE,ECORE)
                   ELSE
                      RHOIJ(I,I_VNEXT)=0.D0
@@ -1171,7 +1171,7 @@ C.. Like MCPATHSR4C, this selects a n-vertex graph.  it chooses which
 Cvertex to excite from randomly however.
 C.. 
       REAL*8 FUNCTION FMCPR4D(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM)
          IMPLICIT NONE
@@ -1179,7 +1179,7 @@ C..
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
@@ -1303,7 +1303,7 @@ C     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
                NLIST=IC
 C.. Update the rho and X (probability) matrices with this new node
                CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
                RHOII(I_VNEXT)=RH
                RHOIJ(I_VNEXT,I_VNEXT)=RH
@@ -1344,11 +1344,11 @@ C.. Update the rho and X (probability) matrices with this new node
                   ENDIF
                   IF(I.EQ.0) THEN
                      HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                  ICE,ECORE)
                   ENDIF
                   CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   IF(ABS(RH).GT.RHOEPS) THEN
                      RHOIJ(I_VNEXT,I)=RH
@@ -1788,7 +1788,7 @@ C.. weighted with the values of S' (the double-counting corrected
 C.. weight.
 !.. NMAX has ARR hidden in it
       FUNCTION FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
@@ -1801,7 +1801,7 @@ C.. weight.
          LOGICAL TSYM
          REAL*8 BETA,ALAT(*),ECORE
          COMPLEX*16 FCK
-         TYPE(HElement) UMat(*), TMat(*)
+         TYPE(HElement) UMat(*) 
          REAL*8 RHOEPS
          TYPE(HDElement) RHOII(0:I_V),INWI
          TYPE(HElement) RHOIJ(0:I_V,0:I_V)
@@ -1859,7 +1859,7 @@ C.. Take a copy of the old path and rho matrix etc.
             TLOG3=BTEST(ILOGGING,6)
             DO WHILE (RHX.LE.DBETA(3))
                CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &           NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEM,I_HMAX,
      &           EXCITGEN)
 C.. Now get the parameters for the new path 
@@ -2008,7 +2008,7 @@ C.. Unbias the sum
 !.. Generate a new graph.  Called from FMCPR4D2
 !.. NMAX has ARR  hidden in it
       SUBROUTINE FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,I_V,XIJ,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
      &   PVERTMEMS2)
          USE HElement
@@ -2017,7 +2017,7 @@ C.. Unbias the sum
          INCLUDE 'basis.inc'
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
-         TYPE(HElement) TMat(*),Umat(*)
+         TYPE(HElement) Umat(*)
          TYPE(BasisFN) G1(*)
          INTEGER I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH
          INTEGER NMAX,NTAY
@@ -2064,7 +2064,7 @@ C.. those before it.
          IF(I_HMAX.EQ.-19) THEN
 !.. We're actually storing H matrices in RHOIJ rather than rho matrices
             RHOIJ(0,0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                  0,ECORE)
             RHOII(1)=BETA
          ENDIF
@@ -2161,12 +2161,12 @@ C.. Update the rho and X (probability) matrices with this new node
                IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
                  RH=GETHELEMENT2(INODE,INODE,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,0,ECORE)
                   RHOIJ(I_VNEXT,I_VNEXT)=RH
                ELSE
                   CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,TMat,TMat,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
                   RHOII(I_VNEXT)=RH
                   RHOIJ(I_VNEXT,I_VNEXT)=RH
@@ -2209,17 +2209,17 @@ C.. Update the rho and X (probability) matrices with this new node
                   IF(I_HMAX.EQ.-19) THEN
 !  using H-elements in the rho matrix
                      RH=GETHELEMENT2(INODE,IPATH(1,I),NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,ICE,ECORE)
                      IF(I.EQ.0) HIJS(I_VNEXT)=RH
                   ELSE
                      IF(I.EQ.0) THEN
                       HIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                  ICE,ECORE)
                      ENDIF
                      CALL CALCRHO2(INODE,IPATH(1,I),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,ICE,ECORE)
                   ENDIF
                   IF(RH.AGT.RHOEPS) THEN
@@ -2287,7 +2287,7 @@ C.. easily computable quantity.  What is used here is merely the
 C.. generation probability using this set of tentacles, which will give
 C.. a wrongly biased MC
       REAL*8 FUNCTION FMCPR4D3(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,IACC)
@@ -2296,7 +2296,7 @@ C.. a wrongly biased MC
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
-         REAL*8 BETA,FCK(*),ZIA(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          REAL*8 RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
          INTEGER KSYM(5)
          INTEGER LSTE(NEL),NLIST
@@ -2449,7 +2449,7 @@ C.. If the new node is not in the path, add it.
                   CALL ICOPY(NEL,INODE,1,NIPATH(1,I_VNEXT),1)
 C.. Update the rho and X (probability) matrices with this new node
                   CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
-     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &              RH,NTAY,0,ECORE)
                   NRHOII(I_VNEXT)=RH
                   NRHOIJ(I_VNEXT,I_VNEXT)=RH
@@ -2478,11 +2478,11 @@ C.. we will later.  Just put a dummy value in for now
                      IF(I.EQ.0) THEN
                         NHIJS(I_VNEXT)=GETHELEMENT2(NI,INODE,NEL,
      &                  NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,UMAT,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                  ICE,ECORE)
                      ENDIF
                      CALL CALCRHO2(INODE,NIPATH(1,I),BETA,I_P,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,ZIA,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,RH,NTAY,ICE,ECORE)
                      IF(ABS(RH).GT.RHOEPS) THEN
                         NRHOIJ(I_VNEXT,I)=RH
@@ -2669,7 +2669,7 @@ C.. and VWEIGHTS(2,I_V) holds sum(rhoii^-P) etc.
 
 C.. NB TMAT has sometimes been hidden in ZIA
       SUBROUTINE MCPR4D4MOVE(NI,BETA,I_P,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,NWHTAY,I_HMAX,ILOGGING,
      &   ECORE,ISEED,KSYM,DBETA,ETILDERET,IPATH,RHOIJ,HIJS,WEIGHTRET,
      &   OETILDE,IOCLS,ITREE,OWEIGHT,IACC,VWEIGHTS,VEXCITS,PFAC,TST,
@@ -2678,7 +2678,7 @@ C.. NB TMAT has sometimes been hidden in ZIA
          INTEGER NEL,NI(NEL),I_P,KSYM(*)
          REAL*8 BETA,DBETA
          INTEGER NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         REAL*8 FCK(*),TMAT(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER NWHTAY,NTAY,I_HMAX,ILOGGING
          REAL*8 RHOEPS
          INTEGER ISEED,I_V
@@ -2753,7 +2753,7 @@ C.. now
      &            NEL,I_V,IVERTMOVE)) THEN
                   CALL CALCRHO2(TENTDETS(1,ITENT),TENTDETS(1,ITENT),
      &                  BETA,I_P,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,RH,NTAY,0,ECORE)
 C                  WRITE(6,*)
 C     &               (RH/RHOIJ(0,0)),(RH/RHOIJ(0,0))**(I_P*PFAC),WTTOT
@@ -2795,12 +2795,12 @@ C.. Fill out the parts which have changed
                ICE=-1
                NHIJS(I)=GETHELEMENT2(NI,NIPATH(1,I),NEL,
      &                  NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,UMAT,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                  ICE,ECORE)
                ICE=0
                CALL CALCRHO2(NIPATH(1,I),NIPATH(1,I),BETA,
      &                  I_P,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,RH,NTAY,0,ECORE)
                NRHOIJ(IVERTMOVE,I)=RH
             ELSE
@@ -2809,7 +2809,7 @@ C.. Fill out the parts which have changed
                   ICONN=ICONN+1
                   CALL CALCRHO2(NIPATH(1,IVERTMOVE),NIPATH(1,I),BETA,
      &                  I_P,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,RH,NTAY,ICE,ECORE)
                   IF(ABS(RH).GT.RHOEPS) THEN
                      NRHOIJ(IVERTMOVE,I)=RH
@@ -2929,7 +2929,7 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
      &                        HIJS,VWEIGHTS,VEXCITS,G1,NBASIS,
      &                        NBASISMAX,OWEIGHT,ILOGGING,DBETA,RHOEPS,
      &                        OETILDE,ETILDERET,WEIGHTRET,IOCLS,
-     &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,TMAT,NTAY,
+     &                        ITREE,IACC,ISEED,BRR,NMSH,FCK,NTAY,
      &                        NMAX,ALAT,UMAT,ECORE,PFAC,WMIN)
          IMPLICIT NONE
          INTEGER I_V,NEL,IPATH(NEL,0:I_V)
@@ -2947,7 +2947,7 @@ C..  (|w'(ijk)| Sum_(j' in G&j'-l) w1(j')/N(j'))/Sum_(j''in G) w1(j'')
          INTEGER CUREX(*),ICE,NL(NEL),CUREXLEN
    
          INTEGER BRR(*),NMSH,I_HMAX,NMAX,I_P,NTAY
-         REAL*8 FCK,TMAT(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 FCK,ALAT(*),UMAT(*),ECORE
          REAL*8 DBETA,RHOEPS,BETA
 
          INTEGER G1(*),NBASIS,NBASISMAX(*),ILOGGING
@@ -3024,14 +3024,14 @@ C.. now accumulate the weight of this graph
                
 C.. now get the rho matrix element
                CALL CALCRHO2(NL,IPATH(1,I),BETA,I_P,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,RH,NTAY,ICE,ECORE)
                IF(ABS(RH).GE.RHOEPS) THEN
                   RHOIJ2(I,I_V)=RH
                   RHOIJ2(I_V,I)=RH
                   IF(I.EQ.0)
      &               HIJS2(I_V)=GETHELEMENT2(IPATH(1,0),NL,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,
      &                  NMAX,ALAT,UMAT,ICE,ECORE)
                ELSE
                   RHOIJ2(I,I_V)=0.D0
@@ -3048,7 +3048,7 @@ C.. Normalize WTJ
          WTJ=WTJ/VWEIGHTS(1,I_V)
 C.. Finish off the rho matrix, and copy the H mat etc.
          CALL CALCRHO2(NL,NL,BETA,I_P,NEL,
-     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMAT,NMAX,ALAT,
+     &                  NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,
      &                  UMAT,RH,NTAY,0,ECORE)
          RHOIJ2(I_V,I_V)=RH
          RHOIJ2(I_V+1,I_V+1)=RHOIJ(0,0)

@@ -1,7 +1,7 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
-     &	NHG,UMAT,ALAT,ISS,TMAT,COULCOUPLE,TEXCH,SUM)
+     &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM)
       USE HElement
-      USE UMatCache , Only : GetUMatEl
+      USE UMatCache , Only : GetUMatEl,GetTMatEl
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
       INCLUDE 'basis.inc'
@@ -10,7 +10,7 @@
       INTEGER ID,EX(2)
       TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
-      TYPE(HElement) TMAT(NHG,NHG),SUM
+      TYPE(HElement) SUM
       LOGICAL TSIGN
       INTEGER NEL,NHG,ISS
       REAL*8 COULCOUPLE,CD,ALAT(3)
@@ -56,7 +56,7 @@ C*(COULDAMP(NDET1(I),NHG)**2)*CD
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
-      SUM=SUM2*HElement(COULCOUPLE)+TMAT(EX(1),EX(2))
+      SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
       IF(TSIGN) SUM=-SUM
 !      CALL TIHALT('      SCR1',ISUB) 
       RETURN

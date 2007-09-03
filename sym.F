@@ -169,11 +169,12 @@ C.. NHG is the old number of orbs
 C.. NBASIS is the new number of orbs
 C.. GG(I) is the new index of the (old) orb I
 
-      SUBROUTINE FREEZESYMLABELS(NHG,NBASIS,GG)
+      SUBROUTINE FREEZESYMLABELS(NHG,NBASIS,GG,FRZ)
          IMPLICIT NONE
          INTEGER NHG,NBASIS,GG(NHG)
          INTEGER I
          INTEGER NSL(NBASIS)
+         LOGICAL FRZ
          INCLUDE 'sym.inc'
 C.. SYMLABELS is used to classify all states which transform with the same symmetry
 C.. for the excitation generation routines
@@ -184,21 +185,42 @@ C.. The characters of this class are stored in SYMLABELCHARS(1:NROT, SymClasses(
 C.. The total number of symmetry labels is NSYMLABELS
 !.. SYMREPS(1,IBASISFN) contains the numnber of the representation
 !.. of which IBASISFN is a part.
-         DO I=1,NHG,2
-            IF(GG(I).NE.0) THEN
-               NSL((GG(I)+1)/2)=SymClasses((I+1)/2)
-            ENDIF
-         ENDDO
-         DO I=1,NBASIS/2
-            SymClasses(I)=NSL(I)
-C            WRITE(6,*) "SL",I,SymClasses(I)
-         ENDDO
-         DO i=1,nhg
-            IF(GG(i).ne.0) NSL(GG(i))=Symreps(1,i)
-         enddo
-         DO i=1,nbasis
-            Symreps(1,i)=NSL(i)
-         enddo
+         IF(.NOT.FRZ) THEN
+            DO I=1,NHG,2
+                IF(GG(I).NE.0) THEN
+                    NSL((GG(I)+1)/2)=SymClasses((I+1)/2)
+                ENDIF
+            ENDDO
+            DO I=1,NBASIS/2
+                SymClasses(I)=NSL(I)
+C               WRITE(6,*) "SL",I,SymClasses(I)
+            ENDDO
+            DO i=1,nhg
+                IF(GG(i).ne.0) NSL(GG(i))=Symreps(1,i)
+            enddo
+            DO i=1,nbasis
+                Symreps(1,i)=NSL(i)
+            enddo
+        ELSE
+            IF(IP_SYMCLASSES2.ne.0) STOP 'Problem in freezing'
+            CALL MEMORY(IP_SYMCLASSES2,NBASIS/2,'SYMCLASSES2')
+            DO I=1,NHG,2
+                IF(GG(I).NE.0) THEN
+                    NSL((GG(I)+1)/2)=SymClasses((I+1)/2)
+                ENDIF
+            ENDDO
+            DO I=1,NBASIS/2
+                SymClasses2(I)=NSL(I)
+C               WRITE(6,*) "SL",I,SymClasses(I)
+            ENDDO
+            DO i=1,nhg
+                IF(GG(i).ne.0) NSL(GG(i))=Symreps(1,i)
+            enddo
+            DO i=1,nbasis
+                Symreps(1,i)=NSL(i)
+            enddo
+        ENDIF
+            
       END
 
       SUBROUTINE GENMOLPSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
@@ -259,17 +281,27 @@ C.. delete a symmetry table if one existed.
       END
 
 C.. Precompute a list of the symmetry product of all pairs of symmetry labels
-      SUBROUTINE GENSymStatePairs(NSTATES)
+      SUBROUTINE GENSymStatePairs(NSTATES,FRZ)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
          INTEGER TEMPLIST(NSTATES)
+         LOGICAL FRZ
+         !May need to deallocate, since this info is allocated in storage of UMAT before freezing
+         IF(IP_SYMLABELLIST.ne.0) CALL FREEM(IP_SYMLABELLIST)
+         IF(IP_SYMLABELCOUNTS.ne.0) CALL FREEM(IP_SYMLABELCOUNTS)
+         IF(IP_SYMSTATEPAIRS.ne.0) CALL FREEM(IP_SYMSTATEPAIRS)
+         IF(IP_SYMPAIRPRODS.ne.0) CALL FREEM(IP_SYMPAIRPRODS)
          CALL MEMORY(IP_SYMLABELLIST,NSTATES,'SYMLABELLIST')
          CALL MEMORY(IP_SYMLABELCOUNTS,2*NSYMLABELS,'SYMLABELCOUNTS')
 C.. First deal with listing single states
          DO I=1,NSTATES
             SYMLABELLIST(I)=I
-            TEMPLIST(I)=SymClasses(I)
+                IF(FRZ) THEN
+                    TEMPLIST(I)=SymClasses2(I)
+                ELSE
+                    TEMPLIST(I)=SymClasses(I)
+                ENDIF
          ENDDO
 C.. order according to sym label, so SYMLABELLIST gets a list of states grouped under SYMLABEL
          CALL SORT2I(NSTATES,TEMPLIST,SYMLABELLIST)
@@ -306,7 +338,7 @@ C.. Now deal with pairs of states
      &         SymPairProdSize*nSymLabels*nSymLabels)
 C.. Now enumerate all pairs, and classify their product, but don't store them.
          nSymPairProds=0
-         CALL GENALLSymStatePairs(NSTATES,.FALSE.)
+         CALL GENALLSymStatePairs(NSTATES,.FALSE.,FRZ)
 
 C.. Now sort the SymPairProds into order
          CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
@@ -322,13 +354,13 @@ C.. Now sort the SymPairProds into order
      &         TOT*2,
      &      "SymStatePairs")
          CALL IAZZERO(SymStatePairs,TOT*2)
-         CALL GENALLSymStatePairs(NSTATES,.TRUE.)
+         CALL GENALLSymStatePairs(NSTATES,.TRUE.,FRZ)
       END
 
-      SUBROUTINE GENALLSymStatePairs(NSTATES,TSTORE)
+      SUBROUTINE GENALLSymStatePairs(NSTATES,TSTORE,FRZ)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         LOGICAL TSTORE
+         LOGICAL TSTORE,FRZ
          INTEGER I,J
          TYPE(Symmetry) PROD
          TYPE(Symmetry) SYMPROD
@@ -338,8 +370,13 @@ CSYMLABELS
             DO J=I,NSTATES
 CSYMLABELS
 C               WRITE(6,*) I,J,SymClasses(I),SymClasses(J)
+                IF(FRZ) THEN
+               PROD=SYMPROD(SymLabels(SymClasses2(I)),
+     &               SymLabels(SymClasses2(J)))
+                ELSE
                PROD=SYMPROD(SymLabels(SymClasses(I)),
      &               SymLabels(SymClasses(J)))
+                ENDIF
                CALL FindSymProd(Prod,SymPairProds,nSymPairProds,iProd)
                IF(TSTORE) THEN
 C.. put the pair into the list of pairs.
@@ -1573,3 +1610,33 @@ C.. Set to be totally symmetric
          enddo
          Sym%s=ComposeAbelianSym(abel)
       end subroutine IncrSym
+
+      SUBROUTINE GETSYMTMATSIZE(Nirrep,nBasis,iSS,iSize)
+        implicit none
+        include 'sym.inc'
+        integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
+        integer*8 iSize
+        nBi=nBasis/iSS
+        iSize=0
+        CALL MEMORY(IP_SYMLABELINTSCUM,Nirrep,'SYMLABELINTSCUM')
+        CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
+        CALL MEMORY(IP_SYMLABELCOUNTSCUM,Nirrep,'SYMLABELCOUNTSCUM')
+        CALL IAZZERO(SYMLABELCOUNTSCUM,Nirrep)
+        do i=1,Nirrep
+            basirrep=SYMLABELCOUNTS(2,i)
+            iSize=iSize+(basirrep*(basirrep+1))/2
+            SYMLABELINTSCUM(i)=iSize
+            IF(i.eq.1) THEN
+                SYMLABELCOUNTSCUM(i)=0
+            ELSE
+                DO t=1,(i-1)
+                    SYMLABELCOUNTSCUM(i)=SYMLABELCOUNTSCUM(i)+
+     &                   SYMLABELCOUNTS(2,t)
+                ENDDO
+            ENDIF
+            write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
+            call flush(6)
+        enddo
+        iSize=iSize+2
+        !This is to allow the index of '-1' in the array to give a zero value
+      END SUBROUTINE GETSYMTMATSIZE

@@ -21,7 +21,7 @@ C.. DLWDB = d ln (wi) / d Beta.
 
 
       SUBROUTINE  MCPATHSR10(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMat,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElement
@@ -38,7 +38,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          INTEGER FSEEK,L,LT,ITIME,K,J
          REAL*8 BETA,ECORE,TIMEC
          TYPE(HDElement) WLRI,WLSI,FMCPR3
-         TYPE(HElement) UMat(*),TMat(*),RH
+         TYPE(HElement) UMat(*),RH
          REAL*8 NTOTAL
          REAL*8 TIGET
 
@@ -104,9 +104,9 @@ C.. go to end of file
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
 C     &            HIJS(0))
          RHOII(0)=RH
          RHOIJ(0,0)=RH
@@ -136,7 +136,7 @@ C     &            HIJS(0))
             
             CALL TISET('PRECALC ',ISUBPRE)
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
-     &       G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
@@ -174,7 +174,7 @@ C.. This code generates list of all excitations at each level
             WRITE(6,"(A6,I3,A,I3,A)") "Level ",I," Full Sum Old ",
      &         I_V," Vertex"
             F(I_V)=FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
      &            CNWHTAY,L,LT,I_CHMAX,NLIST,LSTP,
      &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,
@@ -187,7 +187,7 @@ C.. This code generates list of all excitations at each level
             
 C.. This code generates excitations on the fly
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
-     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
@@ -206,7 +206,7 @@ C.. matrix of hij instead of rhoij
 !        write(*,*) "from mcpaths.F", EREF%v 
             
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
-     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
@@ -215,7 +215,7 @@ C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
                F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,
      &            NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            LSTE,ICE,RIJLIST,L,LT,
      &            CNWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_CHMAX.EQ.-21) THEN
@@ -223,13 +223,13 @@ C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=fMCPR3StarNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,
      &            NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
      &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
                F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,CNWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS
      &   )
@@ -291,7 +291,7 @@ C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightin
       
               WLSI=TOTAL
               CALL MCPATHSR4(NI,BETA,I_P,I_CHMAX,I_V2,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,CNWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_V1)
                F(I_V)=WLSI
@@ -312,12 +312,12 @@ C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightin
                   DLWDB2=0.D0
                   IF(I_CHMAX.EQ.-3) THEN
                      FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ELSEIF(I_CHMAX.EQ.-4) THEN
                      FF=FMCPR4C(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &                 RHOEPS,RHOII,RHOIJ,CNWHTAY,I_CHMAX,ILOGGING,TSYM,
      &                  ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS)
                   ENDIF
@@ -406,7 +406,7 @@ C.. If we must calculate DLWDB along with WI, we set its value.
 C.. If we leave it as it is, we will be called again to calculated it.
 C.. MCPATHSR3 has the same method at each vertex level
       SUBROUTINE  MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElement
@@ -418,7 +418,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
          COMPLEX*16 FCK(*)
-         TYPE(HElement) UMat(*), TMat(*),RH
+         TYPE(HElement) UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,ISUB,I,I_V,ISUB2
          INTEGER FSEEK,L,LT,ITIME,K
@@ -465,13 +465,13 @@ C         CALL WRITEDET(6,NI,NEL,.TRUE.)
          ENDIF
          IF(I_VMAX.EQ.0.AND.I_HMAX.EQ.0) THEN
             CALL WIRHODIAG(NI,BETA,I_P,NEL,
-     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &         RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
             RETURN
          ENDIF
 C         IF(I_HMAX.EQ.-2) THEN
 C            CALL WIRHODIAG_SUB(NI,BETA,I_P,NEL,
-C     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+C     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
 C     &         RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI,I_VMAX)
 C            RETURN
 C         ENDIF
@@ -480,7 +480,7 @@ C         ENDIF
 C.. Importance sampling monte-carlo
 C.. H=-3 is unbiased, and H=-4 is biased
             CALL MCPATHSR4(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,0)
             CALL WRITECLASSPATHS()
@@ -488,7 +488,7 @@ C.. H=-3 is unbiased, and H=-4 is biased
          ELSEIF(I_HMAX.EQ.-5) THEN
 C.. Markov Chain Monte Carlo
             CALL MCPATHSR5(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI)
             CALL WRITECLASSPATHS()
@@ -496,14 +496,14 @@ C.. Markov Chain Monte Carlo
          ELSEIF(I_HMAX.EQ.-6) THEN
 C.. Pick the largest cluster
             CALL MCPATHSR6(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
             RETURN
          ELSEIF(I_HMAX.EQ.-10) THEN
 C.. Use a different method at each vertex level
             CALL MCPATHSR10(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
             RETURN
@@ -511,7 +511,7 @@ C.. Use a different method at each vertex level
          IF(I_VMAX.EQ.0) THEN
 C.. Pick graphs which may not contain distinct vertices 
             CALL MCPATHSR2(NI,BETA,I_P,I_HMAX,NEL,NBASISMAX,G1,
-     &              NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,
      &               TSYM)
             RETURN
@@ -532,9 +532,9 @@ C.. go to end of file
 C.. Set the first node to I_I
          CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
 C     &            HIJS(0))
          RHOII(0)=RH
          RHOIJ(0,0)=RH
@@ -561,7 +561,7 @@ C.. This code generates list of all excitations at each level
             WRITE(6,"(A,I3,A)") " Full Sum Old ",
      &         I_V," Vertex"
             F(I_V)=FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,RHOII,RHOIJ,LSTE,ICE,RIJLIST,
      &            NWHTAY,L,LT,I_HMAX,NLIST,LSTP,
      &            BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2,HIJS,
@@ -574,7 +574,7 @@ C.. This code generates excitations on the fly
                EREF=DLWDB/TOTAL
             
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
-     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &        RHOEPS,0,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
@@ -587,7 +587,7 @@ C.. HIJ rather than RHOIJ
             EREF=DLWDB/TOTAL
             
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
-     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &        RHOEPS,0,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
@@ -596,7 +596,7 @@ C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected.
                F(I_V)=FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,
      &            NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            LSTE,ICE,RIJLIST,L,LT,
      &            NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_HMAX.EQ.-21) THEN
@@ -604,7 +604,7 @@ C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,
      &            NBASIS,
-     &            BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
      &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
             ENDIF
@@ -665,7 +665,7 @@ C.. node for each set.  All nodes are distinct.  Paths IJIKJI etc.
 C.. are generated by permutation from IJKI, and summed up to length I_HMAX
 C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04). 
       RECURSIVE FUNCTION FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
      &   MP2E,NTOTAL)
@@ -680,7 +680,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
          REAL*8 ALAT(*),ECORE
          COMPLEX*16 FCK(*)
          TYPE(HDElement) CALCPATHS_N
-         TYPE(HElement) UMat(*),TMat(*),R
+         TYPE(HElement) UMat(*),R
          INTEGER IPATH(NEL,0:I_V)
          TYPE(HDElement) RHOCUML,TOTAL,RHOII(0:I_V)
          TYPE(HElement) RHOIJ(0:I_V,0:I_V)
@@ -727,7 +727,7 @@ C.. Find RHO_II for this node
             R=1.D0
          ENDIF
          CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
@@ -817,7 +817,7 @@ C.. we are not connected.
          DO I=1,NLIST(I_VIND)
             IF(LSTE(1,I,I_VIND).NE.0) THEN
                CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_VIND),BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &            RH,NTAY,ICE(I,I_VIND),ECORE)
                IF(RH.AGE.RHOEPS) THEN
                   IF(II.NE.I) 
@@ -914,7 +914,7 @@ C.. we now calculate the RHOIJ for the previous nodes to connect to the new one
 C.. we've already calculated the RHO to the node to which we are connected.
                         CALL CALCRHO2(IPATH(1:NEL,II),
      &                   LSTE(1:NEL,I,IVLEVEL),BETA,I_P,
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
+     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                         IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. These two vertices are not connected, which is as we want
@@ -941,11 +941,11 @@ C.. Add the new node to the path, and then recurse from it
 C.. Get the H element so we can calculate the energy
                   HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
      &               IPATH(1,I_VIND+1),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,ECORE)
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
                   BTABLE(I_VIND+1)=IVLEVEL
                   TOTAL=TOTAL+
      &                     FMCPR3(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                     G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                     G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,LSTE,
      &                     ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,NLIST,
      &                     LSTP2,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,
@@ -984,7 +984,7 @@ C..             If 1 only allow singles.
 C.. Bit 4 (16)  If 0 allow all types of excitations
 C.,             If 1, only allow doubles.
       RECURSIVE FUNCTION FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,EREF,VARSUM,WREF)
@@ -996,7 +996,7 @@ C.,             If 1, only allow doubles.
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I
          COMPLEX*16 FCK(*)
-         TYPE(HElement) TMat(*),UMAT(*),R
+         TYPE(HElement) UMAT(*),R
          REAL*8 ALAT(*),ECORE,PR
          TYPE(HDElement) TOTAL,FMCPR3B,WREF,EREF,PROB
          TYPE(HDElement) CALCPATHS_N
@@ -1087,7 +1087,7 @@ C.. the amount of memory used to store it)
 C.. This is the current node (set by our parent)         
          CALL ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
          CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
@@ -1314,7 +1314,7 @@ C.. Now make sure it's not already in the path
                IF(.NOT.TFAIL) THEN
 C.. see if we're connected to what we were excited from
                   CALL CALCRHO2(IPATH(1,IEXFROM),NJ,BETA,I_P,
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
+     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,
      &                   ALAT,UMAT,RH,NTAY,IC,ECORE)
                   IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. if we're not connected to this node, we fail now
@@ -1331,7 +1331,7 @@ C.. we don't need to calc the connection to the node we excited from
 C.. because we've just done that
                   IF(.NOT.TFAIL.AND.II.NE.IEXFROM) THEN
                      CALL CALCRHO2(IPATH(1,II),NJ,BETA,I_P,
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
+     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                      IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
                      RHOIJ(I_VIND+1,II)=DCONJG(RH)
@@ -1412,10 +1412,10 @@ C.. Add it to the path, and recurse
 C.. Get the H element so we can calculate the energy
                    HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
      &               IPATH(1,I_VIND+1),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,ECORE)
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
                    TOTAL=TOTAL+
      &                  FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                     G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                     G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
@@ -1619,14 +1619,14 @@ C.. 1/6/05 - This will not work - as one disconnects a matrix
 C.. progressively, the sparsity in the remaining elements decreases
 C.. dramatically.  Code unfinished
       REAL*8 FUNCTION FMCPR3STARJ(NI,BETA,I_P,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,
      &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
             
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
-         REAL*8 FCK(*), TMat(*),ALAT(*),UMAT(*),ECORE
+         REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE
          INTEGER NI(NEL),ILMAX
 C.. LSTE is a list of excitations (which we will generate)
 C.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
@@ -1679,7 +1679,7 @@ C.. Allocate storage space for the connections
             IF(ICE(I).EQ.0.AND.I.GT.0) LSTE(1,I)=0
             IF(LSTE(1,I).NE.0) THEN
                CALL CALCRHO2(NI,LSTE(1,I),BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &            RH,NTAY,ICE(I),ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
                   IF(NLCUR.NE.I) 
@@ -1689,12 +1689,12 @@ C.. Allocate storage space for the connections
                   IF(NLCUR.EQ.0) RHII=RH
                   LIST(NLCUR,1)=RH/RHII
                   CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &              RH,NTAY,0,ECORE)
                   LIST(NLCUR,0)=RH/RHII
                   LIST(NLCUR,2)=GETHELEMENT2(NI,
      &               LSTE(1,I),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,ECORE)
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
 C                  WRITE(6,*) (LIST(NLCUR,J),J=0,2)
                   NLCUR=NLCUR+1
                ENDIF
@@ -1721,7 +1721,7 @@ C.. First list all the connections to the current node I to nodes after
 C.. it
             DO J=I+1,NLCUR
                CALL CALCRHO2(LSTE(1,I),LSTE(1,J),BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &              RH,NTAY,-1,ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
                   IF(CONLIST(I)+NCUR.GT.NCONN)
@@ -1816,7 +1816,7 @@ C.. diagonalised.
 C.. This calls ADDDIAGSTAR which writes the relevant roots to a file,
 C.. and also includes the removal of subgraphs
       RECURSIVE REAL*8 FUNCTION FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS
      &   )
@@ -1825,7 +1825,7 @@ C.. and also includes the removal of subgraphs
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I,IVLMAX
-         REAL*8 FCK(*), TMat(*),ALAT(*),UMAT(*),ECORE,TOTAL,R
+         REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE,TOTAL,R
          REAL*8 CALCPATHS_N
          REAL*8 RHOCUML
          INTEGER IPATH(NEL,0:I_V)
@@ -1871,7 +1871,7 @@ C.. Find RHO_II for this node
             R=1.D0
          ENDIF
          CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,
-     &   G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+     &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
@@ -1938,7 +1938,7 @@ C.. we are not connected.
          DO I=1,NLIST(I_VIND)
             IF(LSTE(1,I,I_VIND).NE.0) THEN
                CALL CALCRHO2(INODE,LSTE(1:NEL,I,I_VIND),BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &            RH,NTAY,ICE(I,I_VIND),ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
                   IF(II.NE.I) 
@@ -2028,7 +2028,7 @@ C.. we now calculate the RHOIJ for the previous nodes to connect to the new one
 C.. we've already calculated the RHO to the node to which we are connected.
                         CALL CALCRHO2(IPATH(1:NEL,II),
      &                   LSTE(1:NEL,I,IVLEVEL),BETA,I_P,
-     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,
+     &                   NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                         IF(ABS(RH).LE.RHOEPS) THEN
 C.. These two vertices are not connected, which is as we want
@@ -2055,11 +2055,11 @@ C.. Add the new node to the path, and then recurse from it
 C.. Get the H element so we can calculate the energy
                   HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
      &               IPATH(1,I_VIND+1),NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,ECORE)
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,ECORE)
                   BTABLE(I_VIND+1)=IVLEVEL
                   TOTAL=TOTAL+
      &                 FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                     G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                     G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,RHOII,RHOIJ,LSTE,
      &                     ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,NLIST,
      &                     LSTP2,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,

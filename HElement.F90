@@ -220,14 +220,14 @@ MODULE HElement
 !.. IC is the number of basis fns that differ in NI and NJ (or -1 if not known)
 !.. ECORE is the uniform background energy
 
-      TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,iC2,ECore)
+      TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
          INTEGER NMSH,NMAX
          COMPLEX*16 FCK(*)
          REAL*8 ALAT(*)
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*)
-         TYPE(HElement) TMat(*),UMat(*)
+         TYPE(HElement) UMat(*)
          INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,2),iC2
          REAL*8 ECore
          TYPE(HElement) Sum,Sum2
@@ -235,7 +235,7 @@ MODULE HElement
          LOGICAL ISCSF
          INTEGER ISUB
          IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
-            CALL CSFGETHELEMENT(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,TMat,NMAX,ALAT,UMat,ECore,Sum2)
+            CALL CSFGETHELEMENT(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,Sum2)
             GETHELEMENT2=SUM2
             RETURN
          ENDIF
@@ -246,7 +246,7 @@ MODULE HElement
          IF(IC.GT.2) RETURN
 !.. SLTCND has IC is # electrons the same in 2 dets
          CALL TISETL('GETHELEM2 ',ISUB,60)
-         CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,TMat,NMAX,ALAT,UMat,Sum)
+         CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum)
          GetHElement2=Sum
          IF(iC.EQ.0) GetHElement2%v=GetHElement2%v+ECore
 !         CALL WRITEDET(6,NI,NEL,.FALSE.)

@@ -1,7 +1,7 @@
 C.. This is based upon the GEN_COUL for electrons in a cubic box
 C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_HUBNPBC(NEL,NBASISMAX,
-     &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS,THUB,UHUB,OMEGA)
+     &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA)
       USE UMatCache , only : UMatInd
       IMPLICIT NONE
       INCLUDE 'basis.inc'
@@ -11,7 +11,7 @@ C.. but with a simpler coulomb integral
       REAL*8 UHUB,OMEGA
 C..Cube arrays
       COMPLEX*16 FCK(-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1)
-      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
+!      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
       LOGICAL THUB,CHKMOMEQ,LCHKSYM
       INTEGER NHG,NMSH,NMAX
       INTEGER KA(4),KB(4),M
@@ -41,7 +41,7 @@ C ==--------------------------------------------------------------------==
               SUM=1.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
-C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
+C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               CALL GTID(NBASISMAX,I,ID1)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
@@ -88,7 +88,7 @@ C ==------------------------------------------------------------------==
 C.. This is based upon the GEN_COUL for electrons in a cubic box
 C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_UEG(NEL,NBASISMAX,
-     &   NHG,G1,NMSH,NMAX,FCK,ZIA,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
+     &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
       USE UMatCache , only : UMatInd, iPeriodicDampingType
       IMPLICIT REAL*8 (A-H,O-Z)
       INCLUDE 'basis.inc'
@@ -97,7 +97,7 @@ C.. but with a simpler coulomb integral
       DIMENSION UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 C..Cube arrays
       COMPLEX*16 FCK(-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1)
-      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
+!      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
       LOGICAL THUB,CHKMOMEQ,LCHKSYM
       INTEGER KA(4),KB(4),M
       INTEGER A,B,C,D,TX,TY
@@ -123,7 +123,7 @@ C ==--------------------------------------------------------------------==
               SUM=0.D0
 C..Original call
 C              CALL SLATCOULFOU(G1(1,I),G1(1,J),
-C     &		G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
+C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               CALL GTID(NBASISMAX,I,ID1)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
@@ -209,7 +209,7 @@ CC  v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
 
 CC Old UEG - doesn't seem to work
 C                 CALL SLATCOULFOUCOU(G1(1,I),G1(1,J),
-C     &            G1(1,K),G1(1,L),NMSH,FCK,ZIA,NMAX,SUM)
+C     &            G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
 C                 ENDIF
                ENDIF
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
@@ -237,7 +237,7 @@ C ==--------------------------------------------------------------------==
 C ==------------------------------------------------------------------==
 C ========================================================
       SUBROUTINE SLATCOULFOUCOU(G1,G2,G1P,G2P,N,
-     &     CK,ZIA,NMAX,OUT)
+     &     CK,NMAX,OUT)
 C=========================================================
 C.. Returns the Couloumb integral between the Slater
 C.. determinants of plane wave basis, using the Fourier
@@ -246,7 +246,7 @@ C=========================================================
       IMPLICIT REAL*8(A-H,O-Z)
       INTEGER P,Q
       INTEGER G1(4),G2(4),G1P(4),G2P(4)
-      COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX)
+!      COMPLEX*16 ZIA(-N/2:N/2,NMAX,NMAX)
       COMPLEX*16 CK(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       INTEGER GD1,GD2,I,GD(3)
       LOGICAL T,T2

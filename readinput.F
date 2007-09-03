@@ -105,7 +105,7 @@
       
       TMPTHEORY=.FALSE.
       TNEWEXCITATIONS=.FALSE.
-
+      TSTARBIN=.false.
       TNPDERIV = .false.
       TMONTE = .false.
       IMCSTEPS = 0
@@ -189,6 +189,14 @@
         case("SYSTEM")
             call readu(w)
             select case(w)
+            case("STARBINREAD")
+                TSTARBIN = .true.
+                TREADINT = .true.
+                call readu(w)
+                select case(w)
+                case("ORDER")
+                    THFORDER = .true.
+                end select
             case("DFREAD")
                 TREADINT = .true.
                 TDFREAD = .true.

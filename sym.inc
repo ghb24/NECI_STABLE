@@ -33,6 +33,8 @@
          POINTER (IP_SYMLABELS,SYMLABELS)
          INTEGER SymClasses(*)
          POINTER (IP_SymClasses,SymClasses)
+         INTEGER SymClasses2(*)
+         POINTER (IP_SymClasses2,SymClasses2)
          COMPLEX*16 SYMLABELCHARS(NROT,NSYMLABELS)
          INTEGER NSYMLABELS
          POINTER (IP_SYMLABELCHARS,SYMLABELCHARS)
@@ -40,10 +42,22 @@
          INTEGER SYMLABELLIST(*)
 !.. SYMLABELCOUNTS(1,I) is the index within SYMLABELLIST of the first state of symlabel I
 !.. SYMLABELCOUNTS(2,I) is the number of states with symlabel I
+!.. SYMLABELCOUNTSCUM(I) is the cumulative number of states with symlabel I
+!.. SYMLABELINTSCUM(I) is the cumulative number of one-electron integrals with symlabel I
+
          INTEGER SYMLABELCOUNTS(2,*)
          POINTER (IP_SYMLABELLIST,SYMLABELLIST)
          POINTER (IP_SYMLABELCOUNTS,SYMLABELCOUNTS)
-!.. NROT is the number of symmetry operations
+         INTEGER SYMLABELCOUNTSCUM(*)
+         POINTER (IP_SYMLABELCOUNTSCUM,SYMLABELCOUNTSCUM)
+         INTEGER SYMLABELINTSCUM(*)
+         POINTER (IP_SYMLABELINTSCUM,SYMLABELINTSCUM)
+!.. These ones are for when freezing orbitals
+         INTEGER SYMLABELCOUNTSCUM2(*)
+         POINTER (IP_SYMLABELCOUNTSCUM2,SYMLABELCOUNTSCUM2)
+         INTEGER SYMLABELINTSCUM2(*)
+         POINTER (IP_SYMLABELINTSCUM2,SYMLABELINTSCUM2)
+         !.. NROT is the number of symmetry operations
          INTEGER NROT
 !.. All symmetries are decomposable into component irreps.
 !.. The characters corresponding to each irrep are in IRREPCHARS
@@ -68,4 +82,6 @@
      &               IP_SYMPAIRPRODS,NSYMPAIRPRODS,                     &
      &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,                 &
      &               TNEWEXCITATIONS,TAbelian,IP_SymClasses,            &
-     &               FrozenSym, IP_SymConjTab,
+     &               FrozenSym, IP_SymConjTab,IP_SYMLABELCOUNTSCUM,     &
+     &               IP_SYMLABELINTSCUM,IP_SYMLABELCOUNTSCUM2,          &
+     &               IP_SYMLABELINTSCUM2,IP_SYMCLASSES2

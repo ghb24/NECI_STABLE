@@ -25,7 +25,7 @@ C..             If 1 only allow singles.
 C.. Bit 4 (16)  If 0 allow all types of excitations
 C.,             If 1, only allow doubles.
       RECURSIVE FUNCTION FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,
-     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,NTAY,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF)
@@ -38,7 +38,7 @@ C.,             If 1, only allow doubles.
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I
          COMPLEX*16 FCK(*)
-         TYPE(HElement) TMat(*), UMAT(*),R
+         TYPE(HElement) UMAT(*),R
          REAL*8 ALAT(*),ECORE
          TYPE(HDElement) TOTAL,FMCPR3B2,Prob
          TYPE(HDElement) CALCPATHS_N
@@ -124,7 +124,7 @@ C.. the amount of memory used to store it)
 C.. This is the current node (set by our parent)         
          CALL ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
          RH=GETHELEMENT2(INODE,INODE,NEL,NBASISMAX,
-     &           G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,0,ECORE)
+     &           G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
          HIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
          IF(.NOT.(RH.AGT.0.D0)) THEN
@@ -404,7 +404,7 @@ C.. Now make sure it's not already in the path
                IF(.NOT.TFAIL) THEN
 C.. see if we're connected to what we were excited from
                  RH=GETHELEMENT2(IPATH(1,IEXFROM),NJ,NEL,NBASISMAX,
-     &              G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,IC,ECORE)
+     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
                   IF(.NOT.(RH.AGE.RHOEPS)) THEN
 C.. if we're not connected to this node, we fail now
                      RH=0.D0
@@ -420,7 +420,7 @@ C.. we don't need to calc the connection to the node we excited from
 C.. because we've just done that
                   IF(.NOT.TFAIL.AND.II.NE.IEXFROM) THEN
                      RH=GETHELEMENT2(IPATH(1,II),NJ,NEL,NBASISMAX,
-     &                  G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,-1,
+     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,-1,
      &                  ECORE)
                      IF(.NOT.(RH.AGE.RHOEPS)) RH=0.D0
                      HIJ(I_VIND+1,II)=DCONJG(RH)
@@ -491,7 +491,7 @@ C.. Get the H element so we can calculate the energy
                    HIJS(I_VIND+1)=HIJ(0,I_VIND+1)
                    TOTAL=TOTAL+
      &                  FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,
-     &                     G1,NBASIS,BRR,NMSH,FCK,TMat,NMAX,ALAT,UMAT,
+     &                     G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &                     NTAY,RHOEPS,I_VIND+1,HIJ,NWHTAY,
      &                     I_HMAX,LOCTAB2,ILOGGING,TSYM,ECORE,
      &                     DBETA,DLWDB,HIJS,L,LT,IFRZ,FSC2,MP2E,NTOTAL,
