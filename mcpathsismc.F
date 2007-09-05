@@ -2166,7 +2166,7 @@ C.. Update the rho and X (probability) matrices with this new node
                   RHOIJ(I_VNEXT,I_VNEXT)=RH
                ELSE
                   CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
-     &            NBASISMAX,G1,NBASIS,BRR,NMSH,NMAX,ALAT,UMAT,
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
                   RHOII(I_VNEXT)=RH
                   RHOIJ(I_VNEXT,I_VNEXT)=RH
