@@ -1045,11 +1045,7 @@ MODULE UMatCache
       read (21,*) nStatesDump
       readerr=0
       do while (readerr.eq.0)
-        read (21,*,iostat=readerr) i,j,k,l,iSlot,iPair,UMatEl
-        write (22,*) i,j,k,l,iSlot,iPair,UMatEl
-        if (i.eq.1.and.j.eq.1.and.k.eq.4.and.l.eq.5) then
-            write (6,*)
-        end if
+        read (21,*,iostat=readerr) i,j,k,l,UMatEl
         DummyUMatEl=UMatEl
         if (TTRANSFINDX) then
             i=TransTable(i)
@@ -1057,9 +1053,8 @@ MODULE UMatCache
             k=TransTable(k)
             l=TransTable(l)
         end if
-        if (min(i,j,k,l).gt.0) then
+        if (min(i,j,k,l).gt.0.and.max(i,j,k,l).le.nStates) then
             tDummy=GetCachedUMatEl(i,j,k,l,DummyUmatEl,iCache1,iCache2,A,B,iType)
-!           write(6,*) i,j,k,l,tDummy,DummyUmatEl
             call CacheUMatEl(A,B,UMatEl,iCache1,iCache2)
         end if
       end do
@@ -1102,7 +1097,7 @@ MODULE UMatCache
                       k=InvTransTable(k)
                       l=InvTransTable(l)
                   end if
-                  write (21,*) i,j,k,l,iSlot,iPair,UMatCacheData(:,ICACHE2,ICACHE1)
+                  write (21,*) i,j,k,l,UMatCacheData(:,ICACHE2,ICACHE1)
               end if
           end if
         end do
