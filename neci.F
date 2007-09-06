@@ -130,6 +130,7 @@ C ==-------------------------------------------------------------------==
       CALL TIMETAG()
       ECORE=0.D0
       IFDET=0
+      TRHOIJND=.false.
       CALL TISET('NECICUBE  ',ISUB)
 
 C..      CALL DOZSUM()

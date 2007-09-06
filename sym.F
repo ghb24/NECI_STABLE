@@ -253,6 +253,7 @@ C.. we have a new rep
 
 C.. delete a symmetry table if one existed.
       SUBROUTINE ENDSYM()
+         IMPLICIT NONE
          INCLUDE 'sym.inc'
          IF(IP_SYMTABLE.NE.0) CALL FREEM(IP_SYMTABLE)
          IP_SYMTABLE=0
@@ -270,10 +271,6 @@ C.. delete a symmetry table if one existed.
          IP_IRREPCHARS=0
          IF(IP_SymStatePairs.NE.0) CALL FREEM(IP_SymStatePairs)
          IP_SymStatePairs=0
-         IF(IP_SYMLABELPAIRLIST.NE.0) CALL FREEM(IP_SYMLABELPAIRLIST)
-         IP_SYMLABELPAIRLIST=0
-         IF(IP_SYMLABELPAIRPRODS.NE.0) CALL FREEM(IP_SYMLABELPAIRPRODS)
-         IP_SYMLABELPAIRPRODS=0
          IF(IP_SYMLABELLIST.NE.0) CALL FREEM(IP_SYMLABELLIST)
          IP_SYMLABELLIST=0
          IF(IP_SYMLABELCOUNTS.NE.0) CALL FREEM(IP_SYMLABELCOUNTS)

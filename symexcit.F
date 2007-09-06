@@ -822,7 +822,11 @@ C.. to actually generate the excitations
          INTEGER STORE(6),ICOUNT
          INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
          LOGICAL TSETUP
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
          INTEGER GET_ADDR
+#endif
          INTEGER ILEVEL
          IF(TSETUP) THEN
 C.. This is the first time we've been called for setup.
@@ -1191,7 +1195,11 @@ C.. before this.
          INTEGER STORE(6),ICOUNT
          INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
          LOGICAL TSETUP
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
          INTEGER GET_ADDR
+#endif
          INTEGER ISEED
          REAL*8 UMAT(*),PGEN
          REAL*8 ARR(NBASIS,2)
@@ -1446,7 +1454,11 @@ C.. Actually generate a det
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(*) 
          INTEGER DStore(*)
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
          INTEGER GET_ADDR
+#endif
          POINTER(IP_DSTORE,DSTORE)
          IP_DSTORE=GET_ADDR(nIExcitor(nIExcitor(1)))
          CALL IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,nBasis,
@@ -1490,7 +1502,11 @@ C.. Actually generate a det
          TYPE(BasisFN) G1(*) 
          TYPE(HElement) UMat(*)
          INTEGER DStore(*)
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
          INTEGER GET_ADDR
+#endif
          POINTER(IP_DSTORE,DSTORE)
          REAL*8 pGen
          REAL*8 Arr(nBasis,2)
@@ -1642,7 +1658,12 @@ C.. Count the excitations (and generate a random one which we throw)
          INTEGER IUNIT,I,J
          INTEGER*1 MEM(*),CH
          INTEGER ILEN,IPOST,INLEN,LEN,ILEAD
-         INTEGER ADDR,GET_ADDR,LEAD,POST,LINES
+         INTEGER ADDR,LEAD,POST,LINES
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
+         INTEGER GET_ADDR
+#endif
          PARAMETER LINELEN=16
          ILEN=INLEN*4
          LEN=ILEN

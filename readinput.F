@@ -47,10 +47,16 @@
 !     --------------------------------------------
 !     Set some sensible defaults here
       title = ""
+      I_HMAX=0
+      NFROZEN=0
+      NTFROZEN=0
+      ILOGGING = 0
+      TPARITY = .false.
       ISTATE = 1
       NMAXX = 0
       NMAXY = 0
       NMAXZ = 0
+      THFORDER=.false.
       TUEG = .false.
       THUB = .false.
       UEG = .false.
@@ -958,7 +964,6 @@ C.. multiple of 2
               end select
             end do integral
         case("LOGGING")
-            ILOGGING = 0
             logging: do
               call read_line(eof)
               if (eof) then
