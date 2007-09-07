@@ -15,7 +15,7 @@ C ==------------------------------------------------------------------==
      &   ,iPeriodicDampingType,WriteUMatCacheStats,TSTARBIN             &
      &   ,SetupTMAT,DestroyTMAT,TMATSYM,TMATSYM2,TMAT2D,TMAT2D2         &
      &   ,GetNEWTMATEl,NEWTMATInd,WriteTMAT,iDumpCacheFlag              &
-     &   ,tReadInCache,DumpUMATCache,SetupTMAT2
+     &   ,tReadInCache,DumpUMATCache,SetupTMAT2,nStatesDump
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -1894,7 +1894,7 @@ C          CLOSE(11)
 
 C..
       if ((btest(iDumpCacheFlag,0)
-     &              .and.(nStatesRead.lt.nStates.or..not.tReadInCache))
+     &              .and.(nStatesDump.lt.nStates.or..not.tReadInCache))
      &              .or.btest(iDumpCacheFlag,1)) then
           call DumpUMatCache(NHG,G1)
       end if
