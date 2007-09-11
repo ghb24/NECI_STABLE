@@ -66,7 +66,7 @@ C ==--------------------------------------------------------------------=
          DO WHILE (.TRUE.)
             
             READ(10,*,END=12) A,B,C,D,SUM
-              UMAT2(UMatInd(A,B,C,D))=SUM
+              UMAT2(UMatInd(A,B,C,D,0,0))=SUM
 C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM
 !              UMAT2(B,A,D,C)=SUM
@@ -130,7 +130,7 @@ C.. Generic spatial symmetry
          NHG=NBASIS
          CALL TISET('CALCHFUMAT',ISUB)
          WRITE(6,*) 'CALCULATING HF UMAT'
-         STOP "HF UMAT calculation broken through UMAT reindexing."
+         STOP "HF UMAT calculation broken through UMAT/TMAT reindexing."
      &      //"  Please fix"
 C ==--------------------------------------------------------------------==
          OPEN(10,FILE='UMAT2',STATUS='UNKNOWN')
@@ -149,9 +149,9 @@ C.. Thus the sum A+C must be even, as must B+D
              DO I=1,NHG
               CALL GTID(NBASISMAX,I,ID1)
               SUM=SUM+HFBASIS(A,I)
-     &               *UMAT(UMatInd(ID1,J,K,L))
+     &               *UMAT(UMatInd(ID1,J,K,L,0,0))
              ENDDO
-             UMATT(UMatInd(J,K,L,A))=SUM
+             UMATT(UMatInd(J,K,L,A,0,0))=SUM
 !             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) J,K,L,A,SUM
             ENDDO
            ENDDO
@@ -166,9 +166,9 @@ C.. Thus the sum A+C must be even, as must B+D
              DO J=1,NHG
               CALL GTID(NBASISMAX,J,ID2)
               SUM=SUM+HFBASIS(B,J)
-     &               *UMATT(UMatInd(ID2,K,L,A))
+     &               *UMATT(UMatInd(ID2,K,L,A,0,0))
              ENDDO
-             UMAT2(UMatInd(K,L,A,B))=SUM
+             UMAT2(UMatInd(K,L,A,B,0,0))=SUM
 !             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) K,L,A,B,SUM
             ENDDO
            ENDDO
@@ -183,9 +183,9 @@ C.. Thus the sum A+C must be even, as must B+D
              DO K=1,NHG
               CALL GTID(NBASISMAX,K,ID3)
               SUM=SUM+HFBASIS(C,K)
-     &               *UMAT2(UMatInd(ID3,L,A,B))
+     &               *UMAT2(UMatInd(ID3,L,A,B,0,0))
              ENDDO
-             UMATT(UMatInd(L,A,B,C))=SUM
+             UMATT(UMatInd(L,A,B,C,0,0))=SUM
 !             IF(ABS(SUM).GT.1.D-9) WRITE(6,*) L,A,B,C,SUM
             ENDDO
            ENDDO
@@ -198,14 +198,14 @@ C.. Thus the sum A+C must be even, as must B+D
            DO C=1,NORBUSED
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
-             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D)).EQ.0.D0) THEN
+             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D,0,0)).EQ.0.D0) THEN
               SUM=0.D0
               DO L=1,NHG
                CALL GTID(NBASISMAX,L,ID4)
                SUM=SUM+HFBASIS(D,L)
-     &                *UMATT(UMatInd(ID4,A,B,C))
+     &                *UMATT(UMatInd(ID4,A,B,C,0,0))
               ENDDO
-              UMAT2(UMatInd(A,B,C,D))=SUM
+              UMAT2(UMatInd(A,B,C,D,0,0))=SUM
 C..Symmetries not needed by UMatInd
 !              UMAT2(C,D,A,B)=SUM
 !              UMAT2(B,A,D,C)=SUM
@@ -541,10 +541,12 @@ C.. Now sum in the alpha and beta block of u matrix
                            CALL GTID(NBASISMAX,(K-1)*NSPINS+ISPN2,ID3)
                            CALL GTID(NBASISMAX,(L-1)*NSPINS+ISPN2,ID4)
                            TOT=TOT+RHFMUL*
-     &                    DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID2,ID4))
+     &                  DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID2,ID4,
+     &                               0,0))
                            IF(ISPN2.EQ.ISPN)
      &                        TOT=TOT-
-     &                   DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID4,ID2))
+     &                  DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID4,ID2
+     &                                      ,0,0))
                         ENDDO
                      ENDDO
                   ENDDO
@@ -1317,11 +1319,15 @@ C.. Here A and C correspond to J and B corresponds to K
                               TOT2=0.D0
                               CALL GTID(NBASISMAX,
      &                           (C-1)*NSPINS+1+JSPN-1,IDC)
-                              TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB))
-                              TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF))
+                              TOT2=TOT2+UMAT(UMatInd(IDA,IDF,IDC,IDB
+     &                                       ,0,0))
+                              TOT2=TOT2+UMAT(UMatInd(IDA,IDB,IDC,IDF
+     &                                       ,0,0))
                               IF(KSPN.EQ.JSPN) THEN                  
-                                TOT2=TOT2-UMAT(UmatInd(IDA,IDF,IDB,IDC))
-                                TOT2=TOT2-UMAT(UMatInd(IDA,IDB,IDF,IDC))
+                              TOT2=TOT2-UMAT(UmatInd(IDA,IDF,IDB,IDC
+     &                                       ,0,0))
+                              TOT2=TOT2-UMAT(UMatInd(IDA,IDB,IDF,IDC
+     &                                       ,0,0))
                               ENDIF
                               TOT1B=TOT1B+TOT2*CMAT(J,C,JSPN)
                            ENDDO

@@ -42,8 +42,18 @@ MODULE UMatCache
       TYPE(HElement), dimension(:,:), POINTER :: TMAT2D2
       logical TSTARBIN
         SAVE TMAT2D,TMATSYM,TSTARBIN,TMATSYM2,TMAT2D2
-      
 
+! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
+! This is needed for the memory saving star indexing system.
+! E.g. Element 4 will give the the order in the energy of element 4
+     INTEGER, DIMENSION(:), POINTER :: INVBRR
+     INTEGER, DIMENSION(:), POINTER :: INVBRR2
+     SAVE INVBRR,INVBRR2
+
+!NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker than passing it in each time.
+!Freezetransfer is a temporary measure to tell UMATIND when the freezing of orbitals is occuring.
+      INTEGER,SAVE :: NOCC
+      LOGICAL,SAVE :: FREEZETRANSFER
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
 !    1 means attenuated (using an erfc)
@@ -80,26 +90,150 @@ MODULE UMatCache
 
       Contains
 
-! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>K, J>L,(I,K)>(K,L) 
-!NB This is a different order from UMatCache
-      INTEGER FUNCTION UMatInd(I,J,K,L)
+      !Create new INVBRR for the freezing process
+      SUBROUTINE CREATEINVBRR2(BRR2,NBASIS)
+        IMPLICIT NONE
+        INTEGER BRR2(NBASIS),NBASIS,ierr,I,t
+
+        ALLOCATE(INVBRR2(NBASIS/2),STAT=ierr)
+        CALL MemAlloc(ierr,INVBRR2,NBASIS/2,'INVBRR2')
+        CALL IAZZERO(INVBRR2,NBASIS/2)
+        t=0
+        DO I=2,NBASIS,2
+            t=t+1
+            INVBRR2(BRR2(I)/2)=t
+        ENDDO
+        RETURN
+      END
+
+      
+      SUBROUTINE CREATEINVBRR(BRR,NBASIS)
+        IMPLICIT NONE
+        INTEGER BRR(NBASIS),NBASIS,ierr,I,t
+
+        IF(ALLOCATED(INVBRR)) THEN
+            CALL MemDealloc(INVBRR)
+            DEALLOCATE(INVBRR)
+        ENDIF
+        ALLOCATE(INVBRR(NBASIS/2),STAT=ierr)
+        CALL MemAlloc(ierr,INVBRR,NBASIS/2,'INVBRR')
+        CALL IAZZERO(INVBRR,NBASIS/2)
+        t=0
+        DO I=2,NBASIS,2
+            t=t+1
+            INVBRR(BRR(I)/2)=t
+        ENDDO
+!        DO I=1,NBASIS/2
+!            WRITE(11,*) INVBRR(I)
+!        ENDDO
+        return
+      END
+
+      
+! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>K, J>L,(I,K)>(J,L) 
+!NB This is a different order from UMatCache. Orbitals are passed as arguments for spatial orbitals
+!If NBASIS or NOCCUPIED is passed in as zero, the values defined in the module are used, which are set elsewhere.
+      INTEGER FUNCTION UMatInd(I,J,K,L,NBASIS,NOCCUPIED)
          IMPLICIT NONE
-         INTEGER I,J,K,L,A,B
-         IF(I.GT.K) THEN
-            A=(I*(I-1))/2+K
+         INTEGER I,J,K,L,AA,BB,NBASIS
+         INTEGER R,S,T,U,A,B,C,D,NOCCUPIED
+         IF(TSTARBIN) THEN
+            !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
+            !Could be a problem in the future r.e. partially filled degenerate fermi levels - is BRR then the best way to determine if an orbital is occupied or not??
+            IF(NOCCUPIED.EQ.0) THEN
+            
+                R=INVBRR(I)
+                S=INVBRR(J)
+                T=INVBRR(K)
+                U=INVBRR(L)
+            ELSE
+                R=INVBRR2(I)
+                S=INVBRR2(J)
+                T=INVBRR2(K)
+                U=INVBRR2(L)
+            ENDIF
+
+            !Need to create unique pairings from all permutations of indices
+            IF(R.le.T) THEN
+                A=R
+                C=T
+            ELSE
+                A=T
+                C=R
+            ENDIF
+            IF(S.le.U) THEN
+                B=S
+                D=U
+            ELSE
+                B=U
+                D=S
+            ENDIF
+            IF((A.lt.B).or.((A.eq.B).and.(C.le.D))) THEN
+                R=A
+                S=B
+                T=C
+                U=D
+            ELSE
+                R=B
+                S=A
+                T=D
+                U=C
+            ENDIF
+            !During the freezing routine, it tries to lookup <ia|ib>, for the h_ab integrals where a & b are distinct and virtual, but these are unneeded if just considering double excitations.
+            IF(FREEZETRANSFER.and.(S.gt.NOCC)) THEN
+                UMatInd=-1
+                RETURN
+            ENDIF
+            IF(NOCCUPIED.EQ.0) THEN
+                IF((R.gt.NOCC).or.(S.gt.NOCC)) THEN
+                    WRITE(6,*) "NO OCCUPIED ORBITAL PAIR REQUESTED - STARBINREAD CANNOT BE USED"
+                    WRITE(6,*) "USING ORIGINAL UMAT AND STORED NOCC"
+                    WRITE(6,*) "NOCC is: ",NOCC
+                    WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
+                    CALL FLUSH(6)
+                    STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
+                ENDIF
+            ELSE
+                IF((R.gt.NOCCUPIED).or.(S.gt.NOCCUPIED)) THEN
+                    WRITE(6,*) "NO OCCUPIED ORBITAL PAIR REQUESTED - STARBINREAD CANNOT BE USED"
+                    WRITE(6,*) "USING UMAT2 AND NOCC FROM ARGUMENT"
+                    WRITE(6,*) "NOCC is: ",NOCC
+                    WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
+                    CALL FLUSH(6)
+                    STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
+                ENDIF
+            ENDIF
+                
+                
+            IF(NBASIS.ne.0) THEN
+                BB=((S-1)*NBASIS)+U
+                AA=((R-1)*NBASIS)+T
+            ELSE
+                BB=((S-1)*nStates)+U
+                AA=((R-1)*nStates)+T
+            ENDIF
+                
+            UMatInd=((BB*(BB-1))/2)+AA
+            RETURN
          ELSE
-            A=(K*(K-1))/2+I
-         ENDIF
+            IF(I.GT.K) THEN
+                A=(I*(I-1))/2+K
+            ELSE
+                A=(K*(K-1))/2+I
+            ENDIF
          
-         IF(J.GT.L) THEN
-            B=(J*(J-1))/2+L 
-         ELSE
-            B=(L*(L-1))/2+J
-         ENDIF
-         IF(A.GT.B) THEN
-            UMatInd=(A*(A-1))/2+B
-         ELSE
-            UMatInd=(B*(B-1))/2+A
+            IF(J.GT.L) THEN
+                B=(J*(J-1))/2+L 
+            ELSE
+                B=(L*(L-1))/2+J
+            ENDIF
+            IF(A.GT.B) THEN
+                UMatInd=(A*(A-1))/2+B
+                RETURN
+            ELSE
+                UMatInd=(B*(B-1))/2+A
+                RETURN
+            ENDIF
          ENDIF
       END
 
@@ -184,13 +318,24 @@ MODULE UMatCache
       
 !Get the prospective size of a UMat (not a UMatCache) for completely storing FCIDUMP 2-e integrals
 !  The UMat is currently passed as a parameter, but in future be absorbed into UMatCache.
-      SUBROUTINE GetUMatSize(nBasis,iSS,iSize)
+      SUBROUTINE GetUMatSize(nBasis,nEl,iSS,iSize)
          IMPLICIT NONE
          INTEGER nBasis,iSS
-         INTEGER iPairs,nBi,iSize
+         INTEGER iPairs,nBi,nEl,noccup
+         INTEGER*8 :: iSize
          nBi=nBasis/iSS
-         iPairs=(nBi*(nBi+1))/2
-         iSize=(iPairs*(iPairs+1))/2
+         IF(TSTARBIN) THEN
+            IF(MOD(nel,2).ne.0) THEN
+                noccup=(nel+1)/iSS
+            ELSE
+                noccup=nel/iSS
+            ENDIF
+            iPairs=noccup*nBi
+            iSize=(iPairs*(iPairs+1))/2 
+         ELSE
+            iPairs=(nBi*(nBi+1))/2
+            iSize=(iPairs*(iPairs+1))/2
+         ENDIF
       END
       
       !Input at spin orbitals
@@ -443,22 +588,18 @@ MODULE UMatCache
     
       END SUBROUTINE SetupTMAT
 
-
-
- 
-!Get a U matrix element <ij|u|kl> in multifarious ways.  Either from a passed-in UMAT, or ALAT parameters, 
+      !Get a U matrix element <ij|u|kl> in multifarious ways, where orbitals are spatial orbitals.  Either from a passed-in UMAT, or ALAT parameters, 
 ! or from UMatcache.
       FUNCTION GetUMatEl(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
-!         USE HElement
          IMPLICIT NONE
          TYPE(HElement) GetUMatEl
          INTEGER NBASISMAX(5,3),I,J,K,L,NHG,ISS
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NHG)
-         REAL*8 ALAT(3)
+         REAL*8 ALAT(3),GetNan
          TYPE(HElement) UMAT(*)
          TYPE(HElement) UElems(0:nTypes-1)
-         INTEGER A,B,C
+         INTEGER A,B,C,XXX
          INTEGER IDI,IDJ,IDK,IDL
          REAL*8 SUM
          PARAMETER PI=3.14159265358979323846264338327950288419716939937510D0
@@ -473,7 +614,7 @@ MODULE UMatCache
 !   Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
 !   See if we need to calculate on the fly
-          IF(ISS.EQ.0) THEN
+            IF(ISS.EQ.0) THEN
 
 !  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
 !   Remember permutations.  
@@ -590,7 +731,37 @@ MODULE UMatCache
 !  A  non-stored hubbard integral.
           CALL GetHubUMatEl(IDI,IDJ,IDK,IDL,UMat,nBasisMax,G1,GetUMatEl)
           ELSE
-             GETUMATEL=UMAT(UMatInd(IDI,IDJ,IDK,IDL))
+             IF(TSTARBIN) THEN
+                 IF(.not.TUMAT2D) STOP 'UMAT2D should be on'
+                 IF(IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
+!    <ii|ii>
+                     GETUMATEL=UMAT2D(IDI,IDI)
+                 ELSEIF (IDI.eq.IDK.and.IDJ.eq.IDL) THEN
+!   <ij|ij> - coulomb
+                     I=MIN(IDI,IDJ)
+                     J=MAX(IDI,IDJ)
+                     GETUMATEL=UMAT2D(I,J)
+                 ELSEIF (IDI.eq.IDL.and.IDJ.eq.IDK) THEN
+!   <ij|ji> - exchange
+                     I=MAX(IDI,IDJ)
+                     J=MIN(IDI,IDJ)
+                     GETUMATEL=UMAT2D(I,J)
+                 ELSEIF (IDI.eq.IDJ.and.IDK.eq.IDL) THEN
+                     I=MAX(IDI,IDK)
+                     J=MIN(IDI,IDK)
+                     GETUMATEL=UMAT2D(I,J)
+                 ELSE
+                     XXX=UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0)
+                     IF(XXX.ne.-1) THEN
+                         GETUMATEL=UMAT(XXX)
+                     ELSE
+                         !GETUMATEL=HElement(0.D0)
+                         GETUMATEL=HElement(GETNAN())
+                     ENDIF
+                 ENDIF
+             ELSE
+                 GETUMATEL=UMAT(UMatInd(IDI,IDJ,IDK,IDL,0,0))
+             ENDIF
           ENDIF
          ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
             CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
@@ -665,7 +836,7 @@ MODULE UMatCache
          TYPE(BasisFN) G1(*)
          INTEGER ierr
          complex*16 HarInt(nStates,nStates)
-         IF(NSLOTSINIT.LT.0) THEN
+         IF((NSLOTSINIT.LT.0).AND.(.not.TSTARBIN)) THEN
             TUMAT2D=.FALSE.
             WRITE(6,*) "Not using UMAT2D."
          ELSE
@@ -688,7 +859,11 @@ MODULE UMatCache
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
             Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
-            CALL ReadDalton2EIntegrals(nStates,UMat2D)
+            IF(TSTARBIN) THEN
+                RETURN
+            ELSE
+                CALL ReadDalton2EIntegrals(nStates,UMat2D)
+            ENDIF
          ENDIF
       END
 
@@ -943,6 +1118,31 @@ MODULE UMatCache
             WRITE(6,*) "UMatCache size not changing.  Not reordering."
          endif
       END
+
+      SUBROUTINE FreezeUMAT2D(OldBasis,NewBasis,OrbTrans,iSS)
+         IMPLICIT NONE
+         INTEGER NewBasis,OldBasis,iSS,ierr,OrbTrans(OldBasis),i,j
+         TYPE(HElement),POINTER :: NUMat2D(:,:)
+
+         Allocate(NUMat2D(NewBasis/iSS,NewBasis/iSS),STAT=ierr)
+         CALL MemAlloc(ierr,NUMat2D,HElementSize*(NewBasis/iSS)**2,'NUMat2D')
+         NUMat2D(:,:)=HElement(0.D0)
+         DO i=1,OldBasis/2
+            IF(OrbTrans(i*2).NE.0) THEN
+                DO j=1,OldBasis/2
+                    IF(OrbTrans(j*2).NE.0) THEN
+                        NUMat2D(OrbTrans(i*2)/2,OrbTrans(j*2)/2)=UMat2D(i,j)
+                    ENDIF
+                ENDDO
+            ENDIF
+        ENDDO
+        CALL MemDealloc(UMat2D)
+        Deallocate(UMat2D)
+        UMat2D=>NUMat2D
+        NULLIFY(NUMat2D)
+        RETURN
+      END
+                
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)

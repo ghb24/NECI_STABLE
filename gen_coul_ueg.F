@@ -65,7 +65,7 @@ C     &                          *SIN(B*PI*G1(A,L)/(LL(A)+1))
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..   we store <IJ|KL>  (
 ! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>=K, J>=L,(I,K)>=(J,L)
-              UMAT(UMatInd(ID1,ID2,ID3,ID4))=SUM
+              UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0))=SUM
               IF(ABS(SUM).GT.1.D-10)
      &            WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
             ENDDO
@@ -215,7 +215,7 @@ C                 ENDIF
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..   we store <IJ|KL>  (
 ! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>=K, J>=L,(I,K)>=(J,L)
-              UMAT(UMatInd(ID1,ID2,ID3,ID4))=SUM
+              UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0))=SUM
               IF(ABS(SUM).GT.1.D-10)
      &            WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
             ENDDO

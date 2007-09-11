@@ -111,18 +111,25 @@ C.. set momentum to 0
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          USE HElement
          USE UMatCache , only : UMatInd,TMatind,TMat2D,TMATSYM,
-     &                          TSTARBIN
+     &                          TSTARBIN,UMAT2D,TUMAT2D
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 ECORE,ARR(NBASIS,2)
          REAL*8 UMAT(*)
          REAL*8 Z
-         INTEGER I,J,K,L,BRR(NBASIS),G1(*)
+         INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
-         LOGICAL LWRITE
+         LOGICAL LWRITE!,exists,isopen
          include 'sym.inc'
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
          LWRITE=.FALSE.
+        
+         !WRITE(6,*) "ENQUIRING..."
+         !CALL FLUSH(6)
+         !INQUIRE(FILE='FCIDUMP',EXIST=exists,OPENED=isopen)
+         !IF(exists) WRITE(6,*) "FCIDUMP exists"
+         !IF(.not.isopen) WRITE(6,*) "FCIDUMP is not open"
+         !CALL FLUSH(6)
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
 101      READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
@@ -153,8 +160,34 @@ C.. These are stored as spinorbitals (with elements between different spins bein
 C.. 2-e integrals
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-            UMAT(UMatInd(I,K,J,L))=Z
-!i            UMAT(I,K,J,L)=Z
+            IF(TSTARBIN.and.TUMAT2D) THEN
+                IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
+                    !<ii|ii>
+                    UMAT2D(I,I)=Z
+                ELSEIF((I.eq.J.and.K.eq.L)) THEN
+                    !<ij|ij> - coulomb - 1st arg > 2nd arg
+                    X=MAX(I,K)
+                    Y=MIN(I,K)
+                    UMAT2D(Y,X)=Z
+                ELSEIF(I.eq.L.and.J.eq.K) THEN
+                    !<ij|ji> - exchange - 1st arg < 2nd arg
+                    X=MIN(I,J)
+                    Y=MAX(I,J)
+                    UMAT2D(Y,X)=Z
+                ELSEIF(I.eq.K.and.J.eq.L) THEN
+                    !<ii|jj> - equivalent exchange for real orbs
+                    X=MIN(I,J)
+                    Y=MAX(I,J)
+                    UMAT2D(Y,X)=Z
+                ELSE
+                    UMAT(UMatInd(I,K,J,L,0,0))=Z
+                ENDIF
+            ELSEIF(TSTARBIN.and.(.not.TUMAT2D)) THEN
+                STOP 'Need UMAT2D with TSTARBIN'
+            ELSE
+                UMAT(UMatInd(I,K,J,L,0,0))=Z
+            ENDIF
+!            UMAT(I,K,J,L)=Z
 !            UMAT(J,L,I,K)=Z
 !            UMAT(K,I,L,J)=Z
 !            UMAT(L,J,K,I)=Z

@@ -15,7 +15,9 @@ C ==------------------------------------------------------------------==
      &   ,iPeriodicDampingType,WriteUMatCacheStats,TSTARBIN             &
      &   ,SetupTMAT,DestroyTMAT,TMATSYM,TMATSYM2,TMAT2D,TMAT2D2         &
      &   ,GetNEWTMATEl,NEWTMATInd,WriteTMAT,iDumpCacheFlag              &
-     &   ,tReadInCache,DumpUMATCache,SetupTMAT2,nStatesDump
+     &   ,tReadInCache,DumpUMATCache,SetupTMAT2,nStates                 &
+     &   ,SetupUMAT2D_df,getumatel,CREATEINVBRR,NOCC,FREEZETRANSFER     &
+     &   ,nStatesDump
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -53,7 +55,7 @@ C..
 #else
       INTEGER GET_ADDR
 #endif
-C.. NEL now includes all electrons, and we'll only want active later
+C.. NEL now includes all electrons, and well only want active later
       INTEGER NMRKS(NEL-NFROZEN,*),LAB(*),NROW(*),IKILL(*)
       INTEGER IPARITY(5),GC,IMCSTEPS,IEQSTEPS,I_HMAX,NTAY,NWHTAY
       REAL*8 ARR(*)
@@ -137,6 +139,7 @@ C..      CALL DOZSUM()
 
 C ==-------------------------------------------------------------------==
 C..Input parameters
+      FREEZETRANSFER=.false.
       WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
       WRITE(6,*) ' TSPN : ' , TSPN
       CALL IAZZERO(NBASISMAX,5*7)
@@ -498,7 +501,9 @@ C.. This sorts ARR and BRR into order of ARR [AJWT]
 C.. we need to allow integrals between different spins
          NBASISMAX(2,3)=1
       ENDIF      
-
+      
+      !This is used in a test in UMatInd
+      NOCC=NEl/2 
 C.. Calculate relevant symmetry tables
       IF(TREADINT) THEN
 C.. we're reading in integrals and have a molpro symmetry table
@@ -571,6 +576,7 @@ C..
            WRITE(6,*) "NOT freezing all virtuals."
          ENDIF
       ENDIF
+      
       IF(.NOT.(TREAD.OR.TREADRHO)) THEN
          IF(NTFROZEN.LT.0) THEN
             I=NEL+(-NTFROZEN)
@@ -604,12 +610,13 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL SetupTMAT(NHG,2,TMATINT)
             !CALL MEMORY(IP_TMAT,HElementSize*TMATINT,'TMAT')
             !CALL AZZERO(TMAT,HElementSize*TMATINT)
-            CALL GetUMatSize(nHG,2,I)
-            CALL MEMORY(IP_UMAT,HElementSize*I,'UMAT')
-            CALL AZZERO(UMAT,HElementSize*I)
-            !CALL GETSYMUMATSIZE(NBASISMAX(5,2)+1,NHG,2,UMATINT)
-            !CALL MEMORY(IP_UMAT,HElementSize*UMATINT,'UMAT'
-            !CALL AZZERO(UMAT,HElementSize*UMATINT)
+            !This is required for getUMatInd
+            nStates=nHG/2
+            CALL CREATEINVBRR(BRR,nHG)
+            CALL GetUMatSize(nHG,nEl,2,UMATINT)
+            CALL MEMORY(IP_UMAT,HElementSize*UMATINT,'UMAT')
+            CALL AZZERO(UMAT,HElementSize*UMATINT)
+            CALL SETUPUMAT2D_DF()
             CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
             WRITE(6,*) ' ECORE=',ECORE
             ISPINSKIP=2
@@ -620,9 +627,9 @@ C.. Generate the 2e integrals (UMAT)
             NBASISMAX(2,3)=2
 C.. We can only do restricted systems, so alpha and beta spinorbital
 C... integrals will be the same 
-            CALL GetUMatSize(nHG,2,I)
-            CALL MEMORY(IP_UMAT,HElementSize*I,'UMAT')
-            CALL AZZERO(UMAT,HElementSize*I)
+            CALL GetUMatSize(nHG,nEl,2,UMATINT)
+            CALL MEMORY(IP_UMAT,HElementSize*UMATINT,'UMAT')
+            CALL AZZERO(UMAT,HElementSize*UMATINT)
             CALL SetupTMAT(NHG,2,TMATINT)
 !            CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
 !            CALL AZZERO(TMAT,HElementSize*NHG*NHG)
@@ -651,10 +658,11 @@ C..   We're doing a 2D simulation
 C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
 C.. Generate the 2e integrals (UMAT)
-               CALL GetUMatSize(nHG,iSpinSkip,I)
-               CALL MEMORY(IP_UMAT,HElementSize*I,
+               IF(TSTARBIN) nStates=nHG/2
+               CALL GetUMatSize(nHG,nEl,iSpinSkip,UMATINT)
+               CALL MEMORY(IP_UMAT,HElementSize*UMATINT,
      &            'UMAT')
-               CALL AZZERO(UMAT,HElementSize*I)
+               CALL AZZERO(UMAT,HElementSize*UMATINT)
                IF(TUEG.OR.THUB) THEN
                   IF(THUB.AND.TREAL) THEN
 C.. Real space hubbard
@@ -766,9 +774,10 @@ C.. unrestricted
 !               IP_TMAT=IP_TMAT2
 !               IP_TMAT2=NULL
 C.. Allocate the new matrix
-               CALL GetUMatSize(nHG,1,I)
-               CALL MEMORY(IP_UMAT2,HElementSize*I,'UMAT2')
-               CALL AZZERO(UMAT2,HElementSize*I)
+                IF(TSTARBIN) nStates=nHG/2
+               CALL GetUMatSize(nHG,nEl,1,UMATINT)
+               CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,'UMAT2')
+               CALL AZZERO(UMAT2,HElementSize*UMATINT)
 C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN
@@ -830,10 +839,12 @@ C.. We need to transform some integrals
             !CALL AZZERO(TMAT2,HElementSize*(NBASIS)**2)
             IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
 C.. allocate a UMAT
-               CALL GetUMatSize(nBasis,iSpinSkip,I) 
-               CALL MEMORY(IP_UMAT2,HElementSize*I,
+               IF(TSTARBIN) nStates=nBasis/2
+               CALL GetUMatSize(nBasis,(nEl-NFROZEN)
+     &                   ,iSpinSkip,UMATINT)
+               CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,
      &            'UMAT2')
-               CALL AZZERO(UMAT2,HElementSize*I)
+               CALL AZZERO(UMAT2,HElementSize*UMATINT)
             ELSE
 C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
                CALL MEMORY(IP_UMAT2,1,'UMAT2')
@@ -846,6 +857,7 @@ C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
             WRITE(6,*) "ECORE now",ECORE
             WRITE(6,*) NBASIS," orbitals remain."
             NEL=NEL-NFROZEN
+            NOCC=NEL/2
 C.. NEL now only includes active electrons
             WRITE(6,*) "Number of active electrons:",NEL
             
@@ -891,9 +903,10 @@ C.. unrestricted
 !               IP_TMAT=IP_TMAT2
 !               IP_TMAT2=NULL
 C.. Allocate the new matrix
-               CALL GetUMatSize(nHG,1,I)
-               CALL MEMORY(IP_UMAT2,HElementSize*I,'UMAT2')
-               CALL AZZERO(UMAT2,HElementSize*I)
+                IF(TSTARBIN) nStates=nHG/2
+               CALL GetUMatSize(nHG,NEL,1,UMATINT)
+               CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,'UMAT2')
+               CALL AZZERO(UMAT2,HElementSize*UMATINT)
 C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN
@@ -935,7 +948,6 @@ C           (.NOT.(TREAD.OR.TREADRHO))
       CALL WRITESYMTABLE(6)
    
       CALL GENSymStatePairs(NBASIS/2,.false.)
-
 
       IF(TCSF.AND.TSPECDET) THEN
          WRITE(6,*) "TSPECDET set.  SPECDET is"
@@ -1295,7 +1307,68 @@ CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
       ENDIF
 C.. We've now finished calculating H if we were going to.
 C.. IF ENERGY CALC (for which we need to have calced H)
-
+!      i=1
+!        do j=1,10
+!            k=1
+!                do l=1,10
+!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      i=6
+!        do j=1,10
+!            k=6
+!                do l=1,10
+!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      i=1
+!        do j=1,10
+!            k=6
+!                do l=1,10
+!                   Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      i=6
+!        do j=1,10
+!            k=1
+!                do l=1,10
+!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      CALL FLUSH(12)
+!      do i=1,10
+!        do j=1,10
+!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                ALAT,NBASIS,2,G1,i,j,i,j))
+!            write(12,*) i,i,j,j,z
+!        enddo
+!      enddo
+!      write(12,*) "************************"
+!      do i=1,10
+!        do j=1,10
+!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                ALAT,NBASIS,2,G1,i,j,j,i))
+!                 write(12,*) i,j,j,i,z
+!        enddo
+!      enddo
+!      do i=1,10
+!        do j=1,10
+!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                ALAT,NBASIS,2,G1,i,i,j,j))
+!            write(12,*) i,j,i,j,z
+!        enddo
+!      enddo
+!      CALL FLUSH(12)
+! 
       IF(TENERGY) THEN
          IF(NBLK.NE.0) THEN
 C..Things needed for Friesner-Pollard diagonalisation
@@ -3013,6 +3086,7 @@ C.. if the spins are the same
             ENDDO
          ENDDO
 C.. now deal with the new TMAT
+         FREEZETRANSFER=.true.
          DO I=1,NBASIS
             IP=I+NFROZEN
             IB=BRR(IP)
@@ -3064,6 +3138,8 @@ C.. if the spins are the same
             ENDDO
          ENDDO
          IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
+
+             CALL CREATEINVBRR2(BRR2,NBASIS)
 CC Only do the below if we've a stored UMAT
 C.. Now copy the relevant matrix elements of UMAT across
 C.. the primed (...P) are the new versions
@@ -3092,8 +3168,30 @@ C.. the primed (...P) are the new versions
                         IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
                          CALL GTID(NBASISMAX,LB,IDL)
                          CALL GTID(NBASISMAX,LPB,IDLP)
-                         UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP))
-     &                     =UMAT(UMatInd(IDI,IDJ,IDK,IDL))
+
+                         IF(TSTARBIN) THEN
+                             IF(.NOT.TUMAT2D) STOP 'UMAT2D should be on'
+                             IF((IDI.eq.IDJ.and.IDI.eq.
+     &                              IDK.and.IDI.eq.IDL).or.
+     &                          (IDI.eq.IDK.and.IDJ.eq.IDL).or.
+     &                          (IDI.eq.IDL.and.IDJ.eq.IDK).or.
+     &                          (IDI.eq.IDJ.and.IDK.eq.IDL)) THEN
+                                CONTINUE
+                             ELSE
+                                 IF(((I+NFROZEN).gt.NEL).or. 
+     &                               ((J+NFROZEN).gt.NEL)) THEN
+                                     CONTINUE
+                                 ELSE
+                                    UMAT2(UMatInd(IDIP,IDJP,IDKP,
+     &                                   IDLP,0,(NEL-NFROZEN)/2))
+     &                          =UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
+                                ENDIF
+                             ENDIF
+                         ELSE
+                         
+                            UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,0))
+     &                        =UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
+                         ENDIF
                         ENDIF
                      ENDIF
                    ENDDO
@@ -3103,6 +3201,9 @@ C.. the primed (...P) are the new versions
              ENDDO
             ENDIF
          ENDDO
+         CALL FLUSH(11)
+         CALL FLUSH(12)
+            IF(TSTARBIN) CALL FreezeUMAT2D(NHG,NBASIS,GG,2)
          ELSEIF(Allocated(UMatCacheData)) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 C.. NHG contains the old number of orbitals
@@ -3117,6 +3218,7 @@ C.. GG(I) is the new position in G of the (old) orb I
              CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
              CALL ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
          ENDIF 
+         FREEZETRANSFER=.false.
 C.. Copy the new BRR and ARR over the old ones
          CALL SWAPTMAT(NBASIS,NHG,GG)
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)
@@ -3196,6 +3298,11 @@ C.. any orbitals which no longer exist, we move outside the basis
              !CALL DestroyTMAT(.true.)
              TMATSYM => TMATSYM2
              NULLIFY(TMATSYM2)
+             !Swap the INVBRR and deallocate old one
+             CALL MemDealloc(INVBRR)
+             Deallocate(INVBRR)
+             INVBRR => INVBRR2
+             NULLIFY(INVBRR2)
          ELSE
              !Deallocate TMAT & reallocate with right size
              CALL DestroyTMAT(.false.)

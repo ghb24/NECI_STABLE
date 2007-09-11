@@ -1142,7 +1142,10 @@ C     ILOGGING = 0771
           CALL report("TOTALERROR can only be used if the precalc"      &
      &    //" levels are equal to the main block vertex levels",.true.)
       ENDIF
-      
+      IF((I_VMAX.ge.3).and.(TSTARBIN)) THEN 
+          call report("Error - can only use STARBINREAD with "
+     &    //"double excitations of HF",.true.)
+      ENDIF
       RETURN
       END
 
@@ -1216,6 +1219,7 @@ C     ILOGGING = 0771
          
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use input
+         use UMatCache , only : TSTARBIN
          implicit none
          include 'vmc.inc'
          include 'calcp.inc'
@@ -1282,6 +1286,9 @@ C     ILOGGING = 0771
                                  IF(I_HMAX.NE.-21)  call report(
      &                              "Error - cannot use ADDSINGLES"
      &                              //" without STAR NEW",.true.)
+                                 IF(TSTARBIN) call report("Error - "
+     &                            //"can only use STARBINREAD with "
+     &                            //"double excitations of HF",.true.)
                               case("DIAG")
                                   NWHTAY=IBCLR(NWHTAY,0)
                               case("POLY")
