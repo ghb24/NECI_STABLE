@@ -323,7 +323,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
                   TOT=TOT-HElement(HarInt(i,j))
-                  IF (TSTARBIN) THEN
+                  IF (TSTARSTORE) THEN
                       !GHB Yet to optimise CPMD TMAT for memory saving symmetry
                   ELSE
                       TMAT2D(II,JJ)=TOT

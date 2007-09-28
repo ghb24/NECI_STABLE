@@ -9,10 +9,10 @@ C ==------------------------------------------------------------------==
      &   TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,TDFREAD,fRc,iCacheFlag)
+     &   TCPMD,TDFREAD,fRc,iCacheFlag,TBIN)
       USE HElement
       USE UMatCache , only : GetUMatSize, DestroyUMatCache              &
-     &   ,iPeriodicDampingType,WriteUMatCacheStats,TSTARBIN             &
+     &   ,iPeriodicDampingType,WriteUMatCacheStats,TSTARSTORE           &
      &   ,SetupTMAT,DestroyTMAT,TMATSYM,TMATSYM2,TMAT2D,TMAT2D2         &
      &   ,GetNEWTMATEl,NEWTMATInd,WriteTMAT,iDumpCacheFlag              &
      &   ,tReadInCache,DumpUMATCache,SetupTMAT2,nStates                 &
@@ -81,7 +81,8 @@ C..Cube arrays
 C..
       INTEGER INDEX(*),ISCR(*)
       LOGICAL TSPN,TALPHA,TPARITY,TCORR,TFODM,TREAD,TRHOOFR,TENERGY,TMC,
-     &   TRHOIJ,TREADRHO,TMONTE,TTROT,TCALCHMAT,TRHOIJND,TUEG,TDFREAD
+     &   TRHOIJ,TREADRHO,TMONTE,TTROT,TCALCHMAT,TRHOIJND,TUEG,TDFREAD,
+     &   TBIN
       REAL*8 RH,ETRIAL,ECORE
       REAL*8 RHOIJ(*),RHOIJ1(*),RHOIJ2(*)
       INTEGER RHOIJLAB(*),RHOIJROWS(*)
@@ -205,11 +206,12 @@ C..
             LMSBASIS=LMS
             CALL InitDFBasis(nEl,nBasisMax,Len,LMsBasis)
          ELSE
-            IF(TSTARBIN) THEN
-                WRITE(6,*) "Reading 2-vertex integrals from binary file"
+            IF(TSTARSTORE) THEN
+                WRITE(6,*) "Reading 2-vertex integrals of" // 
+     &             " double excitations only"
             ENDIF
             LMSBASIS=LMS
-            CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS)
+            CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
 C.. say we're a UHF det so all singles are 0
             IF(LMS.EQ.0) THEN
                NBASISMAX(4,5)=1
@@ -431,7 +433,7 @@ C.. ordering.
          call GenMolpSymTable(1,G1,nBasis,Arr,Brr)
       ELSEIF(TREADINT) THEN
          WRITE(6,*) ' *** CREATING BASIS FNs FROM FCIDUMP *** '
-         CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN) 
+         CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN) 
          NBASIS=LEN
          NHG=LEN
          CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
@@ -599,9 +601,9 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL SetupTMAT(NHG,2,TMATINT)
             Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
             Call ReadDF2EIntegrals(nBasis,I)
-         ELSEIF(TREADINT.AND.TSTARBIN) THEN
+         ELSEIF(TREADINT.AND.TSTARSTORE) THEN
             WRITE(6,*)
-     &     ' *** READING BINARY 2-VERTEX INTEGRALS FROM FCIDUMP *** '
+     &     ' *** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP *** '
             NBASISMAX(2,3)=2
             !NBASIS/NHG is number of spin-orbitals
             CALL GENSymStatePairs(NHG/2,.false.)
@@ -617,7 +619,11 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL MEMORY(IP_UMAT,HElementSize*UMATINT,'UMAT')
             CALL AZZERO(UMAT,HElementSize*UMATINT)
             CALL SETUPUMAT2D_DF()
-            CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            IF(TBIN) THEN
+                CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            ELSE
+                CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            ENDIF
             WRITE(6,*) ' ECORE=',ECORE
             ISPINSKIP=2
          ELSEIF(TREADINT) THEN
@@ -633,7 +639,11 @@ C... integrals will be the same
             CALL SetupTMAT(NHG,2,TMATINT)
 !            CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
 !            CALL AZZERO(TMAT,HElementSize*NHG*NHG)
-            CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            IF(TBIN) THEN
+                CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            ELSE
+                CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            ENDIF
             WRITE(6,*) ' ECORE=',ECORE
             ISPINSKIP=2
          ELSE
@@ -658,7 +668,7 @@ C..   We're doing a 2D simulation
 C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
 C.. Generate the 2e integrals (UMAT)
-               IF(TSTARBIN) nStates=nHG/2
+               IF(TSTARSTORE) nStates=nHG/2
                CALL GetUMatSize(nHG,nEl,iSpinSkip,UMATINT)
                CALL MEMORY(IP_UMAT,HElementSize*UMATINT,
      &            'UMAT')
@@ -759,7 +769,7 @@ C.. unrestricted
                WRITE(6,*) "Allocating TMAT2"
 !               CALL MEMORY(IP_TMAT2,NHG**2,'TMAT2')
 !               CALL AZZERO(TMAT2,NHG**2)
-               IF(TSTARBIN) STOP 'TSTARBIN WITH HFBASIS?!'
+               IF(TSTARSTORE) STOP 'TSTARSTORE WITH HFBASIS?!'
                CALL SetupTMAT2(NHG,2,TMATINT)
                NORBUSED=NBASIS-NTFROZEN
                IF(TREADTUMAT) THEN
@@ -774,7 +784,7 @@ C.. unrestricted
 !               IP_TMAT=IP_TMAT2
 !               IP_TMAT2=NULL
 C.. Allocate the new matrix
-                IF(TSTARBIN) nStates=nHG/2
+                IF(TSTARSTORE) nStates=nHG/2
                CALL GetUMatSize(nHG,nEl,1,UMATINT)
                CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,'UMAT2')
                CALL AZZERO(UMAT2,HElementSize*UMATINT)
@@ -812,7 +822,7 @@ C.. Now deallocate the HF arrays
             CALL FREEM(IP_HFE)
             CALL FLUSH(6)
          ENDIF
-!        IF(.NOT.TSTARBIN) THEN
+!        IF(.NOT.TSTARSTORE) THEN
 !            CALL GENSymStatePairs(NBASIS/2,.false.)
 !        ENDIF
 !         CALL WRITETMAT(NBASIS)
@@ -839,7 +849,7 @@ C.. We need to transform some integrals
             !CALL AZZERO(TMAT2,HElementSize*(NBASIS)**2)
             IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
 C.. allocate a UMAT
-               IF(TSTARBIN) nStates=nBasis/2
+               IF(TSTARSTORE) nStates=nBasis/2
                CALL GetUMatSize(nBasis,(nEl-NFROZEN)
      &                   ,iSpinSkip,UMATINT)
                CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,
@@ -903,7 +913,7 @@ C.. unrestricted
 !               IP_TMAT=IP_TMAT2
 !               IP_TMAT2=NULL
 C.. Allocate the new matrix
-                IF(TSTARBIN) nStates=nHG/2
+                IF(TSTARSTORE) nStates=nHG/2
                CALL GetUMatSize(nHG,NEL,1,UMATINT)
                CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,'UMAT2')
                CALL AZZERO(UMAT2,HElementSize*UMATINT)
@@ -2566,7 +2576,7 @@ C.. This should only happen for HMAX
 
       SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
          USE HElement
-         USE UMatCache , only : SetupTMAT,TMAT2D,TSTARBIN
+         USE UMatCache , only : SetupTMAT,TMAT2D,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
          INCLUDE 'basis.inc'
@@ -2579,7 +2589,7 @@ C.. This should only happen for HMAX
          REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
          IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
-         IF(TSTARBIN) STOP 'Cannot use TSTARBIN with UEG'
+         IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
          CALL SetupTMAT(NBASIS,2,iSIZE)
           DO I=1,NBASIS
            TMAT2D(I,I)=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+
@@ -3052,7 +3062,7 @@ C.. Now construct the new BRR and ARR
             IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
          ENDDO
 
-        IF(TSTARBIN) THEN
+        IF(TSTARSTORE) THEN
 C.. Now setup the default symmetry to include the frozen electrons
 C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
             CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
@@ -3097,7 +3107,7 @@ C.. now deal with the new TMAT
                JB=BRR(JP)
                JPB=GG(JB)
                CALL GTID(NBASISMAX,JB,IDJ)
-               IF(TSTARBIN) THEN
+               IF(TSTARSTORE) THEN
                    TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
                ELSE
                    TMAT2D2(IPB,JPB)=GetTMATEl(IB,JB)
@@ -3110,7 +3120,7 @@ C                  SGN=1
 C                  IF(IB.GT.AB) SGN=-SGN
 C                  IF(JB.GT.AB) SGN=-SGN
                   IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
-                      IF(TSTARBIN) THEN
+                      IF(TSTARSTORE) THEN
                         TMATSYM2(NEWTMATInd(IPB,JPB))=
      &                  GetNEWTMATEl(IPB,JPB)
      &        +GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
@@ -3123,7 +3133,7 @@ CCCC.. If we have spin-independent integrals, ISS.EQ.2.OR
 C.. if the spins are the same
                   IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS)
      &               THEN
-                        IF(TSTARBIN) THEN
+                        IF(TSTARSTORE) THEN
                             TMATSYM2(NEWTMATInd(IPB,JPB))=
      &                       GetNEWTMATEl(IPB,JPB)
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
@@ -3169,7 +3179,7 @@ C.. the primed (...P) are the new versions
                          CALL GTID(NBASISMAX,LB,IDL)
                          CALL GTID(NBASISMAX,LPB,IDLP)
 
-                         IF(TSTARBIN) THEN
+                         IF(TSTARSTORE) THEN
                              IF(.NOT.TUMAT2D) STOP 'UMAT2D should be on'
                              IF((IDI.eq.IDJ.and.IDI.eq.
      &                              IDK.and.IDI.eq.IDL).or.
@@ -3203,7 +3213,7 @@ C.. the primed (...P) are the new versions
          ENDDO
          CALL FLUSH(11)
          CALL FLUSH(12)
-            IF(TSTARBIN) CALL FreezeUMAT2D(NHG,NBASIS,GG,2)
+            IF(TSTARSTORE) CALL FreezeUMAT2D(NHG,NBASIS,GG,2)
          ELSEIF(Allocated(UMatCacheData)) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 C.. NHG contains the old number of orbitals
@@ -3212,7 +3222,7 @@ C.. GG(I) is the new position in G of the (old) orb I
             CALL FreezeUMatCache(GG,NHG,NBASIS)
          ENDIF
          IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
-         IF(.NOT.TSTARBIN) THEN
+         IF(.NOT.TSTARSTORE) THEN
              CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
              CALL SetupFREEZEALLSYM(KSym)
              CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
@@ -3276,7 +3286,7 @@ C.. any orbitals which no longer exist, we move outside the basis
         integer I,J,NBASIS,NHG,GG(NHG)
         integer*8 TMATINT,LG
         
-         IF(TSTARBIN) THEN
+         IF(TSTARSTORE) THEN
             !Transfer across the vectors for indexing TMAT
             CALL FREEM(IP_SYMCLASSES2)
             !copy across the new frozen symclasses and symlabelstuff

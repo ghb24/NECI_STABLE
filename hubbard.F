@@ -90,7 +90,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
      &         TPBC)
          USE HElement
          USE UMatCache , only : TMat2D,TMATSYM,
-     &          TSTARBIN,TMatInd,SetupTMAT
+     &          TSTARSTORE,TMatInd,SetupTMAT
          IMPLICIT NONE
          INTEGER NBASIS,NBASISMAX(5,2)
          INCLUDE 'basis.inc'
@@ -102,7 +102,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          LOGICAL TTILT,TREAL,TPBC
          REAL*8 SUM,S1
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
-         IF(TSTARBIN) STOP 'Using TSTARBIN with HUB??!'
+         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
          CALL SetupTMAT(NBASIS,2,iSize)
          SUM=0.D0
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
@@ -132,7 +132,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                      ENDIF
                   ENDIF
                   IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
-                     IF(TSTARBIN) THEN
+                     IF(TSTARSTORE) THEN
                         TMATSYM(TMatInd(I,J))=SUM
                         WRITE(10,*) I,J,SUM
                      ELSE

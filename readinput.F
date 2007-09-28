@@ -10,7 +10,7 @@
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,ios,TDFREAD,fRc)
+     &   TCPMD,ios,TDFREAD,fRc,TBIN)
       USE input
       USE HElement
       USE UMatCache
@@ -20,7 +20,7 @@
      &   TREAD,TRHOOFR,TENERGY,TMC,TRHOIJ,TREADRHO,TMONTE,TTROT,  
      &   TBEGRAPH,THFBASIS,THUB,TNPDERIV,TMCDET,THFCALC,TTILT,    
      &   TBLOCK,TREADINT,TPBC,TREAL,TRHF,TREADHF,TSPECDET,TREADTUMAT,  
-     &   THFORDER,TCSF,TBETAP, eof,TCPMD,TDFREAD,check
+     &   THFORDER,TCSF,TBETAP, eof,TCPMD,TDFREAD,check,TBIN
       CHARACTER*255 INP
       INTEGER SPECDET(*)
 !
@@ -112,7 +112,8 @@
       
       TMPTHEORY=.FALSE.
       TNEWEXCITATIONS=.FALSE.
-      TSTARBIN=.false.
+      TSTARSTORE=.false.
+      TBIN=.false.
       TNPDERIV = .false.
       TMONTE = .false.
       IMCSTEPS = 0
@@ -196,13 +197,22 @@
         case("SYSTEM")
             call readu(w)
             select case(w)
-            case("STARBINREAD")
-                TSTARBIN = .true.
+            case("STARSTOREREAD")
+                TSTARSTORE = .true.
                 TREADINT = .true.
                 call readu(w)
                 select case(w)
                 case("ORDER")
                     THFORDER = .true.
+                end select
+            case("STARBINREAD")
+                TSTARSTORE=.true.
+                TBIN=.true.
+                TREADINT=.true.
+                call readu(w)
+                select case(w)
+                case("ORDER")
+                    THFORDER=.true.
                 end select
             case("DFREAD")
                 TREADINT = .true.
@@ -211,6 +221,14 @@
                 select case(w)
                 case("ORDER")
                     THFORDER = .true.
+                end select
+            case("BINREAD")
+                TREADINT=.true.
+                TBIN=.true.
+                call readu(w)
+                select case(w)
+                case("ORDER")
+                    THFORDER=.true.
                 end select
             case("READ","GENERIC")
                 TREADINT = .true.
@@ -1149,8 +1167,8 @@ C     ILOGGING = 0771
           CALL report("TOTALERROR can only be used if the precalc"      &
      &    //" levels are equal to the main block vertex levels",.true.)
       ENDIF
-      IF((I_VMAX.ge.3).and.(TSTARBIN)) THEN 
-          call report("Error - can only use STARBINREAD with "
+      IF((I_VMAX.ge.3).and.(TSTARSTORE)) THEN 
+          call report("Error - can only use STARSTOREREAD with "
      &    //"double excitations of HF",.true.)
       ENDIF
       RETURN
@@ -1226,7 +1244,7 @@ C     ILOGGING = 0771
          
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use input
-         use UMatCache , only : TSTARBIN
+         use UMatCache , only : TSTARSTORE
          implicit none
          include 'vmc.inc'
          include 'calcp.inc'
@@ -1293,8 +1311,8 @@ C     ILOGGING = 0771
                                  IF(I_HMAX.NE.-21)  call report(
      &                              "Error - cannot use ADDSINGLES"
      &                              //" without STAR NEW",.true.)
-                                 IF(TSTARBIN) call report("Error - "
-     &                            //"can only use STARBINREAD with "
+                                 IF(TSTARSTORE) call report("Error - "
+     &                            //"can only use STARSTOREREAD with "
      &                            //"double excitations of HF",.true.)
                               case("DIAG")
                                   NWHTAY=IBCLR(NWHTAY,0)

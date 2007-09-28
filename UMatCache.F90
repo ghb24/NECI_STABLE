@@ -40,8 +40,8 @@ MODULE UMatCache
       TYPE(HElement), dimension(:), POINTER :: TMATSYM
       TYPE(HElement), dimension(:), POINTER :: TMATSYM2
       TYPE(HElement), dimension(:,:), POINTER :: TMAT2D2
-      logical TSTARBIN
-        SAVE TMAT2D,TMATSYM,TSTARBIN,TMATSYM2,TMAT2D2
+      logical TSTARSTORE
+        SAVE TMAT2D,TMATSYM,TSTARSTORE,TMATSYM2,TMAT2D2
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
 ! This is needed for the memory saving star indexing system.
@@ -137,7 +137,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER I,J,K,L,AA,BB,NBASIS
          INTEGER R,S,T,U,A,B,C,D,NOCCUPIED
-         IF(TSTARBIN) THEN
+         IF(TSTARSTORE) THEN
             !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
             !Could be a problem in the future r.e. partially filled degenerate fermi levels - is BRR then the best way to determine if an orbital is occupied or not??
             IF(NOCCUPIED.EQ.0) THEN
@@ -237,7 +237,7 @@ MODULE UMatCache
          ENDIF
       END
 
-!Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARBIN, where the TMAT is compressed to only store states, not spin-orbitals,
+!Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
 !Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
     INTEGER FUNCTION TMatInd(I,J)
         IMPLICIT NONE
@@ -324,7 +324,7 @@ MODULE UMatCache
          INTEGER iPairs,nBi,nEl,noccup
          INTEGER*8 :: iSize
          nBi=nBasis/iSS
-         IF(TSTARBIN) THEN
+         IF(TSTARSTORE) THEN
             IF(MOD(nel,2).ne.0) THEN
                 noccup=(nel+1)/iSS
             ELSE
@@ -344,7 +344,7 @@ MODULE UMatCache
         INTEGER I,J
         TYPE(HElement) GetTMatEl
 
-        IF(TSTARBIN) THEN
+        IF(TSTARSTORE) THEN
             GetTMatEl=TMATSYM(TMatInd(I,J))
         ELSE
             GetTMatEl=TMAT2D(I,J)
@@ -356,7 +356,7 @@ MODULE UMatCache
         INTEGER I,J
         TYPE(HElement) GetNEWTMATEl
 
-        IF(TSTARBIN) THEN
+        IF(TSTARSTORE) THEN
             GetNEWTMATEl=TMATSYM2(NEWTMATInd(I,J))
         ELSE
             GetNEWTMATEl=TMAT2D2(I,J)
@@ -369,7 +369,7 @@ MODULE UMatCache
          integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr
         integer*8 iSize
         
-        IF(TSTARBIN) THEN 
+        IF(TSTARSTORE) THEN 
             Nirrep=NSYMLABELS
             nBi=nBasisFRZ/iSS
             iSize=0
@@ -422,7 +422,7 @@ MODULE UMatCache
         IMPLICIT NONE
         LOGICAL :: NEWTMAT
 
-        IF(TSTARBIN) THEN
+        IF(TSTARSTORE) THEN
             IF(NEWTMAT) THEN
                 IF(ALLOCATED(TMATSYM2)) THEN
                     CALL MemDealloc(TMATSYM2)
@@ -497,7 +497,7 @@ MODULE UMatCache
             CALL FLUSH(12)
         ENDIF
         WRITE(12,*) "TMAT:"
-        IF(TSTARBIN) THEN
+        IF(TSTARSTORE) THEN
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
@@ -537,7 +537,7 @@ MODULE UMatCache
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr
         integer*8 iSize
         
-        IF(TSTARBIN) THEN 
+        IF(TSTARSTORE) THEN 
             Nirrep=NSYMLABELS
             nBi=nBasis/iSS
             iSize=0
@@ -731,7 +731,7 @@ MODULE UMatCache
 !  A  non-stored hubbard integral.
           CALL GetHubUMatEl(IDI,IDJ,IDK,IDL,UMat,nBasisMax,G1,GetUMatEl)
           ELSE
-             IF(TSTARBIN) THEN
+             IF(TSTARSTORE) THEN
                  IF(.not.TUMAT2D) STOP 'UMAT2D should be on'
                  IF(IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
 !    <ii|ii>
@@ -836,7 +836,7 @@ MODULE UMatCache
          TYPE(BasisFN) G1(*)
          INTEGER ierr
          complex*16 HarInt(nStates,nStates)
-         IF((NSLOTSINIT.LT.0).AND.(.not.TSTARBIN)) THEN
+         IF((NSLOTSINIT.LT.0).AND.(.not.TSTARSTORE)) THEN
             TUMAT2D=.FALSE.
             WRITE(6,*) "Not using UMAT2D."
          ELSE
@@ -859,7 +859,7 @@ MODULE UMatCache
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
             Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
-            IF(TSTARBIN) THEN
+            IF(TSTARSTORE) THEN
                 RETURN
             ELSE
                 CALL ReadDalton2EIntegrals(nStates,UMat2D)

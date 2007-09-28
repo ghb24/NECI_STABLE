@@ -2,7 +2,7 @@ C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE CALCHFTMAT(NBASIS,HFBASIS,NORBUSED)
         USE HElement
-        USE UMatCache , only : GetTMATEl,TMAT2D,TMAT2D2,TSTARBIN
+        USE UMatCache , only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 HFBASIS(NBASIS,NBASIS)

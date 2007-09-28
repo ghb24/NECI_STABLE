@@ -190,7 +190,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          USE HElement
-         USE UMatcache , only : TMATind,TMAT2D,TMATSYM,TSTARBIN
+         USE UMatcache , only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          implicit none
          include 'basis.inc'
          integer nBasis,Brr(nBasis),i,j
@@ -207,7 +207,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             if(i.eq.0) then
                ECore=val
             elseif(j.ne.0) then
-                IF(TSTARBIN) THEN
+                IF(TSTARSTORE) THEN
                     TMatSYM(TMATInd(i*2-1,j*2-1))=HElement(val)
                     TMatSYM(TMATInd(i*2,j*2))=HElement(val)
                     TMatSYM(TMATInd(j*2-1,i*2-1))=HElement(val)
