@@ -105,6 +105,7 @@
       DBETA(1)=-1.D0
       DBETA(2)=0.D0
       DBETA(3)=0.D0
+      STARCONV=1.D-3
       RHOEPSILON=1.D-6
       TTROT=.true.
       PREWEIGHTEPS=1.D-8
@@ -649,6 +650,12 @@ C                  end select
 !                      call report(trim(w)//" only valid for MC " 
 !     &                //" method",.true.)
 !                  end if
+              case("STARCONVERGE")
+                  call readf(STARCONV)
+                  if ( I_HMAX .ne. 0 ) then
+                      call report(trim(w)//" only valid for STAR " 
+     &                //" method",.true.)
+                  end if
               case("UFORM-POWER")
                   TUPOWER=.true.
               case("CHEMPOTWEIGHTING")

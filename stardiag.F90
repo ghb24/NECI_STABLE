@@ -383,6 +383,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER iLogging
          INTEGER iEigv,iDegen
          LOGICAL lWarned
+         include 'vmc.inc'
          CALL TISET('STARDIAG2 ',ISUB)
          iEigv=0 
          iDegen=0
@@ -400,11 +401,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !  nRoots is one more than the number of excitations
 !we've been asked to search to see how many roots we need for convergence.
             i=nRoots-1
-            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)%v**I_P)).ge.1.d-3)
+            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)%v**I_P)).ge.STARCONV)
                i=i-1
             enddo
             nRoots=nRoots-1-i
-            write(6,*) nRoots+1, " needed for convergence 1.d-3."
+            write(6,*) nRoots+1, " needed for convergence to", STARCONV
             nRoots=nRoots+1
          elseif(nRoots.eq.nList+1) then
 !  nRoots is one more than the number of excitations

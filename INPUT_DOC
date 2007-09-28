@@ -349,7 +349,8 @@ MPTHEORY
 IMPORTANCE <G_VMC_PI> 
     Set the generation probability for the MC routine.  This is the probability that new determinants are excitations of the pivot, i
      The default 0.95.
-
+STARCONVERGE <STARCONV>
+    Set the convergence criteria for finding the root to the star graph. Default is 1.d-3
 SEED <G_VMC_SEED>
     Random seed required for the MC routine.  This should be negative.  The default is -7
 
