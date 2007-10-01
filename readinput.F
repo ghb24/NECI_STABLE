@@ -166,6 +166,11 @@
       JOBS=16
       KOBS=16
       NMSH=32
+
+      TSTAR=.FALSE.
+      TUSEBRILLOUIN=.FALSE.
+      tStoreAsExcitations=.FALSE.
+
       OrbECutoff=-1e50
       iGlobalTimerLevel=40
       ir=1
@@ -362,6 +367,9 @@ C                  end select
                   end if
               case("ENERGY-CUTOFF")
                   call getf(OrbECutoff)
+
+              case("STORE-AS-EXCITATIONS")
+                 tStoreAsExcitations=.true.  
               case("ENDSYS") 
                   exit system
               case default

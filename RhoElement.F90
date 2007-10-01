@@ -47,8 +47,30 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          LSAME=.FALSE.
       ENDIF
           
-
+      IF(tStoreAsExcitations.AND.nI(1).eq.-1.AND.nJ(1).eq.-1) THEN
+!Store as excitations.
+         IF(NTAY(2).NE.3) STOP "Store as Excitations only works for Fock-Partition-Lowdiag"
+!Partition with Trotter with H(0) having just the Fock Operators
+!Fock-Partition-Lowdiag
+         IF(LSAME) THEN
+            call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
+            EDiag=EDiag+HElement(E0HFDET)
+            RH=EXP(-B*EDiag)
+         ELSE
+            call GetH0Element(nI,nEl,nMax,nBasis,ECore,UExp)
+            UExp=UExp+HElement(E0HFDET)
+            call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
+            EDiag=(UExp+UExp+EDiag)/HElement(2.D0)
+            UExp=GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+            UExp=-B*UExp
+            RH=EXP(-B*EDiag)*UExp
+         ENDIF
+         RETURN
+      ELSEIF(nI(1).eq.-1.or.nJ(1).eq.-1) THEN
+         STOP "Store as Excitations used, but not allowed in CALCRHO2"
+      ENDIF
       IF(NTAY(2).EQ.1) THEN
+!Diag-Partition
 !Partition with Trotter using H(0) containing the complete diagonal
          IF(LSAME) THEN
             UExp=UExp+HElement(1.D0)
@@ -70,6 +92,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          IF(LSAME) THEN
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             UExp=1.D0
+!Fock-Partition
             UExp=UExp-B*(GETHELEMENT2(NI,NI,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)-EDiag)
             RH=EXP(-B*EDiag)*UExp
          ELSE
@@ -82,6 +105,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          ENDIF
       ELSEIF(NTAY(2).EQ.3) THEN
 !Partition with Trotter with H(0) having just the Fock Operators
+!Fock-Partition-Lowdiag
          IF(LSAME) THEN
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             RH=EXP(-B*EDiag)
@@ -102,6 +126,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          ENDIF
          RH=UEXP-B*GETHELEMENT2(NI,NJ,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
       ELSEIF(NTAY(2).EQ.5) THEN
+!Fock-Partition-DCCorrect-LowDiag
 !Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
 ! Instead of 
          IF(LSAME) THEN

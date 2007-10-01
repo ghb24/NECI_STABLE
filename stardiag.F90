@@ -7,6 +7,7 @@
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          INCLUDE 'vmc.inc'
+         INCLUDE 'uhfdet.inc'
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
@@ -37,6 +38,13 @@
 
          TYPE(HDElement) MP2E         
          LOGICAL tStarSingles
+         INTEGER nIExcitFormat(nEl)
+         IF(tStoreAsExcitations) THEN
+            nIExcitFormat(1)=-1
+            nIExcitFormat(2)=0
+         ELSE
+            CALL ICOPY(NEL,nI,1,nIExcitFormat,1)
+         ENDIF
          tStarSingles=BTEST(nWHTay,7)
          SELECT CASE (IAND(nWHTay,24))
          CASE(0)
@@ -99,7 +107,7 @@
     lp:  do while(.true.)
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit lp
-            CALL CalcRho2(nI,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,-1,ECore)
+            CALL CalcRho2(nIExcitFormat,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit,ECore)
             if(rh .agt. RhoEps) then
                i=i+1
                ExcitInfo(i,1)=rh/rhii
@@ -112,13 +120,15 @@
                   CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                endif
                ExcitInfo(i,0)=rh/rhii
-               ExcitInfo(i,2)=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,-1,ECore)
+               ExcitInfo(i,2)=GetHElement2(nIExcitFormat,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
 !               write(75,*) rh,rh/rhii
 !Now do MP2
                Hijs(1)=ExcitInfo(i,2)
-               call iCopy(nEl,nJ,1,iPath(1,1),1)
+               IF(tMPTheory) THEN
+                  call iCopy(nEl,nJ,1,iPath(1,1),1)
 !nMax has Arr hidden in it
-               IF (TMPTHEORY) Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
+                  Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
+               ENDIF
                IF(tStarSingles) Call StarAddSingles(nI,nJ,ExcitInfo,i,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
             endif
          enddo lp

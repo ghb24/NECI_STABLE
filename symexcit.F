@@ -950,6 +950,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER ILUT(0:*)
       INTEGER SYMPRODIND(2,3,0:*)
       INTEGER IC
+      INCLUDE 'uhfdet.inc'
 
       DO WHILE(1)
 C.. see if we need a new EXCIT
@@ -1041,10 +1042,20 @@ C.. we go round again, getting another K
             ENDIF
             L=L-1
 C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excitation
-            CALL ICOPY(NEL,NI,1,NK,1)
-            NK(I)=ITOSL
-            CALL SORTI(NEL,NK)
-            IC=1
+            IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+               NK(1)=-1
+               NK(2)=1
+               NK(3)=0
+               NK(4)=NI(I)
+               NK(5)=ITOSL
+               STOP 'tStoreAsExcitations not tested for singles.'
+            ELSE
+               CALL ICOPY(NEL,NI,1,NK,1)
+               NK(I)=ITOSL
+               CALL SORTI(NEL,NK)
+               IC=1
+            ENDIF
 C.. quit the do loop
             EXIT
          ELSE
@@ -1091,19 +1102,30 @@ C.. Now check for an excitation
                L=2
                IF(ISPN.EQ.1.AND.ICC(1).NE.ICC(3).AND.
      &            .NOT.(LS(1,1).OR.LS(2,1))) THEN
-                  CALL ICOPY(NEL,NI,1,NK,1)
-                  DO J=1,NEL
-                     IF(NI(J).EQ.ORBPAIRS(1,
-     &                  SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        NK(J)=ICC(1)
-                     ENDIF
-                     IF(NI(J).EQ.ORBPAIRS(2,
-     &                  SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        NK(J)=ICC(3)
-                     ENDIF
-                  ENDDO
+                  IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                     NK(1)=-1
+                     NK(2)=2
+                     NK(3)=1
+                     NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(6)=ICC(1)
+                     NK(7)=ICC(3)
+                  ELSE
+                     CALL ICOPY(NEL,NI,1,NK,1)
+                     DO J=1,NEL
+                        IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(1)
+                        ENDIF
+                        IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           NK(J)=ICC(3)
+                        ENDIF
+                     ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                  CALL SORTI(NEL,NK)
+                     CALL SORTI(NEL,NK)
+                  ENDIF
                   IC=2
                   EXIT
                ENDIF
@@ -1113,6 +1135,16 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                IF(ISPN.EQ.2) THEN
 C.. If neither virtuals are in NI, then allow
                   IF(.NOT.(LS(1,1).OR.LS(2,2))) THEN
+                   IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                     NK(1)=-1
+                     NK(2)=2
+                     NK(3)=1
+                     NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(6)=ICC(1)
+                     NK(7)=ICC(4)
+                   ELSE
                      CALL ICOPY(NEL,NI,1,NK,1)
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
@@ -1126,8 +1158,9 @@ C.. If neither virtuals are in NI, then allow
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                      CALL SORTI(NEL,NK)
-                     IC=2
-                     EXIT
+                   ENDIF
+                   IC=2
+                   EXIT
                   ENDIF
                ENDIF
             ENDIF
@@ -1137,6 +1170,16 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 C.. If neither virtuals are in NI, and they're not the same(which would give
 C.. us the same excitation as previously), then allow
                  IF(.NOT.(LS(1,2).OR.LS(2,1)).AND.ICC(1).NE.ICC(3)) THEN
+                   IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                     NK(1)=-1
+                     NK(2)=2
+                     NK(3)=1
+                     NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(6)=ICC(2)
+                     NK(7)=ICC(3)
+                   ELSE
                      CALL ICOPY(NEL,NI,1,NK,1)
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
@@ -1150,8 +1193,9 @@ C.. us the same excitation as previously), then allow
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                      CALL SORTI(NEL,NK)
-                     IC=2
-                     EXIT
+                   ENDIF
+                   IC=2
+                   EXIT
                   ENDIF
                ENDIF
             ENDIF
@@ -1160,6 +1204,16 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                IF(ISPN.EQ.3) THEN
 C.. If both virtuals aren't the samem and neither are in NI, then allow
                  IF(ICC(1).NE.ICC(3).AND..NOT.(LS(1,2).OR.LS(2,2))) THEN
+                   IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                     NK(1)=-1
+                     NK(2)=2
+                     NK(3)=1
+                     NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(6)=ICC(2)
+                     NK(7)=ICC(4)
+                   ELSE
                      CALL ICOPY(NEL,NI,1,NK,1)
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
@@ -1173,8 +1227,9 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
                      CALL SORTI(NEL,NK)
-                     IC=2
-                     EXIT
+                   ENDIF
+                   IC=2
+                   EXIT
                   ENDIF
                ENDIF
             ENDIF

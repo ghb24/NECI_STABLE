@@ -225,6 +225,7 @@ MODULE HElement
          COMPLEX*16 FCK(*)
          REAL*8 ALAT(*)
          INCLUDE 'basis.inc'
+         INCLUDE 'uhfdet.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*)
          TYPE(HElement) UMat(*)
@@ -239,6 +240,12 @@ MODULE HElement
             GETHELEMENT2=SUM2
             RETURN
          ENDIF
+         IF(tStoreAsExcitations.AND.nI(1).eq.-1.and.nJ(1).eq.-1) then
+            if(ic2.ne.2) stop 'tStoreAsExcitations in GetHElement2 requires ic=2 (doubles).'
+            Call SCR2Excit(nBasisMax,nJ,G1,nBasis,UMat,Alat,nBasisMax(2,3),Sum)
+            GetHElement2=Sum
+            RETURN
+         endif
          IC=IC2
          GetHElement2%v=0.D0
          IF(IC.LT.0) IC=IGETEXCITLEVEL(NI,NJ,NEL)
@@ -355,10 +362,23 @@ END MODULE HElement
          type(HElement) hEl
          real*8 Arr(nBasis,2),ECore
          integer i
-         hEl=ECore
-         do i=1,nEl
-            hEl=hEl+HElement(Arr(nI(i),2))
-         enddo
+         INCLUDE 'uhfdet.inc'
+         if(tStoreAsExcitations.and.nI(1).eq.-1) then
+!The excitation storage starts with -1.  The next number is the excitation level,L .  
+!Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+            hEl=0.d0
+            do i=4,nI(2)+4-1
+               hEl=hEl-HElement(Arr(nI(i),2))
+            enddo
+            do i=i,i+nI(2)-1
+               hEl=hEl+HElement(Arr(nI(i),2))
+            enddo
+         else
+            hEl=ECore
+            do i=1,nEl
+               hEl=hEl+HElement(Arr(nI(i),2))
+            enddo
+         endif
 !         call writedet(77,nI,nel,.false.)
 !         write(77,*) "H0",hEl
 !         call flush(77)

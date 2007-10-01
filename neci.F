@@ -150,6 +150,16 @@ C..Input parameters
       ENDDO
       SymRestrict%Ms=IPARITY(4)
       SymRestrict%Sym%s=IPARITY(5)
+
+      if(tUseBrillouin) THEN
+         WRITE(6,*) "Using Brillouin's Theorem to ignore single"
+     &     // " excitations"
+      endif
+      if(tStoreAsExcitations) THEN
+         write(6,*) "Storing determinants as excitations from the HF "
+     &     // "determinant.  WARNING this may not work!"
+         IF(nEL.lt.8) STOP 'tStoreAsExcitations requires nEl>=8.'
+      endif
       IF(TSPN) THEN
 C.. If we're doing monte carlo without generating a list of
 C.. determinants, we cannot as yet force spin or parity, except by
@@ -991,6 +1001,13 @@ C.. Work out a preliminary Fermi det
       WRITE(6,"(A,$)") "Fermi det (D0):"
       CALL WRITEDET(6,FDET,NEL,.TRUE.)
       CALL ICOPY(NEL,FDET,1,NUHFDET,1)
+      E0HFDET=ECORE
+      DO I=1,NEL
+         E0HFDET=E0HFDET+ARR(NBASIS+NUHFDET(i))
+      ENDDO     
+      WRITE(6,*) "Fock operator energy:",E0HFDET
+
+ 
       IF(TSPECDET.AND.SPECDET(1).EQ.0) THEN
          WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
          CALL ICOPY(NEL,FDET,1,SPECDET,1)
