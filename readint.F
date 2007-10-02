@@ -354,7 +354,7 @@ C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
 !            UMAT(L,I,K,J)=Z
 !            UMAT(K,J,L,I)=Z
          ENDIF
-         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L
+!         WRITE(14,'(1X,F20.12,4I3)') Z,I,J,K,L
          IF(I.NE.0) GOTO 101
 199      CONTINUE
          CLOSE(8)
