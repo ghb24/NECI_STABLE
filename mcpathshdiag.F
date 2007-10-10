@@ -60,8 +60,13 @@ C.,             If 1, only allow doubles.
          POINTER(IP_OGEN,OGEN)
          INTEGER OGEN(*)
          INTEGER CURGEN(*)
+#if defined(POINTER8)
+         INTEGER*8 LOCTAB(3,I_V)
+         INTEGER*8 LOCTAB2(3,I_V)
+#else
          INTEGER LOCTAB(3,I_V)
          INTEGER LOCTAB2(3,I_V)
+#endif
          LOGICAL TFAIL,TNEXT
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
@@ -323,7 +328,7 @@ C.. nodes in the direct line back to I
 
 C.. We do this by taking a copy of LOCTAB (excluding the generator
 C.. from this node, which we haven't put in yet)
-         CALL ICOPY(I_VIND*3,LOCTAB,1,LOCTAB2,1)
+         CALL ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
 C.. Now start at this node, and work backwards along the path to I.
 C.. (This is equivalent to working through all previous nodes in the
 C.. path, as those which are not on our direct route back to I will have 

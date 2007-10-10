@@ -435,6 +435,7 @@ C.. ordering.
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
          NBASIS=LEN
          NHG=LEN
+         iSpinSkip=NBasisMax(2,3)
       ELSEIF(TREADINT.AND.TDFREAD) THEN
          WRITE(6,*) ' *** Creating Basis Fns from Dalton output ***'
          call InitDaltonBasis(nBasisMax,Arr,Brr,G1,Len)
@@ -869,9 +870,11 @@ C.. allocate a UMAT
 C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
                CALL MEMORY(IP_UMAT2,1,'UMAT2')
             ENDIF 
+            CALL MEMORY_CHECK()
             CALL FREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,
      &         G1,NBASISMAX,ISPINSKIP,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,
      &         ALAT)
+            CALL MEMORY_CHECK()
             WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
             WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
             WRITE(6,*) "ECORE now",ECORE
@@ -1594,6 +1597,7 @@ C      DBETA=DBRAT*BETA
 
       IF(.NOT.TREAD) THEN
 !         CALL WRITETMAT(NBASIS)
+         IC=0
          WRITE(6,*) '<D0|H|D0>=',GETHELEMENT2(FDET,FDET,NEL,NBASISMAX,
      &             G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
          WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)

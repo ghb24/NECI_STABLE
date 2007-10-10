@@ -10,7 +10,7 @@
      & TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
-     &   TCPMD,ios,TDFREAD,fRc,TBIN)
+     &   TCPMD,ios,TDFREAD,fRc,tBin)
       USE input
       USE HElement
       USE UMatCache
@@ -20,7 +20,7 @@
      &   TREAD,TRHOOFR,TENERGY,TMC,TRHOIJ,TREADRHO,TMONTE,TTROT,  
      &   TBEGRAPH,THFBASIS,THUB,TNPDERIV,TMCDET,THFCALC,TTILT,    
      &   TBLOCK,TREADINT,TPBC,TREAL,TRHF,TREADHF,TSPECDET,TREADTUMAT,  
-     &   THFORDER,TCSF,TBETAP, eof,TCPMD,TDFREAD,check,TBIN
+     &   THFORDER,TCSF,TBETAP, eof,TCPMD,TDFREAD,check,tBin
       CHARACTER*255 INP
       INTEGER SPECDET(*)
 !
@@ -47,132 +47,164 @@
 !     --------------------------------------------
 !     Set some sensible defaults here
       title = ""
-      I_HMAX=0
-      NFROZEN=0
-      NTFROZEN=0
-      ILOGGING = 0
+
+! SYSTEM defaults
+      TSTARBIN=.false.
+      TREADINT=.false.
+      THFORDER=.false.
+      TDFREAD=.false.
+      TPBC=.false.
+      TUEG=.false.
+      TCPMD=.false.
+      THUB=.false.
+      TUEG=.false.
+      LMS=0
+      TSPN=.false.
+      TCSF=.false.
+      STOT=0
       TPARITY = .false.
-      ISTATE = 1
+      IParity(:)=0
       NMAXX = 0
       NMAXY = 0
       NMAXZ = 0
-      THFORDER=.false.
-      TUEG = .false.
-      THUB = .false.
-      UEG = .false.
+      NMSH=32
+      BOX=1.d0
+      BOA=1.d0
+      COA=1.d0
+      TUSEBRILLOUIN=.false. 
+      FUEGRS=0.D0
+      iPeriodicDampingType=0
+      fRc=0.D0
+      TEXCH=.true.
+      FCOUL=1.D0
       UHUB = 4
       BHUB = -1
-      TPBC = .false.
       TREAL = .false.
       TTILT = .false.
       TALPHA = .false.
+      ISTATE = 1
+      OrbECutoff=-1e50
+      tStar=.false.
+      tStoreAsExcitations=.false.
+      TBIN=.false.
+
+
+! Precalc defaults      
+      TPREVAR=.false.
+      PRE_IVMAX=0      
+      PRE_TAY(:,:)=0
+      PRE_TAYLOG(:,:)=.false.
+      PRE_TAYREAL(:,:)=0.D0
+      PRE_TAYREAL(2,:)=0.1      !TOLERANCE   
+      TLINEVAR(:)=.false.
+      TGRIDVAR(:)=.false.
+      TRUECYCLES=0
+      TOTALERROR=0.D0
+      PREWEIGHTEPS=1.D-8
+      USEVAR(:,:)=0
+      MEMSAV(:)=.false.
+
+! Calc defaults      
+      TCALCHMAT = .false.
+      TStar=.false.
+      TENERGY = .false.
       NEVAL = 0
-      TBLOCK = .false.
-      ICILEVEL = 0
-      B2L = 1.D-13
-      NCYCLE = 200
+      TREAD = .false.
       NBLK = 4
       NKRY = 8
-      TREAD = .false.
-      TCALCHMAT = .false.
-      TENERGY = .false.
-      NWHTAY(1,1) = 0
+      B2L = 1.D-13
+      TBLOCK = .false.
+      ICILEVEL = 0
+      TNEWEXCITATIONS=.FALSE.
+      NWHTAY(:,:) = 0
+      NCYCLE = 200
+      IOBS=16
+      JOBS=16
+      KOBS=16
+      NDETWORK = 50000
+      I_HMAX=0
+      I_VMAX=0
+      g_MultiWeight(:)=0
+      TVARCALC(:)=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
+      TBIN=.false.
+      TVVDISALLOW=.false.
+      tMCDirectSum=.FALSE.
+      TMPTHEORY=.FALSE.
       G_VMC_PI = 0.95
       G_VMC_SEED = -7
       G_VMC_FAC = 16
-      G_VMC_EXCITWEIGHT(:)=0.D0
-      TPREVAR=.false.
-      TVARCALC=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
-      USEVAR=0
-      g_VMC_ExcitWeights=0.D0
-      EXCITFUNCS=.false.
-      EXCITFUNCS(10)=.true.
-      TGRIDVAR=.false.
-      TLINEVAR=.false.
-      MEMSAV=.false.
       TUPOWER=.false.
+      G_VMC_EXCITWEIGHT(:)=0.D0
+      G_VMC_EXCITWEIGHTS(:,:)=0.D0
+      EXCITFUNCS(:)=.false.
+      EXCITFUNCS(10)=.true.
+      NPaths=0
+      nActiveSpace(:)=0 
+      TNPDERIV = .false.
+      TMONTE = .false.
+      IMCSTEPS = 0
+      IEQSTEPS = 0
+      BETAEQ = 0
+      TMCDET = .false.
+      MDK(:) = 0
+      DETINV = 0
+      TSPECDET = .false.
       IP_SPECDET=0
-      LMS=0
-      STOT=0
-      TSPN=.false.
-      TCSF=.false.
-
+      TTROT=.true.
+      BETA=0.D0
       BETAP=1.D-4
-!DBETA now has  two elements
+      TBETAP=.false.
+      RHOEPSILON=1.D-6
+!DBETA now has  three elements
 ! DBETA(1) is DBETA
 ! DBETA(2) is GRAPHEPSILON
 ! DBETA(3) is PGENEPSILON
       DBETA(1)=-1.D0
       DBETA(2)=0.D0
       DBETA(3)=0.D0
-      STARCONV=1.D-3
-      RHOEPSILON=1.D-6
-      TTROT=.true.
-      PREWEIGHTEPS=1.D-8
-      
-      TMPTHEORY=.FALSE.
-      TNEWEXCITATIONS=.FALSE.
-      TSTARSTORE=.false.
-      TBIN=.false.
-      TNPDERIV = .false.
-      TMONTE = .false.
-      IMCSTEPS = 0
-      IEQSTEPS = 0
-      BETAEQ = 0
-      IHFMETHOD = 1
-      TREADBASIS = .false.
-      TREADUMAT = .false.
-      TMCDET = .false.
-      FCOUL=1.D0
-      TEXCH=.true.
-      FUEGRS=0.D0
-      fRc=0.D0
-      do I = 1,5
-        MDK(I) = 0
-      end do
-      DETINV = 0
-      NDETWORK = 50000
-      TSPECDET = .false.
+      StarConv=1.d-3
+      calcp_sub2vstar=.false.
 
-      NSLOTSINIT=1024
-      I_VMAX=0
+! Integral defaults      
+      NTAY(1:2) = 1
+      THFBASIS=.false.
+      THFCALC = .false.
+      nHFit=0
+      HFMix=0.d0
+      HFEDelta=0.d0
+      HFCDelta=0.d0
+      IHFMETHOD = 1
+      TRHF=.true.
+      TReadTUMat=.false.
+      TReadHF=.false.
+      NFROZEN=0
+      NTFROZEN=0
+      OrbOrder(:,:)=0
+      OrbOrder2(:)=0.d0
+      nSlotsInit=1024
+      nMemInit=0
+      iDumpCacheFlag=0
+      tReadInCache=.false.
+
+! Logging defaults      
+      ILOGGING = 0
+      iGlobalTimerLevel=40
+      
+! Coulomb damping function currently removed.
       FCOULDAMPBETA=-1.D0
       COULDAMPORB=0
 
-      !Precalc defaults
-      PRE_IVMAX=0      
-      PRE_TAY=0
-      PRE_TAYLOG=.false.
-      PRE_TAYREAL=0.D0
-      PRE_TAYREAL(2,:)=0.1      !TOLERANCE   
-      TRUECYCLES=0
-      TOTALERROR=0.D0
-      calcp_sub2vstar=.false.
 !     Values for old parameters.
-      TVVDISALLOW=.false.
       TRHOOFR = .false.
       TCORR = .false.
       TFODM = .false.
       TMC = .false.
       NHISTBOXES = 0
-      NTAY(1) = 1
-      NTAY(2) = 1
       TREADRHO = .false.
       TRHOIJ = .false.
       TBEGRAPH = .false.
-      TDFREAD=.false.
+      THFCALC=.false.
 
-      IOBS=16
-      JOBS=16
-      KOBS=16
-      NMSH=32
-
-      TSTAR=.FALSE.
-      TUSEBRILLOUIN=.FALSE.
-      tStoreAsExcitations=.FALSE.
-
-      OrbECutoff=-1e50
-      iGlobalTimerLevel=40
       ir=1
       IF(FILENAME.NE.'') THEN
          WRITE(6,*) "Reading from file: ",TRIM(FILENAME)
@@ -367,9 +399,9 @@ C                  end select
                   end if
               case("ENERGY-CUTOFF")
                   call getf(OrbECutoff)
-
               case("STORE-AS-EXCITATIONS")
                  tStoreAsExcitations=.true.  
+
               case("ENDSYS") 
                   exit system
               case default
@@ -605,7 +637,7 @@ C                  end select
      &               I_VMAX)
                   case("EXCITATIONS")
                      call readu(w)
-                     call inpgetexcitations(NWHTAY(2,I_VMAX),w,I_VMAX)
+                     call inpgetexcitations(NWHTAY(2,I_VMAX),w)
                   case("CYCLES")
                      call readi(NWHTAY(2,I_VMAX))
                      if ( NWHTAY(1,I_VMAX).ne. -7.and.
@@ -974,7 +1006,6 @@ C.. multiple of 2
                   select case(w)
                      case("SLOTS")
                         call geti(NSLOTSINIT)
-                        nMemInit=0
                      case("MB")
                         call geti(NMEMINIT)
                         nSlotsInit=1
@@ -1099,6 +1130,9 @@ C     ILOGGING = 0771
    99 IF (ios.gt.0) THEN
           WRITE (6,*) 'Problem reading input file ',TRIM(FILENAME)
       END IF
+
+      !Ensure beta is set.
+      if (beta.lt.1.d-6) call report("No beta value provided.",.true.)
       
       !Make sure there aren't more precalc levels than true vertex levels - problems otherwise
       IF(preIV_MAX.gt.I_VMAX) THEN
@@ -1179,6 +1213,7 @@ C     ILOGGING = 0771
           call report("Error - can only use STARSTOREREAD with "
      &    //"double excitations of HF",.true.)
       ENDIF
+      
       RETURN
       END
 

@@ -1,4 +1,9 @@
 
+!! NB SYMSETUPEXCITS uses a store which has INTEGER*8 to cope with 64-bit machines, and passes this directly to SYMSETUPEXCITS2
+!!  Iterators which use GENSYMEXCITIT2 use an INTEGER STORE, and create an INTEGER*8 STORE2 internally, and pass this to SYMSETUPEXCITS2
+
+!! SYMSETUPEXCITS takes an INTEGER*8 STORE(6) which stores the pointers used by SYMSETUPEXCITS2
+!!   This STORE can then be passed to SYMGENEXCITS.
 C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,ILEVEL)
@@ -9,10 +14,11 @@ C.. Setup for symmetry routine below.
          INTEGER G1(*),NBASISMAX(*),NBASIS
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER STORE(6),ICOUNT
+         INTEGER*8 STORE(6)
+         INTEGER ICOUNT
          LOGICAL TCOUNT
          INTEGER ILEVEL
-         CALL IAZZERO(STORE,6)
+         CALL IAZZERO(STORE,6*2)
          CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &      +SymmetrySize*(NEL*NEL+1),
      &      'DSTORE')
@@ -45,7 +51,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          TYPE(BasisFN) G1(nBasis)
          INTEGER NBASISMAX(*),NBASIS
          LOGICAL TCOUNT
-         INTEGER STORE(*)
+         INTEGER*8 STORE(*)
 
          TYPE(SymClass) CLASSES(*)
          INTEGER CLASSCOUNT(2,NEL)
@@ -105,8 +111,6 @@ C.. ISPN=1 is beta, ISPN=2 is alpha
                CLASSES(NCL)%SymLab=SymClasses((NI(I)+1)/2)
                CLASSCOUNT(ISPN,NCL)=1
                CLASSCOUNT(3-ISPN,NCL)=0
-!             WRITE(6,"(A,2I4,Z4,2I4)") "CLASS ",NCL,CLASSES(NCL)%SymLab,
-!     &            I
             ENDIF
          ENDDO
 C.. Now calculate the resultant symmetry from removing one of each of the classes
@@ -121,8 +125,10 @@ C.. Now calculate the resultant symmetry from removing one of each of the classe
                ENDDO
             ENDDO
             CLASSES(I)%SymRem=PR
+!            WRITE(6,"(A,I4,2Z4,I)") "CLASS ",NCL,CLASSES(I)%SymLab,
+!     &            CLASSES(I)%SymRem,I
          ENDDO
-C         WRITE(6,*) NCL," Symmetry Classes"
+!            WRITE(6,*) NCL," Symmetry Classes"
 C.. For each pair of symmetry classes, determine its symmetry product.
 C.. We list them and then sort them
          CALL IAZZERO(SYMPRODCOUNT,(NEL*NEL+1)*3)
@@ -527,12 +533,14 @@ C..      ENDIF(.NOT.TCOUNT)
          CALL TIHALTL('SYMSUEXCIT',ISUB,65)
       END
 
+
+!  Must be called after SYMSETUPEXCITS.  Needs INTEGER*8 STORE and frees memory therein
       SUBROUTINE SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,LSTE,
      &   ICLIST,ICOUNT)
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,G1(*),NBASIS,NBASISMAX(*)
          INCLUDE 'sym.inc'
-         INTEGER STORE(6)
+         INTEGER*8 STORE(6)
          INTEGER ORBPAIRS(2,*)
          POINTER (IP_ORBPAIRS,ORBPAIRS)
          INTEGER SYMPRODIND(2,3,0:*)
@@ -810,6 +818,11 @@ C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be 
 C.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
 C.. first with STORE(1)=0, and then again.  Finally it can be called with TSETUP=.FALSE. 
 C.. to actually generate the excitations
+!! First run.  TSETUP=.TRUE.  STORE(1)=0.  NMEM can just be an INTEGER
+!!  requires INTEGER STORE(6) to hold initialization data.  NMEM is returned containing the memory required to hold the excitation generator (call this nLength)
+!! Second run,  TSETUP=.TRUE.  STORE(:) contains data from first run.  NMEM now is an array of nLenght INTEGERs.  The excitation generator data is stored in this.
+!! Third run,   TSETUP=.FALSE.  will generate an excitation of NI, and put it in NEL.  
+
       SUBROUTINE GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL)
          IMPLICIT NONE
@@ -819,7 +832,11 @@ C.. to actually generate the excitations
          INTEGER G1(*),NBASISMAX(*),NBASIS
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER STORE(6),ICOUNT
+!  STORE contains lengths of various components of the excitation generator
+         INTEGER STORE(6)
+!  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
+         INTEGER*8 STORE2(6)
+         INTEGER ICOUNT
          INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
          LOGICAL TSETUP
 #ifdef POINTER8
@@ -830,16 +847,20 @@ C.. to actually generate the excitations
          INTEGER ILEVEL
          IF(TSETUP) THEN
 C.. This is the first time we've been called for setup.
+!  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
             IF(STORE(1).EQ.0) THEN
-               CALL IAZZERO(STORE,6)
+               CALL IAZZERO(STORE2,6*2)
                CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
-               STORE(1)=IP_DSTORE
+               STORE2(1)=IP_DSTORE
 C.. Just count.
-               CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+               CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &            DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
                CALL FREEM(IP_DSTORE)
+               DO i=1,6
+                  STORE(i)=STORE2(i)
+               ENDDO
                STORE(1)=SymClassSize*NEL+NBASIS/32+1+
      &            SymmetrySize*(NEL*NEL+1)
                NMEM(1)=23+STORE(1)+STORE(2)+STORE(3)+STORE(4)+STORE(5)
@@ -874,17 +895,21 @@ C..   DSTORE(NEL*SymClassSize+1) - ,,,        ILUT
                ICOUNT=24
 C.. Put the addresses in store
                DO I=1,5
-                  NMEM(I)=GET_ADDR(NMEM(ICOUNT))
+                  STORE2(I)=GET_ADDR(NMEM(ICOUNT))
                   ICOUNT=ICOUNT+STORE(I)
                ENDDO
                CALL IAZZERO(NMEM(6),ICOUNT-6)
+               STORE2(6)=0
                NMEM(11)=-1
                NMEM(7)=0
-               IP_DSTORE=NMEM(1)
+               IP_DSTORE=STORE2(1)
 C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
-               CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(1),
+!!      SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
+!!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
+               CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &            DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
+               NMEM(6)=STORE2(6)
                NMEM(23)=ICOUNT
                IC=ICOUNT
 C.. and now instead the indices within NMEM
@@ -901,6 +926,10 @@ C.. Actually generate a det
 C            WRITE(6,"(A,Z10,8I4,$)") "GET",GET_ADDR(NMEM(1)),
 C     &         (NMEM(I),I=7,14)
             IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
+!!      SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
+!!     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
+!!     &               I,J,K,L,ICC,LS,
+!!     &               NK,IC)
             CALL SYMGENEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
@@ -1632,8 +1661,13 @@ C.    We must create one.
          INTEGER STORE(6)
          POINTER (IP_NEWEX,NEWEX)
          INTEGER NEWEX(*),NEWEXLEN
-         !Array of pointers - exciting problems if ever move to 64 bit(would have to be integer*8)
+         !Array of pointers
+#if defined(POINTER8)
+         INTEGER*8 EXCITGEN(0:iV)
+#else
          INTEGER EXCITGEN(0:iV)
+#endif
+
          TYPE(BasisFN) G1(*)
          INTEGER nBasisMax(*)
          TYPE(HElement) UMat(*)

@@ -1197,7 +1197,11 @@ C..
          INTEGER NEXNODE
          INTEGER NMEM(*)
          INTEGER CUREX(*),NEWEX(*),NEWEXLEN
+#if defined(POINTER8)
+         INTEGER*8 PVERTMEMS(0:I_V)
+#else
          INTEGER PVERTMEMS(0:I_V)
+#endif
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
          INTEGER STORE(6)
@@ -1823,7 +1827,11 @@ C.. weight.
          INTEGER NEXNODE
          INTEGER NMEM(*)
          INTEGER CUREX(*),NEWEX(*),NEWEXLEN
+#if defined(POINTER8)
+         INTEGER*8 PVERTMEMS(0:I_V)
+#else
          INTEGER PVERTMEMS(0:I_V)
+#endif
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
          TYPE(HDElement) ORHOII(0:I_OVCUR)
@@ -2021,7 +2029,11 @@ C.. Unbias the sum
          TYPE(BasisFN) G1(*)
          INTEGER I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH
          INTEGER NMAX,NTAY
+#if defined(POINTER8)
+         INTEGER*8 PVERTMEMS2(0:I_V)
+#else
          INTEGER PVERTMEMS2(0:I_V)
+#endif
          COMPLEX*16 FCK(*)
          INTEGER I_HMAX
 
@@ -2033,7 +2045,11 @@ C.. Unbias the sum
          INTEGER ISEED
 
          REAL*8 PEXCIT(I_V)
+#if defined(POINTER8)
+         INTEGER*8 PVERTMEMS(0:I_V)
+#else
          INTEGER PVERTMEMS(0:I_V)
+#endif
          INTEGER I_VNEXT
          INTEGER INODE(NEL),INODE2(NEL)
          INTEGER NMEMNI(*)
@@ -2314,7 +2330,11 @@ C.. a wrongly biased MC
          INTEGER NEXNODE
          INTEGER NMEM(*)
          INTEGER CUREX(*),NEWEX(*),NEWEXLEN
+#if defined(POINTER8)
+         INTEGER*8 PVERTMEMS(0:I_V)
+#else
          INTEGER PVERTMEMS(0:I_V)
+#endif
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
          REAL*8 ORHOII(0:I_V),ORHOIJ(0:I_V,0:I_V)

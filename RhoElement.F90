@@ -141,6 +141,9 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
             RH=EXP(-B*EDiag)*UExp
          ENDIF
       ENDIF
+      if (ni(nel).eq.8.and.nj(nel).eq.10) then
+          write (6,*) Rh,BETA/I_P,hE,UExp
+      end if
 
 !WRDET
 !      WRITE(6,"(A,$)") "RHO:"

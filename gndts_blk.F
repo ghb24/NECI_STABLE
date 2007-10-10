@@ -437,7 +437,7 @@ C..  NEL+19 - 2*NEL+18  NINDJ
             CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &         TPARITY,SymRestrict,TSETUP,TDONE,Work%IMax,Work%ISym)
 C,IMAX,ISYM)
-            NELEC=1
+            Work%nElec=1
             Work%niWork(nEl+1)=0
             RETURN
          ENDIF
@@ -446,12 +446,12 @@ C.. Go to the next det.
          DO WHILE(TMORE)
             CALL GENNEXTSYMDET(Work%ISYM,NEL,G1,BRR,NBASIS,
      &           TDONE,Work%niWork,NI,Work%niWork(nEl+1)
-     &            ,NELEC,NBASISMAX,nActiveBasis)
+     &            ,Work%nElec,NBASISMAX,nActiveBasis)
             IF(TDONE) THEN
                CALL GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &            TPARITY,SymRestrict,TSETUP,TMORE,Work%IMax,Work%iSym)
                TMORE=.NOT.TMORE
-               NELEC=1
+               Work%nElec=1
                NINDJ(1)=0
             ELSE
                TMORE=.FALSE.

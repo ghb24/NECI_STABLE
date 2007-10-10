@@ -1240,8 +1240,17 @@ MODULE UMatCache
       integer  i,j,k,l,iCache1,iCache2,A,B,readerr,iType
       integer  iSlot,iPair
       type(HElement) UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
-      logical  tDummy,GetCachedUMatEl
-      open (21,file="CacheDump",status="old")
+      logical  tDummy,GetCachedUMatEl,testfile
+      inquire(file="CacheDump",exist=testfile)
+      if (.not.testfile) then
+          write (6,*) 'CacheDump does not exist.'
+          return
+      end if
+      open (21,file="CacheDump",status="old",iostat=readerr)
+      if (readerr.ne.0) then 
+          write (6,*) 'Error reading CacheDump.'
+          return
+      end if
       read (21,*) nStatesDump
       readerr=0
       do while (readerr.eq.0)

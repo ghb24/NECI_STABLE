@@ -59,7 +59,11 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 DBETA
          TYPE(HDElement) DLWDB,DLWDB2,EREF
          TYPE(HElement)  HIJS(0:I_VMAX)
+#if defined(POINTER8)
+         INTEGER*8 LOCTAB(3,I_VMAX)
+#else
          INTEGER LOCTAB(3,I_VMAX)
+#endif
          TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          TYPE(HDElement) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
          TYPE(HDElement) fMCPR3StarNewExcit
@@ -440,7 +444,12 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          LOGICAL TLOG,TSYM,LISNAN
          REAL*8 DBETA
          TYPE(HElement) HIJS(0:I_VMAX)
+#if defined(POINTER8)
+         INTEGER*8 LOCTAB(3,I_VMAX)
+#else
          INTEGER LOCTAB(3,I_VMAX)
+#endif
+         TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          TYPE(HDElement) FMCPR3B,DLWDB,DLWDB2,EREF
          REAL*8 NTIME,OTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX)
@@ -1017,8 +1026,13 @@ C.,             If 1, only allow doubles.
          POINTER(IP_OGEN,OGEN)
          INTEGER OGEN(*)
          INTEGER CURGEN(*)
+#if defined(POINTER8)
+         INTEGER*8 LOCTAB(3,I_V)
+         INTEGER*8 LOCTAB2(3,I_V)
+#else
          INTEGER LOCTAB(3,I_V)
          INTEGER LOCTAB2(3,I_V)
+#endif
          LOGICAL TFAIL,TNEXT,T
          INTEGER L,LT,IVLEVEL,IEXFROM,IVLMAX,IVLMIN
          INTEGER ICMPDETS
@@ -1215,7 +1229,11 @@ C.. nodes in the direct line back to I
 
 C.. We do this by taking a copy of LOCTAB (excluding the generator
 C.. from this node, which we haven't put in yet)
+#if defined(POINTER8)
+         CALL ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
+#else
          CALL ICOPY(I_VIND*3,LOCTAB,1,LOCTAB2,1)
+#endif
 C.. Now start at this node, and work backwards along the path to I.
 C.. (This is equivalent to working through all previous nodes in the
 C.. path, as those which are not on our direct route back to I will have 

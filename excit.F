@@ -144,7 +144,8 @@ C.. determinants within double excitations, which will end up fairly inefficient
          LOGICAL TSYM,TCOUNT
          INTEGER G1(*),NMIN
 
-         INTEGER STORE(6),ICOUNT,ILEVEL
+         INTEGER*8 STORE(6)
+         INTEGER ICOUNT,ILEVEL
 
 
          NO=NORDER
