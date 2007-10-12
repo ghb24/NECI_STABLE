@@ -5,7 +5,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use UMatCache
          implicit none
          integer nEl,nBasisMax(5,3),Len,lMs
-         parameter C_file='SAV_D____A'
+         parameter C_file='SAV_D____a'
          parameter nolabel='        '
          character(3) file_status
          integer info,lenrec,nrec,i
@@ -40,7 +40,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use HElement
          use UMatCache
          implicit none
-         parameter C_file='SAV_D____A'
+         parameter C_file='SAV_D____a'
          parameter I_file='SAV_T____a'
          parameter S_file='SAV_S____a'
          parameter nolabel='        '
@@ -49,6 +49,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          integer nBasis,nOrbUsed,ierr
          real(dp) array(1000)
 
+         WRITE(6,*) "Opening Density fitting matrix files"
          file_status= 'ADD'
 !.. We've already got C_file open
          call init_record_handler(I_file,file_status,info,printinfo=.TRUE.)
@@ -84,7 +85,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          call SetupUMat2D_df
       END
       
-!.. Get a 2-el integral.  a,b,c,d are indices.
+!.. Get a 2-el integral.  a,b,c,d are indices. <ab|1/r12|cd>
 !DFCoeffs(x,yz) is (x|yz)
 !DFInts(x,yz) is (x|u|yz)
 !DFFitInts(x,y) is (x|u|y)
@@ -99,15 +100,16 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
+!CC         write(6,"(6I4)") a,b,c,d,x,y
          do i=1,nAuxBasis
            res=res+DFCoeffs(i,x)*DFInts(i,y)
          enddo
 !         WRITE(79,"(4I4,G)") a,b,c,d,res
-!         WRITE(6,*) "D",a,b,c,d,res
+!CC         WRITE(6,*) "D",a,b,c,d,res
       END
 
 
-!.. Get a 2-el integral.  a,b,c,d are indices.
+!.. Get a 2-el integral.  a,b,c,d are indices. <ab|1/r12|cd>
 !DFCoeffs(x,yz) is (x|yz)
 !DFInts(x,yz) is (x|u|yz)
 !DFFitInts(x,y) is (x|u|y)
@@ -119,28 +121,38 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          integer a,b,c,d
          integer i,GetDFIndex
          integer x,y,j
-         real*8 res
+         real*8 res,res1,res2,res3
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
 ! To eliminate errors to the first order, 
 !  Need (ab|u|cd).  p=~ab   q=~cd
 !  (ab|u|cd)=(p|u|cd)+(ab|u|q)-(p|u|q)  (to 2nd order in error of p-ab, and q-cd)
+         res1=0
+         res2=0
+         res3=0
          do i=1,nAuxBasis
            res=res+DFCoeffs(i,x)*DFInts(i,y)+DFCoeffs(i,y)*DFInts(i,x)
+           res1=res1+DFCoeffs(i,x)*DFInts(i,y)
+           res2=res2+DFCoeffs(i,y)*DFInts(i,x)
            do j=1,nAuxBasis
-               res=res+DFCoeffs(i,x)*DFCoeffs(j,y)*DFFitInts(x,y)
+               res=res-DFCoeffs(i,x)*DFCoeffs(j,y)*DFFitInts(i,j)
+               res3=res3-DFCoeffs(i,x)*DFCoeffs(j,y)*DFFitInts(i,j)
             enddo
          enddo
 !         WRITE(79,"(4I4,G)") a,b,c,d,res
-!         WRITE(6,*) "D",a,b,c,d,res
+!         WRITE(6,*) "D2",a,b,c,d,res,res1,res2,res3
       END
      
 !.. return a DF pair index - i<j (although the pairs are ordered 11 21 22 31 32 33 41 42 ...
       INTEGER FUNCTION GetDFIndex(i,j)
          IMPLICIT NONE
          INTEGER I,J
-         GetDFIndex=i+j*(j-1)/2
+         if(i.lt.j) then
+            GetDFIndex=i+j*(j-1)/2
+         else
+            GetDFIndex=j+i*(i-1)/2
+         endif
       END 
       SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D,tUMat2D)
          implicit none
@@ -155,6 +167,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             read(11,*) i,j,val
          enddo
          i=1
+         ilast=0
          do while(i.ne.0.and.i.le.nBasis.and.j.le.nBasis)
             read(11,*,end=20) i,j,k,val
             if(i.ne.0.and.i.le.nBasis.and.j.le.nBasis) then
@@ -175,14 +188,16 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             do i=ilast+1,nBasis
                do j=1,i
                   if(i.lt.j) then
-                     call GetDF2EInt2Order(i,j,i,j,UMat2D(i,j))
-                     call GetDF2EInt2Order(i,j,j,i,UMat2D(j,i))
+                     call GetDF2EInt(i,j,i,j,UMat2D(i,j))
+                     call GetDF2EInt(i,j,j,i,UMat2D(j,i))
+                     WRITE(78,"(3I5,G)") i,j,0,UMat2D(i,j)
+                     IF(i.ne.j) WRITE(78,"(3I5,G)") j,i,0,UMat2D(j,i)
                   else
-                     call GetDF2EInt2Order(i,j,i,j,UMat2D(j,i))
-                     call GetDF2EInt2Order(i,j,j,i,UMat2D(i,j))
+                     call GetDF2EInt(i,j,i,j,UMat2D(j,i))
+                     call GetDF2EInt(i,j,j,i,UMat2D(i,j))
+                     WRITE(78,"(3I5,G)") i,j,0,UMat2D(j,i)
+                     IF(i.ne.j) WRITE(78,"(3I5,G)") j,i,0,UMat2D(i,j)
                   endif
-                  WRITE(78,"(3I5,G)") i,j,0,UMat2D(i,j)
-                  IF(i.ne.j) WRITE(78,"(3I5,G)") j,i,0,UMat2D(j,i)
                enddo
             enddo
             close(78)
