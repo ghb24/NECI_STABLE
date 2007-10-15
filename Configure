@@ -791,7 +791,7 @@ case ${Configuration}
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
-     LFLAGS='-L /home/jss43/src/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
      LDFLAGS='-Mnostdlib -Mnostartup' 
      if [ $debug ]; then
        FC='pgf90 -c -g '
