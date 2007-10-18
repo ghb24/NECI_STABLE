@@ -502,6 +502,15 @@ DIAG-PARTITION
 RHO-1STORDER
    Calculate rho elements to only 1st order taylor (without trotter etc.)
 
+DFMETHOD meth
+control the Density fitting method.  Possible values of meth are
+ 
+! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)
+! DFOVERLAP2NDORD  2 - (ij|u|ab)= (ij|u|P)(P|ab)+(ij|P)(P|u|ab)-(ij|P)(P|u|Q)(Q|ab)
+! DFOVERLAP2       3 - (ij|u|ab)= (ij|P)(P|u|Q)(Q|ab)
+! DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)
+
+
 ENDINT
     End of integral block.
 

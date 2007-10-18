@@ -45,7 +45,8 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          parameter S_file='SAV_S____a'
          parameter nolabel='        '
          character(3) file_status
-         integer info,i
+         integer info,i,j,k
+         real*8 r
          integer nBasis,nOrbUsed,ierr
          real(dp) array(1000)
 
@@ -76,6 +77,55 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          call leave_record_handler(C_file,info)
          call leave_record_handler(I_file,info)
          call leave_record_handler(S_file,info)
+
+         select case(iDFMethod)
+         case(0)
+            STOP "No DF, but ReadDF2EIntegrals called."
+         case(1)
+            WRITE(6,*) "DFMETHOD DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)"
+         case(2)
+            WRITE(6,*) "DFMETHOD DFOVERLAP2NDORD  2 - (ij|u|ab)= (ij|u|P)(P|ab)+(ij|P)(P|u|ab)-(ij|P)(P|u|Q)(Q|ab)"
+         case(3)
+            WRITE(6,*) "DFMETHOD DFOVERLAP2       3 - (ij|u|ab)= (ij|P)(P|u|Q)(Q|ab)"
+         case(4)
+            WRITE(6,*) "DFMETHOD DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)"
+         case default
+            WRITE(6,*) "Unknown DF Method: ",iDFMethod
+            STOP "Unknown DF Method"
+         end select
+
+         if(iDFMethod.gt.2) then
+            Allocate(DFInvFitInts(nAuxBasis,nAuxBasis),STAT=ierr)
+            call MemAlloc(ierr,DFInvFitInts,nAuxBasis*nAuxBasis,"DFInvFitInts")
+         endif
+         select case(iDFMethod)
+         case(3)
+            call DFCalcInvFitInts(0.5D0)
+            WRITE(6,*) "Calculating B matrix" 
+            do i=1,nBasisPairs
+               do j=1,nAuxBasis
+                  r=0
+                  do k=1,nAuxBasis
+                     r=r+DFInvFitInts(j,k)*DFCoeffs(k,i)
+                  enddo
+                  DFInts(j,i)=r
+               enddo
+            enddo
+!DFInts now contains B_ij,P = sum_Q (ij|Q)[(Q|u|P)^1/2]
+         case(4)
+            call DFCalcInvFitInts(-0.5D0)
+            WRITE(6,*) "Calculating B matrix" 
+            do i=1,nBasisPairs
+               do j=1,nAuxBasis
+                  r=0
+                  do k=1,nAuxBasis
+                     r=r+DFInvFitInts(j,k)*DFInts(k,i)
+                  enddo
+                  DFCoeffs(j,i)=r
+               enddo
+            enddo
+!DFCoeffs now contains B_ij,P = sum_Q (ij|u|Q)[(Q|u|P)^-1/2]
+         end select
          IF(nBasis.NE.nOrbUsed) THEN
 ! We allocate a small preliminary cache before freezing.
             call SetupUMatCache(nOrbUsed/2,.TRUE.)
@@ -94,55 +144,47 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use UMatCache
          implicit none
          integer a,b,c,d
-         integer i,GetDFIndex
+         integer i,j,GetDFIndex
          integer x,y
          real*8 res
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
 !CC         write(6,"(6I4)") a,b,c,d,x,y
-         do i=1,nAuxBasis
-           res=res+DFCoeffs(i,x)*DFInts(i,y)
-         enddo
-!         WRITE(79,"(4I4,G)") a,b,c,d,res
-!CC         WRITE(6,*) "D",a,b,c,d,res
-      END
-
-
-!.. Get a 2-el integral.  a,b,c,d are indices. <ab|1/r12|cd>
-!DFCoeffs(x,yz) is (x|yz)
-!DFInts(x,yz) is (x|u|yz)
-!DFFitInts(x,y) is (x|u|y)
-!This is slower but calculates more accurately.
-      SUBROUTINE GetDF2EInt2Order(a,b,c,d,res)
-         use HElement 
-         use UMatCache
-         implicit none
-         integer a,b,c,d
-         integer i,GetDFIndex
-         integer x,y,j
-         real*8 res,res1,res2,res3
-         res=0.D0
-         x=GetDFIndex(a,c)
-         y=GetDFIndex(b,d)
-! To eliminate errors to the first order, 
-!  Need (ab|u|cd).  p=~ab   q=~cd
-!  (ab|u|cd)=(p|u|cd)+(ab|u|q)-(p|u|q)  (to 2nd order in error of p-ab, and q-cd)
-         res1=0
-         res2=0
-         res3=0
-         do i=1,nAuxBasis
-           res=res+DFCoeffs(i,x)*DFInts(i,y)+DFCoeffs(i,y)*DFInts(i,x)
-           res1=res1+DFCoeffs(i,x)*DFInts(i,y)
-           res2=res2+DFCoeffs(i,y)*DFInts(i,x)
-           do j=1,nAuxBasis
-               res=res-DFCoeffs(i,x)*DFCoeffs(j,y)*DFFitInts(i,j)
-               res3=res3-DFCoeffs(i,x)*DFCoeffs(j,y)*DFFitInts(i,j)
+         select case(iDFMethod)
+! 0 - no DF
+         case(0)
+            STOP "DF Method 0 specified - no DF, but DF called."
+         case(1)
+! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)
+            do i=1,nAuxBasis
+              res=res+DFCoeffs(i,x)*DFInts(i,y)
             enddo
-         enddo
-!         WRITE(79,"(4I4,G)") a,b,c,d,res
-!         WRITE(6,*) "D2",a,b,c,d,res,res1,res2,res3
+         case(2)
+! DFOVERLAP2NDORD  2 - (ij|u|ab)= (ij|u|P)(P|ab)+(ij|P)(P|u|ab)-(ij|P)(P|u|Q)(Q|ab)
+            do i=1,nAuxBasis
+              res=res+DFCoeffs(i,x)*DFInts(i,y)+DFCoeffs(i,y)*DFInts(i,x)
+              do j=1,nAuxBasis
+                  res=res-DFCoeffs(i,x)*DFCoeffs(j,y)*DFFitInts(i,j)
+               enddo
+            enddo
+         case(3)
+! DFOVERLAP2       3 - (ij|u|ab)= (ij|P)(P|u|Q)(Q|ab)
+
+!DFInts actually contains B_ij,P = sum_Q (ij|Q)[(Q|u|P)^1/2]
+            do i=1,nAuxBasis
+              res=res+DFInts(i,x)*DFInts(i,y)
+            enddo
+         case(4)
+! DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)
+!DFCoeffs actually contains B_ij,P = sum_Q (ij|u|Q)[(Q|u|P)^-1/2]
+            do i=1,nAuxBasis
+              res=res+DFCoeffs(i,x)*DFCoeffs(i,y)
+            enddo
+         end select
       END
+
+
      
 !.. return a DF pair index - i<j (although the pairs are ordered 11 21 22 31 32 33 41 42 ...
       INTEGER FUNCTION GetDFIndex(i,j)
@@ -271,3 +313,108 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
             Brr(i)=i
          enddo
       END 
+
+
+!.. Get a 2-el integral.  a,b,c,d are indices. <ab|1/r12|cd>
+!DFCoeffs(x,yz) is (x|yz)
+!DFInts(x,yz) is (x|u|yz)
+!DFFitInts(x,y) is (x|u|y)
+!This is slower but calculates more accurately.
+      SUBROUTINE GetDF2EInt2OrderOverlap(a,b,c,d,res)
+         use HElement 
+         use UMatCache
+         implicit none
+         integer a,b,c,d
+         integer i,GetDFIndex
+         integer x,y,j
+         real*8 res,res1,res2,res3
+         res=0.D0
+         x=GetDFIndex(a,c)
+         y=GetDFIndex(b,d)
+!  (ab|u|cd)=sum_PQ (ab|P)(P|u|Q)(Q|cd)
+         res1=0
+         res2=0
+         res3=0
+         do i=1,nAuxBasis
+           do j=1,nAuxBasis
+               res=res+DFCoeffs(i,x)*DFCoeffs(j,y)*DFFitInts(i,j)
+            enddo
+         enddo
+!         WRITE(79,"(4I4,G)") a,b,c,d,res
+!         WRITE(6,*) "D2",a,b,c,d,res,res1,res2,res3
+      END
+
+      SUBROUTINE GetDF2EInt2OrderCoulomb(a,b,c,d,res)
+         use HElement 
+         use UMatCache
+         implicit none
+         integer a,b,c,d
+         integer i,GetDFIndex
+         integer x,y,j
+         real*8 res,res1,res2,res3
+         res=0.D0
+         x=GetDFIndex(a,c)
+         y=GetDFIndex(b,d)
+!  (ab|u|cd)=sum_PQ (ab|u|P)[(P|u|Q)^-1](Q|u|cd)
+         res1=0
+         res2=0
+         res3=0
+         do i=1,nAuxBasis
+           do j=1,nAuxBasis
+               res=res+DFInts(i,x)*DFInts(j,y)*DFInvFitInts(i,j)
+            enddo
+         enddo
+!         WRITE(79,"(4I4,G)") a,b,c,d,res
+!         WRITE(6,*) "D2",a,b,c,d,res,res1,res2,res3
+      END
+      SUBROUTINE DFCalcInvFitInts(dPower)
+         use HElement
+         use UMatCache
+         implicit none
+         Real*8,Pointer :: M(:,:) !(nAuxBasis,nAuxBasis)
+         Real*8 Eigenvalues(nAuxBasis),r,dPower
+         Real*8 Work(3*nAuxBasis)
+         integer Workl,info
+         Integer iSub
+         Integer i,j,ierr,k,iMinEigv
+         CALL TISET('DFInvFitIn',ISUB)
+         Allocate(M(nAuxBasis,nAuxBasis),STAT=ierr)
+         call MemAlloc(ierr,M,nAuxBasis*nAuxBasis,"M-DFInvFitInts")
+         call azzero(M,nAuxBasis*nAuxBasis)
+         do i=1,nAuxBasis
+            do j=1,i
+               M(i,j)=DFFitInts(i,j)
+            enddo
+         enddo
+         Workl=3*nAuxBasis
+         WRITE(6,*) "Diagonalizing (P|u|Q)"
+         CALL DSYEV('V','L',nAuxBasis,M,nAuxBasis,Eigenvalues,WORK,WORKL,INFO)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) 'DYSEV error: ',INFO
+            STOP
+         ENDIF
+         iMinEigv=1
+         if(dPower.lt.0) then
+            do i=1,nAuxBasis
+               if(Eigenvalues(i).lt.1d-10) iMinEigv=i+1
+            enddo
+            write(6,*) "Ignoring ",iMinEigv-1," eigenvalues <1d-10"
+         endif
+!M now contains eigenvectors.  Eigenvector i is in M(:,I)
+! A=U^T L U (L is the matrix of eigenvalues on the diagonal)
+! A^-1 = U^T L^-1 U
+         WRITE(6,*) "Calculating (P|u|Q)^",dPower
+         do i=1,nAuxBasis
+            do j=1,i
+               r=0
+               do k=iMinEigv,nAuxBasis
+                  r=r+(Eigenvalues(k)**dPower)*M(j,k)*M(i,k)
+               end do
+               DFInvFitInts(i,j)=r
+               DFInvFitInts(j,i)=r
+            enddo
+         enddo
+         call MemDealloc(M)         
+         Deallocate(M)
+         CALL TIHALT('DFInvFitIn',ISUB)
+      END

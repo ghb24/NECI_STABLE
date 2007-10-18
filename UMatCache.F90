@@ -86,7 +86,16 @@ MODULE UMatCache
       Real*8,Pointer :: DFCoeffs(:,:) !(nAuxBasis,nBasisPairs)
       Real*8,Pointer :: DFInts(:,:) !(nAuxBasis,nBasisPairs)
       Real*8,Pointer :: DFFitInts(:,:) !(nAuxBasis,nAuxBasis)
-         SAVE nAuxBasis,nBasisPairs,tDFInts,DFCoeffs,DFInts,DFFitInts
+      Real*8,Pointer :: DFInvFitInts(:,:) !(nAuxBasis,nAuxBasis)
+      INTEGER iDFMethod
+!Some possible DFMethods sums over P, Q implied.  All precontracted to run in order(X) except DFOVERLAP2NDORD
+! 0 - no DF
+! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)
+! DFOVERLAP2NDORD  2 - (ij|u|ab)= (ij|u|P)(P|ab)+(ij|P)(P|u|ab)-(ij|P)(P|u|Q)(Q|ab)
+! DFOVERLAP2       3 - (ij|u|ab)= (ij|P)(P|u|Q)(Q|ab)
+! DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)
+
+         SAVE nAuxBasis,nBasisPairs,tDFInts,DFCoeffs,DFInts,DFFitInts,DFInvFitInts,iDFMethod
 
       Contains
 

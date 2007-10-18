@@ -185,6 +185,7 @@
       nMemInit=0
       iDumpCacheFlag=0
       tReadInCache=.false.
+      iDFMethod=0
 
 ! Logging defaults      
       ILOGGING = 0
@@ -1020,11 +1021,26 @@ C.. multiple of 2
                   end select
               case("NOUMATCACHE")
                   NSLOTSINIT=-1
+              case ("DFMETHOD")
+                  call readu(w)
+                  select case(w)
+                  case ("DFOVERLAP")
+                     iDFMethod=1
+                  case ("DFOVERLAP2NDORD")
+                     iDFMethod=2
+                  case ("DFOVERLAP2")
+                     iDFMethod=3
+                  case ("DFCOULOMB")
+                     iDFMethod=4
+                 case default
+                     call report("keyword "  
+     &          //trim(w)//" not recognized in DFMETHOD block",.true.)
+                  end select
               case("ENDINT")
                    exit integral
               case default
-                  call report("Keyword "  
-     &          //trim(w)//" not recognized in INTEGRAL block",.true.)
+                  call report("keyword "  
+     &          //trim(w)//" not recognized in integral block",.true.)
               end select
             end do integral
         case("LOGGING")
