@@ -504,6 +504,7 @@ RHO-1STORDER
 
 DFMETHOD meth
 control the Density fitting method.  Possible values of meth are
+!Some possible DFMethods sums over P, Q implied.  All precontracted to run in order(X) except DFOVERLAP2NDORD
  
 ! DFOVERLAP        1 - (ij|u|ab)= (ij|u|P)(P|ab)
 ! DFOVERLAP2NDORD  2 - (ij|u|ab)= (ij|u|P)(P|ab)+(ij|P)(P|u|ab)-(ij|P)(P|u|Q)(Q|ab)
