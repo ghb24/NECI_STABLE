@@ -303,9 +303,10 @@ EXCITATIONS FORCETREE
 
 METHOD <METHOD>
     Specify the method for vertex summation routine.  Options currently are:
-    VERTEX SUM OLD,NEW,HDIAG [SUB2VSTAR]
+    VERTEX SUM OLD,NEW,HDIAG [SUB2VSTAR] [LOGWEIGHT]
         Use the old, new, or H-diagonalizing vertex sum subroutine.
          SUB2VSTAR also removes paths which were present in the 2-vertex star for each graph.  If this is specified for ANY vertex level, it applies to all SUM and MC vertex levels.
+         LOGWEIGHT forms Q as a multiplication of factors from graphs.  This results in the quantity log w being used instead of w, which also translates to the energy expression only involving E~ not weights.  Hopefully this is size-consistent.
     VERTEX MC|MCMETROPOLIS|MCDIRECT|MCMP [HDIAG]
         Monte Carlo procedure.
         MCDIRECT

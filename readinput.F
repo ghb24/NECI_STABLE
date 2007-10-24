@@ -164,6 +164,7 @@
       DBETA(3)=0.D0
       StarConv=1.d-3
       calcp_sub2vstar=.false.
+      calcp_logweight=.false.
 
 ! Integral defaults      
       NTAY(1:2) = 1
@@ -1329,6 +1330,8 @@ C     ILOGGING = 0771
                                 I_HMAX=-14
                             case("SUB2VSTAR")
                                 CALCP_SUB2VSTAR=.TRUE.
+                            case("LOGWEIGHT")
+                                CALCP_LOGWEIGHT=.TRUE.
                             case default
                                 call report("Error - must specify OLD" 
      &                         //" or NEW vertex sum method",.true.)

@@ -567,7 +567,7 @@ C/RII
       END
 C.. See 1/7/04
       RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
-     &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
+     &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight)
          USE HElement
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
@@ -582,6 +582,7 @@ C.. do we subtract out lower vertices here or later?
          TYPE(HDElement) DLWDB,RII,DD2
          TYPE(HDElement) RhoDiag_CPP
          REAL*8 DBETA
+         LOGICAL tLogWeight
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJS(1)
@@ -615,9 +616,26 @@ C.. remove up to IMISS
          IF(TSUB) THEN
             DO I=2,IMISS-1
                DD2=0.D0
-               SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
-     &            DBETA,DD2,HIJS2)
-               IF(DBETA.NE.0.D0) DLWDB=DLWDB-DD2
+               IF(tLogWeight) THEN
+! we return e~' instead of w' E~'
+! e~'[G]=e~[G]-sum_{g in G} e~'[g]
+!  we ignore w' returned in SI
+!  DD2 returns e~'[g]
+!  where g is this graph missing out vertex I.
+                SI=RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
+     &            DBETA,DD2,HIJS2,tLogWeight)
+                IF(DBETA.NE.0.D0) DLWDB=DLWDB-DD2
+                SI=HElement(0)
+               ELSE
+! we return w' E~'
+! w'[G]E~'[G]=w[G]E~[G]-sum_{g in G} w'[g] E~'[g]
+!SI is w' and DLWDB is E~'  
+!  The next line subtracts out the contribution from this graph, but missing out vertex I.
+!   done recursively, this makes w'[G]E~'[G]
+                SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
+     &            DBETA,DD2,HIJS2,tLogWeight)
+                IF(DBETA.NE.0.D0) DLWDB=DLWDB-DD2
+               ENDIF
 C            WRITE(6,*) "SI=",SI
             ENDDO
          ENDIF
@@ -648,11 +666,21 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   ENDDO
                ENDIF
             ENDDO
-C            S=DLWDB
-C            S=S+DLWT
+! DLWT is the value of w[G] E~[G]
+! SI2 is w[G]
+!DLWDB contains the subtracted out subgraphs
+           if(tLogWeight) then
+! we return e~' instead of w' E~'
+! e~'[G]=e~[G]-sum_{g in G} e~'[g]
+            S=DLWT
+            S2=SI2
+            S=S/S2
+            SS=S
+            DLWDB=SS+DLWDB
+           else
             SS=DLWT
             DLWDB=DLWDB+SS
-C            WRITE(6,*) I_V,DLWDB
+           endif
          ELSE
 !.. The complex case
             CALL ZHEEV('V','U',I_V,RIJMAT,I_V,
@@ -679,13 +707,32 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   ENDDO
                ENDIF
             ENDDO
-            S=DLWDB
-            S=S+DLWT
-            DLWDB=S
+! DLWT is the value of w[G] E~[G]
+! SI2 is w[G]
+!DLWDB contains the subtracted out subgraphs
+          if(tLogWeight) then
+! we return e~' instead of w' E~'
+! e~'[G]=e~[G]-sum_{g in G} e~'[g]
+
+            S=DLWT
+            S2=SI2
+            S=S/S2
+            SS=S
+            DLWDB=SS+DLWDB
+           else
+            SS=DLWT
+            DLWDB=DLWDB+SS
+           endif
          ENDIF
 
 
          RHODIAG_CPP=SI+SI2
+
+         if(tLogWeight) then
+            RHODIAG_CPP=HDElement(0)
+!  We return zero as the weight of the graph
+         ENDIF
+
          CALL TIHALTL("RHODIAG_C2",ISUB,55)
          RETURN
       END

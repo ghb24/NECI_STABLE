@@ -117,7 +117,7 @@ C.. RHOIJ elements.  We send beta in from RHOII(1)
      &            .TRUE.,DBETA,DLWDB,HIJS)
                else
                   CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,
-     &            .TRUE.,DBETA,DLWDB,HIJS)
+     &            .TRUE.,DBETA,DLWDB,HIJS,calcp_logweight)
                endif
             ENDIF
          ELSEIF(I_HMAX.EQ.-2.OR.I_HMAX.EQ.-6) THEN
@@ -125,7 +125,7 @@ C.. we use a diagonalization version rather than contour etc.
 C.. we deal with removing lower vertex paths later
 C            WRITE(6,*) "-----"
             CALCPATHS=RHODIAG_CPP(RHOIJ,I_P,I_V,I_V+1,.FALSE.,
-     &         DBETA,DLWDB,HIJS)
+     &         DBETA,DLWDB,HIJS,calcp_logweight)
          ELSEIF(I_HMAX.EQ.0) THEN
             WRITE(6,*) "I_HMAX=0"
             STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX=0'
