@@ -150,9 +150,9 @@ C.. Setup the symmetry product table
 !            ENDDO
 !         ENDDO
 C.. Now generate a list of sym labels.
-         CALL MEMORY(IP_SYMLABELS,NSYM*SymmetrySize,"SYMLABELS")
-         CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
          NSYMLABELS=NSYMMAX
+         CALL MEMORY(IP_SYMLABELS,NSYMLABELS*SymmetrySize,"SYMLABELS")
+         CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
          DO I=1,NBASIS,2
 C.. place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
 C.. the log_2 of the symmetry bit string
@@ -165,7 +165,7 @@ C.. we don't have symmetry, so fake it.
             ENDIF
          ENDDO
 C.. list the symmetry string of each sym label
-         DO I=1,NSYM
+         DO I=1,NSYMLABELS
 !            SYMLABELS(I)%s=2**(I-1)
             SYMLABELS(I)%s=I-1
          ENDDO
