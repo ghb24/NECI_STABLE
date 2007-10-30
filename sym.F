@@ -121,7 +121,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         INTEGER NSYMMAX
+         INTEGER NSYMMAX,nSymGen
          INTEGER I,J
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(NBASIS)
@@ -129,25 +129,30 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          TYPE(Symmetry) SYMT2(NSYMMAX,NSYMMAX)
          POINTER (IP_SYMT2,SYMT2)
         
+         TAbelian=.true.
+         PropBitLen=1
+         nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
          WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",  &
-     &      INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4), " generators" 
+     &      nSymGen, " generators" 
 
+         nprop=1
+         nprop(1:nSymGen)=2
+!         NSYM=NSYMMAX
 C.. Setup the symmetry product table
-         NSYM=NSYMMAX
-         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
-         IP_SYMT2=IP_SYMTABLE
-         CALL MEMORY(IP_SymConjTab,NSYM,'SymConjTab')
-         CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
-         DO I=0,NSYM-1
-            SymConjTab(I+1)=I+1
-            DO J=0,NSYM-1
-               SYMT2(I+1,J+1)%s=IBSET(0,IEOR(I,J))
-            ENDDO
-         ENDDO
+!         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
+!         IP_SYMT2=IP_SYMTABLE
+!         CALL MEMORY(IP_SymConjTab,NSYM,'SymConjTab')
+!         CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
+!         DO I=0,NSYM-1
+!            SymConjTab(I+1)=I+1
+!            DO J=0,NSYM-1
+!               SYMT2(I+1,J+1)%s=IBSET(0,IEOR(I,J))
+!            ENDDO
+!         ENDDO
 C.. Now generate a list of sym labels.
          CALL MEMORY(IP_SYMLABELS,NSYM*SymmetrySize,"SYMLABELS")
          CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
-         NSYMLABELS=NSYM
+         NSYMLABELS=NSYMMAX
          DO I=1,NBASIS,2
 C.. place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
 C.. the log_2 of the symmetry bit string
@@ -155,12 +160,14 @@ C.. the log_2 of the symmetry bit string
 C.. we don't have symmetry, so fake it.
                SymClasses((I+1)/2)=1
             ELSE
-          SymClasses((I+1)/2)=INT(DLOG(G1(I)%Sym%s+0.D0)/DLOG(2.D0)+1.4)
+!          SymClasses((I+1)/2)=INT(DLOG(G1(I)%Sym%s+0.D0)/DLOG(2.D0)+1.4)
+          SymClasses((I+1)/2)=G1(I)%Sym%s+1
             ENDIF
          ENDDO
 C.. list the symmetry string of each sym label
          DO I=1,NSYM
-            SYMLABELS(I)%s=2**(I-1)
+!            SYMLABELS(I)%s=2**(I-1)
+            SYMLABELS(I)%s=I-1
          ENDDO
       END
 
@@ -1536,11 +1543,12 @@ C.. Set to be totally symmetric
       ! Decompose the symmetry label back into the appropriate
       ! numbers...
       implicit none
+      include 'sym.inc'
       integer*8 Isym
       integer  AbelSym(3)
-      AbelSym(3)=RShift(Isym,30)
-      AbelSym(2)=Iand(RShift(ISym,15),32767)
-      AbelSym(1)=Iand(Isym,32767)
+      AbelSym(3)=RShift(Isym,PropBitLen*2)
+      AbelSym(2)=Iand(RShift(ISym,PropBitLen),2**PropBitLen-1)
+      AbelSym(1)=Iand(Isym,2**PropBitLen-1)
       return
       end subroutine DecomposeAbelianSym
 
@@ -1548,8 +1556,10 @@ C.. Set to be totally symmetric
           implicit none
           integer  AbelSym(3)
           integer*8 TempVar
+      include 'sym.inc'
           TempVar=AbelSym(3)
-          ComposeAbelianSym=LShift(Tempvar,30)+LShift(AbelSym(2),15)
+          ComposeAbelianSym=LShift(Tempvar,PropBitLen*2)
+     &                     +LShift(AbelSym(2),PropBitLen)
      &                      +AbelSym(1)
       end function ComposeAbelianSym
 
@@ -1597,15 +1607,19 @@ C.. Set to be totally symmetric
          integer abel(3),i
          logical lcont
          integer*8 ComposeAbelianSym
-         call DecomposeAbelianSym(Sym%s,abel)
-         i=1
-         lcont=.true.
-         do while(i.lt.4.and.lcont)
-            abel(i)=mod(abel(i)+1,nprop(i))
-            lcont=abel(i).eq.0
-            i=i+1
-         enddo
-         Sym%s=ComposeAbelianSym(abel)
+         if(TAbelian) then
+            call DecomposeAbelianSym(Sym%s,abel)
+            i=1
+            lcont=.true.
+            do while(i.lt.4.and.lcont)
+               abel(i)=mod(abel(i)+1,nprop(i))
+               lcont=abel(i).eq.0
+               i=i+1
+            enddo
+            Sym%s=ComposeAbelianSym(abel)
+         else
+            Sym%s=0
+         endif
       end subroutine IncrSym
 
       SUBROUTINE GETSYMTMATSIZE(Nirrep,nBasis,iSS,iSize)

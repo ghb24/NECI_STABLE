@@ -5,8 +5,8 @@
 !   For translational symmetry groups, we need to know the periodic condition of propogation, as the 
 !   multiplication of two irreps is equivalent to the addition of their propogators subject to the modulus 
 !   of the identity operation (ie supercell dimension), and the k-vectors in the dimensions of the symmetry 
-!   supercell.
-         integer Nprop(3),KPntSym(3,*)
+!   supercell.  The number of bits each property takes up.
+         integer Nprop(3),KPntSym(3,*),PropBitLen
          INTEGER SymConjTab(nSym)
          POINTER (IP_SymConjTab,SymConjTab)
          TYPE(Symmetry) SYMTABLE(NSYM,NSYM)
@@ -84,4 +84,4 @@
      &               TNEWEXCITATIONS,TAbelian,IP_SymClasses,            &
      &               FrozenSym, IP_SymConjTab,IP_SYMLABELCOUNTSCUM,     &
      &               IP_SYMLABELINTSCUM,IP_SYMLABELCOUNTSCUM2,          &
-     &               IP_SYMLABELINTSCUM2,IP_SYMCLASSES2
+     &               IP_SYMLABELINTSCUM2,IP_SYMCLASSES2,PropBitLen

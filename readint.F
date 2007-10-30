@@ -132,8 +132,10 @@ C.. At the moment we're ignoring the core energy
             BRR(2*I)=2*I
 C            G1(1,2*I-1)=ISYMNUM-1
 C            G1(1,2*I)=ISYMNUM-1
-            G1(2*I-1)%Sym%s=IBSET(0,ORBSYM(I)-1)
-            G1(2*I)%Sym%s=IBSET(0,ORBSYM(I)-1)
+!            G1(2*I-1)%Sym%s=IBSET(0,ORBSYM(I)-1)
+!            G1(2*I)%Sym%s=IBSET(0,ORBSYM(I)-1)
+            G1(2*I-1)%Sym%s=ORBSYM(I)-1
+            G1(2*I)%Sym%s=ORBSYM(I)-1
 C            G1(3,2*I-1)=I
 C            G1(3,2*I)=I
 C.. set momentum to 0
