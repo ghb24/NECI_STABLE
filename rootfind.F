@@ -27,10 +27,11 @@ C.. The value at XHIGH is always bigger than at XLOW
          DO WHILE(I.GE.0)
 C            WRITE(6,*),I,A(I),B(I)
             VAL=1.D0
-            DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-12)
+!  Do some regular falsi
+            DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-8)
                X=(XLOW+XHIGH)/2.D0
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-C               WRITE(6,"(4G19.12)") XLOW,XHIGH,X,VAL
+!               WRITE(76,"(4G19.12)") XLOW,XHIGH,X,VAL
                IF(VAL.GT.0) THEN
                   XLOW=X
                ELSEIF(VAL.LT.0) THEN
@@ -43,23 +44,36 @@ C               WRITE(6,"(4G19.12)") XLOW,XHIGH,X,VAL
 C.. Now polish off with some Newton Raphson
             J=0
             OX=0.D0
-            DO WHILE(ABS(VAL).GT.1.D-13.AND.J.LT.10
+!            WRITE(76,*) "PreRoot found: ",X,A(NMIN+I),B(NMIN+I)
+            DO WHILE(ABS(VAL).GT.1.D-13.AND.J.LT.20
      &         .AND.ABS(X-OX).GT.1.D-13)
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
                CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
-C               WRITE(6,"(4G15.9)") X,VAL
+!               WRITE(76,"(4G15.9)") X,VAL,DERIV
                OX=X
                X=X-VAL/DERIV
                J=J+1
+               IF(X.GT.XHIGH) THEN
+!  The NR has become unstable so we just use a regular Falsi step instead.
+                  X=(OX+XHIGH)/2
+               ENDIF
+               IF(X.LT.XLOW) THEN
+!  The NR has become unstable so we just use a regular Falsi step instead.
+                  X=(OX+XLOW)/2
+               ENDIF
             ENDDO
+
+!  If this STOP is reached then we've likely hit a pole with a very small numerator, so the root is very close to it.
+!    Try increasing the J.LT.20 above and J.GT.19 below.  Setting a RhoEpsilon might help 
+            IF(J.GT.19) STOP "Newton Raphson failed to converge."
             ROOTS(I)=X
 !            WRITE(76,*) "Root found: ",X
             DO WHILE(I.GT.0.AND.
-     &          ABS(DREAL(A(NMIN+I))-DREAL(A(NMIN+I-1))).LT.1.D-9)
+     &          ABS(DREAL(A(NMIN+I))-DREAL(A(NMIN+I-1))).LT.1.D-8)
                I=I-1
                ROOTS(I)=DREAL(A(NMIN+I))
 C               WRITE(6,*),I,A(I),B(I)
-!               WRITE(76,*) "Root found2:",A(I)
+!               WRITE(76,*) "Root found2:",A(I),B(I)
             ENDDO
             XHIGH=DREAL(A(NMIN+I))
             I=I-1
