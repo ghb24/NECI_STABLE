@@ -450,7 +450,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL FINDROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS)
          SI=0.D0
          WRITE(6,*) "Highest root:",ROOTS(NROOTS)
-         E0=List(1,2)%v
+         E0=List(0,2)%v
          lWarned=.false.
 !.. divide through by highest eigenvalue to stop things blowing up
 !         DO I=1,NROOTS
@@ -505,9 +505,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
                endif
                IF(DBETA.NE.0.D0) THEN
-                  DLWDB2=LIST(1,2)
+                  DLWDB2=LIST(0,2)
 !                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
-                  DO J=2,NLIST
+                  DO J=1,NLIST
                      DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/(HElement(ROOTS(I))-LIST(J,0)))
 !                WRITE(6,*) LIST(J,2),
 !     &            LIST(J,1)/((ROOTS(I+1)-LIST(J,0))*SQRT(NORM))
@@ -525,7 +525,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          write(6,*)
          WRITE(6,*) "Final SI=",SI
          SI=SI-1.D0
-         DLWDB=DLWDB-LIST(1,2)%v
+         DLWDB=DLWDB-LIST(0,2)%v
          CALL TIHALT("STARDIAG2 ",ISUB)
          RETURN
       END
