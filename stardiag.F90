@@ -541,7 +541,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !v_aj = v_ai * rho_ji/(r_a-rho_jj)
 
 !where v_ai is the component of the HF det in the eigenvector (which we set to 1).  From this we can normalize the eigenvector.
-!However, if rho_ji is very small (say 1e-14), then its coupling with i is very small - i.e. the eigenvector will likely have a large component of j, and a small component of i.  This will manifest itself as a near-degeneracy of the eigenvalue r_a to the pole rho_jj of the polynomial.  However, as our accuracy in calculating the eigenvectors is limited to a little more than machine precision, we cannot calculate r_a-rho_jj very precisely at all, and so the eigenvector normalization gets very inaccurate.
+!However, if rho_ji is very small (say 1e-14), then its coupling with i is very small - i.e. the eigenvector will likely have a large component of j, and a small component of i.
+!  This will manifest itself as a near-degeneracy of the eigenvalue r_a to the pole rho_jj of the polynomial.
+!  However, as our accuracy in calculating the eigenvectors is limited to a little more than machine precision, we cannot calculate r_a-rho_jj very precisely at all, and so the eigenvector normalization gets very inaccurate.
 
 !I've put a test in to check when r_a-rho_jj is <1e-13, and it will print a warning in this case.
 !To remedy the solution is simple.  SInce the coupling to j is small, we can ignore it.  This is done by setting rhoepsilon to a value like 1e-12.
