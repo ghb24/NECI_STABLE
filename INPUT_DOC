@@ -512,6 +512,11 @@ control the Density fitting method.  Possible values of meth are
 ! DFOVERLAP2       3 - (ij|u|ab)= (ij|P)(P|u|Q)(Q|ab)
 ! DFCOULOMB        4 - (ij|u|ab)= (ij|u|P)[(P|u|Q)^-1](Q|u|ab)
 
+RFCONV <RFCONV>
+    Set the convergence criteria for the Regular falsi algorithm in findroot. This is to only be used with a star calculation which involves calculating the roots of a polynomial to find the eigenvalues. Default is 1.D-08. A Newton-Raphson convergence takes place after.
+
+NRCONV <NRCONV>
+    This sets the convergence criteria for the Newton-Raphson algorithm in findroot. This takes place after initial bounds for the root are calculated using regular falsi (see above). Default is 1.D-13, and values smaller than 1.D-15 tend to create a fault since the NR cannot converge given the number of iterations allowed.
 
 ENDINT
     End of integral block.

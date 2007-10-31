@@ -166,7 +166,9 @@
       calcp_sub2vstar=.false.
       calcp_logweight=.false.
 
-! Integral defaults      
+! Integral defaults
+      NRCONV=1.D-13
+      RFCONV=1.D-8
       NTAY(1:2) = 1
       THFBASIS=.false.
       THFCALC = .false.
@@ -889,6 +891,10 @@ C                  end select
               end if
               call readu(w)
               select case(w)
+              case("NRCONV")
+                  call readf(NRCONV)
+              case("RFCONV")
+                  call readf(RFCONV)
               case("RHO-1STORDER")
                   NTAY(2)=4
               case("FOCK-PARTITION")

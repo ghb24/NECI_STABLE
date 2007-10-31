@@ -17,6 +17,7 @@ C.. A and B are sorted in ascending order of A
          TYPE(HElement) A(0:N),B(0:N)
          real*8 ROOTS(0:NROOTS)
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX
+         include 'calcp.inc'
          NMIN=N-NROOTS
 !         write(76,*) n,nRoots
 !         do i=0,n
@@ -38,7 +39,7 @@ C.. The value at XHIGH is always bigger than at XLOW
 !            WRITE(76,*),I,A(I+NMIN),B(I+NMIN)
             VAL=1.D0
 !  Do some regular falsi
-            DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-8)
+            DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.RFCONV)
                X=(XLOW+XHIGH)/2.D0
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
 !               WRITE(76,"(4G23.15)") XLOW,XHIGH,X,VAL
@@ -56,7 +57,7 @@ C.. Now polish off with some Newton Raphson
             OX=0.D0
 !            WRITE(76,*) "PreRoot found: ",X,A(NMIN+I),B(NMIN+I)
             DO WHILE(ABS(VAL).GT.1.D-16.AND.J.LT.50
-     &         .AND.ABS(X-OX).GT.1.D-15)
+     &         .AND.ABS(X-OX).GT.NRCONV)
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
                CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
 !               WRITE(76,"(4G23.15)") X,VAL,DERIV

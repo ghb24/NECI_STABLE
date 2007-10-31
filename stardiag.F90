@@ -503,6 +503,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !               WRITE(6,*) I,RPN,1/NORM
                IF(iEigv.le.2) then
                   write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
+!                  write(6,*) "***",E0
                endif
                IF(DBETA.NE.0.D0) THEN
                   DLWDB2=LIST(0,2)
