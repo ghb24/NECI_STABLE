@@ -486,6 +486,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                DO J=1,NLIST
                   RR=HElement(ROOTS(I))-LIST(J,0)
                   IF(.NOT.(RR.AGT. 1e-13)) THEN
+!see comment below
                      WRITE(6,*) "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
                   ENDIF
                   NORM=NORM+SQ(LIST(J,1)/RR)
@@ -528,6 +529,29 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL TIHALT("STARDIAG2 ",ISUB)
          RETURN
       END
+!Comment on numerical stability  AJWT 30/10/07
+!It seems that we're going to have to be very careful about numerical stability for the 2-vertex star if we wish to use anything but the highest eigenvalue.
+!
+!The Newton-Raphson problems are now contained, and if a NR step takes us out of the search region, we revert to regular falsi.
+!The best precision we can achieve is a convergence of about 1e-15 on the eigenvalue.
+
+!This means that we must be exceedingly careful when calculating the eigenvector, and in particular normalising it.
+
+!For det j, its component in the eigenvector corresponding to root r_a is
+!v_aj = v_ai * rho_ji/(r_a-rho_jj)
+
+!where v_ai is the component of the HF det in the eigenvector (which we set to 1).  From this we can normalize the eigenvector.
+!However, if rho_ji is very small (say 1e-14), then its coupling with i is very small - i.e. the eigenvector will likely have a large component of j, and a small component of i.  This will manifest itself as a near-degeneracy of the eigenvalue r_a to the pole rho_jj of the polynomial.  However, as our accuracy in calculating the eigenvectors is limited to a little more than machine precision, we cannot calculate r_a-rho_jj very precisely at all, and so the eigenvector normalization gets very inaccurate.
+
+!I've put a test in to check when r_a-rho_jj is <1e-13, and it will print a warning in this case.
+!To remedy the solution is simple.  SInce the coupling to j is small, we can ignore it.  This is done by setting rhoepsilon to a value like 1e-12.
+
+!Alex
+
+
+
+!-----
+
 
 !        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
