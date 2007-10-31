@@ -300,9 +300,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                ENDIF
             ENDIF
          ENDDO
+!NLCUR is one after the last element, i.e. the total number of elements
          L=NLCUR
          LT=ILMAX+1
-!.. we now have a list length NLCUR of dets in the star.
+!.. we now have a list length NLCUR of dets in the star (from 0:NLCUR-1)
 !.. Call a routine to generate the value of the star
          WRITE(6,*) NLCUR," determinants in star"
          IF(.NOT.BTEST(NWHTAY,0)) THEN
@@ -352,10 +353,17 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             STOP
          ENDIF
          CALL FREEM(IP_WORK)
+         WRITE(6,*)
+         WRITE(6,*) "Highest root:",WLIST(NLIST)
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
          SI=0.D0
-         DO I=0,NLIST-1
+!         DO I=0,NLIST-1
 !            WRITE(6,*) WLIST(I+1)
+!         ENDDO
+!         DO I=NLIST-1,0,-1
+!            WRITE(6,*) I+1,RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P),RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
+!         ENDDO
+         DO I=0,NLIST-1
             SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P)
             IF(DBETA.NE.0.D0) THEN
 !.. calculate <D|H exp(-b H)|D>/RHO_ii^P
@@ -368,6 +376,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !               WRITE(6,*)
             ENDIF
          ENDDO
+         WRITE(6,*) "Final SI=",SI
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)
          CALL FREEM(IP_WLIST)
@@ -379,28 +388,31 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
 !.. Use an iterative Order(N) root-finding method to diagonalize the
 !.. star matrix.
+!  LIST(0:NLIST-1,:) contains data
+!.. LIST(0,...) corresponds to J=I
+!.. LIST(J,0) = RHOJJ
+!.. LIST(J,1) = RHOIJ
+!.. LIST(J,2) = HIJ
       SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
          USE HElement
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         TYPE(HElement) LIST(ILMAX,0:2)
+         TYPE(HElement) LIST(0:ILMAX-1,0:2)
          INTEGER ISUB
          REAL*8 SI,DLWDB,DBETA,NORM,E0,BETA,osi
-         TYPE(HElement) DLWDB2
+         TYPE(HElement) DLWDB2,RR
          INTEGER I,J,NROOTS
-         REAL*8 ROOTS(1:NROOTS+1),RPN,R
+         REAL*8 ROOTS(0:NROOTS),RPN,R
          INTEGER iLogging
          INTEGER iEigv,iDegen
          LOGICAL lWarned
          include 'vmc.inc'
          CALL TISET('STARDIAG2 ',ISUB)
-         iEigv=0 
-         iDegen=0
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
-         CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
+         CALL SORT3RN(NLIST-1,LIST(1,0),LIST(1,1),LIST(1,2),HElementSize)
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
 
@@ -433,15 +445,24 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          endif
 
 !.. Find the eigenvalues
-         CALL FINDROOTSTAR(NLIST-1,LIST(1,0),LIST(1,1),ROOTS,NROOTS)
+!  NLIST is the number of elements in the list, but we need to give the index of the last element, NLIST-1
+         
+         CALL FINDROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS)
          SI=0.D0
-         WRITE(6,*) "Highest root:",ROOTS(NROOTS+1)
+         WRITE(6,*) "Highest root:",ROOTS(NROOTS)
          E0=List(1,2)%v
          lWarned=.false.
 !.. divide through by highest eigenvalue to stop things blowing up
-         DO I=NROOTS,0,-1
+!         DO I=1,NROOTS
+!            WRITE(6,*) ROOTS(I)
+!,list(NLIST-NROOTS+I-1,0)%v
+!         ENDDO
+         iEigv=0 
+         iDegen=0
+!NLIST is the length of list, and the max possible value of  NROOTS
+         DO I=NROOTS,1,-1
             iDegen=iDegen+1
-            IF(ROOTS(I+1).EQ.LIST(NLIST-NROOTS+I,0)%v) THEN
+            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0)%v) THEN
 !.. If we're in a degenerate set of eigenvectors, we calculate things a
 !.. little differently
 !.. k is the vertex which the degeneracies couple to
@@ -457,30 +478,36 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. We need to calculate the normalization of each eigenvector
                iEigv=iEigv+1
                NORM=1.D0
-               if(iEigv.gt.1.and.iEigv.le.3) then
+               if(iEigv.ge.1.and.iEigv.le.3) then
                   write(6,*) iDegen-1
                   iDegen=1
                endif
-               DO J=2,NLIST
-                  NORM=NORM+SQ(LIST(J,1)/(HElement(ROOTS(I+1))-LIST(J,0)))
+!List(1,:) is the HF det.  We set its value in the eigenvector to 1.
+               DO J=1,NLIST
+                  RR=HElement(ROOTS(I))-LIST(J,0)
+                  IF(.NOT.(RR.AGT. 1e-13)) THEN
+                     WRITE(6,*) "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
+                  ENDIF
+                  NORM=NORM+SQ(LIST(J,1)/RR)
                ENDDO
 !.. We add in the first element of the eigenvector * lambda**P
 !               write(6,*) ROOTS(i+1),NORM
-               RPN=(ROOTS(I+1)**I_P)*1.D0/NORM
+               RPN=(ROOTS(I)**I_P)*1.D0/NORM
                IF(.not.lWarned.and.RPN/SI.LT.1.d-4) then
                   lWarned=.true.
                   WRITE(6,*) "Root ",NROOTS-I," has low contribution."
                   WRITE(6,*) "SI=",SI
                ENDIF
                SI=SI+RPN
+!               WRITE(6,*) I,RPN,1/NORM
                IF(iEigv.le.2) then
-                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i+1),E0-(i_P/Beta)*log(roots(i+1))
+                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
                endif
                IF(DBETA.NE.0.D0) THEN
                   DLWDB2=LIST(1,2)
 !                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
                   DO J=2,NLIST
-                     DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/(HElement(ROOTS(I+1))-LIST(J,0)))
+                     DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/(HElement(ROOTS(I))-LIST(J,0)))
 !                WRITE(6,*) LIST(J,2),
 !     &            LIST(J,1)/((ROOTS(I+1)-LIST(J,0))*SQRT(NORM))
                   ENDDO

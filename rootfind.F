@@ -18,20 +18,30 @@ C.. A and B are sorted in ascending order of A
          real*8 ROOTS(0:NROOTS)
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX
          NMIN=N-NROOTS
+!         write(76,*) n,nRoots
+!         do i=0,n
+!            write(76,*) i,a(i),b(i)
+!         enddo
+!         write(76,*)
 C.. We find the first root by starting very slightly above the highest
 C.. pole
-         XLOW=DREAL(A(N))
-         XHIGH=2*DREAL(A(N))
-C.. The value at XHIGH is always bigger than at XLOW
+         roots(0)=0
          I=NROOTS
-         DO WHILE(I.GE.0)
-C            WRITE(6,*),I,A(I),B(I)
+!I points to the root we're finding, starting from the highest, NROOTS, and working down.
+!  This will be bounded from below by A(I+NMIN)
+         XLOW=DREAL(A(I+NMIN))
+         XHIGH=2*DREAL(A(I+NMIN))
+C.. The value at XHIGH is always bigger than at XLOW
+
+!  When I=0, there is no min.
+         DO WHILE(I.GT.0)
+!            WRITE(76,*),I,A(I+NMIN),B(I+NMIN)
             VAL=1.D0
 !  Do some regular falsi
             DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.1.D-8)
                X=(XLOW+XHIGH)/2.D0
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-!               WRITE(76,"(4G19.12)") XLOW,XHIGH,X,VAL
+!               WRITE(76,"(4G23.15)") XLOW,XHIGH,X,VAL
                IF(VAL.GT.0) THEN
                   XLOW=X
                ELSEIF(VAL.LT.0) THEN
@@ -45,11 +55,11 @@ C.. Now polish off with some Newton Raphson
             J=0
             OX=0.D0
 !            WRITE(76,*) "PreRoot found: ",X,A(NMIN+I),B(NMIN+I)
-            DO WHILE(ABS(VAL).GT.1.D-13.AND.J.LT.20
-     &         .AND.ABS(X-OX).GT.1.D-13)
+            DO WHILE(ABS(VAL).GT.1.D-16.AND.J.LT.50
+     &         .AND.ABS(X-OX).GT.1.D-15)
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
                CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
-!               WRITE(76,"(4G15.9)") X,VAL,DERIV
+!               WRITE(76,"(4G23.15)") X,VAL,DERIV
                OX=X
                X=X-VAL/DERIV
                J=J+1
@@ -64,20 +74,20 @@ C.. Now polish off with some Newton Raphson
             ENDDO
 
 !  If this STOP is reached then we've likely hit a pole with a very small numerator, so the root is very close to it.
-!    Try increasing the J.LT.20 above and J.GT.19 below.  Setting a RhoEpsilon might help 
-            IF(J.GT.19) STOP "Newton Raphson failed to converge."
+!    Try increasing the J.LT.50 above and J.GT.49 below.  Setting a RhoEpsilon might help 
+            IF(J.GT.49) STOP "Newton Raphson failed to converge."
             ROOTS(I)=X
 !            WRITE(76,*) "Root found: ",X
             DO WHILE(I.GT.0.AND.
-     &          ABS(DREAL(A(NMIN+I))-DREAL(A(NMIN+I-1))).LT.1.D-8)
+     &          ABS(DREAL(A(NMIN+I))-DREAL(A(NMIN+I-1))).LT.1.D-9)
                I=I-1
                ROOTS(I)=DREAL(A(NMIN+I))
 C               WRITE(6,*),I,A(I),B(I)
-!               WRITE(76,*) "Root found2:",A(I),B(I)
+!               WRITE(76,*) "Root found2:",A(I+NMIN),B(I+NMIN)
             ENDDO
             XHIGH=DREAL(A(NMIN+I))
             I=I-1
-            IF(I.EQ.0) THEN
+            IF(I.EQ.1) THEN
                XLOW=-1.D0
             ELSE
                XLOW=DREAL(A(NMIN+I))
