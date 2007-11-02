@@ -715,7 +715,8 @@ C                  end select
 !                  end if
               case("STARCONVERGE")
                   call readf(STARCONV)
-                  if ( I_HMAX .ne. 0 ) then
+                if((NWHTAY(1,I_VMAX).ne.0).and.(NWHTAY(1,I_VMAX).ne.-21)
+     &                 .and.(NWHTAY(1,I_VMAX).ne.-9)) then
                       call report(trim(w)//" only valid for STAR " 
      &                //" method",.true.)
                   end if

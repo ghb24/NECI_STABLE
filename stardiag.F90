@@ -18,6 +18,7 @@
          TYPE(HDElement) fMCPR3StarNewExcit
          TYPE(HElement), Allocatable :: ExcitInfo(:,:)
          TYPE(HElement) HIJS(0:2)
+!         REAL*8 LARGERHOJJ(10000)
          INTEGER iPath(nEl,0:2)
          LOGICAL tSym
 !.. New lists are generated here
@@ -33,12 +34,13 @@
          INTEGER nExcitMemLen,nStore(6)
          INTEGER nJ(nEl),iExcit,iMaxExcit
          INTEGER iErr
-         INTEGER nRoots,i
+         INTEGER nRoots,i,j
          TYPE(HElement) rh,rhii,EHFDiff
 
          TYPE(HDElement) MP2E         
          LOGICAL tStarSingles
          INTEGER nIExcitFormat(nEl)
+!         LARGERHOJJ(:)=0.D0
          IF(tStoreAsExcitations) THEN
             nIExcitFormat(1)=-1
             nIExcitFormat(2)=0
@@ -117,7 +119,16 @@
                   rh=rh*HElement(-Beta/I_P)
                   rh=exp(rh)
                else
-                  CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
+                  !RHO_JJ elements
+                   CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
+                  
+!                  do j=1,10000
+!                    IF((rh.agt.LARGERHOJJ(J)).or.(LARGERHOJJ(J).eq.0.D0)) THEN
+!                        LARGERHOJJ(J)=rh%v
+!                        GOTO 765
+!                    ENDIF
+!                  ENDDO
+!765               CONTINUE
                endif
                ExcitInfo(i,0)=rh/rhii
                ExcitInfo(i,2)=GetHElement2(nIExcitFormat,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
@@ -137,6 +148,9 @@
          LT=iMaxExcit
          iExcit=i
          Deallocate(nExcit)
+!         DO j=1,10000
+!            WRITE(55,*) LARGERHOJJ(J)
+!         ENDDO
 !.. we now have a list length NLCUR of dets in the star.
 !.. Call a routine to generate the value of the star
          WRITE(6,*) iExcit," excited determinants in star"

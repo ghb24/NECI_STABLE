@@ -56,7 +56,7 @@ C.. Now polish off with some Newton Raphson
             J=0
             OX=0.D0
 !            WRITE(76,*) "PreRoot found: ",X,A(NMIN+I),B(NMIN+I)
-            DO WHILE(ABS(VAL).GT.1.D-16.AND.(J.LT.NRSTEPSMAX)
+            DO WHILE(ABS(VAL).GT.NRCONV.AND.(J.LT.NRSTEPSMAX)
      &         .AND.ABS(X-OX).GT.NRCONV)
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
                CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
