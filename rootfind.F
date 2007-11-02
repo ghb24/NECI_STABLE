@@ -56,6 +56,7 @@ C.. Now polish off with some Newton Raphson
             J=0
             OX=0.D0
 !            WRITE(76,*) "PreRoot found: ",X,A(NMIN+I),B(NMIN+I)
+            !VAL is value of polynomial whose root we want,ie VAL=0 - X is root, OX old root
             DO WHILE(ABS(VAL).GT.NRCONV.AND.(J.LT.NRSTEPSMAX)
      &         .AND.ABS(X-OX).GT.NRCONV)
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
