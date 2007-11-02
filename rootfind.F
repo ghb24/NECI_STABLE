@@ -56,7 +56,7 @@ C.. Now polish off with some Newton Raphson
             J=0
             OX=0.D0
 !            WRITE(76,*) "PreRoot found: ",X,A(NMIN+I),B(NMIN+I)
-            DO WHILE(ABS(VAL).GT.1.D-16.AND.J.LT.50
+            DO WHILE(ABS(VAL).GT.1.D-16.AND.(J.LT.NRSTEPSMAX)
      &         .AND.ABS(X-OX).GT.NRCONV)
                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
                CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
@@ -75,8 +75,10 @@ C.. Now polish off with some Newton Raphson
             ENDDO
 
 !  If this STOP is reached then we've likely hit a pole with a very small numerator, so the root is very close to it.
-!    Try increasing the J.LT.50 above and J.GT.49 below.  Setting a RhoEpsilon might help 
-            IF(J.GT.49) STOP "Newton Raphson failed to converge."
+!    Try increasing the value for NRSTEPSMAX.  Setting a RhoEpsilon might help 
+            IF(J.GT.(NRSTEPSMAX-1)) THEN
+                STOP "Newton Raphson failed to converge."
+            ENDIF
             ROOTS(I)=X
 !            WRITE(76,*) "Root found: ",X
             DO WHILE(I.GT.0.AND.

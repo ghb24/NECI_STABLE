@@ -169,6 +169,7 @@
 ! Integral defaults
       NRCONV=1.D-13
       RFCONV=1.D-8
+      NRSTEPSMAX=50
       NTAY(1:2) = 1
       THFBASIS=.false.
       THFCALC = .false.
@@ -895,6 +896,8 @@ C                  end select
                   call readf(NRCONV)
               case("RFCONV")
                   call readf(RFCONV)
+              case("NRSTEPSMAX")
+                  call readi(NRSTEPSMAX)
               case("RHO-1STORDER")
                   NTAY(2)=4
               case("FOCK-PARTITION")

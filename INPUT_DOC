@@ -518,6 +518,9 @@ RFCONV <RFCONV>
 NRCONV <NRCONV>
     This sets the convergence criteria for the Newton-Raphson algorithm in findroot. This takes place after initial bounds for the root are calculated using regular falsi (see above). Default is 1.D-13, and values smaller than 1.D-15 tend to create a fault since the NR cannot converge given the number of iterations allowed.
 
+NRSTEPSMAX <NRSTEPSMAX>
+    This sets the maximum number of Newton Raphson steps allowed to try and converge upon a root to the accuracy given in NRCONV. This is only applicable for the star graph, when trying to find the roots of the polynomial using POLY NEW/OLD or POLYCONVERGE. Default value is 50.
+
 ENDINT
     End of integral block.
 
