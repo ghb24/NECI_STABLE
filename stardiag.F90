@@ -499,7 +499,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !List(1,:) is the HF det.  We set its value in the eigenvector to 1.
                DO J=1,NLIST
                   RR=HElement(ROOTS(I))-LIST(J,0)
-                  IF(.NOT.(RR.AGT. 1e-13)) THEN
+                  IF(.NOT.(RR.AGT.1e-15)) THEN
 !see comment below
                      WRITE(6,*) "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
                   ENDIF
