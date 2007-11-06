@@ -2942,7 +2942,7 @@ C.. we use the symmetries of the spatial orbitals
              DO I=1,8
                DO J=1,ORBORDER(I,ITYPE)
                   DO WHILE(IBFN.LE.NBASIS
-     &              .AND.(G1(IBFN)%SYM%s.LT.2**(I-1).OR.BRR(IBFN).EQ.0))
+     &              .AND.(G1(IBFN)%SYM%s.LT.I-1.OR.BRR(IBFN).EQ.0))
                      IBFN=IBFN+1
                   ENDDO
                   IF(IBFN.GT.NBASIS) THEN
