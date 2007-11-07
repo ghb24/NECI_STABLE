@@ -105,6 +105,7 @@ END
          INTEGER I,J,S
          LOGICAL TLOG
          LOGICAL ISCSF
+         include 'uhfdet.inc'
 
 
 !.. If we have CSFs, unCSF the elecs
@@ -145,6 +146,10 @@ END
                J=J+1
             ENDIF
          ENDDO
+         IF(tENPT) then
+!Epstein-Nesbet PT
+            DENOM=DENOM+SQ(HIJS(1))
+         ENDIF
          CONTR=SQ(HIJS(1))/DENOM
          IF(TLOG.AND.CONTR.GT.1.D-9) THEN
             CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)

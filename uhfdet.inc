@@ -4,6 +4,8 @@
       LOGICAL TSTAR
       LOGICAL tStoreAsExcitations
       REAL*8  E0HFDET
+!  True if Epstein-Nesbet PT rather than Moller-Plesset
+      LOGICAL tENPT  
       COMMON /UHFDET/ NUHFDET,TUSEBRILLOUIN,nActiveSpace,TSTAR,         &
-     &   tStoreAsExcitations,E0HFDET
+     &   tStoreAsExcitations,E0HFDET,tENPT
       

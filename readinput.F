@@ -190,6 +190,7 @@
       iDumpCacheFlag=0
       tReadInCache=.false.
       iDFMethod=0
+      tENPT=.false.
 
 ! Logging defaults      
       ILOGGING = 0
@@ -683,6 +684,8 @@ C                  end select
                   TVVDISALLOW=.TRUE.
               case("MCDIRECTSUM")
                   TMCDIRECTSUM=.TRUE.
+              case("EPSTEIN-NESBET")
+                  tENPT=.TRUE.
               case("MPTHEORY")
                   TMPTHEORY=.TRUE.
 !                  if ( I_HMAX .ne. -7.and.
