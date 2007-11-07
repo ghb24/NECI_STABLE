@@ -344,6 +344,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER WORKL,WORK(*),INFO
          REAL*8 SI,DLWDB,DBETA,OD
          INTEGER I,J
+         TYPE(HElement) RR
          IF(HElementSize.GT.1) STOP "STARDIAG cannot function with complex orbitals."
 
          CALL TISET('STARDIAG  ',ISUB)
@@ -352,6 +353,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WORKL=3*NLIST
          CALL MEMORY(IP_WORK,WORKL,"WORK")
 
+         CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
 
          CALL AZZERO(RIJMAT,NLIST*NLIST)
 !.. Now we fill the RIJ array
@@ -376,6 +378,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !         ENDDO
 !         DO I=NLIST-1,0,-1
 !            WRITE(6,*) I+1,RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P),RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
+!         ENDDO
+!         DO I=NLIST,1,-1
+!            RR=1.d0
+!            IF(I.LT.NLIST) RR=HElement(WLIST(I)-LIST(I+1,0))
+!            write(6,"(I,3G)") I-1,WLIST(I),LIST(I+1,0),RR
+!            IF(RR.AGT.1.d-10)  WRITE(6,*) 1/(RIJMAT((I-1)*NLIST+1)**2),RIJMAT((I-1)*NLIST+1)**2
 !         ENDDO
          DO I=0,NLIST-1
             SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P)
@@ -421,6 +429,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER iLogging
          INTEGER iEigv,iDegen
          LOGICAL lWarned
+         REAL*8 NORMCHECK
          include 'vmc.inc'
          CALL TISET('STARDIAG2 ',ISUB)
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
@@ -474,9 +483,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          iEigv=0 
          iDegen=0
 !NLIST is the length of list, and the max possible value of  NROOTS
+         NORMCHECK=0
          DO I=NROOTS,1,-1
             iDegen=iDegen+1
-            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0)%v) THEN
+            RR=1.d0
+            IF(I.LT.NROOTS) RR=HElement(ROOTS(I))-LIST(NLIST-NROOTS+I,0)
+!            write(6,"(I,3G)") I,ROOTS(I),LIST(NLIST-NROOTS+I,0),RR
+            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0)%v.OR..NOT.(RR.AGT.1.d-13)) THEN
 !.. If we're in a degenerate set of eigenvectors, we calculate things a
 !.. little differently
 !.. k is the vertex which the degeneracies couple to
@@ -493,30 +506,33 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                iEigv=iEigv+1
                NORM=1.D0
                if(iEigv.ge.1.and.iEigv.le.3) then
-                  write(6,*) iDegen-1
+!!!                  write(6,*) iDegen-1
                   iDegen=1
                endif
 !List(1,:) is the HF det.  We set its value in the eigenvector to 1.
                DO J=1,NLIST
                   RR=HElement(ROOTS(I))-LIST(J,0)
-                  IF(.NOT.(RR.AGT.1e-15)) THEN
+                  IF(.NOT.(RR.AGT.1e-13)) THEN
 !see comment below
-                     WRITE(6,*) "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
+                     WRITE(6,"(A,I,A,G,A,G,A,I)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
+                     WRITE(6,"(A,I,2G)") "POLE,NUMER",J,LIST(J,0),LIST(J,1)
+                     WRITE(6,"(A,I,2G)") "POLE,NUMER",J-1,LIST(J-1,0),LIST(J-1,1)
                   ENDIF
                   NORM=NORM+SQ(LIST(J,1)/RR)
                ENDDO
 !.. We add in the first element of the eigenvector * lambda**P
-!               write(6,*) ROOTS(i+1),NORM
                RPN=(ROOTS(I)**I_P)*1.D0/NORM
+!               write(6,*) NORM,RPN
                IF(.not.lWarned.and.RPN/SI.LT.1.d-4) then
                   lWarned=.true.
-                  WRITE(6,*) "Root ",NROOTS-I," has low contribution."
-                  WRITE(6,*) "SI=",SI
+!!!                  WRITE(6,*) "Root ",NROOTS-I," has low contribution."
+!!!                  WRITE(6,*) "SI=",SI
                ENDIF
                SI=SI+RPN
+               NORMCHECK=NORMCHECK+1/NORM
 !               WRITE(6,*) I,RPN,1/NORM
                IF(iEigv.le.2) then
-                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
+!!!                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
 !                  write(6,*) "***",E0
                endif
                IF(DBETA.NE.0.D0) THEN
@@ -539,6 +555,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                endif
          write(6,*)
          WRITE(6,*) "Final SI=",SI
+         WRITE(6,*) "Norm of i projection:", NORMCHECK
+         IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  Convergence may not be reached."
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(0,2)%v
          CALL TIHALT("STARDIAG2 ",ISUB)

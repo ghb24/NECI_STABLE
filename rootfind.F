@@ -17,6 +17,7 @@ C.. A and B are sorted in ascending order of A
          TYPE(HElement) A(0:N),B(0:N)
          real*8 ROOTS(0:NROOTS)
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX!,VALLOW,VALHIGH
+         logical tonestep
          include 'calcp.inc'
          NMIN=N-NROOTS
 !         write(76,*) n,nRoots
@@ -41,9 +42,14 @@ C.. The value at XHIGH is always bigger than at XLOW
             VAL=1.D0
 !            CALL CALCSTARPOLYVALUE(N,A,B,XLOW,VALLOW)
 !            CALL CALCSTARPOLYVALUE(N,A,B,XHIGH,VALHIGH)
-!            WRITE(55,*) "***********NEXT ROOT******** - RF starting..."
+!            WRITE(55,*) "*********NEXT ROOT******** - RF starting..."
+!            WRITE(55,*),I,A(I+NMIN),B(I+NMIN)
 !  Do some regular falsi
-            DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.RFCONV)
+!  Ensure we always do at least 1 step irrespective of the convergence thresholds - this gives us  and initial position X, and value VAL.
+            tOneStep=.true.
+            DO WHILE(tOneStep.or.
+     &       (ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.RFCONV))
+               tOneStep=.false.
 !                X=(-(VALHIGH*(XLOW-XHIGH))/(VALLOW-VALHIGH))+XHIGH
 
                 X=(XLOW+XHIGH)/2.D0
