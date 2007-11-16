@@ -523,6 +523,12 @@ NRCONV <NRCONV>
 NRSTEPSMAX <NRSTEPSMAX>
     This sets the maximum number of Newton Raphson steps allowed to try and converge upon a root to the accuracy given in NRCONV. This is only applicable for the star graph, when trying to find the roots of the polynomial using POLY NEW/OLD or POLYCONVERGE. Default value is 50.
 
+INCLUDEQUADRHO
+    This changes the rho matrix for stars so that it includes the square of the eigenvalues - rho -> rho + rho^2/2. This is in an attempt to improve size consistency for the star graph. No change for large beta, and only very small changes for smaller betas.
+
+EXPRHO
+    The rho matrix is exponentiated, 1 is subtracted, and this is used as the matrix to be diagonalised. This is the full expansion for which INCLUDEQUADRHO is a truncation. Again, this is used to achieve size consistency with the star, although seems to have little effect, and no effect at high beta.
+
 ENDINT
     End of integral block.
 

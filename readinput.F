@@ -170,6 +170,8 @@
       NRCONV=1.D-13
       RFCONV=1.D-8
       NRSTEPSMAX=50
+      TQUADRHO=.false.
+      TEXPRHO=.false.
       NTAY(1:2) = 1
       THFBASIS=.false.
       THFCALC = .false.
@@ -902,6 +904,10 @@ C                  end select
                   call readf(RFCONV)
               case("NRSTEPSMAX")
                   call readi(NRSTEPSMAX)
+              case("INCLUDEQUADRHO")
+                  TQUADRHO=.true.
+              case("EXPRHO")
+                  TEXPRHO=.true.
               case("RHO-1STORDER")
                   NTAY(2)=4
               case("FOCK-PARTITION")

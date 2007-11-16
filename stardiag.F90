@@ -429,8 +429,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER iLogging
          INTEGER iEigv,iDegen
          LOGICAL lWarned
-         REAL*8 NORMCHECK
+         REAL*8 NORMCHECK,NORMROOTS
          include 'vmc.inc'
+         include 'uhfdet.inc'
          CALL TISET('STARDIAG2 ',ISUB)
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
@@ -521,7 +522,18 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   NORM=NORM+SQ(LIST(J,1)/RR)
                ENDDO
 !.. We add in the first element of the eigenvector * lambda**P
-               RPN=(ROOTS(I)**I_P)*1.D0/NORM
+! As a test for size consistency - use expansion of exp(rho)-1 instead of normal rho matrix - c.f QCISD
+               IF(TQUADRHO) THEN
+                   !In order to stop it blowing up, divide through by r_max + r_max^2/2
+                   NORMROOTS=(ROOTS(I)+(ROOTS(I)**2)/2)/(ROOTS(NROOTS)+(ROOTS(NROOTS)**2)/2)
+                   RPN=(NORMROOTS**I_P)*1.D0/NORM
+               ELSEIF(TEXPRHO) THEN
+                   NORMROOTS=(EXP(ROOTS(I))-1)/(EXP(ROOTS(NROOTS))-1)
+                   RPN=(NORMROOTS**I_P)*1.D0/NORM
+               ELSE
+                   RPN=(ROOTS(I)**I_P)*1.D0/NORM
+               ENDIF
+               
 !               write(6,*) NORM,RPN
                IF(.not.lWarned.and.RPN/SI.LT.1.d-4) then
                   lWarned=.true.
@@ -553,6 +565,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   write(6,*) iDegen-1
                   iDegen=1
                endif
+         IF(TQUADRHO) WRITE(6,*) "QUADRATIC EXPANSION OF RHO MATRIX USED"
+         IF(TEXPRHO) WRITE(6,*) "EXPONENTIAL EXPANSION OF RHO MATRIX USED"
          write(6,*)
          WRITE(6,*) "Final SI=",SI
          WRITE(6,*) "Norm of i projection:", NORMCHECK
