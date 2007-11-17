@@ -13,11 +13,11 @@ C.. A and B are sorted in ascending order of A
       SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS,NROOTS)
          USE HElement
          IMPLICIT NONE
-         INTEGER N,I,J,NROOTS,NMIN
+         INTEGER N,I,J,NROOTS,NMIN,K,JTOT
          TYPE(HElement) A(0:N),B(0:N)
-         real*8 ROOTS(0:NROOTS)
-         REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX!,VALLOW,VALHIGH
-         logical tonestep
+         real*8 ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
+         REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
+         LOGICAL LOWPOLE,HIGHPOLE
          include 'calcp.inc'
          NMIN=N-NROOTS
 !         write(76,*) n,nRoots
@@ -29,6 +29,7 @@ C.. We find the first root by starting very slightly above the highest
 C.. pole
          roots(0)=0
          I=NROOTS
+!         WRITE(55,*) "Total roots = ",NROOTS
 !  This will be bounded from below by A(I+NMIN)
          XLOW=DREAL(A(I+NMIN))
          XHIGH=2*DREAL(A(I+NMIN))
@@ -37,35 +38,120 @@ C.. The value at XHIGH is always bigger than at XLOW
 !  When I=0, there is no min.
 !I points to the root we're finding, starting from the highest, NROOTS, and working down.
          DO WHILE(I.GT.0)
-            
+             
 !            WRITE(76,*),I,A(I+NMIN),B(I+NMIN)
             VAL=1.D0
-!            CALL CALCSTARPOLYVALUE(N,A,B,XLOW,VALLOW)
-!            CALL CALCSTARPOLYVALUE(N,A,B,XHIGH,VALHIGH)
-!            WRITE(55,*) "*********NEXT ROOT******** - RF starting..."
-!            WRITE(55,*),I,A(I+NMIN),B(I+NMIN)
-!  Do some regular falsi
-!  Ensure we always do at least 1 step irrespective of the convergence thresholds - this gives us  and initial position X, and value VAL.
-            tOneStep=.true.
-            DO WHILE(tOneStep.or.
-     &       (ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.RFCONV))
-               tOneStep=.false.
-!                X=(-(VALHIGH*(XLOW-XHIGH))/(VALLOW-VALHIGH))+XHIGH
-
-                X=(XLOW+XHIGH)/2.D0
-                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-!               WRITE(76,"(4G23.15)") XLOW,XHIGH,X,VAL
-               IF(VAL.GT.0.D0) THEN
-                  XLOW=X
-!                  VALLOW=VAL
-               ELSEIF(VAL.LT.0.D0) THEN
-                  XHIGH=X
-!                  VALHIGH=VAL
-               ELSE
-                  XLOW=X
-                  XHIGH=X
-               ENDIF
+            J=0
+            K=0
+            LOWPOLE=.true.
+            HIGHPOLE=.true.
+            DELTA=1.D-13
+            INITHIGH=XHIGH
+            INITLOW=XLOW
+!            WRITE(55,*) "***NEW ROOT***",I
+!            WRITE(55,*) "INITIAL XHIGH/XLOW: ", XHIGH, XLOW
+            !Do some Bisection first, to ensure that the poly is not evaluated at the poles...
+            DO WHILE(LOWPOLE.or.HIGHPOLE)
+                IF(J.gt.2) THEN
+                    IF(LOWPOLE) THEN
+                        IF(((XHIGH-XLOW).lt.NRCONV).or.
+     &                      (J.GT.NRSTEPSMAX)) GOTO 123
+!                        WRITE(55,*) "LOW BOUND NOT MOVED"
+                        X=XLOW+DELTA
+!                        WRITE(55,*) "ATTEMPTED XLOW = ",X
+                        CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+                        IF(VAL.gt.0.D0) THEN
+                            XLOW=X
+                            VALLOW=VAL
+                            LOWPOLE=.false.
+                        ELSE
+                            DELTA=DELTA/10.D0
+                            XHIGH=X
+                            VALHIGH=VAL
+                            HIGHPOLE=.false.
+                        ENDIF
+                    ENDIF
+                    IF(HIGHPOLE) THEN
+                        IF(((XHIGH-XLOW).lt.NRCONV).or.
+     &                      (J.GT.NRSTEPSMAX)) GOTO 123
+!                        WRITE(55,*)"HIGHBOUND NOT MOVED, XHIGH= ",XHIGH
+!                        WRITE(55,*)"DELTA = ", DELTA
+                        X=XHIGH-DELTA
+!                        WRITE(55,*) "ATTEMPTED XHIGH = ",X
+                        CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+!                        WRITE(55,*) "VALUE GIVEN IS ", VAL
+                        IF(VAL.lt.0.D0) THEN
+                            XHIGH=X
+                            VALHIGH=VAL
+                            HIGHPOLE=.false.
+                        ELSE
+                            DELTA=DELTA/10.D0
+                            XLOW=X
+                            VALLOW=VAL
+                            LOWPOLE=.false.
+                        ENDIF
+                    ENDIF
+                ELSE
+!                    X=(XLOW+XHIGH)/2.D0
+                    !Experience says root normally closer to higher pole, so do decasector search...
+                    X=XHIGH-(0.01*(XHIGH-XLOW))
+!                    WRITE(55,*) "Decasection X = ", X
+                    CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+                    IF(VAL.GT.0.D0) THEN
+                        XLOW=X
+                        VALLOW=VAL
+                        LOWPOLE=.false.
+!                        WRITE(55,*) "TOO LOW"
+                    ELSE
+                        XHIGH=X
+                        VALHIGH=VAL
+                        HIGHPOLE=.false.
+!                        WRITE(55,*) "TOO HIGH"
+                    ENDIF
+                ENDIF
+                J=J+1
             ENDDO
+
+            !If looking at the highest root, it should converge quickly by NR from the lowest bound,
+            !and vice versa for the lowest root
+            IF(I.eq.NROOTS) THEN
+                X=XLOW
+                VAL=VALLOW
+            ELSEIF(I.eq.1) THEN
+                X=XHIGH
+                VAL=VALHIGH
+            ENDIF
+            
+!            WRITE(55,*) "END OF BISECTION, XHIGH/XLOW MOVED BY", 
+!     &            (INITHIGH-XHIGH),(XLOW-INITLOW)
+!            WRITE(55,*) "XHIGH/XLOW NOW: ", XHIGH,XLOW
+!             WRITE(55,*) "END OF BISECTION - ", J," STEPS NEEDED"
+!            WRITE(55,*) "No. steps needed: ",J
+            CALL FLUSH(55)
+
+            !No longer need to do extended RF since have finite boundary
+!            WRITE(55,*) "***RF starting..."
+!  Now, do some regula falsi, which has faster convergence than bisection, but still stable...
+!            J=0
+!            DO WHILE(ABS(VAL).GT.1.D-9.AND.ABS(XLOW-XHIGH).GT.RFCONV)
+!                X=(-(VALHIGH*(XLOW-XHIGH))/(VALLOW-VALHIGH))+XHIGH
+!                WRITE(55,*) J,VALHIGH,VALLOW,X
+!                WRITE(55,*) XHIGH,XLOW
+
+!                CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+!                J=J+1
+!               WRITE(76,"(4G23.15)") XLOW,XHIGH,X,VAL
+!               IF(VAL.GT.0.D0) THEN
+!                  XLOW=X
+!                  VALLOW=VAL
+!               ELSEIF(VAL.LT.0.D0) THEN
+!                  XHIGH=X
+!                  VALHIGH=VAL
+!               ELSE
+!                  XLOW=X
+!                  XHIGH=X
+!               ENDIF
+!            ENDDO
 C.. Now polish off with some Newton Raphson
             J=0
             OX=0.D0
@@ -74,81 +160,99 @@ C.. Now polish off with some Newton Raphson
 
 !       WRITE(55,*) "RF finished, giving limits of ",XHIGH," and ",XLOW
 !       WRITE(55,*) "NR STARTING..."
-            DO WHILE(ABS(VAL).GT.NRCONV.AND.(J.LT.NRSTEPSMAX)
+            DO WHILE((ABS(VAL).GT.NRCONV).AND.(J.LT.NRSTEPSMAX)
      &      .AND.(ABS(X-OX).GT.NRCONV))
 !                WRITE(55,*) I,J,VAL,X,OX,X-OX,DERIV
-                
+!                WRITE(55,*) "X = ",X
                 CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
+               
                 
-                !If DERIV too small, then revert to regular falsi
+                !If DERIV too small, then revert to regula falsi
                 !Also if DERIV too large, z~=rho_jj and error large
                 !Also errors if DERIV is inf
-                   IF((ABS(DERIV).lt.1.D-13).or.
-     &                  (ABS(DERIV).gt.1.D+08)) THEN
 !          WRITE(55,*) "**DERIV TOO SMALL/LARGE - calculating using RF**"
-                      OX=X
-                      J=J+1
-                      IF(X.GT.XHIGH) THEN
-                          X=(OX+XHIGH)/2
-                      ENDIF
-                      IF(X.LT.XLOW) THEN
-                          X=(OX+XLOW)/2
-                      ENDIF
-!                      X=(-(VALHIGH*(XLOW-XHIGH))/(VALLOW-VALHIGH))+XHIGH
+!                K=0
+                 IF((I.ne.1).and.(I.ne.NROOTS)) THEN
+                     DO WHILE((ABS(DERIV).lt.1.D-13).or.
+     &                       (ABS(DERIV).gt.1.D+18))
+!                       WRITE(55,*) "DERIVATIVE UOB",K,DERIV
+!                       WRITE(55,*) "VALHIGH/LOW = ",VALHIGH,VALLOW
+                        OX=X
+                        J=J+1
+                        K=K+1
+                      X=(-(VALHIGH*(XLOW-XHIGH))/(VALLOW-VALHIGH))+XHIGH
+!                       X=XHIGH-(0.5*(XHIGH-XLOW))
+!                       WRITE(55,*) "NEW X = ", X
+                        CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+                        IF(VAL.GT.0.D0) THEN
+                            XLOW=X
+                            VALLOW=VAL
+                        ENDIF
+                        IF(VAL.LT.0.D0) THEN
+                            XHIGH=X
+                            VALHIGH=VAL
+                        ENDIF
+                        !test convergence
+                        IF((ABS(VAL).LT.NRCONV).OR.(ABS(OX-X)
+     &                   .LT.NRCONV).OR.(J.GT.NRSTEPSMAX)) THEN
+                            GOTO 123
+                        ENDIF
+                        CALL CALCSTARPOLYDERIV(N,A,B,X,DERIV)
+!                       WRITE(55,*) "RFNEW XHIGH/LOW= ",XHIGH,", ",XLOW
+                     ENDDO
+                 ENDIF
+                      
+                 !Perform NR calculation
+!                 WRITE(55,*) "VAL, DERIV = ", VAL,DERIV
+!                WRITE(76,"(4G23.15)") X,VAL,DERIV
+                 OX=X
+                 X=X-VAL/DERIV
+                 CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+!                 WRITE(55,*) "NEW NR X = ", X
+                 J=J+1
+                 IF (((X.GT.XHIGH).or.(X.LT.XLOW)).and.
+     &                   ((I.ne.NROOTS).and.(I.ne.1))) THEN
+                     K=K+1
+!  The NR has become unstable so we just use a regula Falsi step instead.
+!                     WRITE(55,*) "*RFSTEP* - out of bounds"
+!                     WRITE(55,*) "XHIGH/LOW = ", XHIGH, XLOW
+                      X=(-(VALHIGH*(XLOW-XHIGH))/(VALLOW-VALHIGH))+XHIGH
+!                      X=XHIGH-(0.5*(XHIGH-XLOW))
+!                      WRITE(55,*) "NEW RF X = ", X
                       CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
+!                      WRITE(55,*) "NEW VAL = ", VAL
                       IF(VAL.GT.0.D0) THEN
                           XLOW=X
-!                          VALLOW=VAL
+                          VALLOW=VAL
                       ELSEIF(VAL.LT.0.D0) THEN
                           XHIGH=X
-!                          VALHIGH=VAL
-                      ELSE
-                          XLOW=X
-                          XHIGH=X
+                          VALHIGH=VAL
                       ENDIF
-!                      WRITE(55,*) "NEW XHIGH/LOW= ",XHIGH,", ",XLOW
-                   ELSE
-                       !Perform NR calculation
-                       CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-!                      WRITE(76,"(4G23.15)") X,VAL,DERIV
-                       OX=X
-                       X=X-VAL/DERIV
-                       J=J+1
-                       IF((X.GT.XHIGH).or.(X.LT.XLOW)) THEN
-!  The NR has become unstable so we just use a regular Falsi step instead.
-!                          WRITE(55,*) "*RFSTEP* - out of bounds"
-                            IF(X.GT.XHIGH) THEN
-                                X=(OX+XHIGH)/2
-                            ENDIF
-                            IF(X.LT.XLOW) THEN
-                                X=(OX+XLOW)/2
-                            ENDIF
-
-!                          X=(-(VALHIGH*(XLOW-XHIGH))/
-!     &                       (VALLOW-VALHIGH))+XHIGH
-                          CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
-                          IF(VAL.GT.0.D0) THEN
-                              XLOW=X
-!                              VALLOW=VAL
-                          ELSEIF(VAL.LT.0.D0) THEN
-                              XHIGH=X
-!                              VALHIGH=VAL
-                          ELSE
-                              XLOW=X
-                              XHIGH=X
-                          ENDIF
-!                          WRITE(55,*) "NEW XHIGH/LOW= ",XHIGH,", ",XLOW
-                          
-!                          X=(OX+XHIGH)/2
-                       ENDIF
-!                       IF(X.LT.XLOW) THEN
-!                           WRITE(55,*) "*RFSTEP* - too low"
-!!  The NR has become unstable so we just use a regular Falsi step instead.
-!                           X=(OX+XLOW)/2
-!                       ENDIF
-                   ENDIF
+                      !test convergence
+                      IF((ABS(VAL).LT.NRCONV).OR.(ABS(OX-X)
+     &                   .LT.NRCONV).OR.(J.GT.NRSTEPSMAX)) THEN
+                          GOTO 123
+                      ENDIF
+                 
+                 ELSE
+                    IF(VAL.GT.0.D0) THEN
+                        XLOW=X
+                        VALLOW=VAL
+                    ELSEIF(VAL.LT.0.D0) THEN
+                        XHIGH=X
+                        VALHIGH=VAL
+                    ENDIF
+                 ENDIF
             ENDDO
 
+
+123         CONTINUE            
+!            WRITE(55,*) "FINISHED NR WITH J= ", J, " and K= ",K
+!            WRITE(55,*) ""
+!            WRITE(55,*) "Number of steps with wrong deriv= ", K
+!            CALL FLUSH(55)
+!            JTOT=JTOT+J
+            
 !  If this STOP is reached then we've likely hit a pole with a very small numerator, so the root is very close to it.
 !    Try increasing the value for NRSTEPSMAX.  Setting a RhoEpsilon might help 
             IF(J.GT.(NRSTEPSMAX-1)) THEN
@@ -173,6 +277,7 @@ C               WRITE(6,*),I,A(I),B(I)
                XLOW=DREAL(A(NMIN+I))
             ENDIF
          ENDDO
+!         WRITE(55,*) JTOT
          RETURN
       END         
          
