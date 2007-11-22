@@ -7,7 +7,7 @@
       LOGICAL TQUADRHO
       LOGICAL TEXPRHO
 !  True if Epstein-Nesbet PT rather than Moller-Plesset
-      LOGICAL tENPT  
+      LOGICAL tENPT, tLadder
       COMMON /UHFDET/ NUHFDET,TUSEBRILLOUIN,nActiveSpace,TSTAR,         &
-     &   tStoreAsExcitations,E0HFDET,tENPT,TQUADRHO,TEXPRHO
+     &   tStoreAsExcitations,E0HFDET,tENPT,TQUADRHO,TEXPRHO,tLadder
       

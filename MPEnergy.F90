@@ -13,16 +13,22 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    INTEGER iOrder
    TYPE(HDElement) MPEs(2:iV),E,ECore
    TYPE(HElement) MPE
+  include 'uhfdet.inc'
 !E1 is the HF Energy.  Ei are Fock energy differences.
-   
    MPE=ECore
    DO i=1,iV
 !      EX(1,1)=nEl
 !      CALL GetExcitation(iPath(1,0),iPath(i,0),nEl,EX,tSign)
-      Fi(i)=ECore
-      DO j=1,nEl
-         Fi(i)=Fi(i)+HElement(Arr(iPath(j,i-1),2))
-      ENDDO
+      IF(tENPT) THEN
+!Use Epstein-Nesbet denominator
+         Fi(i)=Hij(i-1,i-1)
+      ELSE
+!Use standard MP denominator
+         Fi(i)=ECore
+         DO j=1,nEl
+            Fi(i)=Fi(i)+HElement(Arr(iPath(j,i-1),2))
+         ENDDO
+      ENDIF
    ENDDO
    tLogged=.FALSE.
    E1=Hij(0,0)
@@ -146,8 +152,8 @@ END
                J=J+1
             ENDIF
          ENDDO
-         IF(tENPT) then
-!Epstein-Nesbet PT
+         IF(tLadder) then
+!Ladder sum perturbation theory
             DENOM=DENOM+SQ(HIJS(1))
          ENDIF
          CONTR=SQ(HIJS(1))/DENOM

@@ -193,6 +193,7 @@
       tReadInCache=.false.
       iDFMethod=0
       tENPT=.false.
+      tLadder=.false.
 
 ! Logging defaults      
       ILOGGING = 0
@@ -688,6 +689,8 @@ C                  end select
                   TMCDIRECTSUM=.TRUE.
               case("EPSTEIN-NESBET")
                   tENPT=.TRUE.
+              case("LADDER")
+                  tLadder=.TRUE.
               case("MPTHEORY")
                   TMPTHEORY=.TRUE.
 !                  if ( I_HMAX .ne. -7.and.

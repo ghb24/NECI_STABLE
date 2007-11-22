@@ -357,7 +357,11 @@ MCDIRECTSUM
 MPTHEORY
    Instead of a normal path-integral expansion MC, do a Moller Plesset MP.  Requires HDIAG, and BIAS=0.D0.  Can be used without a METHODS section.  If a METHODS section is needed to specify different numbers of cycles at each level, then MCDIRECTSUM must also be set.
 EPSTEIN-NESBET
-   Will do Epstein-Nesbet perturbation theory, rather than Moller-Plesset.  Only works for VERTEX SUM OLD and only at 2v level.
+   Will do Epstein-Nesbet perturbation theory, rather than Moller-Plesset.  Only works for VERTEX SUM NEW HDIAG and only at 2v level.
+
+LADDER
+   Will do ladder diagram perturbation theory, rather than Moller-Plesset.  Energy denominator is E_0-E_I+|H_0I|^2  Only works for VERTEX SUM NEW HDIAG and only at 2v level.
+
 IMPORTANCE <G_VMC_PI> 
     Set the generation probability for the MC routine.  This is the probability that new determinants are excitations of the pivot, i
      The default 0.95.
