@@ -328,8 +328,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                   ELSE
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
-                      TMAT2D(JJ,II)=TOT
-                      TMAT2D(JJ+1,II+1)=TOT
+                      TMAT2D(JJ,II)=dconjg(TOT)
+                      TMAT2D(JJ+1,II+1)=dconjg(TOT)
                   ENDIF
                   WRITE(10,*) I,J,TOT
                   IF(I.EQ.J) THEN
