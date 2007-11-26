@@ -32,13 +32,13 @@
          INTEGER exFlag
          INTEGER, allocatable :: nExcit(:)
          INTEGER nExcitMemLen,nStore(6)
-         INTEGER nJ(nEl),iExcit,iMaxExcit
+         INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount
          INTEGER iErr
          INTEGER nRoots,i,j
          TYPE(HElement) rh,rhii,EHFDiff
 
          TYPE(HDElement) MP2E         
-         LOGICAL tStarSingles
+         LOGICAL tStarSingles,tCountExcits
          INTEGER nIExcitFormat(nEl)
 !         LARGERHOJJ(:)=0.D0
          IF(tStoreAsExcitations) THEN
@@ -48,6 +48,7 @@
             CALL ICOPY(NEL,nI,1,nIExcitFormat,1)
          ENDIF
          tStarSingles=BTEST(nWHTay,7)
+         tCountExcits=BTEST(nWHTay,8)
          SELECT CASE (IAND(nWHTay,24))
          CASE(0)
 !.. Allow both singles and doubles
@@ -62,13 +63,42 @@
          CASE(24)
             STOP "Invalid combination of flags in NWHTAY"
          END SELECT
-!.. Count the excitations.
+!.. Count the excitations. - First call of GenSymExcitIt2 calculates memory needed for internal use in excitation generators
+
          nStore(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
          Allocate(nExcit(nExcitMemLen))
+!Second call calculates size of arrays needed to store all symmetry allowed excitations - further calls will generate excitation on-the-fly(shown by the false in arg(6)
          nExcit(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 !.. iMaxExcit now contains the number of excitations.
+         !TCountExcits will run through all excitations possible, determine if they are connected, and then only store these.
+         !Will be twice as expensive, as needs to run through all excitations twice - however, will only store memory needed.
+         IF(tCountExcits) THEN
+            Write(6,"A,I10,A") "Counting excitations - Running through all ",iMaxExcit," excitations to determine number connected"
+            excitcount=1
+            CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
+            
+       lp2: do while(.true.)
+                CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
+                IF(nJ(1).eq.0) exit lp2
+                CALL CalcRho2(nIExcitFormat,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit,ECore)
+                IF(rh.agt.RhoEps) excitcount=excitcount+1
+            enddo lp2
+
+            !Set number of excitations to number of connected determinants, and reset generator
+            !This routine doesn't seem to work...would be good if didn't need to reinitialise excitation generator
+!            CALL ResetExit2(nI,nEl,G1,nBasis,nBasisMax,nExcit,0)
+            Deallocate(nExcit)
+            nStore(1)=0
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+            Allocate(nExcit(nExcitMemLen))
+            nExcit(1)=0
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+            iMaxExcit=excitcount
+            
+         ENDIF
+
 !.. Allocate memory for the lists
          IF(tStarSingles) THEN
             iMaxExcit=iMaxExcit*5

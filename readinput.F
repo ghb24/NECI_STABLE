@@ -1390,6 +1390,8 @@ C     ILOGGING = 0771
                                  I_HMAX=-21
                               case("OLD")
                                  I_HMAX=-9
+                              case("COUNTEXCITS")
+                                 NWHTAY=IBSET(NWHTAY,8)
                               case("ADDSINGLES")
                                  NWHTAY=IBSET(NWHTAY,7)
                                  IF(I_HMAX.NE.-21)  call report(
