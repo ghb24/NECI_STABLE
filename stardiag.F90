@@ -540,8 +540,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !!!                  write(6,*) iDegen-1
                   iDegen=1
                endif
-!List(1,:) is the HF det.  We set its value in the eigenvector to 1.
-               DO J=1,NLIST
+!List(0,:) is the HF det.  We set its value in the eigenvector to 1.  The remaining NLIST-1 items are used to normalize.
+               DO J=1,NLIST-1
                   RR=HElement(ROOTS(I))-LIST(J,0)
                   IF(.NOT.(RR.AGT.1e-13)) THEN
 !see comment below
