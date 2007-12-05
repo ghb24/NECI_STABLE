@@ -616,7 +616,7 @@ MODULE UMatCache
          LOGICAL LSYMSYM
          TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
          INTEGER ISUB,ISUB2
-         LOGICAL GetCachedUMatEl
+         LOGICAL GetCachedUMatEl,HasKPoints
          integer*8 TotSymRep
 !         CALL TISET(' GETUMATEL',ISUB)
 !   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
@@ -781,17 +781,6 @@ MODULE UMatCache
          RETURN
 !         CALL TIHALT(' GETUMATEL',ISUB)
       END
-
-      logical function HasKPoints()
-         IMPLICIT NONE
-         include 'cpmddata.inc'
-         INTEGER I,J,K,L
-         IF(NKPS.GT.1) THEN
-            HasKPoints=.TRUE.
-         ELSE
-            HasKPoints=.FALSE.
-         ENDIF
-      end
 
 
 !  TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals
@@ -1325,7 +1314,18 @@ MODULE UMatCache
       end subroutine DumpUMatCache
       
 END MODULE UMatCache
+
+      logical function HasKPoints()
+         IMPLICIT NONE
+         include 'cpmddata.inc'
+         IF(NKPS.GT.1) THEN
+            HasKPoints=.TRUE.
+         ELSE
+            HasKPoints=.FALSE.
+         ENDIF
+      end
  
+
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
          USE UMatCache
          IMPLICIT NONE
