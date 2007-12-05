@@ -259,7 +259,10 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElement
-         USE UMatCache , nstatesumat=>nstates
+         USE UMatCache, only: nstatesumat=>nstates,tUMAT2D,
+     &                        TMat2D,tStarStore
+         USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
+     &                        SetupUMatCache    
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
@@ -296,7 +299,7 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
          IF(.NOT.BTEST(iCacheFlag,1)) THEN
 !Don't initialize the cache if it's already there
             allocate(HarInt(NStatesUsed,NStatesUsed))
-            call Memory(IP_PIInt,NStates,'PIInt')
+            call Memory(IP_PIInt,nStates,'PIInt')
 C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          ENDIF
@@ -309,6 +312,9 @@ C.. Set the UMAT cache to cache things in the lowest possible position
             CALL SETUMATCACHEFLAG(1)
 C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
             CALL SETUPUMAT2D(G1,HarInt)
+            ! Must now calculate the hartree integrals and periodic integrals 
+            ! (otherwise done in CPMDAntiSymIntEl) if not using UMAT2D.
+            if(.not.TUMAT2D) call CalcHarPIInts(HarInt,NStatesUsed)
             CALL SETUMATCACHEFLAG(0)
          ENDIF
          WRITE(6,*) "Calculating TMAT"

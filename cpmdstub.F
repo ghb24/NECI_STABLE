@@ -34,3 +34,10 @@ C         OCC=F(ISTATE)
          integer  IndA,IndB,IndC,IndD
          return
       end subroutine GetKPInd
+
+      subroutine CalcHarPIInts(HarInt,nStates)
+         implicit none
+         integer  nStates
+         complex*16 HarInt(nStates,nStates)
+         return
+      end subroutine CalcHarPIInts
