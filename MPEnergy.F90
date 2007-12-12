@@ -14,6 +14,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    TYPE(HDElement) MPEs(2:iV),E,ECore
    TYPE(HElement) MPE
   include 'uhfdet.inc'
+   include 'vmc.inc'
 !E1 is the HF Energy.  Ei are Fock energy differences.
    MPE=ECore
    DO i=1,iV
@@ -28,6 +29,10 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
          DO j=1,nEl
             Fi(i)=Fi(i)+HElement(Arr(iPath(j,i-1),2))
          ENDDO
+         IF(tModMPTheory.and.i.gt.0) THEN
+!Encoded in the diagonal part of Hij is the <ij||ij>+<ab||ab> sum for the modified MP Theory
+            Fi(i)=fi(i)+Hij(i-1,i-1)
+         ENDIF
       ENDIF
    ENDDO
    tLogged=.FALSE.
@@ -166,3 +171,24 @@ END
          RETURN
       END
 
+      Subroutine ModMPDiagElement(hEl,nI,nJ,nEl,nBasisMax,UMat,ALat,nBasis,iss,G1)
+         use UMatCache, only : GetUMatEl
+         use HElement
+         implicit none
+         include 'basis.inc'
+         Type(HElement) hEl,UMat(*)
+         integer nEl,nI(nEl),nJ(nEl),nBasis
+         integer nBasisMax(*)
+         type(BasisFn) G1(*)
+         integer Ex(2,2),iss
+         logical tSign
+         real*8 ALat(3)
+         Ex(1,1)=2
+         Call GetExcitation(nI,nJ,nEl,EX,tSign)
+         if(Ex(1,2).gt.0) then
+            hEl= GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,1),ex(1,2))  &
+     &          -GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,2),ex(1,1))  &
+     &          +GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,1),ex(2,2))  &
+     &          -GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,2),ex(2,1))
+         endif
+      End Subroutine

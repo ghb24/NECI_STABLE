@@ -166,6 +166,10 @@ C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
 !               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
             IF(tMPTheory) THEN
+               IF(tModMPTheory) then
+                  CALL ModMPDiagElement(Hij(i_V,i_V),iPath(1,1),
+     &             iPath(1,i_V),NEL,NBASISMAX,UMat,ALat,nBasis,0,G1)
+               Endif
                CALL AZZERO(MPEs,i_VMax-1)
                CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,
      &            iPath,nEl,tLog,ECORE,MPEs)

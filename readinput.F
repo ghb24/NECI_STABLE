@@ -130,6 +130,7 @@
       TVVDISALLOW=.false.
       tMCDirectSum=.FALSE.
       TMPTHEORY=.FALSE.
+      TMODMPTHEORY=.FALSE.
       G_VMC_PI = 0.95
       G_VMC_SEED = -7
       G_VMC_FAC = 16
@@ -691,6 +692,8 @@ C                  end select
                   tENPT=.TRUE.
               case("LADDER")
                   tLadder=.TRUE.
+              case("MODMPTHEORY")
+                  TMODMPTHEORY=.TRUE.
               case("MPTHEORY")
                   TMPTHEORY=.TRUE.
 !                  if ( I_HMAX .ne. -7.and.
