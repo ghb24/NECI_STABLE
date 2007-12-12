@@ -29,8 +29,10 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
          DO j=1,nEl
             Fi(i)=Fi(i)+HElement(Arr(iPath(j,i-1),2))
          ENDDO
-         IF(tModMPTheory.and.i.gt.0) THEN
+         IF(tModMPTheory.and.i.gt.1) THEN
 !Encoded in the diagonal part of Hij is the <ij||ij>+<ab||ab> sum for the modified MP Theory
+!            call writepathex(6,iPath,iV,nEl,.true.)
+!            write(6,*) fi(i)-fi(1),fi(i)+hij(i-1,i-1)-fi(1), hij(i-1,i-1)
             Fi(i)=fi(i)+Hij(i-1,i-1)
          ENDIF
       ENDIF
@@ -180,15 +182,22 @@ END
          integer nEl,nI(nEl),nJ(nEl),nBasis
          integer nBasisMax(*)
          type(BasisFn) G1(*)
-         integer Ex(2,2),iss
+         integer Ex(2,2),ex2(2,2),iss
          logical tSign
          real*8 ALat(3)
          Ex(1,1)=2
          Call GetExcitation(nI,nJ,nEl,EX,tSign)
+         ex2=ex
+         ex=ex+1
+         ex=ex/2
          if(Ex(1,2).gt.0) then
-            hEl= GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,1),ex(1,2))  &
-     &          -GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,2),ex(1,1))  &
-     &          +GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,1),ex(2,2))  &
-     &          -GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,2),ex(2,1))
+            hEl= GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,1),ex(1,2))
+            if(mod(ex2(1,1)+ex2(1,2),2).eq.0)                                                         & 
+     &         hEl=hEl-GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(1,1),ex(1,2),ex(1,2),ex(1,1))
+            hEl=hEl+GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,1),ex(2,2))
+            if(mod(ex2(2,1)+ex2(2,2),2).eq.0)                                                         &
+     &         hEl=hEl-GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,2),ex(2,1))
+         else
+            hEl=0.0
          endif
       End Subroutine

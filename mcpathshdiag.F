@@ -34,7 +34,7 @@ C.,             If 1, only allow doubles.
          INCLUDE 'basis.inc'
          INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(*)
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER I_V,NEL,I_P,NBASISMAX(5,3),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I
          COMPLEX*16 FCK(*)
@@ -167,8 +167,10 @@ C.. NMAX has ARR hidden in it.
 !               CALL ADDMP2E(HIJS,NMAX,NBASIS,IPATH,NEL,TLOG,MP2E)
             IF(tMPTheory) THEN
                IF(tModMPTheory) then
-                  CALL ModMPDiagElement(Hij(i_V,i_V),iPath(1,1),
-     &             iPath(1,i_V),NEL,NBASISMAX,UMat,ALat,nBasis,0,G1)
+!NBasisMax(2,3) is ISpinSkip
+                  CALL ModMPDiagElement(Hij(i_V-1,i_V-1),iPath(1,0),
+     &             iPath(1,i_V-1),NEL,NBASISMAX,UMat,ALat,nBasis,
+     &               NBASISMAX(2,3),G1)
                Endif
                CALL AZZERO(MPEs,i_VMax-1)
                CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,
