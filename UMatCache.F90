@@ -794,11 +794,11 @@ MODULE UMatCache
          NHITS=0
          NMISSES=0
          iCacheOvCount=0
+         NSTATES=NSTATE
          IF(NSLOTSINIT.LE.0) THEN
             NSLOTS=0
             WRITE(6,*) "Not using UMATCACHE."
          ELSE
-            NSTATES=NSTATE
             NPAIRS=NSTATES*(NSTATES+1)/2
             IF(TSMALL) THEN
                NSLOTS=NSTATES
@@ -1358,6 +1358,7 @@ END MODULE UMatCache
          INTEGER OLAB,IC1,I,J,ITOTAL
          SAVE ITOTAL
          DATA ITOTAL /0/
+         if (nSlots.eq.0) return
 !         WRITE(69,*) NSLOTS,A,B,UMATEL,ICACHE,ICACHEI
          IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1.OR.tSmallUMat) THEN
 !   small system.  only store a single element
