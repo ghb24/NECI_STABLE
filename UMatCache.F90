@@ -842,7 +842,6 @@ MODULE UMatCache
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
             Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
             CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
-            write (65,*) UMAT2D
          ENDIF
       END
 
