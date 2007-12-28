@@ -130,7 +130,11 @@ C.. The spin including the total spin
       INCLUDE 'csf.inc'
       INCLUDE 'uhfdet.inc'
 C ==-------------------------------------------------------------------==
-      CALL TIMETAG()
+      write (6,*)
+      call TimeTag()
+      if (.not.TCPMD) call Envir()
+      write (6,*)
+
       ECORE=0.D0
       IFDET=0
       TRHOIJND=.false.

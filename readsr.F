@@ -114,9 +114,9 @@ C         ADD DIGIT TO MANTISSA
           INV=INV+1
           IF(POINT) THEN
             SCALE=SCALE/TEN
-            FPTNUM=FPTNUM+DFLOAT(INDEX)*SCALE
+            FPTNUM=FPTNUM+DBLE(INDEX)*SCALE
           ELSE
-            FPTNUM=TEN*FPTNUM+DFLOAT(INDEX)
+            FPTNUM=TEN*FPTNUM+DBLE(INDEX)
           END IF
           GO TO 150
         ENDIF
@@ -273,6 +273,7 @@ C     ==================================================================
 C     ==--------------------------------------------------------------==
 C     == Give index of the first and last non-blank character         ==
 C     == blank characters are " " and CHAR(9) (tab)                   ==
+C     == more blank characters are char(13) (cr) and CHAR(10) (newl)  ==
 C     == STRING (INPUT)                                               ==
 C     == IA,IE  (OUTPUT)                                              ==
 C     ==--------------------------------------------------------------==
@@ -287,7 +288,9 @@ C     ==--------------------------------------------------------------==
       IA=1
       DO I=1,SLEN
          IF(STRING(I:I).NE.' '.AND.
-     &       STRING(I:I).NE.CHAR(9) ) THEN !tab character
+     &       STRING(I:I).NE.CHAR(9).AND.      !tab character
+     &       STRING(I:I).NE.CHAR(10).AND.     !newline character
+     &       STRING(I:I).NE.CHAR(13) ) THEN   !carriage return character
            IA=I
            GOTO 10
          ENDIF
