@@ -498,9 +498,13 @@ UMATCACHE SLOTS nSlotsInit
    For CPMD-generated 2-electron integrals, set the number of slots per state-pair of cache to reserve.  The total amount of cache will be in the order of NSLOTS*NSTATES*(NSTATES-1)/2  words.  If 0 then disable on-the-fly cacheing, but retain precomputation of 2-index 2-electron integrals.  If -1, calculate all integrals on the fly.
 UMATCACHE MB nMemInit
    Number of megabytes to allocate to the UMAT cache.
+UMATCACHE [READ|DUMP|FORCE]
+   READ: Read in UMatCache from CacheDump (if it exists).
+   DUMP: Print out UMatCache to CacheDump, unless have read in CacheDump from a larger calculation.
+   FORCE: Force the over-write of CacheDump, even if read in CacheDump from a larger calculation.
 
 NOUMATCACHE
-   Disable all UMAT caching (same as UMATCACHE -1)
+   Disable all UMAT caching (same as UMATCACHE -1).  To use UMAT2D and *not* UMATCACHE, set UMATCACHE 0.
    
 FOCK-PARTITION
    For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation

@@ -1092,7 +1092,7 @@ cat << END >&3
 #----------------------------------------------------------------------------
 #MAIN_OBJS=necimain.o
 clean : 
-	  rm \$(DEST)/*.f90 \$(DEST)/*.f \$(dest)/*.o \$(DEST)/*.mod
+	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(dest)/*.o \$(DEST)/*.mod
 
 neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS) \$(OBJ_CC)
 	 rm -f timetag.f
@@ -1118,7 +1118,6 @@ lib : \$(OBJ_LIB)
 	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
 	 \$(AR) libcpmd.a timetag.o \$(OBJ_LIB)
 	 \$(RANLIB) libcpmd.a
-
 
 #----------------------------------------------------------------------------
 # Explicit rules
