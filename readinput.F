@@ -1426,6 +1426,10 @@ C     ILOGGING = 0771
      &                        //" or POLY vertex star method",.true.)
                                end select
                            enddo
+                           IF(STARPROD.and.BTEST(NWHTAY,0)) THEN
+                               call report("STARPROD can only be "
+     &                      //"specified with HDIAG option")
+                           ENDIF
                            if(i_hmax.eq.0)
      &                   call report("OLD/NEW not specified for STAR",
      &                          .true.)
