@@ -1326,7 +1326,6 @@ C     ILOGGING = 0771
         end
                    
                   
-         
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use input
          use UMatCache , only : TSTARSTORE
@@ -1393,6 +1392,8 @@ C     ILOGGING = 0771
                                  I_HMAX=-21
                               case("OLD")
                                  I_HMAX=-9
+                              case("STARPROD")
+                                 STARPROD=.TRUE.
                               case("COUNTEXCITS")
                                  NWHTAY=IBSET(NWHTAY,8)
                               case("ADDSINGLES")

@@ -1,3 +1,59 @@
+
+      SUBROUTINE PLOTROOTSTAR(N,A,B,ROOTS,NROOTS)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER N,I,J,NROOTS
+         TYPE(HElement) A(0:N),B(0:N)
+         real*8 ROOTS(0:NROOTS),HIGHZ,DELTA,Z
+         REAL*8 STAR,STARPROD,PROD,PROD2,STARPROD2
+         include 'calcp.inc'
+
+         !Calculate the poles of the new product formulation
+
+
+         Z=0.9994
+         HIGHZ=0.99941
+         DELTA=0.0000001
+         WRITE(97,*) N," excitations" 
+         WRITE(97,*) "rhoii   rhoij"
+         DO I=1,N
+            WRITE(97,*) DREAL(A(I)), DREAL(B(I))
+         ENDDO
+         CALL FLUSH(97)
+         
+         WRITE(66,*) "Z     STARVAL     PRODVAL    PRODVALALL"
+         DO WHILE(Z.LE.HIGHZ)
+            STAR=0.D0
+            DO I=1,N
+                STAR=STAR+SQ(B(I))/(Z-DREAL(A(I)))
+            ENDDO
+            STARPROD=0.D0
+            DO I=1,N
+                PROD=0.D0
+                DO J=1,N
+                    IF(J.eq.I) CYCLE
+!                    WRITE(97,*) I,J
+                    PROD=PROD+SQ(B(J))/(Z-(DREAL(A(I))*DREAL(A(J))))
+                ENDDO
+                STARPROD=STARPROD+SQ(B(I))/(Z-DREAL(A(I))-PROD)
+            ENDDO
+            STARPROD2=0.D0
+            DO I=1,N
+                PROD2=0.D0
+                DO J=1,N
+                    PROD2=PROD2+SQ(B(J))/(Z-(DREAL(A(I))*DREAL(A(J))))
+                ENDDO
+                STARPROD2=STARPROD2+SQ(B(I))/(Z-DREAL(A(I))-PROD2)
+            ENDDO
+            Z=Z+DELTA
+            WRITE(66,"(4F14.10)") Z,STAR,STARPROD,STARPROD2
+         ENDDO
+         CALL FLUSH(66)
+         RETURN
+      END
+                
+            
+
 C.. A procedure to use the regular falsi (false descent) method
 C.. to find the roots of a polynomial in the form
 
@@ -29,7 +85,7 @@ C.. We find the first root by starting very slightly above the highest
 C.. pole
          roots(0)=0
          I=NROOTS
-!         WRITE(55,*) "Total roots = ",NROOTS
+!         WRITE(76,*) "Total roots = ",NROOTS
 !  This will be bounded from below by A(I+NMIN)
          XLOW=DREAL(A(I+NMIN))
          XHIGH=2*DREAL(A(I+NMIN))
@@ -127,7 +183,7 @@ C.. The value at XHIGH is always bigger than at XLOW
 !            WRITE(55,*) "XHIGH/XLOW NOW: ", XHIGH,XLOW
 !             WRITE(55,*) "END OF BISECTION - ", J," STEPS NEEDED"
 !            WRITE(55,*) "No. steps needed: ",J
-            CALL FLUSH(55)
+!            CALL FLUSH(55)
 
             !No longer need to do extended RF since have finite boundary
 !            WRITE(55,*) "***RF starting..."
@@ -277,10 +333,9 @@ C               WRITE(6,*),I,A(I),B(I)
                XLOW=DREAL(A(NMIN+I))
             ENDIF
          ENDDO
-!         WRITE(55,*) JTOT
+!         WRITE(76,*) ROOTS(:)
          RETURN
-      END         
-         
+      END
 
       SUBROUTINE CALCSTARPOLYVALUE(N,A,B,X,VAL)
          USE HElement

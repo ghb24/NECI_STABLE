@@ -76,7 +76,7 @@
          !Will be twice as expensive, as needs to run through all excitations twice - however, will only store memory needed.
          IF(tCountExcits) THEN
             Write(6,"A,I10,A") "Counting excitations - Running through all ",iMaxExcit," excitations to determine number connected"
-            excitcount=1
+            excitcount=0
             CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
             
        lp2: do while(.true.)
@@ -186,7 +186,12 @@
          WRITE(6,*) iExcit," excited determinants in star"
          IF(.NOT.BTEST(NWHTAY,0)) THEN
             WRITE(6,*) "Beginning Complete Star Diagonalization"
-            CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+            IF(STARPROD) THEN
+                WRITE(6,*) "Product Star Diagonalisation -  beware - large scaling!"
+                CALL StarDiagSC(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+            ELSE
+                CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+            ENDIF
          ELSE
             WRITE(6,*) "Beginning Polynomial Star Diagonalization"
             nRoots=iExcit
@@ -287,6 +292,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL FREEM(IP_NICE)
          RETURN
       END
+
+      
 !.. This version creates a star of all 2-vertex terms.
 !..   This is the heart of the function, called once the excitations are found.
       FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
@@ -361,7 +368,146 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          ENDIF
       END
 
+      SUBROUTINE STARDIAGSC(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
+         USE HElement
+         IMPLICIT NONE
+         INTEGER NEL,I_P
+         INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
+         REAL*8 LIST(ILMAX,0:2)
+         REAL*8 RIJMAT(*),WLIST(*)
+         REAL*8, DIMENSION(:,:), POINTER :: AOFFDB
+         REAL*8, DIMENSION(:), POINTER :: AONDB
+         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
+         INTEGER ISUB,IND,TOTVERT
+         INTEGER WORKL,WORK(*),INFO,PRODVERT,ierr
+         REAL*8 SI,DLWDB,DBETA
+         INTEGER I,J
+         TYPE(HElement) RR
 
+         IF(HElementSize.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
+
+         CALL TISET('STARDIAGSC',ISUB)
+
+         CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
+         
+         PRODVERT=(NLIST-1)*(NLIST-2)/2
+         TOTVERT=PRODVERT+NLIST
+         
+         ALLOCATE(AOFFDB(PRODVERT,NLIST-1),STAT=ierr)
+         CALL MemAlloc(ierr,AOFFDB,(NLIST-1)*PRODVERT,'AOFFDB')
+         CALL AZZERO(AOFFDB,(NLIST-1)*PRODVERT)
+         ALLOCATE(AONDB(PRODVERT),STAT=ierr)
+         CALL MemAlloc(ierr,AONDB,PRODVERT,'AONDB')
+         CALL AZZERO(AONDB,PRODVERT)
+
+         IND=0
+         DO I=2,NLIST
+            DO J=(I+1),NLIST
+                IND=IND+1
+                IF(IND.gt.PRODVERT) STOP 'Error - IND larger than PRODVERT'
+                AONDB(IND)=LIST(I,0)*LIST(J,0)
+                AOFFDB(IND,(I-1))=LIST(J,1)
+                AOFFDB(IND,(J-1))=LIST(I,1)
+            ENDDO
+        ENDDO
+        IF(PRODVERT.NE.IND) THEN
+            WRITE(6,*) "EXPECTED EXTRA VERTICES = ", PRODVERT
+            WRITE(6,*) "VERTICES ADDED = ", IND
+            CALL FLUSH(6)
+            STOP 'WRONG NUMBER OF ADDED VERTICES'
+        ENDIF
+
+!        DO I=1,(NLIST-1)
+!            DO J=1,PRODVERT
+!                WRITE(68,"E15.6,$") AOFFDB(J,I)
+!            ENDDO
+!            WRITE(68,*) ""
+!        ENDDO
+!        WRITE(68,*) "*****************"
+        
+        CALL MEMORY(IP_RIJMAT,TOTVERT*TOTVERT,"RIJMAT")
+        CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
+        
+        DO I=1,TOTVERT
+            IF(I.LE.NLIST) THEN
+                RIJMAT(I)=LIST(I,1)
+                RIJMAT((I-1)*TOTVERT+I)=LIST(I,0)
+                IF(I.GT.1) THEN
+                    DO J=1,PRODVERT
+                        RIJMAT((I-1)*TOTVERT+NLIST+J)=AOFFDB(J,I-1)
+                    ENDDO
+                ENDIF
+            ELSE
+                RIJMAT((I-1)*(TOTVERT)+I)=AONDB(I-NLIST)
+            ENDIF
+        ENDDO
+
+        CALL MemDealloc(AONDB)
+        Deallocate(AONDB)
+        NULLIFY(AONDB)
+        CALL MemDealloc(AOFFDB)
+        Deallocate(AOFFDB)
+        NULLIFY(AOFFDB)
+
+!        DO I=1,TOTVERT
+!            DO J=1,TOTVERT
+!                WRITE(68,"E14.6,$") RIJMAT((I-1)*TOTVERT+J)
+!            ENDDO
+!            WRITE(68,*) ""
+!        ENDDO
+
+        CALL MEMORY(IP_WLIST,TOTVERT,"WLIST")
+        WORKL=3*TOTVERT
+        CALL MEMORY(IP_WORK,WORKL,"WORK")
+        
+!.. Diagonalize
+         CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) 'DYSEV error: ',INFO
+            STOP
+         ENDIF
+         CALL FREEM(IP_WORK)
+         WRITE(6,*)
+         WRITE(6,*) "Highest root:",WLIST(TOTVERT)
+
+         SI=0.D0
+         DO I=1,TOTVERT
+            SI=SI+RIJMAT(((I-1)*TOTVERT)+1)*RIJMAT(((I-1)*TOTVERT)+1)*(WLIST(I)**I_P)
+            IF(DBETA.NE.0.D0) THEN
+!                OD=DLWDB
+                DO J=1,NLIST
+                    !Is this a correct formulation for the hamiltonian elements - only sum over vertices linked to i
+                    DLWDB=DLWDB+RIJMAT(((I-1)*TOTVERT)+1)*RIJMAT(((I-1)*TOTVERT)+J)*(WLIST(I)**I_P)*LIST(J,2)
+                ENDDO
+            ENDIF
+         ENDDO
+         WRITE(6,*) "Final SI= ", SI
+         SI=SI-1.D0
+         DLWDB=DLWDB-LIST(1,2)
+         CALL FREEM(IP_WLIST)
+         CALL FREEM(IP_RIJMAT)
+         CALL TIHALT("STARDIAGSC",ISUB)
+         
+!!!  FROM ORIGINAL STAR ROUTINE  !!!
+!         DO I=0,NLIST-1
+!            SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P)
+!            IF(DBETA.NE.0.D0) THEN
+!.. calculate <D|H exp(-b H)|D>/RHO_ii^P
+!               OD=DLWDB
+!               DO J=1,NLIST
+!                  DLWDB=DLWDB+LIST(J,2)*RIJMAT(I*NLIST+J)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P)
+!                  WRITE(6,*) LIST(J,2),RIJMAT(I*NLIST+J)
+!               ENDDO
+!               WRITE(6,*) WLIST(I+1)**I_P,DLWDB-OD
+!               WRITE(6,*)
+!            ENDIF
+!         ENDDO
+         
+         
+         RETURN
+      END
+                
+      
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElement
          IMPLICIT NONE
@@ -391,6 +537,30 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             RIJMAT(I*NLIST+I+1)=LIST(I+1,0)
             RIJMAT(I+1)=LIST(I+1,1)
          ENDDO
+
+!         WRITE(67,*) "Size of rhomat is ", NLIST
+!         WRITE(67,*) "********"
+!         WRITE(67,*) "ILMAX is ", ILMAX
+!         WRITE(67,*) "********"
+!         WRITE(67,*) "OFF DIAG LIST is "
+!         DO I=1,ILMAX
+!            WRITE(67,"F12.6,$") LIST(I,1)
+!         ENDDO
+!         WRITE(67,*) ""
+!         WRITE(67,*) "********"
+!         WRITE(67,*) "ON DIAG LIST is "
+!         DO I=1,ILMAX
+!            WRITE(67,"F12.6,$") LIST(I,0)
+!         ENDDO
+!         WRITE(67,*) ""
+!         WRITE(67,*) "********"
+!         WRITE(67,*) "RHOMAT is "
+!         DO I=1,NLIST
+!            DO J=1,NLIST
+!                WRITE(67,"F12.6,$") RIJMAT(((I-1)*NLIST)+J)
+!            ENDDO
+!            WRITE(67,*) ""
+!        ENDDO
 
 !.. Diagonalize
          CALL DSYEV('V','L',NLIST,RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
@@ -500,7 +670,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
 !.. Find the eigenvalues
 !  NLIST is the number of elements in the list, but we need to give the index of the last element, NLIST-1
-         
+!         CALL PLOTROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS) 
          CALL FINDROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS)
          SI=0.D0
          WRITE(6,*) "Highest root:",ROOTS(NROOTS)
