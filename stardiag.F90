@@ -17,6 +17,10 @@
          TYPE(HDElement) dLWdB
          TYPE(HDElement) fMCPR3StarNewExcit
          TYPE(HElement), Allocatable :: ExcitInfo(:,:)
+         INTEGER, ALLOCATABLE :: EXCITSTORE(:,:)
+         INTEGER, ALLOCATABLE :: PRODPOSITIONS(:,:)
+         REAL*8, ALLOCATABLE :: ONDIAGPRODRHO(:)
+         REAL*8, ALLOCATABLE :: OFFDIAGPRODRHO(:,:)
          TYPE(HElement) HIJS(0:2)
 !         REAL*8 LARGERHOJJ(10000)
          INTEGER iPath(nEl,0:2)
@@ -31,9 +35,9 @@
 
          INTEGER exFlag
          INTEGER, allocatable :: nExcit(:)
-         INTEGER nExcitMemLen,nStore(6)
-         INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount
-         INTEGER iErr
+         INTEGER nExcitMemLen,nStore(6),prodorbs(8)
+         INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
+         INTEGER iErr,nK(nEl),nL(nEl)
          INTEGER nRoots,i,j
          TYPE(HElement) rh,rhii,EHFDiff
 
@@ -107,6 +111,10 @@
          Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
          CALL MemAlloc(iErr,ExcitInfo,(iMaxExcit+1)*3*HElementSize,"ExcitInfo")
+         IF(TCALCREALPROD) THEN
+             ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
+             CALL MemAlloc(iErr,EXCITSTORE,(iMaxExcit*2),"EXCITSTORE")
+         ENDIF
 !.. This will contain all the info needed to work out the value of the
 !.. star
 !.. LIST(0,...) corresponds to J=I
@@ -143,6 +151,10 @@
             if(rh .agt. RhoEps) then
                i=i+1
                ExcitInfo(i,1)=rh/rhii
+               IF(TCALCREALPROD) THEN
+                   !Stores all excitations as (occ,occ,vir,vir)
+                   CALL GETEXCITSCHANGE(nI,nJ,nEl,EXCITSTORE(:,i))
+               ENDIF
                if(btest(nwhtay,5)) then
                   call GetH0Element(nJ,nEl,nMax,nBasis,rh)
                   rh=rh+EHFDiff
@@ -178,6 +190,53 @@
          LT=iMaxExcit
          iExcit=i
          Deallocate(nExcit)
+
+         !FIND REAL PRODUCT EXCITATIONS
+         IF(TCALCREALPROD) THEN
+             ALLOCATE(prodpositions(2,1),stat=iErr)
+             !Call twice - once to calculate number of true products, so can allocate memory, then store products
+             CALL COUNTPRODEXCITS(iMaxExcit,EXCITSTORE,prodnum,.FALSE.,prodpositions,1,iExcit)
+             DEALLOCATE(prodpositions)
+             WRITE(6,*) prodnum, "product excitations found - allocating memory..."
+             ALLOCATE(prodpositions(2,prodnum),stat=iErr)
+             CALL MemAlloc(iErr,prodpositions,prodnum,"EXCITSTORE")
+             !Prodpositions stores the position of the two excitations in EXCITSTORE which give rise to a real product excitation
+             CALL COUNTPRODEXCITS(iMaxExcit,EXCITSTORE,prodnum,.TRUE.,prodpositions,prodnum,iExcit)
+             
+             !Allocate memory for on diagonal rho elements of product excitations, and 2 x offdiagonal elements
+             ALLOCATE(ONDIAGPRODRHO(prodnum),stat=ierr)
+             CALL MemAlloc(ierr,ONDIAGPRODRHO,prodnum,"ONDIAGPRODRHO")
+             ALLOCATE(OFFDIAGPRODRHO(2,prodnum),stat=ierr)
+             CALL MemAlloc(ierr,OFFDIAGPRODRHO,2*prodnum,"OFFDIAGPRODRHO")
+
+             DO I=1,prodnum
+                !Approximate on-diag elements as product of consituent excits (exact for FPLD)(remember, they are divided by rhoii^2)
+                ONDIAGPRODRHO(I)=DREAL(ExcitInfo(prodpositions(1,I),0)*ExcitInfo(prodpositions(2,I),0))
+
+                IF(TCALCRHOPROD) THEN
+                    IF(I.eq.1) WRITE(6,*) "Calculating off-diagonal rho elements for product excitations exactly"
+                    !This calculates the exact rho elements between the product excitation, and the constituent determinants
+                    prodorbs(1:2)=EXCITSTORE(1:2,prodpositions(1,I))
+                    prodorbs(3:4)=EXCITSTORE(1:2,prodpositions(2,I))
+                    prodorbs(5:6)=EXCITSTORE(3:4,prodpositions(1,I))
+                    prodorbs(7:8)=EXCITSTORE(3:4,prodpositions(2,I))
+                    CALL GetFullPath(nI,nEl,4,prodorbs,nJ)
+                    CALL GetFullPath(nI,nEl,2,EXCITSTORE(:,prodpositions(1,I)),nK)
+                    CALL GetFullPath(nI,nEl,2,EXCITSTORE(:,prodpositions(2,I)),nL)
+                    !nJ is now the product IPATH, and nK and nL the two consituent determinants
+                    CALL CalcRho2(nK,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                    OFFDIAGPRODRHO(1,I)=DREAL(rh/rhii)
+                    CALL CalcRho2(nL,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                    OFFDIAGPRODRHO(2,I)=DREAL(rh/rhii)
+                ELSE
+                    IF(I.eq.1) WRITE(6,*) "Approximating off-diagonal elements for product excitations"
+                    !Approximate the off-diag rho elements between product excitation and constituent determinant as being equal to the rho element between the root and other constituent determinant.
+                    OFFDIAGPRODRHO(1,I)=ExcitInfo(prodpositions(2,I),1)%v
+                    OFFDIAGPRODRHO(2,I)=ExcitInfo(prodpositions(1,I),1)%v
+                ENDIF
+            ENDDO
+        ENDIF
+         
 !         DO j=1,10000
 !            WRITE(55,*) LARGERHOJJ(J)
 !         ENDDO
@@ -187,8 +246,13 @@
          IF(.NOT.BTEST(NWHTAY,0)) THEN
             WRITE(6,*) "Beginning Complete Star Diagonalization"
             IF(STARPROD) THEN
-                WRITE(6,*) "Product Star Diagonalisation -  beware - large scaling!"
-                CALL StarDiagSC(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+                IF(TCALCREALPROD) THEN
+                    WRITE(6,*) "Real Product Star Diagonalisation"
+                    CALL StarDiagRealProd(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,prodnum,EXCITSTORE,prodpositions,ONDIAGPRODRHO,OFFDIAGPRODRHO)
+                ELSE
+                    WRITE(6,*) "Complete Product Star Diagonalisation -  beware - large scaling!"
+                    CALL StarDiagSC(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
+                ENDIF
             ELSE
                 CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
             ENDIF
@@ -211,7 +275,51 @@
          ENDIF
          call MemDealloc(ExcitInfo)
          Deallocate(ExcitInfo)
+         IF(ALLOCATED(EXCITSTORE)) THEN
+            call MemDealloc(EXCITSTORE)
+            DEALLOCATE(EXCITSTORE)
+         ENDIF
+         IF(ALLOCATED(PRODPOSITIONS)) THEN
+            call MemDealloc(PRODPOSITIONS)
+            DEALLOCATE(PRODPOSITIONS)
+         ENDIF
+         IF(ALLOCATED(ONDIAGPRODRHO)) THEN
+            call MemDealloc(ONDIAGPRODRHO)
+            DEALLOCATE(ONDIAGPRODRHO)
+            call MemDealloc(OFFDIAGPRODRHO)
+            DEALLOCATE(OFFDIAGPRODRHO)
+         ENDIF
+            
       END
+
+      SUBROUTINE COUNTPRODEXCITS(iMaxExcit,EXCITSTORE,prodnum,setup,prodpositions,length,iExcit)
+        IMPLICIT NONE
+        INTEGER iMaxExcit,prodnum,prodpositions(2,length),EXCITSTORE(4,iMaxExcit),iExcit,I,J
+        INTEGER countprods,length
+        LOGICAL setup
+
+        countprods=0
+        !Cycle through all unique excitation products
+        DO I=1,iExcit
+            DO J=(I+1),iExcit
+            !Test to see that none of the orbitals which are moving overlap - if not, then we have a real product excitation.
+            IF((EXCITSTORE(1,I).NE.EXCITSTORE(1,J)).AND.(EXCITSTORE(1,I).NE.EXCITSTORE(2,J))               &
+                .AND.(EXCITSTORE(2,I).NE.EXCITSTORE(2,J)).AND.(EXCITSTORE(2,I).NE.EXCITSTORE(1,J))) THEN
+                IF((EXCITSTORE(3,I).NE.EXCITSTORE(3,J)).AND.(EXCITSTORE(3,I).NE.EXCITSTORE(4,J))               &
+                    .AND.(EXCITSTORE(4,I).NE.EXCITSTORE(3,J)).AND.(EXCITSTORE(4,I).NE.EXCITSTORE(4,J))) THEN
+                    countprods=countprods+1
+                    IF(setup) THEN
+                        prodpositions(1,countprods)=I
+                        prodpositions(2,countprods)=J
+                    ENDIF
+                ENDIF
+            ENDIF
+            ENDDO
+        ENDDO
+        IF(.NOT.setup) prodnum=countprods
+      END
+        
+      
 !.. This version creates a star of all 2-vertex terms.
 !.. This sets up the excitation generators and the memory - using the old excitation generators
 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
@@ -368,6 +476,98 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          ENDIF
       END
 
+      SUBROUTINE STARDIAGREALPROD(NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,PRODNUM,EXCITSTORE,prodpositions,ONDIAGPRODRHO,OFFDIAGPRODRHO)
+         !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
+         USE HElement
+         IMPLICIT NONE
+         INTEGER NEL,I_P
+         INTEGER NLIST,ILMAX,PRODNUM,TOTVERT
+         REAL*8 LIST(ILMAX,0:2)
+         REAL*8 RIJMAT(*),WLIST(*)
+         REAL*8 ONDIAGPRODRHO(PRODNUM),OFFDIAGPRODRHO(2,PRODNUM)
+         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
+         INTEGER ISUB,EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
+         INTEGER WORKL,WORK(*),INFO,ierr,PRODPOSITIONS(2,PRODNUM)
+         REAL*8 SI,DLWDB,DBETA
+         INTEGER I,J
+         
+         IF(HElementSize.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
+
+         CALL TISET('STARDIAGRP',ISUB)
+         !Is there a need to sort the matrix? If there is, we have problems!
+         !CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
+         
+         TOTVERT=NLIST+PRODNUM
+         CALL MEMORY(IP_RIJMAT,TOTVERT*TOTVERT,"RIJMAT")
+         CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
+        
+         DO I=1,TOTVERT
+            IF(I.LE.NLIST) THEN
+                RIJMAT(I)=LIST(I,1)
+                RIJMAT((I-1)*TOTVERT+I)=LIST(I,0)
+            ELSE
+                RIJMAT((PRODPOSITIONS(1,I-NLIST)*TOTVERT)+I)=OFFDIAGPRODRHO(1,I-NLIST)
+                RIJMAT((PRODPOSITIONS(2,I-NLIST)*TOTVERT)+I)=OFFDIAGPRODRHO(2,I-NLIST)
+                RIJMAT((I-1)*(TOTVERT)+I)=ONDIAGPRODRHO(I-NLIST)
+            ENDIF
+         ENDDO
+
+!.. Debug info         
+!         WRITE(68,*) "ROOT RHOII, RHOIJ ", LIST(1,0),LIST(1,1)
+!         DO I=2,NLIST
+!            WRITE(68,"A,I3,A,2E14.6,4I4") "EXCITATION ",I-1," - RHOII, RHOIJ, IPATH: ",LIST(I,0),LIST(I,1),EXCITSTORE(:,I-1)
+!         ENDDO
+!         
+!         DO I=1,PRODNUM
+!            WRITE(68,"A,I3,A,I3,I3") "PRODUCT EXCITATION ",I," FORMED FROM EXCITATIONS ", PRODPOSITIONS(1,I),PRODPOSITIONS(2,I)
+!            WRITE(68,*) ""
+!         ENDDO
+!         
+!         DO I=1,TOTVERT
+!             DO J=1,TOTVERT
+!                 WRITE(68,"E14.6,$") RIJMAT((I-1)*TOTVERT+J)
+!             ENDDO
+!             WRITE(68,*) ""
+!             WRITE(68,*) ""
+!         ENDDO
+        
+         CALL MEMORY(IP_WLIST,TOTVERT,"WLIST")
+         WORKL=3*TOTVERT
+         CALL MEMORY(IP_WORK,WORKL,"WORK")
+        
+!.. Diagonalize
+         CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) 'DYSEV error: ',INFO
+            STOP
+         ENDIF
+         CALL FREEM(IP_WORK)
+         WRITE(6,*)
+         WRITE(6,*) "Highest root:",WLIST(TOTVERT)
+
+         SI=0.D0
+         DO I=1,TOTVERT
+            SI=SI+RIJMAT(((I-1)*TOTVERT)+1)*RIJMAT(((I-1)*TOTVERT)+1)*(WLIST(I)**I_P)
+            IF(DBETA.NE.0.D0) THEN
+!                OD=DLWDB
+                DO J=1,NLIST
+                    !Is this a correct formulation for the hamiltonian elements - only sum over vertices linked to i
+                    DLWDB=DLWDB+RIJMAT(((I-1)*TOTVERT)+1)*RIJMAT(((I-1)*TOTVERT)+J)*(WLIST(I)**I_P)*LIST(J,2)
+                ENDDO
+            ENDIF
+         ENDDO
+         WRITE(6,*) "Final SI= ", SI
+         SI=SI-1.D0
+         DLWDB=DLWDB-LIST(1,2)
+         CALL FREEM(IP_WLIST)
+         CALL FREEM(IP_RIJMAT)
+         CALL TIHALT("STARDIAGRP",ISUB)
+
+         RETURN
+      END SUBROUTINE
+
+         
+         
       SUBROUTINE STARDIAGSC(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElement
          IMPLICIT NONE
@@ -410,6 +610,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                 AOFFDB(IND,(J-1))=LIST(I,1)
             ENDDO
         ENDDO
+        WRITE(6,*) "VERTICES ADDED = ", IND
         IF(PRODVERT.NE.IND) THEN
             WRITE(6,*) "EXPECTED EXTRA VERTICES = ", PRODVERT
             WRITE(6,*) "VERTICES ADDED = ", IND
@@ -949,3 +1150,77 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             iExcit=iExcit+iExc-1
          ENDIF
       END
+
+      !Routine which takes the excitation form for the determinant, and calculates the full path.
+      SUBROUTINE GETFULLPATH(nI,nEl,noexcits,Orbchange,nJ)
+        IMPLICIT NONE
+        INTEGER :: nI(nEl),nJ(nEl),nEl,noexcits,Orbchange(noexcits*noexcits)
+        INTEGER :: I,J
+        
+        DO I=1,nEl
+            nJ(I)=nI(I)
+        ENDDO
+        DO I=1,noexcits
+            DO J=1,nEl
+                IF(Orbchange(I).eq.nI(J)) THEN
+                    nJ(J)=Orbchange(I+noexcits)
+                    EXIT
+                ENDIF
+            ENDDO
+        ENDDO
+        CALL SORTI(nEl,nJ)
+      END
+      
+     !Routine which takes a root determinant (nI), and a double excitation (nJ), and calculates the orbitals which have been excited.
+     !This information is put into Orbchange(4), with the first two values being the excited from orbitals (ij), and the second two being the excited to orbitals (ab).
+     SUBROUTINE GETEXCITSCHANGE(nI,nJ,nEl,Orbchange)
+        IMPLICIT NONE
+        INTEGER :: nI(nEl),nJ(nEl),nEl,Orbchange(4,1),q,I,J
+        LOGICAL :: FOUND
+        LOGICAL :: ROOT(nEl),EXCIT(nEl)
+        ROOT(:)=.TRUE.
+        EXCIT(:)=.TRUE.
+        
+        q=1
+        DO I=1,nEl
+            FOUND=.FALSE.
+            DO J=1,nEl
+                IF(nI(I).eq.nJ(J)) THEN
+                    FOUND=.TRUE.
+                    ROOT(I)=.FALSE.
+                    EXCIT(J)=.FALSE.
+                    EXIT
+                ENDIF
+            ENDDO
+            IF(.NOT.FOUND) THEN
+                IF(q.eq.1) THEN
+                    Orbchange(1,1)=nI(I)
+                    q=2
+                ELSEIF(q.eq.2) THEN
+                    Orbchange(2,1)=nI(I)
+                    q=3
+                ELSEIF(q.eq.3) THEN
+                    STOP 'ERROR IN GETEXCITSCHANGE'
+                ENDIF
+            ENDIF
+        ENDDO
+        
+        q=1
+        DO I=1,nEl
+            IF(EXCIT(I)) THEN
+                IF(q.eq.1) THEN
+                    Orbchange(3,1)=nJ(I)
+                    q=2
+                ELSEIF(q.eq.2) THEN
+                    Orbchange(4,1)=nJ(I)
+                    RETURN
+                ELSE
+                    STOP 'ERROR IN GETEXCITSCHANGE'
+                ENDIF
+            ENDIF
+        ENDDO
+
+        STOP 'ERROR IN GETEXCITSCHANGE'
+
+        END
+        

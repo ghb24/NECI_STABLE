@@ -168,6 +168,8 @@
       calcp_logweight=.false.
 
 ! Integral defaults
+      TCALCRHOPROD=.FALSE.
+      TCALCREALPROD=.FALSE.
       NRCONV=1.D-13
       RFCONV=1.D-8
       NRSTEPSMAX=50
@@ -924,6 +926,14 @@ C                  end select
                   NTAY(2)=5
               case("DIAG-PARTITION")
                   NTAY(2)=1
+              case("CALCREALPROD")
+                  TCALCREALPROD=.TRUE.
+                  IF(.NOT.TUSEBRILLOUIN) THEN
+                    call report(trim(w)//" will not work unless " 
+     &              //"USEBRILLOUINTHEOREM set",.true.)
+                  ENDIF
+              case("CALCRHOPROD")
+                  TCALCRHOPROD=.TRUE.
               case("HF")
                   THFBASIS = .true.
               case("CALCULATE")
@@ -1068,6 +1078,10 @@ C.. multiple of 2
                   call report("keyword "  
      &          //trim(w)//" not recognized in integral block",.true.)
               end select
+              IF(TCALCRHOPROD.and.(.not.TCALCREALPROD)) THEN
+                  call report("CALCREALPROD must be set if "
+     &          //"TCALCRHOPROD is set",.true.)
+              ENDIF
             end do integral
         case("LOGGING")
             logging: do

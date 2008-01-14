@@ -542,6 +542,12 @@ INCLUDEQUADRHO
 EXPRHO
     The rho matrix is exponentiated, 1 is subtracted, and this is used as the matrix to be diagonalised. This is the full expansion for which INCLUDEQUADRHO is a truncation. Again, this is used to achieve size consistency with the star, although seems to have little effect, and no effect at high beta.
 
+CALCREALPROD
+    Another experimental high-scaling size-consistency experiment, which works in conjunction with STARPROD on the METHOD line, to calculate all the products of the star excitation. The product excitation of the star will consist of all quadruple excitations which are products of two double excitations, where the moving electrons are distinct in the two constituent excitations. The off-diagonal elements will then be approximated for the product excitation, by the 'other' constituent excitations rhoij element, unless CALCRHOPROD is specified, whereby the off-diagonal rho matrix elements will be calculated exactly.
+
+CALCRHOPROD
+    This calculates the rho matrix elements for the product excitation exactly.
+
 ENDINT
     End of integral block.
 
