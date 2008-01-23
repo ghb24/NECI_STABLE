@@ -26,6 +26,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElement
          USE PreCalc ,  only: GETVARS
+         USE STARDIAGMOD , only: fMCPR3StarNewExcit
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -34,7 +35,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          INTEGER NI(NEL)
          COMPLEX*16 FCK(*)
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
-         INTEGER NTAY,NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
+         INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
          INTEGER FSEEK,L,LT,ITIME,K,J
          REAL*8 BETA,ECORE,TIMEC
          TYPE(HDElement) WLRI,WLSI,FMCPR3
@@ -66,7 +67,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
 #endif
          TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          TYPE(HDElement) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
-         TYPE(HDElement) fMCPR3StarNewExcit
+!         TYPE(HDElement) fMCPR3StarNewExcit
          INTEGER KSYM(5),I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          TYPE(HDElement) FF,DLWDB3
@@ -88,7 +89,7 @@ C.. This will store the MP2 energy
          ISEED=7
          TLOGP=BTEST(ILOGGING,14)
          TLOG=BTEST(ILOGGING,1)
-         IF(NTAY.LE.0) THEN
+         IF(NTAY(1).LE.0) THEN
             TSYM=.FALSE.
          ELSE
             TSYM=.TRUE.
@@ -141,7 +142,7 @@ C     &            HIJS(0))
             CALL TISET('PRECALC ',ISUBPRE)
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
+     &       NTAY(1),RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
             CALL TIHALT('PRECALC ',ISUBPRE)
@@ -229,7 +230,7 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
-     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
+     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E(1))
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
                F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
@@ -414,6 +415,7 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElement
+         USE STARDIAGMOD , only: fMCPR3StarNewExcit
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          INCLUDE 'vmc.inc'
@@ -424,7 +426,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
-         INTEGER NTAY,NWHTAY,ILOGGING,ISUB,I,I_V,ISUB2
+         INTEGER NTAY(2),NWHTAY,ILOGGING,ISUB,I,I_V,ISUB2
          INTEGER FSEEK,L,LT,ITIME,K
          REAL*8 BETA,ECORE,TIMEC
          REAL*8 TIGET
@@ -450,13 +452,13 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER LOCTAB(3,I_VMAX)
 #endif
          TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
-         TYPE(HDElement) FMCPR3B,DLWDB,DLWDB2,EREF
+         TYPE(HDElement) DLWDB,DLWDB2,EREF
          REAL*8 NTIME,OTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          TYPE(HDELement) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
 
-         TYPE(HDElement) FMCPR3STAR,FMCPR3B2,fMCPR3StarNewExcit
+         TYPE(HDElement) FMCPR3STAR,FMCPR3B2!,fMCPR3StarNewExcit
 
 C.. This is where we will store the MP2 energy
          TPREVAR=.FALSE.
@@ -467,7 +469,7 @@ C.. This is where we will store the MP2 energy
 C         CALL MEMORY_CHECK()
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
          CALL CLEARCLASSPATHS()
-         IF(NTAY.LE.0) THEN
+         IF(NTAY(1).LE.0) THEN
             TSYM=.FALSE.
          ELSE
             TSYM=.TRUE.
@@ -615,7 +617,7 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
-     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
+     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E(1))
             ENDIF
             CALL TIHALT(STR,ISUB2)
             NTIME=TIMEC()*0.001D0
@@ -684,8 +686,8 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
          TYPE(BasisFN) G1(*)
          TYPE(HDElement) FMCPR3
          INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5),II
-         INTEGER I,IVLMAX
+         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5)
+         INTEGER I,IVLMAX,II
          REAL*8 ALAT(*),ECORE
          COMPLEX*16 FCK(*)
          TYPE(HDElement) CALCPATHS_N
@@ -792,7 +794,7 @@ C.. This is of maximum order NTAY*2
 C         CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
 C         CALL GENSYMEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 C     &            LSTE(1,1,I_VIND),ICE(1,I_VIND),NLIST(I_VIND))
-         CALL GENEXCIT(INODE,ABS(NTAY*2),NBASIS,NEL,
+         CALL GENEXCIT(INODE,ABS(NTAY(1)*2),NBASIS,NEL,
      &         LSTE(1,1,I_VIND),ICE(1,I_VIND),NLIST(I_VIND),1,G1,TSYM,
      &         NBASISMAX,.FALSE.)
 C         WRITE(37,*) I_VIND,NLIST(I_VIND)
@@ -1002,7 +1004,7 @@ C.,             If 1, only allow doubles.
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
+         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMAT(*),R
@@ -1643,7 +1645,7 @@ C.. dramatically.  Code unfinished
             
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,NWHTAY,ILOGGING,LT
+         INTEGER NTAY(2),NWHTAY,ILOGGING,LT
          REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE
          INTEGER NI(NEL),ILMAX
 C.. LSTE is a list of excitations (which we will generate)
@@ -1678,7 +1680,7 @@ C.. LIST(J,2) = HIJ
          CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
          ICE(0)=0
          NLIST=ILMAX
-         CALL GENEXCIT(NI,ABS(NTAY*2),NBASIS,NEL,
+         CALL GENEXCIT(NI,ABS(NTAY(1)*2),NBASIS,NEL,
      &         LSTE(1,1),ICE(1),NLIST,1,G1,TSYM,
      &         NBASISMAX,.FALSE.)
          IF(NLIST.GT.ILMAX) THEN
@@ -1841,8 +1843,8 @@ C.. and also includes the removal of subgraphs
          
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5),II
-         INTEGER I,IVLMAX
+         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5)
+         INTEGER I,IVLMAX,II
          REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE,TOTAL,R
          REAL*8 CALCPATHS_N
          REAL*8 RHOCUML
@@ -1920,7 +1922,7 @@ C.. This is of maximum order NTAY*2
 C         CALL GETSYM(INODE,NEL,G1,NBASISMAX,ISYM)
 C         CALL GENSYMEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 C     &            LSTE(1,1,I_VIND),ICE(1,I_VIND),NLIST(I_VIND))
-         CALL GENEXCIT(INODE,ABS(NTAY*2),NBASIS,NEL,
+         CALL GENEXCIT(INODE,ABS(NTAY(1)*2),NBASIS,NEL,
      &         LSTE(1,1,I_VIND),ICE(1,I_VIND),NLIST(I_VIND),1,G1,TSYM,
      &         NBASISMAX,.FALSE.)
 C         WRITE(37,*) I_VIND,NLIST(I_VIND)

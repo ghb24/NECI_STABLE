@@ -548,6 +548,12 @@ CALCREALPROD
 CALCRHOPROD
     This calculates the rho matrix elements for the product excitation exactly.
 
+QUADEXCITSTAR
+    This creates the product excitations, but directly couples them to the root determinant, with a transition element given by the product of the transition elements which create the product. Hamiltonian elements to these products are zero however.
+
+SUMPRODII
+    More experimental code to test size-consistency, whereby rhoelements for the products are resummed back into the root, and the transition elements to the excited determinants.
+
 ENDINT
     End of integral block.
 

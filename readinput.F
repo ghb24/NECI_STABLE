@@ -170,6 +170,8 @@
 ! Integral defaults
       TCALCRHOPROD=.FALSE.
       TCALCREALPROD=.FALSE.
+      TSUMPROD=.FALSE.
+      TQUASIEXCIT=.FALSE.
       NRCONV=1.D-13
       RFCONV=1.D-8
       NRSTEPSMAX=50
@@ -932,8 +934,12 @@ C                  end select
                     call report(trim(w)//" will not work unless " 
      &              //"USEBRILLOUINTHEOREM set",.true.)
                   ENDIF
+              case("QUADEXCITSTAR")
+                  TQUASIEXCIT=.TRUE.
               case("CALCRHOPROD")
                   TCALCRHOPROD=.TRUE.
+              case("SUMPRODII")
+                  TSUMPROD=.TRUE.
               case("HF")
                   THFBASIS = .true.
               case("CALCULATE")
@@ -1078,6 +1084,18 @@ C.. multiple of 2
                   call report("keyword "  
      &          //trim(w)//" not recognized in integral block",.true.)
               end select
+              IF(TSUMPROD.and.TCALCRHOPROD) THEN
+                  call report("SUMPRODII and CALCRHOPROD "
+     &             //"cannot both be set",.true.)
+              ENDIF
+              IF(TSUMPROD.and.(.not.TCALCREALPROD)) THEN
+                  call report("CALCREALPROD must be set if "
+     &          //"TSUMPROD is set",.true.)
+              ENDIF
+              IF(TQUASIEXCIT.and.(.not.TCALCREALPROD)) THEN
+                  call report("CALCREALPROD must be set if "
+     &          //"TQUASIEXCIT is set",.true.)
+              ENDIF
               IF(TCALCRHOPROD.and.(.not.TCALCREALPROD)) THEN
                   call report("CALCREALPROD must be set if "
      &          //"TCALCRHOPROD is set",.true.)
