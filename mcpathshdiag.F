@@ -30,9 +30,11 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF)
          USE HElement 
+         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
+         USE CALCREAD , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_V,NEL,I_P,NBASISMAX(5,3),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II

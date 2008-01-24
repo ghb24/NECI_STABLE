@@ -1,5 +1,5 @@
 #!/bin/bash
-#./Configure PC-PGI -DEST=${PWD}/dest> Makefile
+#./Configure PC-PGI64 -DEST=${PWD}/dest> Makefile
 #touch *.F
 cp -f Makefile dest
 cd dest

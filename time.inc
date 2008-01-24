@@ -11,6 +11,6 @@ C     ==================================================================
       COMMON /TIMBUNECI/ CTSUM,CTSTA,WTSUM,WTSTA
 C     ==================================================================
       INTEGER        NTIMER,NCALLS(NTIMX)
-      INTEGER        iGlobalTimerLevel
-      COMMON /TIMINNECI/ NTIMER,NCALLS,iGlobalTimerLevel
+! now in LOGREAD module      INTEGER        iGlobalTimerLevel
+      COMMON /TIMINNECI/ NTIMER,NCALLS!,iGlobalTimerLevel
 C     ==================================================================

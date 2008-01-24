@@ -3,7 +3,6 @@
      &      I_HMAX,I_P,NWHTAY,NEL,I_VMAX,ILOGGING)
          USE HElement
          IMPLICIT NONE
-         include 'calcp.inc'
          TYPE(HDElement) CALCPATHS
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
 C.. IPATH contains the vertices we can choose from
@@ -61,8 +60,8 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
       FUNCTION CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
          USE HElement
+         USE CALCREAD , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT
          IMPLICIT NONE
-         include 'calcp.inc'
          TYPE(HDElement) CalcPaths_N
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX,ICLS
 C.. IPATH contains the vertices we can choose from

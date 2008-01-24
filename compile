@@ -1,5 +1,5 @@
 #!/bin/bash
-./Configure PC-PGI -DEST=${PWD}/dest> Makefile2
+./Configure PC-PGI64 -DEST=${PWD}/dest> Makefile2
 
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
 cp Makefile dest

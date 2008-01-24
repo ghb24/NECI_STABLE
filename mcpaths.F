@@ -27,6 +27,10 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE HElement
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
+         USE CALCREAD , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
+     &          TMPTHEORY,TMCDIRECTSUM
+         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -67,7 +71,6 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
 #endif
          TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          TYPE(HDElement) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
-!         TYPE(HDElement) fMCPR3StarNewExcit
          INTEGER KSYM(5),I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          TYPE(HDElement) FF,DLWDB3
@@ -79,7 +82,6 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 OSI,ODLWDB,OPROB
          TYPE(HDElement) MP2E(2:I_VMAX)
          LOGICAL TLOGP
-         INCLUDE 'vmc.inc'
          CALL TISET('MCPATHSR10',ISUB)
          WRITE(6,*) "Running Multi-level graph calculation."
 C.. This will store the MP2 energy
@@ -142,7 +144,7 @@ C     &            HIJS(0))
             CALL TISET('PRECALC ',ISUBPRE)
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &       NTAY(1),RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
+     &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
             CALL TIHALT('PRECALC ',ISUBPRE)
@@ -230,7 +232,7 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
-     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E(1))
+     &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
                F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
@@ -416,9 +418,10 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElement
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
+         USE PRECALCREAD , only : TPREVAR
+         USE CALCREAD , only : TMPTHEORY
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
@@ -458,7 +461,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDELement) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
 
-         TYPE(HDElement) FMCPR3STAR,FMCPR3B2!,fMCPR3StarNewExcit
+         TYPE(HDElement) FMCPR3STAR,FMCPR3B2
 
 C.. This is where we will store the MP2 energy
          TPREVAR=.FALSE.
@@ -681,6 +684,8 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
      &   MP2E,NTOTAL)
          USE HElement
+         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE CALCREAD , only : TMPTHEORY
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -714,7 +719,6 @@ C.. NLIST contains the legnth of LSTE for each node
          INTEGER ICLS
          TYPE(HDElement) MP2E,NTOTAL
          INTEGER EXFLAG
-         INCLUDE 'vmc.inc'
 C.. Allow both single and double excitations
          EXFLAG=3
          TLOG=BTEST(ILOGGING,0)
@@ -1000,6 +1004,9 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,EREF,VARSUM,WREF)
          USE HElement
+         USE CALCREAD , only : TVARCALC,TMPTHEORY
+         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -1051,7 +1058,6 @@ C.,             If 1, only allow doubles.
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          INCLUDE 'irat.inc'
-         INCLUDE 'vmc.inc'
          IF(IAND(NWHTAY,1).AND.I_VIND.EQ.0)
      &      WRITE(6,*) "FMCPR3 ForceRoot."
          IF(IAND(NWHTAY,2).AND.I_VIND.EQ.0)

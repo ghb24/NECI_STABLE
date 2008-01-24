@@ -1,8 +1,8 @@
       SUBROUTINE DETHAM(NDET,NEL,NMRKS,NBASISMAX,
      &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,
-     &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR,
-     &  TSTAR)
+     &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
       USE HElement
+      USE SYSREAD , only : TSTAR
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(HElement) HAMIL(*)
@@ -22,7 +22,7 @@ C..
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL,STEP,IMAXJ
       TYPE(HElement) SUM
-      LOGICAL TSTAR
+!      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
       CALL TISET('    DETHAM',ISUB)
 C ==-------------------------------------------------------------------==

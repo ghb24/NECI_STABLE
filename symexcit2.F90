@@ -1,4 +1,8 @@
 MODULE SymExcit2
+      
+      USE CALCREAD , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,CHEMPOT,        &
+     &      EXCITFUNCS
+      USE CALCREAD , only : TUPOWER
       IMPLICIT NONE
 
       TYPE ExcitWeight
@@ -182,8 +186,6 @@ MODULE SymExcit2
          IMPLICIT NONE
          INTEGER nBasisMax(5,3),nBasis
          INCLUDE 'basis.inc'
-! We get G_VMC_EXCITWEIGHT from vmc.inc
-         INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(nBasis)
 !  We fake ISS
          INTEGER I,J,K,L
@@ -228,8 +230,6 @@ MODULE SymExcit2
          IMPLICIT NONE
          INTEGER NBASISMAX(5,3),NBASIS
          INCLUDE 'basis.inc'
-! We get G_VMC_EXCITWEIGHT from vmc.inc, and g_VMC_ExcitToWeight
-         INCLUDE 'vmc.inc'
          TYPE(BasisFN) G1(NBASIS)
 !  We fake ISS
          INTEGER ISS

@@ -3,6 +3,7 @@
      &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
      &	NMAX,ALAT,UMat,SUM)
       USE HElement
+      USE SYSREAD , only : FCOUL,TEXCH
       IMPLICIT NONE
 C..
 C.. 
@@ -25,7 +26,6 @@ C..Cube Arrays
       INTEGER IFLAG,IPTOT
       REAL*8 COULCOUPLE
       INTEGER ISUB
-      INCLUDE 'fcoul.inc'
 !      CALL TISET('SLTCND    ',ISUB)
       ISPINSKIP=NBASISMAX(2,3)
 C..
@@ -74,6 +74,7 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
       END
 
       REAL*8 FUNCTION COULDAMP(I,NHG)
+         USE SYSREAD , only : FCOULDAMPBETA,FCOULDAMPMU
          IMPLICIT NONE
          INTEGER I,NHG,J
          INCLUDE 'fcoul.inc'

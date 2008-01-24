@@ -135,10 +135,11 @@ C.. THis does not use the excitation generators, but enumerates all possible
 C.. determinants within double excitations, which will end up fairly inefficient.
       SUBROUTINE GENEXCIT(NI,NORDER,NBASIS,NEL,LIST,ICLIST,NLIST,NMIN,
      &            G1,TSYM,NBASISMAX,TCOUNT)
+         USE CALCREAD , only : TNEWEXCITATIONS
          IMPLICIT NONE
+         include 'basis.inc'
          INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
          INTEGER NEXCIT(NEL),NLIST,NBASISMAX(5,7)
-         INCLUDE 'sym.inc'
          TYPE(BASISFN) ISYM
          INTEGER NO,IFDET
          LOGICAL TSYM,TCOUNT

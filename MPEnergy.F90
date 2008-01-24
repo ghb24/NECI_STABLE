@@ -1,6 +1,7 @@
 !See 5/1/07
 SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    USE HElement
+   USE CALCREAD , only : TMODMPTHEORY,TENPT
    IMPLICIT NONE
    INTEGER iV,nEl,nBasis,iMaxOrder
    TYPE(HElement) Hij(0:iV,0:iV)
@@ -13,8 +14,6 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    INTEGER iOrder
    TYPE(HDElement) MPEs(2:iV),E,ECore
    TYPE(HElement) MPE
-  include 'uhfdet.inc'
-   include 'vmc.inc'
 !E1 is the HF Energy.  Ei are Fock energy differences.
    MPE=ECore
    DO i=1,iV
@@ -108,6 +107,7 @@ END
 !.. the determinant making this a 2-v graph.
       SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
          USE HElement
+         USE CALCREAD , only : TLADDER
          IMPLICIT NONE
          TYPE(HElement) HIJS(0:2)
          REAL*8 ARR(NBASIS,2)
@@ -118,7 +118,6 @@ END
          INTEGER I,J,S
          LOGICAL TLOG
          LOGICAL ISCSF
-         include 'uhfdet.inc'
 
 
 !.. If we have CSFs, unCSF the elecs

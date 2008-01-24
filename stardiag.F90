@@ -18,10 +18,11 @@
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
+         USE CALCREAD , only : TMPTHEORY,STARPROD
+         USE SYSREAD , only : TSTOREASEXCITATIONS
+         USE INTREAD , only : TCALCRHOPROD,TSUMPROD,TQUASIEXCIT,TCALCREALPROD
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         INCLUDE 'vmc.inc'
-         INCLUDE 'uhfdet.inc'
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
@@ -50,7 +51,7 @@
          INTEGER iErr,nK(nEl),nL(nEl)
          INTEGER nRoots,i,j,rhoelem
          TYPE(HElement) rh,rhii,EHFDiff
-         TYPE(HDElement) MP2E         
+         TYPE(HDElement) MP2E(2:2)        
          LOGICAL tStarSingles,tCountExcits
          INTEGER nIExcitFormat(nEl)
 
@@ -393,7 +394,6 @@
       ! This routine finds all "unique" product excitations of the star
       SUBROUTINE COUNTUNIQPRODEXCITS(iMaxExcit,prodnum,iExcit,nouniqprod,countprods)
         IMPLICIT NONE
-        include 'vmc.inc'
         INTEGER iMaxExcit,prodnum
         INTEGER iExcit,I,J
         INTEGER countprods,nouniqprod,tempprodfrom(4),tempprodto(4),ierr,k
@@ -463,8 +463,8 @@
                         
 
       SUBROUTINE COUNTPRODEXCITS(iMaxExcit,prodnum,setup,iExcit,rhoelem,rhiiadd,uniqprod)
+        USE INTREAD , only : TSUMPROD
         IMPLICIT NONE
-        include 'vmc.inc'
         INTEGER iMaxExcit,prodnum!,prodpositions(2,length),EXCITSTORE(4,iMaxExcit),
         INTEGER iExcit,I,J
 !        Type(HElement) :: ExcitInfo(0:iMaxExcit,0:2),OffRho(rhoelem),
@@ -890,6 +890,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElement
+         USE INTREAD , only : TCALCREALPROD
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -901,7 +902,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 SI,DLWDB,DBETA,OD
          INTEGER I,J
          TYPE(HElement) RR
-         INCLUDE 'vmc.inc'
          
          IF(HElementSize.GT.1) STOP "STARDIAG cannot function with complex orbitals."
 
@@ -1010,6 +1010,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
       SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
+         USE CALCREAD , only : STARCONV
+         USE INTREAD , only : TQUADRHO,TEXPRHO
          USE HElement
          IMPLICIT NONE
          INTEGER NEL,I_P
@@ -1024,8 +1026,6 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER iEigv,iDegen
          LOGICAL lWarned
          REAL*8 NORMCHECK,NORMROOTS
-         include 'vmc.inc'
-         include 'uhfdet.inc'
          CALL TISET('STARDIAG2 ',ISUB)
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)

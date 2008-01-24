@@ -15,6 +15,9 @@ C.. NMAX has ARR hidden in it.
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElement
          USE MCStats
+         USE CALCREAD , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
+     &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
+         USE LOGREAD , only : G_VMC_LOGCOUNT
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(MCStats) MCStat
@@ -73,7 +76,6 @@ C.. do some blocking analysis
          REAL*8 PREJ,PGR
          REAL*8 TIMEC,OTIME,NTIME
          INTEGER*8 LP
-         INCLUDE 'vmc.inc'
          OTIME=TIMEC()*0.001
          TST=0
          CALL TISET('MCPATHSR4 ',ISUB)
@@ -1174,6 +1176,7 @@ C..
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM)
+         USE CALCREAD , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
@@ -1207,7 +1210,6 @@ C..
          INTEGER STORE(6)
          REAL*8 RAN2
          REAL*8 pGen,pGen2
-         INCLUDE 'vmc.inc'
 C.. PEXCIT(NODE) is the probability of selecting NODE and
 C.. those before it.
          PEXCIT(1)=1.D0
@@ -1410,6 +1412,7 @@ C.. Generate a path probability for the modified path generation
 C.. algorithm in FMCPR4D
 
       REAL*8 FUNCTION GETPATHPROB2(XIJ,I_V)
+         USE CALCREAD , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_V
          REAL*8 XIJ(I_V,I_V)
@@ -1418,7 +1421,6 @@ C.. algorithm in FMCPR4D
          REAL*8 RET
          REAL*8 PI,PJ
          REAL*8 INV(I_V,I_V)
-         INCLUDE 'vmc.inc'
          IF(I_V.EQ.2) THEN
             GETPATHPROB2=XIJ(1,2)
          ELSEIF(I_V.EQ.3) THEN
@@ -1481,6 +1483,7 @@ C.. elements
       END
 
       RECURSIVE SUBROUTINE GETPP2_R(IPATH,XIJ,M,I_VMAX,I_V,RET,TMP,INV)
+         USE CALCREAD , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_VMAX,I_V,IPATH(I_VMAX)
          REAL*8 XIJ(I_VMAX,I_VMAX),M(I_VMAX,I_VMAX)
@@ -1489,7 +1492,6 @@ C.. elements
          INTEGER I,J,K,IPIVOT(I_VMAX),INFO,L
          REAL*8 P(I_VMAX)
          LOGICAL T
-         INCLUDE 'vmc.inc'
 C.. M contains the I-X matrix being constructed
 C.. Add this node
          IF(I_V.GT.I_VMAX) THEN
@@ -1769,6 +1771,7 @@ C         CALL FLUSH(57)
          RETURN
       END
       LOGICAL FUNCTION ISUHFDET(NI,NEL)
+         USE SYSREAD , only : TUSEBRILLOUIN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
          INTEGER I
@@ -1797,6 +1800,8 @@ C.. weight.
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          USE HElement
+         USE PRECALCREAD , only : TPREVAR
+         USE CALCREAD , only : TMPTHEORY,TMCDIRECTSUM
          IMPLICIT NONE
          TYPE(HDElement) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
@@ -1847,7 +1852,6 @@ C.. weight.
          REAL*8 RAN2
          INTEGER STORE(6)
          TYPE(HDElement) MPEs(2:i_VMax)
-         INCLUDE 'vmc.inc'
          
 C.. Take a copy of the old path and rho matrix etc.
          IF(OWEIGHT%v.ne.0.D0) THEN
@@ -2019,9 +2023,10 @@ C.. Unbias the sum
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
      &   PVERTMEMS2)
+         USE CALCREAD , only : G_VMC_PI
+         USE PRECALCREAD , only : TPREVAR
          USE HElement
          IMPLICIT NONE
-         INCLUDE 'vmc.inc'
          INCLUDE 'basis.inc'
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
@@ -2307,6 +2312,7 @@ C.. a wrongly biased MC
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,IACC)
+         USE CALCREAD , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
@@ -2351,7 +2357,6 @@ C.. a wrongly biased MC
          INTEGER IEXNUM,NTENT
          REAL*8 RAN2
          INTEGER STORE(6)
-         INCLUDE 'vmc.inc'
 C         WRITE(6,*) "START:",LOC(NMEM)
 
 C.. number of tentacles

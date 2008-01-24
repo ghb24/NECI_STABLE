@@ -331,7 +331,7 @@ METHOD <METHOD>
 
     VERTEX SUM READ
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
-    VERTEX STAR [ADDSINGLES/COUNTEXCITS/STARPROD] DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
+    VERTEX STAR [ADDSINGLES/COUNTEXCITS] DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
         Constructs a star from all determinants connected to the root (ignoring connections between those dets).
         DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
         POLY uses the special properties of the matrix to find the roots of the polynomial and uses them to calculate the relevant values.  This is order Ngraph**2
@@ -344,7 +344,6 @@ METHOD <METHOD>
         NEW H0 uses the zeroth order N-particle Hamiltonian (shifted such that H0_ii = H_ii) rather than the fully interacting Hamiltonian to generate the roots of the polynomial.
         ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
         COUNTEXCITS runs through all the symmetry allowed excitations first, and counts the connected determinants on the star. This means that memory requirements are reduced so that only connected determinants are stored. However, the time taken is increased, as it is necessary to run through all determinants in the star twice. Especially useful for large systems with memory restraints, when density fitting has necessarily turned off symmetry. Also useful if a largeish rhoepsilon has been set as these will be counted as disconnected.
-        STARPROD includes approximations to all products of excitations in the star graph - an experimental test of size consistency. This only works with DIAG option, and scales badly.
 
 CYCLES <NWHTAY(1,1)>
     Specifies the number of cycles of the MC routine.
@@ -499,13 +498,9 @@ UMATCACHE SLOTS nSlotsInit
    For CPMD-generated 2-electron integrals, set the number of slots per state-pair of cache to reserve.  The total amount of cache will be in the order of NSLOTS*NSTATES*(NSTATES-1)/2  words.  If 0 then disable on-the-fly cacheing, but retain precomputation of 2-index 2-electron integrals.  If -1, calculate all integrals on the fly.
 UMATCACHE MB nMemInit
    Number of megabytes to allocate to the UMAT cache.
-UMATCACHE [READ|DUMP|FORCE]
-   READ: Read in UMatCache from CacheDump (if it exists).
-   DUMP: Print out UMatCache to CacheDump, unless have read in CacheDump from a larger calculation.
-   FORCE: Force the over-write of CacheDump, even if read in CacheDump from a larger calculation.
 
 NOUMATCACHE
-   Disable all UMAT caching (same as UMATCACHE -1).  To use UMAT2D and *not* UMATCACHE, set UMATCACHE 0.
+   Disable all UMAT caching (same as UMATCACHE -1)
    
 FOCK-PARTITION
    For calculation of Rhos with Trotter, Partition the Hamiltonian according to the N-electron Fock operator and coulomb perturbation
@@ -541,18 +536,6 @@ INCLUDEQUADRHO
 
 EXPRHO
     The rho matrix is exponentiated, 1 is subtracted, and this is used as the matrix to be diagonalised. This is the full expansion for which INCLUDEQUADRHO is a truncation. Again, this is used to achieve size consistency with the star, although seems to have little effect, and no effect at high beta.
-
-CALCREALPROD
-    Another experimental high-scaling size-consistency experiment, which works in conjunction with STARPROD on the METHOD line, to calculate all the products of the star excitation. The product excitation of the star will consist of all quadruple excitations which are products of two double excitations, where the moving electrons are distinct in the two constituent excitations. The off-diagonal elements will then be approximated for the product excitation, by the 'other' constituent excitations rhoij element, unless CALCRHOPROD is specified, whereby the off-diagonal rho matrix elements will be calculated exactly.
-
-CALCRHOPROD
-    This calculates the rho matrix elements for the product excitation exactly.
-
-QUADEXCITSTAR
-    This creates the product excitations, but directly couples them to the root determinant, with a transition element given by the product of the transition elements which create the product. Hamiltonian elements to these products are zero however.
-
-SUMPRODII
-    More experimental code to test size-consistency, whereby rhoelements for the products are resummed back into the root, and the transition elements to the excited determinants.
 
 ENDINT
     End of integral block.

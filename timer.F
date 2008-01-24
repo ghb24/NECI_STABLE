@@ -14,8 +14,8 @@ C     ==--------------------------------------------------------------==
 
 
       SUBROUTINE tiSetL(sName,nSTim,iLevel)
+      USE LOGREAD , only : iGlobalTimerLevel
       IMPLICIT NONE
-      INCLUDE 'time.inc'
       CHARACTER*10 sName
       INTEGER nSTim,iLevel
       IF(iLevel.le.iGlobalTimerLevel) call tiSet(sName,nSTim)
@@ -56,8 +56,8 @@ C     ==--------------------------------------------------------------==
       END
 C     ==================================================================
       SUBROUTINE tiHaltL(sName,nSTim,iLevel)
+      USE LOGREAD , only : iGlobalTimerLevel
       IMPLICIT NONE
-      INCLUDE 'time.inc'
       CHARACTER*10 sName
       INTEGER nSTim,iLevel
       IF(iLevel.le.iGlobalTimerLevel) call tiHalt(sName,nSTim)

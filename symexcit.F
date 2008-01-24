@@ -959,6 +959,7 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
      &               I,J,K,L,ICC,LS,
      &               NK,IC)
+      USE SYSREAD , only : TSTOREASEXCITATIONS
       IMPLICIT NONE
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
       
@@ -979,7 +980,6 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER ILUT(0:*)
       INTEGER SYMPRODIND(2,3,0:*)
       INTEGER IC
-      INCLUDE 'uhfdet.inc'
 
       DO WHILE(1)
 C.. see if we need a new EXCIT
@@ -1645,9 +1645,9 @@ C.. Actually generate a det
      &            nBasisMax,UMat,Arr,nBasis,pGenGraph,EXCITGEN)
          USE symexcit2
          USE HElement
+         USE PRECALCREAD , only : PRE_TAY,TPREVAR
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         INCLUDE 'vmc.inc'
          INTEGER iUnit
          INTEGER iV,nEl       ! Vertices and number of electrons
          INTEGER iGraph(nEl,0:iV)  ! The graph

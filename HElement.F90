@@ -221,11 +221,12 @@ MODULE HElement
 !.. ECORE is the uniform background energy
 
       TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
+         USE SYSREAD , only : TSTOREASEXCITATIONS
+         IMPLICIT NONE
          INTEGER NMSH,NMAX
          COMPLEX*16 FCK(*)
          REAL*8 ALAT(*)
          INCLUDE 'basis.inc'
-         INCLUDE 'uhfdet.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*)
          TYPE(HElement) UMat(*)
@@ -356,13 +357,13 @@ END MODULE HElement
 
 !  Get a matrix element of the unperturbed Hamiltonian.  This is just the sum of the Hartree-Fock eigenvalues
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
+         USE SYSREAD , only : TSTOREASEXCITATIONS
          use HElement
          implicit none
          integer nI(nEl),nEl,nBasis
          type(HElement) hEl
          real*8 Arr(nBasis,2),ECore
          integer i
-         INCLUDE 'uhfdet.inc'
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
 !Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.

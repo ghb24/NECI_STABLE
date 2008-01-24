@@ -68,13 +68,13 @@ C.. A and B are sorted in ascending order of A
 
       SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS,NROOTS)
          USE HElement
+         USE INTREAD , only : NRCONV,RFCONV,NRSTEPSMAX
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS,NMIN,K,JTOT
          TYPE(HElement) A(0:N),B(0:N)
          real*8 ROOTS(0:NROOTS),INITHIGH,INITLOW,DELTA
          REAL*8 XHIGH,XLOW,X,VAL,DERIV,OX,VALLOW,VALHIGH
          LOGICAL LOWPOLE,HIGHPOLE
-         include 'calcp.inc'
          NMIN=N-NROOTS
 !         write(76,*) n,nRoots
 !         do i=0,n

@@ -4,7 +4,7 @@ C ==------------------------------------------------------------------==
      &	NBLK,NKRY,TRHOOFR,TREAD,TCORR,TFODM,IOBS,JOBS,KOBS,TENERGY,TMC,
      &	NHISTBOXES,BETA,I_P,TRHOIJ,RHOEPSILON,TREADRHO,NPATHS,TMONTE,
      &  IMCSTEPS,IEQSTEPS,TTROT,I_HMAX,TCALCHMAT,NTAY,NWHTAY,I_VMAX,
-     &  ILOGGING,TUEG,TBEGRAPH,THFBASIS,THUB,UHUB,BHUB,ETRIAL,TNPDERIV,
+     &  ILOGGING,TUEG,TBEGRAPH,THFBASIS,THUB,UHUB,BHUB,TNPDERIV,
      & BETAP,BETAEQ,TMCDET,MDK,DETINV,THFCALC,NHFIT,TTILT,ITILTX,ITILTY,
      &   TBLOCK,HFMIX,HFEDELTA,TREADINT,TPBC,TREAL,NDETWORK,ORBORDER,
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
@@ -18,10 +18,12 @@ C ==------------------------------------------------------------------==
      &   ,tReadInCache,DumpUMATCache,SetupTMAT2,nStates                 &
      &   ,SetupUMAT2D_df,getumatel,CREATEINVBRR,NOCC,FREEZETRANSFER     &
      &   ,nStatesDump
+      USE CALCREAD , only : G_VMC_FAC,CHEMPOT,nActiveSpace
+      USE SYSREAD , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB, &
+     &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
-      INCLUDE 'vmc.inc'
       INCLUDE 'fcoul.inc'
 C..Pointers
       POINTER (IP_NMRKS,NMRKS),(IP_ARR,ARR),(IP_BRR,BRR),
@@ -1284,8 +1286,7 @@ C..We need to measure HAMIL and LAB first
          ICMAX=1
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,
      &         NHG,HAMIL,G1,LAB,NROW,.TRUE.,
-     &         NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR,
-     &         TSTAR)
+     &         NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
          WRITE(6,*) ' FINISHED COUNTING '
          CALL FLUSH(6)
 C..Now we know size, allocate memory to HAMIL and LAB
@@ -1298,8 +1299,7 @@ C..
 C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,
      &      NHG,HAMIL,G1,LAB,NROW,.FALSE.,
-     &      NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR,
-     &      TSTAR)
+     &      NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
 
          IF(BTEST(ILOGGING,7)) THEN
 C.. we write out H now
