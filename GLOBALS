@@ -6,3 +6,7 @@ lsymsym_
 symprod_
 symconj_
 totsymrep_
+..Dm_logread
+..Dm_sysread
+..Dm_calcread
+..Dm_intread

@@ -1,4 +1,4 @@
-      SUBROUTINE READINPUT(FILENAME)
+      SUBROUTINE READINPUT(FILENAME,ios)
       USE input
       USE SYSREAD , only : readinputsys
       USE PRECALCREAD , only : readinputprecalc

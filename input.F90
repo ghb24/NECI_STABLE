@@ -49,6 +49,7 @@ INTEGER, PARAMETER :: dp=kind(1d0)!, qp=selected_real_kind(30)
 
 INTERFACE readf
   MODULE PROCEDURE read_single, read_double!, read_quad
+  MODULE PROCEDURE read_double!, read_quad
 END INTERFACE
 
 PRIVATE
