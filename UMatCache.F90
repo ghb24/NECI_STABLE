@@ -649,7 +649,8 @@ MODULE UMatCache
              J=MIN(IDI,IDJ)
              GETUMATEL=UMAT2D(I,J)
 !          ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
-!   <ii|jj> = <ij|ji> Only for real systems
+!   <ii|jj> = <ij|ji> Only for real systems (and not for the local exchange
+!   scheme.)
 !            I=MAX(IDI,IDK)
 !            J=MIN(IDI,IDK)
 !            GETUMATEL=UMAT2D(I,J)
