@@ -1471,24 +1471,39 @@ END MODULE UMatCache
             ELSE
 !  Complex orbitals and integrals, so we need to consider different types
 !  Using notation abcd rather than ijkl.  6/2/07 and 19/2/06
+!
+!  <> mean swap pairs <ab|cd> -> <ba|dc>
+!  *.  means complex conjugate of first codensity i.e. <ab|cd> -> <ca|bd>
+!  .* for second and ** for both.
+!
 !  abcd   -> badc <>
-!->cbad *.-> cdab ** -> dcba **<>
-!         -> bcda *.<>
-!->adcb .*-> dabc .*<>
+!  |  |
+!  | \|/       |-> cdab ** -> dcba **<>
+!  | cbad *.  -|
+!  |           |-> bcda *.<>
+! \|/
+!  adcb .* -> dabc .*<>
+
+! Of the type, bit zero indicates which of the two integrals in a slot to use.  Bit 1 is set if the integral should be complex conjugated.
+!  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).
+!  TYPE 0          TYPE 1
+!
+!  This leads to problems when i=k, as the integral <ij|il> is in both type 0 and 1
 
                IF(ISTAR.EQ.1) THEN
 !  If we star the first pair, that corresponds to the plain TYPE 1
                   ITYPE=1
                ELSEIF(ISTAR.EQ.2) THEN
 !  If we star the second pair, that corresponds to TYPE 1.
-!  If there's no swap, it's starred, otherwise it's not starred.
+!  If there's no swap, it's complex conjugated, otherwise it's not.
                   IF(ISWAP.EQ.0) THEN
                      ITYPE=3
                   ELSE
                      ITYPE=1
                   ENDIF
                ELSEIF(ISTAR.EQ.3) THEN
-!  We complex conjg if we've swapped within each of the pairs, setting bit 1 if ISTAR=2 (ISTAR!=1)
+! We've starred both pairs
+!  We complex conjg setting bit 1 but using type 0
                   ITYPE=2
                ENDIF
             ENDIF
