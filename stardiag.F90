@@ -86,6 +86,7 @@
 !Second call calculates size of arrays needed to store all symmetry allowed excitations - further calls will generate excitation on-the-fly(shown by the false in arg(6)
          nExcit(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+
 !.. iMaxExcit now contains the number of excitations.
          !TCountExcits will run through all excitations possible, determine if they are connected, and then only store these.
          !Will be twice as expensive, as needs to run through all excitations twice - however, will only store memory needed.
@@ -168,6 +169,7 @@
             CALL CalcRho2(nIExcitFormat,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit,ECore)
             
             if(rh .agt. RhoEps) then
+           
                i=i+1
 !   Divide all elements though by rhoii
                ExcitInfo(i,1)=rh/rhii
@@ -682,8 +684,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 ONDIAGPRODRHO(PRODNUM),OFFDIAGPRODRHO(2,PRODNUM)
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
          INTEGER ISUB,EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
-         INTEGER WORKL,WORK(*),INFO,ierr,PRODPOSITIONS(2,PRODNUM)
-         REAL*8 SI,DLWDB,DBETA
+         INTEGER WORKL,INFO,ierr,PRODPOSITIONS(2,PRODNUM)
+         REAL*8 SI,DLWDB,DBETA,WORK(*)
          INTEGER I,J
          
          IF(HElementSize.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
@@ -774,8 +776,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8, DIMENSION(:), POINTER :: AONDB
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
          INTEGER ISUB,IND,TOTVERT
-         INTEGER WORKL,WORK(*),INFO,PRODVERT,ierr
-         REAL*8 SI,DLWDB,DBETA
+         INTEGER WORKL,INFO,PRODVERT,ierr
+         REAL*8 SI,DLWDB,DBETA,WORK(*)
          INTEGER I,J
          TYPE(HElement) RR
 
@@ -898,8 +900,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 RIJMAT(*),WLIST(*)
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
          INTEGER ISUB
-         INTEGER WORKL,WORK(*),INFO
-         REAL*8 SI,DLWDB,DBETA,OD
+         INTEGER WORKL,INFO
+         REAL*8 SI,DLWDB,DBETA,OD,WORK(*)
          INTEGER I,J
          TYPE(HElement) RR
          
@@ -1368,7 +1370,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
      !This information is put into Orbchange(4), with the first two values being the excited from orbitals (ij), and the second two being the excited to orbitals (ab).
      SUBROUTINE GETEXCITSCHANGE(nI,nJ,nEl,Orbchange)
         IMPLICIT NONE
-        INTEGER :: nI(nEl),nJ(nEl),nEl,Orbchange(4,1),q,I,J
+        INTEGER :: nI(nEl),nJ(nEl),nEl,Orbchange(4),q,I,J
         LOGICAL :: FOUND
         LOGICAL :: ROOT(nEl),EXCIT(nEl)
         ROOT(:)=.TRUE.
@@ -1387,10 +1389,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             ENDDO
             IF(.NOT.FOUND) THEN
                 IF(q.eq.1) THEN
-                    Orbchange(1,1)=nI(I)
+                    Orbchange(1)=nI(I)
                     q=2
                 ELSEIF(q.eq.2) THEN
-                    Orbchange(2,1)=nI(I)
+                    Orbchange(2)=nI(I)
                     q=3
                 ELSEIF(q.eq.3) THEN
                     STOP 'ERROR IN GETEXCITSCHANGE'
@@ -1402,10 +1404,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
         DO I=1,nEl
             IF(EXCIT(I)) THEN
                 IF(q.eq.1) THEN
-                    Orbchange(3,1)=nJ(I)
+                    Orbchange(3)=nJ(I)
                     q=2
                 ELSEIF(q.eq.2) THEN
-                    Orbchange(4,1)=nJ(I)
+                    Orbchange(4)=nJ(I)
                     RETURN
                 ELSE
                     STOP 'ERROR IN GETEXCITSCHANGE'

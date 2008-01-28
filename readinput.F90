@@ -119,7 +119,7 @@ USE f90_unix_env, ONLY: getarg,iargc
          use UMatCache , only : TSTARSTORE
          USE CALCREAD , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,         &
      &          TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY,         &
-     &          STARPROD
+     &          STARPROD,TDIAGNODES
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -181,6 +181,8 @@ USE f90_unix_env, ONLY: getarg,iargc
                                  I_HMAX=-21
                               case("OLD")
                                  I_HMAX=-9
+                              case("NODAL")
+                                 TDIAGNODES=.TRUE.
                               case("STARPROD")
                                  STARPROD=.TRUE.
                               case("COUNTEXCITS")

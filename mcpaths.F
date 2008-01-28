@@ -27,8 +27,9 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE HElement
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
+         USE NODEDIAG , only : fMCPR3StarNodes
          USE CALCREAD , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
-     &          TMPTHEORY,TMCDIRECTSUM
+     &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES
          USE LOGREAD , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
@@ -226,13 +227,20 @@ C.. forcing them to be disconnected.
      &            LSTE,ICE,RIJLIST,L,LT,
      &            CNWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_CHMAX.EQ.-21) THEN
+               IF(TDIAGNODES) THEN
+! This code prediagonalises connected nodes of virtual orbitals, before solving as a star.
+                F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              L,LT,CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
+               ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
-               F(I_V)=fMCPR3StarNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,
+               F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,
      &            NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
      &            CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
+               ENDIF
             ELSEIF(I_CHMAX.EQ.-11) THEN
                IF(I_V.EQ.I_VMAX) THEN
                F(I_V)=FMCPR3NVSTAR(NI,BETA,I_P,IPATH,I_V,NEL,
@@ -417,9 +425,10 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElement
-         USE STARDIAGMOD , only: fMCPR3StarNewExcit
+         USE STARDIAGMOD , only : fMCPR3StarNewExcit
+         USE NODEDIAG , only : fMCPR3StarNodes
          USE PRECALCREAD , only : TPREVAR
-         USE CALCREAD , only : TMPTHEORY
+         USE CALCREAD , only : TMPTHEORY,TDIAGNODES
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -460,7 +469,6 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER IFRZ(0:NBASIS,I_VMAX)
          TYPE(HDELement) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
-
          TYPE(HDElement) FMCPR3STAR,FMCPR3B2
 
 C.. This is where we will store the MP2 energy
@@ -614,6 +622,12 @@ C.. forcing them to be disconnected.
      &            LSTE,ICE,RIJLIST,L,LT,
      &            NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB2)
             ELSEIF(I_HMAX.EQ.-21) THEN
+               IF(TDIAGNODES) THEN
+! This code prediagonalises connected nodes of virtual orbitals, before solving as a star.
+                F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,
+     &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &              L,LT,NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
+               ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
                F(I_V)=FMCPR3STARNewExcit(NI,BETA,I_P,NEL,NBASISMAX,G1,
@@ -621,6 +635,7 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
      &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
+               ENDIF
             ENDIF
             CALL TIHALT(STR,ISUB2)
             NTIME=TIMEC()*0.001D0
