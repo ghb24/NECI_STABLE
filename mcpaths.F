@@ -620,7 +620,7 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            L,LT,
-     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E(1))
+     &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
             ENDIF
             CALL TIHALT(STR,ISUB2)
             NTIME=TIMEC()*0.001D0
