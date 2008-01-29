@@ -1,16 +1,29 @@
+!This function takes all {a,b} excitations from each i,j pair, and prediagonalises them, fully connecting all the determinants to each other. This is what is meant by a 'node' - a set of double excitations, all of which are excited from the same {i,j}. 
+!The transformed objects from this diagonalisation of each node are then attached back to root in a star and solved.
+!This should approximate CID, although O[N^2 M] connections are missing throughout the structure, correponding to the few connections there are between nodes.
+!Current scaling is N^12 if the final star is explicitly diagonalised, or N^8 if it is done solving the polynomial (to do!).
+
     MODULE NODEDIAG
       USE HElement
       IMPLICIT NONE
 
+!Stores the excitations by their {a,b} value, according to which {i,j} family they are under.
       INTEGER, ALLOCATABLE :: EXCITSTORE(:,:,:)
+
+!Counts the {a,b} excitations in each {i,j}
       INTEGER, ALLOCATABLE :: ABCOUNTER(:)
+
+!Gives the excited {i,j} orbitals in each node
       INTEGER, ALLOCATABLE :: ijorbs(:,:)
+
+!Stores the final star matrix in the same way as in stardiag.F90
       TYPE(HElement), ALLOCATABLE :: EXCITINFO(:,:)
+
+!The rho_ii rho matrix element
       TYPE(HElement) :: rhii
       
       contains
 
-!This function takes all {a,b} excitations from each i,j pair, and prediagonalises them, fully connecting all the determinants to each other. The transformed objects from this diagonalisation are then attachd back to root in a star and solved.
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,L,LT,nWHTay,iLogging,tSym,ECore,dBeta,dLWdb)
 
       IMPLICIT NONE
@@ -19,7 +32,7 @@
       INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
       INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
-      INTEGER Height,IND,INDX,i,ExcitInfoElems,j,exFlag
+      INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo
       INTEGER, ALLOCATABLE :: nExcit(:)
       COMPLEX*16 fck(*)
@@ -34,7 +47,6 @@
 
 !First need to allocate memory to hold the maximum number of double excitations
 !No point to count them explicitly, since even if not connected to root, could still be connected to other double excitations.
-
       noij=nEl*(nEl-1)/2
       noab=(nBasis-nEl)*(nBasis-nEl-1)/2
       totexcits=noij*noab
@@ -50,7 +62,7 @@
       CALL MemAlloc(iErr,ABCOUNTER,noij/2,"ABCOUNTER")
       CALL IAZZERO(ABCOUNTER,noij)
 
-!Create inversebrr for indexing purposes
+!Create inversebrr for indexing purposes. Brr gives the orbitals in order of energy. If we create an inverse of this array, then we can order the occupied orbitals in ascending order, and so create an indexing scheme for the {i,j} pairs, which need to be stored.
       CALL CREATEINVSBRR(Brr,invsBrr,nBasis)
 
 !Array to detail the ij orbs being excited from in each node
@@ -61,7 +73,7 @@
 !Fill array with ij orbs in each node
       do i=1,nEl
           do j=(i+1),nEl
-              INDX=IND(i,j,nEl)
+              INDX=TRIIND(i,j,nEl)
               ijorbs(1,INDX)=i
               ijorbs(2,INDX)=j
 !              WRITE(6,*) i,j,"Have index",INDX
@@ -86,7 +98,10 @@
       noexcits=0
       lp: do while(.true.)
           CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
+          
+!Shows that all double excitations have been accounted for
           IF(nJ(1).eq.0) exit lp
+          
           IF(iExcit.ne.2) STOP 'TUSEBRILLOUIN must be on for NODEDIAG'
           IF(COMPIPATH(nI,nJ,nEl)) THEN
               WRITE(6,*) "WARNING, nI and nJ the same!"
@@ -97,8 +112,8 @@
 !The inverse of Brr is needed so that occupied orbitals are labelled in numerically ascending order.
           orbone=INVSBRR(Orbchange(1))
           orbtwo=INVSBRR(Orbchange(2))
-!IND stores each ij pair in a unique place
-          INDX=IND(orbone,orbtwo,nEl)
+!TRIIND stores each ij pair in a unique place
+          INDX=TRIIND(orbone,orbtwo,nEl)
           Height=ABCOUNTER(INDX)+1
           EXCITSTORE(1:2,Height,INDX)=Orbchange(3:4)
           ABCOUNTER(INDX)=ABCOUNTER(INDX)+1
@@ -113,7 +128,7 @@
       CALL MemAlloc(iErr,EXCITINFO,3*(totexcits+1),"EXCITINFO")
       CALL AZZERO(EXCITINFO,3*(totexcits+1))
       
-!Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii
+!Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
       CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
       ExcitInfo(0,2)=GetHElement2(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,0,ECore)
       EXCITINFO(0,0)=1.D0
@@ -142,8 +157,10 @@
       DEALLOCATE(nExcit)
       
       RETURN
-      END
+      END FUNCTION fMCPR3StarNodes
       
+      !From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
+!Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
         IMPLICIT NONE
         INCLUDE 'basis.inc'
@@ -161,14 +178,14 @@
 !iExcit should be the order of the excitation - parsed to HElement2
         iExcit=2
 
-!Array to temporarily store full paths of excitations
+!Array to temporarily store full paths of excitations in node - needed for the calcrho2 routine to calculate rho elements.
         ALLOCATE(FULLPATHS(nEl,novirt),stat=ierr)
         CALL MemAlloc(iErr,FULLPATHS,novirt*nEl,"FULLPATHS")
         CALL IAZZERO(FULLPATHS,novirt*nel)
 
         ijpair(:)=ijorbs(:,node)
             
-!Array to store rho elements of node
+!Array to store rho elements of node - this is the matrix to be diagonalised.
         ALLOCATE(NODERHOMAT(novirt*novirt),stat=ierr)
         CALL MemAlloc(iErr,NODERHOMAT,novirt*novirt,"NODERHOMAT")
         CALL AZZERO(NODERHOMAT,novirt*novirt)
@@ -251,13 +268,17 @@
         CALL MemDealloc(WORK)
         DEALLOCATE(WORK)
 
-!Diagonal elements are simply eigenvalues - add to ExcitInfo
+!Attached transformed objects back to root as a star graph...
+
+!Diagonal elements of star graph are simply eigenvalues - add to ExcitInfo
         DO i=1,novirt
             IF(WLIST(i).gt.1.D-09) THEN
                 ExcitInfoElems=ExcitInfoElems+1
                 EXCITINFO(ExcitInfoElems,0)=WLIST(i)
                 
-!Offdiagonal elements sum over rho element to each determinant to root, times projection onto eigenvector i
+!For offdiagonal elements sum over rho element of each determinant (k) to root, times projection of that determinant onto eigenvector a.
+! rho_ij = sum_k{ <D_0|rho|k><k|a> } where k are the original determinants in the node, a are the eigenvectors from the diagonalisation, and D_0 is the root.
+
                 DO j=1,novirt
                     nJ(:)=FULLPATHS(:,j)
                     CALL CalcRho2(nI,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
@@ -278,7 +299,7 @@
         DEALLOCATE(FULLPATHS)
 
         RETURN
-      END
+      END SUBROUTINE CONSTRUCTNODE
 
       END MODULE NODEDIAG
 
@@ -291,39 +312,39 @@
           INVSBrr(Brr(i))=i
       ENDDO
       RETURN
-      END
+      END SUBROUTINE CREATEINVSBRR
       
       
 !Returns the index in the third EXCITSTORE dimension which will hold the ij variable. Stored in triangular form, without diagonals.
-      FUNCTION IND(I,J,nEl)
+      FUNCTION TRIIND(I,J,nEl)
       IMPLICIT NONE
-      INTEGER IND,I,J,nEl
+      INTEGER TRIIND,I,J,nEl
       IF((I.gt.nEl).or.(J.gt.nEl)) THEN
           STOP 'PROBLEM WITH INDEXING'
       ENDIF
       IF(I.GT.J) THEN
-          IND=((I-1)*(I-2)/2)+J
+          TRIIND=((I-1)*(I-2)/2)+J
           RETURN
       ELSEIF(J.GT.I) THEN
-          IND=((J-1)*(J-2)/2)+I
+          TRIIND=((J-1)*(J-2)/2)+I
           RETURN
       ELSE
-          STOP 'I should not equal J in IND'
+          STOP 'I should not equal J in TRIIND'
       ENDIF
-      END
+      END FUNCTION TRIIND
 
 !Compare two determinants and return true if they are the same, or false otherwise.
       LOGICAL FUNCTION COMPIPATH(nI,nJ,nEl)
       IMPLICIT NONE
       INTEGER :: nEl,nI(nEl),nJ(nEl),I
 
+      COMPIPATH=.TRUE.
       DO I=1,nEl
           IF(nI(I).ne.nJ(I)) THEN
               COMPIPATH=.FALSE.
-              RETURN
+              EXIT
           ENDIF
       ENDDO
-      COMPIPATH=.TRUE.
       RETURN
-      END
+      END FUNCTION COMPIPATH
       
