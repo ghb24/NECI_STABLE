@@ -21,9 +21,9 @@ MODULE input
 !  http://www.gnu.org/copyleft/gpl.html
 
 
-!#ifdef NAGF95
-!USE f90_unix_env, ONLY: getarg
-!#endif
+#ifdef NAGF95
+USE f90_unix_env, ONLY: getarg
+#endif
 
 IMPLICIT NONE
 
@@ -45,11 +45,10 @@ CHARACTER(LEN=40) :: file(10)=""
 
 INTEGER, SAVE :: lc=3
 
-INTEGER, PARAMETER :: dp=kind(1d0)!, qp=selected_real_kind(30)
+INTEGER, PARAMETER :: sp=kind(6),dp=kind(1d0)!, qp=selected_real_kind(30)
 
 INTERFACE readf
   MODULE PROCEDURE read_single, read_double!, read_quad
-  MODULE PROCEDURE read_double!, read_quad
 END INTERFACE
 
 PRIVATE
@@ -690,8 +689,8 @@ SUBROUTINE read_single(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-REAL, INTENT(INOUT) :: a
-REAL, INTENT(IN), OPTIONAL :: factor
+REAL(kind=sp), INTENT(INOUT) :: a
+REAL(kind=sp), INTENT(IN), OPTIONAL :: factor
 
 DOUBLE PRECISION :: aa
 
