@@ -41,3 +41,11 @@ C         OCC=F(ISTATE)
          complex*16 HarInt(nStates,nStates)
          return
       end subroutine CalcHarPIInts
+
+
+
+      subroutine KPntSymInt(i,j,k,l,a,b,c,d)
+          implicit none
+          integer i,j,k,l,a,b,c,d
+          return
+      end subroutine KPntSymInt

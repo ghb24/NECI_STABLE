@@ -682,7 +682,21 @@ MODULE UMatCache
                  K=TransTable(K)
                  L=TransTable(L)
                 ENDIF
-!                CALL GetKPInd(I,J,K,L)
+                ! As we're not looping over i,j,k,l, it's safe to return the
+                ! k-pnt related labels in the same variables.
+!            if (idi.eq.59.and.idj.eq.1.and.idk.eq.67.and.idl.eq.1)then
+!                write (6,*) 
+!            end if
+!            if (idi.eq.59.and.idj.eq.2.and.idk.eq.67.and.idl.eq.2)then
+!                write (6,*) 
+!            end if
+!            if (idi.eq.60.and.idj.eq.1.and.idk.eq.68.and.idl.eq.1)then
+!                write (6,*) 
+!            end if
+                call KPntSymInt(I,J,K,L,I,J,K,L)
+!                if (i.eq.63.and.j.eq.75.and.k.eq.47.and.l.eq.63) then
+!                   write (6,*) 
+!                end if
                 IF(TTRANSFINDX) THEN
                  I=InvTransTable(I)
                  J=InvTransTable(J)
@@ -692,6 +706,12 @@ MODULE UMatCache
                ENDIF
 !    This will rearrange I,J,K,L into the correct order
 !   (i,k)<=(j,l) and i<=k, j<=l.
+!               WRITE(6,*) "J",I,J,K,L
+!                        CALL INITFINDXI(I,J,K,L,UElems)
+!               GetUMatEl=UElems(0)
+!         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
+!         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)
+!               return
                IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B,ITYPE)) THEN
 !   We don't have a stored UMAT - we call to generate it.
                   IF(tDFInts) THEN
@@ -711,9 +731,12 @@ MODULE UMatCache
 !  TYPE 0          TYPE 1
 
                      ENDIF
+!  Bit 0 tells us which integral in the slot we need
                      GETUMATEL=UElems(IAND(ITYPE,1))
-                     IF(ITYPE.GT.1) GETUMATEL=DCONJG(GETUMATEL)
-!                     WRITE(6,*) "I",I,J,K,L,UElems
+!  Bit 1 tells us whether we need to complex conj the integral
+                     IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
+!                     WRITE(6,"(A3,6I6,$)") "I",I,J,K,L,A,B
+!                     WRITE(6,*) UElems
 !                     IF(TTRANSFINDX) THEN
 !                        CALL INITFINDXI(TRANSTABLE(K),TRANSTABLE(J),TRANSTABLE(I),TRANSTABLE(L),UElems)
 !                     ELSE
@@ -727,7 +750,8 @@ MODULE UMatCache
 !                     CALL INITFINDXI(8,4,5,8,UElems)
 !                     WRITE(6,*) "I",8,4,5,8,UElems
                   ENDIF
-                  IF(ICACHE.NE.0) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI)
+!  Because we've asked for the integral in the form to be stored, we store as iType=0
+                  IF(ICACHE.NE.0) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI,0)
                   NMISSES=NMISSES+1
 !                  WRITE(6,*) "MISS",I,J,K,L,A,B,GETUMATEL
                ELSE
@@ -776,7 +800,7 @@ MODULE UMatCache
          ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
             CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
          ENDIF
-!        write (6,*) idi,idj,idk,idl,GetUMatEl
+!         write (6,*) idi,idj,idk,idl,GetUMatEl
 !         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
 !         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)
          RETURN
@@ -1215,7 +1239,7 @@ MODULE UMatCache
 !                   WRITE(6,"(A,4I5,2I5,$)") "->",NI,NJ,NK,NL,A,B
 !OUMatLabels(n,m)
 !                   WRITE(6,*) OUMatCacheData(0,n,m)
-                   CALL CacheUMatEl(A,B,OUMatCacheData(0,n,m),nm,nn)
+                   CALL CacheUMatEl(A,B,OUMatCacheData(0,n,m),nm,nn,iType)
                 ENDIF
                ENDIF
               ENDIF
@@ -1262,7 +1286,7 @@ MODULE UMatCache
         end if
         if (min(i,j,k,l).gt.0.and.max(i,j,k,l).le.nStates) then
             tDummy=GetCachedUMatEl(i,j,k,l,DummyUmatEl,iCache1,iCache2,A,B,iType)
-            call CacheUMatEl(A,B,UMatEl,iCache1,iCache2)
+            call CacheUMatEl(A,B,UMatEl,iCache1,iCache2,iType)
         end if
       end do
       close(21)
@@ -1347,18 +1371,41 @@ END MODULE UMatCache
 !      END
 !     Set an element in the cache.  All the work has been done for us before
 !   as the element we have to set is in (ICACHEI,ICACHE)
+!    iType tells us whether we need to swap/conjugate the nTypes integrals within the slot
 !   We still need to fill out the space before or after  us if we've been put in the 
 !   middle of a block of duplicates
-      SUBROUTINE CACHEUMATEL(A,B,UMATEL,ICACHE,ICACHEI)
+      SUBROUTINE CACHEUMATEL(A,B,UMATEL,ICACHE,ICACHEI,iType)
          USE HElement
          USE UMatCache
          IMPLICIT NONE
          INTEGER A,B,ICACHE,ICACHEI
-         TYPE(HElement) UMATEL(0:NTYPES-1)
+         TYPE(HElement) UMATEL(0:NTYPES-1),TMP(0:NTYPES-1)
          INTEGER OLAB,IC1,I,J,ITOTAL
+         INTEGER iType
+         INTEGER iIntPos
          SAVE ITOTAL
          DATA ITOTAL /0/
          if (nSlots.eq.0) return
+!         WRITE(6,*) "CU",A,B,UMATEL,iType
+         if(nTypes.gt.1) then
+! A number of different cases to deal with depending on the order the integral came in (see GetCachedUMatEl for details)
+!  First get which pos in the slot will be the new first pos
+            iIntPos=iand(iType,1) 
+!  If bit 1 is set we must conjg the (to-be-)first integral
+            if(btest(iType,1)) then
+               Tmp(0)=dconjg(UMatEl(iIntPos))
+            else
+               Tmp(0)=UMatEl(iIntPos)
+            endif
+!  If bit 2 is set we must conjg the (to-be-)second integral
+            if(btest(iType,2)) then
+               Tmp(1)=dconjg(UMatEl(1-iIntPos))
+            else
+               Tmp(1)=UMatEl(1-iIntPos)
+            endif
+            UMatEl=Tmp
+         endif
+!         WRITE(6,*) "CU",A,B,UMATEL,iType
 !         WRITE(69,*) NSLOTS,A,B,UMATEL,ICACHE,ICACHEI
          IF(NSLOTS.EQ.NPAIRS.OR.UMATCACHEFLAG.EQ.1.OR.tSmallUMat) THEN
 !   small system.  only store a single element
@@ -1411,6 +1458,7 @@ END MODULE UMatCache
          INTEGER ICACHEI1,ICACHEI2
          TYPE(HElement) UMATEL
          INTEGER I,A,B,ITYPE,ISTAR,ISWAP
+!         WRITE(6,"(A,4I5)") "GCUI",IDI,IDJ,IDK,IDL
          IF(NSLOTS.EQ.0) THEN
 !We don't have a cache so signal failure.
             GETCACHEDUMATEL=.TRUE.
@@ -1458,7 +1506,6 @@ END MODULE UMatCache
             ENDIF
             CALL GETCACHEINDEX(IDI,IDK,NSTATES,A)
             CALL GETCACHEINDEX(IDJ,IDL,NSTATES,B)
-!         WRITE(6,"(6I3)") IDI,IDJ,IDK,IDL,A,B
             IF(A.GT.B) THEN
                CALL SWAP(A,B)
                CALL SWAP(IDI,IDJ)
@@ -1484,31 +1531,79 @@ END MODULE UMatCache
 ! \|/
 !  adcb .* -> dabc .*<>
 
+!Now consider what must occur to the other integral in the slot to recover pair (abcd,cbad).  0 indicates 1st in slot, 1 means 2nd.  * indicated conjg.
+!
+!  ..    abcd  cbad  0  1
+!  *.    cbad  abcd  1  0
+!  .*    adcb  cbad  1* 0*
+!  **    cdab  adcb  0* 1*
+!    <>  badc  dabc  0  1*
+!  *.<>  bcda  dcba  1* 0
+!  .*<>  dabc  badc  1  0*
+!  **<>  dcba  bcda  0* 1
+
+
 ! Of the type, bit zero indicates which of the two integrals in a slot to use.  Bit 1 is set if the integral should be complex conjugated.
+!   Bit 2 is set if the other integral in the slot should be complex conjugated if we are to have the structure (<ij|kl>,<kj|il>) in the slot.
+!      This is only used by CacheUMatEl when adding a slot to the cache.
+!
 !  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).
 !  TYPE 0          TYPE 1
 !
-!  This leads to problems when i=k, as the integral <ij|il> is in both type 0 and 1
-
-               IF(ISTAR.EQ.1) THEN
-!  If we star the first pair, that corresponds to the plain TYPE 1
-                  ITYPE=1
+!
+               IF(ISTAR.EQ.0) THEN
+                  IF(ISWAP.EQ.0) THEN
+                     ITYPE=0  !0  1
+                  ELSE
+                     ITYPE=4  !0  1*
+                  ENDIF
+               ELSEIF(ISTAR.EQ.1) THEN
+!  If we star the first pair, that corresponds to the plain TYPE 1.  If we swap too, then we complex conj.
+                  IF(ISWAP.EQ.0) THEN
+                     ITYPE=1  !1  0
+                  ELSE
+                     ITYPE=3  !1* 0
+                  ENDIF
                ELSEIF(ISTAR.EQ.2) THEN
 !  If we star the second pair, that corresponds to TYPE 1.
 !  If there's no swap, it's complex conjugated, otherwise it's not.
                   IF(ISWAP.EQ.0) THEN
-                     ITYPE=3
+                     ITYPE=7  !1* 0*
                   ELSE
-                     ITYPE=1
+                     ITYPE=1  !1  0*
                   ENDIF
                ELSEIF(ISTAR.EQ.3) THEN
 ! We've starred both pairs
 !  We complex conjg setting bit 1 but using type 0
-                  ITYPE=2
+                  IF(ISWAP.EQ.0) THEN
+                     ITYPE=6  !0* 1*
+                  ELSE
+                     ITYPE=2  !0* 1
+                  ENDIF
                ENDIF
             ENDIF
          ENDIF
+!         WRITE(6,"(A,7I5)") "GCUE",IDI,IDJ,IDK,IDL,A,B,iType
          ICACHE=A
+!               IF(ISTAR.EQ.1) THEN
+!!  If we star the first pair, that corresponds to the plain TYPE 1
+!                  ITYPE=1
+!               ELSEIF(ISTAR.EQ.2) THEN
+!!  If we star the second pair, that corresponds to TYPE 1.
+!!  If there's no swap, it's complex conjugated, otherwise it's not.
+!                  IF(ISWAP.EQ.0) THEN
+!                     ITYPE=3
+!                  ELSE
+!                     ITYPE=1
+!                  ENDIF
+!               ELSEIF(ISTAR.EQ.3) THEN
+!! We've starred both pairs
+!!  We complex conjg setting bit 1 but using type 0
+!                  ITYPE=2
+!               ENDIF
+!            ENDIF
+!         ENDIF
+!         ICACHE=A
          IF(NSLOTS.EQ.NPAIRS.OR.tSmallUMat) THEN
 !   we've a small enough system to store everything.
             ICACHEI=B
@@ -1534,9 +1629,9 @@ END MODULE UMatCache
             ENDIF
          ENDIF
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN
-!            WRITE(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMATCACHE(0:nTypes-1,ICACHEI,ICACHE)
+            !WRITE(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMatCacheData(0:nTypes-1,ICACHEI,ICACHE)
             UMATEL=UMatCacheData(IAND(ITYPE,1),ICACHEI,ICACHE)
-            IF(ITYPE.GT.1) UMATEL=DCONJG(UMATEL)
+            IF(BTEST(ITYPE,1)) UMATEL=DCONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
 !   signal success
             GETCACHEDUMATEL=.FALSE.
          ELSE
