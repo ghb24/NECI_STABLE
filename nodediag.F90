@@ -21,6 +21,8 @@
 
 !The rho_ii rho matrix element
       TYPE(HElement) :: rhii
+      REAL*8 :: totlinks
+      INTEGER :: crosslinks
       
       contains
 
@@ -33,7 +35,7 @@
       INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
-      INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo
+      INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
       INTEGER, ALLOCATABLE :: nExcit(:)
       COMPLEX*16 fck(*)
       TYPE(HElement) UMat(*)
@@ -74,8 +76,8 @@
       do i=1,nEl
           do j=(i+1),nEl
               INDX=TRIIND(i,j,nEl)
-              ijorbs(1,INDX)=i
-              ijorbs(2,INDX)=j
+              ijorbs(1,INDX)=Brr(i)
+              ijorbs(2,INDX)=Brr(j)
 !              WRITE(6,*) i,j,"Have index",INDX
           enddo
       enddo
@@ -136,6 +138,8 @@
 
 !Go through all ij pairs, create the node matrix and diagonalise, then add elements to ExcitInfo.
       ExcitInfoElems=0
+      totlinks=0.D0
+      crosslinks=0
       do i=1,noij
           IF(ABCOUNTER(i).eq.0) CYCLE
 
@@ -143,6 +147,13 @@
 
       enddo
 
+      t=0
+      do i=1,ExcitInfoElems
+        IF(EXCITINFO(i,1).agt.RhoEps) t=t+1
+      enddo
+      WRITE(6,*) "Number of objects attached to resultant star = ",t
+      WRITE(6,*) "Average rhoelement of links between excitations = ", totlinks/crosslinks
+      
 !Explicitly diagonalise resultant matrix - large scaling.
       CALL StarDiag(0,nEl,ExcitInfoElems+1,EXCITINFO,Totexcits+1,i_P,fmcpr3starnodes,dBeta,dLWdB)
 
@@ -159,9 +170,13 @@
       RETURN
       END FUNCTION fMCPR3StarNodes
       
-      !From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
+
+      
+      
+!From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
 !Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
+        USE INTREAD , only : TDISCONODES
         IMPLICIT NONE
         INCLUDE 'basis.inc'
         Type(BasisFN) G1(*)
@@ -197,6 +212,7 @@
             Orbchange(3:4)=EXCITSTORE(1:2,i,node)
             CALL GETFULLPATH(nI,nEl,2,Orbchange,nJ)
             FULLPATHS(:,i)=nJ(:)
+!            WRITE(68,*) nJ(:)
 !Calculate diagonal rho elements and store them in the matrix            
             CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
             NODERHOMAT((i-1)*novirt+i)=DREAL(rh/rhii)
@@ -207,9 +223,15 @@
             do j=(i+1),novirt
                 nJ(:)=FULLPATHS(:,i)
                 nK(:)=FULLPATHS(:,j)
-                CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                IF(TDISCONODES) THEN
+                    rh=HElement(0.D0)
+                ELSE
+                    CALL CalcRho2(nJ,nK,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                ENDIF
 !Fill matrix of determinants in node to diagonalise
                 IF(rh.agt.RhoEps) THEN
+                    crosslinks=crosslinks+1
+                    totlinks=totlinks+DREAL(rh)
                     NODERHOMAT(((i-1)*novirt)+j)=DREAL(rh/rhii)
                 ENDIF
             enddo
@@ -249,7 +271,7 @@
 !            WRITE(68,*) ""
 !            WRITE(68,*) ""
 !        ENDDO
-!        WRITE(68,*) "**************************************"
+!        WRITE(68,*) "****************"
                 
 
 !Allocate Memory for diagonalisation
@@ -268,6 +290,16 @@
         CALL MemDealloc(WORK)
         DEALLOCATE(WORK)
 
+!Debugging - write out eigenvectors
+!        DO I=1,novirt
+!            DO J=1,novirt
+!                WRITE(68,"E14.6,$") NODERHOMAT((I-1)*novirt+j)
+!            ENDDO
+!            WRITE(68,*) ""
+!            WRITE(68,*) ""
+!        ENDDO
+!        WRITE(68,*) "*****************************************"
+
 !Attached transformed objects back to root as a star graph...
 
 !Diagonal elements of star graph are simply eigenvalues - add to ExcitInfo
@@ -276,17 +308,18 @@
                 ExcitInfoElems=ExcitInfoElems+1
                 EXCITINFO(ExcitInfoElems,0)=WLIST(i)
                 
-!For offdiagonal elements sum over rho element of each determinant (k) to root, times projection of that determinant onto eigenvector a.
-! rho_ij = sum_k{ <D_0|rho|k><k|a> } where k are the original determinants in the node, a are the eigenvectors from the diagonalisation, and D_0 is the root.
+!For offdiagonal elements sum over rho element of each determinant (k) to root, times projection of that determinant onto eigenvector j.
+! rho_ij = sum_k{ <D_0|rho|k><k|j> } where k are the original determinants in the node, j are the eigenvectors from the diagonalisation, and D_0 is the root.
 
                 DO j=1,novirt
                     nJ(:)=FULLPATHS(:,j)
                     CALL CalcRho2(nI,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
-                    EXCITINFO(ExcitInfoElems,1)=EXCITINFO(ExcitInfoElems,1)+(rh/rhii)*HElement(NODERHOMAT((novirt*(i-1))+j))
+!Eigenvectors are COLUMNS
+                    EXCITINFO(ExcitInfoElems,1)=EXCITINFO(ExcitInfoElems,1)+(rh/rhii)*HElement(NODERHOMAT((novirt*(j-1))+i))
 
 !H Elements dealt with in the same way
                     Hel=GetHElement2(nI,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
-                    EXCITINFO(ExcitInfoElems,2)=EXCITINFO(ExcitInfoElems,2)+Hel*HElement(NODERHOMAT((novirt*(i-1))+j))
+                    EXCITINFO(ExcitInfoElems,2)=EXCITINFO(ExcitInfoElems,2)+Hel*HElement(NODERHOMAT((novirt*(j-1))+i))
                 ENDDO
             ENDIF
         ENDDO

@@ -6,7 +6,7 @@
 
         LOGICAL TQUADRHO,TEXPRHO,THFBASIS,THFCALC,TCALCREALPROD
         LOGICAL TRHF,TReadTUMat,TReadHF,TQUASIEXCIT
-        LOGICAL TSUMPROD,TCALCRHOPROD
+        LOGICAL TSUMPROD,TCALCRHOPROD,TDISCONODES
         
         INTEGER NTAY(2),nHFit,NFROZEN,NTFROZEN,ORBORDER(8,2)
         INTEGER NRSTEPSMAX,IHFMETHOD
@@ -23,6 +23,7 @@
         INTEGER :: i
            
 ! Integral defaults
+      TDISCONODES=.FALSE.
       NRCONV=1.D-13
       RFCONV=1.D-8
       NRSTEPSMAX=50
@@ -94,6 +95,8 @@
               TCALCRHOPROD=.TRUE.
           case("SUMPRODII")
               TSUMPROD=.TRUE.
+          case("DISCONNECTNODES")
+              TDISCONODES=.TRUE.
           case("HF")
               THFBASIS = .true.
           case("CALCULATE")

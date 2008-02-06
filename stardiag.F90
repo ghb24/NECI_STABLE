@@ -170,6 +170,7 @@
             
             if(rh .agt. RhoEps) then
            
+!               WRITE(33,*) nJ(:)
                i=i+1
 !   Divide all elements though by rhoii
                ExcitInfo(i,1)=rh/rhii

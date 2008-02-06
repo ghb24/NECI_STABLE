@@ -535,6 +535,9 @@ INCLUDEQUADRHO
 EXPRHO
     The rho matrix is exponentiated, 1 is subtracted, and this is used as the matrix to be diagonalised. This is the full expansion for which INCLUDEQUADRHO is a truncation. Again, this is used to achieve size consistency with the star, although seems to have little effect, and no effect at high beta.
 
+DISCONNECTNODES
+    If using a nodal approximation, the connections between determinants in the same nodes are ignored - should then be equivalent to the original star calculation.
+
 ENDINT
     End of integral block.
 

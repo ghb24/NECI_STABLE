@@ -299,13 +299,19 @@ USE f90_unix_env, ONLY: getarg,iargc
       USE PRECALCREAD , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       USE CALCREAD , only : BETA,I_VMAX,NPATHS,SPECDET,                 &
-     &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM
-      USE INTREAD , only : NFROZEN
+     &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
+     &  TDIAGNODES
+      USE INTREAD , only : NFROZEN,TDISCONODES
       USE LOGREAD , only : ILOGGING
       USE input
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
+
+!.. TDISCONODES can only be set if NODAL is set in the star methods section
+      IF(TDISCONODES.AND..NOT.TDIAGNODES) THEN
+          CALL report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN METHOD",.true.)
+      ENDIF
       
 !.. We still need a specdet space even if we don't have a specdet.
       IF(.NOT.ALLOCATED(SPECDET)) THEN
