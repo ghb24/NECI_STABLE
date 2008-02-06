@@ -1,6 +1,6 @@
       SUBROUTINE READINPUT(FILENAME,ios)
       USE input
-      USE SYSREAD , only : readinputsys
+      USE SYSREAD , only : readinputsys,defaults,Feb08
       USE PRECALCREAD , only : readinputprecalc
       USE CALCREAD , only : readinputcalc
       USE INTREAD , only : readinputint
@@ -14,8 +14,8 @@ USE f90_unix_env, ONLY: getarg,iargc
 #endif
       CHARACTER(LEN=255) FILENAME,INP
       CHARACTER(LEN=32) TITLE
-      CHARACTER(LEN=100) w
-      LOGICAL eof 
+      CHARACTER(LEN=100) w,x
+      LOGICAL eof,DefaultFound
       INTEGER ios
 
 !     --------------------------------------------
@@ -35,7 +35,39 @@ USE f90_unix_env, ONLY: getarg,iargc
       ENDIF
 
       write (6,'(/,64("*"),/)')
+      call input_options(echo_lines=.false.,skip_blank_lines=.true.)
+
+      DefaultFound=.false.
+!Look to find default options (line can be added anywhere in input)
+      defaults: do
+          call read_line(eof)
+          if(eof) exit
+          call readu(w)
+          select case(w)
+            case("DEFAULTS")
+                DefaultFound=.true.
+                call readu(x)
+                select case(x)
+!Add default options here
+                case("DEFAULT")
+                    defaults=.true.
+                case("FEB08")
+                    defaults=.false.
+                    Feb08=.true.
+                case default
+                    write(6,*) "No defaults selected - using 'default' defaults"
+                    defaults=.true.
+                end select
+          end select
+      end do defaults
+      IF(.NOT.DefaultFound) THEN
+        WRITE(6,*) "No defaults selected - using 'default' defaults"
+        defaults=.true.
+      ENDIF
+      rewind(1)
+
       call input_options(echo_lines=.true.,skip_blank_lines=.true.)
+      
       main: do
           call read_line(eof)
           if (eof) exit
@@ -46,6 +78,8 @@ USE f90_unix_env, ONLY: getarg,iargc
                   call reada(w)
                   title = trim(title)//" "//trim(w)
               enddo
+            case("DEFAULTS")
+                CONTINUE
             case("SYSTEM")
               call readinputsys()
             case("PRECALC")

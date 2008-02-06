@@ -1,7 +1,7 @@
 
       MODULE CALCREAD
         USE input
-        USE SYSREAD , only : NEL
+        USE SYSREAD , only : NEL,Feb08,defaults
         USE INTREAD , only : NFROZEN
         IMPLICIT NONE
 
@@ -110,6 +110,12 @@
           calcp_logweight=.false.
           TENPT=.false.
           TLADDER=.false. 
+
+!Feb 08 defaults
+          IF(Feb08) THEN
+              RhoEpsilon=1.D-08
+          ENDIF
+
       
             calc: do
               call read_line(eof)

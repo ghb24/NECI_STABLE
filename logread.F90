@@ -1,5 +1,6 @@
       MODULE LOGREAD
         USE input
+        USE sysread , only : defaults,Feb08
         IMPLICIT NONE
 
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
@@ -14,6 +15,12 @@
       !Logging defaults
       ILOGGING=0
       iGlobalTimerLevel=40
+
+! Feb08 defaults
+      IF(Feb08) THEN
+          !Mcpaths set
+          ILOGGING=2
+      ENDIF
       
         logging: do
           call read_line(eof)

@@ -1,6 +1,6 @@
       MODULE INTREAD
         USE input
-        USE SYSREAD , only : NEL,TUSEBRILLOUIN
+        USE SYSREAD , only : NEL,defaults,Feb08,TUSEBRILLOUIN
         use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
         IMPLICIT NONE
 
@@ -48,6 +48,11 @@
       iDumpCacheFlag=0
       tReadInCache=.false.
       iDFMethod=0
+
+!Feb 08 defaults
+      IF(Feb08) THEN
+         NTAY(2)=3
+      ENDIF
       
       
         integral: do

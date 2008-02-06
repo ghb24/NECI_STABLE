@@ -1,6 +1,7 @@
 
       MODULE PRECALCREAD
         USE input
+        USE sysread , only : defaults,Feb08
         IMPLICIT NONE
 
         LOGICAL TPREVAR,PRE_TAYLOG(6,10),TLINEVAR(2:10),TGRIDVAR(2:10)
@@ -34,6 +35,10 @@
           GRIDVARPAR(:,:)=0.D0
           LINEVARPAR(:,:)=0.D0
 
+!Feb08 defaults...
+          IF(Feb08) THEN
+              !...add defaults...
+          ENDIF
 
         preIV_MAX=1
 !        preIH=-10

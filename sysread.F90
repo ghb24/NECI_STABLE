@@ -11,6 +11,8 @@
         INTEGER iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY
         REAL*8 BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB
         REAL*8 ALPHA,FCOULDAMPBETA,FCOULDAMPMU
+! Defaults stored in this module
+        LOGICAL :: defaults,Feb08
 
         contains
 
@@ -20,7 +22,8 @@
         CHARACTER (LEN=100) w
         INTEGER I
         
-!       SYSTEM defaults
+!       SYSTEM defaults - leave these as the default defaults
+!       Any further addition of defaults should change these after.
           TSTARBIN=.false.
           TREADINT=.false.
           THFORDER=.false.
@@ -59,6 +62,11 @@
           tStar=.false.
           tStoreAsExcitations=.false.
           TBIN=.false.
+
+!Feb08 defaults:
+          IF(Feb08) THEN
+              !...add defaults...
+          ENDIF
 
 ! Coulomb damping function currently removed.
 !      FCOULDAMPBETA=-1.D0

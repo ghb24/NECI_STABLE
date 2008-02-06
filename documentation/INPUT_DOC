@@ -24,6 +24,9 @@ Keywords
 
 Syntax:  Keywords are specified by capitals.  Options/data required after a keyword are in <angled brackets>.  Alternative options are separated by commas.
 
+DEFAULTS [DEFAULT  |  FEB08]
+    This line can be added anywhere in the code as long as its not within an input block (e.g SYSTEM, CALC or INTEGRAL), and represents a set of default values for the calculation. All defaults are changes from the set 'DEFAULT'. FEB08 has FOCK-PARTITION-LOWDIAG, Rhoepsion=1.D-08, and MCPATHS set in its default. Feel free to add your own set.
+
 TITLE 
     Takes the rest of the line as the title and passes it to output.
 
