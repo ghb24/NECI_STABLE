@@ -2,7 +2,7 @@
       USE input
       USE SYSREAD , only : readinputsys,defaults,Feb08
       USE PRECALCREAD , only : readinputprecalc
-      USE CALCREAD , only : readinputcalc
+      USE CALCREAD , only : readinputcalc,BETA
       USE INTREAD , only : readinputint
       USE LOGREAD , only : readinputlog
 #ifdef NAGF95
@@ -64,10 +64,10 @@ USE f90_unix_env, ONLY: getarg,iargc
         WRITE(6,*) "No defaults selected - using 'default' defaults"
         defaults=.true.
       ENDIF
-      rewind(1)
+      rewind(ir)
 
       call input_options(echo_lines=.true.,skip_blank_lines=.true.)
-      
+
       main: do
           call read_line(eof)
           if (eof) exit
