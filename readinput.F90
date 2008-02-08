@@ -253,10 +253,10 @@ USE f90_unix_env, ONLY: getarg,iargc
      &                        //" or POLY vertex star method",.true.)
                                end select
                            enddo
-                           IF(TLINSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN 
-                               call report("STARSTARS must be used with " &
-     &                          //"a poly option",.true.)
-                           ENDIF
+!                           IF(TLINSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN 
+!                               call report("STARSTARS must be used with " &
+!     &                          //"a poly option",.true.)
+!                           ENDIF
                            IF(STARPROD.and.BTEST(NWHTAY,0)) THEN
                                call report("STARPROD can only be "      &
      &                        //"specified with DIAG option",.true.)

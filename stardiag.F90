@@ -229,6 +229,10 @@
          iExcit=i
          Deallocate(nExcit)
 
+!.. we now have a list length NLCUR of dets in the star.
+!.. Call a routine to generate the value of the star
+         WRITE(6,*) iExcit," excited determinants in star"
+
 !If starprod is set, it means that one of a number of methods is used to attempt to indroduce quadruple excitations into the star in an approximate way to achieve size consistency for dissociation into two fragments.
          IF(StarProd) THEN
              CALL GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
@@ -238,13 +242,6 @@
              CALL GetStarStars(iMaxExcit,iExcit,RhoEps)
          ENDIF
 
-         
-!         DO j=1,10000
-!            WRITE(55,*) LARGERHOJJ(J)
-!         ENDDO
-!.. we now have a list length NLCUR of dets in the star.
-!.. Call a routine to generate the value of the star
-         WRITE(6,*) iExcit," excited determinants in star"
          IF(.NOT.BTEST(NWHTAY,0)) THEN
             WRITE(6,*) "Beginning Complete Star Diagonalization"
             IF(StarProd) THEN
@@ -335,7 +332,8 @@
             USE CALCREAD , only : LinePoints
             IMPLICIT NONE
             INTEGER :: i,j,iErr,isub,CSE,NextVertex,iMaxExcit
-            INTEGER :: iExcit,TotExcits
+            INTEGER :: iExcit,TotExcits,HalfiExcit
+            TYPE(HDElement) :: tmp(3)
             REAL*8 :: RhoGap,RhoValue,RhoEps,Rhoia,StarEigens(iExcit+1,2)
             REAL*8 :: meanx,Sxx
 
@@ -361,7 +359,22 @@
             WRITE(6,*) iExcit*(iExcit+1)," possible extra excitations"
             
 !First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
+!This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
             CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
+
+!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1
+            HalfiExcit=INT((iMaxExcit+1)/2)
+            do i=1,HalfiExcit
+                tmp(1)=ExcitInfo((iMaxExcit+1)-i,0)
+                tmp(2)=ExcitInfo((iMaxExcit+1)-i,1)
+                tmp(3)=ExcitInfo((iMaxExcit+1)-i,2)
+                ExcitInfo((iMaxExcit+1)-i,0)=ExcitInfo(i-1,0)
+                ExcitInfo((iMaxExcit+1)-i,1)=ExcitInfo(i-1,1)
+                ExcitInfo((iMaxExcit+1)-i,2)=ExcitInfo(i-1,2)
+                ExcitInfo(i-1,0)=tmp(1)
+                ExcitInfo(i-1,1)=tmp(2)
+                ExcitInfo(i-1,2)=tmp(3)
+            enddo
 
             WRITE(6,*) "Total number of points from which to form linear approximation = ", LinePoints
 
@@ -402,6 +415,9 @@
 
                 RhoValue=LineRhoValues(i)
 
+!                write(6,*) ""
+!                write(6,*) "Rho value: ", RhoValue
+
 !Multiply the diagonal elements by the value of rho_jj we want                
                 do j=1,iExcit+1
                     IF(DREAL(ExcitInfo(j-1,0)).lt.0.8) THEN
@@ -413,6 +429,10 @@
 !Find the values for eigenvalues and eigenvectors of this matrix, and put them into the relevant ValsDODMS and VecsDODMS
                 CALL GetValsnVecs(iExcit+1,NewDiagRhos,ExcitInfo(1:iExcit,1),ValsDODMS(i,:),VecsDODMS(i,:))
 
+!                WRITE(6,*) "Eigenvalues: ", ValsDODMS(i,:)
+!To check linear approximation...
+!                WRITE(18,*) RhoValue, ValsDODMS(i,iExcit+1), VecsDODMS(i,iExcit+1)
+                
             enddo
 
             CALL MemDealloc(NewDiagRhos)
@@ -544,9 +564,8 @@
                 RsqVals(i)=1.D0-ExpctVals(i)/SyyVals(i)
                 RsqVecs(i)=1.D0-ExpctVecs(i)/SyyVecs(i)
 
-                IF((RsqVals(i).lt.0.9).or.(RsqVecs(i).lt.0.9)) THEN
+                IF((RsqVals(i).lt.0.95).or.(RsqVecs(i).lt.0.95)) THEN
                     WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," for eigenvalue/vector : ", i
-                    STOP
                 ELSEIF((RsqVals(i).gt.1.D0).or.(RsqVecs(i).gt.1.D0)) THEN
                     WRITE(6,*) "Fatal problem in linear approximation, R^2 > 1 : ", RsqVals(i)," for eigenvalue/vector : ", i
                     STOP
@@ -620,6 +639,9 @@
 
             enddo
 
+!            WRITE(6,*) "Original Hij elements :"
+!            WRITE(6,*) ExcitInfo(:,2)
+
 !Add contributions from excited stars - offdiagonal elements as above - diagonal elements are linearly scaled eigenvalues, and the Hamiltonian elements are similarly scaled.
 
             NextVertex=iExcit+1
@@ -642,8 +664,26 @@
 
 !Return with the new information.
             iExcit=TotExcits
+            iMaxExcit=TotExcits
+
+            call MemDealloc(ExcitInfo)
+            Deallocate(ExcitInfo)
+
+!Resort again - so that root is in element 0, then ordered by rho_jj in ascending order - probably not needed...
+            CALL SORT3RN(TotExcits,ExcitInfo2(1:TotExcits,0),ExcitInfo2(1:TotExcits,1),ExcitInfo2(1:TotExcits,2),HElementSize)
+            
             ExcitInfo => ExcitInfo2
 
+!            WRITE(6,*) "Off-diag: "
+!            WRITE(6,*) ExcitInfo2(:,1)
+!            WRITE(6,*) "*****"
+!            WRITE(6,*) "Diag: "
+!            WRITE(6,*) ExcitInfo2(:,0)
+!            WRITE(6,*) "*****"
+!            WRITE(6,*) "Hia: "
+!            WRITE(6,*) ExcitInfo2(:,2)
+!            WRITE(6,*) ""
+            
             CALL TIHALT('GetStarStars',iSub)
 
             RETURN
@@ -653,7 +693,7 @@
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
             IMPLICIT NONE
             REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
-            INTEGER :: Dimen,i,INFO,iErr
+            INTEGER :: Dimen,i,INFO,iErr,j
             TYPE(HElement) :: OffDiagRhos(2:Dimen)
             REAL*8, ALLOCATABLE :: StarMat(:,:),WLIST(:),WORK(:)
 
@@ -665,8 +705,8 @@
                 CALL AZZERO(StarMat,Dimen*Dimen)
 
                 do i=2,Dimen
-                    StarMat(i,i)=OffDiagRhos(i)%v
-                    StarMat(1,i)=DiagRhos(i)
+                    StarMat(i,i)=DiagRhos(i)
+                    StarMat(1,i)=OffDiagRhos(i)%v
                 enddo
                 StarMat(1,1)=DiagRhos(1)
 
@@ -674,6 +714,16 @@
                 CALL MemAlloc(iErr,WORK,Dimen*3,"WORK")
                 CALL AZZERO(WORK,Dimen*3)
 
+!                do i=1,Dimen
+!                    do j=1,Dimen
+!                        WRITE(6,"F20.14,$") StarMat(i,j)
+!                    enddo
+!                    write(6,*) ""
+!                    write(6,*) ""
+!                enddo
+!
+!                WRITE(6,*) "**************"
+                
                 CALL DSYEV('V','U',Dimen,StarMat,Dimen,Vals,WORK,3*Dimen,INFO)
                 IF(INFO.ne.0) THEN
                     WRITE(6,*) "DYSEV error in GetValsnVecs: ",INFO
@@ -1356,7 +1406,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
         
 !         WRITE(67,*) "Eigenvalues are: "
 !         DO I=1,NLIST
-!            WRITE(67,"F12.6,$") WLIST(I)
+!            WRITE(67,"F22.16,$") WLIST(I)
 !         ENDDO
 
 !Divide through by largest eigenvalue to prevent blowing up in some cases
@@ -1466,6 +1516,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !         CALL PLOTROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS) 
          CALL FINDROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS)
          SI=0.D0
+!         WRITE(6,*) "ROOTS ARE: " 
+!         WRITE(6,*) ROOTS(:)
          WRITE(6,*) "Highest root:",ROOTS(NROOTS)
          E0=List(0,2)%v
          lWarned=.false.
