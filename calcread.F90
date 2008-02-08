@@ -11,12 +11,12 @@
         LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET,TSPECDET
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TRHOOFR,TCORR,TFODM,TMC,TREADRHO,TRHOIJ
-        LOGICAL TBEGRAPH,STARPROD,TDIAGNODES
+        LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TLINSTARSTARS
         
         INTEGER NEVAL,NBLK,NKRY,ICILEVEL,NWHTAY(3,10),NCYCLE,NPATHS
         INTEGER IOBS,JOBS,KOBS,NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
         INTEGER nActiveSpace(2),IMCSTEPS,IEQSTEPS,MDK(5),DETINV
-        INTEGER CUR_VERT,NHISTBOXES,I_P
+        INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints
         
         REAL*8 B2L,g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10),BETA
@@ -45,6 +45,8 @@
 
 
 !       Calc defaults      
+          LinePoints=10
+          TLINSTARSTARS=.false.
           TDIAGNODES=.false.
           STARPROD=.false.
           TCALCHMAT = .false.
@@ -451,6 +453,9 @@
                   call getf(DBETA(2))
               case("PGENEPSILON")
                   call getf(DBETA(3))
+!This indicates the number of times the eigenvalues of the star matrix should be evaluated to achieve the linear approximation when STARSTARS set,
+              case("LINEPOINTSSTAR")
+                  call geti(LinePoints)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

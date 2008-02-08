@@ -2,7 +2,7 @@
       USE input
       USE SYSREAD , only : readinputsys,defaults,Feb08
       USE PRECALCREAD , only : readinputprecalc
-      USE CALCREAD , only : readinputcalc,BETA
+      USE CALCREAD , only : readinputcalc
       USE INTREAD , only : readinputint
       USE LOGREAD , only : readinputlog
 #ifdef NAGF95
@@ -153,7 +153,7 @@ USE f90_unix_env, ONLY: getarg,iargc
          use UMatCache , only : TSTARSTORE
          USE CALCREAD , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,         &
      &          TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY,         &
-     &          STARPROD,TDIAGNODES
+     &          STARPROD,TDIAGNODES,TLINSTARSTARS
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -217,6 +217,8 @@ USE f90_unix_env, ONLY: getarg,iargc
                                  I_HMAX=-9
                               case("NODAL")
                                  TDIAGNODES=.TRUE.
+                              case("STARSTARS")
+                                  TLINSTARSTARS=.true.
                               case("STARPROD")
                                  STARPROD=.TRUE.
                               case("COUNTEXCITS")
@@ -251,9 +253,13 @@ USE f90_unix_env, ONLY: getarg,iargc
      &                        //" or POLY vertex star method",.true.)
                                end select
                            enddo
+                           IF(TLINSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN 
+                               call report("STARSTARS must be used with " &
+     &                          //"a poly option",.true.)
+                           ENDIF
                            IF(STARPROD.and.BTEST(NWHTAY,0)) THEN
                                call report("STARPROD can only be "      &
-     &                        //"specified with HDIAG option",.true.)
+     &                        //"specified with DIAG option",.true.)
                             ENDIF
                            if(i_hmax.eq.0)                              &
      &                   call report("OLD/NEW not specified for STAR",  &

@@ -2,15 +2,30 @@
         USE HElement
         IMPLICIT NONE
       
-         TYPE(HElement), ALLOCATABLE :: ExcitInfo(:,:)
-         TYPE(HElement), ALLOCATABLE :: ExcitInfo2(:,:)
-         TYPE(HElement), ALLOCATABLE :: QUADRHOS(:,:)
+!.. ExcitInfo will contain all the info needed to work out the value of the star
+!.. ExcitInfo(0,...) corresponds to J=I
+!.. ExcitInfo(J,0) = RHOJJ
+!.. ExcitInfo(J,1) = RHOIJ
+!.. ExcitInfo(J,2) = HIJ
+         TYPE(HElement), POINTER :: ExcitInfo(:,:)
+         TYPE(HElement), ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
          TYPE(HElement), ALLOCATABLE :: temprhos(:,:)
+
+!Offrho is used with TSumProd to store the original star off-diagonal elements when using TSumProd, which changes the values in EXCITINFO
          TYPE(HElement), ALLOCATABLE :: Offrho(:)
+
+!If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
          INTEGER, ALLOCATABLE :: EXCITSTORE(:,:)
-         INTEGER, ALLOCATABLE :: PRODPOSITIONS(:,:)
-         REAL*8, ALLOCATABLE :: ONDIAGPRODRHO(:)
-         REAL*8, ALLOCATABLE :: OFFDIAGPRODRHO(:,:)
+
+!Prodpositions stores the position of the two excitations in EXCITSTORE which give rise to a real product excitation
+         INTEGER, ALLOCATABLE :: ProdPositions(:,:)
+
+! When calculating full products, the rho elements for these quadruple product excitations are given in OnDiagProdRho and OffDiagProdRho.
+         REAL*8, ALLOCATABLE :: OnDiagProdRho(:)
+         REAL*8, ALLOCATABLE :: OffDiagProdRho(:,:)
+
+!Used with TSumProd, rhiiadd is the value to resum back into the root to account for quadruple excitations
+         TYPE(HElement) :: rhiiadd
 
          contains
 !  A function to generate all possible excitations of a determinant and link them together in a star
@@ -18,9 +33,9 @@
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
-         USE CALCREAD , only : TMPTHEORY,STARPROD
+         USE CALCREAD , only : TMPTHEORY,StarProd,TLinStarStars
          USE SYSREAD , only : TSTOREASEXCITATIONS
-         USE INTREAD , only : TCALCRHOPROD,TSUMPROD,TQUASIEXCIT,TCALCREALPROD
+         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
@@ -31,10 +46,9 @@
          REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
          TYPE(HDElement) dLWdB
          TYPE(HDElement) fMCPR3StarNewExcit
-         TYPE(HElement) rhiiadd
          TYPE(HElement) HIJS(0:2)
 !         REAL*8 LARGERHOJJ(10000)
-         INTEGER iPath(nEl,0:2),uniqprod,nouniqprod
+         INTEGER iPath(nEl,0:2),UniqProd
          LOGICAL tSym
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
@@ -46,10 +60,10 @@
 
          INTEGER exFlag,totvert
          INTEGER, allocatable :: nExcit(:)
-         INTEGER nExcitMemLen,nStore(6),prodorbs(8)
+         INTEGER nExcitMemLen,nStore(6)
          INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
          INTEGER iErr,nK(nEl),nL(nEl)
-         INTEGER nRoots,i,j,rhoelem
+         INTEGER nRoots,i,j
          TYPE(HElement) rh,rhii,EHFDiff
          TYPE(HDElement) MP2E(2:2)        
          LOGICAL tStarSingles,tCountExcits
@@ -126,8 +140,8 @@
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
          CALL MemAlloc(iErr,ExcitInfo,(iMaxExcit+1)*3*HElementSize,"ExcitInfo")
          
-         !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
-         IF(TCALCREALPROD.or.TSUMPROD) THEN
+!If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
+         IF(TCalcRealProd.or.TSumProd) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
              CALL MemAlloc(iErr,EXCITSTORE,(iMaxExcit*2),"EXCITSTORE")
          ENDIF
@@ -175,7 +189,7 @@
 !   Divide all elements though by rhoii
                ExcitInfo(i,1)=rh/rhii
                
-               IF(TCALCREALPROD.or.TSUMPROD) THEN
+               IF(TCalcRealProd.or.TSumProd) THEN
 !   Stores all excitations as (occ,occ,vir,vir)
                    CALL GETEXCITSCHANGE(nI,nJ,nEl,EXCITSTORE(:,i))
                ENDIF
@@ -215,114 +229,15 @@
          iExcit=i
          Deallocate(nExcit)
 
-         !FIND REAL PRODUCT EXCITATIONS i.e. neither of the two 'from' or 'two' orbitals are the same in the two excitations.
-         IF(TCALCREALPROD) THEN
-             
-             !TSUMPROD tries to find a way to resum the 
-             IF(TSUMPROD) THEN
-                rhiiadd=0.D0
-                rhoelem=iExcit
-                ALLOCATE(Offrho(rhoelem),stat=iErr)
-                CALL MemAlloc(iErr,Offrho,rhoelem*HElementSize,"OffRho")
-!   Fill Offrho with the off-diagonal rho elements to pass to COUNTPRODEXCITS
-                DO I=1,iExcit
-                    Offrho(I)=ExcitInfo(I,1)
-                ENDDO
-                CALL COUNTPRODEXCITS(iMaxExcit,prodnum,.FALSE.,iExcit,rhoelem,rhiiadd,uniqprod)
-                WRITE(6,*) prodnum, "product excitations found, and summed in..."
-                Call MemDealloc(Offrho)
-                DEALLOCATE(Offrho)
-                
-                IF(prodnum.gt.0) THEN
-                    WRITE(6,*) "Sum of product diagonal rho elements is ", rhiiadd
-                    WRITE(6,*) "Number of unique products is ", uniqprod
-!                    rhiiadd=(rhiiadd%v+DREAL(uniqprod))/(2*uniqprod)
-!   rhiiadd now in divided by the number of product excitations we are resumming in
-                    rhiiadd=rhiiadd/prodnum
-!                    ExcitInfo(0,0)=rhiiadd
-!                    ExcitInfo(0,1)=rhiiadd
-!   The resummed values for the diagonal elements of the product excitations are added to the root
-                    ExcitInfo(0,0)=ExcitInfo(0,0)+rhiiadd
-                    ExcitInfo(0,1)=ExcitInfo(0,1)+rhiiadd
-                    WRITE(6,*) "New root is now ",ExcitInfo(0,0) 
-                ELSE
-                    IF(rhiiadd.agt.(0.D0)) STOP 'rhiiadd should be zero as no products'
-                ENDIF
+!If starprod is set, it means that one of a number of methods is used to attempt to indroduce quadruple excitations into the star in an approximate way to achieve size consistency for dissociation into two fragments.
+         IF(StarProd) THEN
+             CALL GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
+         ENDIF
 
-             !TQUASIEXCIT approximates the product excitations to a separate excitation attached to the root - maintains form of rho matrix
-             ELSEIF(TQUASIEXCIT) THEN
-                !Space is allocated for all possible product excitations (N choose 2), and elements(1) contain diagonal elements, (2)=offdiagonal (3)=Helement
-                ALLOCATE(QUADRHOS(3,iExcit*(iExcit-1)/2),stat=ierr)
-                CALL MemAlloc(ierr,QUADRHOS,iExcit*(iExcit-1)*HElementSize,"QUADRHOSALL")
-                CALL COUNTUNIQPRODEXCITS(iMaxExcit,prodnum,iExcit,nouniqprod,prodnum)
-                WRITE(6,*) "Theoretical max products is ", iExcit*(iExcit-1)/2
-                WRITE(6,*) "Total number of products is ", prodnum
-                WRITE(6,*) "Number of unique product excitations is ", nouniqprod
-               
-                CALL FLUSH(6)
-                Totvert=nouniqprod+iExcit
-                !Create new ExcitInfo, including the product excitations
-                Allocate(ExcitInfo2(0:totvert,0:2),stat=iErr)
-                CALL MemAlloc(iErr,ExcitInfo2,(nouniqprod+1)*3*HElementSize,"ExcitInfo2")
-                ExcitInfo2(0:iExcit,0)=ExcitInfo(0:iExcit,0)
-                ExcitInfo2(0:iExcit,1)=ExcitInfo(0:iExcit,1)
-                ExcitInfo2(0:iExcit,2)=ExcitInfo(0:iExcit,2)
-                ExcitInfo2(iExcit+1:iExcit+nouniqprod,0)=QUADRHOS(1,1:nouniqprod)
-                ExcitInfo2(iExcit+1:iExcit+nouniqprod,1)=QUADRHOS(2,1:nouniqprod)
-                ExcitInfo2(iExcit+1:iExcit+nouniqprod,2)=QUADRHOS(3,1:nouniqprod)
+         IF(TLinStarStars) THEN
+             CALL GetStarStars(iMaxExcit,iExcit,RhoEps)
+         ENDIF
 
-                !Deallocate information about the excitations
-                CALL MemDealloc(QUADRHOS)
-                DEALLOCATE(QUADRHOS)
-                IF(ALLOCATED(ExcitInfo)) THEN
-                    CALL MemDealloc(ExcitInfo)
-                    DEALLOCATE(ExcitInfo)
-                ENDIF
-           
-            !This calculates all product excitations
-            ELSE
-                !Call twice - once to calculate number of products, so can allocate memory, then store products
-                CALL COUNTPRODEXCITS(iMaxExcit,prodnum,.FALSE.,iExcit,rhoelem,rhiiadd,uniqprod)
-                WRITE(6,*) prodnum, "product excitations found - allocating memory..."
-                ALLOCATE(prodpositions(2,prodnum),stat=iErr)
-                CALL MemAlloc(iErr,prodpositions,prodnum,"EXCITSTORE")
-                !Prodpositions stores the position of the two excitations in EXCITSTORE which give rise to a real product excitation
-                CALL COUNTPRODEXCITS(iMaxExcit,prodnum,.TRUE.,iExcit,rhoelem,rhiiadd,uniqprod)
-             
-                !Allocate memory for on diagonal rho elements of product excitations, and 2 x offdiagonal elements
-                ALLOCATE(ONDIAGPRODRHO(prodnum),stat=ierr)
-                CALL MemAlloc(ierr,ONDIAGPRODRHO,prodnum,"ONDIAGPRODRHO")
-                ALLOCATE(OFFDIAGPRODRHO(2,prodnum),stat=ierr)
-                CALL MemAlloc(ierr,OFFDIAGPRODRHO,2*prodnum,"OFFDIAGPRODRHO")
-
-                DO I=1,prodnum
-                    !Approximate on-diag elements as product of consituent excits (exact for FPLD)(remember, they are divided by rhoii^2)
-                    ONDIAGPRODRHO(I)=DREAL(ExcitInfo(prodpositions(1,I),0)*ExcitInfo(prodpositions(2,I),0))
-
-                    IF(TCALCRHOPROD) THEN
-                        IF(I.eq.1) WRITE(6,*) "Calculating off-diagonal rho elements for product excitations exactly"
-                        !This calculates the exact rho elements between the product excitation, and the constituent determinants
-                        prodorbs(1:2)=EXCITSTORE(1:2,prodpositions(1,I))
-                        prodorbs(3:4)=EXCITSTORE(1:2,prodpositions(2,I))
-                        prodorbs(5:6)=EXCITSTORE(3:4,prodpositions(1,I))
-                        prodorbs(7:8)=EXCITSTORE(3:4,prodpositions(2,I))
-                        CALL GetFullPath(nI,nEl,4,prodorbs,nJ)
-                        CALL GetFullPath(nI,nEl,2,EXCITSTORE(:,prodpositions(1,I)),nK)
-                        CALL GetFullPath(nI,nEl,2,EXCITSTORE(:,prodpositions(2,I)),nL)
-                        !nJ is now the product IPATH, and nK and nL the two consituent determinants
-                        CALL CalcRho2(nK,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
-                        OFFDIAGPRODRHO(1,I)=DREAL(rh/rhii)
-                        CALL CalcRho2(nL,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
-                        OFFDIAGPRODRHO(2,I)=DREAL(rh/rhii)
-                    ELSE
-                        IF(I.eq.1) WRITE(6,*) "Approximating off-diagonal elements for product excitations"
-                        !Approximate the off-diag rho elements between product excitation and constituent determinant as being equal to the rho element between the root and other constituent determinant.
-                        OFFDIAGPRODRHO(1,I)=ExcitInfo(prodpositions(2,I),1)%v
-                        OFFDIAGPRODRHO(2,I)=ExcitInfo(prodpositions(1,I),1)%v
-                    ENDIF
-                ENDDO
-            ENDIF
-        ENDIF
          
 !         DO j=1,10000
 !            WRITE(55,*) LARGERHOJJ(J)
@@ -332,17 +247,14 @@
          WRITE(6,*) iExcit," excited determinants in star"
          IF(.NOT.BTEST(NWHTAY,0)) THEN
             WRITE(6,*) "Beginning Complete Star Diagonalization"
-            IF(STARPROD) THEN
-                IF(TCALCREALPROD) THEN
-                    IF(TSUMPROD) THEN
+            IF(StarProd) THEN
+                IF(TCalcRealProd) THEN
+                    IF(TSumProd) THEN
                         WRITE(6,*) "Product Sum Star Diagonalisation"
                         CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_p,fMCPR3StarNewExcit,dBeta,dLWdB)
-                    ELSEIF(TQUASIEXCIT) THEN
-                        WRITE(6,*) "Quadratic quasiexcitations Star Diagonalisation"
-                        CALL StarDiag(0,nEl,totvert+1,ExcitInfo2,totvert+1,i_p,fMCPR3StarNewExcit,dBeta,dLWdB)
                     ELSE
                         WRITE(6,*) "Real Product Star Diagonalisation"
-                        CALL StarDiagRealProd(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,prodnum,EXCITSTORE,prodpositions,ONDIAGPRODRHO,OFFDIAGPRODRHO)
+                        CALL StarDiagRealProd(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,ProdNum,EXCITSTORE,ProdPositions,OnDiagProdRho,OffDiagProdRho)
                     ENDIF
                 ELSE
                     WRITE(6,*) "Complete Product Star Diagonalisation -  beware - large scaling!"
@@ -381,102 +293,586 @@
             call MemDealloc(EXCITSTORE)
             DEALLOCATE(EXCITSTORE)
          ENDIF
-         IF(ALLOCATED(PRODPOSITIONS)) THEN
-            call MemDealloc(PRODPOSITIONS)
-            DEALLOCATE(PRODPOSITIONS)
+         IF(ALLOCATED(ProdPositions)) THEN
+            call MemDealloc(ProdPositions)
+            DEALLOCATE(ProdPositions)
          ENDIF
-         IF(ALLOCATED(ONDIAGPRODRHO)) THEN
-            call MemDealloc(ONDIAGPRODRHO)
-            DEALLOCATE(ONDIAGPRODRHO)
-            call MemDealloc(OFFDIAGPRODRHO)
-            DEALLOCATE(OFFDIAGPRODRHO)
+         IF(ALLOCATED(OnDiagProdRho)) THEN
+            call MemDealloc(OnDiagProdRho)
+            DEALLOCATE(OnDiagProdRho)
+            call MemDealloc(OffDiagProdRho)
+            DEALLOCATE(OffDiagProdRho)
          ENDIF
             
       END
 
-      ! This routine finds all "unique" product excitations of the star
-      SUBROUTINE COUNTUNIQPRODEXCITS(iMaxExcit,prodnum,iExcit,nouniqprod,countprods)
-        IMPLICIT NONE
-        INTEGER iMaxExcit,prodnum
-        INTEGER iExcit,I,J
-        INTEGER countprods,nouniqprod,tempprodfrom(4),tempprodto(4),ierr,k
-        LOGICAL UNIQPROD
-        INTEGER, ALLOCATABLE :: UNIQPRODS(:,:)
-!        INTEGER, POINTER :: tempprods(:,:)
-
-        !Space allocated to store the excitations of the unique products, so we can search through them to ensure they are not being duplicated
-        ALLOCATE(UNIQPRODS(8,(iExcit*(iExcit-1)/2)),stat=ierr)
-        CALL MemAlloc(ierr,UNIQPRODS,iExcit*(iExcit-1)*2,"UNIQPRODSALL")
-        
-        countprods=0
-        nouniqprod=0
-        DO I=1,iExcit
-            DO J=(I+1),iExcit
-                UNIQPROD=.TRUE.
-                ! Again, the criteria for a product excitation are that none of the "ij" or "ab" orbitals match in the constituent excitations
-                IF((EXCITSTORE(1,I).NE.EXCITSTORE(1,J)).AND.(EXCITSTORE(1,I).NE.EXCITSTORE(2,J))                   &
-                .AND.(EXCITSTORE(2,I).NE.EXCITSTORE(2,J)).AND.(EXCITSTORE(2,I).NE.EXCITSTORE(1,J))) THEN
-                    IF((EXCITSTORE(3,I).NE.EXCITSTORE(3,J)).AND.(EXCITSTORE(3,I).NE.EXCITSTORE(4,J))               &
-                    .AND.(EXCITSTORE(4,I).NE.EXCITSTORE(3,J)).AND.(EXCITSTORE(4,I).NE.EXCITSTORE(4,J))) THEN
-                
-                        countprods=countprods+1
-                        tempprodfrom(1:2)=EXCITSTORE(1:2,I)
-                        tempprodfrom(3:4)=EXCITSTORE(1:2,J)
-                        tempprodto(1:2)=EXCITSTORE(3:4,I)
-                        tempprodto(3:4)=EXCITSTORE(3:4,J)
-                        CALL SORTI(4,tempprodfrom(:))
-                        CALL SORTI(4,tempprodto(:))
-                        !Cycle through other stored products to see if unique
-                        DO K=1,nouniqprod
-                            !Test if unique
-                            IF((tempprodfrom(1).eq.UNIQPRODS(1,K)).AND.(tempprodfrom(2).eq.UNIQPRODS(2,K)).AND.     &
-                                (tempprodfrom(3).eq.UNIQPRODS(3,K)).AND.(tempprodfrom(4).eq.UNIQPRODS(4,K))) THEN
-                                IF((tempprodto(1).eq.UNIQPRODS(5,K)).AND.(tempprodto(2).eq.UNIQPRODS(6,K)).AND.     &
-                                    (tempprodto(3).eq.UNIQPRODS(7,K)).AND.(tempprodto(4).eq.UNIQPRODS(8,K))) THEN
-                                    UNIQPROD=.FALSE.
-                                    !Sum in off-diagonal contribution from another way to get same product
-                                    QUADRHOS(2,K)=QUADRHOS(2,K)+(ExcitInfo(I,1)*ExcitInfo(J,1))/(ExcitInfo(I,1)+ExcitInfo(J,1))
-                                    !If the excitation is found, then exit loop
-                                    EXIT
-                                ENDIF
-                            ENDIF
-                        ENDDO
-                        IF(UNIQPROD) THEN
-!                            WRITE(67,*) "Unique Product Excitation: ", I,J
-!                            WRITE(67,*) "Diagonal element is: ", ExcitInfo(I,0)*ExcitInfo(J,0)
-!                           If the product is unique, then count it, and store its information in QUADRHOS
-                            nouniqprod=nouniqprod+1
-                            UNIQPRODS(1:4,nouniqprod)=tempprodfrom(:)
-                            UNIQPRODS(5:8,nouniqprod)=tempprodto(:)
-                            QUADRHOS(1,nouniqprod)=ExcitInfo(I,0)*ExcitInfo(J,0)
-                            QUADRHOS(2,nouniqprod)=(ExcitInfo(I,1)*ExcitInfo(J,1))/(ExcitInfo(I,1)+ExcitInfo(J,1))
-                            !Let hamiltonian elements to these excitations = 0
-                            QUADRHOS(3,nouniqprod)=0.D0
-                        ENDIF
-                    ENDIF
-                ENDIF
-            ENDDO
-        ENDDO
-        CALL MemDealloc(UNIQPRODS)
-        DEALLOCATE(UNIQPRODS)
-        
-        prodnum=countprods
       
-      END
+!TLinStarStars uses the approximation that the change in the eigenvalues and the first element  
+!of the eigenvectors, with respect to multiplying the diagonal elements by a constant, is linear. 
+
+!If we try to prediagonalise a star, whose root is a double excitation determinant contained in 
+!the original star graph, then all that is needed are the eigenvalues and first elements of the 
+!eigenvectors of the original star, as well as how they change with diagonal constant (which will 
+!simply be rho_jj/rho_ii for each excited star).
+
+!Problems include the fact that if the set of excitations from the original star is applied to 
+!excited stars, then at the level of double excitations, of the (N 2)(M 2) excitations, 
+!(N-2 2)(M-2 2) excitations will be real, but the rest will be ficticious, applying annihilation 
+!operators to empty orbitals, and creation operators to filled ones.
+
+!Another problem is scaling: to find all the eigenvalues and eigenvectors of the original matrix 
+!is an (N^2 M^2)^2 operation. Aside from this, the objects from the diagonalised excited stars 
+!have to be attached back to the original star rooted at i, and solved - again potentially an 
+!(N^2 M^2)^2 operation, though this could be reduced by only including the largest excitations 
+!from the excited star, or MC.
+
+!This could be extended to stars with roots in higher excitation space than quadruple excitations, 
+!by simply multiplying the diagonal elements of the original star graph by products of rho_jj 
+!elements. This however will make the final star graph even harder to solve. Resumming in the 
+!contributions from excited stars using this linear approximation is the hope.
+
+        SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
+            USE CALCREAD , only : LinePoints
+            IMPLICIT NONE
+            INTEGER :: i,j,iErr,isub,CSE,NextVertex,iMaxExcit
+            INTEGER :: iExcit,TotExcits
+            REAL*8 :: RhoGap,RhoValue,RhoEps,Rhoia,StarEigens(iExcit+1,2)
+            REAL*8 :: meanx,Sxx
+
+!LineRhoValues gives the values of the diagonal elements multiplicative constant, over which the gradient of the linear approximation will be calculated.
+            REAL*8, ALLOCATABLE :: LineRhoValues(:)
+
+!VecsDODMS is the array to hold the first elements of the eigenvectors from the diagonalisation of 
+!the star matrix with different multiplicative factors down its diagonal. 'Vectors from 
+!Diagonalisation Of Diagonally Multiplied Stars'. ValsDODMS is the same to hold the eigenvalues.
+            REAL*8, ALLOCATABLE :: VecsDODMS(:,:)
+            REAL*8, ALLOCATABLE :: ValsDODMS(:,:)
+
+!NewDiagRhos holds the diagonal rho elements after they have been multiplied by the constant
+            REAL*8, ALLOCATABLE :: NewDiagRhos(:)
+
+!These arrays hold various data for calculating the gradient, and R^2 value for the linear approximation for each eigenvalue & vector.
+            REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:),IncptVecs(:),SxyVals(:),SxyVecs(:)
+            REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
+
+            CALL TISET('GetStarStars',iSub)
+            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
+            WRITE(6,*) "Stars of double excitations to be included in calculation using a linear approximation of eigenvalues"
+            WRITE(6,*) iExcit*(iExcit+1)," possible extra excitations"
+            
+!First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
+            CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
+
+            WRITE(6,*) "Total number of points from which to form linear approximation = ", LinePoints
+
+!Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, and the first element of the eigenvectors.
+!Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear approximation can be calculated.
+            ALLOCATE(LineRhoValues(LinePoints))
+
+!Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
+            IF((ABS(DREAL(ExcitInfo(0,0))-1.D0)).gt.1.D-07) THEN
+                STOP 'First element of original star matrix should equal 1.D0'
+            ENDIF
+            LineRhoValues(1)=1.D0
+
+!ExcitInfo(iExcit,0) is the smallest rho_jj value.
+            WRITE(6,*) "Smallest rho_jj value is ", DREAL(ExcitInfo(iExcit,0))
+            RhoGap=(1.D0-DREAL(ExcitInfo(iExcit,0)))/(LinePoints-1)
+
+!Calculate the spread of Rho_jj values which the linear approximation will be based around. Initially, this is just a linear spread.
+            do i=2,LinePoints
+                LineRhoValues(i)=LineRhoValues(i-1)-RhoGap
+            enddo
+
+!LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
+            IF(ABS(LineRhoValues(LinePoints)-DREAL(ExcitInfo(iExcit,0))).gt.1.D-07) THEN
+                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
+            ENDIF
+
+!The values for the calculated eigenvectors (first elements) and eigenvalues for the 'LinePoints' points are put into ValsDODMS and VecsDODMS respectivly.
+            ALLOCATE(ValsDODMS(LinePoints,(iExcit+1)),stat=ierr)
+            CALL MemAlloc(iErr,ValsDODMS,(iExcit+1)*LinePoints,"ValsDODMS")
+            ALLOCATE(VecsDODMS(Linepoints,(iExcit+1)),stat=ierr)
+            CALL MemAlloc(iErr,VecsDODMS,(iExcit+1)*LinePoints,"VecsDODMS")
+            ALLOCATE(NewDiagRhos(iExcit+1),stat=ierr)
+            CALL MemAlloc(iErr,NewDiagRhos,iExcit+1,"NewDiagRhos")
+
+!Cycle through all the diagonal multiplicative factors to look at to find gradients
+            do i=1,LinePoints
+
+                RhoValue=LineRhoValues(i)
+
+!Multiply the diagonal elements by the value of rho_jj we want                
+                do j=1,iExcit+1
+                    IF(DREAL(ExcitInfo(j-1,0)).lt.0.8) THEN
+                        STOP 'rho_jj value too small, or incorrect for linear approximation'
+                    ENDIF
+                    NewDiagRhos(j)=DREAL(ExcitInfo(j-1,0))*RhoValue
+                enddo
+
+!Find the values for eigenvalues and eigenvectors of this matrix, and put them into the relevant ValsDODMS and VecsDODMS
+                CALL GetValsnVecs(iExcit+1,NewDiagRhos,ExcitInfo(1:iExcit,1),ValsDODMS(i,:),VecsDODMS(i,:))
+
+            enddo
+
+            CALL MemDealloc(NewDiagRhos)
+            DEALLOCATE(NewDiagRhos)
+
+!Store the eigenvalues and first element of the eigenvectors of the original star matrix for later use.
+            do i=1,iExcit+1
+
+                StarEigens(i,1)=ValsDODMS(1,i)
+                StarEigens(i,2)=VecsDODMS(1,i)
+
+            enddo
+
+!Use linear regression technique to find the best-fit gradient for the line for each eigenvalue & vector
+
+!Mean x value is simply the average of the multiplicative constants, and is the same for all eigenvalues and vectors
+            meanx=0.D0
+            do i=1,LinePoints
+                meanx=meanx+LineRhoValues(i)
+            enddo
+            meanx=meanx/LinePoints
+
+!Need to calculate the average for each eigenvalue & vector
+            ALLOCATE(MeanVecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,MeanVecs,iExcit+1,"MeanVecs")
+            CALL AZZERO(MeanVecs,iExcit+1)
+            ALLOCATE(MeanVals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,MeanVals,iExcit+1,"MeanVals")
+            CALL AZZERO(MeanVals,iExcit+1)
+
+            do i=1,iExcit+1
+                do j=1,LinePoints
+
+                    MeanVals(i)=MeanVals(i)+ValsDODMS(j,i)
+                    MeanVecs(i)=MeanVecs(i)+VecsDODMS(j,i)
+
+                enddo
+                MeanVals(i)=MeanVals(i)/LinePoints
+                MeanVecs(i)=MeanVecs(i)/LinePoints
+            enddo
+
+!Calculate Sxx - this is the same for all eigenvector/values
+            Sxx=0.D0
+            do i=1,LinePoints
+                Sxx=Sxx+(LineRhoValues(i)-meanx)*(LineRhoValues(i)-meanx)
+            enddo
+
+!Calculate Sxy and Syy (to calculate R^2) for each eigenvalue/vector.
+!Sxy = \sum{(x_i - X)(y_i - Y) where X and Y are the means of x and y respectivly
+
+            ALLOCATE(SxyVals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,SxyVals,iExcit+1,"SxyVals")
+            CALL AZZERO(SxyVals,iExcit+1)
+            ALLOCATE(SxyVecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,SxyVecs,iExcit+1,"SxyVecs")
+            CALL AZZERO(SxyVecs,iExcit+1)
+            ALLOCATE(SyyVals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,SyyVals,iExcit+1,"SyyVals")
+            CALL AZZERO(SyyVals,iExcit+1)
+            ALLOCATE(SyyVecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,SyyVecs,iExcit+1,"SyyVecs")
+            CALL AZZERO(SyyVecs,iExcit+1)
+
+            do i=1,iExcit+1
+                do j=1,LinePoints
+
+                    SxyVals(i)=SxyVals(i)+(LineRhoValues(j)-meanx)*(ValsDODMS(j,i)-MeanVals(i))
+                    SxyVecs(i)=SxyVecs(i)+(LineRhoValues(j)-meanx)*(VecsDODMS(j,i)-MeanVecs(i))
+                    SyyVals(i)=SyyVals(i)+(ValsDODMS(j,i)-MeanVals(i))*(ValsDODMS(j,i)-MeanVals(i))
+                    SyyVecs(i)=SyyVecs(i)+(VecsDODMS(j,i)-MeanVecs(i))*(VecsDODMS(j,i)-MeanVecs(i))
+
+                enddo
+            enddo
+
+!Now, the best-fit gradients can be calculated for each of the eigenvalues/vector - the gradient for each one is Sxy/Sxx.
+!y-intercepts also calculated for use when calculating R^2 value.
+
+            ALLOCATE(GradVals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,GradVals,iExcit+1,"GradVals")
+            CALL AZZERO(GradVals,iExcit+1)
+            ALLOCATE(GradVecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,GradVecs,iExcit+1,"GradVecs")
+            CALL AZZERO(GradVecs,iExcit+1)
+            ALLOCATE(IncptVals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,IncptVals,iExcit+1,"IncptVals")
+            CALL AZZERO(IncptVals,iExcit+1)
+            ALLOCATE(IncptVecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,IncptVecs,iExcit+1,"IncptVecs")
+            CALL AZZERO(IncptVecs,iExcit+1)
+
+            do i=1,iExcit+1
+                
+                GradVals(i)=SxyVals(i)/Sxx
+                GradVecs(i)=SxyVecs(i)/Sxx
+                IncptVals(i)=MeanVals(i)-GradVals(i)*meanx
+                IncptVecs(i)=IncptVecs(i)-GradVecs(i)*meanx
+
+            enddo
+
+!To calculate the R^2 value for the linear regression, also need to calculate \sum{(y_i - Y)^2} - the expected y value from the gradient calculation at each point
+
+            ALLOCATE(ExpctVals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,ExpctVals,iExcit+1,"ExpctVals")
+            CALL AZZERO(ExpctVals,iExcit+1)
+            ALLOCATE(ExpctVecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,ExpctVecs,iExcit+1,"ExpctVecs")
+            CALL AZZERO(ExpctVecs,iExcit+1)
+
+            do i=1,iExcit+1
+                do j=1,LinePoints
+                    
+                    ExpctVals(i)=ExpctVals(i)+(ValsDODMS(j,i)-(IncptVals(i)+GradVals(i)*LineRhoValues(j)))**2
+                    ExpctVecs(i)=ExpctVals(i)+(ValsDODMS(j,i)-(IncptVals(i)+GradVals(i)*LineRhoValues(j)))**2
+
+                enddo
+            enddo
+
+            !Now, calculate R^2 value at for each eigenvalue/vector. This has been quite a time-consuming operation as need to calculate Syy..,Incpt..,Expct.. however,does not increase scaling.
+
+            ALLOCATE(RsqVals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,RsqVals,iExcit+1,"RsqVals")
+            CALL AZZERO(RsqVals,iExcit+1)
+            ALLOCATE(RsqVecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,RsqVecs,iExcit+1,"RsqVecs")
+            CALL AZZERO(RsqVecs,iExcit+1)
+
+            do i=1,iExcit+1
+
+                RsqVals(i)=1.D0-ExpctVals(i)/SyyVals(i)
+                RsqVecs(i)=1.D0-ExpctVecs(i)/SyyVecs(i)
+
+                IF((RsqVals(i).lt.0.9).or.(RsqVecs(i).lt.0.9)) THEN
+                    WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," for eigenvalue/vector : ", i
+                    STOP
+                ELSEIF((RsqVals(i).gt.1.D0).or.(RsqVecs(i).gt.1.D0)) THEN
+                    WRITE(6,*) "Fatal problem in linear approximation, R^2 > 1 : ", RsqVals(i)," for eigenvalue/vector : ", i
+                    STOP
+                ENDIF
+
+            enddo
+
+!Deallocate all memory apart from gradients, which are still needed.
+            CALL MemDealloc(RsqVals)
+            DEALLOCATE(RsqVals)
+            CALL MemDealloc(RsqVecs)
+            DEALLOCATE(RsqVecs)
+            CALL MemDealloc(ExpctVals)
+            DEALLOCATE(ExpctVals)
+            CALL MemDealloc(ExpctVecs)
+            DEALLOCATE(ExpctVecs)
+            CALL MemDealloc(IncptVals)
+            DEALLOCATE(IncptVals)
+            CALL MemDealloc(IncptVecs)
+            DEALLOCATE(IncptVecs)
+            CALL MemDealloc(SxyVals)
+            DEALLOCATE(SxyVals)
+            CALL MemDealloc(SxyVecs)
+            DEALLOCATE(SxyVecs)
+            CALL MemDealloc(SyyVals)
+            DEALLOCATE(SyyVals)
+            CALL MemDealloc(SyyVecs)
+            DEALLOCATE(SyyVecs)
+            CALL MemDealloc(MeanVecs)
+            DEALLOCATE(MeanVecs)
+            CALL MemDealloc(MeanVals)
+            DEALLOCATE(MeanVals)
+            CALL MemDealloc(ValsDODMS)
+            DEALLOCATE(ValsDODMS)
+            CALL MemDealloc(VecsDODMS)
+            DEALLOCATE(VecsDODMS)
+            DEALLOCATE(LineRhoValues)
+
+!Count all diagonalised eigenvectors from excited stars which are attached back to the root.
+!The offdiagonal elements from the HF root to the spokes of each excited determinant, a,  with root at j, are given by rho_ij * <j|a>
+!Since <j|a> is linearly related to <i|j> with the gradient calculated above, no more diagonalisations need to be performed.
+!Cycle through all excitations of the root, and then all diagonalised eigenvectors of a star from each excitation.
+!Taking the original star matrix eigenvectors, with rho_jj=1, and using the calculated gradient, the off diagonal element to any of these eigenvectors from the HF root can be calculated.
+
+            CSE=0
+            do i=1,iExcit
+                do j=1,iExcit+1
+
+                    rhoia=(ExcitInfo(i,1)%v)*(GradVecs(j)*((ExcitInfo(i,0)%v)-1.D0)+StarEigens(j,2))
+                    IF(rhoia.gt.RhoEps) CSE=CSE+1 
+
+                enddo
+            enddo
+
+            WRITE(6,*) "There are ", CSE," extra excitations, from the inclusion of stars of all double excitations"
+
+!Allocate memory to hold all excitations - including original star
+
+            TotExcits=iExcit+CSE
+            ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
+            CALL MemAlloc(iErr,ExcitInfo2,(TotExcits+1)*3*HElementSize,"ExcitInfo2")
+            CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
+
+!Fill original star matrix
+            
+            do i=0,iExcit
+
+                ExcitInfo2(i,0)=ExcitInfo(i,0)
+                ExcitInfo2(i,1)=ExcitInfo(i,1)
+                ExcitInfo2(i,2)=ExcitInfo(i,2)
+
+            enddo
+
+!Add contributions from excited stars - offdiagonal elements as above - diagonal elements are linearly scaled eigenvalues, and the Hamiltonian elements are similarly scaled.
+
+            NextVertex=iExcit+1
+
+            do i=1,iExcit
+                do j=1,iExcit+1
+
+                    rhoia=(ExcitInfo(i,1)%v)*(GradVecs(j)*((ExcitInfo(i,0)%v)-1.D0)+StarEigens(j,2))
+                    IF(rhoia.gt.RhoEps) THEN
+                        ExcitInfo2(NextVertex,1)=HElement(rhoia)
+                        ExcitInfo2(NextVertex,0)=HElement(GradVals(j))*(ExcitInfo(i,0)-HElement(1.D0))+HElement(StarEigens(j,1))
+                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*(HElement(GradVecs(j))*(ExcitInfo(i,0)-HElement(1.D0))+HElement(StarEigens(j,2)))
+                        NextVertex=NextVertex+1
+                    ENDIF
+
+                enddo
+            enddo
+
+            IF(NextVertex.ne.(TotExcits+1)) STOP 'Incorrect Counting in GetStarStars'
+
+!Return with the new information.
+            iExcit=TotExcits
+            ExcitInfo => ExcitInfo2
+
+            CALL TIHALT('GetStarStars',iSub)
+
+            RETURN
+        END SUBROUTINE GetStarStars
+                
+!This subroutine simply forms a star matrix, diagonalises it, and returns the eigenvalues and first elements of the eigenvectors.
+        SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
+            IMPLICIT NONE
+            REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
+            INTEGER :: Dimen,i,INFO,iErr
+            TYPE(HElement) :: OffDiagRhos(2:Dimen)
+            REAL*8, ALLOCATABLE :: StarMat(:,:),WLIST(:),WORK(:)
+
+!Construct matrix - remember that the first element of OffDiagRhos now is the first offdiagonal element for the excitation, not root.
+!For ease, this diagonalisation is to be done initially with DSYEV, though it is possible to reduce the scaling to N^2 rather than N^3
+
+                ALLOCATE(StarMat(Dimen,Dimen),stat=iErr)
+                CALL MemAlloc(iErr,StarMat,Dimen*Dimen,"StarMat")
+                CALL AZZERO(StarMat,Dimen*Dimen)
+
+                do i=2,Dimen
+                    StarMat(i,i)=OffDiagRhos(i)%v
+                    StarMat(1,i)=DiagRhos(i)
+                enddo
+                StarMat(1,1)=DiagRhos(1)
+
+                ALLOCATE(WORK(3*Dimen),stat=iErr)
+                CALL MemAlloc(iErr,WORK,Dimen*3,"WORK")
+                CALL AZZERO(WORK,Dimen*3)
+
+                CALL DSYEV('V','U',Dimen,StarMat,Dimen,Vals,WORK,3*Dimen,INFO)
+                IF(INFO.ne.0) THEN
+                    WRITE(6,*) "DYSEV error in GetValsnVecs: ",INFO
+                    STOP
+                ENDIF
+
+!Store first elements of eigenvectors in 'Vecs'
+!The Absolute value of the first element of the eigenvectors is taken - this *should* be ok, since the eigenvectors can always be multiplied by -1 without changing the validity of them.
+                do i=1,Dimen
+                    Vecs(i)=ABS(StarMat(1,i))
+                enddo
+
+                CALL MemDealloc(StarMat)
+                Deallocate(StarMat)
+                CALL MemDealloc(WORK)
+                Deallocate(Work)
+
+            RETURN
+        END SUBROUTINE GetValsnVecs
+
+
+         SUBROUTINE GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
+            USE INTREAD , only : TCalcRealProd,TCalcRhoProd,TSumProd
+            IMPLICIT NONE
+            INCLUDE 'basis.inc'
+            INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasisMax(*),Brr(nBasis),nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl),nj(nEl),nk(nEl),nl(nEl)
+            COMPLEX*16 fck(*)
+            TYPE(HElement) UMat(*),rh,rhii
+            TYPE(BasisFN) G1(*)
+            REAL*8 :: Beta,ALat(3),ECore
+
+!TCalcRealProd explicitly calculates 'real' quadruple product excitations i.e. neither of the two 'from' or 'to' orbitals are the same in the two excitations from which the product excitation is composed.
+!Once found, these can be used in different ways - either they can be explicitly added to the original star graph, or they try to be resummed in to the original graph (TSumProd). 
+             IF(TCalcRealProd.and.TSumProd) THEN
+!TSumProd tries to find a way to resum the product excitations into the double excitations already available in the star graph.
+
+                rhiiadd=0.D0
+                ALLOCATE(Offrho(iExcit),stat=iErr)
+                CALL MemAlloc(iErr,Offrho,iExcit*HElementSize,"OffRho")
+
+!   Temporarily fill Offrho with the original off-diagonal rho elements, which can be used in countprodexcits, since the rhoelements in EXCITINFO are modified in the routine.
+                DO I=1,iExcit
+                    Offrho(I)=ExcitInfo(I,1)
+                ENDDO
+
+                !This routine finds all real quadruple excitations which are products of double excitations, add resums values from these.
+                CALL CountProdExcits(ProdNum,.FALSE.,iExcit,UniqProd)
+                WRITE(6,*) ProdNum, "product excitations found, and summed in..."
+                Call MemDealloc(Offrho)
+                DEALLOCATE(Offrho)
+                
+                IF(ProdNum.gt.0) THEN
+                    WRITE(6,*) "Sum of product diagonal rho elements is ", rhiiadd
+                    WRITE(6,*) "Number of unique products is ", UniqProd
+!                    rhiiadd=(rhiiadd%v+DREAL(UniqProd))/(2*UniqProd)
+!   rhiiadd now in divided by the number of product excitations we are resumming in, to give an average value for the diagonal rho elements for the quadruple product excitations.
+                    rhiiadd=rhiiadd/ProdNum
+!                    ExcitInfo(0,0)=rhiiadd
+!                    ExcitInfo(0,1)=rhiiadd
+!   The resummed values for the diagonal elements of the product excitations are added to the root
+                    ExcitInfo(0,0)=ExcitInfo(0,0)+rhiiadd
+                    ExcitInfo(0,1)=ExcitInfo(0,1)+rhiiadd
+                    WRITE(6,*) "New root is now ",ExcitInfo(0,0) 
+                ELSE
+                    IF(rhiiadd.agt.(0.D0)) STOP 'rhiiadd should be zero as no products'
+                ENDIF
+            ENDIF
+
+!This calculates all real product excitations, and attaches them explicitly to the double excitations from which they are derived
+            IF(TCalcRealProd.and.(.NOT.TSumProd)) THEN
+
+!Call twice - once to calculate number of products, so can allocate memory, then store products
+                CALL CountProdExcits(ProdNum,.FALSE.,iExcit,UniqProd)
+                WRITE(6,*) ProdNum, "product excitations found - allocating memory..."
+                ALLOCATE(ProdPositions(2,ProdNum),stat=iErr)
+                CALL MemAlloc(iErr,ProdPositions,ProdNum,"EXCITSTORE")
+!Prodpositions stores the position of the two excitations in EXCITSTORE which give rise to a real product excitation
+                CALL CountProdExcits(ProdNum,.TRUE.,iExcit,UniqProd)
+             
+!Allocate memory for on diagonal rho elements of product excitations, and 2 x offdiagonal elements
+                ALLOCATE(OnDiagProdRho(ProdNum),stat=ierr)
+                CALL MemAlloc(ierr,OnDiagProdRho,ProdNum,"OnDiagProdRho")
+                ALLOCATE(OffDiagProdRho(2,ProdNum),stat=ierr)
+                CALL MemAlloc(ierr,OffDiagProdRho,2*ProdNum,"OffDiagProdRho")
+
+                DO I=1,ProdNum
+!Approximate on-diag elements as product of consituent excits (exact for FPLD)(remember, they are divided by rhoii^2)
+                    OnDiagProdRho(I)=DREAL(ExcitInfo(ProdPositions(1,I),0)*ExcitInfo(ProdPositions(2,I),0))
+
+                    IF(TCalcRhoProd) THEN
+                        IF(I.eq.1) WRITE(6,*) "Calculating off-diagonal rho elements for product excitations exactly"
+!This calculates the exact rho elements between the product excitation, and the constituent determinants
+                        prodorbs(1:2)=EXCITSTORE(1:2,ProdPositions(1,I))
+                        prodorbs(3:4)=EXCITSTORE(1:2,ProdPositions(2,I))
+                        prodorbs(5:6)=EXCITSTORE(3:4,ProdPositions(1,I))
+                        prodorbs(7:8)=EXCITSTORE(3:4,ProdPositions(2,I))
+                        CALL GetFullPath(nI,nEl,4,prodorbs,nJ)
+                        CALL GetFullPath(nI,nEl,2,EXCITSTORE(:,ProdPositions(1,I)),nK)
+                        CALL GetFullPath(nI,nEl,2,EXCITSTORE(:,ProdPositions(2,I)),nL)
+!nJ is now the product IPATH, and nK and nL the two consituent determinants
+                        CALL CalcRho2(nK,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                        OffDiagProdRho(1,I)=DREAL(rh/rhii)
+                        CALL CalcRho2(nL,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
+                        OffDiagProdRho(2,I)=DREAL(rh/rhii)
+                    ELSE
+                        IF(I.eq.1) WRITE(6,*) "Approximating off-diagonal elements for product excitations"
+!Approximate the off-diag rho elements between product excitation and constituent determinant as being equal to the rho element between the root and other constituent determinant.
+                        OffDiagProdRho(1,I)=ExcitInfo(ProdPositions(2,I),1)%v
+                        OffDiagProdRho(2,I)=ExcitInfo(ProdPositions(1,I),1)%v
+                    ENDIF
+                ENDDO
+            ENDIF
+
+        RETURN
+
+        END SUBROUTINE GetStarProds
+
+
+!      ! This routine finds all "unique" product excitations of the star
+!      SUBROUTINE COUNTUNIQPRODEXCITS(iMaxExcit,ProdNum,iExcit,nouniqprod,countprods)
+!        IMPLICIT NONE
+!        INTEGER iMaxExcit,ProdNum
+!        INTEGER iExcit,I,J
+!        INTEGER countprods,nouniqprod,tempprodfrom(4),tempprodto(4),ierr,k
+!        LOGICAL UNIQPROD
+!        INTEGER, ALLOCATABLE :: UNIQPRODS(:,:)
+!!        INTEGER, POINTER :: tempprods(:,:)
+!
+!        !Space allocated to store the excitations of the unique products, so we can search through them to ensure they are not being duplicated
+!        ALLOCATE(UNIQPRODS(8,(iExcit*(iExcit-1)/2)),stat=ierr)
+!        CALL MemAlloc(ierr,UNIQPRODS,iExcit*(iExcit-1)*2,"UNIQPRODSALL")
+!        
+!        countprods=0
+!        nouniqprod=0
+!        DO I=1,iExcit
+!            DO J=(I+1),iExcit
+!                UNIQPROD=.TRUE.
+!                ! Again, the criteria for a product excitation are that none of the "ij" or "ab" orbitals match in the constituent excitations
+!                IF((EXCITSTORE(1,I).NE.EXCITSTORE(1,J)).AND.(EXCITSTORE(1,I).NE.EXCITSTORE(2,J))                   &
+!                .AND.(EXCITSTORE(2,I).NE.EXCITSTORE(2,J)).AND.(EXCITSTORE(2,I).NE.EXCITSTORE(1,J))) THEN
+!                    IF((EXCITSTORE(3,I).NE.EXCITSTORE(3,J)).AND.(EXCITSTORE(3,I).NE.EXCITSTORE(4,J))               &
+!                    .AND.(EXCITSTORE(4,I).NE.EXCITSTORE(3,J)).AND.(EXCITSTORE(4,I).NE.EXCITSTORE(4,J))) THEN
+!                
+!                        countprods=countprods+1
+!                        tempprodfrom(1:2)=EXCITSTORE(1:2,I)
+!                        tempprodfrom(3:4)=EXCITSTORE(1:2,J)
+!                        tempprodto(1:2)=EXCITSTORE(3:4,I)
+!                        tempprodto(3:4)=EXCITSTORE(3:4,J)
+!                        CALL SORTI(4,tempprodfrom(:))
+!                        CALL SORTI(4,tempprodto(:))
+!                        !Cycle through other stored products to see if unique
+!                        DO K=1,nouniqprod
+!                            !Test if unique
+!                            IF((tempprodfrom(1).eq.UNIQPRODS(1,K)).AND.(tempprodfrom(2).eq.UNIQPRODS(2,K)).AND.     &
+!                                (tempprodfrom(3).eq.UNIQPRODS(3,K)).AND.(tempprodfrom(4).eq.UNIQPRODS(4,K))) THEN
+!                                IF((tempprodto(1).eq.UNIQPRODS(5,K)).AND.(tempprodto(2).eq.UNIQPRODS(6,K)).AND.     &
+!                                    (tempprodto(3).eq.UNIQPRODS(7,K)).AND.(tempprodto(4).eq.UNIQPRODS(8,K))) THEN
+!                                    UNIQPROD=.FALSE.
+!                                    !Sum in off-diagonal contribution from another way to get same product
+!                                    QUADRHOS(2,K)=QUADRHOS(2,K)+(ExcitInfo(I,1)*ExcitInfo(J,1))/(ExcitInfo(I,1)+ExcitInfo(J,1))
+!                                    !If the excitation is found, then exit loop
+!                                    EXIT
+!                                ENDIF
+!                            ENDIF
+!                        ENDDO
+!                        IF(UNIQPROD) THEN
+!!                            WRITE(67,*) "Unique Product Excitation: ", I,J
+!!                            WRITE(67,*) "Diagonal element is: ", ExcitInfo(I,0)*ExcitInfo(J,0)
+!!                           If the product is unique, then count it, and store its information in QUADRHOS
+!                            nouniqprod=nouniqprod+1
+!                            UNIQPRODS(1:4,nouniqprod)=tempprodfrom(:)
+!                            UNIQPRODS(5:8,nouniqprod)=tempprodto(:)
+!                            QUADRHOS(1,nouniqprod)=ExcitInfo(I,0)*ExcitInfo(J,0)
+!                            QUADRHOS(2,nouniqprod)=(ExcitInfo(I,1)*ExcitInfo(J,1))/(ExcitInfo(I,1)+ExcitInfo(J,1))
+!                            !Let hamiltonian elements to these excitations = 0
+!                            QUADRHOS(3,nouniqprod)=0.D0
+!                        ENDIF
+!                    ENDIF
+!                ENDIF
+!            ENDDO
+!        ENDDO
+!        CALL MemDealloc(UNIQPRODS)
+!        DEALLOCATE(UNIQPRODS)
+!        
+!        ProdNum=countprods
+!      
+!      END
                         
 
-      SUBROUTINE COUNTPRODEXCITS(iMaxExcit,prodnum,setup,iExcit,rhoelem,rhiiadd,uniqprod)
-        USE INTREAD , only : TSUMPROD
+      SUBROUTINE CountProdExcits(ProdNum,setup,iExcit,UniqProd)
+        USE INTREAD , only : TSumProd
         IMPLICIT NONE
-        INTEGER iMaxExcit,prodnum!,prodpositions(2,length),EXCITSTORE(4,iMaxExcit),
+        INTEGER ProdNum!,ProdPositions(2,length),EXCITSTORE(4,iMaxExcit),
         INTEGER iExcit,I,J
-!        Type(HElement) :: ExcitInfo(0:iMaxExcit,0:2),OffRho(rhoelem),
-        Type(Helement) rhiiadd
-        INTEGER countprods,rhoelem,uniqprod!,length
+        INTEGER countprods,UniqProd
         LOGICAL setup,FIRST
 
         countprods=0
-        uniqprod=0
+        UniqProd=0
         rhiiadd=0.D0
         !Cycle through all unique excitation products
         DO I=1,iExcit
@@ -492,10 +888,10 @@
      
                     IF(setup) THEN
                         !record the number of the two original excitations which create the product
-                        prodpositions(1,countprods)=I
-                        prodpositions(2,countprods)=J
+                        ProdPositions(1,countprods)=I
+                        ProdPositions(2,countprods)=J
                     ENDIF
-                    IF(TSUMPROD) THEN
+                    IF(TSumProd) THEN
                         !Add the diagonal rho elements to the quadruple excitation back into the offdiagonal rho elements of the original matrix
                         ExcitInfo(I,1)=ExcitInfo(I,1)+Offrho(J)
                         ExcitInfo(J,1)=ExcitInfo(J,1)+Offrho(I)
@@ -504,7 +900,7 @@
                             !Resum by adding in the product of the diagonal rhoelements from the constituent excitations
                             rhiiadd=rhiiadd+(ExcitInfo(J,0)*ExcitInfo(I,0))
                             !Count the products we are adding in
-                            uniqprod=uniqprod+1
+                            UniqProd=UniqProd+1
                             FIRST=.FALSE.
                         ENDIF
                     ENDIF
@@ -512,7 +908,7 @@
             ENDIF
             ENDDO
         ENDDO
-        IF(.NOT.setup) prodnum=countprods
+        IF(.NOT.setup) ProdNum=countprods
       END
 
       END MODULE
@@ -674,18 +1070,18 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          ENDIF
       END
 
-      SUBROUTINE STARDIAGREALPROD(NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,PRODNUM,EXCITSTORE,prodpositions,ONDIAGPRODRHO,OFFDIAGPRODRHO)
+      SUBROUTINE STARDIAGREALPROD(NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,EXCITSTORE,ProdPositions,OnDiagProdRho,OffDiagProdRho)
          !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
          USE HElement
          IMPLICIT NONE
          INTEGER NEL,I_P
-         INTEGER NLIST,ILMAX,PRODNUM,TOTVERT
+         INTEGER NLIST,ILMAX,ProdNum,TOTVERT
          REAL*8 LIST(ILMAX,0:2)
          REAL*8 RIJMAT(*),WLIST(*)
-         REAL*8 ONDIAGPRODRHO(PRODNUM),OFFDIAGPRODRHO(2,PRODNUM)
+         REAL*8 OnDiagProdRho(ProdNum),OffDiagProdRho(2,ProdNum)
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
          INTEGER ISUB,EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
-         INTEGER WORKL,INFO,ierr,PRODPOSITIONS(2,PRODNUM)
+         INTEGER WORKL,INFO,ierr,ProdPositions(2,ProdNum)
          REAL*8 SI,DLWDB,DBETA,WORK(*)
          INTEGER I,J
          
@@ -695,7 +1091,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          !Is there a need to sort the matrix? If there is, we have problems!
          !CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
          
-         TOTVERT=NLIST+PRODNUM
+         TOTVERT=NLIST+ProdNum
          CALL MEMORY(IP_RIJMAT,TOTVERT*TOTVERT,"RIJMAT")
          CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
         
@@ -705,9 +1101,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                 RIJMAT(I)=LIST(I,1)
                 RIJMAT((I-1)*TOTVERT+I)=LIST(I,0)
             ELSE
-                RIJMAT((PRODPOSITIONS(1,I-NLIST)*TOTVERT)+I)=OFFDIAGPRODRHO(1,I-NLIST)
-                RIJMAT((PRODPOSITIONS(2,I-NLIST)*TOTVERT)+I)=OFFDIAGPRODRHO(2,I-NLIST)
-                RIJMAT((I-1)*(TOTVERT)+I)=ONDIAGPRODRHO(I-NLIST)
+                RIJMAT((ProdPositions(1,I-NLIST)*TOTVERT)+I)=OffDiagProdRho(1,I-NLIST)
+                RIJMAT((ProdPositions(2,I-NLIST)*TOTVERT)+I)=OffDiagProdRho(2,I-NLIST)
+                RIJMAT((I-1)*(TOTVERT)+I)=OnDiagProdRho(I-NLIST)
             ENDIF
          ENDDO
 
@@ -717,8 +1113,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !            WRITE(68,"A,I3,A,2E14.6,4I4") "EXCITATION ",I-1," - RHOII, RHOIJ, IPATH: ",LIST(I,0),LIST(I,1),EXCITSTORE(:,I-1)
 !         ENDDO
 !         
-!         DO I=1,PRODNUM
-!            WRITE(68,"A,I3,A,I3,I3") "PRODUCT EXCITATION ",I," FORMED FROM EXCITATIONS ", PRODPOSITIONS(1,I),PRODPOSITIONS(2,I)
+!         DO I=1,ProdNum
+!            WRITE(68,"A,I3,A,I3,I3") "PRODUCT EXCITATION ",I," FORMED FROM EXCITATIONS ", ProdPositions(1,I),ProdPositions(2,I)
 !            WRITE(68,*) ""
 !         ENDDO
 !         
@@ -893,7 +1289,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElement
-         USE INTREAD , only : TCALCREALPROD
+         USE INTREAD , only : TCalcRealProd
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -964,7 +1360,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !         ENDDO
 
 !Divide through by largest eigenvalue to prevent blowing up in some cases
-         IF(TCALCREALPROD) THEN
+         IF(TCalcRealProd) THEN
             DO I=1,NLIST
                 WLIST(I)=WLIST(I)/WLIST(NLIST)
             ENDDO

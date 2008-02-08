@@ -4,10 +4,42 @@
         USE sysread , only : defaults,Feb08
         IMPLICIT NONE
 
-        LOGICAL TPREVAR,PRE_TAYLOG(6,10),TLINEVAR(2:10),TGRIDVAR(2:10)
+!TPREVAR is set to true when the precalc routines have yet to run.
+        LOGICAL TPREVAR
+
+!PRE_TAYLOG(1,precalc_vertex_level)='use' those sets of optimised parameters
+!PRE_TAYLOG(2,...)=Does the 'c' (matrix element) parameter want to be optimised?
+!PRE_TAYLOG(3,...)=Does the 'importance' parameter want to be optimised?
+!PRE_TAYLOG(4,...)=Does the 'importance' parameter want to be used?
+!PRE_TAYLOG(5,...)=Does the 'd' (inverse energy change) parameter want to be optimised?
+!PRE_TAYLOG(6,...)=Does the 'd' parameter want to be used?
+        LOGICAL PRE_TAYLOG(6,10)
+
+!TLINEVAR/GRIDVAR will create a surface of expected variances for the vertex levels indicated for 1D/2D probability distributions respectivly
+        LOGICAL TLINEVAR(2:10),TGRIDVAR(2:10)
+
+!MEMSAV will hold the excitations for MC-Precalc in memory for that vertex level - memory/speed trade-off
         LOGICAL MEMSAV(2:10)
-        INTEGER PREIV_MAX,PRE_TAY(3,10),TRUECYCLES,USEVAR(2:10,8)
+
+!PRE_TAY(1,...)=The method to use for the precalc at that vertex level
+!PRE_TAY(2,...)=The number of cycles to use for MC-precalc optimisation at that level
+!PRE_TAY(3,...)=The precalc vertex level
+!PREIV_MAX = The largest vertex level to be optimised in precalc
+        INTEGER PREIV_MAX,PRE_TAY(3,10)
+        
+!TRUECYCLES are the cycles needed in the main program to achieve an error specified by TOTALERROR
+        INTEGER TRUECYCLES
+        
+!USEVAR indicates which precalc optimised values at each vertex level are to be used for each vertex level in the main program.
+        INTEGER USEVAR(2:10,8)
+
+!PRE_TAYREAL(1,...)= 'c epsilon' - if the difference between the optimised 'c' parameter and 0.D0 is less than this, then just set it to zero.
+!PRE_TAYREAL(2,...) is the tolerance for convergence onto an optimised parameter in terms of the change in the brent algorithm for the parameter for each iteration.
+!TOTALERROR is a specified desired error in the main program, from which the number of cycles needed will be approximated.
+!PREWEIGHTEPS means a graph will be discarded in the MC-precalc if its weight is less than this.
         REAL*8 PRE_TAYREAL(2,10),TOTALERROR,PREWEIGHTEPS
+
+!GRID/LINEVARPAR gives the parameters for the search when TGRID/LINEVAR is set.
         REAL*8 GRIDVARPAR(2:10,6),LINEVARPAR(2:10,6)
 
         contains

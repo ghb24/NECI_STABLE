@@ -5,7 +5,7 @@
         IMPLICIT NONE
 
         LOGICAL TQUADRHO,TEXPRHO,THFBASIS,THFCALC,TCALCREALPROD
-        LOGICAL TRHF,TReadTUMat,TReadHF,TQUASIEXCIT
+        LOGICAL TRHF,TReadTUMat,TReadHF
         LOGICAL TSUMPROD,TCALCRHOPROD,TDISCONODES
         
         INTEGER NTAY(2),nHFit,NFROZEN,NTFROZEN,ORBORDER(8,2)
@@ -89,8 +89,6 @@
                 call report(trim(w)//" will not work unless "           &
      &          //"USEBRILLOUINTHEOREM set",.true.)
               ENDIF
-          case("QUADEXCITSTAR")
-              TQUASIEXCIT=.TRUE.
           case("CALCRHOPROD")
               TCALCRHOPROD=.TRUE.
           case("SUMPRODII")
