@@ -1,7 +1,7 @@
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,
      &                     NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NDET,LENHAMIL
          INTEGER NROW(NDET),LAB(*)

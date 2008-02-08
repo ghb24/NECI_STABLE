@@ -13,7 +13,7 @@ C.. NMAX has ARR hidden in it.
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
-         USE HElement
+         USE HElem
          USE MCStats
          USE CALCREAD , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
@@ -1799,7 +1799,7 @@ C.. weight.
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
-         USE HElement
+         USE HElem
          USE PRECALCREAD , only : TPREVAR
          USE CALCREAD , only : TMPTHEORY,TMCDIRECTSUM
          IMPLICIT NONE
@@ -2025,7 +2025,7 @@ C.. Unbias the sum
      &   PVERTMEMS2)
          USE CALCREAD , only : G_VMC_PI
          USE PRECALCREAD , only : TPREVAR
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)

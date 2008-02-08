@@ -61,7 +61,7 @@ C..
 C ==----------------------------------------------------------------==   
       SUBROUTINE WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,
      &	NBASISMAX,NEL,CK,W)
-      USE HElement
+      USE HElem
       IMPLICIT NONE
       INTEGER NBASISMAX(5,2)
 C..
@@ -88,7 +88,7 @@ C..
 
       SUBROUTINE WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,
      &	NBASISMAX,NEL,CK,W)
-      USE HElement
+      USE HElem
       IMPLICIT NONE
       INTEGER NBASISMAX(5,2)
 C..

@@ -4,7 +4,7 @@
 !Current scaling is N^12 if the final star is explicitly diagonalised, or N^8 if it is done solving the polynomial (to do!).
 
     MODULE NODEDIAG
-      USE HElement
+      USE HElem
       IMPLICIT NONE
 
 !Stores the excitations by their {a,b} value, according to which {i,j} family they are under.

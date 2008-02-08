@@ -1,7 +1,7 @@
 C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE CALCHFTMAT(NBASIS,HFBASIS,NORBUSED)
-        USE HElement
+        USE HElem
         USE UMatCache , only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
@@ -29,7 +29,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE READHFTMAT(NBASIS,HFBASIS)
-         USE HElement
+         USE HElem
          USE UMatCache , only : TMAT2D2
          IMPLICIT NONE
          INTEGER NBASIS
@@ -508,7 +508,7 @@ C.. vector
       SUBROUTINE GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
      &                  TRHF)
          USE UMatCache , only : UMatInd, GetTMATEl
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,NBASISMAX(5,2)
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
@@ -560,7 +560,7 @@ C.. Now sum in the alpha and beta block of u matrix
       SUBROUTINE DIAGFMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,HFES,WORK,
      &         ECORE,ECUR)
          USE UMatCache , only : GetTMatEl
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
          REAL*8 HFES(NSBASIS,NSPINS)
@@ -1272,7 +1272,7 @@ C.. TOT now contains dE/dcij, so we store this
       SUBROUTINE CALCDEDCIJ2(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,UMAT,
      &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR,ISS)            
          USE UMatCache , only : UMatInd,GetTMatEl
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          REAL*8 CMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DEDCIJ(NSBASIS,NSBASIS,NSPINS)

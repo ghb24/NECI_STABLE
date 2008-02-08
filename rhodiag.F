@@ -444,7 +444,7 @@ C.. we diagonalize the HIJ elements and work out e^-beta lambda.
 C.. See 1/7/04
       RECURSIVE FUNCTION HDIAG_CPP(HIJ,
      &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
          TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
@@ -568,7 +568,7 @@ C/RII
 C.. See 1/7/04
       RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
      &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
          TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
@@ -739,7 +739,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 !  As rhodiag_cpp, but only deal with this vertex level, and subtract out the two-vertex star contribtion from this vertex level.
       FUNCTION RHODIAG_CPPS2VS(RHOIJ,
      &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
          TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
@@ -842,7 +842,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
 ! As HDIAG_CPP, but return the subtraction out of the 2-vertex star part.
       FUNCTION HDIAG_CPPS2VS(HIJ,
      &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
          TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)

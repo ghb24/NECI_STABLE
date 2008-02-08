@@ -2,7 +2,7 @@
       SUBROUTINE SLTCND(NEL,NBASISMAX,
      &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
      &	NMAX,ALAT,UMat,SUM)
-      USE HElement
+      USE HElem
       USE SYSREAD , only : FCOUL,TEXCH
       IMPLICIT NONE
 C..

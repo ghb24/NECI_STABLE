@@ -167,7 +167,7 @@ C.. set momentum to 0
          RETURN
       END
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
-         USE HElement
+         USE HElem
          USE UMatCache , only : UMatInd,TMatind,TMat2D,TMATSYM,
      &                          TSTARSTORE,UMAT2D,TUMAT2D
          IMPLICIT NONE
@@ -261,7 +261,7 @@ C.. If we've changed the eigenvalues, we write out the basis again
 
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
-         USE HElement
+         USE HElem
          USE UMatCache , only : UMatInd,TMatind,TMat2D,TMATSYM,
      &                          TSTARSTORE,UMAT2D,TUMAT2D
          IMPLICIT NONE

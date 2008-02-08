@@ -8,7 +8,7 @@
 !.. 
 SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
-      USE HElement
+      USE HElem
       USE SYSREAD , only : TSTOREASEXCITATIONS
       IMPLICIT NONE
       TYPE(HElement) UMat(*),RH
@@ -160,7 +160,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !.. We use a crude method and generate all possible 0th, 1st, and 2nd
 !.. excitations of I and of J.  The intersection of these lists is the
 !.. selection of dets we want.
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -215,7 +215,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !  This is just the sum of the Hartree-Fock eigenvalues 
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
       subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,Arr,ALAT,UMat,ECore,hEl)
-         use HElement
+         USE HElem
          use UMatCache
          implicit none
          include 'basis.inc'

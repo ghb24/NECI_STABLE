@@ -1,7 +1,7 @@
 ! lenrec is the number of auxiliary basis functions
 SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use record_handler
-         use HElement
+         USE HElem
          use UMatCache
          implicit none
          integer nEl,nBasisMax(5,3),Len,lMs
@@ -37,7 +37,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       SUBROUTINE ReadDF2EIntegrals(nBasis,nOrbUsed)
          use precision
          use record_handler
-         use HElement
+         USE HElem
          use UMatCache
          implicit none
          parameter C_file='SAV_D____a'
@@ -140,7 +140,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !DFInts(x,yz) is (x|u|yz)
 !DFFitInts(x,y) is (x|u|y)
       SUBROUTINE GetDF2EInt(a,b,c,d,res)
-         use HElement 
+         USE HElem 
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -246,7 +246,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          endif
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
-         USE HElement
+         USE HElem
          USE UMatcache , only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          implicit none
          include 'basis.inc'
@@ -321,7 +321,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !DFFitInts(x,y) is (x|u|y)
 !This is slower but calculates more accurately.
       SUBROUTINE GetDF2EInt2OrderOverlap(a,b,c,d,res)
-         use HElement 
+         USE HElem 
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -345,7 +345,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END
 
       SUBROUTINE GetDF2EInt2OrderCoulomb(a,b,c,d,res)
-         use HElement 
+         USE HElem 
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -368,7 +368,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 !         WRITE(6,*) "D2",a,b,c,d,res,res1,res2,res3
       END
       SUBROUTINE DFCalcInvFitInts(dPower)
-         use HElement
+         USE HElem
          use UMatCache
          implicit none
          Real*8,Pointer :: M(:,:) !(nAuxBasis,nAuxBasis)

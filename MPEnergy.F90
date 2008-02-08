@@ -1,6 +1,6 @@
 !See 5/1/07
 SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
-   USE HElement
+   USE HElem
    USE CALCREAD , only : TMODMPTHEORY,TENPT
    IMPLICIT NONE
    INTEGER iV,nEl,nBasis,iMaxOrder
@@ -88,7 +88,7 @@ END
 ! Vij=<Di|V|Dj>
 ! Fj=<Dj|F|Dj>
 SUBROUTINE CalcVij(Hij,Vij,Fi,E1,iV)
-   USE HElement
+   USE HElem
    IMPLICIT NONE
    TYPE(HElement) Hij(1:iV+1,1:iV+1)
    TYPE(HElement) Vij(1:iV,1:iV)
@@ -106,7 +106,7 @@ END
 !.. Calculate the contribution to the MP2 energy from 
 !.. the determinant making this a 2-v graph.
       SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
-         USE HElement
+         USE HElem
          USE CALCREAD , only : TLADDER
          IMPLICIT NONE
          TYPE(HElement) HIJS(0:2)
@@ -174,7 +174,7 @@ END
 
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl,nBasisMax,UMat,ALat,nBasis,iss,G1)
          use UMatCache, only : GetUMatEl
-         use HElement
+         USE HElem
          implicit none
          include 'basis.inc'
          Type(HElement) hEl,UMat(*)

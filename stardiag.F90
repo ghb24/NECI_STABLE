@@ -1,5 +1,5 @@
     MODULE STARDIAGMOD
-        USE HElement
+        USE HElem
         IMPLICIT NONE
       
 !.. ExcitInfo will contain all the info needed to work out the value of the star
@@ -968,7 +968,7 @@
 !.. This sets up the excitation generators and the memory - using the old excitation generators
 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
                      RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
-         USE HElement      
+         USE HElem      
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
@@ -1050,7 +1050,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !..   This is the heart of the function, called once the excitations are found.
       FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
            RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
-         USE HElement     
+         USE HElem     
          IMPLICIT NONE
          TYPE(HDElement) FMCPR3Star2
          INCLUDE 'basis.inc'
@@ -1122,7 +1122,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
       SUBROUTINE STARDIAGREALPROD(NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,EXCITSTORE,ProdPositions,OnDiagProdRho,OffDiagProdRho)
          !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER NLIST,ILMAX,ProdNum,TOTVERT
@@ -1213,7 +1213,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          
          
       SUBROUTINE STARDIAGSC(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -1338,7 +1338,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                 
       
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         USE HElement
+         USE HElem
          USE INTREAD , only : TCalcRealProd
          IMPLICIT NONE
          INTEGER NEL,I_P
@@ -1461,7 +1461,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
          USE CALCREAD , only : STARCONV
          USE INTREAD , only : TQUADRHO,TEXPRHO
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -1650,7 +1650,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
-         USE HElement      
+         USE HElem      
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)

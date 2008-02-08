@@ -1,6 +1,6 @@
 !Based on umatcache.F, this modulises the umat cache, and retrieval functions.
 MODULE UMatCache
-      USE HElement
+      USE HElem
       IMPLICIT NONE
 ! The cache is stored in UMatCacheData
 !  For real systems, nTypes=1, and we have a single value for each unique ordered pair of ordered pairs (i,k), (j,l)
@@ -1375,7 +1375,7 @@ END MODULE UMatCache
 !   We still need to fill out the space before or after  us if we've been put in the 
 !   middle of a block of duplicates
       SUBROUTINE CACHEUMATEL(A,B,UMATEL,ICACHE,ICACHEI,iType)
-         USE HElement
+         USE HElem
          USE UMatCache
          IMPLICIT NONE
          INTEGER A,B,ICACHE,ICACHEI
@@ -1451,7 +1451,7 @@ END MODULE UMatCache
 !   (i,k)<=(j,l) and i<=k, j<=l.  ICACHE corresponds to the pair (i,j), and
 !   ICACHEI is the index in that cache where the cache should be located.
       LOGICAL FUNCTION GETCACHEDUMATEL(IDI,IDJ,IDK,IDL,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
-         USE HElement
+         USE HElem
          USE UMatCache
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI

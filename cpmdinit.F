@@ -258,7 +258,7 @@ C.. (ab|cd) is the 4-index Coulomb integral between states, i,j,k,l
 C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
-         USE HElement
+         USE HElem
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D,
      &                        TMat2D,tStarStore
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,

@@ -329,7 +329,7 @@ C         SUM2=SUM2-UMAT(ID(I),ID(J),ID(J),ID(I))
 C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
       SUBROUTINE GETTRUMATEL(A,B,C,D,UMAT,NBASISMAX,NHG,BTRANS,NSBASIS,
      &            NSPINS,ISS,SUM)
-         USE HElement
+         USE HElem
          USE UMatCache , Only : GetUMatEl
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -389,7 +389,7 @@ C     &                  UMAT(IDI,IDJ,IDK,IDL)
 C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
       SUBROUTINE GETTRTMATEL(A,C,NHG,BTRANS,NSBASIS,
      &            NSPINS,SUM)
-         USE HElement
+         USE HElem
          USE UMatCache , Only : GetTMatEl
          IMPLICIT NONE
          INTEGER A,C

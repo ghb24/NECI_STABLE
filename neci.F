@@ -10,7 +10,7 @@ C ==------------------------------------------------------------------==
      &   NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,TSPECDET,
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
      &   TCPMD,TDFREAD,fRc,iCacheFlag,TBIN)
-      USE HElement
+      USE HElem
       USE UMatCache , only : GetUMatSize, DestroyUMatCache              &
      &   ,iPeriodicDampingType,WriteUMatCacheStats,TSTARSTORE           &
      &   ,SetupTMAT,DestroyTMAT,TMATSYM,TMATSYM2,TMAT2D,TMAT2D2         &
@@ -2024,7 +2024,7 @@ C ==-------------------------------------------------------------------==
 C ==-------------------------------------------------------------------==
       SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,
 &	ALAT,TKE,NHG,ILOGGING)
-      USE HElement
+      USE HElem
       USE UMatCache , only : GetTMATEl
       IMPLICIT NONE
       TYPE(HElement) CG(NDET,NEVAL)
@@ -2120,7 +2120,7 @@ C.. FLSI will remain usable, but will be equal to log RHII(P), so the
 C.. sum I_P*FLRI+FLSI will still retain the correct value.
       SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ETRIAL,
      &               FLRI,FLSI,TWARN)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NDET,NEVAL
          TYPE(HElement) CK(NDET,NEVAL)
@@ -2172,7 +2172,7 @@ C         WRITE(17,*) CK(1,I),W(I)
       END
 
       REAL*8 FUNCTION CALCMCEN(NDET,NEVAL,CK,W,BETA,ETRIAL)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK
          TYPE(HElement) CK(NDET,NEVAL)
@@ -2188,7 +2188,7 @@ C         WRITE(17,*) CK(1,I),W(I)
       END
 
       REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ETRIAL)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NDET,NEVAL,IK,I
          TYPE(HElement) CK(NDET,NEVAL)
@@ -2441,7 +2441,7 @@ C.. This should only happen for HMAX
 
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG,
      &      BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          INTEGER NEL,NI(NEL),I,NBASISMAX(5,2),I_P
@@ -2477,7 +2477,7 @@ C.. This should only happen for HMAX
       END
 
       REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
-         USE HElement
+         USE HElem
          USE UMatCache , only : GetTMatEl
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),G1(*),NBASIS,I
@@ -2491,7 +2491,7 @@ C.. This should only happen for HMAX
       END
 
       REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,I,J
          INCLUDE 'basis.inc'
@@ -2600,7 +2600,7 @@ C.. This should only happen for HMAX
 !  Rc=ALAT(4).
 
       SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
-         USE HElement
+         USE HElem
          USE UMatCache , only : SetupTMAT,TMAT2D,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
@@ -2759,7 +2759,7 @@ C.. Normal Hubbard
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
      &            DETINV,TSPN,LMS,TPARITY,SymRestrict,TSPECDET,SPECDET,
      &            nActiveBasis)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          include 'irat.inc'
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE),(IP_RIJLIST,RIJLIST)
@@ -3006,7 +3006,7 @@ C               G(3,BRR(I))=J
 
       SUBROUTINE FREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,ALAT)
-         USE HElement
+         USE HElem
          USE UMatCache
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
@@ -3284,7 +3284,7 @@ C.. any orbitals which no longer exist, we move outside the basis
          RETURN
       END   
       SUBROUTINE WRITESYMCLASSES(NBASIS)
-        USE HElement
+        USE HElem
         USE UMatCache
         IMPLICIT NONE
         include 'sym.inc'
@@ -3304,7 +3304,7 @@ C.. any orbitals which no longer exist, we move outside the basis
 
       
       SUBROUTINE SWAPTMAT(NBASIS,NHG,GG)
-        USE HElement
+        USE HElem
         USE UMatCache
         IMPLICIT NONE
         include 'sym.inc'

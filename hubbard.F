@@ -88,7 +88,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
 
       SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
      &         TPBC)
-         USE HElement
+         USE HElem
          USE UMatCache , only : TMat2D,TMATSYM,
      &          TSTARSTORE,TMatInd,SetupTMAT
          IMPLICIT NONE

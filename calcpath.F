@@ -1,7 +1,7 @@
 
       FUNCTION CALCPATHS(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,NWHTAY,NEL,I_VMAX,ILOGGING)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          TYPE(HDElement) CALCPATHS
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
@@ -59,7 +59,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
 
       FUNCTION CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
-         USE HElement
+         USE HElem
          USE CALCREAD , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT
          IMPLICIT NONE
          TYPE(HDElement) CalcPaths_N
@@ -156,7 +156,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INCLUDE 'calcp.inc'
          TYPE(HElement) RHOIJ(0:I_V,0:I_V)

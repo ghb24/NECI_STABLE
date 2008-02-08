@@ -58,7 +58,7 @@
           TTILT = .false.
           TALPHA = .false.
           ISTATE = 1
-          OrbECutoff=-1e50
+          OrbECutoff=-1e20
           tStar=.false.
           tStoreAsExcitations=.false.
           TBIN=.false.

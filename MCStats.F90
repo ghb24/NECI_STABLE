@@ -1,5 +1,5 @@
 MODULE MCStats
-      USE HElement
+      USE HElem
       IMPLICIT NONE
       TYPE BlockStats
          TYPE(HDElement), POINTER :: wCurBlock(0:)

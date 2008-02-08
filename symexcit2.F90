@@ -18,7 +18,7 @@ MODULE SymExcit2
 
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
       SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER ExcitType(5)
@@ -57,7 +57,7 @@ MODULE SymExcit2
       END
 !  Enumerate the excitations and weights of excitations of a given ExcitType.
       SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
-         USE HElement
+         USE HElem
          INCLUDE 'sym.inc'
          INTEGER ExcitType(5)
          INTEGER NBASIS
@@ -139,7 +139,7 @@ MODULE SymExcit2
 ! Add the weight of the excitation to the list in ExWeights
 ! I,J are from, K,L are to
       SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
-         USE HElement
+         USE HElem
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER NBASISMAX(*),NBASIS
@@ -162,7 +162,7 @@ MODULE SymExcit2
 ! Add the weight of the 'from' excitation to the list in ExWeights
 ! I,J are from
       SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
-         USE HElement
+         USE HElem
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER nBasisMax(*),nBasis
@@ -182,7 +182,7 @@ MODULE SymExcit2
 !        A sub called to generate an unnormalised weight for an ij->?? excitation
 !          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
       SUBROUTINE ExcitFromWeighting(I,J,Weight,G1,nBasisMax,UMat,Arr,nBasis)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER nBasisMax(5,3),nBasis
          INCLUDE 'basis.inc'
@@ -225,7 +225,7 @@ MODULE SymExcit2
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
-         USE HElement
+         USE HElem
          USE UMatCache , only : GetUMatEl
          IMPLICIT NONE
          INTEGER NBASISMAX(5,3),NBASIS
@@ -291,7 +291,7 @@ MODULE SymExcit2
 
 !  WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L
@@ -407,7 +407,7 @@ MODULE SymExcit2
 !We wish to calculate whether NJ is an excitation of NI.
 !WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnectedDet)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L

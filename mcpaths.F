@@ -24,7 +24,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
-         USE HElement
+         USE HElem
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
@@ -424,7 +424,7 @@ C.. MCPATHSR3 has the same method at each vertex level
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
-         USE HElement
+         USE HElem
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE PRECALCREAD , only : TPREVAR
@@ -698,7 +698,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
      &   MP2E,NTOTAL)
-         USE HElement
+         USE HElem
          USE LOGREAD , only : G_VMC_LOGCOUNT
          USE CALCREAD , only : TMPTHEORY
          IMPLICIT NONE
@@ -1018,7 +1018,7 @@ C.,             If 1, only allow doubles.
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,EREF,VARSUM,WREF)
-         USE HElement
+         USE HElem
          USE CALCREAD , only : TVARCALC,TMPTHEORY
          USE LOGREAD , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
@@ -1574,7 +1574,7 @@ C               WRITE(6,*) J,K
       END
 
       SUBROUTINE WRITERHOMAT(NUNIT,RHOIJ,I_V,NEL,LTERM)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER NUNIT,I_V,NEL
          LOGICAL LTERM
@@ -2345,7 +2345,7 @@ C         DLWDB=DLWDB-LIST(1,2)
 
 !.. Read in values for a weight and ETilde from an MCPATHS file
       SUBROUTINE ReadMCPaths(iV,wWeight,wETilde)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER iV,i1,i2,i3
          CHARACTER*1 c
@@ -2366,7 +2366,7 @@ C         DLWDB=DLWDB-LIST(1,2)
       
 !.. Function to get Arr out of NMAX - passed in two integers      
       FUNCTION ORBENERGY(ARR,orbnum)
-          USE HElement
+          USE HElem
           IMPLICIT NONE
           REAL*8 ARR(*)
           INTEGER orbnum

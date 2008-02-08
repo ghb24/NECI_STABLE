@@ -22,7 +22,7 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           rootfind.o cpmdinit.o neci.o mcpathshdiag.o \
           oexcit.o
 
-OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElement.o \
+OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          RhoElement.o MCStats.o symexcit2.o MPEnergy.o precalc.o UMatCache.o \
          df_precision.o df_parameters.o stardiag.o readinput.o sysread.o \
          precalcread.o calcread.o intread.o logread.o nodediag.o

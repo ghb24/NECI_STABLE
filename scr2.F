@@ -4,7 +4,7 @@ C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
-      USE HElement
+      USE HElem
       USE UMatCache , Only : GetUMatEl
       IMPLICIT NONE
       INTEGER NDET1(NEL)
@@ -62,7 +62,7 @@ C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
-      USE HElement
+      USE HElem
       USE UMatCache , Only : GetUMatEl
       IMPLICIT NONE
       INTEGER nJ(7)

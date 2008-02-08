@@ -1,6 +1,6 @@
 
       SUBROUTINE PLOTROOTSTAR(N,A,B,ROOTS,NROOTS)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS
          TYPE(HElement) A(0:N),B(0:N)
@@ -67,7 +67,7 @@ C.. star.  THere are N spokes and 1 pivot, and thus N+1 roots
 C.. A and B are sorted in ascending order of A
 
       SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS,NROOTS)
-         USE HElement
+         USE HElem
          USE INTREAD , only : NRCONV,RFCONV,NRSTEPSMAX
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS,NMIN,K,JTOT
@@ -338,7 +338,7 @@ C               WRITE(6,*),I,A(I),B(I)
       END
 
       SUBROUTINE CALCSTARPOLYVALUE(N,A,B,X,VAL)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER N
          TYPE(HElement) A(0:N),B(0:N)
@@ -351,7 +351,7 @@ C               WRITE(6,*),I,A(I),B(I)
          RETURN
       END
       SUBROUTINE CALCSTARPOLYDERIV(N,A,B,X,VAL)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INTEGER N
          TYPE(HElement) A(0:N),B(0:N)

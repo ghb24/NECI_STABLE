@@ -1,4 +1,4 @@
-MODULE HElement
+MODULE HElem
       IMPLICIT NONE
       TYPE HElement
 #ifdef __CMPLX
@@ -8,9 +8,9 @@ MODULE HElement
 #endif
       END TYPE
 #ifdef __CMPLX
-      PARAMETER HElementSize=2
+      integer, parameter :: HElementSize=2
 #else
-      PARAMETER HElementSize=1
+      integer, parameter :: HElementSize=1
 #endif
       interface operator (+)
          module procedure HElemAdd
@@ -62,7 +62,7 @@ MODULE HElement
       TYPE HDElement
          REAL*8  v
       END TYPE
-      PARAMETER HDElementSize=1
+      integer, parameter :: HDElementSize=1
       interface operator (+)
          module procedure HDElemAdd
       end interface
@@ -106,24 +106,24 @@ MODULE HElement
          REAL*8  v
          h%v=v
          RETURN
-      END
+      END SUBROUTINE
       SUBROUTINE HElemFromZVal(h,z)
          TYPE(HElement) h
          COMPLEX*16  z
          h%v=z
          RETURN
-      END
+      END SUBROUTINE
       SUBROUTINE HElemFromHDElem(h,h2)
          TYPE(HElement) h
          TYPE(HDElement) h2
          h%v=h2%v
          RETURN
-      END
+      END SUBROUTINE
       TYPE(HElement) FUNCTION HElemAdd(h1,h2)
          TYPE(HElement) h1,h2
          HElemAdd%v=h1%v+h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemDConjg(h)
          TYPE(HElement) h
 #ifdef __CMPLX
@@ -132,64 +132,64 @@ MODULE HElement
          HElemDConjg%v=h%v
 #endif
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemSub(h1,h2)
-         TYPE(HElement) h1,h2
+         TYPE(HElement), intent(in) :: h1,h2
          HElemSub%v=h1%v-h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemNeg(h1)
-         TYPE(HElement) h1
+         TYPE(HElement), intent(in) :: h1
          HElemNeg%v=-h1%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemPow(h,r)
-         TYPE(HElement) h
-         REAL*8 r
+         TYPE(HElement), intent(in) :: h
+         REAL*8, intent(in) :: r
          HElemPow%v=h%v**r
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemMul(h1,h2)
-         TYPE(HElement) h1,h2
+         TYPE(HElement), intent(in) :: h1,h2
          HElemMul%v=h1%v*h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemDiv(h1,h2)
-         TYPE(HElement) h1,h2
+         TYPE(HElement), intent(in) :: h1,h2
          HElemDiv%v=h1%v/h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemDivInt(h1,i2)
-         TYPE(HElement) h1
-         INTEGER i2
+         TYPE(HElement), intent(in) :: h1
+         INTEGER, intent(in) :: i2
          HElemDivInt%v=h1%v/i2
          RETURN
-      END
+      END FUNCTION
 
       TYPE(HElement) FUNCTION HElemExp(h1)
-         TYPE(HElement) h1
+         TYPE(HElement), intent(in) :: h1
          HElemExp%v=EXP(h1%v)
          RETURN
-      END
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemLog(h1)
-         TYPE(HElement) h1
+         TYPE(HElement), intent(in) :: h1
          HElemLog%v=LOG(h1%v)
          RETURN
-      END
+      END FUNCTION
       TYPE(HDElement) FUNCTION HElemABS(h1)
-         TYPE(HElement) h1
+         TYPE(HElement), intent(in) :: h1
          HElemABS%v=ABS(h1%v)
          RETURN
-      END
+      END FUNCTION
       REAL*8 FUNCTION HElemSq(h1)
-         TYPE(HElement) h1
+         TYPE(HElement), intent(in) :: h1
 #ifdef __CMPLX
          HElemSq=h1%v*dconjg(h1%v)
 #else
          HElemSq=h1%v**2
 #endif
          RETURN
-      END
+      END FUNCTION
       REAL*8 FUNCTION HElemDReal(h1)
          TYPE(HElement) h1
 #ifdef __CMPLX
@@ -198,20 +198,20 @@ MODULE HElement
          HElemDReal=h1%v
 #endif
          RETURN
-      END
+      END FUNCTION
 
       LOGICAL FUNCTION HElemAGT(h1,r2)
-         TYPE(HElement) h1
-         REAL*8 r2
+         TYPE(HElement), intent(in) :: h1
+         REAL*8, intent(in) :: r2
          HElemAGT=ABS(h1%v).GT.r2
          RETURN
-      END
+      END FUNCTION
       LOGICAL FUNCTION HElemAGE(h1,r2)
-         TYPE(HElement) h1
-         REAL*8 r2
+         TYPE(HElement), intent(in) :: h1
+         REAL*8, intent(in) :: r2
          HElemAGE=ABS(h1%v).GE.r2
          RETURN
-      END
+      END FUNCTION
       
 
 
@@ -230,7 +230,7 @@ MODULE HElement
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*)
          TYPE(HElement) UMat(*)
-         INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,2),iC2
+         INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,5),iC2
          REAL*8 ECore
          TYPE(HElement) Sum,Sum2
          INTEGER IGETEXCITLEVEL
@@ -262,19 +262,19 @@ MODULE HElement
 !         WRITE(6,*) GetHElement2
          CALL TIHALTL('GETHELEM2 ',ISUB,60)
          RETURN
-      END
+      END FUNCTION
 
 !  We always initialize from reals
        SUBROUTINE HDElemFromVal(h,v)
-         TYPE(HDElement) h
-         REAL*8  v
+         TYPE(HDElement),intent(out) :: h
+         REAL*8,intent(in) ::  v
          h%v=v
          RETURN
-      END
+      END SUBROUTINE
 !.. Or HElements
        SUBROUTINE HDElemFromHElem(h,h2)
-         TYPE(HDElement) h
-         TYPE(HElement) h2
+         TYPE(HDElement),intent(out) :: h
+         TYPE(HElement),intent(in) :: h2
 #ifdef __CMPLX
 ! JSS This tolerance is causing problems for now.
 !        IF(ABS(DIMAG(h2%v)).lt.1.D-10) THEN
@@ -286,79 +286,79 @@ MODULE HElement
          h%v=h2%v
 #endif
          RETURN
-      END
+      END SUBROUTINE
       TYPE(HDElement) FUNCTION HDElemAdd(h1,h2)
-         TYPE(HDElement) h1,h2
+         TYPE(HDElement), intent(in) :: h1,h2
          HDElemAdd%v=h1%v+h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HDElement) FUNCTION HDElemSub(h1,h2)
-         TYPE(HDElement) h1,h2
+         TYPE(HDElement), intent(in) :: h1,h2
          HDElemSub%v=h1%v-h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HDElement) FUNCTION HDElemNeg(h1)
-         TYPE(HDElement) h1
+         TYPE(HDElement), intent(in) :: h1
          HDElemNeg%v=-h1%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HDElement) FUNCTION HDElemMul(h1,h2)
-         TYPE(HDElement) h1,h2
+         TYPE(HDElement), intent(in) :: h1,h2
          HDElemMul%v=h1%v*h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HDElement) FUNCTION HDElemDiv(h1,h2)
-         TYPE(HDElement) h1,h2
+         TYPE(HDElement), intent(in) :: h1,h2
          HDElemDiv%v=h1%v/h2%v
          RETURN
-      END
+      END FUNCTION
       TYPE(HDElement) FUNCTION HDElemDivInt(h1,i2)
-         TYPE(HDElement) h1
-         INTEGER i2
+         TYPE(HDElement), intent(in) :: h1
+         INTEGER, intent(in) :: i2
          HDElemDivInt%v=h1%v/i2
          RETURN
-      END
+      END FUNCTION
 
       TYPE(HDElement) FUNCTION HDElemExp(h1)
-         TYPE(HDElement) h1
+         TYPE(HDElement), intent(in) :: h1
          HDElemExp%v=EXP(h1%v)
          RETURN
-      END
+      END FUNCTION
       TYPE(HDElement) FUNCTION HDElemLog(h1)
-         TYPE(HDElement) h1
+         TYPE(HDElement), intent(in) :: h1
          HDElemLog%v=LOG(h1%v)
          RETURN
-      END
+      END FUNCTION
       REAL*8 FUNCTION HDElemSq(h1)
-         TYPE(HDElement) h1
+         TYPE(HDElement), intent(in) :: h1
          HDElemSq=h1%v**2
          RETURN
-      END
+      END FUNCTION
 
       LOGICAL FUNCTION HDElemAGT(h1,r2)
-         TYPE(HDElement) h1
-         REAL*8 r2
+         TYPE(HDElement), intent(in) :: h1
+         REAL*8, intent(in) :: r2
          HDElemAGT=ABS(h1%v).GT.r2
          RETURN
-      END
+      END FUNCTION
       LOGICAL FUNCTION HDElemAGE(h1,r2)
-         TYPE(HDElement) h1
-         REAL*8 r2
+         TYPE(HDElement), intent(in) :: h1
+         REAL*8, intent(in) :: r2
          HDElemAGE=ABS(h1%v).GE.r2
          RETURN
-      END
+      END FUNCTION
       REAL*8 FUNCTION HDElemDReal(h)
          TYPE(HDElement) h
          HDElemDReal=h%v
          RETURN
-      END
+      END FUNCTION
 
-END MODULE HElement
+END MODULE HElem
 
 !  Get a matrix element of the unperturbed Hamiltonian.  This is just the sum of the Hartree-Fock eigenvalues
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
          USE SYSREAD , only : TSTOREASEXCITATIONS
-         use HElement
+         USE HElem
          implicit none
          integer nI(nEl),nEl,nBasis
          type(HElement) hEl
@@ -383,5 +383,5 @@ END MODULE HElement
 !         call writedet(77,nI,nel,.false.)
 !         write(77,*) "H0",hEl
 !         call flush(77)
-      end
+      end subroutine
 

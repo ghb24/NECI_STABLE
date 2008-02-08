@@ -29,7 +29,7 @@ C.,             If 1, only allow doubles.
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF)
-         USE HElement 
+         USE HElem 
          USE LOGREAD , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          USE CALCREAD , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
@@ -585,7 +585,7 @@ C            CALL PRINT_MEMORY()
       END
 
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
-         Use HElement
+         USE HElem
          Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
          Real*8 Arr(nBasis, 2),Energytonew,Energyfromnew
          REAL*8 Energyfromold,Energytoold
@@ -628,7 +628,7 @@ C            CALL PRINT_MEMORY()
          End
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,
      &      NBASISMAX,UMAT,G1,DLWDB2)
-         Use HElement
+         USE HElem
          USE UMatCache , only : GetUMatEl
          IMPLICIT NONE
          INCLUDE 'basis.inc'

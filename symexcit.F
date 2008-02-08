@@ -1315,7 +1315,7 @@ C.. Actually generate a det
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,    &
      &               I,J,K,L,ICC,LS,ITOTAL,ISEED,                       &
      &               NK,IC,G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)      
-      USE HElement
+      USE HElem
       USE symexcit2
       INTEGER NBASIS
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
@@ -1557,7 +1557,7 @@ C.. Actually generate a det
       SUBROUTINE IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,
      &      nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,
      &      tIsConnected)
-         USE HElement
+         USE HElem
          USE symexcit2
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
@@ -1579,7 +1579,7 @@ C.. Actually generate a det
 ! We require the excitation generator of I, which is used to pass info to GenExcitProbInternal (in symexcit2.F90)
       SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,UMat,Arr,
      &      nBasis,pGen)
-         USE HElement
+         USE HElem
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
@@ -1622,7 +1622,7 @@ C.. Actually generate a det
       SUBROUTINE GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,
      &      nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,
      &      pGen)
-         USE HElement
+         USE HElem
          USE symexcit2
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
@@ -1644,7 +1644,7 @@ C.. Actually generate a det
       SUBROUTINE CalcWriteGraphPGen(iUnit,iGraph,iV,nEl,LOCTAB,G1,
      &            nBasisMax,UMat,Arr,nBasis,pGenGraph,EXCITGEN)
          USE symexcit2
-         USE HElement
+         USE HElem
          USE PRECALCREAD , only : PRE_TAY,TPREVAR
          IMPLICIT NONE
          INCLUDE 'basis.inc'
