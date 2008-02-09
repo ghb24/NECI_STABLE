@@ -972,8 +972,8 @@ C.. Initialize with a seed <0
 C.. Modified this to use REAL*8s.
       REAL*8 FUNCTION ORAN2(IDUM)
       IMPLICIT NONE
-      PARAMETER (M=714025,IA=1366,IC=150889)
       INTEGER IR(97),IFF,J,M,IY,IA,IC,IDUM
+      PARAMETER (M=714025,IA=1366,IC=150889)
       REAL*8 RM
       DATA IFF /0/
       RM=1.4005112D-6

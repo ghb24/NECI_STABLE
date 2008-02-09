@@ -2,7 +2,7 @@ C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031
 C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
       SUBROUTINE SORT2(N,ARR,BRR)
       IMPLICIT REAL*8 (A-H,O-Z)
-      PARAMETER(M=7,NSTACK=50)
+      INTEGER, PARAMETER :: M=7,NSTACK=50
       DIMENSION ARR(N),ISTACK(NSTACK)
       INTEGER BRR(N)
       JSTACK=0
@@ -100,7 +100,7 @@ C.. Further investigation shows it is the quicksort from Numerical Recipes, taki
 C.. This version has ARR as an int and BRR as a real 
       SUBROUTINE SORT2_(N,ARR,BRR)
       IMPLICIT REAL*8 (A-H,O-Z)
-      PARAMETER(M=7,NSTACK=50)
+      integer, PARAMETER :: M=7,NSTACK=50
       INTEGER ARR(N)
       DIMENSION ISTACK(NSTACK)
       REAL*8 BRR(N)
@@ -198,10 +198,10 @@ C.. Further investigation shows it is the quicksort from Numerical Recipes, taki
 C.. This version has ARR as an int and BRR as an array of length BD of reals
       SUBROUTINE SORTIRN(N,ARR,BRR,BD)
       IMPLICIT NONE
-      PARAMETER(M=7,NSTACK=50)
-      INTEGER ARR(N),A,L,IR,N,M,JSTACK,ISTACK,NSTACK,I,J,K,ITEMP,BD
+      INTEGER, PARAMETER :: M=7,NSTACK=50
+      INTEGER ARR(N),A,L,IR,N,JSTACK,ISTACK(NSTACK),I,J,K
+      INTEGER ITEMP,BD
       REAL*8 BRR(BD,N),B(BD),TEMP(BD)
-      DIMENSION ISTACK(NSTACK)
       JSTACK=0
       L=1
       IR=N
@@ -294,7 +294,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
 
       SUBROUTINE SORT3R(N,ARR,BRR,CRR)
       IMPLICIT REAL*8 (A-H,O-Z)
-      PARAMETER(M=7,NSTACK=50)
+      INTEGER, PARAMETER :: M=7,NSTACK=50
       DIMENSION ARR(N),ISTACK(NSTACK),BRR(N),CRR(N)
       JSTACK=0
       L=1
@@ -410,7 +410,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
 
       SUBROUTINE SORT3R1I(N,ARR,BRR,CRR,DRR)
       IMPLICIT REAL*8 (A-H,O-Z)
-      PARAMETER(M=7,NSTACK=50)
+      INTEGER, PARAMETER :: M=7,NSTACK=50
       DIMENSION ARR(N),ISTACK(NSTACK),BRR(N),CRR(N)
       INTEGER DRR(N),D,ITMP
       JSTACK=0
@@ -551,8 +551,8 @@ C.. Further investigation shows it is the quicksort from Numerical Recipes, taki
 C.. This version has ARR BRR and CRR as arrays of length BD of reals.  Sort is based on Arr(1,:)
       SUBROUTINE SORT3RN(N,ARR,BRR,CRR,BD)
       IMPLICIT NONE
-      PARAMETER (M=7,NSTACK=50)
-      INTEGER L,IR,N,M,JSTACK,NSTACK,I,J,K,BD
+      INTEGER, PARAMETER  :: M=7,NSTACK=50
+      INTEGER L,IR,N,JSTACK,I,J,K,BD
       REAL*8 ARR(BD,N),A(BD),ATEMP(BD)
       REAL*8 BRR(BD,N),B(BD),BTEMP(BD)
       REAL*8 CRR(BD,N),C(BD),CTEMP(BD)

@@ -38,18 +38,20 @@ C.. product in the symmetry table, and OR that with the product.
              I=1
              SYMPROD%s=0
              DO WHILE(IS1%s.NE.0)
-                IF(IAND(IS1%s,1)) THEN
+                IF(BTEST(IS1%s,0)) THEN
                    IS2=ISYM2
                    J=1
                    DO WHILE(IS2%s.NE.0)
-                      IF(IAND(IS2%s,1)) THEN
+                      IF(BTEST(IS2%s,0)) THEN
                          SYMPROD%s=IOR(SYMPROD%s,SYMTABLE(I,J)%s)
                       ENDIF
-                      IS2%s=RSHIFT(IS2%s,1)
+!  RSHIFT(,1)
+                      IS2%s=ISHFT(IS2%s,-1)
                       J=J+1
                    ENDDO
                 ENDIF
-                IS1%s=RSHIFT(IS1%s,1)
+!RSHIFT(,1)
+                IS1%s=ISHFT(IS1%s,-1)
                 I=I+1
              ENDDO
          end if
@@ -76,9 +78,11 @@ C.. product in the symmetry table, and OR that with the product.
              s=s2
              i=1
              DO WHILE(s%s.NE.0)
-                IF(IAND(s%s,1)) SymConj%s=IOR(SymConj%s,
-     &         LSHIFT(1,SymConjTab(I)-1))
-                s%s=RSHIFT(s%s,1)
+!LSHIFT(,)
+                IF(BTEST(s%s,0)) SymConj%s=IOR(SymConj%s,
+     &         ISHFT(1,SymConjTab(I)-1))
+!RSHIFT(,1)
+                s%s=ISHFT(s%s,-1)
                 i=i+1
              ENDDO
          end if
@@ -652,9 +656,11 @@ C.. Display irrep table
             DO J=1,NROT
                IF(ABS(REAL(CHARS(J,I))).GT.1.D-2.AND.
      &            ABS(DIMAG(CHARS(J,I))).GT.1.D-2) LCOMP=.TRUE.
-              IF(ABS(REAL(CHARS(J,I))-NINT(REAL(CHARS(J,I))).GT.1.D-2))
+              IF(ABS(REAL(CHARS(J,I))-NINT(REAL(CHARS(J,I))))
+     &          .GT.1.D-2)
      &            LREAL=.TRUE.
-            IF(ABS(DIMAG(CHARS(J,I))-NINT(DIMAG(CHARS(J,I))).GT.1.D-2))
+            IF(ABS(DIMAG(CHARS(J,I))-NINT(DIMAG(CHARS(J,I))))
+     &          .GT.1.D-2)
      &            LREAL=.TRUE.
             ENDDO
          ENDDO
@@ -678,9 +684,9 @@ C.. First do a check for the format
             DO J=1,NROT
                IF(ABS(REAL(CHARS(J))).GT.1.D-2.AND.
      &            ABS(DIMAG(CHARS(J))).GT.1.D-2) LCOMP=.TRUE.
-               IF(ABS(REAL(CHARS(J))-NINT(REAL(CHARS(J))).GT.1.D-2))
+               IF(ABS(REAL(CHARS(J))-NINT(REAL(CHARS(J)))).GT.1.D-2)
      &            LREAL=.TRUE.
-              IF(ABS(DIMAG(CHARS(J))-NINT(DIMAG(CHARS(J))).GT.1.D-2))
+              IF(ABS(DIMAG(CHARS(J))-NINT(DIMAG(CHARS(J)))).GT.1.D-2)
      &            LREAL=.TRUE.
             ENDDO
             CALL WRITECHARSF(IUNIT,CHARS,NROT,STR,LCOMP,LREAL)
@@ -889,7 +895,8 @@ C.. We've found an (ir)rep which is wholly in CHARS
             K=0
             DO WHILE(.NOT.BTEST(IDECOMP%s,0))
                K=K+1
-               IDECOMP%s=RSHIFT(IDECOMP%s,1)
+!RSHIFT(,1)
+               IDECOMP%s=ISHFT(IDECOMP%s,-1)
             ENDDO
             IF(IDECOMP%s.NE.1) THEN
                WRITE(6,*) "Conjugate of SYM ",I,
@@ -1235,7 +1242,7 @@ C            CALL WRITESYM(6,TAB(1,N),.TRUE.)
 C.. reset the lower limit
                I=N
             ELSEIF(SYMGT(TAB(1,N),VAL)) THEN
-               IF(SYMNE(TAB(1,N),TAB(ILAST))) ILAST=N
+               IF(SYMNE(TAB(1,N),TAB(1,ILAST))) ILAST=N
 C.. reset the upper limit
                J=N
             ELSEIF(SYMEQ(TAB(1,N),VAL)) THEN
@@ -1393,7 +1400,7 @@ C.. Hubbard
             DO I=0,7
                TDO=.TRUE.
                DO J=1,3
-                  IF(BTEST(I,J-1).EQ.0) THEN
+                  IF(.NOT.BTEST(I,J-1)) THEN
                      ISYM2%k(J)=ISYM%k(J)
                   ELSE
                      ISYM2%k(J)=-ISYM%k(J)
@@ -1546,8 +1553,10 @@ C.. Set to be totally symmetric
       include 'sym.inc'
       integer*8 Isym
       integer  AbelSym(3)
-      AbelSym(3)=RShift(Isym,PropBitLen*2)
-      AbelSym(2)=Iand(RShift(ISym,PropBitLen),2**PropBitLen-1)
+!RShift
+      AbelSym(3)=IShft(Isym,-(PropBitLen*2))
+!RShift
+      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2**PropBitLen-1)
       AbelSym(1)=Iand(Isym,2**PropBitLen-1)
       return
       end subroutine DecomposeAbelianSym
@@ -1558,8 +1567,9 @@ C.. Set to be totally symmetric
           integer*8 TempVar
       include 'sym.inc'
           TempVar=AbelSym(3)
-          ComposeAbelianSym=LShift(Tempvar,PropBitLen*2)
-     &                     +LShift(AbelSym(2),PropBitLen)
+!LShift
+          ComposeAbelianSym=IShft(Tempvar,PropBitLen*2)
+     &                     +IShft(AbelSym(2),PropBitLen)
      &                      +AbelSym(1)
       end function ComposeAbelianSym
 
