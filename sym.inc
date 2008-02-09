@@ -79,9 +79,9 @@
          COMMON/SYM/ IP_SYMTABLE,NSYM,Nprop,IP_SYMREPS,NROT,NSYMLABELS, &
      &               IP_SYMLABELS,IP_SYMLABELCHARS,IP_IRREPCHARS,       &
      &               IP_SymStatePairs,IP_KPntSym,                       &
-     &               IP_SYMPAIRPRODS,NSYMPAIRPRODS,                     &
+     &               IP_SYMPAIRPRODS,                                   &
      &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,                 &
-     &               TAbelian,IP_SymClasses,                            &
-     &               FrozenSym, IP_SymConjTab,IP_SYMLABELCOUNTSCUM,     &
+     &               IP_SymConjTab,IP_SYMLABELCOUNTSCUM,IP_SymClasses,  &
      &               IP_SYMLABELINTSCUM,IP_SYMLABELCOUNTSCUM2,          &
-     &               IP_SYMLABELINTSCUM2,IP_SYMCLASSES2,PropBitLen
+     &               IP_SYMLABELINTSCUM2,IP_SYMCLASSES2,                &
+     &               FrozenSym  ,NSYMPAIRPRODS,TAbelian,PropBitLen

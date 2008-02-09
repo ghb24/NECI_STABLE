@@ -71,6 +71,8 @@ MODULE UMatCache
 !..      This is useful when lots of sequential pieces of data are being stored.
 !..  When UMatCacheFlag is reset to 0, the data which are present are spread evenly around the slots for a given Pair.
       INTEGER UMatCacheFlag
+!.. The number of cache overwrites
+      INTEGER iCacheOvCount
          SAVE nSlotsInit,nMemInit,nHits,nMisses,UMatCacheFlag,iCacheOvCount
 
 !.. Some various translation tables to convert between different orderings of states.
@@ -113,14 +115,14 @@ MODULE UMatCache
             INVBRR2(BRR2(I)/2)=t
         ENDDO
         RETURN
-      END
+      END subroutine
 
       
       SUBROUTINE CREATEINVBRR(BRR,NBASIS)
         IMPLICIT NONE
         INTEGER BRR(NBASIS),NBASIS,ierr,I,t
 
-        IF(ALLOCATED(INVBRR)) THEN
+        IF(ASSOCIATED(INVBRR)) THEN
             CALL MemDealloc(INVBRR)
             DEALLOCATE(INVBRR)
         ENDIF
@@ -136,7 +138,7 @@ MODULE UMatCache
 !            WRITE(11,*) INVBRR(I)
 !        ENDDO
         return
-      END
+      END subroutine
 
       
 ! Get the index of physical order UMAT element <IJ|KL>.  Indices are internally reordered such that I>K, J>L,(I,K)>(J,L) 
@@ -244,7 +246,7 @@ MODULE UMatCache
                 RETURN
             ENDIF
          ENDIF
-      END
+      END function
 
 !Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
 !Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
@@ -284,7 +286,7 @@ MODULE UMatCache
             TMatInd=Block+ind
             RETURN
         ENDIF
-      END
+      END function
       
      INTEGER FUNCTION NEWTMatInd(I,J)
         IMPLICIT NONE
@@ -322,7 +324,7 @@ MODULE UMatCache
             NEWTMatInd=Block+ind
             RETURN
         ENDIF
-      END
+      END function
      
       
 !Get the prospective size of a UMat (not a UMatCache) for completely storing FCIDUMP 2-e integrals
@@ -345,7 +347,7 @@ MODULE UMatCache
             iPairs=(nBi*(nBi+1))/2
             iSize=(iPairs*(iPairs+1))/2
          ENDIF
-      END
+      END subroutine
       
       !Input at spin orbitals
       FUNCTION GetTMatEl(I,J)
@@ -358,7 +360,7 @@ MODULE UMatCache
         ELSE
             GetTMatEl=TMAT2D(I,J)
         ENDIF
-      END
+      END function
 
       FUNCTION GetNEWTMATEl(I,J)
         IMPLICIT NONE
@@ -370,7 +372,7 @@ MODULE UMatCache
         ELSE
             GetNEWTMATEl=TMAT2D2(I,J)
         ENDIF
-      END
+      END function
      
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
         IMPLICIT NONE
@@ -425,7 +427,7 @@ MODULE UMatCache
             Call AZZERO(TMAT2D2,HElementSize*iSize)
         
         ENDIF
-      END
+      END subroutine
     
       SUBROUTINE DestroyTMAT(NEWTMAT)
         IMPLICIT NONE
@@ -433,13 +435,13 @@ MODULE UMatCache
 
         IF(TSTARSTORE) THEN
             IF(NEWTMAT) THEN
-                IF(ALLOCATED(TMATSYM2)) THEN
+                IF(ASSOCIATED(TMATSYM2)) THEN
                     CALL MemDealloc(TMATSYM2)
                     Deallocate(TMATSYM2)
                     NULLIFY(TMATSYM2)
                 ENDIF
             ELSE
-                IF(ALLOCATED(TMATSYM)) THEN
+                IF(ASSOCIATED(TMATSYM)) THEN
                     CALL MemDealloc(TMATSYM)
                     Deallocate(TMATSYM)
                     NULLIFY(TMATSYM)
@@ -447,20 +449,20 @@ MODULE UMatCache
             ENDIF
         ELSE
             IF(NEWTMAT) THEN
-                IF(ALLOCATED(TMAT2D2)) THEN
+                IF(ASSOCIATED(TMAT2D2)) THEN
                     CALL MemDealloc(TMAT2D2)
                     Deallocate(TMAT2D2)
                     NULLIFY(TMAT2D2)
                 ENDIF
             ELSE
-                IF(ALLOCATED(TMAT2D)) THEN
+                IF(ASSOCIATED(TMAT2D)) THEN
                     CALL MemDealloc(TMAT2D)
                     Deallocate(TMAT2D)
                     NULLIFY(TMAT2D)
                 ENDIF
             ENDIF
         ENDIF
-      END
+      END subroutine
       SUBROUTINE WRITETMAT(NBASIS)
         IMPLICIT NONE
         include 'sym.inc'
@@ -524,7 +526,7 @@ MODULE UMatCache
         ENDIF
         WRITE(12,*) "**********************************"
         CALL FLUSH(12)
-        IF(Allocated(TMATSYM2).or.Allocated(TMAT2D2)) THEN
+        IF(ASSOCIated(TMATSYM2).or.ASSOCIated(TMAT2D2)) THEN
             WRITE(12,*) "TMAT2:"
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
@@ -538,7 +540,7 @@ MODULE UMatCache
         WRITE(12,*) "*********************************"
         WRITE(12,*) "*********************************"
         CALL FLUSH(12)
-      END
+      END subroutine
         
       SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
         IMPLICIT NONE
@@ -611,7 +613,7 @@ MODULE UMatCache
          INTEGER A,B,C,XXX
          INTEGER IDI,IDJ,IDK,IDL
          REAL*8 SUM
-         PARAMETER PI=3.14159265358979323846264338327950288419716939937510D0
+         real*8, PARAMETER :: PI=3.14159265358979323846264338327950288419716939937510D0
          INTEGER ICACHE,ICACHEI,ITYPE
          LOGICAL LSYMSYM
          TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
@@ -805,7 +807,7 @@ MODULE UMatCache
 !         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)
          RETURN
 !         CALL TIHALT(' GETUMATEL',ISUB)
-      END
+      END function
 
 
 !  TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals
@@ -851,7 +853,7 @@ MODULE UMatCache
                 call ReadInUMatCache
             end if
          ENDIF
-      END
+      END subroutine
 
       SUBROUTINE SETUPUMAT2D(G1,HarInt)
          IMPLICIT NONE
@@ -868,7 +870,7 @@ MODULE UMatCache
             Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
             CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
          ENDIF
-      END
+      END subroutine
 
 
       SUBROUTINE SETUPUMAT2D_DF()
@@ -887,7 +889,7 @@ MODULE UMatCache
                 CALL ReadDalton2EIntegrals(nStates,UMat2D)
             ENDIF
          ENDIF
-      END
+      END subroutine
 
      
       SUBROUTINE SETUMATTRANS(TRANS)
@@ -897,7 +899,7 @@ MODULE UMatCache
          CALL MemAlloc(ierr,TransTable,NSTATES,'TransTable')
          CALL ICOPY(NSTATES,TRANS,1,TransTable,1)
          TTRANSGTID=.TRUE.
-      END
+      END subroutine
  
       SUBROUTINE SetupUMatTransTable(OldNew,nOld,nNew)
          IMPLICIT NONE
@@ -924,34 +926,34 @@ MODULE UMatCache
             ENDDO
          ENDIF
          TTRANSFINDX=.TRUE.
-      END
+      END subroutine
       SUBROUTINE DESTROYUMATCACHE
          IMPLICIT NONE
          CALL WriteUMatCacheStats()
-         IF(Allocated(UMatCacheData)) THEN
+         IF(ASSOCIated(UMatCacheData)) THEN
             WRITE(6,*) "Destroying UMatCache"
             CALL MemDealloc(UMatCacheData)
             Deallocate(UMatCacheData)
             CALL MemDealloc(UMATLABELS)
             Deallocate(UMatLabels)
-            IF(Allocated(UMat2D)) THEN
+            IF(ASSOCIated(UMat2D)) THEN
                CALL MemDealloc(UMat2D)
                Deallocate(UMat2D) 
             ENDIF
-            IF(Allocated(TransTable)) THEN
+            IF(ASSOCIated(TransTable)) THEN
                CALL MemDealloc(TransTable)
                Deallocate(TransTable)
             ENDIF
-            IF(Allocated(InvTRANSTABLE)) THEN
+            IF(ASSOCIated(InvTRANSTABLE)) THEN
                CALL MemDealloc(InvTransTable)
                Deallocate(InvTRANSTABLE)
             ENDIF
          ENDIF
-      END
+      END subroutine
 
       SUBROUTINE WriteUMatCacheStats
          IMPLICIT NONE
-         IF(Allocated(UMatCacheData)) THEN
+         IF(ASSOCIated(UMatCacheData)) THEN
             WRITE(6,*) "UMAT Cache Statistics"
             WRITE(6,*) NHITS, " hits"
             WRITE(6,*) NMISSES, " misses"
@@ -982,7 +984,7 @@ MODULE UMatCache
             ENDIF
          ENDSELECT
          RETURN
-      END
+      END subroutine
 
 !The cache consists of an unordered set of labels and elements.
 !We must order this, and then distribute the elements throughout each set of SLOTS.
@@ -1007,7 +1009,7 @@ MODULE UMatCache
                K=nK
             ENDDO
          ENDDO
-      END
+      END subroutine
 
 !   A binary search to find VAL in TAB.  TAB is sorted, but can have
 !   multiple entries being the same.  If the search terminated unsuccessfully, 
@@ -1070,7 +1072,7 @@ MODULE UMatCache
 !         DO I=A,B
 !            WRITE(6,*) I,TAB(I),I.EQ.LOC
 !         ENDDO
-      END
+      END subroutine
 
 !   Get a unique index corresponding to pair (I,J), and return in RET.
 !   I<=J<=N.  12/5/06
@@ -1091,7 +1093,7 @@ MODULE UMatCache
          INTEGER I,J,RET,N
          RET=J*(J-1)/2+I
 !         RET=N*(I-1)-I*(I-1)/2+J
-      END
+      END subroutine
 
 
 !      2n              (n)   sqrt(2n)
@@ -1112,7 +1114,7 @@ MODULE UMatCache
          J=SQRT(2.0*IND)
          IF(J*(J+1)/2.LT.IND) J=J+1
          I=IND-J*(J-1)/2
-      END
+      END subroutine
       SUBROUTINE SWAP(A,B)
          IMPLICIT NONE
          INTEGER A,B,C
@@ -1120,7 +1122,7 @@ MODULE UMatCache
          A=B
          B=C
          RETURN
-      END
+      END subroutine
 
 
 
@@ -1139,7 +1141,7 @@ MODULE UMatCache
          else
             WRITE(6,*) "UMatCache size not changing.  Not reordering."
          endif
-      END
+      END subroutine
 
       SUBROUTINE FreezeUMAT2D(OldBasis,NewBasis,OrbTrans,iSS)
          IMPLICIT NONE
@@ -1163,7 +1165,7 @@ MODULE UMatCache
         UMat2D=>NUMat2D
         NULLIFY(NUMat2D)
         RETURN
-      END
+      END subroutine
                 
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
          IMPLICIT NONE
@@ -1253,7 +1255,7 @@ MODULE UMatCache
          CALL MemDealloc(OUMatCacheData) 
          Deallocate(OUMatCacheData)
          CALL SetUMatCacheFlag(0)               
-      END
+      END subroutine
 
 
 ! JSS: Read in cache file.
@@ -1347,13 +1349,13 @@ END MODULE UMatCache
          ELSE
             HasKPoints=.FALSE.
          ENDIF
-      end
+      end function
  
 
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
          USE UMatCache
          IMPLICIT NONE
-         INTEGER GIND,NBASISMAX(5,2),ID
+         INTEGER GIND,NBASISMAX(5,3),ID
             IF(NBASISMAX(2,3).GT.0) THEN
                ID=(GIND-1)/NBASISMAX(2,3)+1
             ELSE
@@ -1361,7 +1363,7 @@ END MODULE UMatCache
                IF(TTRANSGTID) ID=TRANSTABLE(ID)
             ENDIF
       RETURN
-      END
+      END subroutine
 
 !  CacheUMatEl and GetCachedUMatEl are outside the module so that they can interact with CPMD
 !      REAL*8  FUNCTION WR
@@ -1444,7 +1446,7 @@ END MODULE UMatCache
             ICACHEI=ICACHEI-1
             OLAB=UMATLABELS(ICACHEI,ICACHE)
          ENDDO
-      END
+      END subroutine
 !   Lookup in the cache to see if there's a stored element.  If not, return TRUE.
 !   If there is, return the stored element in UMatEl.
 !    This will rearrange IDI,IDJ,IDK,IDL into the correctkorder
@@ -1640,6 +1642,6 @@ END MODULE UMatCache
 !            WRITE(68,*) A,B,ICACHEI1,ICACHEI2,ICACHEI
          ENDIF
          RETURN
-      END
+      END function
 
       
