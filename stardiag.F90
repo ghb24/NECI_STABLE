@@ -70,6 +70,7 @@
          INTEGER nIExcitFormat(nEl)
 
 !         LARGERHOJJ(:)=0.D0
+         fMCPR3StarNewExcit=HDElement(0.D0)
          IF(tStoreAsExcitations) THEN
             nIExcitFormat(1)=-1
             nIExcitFormat(2)=0
@@ -261,6 +262,7 @@
                 CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
             ENDIF
          ELSE
+
             WRITE(6,*) "Beginning Polynomial Star Diagonalization"
             nRoots=iExcit
             IF(BTEST(NWHTAY,1)) THEN
@@ -276,7 +278,7 @@
                WRITE(6,*) "Searching for all roots"
             ENDIF
             CALL StarDiag2(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,Beta,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,nRoots,iLogging)
-         ENDIF
+        ENDIF
          
          IF(ALLOCATED(ExcitInfo)) THEN
             call MemDealloc(ExcitInfo)
@@ -1475,6 +1477,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER iEigv,iDegen
          LOGICAL lWarned
          REAL*8 NORMCHECK,NORMROOTS
+
          CALL TISET('STARDIAG2 ',ISUB)
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
@@ -1595,7 +1598,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                IF(DBETA.NE.0.D0) THEN
                   DLWDB2=LIST(0,2)
 !                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
-                  DO J=1,NLIST
+                  DO J=1,NLIST-1
                      DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/(HElement(ROOTS(I))-LIST(J,0)))
 !                WRITE(6,*) LIST(J,2),
 !     &            LIST(J,1)/((ROOTS(I+1)-LIST(J,0))*SQRT(NORM))
@@ -1607,7 +1610,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             ENDIF
          ENDDO
                if(iEigv.gt.1.and.iEigv.le.3) then
-                  write(6,*) iDegen-1
+!                  write(6,*) iDegen-1
                   iDegen=1
                endif
          IF(TQUADRHO) WRITE(6,*) "QUADRATIC EXPANSION OF RHO MATRIX USED"
