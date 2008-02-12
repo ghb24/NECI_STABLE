@@ -5,8 +5,8 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          use UMatCache
          implicit none
          integer nEl,nBasisMax(5,3),Len,lMs
-         parameter C_file='SAV_D____a'
-         parameter nolabel='        '
+         character(*), parameter :: C_file='SAV_D____a'
+         character(*), parameter :: nolabel='        '
          character(3) file_status
          integer info,lenrec,nrec,i
          integer nBasis
@@ -40,10 +40,10 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          USE HElem
          use UMatCache
          implicit none
-         parameter C_file='SAV_D____a'
-         parameter I_file='SAV_T____a'
-         parameter S_file='SAV_S____a'
-         parameter nolabel='        '
+         character(*), parameter :: C_file='SAV_D____a'
+         character(*), parameter :: I_file='SAV_T____a'
+         character(*), parameter :: S_file='SAV_S____a'
+         character(*), parameter :: nolabel='        '
          character(3) file_status
          integer info,i,j,k
          real*8 r

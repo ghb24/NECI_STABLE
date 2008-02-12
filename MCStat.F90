@@ -1,20 +1,20 @@
-MODULE MCStats
+MODULE MCStat
       USE HElem
       IMPLICIT NONE
       TYPE BlockStats
-         TYPE(HDElement), POINTER :: wCurBlock(0:)
-         TYPE(HDElement), POINTER :: wBlockSum(0:)
-         TYPE(HDElement), POINTER :: wBlockSumSq(0:)
+         TYPE(HDElement), POINTER :: wCurBlock(:)  !(0:)
+         TYPE(HDElement), POINTER :: wBlockSum(:)  !(0:)
+         TYPE(HDElement), POINTER :: wBlockSumSq(:)  !(0:)
          INTEGER                       iBlocks
          INTEGER                       iBMax
          !Histogram average value of block:
          Integer                     bucketCount
-         Integer*8, Pointer       :: buckets(0:,0:)
-         Real*8, Pointer          :: bucketMin(0:)
-         Real*8, Pointer          :: bucketMax(0:)
+         Integer*8, Pointer       :: buckets(:,:)  !(0:,0:)
+         Real*8, Pointer          :: bucketMin(:)  !(0:)
+         Real*8, Pointer          :: bucketMax(:)  !(0:)
       END TYPE
       TYPE BlockStatsCov
-         TYPE(HDElement), POINTER :: wBlockSum(0:)
+         TYPE(HDElement), POINTER :: wBlockSum(:)  !(0:)
          INTEGER                       iBlocks
          INTEGER                       iBMax
       END TYPE
@@ -24,23 +24,23 @@ MODULE MCStats
          TYPE(BlockStats)           BlockRatio
          TYPE(BlockStatsCov)        BlockSignDeltaSign
          !  Magically, F90 will know the relevant numbers of rows and columns in this once it has been created.
-         INTEGER*8, POINTER         :: nGen(0:,0:)
-         INTEGER*8, POINTER         :: nAcc(0:,0:)
-         TYPE(HDElement), POINTER :: wWeighting(0:)
-         TYPE(HDElement), POINTER :: wWeightingSq(0:)
-         TYPE(HDElement), POINTER :: wGraphWeight(0:)
-         TYPE(HDElement), POINTER :: wGraphWeightSq(0:)
-         TYPE(HDElement), POINTER :: wDelta(0:)
-         TYPE(HDElement), POINTER :: wDeltaSq(0:)
-         TYPE(HDElement), POINTER :: wWeightedDelta(0:)
-         TYPE(HDElement), POINTER :: wWeightedDeltaSq(0:)
-         TYPE(HDElement), POINTER :: wTrees(0:)
-         TYPE(HDElement), POINTER :: wNonTreesPos(0:)
-         TYPE(HDElement), POINTER :: wNonTreesNeg(0:)
-         INTEGER*8, POINTER         :: nGraphs(0:)
-         INTEGER*8, POINTER         :: nNonTreesNeg(0:)
-         INTEGER*8, POINTER         :: nNonTreesPos(0:)
-         INTEGER*8, POINTER         :: nTrees(0:)
+         INTEGER*8, POINTER         :: nGen(:,:)  !(0:,0:)
+         INTEGER*8, POINTER         :: nAcc(:,:)  !(0:,0:)
+         TYPE(HDElement), POINTER :: wWeighting(:)  !(0:)
+         TYPE(HDElement), POINTER :: wWeightingSq(:)  !(0:)
+         TYPE(HDElement), POINTER :: wGraphWeight(:)  !(0:)
+         TYPE(HDElement), POINTER :: wGraphWeightSq(:)  !(0:)
+         TYPE(HDElement), POINTER :: wDelta(:)  !(0:)
+         TYPE(HDElement), POINTER :: wDeltaSq(:)  !(0:)
+         TYPE(HDElement), POINTER :: wWeightedDelta(:)  !(0:)
+         TYPE(HDElement), POINTER :: wWeightedDeltaSq(:)  !(0:)
+         TYPE(HDElement), POINTER :: wTrees(:)  !(0:)
+         TYPE(HDElement), POINTER :: wNonTreesPos(:)  !(0:)
+         TYPE(HDElement), POINTER :: wNonTreesNeg(:)  !(0:)
+         INTEGER*8, POINTER         :: nGraphs(:)  !(0:)
+         INTEGER*8, POINTER         :: nNonTreesNeg(:)  !(0:)
+         INTEGER*8, POINTER         :: nNonTreesPos(:)  !(0:)
+         INTEGER*8, POINTER         :: nTrees(:)  !(0:)
          INTEGER*8                     iAccTot
          INTEGER                       iVMax
          INTEGER*8                     iSeqLen
@@ -61,7 +61,7 @@ MODULE MCStats
             wAvgWeighting=MCS%wWeighting(iV)/HDElement(0.D0+MCS%nGraphs(iV))
             wAvgWeightedValue=MCS%wRefValue*wAvgWeighting+MCS%wWeightedDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
             wAvgDelta=MCS%wDelta(iV)/HDElement(0.D0+MCS%nGraphs(iV))
-         END
+         END subroutine
 !  The constructor
          SUBROUTINE CreateBlockStats(BS,iBlocks)
             TYPE(BlockStats) BS
@@ -88,24 +88,24 @@ MODULE MCStats
                BS%bucketMin(i)=bucketCentre - 0.5*bucketWidth
                BS%bucketMax(i)=bucketCentre + 0.5*bucketWidth
             EndDo
-         END
+         END subroutine
          SUBROUTINE CreateBlockStatsCov(BSC,iBlocks)
             TYPE(BlockStatsCov) BSC
             INTEGER iBlocks
             ALLOCATE(BSC%wBlockSum(0:iBlocks))
             BSC%wBlockSum=HDElement(0.D0)
             BSC%iBlocks=iBlocks
-         END
+         END subroutine
          SUBROUTINE DestroyBlockStatsCov(BSC)
             TYPE(BlockStatsCov) BSC
             DEALLOCATE(BSC%wBlockSum)
-         END
+         END subroutine
          SUBROUTINE DestroyBlockStats(BS)
             TYPE(BlockStats) BS
             DEALLOCATE(BS%wCurBlock)
             DEALLOCATE(BS%wBlockSum)
             DEALLOCATE(BS%wBlockSumSq)
-         END
+         END subroutine
          SUBROUTINE Create(MCS,iV,iMaxCycles,wRefValue,wRefWeight)
             TYPE(MCStats) MCS
             INTEGER iV
@@ -160,7 +160,7 @@ MODULE MCStats
             MCS%fSeqLenSq=0.D0
             MCS%wRefValue=wRefValue
             MCS%wRefWeight=wRefWeight
-         END
+         END subroutine
          SUBROUTINE Delete(MCS)
             TYPE(MCStats) MCS
             DEALLOCATE(MCS%nGen)
@@ -185,7 +185,7 @@ MODULE MCStats
             CALL DestroyBlockStats(MCS%BlockRatio)
             CALL DestroyBlockStatsCov(MCS%BlockSignDeltaSign)
             
-         END
+         END subroutine
 !  What is passed in as wSETilde is the sign of the weight times Etilde.  wSign is the sign of the weight
 !  We store Delta=ETilde-ETReference
          SUBROUTINE AddGraph(M,nTimes, iV, wWeighting,wValue,wGraphWeight,iClass,iTree,iAcc,ioV,igV,tLog,fProb,TBLOCKING)
@@ -303,7 +303,7 @@ MODULE MCStats
             M%woDelta=wDelta
             M%foProb=fProb
             M%nGen(ioV,igV)=M%nGen(ioV,igV)+nTimes
-         END
+         END subroutine
          
       SUBROUTINE WriteBlockStats(iUnit,M,nGraphs)
          TYPE(BlockStats) M
@@ -321,13 +321,13 @@ MODULE MCStats
             blockErrorError=blockError/SQRT(ABS(2.D0*(nBlocks-1.D0)))
             WRITE(iUnit,"(I,4G25.16)") i,blockError,blockErrorError,blockAvg,blockVar
          ENDDO
-      END
+      END subroutine
 
       Subroutine CalcStDev(MCStat, estimatedError)
          TYPE(MCStats) MCStat
          Real*8 estimatedError
          Call EstimateError(MCStat, estimatedError, 0)
-      End
+      End subroutine
 
       Subroutine EstimateError(MCStat, estimatedError, blockIndex)
          TYPE(MCStats) MCStat
@@ -355,7 +355,7 @@ MODULE MCStats
          kk=weightDeltaVar/weightDeltaAvg**2+weightVar/weightAvg**2-2*coVar/(weightAvg*weightDeltaAvg)
          estimatedVar=jj*kk
          estimatedError=Sqrt(Abs(estimatedVar/(nBlocks-1.D0)))
-      End
+      End subroutine
 
       SUBROUTINE WriteBlockStatsII(iUnit,MCStat)
          TYPE(MCStats) MCStat
@@ -379,7 +379,7 @@ MODULE MCStats
             Write(iUnit, "I3, 3G25.16") i, ratioAvg, ratioError, estimatedError
             !ee=/HDElement(SQRT(ABS(2.D0*(nBlocks-1.D0))))
          ENDDO
-      END
+      END subroutine
 
       
 !.. Deal with blocking in a new way.
@@ -536,7 +536,7 @@ MODULE MCStats
             BS%iBMax=i-2
             BDS%iBMax=i-2
             BlockRatio%iBMax=i-2
-    END
+    END subroutine
 
     Subroutine AddToHistogram(BS, newBlock, blockSizeIndex, blockCount)
          Type(BlockStats) BS
@@ -559,7 +559,7 @@ MODULE MCStats
              BS%buckets(blockSizeIndex, bucketIndex)=BS%buckets(blockSizeIndex, bucketIndex)+blockCount
              !Print *, blockSizeIndex, bucketIndex, BS%buckets(blockSizeIndex, bucketIndex)
          EndIf
-    End
+    End subroutine
 
     Subroutine WriteHistogram(fileNumber, BS)
          Type(BlockStats) BS
@@ -574,7 +574,7 @@ MODULE MCStats
              EndDo
              Write(fileNumber, "A") ""
          EndDo
-    End  
+    End   subroutine
 
       SUBROUTINE WriteStats(M,iUnit)
          TYPE(MCStats) M
@@ -598,7 +598,7 @@ MODULE MCStats
      &                   M%nSeqs,                                                   &
      &                   rStDev
 !SUMDLWDB/ICOUNT
-      END
+      END subroutine
 !  Calculate the Standard deviation of the result stored in MCStats.
 !  The result is given by  wETReference + <sign*Delta>/<sign>.
 !  The Standard deviation regards sign as V and Delta as U, and uses the co-variance of U and V, and has X=<UV>/<U>
@@ -647,7 +647,7 @@ MODULE MCStats
 !            WRITE(6,*) "SX",SX
             if(x.eq.0) sx=0
             rStDev=sx
-         END 
+         END  subroutine
             
 
 
@@ -680,7 +680,7 @@ MODULE MCStats
             WRITE(iUnit,*) "Sequences: ",M%nSeqs
             fAveSeqLen=(M%nGraphs(0)+0.D0)/M%nSeqs
             WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
-         END
+         END subroutine
 
 !.. just give the additional components for this vertex level
          SUBROUTINE WriteLongStats2(M,iUnit,OW,OE,Time)
@@ -712,7 +712,7 @@ MODULE MCStats
             WRITE(iUnit,*) "Sequences: ",M%nSeqs
             fAveSeqLen=(M%nGraphs(0)+0.D0)/M%nSeqs
             WRITE(iUnit,*) "Seq Len: ",fAveSeqLen,"+-",SQRT((M%fSeqLenSq/M%nSeqs)-fAveSeqLen**2)
-         END
+         END subroutine
          SUBROUTINE AddWS(w,wSq,iV,nTimes,wV)
             TYPE(HDElement) :: w(0:iV),wSq(0:iV)
             TYPE(HDElement) wV,t
@@ -725,7 +725,7 @@ MODULE MCStats
             t=t*wV
             wSq(0)=wSq(0)+t
             wSq(iV)=wSq(iV)+t
-         END
+         END subroutine
          SUBROUTINE AddW(w,iV,nTimes,wV)
             TYPE(HDElement) :: w(0:iV)
             TYPE(HDElement) wV,t
@@ -735,13 +735,13 @@ MODULE MCStats
             t=t*wV
             w(0)=w(0)+t
             w(iV)=w(iV)+t
-         END
+         END subroutine
          SUBROUTINE AddN(n,iV,nV)
             INTEGER*8 :: n(0:iV),nV
             INTEGER iV
             n(0)=n(0)+nV
             n(iV)=n(iV)+nV
-         END
+         END subroutine
             
-END MODULE MCStats         
+END MODULE MCStat         
          

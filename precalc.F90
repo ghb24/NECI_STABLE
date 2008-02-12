@@ -174,7 +174,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 
             !Initial bracketing
             IF((bestvals(1,(Q-1)).eq.0.D0).and.(bestvals(2,(Q-1)).eq.0.D0).and.(bestvals(3,(Q-1)).eq.0.D0)) THEN
-                polyp=(/ 0.1,0,1 /)     !Initial A, sigma and n.
+                polyp=(/ 0.1,0.0,1.0 /)     !Initial A, sigma and n.
                 polyxi=RESHAPE( (/ 1.D0,0.D0,0.D0,0.D0,1.D0,0.D0,0.D0,0.D0,1.D0 /), (/ 3, 3 /) )!Initial directions - unit vectors
 !                polyxi=RESHAPE( (/ 1.D0,0.D0,0.D0,0.D0,0.D0,1.D0,0.D0,1.D0,0.D0 /), (/ 3, 3 /) )!Initial directions -find n before sigma 
             ELSE
@@ -780,19 +780,19 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     CASE(6)
         G_VMC_EXCITWEIGHT(K)=point
     CASE(154)
-        IF(ALLOCATED(GRAPHPARAMS)) THEN
+        IF(ASSOCIATED(GRAPHPARAMS)) THEN
             CALL MemDealloc(GRAPHPARAMS)
             DEALLOCATE(GRAPHPARAMS)
         ENDIF
-        IF(ALLOCATED(GRAPHS)) THEN
+        IF(ASSOCIATED(GRAPHS)) THEN
             CALL MemDealloc(GRAPHS)
             DEALLOCATE(GRAPHS)
         ENDIF
-        IF(ALLOCATED(NMEM)) THEN
+        IF(ASSOCIATED(NMEM)) THEN
             CALL MemDealloc(NMEM)
             DEALLOCATE(NMEM)
         ENDIF
-        IF(ALLOCATED(PVERTMEMS)) THEN
+        IF(ASSOCIATED(PVERTMEMS)) THEN
 !            DO t=1,DEALLOCYC(2)
 !                CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,K,XIJ,          &
 !     &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,   &
@@ -807,7 +807,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             ENDDO
             DEALLOCATE(PVERTMEMS)
         ENDIF
-        IF(ALLOCATED(PGENLIST)) THEN
+        IF(ASSOCIATED(PGENLIST)) THEN
             CALL MemDealloc(PGENLIST)
             DEALLOCATE(PGENLIST)
         ENDIF
@@ -867,7 +867,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             !Will only need to run everytime a new vertex MC level is used
             !Deallocate the arrays if already been used by previous vertex level
             IF(FIRST(K)) THEN
-                IF (ALLOCATED(PVERTMEMS)) THEN
+                IF (ASSOCIATED(PVERTMEMS)) THEN
                     DO t=1,DEALLOCYC(2)
                         DO tt=1,(DEALLOCYC(1)-1)
                             CALL FREEM(PVERTMEMS(tt,t))
@@ -883,23 +883,23 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
 
                 ENDIF
                 
-                IF (ALLOCATED(PVERTMEMS)) THEN
+                IF (ASSOCIATED(PVERTMEMS)) THEN
                     CALL MemDealloc(PVERTMEMS)
                     DEALLOCATE(PVERTMEMS)
                 ENDIF
-                IF (ALLOCATED(GRAPHS)) THEN
+                IF (ASSOCIATED(GRAPHS)) THEN
                     CALL MemDealloc(GRAPHS)
                     DEALLOCATE(GRAPHS)
                 ENDIF
-                IF (ALLOCATED(PGENLIST)) THEN
+                IF (ASSOCIATED(PGENLIST)) THEN
                     CALL MemDealloc(PGENLIST)
                     DEALLOCATE(PGENLIST)
                 ENDIF
-                IF (ALLOCATED(GRAPHPARAMS)) THEN
+                IF (ASSOCIATED(GRAPHPARAMS)) THEN
                     CALL MemDealloc(GRAPHPARAMS)
                     DEALLOCATE(GRAPHPARAMS)
                 ENDIF
-                IF (ALLOCATED(NMEM)) THEN
+                IF (ASSOCIATED(NMEM)) THEN
                     CALL MemDealloc(NMEM)
                     DEALLOCATE(NMEM)
                 ENDIF

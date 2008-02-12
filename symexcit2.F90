@@ -13,7 +13,7 @@ MODULE SymExcit2
          REAL*8 WEIGHT
       END TYPE ExcitWeight
 ! Size in terms of reals.
-      PARAMETER ExcitWeightSize=3
+      integer, PARAMETER :: ExcitWeightSize=3
       CONTAINS 
 
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
@@ -54,7 +54,7 @@ MODULE SymExcit2
      &                  OrbPairs(2,iFromIndex),                         &
      &                  ews,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
          ENDDO
-      END
+      END subroutine
 !  Enumerate the excitations and weights of excitations of a given ExcitType.
       SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElem
@@ -135,7 +135,7 @@ MODULE SymExcit2
                ENDIF
             ENDIF
          ENDDO
-      END
+      END subroutine
 ! Add the weight of the excitation to the list in ExWeights
 ! I,J are from, K,L are to
       SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
@@ -157,7 +157,7 @@ MODULE SymExcit2
          ExWeights(iCount)%B=B
          ExWeights(iCount)%Weight=R
          Norm=Norm+R
-      END
+      END subroutine
          
 ! Add the weight of the 'from' excitation to the list in ExWeights
 ! I,J are from
@@ -178,7 +178,7 @@ MODULE SymExcit2
          ExWeights(iCount)%J=J
          ExWeights(iCount)%Weight=R
          Norm=Norm+R
-      END
+      END subroutine
 !        A sub called to generate an unnormalised weight for an ij->?? excitation
 !          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
       SUBROUTINE ExcitFromWeighting(I,J,Weight,G1,nBasisMax,UMat,Arr,nBasis)
@@ -221,7 +221,7 @@ MODULE SymExcit2
          ENDIF
 !         write(83,"(4G25.16)") (Arr(I,2)+Arr(J,2)), g_VMC_ExcitWeights(1,CUR_VERT), g_VMC_ExcitWeights(2,CUR_VERT), Weight
          RETURN
-      END
+      END subroutine
 !        A sub called to generate an unnormalised weight for a given ij->kl excitation
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
@@ -237,7 +237,7 @@ MODULE SymExcit2
          INTEGER I,J,K,L,ISUB
          REAL*8 WEIGHT,W2
          TYPE(HElement) UMAT(*),W
-         REAL*8 Arr(nBasis,2)
+         REAL*8 Arr(nBasis,2),Alat(3)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
          ELSE
@@ -247,7 +247,7 @@ MODULE SymExcit2
             CALL GTID(NBASISMAX,J,IDJ)
             CALL GTID(NBASISMAX,K,IDK)
             CALL GTID(NBASISMAX,L,IDL)
-            W=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
+            W=GetUMatEl(NBASISMAX,UMAT,Alat,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
                 WEIGHT=(SQRT(SQ(W)))**(G_VMC_EXCITWEIGHT(CUR_VERT))
             ELSE
@@ -283,7 +283,7 @@ MODULE SymExcit2
              ENDIF
          ENDIF
          RETURN
-      END
+      END subroutine
 
 !We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate 
 ! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
@@ -402,7 +402,7 @@ MODULE SymExcit2
 !           times prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
          CALL FREEM(IP_ews)
-      END
+      END subroutine
 
 !We wish to calculate whether NJ is an excitation of NI.
 !WARNING - this currently only works for abelian symmetry groups
@@ -452,5 +452,5 @@ MODULE SymExcit2
          ENDIF
          tIsConnectedDet=.TRUE.
          RETURN
-      END
+      END subroutine
 END MODULE SymExcit2

@@ -340,8 +340,9 @@ C.. calculates B=A**N where B and A are LxL matrices
       SUBROUTINE MATPOWER(A,L,B,N)
          REAL*8 A(L,L),B(L,L)
          REAL*8 C(L,L,0:1)
-         INTEGER N,N2,LM
+         INTEGER N,N2
          INTEGER I,S
+         LOGICAL LM
          N2=N
          S=0
          LM=BTEST(N2,0)

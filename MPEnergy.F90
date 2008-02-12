@@ -197,6 +197,6 @@ END
             if(mod(ex2(2,1)+ex2(2,2),2).eq.0)                                                         &
      &         hEl=hEl-GetUMatEl(NBASISMAX,UMAT,ALAT,nBasis,ISS,G1,ex(2,1),ex(2,2),ex(2,2),ex(2,1))
          else
-            hEl=0.0
+            hEl=0.d0
          endif
       End Subroutine

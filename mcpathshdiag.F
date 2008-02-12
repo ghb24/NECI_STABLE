@@ -646,6 +646,7 @@ C            CALL PRINT_MEMORY()
          DATA c/0/
          DATA SINGLE/0/
          DATA DOUBLE/0/
+         REAL*8 ALAT(3)
          
          IF(I_V.eq.2) THEN
             EX(1,1)=2
@@ -666,7 +667,7 @@ C            CALL PRINT_MEMORY()
                 CALL GTID(NBASISMAX,J,IDJ)
                 CALL GTID(NBASISMAX,K,IDK)
                 CALL GTID(NBASISMAX,L,IDL)
-                ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,IDJ,
+                ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,IDJ,
      &              IDK,IDL)
                 EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                 EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
@@ -707,7 +708,7 @@ C            CALL PRINT_MEMORY()
                         CALL GTID(NBASISMAX,J,IDJ)
                         CALL GTID(NBASISMAX,K,IDK)
                         CALL GTID(NBASISMAX,L,IDL)
-                      ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,
+                     ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,
      &                      IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
@@ -758,7 +759,7 @@ C            CALL PRINT_MEMORY()
                         CALL GTID(NBASISMAX,J,IDJ)
                         CALL GTID(NBASISMAX,K,IDK)
                         CALL GTID(NBASISMAX,L,IDL)
-                      ME=GetUMatEl(NBASISMAX,UMAT,0.0,NBASIS,ISS,G1,IDI,
+                     ME=GetUMatEl(NBASISMAX,UMAT,ALAT,NBASIS,ISS,G1,IDI,
      &                      IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)

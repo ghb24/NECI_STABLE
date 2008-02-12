@@ -1,2 +1,2 @@
 C.. The offset of the CSF open shell dets
-      PARAMETER CSF_NBSTART=100000
+      integer, PARAMETER :: CSF_NBSTART=100000

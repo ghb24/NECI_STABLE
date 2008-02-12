@@ -347,8 +347,8 @@ C.. just specified.  Now RHOEPSILON=RHOEPS*RHIIMAX
                                                                        
 C.. Calculate rho_IJ for I<=J, and put in bins
          CALL TISET('RHOS      ',ISUB2)
-         RHOMAX=dflmin()
-         RHOMIN=dflmax()
+         RHOMAX=tiny(1.d0)
+         RHOMIN=huge(1.d0)
          OPEN(10,FILE='RHOS',STATUS='UNKNOWN')
          RHOEPSILON=RHOEPS
          WRITE(6,*) "RHOEPSILON: ", RHOEPSILON

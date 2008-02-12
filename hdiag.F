@@ -59,7 +59,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER NBASISMAX(5,2),NBASIS
          INCLUDE 'basis.inc'
-         TYPE(BasisFN) ,G1(*)
+         TYPE(BasisFN) G1(*)
          INTEGER NMSH,NMAX,I_P,ILOGGING,BRR(*),INFO
          REAL*8  ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA
          LOGICAL TMC,TWARN

@@ -280,7 +280,7 @@
             CALL StarDiag2(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,Beta,i_P,fMCPR3StarNewExcit,dBeta,dLWdB,nRoots,iLogging)
         ENDIF
          
-         IF(ALLOCATED(ExcitInfo)) THEN
+         IF(ASSOCIATED(ExcitInfo)) THEN
             call MemDealloc(ExcitInfo)
             Deallocate(ExcitInfo)
          ENDIF
@@ -303,7 +303,7 @@
             DEALLOCATE(OffDiagProdRho)
          ENDIF
             
-      END
+      END function
 
       
 !TLinStarStars uses the approximation that the change in the eigenvalues and the first element  
@@ -961,7 +961,7 @@
             ENDDO
         ENDDO
         IF(.NOT.setup) ProdNum=countprods
-      END
+      END subroutine
 
       END MODULE
         
@@ -1561,7 +1561,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !List(0,:) is the HF det.  We set its value in the eigenvector to 1.  The remaining NLIST-1 items are used to normalize.
                DO J=1,NLIST-1
                   RR=HElement(ROOTS(I))-LIST(J,0)
-                  IF(.NOT.(RR.AGT.1e-13)) THEN
+                  IF(.NOT.(RR.AGT.1d-13)) THEN
 !see comment below
                      WRITE(6,"(A,I,A,G,A,G,A,I)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
                      WRITE(6,"(A,I,2G)") "POLE,NUMER",J,LIST(J,0),LIST(J,1)

@@ -39,7 +39,7 @@ USE f90_unix_env, ONLY: getarg,iargc
 
       DefaultFound=.false.
 !Look to find default options (line can be added anywhere in input)
-      defaults: do
+      defs: do
           call read_line(eof)
           if(eof) exit
           call readu(w)
@@ -59,7 +59,7 @@ USE f90_unix_env, ONLY: getarg,iargc
                     defaults=.true.
                 end select
           end select
-      end do defaults
+      end do defs
       IF(.NOT.DefaultFound) THEN
         WRITE(6,*) "No defaults selected - using 'default' defaults"
         defaults=.true.
@@ -320,7 +320,7 @@ USE f90_unix_env, ONLY: getarg,iargc
       ENDIF
       
 !.. We still need a specdet space even if we don't have a specdet.
-      IF(.NOT.ALLOCATED(SPECDET)) THEN
+      IF(.NOT.ASSOCIATED(SPECDET)) THEN
           ALLOCATE(SPECDET(NEL-NFROZEN),STAT=ierr)
           CALL MemAlloc(ierr,SPECDET,NEL-NFROZEN,'SPECDET')
       ENDIF

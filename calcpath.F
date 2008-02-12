@@ -353,6 +353,7 @@ C..              = (Rij/(z1-z2))((z1^P-rii^P)/(z1-rii)-(z2^P-rii^P)/(z2-rii))
          INTEGER P
          REAL*8 RHOII(0:2),RHOIJ(0:2,0:2)
          REAL*8 Z1,Z2,ZD,RIIP
+         LOGICAL LSAME2
          IF(RHOIJ(0,1).EQ.0.D0) THEN
             CALCPATHS_2=0.D0
             RETURN
@@ -616,6 +617,7 @@ CC.. This is the old version of CP3_SOLVE to be removed at some point
          COMPLEX*16 ZZ2,ZZ3,ZZ
          REAL*8 RII,RJJ,RKK,RIJ,RIK,RJK,RIJK
          REAL*8 Q,Z1,Z2,Z3,R,RT,QRRAT,THETAB3,TPB3,TRQ
+         LOGICAL LSAME2
          TPB3=3.14159265358979323846464D0*2.D0/3.D0
          IF(C.EQ.0.D0) THEN
 C.. We've actually got a quadratic as some of our vertices have no self
@@ -776,6 +778,7 @@ C         ENDIF
          REAL*8 TPB3,AA,BB,RT
          REAL*8 RIJ,RIK,RIJK,RTII(0:2),RTIJ(0:2,0:2)
          COMPLEX*16 ZZ2,ZZ3,ZZ,CP3FC
+         LOGICAL LSAME2
          TPB3=3.14159265358979323846464D0*2.D0/3.D0
 C.. Solve the cubic Z^3+A Z^2+B Z+C = 0
 C.. (Numerical Recipes in FORTRAN 2nd Ed p179

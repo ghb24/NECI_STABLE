@@ -267,7 +267,7 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER nBasis,nBasisMax(*)
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(nBasis)
          INTEGER I,J,nSyms,K
          TYPE(Symmetry) SYMT2(nBasis/2,nBasis/2)
          TYPE(BasisFN) NQNS,S

@@ -810,7 +810,7 @@ C     &                  NJ(NFULL(1,SPNS(1,1),NFULL(1,SPNS(1,1),-2)))
 C     &            ,'->',NFREE(1,SPNS(1,2),NFREE(1,SPNS(1,2),-2))
          NJ(NFULL(1,SPNS(1,1),NFULL(1,SPNS(1,1),-2)))
      &                  =NFREE(1,SPNS(1,2),NFREE(1,SPNS(1,2),-2))
-         IF(SPNS(2).NE.0) THEN
+         IF(SPNS(2,1).NE.0) THEN
             NJ(NFULL(2,SPNS(2,1),NFULL(2,SPNS(2,1),-1)))
      &                  =NFREE(2,SPNS(2,2),NFREE(2,SPNS(2,2),-1))
 C         WRITE(56,"(I4,A,I4,$)") 

@@ -7,7 +7,7 @@ C.. but with a simpler coulomb integral
       INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
       INTEGER NBASISMAX(5,3),ISS,NEL
-      REAL*8 UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+      REAL*8 UMAT(*)
       REAL*8 UHUB,OMEGA
 C..Cube arrays
       COMPLEX*16 FCK(-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1)
@@ -94,7 +94,7 @@ C.. but with a simpler coulomb integral
       INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
       INTEGER NBASISMAX(5,5),ISS 
-      DIMENSION UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+      DIMENSION UMAT(*)
 C..Cube arrays
       COMPLEX*16 FCK(-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1)
 !      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)

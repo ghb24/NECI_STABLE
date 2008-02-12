@@ -10,4 +10,4 @@ C            INTEGER        nIndJ(nEl)
 
 C           nIndJ is niWork(1+nEl)
          END TYPE
-         PARAMETER GNDWorkSize=5+3*BasisFNSize
+         integer, PARAMETER :: GNDWorkSize=5+3*BasisFNSize

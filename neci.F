@@ -349,7 +349,7 @@ C..
          WRITE(6,*) "Unscaled Fermi Energy nmax**2=",
      &      (FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
       ENDIF
-      IF(OrbECutoff.gt.-1e-50) WRITE(6,*) "Orbital Energy Cutoff:",
+      IF(OrbECutoff.gt.-1e-20) WRITE(6,*) "Orbital Energy Cutoff:",
      &       OrbECutoff
       WRITE(6,'(1X,A,F19.5)') ' VOLUME : ' , OMEGA
       WRITE(6,*) ' TALPHA : ' , TALPHA
@@ -464,7 +464,7 @@ C.. Create plane wave basis functions
                   G%k(1)=I
                   G%k(2)=J
                   G%k(3)=K
-                  G$Ms=L
+                  G%Ms=L
                   IF((THUB.AND.(TREAL.OR..NOT.TPBC))
      &               .OR.KALLOWED(G,NBASISMAX)) THEN
                     IF(THUB) THEN
@@ -497,7 +497,7 @@ C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
          IF(LEN.NE.IG) THEN
-            IF(OrbECutoff.gt.-1e50) then
+            IF(OrbECutoff.gt.-1e20) then
                write(6,*) "Have removed ", LEN-IG, 
      &            " high energy orbitals"
             else
@@ -2023,7 +2023,7 @@ C ==-------------------------------------------------------------------==
       END
 C ==-------------------------------------------------------------------==
       SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,
-&	ALAT,TKE,NHG,ILOGGING)
+     &	ALAT,TKE,NHG,ILOGGING)
       USE HElem
       USE UMatCache , only : GetTMATEl
       IMPLICIT NONE
@@ -2060,7 +2060,7 @@ C          SUM=CST*SUM
         ENDDO
       ENDDO
 C ==--------------------------------------------------------------==
-      IF(.F.) THEN
+      IF(.FALSE.) THEN
 C      IF(BTEST(ILOGGING,7)) THEN
       OPEN(10,FILE='PSI',STATUS='UNKNOWN')
       DO J=1,NEVAL
@@ -3239,7 +3239,7 @@ C.. the primed (...P) are the new versions
          CALL FLUSH(11)
          CALL FLUSH(12)
             IF(TSTARSTORE) CALL FreezeUMAT2D(NHG,NBASIS,GG,2)
-         ELSEIF(Allocated(UMatCacheData)) THEN
+         ELSEIF(Associated(UMatCacheData)) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
 C.. NHG contains the old number of orbitals
 C.. NBASIS contains the new

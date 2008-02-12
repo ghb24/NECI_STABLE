@@ -981,7 +981,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER SYMPRODIND(2,3,0:*)
       INTEGER IC
 
-      DO WHILE(1)
+      DO WHILE(.TRUE.)
 C.. see if we need a new EXCIT
          IF(I.LT.0) THEN
 C.. move to the next excitation
@@ -1753,7 +1753,7 @@ C.. Count the excitations (and generate a random one which we throw)
 #else
          INTEGER GET_ADDR
 #endif
-         PARAMETER LINELEN=16
+         INTEGER,PARAMETER :: LINELEN=16
          ILEN=INLEN*4
          LEN=ILEN
          ADDR=16*(GET_ADDR(MEM)/LINELEN)

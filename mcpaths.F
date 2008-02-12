@@ -1073,9 +1073,9 @@ C.,             If 1, only allow doubles.
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          INCLUDE 'irat.inc'
-         IF(IAND(NWHTAY,1).AND.I_VIND.EQ.0)
+         IF(BTEST(NWHTAY,0).AND.I_VIND.EQ.0)
      &      WRITE(6,*) "FMCPR3 ForceRoot."
-         IF(IAND(NWHTAY,2).AND.I_VIND.EQ.0)
+         IF(BTEST(NWHTAY,1).AND.I_VIND.EQ.0)
      &      WRITE(6,*) "FMCPR3 ForceStar."
          SELECT CASE (IAND(NWHTAY,24))
          CASE(0)

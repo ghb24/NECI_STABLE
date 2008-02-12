@@ -271,7 +271,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
          TYPE(HElement) U,TOT,sum1
          INTEGER ISS,NBASISMAX(*)
-         TYPE(HElement) UMAT(:)  ! UMAT dummy for GetUMatEl.
+         TYPE(HElement) UMAT(0)  ! UMAT dummy for GetUMatEl.
 
          INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)

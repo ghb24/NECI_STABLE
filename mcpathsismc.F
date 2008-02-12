@@ -14,13 +14,13 @@ C.. NMAX has ARR hidden in it.
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElem
-         USE MCStats
+         USE MCStat
          USE CALCREAD , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
          USE LOGREAD , only : G_VMC_LOGCOUNT
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         TYPE(MCStats) MCStat
+         TYPE(MCStats) MCSt
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY,NWHTAY
          INTEGER ILOGGING,ISUB,I,J,K,I_VMIN
@@ -48,7 +48,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER KSYM(5),IEXCITS,ITIME
          TYPE(HDElement) FMCPR4
          INTEGER FSEEK
-         INTEGER EXCITGEN(:) 
+         INTEGER EXCITGEN(0:I_VMAX) 
          TYPE(HDElement) FMCPR4B,FMCPR4C,FMCPR4D2
          TYPE(HDElement) FMCPR4D3
          TYPE(HDElement) DLWDB,DLWDB2,DLWDB3
@@ -111,16 +111,16 @@ C.. These variables have been passed in and represent the precalculated values f
          IF(TMPTHEORY) THEN
             DLWDBCORE=0.D0
             WCORE=0.D0
-            CALL Create(MCStat,I_VMAX,
+            CALL Create(MCSt,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
             WRITE(6,*) "MCPATHSR4 MP Theory"
          ElseIf(tMCDirectSum) Then
             IF(I_VMIN.NE.0) THEN
-                CALL Create(MCStat,I_VMIN,
+                CALL Create(MCSt,I_VMIN,
      &          INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
      &          DLWDBCORE/WCore,WCore)
             ELSE
-                CALL Create(MCStat,I_VMAX,
+                CALL Create(MCSt,I_VMAX,
      &          INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),
      &          DLWDBCORE/WCore,WCore)
             ENDIF
@@ -129,7 +129,7 @@ C.. These variables have been passed in and represent the precalculated values f
 !            write(6,*) DLWDBCORE/WCore
             !call flush(6)
          ELSEIF(I_VMIN.NE.0) THEN
-            CALL Create(MCStat,I_VMAX,
+            CALL Create(MCSt,I_VMAX,
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.D0)+1),
      &      DLWDBCORE/WCORE,WCore)
             IF(G_VMC_FAC.GT.1.D0.OR.G_VMC_FAC.LT.-1.D0)
@@ -137,7 +137,7 @@ C.. These variables have been passed in and represent the precalculated values f
             WRITE(6,*) "MCPATHSR4 MultiMC.  Bias=",G_VMC_FAC
          ELSE
             DLWDBCORE=HIJS(0)
-            CALL Create(MCStat,I_VMAX,
+            CALL Create(MCSt,I_VMAX,
      &         INT(LOG(0.D0+NWHTAY)/LOG(2.D0)+1),DLWDBCORE,WCore)
          ENDIF
          IF(DBETA.LT.0.D0.AND.I_VMIN.EQ.0) THEN
@@ -412,7 +412,7 @@ C.. Markov chain with random generation.
                               IOCLS=0
                               FF=1.D0
                               ITREE=1
-                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2/FF,
+                              CALL AddGraph(MCSt,LP,1,FF,DLWDB2/FF,
      &                              WCORE,0,ITREE,1,1,1,
      &                              BTEST(ILOGGING,10),OPROB,
      &                              TBLOCKING)
@@ -441,7 +441,7 @@ C.. L is the number of strings of rejections (i.e. of V's we add
                            LP=LOG((1-RAN2(ISEED)))/LOG(PGR)
 C                           WRITE(6,*) "V->V",PREJ,L,I_OVCUR,DLWDB2
                            IF(LP.GT.0) THEN
-                              CALL AddGraph(MCStat,LP,I_OVCUR,FF,
+                              CALL AddGraph(MCSt,LP,I_OVCUR,FF,
      &                          DLWDB2/FF,OWEIGHT,IOCLS,ITREE,0,I_OVCUR,
      &                              1,BTEST(ILOGGING,10),OPROB,
      &                          BTEST(ILOGGING,13))
@@ -463,7 +463,7 @@ C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV
 !                              LP=1
 !  This addgraph occurs later.  We can just set it up
                               IACC=1
-!                              CALL AddGraph(MCStat,LP,1,FF,DLWDB2/FF,
+!                              CALL AddGraph(MCSt,LP,1,FF,DLWDB2/FF,
 !     &                           OWEIGHT,ITREE,1,I_VMIN,IGV)
                               I_VCUR=1
                               IF(TVVDISALLOW) THEN
@@ -532,34 +532,34 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                   ENDIF
                   LP=1
                   If (FF%v.eq.0) Then
-         CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
+         CALL AddGraph(MCSt,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,
      &               TBLOCKING)
                 Else
 
-              CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
+              CALL AddGraph(MCSt,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
      &               ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),OPROB,
      &                  TBLOCKING)
                   EndIf
                   IF(BTEST(ILOGGING,9).AND.
      &              MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
-                 !    CALL WriteStats(MCStat,12)
+                 !    CALL WriteStats(MCSt,12)
                      If(tMCDirectSum) Then
                        Write(12, "I9, 6G25.16") iCount,
-     &                 MCStat%wWeightedDelta(0)%v
-     &                 /(MCStat%wWeighting(0)%v+(iCount+1)*WCore%v),
-     &                 MCStat%wWeightedDelta(0)%v,
-     &                 MCStat%wWeighting(0)%v, (iCount+1)*WCore%v,
-     &      MCStat%wWeightedDeltaSq(0)%v/iCount
-     &             -(MCStat%wWeightedDelta(0)%v/iCount)**2,
-     &      MCStat%wWeightingSq(0)%v/iCount
-     &             -(MCStat%wWeighting(0)%v/iCount)**2
+     &                 MCSt%wWeightedDelta(0)%v
+     &                 /(MCSt%wWeighting(0)%v+(iCount+1)*WCore%v),
+     &                 MCSt%wWeightedDelta(0)%v,
+     &                 MCSt%wWeighting(0)%v, (iCount+1)*WCore%v,
+     &      MCSt%wWeightedDeltaSq(0)%v/iCount
+     &             -(MCSt%wWeightedDelta(0)%v/iCount)**2,
+     &      MCSt%wWeightingSq(0)%v/iCount
+     &             -(MCSt%wWeighting(0)%v/iCount)**2
                      Else
                        Write(12, "I9, 3G25.16") iCount, 
-     &                  MCStat%wWeightedDelta(0)/MCStat%wWeighting(0),
-     &                  MCStat%wWeightedDelta(0),MCStat%wWeighting(0)
+     &                  MCSt%wWeightedDelta(0)/MCSt%wWeighting(0),
+     &                  MCSt%wWeightedDelta(0),MCSt%wWeighting(0)
                      EndIf
                      CALL FLUSH(12)
                   ENDIF
@@ -580,10 +580,10 @@ C ,F(I_V),FSQ(I_V)
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
               IF(I_VM1.EQ.I_VM2) THEN
 !.. just give the additional components for this vertex level
-             CALL WriteLongStats2(MCStat,11,WCORE,DLWDBCORE,NTIME-OTIME)
+             CALL WriteLongStats2(MCSt,11,WCORE,DLWDBCORE,NTIME-OTIME)
                ELSE
 !.. rejig the sums so the result is Sum w Delta / Sum w
-              CALL WriteLongStats(MCStat,11,WCORE,DLWDBCORE,NTIME-OTIME)
+              CALL WriteLongStats(MCSt,11,WCORE,DLWDBCORE,NTIME-OTIME)
                ENDIF
             ENDIF
             CALL FLUSH(11)
@@ -608,12 +608,12 @@ caa            CALL FLUSH(10)
          IGV=0
          IACC=1
          If (FF%v.eq.0) Then
-         CALL AddGraph(MCStat,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
+         CALL AddGraph(MCSt,LP,I_VCUR,HDElement(0.D0),HDElement(0.D0)
      &               ,OWEIGHT,IOCLS, ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,
      &               BTEST(ILOGGING,13))
          Else
-         CALL AddGraph(MCStat,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
+         CALL AddGraph(MCSt,LP,I_VCUR,FF,DLWDB2/FF,OWEIGHT,IOCLS,
      &               ITREE,
      &               IACC,IOV,IGV,BTEST(ILOGGING,10),0.D0,
      &               BTEST(ILOGGING,13))
@@ -627,12 +627,12 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF(BTEST(ILOGGING,10)) CLOSE(22)
          IF(BTEST(ILOGGING,13)) THEN
-            Call CalcStDev(MCStat,R)
+            Call CalcStDev(MCSt,R)
             WRITE(6,"(A,I4,A,G)") "Error in MC ",I_VM2,":",R
             CALL FLUSH(6)
         ENDIF
          IF(TMPTHEORY) THEN
-            Call GetStats(MCStat,0,TOTAL,WLSI,DLWDB2)
+            Call GetStats(MCSt,0,TOTAL,WLSI,DLWDB2)
             WLSI=LOG(TOTAL)
             DLWDB=DLWDB2
             FF=HIJS(0)
@@ -651,8 +651,8 @@ C.. setup spin excitation generator
          ELSEIF(I_VMIN.EQ.0.OR.tMCDirectSum) THEN
             IF(I_VMIN.NE.0) THEN  !We're just doing this vertex level, not the complete sum
 ! GetStats(MCS,iV,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
-               Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
-!               WRITE(6,"(A,I3,4G)") "MCStat:",I_VMIN,TOTAL,WLSI,
+               Call GetStats(MCSt,0,TOTAL,DLWDB2,WLSI)
+!               WRITE(6,"(A,I3,4G)") "MCSt:",I_VMIN,TOTAL,WLSI,
 !     &            DLWDB2,DLWDB
                TOTAL=TOTAL
                WLSI=TOTAL
@@ -664,7 +664,7 @@ C.. setup spin excitation generator
                TOTAL=TOTAL+WLSI
                DLWDB=HIJS(0)
                DO I_V=I_VM1,I_VM2
-                  Call GetStats(MCStat,I_V,FF,DLWDB2,WLSI)
+                  Call GetStats(MCSt,I_V,FF,DLWDB2,WLSI)
                   TOTAL=TOTAL+FF
                   DLWDB=DLWDB+DLWDB2 
                ENDDO
@@ -672,7 +672,7 @@ C.. setup spin excitation generator
                DLWDB=DLWDB/TOTAL   !DLWDBCORE is Etilde of 1v graph
             ENDIF
          ELSE
-            Call GetStats(MCStat,0,TOTAL,DLWDB2,WLSI)
+            Call GetStats(MCSt,0,TOTAL,DLWDB2,WLSI)
             DLWDB=DLWDB2
             IF(TOTAL%v.LT.0.D0) THEN
                TOTAL%v=-TOTAL%v
@@ -682,7 +682,7 @@ C.. setup spin excitation generator
             WLSI=TOTAL-WCORE
          ENDIF
          CALL TIHALT('MCPATHSR4 ',ISUB)
-         CALL Delete(MCStat)
+         CALL Delete(MCSt)
          RETURN
       END
 
@@ -2716,7 +2716,7 @@ C.. NB TMAT has sometimes been hidden in ZIA
          REAL*8 VWEIGHTS(2,0:I_V)
          REAL*8 R,RH,PR
          INTEGER IVERT,IVERTMOVE,ITENTNEW,ICOUNT,ITENT
-         PARAMETER NTENT=1
+         integer, PARAMETER :: NTENT=1
          INTEGER TENTDETS(NEL,NTENT)
          REAL*8 WTENTS(NTENT),WTTOT,WT1,WT2
          POINTER (IP_CUREX,CUREX)
@@ -2864,7 +2864,7 @@ C.. If we've reached here, it's an error therefore
 C.. Now we have all the information we need to work out the weight of
 C.. the new graph
          WEIGHT=0.D0
-         IF(IACC)
+         IF(IACC.NE.0)
      &       WEIGHT=CALCPATHS_N(NIPATH,0.D0,NRHOIJ,I_V,I_HMAX,
      &               I_P,0.D0,NEL,I_V,ILOGGING,DBETA,ETILDE,NHIJS,ICLS)
 C.. we now accept or reject with the correct prob
@@ -2889,7 +2889,7 @@ C.. Pacc(G'|G)=min(1,|w'(G')| Psel(k'|G') w(k)/ (|w(G)| Psel(k|G) w(k')))
      &         VWEIGHTS(1,IVERTMOVE)
 C  ,VWEIGHTS(2,IVERTMOVE)/WTTOT
          ENDIF 
-         IF(IACC) THEN
+         IF(IACC.NE.0) THEN
 C.. Accept the new
             OETILDE=ETILDE
             ICLS=0
@@ -3114,7 +3114,7 @@ C.. fake a ipath2
      &         WT2/(VWEIGHTS(2,I_V)+WT2-VWEIGHTS(2,0)),
      &         OWEIGHT,WTJ
          ENDIF 
-         IF(IACC) THEN
+         IF(IACC.NE.0) THEN
 C.. Accept the new
             OETILDE=ETILDE
             ICLS=0
@@ -3278,7 +3278,7 @@ C.. a new matrix without the removed det, and generate its weight.
             WRITE(24,*) IACC 
             WRITE(24,"5E25.16") PR,WEIGHT,WTJ,OWEIGHT,WTL
          ENDIF 
-         IF(IACC) THEN
+         IF(IACC.NE.0) THEN
 C.. Accept the new
             OETILDE=ETILDE
             ICLS=0
