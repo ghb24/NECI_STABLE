@@ -968,12 +968,10 @@ DEST=${DEST:-'.'}
 
 #Check if DEST directory exists.
 if [ ! -d ${DEST} ]; then
-   echo "The directory ${DEST} does not exist" >&2
-  exit 1
+   echo "Warning: the directory ${DEST} does not exist" >&2
 fi
 if [ ! -w ${DEST} ]; then
-  echo "The directory ${DEST} has no write permission" >&2
-  exit 1
+  echo "Warning: the directory ${DEST} has no write permission" >&2
 fi
 
 #Create Makefile if output
