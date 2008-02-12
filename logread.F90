@@ -90,7 +90,8 @@
                  case("EVERY")
                      ILOGGING = IOR(ILOGGING,2**10)
                  case default
-                    READ(w,"I") G_VMC_LOGCOUNT
+                    call reread(-1)
+                    call geti(G_VMC_LOGCOUNT)
                     ILOGGING = IOR(ILOGGING,2**9)
 !                    CALL report("Logging keyword VERTEX "//trim(w)    &
 !     &                 //" not recognised",.true.)

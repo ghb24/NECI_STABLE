@@ -484,9 +484,10 @@ C.. Now generate all the RHOIJ elements for this new node
          RETURN
       END
       RECURSIVE INTEGER FUNCTION IMCPR4NC(IADJ,I_V,IPATH,IND)
+     &    RESULT (IMCPR4NCRES)
          IMPLICIT NONE
          INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,IPATH(0:I_V-1),IND
-         INTEGER I,J,INODE,ITOT
+         INTEGER I,J,INODE,ITOT,IMCPR4NCRES
          LOGICAL BR
 C.. Go through all the nodes currently in the path, and through each
 C.. possible attachment for each node
@@ -499,10 +500,10 @@ C.. We need to recurse through nodes connected to us, removing them
                   BR=.FALSE.
                   IADJ(I,IPATH(0))=0
                   IADJ(IPATH(0),I)=0
-                  IMCPR4NC=IMCPR4NC(IADJ,I_V,IPATH,1)
+                  IMCPR4NCRES=IMCPR4NC(IADJ,I_V,IPATH,1)
                   IPATH(1)=I
                   IADJ(I,I)=0
-                  IMCPR4NC=IMCPR4NC+IMCPR4NC(IADJ,I_V,IPATH,2)
+                  IMCPR4NCRES=IMCPR4NCRES+IMCPR4NC(IADJ,I_V,IPATH,2)
                   IADJ(I,IPATH(0))=1
                   IADJ(IPATH(0),I)=1
                   IADJ(I,I)=1
@@ -512,7 +513,7 @@ C.. We need to recurse through nodes connected to us, removing them
             ENDDO
          ELSE
             IF(IPATH(IND).EQ.0) THEN
-               IMCPR4NC=1
+               IMCPR4NCRES=1
                RETURN
             ENDIF
             ITOT=0
@@ -536,7 +537,7 @@ C.. add that node to the path, and recurse
                J=J+1
                IF(J.GE.I_V) BR=.FALSE.
             ENDDO
-            IMCPR4NC=ITOT
+            IMCPR4NCRES=ITOT
          ENDIF
          RETURN
       END

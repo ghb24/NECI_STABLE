@@ -319,7 +319,7 @@ MODULE MCStat
 !This /(nBlocks-1) comes from Flyvbjerg's paper, and is because we are working out the best estimator of the stdev,not the actual stdev.
             blockError=SQRT(ABS(blockVar/(nBlocks-1.D0)))
             blockErrorError=blockError/SQRT(ABS(2.D0*(nBlocks-1.D0)))
-            WRITE(iUnit,"(I,4G25.16)") i,blockError,blockErrorError,blockAvg,blockVar
+            WRITE(iUnit,"(I7,4G25.16)") i,blockError,blockErrorError,blockAvg,blockVar
          ENDDO
       END subroutine
 
@@ -376,7 +376,7 @@ MODULE MCStat
             ratioVar=DReal(BlockRatio%wBlockSumSq(i))/nBlocks-ratioAvg**2
             ratioError=Sqrt(ratioVar/(nBlocks-1))
             !Write to 'blocking' file:
-            Write(iUnit, "I3, 3G25.16") i, ratioAvg, ratioError, estimatedError
+            Write(iUnit, "(I3, 3G25.16)") i, ratioAvg, ratioError, estimatedError
             !ee=/HDElement(SQRT(ABS(2.D0*(nBlocks-1.D0))))
          ENDDO
       END subroutine
@@ -569,10 +569,10 @@ MODULE MCStat
          Do iBuckets=1, BS%bucketCount
              Do iBlockSize=0, BS%iBMax
                  bucketWidth = BS%bucketMax(iBlockSize)-BS%bucketMin(iBlockSize)
-                 Write(fileNumber, "F", ADVANCE='NO') BS%bucketMin(iBlockSize)+bucketWidth/BS%bucketCount*(iBuckets-0.5)
-                 Write(fileNumber, "I", ADVANCE='NO') BS%buckets(iBlockSize, iBuckets)
+                 Write(fileNumber, "(F25.16)", ADVANCE='NO') BS%bucketMin(iBlockSize)+bucketWidth/BS%bucketCount*(iBuckets-0.5)
+                 Write(fileNumber, "(I7)", ADVANCE='NO') BS%buckets(iBlockSize, iBuckets)
              EndDo
-             Write(fileNumber, "A") ""
+             Write(fileNumber, "(A)") ""
          EndDo
     End   subroutine
 

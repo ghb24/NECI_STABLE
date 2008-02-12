@@ -35,8 +35,8 @@ C.. now call a routine to reset the current type's lists
          IF(NTYPE.EQ.0) RETURN
 C..Debugging junk
          CALL WRITEDET(UNT,NI,NEL,.FALSE.)
-         WRITE(UNT,"(5Z5,I)") (TYPES(I,NTYPE),I=1,5)
-        WRITE(UNT,"(9Z5,I)") (TYPES(I,NTYPE),I=1,5),SPNS(1,1),SPNS(2,1),
+         WRITE(UNT,"(5Z5,I4)") (TYPES(I,NTYPE),I=1,5)
+        WRITE(UNT,"(9Z5,I4)")(TYPES(I,NTYPE),I=1,5),SPNS(1,1),SPNS(2,1),
      &      SPNS(1,2),SPNS(2,2),NTYPE
          DO J=1,2
          WRITE(UNT,"(A,$)") "FULL"

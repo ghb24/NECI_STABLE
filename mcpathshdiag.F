@@ -28,7 +28,7 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL,I_VMAX,EREF,VARSUM,WREF)
+     &   NTOTAL,I_VMAX,EREF,VARSUM,WREF) RESULT (FMCPR3B2RES)
          USE HElem 
          USE LOGREAD , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
@@ -42,7 +42,7 @@ C.,             If 1, only allow doubles.
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMAT(*),R
          REAL*8 ALAT(*),ECORE
-         TYPE(HDElement) TOTAL,FMCPR3B2,Prob
+         TYPE(HDElement) TOTAL,FMCPR3B2RES,Prob
          TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V),DUMMY(0:I_V)
          TYPE(HElement) HIJ(0:I_V,0:I_V),RH
@@ -135,7 +135,7 @@ C.. This is the current node (set by our parent)
          HIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
          IF(.NOT.(RH.AGT.0.D0)) THEN
-            FMCPR3B2=0.D0
+            FMCPR3B2RES=0.D0
             RETURN
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
@@ -284,7 +284,7 @@ C.. NMAX has ARR hidden in it.
 !     &              NBASISMAX,UMAT,G1,DLWDB2)
 !            ENDIF
             L=L+1
-            FMCPR3B2=TOTAL
+            FMCPR3B2RES=TOTAL
             IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E(2)
@@ -530,7 +530,7 @@ C            CALL MEMORY_CHECK()
 C            CALL PRINT_MEMORY()
          CALL FREEM(IP_NMEM)
          LOCTAB(1,I_VIND+1)=0
-         FMCPR3B2=TOTAL
+         FMCPR3B2RES=TOTAL
 
         If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
         
@@ -616,7 +616,7 @@ C            CALL PRINT_MEMORY()
              g=g+1
          ELSE
              avWeight=totWeight/g
-             Write(56, "G25.16,I9,G25.16") avWeight,g,                  
+             Write(56, "(G25.16,I9,G25.16)") avWeight,g,                
      &        Energyfromold
              avWeight=0.D0
              totWeight=Weight%v
@@ -672,7 +672,7 @@ C            CALL PRINT_MEMORY()
                 EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                 EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
             ENDIF
-            WRITE(56,"3G25.16") Weight%v,Energyto,ME%v
+            WRITE(56,"(3G25.16)") Weight%v,Energyto,ME%v
         ELSEIF(I_V.eq.3) THEN
             c=c+1
             
@@ -713,13 +713,13 @@ C            CALL PRINT_MEMORY()
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN
-                            WRITE(56,"4G25.16,I3,G25.16") Weight%v,
+                            WRITE(56,"(4G25.16,I3,G25.16)") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
                         ELSEIF(MOD(c,75).eq.25) THEN
-                            WRITE(57,"4G25.16,I3,G25.16") Weight%v,
+                            WRITE(57,"(4G25.16,I3,G25.16)") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
                         ELSEIF(MOD(c,75).eq.50) THEN
-                            WRITE(58,"4G25.16,I3,G25.16") Weight%v,
+                            WRITE(58,"(4G25.16,I3,G25.16)") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
                         ENDIF
                     ELSEIF(EX(1,2).eq.0) THEN
@@ -764,13 +764,13 @@ C            CALL PRINT_MEMORY()
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN
-                            WRITE(59,"4G25.16,I3,G25.16") Weight%v,
+                            WRITE(59,"(4G25.16,I3,G25.16)") Weight%v,
      &                        DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
                         ELSEIF(MOD(c,75).eq.25) THEN
-                            WRITE(60,"4G25.16,I3,G25.16") Weight%v,
+                            WRITE(60,"(4G25.16,I3,G25.16)") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
                         ELSEIF(MOD(c,75).eq.50) THEN
-                            WRITE(61,"4G25.16,I3,G25.16") Weight%v,
+                            WRITE(61,"(4G25.16,I3,G25.16)") Weight%v,
      &                       DLWDB2%v,EnergyFrom,EnergyTo,EXCITLEV,ME%v
                         ENDIF
                     ENDIF

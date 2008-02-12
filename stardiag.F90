@@ -106,7 +106,7 @@
          !TCountExcits will run through all excitations possible, determine if they are connected, and then only store these.
          !Will be twice as expensive, as needs to run through all excitations twice - however, will only store memory needed.
          IF(tCountExcits) THEN
-            Write(6,"A,I10,A") "Counting excitations - Running through all ",iMaxExcit," excitations to determine number connected"
+            Write(6,"(A,I10,A)") "Counting excitations - Running through all ",iMaxExcit," excitations to determine number connected"
             excitcount=0
             CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
             
@@ -1563,9 +1563,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   RR=HElement(ROOTS(I))-LIST(J,0)
                   IF(.NOT.(RR.AGT.1d-13)) THEN
 !see comment below
-                     WRITE(6,"(A,I,A,G,A,G,A,I)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
-                     WRITE(6,"(A,I,2G)") "POLE,NUMER",J,LIST(J,0),LIST(J,1)
-                     WRITE(6,"(A,I,2G)") "POLE,NUMER",J-1,LIST(J-1,0),LIST(J-1,1)
+                     WRITE(6,"(A,I6,A,G25.16,A,G25.16,A,I6)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
+                     WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J,LIST(J,0),LIST(J,1)
+                     WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J-1,LIST(J-1,0),LIST(J-1,1)
                   ENDIF
                   NORM=NORM+SQ(LIST(J,1)/RR)
                ENDDO

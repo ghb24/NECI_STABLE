@@ -69,7 +69,7 @@ C.. This does not use a stored RHO or H matrix
       RECURSIVE REAL*8 FUNCTION FMCPR2(NI,BETA,I_P,IPATH,I_H,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_HIND,RHOCUML,RHOII,LSTE,ICE,NWHTAY,L,LT,ILOGGING,
-     &   TSYM,ECORE,ILMAX)
+     &   TSYM,ECORE,ILMAX) RESULT (FMCPR2RES)
          
          IMPLICIT REAL*8 (A-H,O-Z)
          REAL*8 RHOCUML
@@ -99,7 +99,7 @@ C.. although it might not be allowed.
 C.. if the current node is more than the allowable excitations from I, then
 C.. give up and return
             IF(I.GT.2*ABS(NTAY)*(I_H-I_HIND)) THEN
-               FMCPR2=0.D0
+               FMCPR2RES=0.D0
                RETURN
             ENDIF
          ENDIF
@@ -185,7 +185,7 @@ C,, I_I as the ultimate node
           ENDIF
           I=I+1
          ENDDO
-         FMCPR2=TOTAL
+         FMCPR2RES=TOTAL
          RETURN
       END
 
@@ -259,7 +259,7 @@ C.. node for each set. (7/11/03)
 C..  It then weights using CALCPATHn (n=5 for rec/taylor2 hybrid) (18/11/03)
       RECURSIVE REAL*8 FUNCTION FMCPR(I_I,I_P,NDET,RHOIJROWS,RHOIJ,
      &      RHOIJLAB,NRHOMAXWIDTH,IPATH,ISEED,I_H,NWHTAY,
-     &      I_HIND,RHOCUML,RHOII,L,LT,ILOGGING)
+     &      I_HIND,RHOCUML,RHOII,L,LT,ILOGGING) RESULT (FMCPRRES)
          
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET,NRHO,I_H
@@ -340,7 +340,7 @@ C,, I_I as the ultimate node
             ENDIF
             I=I+1
          ENDDO
-         FMCPR=TOTAL
+         FMCPRRES=TOTAL
          RETURN
       END
 

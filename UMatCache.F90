@@ -993,7 +993,7 @@ MODULE UMatCache
          INTEGER I,J,K,N,nK
          DO I=1,nPairs
 !Find the last value in the cache
-            CALL BinarySearch(nPairs+1,UMatLabels(1,I),1,nSlots,N,J,K)
+            CALL BinarySearch(nPairs+1,UMatLabels(1:nSlots,I),1,nSlots,N,J,K)
             N=J-1
 !  N is now the last element and thus number of elements.
 !  Sort according to label
@@ -1020,7 +1020,7 @@ MODULE UMatCache
       SUBROUTINE BINARYSEARCH(VAL,TAB,A,B,LOC,LOC1,LOC2)
          IMPLICIT NONE
          INTEGER VAL,A,B,LOC,LOC1,LOC2
-         INTEGER TAB(B)
+         INTEGER TAB(A:B)
          INTEGER I,J,IFIRST,N,ILAST
 !         DO I=A,B
 !            WRITE(6,*) I,TAB(I)
@@ -1616,7 +1616,7 @@ END MODULE UMatCache
 !  We store them linearly in the cache, and distribute them around later
 
 !Find the last value in the cache
-            CALL BINARYSEARCH(NPAIRS+1,UMATLABELS(1,A),1,NSLOTS,ICACHEI,ICACHEI1,ICACHEI2)
+            CALL BINARYSEARCH(NPAIRS+1,UMATLABELS(1:NSLOTS,A),1,NSLOTS,ICACHEI,ICACHEI1,ICACHEI2)
                ICACHEI=ICACHEI1
                ICACHEI2=ICACHEI1
                IF(UMatLabels(iCacheI,A).NE.0) iCacheOvCount=iCacheOvCount+1
@@ -1627,7 +1627,7 @@ END MODULE UMatCache
 !                  WRITE(6,*) ICACHEI1,ICACHEI2
 !                  WRITE(6,*) ICACHEI
             ELSE
-            CALL BINARYSEARCH(B,UMATLABELS(1,A),1,NSLOTS,ICACHEI,ICACHEI1,ICACHEI2)
+            CALL BINARYSEARCH(B,UMATLABELS(1:NSLOTS,A),1,NSLOTS,ICACHEI,ICACHEI1,ICACHEI2)
             ENDIF
          ENDIF
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN

@@ -697,14 +697,14 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
-     &   MP2E,NTOTAL)
+     &   MP2E,NTOTAL)  RESULT (FMCPR3RES)
          USE HElem
          USE LOGREAD , only : G_VMC_LOGCOUNT
          USE CALCREAD , only : TMPTHEORY
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
-         TYPE(HDElement) FMCPR3
+         TYPE(HDElement) FMCPR3RES
          INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5)
          INTEGER I,IVLMAX,II
@@ -762,7 +762,7 @@ C.. Find RHO_II for this node
          RHOIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
          IF(.NOT.(RH.AGT.0.D0)) THEN
-            FMCPR3=0.D0
+            FMCPR3RES=0.D0
             RETURN
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
@@ -790,7 +790,7 @@ C.. Sum up the components of <D|H exp(-b H)|D>
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
 caa	    call flush(10) 
             L=L+1
-            FMCPR3=TOTAL
+            FMCPR3RES=TOTAL
             IF(I_V.EQ.2.AND.TMPTHEORY) THEN
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
@@ -987,7 +987,7 @@ C.. Get the H element so we can calculate the energy
 C.. Recurse back through the direct line of descendents
           IVLEVEL=BTABLE(IVLEVEL)
          ENDDO
-         FMCPR3=TOTAL
+         FMCPR3RES=TOTAL
          RETURN
       END
 
@@ -1017,7 +1017,7 @@ C.,             If 1, only allow doubles.
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
-     &   NTOTAL,EREF,VARSUM,WREF)
+     &   NTOTAL,EREF,VARSUM,WREF) RESULT (FMCPR3BRES)
          USE HElem
          USE CALCREAD , only : TVARCALC,TMPTHEORY
          USE LOGREAD , only : G_VMC_LOGCOUNT
@@ -1031,7 +1031,7 @@ C.,             If 1, only allow doubles.
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMAT(*),R
          REAL*8 ALAT(*),ECORE,PR
-         TYPE(HDElement) TOTAL,FMCPR3B,WREF,EREF,PROB
+         TYPE(HDElement) TOTAL,FMCPR3BRES,WREF,EREF,PROB
          TYPE(HDElement) CALCPATHS_N
          INTEGER IPATH(NEL,0:I_V)
          TYPE(HDElement) RHOII(0:I_V),DLWDB,DLWDB2
@@ -1129,7 +1129,7 @@ C.. This is the current node (set by our parent)
          RHOIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
          IF(.NOT.(RH.AGT.0.D0)) THEN
-            FMCPR3B=0.D0
+            FMCPR3BRES=0.D0
             RETURN
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
@@ -1169,7 +1169,7 @@ C.. Sum up the components of <D|H exp(-b H)|D>
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
             ENDIF
             L=L+1
-            FMCPR3B=TOTAL
+            FMCPR3BRES=TOTAL
             IF(I_V.EQ.2.AND.TMPTHEORY) THEN
 C.. Calculate the MP2 Energy
 C.. NMAX has ARR hidden in it.
@@ -1481,7 +1481,7 @@ C            CALL MEMORY_CHECK()
 C            CALL PRINT_MEMORY()
          CALL FREEM(IP_NMEM)
          LOCTAB(1,I_VIND+1)=0
-         FMCPR3B=TOTAL
+         FMCPR3BRES=TOTAL
 
          If (TVARCALC(I_V).and.(I_VIND.eq.0).and.(.not.TPREVAR)) Then
 
@@ -1860,7 +1860,7 @@ C.. and also includes the removal of subgraphs
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,I_VIND,RHOII,RHOIJ,LSTE,ICE,RIJLIST,NWHTAY,L,LT,I_HMAX,
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS
-     &   )
+     &   ) RESULT (FMCPR3NVSTARRES)
          
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -1886,7 +1886,7 @@ C.. NLIST contains the length of LSTE for each node
          REAL*8 RH,BETA,RHOEPS
          LOGICAL LSAME,TSYM
          LOGICAL TLOG,TLOG2
-         REAL*8 DBETA,DLWDB,DLWDB2
+         REAL*8 DBETA,DLWDB,DLWDB2,FMCPR3NVSTARRES
          REAL*8 HIJS(0:I_V)
          INTEGER ICLS
          REAL*8 GETHELEMENT2
@@ -1917,7 +1917,7 @@ C.. Find RHO_II for this node
          RHOIJ(I_VIND,I_VIND)=RH
 C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
          IF(RH.EQ.0.D0) THEN
-            FMCPR3NVSTAR=0.D0
+            FMCPR3NVSTARRES=0.D0
             RETURN
          ENDIF
          IF(I_VIND.GT.0) THEN
@@ -1932,7 +1932,7 @@ C.. it off to ADDDIAGSTAR which writes it to a file.
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
 C.. If we've made a graph of the right size, we return
-            FMCPR3NVSTAR=0.D0
+            FMCPR3NVSTARRES=0.D0
             RETURN
          ENDIF
 
@@ -2117,7 +2117,7 @@ C.. if we're right at the end, we call the star diag
             CLOSE(19)
             CALL READSTARDIAG(L,I_P,RHOII(0),HIJS(0),FMCPR3NVSTAR,DLWDB)
          ELSE
-            FMCPR3NVSTAR=TOTAL
+            FMCPR3NVSTARRES=TOTAL
          ENDIF
          RETURN
       END

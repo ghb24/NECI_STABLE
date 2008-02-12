@@ -1574,7 +1574,7 @@ C.. Set to be totally symmetric
       end function ComposeAbelianSym
 
 
-      integer*8 function TotSymRep
+      integer*8 function TotSymRep()
           ! Our definition of the totally symmetric representation
           ! changes according to whether we're using Abelian/k-point
           ! symmetry or the standard symmetry.  It's just a matter of

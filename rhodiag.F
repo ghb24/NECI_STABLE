@@ -47,7 +47,7 @@ C.. account for LSTE(0)
          DO K=1,NEL
             WRITE(35,"(I3,A,$)") NI(K),","
          ENDDO
-         WRITE(35,"(A,G25.16,I,$)") ")", -(I_P/BETA)*LOG(RH),NLIST
+         WRITE(35,"(A,G25.16,I4,$)") ")", -(I_P/BETA)*LOG(RH),NLIST
          RJJLIST(0)=RH
          WLRI=LOG(RH)
          RHII=RH
@@ -118,7 +118,7 @@ C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
 C         ENDDO
          WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
-         WRITE(35,"(I,3G25.16)") NLIST+1,WLRI,WLSI,EXP(I_P*WLRI+WLSI)
+         WRITE(35,"(I5,3G25.16)") NLIST+1,WLRI,WLSI,EXP(I_P*WLRI+WLSI)
          CALL FREEM(IP_WLIST)
          CALL FREEM(IP_RIJMAT)
          CALL FREEM(IP_LSTE)
@@ -190,13 +190,13 @@ C         OPEN(36,FILE="/dev/null",STATUS="UNKNOWN")
             DO K=1,NEL
                WRITE(36,"(I3,A,$)") NI(K),","
             ENDDO
-            WRITE(36,"(A,G25.16,I)") ")", -(I_P/BETA)*LOG(RH),NLIST
+            WRITE(36,"(A,G25.16,I5)") ")", -(I_P/BETA)*LOG(RH),NLIST
          ENDIF
          WRITE(37,"(A,$)") "("
          DO K=1,NEL
             WRITE(37,"(I3,A,$)") NI(K),","
          ENDDO
-         WRITE(37,"(A,I)") ")",NLIST
+         WRITE(37,"(A,I5)") ")",NLIST
          RJJLIST(0)=RH
          WLRI=LOG(RH)
          RHII=RH
@@ -318,7 +318,7 @@ C            ENDDO
 C         ENDDO
                WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
               IF(LSUB) 
-     &         WRITE(36,"(I,4G25.16)") NLIST,WLRI,WLSI,EXP(WLSI),
+     &         WRITE(36,"(I5,4G25.16)") NLIST,WLRI,WLSI,EXP(WLSI),
      &                  EXP(I_P*WLRI+WLSI)
                SN=SN+EXP(WLSI)
               CALL GETNEXTPERM(LSTP(1),NLMAX-1,IPLEN,LACC,IPLEN,NLMAX-1)
@@ -330,7 +330,7 @@ C            WRITE(37,*) SN
             ENDDO
             VARRAY(IPLEN)=SN
             SNC=SNC+SN
-            WRITE(37,"(I4,3G25.16,I)") IPLEN+1,SN,SNC,SNN,NCOUNT
+            WRITE(37,"(I4,3G25.16,I5)") IPLEN+1,SN,SNC,SNN,NCOUNT
             IF(NLMAX.GT.10) CALL FLUSH(37)
 C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
          ENDDO
@@ -443,7 +443,7 @@ C.. we diagonalize the HIJ elements and work out e^-beta lambda.
 
 C.. See 1/7/04
       RECURSIVE FUNCTION HDIAG_CPP(HIJ,
-     &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
+     &       I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS) result (HDIAG_CPPRES)
          USE HElem
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
@@ -456,13 +456,13 @@ C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
          REAL*8 BETA
          TYPE(HElement) HIJS(I_V+1),HIJS2(I_V),DLWT,T,U
-         TYPE(HDElement) HDiag_CPP
+         TYPE(HDElement) HDiag_CPPRES
          TYPE(HDElement) R,S,DLWDB,DD2
          TYPE(HDElement) RII
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJ(1,1)
-            HDIAG_CPP=1.D0
+            HDIAG_CPPRES=1.D0
             RETURN
          ENDIF
          R=HIJ(1,1)
@@ -561,13 +561,14 @@ C/RII
          ENDIF
          S=DLWT
          DLWDB=DLWDB+S
-         HDIAG_CPP=SI+SI2
+         HDIAG_CPPRES=SI+SI2
          CALL TIHALTL("HDIAG_CPP ",ISUB,55)
          RETURN
       END
 C.. See 1/7/04
       RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
-     &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight)
+     &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight) 
+     &      RESULT (RHODIAG_CPPRES)
          USE HElem
          IMPLICIT NONE
          INTEGER I_P,I_V,ISUB
@@ -580,13 +581,13 @@ C.. See 1/7/04
 C.. do we subtract out lower vertices here or later?
          LOGICAL TSUB
          TYPE(HDElement) DLWDB,RII,DD2
-         TYPE(HDElement) RhoDiag_CPP
+         TYPE(HDElement) RhoDiag_CPPRES
          REAL*8 DBETA
          LOGICAL tLogWeight
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJS(1)
-            RHODIAG_CPP=1.D0
+            RHODIAG_CPPRES=1.D0
             RETURN
          ENDIF
          RII=RHOIJ(1,1)
@@ -726,10 +727,10 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          ENDIF
 
 
-         RHODIAG_CPP=SI+SI2
+         RHODIAG_CPPRES=SI+SI2
 
          if(tLogWeight) then
-            RHODIAG_CPP=HDElement(0)
+            RHODIAG_CPPRES=HDElement(0)
 !  We return zero as the weight of the graph
          ENDIF
 

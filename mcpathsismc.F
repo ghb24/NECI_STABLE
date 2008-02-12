@@ -547,7 +547,7 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
      &              MOD(ICOUNT,G_VMC_LOGCOUNT).EQ.0) THEN
                  !    CALL WriteStats(MCSt,12)
                      If(tMCDirectSum) Then
-                       Write(12, "I9, 6G25.16") iCount,
+                       Write(12, "(I9, 6G25.16)") iCount,
      &                 MCSt%wWeightedDelta(0)%v
      &                 /(MCSt%wWeighting(0)%v+(iCount+1)*WCore%v),
      &                 MCSt%wWeightedDelta(0)%v,
@@ -557,7 +557,7 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
      &      MCSt%wWeightingSq(0)%v/iCount
      &             -(MCSt%wWeighting(0)%v/iCount)**2
                      Else
-                       Write(12, "I9, 3G25.16") iCount, 
+                       Write(12, "(I9, 3G25.16)") iCount, 
      &                  MCSt%wWeightedDelta(0)/MCSt%wWeighting(0),
      &                  MCSt%wWeightedDelta(0),MCSt%wWeighting(0)
                      EndIf
@@ -628,7 +628,7 @@ C.. setup spin excitation generator
          IF(BTEST(ILOGGING,10)) CLOSE(22)
          IF(BTEST(ILOGGING,13)) THEN
             Call CalcStDev(MCSt,R)
-            WRITE(6,"(A,I4,A,G)") "Error in MC ",I_VM2,":",R
+            WRITE(6,"(A,I4,A,G25.16)") "Error in MC ",I_VM2,":",R
             CALL FLUSH(6)
         ENDIF
          IF(TMPTHEORY) THEN
@@ -641,7 +641,7 @@ C.. setup spin excitation generator
 !  Otherwise it will be done in MCPATHSR10 which calls us
             IF(I_VMIN.EQ.0) THEN
                WRITE(STR,"(A2,I1,A10)") "MP",I_VMAX," ENERGY = "
-               WRITE(6,"(A14,G)") STR,FF
+               WRITE(6,"(A14,G25.16)") STR,FF
             ENDIF
 !            DO I=2,I_VMAX
 !               FF=FF+MP2E(I)
@@ -771,14 +771,15 @@ C.. indicate we have traversed a particular vertex
          RETURN
       END
 
-      RECURSIVE INTEGER FUNCTION IMCPR4N(IADJ,I_V,IPATH,IND)
+      RECURSIVE INTEGER FUNCTION IMCPR4N(IADJ,I_V,IPATH,IND) 
+     &   RESULT (IMCPR4NRES)
          IMPLICIT NONE
          INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,IPATH(0:I_V-1),IND
-         INTEGER I,J,INODE,ITOT
+         INTEGER I,J,INODE,ITOT,IMCPR4NRES
 C.. Go through all the nodes currently in the path, and through each
 C.. possible attachment for each node
          IF(IND.EQ.I_V) THEN
-            IMCPR4N=1
+            IMCPR4NRES=1
             RETURN
          ENDIF
          ITOT=0
@@ -799,7 +800,7 @@ C.. add that node to the path, and recurse
                ENDIF
             ENDDO
          ENDDO
-         IMCPR4N=ITOT
+         IMCPR4NRES=ITOT
          RETURN
       END
 
@@ -3276,7 +3277,7 @@ C.. a new matrix without the removed det, and generate its weight.
             WRITE(24,"(A,$)") "->"
             CALL WRITEPATH(24,IPATH2,I_V-1,NEL,.FALSE.)
             WRITE(24,*) IACC 
-            WRITE(24,"5E25.16") PR,WEIGHT,WTJ,OWEIGHT,WTL
+            WRITE(24,"(5E25.16)") PR,WEIGHT,WTJ,OWEIGHT,WTL
          ENDIF 
          IF(IACC.NE.0) THEN
 C.. Accept the new

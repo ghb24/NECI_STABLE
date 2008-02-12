@@ -214,7 +214,8 @@
                  case("FORCE")
                      iDumpCacheFlag=2
                  case default
-                    read(w,"(I)") NSLOTSINIT
+                    call reread(-1)
+                    call geti(NSLOTSINIT)
               end select
           case("NOUMATCACHE")
               NSLOTSINIT=-1

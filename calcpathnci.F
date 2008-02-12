@@ -5,7 +5,7 @@ C.. = (P h) (1+((P-h)/(h+1))Sum_(i=1,h)(e_i (1+ ((P-h-1)/(h+2))Sum_(j=i,h) e_j (
 C.. return (RH_II^-I_H)*RH_IJ*RH_JK*...*RH_LI*W_h(RH_JJ/RH_II,...RH_LL/RH_II,P)
 C.. This is recursive and will generate up to order NWHTAY
       REAL*8 RECURSIVE FUNCTION CALCPATH6_2(IPATH,RHOII,RHOCUML,I_H,I_P,
-     &      NWHTAY,ISTART,NORDER)
+     &      NWHTAY,ISTART,NORDER) RESULT (CALCPATHS6_2RES)
          REAL*8 RHOII(0:I_H),DFACT
          INTEGER NWHTAY
          F1=0.D0
@@ -21,11 +21,11 @@ C.. This is recursive and will generate up to order NWHTAY
          ENDDO
          F1=1.D0+F1*DFACT
          IF(NORDER.EQ.0) THEN
-            CALCPATH6_2=FNCR(I_P,I_H)*F1
+            CALCPATH6_2RES=FNCR(I_P,I_H)*F1
 C.CALCPATHS6_2 now contains the weight
-            CALCPATH6_2=CALCPATH6_2*(RHOII(0)**(-I_H))*RHOCUML
+            CALCPATH6_2RES=CALCPATH6_2RES*(RHOII(0)**(-I_H))*RHOCUML
          ELSE
-            CALCPATH6_2=F1
+            CALCPATH6_2RES=F1
          ENDIF
          RETURN
       END
@@ -649,7 +649,8 @@ C.. Recursively generate Z-sum for use with MCPATHS
 C.. use formula with approximations - not v good (14/11/03)
 C.. R_R(R,X,NL) = (1/(1-x))(R_R(r,s_(nl-1)/r,nl-1)-x*R_R(r*x,s_(nl-1)/rx,nl-1))
 C.. R_R(R,X,0) = r**L0 (1-x**(L0+1))/(1-x)
-      REAL*8 RECURSIVE FUNCTION R_R2(RHO,CHI,NL,RHOII,L0)
+      REAL*8 RECURSIVE FUNCTION R_R2(RHO,CHI,NL,RHOII,L0) 
+     &    RESULT (R_R2RES)
          IMPLICIT REAL*8 (A-H,O-Z)
          REAL*8 RHOII(0:*)
          R_R=0.D0
@@ -661,7 +662,7 @@ C         WRITE(10,"(A,2E25.16,I2)") "RR(",RHO,CHI,NL
             ENDIF
 C               R_R=(R**L0)*(L0+1)
 C            ELSE
-               R_R2=((1+RHO)**L0)*(1-(1+CCHI)**(L0+1))/(-CCHI)
+               R_R2RES=((1+RHO)**L0)*(1-(1+CCHI)**(L0+1))/(-CCHI)
 C            ENDIF
          ELSE
 C.. if we have a degeneracy, the sums blow up, so we break the degeneracy
@@ -681,11 +682,11 @@ C            IF(R1.EQ.0.D0) RETURN
      &               ,NL-1,RHOII,L0)
 C            IF(R2.EQ.0.D0) RETURN
                R1=R1-R2
-               R_R2=-R1/CCHI
+               R_R2RES=-R1/CCHI
 C            ENDIF
          ENDIF
          WRITE(10,"(A,2E25.16,I2,A,$)") "RR(",RHO,CHI,NL,")"
-         WRITE(10,*) R_R2
+         WRITE(10,*) R_R2RES
          RETURN
       END
 
@@ -693,10 +694,10 @@ C            ENDIF
 C.. use formula
 C.. R_R(R,X,NL) = (1/(1-x))(R_R(r,s_(nl-1)/r,nl-1)-x*R_R(r*x,s_(nl-1)/rx,nl-1))
 C.. R_R(R,X,0) = r**L0 (1-x**(L0+1))/(1-x)
-      REAL*8 RECURSIVE FUNCTION R_R(R,X,NL,RHOII,L0)
+      REAL*8 RECURSIVE FUNCTION R_R(R,X,NL,RHOII,L0) RESULT (R_RRES)
          IMPLICIT REAL*8 (A-H,O-Z)
          REAL*8 RHOII(0:*)
-         R_R=0.D0
+         R_RRES=0.D0
          CX=X
          WRITE(10,"(A,2F19.7,I2)") "RR(",R,X,NL
          IF(NL.EQ.0) THEN
@@ -705,7 +706,7 @@ C.. R_R(R,X,0) = r**L0 (1-x**(L0+1))/(1-x)
             ENDIF
 C               R_R=(R**L0)*(L0+1)
 C            ELSE
-               R_R=(R**L0)*(1-CX**(L0+1))/(1-CX)
+               R_RRES=(R**L0)*(1-CX**(L0+1))/(1-CX)
 C            ENDIF
          ELSE
 C.. if we have a degeneracy, the sums blow up, so we break the degeneracy
@@ -724,11 +725,11 @@ C            IF(R1.EQ.0.D0) RETURN
                R2=CX*R_R(R*CX,SN/(R*CX),NL-1,RHOII,L0)
 C            IF(R2.EQ.0.D0) RETURN
                R1=R1-R2
-               R_R=R1/(1-CX)
+               R_RRES=R1/(1-CX)
 C            ENDIF
          ENDIF
          WRITE(10,"(A,2F19.7,I2,A,$)") "RR(",R,X,NL,")"
-         WRITE(10,*) R_R
+         WRITE(10,*) R_RRES
          RETURN
       END
 
@@ -737,7 +738,7 @@ C.. sum.  I_HIND is the recursion variable, specifying the node of interest
 C.. When called it places zero to I_BOUND self-hops on node I_HIND, then
 C.. recurses to the next node. (5/11/03)
       RECURSIVE REAL*8 FUNCTION CALCPATH(IPATH,RHOII,RHOCUML,I_H,I_HIND,
-     &                        I_BOUND)
+     &                        I_BOUND) RESULT (CALCPATHRES)
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER IPATH(*)
          REAL*8 RHOII(0:*)
@@ -756,14 +757,14 @@ C               WRITE(10,"I2,A$"),I,","
      &                  I_BOUND-(I-1))
                RII=RII*RHOII(I_HIND)
             ENDDO
-            CALCPATH=TOTAL
+            CALCPATHRES=TOTAL
          ELSE
             RC=RHOCUML*(RHOII(I_HIND)**(I_BOUND-1))
 C            WRITE(10,"I2,F"),I_BOUND,RC
 C.. RHOCUML now contains the appropriate rho for the path
 C.. Output the path, and RHOCUML, and continue
 C            WRITE(10,*) ((IPATH(I),"*",,I=0,I_H)
-            CALCPATH=RC
+            CALCPATHRES=RC
          ENDIF
          RETURN
       END

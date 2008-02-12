@@ -103,7 +103,7 @@ C..
       DO I=1,NEVAL
         DO J=1,NDET
           IF(CK(J,I).AGT. 1.D-2) THEN
-            WRITE(10,"(2I,$)") I,J
+            WRITE(10,"(2I5,$)") I,J
             WRITE(10,*) CK(J,I),ABS(CK(J,I))
          ENDIF
         ENDDO

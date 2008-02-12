@@ -232,13 +232,13 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
                   if(i.lt.j) then
                      call GetDF2EInt(i,j,i,j,UMat2D(i,j))
                      call GetDF2EInt(i,j,j,i,UMat2D(j,i))
-                     WRITE(78,"(3I5,G)") i,j,0,UMat2D(i,j)
-                     IF(i.ne.j) WRITE(78,"(3I5,G)") j,i,0,UMat2D(j,i)
+                     WRITE(78,"(3I5,G25.16)") i,j,0,UMat2D(i,j)
+                     IF(i.ne.j) WRITE(78,"(3I5,G25.16)") j,i,0,UMat2D(j,i)
                   else
                      call GetDF2EInt(i,j,i,j,UMat2D(j,i))
                      call GetDF2EInt(i,j,j,i,UMat2D(i,j))
-                     WRITE(78,"(3I5,G)") i,j,0,UMat2D(j,i)
-                     IF(i.ne.j) WRITE(78,"(3I5,G)") j,i,0,UMat2D(i,j)
+                     WRITE(78,"(3I5,G25.16)") i,j,0,UMat2D(j,i)
+                     IF(i.ne.j) WRITE(78,"(3I5,G25.16)") j,i,0,UMat2D(i,j)
                   endif
                enddo
             enddo
