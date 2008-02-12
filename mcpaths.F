@@ -393,7 +393,7 @@ C.. save all log files
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
                WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
-               WRITE(6,"(A14,G)") STR,FF
+               WRITE(6,"(A14,G25.16)") STR,FF
             ENDDO
          ENDIF
          IF(TOTAL%v.LT.0) THEN
@@ -681,7 +681,7 @@ C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
                WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
-               WRITE(6,"(A14,G)") STR,FF
+               WRITE(6,"(A14,G25.16)") STR,FF
             ENDDO
          ENDIF
          CALL TIHALT('MCPATHSR3 ',ISUB)

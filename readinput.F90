@@ -6,7 +6,8 @@
       USE INTREAD , only : readinputint
       USE LOGREAD , only : readinputlog
 #ifdef NAGF95
-USE f90_unix_env, ONLY: getarg,iargc
+!  USe doesn't get picked up by the make scripts
+USe f90_unix_env, ONLY: getarg,iargc
 #endif
       IMPLICIT NONE
 #ifndef NAGF95

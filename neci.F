@@ -227,6 +227,7 @@ C..
      &             " double excitations only"
             ENDIF
             LMSBASIS=LMS
+            WRITE(6,*) "TBIN:",tBin
             CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
 C.. say we're a UHF det so all singles are 0
             IF(LMS.EQ.0) THEN

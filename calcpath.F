@@ -67,14 +67,18 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
 C.. IPATH contains the vertices we can choose from
 C.. IPATH2 contains the path we are constructing (listing the dets)
 C.. IP2 contains the path we are constructing as an index into IPATH
-         INTEGER IPATH(1:NEL,0:I_V),IPATH2(1:NEL,0:I_HMAX),IP2(0:I_HMAX)
+         INTEGER IPATH(1:NEL,0:I_V)
+!Removed as no longer used
+!  ,IPATH2(1:NEL,0:i_hmax),IP2(0:i_hmax)
 C.. RHOII contains the RHO_II for each vertex.
 C.. 12/7/05 - this should now just be the number 0.D0 - it is not used
 
 
 C.. RHOII2 is constructed to contain the RHOII for each point in the path
          TYPE(HDElement) RHOII(0:I_V),TOTAL,RHOCUML
-         TYPE(HDElement) RHOII2(0:I_HMAX),CALCPATHS
+! removed as no longer used
+!         TYPE(HDElement) RHOII2(0:i_hmax)
+         TYPE(HDElement) CALCPATHS
          TYPE(HElement) HIJS(1:I_V),RHOIJ(0:I_V,0:I_V),RH
          INTEGER ICLASS,ILG,ISGN
          REAL*8 WEIGHT
@@ -136,9 +140,9 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
          ELSE
             WRITE(6,*) "I_HMAX>0"
             STOP 'WARNING: Running old disfunctional CALCPATHS I_HMAX>0'
-            CALCPATHS=CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,I_P,
-     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
-     &               ILOGGING)
+!            CALCPATHS=CALCPATHS_R(IPATH,RHOII,RHOIJ,I_V,I_HMAX,I_P,
+!     &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
+!     &               ILOGGING)
          ENDIF
 !DBETA(2) is GRAPHEPSILON
          IF(.NOT.(CALCPATHS.AGE.DBETA(2))) THEN

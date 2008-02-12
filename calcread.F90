@@ -376,7 +376,8 @@
                        nActiveSpace(:)=0 
                      endif
                   case default
-                     read(w,"(I)") NPATHS
+                     call reread(-1)
+                     call geti(NPATHS)
                   end select
               case("ALLPATHS")
                   NPATHS = -1

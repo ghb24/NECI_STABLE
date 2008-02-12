@@ -89,7 +89,7 @@ C ====================================================================
       NHPSI=0
       WRITE(6,10000) ICYCLE,NCONV,B2MAX,B2MIN,NHPSI
 10000 FORMAT(2X,'ICYCLE:',I3,1X,'NCONV:',I3,2X,'B2MAX:',F10.5,
-     &		6X,'B2MIN:',F10.5,5X,'NHPSI:',I3)
+     &  6X,'B2MIN:',F10.5,5X,'NHPSI:',I3)
 C..VS=H.V0 
 C..My matrix multiplication routine implimented 8/11/02 DCT
       CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V0,VS)

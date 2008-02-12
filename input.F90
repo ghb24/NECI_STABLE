@@ -22,7 +22,7 @@ MODULE input
 
 
 #ifdef NAGF95
-USE f90_unix_env, ONLY: getarg
+USe f90_unix_env, ONLY: getarg
 #endif
 
 IMPLICIT NONE
@@ -48,7 +48,7 @@ INTEGER, SAVE :: lc=3
 INTEGER, PARAMETER :: sp=kind(6),dp=kind(1d0)!, qp=selected_real_kind(30)
 
 INTERFACE readf
-  MODULE PROCEDURE read_single, read_double!, read_quad
+  MODULE    PROCEDURE read_single, read_double!, read_quad
 END INTERFACE
 
 PRIVATE

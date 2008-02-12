@@ -5,22 +5,25 @@
          LOGICAL TBIN,exists
          CHARACTER*3 :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
+         WRITE(6,*) "tBin2:",TBIN
+         fmat='NO'
          IF(TBIN) THEN
             INQUIRE(FILE='FCISYM',EXIST=exists)
             IF(.not.exists) STOP 'FCISYM file does not exist'
             INQUIRE(FILE='FCIDUMP',EXIST=exists,FORMATTED=fmat)
             IF(.not.exists) STOP 'FCIDUMP file does not exist'
-            IF(fmat=='YES') THEN
-                STOP 'FCIDUMP is not unformatted, but TBIN true'
-            ENDIF
+!            IF(fmat=='YES') THEN
+!                STOP 'FCIDUMP is not unformatted, but TBIN true'
+!            ENDIF
             OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
             READ(8,FCI)
          ELSE
             INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
             IF(.not.exists) STOP 'FCIDUMP file does not exist'
-            IF(fmat=='YES') THEN
-                STOP 'FCIDUMP is not formatted, but TBIN false'
-            ENDIF
+            write(6,*) fmat
+!            IF(fmat=='YES') THEN
+!                STOP 'FCIDUMP is not formatted, but TBIN false'
+!            ENDIF
             OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='FORMATTED')
             READ(8,FCI)
          ENDIF
@@ -156,7 +159,7 @@ C.. set momentum to 0
          ELSEIF(SYMMAX.LE.8) THEN
             SYMMAX=8
          ENDIF
-        WRITE(6,"(A,I)") "Maximum number of symmetries: ",SYMMAX
+        WRITE(6,"(A,I3)") "Maximum number of symmetries: ",SYMMAX
          NBASISMAX(1,1)=0
          NBASISMAX(1,2)=0
          NBASISMAX(5,1)=0
