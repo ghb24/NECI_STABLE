@@ -1013,6 +1013,73 @@ else
   exec 3>&1
 fi
 
+if [ $PreprocSep ] ; then
+cat << END >&3
+#----------------------------------------------------------------------------
+# Compile neci.x
+#----------------------------------------------------------------------------
+#MAIN_OBJS=necimain.o
+clean : 
+	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(DEST)/*.o \$(DEST)/*.mod
+
+neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS) \$(OBJ_CC)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 rm -f neci.x
+	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/neci.x neci.x; fi
+	 \$(LD) -o \$(BIN)/neci.x necimain.o timetag.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
+
+neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 \$(LD) \$(LDFLAGS) -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC)
+	 objcopy --keep-global-symbols=\$(SRC)/GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
+
+#----------------------------------------------------------------------------
+# Generate library libcpmd.a
+#----------------------------------------------------------------------------
+lib : \$(OBJ_LIB)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 \$(AR) libcpmd.a timetag.o \$(OBJ_LIB)
+	 \$(RANLIB) libcpmd.a
+
+#----------------------------------------------------------------------------
+# Explicit rules
+#----------------------------------------------------------------------------
+.SUFFIXES:
+.SUFFIXES: .o .f .F .f90 .F90 .mod .inc
+
+\$(OBJECTSF:.o=.f) : 
+	rm -f \$@
+	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f=.F) \$(DEST)/\$@ 
+\$(OBJECTSF90:.o=.f90) : 
+	rm -f \$@
+	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f90=.F90) \$(DEST)/\$@
+.f.o :
+	\$(FC) \$(FFLAGS) \$< 
+.f90.o :
+	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<
+
+\$(OBJ_CC) :
+	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
+
+util-sp.o :
+	\$(FCD) \$(FFLAGS) \$(DEST)/util-sp.f
+
+%.mod :
+	\$(FC) \$(FFLAGS) \$< 
+
+#----------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------
+# Dependencies
+#----------------------------------------------------------------------------
+END
+else
 cat << END >&3
 #----------------------------------------------------------------------------
 # Makefile for neci.x (plane wave electronic calculation)
@@ -1043,7 +1110,7 @@ LDD = ${LDD}
 ARD = ${ARD}
 #----------------------------------------------------------------------------
 END
-
+fi
 #There is Personal Configuration.
 if [ $opt -eq 1 ]; then
   printf "Personal configurations..." >&2
