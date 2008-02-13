@@ -48,6 +48,7 @@ where the name of the configuration is:
    FUJITSU-VPP-MPJP           PC-ABSOFT
    PC-PGI                     PC-PGI-MPI
    ix86-g95/32                ix86-gfortran/64
+   ix86-gfortran/32
 Use Configure in the directory where the SOURCE FILES are.
 Ex: Configure SUN > Makefile
 See the description of options with Configure -help
@@ -101,6 +102,7 @@ fi
 #Is it help option or debug option
 opt=0
 i=1
+PreprocSep=1
 while [ $i -le $# ];
 do
   #Select the i-th argument
@@ -888,6 +890,34 @@ case ${Configuration}
      fi
      ;;
 
+   "ix86-gfortran/32")
+     IRAT=2
+     CPP='cpp -P -C -traditional'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     NCPUS=1
+     #-sb is to use Workshop package
+     FFLAGS='-fcray-pointer -ffree-line-length-none'
+     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pc-cygwin/3.4.4/libg2c.a' 
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     echo PP $PreprocSep >&2
+     PreprocSep=""
+     if [ $debug ]; then
+       FC='gfortran -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='gfortran -g'
+       FCD='gfortran -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     else
+       FC='gfortran -c -O4 -fast'
+       CC='cc -O'
+       LD='gfortran -O4'
+       FCD='gfortran -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     fi
+     ;;
+
 
   "PC-ABSOFT")
      IRAT=2
@@ -1177,27 +1207,20 @@ lib : \$(OBJ_LIB)
 # Explicit rules
 #----------------------------------------------------------------------------
 .SUFFIXES:
-.SUFFIXES: .o .f .F .f90 .F90 .mod .inc
+.SUFFIXES: .o .F .F90 .mod .inc
 
-\$(OBJECTSF:.o=.f) : 
-	rm -f \$@
-	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f=.F) \$(DEST)/\$@ 
-\$(OBJECTSF90:.o=.f90) : 
-	rm -f \$@
-	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f90=.F90) \$(DEST)/\$@
-.f.o :
-	\$(FC) \$(FFLAGS) \$< 
-.f90.o :
-	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<
-
+\$(OBJECTSF) : 
+	\$(FC) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/\$(@:.o=.F)
+\$(OBJECTSF90) :
+	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(SRC)/\$(@:.o=.F90)
 \$(OBJ_CC) :
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
 
 util-sp.o :
-	\$(FCD) \$(FFLAGS) \$(DEST)/util-sp.f
+	\$(FCD) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/util-sp.F
 
 %.mod :
-	\$(FC) \$(FFLAGS) \$< 
+	\$(FC) \$(FFLAGS) \$(CPPFLAGS) \$< \$(POSTF90OPTS)
 
 #----------------------------------------------------------------------------
 
@@ -1215,6 +1238,7 @@ do
   if [ $verbose ]; then
     printf "[%s]" $name
   fi
+  if [ $PreprocSep ] ; then
   awk 'NR==1 { Ninclude = 2;
                OldInclude["pimd.inc"] = 0;
                OldInclude["mpif.h"] = 0;
@@ -1315,7 +1339,102 @@ do
                line=sprintf("%s %s",Name,line);
             }
       }
-       END   { printf "%s%s\n", linebuf,line }' ${name} >&3
+       END   { printf "%s%s\n", linebuf,line }' ${name} >&3;
+    else
+  awk 'NR==1 { Ninclude = 2;
+               OldInclude["pimd.inc"] = 0;
+               OldInclude["mpif.h"] = 0;
+               MaxLength=60;
+               linebuf="";
+               ll = length(FILENAME);
+               prefix = substr(FILENAME,1,ll-2);
+               suffix = substr(FILENAME,ll-1,2);
+               src    = "$(SRC)";
+               dest = "$(DEST)";
+               #To have the quote.
+               quote = sprintf("%c",39);
+               if (suffix == ".F") {
+                 line = sprintf("%s.o:", prefix);
+                 line=sprintf("%-16s %s/%s%s ", line,src,prefix,suffix);
+               }
+               if (suffix == "90") {
+                 prefix = substr(FILENAME,1,ll-4);
+                 suffix = substr(FILENAME,ll-3,4);
+                 line = sprintf("%s.o:", prefix);
+                 line=sprintf("%-16s %s/%s%s ", line,src,prefix,suffix);
+               }
+             }
+       /^[ ]*INCLUDE/ || /^[ ]*include/ {
+               split($0,a,quote);
+               Name = a[2];
+               no = 0;
+               if (Ninclude != 0) {
+                 for ( Include in OldInclude ) {
+                   if (Include == Name ) { 
+                     no = 1;
+                     break;
+                   }
+                 }
+               }
+               if (no != 1) {
+                 Ninclude=Ninclude+1;
+                 OldInclude[Name] = 0;
+                 if (Name == "irat.inc") {
+                   line=sprintf("%s %s/%s",line,dest,Name)
+                 } else {
+                   line=sprintf("%s %s/%s",line,src,Name)
+                 }
+               }
+       }
+       /^[ ]*USE / || /^[ ]*use / || /^[ ]*Use / {
+               split($0,a,"[ ,]*");
+               if(tolower(a[1])=="use") {
+                  Name =  tolower(a[2]) ".mod";
+               }
+               else
+               {
+                  Name =  tolower(a[3]) ".mod";
+               }
+               no = 0;
+               if (Ninclude != 0) {
+                 for ( Include in OldInclude ) {
+                   if (Include == Name ) { 
+                     no = 1;
+                     break;
+                   }
+                 }
+               }
+               if (nModules != 0) {
+                 for ( Include in Modules ) {
+                   if (Include == Name ) { 
+                     no = 1;
+                     break;
+                   }
+                 }
+               }
+               if (no != 1) {
+                 Ninclude=Ninclude+1;
+                 OldInclude[Name] = 0;
+                 line=sprintf("%s %s",line,Name)
+               }
+       }
+       (/^[ ]*module/ || /^[ ]*MODULE/){
+            if(!/PROCEDURE/ && !/procedure/ && !/Procedure/) {
+               split($0,a,"[ ,]*");
+               if(tolower(a[1])=="module") {
+                  Name =  tolower(a[2]) ".mod";
+               }
+               else
+                {
+                  Name =  tolower(a[3]) ".mod";
+               }
+               Modules[Name]=1;
+               nModules=nModules+1
+               line=sprintf("%s %s",Name,line);
+            }
+      }
+       END   { printf "%s%s\n", linebuf,line }' ${name} >&3 ; 
+    fi
 done
 
 echo "done."  >&2
