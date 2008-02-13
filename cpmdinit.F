@@ -260,7 +260,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElem
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D,
-     &                        TMat2D,tStarStore
+     &                        TMat2D,tStarStore,GetUMatEl
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache    
          IMPLICIT NONE
@@ -283,8 +283,12 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          LOGICAL TORDER
          INTEGER BRR(NSTATES*2),NLOCK
          REAL*8 ARR(NSTATES*2,2)
-         complex*16,allocatable,save :: HarInt(:,:)
+         complex*16,allocatable,save :: HarInt(:,:),FockMat(:,:)
          INTEGER iCacheFlag
+         ! For ZHEEV (eigenvalues of FockMatrix).
+         integer :: info
+         real*8,allocatable :: rwork(:),FockEigv(:)
+         complex*16,allocatable :: work(:)
          CALL TISET('CPMDINIT2I',ISUB)
 
          ECORE=EIONION
@@ -299,6 +303,7 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
          IF(.NOT.BTEST(iCacheFlag,1)) THEN
 !Don't initialize the cache if it's already there
             allocate(HarInt(NStatesUsed,NStatesUsed))
+!            allocate(FockMat(nStatesUsed,nStatesUsed))
             call Memory(IP_PIInt,nStates,'PIInt')
 C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
@@ -317,18 +322,31 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
             if(.not.TUMAT2D) call CalcHarPIInts(HarInt,NStatesUsed)
             CALL SETUMATCACHEFLAG(0)
          ENDIF
+
+! JSS. 25/01/08.  Calculate the Fock matrix.
+! F_ij = < i | -1/2 \nabla^2 + v_ext | j > + \sum_k [ <ik|jk> - <ik|kj> ]
+!      = - h^{KS}_ij - <i|v_xc|j> - \sum_k <ik|kj>
+!      = \epsilon_i \delta_ij - \sum_k <ik|kj>
+! where h^{KS}_ij = < i | -1/2 \nabla^2 + v_ext + v_har + v_xc | j >
+! and h^{KS}_ii = \epsilon_i
+!         FockMat(:,:)=dcmplx(0.d0,0.d0)
+
          WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
             II=I*2-1
             DO J=I,NSTATESUSED
                JJ=J*2-1
+
                IF(LCHKSYM(G1(II),G1(JJ))) THEN
+
                   TOT=0.D0
                   IF(I.EQ.J) THEN
                       TOT=TOT+HElement(EIGENVALUES(I)+PIInt(I)/2.d0)
+!                      FockMat(I,J)=FockMat(I,J)+Eigenvalues(I)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
                   TOT=TOT-HElement(HarInt(i,j))
+!                  FockMat(i,j)=FockMat(i,j)-dcmplx(CPMD1EInt(I,J))
                   IF (TSTARSTORE) THEN
                       !GHB Yet to optimise CPMD TMAT for memory saving symmetry
                   ELSE
@@ -342,9 +360,30 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                      DIAGTMAT(I)=SQRT(SQ(TOT))
                      STATEORDER(I)=I
                   ENDIF
+
+                  ! Subtract exchange integrals from Fock matrix.
+!                 do K=1,nStates
+!                     call CPMDGetOcc(K,F) ! F is the occupation number of state K.
+!                      if (F.gt.1.d-5) then
+!                          ! Get exchange integral <ik|kj>
+!                          if (K.gt.nStatesUsed) then
+!                              write (6,"(a,i4,a,f10.6)") 
+!     &                             "Top frozen state ",K,
+!     &                             " has occupation number",F
+!                              stop "Top Frozen states occupied."
+!                          end if
+!                          U=GetUMatEl(nBasisMax,UMat,ALAT,NHG,ISS,G1,
+!     &                                I,K,K,J)
+!                          FockMat(i,j)=FockMat(i,j)-F*dcmplx(U)/2
+!                      end if
+!                  end do
+!                 FockMat(j,i)=dconjg(FockMat(i,j))
+
                ENDIF
+
             END DO
          END DO
+
 C.. Now we order it if we need to
          IF(TORDER) THEN
             WRITE(6,*) "Re-ordering CPMD orbitals according ",
@@ -366,6 +405,30 @@ C.. This should save some time in the UMAT lookup.
 C.. Set the UMAT cache to cache normally again
          WRITE(6,*) "Finished TMAT"
          CLOSE(10)
+
+!        Obtain the fock eigenvalues (based upon the KS orbitals).
+!         allocate(FockEigv(nStatesUsed))
+!         allocate(work(2*nStatesUsed))
+!         allocate(rwork(3*nStatesUsed-2))
+!         call zheev('N','U',nStatesUsed,FockMat,nStatesUsed,FockEigv,
+!     &               work,2*nStatesUsed,rwork,info)
+!         if (info.eq.0) then
+!             ! Success! Output eigenvalues.
+!             write (6,'(/a)') 'i  KS eigenvalues   Fock eigenvalues'
+!             do i=1,nStatesUsed
+!                 write (6,'(i4,2f12.8)') i,Eigenvalues(i),FockEigv(i)
+!             end do
+!             write (6,'(/)')
+!
+!         else
+!             write (6,'(a,i)') 'Failure in ZHEEV. INFO=',INFO
+!             write (6,'(a)') 'Fock eigenvalues not computed.'
+!         end if
+!         deallocate(FockMat)
+!         deallocate(FockEigv)
+!         deallocate(work)
+!         deallocate(rwork)
+
          IF(.not.BTEST(iCacheFlag,0)) THEN
             deallocate(HarInt)
             call FreeM(IP_PIInt)
