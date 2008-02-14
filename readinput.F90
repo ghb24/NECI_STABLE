@@ -302,19 +302,53 @@ USe f90_unix_env, ONLY: getarg,iargc
       end
 
       subroutine checkinput()
-      USE SYSREAD , only : NEL,TSTARSTORE
+      USE SYSREAD , only : NEL,TSTARSTORE,TUseBrillouin
       USE PRECALCREAD , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       USE CALCREAD , only : BETA,I_VMAX,NPATHS,SPECDET,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
-     &  TDIAGNODES
-      USE INTREAD , only : NFROZEN,TDISCONODES
+     &  TDIAGNODES,TLINSTARSTARS
+      USE INTREAD , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs
       USE LOGREAD , only : ILOGGING
       USE input
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
 
+!.. TNoDoubs is only an option which applied to TCalcExcitStar, and cannot occurs with TJustQuads.
+      IF(TNoDoubs.and..not.TCalcExcitStar) THEN
+          CALL report("STARNODOUBS is only an option which applied to TCalcExcitStar",.true.)
+      ENDIF
+
+      IF(TNoDoubs.and.TJustQuads) THEN
+          CALL report("STARNODOUBS and STARQUADEXCITS cannot be applied together!",.true.)
+      ENDIF
+      
+!.. TJustQuads is only an option which applies to TCalcExcitStar
+      IF(TJustQuads.and..not.TCalcExcitStar) THEN
+          CALL report("STARQUADEXCITS is only an option which applies to TCalcExcitStar",.true.)
+      ENDIF
+      
+!.. TCalcExcitStar can only be used with TLINSTARSTARS
+      IF(TCalcExcitStar.and..not.TLINSTARSTARS) THEN
+          CALL report("CalcExcitStar can only be used with StarStars set",.true.)
+      ENDIF
+
+!.. Brillouin Theorem must be applied when using TCalcExcitStar
+      IF(TCalcExcitStar.and..not.TUseBrillouin) THEN
+          CALL report("Brillouin Theorem must be used when using CalcExcitStar",.true.)
+      ENDIF
+
+!.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
+      IF((TQuadValMax.or.TQuadVecMax).and..not.TLINSTARSTARS) THEN
+          CALL report("TQuadValMax or TQuadVecMax can only be specified if STARSTARS specified in method line",.true.)
+      ENDIF
+
+!.. TQuadValMax and TQuadVecMax cannot both be set
+      IF(TQuadValMax.and.TQuadVecMax) THEN
+          CALL report("TQuadValMax and TQuadVecMax cannot both be set",.true.)
+      ENDIF
+      
 !.. TDISCONODES can only be set if NODAL is set in the star methods section
       IF(TDISCONODES.AND..NOT.TDIAGNODES) THEN
           CALL report("DISCONNECTED NODES ONLY POSSIBLE IF NODAL SET IN METHOD",.true.)

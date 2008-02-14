@@ -5,8 +5,9 @@
         IMPLICIT NONE
 
         LOGICAL TQUADRHO,TEXPRHO,THFBASIS,THFCALC,TCALCREALPROD
-        LOGICAL TRHF,TReadTUMat,TReadHF
-        LOGICAL TSUMPROD,TCALCRHOPROD,TDISCONODES
+        LOGICAL TRHF,TReadTUMat,TReadHF,TQuadValMax,TQuadVecMax
+        LOGICAL TSUMPROD,TCALCRHOPROD,TDISCONODES,TCalcExcitStar
+        LOGICAL TJustQuads,TNoDoubs
         
         INTEGER NTAY(2),nHFit,NFROZEN,NTFROZEN,ORBORDER(8,2)
         INTEGER NRSTEPSMAX,IHFMETHOD
@@ -23,6 +24,11 @@
         INTEGER :: i
            
 ! Integral defaults
+      TJustQuads=.false.
+      TNoDoubs=.false.
+      TCalcExcitStar=.false.
+      TQuadVecMax=.false.
+      TQuadValMax=.false.
       TDISCONODES=.FALSE.
       NRCONV=1.D-13
       RFCONV=1.D-8
@@ -63,6 +69,16 @@
           end if
           call readu(w)
           select case(w)
+          case("STARQUADEXCITS")
+              TJustQuads=.true.
+          case("STARNODOUBS")
+              TNoDoubs=.true.
+          case("CALCEXCITSTAR")
+              TCalcExcitStar=.true.
+          case("QUADVECMAX")
+              TQuadVecMax=.true.
+          case("QUADVALMAX")
+              TQuadValMax=.true.
           case("NRCONV")
               call readf(NRCONV)
           case("RFCONV")

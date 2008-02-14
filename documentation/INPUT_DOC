@@ -543,6 +543,21 @@ EXPRHO
 DISCONNECTNODES
     If using a nodal approximation, the connections between determinants in the same nodes are ignored - should then be equivalent to the original star calculation.
 
+CALCEXCITSTAR
+    Used with STARSTARS, it explicitly calculates each excited star and diagonalises them seperatly. This removes the approximation of cancelling ficticious excitations if the original star is used as a template for higher excitations. Scaling is bad, and all matrix elements have to be calculated exactly.
+
+STARNODOUBS
+    Only to be used with CALCEXCITSTAR when explicitly calculating excited stars, it forbids the excited stars to have excitations which are double excitations of the HF determinant.
+
+STARQUADEXCITS
+    Only to be used with CALCEXCITSTAR, when calculating the excited stars, it only allow the excited stars to have excitations which are quadruple excitations of the HF determinant.
+
+QUADVECMAX
+    Used with STARSTARS, it uses only the largest first element of the eigenvectors as the connection to each excited star. This means that for each excited star, only one connection is made back to the original star, meaning that the scaling is reduced. This seems to be a good approximation.
+
+QUADVALMAX
+    Same as QUADVECMAX, only the largest eigenvalue for each excited star is used. Seems to be little difference in results.
+
 ENDINT
     End of integral block.
 

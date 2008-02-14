@@ -35,7 +35,7 @@
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
          USE CALCREAD , only : TMPTHEORY,StarProd,TLinStarStars
          USE SYSREAD , only : TSTOREASEXCITATIONS
-         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd
+         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
@@ -142,9 +142,10 @@
          CALL MemAlloc(iErr,ExcitInfo,(iMaxExcit+1)*3*HElementSize,"ExcitInfo")
          
 !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
-         IF(TCalcRealProd.or.TSumProd) THEN
+         IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
              CALL MemAlloc(iErr,EXCITSTORE,(iMaxExcit*2),"EXCITSTORE")
+             CALL IAZZERO(ExcitStore,iMaxExcit*4)
          ENDIF
 
 !.. This will contain all the info needed to work out the value of the
@@ -190,7 +191,7 @@
 !   Divide all elements though by rhoii
                ExcitInfo(i,1)=rh/rhii
                
-               IF(TCalcRealProd.or.TSumProd) THEN
+               IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
 !   Stores all excitations as (occ,occ,vir,vir)
                    CALL GETEXCITSCHANGE(nI,nJ,nEl,EXCITSTORE(:,i))
                ENDIF
@@ -239,8 +240,12 @@
              CALL GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
          ENDIF
 
-         IF(TLinStarStars) THEN
+         IF(TLinStarStars.and..not.TCalcExcitStar) THEN
              CALL GetStarStars(iMaxExcit,iExcit,RhoEps)
+         ENDIF
+
+         IF(TCalcExcitStar) THEN
+             CALL CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps)
          ENDIF
 
          IF(.NOT.BTEST(NWHTAY,0)) THEN
@@ -305,7 +310,270 @@
             
       END function
 
-      
+!This routine explicitly calculates all excited stars, and prediagonalises them.
+!A star with its root at an excited Double excitation, can have excitations itself,
+!which are single, double, triple and quadruple excitations of the HF determinant.
+!To limit the excitations to ones which are Quadruple excitations, TJustQuads must be set.
+!To limit the excitations to ones which are all but double excitations, i.e. no
+!crosslinking, TNoDoubs must be set.
+        SUBROUTINE CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps) 
+            USE INTREAD , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
+            IMPLICIT NONE
+            INCLUDE 'basis.inc'
+            TYPE(BasisFN) G1(*)
+            TYPE(HElement) :: rhii,UMat(*),rh,rhij,Hij
+            COMPLEX*16 :: fck(*)
+            REAL*8 :: Beta,ALat(3),ECore,RhoEps
+            INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
+            INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
+            INTEGER :: iSub,i,j,iExcit,nI(nEl),i_P,nEl,nBasisMax(*),nBasis,Brr(nBasis),nMsh
+            INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,Info,temp,IGETEXCITLEVEL
+            INTEGER, ALLOCATABLE :: nExcit2(:)
+            REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
+            REAL*8, ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
+            LOGICAL :: HFFound
+            
+            WRITE(6,*) "Explicitly calculating and prediagonalising all double excitations from the original excitations of the star graph"
+            
+            IF(TJustQuads) THEN
+                WRITE(6,*) "Excited stars are only allowed to contain excitations which are quadruple excitations of the HF determinant"
+            ENDIF
+            
+            CALL TISET('CalcExcitStar',iSub)
+            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
+            
+!Allow only double excitations
+            exFlag2=2
+            QuadExcits=0
+            j=0
+            CALL IAZZERO(NoExcitsInStar,iExcit)
+            
+!Initially, count all excitations
+            do i=1,iMaxExcit
+                
+                IF(ExcitStore(1,i).eq.0) EXIT
+                j=j+1
+                CALL GetFullPath(nI,nEl,2,ExcitStore(:,i),DoublePath(:))
+                nExcitMemLen2=0
+                CALL IAZZERO(nStore2,6)
+                CALL GenSymExcitIt2(DoublePath,nEl,g1,nBasis,nBasisMax,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+                ALLOCATE(nExcit2(nExcitMemLen2))
+                CALL IAZZERO(nExcit2,nExcitMemLen2)
+                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+
+                lpcount: do while(.true.)
+                    CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.false.,nExcit2,nJ,iExcit2,0,nStore2,exFlag2)
+                    IF(nJ(1).eq.0) exit lpcount
+
+!If TNoDoubs is set, we disallow all double excitations of double excitations, which are themselves double excitations of the HF.
+                    IF(TNoDoubs) THEN
+                        IF(IGetExcitLevel(nI,nJ,nEl).eq.2) THEN
+                            CYCLE
+                        ENDIF
+                    ENDIF
+                    
+!If TJustQuads is set, we only want to include excitations which are quadruple excitations of the HF in the excited stars.
+                    IF(TJustQuads) THEN
+!                        WRITE(6,*) IGetExcitLevel(nI,nJ,nEl)
+                        IF(IGetExcitLevel(nI,nJ,nEl).ne.4) THEN
+                            CYCLE
+                        ENDIF
+                    ENDIF
+                    CALL CalcRho2(DoublePath,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit2,ECore)
+                    IF(rh.agt.RhoEps) THEN
+                        QuadExcits=QuadExcits+1
+                        NoExcitsInStar(i)=NoExcitsInStar(i)+1
+                    ENDIF
+                enddo lpcount
+                
+!Remove excitations back to HF (if not already removed by TJustQuads
+                IF(.not.TJustQuads) THEN 
+                    QuadExcits=QuadExcits-1
+                    NoExcitsInStar(i)=NoExcitsInStar(i)-1
+                ENDIF
+
+!Uninitialise excitation generators
+                Deallocate(nExcit2)
+
+            enddo
+
+            temp=0
+            do i=1,iExcit
+                temp=temp+NoExcitsInStar(i)
+            enddo
+            IF(temp.ne.QuadExcits) STOP 'Error when counting excitations here'
+            IF(j.ne.iExcit) STOP 'Error when counting excitations'
+            
+!Total number of excitations is equal to the total excitations for the excited stars, + the original double excitations
+            TotExcits=iExcit+QuadExcits
+
+            WRITE(6,"I10,A") QuadExcits," extra excitations to attach to the HF-rooted star graph"
+
+!Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues and vectors to ExcitInfo2(0:TotExcits,0:2)
+            ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
+            CALL MemAlloc(iErr,ExcitInfo2,(TotExcits+1)*3*HElementSize,"ExcitInfo2")
+            CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
+
+!Fill original star matrix - INCORRECT - do not want to include original excitations - these are already included in the prediagonalised elements
+!            do i=0,iExcit
+!
+!                ExcitInfo2(i,0)=ExcitInfo(i,0)
+!                ExcitInfo2(i,1)=ExcitInfo(i,1)
+!                ExcitInfo2(i,2)=ExcitInfo(i,2)
+!
+!            enddo
+!            NextVertex=iExcit+1
+
+!All that is not included is the original i spoke
+            ExcitInfo2(0,0)=HElement(1.D0)
+            ExcitInfo2(0,1)=HElement(1.D0)
+            ExcitInfo2(0,2)=ExcitInfo(0,2)
+            
+            NextVertex=1
+            do i=1,iExcit
+                
+                IF(ExcitStore(1,i).eq.0) STOP 'Problem Here!'
+                CALL GetFullPath(nI,nEl,2,ExcitStore(:,i),DoublePath(:))
+
+!Calculate rhi_ij and H_ij from HF to excited star root
+                CALL CalcRho2(nI,DoublePath,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit2,ECore)
+                rhij=rh/rhii
+                Hij=GetHElement2(nI,DoublePath,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit2,ECore)
+                
+!Reinitialise excitation generators
+                HFFound=.false.
+                nExcitMemLen2=0
+                CALL IAZZERO(nStore2,6)
+                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+                ALLOCATE(nExcit2(nExcitMemLen2))
+                CALL IAZZERO(nExcit2,nExcitMemLen2)
+                CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit2,nJ,iMaxExcit2,0,nStore2,exFlag2)
+                CALL CalcRho2(DoublePath,DoublePath,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
+                
+!Allocate Memory for excited star.
+                ALLOCATE(ExcitStarInfo(0:NoExcitsInStar(i),0:1),stat=iErr)
+                CALL MemAlloc(iErr,ExcitStarInfo,(NoExcitsInStar(i)+1)*2,"ExcitStarInfo")
+                CALL AZZERO(ExcitStarInfo,(NoExcitsInStar(i)+1)*2)
+                
+                ExcitStarInfo(0,0)=DREAL(rh/rhii)
+                ExcitStarInfo(0,1)=DREAL(rh/rhii)
+                j=0
+                
+                lp: do while(.true.)
+                    CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.false.,nExcit2,nJ,iExcit2,0,nStore2,exFlag2)
+                    IF(nJ(1).eq.0) exit lp
+
+!If TNoDoubs is set, we disallow all double excitations of double excitations, which are themselves double excitations of the HF.
+                    IF(TNoDoubs) THEN
+                        IF(IGetExcitLevel(nI,nJ,nEl).eq.2) THEN
+                            CYCLE
+                        ENDIF
+                    ENDIF
+!If TJustQuads is set, we only want to include excitations which are quadruple excitations of the HF in the excited stars.
+                    IF(TJustQuads) THEN
+                        IF(IGetExcitLevel(nI,nJ,nEl).ne.4) THEN
+                            CYCLE
+                        ENDIF
+                    ENDIF
+
+!Remove excitation to HF generated in excited stars
+                    IF((ICMPDETS(nJ,nI,nEl)).eq.0) THEN
+                        IF(HFFound) THEN
+                            WRITE(6,*) "Error-HF generated twice for Double excitation ",i
+                            STOP
+                        ENDIF
+                        HFFound=.true.
+                        CYCLE
+                    ENDIF
+
+!Calculate rho_jk for excited stars
+                    CALL CalcRho2(DoublePath,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit2,ECore)
+                    IF(rh.agt.RhoEps) THEN
+                        j=j+1
+                        ExcitStarInfo(j,1)=DREAL(rh/rhii)
+
+!Calculate rho_kk for quadruple excitations
+                        CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
+                        ExcitStarInfo(j,0)=DREAL(rh/rhii)
+
+                        IF(j.gt.NoExcitsInStar(i)) STOP 'Incorrect Counting here'
+                    ENDIF
+
+                enddo lp
+                IF(j.ne.NoExcitsInStar(i)) STOP 'Incorrect Counting here 2'
+                IF(.not.HFFound.and..not.TJustQuads) STOP 'HF excitation not generated in excited star'
+
+!Now need to prepare to diagonalise excited star
+                ALLOCATE(ExcitStarMat(j+1,j+1),stat=iErr)
+                CALL MemAlloc(iErr,ExcitStarMat,(j+1)*(j+1),"ExcitStarMat")
+                CALL AZZERO(ExcitStarMat,(j+1)*(j+1))
+
+                do j=1,(NoExcitsInStar(i)+1)
+                    ExcitStarMat(j,j)=ExcitStarInfo(j-1,0)
+                    ExcitStarMat(1,j)=ExcitStarInfo(j-1,1)
+                enddo
+
+                CALL MemDealloc(ExcitStarInfo)
+                DEALLOCATE(ExcitStarInfo)
+
+                ALLOCATE(WORK(3*(NoExcitsInStar(i)+1)),stat=iErr)
+                CALL MemAlloc(iErr,WORK,3*(NoExcitsInStar(i)+1),"WORK")
+                CALL AZZERO(WORK,3*(NoExcitsInStar(i)+1))
+
+                ALLOCATE(ExcitStarVals(NoExcitsInStar(i)+1),stat=iErr)
+                CALL MemAlloc(iErr,ExcitStarVals,NoExcitsInStar(i)+1,"ExcitStarVals")
+                CALL AZZERO(ExcitStarVals,NoExcitsInStar(i)+1)
+
+                ALLOCATE(ExcitStarVecs(NoExcitsInStar(i)+1),stat=iErr)
+                CALL MemAlloc(iErr,ExcitStarVals,NoExcitsInStar(i)+1,"ExcitStarVecs")
+                CALL AZZERO(ExcitStarVecs,NoExcitsInStar(i)+1)
+
+                CALL DSYEV('V','U',NoExcitsInStar(i)+1,ExcitStarMat,NoExcitsInStar(i)+1,ExcitStarVals,WORK,3*(NoExcitsInStar(i)+1),INFO)
+                IF(INFO.ne.0) THEN
+                    WRITE(6,*) "DSYEV error in CalcExcitStar: ",INFO
+                    STOP
+                ENDIF
+
+                do j=1,(NoExcitsInStar(i)+1)
+                    ExcitStarVecs(j)=ABS(ExcitStarMat(1,j))
+                enddo
+
+                CALL MemDealloc(ExcitStarMat)
+                DEALLOCATE(ExcitStarMat)
+                CALL MemDealloc(WORK)
+                DEALLOCATE(WORK)
+                
+!Now it is necessary to reattach the eigenvectors back to the original star matrix...
+                Do j=1,(NoExcitsInStar(i)+1)
+                    ExcitInfo2(NextVertex,0)=HElement(ExcitStarVals(j))
+                    ExcitInfo2(NextVertex,1)=rhij*HElement(ExcitStarVecs(j))
+                    ExcitInfo2(NextVertex,2)=Hij*HElement(ExcitStarVecs(j))
+                    NextVertex=NextVertex+1
+                enddo
+
+            enddo
+
+            IF(NextVertex.ne.(TotExcits+1)) THEN
+                WRITE(6,*) "Next Vertex is: ",NextVertex
+                WRITE(6,*) "TotExcits is: ", TotExcits
+                STOP 'Incorrect Counting Here 3'
+            ENDIF
+
+            iExcit=TotExcits
+            iMaxExcit=TotExcits
+
+            Call MemDealloc(ExcitInfo)
+            DEALLOCATE(ExcitInfo)
+
+            ExcitInfo => ExcitInfo2
+
+            CALL TIHALT('CalcExcitStar',iSub)
+
+            RETURN
+
+        END SUBROUTINE CalcExcitStar
+        
+        
 !TLinStarStars uses the approximation that the change in the eigenvalues and the first element  
 !of the eigenvectors, with respect to multiplying the diagonal elements by a constant, is linear. 
 
@@ -332,12 +600,14 @@
 
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
             USE CALCREAD , only : LinePoints
+            USE INTREAD , only : TQuadValMax,TQuadVecMax
             IMPLICIT NONE
             INTEGER :: i,j,iErr,isub,CSE,NextVertex,iMaxExcit
             INTEGER :: iExcit,TotExcits,HalfiExcit
             TYPE(HDElement) :: tmp(3)
+            LOGICAL :: TVal
             REAL*8 :: RhoGap,RhoValue,RhoEps,Rhoia,StarEigens(iExcit+1,2)
-            REAL*8 :: meanx,Sxx
+            REAL*8 :: meanx,Sxx,ValMax,VecMax,HMax,Rhoaa
 
 !LineRhoValues gives the values of the diagonal elements multiplicative constant, over which the gradient of the linear approximation will be calculated.
             REAL*8, ALLOCATABLE :: LineRhoValues(:)
@@ -567,7 +837,7 @@
                 RsqVecs(i)=1.D0-ExpctVecs(i)/SyyVecs(i)
 
                 IF((RsqVals(i).lt.0.95).or.(RsqVecs(i).lt.0.95)) THEN
-                    WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," for eigenvalue/vector : ", i
+                    WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," or, ",RsqVecs(i)," for eigenvalue/vector : ", i
                 ELSEIF((RsqVals(i).gt.1.D0).or.(RsqVecs(i).gt.1.D0)) THEN
                     WRITE(6,*) "Fatal problem in linear approximation, R^2 > 1 : ", RsqVals(i)," for eigenvalue/vector : ", i
                     STOP
@@ -613,57 +883,116 @@
 !Taking the original star matrix eigenvectors, with rho_jj=1, and using the calculated gradient, the off diagonal element to any of these eigenvectors from the HF root can be calculated.
 
             CSE=0
+!Cycle through excitations of the HF det
             do i=1,iExcit
+            
+!Cycle through all possible eigenvectors of each excited star
                 do j=1,iExcit+1
 
                     rhoia=(ExcitInfo(i,1)%v)*(GradVecs(j)*((ExcitInfo(i,0)%v)-1.D0)+StarEigens(j,2))
-                    IF(rhoia.gt.RhoEps) CSE=CSE+1 
+                    
+                    IF((ABS(rhoia).gt.RhoEps).and.(.not.TQuadValMax).and.(.not.TQuadVecMax)) THEN
+                        !Include all quadruple excitations (ficticious and real)
+                        CSE=CSE+1
+                        
+                    ELSEIF((ABS(rhoia).gt.RhoEps).and.(TQuadValMax.or.TQuadVecMax)) THEN
+                        !Only want one eigenvector per double excitation to be included.
+                        CSE=CSE+1
+                        EXIT
+                    ENDIF
 
                 enddo
             enddo
 
-            WRITE(6,*) "There are ", CSE," extra excitations, from the inclusion of stars of all double excitations"
+            IF((CSE.gt.iExcit).and.(TQuadValMax.or.TQuadVecMax)) THEN
+                WRITE(6,*) "Problem when considering only one quadruple eigenvector per double"
+                STOP
+            ENDIF
 
-!Allocate memory to hold all excitations - including original star
+            WRITE(6,"A,I9,A") "There are ", CSE," extra excitations, from the inclusion of stars of all double excitations"
 
-            TotExcits=iExcit+CSE
+!Allocate memory to hold all excitations - but do not need to include original star
+
+!            TotExcits=iExcit+CSE
+            TotExcits=CSE
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
             CALL MemAlloc(iErr,ExcitInfo2,(TotExcits+1)*3*HElementSize,"ExcitInfo2")
             CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
 
-!Fill original star matrix
+!Fill original star matrix - NO!! Do not want to double count i --> j excitations.
+!Only need to include the original root, i
             
-            do i=0,iExcit
+!            do i=0,iExcit
+!
+!                ExcitInfo2(i,0)=ExcitInfo(i,0)
+!                ExcitInfo2(i,1)=ExcitInfo(i,1)
+!                ExcitInfo2(i,2)=ExcitInfo(i,2)
+!
+!            enddo
 
-                ExcitInfo2(i,0)=ExcitInfo(i,0)
-                ExcitInfo2(i,1)=ExcitInfo(i,1)
-                ExcitInfo2(i,2)=ExcitInfo(i,2)
-
-            enddo
+             ExcitInfo2(0,0)=HElement(1.D0)
+             ExcitInfo2(0,1)=HElement(1.D0)
+             ExcitInfo2(0,2)=ExcitInfo(0,2)
 
 !            WRITE(6,*) "Original Hij elements :"
 !            WRITE(6,*) ExcitInfo(:,2)
 
 !Add contributions from excited stars - offdiagonal elements as above - diagonal elements are linearly scaled eigenvalues, and the Hamiltonian elements are similarly scaled.
 
-            NextVertex=iExcit+1
+!            NextVertex=iExcit+1
+            NextVertex=1
 
             do i=1,iExcit
+                ValMax=0.D0
+                VecMax=0.D0
+                TVal=.false.
+                
                 do j=1,iExcit+1
 
                     rhoia=(ExcitInfo(i,1)%v)*(GradVecs(j)*((ExcitInfo(i,0)%v)-1.D0)+StarEigens(j,2))
-                    IF(rhoia.gt.RhoEps) THEN
+                    rhoaa=GradVals(j)*(DREAL(ExcitInfo(i,0))-1.D0)+StarEigens(j,1)
+                    
+!Include all quadruple excitations with large enough connection to root
+                    IF((ABS(rhoia).gt.RhoEps).and.(.not.TQuadValMax).and.(.not.TQuadVecMax)) THEN
                         ExcitInfo2(NextVertex,1)=HElement(rhoia)
                         ExcitInfo2(NextVertex,0)=HElement(GradVals(j))*(ExcitInfo(i,0)-HElement(1.D0))+HElement(StarEigens(j,1))
                         ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*(HElement(GradVecs(j))*(ExcitInfo(i,0)-HElement(1.D0))+HElement(StarEigens(j,2)))
                         NextVertex=NextVertex+1
+                    
+                    ELSEIF((ABS(rhoia).gt.RhoEps).and.(TQuadValMax.or.TQuadVecMax)) THEN
+!Only include from the quadruple excitations, the connection resulting from the largest eigenvector(TQuadVecMax),or the largest eigenvalue(TQuadValMax) - therefore only one quad contribution per double, and O[N^2M^2] scaling.
+                        
+                        IF((rhoaa.gt.ValMax).and.(TQuadValMax)) THEN
+                            ValMax=rhoaa
+                            VecMax=rhoia
+                            HMax=DREAL(ExcitInfo(i,2))*(GradVecs(j)*(DREAL(ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                            TVal=.true.
+                        ELSEIF((ABS(rhoia).gt.VecMax).and.(TQuadVecMax)) THEN
+                            ValMax=rhoaa
+                            VecMax=rhoia
+                            HMax=DREAL(ExcitInfo(i,2))*(GradVecs(j)*(DREAL(ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                            TVal=.true.
+                        ENDIF
                     ENDIF
 
                 enddo
+
+                IF(TVal.and.(ValMax.lt.1.D-09)) STOP 'Error in collecting maximum values'
+                
+!Put largest values into ExcitInfo2
+                IF((TQuadValMax.or.TQuadVecMax).and.(ValMax.gt.1.D-09).and.TVal) THEN
+                    ExcitInfo2(NextVertex,0)=HElement(ValMax)
+                    ExcitInfo2(NextVertex,1)=HElement(VecMax)
+                    ExcitInfo2(NextVertex,2)=HElement(HMax)
+                    NextVertex=NextVertex+1
+                ENDIF
+                
             enddo
 
             IF(NextVertex.ne.(TotExcits+1)) STOP 'Incorrect Counting in GetStarStars'
 
+!            IF((TQuadValMax.or.TQuadVecMax).and.(NextVertex.gt.2*iExcit+1)) STOP 'Incorrect Counting in GetStarStars2'
+            
 !Return with the new information.
             iExcit=TotExcits
             iMaxExcit=TotExcits
@@ -685,7 +1014,7 @@
 !            WRITE(6,*) "Hia: "
 !            WRITE(6,*) ExcitInfo2(:,2)
 !            WRITE(6,*) ""
-            
+           
             CALL TIHALT('GetStarStars',iSub)
 
             RETURN

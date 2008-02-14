@@ -244,13 +244,13 @@
 !            do j=1,novirt
 !                elem=novirt*(j-1)+i
 !                IF(elem.lt.diag) THEN
-!                    IF(NODERHOMAT.gt.RhoEps) THEN
+!                    IF(ABS(NODERHOMAT).gt.RhoEps) THEN
 !                        KEEP=.true.
 !                        EXIT
 !                    ENDIF
 !                ELSEIF(elem.gt.diag) THEN
 !                    elem=novirt*(i-1)+j
-!                    IF(NODERHOMAT.gt.RhoEps) THEN
+!                    IF(ABS(NODERHOMAT).gt.RhoEps) THEN
 !                        KEEP=.true.
 !                        EXIT
 !                    ENDIF
