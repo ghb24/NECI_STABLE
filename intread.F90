@@ -7,7 +7,7 @@
         LOGICAL TQUADRHO,TEXPRHO,THFBASIS,THFCALC,TCALCREALPROD
         LOGICAL TRHF,TReadTUMat,TReadHF,TQuadValMax,TQuadVecMax
         LOGICAL TSUMPROD,TCALCRHOPROD,TDISCONODES,TCalcExcitStar
-        LOGICAL TJustQuads,TNoDoubs
+        LOGICAL TJustQuads,TNoDoubs,TDiagStarStars
         
         INTEGER NTAY(2),nHFit,NFROZEN,NTFROZEN,ORBORDER(8,2)
         INTEGER NRSTEPSMAX,IHFMETHOD
@@ -24,6 +24,7 @@
         INTEGER :: i
            
 ! Integral defaults
+      TDiagStarStars=.false.
       TJustQuads=.false.
       TNoDoubs=.false.
       TCalcExcitStar=.false.
@@ -69,6 +70,8 @@
           end if
           call readu(w)
           select case(w)
+          case("DIAGSTARSTARS")
+              TDiagStarStars=.true.
           case("STARQUADEXCITS")
               TJustQuads=.true.
           case("STARNODOUBS")

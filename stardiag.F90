@@ -33,9 +33,9 @@
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
-         USE CALCREAD , only : TMPTHEORY,StarProd,TLinStarStars
+         USE CALCREAD , only : TMPTHEORY,StarProd,TStarStars
          USE SYSREAD , only : TSTOREASEXCITATIONS
-         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar
+         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
@@ -109,7 +109,6 @@
             Write(6,"(A,I10,A)") "Counting excitations - Running through all ",iMaxExcit," excitations to determine number connected"
             excitcount=0
             CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
-            
        lp2: do while(.true.)
                 CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
                 IF(nJ(1).eq.0) exit lp2
@@ -140,7 +139,6 @@
          Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
          CALL MemAlloc(iErr,ExcitInfo,(iMaxExcit+1)*3*HElementSize,"ExcitInfo")
-         
 !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
          IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
@@ -239,13 +237,26 @@
          IF(StarProd) THEN
              CALL GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
          ENDIF
+         
+         IF(TStarStars) THEN
+             IF(TCalcExcitStar) THEN
 
-         IF(TLinStarStars.and..not.TCalcExcitStar) THEN
-             CALL GetStarStars(iMaxExcit,iExcit,RhoEps)
-         ENDIF
+!CalcExcitStar explicitly calculates the excitations from each double excitation, and 
+!forms a star graph out of these, prediagonalising them, and adding them to the original 
+!star. This scales as N^8 M^8 as each excited star is fully diagonalised. The excitations 
+!from these stars can be limited to quadruple excitations of the HF, or remove the double excitations.
+                 CALL CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps)
+             
+             ELSEIF(TDiagStarStars) THEN
 
-         IF(TCalcExcitStar) THEN
-             CALL CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps)
+!GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
+                 CALL GetStarStars(iMaxExcit,iExcit,RhoEps)
+             ELSE
+
+!GetLinStarStars assumes a linear variation of the star eigenvalues and vectors, and so uses this to approximate the diagonalised form for excited star matrices, given by multiplying the original star matrix by the rho_jj values.
+                 CALL GetLinStarStars(iMaxExcit,iExcit,RhoEps)
+                 
+             ENDIF
          ENDIF
 
          IF(.NOT.BTEST(NWHTAY,0)) THEN
@@ -573,8 +584,91 @@
 
         END SUBROUTINE CalcExcitStar
         
+!GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
+        SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
+            IMPLICIT NONE
+            INTEGER :: iSub,NextVertex,i,j,iErr,iMaxExcit,iExcit
+            REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
+            REAL*8 :: RhoValue,RhoEps
+            TYPE(HElement) :: Rhoia
+
+            CALL TISET('GetStarStars',iSub)
+            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
+
+            WRITE(6,*) "Explicitly diagonalising approximate excited stars from HF star template"
+
+            ALLOCATE(NewDiagRhos(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,NewDiagRhos,iExcit+1,"NewDiagRhos")
+            ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
+            CALL MemAlloc(iErr,ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize,"ExcitInfo2")
+            CALL AZZERO(ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize)
+            ExcitInfo2(0,0)=HElement(1.D0)
+            ExcitInfo2(0,1)=HElement(1.D0)
+            ExcitInfo2(0,2)=ExcitInfo(0,2)
+            NextVertex=1
+            
+            ALLOCATE(Vals(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,Vals,(iExcit+1)*iExcit,"Vals")
+            ALLOCATE(Vecs(iExcit+1),stat=iErr)
+            CALL MemAlloc(iErr,Vecs,(iExcit+1)*iExcit,"Vecs")
+
+!Run through all excitations of original star
+            do i=1,iExcit
+
+                CALL AZZERO(NewDiagRhos,iExcit+1)
+                CALL AZZERO(Vals,iExcit+1)
+                CALL AZZERO(Vecs,iExcit+1)
+                RhoValue=DREAL(ExcitInfo(i,0))
+                
+!Multiply diagonal elements of original star matrix by rho_jj
+                NewDiagRhos(1)=RhoValue
+                do j=1,iExcit
+                    NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))*RhoValue
+                enddo
+
+!Diagonalise
+                CALL GetValsnVecs(iExcit+1,NewDiagRhos,ExcitInfo(1:iExcit,1),Vals,Vecs)
+                
+                do j=1,iExcit+1
+
+                    Rhoia=ExcitInfo(i,1)*HElement(Vecs(j))
+
+                    IF(Rhoia.agt.RhoEps) THEN
+!Return excited star values to ExcitInfo2
+                        ExcitInfo2(NextVertex,0)=HElement(Vals(j))
+                        ExcitInfo2(NextVertex,1)=Rhoia
+                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*HElement(Vecs(j))
+                        NextVertex=NextVertex+1
+                    ENDIF
+
+                enddo
+                
+            enddo
+
+            CALL MemDealloc(NewDiagRhos)
+            DEALLOCATE(NewDiagRhos)
+            CALL MemDealloc(Vals)
+            DEALLOCATE(Vals)
+            CALL MemDealloc(Vecs)
+            DEALLOCATE(Vecs)
+
+            WRITE(6,"I10,A") NextVertex-1-iExcit, " extra vertices added to original star from excited stars"
+
+            iExcit=NextVertex-1
+            iMaxExcit=iExcit*(iExcit+1)
+
+            Call MemDealloc(ExcitInfo)
+            DEALLOCATE(ExcitInfo)
+
+            ExcitInfo => ExcitInfo2
+
+            CALL TIHALT('GetStarStars',iSub)
+
+            RETURN
+
+        END SUBROUTINE GetStarStars
         
-!TLinStarStars uses the approximation that the change in the eigenvalues and the first element  
+!GetLinStarStars uses the approximation that the change in the eigenvalues and the first element  
 !of the eigenvectors, with respect to multiplying the diagonal elements by a constant, is linear. 
 
 !If we try to prediagonalise a star, whose root is a double excitation determinant contained in 
@@ -598,7 +692,7 @@
 !elements. This however will make the final star graph even harder to solve. Resumming in the 
 !contributions from excited stars using this linear approximation is the hope.
 
-        SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
+        SUBROUTINE GetLinStarStars(iMaxExcit,iExcit,RhoEps)
             USE CALCREAD , only : LinePoints
             USE INTREAD , only : TQuadValMax,TQuadVecMax
             IMPLICIT NONE
@@ -625,7 +719,7 @@
             REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:),IncptVecs(:),SxyVals(:),SxyVecs(:)
             REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
 
-            CALL TISET('GetStarStars',iSub)
+            CALL TISET('GetLinStarStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
             WRITE(6,*) "Stars of double excitations to be included in calculation using a linear approximation of eigenvalues"
             WRITE(6,*) iExcit*(iExcit+1)," possible extra excitations"
@@ -989,9 +1083,9 @@
                 
             enddo
 
-            IF(NextVertex.ne.(TotExcits+1)) STOP 'Incorrect Counting in GetStarStars'
+            IF(NextVertex.ne.(TotExcits+1)) STOP 'Incorrect Counting in GetLinStarStars'
 
-!            IF((TQuadValMax.or.TQuadVecMax).and.(NextVertex.gt.2*iExcit+1)) STOP 'Incorrect Counting in GetStarStars2'
+!            IF((TQuadValMax.or.TQuadVecMax).and.(NextVertex.gt.2*iExcit+1)) STOP 'Incorrect Counting in GetLinStarStars2'
             
 !Return with the new information.
             iExcit=TotExcits
@@ -1015,10 +1109,10 @@
 !            WRITE(6,*) ExcitInfo2(:,2)
 !            WRITE(6,*) ""
            
-            CALL TIHALT('GetStarStars',iSub)
+            CALL TIHALT('GetLinStarStars',iSub)
 
             RETURN
-        END SUBROUTINE GetStarStars
+        END SUBROUTINE GetLinStarStars
                 
 !This subroutine simply forms a star matrix, diagonalises it, and returns the eigenvalues and first elements of the eigenvectors.
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)

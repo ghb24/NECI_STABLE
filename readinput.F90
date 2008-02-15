@@ -154,7 +154,7 @@ USe f90_unix_env, ONLY: getarg,iargc
          use UMatCache , only : TSTARSTORE
          USE CALCREAD , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,         &
      &          TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY,         &
-     &          STARPROD,TDIAGNODES,TLINSTARSTARS
+     &          STARPROD,TDIAGNODES,TSTARSTARS
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -219,7 +219,7 @@ USe f90_unix_env, ONLY: getarg,iargc
                               case("NODAL")
                                  TDIAGNODES=.TRUE.
                               case("STARSTARS")
-                                  TLINSTARSTARS=.true.
+                                  TSTARSTARS=.true.
                               case("STARPROD")
                                  STARPROD=.TRUE.
                               case("COUNTEXCITS")
@@ -254,7 +254,7 @@ USe f90_unix_env, ONLY: getarg,iargc
      &                        //" or POLY vertex star method",.true.)
                                end select
                            enddo
-!                           IF(TLINSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN 
+!                           IF(TSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN 
 !                               call report("STARSTARS must be used with " &
 !     &                          //"a poly option",.true.)
 !                           ENDIF
@@ -307,13 +307,24 @@ USe f90_unix_env, ONLY: getarg,iargc
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       USE CALCREAD , only : BETA,I_VMAX,NPATHS,SPECDET,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
-     &  TDIAGNODES,TLINSTARSTARS
-      USE INTREAD , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs
+     &  TDIAGNODES,TSTARSTARS
+      USE INTREAD , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars
       USE LOGREAD , only : ILOGGING
       USE input
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
+
+!..TDiagStarStars must be used with TStarStars, and cannot be used with TCalcExcitStar
+      IF(TDiagStarStars.and..not.TStarStars) THEN
+          CALL report("DiagStarStars must be used with StarStars",.true.)
+      ENDIF
+      IF(TDiagStarStars.and.TCalcExcitStar) THEN
+          CALL report("DiagStarStars is incompatable with CalcExcitStar",.true.)
+      ENDIF
+      IF(TDiagStarStars.and.(TNoDoubs.or.TJustQuads)) THEN
+          CALL report("NoDoubs/JustQuads cannot be used with DiagStarStars - try CalcExcitStar")
+      ENDIF
 
 !.. TNoDoubs is only an option which applied to TCalcExcitStar, and cannot occurs with TJustQuads.
       IF(TNoDoubs.and..not.TCalcExcitStar) THEN
@@ -329,18 +340,18 @@ USe f90_unix_env, ONLY: getarg,iargc
           CALL report("STARQUADEXCITS is only an option which applies to TCalcExcitStar",.true.)
       ENDIF
       
-!.. TCalcExcitStar can only be used with TLINSTARSTARS
-      IF(TCalcExcitStar.and..not.TLINSTARSTARS) THEN
+!.. TCalcExcitStar can only be used with TSTARSTARS
+      IF(TCalcExcitStar.and..not.TSTARSTARS) THEN
           CALL report("CalcExcitStar can only be used with StarStars set",.true.)
       ENDIF
 
-!.. Brillouin Theorem must be applied when using TCalcExcitStar
-      IF(TCalcExcitStar.and..not.TUseBrillouin) THEN
+!.. Brillouin Theorem must be applied when using TStarStars
+      IF(TStarStars.and..not.TUseBrillouin) THEN
           CALL report("Brillouin Theorem must be used when using CalcExcitStar",.true.)
       ENDIF
 
 !.. TQuadValMax and TQuadVecMax can only be used if TLINESTARSTARS set
-      IF((TQuadValMax.or.TQuadVecMax).and..not.TLINSTARSTARS) THEN
+      IF((TQuadValMax.or.TQuadVecMax).and..not.TSTARSTARS) THEN
           CALL report("TQuadValMax or TQuadVecMax can only be specified if STARSTARS specified in method line",.true.)
       ENDIF
 
