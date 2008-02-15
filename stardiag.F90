@@ -597,6 +597,9 @@
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
 
             WRITE(6,*) "Explicitly diagonalising approximate excited stars from HF star template"
+            IF(TExcitStarsRootChange) THEN
+                WRITE(6,*) "Only changing root matrix element for excited stars"
+            ENDIF
 
             ALLOCATE(NewDiagRhos(iExcit+1),stat=iErr)
             CALL MemAlloc(iErr,NewDiagRhos,iExcit+1,"NewDiagRhos")
