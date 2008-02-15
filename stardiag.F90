@@ -602,6 +602,8 @@
             ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
             CALL MemAlloc(iErr,ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize,"ExcitInfo2")
             CALL AZZERO(ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize)
+            iMaxExcit=iExcit*(iExcit+1)
+            
             ExcitInfo2(0,0)=HElement(1.D0)
             ExcitInfo2(0,1)=HElement(1.D0)
             ExcitInfo2(0,2)=ExcitInfo(0,2)
@@ -655,7 +657,6 @@
             WRITE(6,"I10,A") NextVertex-1-iExcit, " extra vertices added to original star from excited stars"
 
             iExcit=NextVertex-1
-            iMaxExcit=iExcit*(iExcit+1)
 
             Call MemDealloc(ExcitInfo)
             DEALLOCATE(ExcitInfo)
