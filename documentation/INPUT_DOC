@@ -561,6 +561,8 @@ QUADVALMAX
 DIAGSTARSTARS
     Used with STARSTARS, it performs a full diagonalisation on each excited star, using the original star as a template, i.e. same excitations, and same offdiagonal elements. All that occurs is that the diagonal elements are multiplied by rho_jj. Large Scaling.
 
+EXCITSTARSROOTCHANGE
+    Used with DIAGSTARSTARS only at the moment, when this is set, only the root element of the excited star matrices changes when constructing excited stars with roots given by rho_jj. The remainder of the excited star matrix is identical to the original star matrix.
 
 ENDINT
     End of integral block.

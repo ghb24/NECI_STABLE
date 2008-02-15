@@ -586,6 +586,7 @@
         
 !GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
+            USE INTREAD , only : TExcitStarsRootChange
             IMPLICIT NONE
             INTEGER :: iSub,NextVertex,i,j,iErr,iMaxExcit,iExcit
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
@@ -625,7 +626,12 @@
 !Multiply diagonal elements of original star matrix by rho_jj
                 NewDiagRhos(1)=RhoValue
                 do j=1,iExcit
-                    NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))*RhoValue
+                    IF(TExcitStarsRootChange) THEN
+!Only change the root element for the excited star matrix
+                        NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))
+                    ELSE
+                        NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))*RhoValue
+                    ENDIF
                 enddo
 
 !Diagonalise

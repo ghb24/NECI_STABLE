@@ -308,13 +308,18 @@ USe f90_unix_env, ONLY: getarg,iargc
       USE CALCREAD , only : BETA,I_VMAX,NPATHS,SPECDET,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
      &  TDIAGNODES,TSTARSTARS
-      USE INTREAD , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars
+      USE INTREAD , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange
       USE LOGREAD , only : ILOGGING
       USE input
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
 
+!..ExcitStarsRootChange must be used with TDiagStarStars
+      IF(TExcitStarsRootChange.and..not.TDiagStarStars) THEN
+          CALL report("ExcitStarsRootChange can only with used with DiagStarStars currently",.true.)
+      ENDIF
+      
 !..TDiagStarStars must be used with TStarStars, and cannot be used with TCalcExcitStar
       IF(TDiagStarStars.and..not.TStarStars) THEN
           CALL report("DiagStarStars must be used with StarStars",.true.)
