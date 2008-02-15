@@ -558,6 +558,10 @@ QUADVECMAX
 QUADVALMAX
     Same as QUADVECMAX, only the largest eigenvalue for each excited star is used. Seems to be little difference in results.
 
+DIAGSTARSTARS
+    Used with STARSTARS, it performs a full diagonalisation on each excited star, using the original star as a template, i.e. same excitations, and same offdiagonal elements. All that occurs is that the diagonal elements are multiplied by rho_jj. Large Scaling.
+
+
 ENDINT
     End of integral block.
 
