@@ -24,6 +24,7 @@
         
 !       SYSTEM defaults - leave these as the default defaults
 !       Any further addition of defaults should change these after.
+          TSTARSTORE=.false.
           TSTARBIN=.false.
           TREADINT=.false.
           THFORDER=.false.

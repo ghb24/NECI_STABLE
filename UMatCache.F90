@@ -1,6 +1,7 @@
 !Based on umatcache.F, this modulises the umat cache, and retrieval functions.
 MODULE UMatCache
       USE HElem
+      USE SYSREAD , only : TSTARSTORE
       IMPLICIT NONE
 ! The cache is stored in UMatCacheData
 !  For real systems, nTypes=1, and we have a single value for each unique ordered pair of ordered pairs (i,k), (j,l)
@@ -40,8 +41,7 @@ MODULE UMatCache
       TYPE(HElement), dimension(:), POINTER :: TMATSYM
       TYPE(HElement), dimension(:), POINTER :: TMATSYM2
       TYPE(HElement), dimension(:,:), POINTER :: TMAT2D2
-      logical TSTARSTORE
-        SAVE TMAT2D,TMATSYM,TSTARSTORE,TMATSYM2,TMAT2D2
+      SAVE TMAT2D,TMATSYM,TMATSYM2,TMAT2D2
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
 ! This is needed for the memory saving star indexing system.
