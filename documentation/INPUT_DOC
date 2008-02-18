@@ -564,6 +564,9 @@ DIAGSTARSTARS
 EXCITSTARSROOTCHANGE
     Used with DIAGSTARSTARS only at the moment, when this is set, only the root element of the excited star matrices changes when constructing excited stars with roots given by rho_jj. The remainder of the excited star matrix is identical to the original star matrix.
 
+RMROOTEXCITSTARSROOTCHANGE
+    Another option for use with DIAGSTARSTARS, when this is set, the same occurs as for EXCITSTARSROOTCHANGE, apart from the fact that the root is removed as an excited determinant in each excited star.
+
 ENDINT
     End of integral block.
 

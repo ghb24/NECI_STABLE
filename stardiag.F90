@@ -586,12 +586,14 @@
         
 !GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
-            USE INTREAD , only : TExcitStarsRootChange
+            USE INTREAD , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
             IMPLICIT NONE
             INTEGER :: iSub,NextVertex,i,j,iErr,iMaxExcit,iExcit
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
-            REAL*8 :: RhoValue,RhoEps
+            TYPE(HElement), ALLOCATABLE :: NewOffDiagRhos(:)
+            REAL*8 :: RhoValue,RhoEps,OffRhoValue
             TYPE(HElement) :: Rhoia
+            LOGICAL :: FoundRoot
 
             CALL TISET('GetStarStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
@@ -603,6 +605,9 @@
 
             ALLOCATE(NewDiagRhos(iExcit+1),stat=iErr)
             CALL MemAlloc(iErr,NewDiagRhos,iExcit+1,"NewDiagRhos")
+            ALLOCATE(NewOffDiagRhos(iExcit),stat=iErr)
+            CALL MemAlloc(iErr,NewOffDiagRhos,iExcit*HElementSize,"NewOffDiagRhos")
+            CALL AZZERO(NewOffDiagRhos,iExcit*HElementSize)
             ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
             CALL MemAlloc(iErr,ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize,"ExcitInfo2")
             CALL AZZERO(ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize)
@@ -621,24 +626,47 @@
 !Run through all excitations of original star
             do i=1,iExcit
 
+                FoundRoot=.false.
+!Refill offdiagonal elements the same each time
+                do j=1,iExcit
+                    NewOffDiagRhos(j)=ExcitInfo(j,1)
+                enddo
+
                 CALL AZZERO(NewDiagRhos,iExcit+1)
                 CALL AZZERO(Vals,iExcit+1)
                 CALL AZZERO(Vecs,iExcit+1)
                 RhoValue=DREAL(ExcitInfo(i,0))
+                OffRhoValue=DREAL(ExcitInfo(i,1))
                 
-!Multiply diagonal elements of original star matrix by rho_jj
+!Fill matrix of excited star to prediagonalise
                 NewDiagRhos(1)=RhoValue
                 do j=1,iExcit
                     IF(TExcitStarsRootChange) THEN
-!Only change the root element for the excited star matrix
+!Only change the root element for the excited star matrix. 
                         NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))
+                    
+!Remove connection to itself in the excited star.
+                    ELSEIF(TRmRootExcitStarsRootChange) THEN
+                        IF((DREAL(ExcitInfo(j,0)).eq.RhoValue).and.(OffRhoValue.eq.DREAL(ExcitInfo(j,1))).and.(.not.FoundRoot)) THEN
+                            NewDiagRhos(j+1)=0.D0
+                            NewOffDiagRhos(j+1)=HElement(0.D0)
+                            FoundRoot=.true.
+                        ELSE
+                            NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))
+                        ENDIF
+
+!Multiply all diagonal elements by current rho_jj value
                     ELSE
                         NewDiagRhos(j+1)=DREAL(ExcitInfo(j,0))*RhoValue
                     ENDIF
                 enddo
 
+                IF(TRmRootExcitStarsRootChange.and..not.FoundRoot) THEN
+                    STOP 'Could not find the root in excited star to remove'
+                ENDIF
+
 !Diagonalise
-                CALL GetValsnVecs(iExcit+1,NewDiagRhos,ExcitInfo(1:iExcit,1),Vals,Vecs)
+                CALL GetValsnVecs(iExcit+1,NewDiagRhos,NewOffDiagRhos,Vals,Vecs)
                 
                 do j=1,iExcit+1
 
