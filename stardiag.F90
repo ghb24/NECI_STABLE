@@ -418,7 +418,7 @@
 !Total number of excitations is equal to the total excitations for the excited stars, + the original double excitations
             TotExcits=iExcit+QuadExcits
 
-            WRITE(6,"I10,A") QuadExcits," extra excitations to attach to the HF-rooted star graph"
+            WRITE(6,"(I10,A)") QuadExcits," extra excitations to attach to the HF-rooted star graph"
 
 !Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues and vectors to ExcitInfo2(0:TotExcits,0:2)
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
@@ -691,7 +691,7 @@
             CALL MemDealloc(Vecs)
             DEALLOCATE(Vecs)
 
-            WRITE(6,"I10,A") NextVertex-1-iExcit, " extra vertices added to original star from excited stars"
+            WRITE(6,"(I10,A)") NextVertex-1-iExcit, " extra vertices added to original star from excited stars"
 
             iExcit=NextVertex-1
 
@@ -1041,7 +1041,7 @@
                 STOP
             ENDIF
 
-            WRITE(6,"A,I9,A") "There are ", CSE," extra excitations, from the inclusion of stars of all double excitations"
+            WRITE(6,"(A,I9,A)") "There are ", CSE," extra excitations, from the inclusion of stars of all double excitations"
 
 !Allocate memory to hold all excitations - but do not need to include original star
 
