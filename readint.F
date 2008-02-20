@@ -2,10 +2,10 @@
          IMPLICIT NONE
          INTEGER NEL,NBASISMAX(5,3),LEN,LMS
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
-         LOGICAL TBIN,exists
+         LOGICAL TBIN,exists,UHF
          CHARACTER*3 :: fmat
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
-         WRITE(6,*) "tBin2:",TBIN
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
+         UHF=.FALSE.
          fmat='NO'
          IF(TBIN) THEN
             INQUIRE(FILE='FCISYM',EXIST=exists)
@@ -20,7 +20,6 @@
          ELSE
             INQUIRE(FILE='FCIDUMP',EXIST=exists,UNFORMATTED=fmat)
             IF(.not.exists) STOP 'FCIDUMP file does not exist'
-            write(6,*) fmat
 !            IF(fmat=='YES') THEN
 !                STOP 'FCIDUMP is not formatted, but TBIN false'
 !            ENDIF
@@ -36,7 +35,11 @@ C         NEL=NELEC
          LMS=MS2
          WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
          WRITE(6,*) ' BASIS MS : ' , LMS
-         LEN=2*NORB
+         IF(UHF) then
+            LEN=NORB
+         ELSE
+            LEN=2*NORB
+         ENDIF
          CALL IAZZERO(NBASISMAX,15)
 C         NBASISMAX(1,1)=1
 C         NBASISMAX(1,2)=NORB
@@ -45,6 +48,13 @@ C         NBASISMAX(1,2)=NORB
          NBASISMAX(1,3)=2
          NBASISMAX(4,1)=-1
          NBASISMAX(4,2)=1
+         
+!the indicator of UHF (which becomes ISpinSkip or ISS later
+         IF(UHF) then
+            NBASISMAX(2,3)=1
+         else
+            NBASISMAX(2,3)=2
+         endif
 
 C.. SHow that there's no momentum conservation
          NBASISMAX(3,3)=1
@@ -60,9 +70,10 @@ C.. SHow that there's no momentum conservation
          INTEGER*8 IND,MASK
          INTEGER I,J,K,L
          INTEGER ISYMNUM,ISNMAX,SYMMAX
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
-         LOGICAL TBIN
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN
+         LOGICAL TBIN,UHF
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
+         UHF=.FALSE.
          IF(TBIN) THEN
             OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
             READ(8,FCI)
@@ -74,10 +85,14 @@ C.. SHow that there's no momentum conservation
          ENDIF
          ISYMNUM=0
          ISNMAX=0
-         IF(LEN.NE.2*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
+         ISPINS=2
+         IF(UHF) ISPINS=1
+        
+         IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          CALL IAZZERO(G1,BasisFNSize*LEN)
-         CALL AZZERO(ARR,2*LEN)
+         CALL AZZERO(ARR,ISPINS*LEN)
          IF(TBIN) THEN
+            IF(UHF) STOP 'UHF Bin read not functional'
             MASK=(2**16)-1
             
             !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
@@ -120,36 +135,28 @@ C.. Each orbital in the file corresponds to alpha and beta spinorbitals
                     ENDIF
                 ENDIF
                 ISYMNUM=ISYMNUM+1
-                ARR(2*I-1,1)=Z
-                ARR(2*I,1)=Z
+                DO ISPN=1,ISPINS
+                    ARR(ISPINS*I-ISPN+1,1)=Z
+                ENDDO
             ELSEIF(I.NE.0.AND.K.EQ.0.AND.J.EQ.0) THEN
-                ARR(2*I-1,1)=Z
-                ARR(2*I,1)=Z
+                DO ISPN=1,ISPINS
+                    ARR(ISPINS*I-ISPN+1,1)=Z
+                ENDDO
             ENDIF
 C.. At the moment we're ignoring the core energy
             IF(I.NE.0) GOTO 1
          ENDIF
 99       CONTINUE
          DO I=1,NORB
-            BRR(2*I-1)=2*I-1
-            BRR(2*I)=2*I
-C            G1(1,2*I-1)=ISYMNUM-1
-C            G1(1,2*I)=ISYMNUM-1
-!            G1(2*I-1)%Sym%s=IBSET(0,ORBSYM(I)-1)
-!            G1(2*I)%Sym%s=IBSET(0,ORBSYM(I)-1)
-            G1(2*I-1)%Sym%s=ORBSYM(I)-1
-            G1(2*I)%Sym%s=ORBSYM(I)-1
-C            G1(3,2*I-1)=I
-C            G1(3,2*I)=I
+            DO ISPN=1,ISPINS
+                BRR(ISPINS*I-ISPN+1)=ISPINS*I-ISPN+1
+                G1(ISPINS*I-ISPN+1)%Sym%s=ORBSYM(I)-1
 C.. set momentum to 0
-            G1(2*I-1)%k(1)=0
-            G1(2*I)%k(2)=0
-            G1(2*I-1)%k(3)=0
-            G1(2*I)%k(1)=0
-            G1(2*I-1)%k(2)=0
-            G1(2*I)%k(3)=0
-            G1(2*I-1)%Ms=-1
-            G1(2*I)%Ms=1
+                G1(ISPINS*I-ISPN+1)%k(1)=0
+                G1(ISPINS*I-ISPN+1)%k(2)=0
+                G1(ISPINS*I-ISPN+1)%k(3)=0
+                G1(ISPINS*I-ISPN+1)%Ms=-MOD(ISPINS*I-ISPN+1,2)*2+1
+            ENDDO
          ENDDO
          SYMMAX=ORBSYM(NORB)
          IF(SYMMAX.EQ.1) THEN
@@ -180,13 +187,17 @@ C.. set momentum to 0
          REAL*8 Z
          INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
-         LOGICAL LWRITE
+         LOGICAL LWRITE,UHF
+         INTEGER ISPINS,ISPN,ISPN2
          include 'sym.inc'
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
+         UHF=.FALSE.
          
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
+         ISPINS=2
+         IF(UHF) ISPINS=1
 101      READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
 C.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
          IF(I.EQ.0) THEN
@@ -206,10 +217,10 @@ C.. 1-e integrals
                 TMATSYM(TMatInd(2*J,2*I))=Z
             ELSE
 C.. These are stored as spinorbitals (with elements between different spins being 0
-                TMAT2D(2*I-1,2*J-1)=Z
-                TMAT2D(2*I,2*J)=Z
-                TMAT2D(2*J-1,2*I-1)=Z
-                TMAT2D(2*J,2*I)=Z
+                DO ISPN=1,ISPINS
+                   TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
+                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+                enddo
             ENDIF
          ELSE
 C.. 2-e integrals
@@ -242,14 +253,6 @@ C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
             ELSE
                 UMAT(UMatInd(I,K,J,L,0,0))=Z
             ENDIF
-!            UMAT(I,K,J,L)=Z
-!            UMAT(J,L,I,K)=Z
-!            UMAT(K,I,L,J)=Z
-!            UMAT(L,J,K,I)=Z
-!            UMAT(J,K,I,L)=Z
-!            UMAT(I,L,J,K)=Z
-!            UMAT(L,I,K,J)=Z
-!            UMAT(K,J,L,I)=Z
          ENDIF
          IF(I.NE.0) GOTO 101
 199      CONTINUE
@@ -275,11 +278,11 @@ C.. If we've changed the eigenvalues, we write out the basis again
          INTEGER*8 MASK,IND
          INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
-         LOGICAL LWRITE
+         LOGICAL LWRITE,UHF
          include 'sym.inc'
-         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM
+         NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
-         
+         UHF=.FALSE.
          OPEN(8,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
          READ(8,FCI)
          CLOSE(8)

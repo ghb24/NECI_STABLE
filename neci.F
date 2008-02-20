@@ -235,6 +235,9 @@ C.. say we're a UHF det so all singles are 0
             ELSE
                NBASISMAX(4,5)=2
             ENDIF
+            IF(NBASISMAX(2,3).EQ.1) then
+                WRITE(6,*) "Unrestricted calculation.  Cave Arthropodia"
+            ENDIF
          ENDIF 
       ELSE   
 
@@ -380,7 +383,8 @@ C.. spinskip
       ELSE
          NBASISMAX(4,1)=-1
 C.. spinskip
-         NBASISMAX(2,3)=2
+!  If spinskip is unset
+         IF(NBASISMAX(2,3).EQ.0) NBASISMAX(2,3)=2
       ENDIF
       NBASISMAX(4,2)=1
       IF(THUB) THEN
@@ -651,13 +655,16 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             WRITE(6,*)
      &         ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
 C.. Generate the 2e integrals (UMAT)
-            NBASISMAX(2,3)=2
+           IF(NBASISMAX(2,3).eq.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
 C.. We can only do restricted systems, so alpha and beta spinorbital
 C... integrals will be the same 
-            CALL GetUMatSize(nHG,nEl,2,UMATINT)
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+            CALL GetUMatSize(nHG,nEl,nBasisMax(2,3),UMATINT)
+            WRITE(6,*) "UMatSize: ",UMATINT
             CALL MEMORY(IP_UMAT,HElementSize*UMATINT,'UMAT')
             CALL AZZERO(UMAT,HElementSize*UMATINT)
-            CALL SetupTMAT(NHG,2,TMATINT)
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+            CALL SetupTMAT(NHG,nBasisMax(2,3),TMATINT)
 !            CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
 !            CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             IF(TBIN) THEN
