@@ -621,8 +621,6 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL MEMORY(IP_UMAT,HElementSize,'UMAT')
             !CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
             !CALL AZZERO(TMAT,HElementSize*NHG*NHG)
-            ! This could be a rogue line.  George?
-            CALL GENSymStatePairs(NHG/2,.false.)
             CALL SetupTMAT(NHG,2,TMATINT)
             Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
             Call ReadDF2EIntegrals(nBasis,I)
