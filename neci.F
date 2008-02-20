@@ -530,7 +530,7 @@ C.. we're reading in integrals and have a molpro symmetry table
          CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
       ELSEIF(TCPMD) THEN
 C.. If TCPMD, then we've generated the symmetry table earlier,
-C.. but we still need the sym reps table
+C.. but we still need the sym reps table.
          CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR,1.d-5)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
@@ -609,6 +609,7 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL MEMORY(IP_UMAT,1,'UMAT')
             !CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
             !CALL AZZERO(TMAT,HElementSize*NHG*NHG)
+            CALL GENSymStatePairs(NHG/2,.false.)
             CALL SetupTMAT(NHG,2,TMATINT)
             CALL CPMDINIT2INDINT(NHG,I,NBASISMAX,
      &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
@@ -616,6 +617,8 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL MEMORY(IP_UMAT,HElementSize,'UMAT')
             !CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
             !CALL AZZERO(TMAT,HElementSize*NHG*NHG)
+            ! This could be a rogue line.  George?
+            CALL GENSymStatePairs(NHG/2,.false.)
             CALL SetupTMAT(NHG,2,TMATINT)
             Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
             Call ReadDF2EIntegrals(nBasis,I)
@@ -3088,7 +3091,7 @@ C.. Now construct the new BRR and ARR
             IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
          ENDDO
 
-        IF(TSTARSTORE) THEN
+        IF(TSTARSTORE.or.tCPMDSymTMat) THEN
 C.. Now setup the default symmetry to include the frozen electrons
 C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
             CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
@@ -3133,7 +3136,7 @@ C.. now deal with the new TMAT
                JB=BRR(JP)
                JPB=GG(JB)
                CALL GTID(NBASISMAX,JB,IDJ)
-               IF(TSTARSTORE) THEN
+               IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                    TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
                ELSE
                    TMAT2D2(IPB,JPB)=GetTMATEl(IB,JB)
@@ -3146,7 +3149,7 @@ C                  SGN=1
 C                  IF(IB.GT.AB) SGN=-SGN
 C                  IF(JB.GT.AB) SGN=-SGN
                   IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
-                      IF(TSTARSTORE) THEN
+                      IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                         TMATSYM2(NEWTMATInd(IPB,JPB))=
      &                  GetNEWTMATEl(IPB,JPB)
      &        +GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
@@ -3159,7 +3162,7 @@ CCCC.. If we have spin-independent integrals, ISS.EQ.2.OR
 C.. if the spins are the same
                   IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS)
      &               THEN
-                        IF(TSTARSTORE) THEN
+                        IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                             TMATSYM2(NEWTMATInd(IPB,JPB))=
      &                       GetNEWTMATEl(IPB,JPB)
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)

@@ -41,6 +41,7 @@ MODULE UMatCache
       TYPE(HElement), dimension(:), POINTER :: TMATSYM
       TYPE(HElement), dimension(:), POINTER :: TMATSYM2
       TYPE(HElement), dimension(:,:), POINTER :: TMAT2D2
+      logical tCPMDSymTMat
       SAVE TMAT2D,TMATSYM,TMATSYM2,TMAT2D2
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
@@ -250,6 +251,21 @@ MODULE UMatCache
 
 !Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
 !Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
+! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
+! For the TMat(i,j) to be non-zero, i and j have to belong to the same symmetry.
+! We store the non-zero elements in TMatSym(:).
+! The indexing scheme is:
+!   Arrange basis into blocks of the same symmetry, ie so TMat is of a block
+!   (but not necessarily block diagonal) nature.  Order the blocks by their
+!   symmetry index.
+!   Within each block, convert i and j to a spatial index and label by the 
+!   (energy) order in which they come within that symmetry: i->k,j->l.
+!   We only need to store the upper diagonal of each block:
+!        blockind=k*(k-1)/2+l, l<k.
+!   The overall index depends on the number of non-zero integrals in the blocks
+!   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
+!        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
+!   If the element is zero, return -1 (TMatSym(-1) is set to 0). 
     INTEGER FUNCTION TMatInd(I,J)
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
@@ -269,25 +285,32 @@ MODULE UMatCache
         symJ=SYMCLASSES(L)
 
         IF(symI.ne.symJ) THEN
+            ! <i|t|j> is symmetry forbidden.
             TMatInd=-1
             RETURN
         ELSE
+            ! Convert K and L into their index within their symmetry class.
+            K=StateSymMap(K)
+            L=StateSymMap(L)
+            ! Block index: how many symmetry allowed integrals are there in the
+            ! preceeding blocks?
             IF(symI.eq.1) THEN
                 Block=0
             ELSE
                 Block=SYMLABELINTSCUM(symI-1)
             ENDIF
-                cumulative=SYMLABELCOUNTSCUM(symI)
+            ! Index within symmetry block.
             IF(K.ge.L) THEN
-                ind=(((K-cumulative)*((K-cumulative)-1))/2)+(L-cumulative)
+                ind=(K*(K-1))/2+L
             ELSE
-                ind=(((L-cumulative)*((L-cumulative)-1))/2)+(K-cumulative) 
+                ind=(L*(L-1))/2+K
             ENDIF
             TMatInd=Block+ind
             RETURN
         ENDIF
       END function
       
+     ! See notes for TMatInd.
      INTEGER FUNCTION NEWTMatInd(I,J)
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
@@ -315,11 +338,13 @@ MODULE UMatCache
             ELSE
                 Block=SYMLABELINTSCUM2(symI-1)
             ENDIF
-                cumulative=SYMLABELCOUNTSCUM2(symI)
+            ! Convert K and L into their index within their symmetry class.
+            K=StateSymMap(K)
+            L=StateSymMap(L)
             IF(K.ge.L) THEN
-                ind=(((K-cumulative)*((K-cumulative)-1))/2)+(L-cumulative)
+                ind=(K*(K-1))/2+L
             ELSE
-                ind=(((L-cumulative)*((L-cumulative)-1))/2)+(K-cumulative) 
+                ind=(L*(L-1))/2+K
             ENDIF
             NEWTMatInd=Block+ind
             RETURN
@@ -357,11 +382,20 @@ MODULE UMatCache
 
         IF(TSTARSTORE) THEN
             GetTMatEl=TMATSYM(TMatInd(I,J))
+        else if (tCPMDSymTMat) then
+            ! TMat is Hermitian, rather than symmetric.
+            ! Only the upper diagonal of each symmetry block stored.
+            if (j.ge.i) then
+                GetTMatEl=TMATSYM(TMatInd(I,J))
+            else
+                GetTMatEl=dConjg(TMATSYM(TMatInd(I,J)))
+            end if
         ELSE
             GetTMatEl=TMAT2D(I,J)
         ENDIF
       END function
 
+      ! See GetTMatEl.
       FUNCTION GetNEWTMATEl(I,J)
         IMPLICIT NONE
         INTEGER I,J
@@ -369,32 +403,52 @@ MODULE UMatCache
 
         IF(TSTARSTORE) THEN
             GetNEWTMATEl=TMATSYM2(NEWTMATInd(I,J))
+        else if (tCPMDSymTMat) then
+            if (j.ge.i) then
+                GetNewTMatEl=TMATSYM2(TMatInd(I,J))
+            else
+                GetNewTMatEl=dConjg(TMATSYM2(TMatInd(I,J)))
+            end if
         ELSE
             GetNEWTMATEl=TMAT2D2(I,J)
         ENDIF
       END function
      
+      ! See notes in SetupTMat as well.
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
+        use SysRead, only: tCPMD
         IMPLICIT NONE
+        include 'cpmddata.inc'
         include 'sym.inc'
-         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr
+         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer*8 iSize
         
-        IF(TSTARSTORE) THEN 
+        ! If this is a CPMD k-point calculation, then we're operating
+        ! under Abelian symmetry: can use George's memory efficient
+        ! TMAT.
+        if (tCPMD) tCPMDSymTMat=tKP
+        IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
+            ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
             nBi=nBasisFRZ/iSS
             iSize=0
             IF(IP_SYMLABELINTSCUM2.ne.0) CALL FREEM(IP_SYMLABELINTSCUM2)
-            IF(IP_SYMLABELCOUNTSCUM2.ne.0) CALL FREEM(IP_SYMLABELCOUNTSCUM2)
+            IF(IP_StateSymMap2.ne.0) call FreeM(IP_StateSymMap2) ! I feel dirty doing this.
             CALL MEMORY(IP_SYMLABELINTSCUM2,Nirrep,'SYMLABELINTSCUM2')
             CALL IAZZERO(SYMLABELINTSCUM2,Nirrep)
             CALL MEMORY(IP_SYMLABELCOUNTSCUM2,Nirrep,'SYMLABELCOUNTSCUM2')
             CALL IAZZERO(SYMLABELCOUNTSCUM2,Nirrep)
+            call Memory(IP_StateSymMap2,nBi,'StateSymMap2')
             do i=1,Nirrep
             !SYMLABELCOUNTS is now mbas only for the frozen orbitals
                 basirrep=SYMLABELCOUNTS(2,i)
                 iSize=iSize+(basirrep*(basirrep+1))/2
+                ! # of integrals in this symmetry class and all preceeding
+                ! symmetry classes.
                 SYMLABELINTSCUM2(i)=iSize
+                ! JSS: we no longer need SymLabelCountsCum, but it's a useful test.
+                ! SymLabelCountsCum is the cumulative total # of basis functions
+                ! in the preceeding symmetry classes.
                 IF(i.eq.1) THEN
                     SYMLABELCOUNTSCUM2(i)=0
                 ELSE
@@ -404,6 +458,14 @@ MODULE UMatCache
                 ENDIF
 !                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
 !                call flush(6)
+                ! JSS: Label states of symmetry i by the order in which they come.
+                nStateIrrep=0
+                do iState=1,nBi
+                    if (SymClasses2(iState).eq.i) then
+                        nStateIrrep=nStateIrrep+1
+                        StateSymMap2(iState)=nStateIrrep
+                    end if
+                end do
             enddo
             IF((SYMLABELCOUNTSCUM2(Nirrep)+basirrep).ne.nBI) THEN
                 DO i=1,Nirrep
@@ -414,6 +476,7 @@ MODULE UMatCache
             ENDIF
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
+            !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
             
             Allocate(TMATSYM2(-1:iSize),STAT=ierr)
             CALL MemAlloc(ierr,TMATSYM2,HElementSize*(iSize+2),'TMATSYM2')
@@ -421,6 +484,8 @@ MODULE UMatCache
 
         ELSE
 
+            ! Using a square array to hold <i|h|j> (incl. elements which are
+            ! zero by symmetry).
             iSize=nBasisFRZ*nBasisFRZ
             Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
             Call MemAlloc(ierr,TMAT2D2,HElementSize*iSize,'TMAT2D2')
@@ -543,25 +608,41 @@ MODULE UMatCache
       END subroutine
         
       SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
+        use SysRead, only: tCPMD
         IMPLICIT NONE
+        include 'cpmddata.inc'
         include 'sym.inc'
-        integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr
+        integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer*8 iSize
         
-        IF(TSTARSTORE) THEN 
+        ! If this is a CPMD k-point calculation, then we're operating
+        ! under Abelian symmetry: can use George's memory efficient
+        ! TMAT.  Bit of a hack for now: should place this line somewhere more
+        ! relevant.
+        if (tCPMD) tCPMDSymTMat=tKP
+        IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
+            ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
             nBi=nBasis/iSS
             iSize=0
             IF(IP_SYMLABELINTSCUM.ne.0) CALL FREEM(IP_SYMLABELINTSCUM)
             IF(IP_SYMLABELCOUNTSCUM.ne.0) CALL FREEM(IP_SYMLABELCOUNTSCUM)
+            IF(IP_StateSymMap.ne.0) call FreeM(IP_StateSymMap) ! I feel dirty doing this.
             CALL MEMORY(IP_SYMLABELINTSCUM,Nirrep,'SYMLABELINTSCUM')
             CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
             CALL MEMORY(IP_SYMLABELCOUNTSCUM,Nirrep,'SYMLABELCOUNTSCUM')
             CALL IAZZERO(SYMLABELCOUNTSCUM,Nirrep)
+            call Memory(IP_StateSymMap,nBi,'StateSymMap')
             do i=1,Nirrep
                 basirrep=SYMLABELCOUNTS(2,i)
+                ! Block diagonal.
                 iSize=iSize+(basirrep*(basirrep+1))/2
+                ! # of integrals in this symmetry class and all preceeding
+                ! symmetry classes.
                 SYMLABELINTSCUM(i)=iSize
+                ! JSS: we no longer need SymLabelCountsCum, but it's a useful test.
+                ! SymLabelCountsCum is the cumulative total # of basis functions
+                ! in the preceeding symmetry classes.
                 IF(i.eq.1) THEN
                     SYMLABELCOUNTSCUM(i)=0
                 ELSE
@@ -569,9 +650,19 @@ MODULE UMatCache
                         SYMLABELCOUNTSCUM(i)=SYMLABELCOUNTSCUM(i)+SYMLABELCOUNTS(2,t)
                     ENDDO
                 ENDIF
-!                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-!                call flush(6)
+                ! JSS: Label states of symmetry i by the order in which they come.
+                nStateIrrep=0
+                do iState=1,nBi
+                    if (SymClasses(iState).eq.i) then
+                        nStateIrrep=nStateIrrep+1
+                        StateSymMap(iState)=nStateIrrep
+                    end if
+                end do
             enddo
+            ! The number of basis functions before the last irrep
+            ! plus the number of basis functions in the last irrep
+            ! (which is in basirrep on exiting the above do loop)
+            ! must equal the total # of basis functions.
             IF((SYMLABELCOUNTSCUM(Nirrep)+basirrep).ne.nBI) THEN
                 DO i=1,Nirrep
                     WRITE(12,*) SYMLABELCOUNTSCUM(i)
@@ -583,6 +674,7 @@ MODULE UMatCache
             ENDIF
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
+            !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
             
             Allocate(TMATSYM(-1:iSize),STAT=ierr)
             Call MemAlloc(ierr,TMATSYM,HElementSize*(iSize+2),'TMATSYM')
@@ -590,6 +682,8 @@ MODULE UMatCache
 
         ELSE
 
+            ! Using a square array to hold <i|h|j> (incl. elements which are
+            ! zero by symmetry).
             iSize=nBasis*nBasis
             Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
             Call MemAlloc(ierr,TMAT2D,HElementSize*iSize,'TMAT2D')

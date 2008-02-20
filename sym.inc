@@ -31,6 +31,9 @@
 !.. The total number of symmetry labels is NSYMLABELS
          Type(Symmetry) SYMLABELS(*)
          POINTER (IP_SYMLABELS,SYMLABELS)
+         INTEGER StateSymMap(*),StateSymMap2(*)
+         POINTER (IP_StateSymMap,StateSymMap)
+         Pointer (IP_StateSymMap2,StateSymMap2)
          INTEGER SymClasses(*)
          POINTER (IP_SymClasses,SymClasses)
          INTEGER SymClasses2(*)
@@ -83,5 +86,6 @@
      &               IP_SYMLABELLIST,IP_SYMLABELCOUNTS,                 &
      &               IP_SymConjTab,IP_SYMLABELCOUNTSCUM,IP_SymClasses,  &
      &               IP_SYMLABELINTSCUM,IP_SYMLABELCOUNTSCUM2,          &
+     &               IP_StateSymMap,IP_StateSymMap2,                    &
      &               IP_SYMLABELINTSCUM2,IP_SYMCLASSES2,                &
      &               FrozenSym  ,NSYMPAIRPRODS,TAbelian,PropBitLen

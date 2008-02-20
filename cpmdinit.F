@@ -260,9 +260,9 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElem
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D,
-     &                        TMat2D,tStarStore,GetUMatEl
+     &                        TMat2D,tCPMDSymTMat,GetUMatEl,TMatSym
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
-     &                        SetupUMatCache    
+     &                        SetupUMatCache,TMatInd    
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
@@ -347,8 +347,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                   TOT=TOT-CPMD1EINT(I,J)
                   TOT=TOT-HElement(HarInt(i,j))
 !                  FockMat(i,j)=FockMat(i,j)-dcmplx(CPMD1EInt(I,J))
-                  IF (TSTARSTORE) THEN
-                      !GHB Yet to optimise CPMD TMAT for memory saving symmetry
+                  IF (tCPMDSymTMat) THEN
+                      TMATSYM(TMatInd(II+1,JJ+1))=TOT ! Indexing needs to be compatiable with TMatInd.
                   ELSE
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
