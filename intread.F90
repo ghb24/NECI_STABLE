@@ -8,7 +8,7 @@
         LOGICAL TRHF,TReadTUMat,TReadHF,TQuadValMax,TQuadVecMax
         LOGICAL TSUMPROD,TCALCRHOPROD,TDISCONODES,TCalcExcitStar
         LOGICAL TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange
-        LOGICAL TRmRootExcitStarsRootChange
+        LOGICAL TRmRootExcitStarsRootChange,TLinRootChange
         
         INTEGER NTAY(2),nHFit,NFROZEN,NTFROZEN,ORBORDER(8,2)
         INTEGER NRSTEPSMAX,IHFMETHOD
@@ -25,6 +25,7 @@
         INTEGER :: i
            
 ! Integral defaults
+      TLinRootChange=.false.
       TRmRootExcitStarsRootChange=.false.
       TExcitStarsRootChange=.false.
       TDiagStarStars=.false.
@@ -73,6 +74,8 @@
           end if
           call readu(w)
           select case(w)
+          case("LINROOTCHANGE")
+              TLinRootChange=.true.
           case("RMROOTEXCITSTARSROOTCHANGE")
               TRmRootExcitStarsRootChange=.true.
           case("EXCITSTARSROOTCHANGE")

@@ -35,7 +35,7 @@
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
          USE CALCREAD , only : TMPTHEORY,StarProd,TStarStars
          USE SYSREAD , only : TSTOREASEXCITATIONS
-         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars
+         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
@@ -233,6 +233,12 @@
 !.. Call a routine to generate the value of the star
          WRITE(6,*) iExcit," excited determinants in star"
 
+!Set to true to graph various eigenvalues and eigenvectors of varying star matrices - should generally be false.
+         IF(.false.) THEN
+             CALL GraphRootChange(iMaxExcit,iExcit,RhoEps)
+         ENDIF
+
+         
 !If starprod is set, it means that one of a number of methods is used to attempt to indroduce quadruple excitations into the star in an approximate way to achieve size consistency for dissociation into two fragments.
          IF(StarProd) THEN
              CALL GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
@@ -251,6 +257,18 @@
 
 !GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
                  CALL GetStarStars(iMaxExcit,iExcit,RhoEps)
+             ELSEIF(TLinRootChange) THEN
+ 
+!GetLinRootChangeStars creates excited stars, which are the same as the original star, but 
+!the root changes. This form for the excited stars means that the eigenvectors are only 
+!unity over disjoint ranges of the root value. This means that only one eigenvector is 
+!attached per excited graph, and thus the final graph to diagonalise is the same size as 
+!the original graph. It appears at the moment, that all the excited stars are within the 
+!first eigenvector range. The eigenvalues within this range change linearly from the highest 
+!eigenvalue of the original star. Once this gradient is found, the change in the diagonal 
+!elements of the original matrix can be calculated and shifted. Offdiagonal elements, and 
+!Hamiltonian elements are unchanged, since the eigenvectors are equal to unity.
+                 CALL GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
              ELSE
 
 !GetLinStarStars assumes a linear variation of the star eigenvalues and vectors, and so uses this to approximate the diagonalised form for excited star matrices, given by multiplying the original star matrix by the rho_jj values.
@@ -583,6 +601,84 @@
             RETURN
 
         END SUBROUTINE CalcExcitStar
+       
+!A testing routine which writes out eigenvectors and values from various modified star matrices
+        SUBROUTINE GraphRootChange(iMaxExcit,iExcit,RhoEps)
+            IMPLICIT NONE
+            INTEGER :: iMaxExcit,iExcit,HalfiExcit,i,j,calcs,lowtoprint
+            REAL*8 :: r,gap,minimum,RhoEps
+            REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:)
+            TYPE(HElement) :: tmp(3)
+
+            OPEN(48,FILE='FirstElemVecs',STATUS='UNKNOWN')
+            OPEN(49,FILE='Vals',STATUS='UNKNOWN')
+            
+!First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
+!This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
+            CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
+
+!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1
+            HalfiExcit=INT((iMaxExcit+1)/2)
+            do i=1,HalfiExcit
+                tmp(1)=ExcitInfo((iMaxExcit+1)-i,0)
+                tmp(2)=ExcitInfo((iMaxExcit+1)-i,1)
+                tmp(3)=ExcitInfo((iMaxExcit+1)-i,2)
+                ExcitInfo((iMaxExcit+1)-i,0)=ExcitInfo(i-1,0)
+                ExcitInfo((iMaxExcit+1)-i,1)=ExcitInfo(i-1,1)
+                ExcitInfo((iMaxExcit+1)-i,2)=ExcitInfo(i-1,2)
+                ExcitInfo(i-1,0)=tmp(1)
+                ExcitInfo(i-1,1)=tmp(2)
+                ExcitInfo(i-1,2)=tmp(3)
+            enddo
+
+            IF(.not.(ExcitInfo(iExcit,0).agt.0.1)) STOP 'Reordering incorrect'
+            WRITE(6,*) "Minimum rho_jj is :", ExcitInfo(iExcit,0)
+
+            ALLOCATE(Vals(iExcit+1))
+            ALLOCATE(Vecs(iExcit+1))
+            ALLOCATE(DiagRhos(iExcit+1))
+            CALL AZZERO(Vals,iExcit+1)
+            CALL AZZERO(Vecs,iExcit+1)
+            CALL AZZERO(DiagRhos,iExcit+1)
+
+            calcs=60
+            minimum=1.D0-((1.D0-DREAL(ExcitInfo(iExcit,0)))*1.5)
+            WRITE(6,*) "Minimum root value to search for is: ", minimum
+            gap=(1.D0-minimum)/calcs
+            lowtoprint=iExcit-4
+            CALL FLUSH(6)
+
+            do r=1,minimum,-gap
+
+!Fill matrix as normal, but change root element from 1 -> little lower than rho_jj
+                do i=2,iExcit+1
+                    DiagRhos(i)=DREAL(ExcitInfo(i-1,0))
+                enddo
+                DiagRhos(1)=r
+
+                CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),Vals,Vecs)
+
+                IF(r.eq.1.D0) THEN
+                    WRITE(6,("A,F13.9")) "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
+                ENDIF
+
+                WRITE(48,("F11.7,$")) r
+                WRITE(48,("6F13.9,$")) Vecs(lowtoprint:iExcit+1)
+                WRITE(48,*) ""
+                WRITE(49,("F11.7,$")) r
+                WRITE(49,("6F13.9,$")) Vals(lowtoprint:iExcit+1)
+                WRITE(49,*) ""
+                CALL FLUSH(48)
+                CALL FLUSH(49)
+
+            enddo
+
+            DEALLOCATE(Vals)
+            DEALLOCATE(Vecs)
+            DEALLOCATE(DiagRhos)
+
+        END SUBROUTINE GraphRootChange
+
         
 !GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
@@ -705,7 +801,203 @@
             RETURN
 
         END SUBROUTINE GetStarStars
-        
+
+        SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
+            USE CALCREAD , only : LinePoints
+            IMPLICIT NONE
+            INTEGER :: i,j,iMaxExcit,iExcit,iSub,nWHTay,HalfiExcit,ierr
+            REAL*8 :: RhoEps,LineRhoValues(LinePoints),RhoValue,Vals(LinePoints),meanx,RhoGap,EigenMax
+            REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq
+            REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
+            TYPE(HElement) :: tmp(3)
+
+            CALL TISET('GetLinRootChangeStars',iSub)
+            IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
+            WRITE(6,*) "Stars where only root changes to be included, using a linear approximation of eigenvalues"
+            
+!First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
+!This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
+            CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
+
+!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1 - rho_jj elements then decrease
+            HalfiExcit=INT((iMaxExcit+1)/2)
+            do i=1,HalfiExcit
+                tmp(1)=ExcitInfo((iMaxExcit+1)-i,0)
+                tmp(2)=ExcitInfo((iMaxExcit+1)-i,1)
+                tmp(3)=ExcitInfo((iMaxExcit+1)-i,2)
+                ExcitInfo((iMaxExcit+1)-i,0)=ExcitInfo(i-1,0)
+                ExcitInfo((iMaxExcit+1)-i,1)=ExcitInfo(i-1,1)
+                ExcitInfo((iMaxExcit+1)-i,2)=ExcitInfo(i-1,2)
+                ExcitInfo(i-1,0)=tmp(1)
+                ExcitInfo(i-1,1)=tmp(2)
+                ExcitInfo(i-1,2)=tmp(3)
+            enddo
+
+            WRITE(6,*) "Total number of points from which to form linear approximation = ", LinePoints
+            IF(LinePoints.lt.2) STOP 'LinePoints cannot be less than two'
+
+!Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, and the first element of the eigenvectors.
+!Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear approximation can be calculated.
+!Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
+            IF((ABS(DREAL(ExcitInfo(0,0))-1.D0)).gt.1.D-07) THEN
+                STOP 'First element of original star matrix should equal 1.D0'
+            ENDIF
+            LineRhoValues(1)=1.D0
+
+!ExcitInfo(iExcit,0) is the smallest rho_jj value.
+            WRITE(6,*) "Smallest rho_jj value is ", DREAL(ExcitInfo(iExcit,0))
+            RhoGap=(1.D0-DREAL(ExcitInfo(iExcit,0)))/(LinePoints-1)
+
+!Calculate the spread of Rho_jj values which the linear approximation will be based around. Initially, this is just a linear spread.
+            do i=2,LinePoints
+                LineRhoValues(i)=LineRhoValues(i-1)-RhoGap
+            enddo
+
+!LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
+            IF(ABS(LineRhoValues(LinePoints)-DREAL(ExcitInfo(iExcit,0))).gt.1.D-07) THEN
+                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
+            ENDIF
+            IF(.NOT.BTEST(NWHTAY,0)) THEN
+                ALLOCATE(AllVals(iExcit+1),stat=ierr)
+                CALL MemAlloc(iErr,AllVals,iExcit+1,"AllVals")
+                ALLOCATE(AllVecs(iExcit+1),stat=ierr)
+                CALL MemAlloc(iErr,AllVecs,iExcit+1,"AllVecs")
+                ALLOCATE(DiagRhos(iExcit+1),stat=ierr)
+                CALL MemAlloc(iErr,DiagRhos,iExcit+1,"DiagRhos")
+            ENDIF
+!Cycle through all possible roots
+            do i=1,LinePoints
+                
+                RhoValue=LineRhoValues(i)
+
+!                write(6,*) ""
+!                write(6,*) "Rho value: ", RhoValue
+
+!This indicates that a full diagonalisation should be done to calculate eigenvalues.
+                IF(.NOT.BTEST(NWHTAY,0)) THEN
+
+!First diagonal element is RhoValue. The other diagonal elements are given by ExcitInfo(1:iExcit,0)
+                    do j=2,iExcit+1
+                        DiagRhos(j)=DREAL(ExcitInfo(j-1,0))
+                    enddo
+                    DiagRhos(1)=RhoValue
+                    
+!Find the values for eigenvalues and eigenvectors of this matrix, and put them into the relevant AlllVals and AllVecs
+                    CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),AllVals,AllVecs)
+
+                    IF((RhoValue.eq.1.D0).and.(i.ne.1)) STOP 'Problem with assigning rho values for excited stars'
+
+!Save largest eigenvalue
+                    IF(RhoValue.eq.1.D0) THEN
+                        EigenMax=AllVals(iExcit+1)
+                        WRITE(6,*) "Largest eigenvalue of original star: ", EigenMax
+                    ENDIF
+
+!Initially, assume that all excited stars are only attached by their *first* eigenvectors
+!Store the first eigenvalues for the excited stars in Vals. It is these that we assume linearly change.
+                    Vals(i)=AllVals(iExcit+1)
+                    IF(DREAL(AllVecs(iExcit+1)).lt.0.5) THEN
+                        WRITE(6,*) "Eigenvector is equal to ",DREAL(AllVecs(iExcit+1))," for Linepoint ",i," out of ",LinePoints
+                        WRITE(6,*) "Assumption that only one eigenvector from each excited star attached is poor"
+                    ENDIF
+
+                    IF(i.eq.Linepoints) THEN
+                        CALL MemDealloc(AllVals)
+                        DEALLOCATE(AllVals)
+                        CALL MemDealloc(AllVecs)
+                        DEALLOCATE(AllVecs)
+                        CALL MemDealloc(DiagRhos)
+                        DEALLOCATE(DiagRhos)
+                    ENDIF
+
+                ELSE
+                    STOP 'Polynomial calculation of LinRootChangeStars not available yet'
+
+                ENDIF
+
+            enddo
+            
+!Use linear regression technique to find the best-fit gradient for the line for the eigenvalues
+
+!Mean x value is simply the average of the roots chosen
+            meanx=0.D0
+            do i=1,LinePoints
+                meanx=meanx+LineRhoValues(i)
+            enddo
+            meanx=meanx/LinePoints
+
+!Now need to calculate average eigenvalues
+            Meanval=0.D0
+            do i=1,LinePoints
+                Meanval=Meanval+Vals(i)
+            enddo
+            Meanval=Meanval/Linepoints
+
+!Calculate Sxx
+            Sxx=0.D0
+            do i=1,LinePoints
+                Sxx=Sxx+(LineRhoValues(i)-meanx)*(LineRhoValues(i)-meanx)
+            enddo
+    
+!Calculate Sxy and Syy (to find R^2)
+!Sxy = \sum{(x_i - X)(y_i - Y) where X and Y are the means of x and y respectivly
+
+            Sxy=0.D0
+            Syy=0.D0
+            do i=1,LinePoints
+                Sxy=Sxy+(LineRhoValues(i)-meanx)*(Vals(i)-Meanval)
+                Syy=Syy+(Vals(i)-Meanval)*(Vals(i)-Meanval)
+            enddo
+
+!Best-fit gradients can be calculated for the first eigenvalues - Sxy/Sxx
+!y-intercepts also calculated for use when calculating R^2 value.
+            GradVal=Sxy/Sxx
+            IncptVal=Meanval-GradVal*meanx
+
+!To calculate R^2, also need \sum{(y_i - Y)^2} - the expected y value from the gradient calculation at each point
+            ExpctVal=0.D0
+            do i=1,LinePoints
+                ExpctVal=ExpctVal+(Vals(i)-(IncptVal+GradVal*LineRhoValues(i)))**2
+            enddo
+
+!Calculate Rsq value
+            Rsq=1.D0-ExpctVal/Syy
+
+            IF(Rsq.lt.0.95) THEN
+                WRITE(6,*) "Problem with linear approximation of eigenvalues, R^2 value: ", Rsq
+                STOP
+            ELSEIF(Rsq.gt.1.D0) THEN
+                WRITE(6,*) "Fatal problem - R^2 value greater than 1!"
+                STOP
+            ENDIF
+
+!Linearly change diagonal elements - rho_jj' = GradVal*(rho_jj - 1) + eigenmax
+            ALLOCATE(ExcitInfo2(0:iExcit,0:2),stat=ierr)
+            CALL MemAlloc(iErr,ExcitInfo2,(iExcit+1)*3*HElementSize,"ExcitInfo2")
+            CALL AZZERO(ExcitInfo2,(iExcit+1)*3*HElementSize)
+            
+!Put HF determinant into element 0
+            ExcitInfo2(0,0)=HElement(1.D0)
+            ExcitInfo2(0,1)=HElement(1.D0)
+            ExcitInfo2(0,2)=ExcitInfo(0,2)
+
+!Diagonal elements and Hamiltonian elements do not change, since assume eigenvectors are 1 or 0...
+            do i=1,iExcit
+                ExcitInfo2(i,1)=ExcitInfo(i,1)
+                ExcitInfo2(i,2)=ExcitInfo(i,2)
+                ExcitInfo2(i,0)=EigenMax+(GradVal*(DREAL(ExcitInfo(i,0))-1.D0))
+            enddo
+
+            CALL MemDealloc(ExcitInfo)
+            DEALLOCATE(ExcitInfo)
+
+            ExcitInfo => ExcitInfo2
+
+            CALL TIHALT('GetLinRootChangeStars',iSub)
+
+            RETURN
+        END SUBROUTINE GetLinRootChangeStars
+
 !GetLinStarStars uses the approximation that the change in the eigenvalues and the first element  
 !of the eigenvectors, with respect to multiplying the diagonal elements by a constant, is linear. 
 
@@ -932,7 +1224,7 @@
                 GradVals(i)=SxyVals(i)/Sxx
                 GradVecs(i)=SxyVecs(i)/Sxx
                 IncptVals(i)=MeanVals(i)-GradVals(i)*meanx
-                IncptVecs(i)=IncptVecs(i)-GradVecs(i)*meanx
+                IncptVecs(i)=MeanVecs(i)-GradVecs(i)*meanx
 
             enddo
 
@@ -1177,13 +1469,15 @@
                 CALL MemAlloc(iErr,WORK,Dimen*3,"WORK")
                 CALL AZZERO(WORK,Dimen*3)
 
-!                do i=1,Dimen
-!                    do j=1,Dimen
-!                        WRITE(6,"F20.14,$") StarMat(i,j)
+!                IF(StarMat(1,1).eq.1.D0) THEN
+!                    do i=1,Dimen
+!                        do j=1,Dimen
+!                            WRITE(17,"F20.14,$") StarMat(i,j)
+!                        enddo
+!                        write(17,*) ""
+!                        write(17,*) ""
 !                    enddo
-!                    write(6,*) ""
-!                    write(6,*) ""
-!                enddo
+!                ENDIF
 !
 !                WRITE(6,*) "**************"
                 
