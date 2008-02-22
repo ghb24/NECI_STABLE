@@ -1,12 +1,12 @@
 necicb_
-readinput_
+readinput_readinputmain_
 cacheumatel_
 getcachedumatel_
 lsymsym_
 symprod_
 symconj_
 totsymrep_
-..Dm_logread
-..Dm_sysread
-..Dm_calcread
-..Dm_intread
+..Dm_logging
+..Dm_system
+..Dm_calc
+..Dm_integrals
