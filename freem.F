@@ -1,6 +1,8 @@
 C     ==================================================================
       SUBROUTINE FREEM(IP_POINT)
 C     ==--------------------------------------------------------------==
+      use MemoryManager, only: LogMemDealloc
+      use MemoryManager, only: LookupPointer
       IMPLICIT NONE
       REAL*8  POINTDUMMY
       POINTER (IP_POINT,POINTDUMMY)
@@ -17,7 +19,7 @@ C     ==--------------------------------------------------------------==
 #ifdef CRAY
       INTEGER IERR
 #endif
-      INTEGER I,II,LENGTH
+      INTEGER I,II,LENGTH,iTag
 C     ==--------------------------------------------------------------==
 C     ==  FREE MEMORY ASSOCIATED WITH POINTER IP_POINT                ==
 C     ==--------------------------------------------------------------==
@@ -26,6 +28,15 @@ C     ==--------------------------------------------------------------==
 #else
       IP_XM=IP_POINT-8
 #endif
+      ! Log using the new memory book-keeping system.  Need to find out
+      ! the  position in the log first.
+      do i=1,size(LookupPointer)
+          if (LookupPointer(i).eq.IP_XM) then
+              iTag=i
+              exit
+          end if
+      end do
+      call LogMemDealloc('unknown',iTag)
 C..Statistics and memory checks
       DO I=1,I_BLOCK
         IF(IP_XM.EQ.I_AD1(I)) THEN
@@ -237,6 +248,8 @@ C     ==================================================================
 C     ==================================================================
       SUBROUTINE MemDealloc(XM)
 C     ==--------------------------------------------------------------==
+      use MemoryManager, only: LogMemDealloc
+      use MemoryManager, only: LookupPointer
       IMPLICIT NONE
       REAL*8  POINTDUMMY
       POINTER (IP_POINT,POINTDUMMY)
@@ -256,11 +269,19 @@ C     ==--------------------------------------------------------------==
 #ifdef CRAY
       INTEGER IERR
 #endif
-      INTEGER I,II,LENGTH
+      INTEGER I,II,LENGTH,iTag
 C     ==--------------------------------------------------------------==
 C     ==  FREE MEMORY ASSOCIATED WITH POINTER IP_POINT                ==
 C     ==--------------------------------------------------------------==
       IP_XM=GET_ADDR(XM)
+      ! Log using the new memory book-keeping system.  Need to find out
+      ! the  position in the log first.
+      do i=1,size(LookupPointer)
+          if (LookupPointer(i).eq.IP_XM) then
+              iTag=i
+              exit
+          end if
+      end do
 C..Statistics and memory checks
       DO I=1,I_BLOCK
         IF(IP_XM.EQ.I_AD1(I)) THEN

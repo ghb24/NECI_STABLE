@@ -1,8 +1,9 @@
 C     ==================================================================
       SUBROUTINE MEMORY(IP_POINT,LENGTH,TAG)
 C     ==--------------------------------------------------------------==
+      use MemoryManager, only: LogMemAlloc,LeaveMemoryManager
+      use MemoryManager, only: LookupPointer,li
       IMPLICIT NONE
-!      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
       INCLUDE 'irat.inc'
 C     Arguments
@@ -27,7 +28,7 @@ C     Variables
       INTEGER   IERR1,IERR2
 #endif
       CHARACTER LINE*100
-      INTEGER   I,IERROR,LEN,IA,IE,
+      INTEGER   I,IERROR,LEN,IA,IE,iTag,
      &          I_FIRST
       DATA      I_FIRST /0/
       SAVE      I_FIRST
@@ -115,7 +116,7 @@ CC /AJWT
      *             FOR ',TAG
         WRITE(*,'(1X,64("*"),/)')
         CALL PRMEM('    MEMORY')
-        CALL PMAXMEM
+        CALL LeaveMemoryManager
         CALL XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'
         IE=IE+19+1
@@ -132,6 +133,9 @@ C..Statistics and memory checks
       I_AD2(I_BLOCK)=GET_ADDR(XM(LENGTH+1))
       I_LEN(I_BLOCK)=LENGTH
       I_TAG(I_BLOCK)=TAG
+      ! Store in the new memory book-keeping system.
+      call LogMemAlloc(Tag,Length,8,'unknown',iTag)
+      if (iTag.ne.-1) LookupPointer(iTag)=int(I_AD1(I_BLOCK),kind=li)
       MEMTOT=MEMTOT+LENGTH
       IF(MEMPEAK.LT.MEMTOT) MEMPEAK=MEMTOT
       IF(LENGTH.GT.LB_MIN) THEN
@@ -166,6 +170,8 @@ C     ==================================================================
 C     ==================================================================
       SUBROUTINE MemAlloc(IERROR,XM,LENGTH,TAG)
 C     ==--------------------------------------------------------------==
+      use MemoryManager, only: LogMemAlloc,LeaveMemoryManager
+      use MemoryManager, only: LookupPointer,li
       IMPLICIT NONE
 !      INCLUDE 'system.h'
       INCLUDE 'memc.inc'
@@ -191,14 +197,13 @@ C     Variables
       INTEGER   IERR1,IERR2
 #endif
       CHARACTER LINE*100
-      INTEGER   I,IERROR,LEN,IA,IE,
+      INTEGER   I,IERROR,LEN,IA,IE,iTag,
      &          I_FIRST
       DATA      I_FIRST /0/
       SAVE      I_FIRST
 
 
 C      WRITE(14,*) TAG,LENGTH
-
 
       IF(IERROR.NE.0) THEN
         WRITE(*,'(/,1X,64("*"))')
@@ -208,7 +213,7 @@ C      WRITE(14,*) TAG,LENGTH
      *             FOR ',TAG
         WRITE(*,'(1X,64("*"),/)')
         CALL PRMEM('    MEMORY')
-        CALL PMAXMEM
+        CALL LeaveMemoryManager
         CALL XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'
         IE=IE+19+1
@@ -220,6 +225,9 @@ C..Statistics and memory checks
       IF(I_BLOCK.GT.MEM_LEN) I_BLOCK=MEM_LEN
       IF(NUMPEAK.LT.I_BLOCK) NUMPEAK=I_BLOCK
       I_AD1(I_BLOCK)=GET_ADDR(XM(1))
+      ! Store in the new memory book-keeping system.
+      call LogMemAlloc(Tag,Length,8,'unknown',iTag)
+      if (iTag.ne.-1) LookupPointer(iTag)=int(I_AD1(I_BLOCK),kind=li)
 !GET_ADDR(XM(1))
       I_AD2(I_BLOCK)=0
 !GET_ADDR(XM(LENGTH+1))

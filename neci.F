@@ -21,6 +21,7 @@ C ==------------------------------------------------------------------==
       USE CALCREAD , only : G_VMC_FAC,CHEMPOT,nActiveSpace
       USE SYSREAD , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB, &
      &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS
+      use MemoryManager, only: LeaveMemoryManager
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -1039,7 +1040,7 @@ C     &         "Cannot block diagonalize in HF Basis."
 C         STOP
 C      ENDIF
 C      CALL SYMGENEXCITS(FDET,NEL,G1,NBASIS,NBASISMAX)
-C      CALL PMAXMEM
+C      CALL LeaveMemoryManager
 C      CALL TIPRI
 C      STOP
 
@@ -2026,7 +2027,7 @@ C..
 C ==-------------------------------------------------------------------==
       CALL TIHALT('NECICUBE  ',ISUB)
 C ==-------------------------------------------------------------------==
-      CALL PMAXMEM
+      CALL LeaveMemoryManager
       CALL TIPRI
       RETURN
       END

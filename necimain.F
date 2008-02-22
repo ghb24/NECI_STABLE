@@ -14,9 +14,15 @@
      &  ORBORDER,NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,
      &  TREADTUMAT
       USE LOGREAD , only : ILOGGING
+      use MemoryManager, only: InitMemoryManager,li
       IMPLICIT NONE
       integer ios
       CHARACTER*255 FILENAME
+      integer tag
+      integer(li) MaxMemBytes
+
+      MaxMemBytes=int(MAXMEM*1024**2,kind=li)
+      call InitMemoryManager(MaxMemBytes)
 
 C      INTEGER NHG
 C      CALL FAKEREADCHARTABLE(NHG)
@@ -58,4 +64,5 @@ C     &  IP_SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS)
      &   SPECDET,DBETA,TREADTUMAT,THFORDER,TCSF,STOT,ICILEVEL,FUEGRS,
      &   TCPMD,TDFREAD,fRc,0,TBIN)
 C..
+      
       END
