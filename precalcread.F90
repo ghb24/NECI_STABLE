@@ -1,7 +1,7 @@
 
       MODULE PRECALCREAD
         USE input
-        USE sysread , only : defaults,Feb08
+        USE System , only : defaults,Feb08
         IMPLICIT NONE
 
 !TPREVAR is set to true when the precalc routines have yet to run.
@@ -44,7 +44,7 @@
 
         contains
 
-        SUBROUTINE readinputprecalc()
+        SUBROUTINE PrecalcReadInput()
         IMPLICIT NONE
         LOGICAL eof
         INTEGER zz,z,k
@@ -200,6 +200,50 @@
            end select
            end do precalc
 
-       END SUBROUTINE
+       END SUBROUTINE PrecalcReadInput
+      
+      subroutine inpgetprecalc(preIH)
+         use input
+         USE System , only : TUSEBRILLOUIN
+         implicit none
+         integer preIH
+         CHARACTER(LEN=16) w
+                do while ( item .lt. nitems )
+                  call readu(w)
+                  select case(w)
+                  case("HDIAG")
+                      call readu(w)
+                      select case(w)
+                      case("FULL")
+                          preIH=-20
+                      case("MC")
+                          preIH=-19
+                          IF(.NOT.TUSEBRILLOUIN) THEN
+                              write(6,*) "Warning  USEBRILLOUINTHEOREM" &
+     &                       //" might need to be specified in system " &
+     &                       //"block to use MC-PRECALC"
+                          ENDIF
+                      case default
+                         call report("Error - must specify FULL"        &
+     &                   //" or MC after HDIAG in PRECALC block",.true.)
+                      end select
+                   case("RHODIAG")
+                         call readu(w)
+                         select case(w)
+                         case("FULL")
+                             preIH=-8
+                         case("MC")
+                             preIH=-7
+                         case default
+                           call report("Error - must specify FULL or "  &
+     &                     //"MC after RHODIAG in PRECALC block",.true.)
+                         end select
+                     case default
+                           call report("Keyword error with "//trim(w),  &
+     &                     .true.)
+                     end select
+                 end do
+        end subroutine
+
        
        END MODULE precalcread

@@ -80,7 +80,7 @@ C.. Further investigation shows it is the quicksort from Numerical Recipes, taki
         BRR(L)=BRR(J)
         BRR(J)=B
         JSTACK=JSTACK+2
-        IF(JSTACK.GT.NSTACK) PAUSE ' NSTACK TOO SMALL INSORT2 '
+        IF(JSTACK.GT.NSTACK) STOP ' NSTACK TOO SMALL INSORT2 '
         IF(IR-I+1.GE.J-L) THEN
           ISTACK(JSTACK)=IR
           ISTACK(JSTACK-1)=I
@@ -179,7 +179,7 @@ C.. This version has ARR as an int and BRR as a real
         BRR(L)=BRR(J)
         BRR(J)=B
         JSTACK=JSTACK+2
-        IF(JSTACK.GT.NSTACK) PAUSE ' NSTACK TOO SMALL INSORT2 '
+        IF(JSTACK.GT.NSTACK) STOP ' NSTACK TOO SMALL INSORT2 '
         IF(IR-I+1.GE.J-L) THEN
           ISTACK(JSTACK)=IR
           ISTACK(JSTACK-1)=I
@@ -277,7 +277,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
         BRR(:,L)=BRR(:,J)
         BRR(:,J)=B
         JSTACK=JSTACK+2
-        IF(JSTACK.GT.NSTACK) PAUSE ' NSTACK TOO SMALL INSORT2 '
+        IF(JSTACK.GT.NSTACK) STOP ' NSTACK TOO SMALL INSORT2 '
         IF(IR-I+1.GE.J-L) THEN
           ISTACK(JSTACK)=IR
           ISTACK(JSTACK-1)=I
@@ -392,7 +392,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
         CRR(L)=CRR(J)
         CRR(J)=C
         JSTACK=JSTACK+2
-        IF(JSTACK.GT.NSTACK) PAUSE ' NSTACK TOO SMALL INSORT2 '
+        IF(JSTACK.GT.NSTACK) STOP ' NSTACK TOO SMALL INSORT2 '
         IF(IR-I+1.GE.J-L) THEN
           ISTACK(JSTACK)=IR
           ISTACK(JSTACK-1)=I
@@ -530,7 +530,7 @@ C.. This version has ARR as an int and BRR as an array of length BD of reals
         DRR(L)=DRR(J)
         DRR(J)=D
         JSTACK=JSTACK+2
-        IF(JSTACK.GT.NSTACK) PAUSE ' NSTACK TOO SMALL INSORT2 '
+        IF(JSTACK.GT.NSTACK) STOP ' NSTACK TOO SMALL INSORT2 '
         IF(IR-I+1.GE.J-L) THEN
           ISTACK(JSTACK)=IR
           ISTACK(JSTACK-1)=I
@@ -653,7 +653,7 @@ C.. This version has ARR BRR and CRR as arrays of length BD of reals.  Sort is b
         CRR(:,L)=CRR(:,J)
         CRR(:,J)=C
         JSTACK=JSTACK+2
-        IF(JSTACK.GT.NSTACK) PAUSE ' NSTACK TOO SMALL INSORT2 '
+        IF(JSTACK.GT.NSTACK) STOP ' NSTACK TOO SMALL INSORT2 '
         IF(IR-I+1.GE.J-L) THEN
           ISTACK(JSTACK)=IR
           ISTACK(JSTACK-1)=I

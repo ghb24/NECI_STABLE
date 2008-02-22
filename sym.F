@@ -1413,7 +1413,7 @@ C.. Hubbard
             IDEGEN=1
          ENDIF
 C.. Spin
-         IF(ISYM%k(4).NE.0) IDEGEN=IDEGEN*2
+         IF(ISYM%Ms.NE.0) IDEGEN=IDEGEN*2
       END
 
 C.. Initialize symmetry to take into account the core electrons

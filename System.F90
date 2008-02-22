@@ -1,5 +1,5 @@
 
-      MODULE SYSREAD
+      MODULE System
         USE input
         IMPLICIT NONE
 
@@ -16,7 +16,7 @@
 
         contains
 
-        SUBROUTINE readinputsys()
+        SUBROUTINE SysReadInput()
         IMPLICIT NONE
         LOGICAL eof
         CHARACTER (LEN=100) w
@@ -266,6 +266,6 @@
      &     //"HUBBARD.",.true.)
         endif
 
-        END SUBROUTINE readinputsys
+        END SUBROUTINE SysReadInput
 
-      END MODULE SYSREAD
+      END MODULE System

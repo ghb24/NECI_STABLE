@@ -221,7 +221,7 @@ MODULE HElem
 !.. ECORE is the uniform background energy
 
       TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
-         USE SYSREAD , only : TSTOREASEXCITATIONS
+         USE System , only : TSTOREASEXCITATIONS
          IMPLICIT NONE
          INTEGER NMSH,NMAX
          COMPLEX*16 FCK(*)
@@ -357,7 +357,7 @@ END MODULE HElem
 
 !  Get a matrix element of the unperturbed Hamiltonian.  This is just the sum of the Hartree-Fock eigenvalues
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
-         USE SYSREAD , only : TSTOREASEXCITATIONS
+         USE System , only : TSTOREASEXCITATIONS
          USE HElem
          implicit none
          integer nI(nEl),nEl,nBasis

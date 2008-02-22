@@ -3,7 +3,7 @@
      &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
      &	NMAX,ALAT,UMat,SUM)
       USE HElem
-      USE SYSREAD , only : FCOUL,TEXCH
+      USE System , only : FCOUL,TEXCH
       IMPLICIT NONE
 C..
 C.. 
@@ -74,7 +74,7 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
       END
 
       REAL*8 FUNCTION COULDAMP(I,NHG)
-         USE SYSREAD , only : FCOULDAMPBETA,FCOULDAMPMU
+         USE System , only : FCOULDAMPBETA,FCOULDAMPMU
          IMPLICIT NONE
          INTEGER I,NHG,J
          INCLUDE 'fcoul.inc'

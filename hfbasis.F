@@ -77,7 +77,7 @@ C..Symmetries not needed by UMatInd
 
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
          IMPLICIT NONE
-         INTEGER NBASIS,NBASISMAX(5,2)
+         INTEGER NBASIS,NBASISMAX(5,3)
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          REAL*8 ARR(NBASIS,2)

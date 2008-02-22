@@ -28,9 +28,9 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
-         USE CALCREAD , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
+         USE Calc , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES
-         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
          INCLUDE 'basis.inc'
@@ -428,7 +428,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE PRECALCREAD , only : TPREVAR
-         USE CALCREAD , only : TMPTHEORY,TDIAGNODES
+         USE Calc , only : TMPTHEORY,TDIAGNODES
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -699,8 +699,8 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
      &   MP2E,NTOTAL)  RESULT (FMCPR3RES)
          USE HElem
-         USE LOGREAD , only : G_VMC_LOGCOUNT
-         USE CALCREAD , only : TMPTHEORY
+         USE Logging , only : G_VMC_LOGCOUNT
+         USE Calc , only : TMPTHEORY
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -1019,8 +1019,8 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,EREF,VARSUM,WREF) RESULT (FMCPR3BRES)
          USE HElem
-         USE CALCREAD , only : TVARCALC,TMPTHEORY
-         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE Calc , only : TVARCALC,TMPTHEORY
+         USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          IMPLICIT NONE
          INCLUDE 'basis.inc'

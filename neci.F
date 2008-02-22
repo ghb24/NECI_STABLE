@@ -18,8 +18,8 @@ C ==------------------------------------------------------------------==
      &   ,tReadInCache,DumpUMATCache,SetupTMAT2,nStates                 &
      &   ,SetupUMAT2D_df,getumatel,CREATEINVBRR,NOCC,FREEZETRANSFER     &
      &   ,nStatesDump
-      USE CALCREAD , only : G_VMC_FAC,CHEMPOT,nActiveSpace
-      USE SYSREAD , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB, &
+      USE Calc , only : G_VMC_FAC,CHEMPOT,nActiveSpace
+      USE System , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB,  &
      &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS
       use MemoryManager, only: LeaveMemoryManager
       IMPLICIT REAL*8 (A-H,O-Z) 

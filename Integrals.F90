@@ -1,6 +1,6 @@
-      MODULE INTREAD
+      MODULE Integrals
         USE input
-        USE SYSREAD , only : NEL,defaults,Feb08,TUSEBRILLOUIN
+        USE System , only : NEL,defaults,Feb08,TUSEBRILLOUIN
         use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
         IMPLICIT NONE
 
@@ -18,7 +18,7 @@
 
         contains
 
-        SUBROUTINE readinputint()
+        SUBROUTINE IntReadInput()
         IMPLICIT NONE
         LOGICAL eof
         CHARACTER (LEN=100) w
@@ -271,6 +271,6 @@
           end select
         end do integral
       
-        END SUBROUTINE 
+        END SUBROUTINE IntReadInput
 
-      END MODULE INTREAD
+      END MODULE Integrals

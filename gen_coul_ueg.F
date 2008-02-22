@@ -164,7 +164,7 @@ C.. Check the Coulomb matrix elements by summing manually
                  LY=NBASISMAX(2,5)
                  DO A=1,NHG,2
                   Q=(G1(A)%K(1)*TX+G1(A)%K(2)*TY)/T2
-                  P=(G1(A)%K(1)*-TY+G1(A)%K(2)*TX)/T2
+                  P=(G1(A)%K(1)*(-TY)+G1(A)%K(2)*TX)/T2
                   S=S+EXP(CI*(P*C/LX+Q*D/LY)
      &            *2*PI)*UHUB/(OMEGA**2)
                  ENDDO

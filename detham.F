@@ -2,7 +2,7 @@
      &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
       USE HElem
-      USE SYSREAD , only : TSTAR
+      USE System , only : TSTAR
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(HElement) HAMIL(*)

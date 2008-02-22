@@ -1,7 +1,7 @@
 !Based on umatcache.F, this modulises the umat cache, and retrieval functions.
 MODULE UMatCache
       USE HElem
-      USE SYSREAD , only : TSTARSTORE
+      USE System , only : TSTARSTORE
       IMPLICIT NONE
 ! The cache is stored in UMatCacheData
 !  For real systems, nTypes=1, and we have a single value for each unique ordered pair of ordered pairs (i,k), (j,l)
@@ -416,7 +416,7 @@ MODULE UMatCache
      
       ! See notes in SetupTMat as well.
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
-        use SysRead, only: tCPMD
+        use System, only: tCPMD
         IMPLICIT NONE
         include 'cpmddata.inc'
         include 'sym.inc'
@@ -608,7 +608,7 @@ MODULE UMatCache
       END subroutine
         
       SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
-        use SysRead, only: tCPMD
+        use System, only: tCPMD
         IMPLICIT NONE
         include 'cpmddata.inc'
         include 'sym.inc'

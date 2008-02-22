@@ -33,9 +33,9 @@
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
-         USE CALCREAD , only : TMPTHEORY,StarProd,TStarStars
-         USE SYSREAD , only : TSTOREASEXCITATIONS
-         USE INTREAD , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
+         USE Calc , only : TMPTHEORY,StarProd,TStarStars
+         USE System , only : TSTOREASEXCITATIONS
+         USE Integrals , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
@@ -346,7 +346,7 @@
 !To limit the excitations to ones which are all but double excitations, i.e. no
 !crosslinking, TNoDoubs must be set.
         SUBROUTINE CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps) 
-            USE INTREAD , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
+            USE Integrals , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
             IMPLICIT NONE
             INCLUDE 'basis.inc'
             TYPE(BasisFN) G1(*)
@@ -682,7 +682,7 @@
         
 !GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
-            USE INTREAD , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
+            USE Integrals , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
             IMPLICIT NONE
             INTEGER :: iSub,NextVertex,i,j,iErr,iMaxExcit,iExcit
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
@@ -803,7 +803,7 @@
         END SUBROUTINE GetStarStars
 
         SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
-            USE CALCREAD , only : LinePoints
+            USE Calc , only : LinePoints
             IMPLICIT NONE
             INTEGER :: i,j,iMaxExcit,iExcit,iSub,nWHTay,HalfiExcit,ierr
             REAL*8 :: RhoEps,LineRhoValues(LinePoints),RhoValue,Vals(LinePoints),meanx,RhoGap,EigenMax
@@ -1023,8 +1023,8 @@
 !contributions from excited stars using this linear approximation is the hope.
 
         SUBROUTINE GetLinStarStars(iMaxExcit,iExcit,RhoEps)
-            USE CALCREAD , only : LinePoints
-            USE INTREAD , only : TQuadValMax,TQuadVecMax
+            USE Calc , only : LinePoints
+            USE Integrals , only : TQuadValMax,TQuadVecMax
             IMPLICIT NONE
             INTEGER :: i,j,iErr,isub,CSE,NextVertex,iMaxExcit
             INTEGER :: iExcit,TotExcits,HalfiExcit
@@ -1469,15 +1469,13 @@
                 CALL MemAlloc(iErr,WORK,Dimen*3,"WORK")
                 CALL AZZERO(WORK,Dimen*3)
 
-!                IF(StarMat(1,1).eq.1.D0) THEN
-!                    do i=1,Dimen
-!                        do j=1,Dimen
-!                            WRITE(17,"F20.14,$") StarMat(i,j)
-!                        enddo
-!                        write(17,*) ""
-!                        write(17,*) ""
+!                do i=1,
+!                    do j=1,Dimen
+!                        WRITE(6,"F20.14,$") StarMat(i,j)
 !                    enddo
-!                ENDIF
+!                    write(6,*) ""
+!                    write(6,*) ""
+!                enddo
 !
 !                WRITE(6,*) "**************"
                 
@@ -1503,7 +1501,7 @@
 
 
          SUBROUTINE GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
-            USE INTREAD , only : TCalcRealProd,TCalcRhoProd,TSumProd
+            USE Integrals , only : TCalcRealProd,TCalcRhoProd,TSumProd
             IMPLICIT NONE
             INCLUDE 'basis.inc'
             INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasisMax(*),Brr(nBasis),nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl),nj(nEl),nk(nEl),nl(nEl)
@@ -1671,7 +1669,7 @@
                         
 
       SUBROUTINE CountProdExcits(ProdNum,setup,iExcit,UniqProd)
-        USE INTREAD , only : TSumProd
+        USE Integrals , only : TSumProd
         IMPLICIT NONE
         INTEGER ProdNum!,ProdPositions(2,length),EXCITSTORE(4,iMaxExcit),
         INTEGER iExcit,I,J
@@ -2096,7 +2094,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElem
-         USE INTREAD , only : TCalcRealProd
+         USE Integrals , only : TCalcRealProd
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -2216,8 +2214,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
       SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
-         USE CALCREAD , only : STARCONV
-         USE INTREAD , only : TQUADRHO,TEXPRHO
+         USE Calc , only : STARCONV
+         USE Integrals , only : TQUADRHO,TEXPRHO
          USE HElem
          IMPLICIT NONE
          INTEGER NEL,I_P

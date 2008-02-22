@@ -15,9 +15,9 @@ C.. NMAX has ARR hidden in it.
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElem
          USE MCStat
-         USE CALCREAD , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
+         USE Calc , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
-         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE Logging , only : G_VMC_LOGCOUNT
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(MCStats) MCSt
@@ -1177,7 +1177,7 @@ C..
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM)
-         USE CALCREAD , only : G_VMC_PI
+         USE Calc , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
@@ -1413,7 +1413,7 @@ C.. Generate a path probability for the modified path generation
 C.. algorithm in FMCPR4D
 
       REAL*8 FUNCTION GETPATHPROB2(XIJ,I_V)
-         USE CALCREAD , only : G_VMC_PI
+         USE Calc , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_V
          REAL*8 XIJ(I_V,I_V)
@@ -1484,7 +1484,7 @@ C.. elements
       END
 
       RECURSIVE SUBROUTINE GETPP2_R(IPATH,XIJ,M,I_VMAX,I_V,RET,TMP,INV)
-         USE CALCREAD , only : G_VMC_PI
+         USE Calc , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_VMAX,I_V,IPATH(I_VMAX)
          REAL*8 XIJ(I_VMAX,I_VMAX),M(I_VMAX,I_VMAX)
@@ -1772,7 +1772,7 @@ C         CALL FLUSH(57)
          RETURN
       END
       LOGICAL FUNCTION ISUHFDET(NI,NEL)
-         USE SYSREAD , only : TUSEBRILLOUIN
+         USE System , only : TUSEBRILLOUIN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
          INTEGER I
@@ -1802,7 +1802,7 @@ C.. weight.
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          USE HElem
          USE PRECALCREAD , only : TPREVAR
-         USE CALCREAD , only : TMPTHEORY,TMCDIRECTSUM
+         USE Calc , only : TMPTHEORY,TMCDIRECTSUM
          IMPLICIT NONE
          TYPE(HDElement) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
@@ -2024,7 +2024,7 @@ C.. Unbias the sum
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
      &   PVERTMEMS2)
-         USE CALCREAD , only : G_VMC_PI
+         USE Calc , only : G_VMC_PI
          USE PRECALCREAD , only : TPREVAR
          USE HElem
          IMPLICIT NONE
@@ -2313,7 +2313,7 @@ C.. a wrongly biased MC
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,IACC)
-         USE CALCREAD , only : G_VMC_PI
+         USE Calc , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX

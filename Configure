@@ -897,7 +897,7 @@ MAXMEM := 1024 # RAM available, in MB.
      CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
      NCPUS=1
      #-sb is to use Workshop package
-     FFLAGS='-fcray-pointer -ffree-line-length-none'
+     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
      LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pc-cygwin/3.4.4/libg2c.a' 
      LDFLAGS='-Mnostdlib -Mnostartup' 
      PreprocSep=""
@@ -1241,34 +1241,22 @@ cat << END >&3
 #----------------------------------------------------------------------------
 # Compile neci.x
 #----------------------------------------------------------------------------
-#MAIN_OBJS=necimain.o
+DOBJECTS = \$(patsubst %,\$(DEST)/%,\$(OBJECTS))
+DOBJECTSF90 = \$(patsubst %,\$(DEST)/%,\$(OBJECTSF90))
+DOBJECTSF = \$(patsubst %,\$(DEST)/%,\$(OBJECTSF))
+DOBJECTSNOCPMD = \$(patsubst %,\$(DEST)/%,\$(OBJECTSNOCPMD))
 clean : 
 	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(DEST)/*.o \$(DEST)/*.mod
 
-neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS) \$(OBJ_CC)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 rm -f neci.x
-	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/neci.x neci.x; fi
-	 \$(LD) -o \$(BIN)/neci.x necimain.o timetag.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
+neci.x : \$(DEST)/necimain.o \$(DOBJECTS) \$(OBJ_CC)
+	 \$(FC) -o \$(DEST)/timetag.o \$(CPPFLAGS) \$(FFLAGS) timetag.F
+	 rm -f \$(DEST)/neci.x
+	 \$(LD) -o \$(DEST)/neci.x \$(DEST)/necimain.o \$(DEST)/timetag.o \$(DOBJECTS) \$(OBJ_CC) \$(LFLAGS)
 
 neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 \$(LD) \$(LDFLAGS) -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC)
-	 objcopy --keep-global-symbols=\$(SRC)/GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
-
-#----------------------------------------------------------------------------
-# Generate library libcpmd.a
-#----------------------------------------------------------------------------
-lib : \$(OBJ_LIB)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 \$(AR) libcpmd.a timetag.o \$(OBJ_LIB)
-	 \$(RANLIB) libcpmd.a
+	 \$(FC) -o \$(DEST)/timetag.o \$(CPPFLAGS) \$(FFLAGS) timetag.F
+	 \$(LD) \$(LDFLAGS) -r -o \$(DEST)/neci2.a \$(DEST)/timetag.o \$(DOBJECTSNOCPMD) \$(OBJ_CC)
+	 objcopy --keep-global-symbols=GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
 
 #----------------------------------------------------------------------------
 # Explicit rules
@@ -1276,18 +1264,19 @@ lib : \$(OBJ_LIB)
 .SUFFIXES:
 .SUFFIXES: .o .F .F90 .mod .inc
 
-\$(OBJECTSF) : 
-	\$(FC) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/\$(@:.o=.F)
-\$(OBJECTSF90) :
-	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(SRC)/\$(@:.o=.F90)
+\$(DOBJECTSF): 
+	\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F
+\$(DOBJECTSF90):
+	\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90
 \$(OBJ_CC) :
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
 
-util-sp.o :
-	\$(FCD) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/util-sp.F
+\$(DEST)/util-sp.o :
+	\$(FCD) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/util-sp.F
 
 %.mod :
-	\$(FC) \$(FFLAGS) \$(CPPFLAGS) \$< \$(POSTF90OPTS)
+	rm -f \$(@)
+	\$(FC) -o \$(DEST)/\$(<:.F90=.o) \$(FFLAGS) \$(CPPFLAGS) \$<
 
 #----------------------------------------------------------------------------
 
@@ -1422,14 +1411,14 @@ do
                #To have the quote.
                quote = sprintf("%c",39);
                if (suffix == ".F") {
-                 line = sprintf("%s.o:", prefix);
-                 line=sprintf("%-16s %s/%s%s ", line,src,prefix,suffix);
+                 line = sprintf("%s/%s.o:", dest,prefix);
+                 line=sprintf("%-16s %s%s ", line,prefix,suffix);
                }
                if (suffix == "90") {
                  prefix = substr(FILENAME,1,ll-4);
                  suffix = substr(FILENAME,ll-3,4);
-                 line = sprintf("%s.o:", prefix);
-                 line=sprintf("%-16s %s/%s%s ", line,src,prefix,suffix);
+                 line = sprintf("%s/%s.o:",dest, prefix);
+                 line=sprintf("%-16s %s%s ", line,prefix,suffix);
                }
              }
        /^[ ]*INCLUDE/ || /^[ ]*include/ {
@@ -1450,7 +1439,7 @@ do
                  if (Name == "irat.inc") {
                    line=sprintf("%s %s/%s",line,dest,Name)
                  } else {
-                   line=sprintf("%s %s/%s",line,src,Name)
+                   line=sprintf("%s %s",line,Name)
                  }
                }
        }
@@ -1483,7 +1472,7 @@ do
                if (no != 1) {
                  Ninclude=Ninclude+1;
                  OldInclude[Name] = 0;
-                 line=sprintf("%s %s",line,Name)
+                 line=sprintf("%s %s/%s",line,dest,Name)
                }
        }
        (/^[ ]*module/ || /^[ ]*MODULE/){
@@ -1498,7 +1487,7 @@ do
                }
                Modules[Name]=1;
                nModules=nModules+1
-               line=sprintf("%s %s",Name,line);
+               line=sprintf("%s/%s %s",dest,Name,line);
             }
       }
        END   { printf "%s%s\n", linebuf,line }' ${name} >&3 ; 

@@ -30,9 +30,9 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF) RESULT (FMCPR3B2RES)
          USE HElem 
-         USE LOGREAD , only : G_VMC_LOGCOUNT
+         USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
-         USE CALCREAD , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
+         USE Calc , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)

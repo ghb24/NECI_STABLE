@@ -14,7 +14,7 @@ C     ==--------------------------------------------------------------==
 
 
       SUBROUTINE tiSetL(sName,nSTim,iLevel)
-      USE LOGREAD , only : iGlobalTimerLevel
+      USE Logging , only : iGlobalTimerLevel
       IMPLICIT NONE
       CHARACTER*10 sName
       INTEGER nSTim,iLevel
@@ -56,7 +56,7 @@ C     ==--------------------------------------------------------------==
       END
 C     ==================================================================
       SUBROUTINE tiHaltL(sName,nSTim,iLevel)
-      USE LOGREAD , only : iGlobalTimerLevel
+      USE Logging , only : iGlobalTimerLevel
       IMPLICIT NONE
       CHARACTER*10 sName
       INTEGER nSTim,iLevel

@@ -1,8 +1,8 @@
 
-      MODULE CALCREAD
+      MODULE Calc
         USE input
-        USE SYSREAD , only : NEL,Feb08,defaults
-        USE INTREAD , only : NFROZEN
+        USE System , only : NEL,Feb08,defaults
+        USE Integrals , only : NFROZEN
         IMPLICIT NONE
 
         LOGICAL TCALCHMAT,TSTAR,TENERGY,TREAD,TBLOCK,TTROT
@@ -26,7 +26,7 @@
 
         contains
 
-        SUBROUTINE readinputcalc()
+        SUBROUTINE CalcReadInput()
         IMPLICIT NONE
         LOGICAL eof
         CHARACTER (LEN=100) w
@@ -462,6 +462,155 @@
      &              //trim(w)//" not recognized in CALC block",.true.)
               end select
             end do calc
-        END SUBROUTINE
+        END SUBROUTINE CalcReadInput
+      END MODULE Calc
+      subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
+         use input
+         use UMatCache , only : TSTARSTORE
+         USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,         &
+     &          TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY,         &
+     &          STARPROD,TDIAGNODES,TSTARSTARS
+         implicit none
+         integer I_HMAX,NWHTAY,I_V
+         CHARACTER(LEN=16) w
+                  do while ( item .lt. nitems )
+                    call readu(w)
+                    select case(w)
+                    case("VERTEX")
+                        call readu(w)
+                        select case(w)
+                        case("SUM")
+                           do while(item.lt.nitems)
+                            call readu(w)
+                            select case(w)
+                            case("OLD")
+                                I_HMAX = -1
+                            case("NEW")
+                                I_HMAX = -8
+                            case("HDIAG")
+                                I_HMAX = -20
+                            case("READ")
+                                I_HMAX=-14
+                            case("SUB2VSTAR")
+                                CALCP_SUB2VSTAR=.TRUE.
+                            case("LOGWEIGHT")
+                                CALCP_LOGWEIGHT=.TRUE.
+                            case default
+                                call report("Error - must specify OLD"  &
+     &                         //" or NEW vertex sum method",.true.)
+                            end select
+                           enddo
+                        case("MC","MCMETROPOLIS")
+                           I_HMAX = -7
+                            call readu(w)
+                            select case(w)
+                            case("HDIAG")
+                                I_HMAX = -19
+                            end select
+                           tMCDirectSum=.FALSE.
+                           IF(I_V.GT.0) g_MultiWeight(I_V)=1.D0
+                        case("MCDIRECT")
+                           I_HMAX = -7
+                           tMCDirectSum=.TRUE.
+                            call readu(w)
+                            select case(w)
+                            case("HDIAG")
+                                I_HMAX = -19
+                            end select
+                           G_VMC_FAC=0.D0
+                        case("MCMP")
+                           tMCDirectSum=.TRUE.
+                           G_VMC_FAC=0.D0
+                           TMPTHEORY=.TRUE.
+                        case("STAR")
+                           I_HMAX=0
+                           do while(item.lt.nitems)
+                              call readu(w)
+                              select case(w)
+                              case("NEW")
+                                 I_HMAX=-21
+                              case("OLD")
+                                 I_HMAX=-9
+                              case("NODAL")
+                                 TDIAGNODES=.TRUE.
+                              case("STARSTARS")
+                                  TSTARSTARS=.true.
+                              case("STARPROD")
+                                 STARPROD=.TRUE.
+                              case("COUNTEXCITS")
+                                 NWHTAY=IBSET(NWHTAY,8)
+                              case("ADDSINGLES")
+                                 NWHTAY=IBSET(NWHTAY,7)
+                                 IF(I_HMAX.NE.-21)  call report(        &
+     &                              "Error - cannot use ADDSINGLES"     &
+     &                              //" without STAR NEW",.true.)
+                                 IF(TSTARSTORE) call report("Error - "  &
+     &                            //"can only use STARSTOREREAD with "  &
+     &                            //"double excitations of HF",.true.)
+                              case("DIAG")
+                                  NWHTAY=IBCLR(NWHTAY,0)
+                              case("POLY")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                              case("POLYMAX")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                                  NWHTAY=IBSET(NWHTAY,1)
+                              case("POLYCONVERGE")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                                  NWHTAY=IBSET(NWHTAY,2)
+                              case("POLYCONVERGE2")
+                                  NWHTAY=IBSET(NWHTAY,0)
+                                  NWHTAY=IBSET(NWHTAY,6)
+                              case("H0")
+                                  NWHTAY=IBSET(NWHTAY,5)
+                                  if(I_HMAX.ne.-21) call report ("H0 "  &
+     &                       //"can only be specified with POLY... NEW")
+                              case default
+                                call report("Error - must specify DIAG" &
+     &                        //" or POLY vertex star method",.true.)
+                               end select
+                           enddo
+!                           IF(TSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN 
+!                               call report("STARSTARS must be used with " &
+!     &                          //"a poly option",.true.)
+!                           ENDIF
+                           IF(STARPROD.and.BTEST(NWHTAY,0)) THEN
+                               call report("STARPROD can only be "      &
+     &                        //"specified with DIAG option",.true.)
+                            ENDIF
+                           if(i_hmax.eq.0)                              &
+     &                   call report("OLD/NEW not specified for STAR",  &
+     &                          .true.)
+                        case default
+                        call report("Keyword error with "//trim(w),     &
+     &                          .true.)
+                        end select
+                    case default
+                        call report("Error.  Method not specified."     &
+     &                    //" Stopping.",.true.)
+                    end select
+               end do
+      end
+      subroutine inpgetexcitations(NWHTAY,w)
+         use input
+         IMPLICIT NONE
+         INTEGER NWHTAY
+         CHARACTER(LEN=16) w
+!                  call readu(w)
+                  select case(w)
+                  case("FORCEROOT")
+                     NWHTAY=IOR(NWHTAY,1)
+                  case("FORCETREE")
+                     NWHTAY=IOR(NWHTAY,2)
+                  case("SINGLES")
+                     NWHTAY=IOR(NWHTAY,8)
+                  case("DOUBLES")
+                     NWHTAY=IOR(NWHTAY,16)
+                  case("ALL")
+                     NWHTAY=0
+                  case default
+                        call report("Keyword error with EXCITATIONS "   &
+     &                     //trim(w),                                   &
+     &                          .true.)
+                  end select
+      end
 
-      END MODULE CALCREAD

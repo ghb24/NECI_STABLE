@@ -1,8 +1,8 @@
 MODULE SymExcit2
       
-      USE CALCREAD , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,CHEMPOT,        &
+      USE Calc , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,CHEMPOT,        &
      &      EXCITFUNCS
-      USE CALCREAD , only : TUPOWER
+      USE Calc , only : TUPOWER
       IMPLICIT NONE
 
       TYPE ExcitWeight

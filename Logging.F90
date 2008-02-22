@@ -1,13 +1,13 @@
-      MODULE LOGREAD
+      MODULE Logging
         USE input
-        USE sysread , only : defaults,Feb08
+        USE System , only : defaults,Feb08
         IMPLICIT NONE
 
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
 
         contains
 
-        SUBROUTINE readinputlog()
+        SUBROUTINE LogReadInput()
         IMPLICIT NONE
         LOGICAL eof
         CHARACTER (LEN=100) w
@@ -106,6 +106,6 @@
      &                 //" not recognised",.true.)
           end select
         end do logging
-        END SUBROUTINE 
+        END SUBROUTINE LogReadInput
 
-      END MODULE LOGREAD
+      END MODULE Logging

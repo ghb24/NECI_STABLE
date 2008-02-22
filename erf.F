@@ -13,7 +13,7 @@ C ==-------------------------------------------------------------==
       FUNCTION GAMMP(A,X)
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
-      IF(X.LT.0.D0.OR.A.LE.0.D0)PAUSE
+      IF(X.LT.0.D0.OR.A.LE.0.D0) STOP
       IF(X.LT.A+1.D0)THEN
         CALL GSER(GAMSER,A,X,GLN)
         GAMMP=GAMSER
@@ -30,7 +30,7 @@ C ==-------------------------------------------------------------==
       PARAMETER (ITMAX=100,EPS=3.E-7)
       GLN=GAMMLN(A)
       IF(X.LE.0.D0)THEN
-        IF(X.LT.0.D0)PAUSE
+        IF(X.LT.0.D0)STOP
         GAMSER=0.D0
         RETURN
       ENDIF
@@ -43,7 +43,7 @@ C ==-------------------------------------------------------------==
         SUM=SUM+DEL
         IF(ABS(DEL).LT.ABS(SUM)*EPS)GO TO 1
 11      CONTINUE
-        PAUSE 'A too large, ITMAX too small'
+        STOP 'A too large, ITMAX too small'
 1       GAMSER=SUM*EXP(-X+A*LOG(X)-GLN)
 C..
       RETURN
@@ -75,7 +75,7 @@ C..
 	  GOLD=G
 	ENDIF
 11    CONTINUE
-      PAUSE 'A too large, ITMAX too small'
+      STOP 'A too large, ITMAX too small'
 1     GAMMCF=EXP(-X+A*LOG(X)-GLN)*G
 C..
       RETURN

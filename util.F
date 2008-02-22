@@ -988,7 +988,7 @@ C.. Modified this to use REAL*8s.
         IY=IDUM
       ENDIF
       J=1+(97*IY)/M
-      IF(J.GT.97.OR.J.LT.1)PAUSE
+      IF(J.GT.97.OR.J.LT.1) STOP
       IY=IR(J)
       ORAN2=IY*RM
       IDUM=MOD(IA*IDUM+IC,M)

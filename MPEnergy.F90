@@ -1,7 +1,7 @@
 !See 5/1/07
 SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    USE HElem
-   USE CALCREAD , only : TMODMPTHEORY,TENPT
+   USE Calc , only : TMODMPTHEORY,TENPT
    IMPLICIT NONE
    INTEGER iV,nEl,nBasis,iMaxOrder
    TYPE(HElement) Hij(0:iV,0:iV)
@@ -107,7 +107,7 @@ END
 !.. the determinant making this a 2-v graph.
       SUBROUTINE ADDMP2E(HIJS,ARR,NBASIS,IPATH,NEL,TLOG,MP2E)
          USE HElem
-         USE CALCREAD , only : TLADDER
+         USE Calc , only : TLADDER
          IMPLICIT NONE
          TYPE(HElement) HIJS(0:2)
          REAL*8 ARR(NBASIS,2)

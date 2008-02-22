@@ -1,327 +1,136 @@
-      SUBROUTINE READINPUT(FILENAME,ios)
-      USE input
-      USE SYSREAD , only : readinputsys,defaults,Feb08
-      USE PRECALCREAD , only : readinputprecalc
-      USE CALCREAD , only : readinputcalc
-      USE INTREAD , only : readinputint
-      USE LOGREAD , only : readinputlog
+! ReadInput is called to read the input.
+!   Filename is a Character(255) string which contains a filename to read.
+!               If Filename=="" then we check to see if there's a filename on the command line.
+!               Failing that, we use stdin
+!   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
+MODULE ReadInput 
+    Implicit none
+!   Used to specify which default set of inputs to use
+!    An enum would be nice, but is sadly not supported
+    integer, parameter :: idDefault=0
+    integer, parameter :: idFeb08=1
+
+    contains
+
+    Subroutine ReadInputMain(cFilename,ios)
+        USE input
+        USE System,     only : SysReadInput
+        USE PrecalcRead,only : PrecalcReadInput
+        USE Calc,       only : CalcReadInput
+        USE Integrals,  only : IntReadInput
+        Use Logging,    only : LogReadInput
 #ifdef NAGF95
-!  USe doesn't get picked up by the make scripts
-USe f90_unix_env, ONLY: getarg,iargc
+    !  USe doesn't get picked up by the make scripts
+        USe f90_unix_env, ONLY: getarg,iargc
 #endif
-      IMPLICIT NONE
+        Implicit none
 #ifndef NAGF95
-      integer :: iargc
+        Integer :: iargc
 #endif
-      CHARACTER(LEN=255) FILENAME,INP
-      CHARACTER(LEN=32) TITLE
-      CHARACTER(LEN=100) w,x
-      LOGICAL eof,DefaultFound
-      INTEGER ios
+    !  INPUT/OUTPUT params
+        Character(len=255)  cFilename    !Input  filename or "" if we check arg list or stdin
+        Integer             ios         !Output 0 if no error or nonzero iostat if error
 
-!     --------------------------------------------
-      title = ""
+        Character(len=255)  cInp         !temp storage for command line params
+        Character(len=32)   cTitle
+!  Predeclared
+!        Integer             ir         !The file descriptor we are reading from
+        Character(len=100)  w,x         !strings for input storage
+        Logical             tEof        !set when read_line runs out of lines
+        Integer             idDef       !What default set do we use
 
-      ir=1
-      IF(FILENAME.NE.'') THEN
-         WRITE(6,*) "Reading from file: ",TRIM(FILENAME)
-         OPEN(1,FILE=FILENAME,STATUS="OLD",err=99,iostat=ios)
-      ELSEIF(IARGC().GT.0) THEN
-         CALL GETARG(1,INP)
-         WRITE(6,*) "Reading from file: ",INP
-         OPEN(1,FILE=INP,STATUS="OLD")
-      ELSE
-         ir=5
-         WRITE(6,*) "Reading from STDIN"
-      ENDIF
+        cTitle=""
+        idDef=idDefault                 !use the Default defaults (pre feb08)
+        ir=1                            !default to file descriptor 1 which we'll open below
+        If(cFilename.ne.'') Then
+            Write(6,*) "Reading from file: ", Trim(cFilename)
+            Open(1,File=cFilename,Status='OLD',err=99,iostat=ios)
+        ElseIf(iArgC().gt.0) then
+    ! We have some arguments we can process instead
+            Call GetArg(1,cInp)      !Read argument 1 into inp
+            Write(6,*) "Reading from file: ", Trim(cInp)
+            Open(1,File=cInp,Status='OLD',err=99,iostat=ios)
+        Else
+            ir=5                    !file descriptor 5 is stdin
+            Write(6,*) "Reading from STDIN"
+        Endif
+        Write (6,'(/,64("*"),/)')
+        Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
 
-      write (6,'(/,64("*"),/)')
-      call input_options(echo_lines=.false.,skip_blank_lines=.true.)
 
-      DefaultFound=.false.
-!Look to find default options (line can be added anywhere in input)
-      defs: do
-          call read_line(eof)
-          if(eof) exit
-          call readu(w)
-          select case(w)
-            case("DEFAULTS")
-                DefaultFound=.true.
+    !Look to find default options (line can be added anywhere in input)
+        Do
+            Call read_line(tEof)
+            If(tEof) Exit
+            Call readu(w)
+            Select case(w)
+            Case("DEFAULTS")    
                 call readu(x)
                 select case(x)
 !Add default options here
                 case("DEFAULT")
-                    defaults=.true.
+                    idDef=idDefault
                 case("FEB08")
-                    defaults=.false.
-                    Feb08=.true.
+                    idDef=idFeb08
                 case default
                     write(6,*) "No defaults selected - using 'default' defaults"
-                    defaults=.true.
+                    idDef=idDefault
                 end select
-          end select
-      end do defs
-      IF(.NOT.DefaultFound) THEN
-        WRITE(6,*) "No defaults selected - using 'default' defaults"
-        defaults=.true.
-      ENDIF
-      rewind(ir)
+            end select
+        End Do
+!Now return to the beginning and process the whole input file
+        Rewind(ir)
+        Call input_options(echo_lines=.true.,skip_blank_lines=.true.)
 
-      call input_options(echo_lines=.true.,skip_blank_lines=.true.)
-
-      main: do
-          call read_line(eof)
-          if (eof) exit
-          call readu(w)
-          select case(w)
+        Do
+            Call read_line(tEof)
+            If (tEof) exit
+            call readu(w)
+            select case(w)
             case("TITLE")
-              do while (item.lt.nitems)
-                  call reada(w)
-                  title = trim(title)//" "//trim(w)
-              enddo
+                do while (item.lt.nitems)
+                    call reada(w)
+                    cTitle = trim(cTitle)//" "//trim(w)
+                enddo
             case("DEFAULTS")
                 CONTINUE
             case("SYSTEM")
-              call readinputsys()
+                call SysReadInput()
             case("PRECALC")
-              call readinputprecalc()
+                call PrecalcReadInput()
             case("CALC")
-              call readinputcalc()
+                call CalcReadInput()
             case("INTEGRAL")
-              call readinputint()
+                call IntReadInput()
             case("LOGGING")
-              call readinputlog()
+                call LogReadInput()
             case("END")
-              exit
+                exit
             case default
-             call report ("Keyword "//trim(w)//" not recognized",.true.)
-          end select
-      end do main
-      write (6,'(/,64("*"),/)')
-      IF(IR.EQ.1) CLOSE(1)
-   99 IF (ios.gt.0) THEN
-          WRITE (6,*) 'Problem reading input file ',TRIM(FILENAME)
-      END IF
-      call checkinput()
-      RETURN
-      END SUBROUTINE readinput
-      
-      subroutine inpgetprecalc(preIH)
-         use input
-         USE SYSREAD , only : TUSEBRILLOUIN
-         implicit none
-         integer preIH
-         CHARACTER(LEN=16) w
-                do while ( item .lt. nitems )
-                  call readu(w)
-                  select case(w)
-                  case("HDIAG")
-                      call readu(w)
-                      select case(w)
-                      case("FULL")
-                          preIH=-20
-                      case("MC")
-                          preIH=-19
-                          IF(.NOT.TUSEBRILLOUIN) THEN
-                              write(6,*) "Warning  USEBRILLOUINTHEOREM" &
-     &                       //" might need to be specified in system " &
-     &                       //"block to use MC-PRECALC"
-                          ENDIF
-                      case default
-                         call report("Error - must specify FULL"        &
-     &                   //" or MC after HDIAG in PRECALC block",.true.)
-                      end select
-                   case("RHODIAG")
-                         call readu(w)
-                         select case(w)
-                         case("FULL")
-                             preIH=-8
-                         case("MC")
-                             preIH=-7
-                         case default
-                           call report("Error - must specify FULL or "  &
-     &                     //"MC after RHODIAG in PRECALC block",.true.)
-                         end select
-                     case default
-                           call report("Keyword error with "//trim(w),  &
-     &                     .true.)
-                     end select
-                 end do
-        end
-
-      subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
-         use input
-         use UMatCache , only : TSTARSTORE
-         USE CALCREAD , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,         &
-     &          TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY,         &
-     &          STARPROD,TDIAGNODES,TSTARSTARS
-         implicit none
-         integer I_HMAX,NWHTAY,I_V
-         CHARACTER(LEN=16) w
-                  do while ( item .lt. nitems )
-                    call readu(w)
-                    select case(w)
-                    case("VERTEX")
-                        call readu(w)
-                        select case(w)
-                        case("SUM")
-                           do while(item.lt.nitems)
-                            call readu(w)
-                            select case(w)
-                            case("OLD")
-                                I_HMAX = -1
-                            case("NEW")
-                                I_HMAX = -8
-                            case("HDIAG")
-                                I_HMAX = -20
-                            case("READ")
-                                I_HMAX=-14
-                            case("SUB2VSTAR")
-                                CALCP_SUB2VSTAR=.TRUE.
-                            case("LOGWEIGHT")
-                                CALCP_LOGWEIGHT=.TRUE.
-                            case default
-                                call report("Error - must specify OLD"  &
-     &                         //" or NEW vertex sum method",.true.)
-                            end select
-                           enddo
-                        case("MC","MCMETROPOLIS")
-                           I_HMAX = -7
-                            call readu(w)
-                            select case(w)
-                            case("HDIAG")
-                                I_HMAX = -19
-                            end select
-                           tMCDirectSum=.FALSE.
-                           IF(I_V.GT.0) g_MultiWeight(I_V)=1.D0
-                        case("MCDIRECT")
-                           I_HMAX = -7
-                           tMCDirectSum=.TRUE.
-                            call readu(w)
-                            select case(w)
-                            case("HDIAG")
-                                I_HMAX = -19
-                            end select
-                           G_VMC_FAC=0.D0
-                        case("MCMP")
-                           tMCDirectSum=.TRUE.
-                           G_VMC_FAC=0.D0
-                           TMPTHEORY=.TRUE.
-                        case("STAR")
-                           I_HMAX=0
-                           do while(item.lt.nitems)
-                              call readu(w)
-                              select case(w)
-                              case("NEW")
-                                 I_HMAX=-21
-                              case("OLD")
-                                 I_HMAX=-9
-                              case("NODAL")
-                                 TDIAGNODES=.TRUE.
-                              case("STARSTARS")
-                                  TSTARSTARS=.true.
-                              case("STARPROD")
-                                 STARPROD=.TRUE.
-                              case("COUNTEXCITS")
-                                 NWHTAY=IBSET(NWHTAY,8)
-                              case("ADDSINGLES")
-                                 NWHTAY=IBSET(NWHTAY,7)
-                                 IF(I_HMAX.NE.-21)  call report(        &
-     &                              "Error - cannot use ADDSINGLES"     &
-     &                              //" without STAR NEW",.true.)
-                                 IF(TSTARSTORE) call report("Error - "  &
-     &                            //"can only use STARSTOREREAD with "  &
-     &                            //"double excitations of HF",.true.)
-                              case("DIAG")
-                                  NWHTAY=IBCLR(NWHTAY,0)
-                              case("POLY")
-                                  NWHTAY=IBSET(NWHTAY,0)
-                              case("POLYMAX")
-                                  NWHTAY=IBSET(NWHTAY,0)
-                                  NWHTAY=IBSET(NWHTAY,1)
-                              case("POLYCONVERGE")
-                                  NWHTAY=IBSET(NWHTAY,0)
-                                  NWHTAY=IBSET(NWHTAY,2)
-                              case("POLYCONVERGE2")
-                                  NWHTAY=IBSET(NWHTAY,0)
-                                  NWHTAY=IBSET(NWHTAY,6)
-                              case("H0")
-                                  NWHTAY=IBSET(NWHTAY,5)
-                                  if(I_HMAX.ne.-21) call report ("H0 "  &
-     &                       //"can only be specified with POLY... NEW")
-                              case default
-                                call report("Error - must specify DIAG" &
-     &                        //" or POLY vertex star method",.true.)
-                               end select
-                           enddo
-!                           IF(TSTARSTARS.and..not.BTEST(NWHTAY,0)) THEN 
-!                               call report("STARSTARS must be used with " &
-!     &                          //"a poly option",.true.)
-!                           ENDIF
-                           IF(STARPROD.and.BTEST(NWHTAY,0)) THEN
-                               call report("STARPROD can only be "      &
-     &                        //"specified with DIAG option",.true.)
-                            ENDIF
-                           if(i_hmax.eq.0)                              &
-     &                   call report("OLD/NEW not specified for STAR",  &
-     &                          .true.)
-                        case default
-                        call report("Keyword error with "//trim(w),     &
-     &                          .true.)
-                        end select
-                    case default
-                        call report("Error.  Method not specified."     &
-     &                    //" Stopping.",.true.)
-                    end select
-               end do
-      end
-
-        
-      subroutine inpgetexcitations(NWHTAY,w)
-         use input
-         IMPLICIT NONE
-         INTEGER NWHTAY
-         CHARACTER(LEN=16) w
-!                  call readu(w)
-                  select case(w)
-                  case("FORCEROOT")
-                     NWHTAY=IOR(NWHTAY,1)
-                  case("FORCETREE")
-                     NWHTAY=IOR(NWHTAY,2)
-                  case("SINGLES")
-                     NWHTAY=IOR(NWHTAY,8)
-                  case("DOUBLES")
-                     NWHTAY=IOR(NWHTAY,16)
-                  case("ALL")
-                     NWHTAY=0
-                  case default
-                        call report("Keyword error with EXCITATIONS "   &
-     &                     //trim(w),                                   &
-     &                          .true.)
-                  end select
-      end
-
+                call report ("Keyword "//trim(w)//" not recognized",.true.)
+            end select
+        end do
+        write (6,'(/,64("*"),/)')
+        IF(IR.EQ.1) CLOSE(1)
+   99   IF (ios.gt.0) THEN
+            WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
+        END IF
+        call checkinput()
+        RETURN
+    END SUBROUTINE ReadInputMain
       subroutine checkinput()
-      USE SYSREAD , only : NEL,TSTARSTORE,TUseBrillouin
+      USE System , only : NEL,TSTARSTORE,TUseBrillouin
       USE PRECALCREAD , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
-      USE CALCREAD , only : BETA,I_VMAX,NPATHS,SPECDET,                 &
+      USE Calc , only : BETA,I_VMAX,NPATHS,SPECDET,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
      &  TDIAGNODES,TSTARSTARS
-      USE INTREAD , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
-      USE LOGREAD , only : ILOGGING
+      USE Integrals , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
+      USE Logging , only : ILOGGING
       USE input
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
-
-    IF(TLinRootChange.and..not.TStarStars) THEN
-        CALL report("StarStars must be specified in the method line to use TLinRootChange",.true.)
-    ENDIF
-
-    IF(TLinRootChange.and.TDiagStarStars) THEN
-        CALL report("LinRootChange cannot be used with diagstarstars",.true.)
-    ENDIF
 
 !..RmRootExcitStarsRootChange must be used with DiagStarStars, and not with ExcitStarsRootChange
       IF(TRmRootExcitStarsRootChange.and..not.TDiagStarStars) THEN
@@ -484,3 +293,7 @@ USe f90_unix_env, ONLY: getarg,iargc
       ENDIF
 
       end subroutine checkinput
+End Module ReadInput
+
+        
+
