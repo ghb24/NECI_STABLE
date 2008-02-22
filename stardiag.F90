@@ -631,7 +631,7 @@
                 ExcitInfo(i-1,2)=tmp(3)
             enddo
 
-            IF(.not.(ExcitInfo(iExcit,0).agt.0.1)) STOP 'Reordering incorrect'
+            IF(.not.(ExcitInfo(iExcit,0).agt.0.1d0)) STOP 'Reordering incorrect'
             WRITE(6,*) "Minimum rho_jj is :", ExcitInfo(iExcit,0)
 
             ALLOCATE(Vals(iExcit+1))
@@ -659,14 +659,14 @@
                 CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),Vals,Vecs)
 
                 IF(r.eq.1.D0) THEN
-                    WRITE(6,("A,F13.9")) "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
+                    WRITE(6,"(A,F13.9)") "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
                 ENDIF
 
-                WRITE(48,("F11.7,$")) r
-                WRITE(48,("6F13.9,$")) Vecs(lowtoprint:iExcit+1)
+                WRITE(48,"(F11.7,$)") r
+                WRITE(48,"(6F13.9,$)") Vecs(lowtoprint:iExcit+1)
                 WRITE(48,*) ""
-                WRITE(49,("F11.7,$")) r
-                WRITE(49,("6F13.9,$")) Vals(lowtoprint:iExcit+1)
+                WRITE(49,"(F11.7,$)") r
+                WRITE(49,"(6F13.9,$)") Vals(lowtoprint:iExcit+1)
                 WRITE(49,*) ""
                 CALL FLUSH(48)
                 CALL FLUSH(49)
@@ -896,8 +896,8 @@
 !Initially, assume that all excited stars are only attached by their *first* eigenvectors
 !Store the first eigenvalues for the excited stars in Vals. It is these that we assume linearly change.
                     Vals(i)=AllVals(iExcit+1)
-                    IF(DREAL(AllVecs(iExcit+1)).lt.0.5) THEN
-                        WRITE(6,*) "Eigenvector is equal to ",DREAL(AllVecs(iExcit+1))," for Linepoint ",i," out of ",LinePoints
+                    IF(AllVecs(iExcit+1).lt.0.5) THEN
+                        WRITE(6,*) "Eigenvector is equal to ",AllVecs(iExcit+1)," for Linepoint ",i," out of ",LinePoints
                         WRITE(6,*) "Assumption that only one eigenvector from each excited star attached is poor"
                     ENDIF
 
