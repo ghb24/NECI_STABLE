@@ -763,7 +763,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-Mr8 -Msignextend -Minform=warn -Msecond_underscore'
@@ -791,7 +791,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
@@ -841,7 +841,8 @@ case ${Configuration}
   "ix86-g95/32")
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
+MAXMEM := 1024 # RAM available, in MB.
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS=''
@@ -867,7 +868,7 @@ case ${Configuration}
    "ix86-gfortran/64")
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DPOINTER8'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)" -DPOINTER8'
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none'
@@ -893,7 +894,7 @@ case ${Configuration}
    "ix86-gfortran/32")
      IRAT=2
      CPP='cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none'
@@ -1025,6 +1026,7 @@ SHELL = /bin/sh
 #
 #--------------- Default Configuration for $Configuration ---------------
 SVNVER := \$(shell svn info | grep Revision |sed "s/Revision://")
+MAXMEM := 1024 # RAM available, in MB.
 SRC  = .
 DEST = ${DEST}
 BIN  = .
