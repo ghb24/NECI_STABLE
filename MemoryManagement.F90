@@ -1,6 +1,23 @@
-! JSS.  Memory book-keeping routines.  Contains some elements of the memory_manager
-! module from CamCASP (formerly SITUS), written by Alston Misquitta, with
-! permission.
+! JSS.  Memory book-keeping routines.  Contains some elements of the initialisation, 
+! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
+! written by Alston Misquitta, with permission.
+
+! To do:
+!   TICK   Peak memory table.
+!   TICK   Large memory table.
+!   TICK   Have log as a cache (psuedo-LIFO): only store active allocations.
+!   TICK   Debug option: store as much as the cache can hold.
+!   TICK   Optional argument: calls from a routine to be counted.
+
+! Log memory usage in one of two ways:
+!   1. Store everything.  The size of the log (MaxLen) had best be suitably large.
+!   2. Store active allocations.  When the top most slot in use in the log is
+!   deallocated, free up all the slots at the top of the log that have been
+!   deallocated for logging later actions (i.e. psuedo-LIFO [last in, first
+!   out]).  This does allow a fractured log to occur, but memory
+!   allocation-deallocation is often LIFO and it allows us to be efficient in
+!   storing the actions without wasting much effort searching the log.
+! This is controlled by the CachingMemLog (true==approach 2) flag.
 
 module MemoryManager
 
@@ -8,6 +25,10 @@ implicit none
 
 private
 public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer
+! Allow users to do the potentially dangerous thing of changing how the log is run.
+! We'll hope they'll only use this for good...
+public :: CachingMemLog 
+! Routines that need to be accessible.
 public :: InitMemoryManager,LogMemAlloc,LogMemDealloc,LeaveMemoryManager
 
 integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
@@ -29,16 +50,25 @@ integer(li), save :: MaxMemoryUsed
 logical, save :: initialised = .false.
 logical, save :: warned = .false.
 integer, parameter :: MaxWarn = 10 ! maximum number of low memory warning messages to be printed.
-integer, parameter :: nLargeObjects = 10 ! maximum number of large memory allocations to print out.
-integer, save :: nWarn
+integer, parameter :: nLargeObjects = 10 ! maximum number of the largest memory allocations remember.
+integer, save :: nWarn = 0
 logical, save :: debug = .false.
+logical, save :: CachingMemLog = .true. ! See above for how MemLog is used.
 
 ! Log of memory allocations.
 integer, parameter :: MaxLen = 5000
 type(MemLogEl), save :: MemLog(MaxLen)
 integer, save :: ipos=1  ! Next available empty slot in the log.
+
+! Capture the state of the MemLog at peak usage.  Currently not outputted, but
+! useful for diagnostics.
+type(MemLogEl), save :: PeakMemLog(MaxLen)
+
+type(MemLogEl), save :: LargeObjLog(nLargeObjects) ! Store the largest allocations.
+integer, save :: ismall=1 ! The smallest large object (remember to avoid repeating minloc again and again...)
+
 ! For backwards compatibility with the existing scheme, where the IP address is
-! stored.
+! stored as the tag. Use long integer (li) so can handle POINTER8.
 integer(li), save :: LookupPointer(MaxLen)
 
 contains
@@ -75,7 +105,7 @@ contains
 
 
 
-    subroutine LogMemAlloc(ObjectName,ObjectSize,ElementSize,AllocRoutine,tag)
+    subroutine LogMemAlloc(ObjectName,ObjectSize,ElementSize,AllocRoutine,tag,nCalls)
     ! Log a memory allocation.
     ! INPUT:
     !       ObjectName - Name of object.
@@ -85,6 +115,8 @@ contains
     ! OUTPUT:
     !       tag - position in memory log the object is stored at.
     !             If -1, then the log is full and it's not been stored.
+    !       nCalls - optional.  Increments nCalls: counts the number of times
+    !       a routine has called the LogMemAlloc routine.
 
     implicit none
 
@@ -92,9 +124,12 @@ contains
     integer, intent(in) :: ObjectSize
     integer, intent(in) :: ElementSize
     integer, intent(out) :: tag
+    integer, intent(inout), optional :: nCalls
  
     integer(li), parameter :: DefaultMem=1024**3
-    integer :: ObjectSizeBytes
+    integer :: ObjectSizeBytes,ismallloc(1)
+
+    if (present(nCalls)) nCalls=nCalls+1
 
     if (.not.initialised) then
         write (6,*) 'Memory manager not initialised. Doing so now with 1GB limit.'
@@ -112,10 +147,6 @@ contains
         nWarn=nWarn+1
     end if
 
-    if (debug) then
-        write (6,*) 'Allocating memory: ',tag,ObjectSizeBytes,ObjectName,AllocRoutine,MemoryUsed
-    end if
-
     if (ipos.gt.MaxLen) then
         if (.not.warned) then
             warned=.true.
@@ -124,12 +155,26 @@ contains
             write (6,*) 'Max memory used is likely to be incorrect.'
         end if
         tag=-1
+        ! If we're not putting it in the log, test if it's a huge array:
+        ! it's always the biggest fishes that get away!
+        if (ObjectSizeBytes.gt.LargeObjLog(ismall)%ObjectSize) then
+            LargeObjLog(ismall)%ObjectName=ObjectName
+            LargeObjLog(ismall)%AllocRoutine=AllocRoutine
+            LargeObjLog(ismall)%ObjectSize=ObjectSizeBytes
+            ismallloc=minloc(LargeObjLog(:)%ObjectSize)
+            ismall=ismallloc(1)
+        end if
     else
         MemLog(ipos)%ObjectName=ObjectName
         MemLog(ipos)%AllocRoutine=AllocRoutine
+        MemLog(ipos)%DeallocRoutine='not deallocated' ! In case this slot has already been used and abandoned.
         MemLog(ipos)%ObjectSize=ObjectSizeBytes
         tag=ipos
         ipos=ipos+1
+    end if
+
+    if (debug) then
+        write (6,*) 'Allocating memory: ',tag,ObjectSizeBytes,ObjectName,AllocRoutine,MemoryUsed
     end if
 
     return
@@ -150,6 +195,7 @@ contains
 
     character(len=*), intent(in) :: DeallocRoutine
     integer, intent(inout) :: tag
+    integer :: i,ismallloc(1)
 
     if (tag.eq.0) then
         write (6,*) 'Warning: attempting to log deallocation but never logged allocation.'
@@ -157,16 +203,59 @@ contains
     else if(tag.gt.MaxLen.or.tag.lt.-1) then
         write (6,*) 'Warning: attempting to log deallocation but tag does not exist: ',tag
         tag=-1
-    else if (tag.eq.-1) then
-        tag=0
-    else
+    else 
+
+        if (MemoryUsed.eq.MaxMemoryUsed) then
+            ! Are at peak memory usage.  Copy the memory log.
+            ! Useful to see what's around when memory usage is at a maximum.
+            PeakMemLog(:)=MemLog(:)
+        end if
+
         MemoryUsed=MemoryUsed-MemLog(tag)%ObjectSize
         MemoryLeft=MaxMemory-MemoryUsed
-        MemLog(tag)%DeallocRoutine=DeallocRoutine
-        if (debug) then
-            write (6,*) 'Deallocating memory: ',tag,MemLog(tag)
+
+        if (tag.eq.-1) then
+            ! No record of it in the log: can only print out a debug message.
+            if (debug) then
+                write (6,*) 'Deallocating memory in: ',DeallocRoutine,tag
+            end if
+        else
+            ! Object was stored in the cache.
+            MemLog(tag)%DeallocRoutine=DeallocRoutine
+
+            ! Check to see if object is larger than the smallest of the large
+            ! objects: if so, keep a record of it.
+            if (MemLog(tag)%ObjectSize.gt.LargeObjLog(ismall)%ObjectSize) then
+                LargeObjLog(ismall)=MemLog(tag)
+                ismallloc=minloc(LargeObjLog(:)%ObjectSize)
+                ismall=ismallloc(1)
+            end if
+            
+            if (CachingMemLog) then
+                ! Then we free up this slot and slots of all objects directly below it in
+                ! the log that have also been deallocated.  This is not the most
+                ! efficient storage (we still can have a fractured log) but
+                ! works well for LIFO approaches, which are most common for us.
+                MemLog(tag)%ObjectSize=0 ! Nothing to see here now.
+                if (tag.eq.ipos-1) then
+                    do i=tag,1,-1
+                        if (MemLog(i)%ObjectSize.eq.0) then
+                            ipos=ipos-1
+                        else
+                            exit
+                        end if
+                    end do
+                end if
+            end if
+            if (debug) then
+                write (6,*) 'Deallocating memory: ',tag,MemLog(tag)
+            end if
         end if
+
+        ! Set tag to zero: there was no problem with the logging deallocation
+        ! (apart from maybe a too small cache).
         tag=0
+
     end if
 
     return
@@ -182,17 +271,37 @@ contains
     implicit none
 
     integer :: iunit,iobjloc(1),iobj,i
-    integer(li) :: ObjectSizes(MaxLen)
+    integer(li) :: ObjectSizes(nLargeObjects+MaxLen)
+    type(MemLogEl) :: AllMemEl(nLargeObjects+MaxLen)
     character(len=*), parameter :: memoryfile = 'TMPMemoryusage.dat'
     character(len=*), parameter :: fmt1='(3a19,f8.1)'
 
+    if (MemoryUsed.eq.MaxMemoryUsed) then
+        ! Peak memory usage is now.
+        PeakMemLog(:)=MemLog(:)
+    end if
+
     call WriteMemLogHeader(6)
-    ObjectSizes(:)=MemLog(:)%ObjectSize
+
+    if (CachingMemLog) then
+        ! Large objects might be residing in the MemLog, but not deallocated
+        ! (and so haven't been moved to the large object store).
+        AllMemEl(:)=(/ MemLog(:),LargeObjLog(:) /)
+    else
+        ! Everything really ought to be held in just the MemLog: if not, then
+        ! this is a "feature".
+        AllMemEl(1:MaxLen)=MemLog(:)
+    end if
+
+    ! Copy the sizes to an integer array: we use maxloc on the copy.  This
+    ! allows us to check for arrays of the same size without writing over 
+    ! information in our log.
+    ObjectSizes(:)=AllMemEl(:)%ObjectSize
     iobjloc(:)=maxloc(ObjectSizes)
     iobj=iobjloc(1)
     ObjectSizes(iobj)=ObjectSizes(iobj)+1
-    do i=2,min(nLargeObjects,ipos)
-        write (6,fmt1) ' '//MemLog(iobj)%ObjectName,MemLog(iobj)%AllocRoutine,MemLog(iobj)%DeallocRoutine,dfloat(MemLog(iobj)%ObjectSize)/1024**2
+    do i=2,min(nLargeObjects+1,ipos)
+        write (6,fmt1) ' '//AllMemEl(iobj)%ObjectName,AllMemEl(iobj)%AllocRoutine,AllMemEl(iobj)%DeallocRoutine,dfloat(AllMemEl(iobj)%ObjectSize)/1024**2
         iobjloc=maxloc(ObjectSizes,mask=ObjectSizes.lt.ObjectSizes(iobj))
         iobj=iobjloc(1)
         ObjectSizes(iobj)=ObjectSizes(iobj)+1
