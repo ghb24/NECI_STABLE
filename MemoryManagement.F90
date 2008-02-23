@@ -317,7 +317,7 @@ contains
         open(unit=iunit,file=memoryfile,form='formatted',status='unknown')
         call WriteMemLogHeader(iunit)
         do iobj = 1, min(ipos,MaxLen)
-            write (6,fmt1) ' '//MemLog(iobj)%ObjectName,MemLog(iobj)%AllocRoutine,MemLog(iobj)%DeallocRoutine,dfloat(MemLog(iobj)%ObjectSize)/1024**2
+            write (iunit,fmt1) ' '//MemLog(iobj)%ObjectName,MemLog(iobj)%AllocRoutine,MemLog(iobj)%DeallocRoutine,dfloat(MemLog(iobj)%ObjectSize)/1024**2
         enddo
         if (warned) then
             write (iunit,*) '== NOTE: Length of logging arrays exceeded. Length needed is ',ipos
@@ -334,7 +334,7 @@ contains
     subroutine WriteMemLogHeader(iunit)
     implicit none
     integer :: iunit
-    write(iunit,*)
+    write (iunit,*)
     write (iunit,*) '================================================================'
     write (iunit,*) 'Memory usage'
     write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',dfloat(MaxMemory)/1024**2
