@@ -2235,7 +2235,17 @@ C         WRITE(17,*) CK(1,I),W(I)
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
      &   DETINV,TSPECDET,SPECDET)
+         use HElem
+         implicit none
          include 'irat.inc'
+         include 'basis.inc'
+         INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,NBASISMAX(5,5),nBasis
+         INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING,ISUB
+         TYPE(HElement) UMat(*)
+         TYPE(HDElement) DLWDB, DLWDB2, DLWDB3, DLWDB4
+         TYPE(BasisFN) g1(*),ALAT(*)
+         LOGICAL TSYM
+         REAL*8 BETA,FCK(*),RHOEPS
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE),(IP_RIJLIST,RIJLIST)
          INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
@@ -2251,6 +2261,7 @@ C         WRITE(17,*) CK(1,I),W(I)
          INTEGER SPECDET(NEL)
          TOT=0.D0
          NORM=0.D0
+         DLWDB2=0.D0
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
          CALL TISET('CLCRHOPII2',ISUB)
@@ -2348,7 +2359,7 @@ C.. we calculate the energy with weightings normalized to the weight of
 C.. the Fermi determinant, otherwise the numbers blow up
             WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
             NORM=NORM+WINORM
-            TOT=TOT+WINORM*DLWDB
+            TOT=TOT+WINORM*DREAL(DLWDB)
             WRITE(15,*) DLWDB
             IF(DETINV.EQ.III.AND.III.NE.0) THEN
                CALL FLUSH(15)
