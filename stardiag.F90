@@ -233,10 +233,8 @@
 !.. Call a routine to generate the value of the star
          WRITE(6,*) iExcit," excited determinants in star"
 
-!Set to true to graph various eigenvalues and eigenvectors of varying star matrices - should generally be false.
-         IF(.false.) THEN
-             CALL GraphRootChange(iMaxExcit,iExcit,RhoEps)
-         ENDIF
+!Routine for debugging/dev research to graph various eigenvalues and eigenvectors of varying star matrices - should generally be commented out.
+!         CALL GraphRootChange(iMaxExcit,iExcit,RhoEps)
 
          
 !If starprod is set, it means that one of a number of methods is used to attempt to indroduce quadruple excitations into the star in an approximate way to achieve size consistency for dissociation into two fragments.
@@ -605,10 +603,14 @@
 !A testing routine which writes out eigenvectors and values from various modified star matrices
         SUBROUTINE GraphRootChange(iMaxExcit,iExcit,RhoEps)
             IMPLICIT NONE
-            INTEGER :: iMaxExcit,iExcit,HalfiExcit,i,j,calcs,lowtoprint
+            INTEGER :: iMaxExcit,iExcit,HalfiExcit,i,j,calcs,lowtoprint,toprint,k
+            INTEGER :: NoDegens,iErr
+            INTEGER, ALLOCATABLE :: DegenPos(:)
+            LOGICAL :: degen
             REAL*8 :: r,gap,minimum,RhoEps
             REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:)
             TYPE(HElement) :: tmp(3)
+            TYPE(HElement), ALLOCATABLE :: TESTER(:)
 
             OPEN(48,FILE='FirstElemVecs',STATUS='UNKNOWN')
             OPEN(49,FILE='Vals',STATUS='UNKNOWN')
@@ -617,7 +619,7 @@
 !This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
             CALL SORT3RN(iMaxExcit+1,ExcitInfo(0:iMaxExcit,0),ExcitInfo(0:iMaxExcit,1),ExcitInfo(0:iMaxExcit,2),HElementSize)
 
-!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1
+!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1, and then in decending order.
             HalfiExcit=INT((iMaxExcit+1)/2)
             do i=1,HalfiExcit
                 tmp(1)=ExcitInfo((iMaxExcit+1)-i,0)
@@ -630,10 +632,59 @@
                 ExcitInfo(i-1,1)=tmp(2)
                 ExcitInfo(i-1,2)=tmp(3)
             enddo
-
+            
             IF(.not.(ExcitInfo(iExcit,0).agt.0.1d0)) STOP 'Reordering incorrect'
             WRITE(6,*) "Minimum rho_jj is :", ExcitInfo(iExcit,0)
 
+! Ensures that all determinants are non-degenerate - useful for testing
+!            do i=1,iExcit
+!                ExcitInfo(i,0)=HElement(exp(-0.0001*i))
+!            enddo
+
+!It is necessary to find the sets of degenerate rho_jj elements, in order to predict which are non-zero eigenvectors.
+!First, it is necessary to count the number of degenerate sets.
+            NoDegens=0
+            i=0
+            do while(i.lt.iExcit)
+                i=i+1
+                degen=.true.
+                do while((DREAL(ExcitInfo(i,0)).eq.DREAL(ExcitInfo(i+1,0))).and.(i.lt.iExcit))
+                    i=i+1
+                enddo
+                NoDegens=NoDegens+1
+            enddo
+            WRITE(6,*) "Number of degenerate sets of excited determinants = ", NoDegens
+            IF(NoDegens.gt.iExcit) THEN
+                STOP 'Cannot have more degenerate sets that excitations!'
+            ENDIF
+
+            ALLOCATE(DegenPos(NoDegens),stat=iErr)
+            CALL MemAlloc(iErr,DegenPos,NoDegens/2,"DegenPos")
+            CALL IAZZERO(DegenPos,NoDegens)
+!DegenPos shows the degeneracy structure of the excited determinants
+!Each degenerate block extends from DegenPos(i-1)+1 --> DegenPos(i)
+!DegenPos only refers to the excited determinants - the root is its own separate degenerate block
+!DegenPos(NoDegens) should equal iExcit
+            i=0
+            j=0
+            do while(i.lt.iExcit)
+                i=i+1
+                do while((DREAL(ExcitInfo(i,0)).eq.DREAL(ExcitInfo(i+1,0))).and.(i.lt.iExcit))
+                    i=i+1
+                enddo
+                j=j+1
+                DegenPos(j)=i
+!                WRITE(6,*) i
+            enddo
+!            WRITE(6,*) NoDegens,DegenPos(:)
+
+!            do i=1,iExcit+1
+!                WRITE(16,*) ExcitInfo(i-1,0),ExcitInfo(i-1,1)
+!            enddo
+            IF(DegenPos(NoDegens).ne.iExcit) THEN
+                STOP 'Final element of DegenPos should equal iExcit to account for all degeneracies'
+            ENDIF
+            
             ALLOCATE(Vals(iExcit+1))
             ALLOCATE(Vecs(iExcit+1))
             ALLOCATE(DiagRhos(iExcit+1))
@@ -641,38 +692,111 @@
             CALL AZZERO(Vecs,iExcit+1)
             CALL AZZERO(DiagRhos,iExcit+1)
 
-            calcs=60
-            minimum=1.D0-((1.D0-DREAL(ExcitInfo(iExcit,0)))*1.5)
+            calcs=100
+            minimum=1.D0-((1.D0-DREAL(ExcitInfo(iExcit,0)))*2)
             WRITE(6,*) "Minimum root value to search for is: ", minimum
-            gap=(1.D0-minimum)/calcs
-            lowtoprint=iExcit-4
             CALL FLUSH(6)
+            gap=(1.D0-minimum)/(calcs-1)
+            
+!This is the number of non-degenerate eigenvectors to print out.            
+            toprint=25
+            IF(toprint.gt.(NoDegens+1)) THEN
+                WRITE(6,*) 'Trying to print more eigenvectors than non-degenerate determinants'
+                WRITE(6,*) "Resetting number to print out to ",NoDegens+1
+                toprint=NoDegens+1
+            ENDIF
 
+!            ALLOCATE(TESTER(iExcit))
+!            do i=1,iExcit
+!                TESTER(i)=HElement(0.D0)
+!            enddo
+            
+            j=0
             do r=1,minimum,-gap
-
+                j=j+1
 !Fill matrix as normal, but change root element from 1 -> little lower than rho_jj
                 do i=2,iExcit+1
                     DiagRhos(i)=DREAL(ExcitInfo(i-1,0))
                 enddo
                 DiagRhos(1)=r
 
+                WRITE(6,*) "Running calculation ",j, "out of ",calcs
+                CALL FLUSH(6)
                 CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),Vals,Vecs)
-
+!                CALL GetValsnVecs(iExcit+1,DiagRhos,TESTER,Vals,Vecs)
+                
                 IF(r.eq.1.D0) THEN
-                    WRITE(6,"(A,F13.9)") "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
+                    WRITE(6,"(A,F15.11)") "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
                 ENDIF
 
+!                Write(6,*) Vals(1)
+
+!Just write out non-degenerate eigenvectors
                 WRITE(48,"(F11.7,$)") r
-                WRITE(48,"(6F13.9,$)") Vecs(lowtoprint:iExcit+1)
+                WRITE(48,"(F13.9,$)") Vecs(iExcit+1)
+                do i=2,toprint
+                    WRITE(48,"(F13.9,$)") Vecs(iExcit+1-DegenPos(i-1))
+                enddo
                 WRITE(48,*) ""
                 WRITE(49,"(F11.7,$)") r
-                WRITE(49,"(6F13.9,$)") Vals(lowtoprint:iExcit+1)
+                WRITE(49,"(F13.9,$)") Vals(iExcit+1)
+                do i=2,toprint
+                    WRITE(49,"(F13.9,$)") Vals(iExcit+1-DegenPos(i-1))
+                enddo
                 WRITE(49,*) ""
                 CALL FLUSH(48)
                 CALL FLUSH(49)
 
+!To write out all possible eigenvalues/vectors
+!                WRITE(48,"(F11.7,$)") r
+!                do i=1,iExcit+1
+!                    WRITE(48,"(F13.9,$)") Vecs(i)
+!                enddo
+!                WRITE(48,*) ""
+!                WRITE(49,"(F11.7,$)") r
+!                do i=1,iExcit+1
+!                    WRITE(49,"(F13.9,$)") Vals(i)
+!                enddo
+!                WRITE(49,*) ""
+!                CALL FLUSH(48)
+!                CALL FLUSH(49)
+
             enddo
 
+!Write out gnuscript for only non-degenerate eigenvectors
+            OPEN(26,FILE='PlotDegen.gpi',STATUS='UNKNOWN')
+            WRITE(26,*) "set key left"
+            WRITE(26,"(A,$)") "plot 'FirstElemVecs' u 1:(abs($2)) w lp t 'Vec 1', "
+            do i=2,toprint-1
+                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i+1,")) w lp t 'Vec",DegenPos(i-1)+1,"', "
+            enddo
+            WRITE(26,"(A,I3,A,I3,A)") "'' u 1:(abs($",toprint+1,")) w lp t 'Vec",DegenPos(toprint-1)+1,"'"
+            WRITE(26,*) "pause -1"
+            WRITE(26,"(A,$)") "plot 'Vals' u 1:(abs($2)) w lp t 'Val 1', "
+            do i=2,toprint-1
+                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i+1,")) w lp t 'Val",DegenPos(i-1)+1,"',"
+            enddo
+            WRITE(26,"(A,I3,A,I3,A)") "'' u 1:(abs($",toprint+1,")) w lp t 'Val",DegenPos(toprint-1)+1,"'"
+            CLOSE(26)
+!
+!Write out gnuscript for all eigenvectors
+!            OPEN(26,FILE='Plotall.gpi',STATUS='UNKNOWN')
+!            WRITE(26,*) "set key left"
+!            WRITE(26,"(A,I3,A,$)") "plot 'FirstElemVecs' u 1:(abs($",iExcit+2,")) w lp t 'Vector 1',"
+!            do i=iExcit+1,3,-1
+!                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i,")) w lp t 'Vec",iExcit+3-i,"', "
+!            enddo
+!            WRITE(26,"(A,I3,A)") "'' u 1:(abs($2)) w lp t 'Vec",iExcit+1,"'"
+!            WRITE(26,*) "pause -1"
+!            WRITE(26,"(A,I3,A,$)") "plot 'Vals' u 1:(abs($",iExcit+2,")) w lp t 'Val 1',"
+!            do i=iExcit+1,3,-1
+!                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i,")) w lp t 'Val",iExcit+3-i,"', "
+!            enddo
+!            WRITE(26,"(A,I3,A)") "'' u 1:(abs($2)) w lp t 'Val",iExcit+1,"'"
+!            CLOSE(26)
+
+            CALL MemDealloc(DegenPos)
+            DEALLOCATE(DegenPos)
             DEALLOCATE(Vals)
             DEALLOCATE(Vecs)
             DEALLOCATE(DiagRhos)
@@ -805,9 +929,10 @@
         SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
             USE Calc , only : LinePoints
             IMPLICIT NONE
-            INTEGER :: i,j,iMaxExcit,iExcit,iSub,nWHTay,HalfiExcit,ierr
+            INTEGER :: i,j,iMaxExcit,iExcit,iSub,nWHTay,HalfiExcit,ierr,lowerrhojj
             REAL*8 :: RhoEps,LineRhoValues(LinePoints),RhoValue,Vals(LinePoints),meanx,RhoGap,EigenMax
-            REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq
+            REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq,Vector,PreVec,lowrhojj
+            LOGICAL :: ReachMax
             REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
             TYPE(HElement) :: tmp(3)
 
@@ -846,7 +971,42 @@
 
 !ExcitInfo(iExcit,0) is the smallest rho_jj value.
             WRITE(6,*) "Smallest rho_jj value is ", DREAL(ExcitInfo(iExcit,0))
-            RhoGap=(1.D0-DREAL(ExcitInfo(iExcit,0)))/(LinePoints-1)
+
+!Calculate the number of eigenvectors which contribute to the excited star with the smallest root...
+!First calculate the contribution from largest eigenvector...
+            ALLOCATE(AllVals(iExcit+1),stat=ierr)
+            CALL MemAlloc(iErr,AllVals,iExcit+1,"AllVals")
+            ALLOCATE(AllVecs(iExcit+1),stat=ierr)
+            CALL MemAlloc(iErr,AllVecs,iExcit+1,"AllVecs")
+            ALLOCATE(DiagRhos(iExcit+1),stat=ierr)
+            CALL MemAlloc(iErr,DiagRhos,iExcit+1,"DiagRhos")
+            do j=2,iExcit+1
+                DiagRhos(j)=DREAL(ExcitInfo(j-1,0))
+            enddo
+            DiagRhos(1)=DREAL(ExcitInfo(iExcit,0))
+            CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),AllVals,AllVecs)
+            Vector=AllVecs(iExcit+1)
+            i=0
+            do while((Vector.gt.0.1).or..not.Reachmax)
+                i=i+1
+                PreVec=Vector
+                Vector=AllVecs(iExcit-(i-1))
+                IF(PreVec.lt.Vector) THEN
+!Largest contributing eigenvector has not yet been reached
+                    ReachMax=.false.
+                ELSE
+                    ReachMax=.true.
+                ENDIF
+            enddo
+
+            WRITE(6,*) i, "Eigenvectors needed to ensure complete contribution from smallest root excited star, with eigenvector cutoff of 0.1"
+            
+!Try fitting not accros whole range of rho_jj values, but just the highest values - closer linear relationship
+!            lowerrhojj=INT(iExcit/50)
+!            RhoGap=(1.D0-DREAL(ExcitInfo(lowerrhojj,0)))/(LinePoints-1)
+!Instead of fitting to a certain distance down the list of rho_jjs, pick a minimum rootchange value directly from the spread.
+             lowrhojj=1.D0-((1.D0-DREAL(ExcitInfo(iExcit,0)))/50)
+             RhoGap=(1.D0-lowrhojj)/(LinePoints-1)
 
 !Calculate the spread of Rho_jj values which the linear approximation will be based around. Initially, this is just a linear spread.
             do i=2,LinePoints
@@ -854,9 +1014,9 @@
             enddo
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
-            IF(ABS(LineRhoValues(LinePoints)-DREAL(ExcitInfo(iExcit,0))).gt.1.D-07) THEN
-                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
-            ENDIF
+!            IF(ABS(LineRhoValues(LinePoints)-DREAL(ExcitInfo(iExcit,0))).gt.1.D-09) THEN
+!                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
+!            ENDIF
             IF(.NOT.BTEST(NWHTAY,0)) THEN
                 ALLOCATE(AllVals(iExcit+1),stat=ierr)
                 CALL MemAlloc(iErr,AllVals,iExcit+1,"AllVals")
@@ -870,8 +1030,8 @@
                 
                 RhoValue=LineRhoValues(i)
 
-!                write(6,*) ""
-!                write(6,*) "Rho value: ", RhoValue
+                write(6,*) ""
+                write(6,*) "Rho value: ", RhoValue
 
 !This indicates that a full diagonalisation should be done to calculate eigenvalues.
                 IF(.NOT.BTEST(NWHTAY,0)) THEN
@@ -1458,10 +1618,13 @@
                 ALLOCATE(StarMat(Dimen,Dimen),stat=iErr)
                 CALL MemAlloc(iErr,StarMat,Dimen*Dimen,"StarMat")
                 CALL AZZERO(StarMat,Dimen*Dimen)
+                CALL AZZERO(Vals,Dimen)
+                CALL AZZERO(Vecs,Dimen)
 
                 do i=2,Dimen
                     StarMat(i,i)=DiagRhos(i)
                     StarMat(1,i)=OffDiagRhos(i)%v
+                    StarMat(i,1)=OffDiagRhos(i)%v
                 enddo
                 StarMat(1,1)=DiagRhos(1)
 
