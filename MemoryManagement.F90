@@ -82,23 +82,27 @@ contains
     integer(li), intent(in) :: MaxMemBytes
     character(len=*), parameter :: ThisRoutine = 'InitMemoryManager'
 
-    if (MaxMemBytes.le.0) then
-        write (6,*) 'Illegal maximum memory value passed to memorymanager.'
-        write (6,*) 'MaxMemgbytes = ',dfloat(MaxMemBytes)/(1024**2)
-        call internal_error(ThisRoutine,__LINE__,&
-           & 'Illegal maximum memory. Check MEMORY in your input file.')
-    endif
+    if (initialised) then
+        write (6,*) 'Already initialised memorymanager.  Not re-initialsing.'
+    else
+        if (MaxMemBytes.le.0) then
+            write (6,*) 'Illegal maximum memory value passed to memorymanager.'
+            write (6,*) 'MaxMemgbytes = ',dfloat(MaxMemBytes)/(1024**2)
+            call internal_error(ThisRoutine,__LINE__,&
+               & 'Illegal maximum memory. Check MEMORY in your input file.')
+        endif
 
-    MaxMemory = MaxMemBytes
-    MemoryUsed = 0
-    MemoryLeft = MaxMemory
-    MaxMemoryUsed = 0
-    initialised = .true.
-    nWarn = 0
-!   Deal with debug options at a later date.
-!   debug = gmemdebug
+        MaxMemory = MaxMemBytes
+        MemoryUsed = 0
+        MemoryLeft = MaxMemory
+        MaxMemoryUsed = 0
+        initialised = .true.
+        nWarn = 0
+!       Deal with debug options at a later date.
+!       debug = gmemdebug
 
-    write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',dfloat(MaxMemBytes)/(1024**2),' MB'
+        write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',dfloat(MaxMemBytes)/(1024**2),' MB'
+    end if
 
     return
     end subroutine InitMemoryManager
