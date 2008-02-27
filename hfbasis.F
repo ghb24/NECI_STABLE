@@ -372,6 +372,7 @@ C         EDELTA=1.D-8
          ELSEIF(IHFMETHOD.EQ.0) THEN
             WRITE(6,*) "Method 0:Linear Mixing"
          ENDIF
+         WRITE(6,*) "HF Mixing",HFMIX
          IF(NSPINS.EQ.2) THEN
             NELS(2)=(MS+NEL)/2
             NELS(1)=NEL-NELS(2)
@@ -406,7 +407,7 @@ C         EDELTA=1.D-8
          CALL DCOPY(NSBASIS*NSBASIS*NSPINS,DMAT,1,ODMAT,1)
          CALL DCOPY(NSBASIS*NSBASIS*NSPINS,FMAT,1,OFMAT,1)
 C.. Construct the Density Matrix
-         CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.)
+         CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.,ISS,G1)
 C.. See how much our density matrix has changed from last time
          RMSD=0.D0
          DO ISPN=1,NSPINS
@@ -421,7 +422,8 @@ C.. See how much our density matrix has changed from last time
 C.. replace our HF orbitals in FMAT with the Fock matrix
 C.. FMAT just stores the results and the HF orbitals (currently) in it
 C.. are not used in calculating the F matrix
-         CALL GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,TRHF)
+         CALL GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,TRHF,ISS,
+     &      G1)
          CALL DIAGFMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,HFES,WORK,
      &         ECORE,ECUR)
          IF(IRHFB.GT.0) THEN
@@ -474,12 +476,17 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          ENDDO
          RETURN
       END
-      SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS)
+      SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS,ISS,G1)
+         USE UMatCache, only: GetUMatEl
+         USE Logging, only: HFLogLevel
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DMAT(NSBASIS,NSBASIS,NSPINS)
          LOGICAL LTRANS
+         INTEGER ISS
+         INCLUDE 'basis.inc'
+         Type(BasisFN) G1(*)
 
          INTEGER ISPN,I,J,K
          REAL*8 TOT
@@ -502,23 +509,29 @@ C.. vector
                   DMAT(J,I,ISPN)=TOT
                ENDDO
             ENDDO 
+            IF(HFLogLevel.gt.0) 
+     &      CALL WRITE_MATRIX("DMAT",NSBASIS,NSBASIS,DMAT(1,1,ISPN))
          ENDDO
          RETURN
       END 
       SUBROUTINE GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
-     &                  TRHF)
-         USE UMatCache , only : UMatInd, GetTMATEl
+     &                  TRHF,ISS,G1)
+         USE UMatCache , only : GetTMATEl,GetUMatEl
+         USE Logging, only : HFLogLevel
          USE HElem
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,NBASISMAX(5,2)
-         REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
-         REAL*8 DMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
 !         REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
-         REAL*8 UMAT(*)
+         TYPE(HElement) UMAT(*),TOT
          INTEGER I,J,K,L,ISPN,ISPN2,ID1,ID2,ID3,ID4
-         REAL*8 TOT
+         REAL*8 ALAT(3)
          LOGICAL TRHF,TTRANS
          REAL*8 RHFMUL
+         INTEGER ISS
+         INCLUDE 'basis.inc'
+         Type(BasisFN) G1(*)
 C         IF(TRHF) THEN
 C            RHFMUL=2.D0
 C         ELSE
@@ -540,13 +553,13 @@ C.. Now sum in the alpha and beta block of u matrix
                         DO L=1,NSBASIS
                            CALL GTID(NBASISMAX,(K-1)*NSPINS+ISPN2,ID3)
                            CALL GTID(NBASISMAX,(L-1)*NSPINS+ISPN2,ID4)
-                           TOT=TOT+RHFMUL*
-     &                  DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID2,ID4,
-     &                               0,0))
+                           TOT=TOT+HElement(RHFMUL)*
+     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
+     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
                            IF(ISPN2.EQ.ISPN)
      &                        TOT=TOT-
-     &                  DMAT(K,L,ISPN2)*UMAT(UMatInd(ID1,ID3,ID4,ID2
-     &                                      ,0,0))
+     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,
+     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID4,ID2)
                         ENDDO
                      ENDDO
                   ENDDO
@@ -554,12 +567,15 @@ C.. Now sum in the alpha and beta block of u matrix
                   FMAT(J,I,ISPN)=TOT
                ENDDO
             ENDDO
+            IF(HFLogLevel.gt.0) 
+     &      CALL WRITE_MATRIX("FMAT",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
          ENDDO
          RETURN
       END
       SUBROUTINE DIAGFMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,HFES,WORK,
      &         ECORE,ECUR)
          USE UMatCache , only : GetTMatEl
+         USE Logging, only :HFLogLevel
          USE HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
@@ -596,6 +612,8 @@ C.. vector
                WRITE(6,*) 'DYSEV error: ',INFO
                STOP
             ENDIF
+            IF(HFLogLevel.gt.0) 
+     &      CALL WRITE_MATRIX("EIGVEC",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
          ENDDO
 C.. now calculate the sum of the occupied Fock orbitals
          TOT2=0.D0
@@ -1090,10 +1108,10 @@ C              WRITE(6,*)
             ELAST=ECUR
 
 C.. Construct the Density Matrix
-         CALL GENDMAT(NSPINS,NSBASIS,NELS,CMAT,DMAT,.TRUE.)
+         CALL GENDMAT(NSPINS,NSBASIS,NELS,CMAT,DMAT,.TRUE.,ISS,G1)
 C.. Use the Density Matrix to generate the Fock matrix (in DEDCIJ)
          CALL GENFMAT(DEDCIJ,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
-     &      TRHF)
+     &      TRHF,ISS,G1)
          CALL DIAGFMAT(NSPINS,NSBASIS,NELS,DEDCIJ,DMAT,HFES,WORK,
      &         ECORE,ECUR2)
 

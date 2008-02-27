@@ -458,6 +458,10 @@ MAXITERATIONS <NHFIT>
 MIX <HFMIX>
     Set the mixing parameter for each HF iteration.
 
+RAND <HFRAND>
+   Set the Max magnitude of the random numbers added to the starting density matrix.  Default 0.01.
+   Use to perturb away from an initially converged HF solution.
+
 THRESHOLD < ENERGY<HFEDELTA> ORBITAL<HFCDELTA> >
     Set the convergence threshold for the energy and/or the orbitals.
 
@@ -646,6 +650,9 @@ HFBASIS
 
 TIMING <iGlobalTimerLevel> (default 40)
    Timing information is only recorded for routines with level <=iGlobalTimerLevel.  <10 means general high level subroutines. >=50 means very low level.  Routines without a level are always timed (most of them).
+
+HFLOGLEVEL
+   Default 0.  If >0, print out density matrices, fock matrices and eigenvectors
 
 ENDLOG
     End of logging block.

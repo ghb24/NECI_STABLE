@@ -4,6 +4,7 @@
         IMPLICIT NONE
 
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
+        INTEGER HFLOGLEVEL
 
         contains
 
@@ -15,6 +16,7 @@
       !Logging defaults
       ILOGGING=0
       iGlobalTimerLevel=40
+      HFLOGLEVEL=0
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -99,6 +101,8 @@
               end do
           case("HFBASIS")
               ILOGGING = IOR(ILOGGING,2**11)
+          case("HFLOGLEVEL")
+              call geti(HFLOGLEVEL)
           case("ENDLOG")
               exit logging
           case default

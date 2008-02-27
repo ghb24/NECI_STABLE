@@ -21,6 +21,7 @@ C ==------------------------------------------------------------------==
       USE Calc , only : G_VMC_FAC,CHEMPOT,nActiveSpace
       USE System , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB,  &
      &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS
+      Use Integrals, only: HFRAND
       use MemoryManager, only: LeaveMemoryManager
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
@@ -771,7 +772,7 @@ C.. HF basis is NOT using the LMS value set in the input
             ELSEIF(THFCALC) THEN
               CALL CALCHFBASIS(NBASIS,ISPINSKIP,NBASISMAX,G1,ARR,BRR,
      &         ECORE,UMAT,HFE,HFBASIS,NHFIT,NEL,LMS,HFMIX,HFEDELTA,
-     &            HFCDELTA,TRHF,IHFMETHOD,TREADHF,0.01D0,FDET,ILOGGING)
+     &            HFCDELTA,TRHF,IHFMETHOD,TREADHF,HFRAND,FDET,ILOGGING)
                CALL SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
             ELSEIF(THFBASIS) THEN
                CALL READHFBASIS(HFBASIS,HFE,G1,NBASIS)

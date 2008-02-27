@@ -15,6 +15,7 @@
         
         REAL*8 NRCONV,RFCONV,ORBORDER2(8)
         REAL*8 HFMix,HFEDelta,HFCDelta
+        REAL*8 HFRand
 
         contains
 
@@ -60,6 +61,7 @@
       iDumpCacheFlag=0
       tReadInCache=.false.
       iDFMethod=0
+      HFRand=0.01
 
 !Feb 08 defaults
       IF(Feb08) THEN
@@ -132,6 +134,8 @@
               call geti(NHFIT)
           case("MIX")
               call getf(HFMIX)
+          case("RAND")
+              call getf(HFRAND)
           case("THRESHOLD")
               do while ( item .lt. nitems )
                 call readu(w)
