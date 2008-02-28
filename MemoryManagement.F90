@@ -278,7 +278,7 @@ contains
     integer(li) :: ObjectSizes(nLargeObjects+MaxLen)
     type(MemLogEl) :: AllMemEl(nLargeObjects+MaxLen)
     character(len=*), parameter :: memoryfile = 'TMPMemoryusage.dat'
-    character(len=*), parameter :: fmt1='(3a19,f8.1)'
+    character(len=*), parameter :: fmt1='(3a19)'
 
     if (MemoryUsed.eq.MaxMemoryUsed) then
         ! Peak memory usage is now.
@@ -305,7 +305,8 @@ contains
     iobj=iobjloc(1)
     ObjectSizes(iobj)=ObjectSizes(iobj)+1
     do i=2,min(nLargeObjects+1,ipos)
-        write (6,fmt1) ' '//AllMemEl(iobj)%ObjectName,AllMemEl(iobj)%AllocRoutine,AllMemEl(iobj)%DeallocRoutine,dfloat(AllMemEl(iobj)%ObjectSize)/1024**2
+        write (6,fmt1,advance='no') ' '//AllMemEl(iobj)%ObjectName,AllMemEl(iobj)%AllocRoutine,AllMemEl(iobj)%DeallocRoutine
+        call WriteMemSize(6,AllMemEl(iobj)%ObjectSize)
         iobjloc=maxloc(ObjectSizes,mask=ObjectSizes.lt.ObjectSizes(iobj))
         iobj=iobjloc(1)
         ObjectSizes(iobj)=ObjectSizes(iobj)+1
@@ -321,7 +322,8 @@ contains
         open(unit=iunit,file=memoryfile,form='formatted',status='unknown')
         call WriteMemLogHeader(iunit)
         do iobj = 1, min(ipos,MaxLen)
-            write (iunit,fmt1) ' '//MemLog(iobj)%ObjectName,MemLog(iobj)%AllocRoutine,MemLog(iobj)%DeallocRoutine,dfloat(MemLog(iobj)%ObjectSize)/1024**2
+            write (iunit,fmt1) ' '//MemLog(iobj)%ObjectName,MemLog(iobj)%AllocRoutine,MemLog(iobj)%DeallocRoutine
+            call WriteMemSize(iunit,AllMemEl(iobj)%ObjectSize)
         enddo
         if (warned) then
             write (iunit,*) '== NOTE: Length of logging arrays exceeded. Length needed is ',ipos
@@ -351,10 +353,32 @@ contains
         write (iunit,*) 'Large memory allocations:'
         write (iunit,*) ''
     end if
-    write (iunit,*) 'Name              Allocated in       Deallocated in     Size(MB)'
+    write (iunit,*) 'Name              Allocated in       Deallocated in         Size'
     write (iunit,*) '----------------------------------------------------------------'
     return
     end subroutine WriteMemLogHeader
+
+
+
+    subroutine WriteMemSize(iunit,MemSize)
+    ! Write out a human-readable amount of memory.  MemSize is in bytes.
+    implicit none
+    integer, intent(in) :: iunit
+    integer(li), intent(in) :: MemSize
+    character(len=*), parameter :: fmt1='(f6.1,a2)'
+    character(len=*), parameter :: fmt2='(i7,a1)'
+    if (MemSize.gt.1024**2) then
+        ! output in MB.
+        write (iunit,fmt1) dfloat(MemSize/1024**2),'MB'
+    else if (MemSize.gt.1024) then
+        ! output in KB.
+        write (iunit,fmt1) dfloat(MemSize/1024),'KB'
+    else
+        ! output in bytes.
+        write (iunit,fmt2) MemSize,'B'
+    end if
+    return
+    end subroutine WriteMemSize
 
 
 
