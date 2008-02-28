@@ -358,7 +358,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER nBasis,iSS
          INTEGER iPairs,nBi,nEl,noccup
-         INTEGER*8 :: iSize
+         INTEGER :: iSize
          nBi=nBasis/iSS
          IF(TSTARSTORE) THEN
             IF(MOD(nel,2).ne.0) THEN
@@ -421,7 +421,7 @@ MODULE UMatCache
         include 'cpmddata.inc'
         include 'sym.inc'
          integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
-        integer*8 iSize
+        integer iSize
         
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
@@ -613,7 +613,7 @@ MODULE UMatCache
         include 'cpmddata.inc'
         include 'sym.inc'
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
-        integer*8 iSize
+        integer iSize
         
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient

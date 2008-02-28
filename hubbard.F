@@ -96,7 +96,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          REAL*8 BHUB
-         INTEGER*8 iSize
+         INTEGER iSize
          INTEGER I,J
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
