@@ -47,7 +47,6 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 FNCR,GETNLOOPS,DBETA
          INTEGER KSYM(5),IEXCITS,ITIME
          TYPE(HDElement) FMCPR4
-         INTEGER FSEEK
          INTEGER EXCITGEN(0:I_VMAX) 
          TYPE(HDElement) FMCPR4B,FMCPR4C,FMCPR4D2
          TYPE(HDElement) FMCPR4D3
@@ -84,7 +83,8 @@ C.. do some blocking analysis
          IF(TLOG.AND.I_VMIN.EQ.0) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
 C.. go to end of file
-            I=FSEEK(11,0,2)
+            ENDFILE(11)
+!            I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
          IF(BTEST(ILOGGING,2))

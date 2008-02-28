@@ -6,7 +6,7 @@
       INTEGER NDET1(NEL),NDET2(NEL)
       INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(*)
-      INTEGER NBASISMAX(5,2)
+      INTEGER NBASISMAX(5,3)
       INTEGER ID,EX(2)
       TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)

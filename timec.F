@@ -31,7 +31,7 @@ C     ==--------------------------------------------------------------==
       TIMEC=D*1000.D0
 #elif defined(__alpha) || defined(__SUN)
       REAL*4 ETIME,TARRAY(2),D
-      EXTERNAL ETIME
+!      EXTERNAL ETIME
 C     ==--------------------------------------------------------------==
       D=ETIME(TARRAY)
       TIMEC = DBLE(TARRAY(1))*1000.D0

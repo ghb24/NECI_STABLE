@@ -918,6 +918,61 @@ MAXMEM := 1024 # RAM available, in MB.
      fi
      ;;
 
+   "ppc-gfortran/32")
+     IRAT=2
+     CPP='cpp -P -C -traditional'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)" -DGFORTRAN'
+     NCPUS=1
+     #-sb is to use Workshop package
+     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
+     LFLAGS='-L/Users/athom/QC_EXT_LIBS/MAC_GX/fftw/lib -lfftw -framework vecLib'
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     PreprocSep=""
+     if [ $debug ]; then
+       FC='gfortran -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='gfortran -g'
+       FCD='gfortran -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     else
+       FC='gfortran -c -O4 -fast'
+       CC='cc -O'
+       LD='gfortran -O4'
+       FCD='gfortran -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     fi
+     ;;
+
+   "PowerPC-xlf/32")
+     IRAT=2
+     CPP='cpp -P -C -traditional'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     NCPUS=1
+     #-sb is to use Workshop package
+     FFLAGS='-fcray-pointer -ffree-line-length-none'
+     FNEWFLAGS='-qfixed'
+     F90FLAGS='-qsuffix=f=f90'
+     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pc-cygwin/3.4.4/libg2c.a' 
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     if [ $debug ]; then
+       FC='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g'
+       FCD='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g'
+     else
+       FC='/opt/ibmcmp/xlf/8.1/bin/xlf90 '
+       CC='cc -O'
+       LD='/opt/ibmcmp/xlf/8.1/bin/xlf90 '
+       FCD='/opt/ibmcmp/xlf/8.1/bin/xlf90 '
+       CCD='cc -g -sb -C -errtags'
+       LDD='/opt/ibmcmp/xlf/8.1/bin/xlf90 '
+     fi
+     ;;
+
 
   "PC-ABSOFT")
      IRAT=2
@@ -1031,6 +1086,8 @@ SRC  = .
 DEST = ${DEST}
 BIN  = .
 FFLAGS = ${FFLAGS}
+FNEWFLAGS = ${FNEWFLAGS}
+F90FLAGS = ${F90FLAGS}
 LFLAGS = ${LFLAGS}
 LDFLAGS = ${LDFLAGS}
 CFLAGS = ${CFLAGS}
@@ -1182,7 +1239,7 @@ clean :
 neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
 	 rm -f neci.x
 	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/neci.x neci.x; fi
 	 \$(LD) -o \$(BIN)/neci.x necimain.o timetag.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
@@ -1190,7 +1247,7 @@ neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS) \$(OBJ_CC)
 neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
 	 \$(LD) \$(LDFLAGS) -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 objcopy --keep-global-symbols=\$(SRC)/GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
 
@@ -1217,7 +1274,7 @@ lib : \$(OBJ_LIB)
 	rm -f \$@
 	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f90=.F90) \$(DEST)/\$@
 .f.o :
-	\$(FC) \$(FFLAGS) \$< 
+	\$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$< 
 .f90.o :
 	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<
 
@@ -1225,10 +1282,10 @@ lib : \$(OBJ_LIB)
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
 
 util-sp.o :
-	\$(FCD) \$(FFLAGS) \$(DEST)/util-sp.f
+	\$(FCD) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/util-sp.f
 
 %.mod :
-	\$(FC) \$(FFLAGS) \$< 
+	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$< 
 
 #----------------------------------------------------------------------------
 
@@ -1241,6 +1298,7 @@ cat << END >&3
 #----------------------------------------------------------------------------
 # Compile neci.x
 #----------------------------------------------------------------------------
+#MAIN_OBJS=necimain.o
 DOBJECTS = \$(patsubst %,\$(DEST)/%,\$(OBJECTS))
 DOBJECTSF90 = \$(patsubst %,\$(DEST)/%,\$(OBJECTSF90))
 DOBJECTSF = \$(patsubst %,\$(DEST)/%,\$(OBJECTSF))

@@ -772,7 +772,7 @@ end subroutine getunit
 #if (SGI) || (RS6K) || (IBM32) || (IBM64)
     my_cpu_time = float(mclock())*1.0E-2
 #endif
-#if (IFC) || (IFORT) || (LAHEY) || (PGF90) || (G95)
+#if (IFC) || (IFORT) || (LAHEY) || (PGF90) || (G95) || (GFORTRAN)
     call cpu_time(cputime)
     my_cpu_time = cputime
 #endif

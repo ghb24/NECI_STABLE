@@ -102,25 +102,25 @@ MODULE HElem
       CONTAINS
 
       SUBROUTINE HElemFromVal(h,v)
-         TYPE(HElement) h
-         REAL*8  v
+         TYPE(HElement), intent(out) :: h
+         REAL*8, intent(in) :: v
          h%v=v
          RETURN
       END SUBROUTINE
       SUBROUTINE HElemFromZVal(h,z)
-         TYPE(HElement) h
-         COMPLEX*16  z
+         TYPE(HElement), intent(out) :: h
+         COMPLEX*16, intent(in) ::  z
          h%v=z
          RETURN
       END SUBROUTINE
       SUBROUTINE HElemFromHDElem(h,h2)
-         TYPE(HElement) h
-         TYPE(HDElement) h2
+         TYPE(HElement), intent(out) :: h
+         TYPE(HDElement), intent(in) ::  h2
          h%v=h2%v
          RETURN
       END SUBROUTINE
       TYPE(HElement) FUNCTION HElemAdd(h1,h2)
-         TYPE(HElement) h1,h2
+         TYPE(HElement), intent(in) :: h1,h2
          HElemAdd%v=h1%v+h2%v
          RETURN
       END FUNCTION

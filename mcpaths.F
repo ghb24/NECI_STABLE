@@ -41,7 +41,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          COMPLEX*16 FCK(*)
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
-         INTEGER FSEEK,L,LT,ITIME,K,J
+         INTEGER L,LT,ITIME,K,J
          REAL*8 BETA,ECORE,TIMEC
          TYPE(HDElement) WLRI,WLSI,FMCPR3
          TYPE(HElement) UMat(*),RH
@@ -100,7 +100,8 @@ C.. This will store the MP2 energy
          IF(TLOG) THEN
             OPEN(11,FILE="MCSUMMARY",STATUS="OLD")
 C.. go to end of file
-            I=FSEEK(11,0,2)
+            ENDFILE(11)
+!            I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
@@ -439,7 +440,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          TYPE(HElement) UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY,ILOGGING,ISUB,I,I_V,ISUB2
-         INTEGER FSEEK,L,LT,ITIME,K
+         INTEGER L,LT,ITIME,K
          REAL*8 BETA,ECORE,TIMEC
          REAL*8 TIGET
          TYPE(HDElement) WLRI,WLSI,FMCPR3
@@ -544,7 +545,8 @@ C.. Pick graphs which may not contain distinct vertices
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
 C.. go to end of file
-            I=FSEEK(11,0,2)
+            ENDFILE(11)
+!            I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
          IF(BTEST(ILOGGING,0)) THEN
