@@ -2,13 +2,6 @@
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
 ! written by Alston Misquitta, with permission.
 
-! To do:
-!   TICK   Peak memory table.
-!   TICK   Large memory table.
-!   TICK   Have log as a cache (psuedo-LIFO): only store active allocations.
-!   TICK   Debug option: store as much as the cache can hold.
-!   TICK   Optional argument: calls from a routine to be counted.
-
 ! Log memory usage in one of two ways:
 !   1. Store everything.  The size of the log (MaxLen) had best be suitably large.
 !   2. Store active allocations.  When the top most slot in use in the log is
@@ -54,6 +47,8 @@ integer, parameter :: nLargeObjects = 10 ! maximum number of the largest memory 
 integer, save :: nWarn = 0
 logical, save :: debug = .false.
 logical, save :: CachingMemLog = .true. ! See above for how MemLog is used.
+logical, save :: MemUnitsBytes = .true. ! If true, then output object size in bytes/KB/MB.
+                                        ! If false, then output in words.
 
 ! Log of memory allocations.
 integer, parameter :: MaxLen = 5000
@@ -367,15 +362,19 @@ contains
     integer(li), intent(in) :: MemSize
     character(len=*), parameter :: fmt1='(f6.1,a2)'
     character(len=*), parameter :: fmt2='(i7,a1)'
-    if (MemSize.gt.1024**2) then
-        ! output in MB.
-        write (iunit,fmt1) dfloat(MemSize/1024**2),'MB'
-    else if (MemSize.gt.1024) then
-        ! output in KB.
-        write (iunit,fmt1) dfloat(MemSize/1024),'KB'
+    if (MemUnitsBytes) then
+        if (MemSize.gt.1024**2) then
+            ! output in MB.
+            write (iunit,fmt1) dfloat(MemSize/1024**2),'MB'
+        else if (MemSize.gt.1024) then
+            ! output in KB.
+            write (iunit,fmt1) dfloat(MemSize/1024),'KB'
+        else
+            ! output in bytes.
+            write (iunit,fmt2) MemSize,'B'
+        end if
     else
-        ! output in bytes.
-        write (iunit,fmt2) MemSize,'B'
+        write (iunit,fmt2) MemSize/8,'W'
     end if
     return
     end subroutine WriteMemSize
