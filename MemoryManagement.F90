@@ -365,10 +365,10 @@ contains
     if (MemUnitsBytes) then
         if (MemSize.gt.1024**2) then
             ! output in MB.
-            write (iunit,fmt1) dfloat(MemSize/1024**2),'MB'
+            write (iunit,fmt1) dfloat(MemSize)/1024**2,'MB'
         else if (MemSize.gt.1024) then
             ! output in KB.
-            write (iunit,fmt1) dfloat(MemSize/1024),'KB'
+            write (iunit,fmt1) dfloat(MemSize)/1024,'KB'
         else
             ! output in bytes.
             write (iunit,fmt2) MemSize,'B'
