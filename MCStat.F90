@@ -693,16 +693,16 @@ MODULE MCStat
             iC=HDElement(M%nGraphs(0))
             Call GetStats(M,0,wAvgWeighting,wAvgWeightedValue,wAvgDelta)
             WRITE(iUnit,"(I12,2G25.16,F19.7,2I12,G25.12)") ,M%iVMax,wAvgWeighting,wAvgWeighting+OW,Time,M%nGraphs(0),M%nGraphs(0)-M%nGraphs(1),wAvgWeightedValue
-            WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I)"
+            WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"I10)"
             WRITE(iUnit,STR2) "GRAPHS(V)",(M%nGraphs(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "TREES(V)",(M%nTrees(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "NON-TR+(V)",(M%nNonTreesPos(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "NON-TR-(V)",(M%nNonTreesNeg(I),I=0,M%iVMax)
-            WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"G)"
+            WRITE(STR2,"(A,I5,A)") "(A,",M%iVMax+1,"G25.16)"
             WRITE(iUnit,STR2) "WGHTT(V)",(M%wTrees(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "WGHT+(V)",(M%wNonTreesPos(I),I=0,M%iVMax)
             WRITE(iUnit,STR2) "WGHT-(V)",(M%wNonTreesNeg(I),I=0,M%iVMax)
-            WRITE(STR2,"(A,I5,A)") "(A,I2,",M%iVMax,"I)"
+            WRITE(STR2,"(A,I5,A)") "(A,I2,",M%iVMax,"I10)"
             DO J=1,M%iVMax
                WRITE(iUnit,STR2) "GEN->",J,(M%nGen(I,J),I=1,M%iVMax)
             ENDDO

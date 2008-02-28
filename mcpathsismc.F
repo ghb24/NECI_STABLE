@@ -184,6 +184,9 @@ C.. Count the excitations (and generate a random one which we throw)
                I_VM1=I_VMIN
                I_VM2=I_VMIN
                I_OVCUR=1
+            ELSE
+!This needs to be initialized somewhere, and here seems as good a place as any
+                 I_OVCUR=0
             ENDIF
             VEXCITS(0)=IP_NMEM
          ENDIF
