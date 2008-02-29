@@ -46,6 +46,7 @@ C!!!      CALL RLUXUT(ISVEC)    outputs the current values of the 25 ++
 C!!!                 32-bit integer seeds, to be used for restarting ++
 C!!!      ISVEC must be dimensioned 25 in the calling program        ++
 C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+      IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION RVEC(LENV)
       DIMENSION SEEDS(24), ISEEDS(24), ISDEXT(25)
       PARAMETER (MAXLEV=4, LXDFLT=3)
