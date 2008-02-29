@@ -10,8 +10,8 @@ C     ==--------------------------------------------------------------==
       REAL*8    ZFIRST,ZLAST
 C     PARAMETER (ZFIRST=Z'EFFFFFFFFFFFFFFF')
 C     PARAMETER (ZLAST=Z'0FFFFFFFFFFFFFFF')
-      PARAMETER (ZFIRST=1234567890.1234567E0)
-      PARAMETER (ZLAST=9876543210.9876543E0)
+      PARAMETER (ZFIRST=1234567890.1234567D0)
+      PARAMETER (ZLAST=9876543210.9876543D0)
 C     ==--------------------------------------------------------------==
 C     == I_LEN   LENGTH          FOR EACH ALLOCATED ARRAY             ==
 C     == I_AD1   INITIAL ADDRESS FOR EACH ALLOCATED ARRAY             ==

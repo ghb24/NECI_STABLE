@@ -88,10 +88,10 @@ MODULE SymExcit2
             ICC2=ICC1+1
             ICC3=SymStatePairs(2,K)*2-1
             ICC4=ICC3+1
-            L1B=BTEST(ILUT(ICC1/32),MOD(ICC1,32)-1)
-            L1A=BTEST(ILUT(ICC2/32),MOD(ICC2,32)-1)
-            L2B=BTEST(ILUT(ICC3/32),MOD(ICC3,32)-1)
-            L2A=BTEST(ILUT(ICC4/32),MOD(ICC4,32)-1)
+            L1B=BTEST(ILUT((ICC1-1)/32),MOD(ICC1-1,32))
+            L1A=BTEST(ILUT((ICC2-1)/32),MOD(ICC2-1,32))
+            L2B=BTEST(ILUT((ICC3-1)/32),MOD(ICC3-1,32))
+            L2A=BTEST(ILUT((ICC4-1)/32),MOD(ICC4-1,32))
 !.. L1B is set if the beta of the first virtual is in NI, i.e. is disallowed
             IF(ISPN.EQ.1) THEN
 !.. If both virtuals aren't the samem and neither are in NI, then allow

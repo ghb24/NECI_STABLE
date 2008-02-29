@@ -291,11 +291,11 @@ C.. We first create a quick lookup table to enable us to quickly check whether a
 C.. in order 1, not order NEL.
          CALL IAZZERO(ILUT,NBASIS/32+1)
          DO I=1,NEL
-            ILUT(NI(I)/32)=IBSET(ILUT(NI(I)/32),MOD(NI(I),32)-1)
+            ILUT((NI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
          ENDDO
-C         DO I=0,NBASIS/32
-C            WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
-C         ENDDO
+!         DO I=0,NBASIS/32
+!            WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
+!         ENDDO
 C.. Now look through the list of our pairs.  For each pair sym of the complete list which has a 
 C.. symmetric product with any of our pair syms, we work out how many allowed pairs there are in
 C.. the complete list, and store that value in NALLOWPPS
@@ -335,14 +335,14 @@ C.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
                         ICC2=ICC1+1
                         ICC3=SymStatePairs(2,K)*2-1
                         ICC4=ICC3+1
-                        L1B=.NOT.BTEST(ILUT(ICC1/32),
-     &                        MOD(ICC1,32)-1)
-                        L1A=.NOT.BTEST(ILUT(ICC2/32),
-     &                        MOD(ICC2,32)-1)
-                        L2B=.NOT.BTEST(ILUT(ICC3/32),
-     &                        MOD(ICC3,32)-1)
-                        L2A=.NOT.BTEST(ILUT(ICC4/32),
-     &                        MOD(ICC4,32)-1)
+                        L1B=.NOT.BTEST(ILUT((ICC1-1)/32),
+     &                        MOD(ICC1-1,32))
+                        L1A=.NOT.BTEST(ILUT((ICC2-1)/32),
+     &                        MOD(ICC2-1,32))
+                        L2B=.NOT.BTEST(ILUT((ICC3-1)/32),
+     &                        MOD(ICC3-1,32))
+                        L2A=.NOT.BTEST(ILUT((ICC4-1)/32),
+     &                        MOD(ICC4-1,32))
 C.. L1B is set if the beta of the first virtual is not in NI, i.e. is allowed
 !  NALLOWPPS is the number of ALLOWED virtuals
                         IF(ICC1.EQ.ICC3) THEN
@@ -700,14 +700,14 @@ C.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
 C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
 C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
 C                     WRITE(6,*) ISPN,ICC1,ICC3
-                     L1B=BTEST(ILUT(ICC1/32),
-     &                     MOD(ICC1,32)-1)
-                     L1A=BTEST(ILUT(ICC2/32),
-     &                     MOD(ICC2,32)-1)
-                     L2B=BTEST(ILUT(ICC3/32),
-     &                     MOD(ICC3,32)-1)
-                     L2A=BTEST(ILUT(ICC4/32),
-     &                     MOD(ICC4,32)-1)
+                     L1B=BTEST(ILUT((ICC1-1)/32),
+     &                     MOD(ICC1-1,32))
+                     L1A=BTEST(ILUT((ICC2-1)/32),
+     &                     MOD(ICC2-1,32))
+                     L2B=BTEST(ILUT((ICC3-1)/32),
+     &                     MOD(ICC3-1,32))
+                     L2A=BTEST(ILUT((ICC4-1)/32),
+     &                     MOD(ICC4-1,32))
 C                     WRITE(6,*) L1B,L1A,L2B,L2A
 C.. L1B is set if the beta of the first virtual is in NI, i.e. is disallowed
                      IF(ISPN.EQ.1) THEN
@@ -980,6 +980,8 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER ILUT(0:*)
       INTEGER SYMPRODIND(2,3,0:*)
       INTEGER IC
+      LOGICAL tDebugPrint
+      tDebugPrint=.false. 
 
       DO WHILE(.TRUE.)
 C.. see if we need a new EXCIT
@@ -1000,6 +1002,9 @@ C.. a single
                K=SYMLABELCOUNTS(2,ITO)
                J=0
                I=0
+               IF(tDebugPrint)
+     &         WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
+     &            IFROM)
             ELSE
 C.. a double
                ISPN=EXCITTYPES(2,IEXCIT)
@@ -1008,8 +1013,9 @@ C.. a double
                I=0
                L=5
                K=-2
-!              WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
-!     &            IFROM)
+               IF(tDebugPrint)
+     &         WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
+     &            IFROM)
             ENDIF
          ENDIF
          IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
@@ -1081,6 +1087,8 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
                STOP 'tStoreAsExcitations not tested for singles.'
             ELSE
                CALL ICOPY(NEL,NI,1,NK,1)
+               IF(tDebugPrint)
+     &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
                NK(I)=ITOSL
                CALL SORTI(NEL,NK)
                IC=1
@@ -1117,14 +1125,14 @@ C.. We've got a new K, so we need to reset some variables
 C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
 C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
 C                     WRITE(6,*) ISPN,ICC(1),ICC(3)
-               LS(1,1)=BTEST(ILUT(ICC(1)/32),
-     &                     MOD(ICC(1),32)-1)
-               LS(1,2)=BTEST(ILUT(ICC(2)/32),
-     &                     MOD(ICC(2),32)-1)
-               LS(2,1)=BTEST(ILUT(ICC(3)/32),
-     &                     MOD(ICC(3),32)-1)
-               LS(2,2)=BTEST(ILUT(ICC(4)/32),
-     &                     MOD(ICC(4),32)-1)
+               LS(1,1)=BTEST(ILUT((ICC(1)-1)/32),
+     &                     MOD(ICC(1)-1,32))
+               LS(1,2)=BTEST(ILUT((ICC(2)-1)/32),
+     &                     MOD(ICC(2)-1,32))
+               LS(2,1)=BTEST(ILUT((ICC(3)-1)/32),
+     &                     MOD(ICC(3)-1,32))
+               LS(2,2)=BTEST(ILUT((ICC(4)-1)/32),
+     &                     MOD(ICC(4)-1,32))
             ENDIF
 C.. Now check for an excitation
             IF(L.EQ.1) THEN
@@ -1145,10 +1153,14 @@ C.. Now check for an excitation
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
                            NK(J)=ICC(1)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
                            NK(J)=ICC(3)
                         ENDIF
                      ENDDO
@@ -1178,10 +1190,14 @@ C.. If neither virtuals are in NI, then allow
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
                            NK(J)=ICC(1)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
                            NK(J)=ICC(4)
                         ENDIF
                      ENDDO
@@ -1213,10 +1229,14 @@ C.. us the same excitation as previously), then allow
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
                            NK(J)=ICC(2)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
                            NK(J)=ICC(3)
                         ENDIF
                      ENDDO
@@ -1247,10 +1267,14 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
                            NK(J)=ICC(2)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
                            NK(J)=ICC(4)
                         ENDIF
                      ENDDO

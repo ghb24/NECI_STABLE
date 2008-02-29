@@ -471,9 +471,11 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDELement) MP2E(2:I_VMAX),H00,FF
          REAL*8 NTOTAL
          TYPE(HDElement) FMCPR3STAR,FMCPR3B2
+! Init the weight of the 1-v graph
+         WLSI=1.D0
 
-C.. This is where we will store the MP2 energy
          TPREVAR=.FALSE.
+C.. This is where we will store the MP2 energy
          DO I=2,I_VMAX
             MP2E(I)=0.D0
             
