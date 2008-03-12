@@ -22,7 +22,7 @@ MODULE SymExcit2
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER ExcitType(5)
-         INTEGER nBasis,nBasisMax(*)
+         INTEGER nBasis,nBasisMax(5,3)
          INTEGER OrbPairs(2,*)
          REAL*8 Norm
          INTEGER iCount
@@ -69,7 +69,7 @@ MODULE SymExcit2
          INTEGER iCount
          INTEGER iFromIndex
          LOGICAL L1B,L1A,L2B,L2A
-         INTEGER NBASISMAX(*)
+         INTEGER NBASISMAX(5,3)
          TYPE(BasisFN) G1(*)
          TYPE(HElement) UMAT(*)
          REAL*8 Norm
@@ -142,7 +142,7 @@ MODULE SymExcit2
          USE HElem
          INTEGER I,J,A,B
          REAL*8 R,Norm
-         INTEGER NBASISMAX(*),NBASIS
+         INTEGER NBASISMAX(5,3),NBASIS
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          TYPE(HElement) UMAT(*)
@@ -165,7 +165,7 @@ MODULE SymExcit2
          USE HElem
          INTEGER I,J,A,B
          REAL*8 R,Norm
-         INTEGER nBasisMax(*),nBasis
+         INTEGER nBasisMax(5,3),nBasis
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          TYPE(HElement) UMat(*)
@@ -303,7 +303,7 @@ MODULE SymExcit2
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL SYMEQ
-         INTEGER nBasisMax(*)
+         INTEGER nBasisMax(5,3)
          TYPE(HElement) UMat(*)
          TYPE(ExcitWeight) ews(*)
          POINTER(IP_ews,ews)
@@ -419,7 +419,7 @@ MODULE SymExcit2
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL SYMEQ
-         INTEGER nBasisMax(*)
+         INTEGER nBasisMax(5,3)
          TYPE(ExcitWeight) ews(*)
          POINTER(IP_ews,ews)
          INTEGER iLUT(*)

@@ -320,6 +320,8 @@ C.. remove Ms value, as this is dealt with in csfgencsfs
                KSYM%MS=0
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM))
 C.. go and create a set of CSFs from these electrons
+!   Warning: code divergence has meant this hasn't been tested in a long
+!   time.  At the very least, the number of arguments is wrong. (JSS)
      &           CALL CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
      &            TSPN,SFORCE,SZFORCE)
             ENDIF
@@ -821,7 +823,7 @@ C.. Get the Hamiltonian Element between two CSFs
          REAL*8 ALAT(*)
          TYPE(HElement) UMat(*)
          COMPLEX*16 FCK(*)
-         INTEGER NEL,NCI(NEL),NCJ(NEL),NBASISMAX(5,2)
+         INTEGER NEL,NCI(NEL),NCJ(NEL),NBASISMAX(5,5)
          TYPE(HElement) SUM,SUM2,HEL
          REAL*8 ECORE
          

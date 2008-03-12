@@ -213,10 +213,12 @@ C..M = NDET
 C..N = NEVAL
       DIMENSION A(M,N)
       LOGICAL TSYM 
+      integer iseed
+      iseed=1
       IF(TSYM) THEN 
         DO I=1,N
           DO J=I,M 
-            A(J,I)=RAND()
+            A(J,I)=RAN2(iseed)
             A(I,J)=A(J,I)
           ENDDO
         ENDDO
@@ -230,7 +232,7 @@ C              ELSE
 C               A(J,I)=0.D0
 C              ENDIF
 C            ENDIF
-            A(J,I)=RAND()
+            A(J,I)=RAN2(iseed)
           ENDDO
         ENDDO
       ENDIF

@@ -10,8 +10,8 @@ C.. Setup for symmetry routine below.
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INCLUDE 'sym.inc'
-         INTEGER NEL,NI(NEL)
-         INTEGER G1(*),NBASISMAX(*),NBASIS
+         INTEGER NEL,NI(NEL),NBASIS
+         INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
          INTEGER*8 STORE(6)
@@ -47,9 +47,9 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INCLUDE 'irat.inc'
-         INTEGER NEL,NI(NEL)
+         INTEGER NEL,NI(NEL),NBASIS
          TYPE(BasisFN) G1(nBasis)
-         INTEGER NBASISMAX(*),NBASIS
+         INTEGER NBASISMAX(5,3)
          LOGICAL TCOUNT
          INTEGER*8 STORE(*)
 
@@ -538,7 +538,7 @@ C..      ENDIF(.NOT.TCOUNT)
       SUBROUTINE SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,LSTE,
      &   ICLIST,ICOUNT)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,G1(*),NBASIS,NBASISMAX(*)
+         INTEGER NBASIS,NEL,NI(NEL),G1(nBasis),NBASISMAX(*)
          INCLUDE 'sym.inc'
          INTEGER*8 STORE(6)
          INTEGER ORBPAIRS(2,*)
@@ -828,8 +828,8 @@ C.. to actually generate the excitations
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INCLUDE 'sym.inc'
-         INTEGER NEL,NI(NEL)
-         INTEGER G1(*),NBASISMAX(*),NBASIS
+         INTEGER NEL,NI(NEL),NBASIS
+         INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
 !  STORE contains lengths of various components of the excitation generator
@@ -946,7 +946,7 @@ C            ENDIF
       SUBROUTINE RESETEXIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &            NMEM,IFRZ)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,G1(*),NBASIS,NBASISMAX(*)
+         INTEGER NI(NEL),NEL,NBASIS,G1(nBasis),NBASISMAX(*)
          INTEGER NMEM(*),IFRZ(*)
          CALL IAZZERO(NMEM,22)
          NMEM(11)=-1
@@ -1296,8 +1296,8 @@ C.. before this.
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INCLUDE 'sym.inc'
-         INTEGER NEL,NI(NEL)
-         INTEGER G1(*),NBASISMAX(*),NBASIS
+         INTEGER NEL,NI(NEL),NBASIS
+         INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
          INTEGER STORE(6),ICOUNT
@@ -1365,8 +1365,8 @@ C.. Actually generate a det
          INTEGER ICC1,ICC2,ICC3,ICC4
          LOGICAL L1B,L1A,L2B,L2A
       LOGICAL ISVALIDDET
-      TYPE(BasisFN) G1(*)
-      INTEGER NBASISMAX(*)
+      TYPE(BasisFN) G1(nBasis)
+      INTEGER NBASISMAX(5,3)
       TYPE(HElement) UMAT(*)
       REAL*8 RCOUNT,R
       REAL*8 PGEN
@@ -1560,7 +1560,7 @@ C.. Actually generate a det
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
-         TYPE(BasisFN) G1(*) 
+         TYPE(BasisFN) G1(nBasis) 
          INTEGER DStore(*)
 #ifdef POINTER8
          INTEGER*8 GET_ADDR
@@ -1585,9 +1585,9 @@ C.. Actually generate a det
          USE symexcit2
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
-         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,3)
          INTEGER ExcitTypes(5,*)
-         TYPE(BasisFN) G1(*) 
+         TYPE(BasisFN) G1(nBasis) 
          INTEGER iLUT(*),iTotal
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,0:*)
@@ -1607,7 +1607,7 @@ C.. Actually generate a det
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
-         TYPE(BasisFN) G1(*) 
+         TYPE(BasisFN) G1(nBasis) 
          TYPE(HElement) UMat(*)
          INTEGER DStore(*)
 #ifdef POINTER8
@@ -1650,9 +1650,9 @@ C.. Actually generate a det
          USE symexcit2
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
-         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,3)
          INTEGER ExcitTypes(5,*)
-         TYPE(BasisFN) G1(*) 
+         TYPE(BasisFN) G1(nBasis) 
          TYPE(HElement) UMat(*)
          INTEGER iLUT(*),iTotal
          INTEGER OrbPairs(2,*)
@@ -1692,7 +1692,7 @@ C.    We must create one.
          INTEGER EXCITGEN(0:iV)
 #endif
 
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(nBasis)
          INTEGER nBasisMax(*)
          TYPE(HElement) UMat(*)
          REAL*8 Arr(nBasis,2)

@@ -13,6 +13,9 @@ C.. product in the symmetry table, and OR that with the product.
 ! describing the irreps, subject to a modulo of the periodic conditions
 ! due to the size of the symmetry cell (which corresponds to the k-point
 ! mesh).
+! Note that many symmetry parameters for CPMD-NECI jobs are set in
+! kpntrep.F in CPMD source.
+
          FUNCTION SYMPROD(ISYM1,ISYM2)
          IMPLICIT NONE
          INCLUDE 'sym.inc'
@@ -79,8 +82,10 @@ C.. product in the symmetry table, and OR that with the product.
              i=1
              DO WHILE(s%s.NE.0)
 !LSHIFT(,)
+                ! 1_8 is 1 in integer*8: we need to have consistent
+                ! kinds for bit-wise operations.
                 IF(BTEST(s%s,0)) SymConj%s=IOR(SymConj%s,
-     &         ISHFT(1,SymConjTab(I)-1))
+     &         ISHFT(1_8,SymConjTab(I)-1))
 !RSHIFT(,1)
                 s%s=ISHFT(s%s,-1)
                 i=i+1
@@ -1304,8 +1309,8 @@ C.. that into IMAX
                   IMAX(1)%Sym%s=IPARITY%Sym%s
                   IMAX(2)%Sym%s=IMAX(1)%Sym%s
                ELSE
-                  IMAX(1)%Sym%s=MinSymRep()
-                  IMAX(2)%Sym%s=MaxSymRep()
+                  IMAX(1)%Sym%s=MinSymRep(nBasisMax)
+                  IMAX(2)%Sym%s=MaxSymRep(nBasisMax)
                ENDIF
             ELSE
 C.. we've got a sym system with polydimensional irreps, which leads to
@@ -1547,6 +1552,8 @@ C.. Set to be totally symmetric
       ! Store the symmetry index as integer*8.  For Abelian symmetry
       ! we need to have 3 numbers stored in this index.  We store
       ! according to isym=1+\sum_i AbelSym(i)*32768**(i-1).
+      ! Note that many symmetry parameters for CPMD-NECI jobs are set in
+      ! kpntrep.F in CPMD source.
       ! Decompose the symmetry label back into the appropriate
       ! numbers...
       implicit none
@@ -1556,8 +1563,8 @@ C.. Set to be totally symmetric
 !RShift
       AbelSym(3)=IShft(Isym,-(PropBitLen*2))
 !RShift
-      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2**PropBitLen-1)
-      AbelSym(1)=Iand(Isym,2**PropBitLen-1)
+      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2_8**PropBitLen-1)
+      AbelSym(1)=Iand(Isym,2_8**PropBitLen-1)
       return
       end subroutine DecomposeAbelianSym
 
@@ -1587,6 +1594,7 @@ C.. Set to be totally symmetric
           end if
       end function TotSymRep
 
+      ! nBasisMax might well be needed in the future in these functions.
       integer*8 function MinSymRep(nBasisMax)
          implicit none
          integer nbasismax(5,3)

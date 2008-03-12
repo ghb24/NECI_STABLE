@@ -36,7 +36,7 @@ C.,             If 1, only allow doubles.
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
-         INTEGER I_V,NEL,I_P,NBASISMAX(5,3),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
          INTEGER I
          COMPLEX*16 FCK(*)
@@ -634,13 +634,14 @@ C            CALL PRINT_MEMORY()
          INCLUDE 'basis.inc'
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p
          REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
-         INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,NBASISMAX(5,3)
+         INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,NBASISMAX(5,5)
          INTEGER EXCITLEV,IGETEXCITLEVEL_,hist
          TYPE(HDElement) Weight,DLWDB2
          TYPE(HElement) UMAT(*),ME
          TYPE(BasisFN) G1(NBASIS)
          LOGICAL AREDETSEXCITS,CONNECT23
-         INTEGER*8 SINGLE,DOUBLE,c,histogram(-20:3)
+         integer c
+         INTEGER*8 SINGLE,DOUBLE,histogram(-20:3)
          SAVE c,SINGLE,DOUBLE,Percendoub,histogram
          DATA histogram/24*0/
          DATA c/0/
@@ -648,6 +649,7 @@ C            CALL PRINT_MEMORY()
          DATA DOUBLE/0/
          REAL*8 ALAT(3)
          
+         write (6,*) 'Warning: c has been changed from integer*8 to *4'
          IF(I_V.eq.2) THEN
             EX(1,1)=2
             OPEN(56,FILE="GRAPHSTATS",STATUS="UNKNOWN")

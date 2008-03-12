@@ -31,7 +31,7 @@
       IMPLICIT NONE
       INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(*)
-      INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
+      INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
       INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
@@ -183,7 +183,7 @@
         COMPLEX*16 fck(*)
         TYPE(HElement) UMat(*),rh,Hel
         INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
-        INTEGER nBasisMax(*),nBasis,Brr(nBasis),nMsh,nMax,nTay(2),WORKMEM,INFO
+        INTEGER nBasisMax(5,5),nBasis,Brr(nBasis),nMsh,nMax,nTay(2),WORKMEM,INFO
         INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
         REAL*8 Beta,ALat(3),RhoEps,ECore
         REAL*8, ALLOCATABLE :: NODERHOMAT(:),WLIST(:)

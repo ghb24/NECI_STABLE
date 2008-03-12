@@ -12,7 +12,7 @@ C.. TMAT has sometimes been hidden in ZIA
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER ID(NEL)
-      INTEGER NBASISMAX(5,2)
+      INTEGER NBASISMAX(5,3)
 C..Cube array
       REAL*8 ALAT(3)
       REAL*8 KP

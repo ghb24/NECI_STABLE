@@ -888,7 +888,7 @@ contains
   max_memory_used = 0
   iam_initialized = .true.
   nwarn = 0
-  debug = 0  !g_mem_debug   AJWT
+  debug = .false.  !g_mem_debug   AJWT
   !
   curr_posn = 0
   object = ''

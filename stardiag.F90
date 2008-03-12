@@ -39,7 +39,7 @@
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
+         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
          TYPE(HElement) UMat(*)
@@ -353,7 +353,7 @@
             REAL*8 :: Beta,ALat(3),ECore,RhoEps
             INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
-            INTEGER :: iSub,i,j,iExcit,nI(nEl),i_P,nEl,nBasisMax(*),nBasis,Brr(nBasis),nMsh
+            INTEGER :: iSub,i,j,iExcit,nI(nEl),i_P,nEl,nBasisMax(5,5),nBasis,Brr(nBasis),nMsh
             INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,Info,temp,IGETEXCITLEVEL
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
@@ -1607,8 +1607,8 @@
 !This subroutine simply forms a star matrix, diagonalises it, and returns the eigenvalues and first elements of the eigenvectors.
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
             IMPLICIT NONE
-            REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             INTEGER :: Dimen,i,INFO,iErr,j
+            REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             TYPE(HElement) :: OffDiagRhos(2:Dimen)
             REAL*8, ALLOCATABLE :: StarMat(:,:),WLIST(:),WORK(:)
 
@@ -1973,7 +1973,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          TYPE(HDElement) FMCPR3Star2
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
-         INTEGER I_V,NEL,I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
          REAL*8 ALAT(*),ECORE
          TYPE(HElement) UMat(*)
@@ -2573,7 +2573,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasisMax(*),Brr(nBasis),nBasis,nMsh
+         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
          TYPE(HElement) UMat(*)

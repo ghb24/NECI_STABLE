@@ -22,19 +22,19 @@ C ==------------------------------------------------------------------==
       USE System , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB,  &
      &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS
       Use Integrals, only: HFRAND
-      use MemoryManager, only: LeaveMemoryManager
+      use MemoryManager, only: LogMemAlloc,LogMemDealloc,
+     &                         LeaveMemoryManager
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
       INCLUDE 'fcoul.inc'
 C..Pointers
       POINTER (IP_NMRKS,NMRKS),(IP_ARR,ARR),(IP_BRR,BRR),
-     &	(IP_HAMIL,HAMIL),(IP_CKN,CKN),(IP_G1,G1),
-     &	(IP_LAB,LAB),(IP_NROW,NROW),(IP_CK,CK),(IP_A,A),
+     &	(IP_LAB,LAB),(IP_NROW,NROW),(IP_A,A),
      &	(IP_W,W),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T),
      &	(IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR),(IP_INDEX,INDEX),
      &	(IP_WH,WH),(IP_WORK2,WORK2),(IP_V2,V2),(IP_IKILL,IKILL),
-     &	(IP_TKE,TKE),(IP_UMAT,UMAT),(IP_WORK,WORK)
+     &	(IP_TKE,TKE),(IP_WORK,WORK)
 C..These are the CUBE specific pointers
       POINTER (IP_FCK,FCK),(IP_COEFF,COEFF),!(IP_ZIA,ZIA),
      &	(IP_RHO,RHO),(IP_SITAB,SITAB),(IP_XCHOLE,XCHOLE),
@@ -45,10 +45,10 @@ C..
      &   (IP_RHOIJROWS,RHOIJROWS),(IP_RHOIJ1,RHOIJ1),
      &   (IP_RHOIJ2,RHOIJ2)
 C..
-      SAVE IP_NMRKS,IP_ARR,IP_BRR,IP_HAMIL,IP_CKN,
-     &	IP_G1,IP_LAB,IP_NROW,IP_CK,IP_A,IP_W,IP_V,IP_AM,IP_BM,
+      SAVE IP_NMRKS,IP_ARR,IP_BRR,
+     &	IP_LAB,IP_NROW,IP_A,IP_W,IP_V,IP_AM,IP_BM,
      &	IP_T,IP_WT,IP_SCR,IP_ISCR,IP_INDEX,IP_WH,IP_WORK2,IP_V2,
-     &	IP_IKILL,IP_TKE,IP_UMAT,IP_WORK
+     &	IP_IKILL,IP_TKE,IP_WORK
 C..Save the Cube specific pointers
       SAVE IP_FCK,IP_COEFF,IP_RHO,IP_SITAB,IP_XCHOLE,
      &	IP_PSIR,IP_DLINE,IP_SUMA,IP_SCRTCH!,IP_ZIA
@@ -63,17 +63,21 @@ C.. NEL now includes all electrons, and well only want active later
       INTEGER NMRKS(NEL-NFROZEN,*),LAB(*),NROW(*),IKILL(*)
       INTEGER IPARITY(5),GC,IMCSTEPS,IEQSTEPS,I_HMAX,NTAY,NWHTAY
       REAL*8 ARR(*)
-      TYPE(HElement) CKN(*),CK(*)
+      TYPE(HElement),allocatable,save :: CKN(:,:),CK(:,:)
+      integer, save :: tagCKN=0,tagCK=0
       INTEGER BRR(*)
       REAL*8 A(*),W(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
 !      TYPE(HElement) TMAT(*)
       REAL*8 WH(*),WORK2(*),V2(*),RHO(*),SITAB(*),TKE(*)
-      TYPE(HElement) UMAT(*)
-      TYPE(HElement) HAMIL(*)
+      TYPE(HElement),save,allocatable :: HAMIL(:)
+      TYPE(HElement),save,pointer :: UMAT(:),UMAT2(:)
+      integer,save :: tagUMat=0,tagHamil=0,tagUMat2=0
       INCLUDE 'basis.inc'
 
       TYPE(Symmetry) FrzSym
-      TYPE(BASISFN) G1(*),SymRestrict
+      TYPE(BASISFN),allocatable, save :: G1(:)
+      integer,save :: tagG1=0
+      TYPE(BASISFN) SymRestrict
 
 C..Cube arrays
       REAL*8 ALAT(5),XCHOLE(*),SUMA(*)
@@ -92,25 +96,25 @@ C..
       INTEGER RHOIJLAB(*),RHOIJROWS(*)
       INTEGER NBASISMAX(5,7),I_VMAX,NPATHS,NBASIS
       LOGICAL TSPINPOLAR,TBEGRAPH,THFBASIS,THUB,TNPDERIV,THFCALC
-      POINTER (IP_HFBASIS,HFBASIS),(IP_UMAT2,UMAT2),(IP_HFE,HFE)
+      POINTER (IP_HFBASIS,HFBASIS),(IP_HFE,HFE)
 !      POINTER (IP_TMAT2,TMAT2)
       REAL*8 HFBASIS(*),HFE(*)
 !      TYPE(HElement) TMAT2(*)
 
-      TYPE(HElement) UMAT2(*)
       REAL*8 UHUB,BHUB,HFCDELTA
       LOGICAL TWARN
 
 
-      POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS),(IP_BLOCKSYM,BLOCKSYM)
+      POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS)
       INTEGER NBLOCKS,NBLOCKSTARTS(*)
-      TYPE(BasisFN) BLOCKSYM(*)
+      TYPE(BasisFN),allocatable :: BLOCKSYM(:)
+      integer :: tagBlockSym=0
       INTEGER FDET(NEL),IFDET
       LOGICAL TBLOCK
       INTEGER TMATINT,UMATINT
       LOGICAL TMCDET,TRHF
       INTEGER MCDET(NEL),DETINV
-      TYPE(BasisFN) MDK,G,iSym
+      TYPE(BasisFN) MDK(5),G,iSym
       LOGICAL TALLOW,TTILT,TREADINT,TPBC,TREAL,TREADHF
       LOGICAL KALLOWED
       INTEGER ORBORDER(8,2),ITILTX,ITILTY,NDETWORK
@@ -133,6 +137,7 @@ C.. The spin including the total spin
       INTEGER iCacheFlag
       INCLUDE 'csf.inc'
       INCLUDE 'uhfdet.inc'
+      character(len=*),parameter :: thisroutine='NECICB'
 C ==-------------------------------------------------------------------==
       write (6,*)
       call TimeTag()
@@ -441,7 +446,8 @@ C.. ordering.
       CALL AZZERO(ARR,2*LEN)
       CALL MEMORY(IP_BRR,LEN,'BRR')
       CALL AZZERO(BRR,LEN)
-      CALL MEMORY(IP_G1,BASISFNSIZE*LEN,'G1')
+      allocate(G1(len))
+      call LogMemAlloc('G1',LEN,BASISFNSIZE*8,thisroutine,tagG1)
       CALL IAZZERO(G1,5*LEN)
       IF(TCPMD) THEN
          WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM CPMD *** '
@@ -612,7 +618,8 @@ C..
          IF(TCPMD) THEN
 C.. We don't need to do init any 4-index integrals, but we do need to init the 2-index
             WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
-            CALL MEMORY(IP_UMAT,1,'UMAT')
+            allocate(UMat(1))
+            call LogMemAlloc('UMat',1,8,thisroutine,tagUMat)
             !CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
             !CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             CALL GENSymStatePairs(NHG/2,.false.)
@@ -620,7 +627,8 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             CALL CPMDINIT2INDINT(NHG,I,NBASISMAX,
      &         ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
          ELSEIF(TREADINT.AND.TDFREAD) THEN
-            CALL MEMORY(IP_UMAT,HElementSize,'UMAT')
+            allocate(UMat(1))
+            call LogMemAlloc('UMat',1,HElementSize,thisroutine,tagUMat)
             !CALL MEMORY(IP_TMAT,HElementSize*NHG*NHG,'TMAT')
             !CALL AZZERO(TMAT,HElementSize*NHG*NHG)
             CALL SetupTMAT(NHG,2,TMATINT)
@@ -641,7 +649,9 @@ C.. We don't need to do init any 4-index integrals, but we do need to init the 2
             nStates=nHG/2
             CALL CREATEINVBRR(BRR,nHG)
             CALL GetUMatSize(nHG,nEl,2,UMATINT)
-            CALL MEMORY(IP_UMAT,HElementSize*UMATINT,'UMAT')
+            allocate(UMat(UMatInt))
+            call LogMemAlloc('UMat',UMatInt,HElementSize,thisroutine,
+     &                                                          tagUMat)
             CALL AZZERO(UMAT,HElementSize*UMATINT)
             CALL SETUPUMAT2D_DF()
             IF(TBIN) THEN
@@ -661,7 +671,9 @@ C... integrals will be the same
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
             CALL GetUMatSize(nHG,nEl,nBasisMax(2,3),UMATINT)
             WRITE(6,*) "UMatSize: ",UMATINT
-            CALL MEMORY(IP_UMAT,HElementSize*UMATINT,'UMAT')
+            allocate(UMat(UMatInt))
+            call LogMemAlloc('UMat',UMatInt,HElementSize,thisroutine,
+     &                                                          tagUMat)
             CALL AZZERO(UMAT,HElementSize*UMATINT)
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
             CALL SetupTMAT(NHG,nBasisMax(2,3),TMATINT)
@@ -698,8 +710,9 @@ C.. we pre-compute the 2-e integrals
 C.. Generate the 2e integrals (UMAT)
                IF(TSTARSTORE) nStates=nHG/2
                CALL GetUMatSize(nHG,nEl,iSpinSkip,UMATINT)
-               CALL MEMORY(IP_UMAT,HElementSize*UMATINT,
-     &            'UMAT')
+               allocate(UMat(UMatInt))
+               call LogMemAlloc('UMat',UMatInt,HElementSize,thisroutine,
+     &                                                          tagUMat)
                CALL AZZERO(UMAT,HElementSize*UMATINT)
                IF(TUEG.OR.THUB) THEN
                   IF(THUB.AND.TREAL) THEN
@@ -718,7 +731,9 @@ C.. Most normal Hubbards
                         ISPINSKIP=-1
                         NBASISMAX(2,3)=-1
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
-                        CALL MEMORY(IP_UMAT,1,'UMAT')
+                        allocate(UMat(1))
+                        call LogMemAlloc('UMat',1,HElementSize,
+     &                                              thisroutine,tagUMat)
                         UMAT(1)=UHUB/OMEGA
                      ENDIF
 C.. The UEG doesn't store coul integrals
@@ -729,7 +744,9 @@ C.. The UEG doesn't store coul integrals
                ENDIF
             ELSE
                WRITE(6,*) "Not precomputing 2-e integrals"
-               CALL MEMORY(IP_UMAT,1,'UMAT')
+               allocate(UMat(1))
+               call LogMemAlloc('UMat',1,HElementSize,thisroutine,
+     &                                                          tagUMat)
             ENDIF
             CALL MEMORY_CHECK()
 C.. we need to generate TMAT - Now setup in individual routines
@@ -814,7 +831,9 @@ C.. unrestricted
 C.. Allocate the new matrix
                 IF(TSTARSTORE) nStates=nHG/2
                CALL GetUMatSize(nHG,nEl,1,UMATINT)
-               CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,'UMAT2')
+               allocate(UMat2(UMatInt))
+               call LogMemAlloc('UMat2',UMatInt,HElementSize,
+     &                                             thisroutine,tagUMat2)
                CALL AZZERO(UMAT2,HElementSize*UMATINT)
 C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 C.. This also modified G1, ARR, BRR
@@ -827,9 +846,10 @@ C.. This also modified G1, ARR, BRR
                ENDIF
 C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 C.. to UMAT2
-               CALL FREEM(IP_UMAT)
-               IP_UMAT=IP_UMAT2
-               IP_UMAT2=NULL
+               deallocate(UMat)
+               UMat=>UMat2
+               tagUMat=tagUMat2
+               nullify(UMat2)
 C.. spinskip values
                ISPINSKIP=1
                NBASISMAX(2,3)=1
@@ -880,12 +900,15 @@ C.. allocate a UMAT
                IF(TSTARSTORE) nStates=nBasis/2
                CALL GetUMatSize(nBasis,(nEl-NFROZEN)
      &                   ,iSpinSkip,UMATINT)
-               CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,
-     &            'UMAT2')
+               allocate(UMat2(UMatInt))
+               call LogMemAlloc('UMat2',UMatInt,HElementSize,
+     &                                             thisroutine,tagUMat2)
                CALL AZZERO(UMAT2,HElementSize*UMATINT)
             ELSE
 C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
-               CALL MEMORY(IP_UMAT2,1,'UMAT2')
+               allocate(UMat2(1))
+               call LogMemAlloc('UMat2',1,HElementSize,
+     &                                             thisroutine,tagUMat2)
             ENDIF 
             CALL MEMORY_CHECK()
             CALL FREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,
@@ -906,9 +929,10 @@ C.. NEL now only includes active electrons
             !IP_TMAT2=NULL
 C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 C.. to UMAT2
-            CALL FREEM(IP_UMAT)
-            IP_UMAT=IP_UMAT2
-            IP_UMAT2=NULL
+            deallocate(UMat)
+            UMat=>UMat2
+            tagUMat=tagUMat2
+            nullify(UMat2)
             CALL MEMORY_CHECK()
             WRITE(6,*) "Active basis functions:",NHG
             CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
@@ -945,7 +969,9 @@ C.. unrestricted
 C.. Allocate the new matrix
                 IF(TSTARSTORE) nStates=nHG/2
                CALL GetUMatSize(nHG,NEL,1,UMATINT)
-               CALL MEMORY(IP_UMAT2,HElementSize*UMATINT,'UMAT2')
+               allocate(UMat2(UMatInt))
+               call LogMemAlloc('UMat2',UMatInt,HElementSize,
+     &                                             thisroutine,tagUMat2)
                CALL AZZERO(UMAT2,HElementSize*UMATINT)
 C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 C.. This also modified G1, ARR, BRR
@@ -958,9 +984,10 @@ C.. This also modified G1, ARR, BRR
                ENDIF
 C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point
 C.. to UMAT2
-               CALL FREEM(IP_UMAT)
-               IP_UMAT=IP_UMAT2
-               IP_UMAT2=NULL
+               deallocate(UMat)
+               UMat=>UMat2
+               tagUMat=tagUMat2
+               nullify(UMat2)
 C.. spinskip values
                ISPINSKIP=1
                NBASISMAX(2,3)=1
@@ -1160,8 +1187,9 @@ C.. NEL now only includes active electrons
          CALL IAZZERO(NMRKS,(NEL)*II)
          CALL MEMORY(IP_NBLOCKSTARTS,(NBLOCKS+1)/IRAT+1,"NBLOCKSTARTS")
          CALL IAZZERO(NBLOCKSTARTS,NBLOCKS)
-         CALL MEMORY(IP_BLOCKSYM,((NBLOCKS+1)*BasisFNSize)/IRAT+1,
-     &         "BLOCKSYM")
+         call LogMemAlloc('BlockSym',NBLOCKS,BasisFNSize*4,thisroutine,
+     &                                                      tagBlockSym)
+         allocate(BlockSym(nBlocks))
 
          CALL IAZZERO(BLOCKSYM,NBLOCKS*BasisFNSize)
 C..
@@ -1172,11 +1200,13 @@ C..
          IF(ICILEVEL.NE.0) THEN
 C.. Use HAMIL to temporarily hold a list of excitation levels
             CALL ICOPY(NEL,FDET,1,NMRKS,1)
-            CALL MEMORY(IP_HAMIL,II*HElementSize,'HAMIL')
+            allocate(Hamil(II))
+            call LogMemAlloc('Hamil',II,HElementSize*8,thisroutine,
+     &                                                         tagHamil)
             CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,NMRKS(1,2),HAMIL,
      &            NDET,1,
      &            G1,.TRUE.,NBASISMAX,.FALSE.)
-            CALL FREEM(IP_HAMIL)
+            call LogMemDealloc(thisroutine,tagHamil)
             NDET=NDET+1
             NBLOCKSTARTS(1)=1
             NBLOCKSTARTS(2)=II+1
@@ -1247,10 +1277,14 @@ C ==----------------------------------------------------------------==
 C..Set up memory for c's, nrow and the label
          IF(TCALCHMAT) THEN
             WRITE(6,*) "CK Size",NDET*NEVAL*HElementSize
-            CALL MEMORY(IP_CKN,NDET*NEVAL*HElementSize,'CKN')
+            allocate(CKN(NDET,NEVAL))
+            call LogMemAlloc('CKN',NDET*NEVAL*HElementSize,8,
+     &                                               thisroutine,tagCKN)
             CALL AZZERO(CKN,NDET*NEVAL*HElementSize)
 C..
-            CALL MEMORY(IP_CK,NDET*NEVAL*HElementSize,'CK')
+            allocate(CK(NDET,NEVAL))
+            call LogMemAlloc('CK',NDET*NEVAL*HElementSize,8,thisroutine,
+     &                                                            tagCK)
             CALL AZZERO(CK,NDET*NEVAL*HElementSize)
 C..
             CALL MEMORY(IP_W,NEVAL,'W')
@@ -1302,7 +1336,9 @@ C..We need to measure HAMIL and LAB first
          CALL FLUSH(6)
 C..Now we know size, allocate memory to HAMIL and LAB
          LENHAMIL=GC
-         CALL MEMORY(IP_HAMIL,LENHAMIL*HElementSize,'HAMIL')
+         allocate(Hamil(LenHamil))
+         call LogMemAlloc('Hamil',LenHamil,HElementSize*8,thisroutine,
+     &                                                         tagHamil)
          CALL AZZERO(HAMIL,LENHAMIL*HElementSize)
 C..
          CALL MEMORY(IP_LAB,LENHAMIL/IRAT+1,'LAB')
@@ -1517,7 +1553,7 @@ C.. If we're calculating rhos (for which we have to have calced H
       ENDIF
 C..Free HAMIL AND LAB memory if we no longer need them
       IF(TCALCHMAT.AND..NOT.(TMONTE.AND.TMC)) THEN
-         CALL FREEM(IP_HAMIL)
+         call LogMemDealloc(thisroutine,tagHamil)
          CALL FREEM(IP_LAB)
       ENDIF
 
@@ -1789,7 +1825,7 @@ C..     BETA->NDET
             WRITE(6,*) "MC Energy=",EN
             IF(TMC) THEN
 C.. Now we can get rid of the hamiltonian
-               CALL FREEM(IP_HAMIL)
+               call LogMemDealloc(thisroutine,tagHamil)
                CALL FREEM(IP_LAB)
             ENDIF
             CALL FREEM(IP_RHOIJ1)
@@ -2466,7 +2502,7 @@ C.. This should only happen for HMAX
          USE HElem
          IMPLICIT NONE
          INCLUDE 'basis.inc'
-         INTEGER NEL,NI(NEL),I,NBASISMAX(5,2),I_P
+         INTEGER NEL,NI(NEL),I,NBASISMAX(5,5),I_P
          INTEGER BRR(*),NMSH,NMAX,NHG
          COMPLEX*16 FCK(*)
          REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)
@@ -2782,13 +2818,16 @@ C.. Normal Hubbard
      &            DETINV,TSPN,LMS,TPARITY,SymRestrict,TSPECDET,SPECDET,
      &            nActiveBasis)
          USE HElem
+         use MemoryManager, only: LogMemAlloc,LogMemDealloc
          IMPLICIT NONE
          include 'irat.inc'
-         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE),(IP_RIJLIST,RIJLIST)
+         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
          INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         TYPE(HElement)  RIJLIST(*),UMAT(*)
+         TYPE(HElement)  UMAT(*)
+         TYPE(HElement),allocatable  :: RIJLIST(:)
+         integer :: tagRIJList=0
          REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
          INTEGER NPATHS,NI(NEL),I_P,NBASISMAX(5,5)
          INCLUDE 'gndwork.inc'
@@ -2808,6 +2847,7 @@ C.. Normal Hubbard
          INTEGER SPECDET(NEL)
          TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
          INTEGER nActiveBasis(2)
+         character(len=*), parameter :: thisroutine='CALCRHOPII3'
          TLOG=BTEST(ILOGGING,1)
          HElP=HDElement(I_P)
          TSYM=.TRUE.
@@ -2825,7 +2865,9 @@ C.. We don't need to store lists for I_HMAX=-8
      &     .OR.I_HMAX.LE.-12) ILMAX=1
          CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
          CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
-        CALL MEMORY(IP_RIJLIST,(1+ILMAX)*IMAX*2,"RIJLIST")
+         allocate(RIJList((1+ILMAX)*IMAX*2))
+         call LogMemAlloc('RIJList',(1+ILMAX)*IMAX*2,8,thisroutine,
+     &                                                       tagRIJList)
 C:         CALL PRINT_MEMORY()
          IF(I_VMAX.NE.0) THEN
             WRITE(6,*) "Using Vertex approximation.  I_VMAX=",I_VMAX
@@ -2937,7 +2979,8 @@ C.. the Fermi determinant, otherwise the numbers blow up
             WRITE(6,*) "Total ",III," determinants summed."
          ENDIF
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
-         CALL FREEM(IP_RIJLIST)
+         deallocate(RIJList)
+         call LogMemDealloc(thisroutine,tagRIJList)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_ICE)
          CALL TIHALT('CLCRHOPII3',ISUB)

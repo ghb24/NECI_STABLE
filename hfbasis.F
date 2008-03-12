@@ -520,7 +520,7 @@ C.. vector
          USE Logging, only : HFLogLevel
          USE HElem
          IMPLICIT NONE
-         INTEGER NSBASIS,NSPINS,NBASISMAX(5,2)
+         INTEGER NSBASIS,NSPINS,NBASISMAX(5,3)
          Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
          Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
 !         REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
@@ -674,8 +674,8 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),PI,R
-         INTEGER ISPN,I,J,ISEED
-         REAL*8 RAND
+         INTEGER ISPN,I,J,ISEED,irand
+         REAL*8 RAN2
          INTEGER BRR(NSBASIS*NSPINS),NELR,IREAL,IS
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
@@ -689,7 +689,8 @@ C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector unless transposed
          PI=3.141592653589793D0
          ISEED=1007
-         R=RAND()
+         irand=1
+         R=RAN2(irand)
          CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS)
          WRITE(6,*) "Generating HF Guess..."
          NEL=0
@@ -722,7 +723,7 @@ C.. vector unless transposed
             WRITE(6,*)
             DO I=1,NSBASIS
                DO J=1,NSBASIS
-                  FMAT(I,J,ISPN)=FMAT(I,J,ISPN)+FRAND*RAND()
+                  FMAT(I,J,ISPN)=FMAT(I,J,ISPN)+FRAND*RAN2(irand)
                ENDDO
             ENDDO
             CALL GRAMSCHMIDT(FMAT(1,1,ISPN),NSBASIS)

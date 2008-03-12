@@ -35,7 +35,7 @@ C.. NMAX has ARR hidden in it.
          TYPE(HDElement) FF
          TYPE(HDElement) WLRI,WLSI
          TYPE(BasisFN) G1(*)
-         INTEGER NBASISMAX(5,2),BRR(*)
+         INTEGER NBASISMAX(5,5),BRR(*)
          INTEGER LSTE(*),ILMAX,I_VMAX,NEL,NBASIS
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
@@ -2036,7 +2036,7 @@ C.. Unbias the sum
          REAL*8 BETA,ALAT(*),ECORE
          TYPE(HElement) Umat(*)
          TYPE(BasisFN) G1(*)
-         INTEGER I_P,NBASISMAX(*),NBASIS,BRR(*),NMSH
+         INTEGER I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH
          INTEGER NMAX,NTAY
 #if defined(POINTER8)
          INTEGER*8 PVERTMEMS2(0:I_V)
