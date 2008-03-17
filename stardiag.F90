@@ -168,7 +168,7 @@
             EHFDiff=ExcitInfo(i,2)-rhii
          endif
          CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
-!         write(75,*) rhii
+         write(6,*) "rhoii is", rhii
 ! Setup MP info
          CALL iCopy(nEl,nI,1,iPath(1,0),1)
          CALL iCopy(nEl,nI,1,iPath(1,2),1)
@@ -608,10 +608,11 @@
             INTEGER, ALLOCATABLE :: DegenPos(:)
             LOGICAL :: degen
             REAL*8 :: r,gap,minimum,RhoEps
-            REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:)
+            REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:),Diffs(:,:)
             TYPE(HElement) :: tmp(3)
             TYPE(HElement), ALLOCATABLE :: TESTER(:)
 
+!            OPEN(47,FILE='Differences',STATUS='UNKNOWN')
             OPEN(48,FILE='FirstElemVecs',STATUS='UNKNOWN')
             OPEN(49,FILE='Vals',STATUS='UNKNOWN')
             
@@ -706,6 +707,11 @@
                 toprint=NoDegens+1
             ENDIF
 
+!Diffs can be used to calculate the gradient of the eigenvector/root line quickly
+!            ALLOCATE(Diffs(toprint,4))
+!            CALL AZZERO(Diffs,toprint*4)
+!Store value for eigenvalue/vector at largest rhovalue in 1:2 - the lowest rho value in 3:4
+
 !            ALLOCATE(TESTER(iExcit))
 !            do i=1,iExcit
 !                TESTER(i)=HElement(0.D0)
@@ -716,7 +722,9 @@
                 j=j+1
 !Fill matrix as normal, but change root element from 1 -> little lower than rho_jj
                 do i=2,iExcit+1
-                    DiagRhos(i)=DREAL(ExcitInfo(i-1,0))
+!Comment out as appropriate (all elements multiplied by r, or just root
+!                    DiagRhos(i)=DREAL(ExcitInfo(i-1,0))
+                    DiagRhos(i)=DREAL(ExcitInfo(i-1,0))*r
                 enddo
                 DiagRhos(1)=r
 
@@ -727,10 +735,27 @@
                 
                 IF(r.eq.1.D0) THEN
                     WRITE(6,"(A,F15.11)") "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
+                    IF(j.ne.1) STOP 'Problem with counting'
                 ENDIF
 
 !                Write(6,*) Vals(1)
-
+!Quick way of determining gradient, assuming linear relationship (look at difference over rho values
+!                IF(j.eq.1) THEN
+!                    Diffs(1,1)=Vals(iExcit+1)
+!                    Diffs(1,2)=Vecs(iExcit+1)
+!                    do i=2,toprint
+!                        Diffs(i,1)=Vals(iExcit+1-DegenPos(i-1))
+!                        Diffs(i,2)=Vecs(iExcit+1-DegenPos(i-1))
+!                    enddo
+!                ELSEIF(j.eq.calcs) THEN
+!                    Diffs(1,3)=Vals(iExcit+1)
+!                    Diffs(1,4)=Vecs(iExcit+1)
+!                    do i=2,toprint
+!                        Diffs(i,3)=Vals(iExcit+1-DegenPos(i-1))
+!                        Diffs(i,4)=Vecs(iExcit+1-DegenPos(i-1))
+!                    enddo
+!                ENDIF
+                        
 !Just write out non-degenerate eigenvectors
                 WRITE(48,"(F11.7,$)") r
                 WRITE(48,"(F13.9,$)") Vecs(iExcit+1)
@@ -763,6 +788,11 @@
 
             enddo
 
+!            WRITE(47,*) "1",Diffs(1,2)-Diffs(1,4),Diffs(1,1)-Diffs(1,3)
+!            do i=2,toprint
+!                WRITE(47,*) DegenPos(i-1)+1,Diffs(i,2)-Diffs(i,4),Diffs(i,1)-Diffs(i,3)
+!            enddo
+
 !Write out gnuscript for only non-degenerate eigenvectors
             OPEN(26,FILE='PlotDegen.gpi',STATUS='UNKNOWN')
             WRITE(26,*) "set key left"
@@ -777,6 +807,9 @@
                 WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i+1,")) w lp t 'Val",DegenPos(i-1)+1,"',"
             enddo
             WRITE(26,"(A,I3,A,I3,A)") "'' u 1:(abs($",toprint+1,")) w lp t 'Val",DegenPos(toprint-1)+1,"'"
+!            WRITE(26,*) "pause -1"
+!            WRITE(26,*) "set xlabel 'Non-zero Eigenvector number'"
+!            WRITE(26,*) "plot 'Differences' u :(abs($2)) w lp t 'Difference in Eigenvector', '' u :(abs($3)) w lp t 'Difference in Eigenvalue'"
             CLOSE(26)
 !
 !Write out gnuscript for all eigenvectors
