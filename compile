@@ -1,6 +1,6 @@
 #!/bin/bash
-./Configure ix86-gfortran/64 -DEST=${PWD}/dest> Makefile2
-#./Configure PC-PGI64 -DEST=${PWD}/dest> Makefile2
+#./Configure ix86-gfortran/64 -DEST=${PWD}/dest> Makefile2
+./Configure PC-PGI64 -DEST=${PWD}/dest> Makefile2
 cp irat.inc dest
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
 cp Makefile dest
