@@ -14,6 +14,7 @@ C.. NMAX has ARR hidden in it.
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB,I_VMIN)
          USE HElem
+         Use Determinants, only: GetHElement2
          USE MCStat
          USE Calc , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
@@ -2027,6 +2028,7 @@ C.. Unbias the sum
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
      &   PVERTMEMS2)
+         Use Determinants, only: GetHElement2
          USE Calc , only : G_VMC_PI
          USE PRECALCREAD , only : TPREVAR
          USE HElem

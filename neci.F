@@ -18,10 +18,10 @@ C ==------------------------------------------------------------------==
      &   ,tReadInCache,DumpUMATCache,SetupTMAT2,nStates                 &
      &   ,SetupUMAT2D_df,getumatel,CREATEINVBRR,NOCC,FREEZETRANSFER     &
      &   ,nStatesDump
-      USE Calc , only : G_VMC_FAC,CHEMPOT,nActiveSpace
+      USE Calc , only : G_VMC_FAC,nActiveSpace
       USE System , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB,  &
      &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS
-      Use Integrals, only: HFRAND
+      Use Integrals, only: HFRAND, ChemPot
       use MemoryManager, only: LogMemAlloc,LogMemDealloc,
      &                         LeaveMemoryManager
       IMPLICIT REAL*8 (A-H,O-Z) 
@@ -2499,6 +2499,7 @@ C.. This should only happen for HMAX
 
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG,
      &      BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
+         Use Determinants, only: GetHElement2
          USE HElem
          IMPLICIT NONE
          INCLUDE 'basis.inc'

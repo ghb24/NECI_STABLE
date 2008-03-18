@@ -36,6 +36,7 @@
          USE Calc , only : TMPTHEORY,StarProd,TStarStars
          USE System , only : TSTOREASEXCITATIONS
          USE Integrals , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
+         Use Determinants, only: GetHElement2
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
@@ -345,6 +346,7 @@
 !crosslinking, TNoDoubs must be set.
         SUBROUTINE CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps) 
             USE Integrals , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
+            Use Determinants, only: GetHElement2
             IMPLICIT NONE
             INCLUDE 'basis.inc'
             TYPE(BasisFN) G1(*)
@@ -2002,6 +2004,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       FUNCTION FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
            RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElem     
+         Use Determinants, only: GetHElement2
          IMPLICIT NONE
          TYPE(HDElement) FMCPR3Star2
          INCLUDE 'basis.inc'

@@ -816,6 +816,7 @@ C.. Get the Hamiltonian Element between two CSFs
       SUBROUTINE CSFGETHELEMENT(NCI,NCJ,NEL,NBASISMAX,
      &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,SUM)
          USE HElem
+         Use Determinants, only: GetHelement2
          IMPLICIT NONE
          INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)

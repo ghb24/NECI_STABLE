@@ -29,6 +29,7 @@ C.,             If 1, only allow doubles.
      &   RHOEPS,I_VIND,HIJ,NWHTAY,I_HMAX,LOCTAB,
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF) RESULT (FMCPR3B2RES)
+         Use Determinants, only: GetHElement2
          USE HElem 
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS

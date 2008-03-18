@@ -2,6 +2,7 @@
         USE input
         USE System , only : defaults,Feb08
         IMPLICIT NONE
+        Save
 
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
         INTEGER HFLOGLEVEL

@@ -2,6 +2,7 @@
      &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
       USE HElem
+      Use Determinants, only: GetHElement2
       USE System , only : TSTAR
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)

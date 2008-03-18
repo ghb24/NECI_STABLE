@@ -8,6 +8,7 @@
 !.. 
 SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
+         Use Determinants, only: GetHElement2
       USE HElem
       USE System , only : TSTOREASEXCITATIONS
       IMPLICIT NONE
@@ -160,6 +161,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !.. We use a crude method and generate all possible 0th, 1st, and 2nd
 !.. excitations of I and of J.  The intersection of these lists is the
 !.. selection of dets we want.
+         Use Determinants, only: GetHElement2
          USE HElem
          IMPLICIT NONE
          INCLUDE 'basis.inc'

@@ -24,6 +24,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
+         Use Determinants, only: GetHElement2
          USE HElem
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
@@ -426,6 +427,7 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElem
+         Use Determinants, only: GetHElement2
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE PRECALCREAD , only : TPREVAR
@@ -703,6 +705,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
      &   MP2E,NTOTAL)  RESULT (FMCPR3RES)
          USE HElem
+         Use Determinants, only: GetHElement2
          USE Logging , only : G_VMC_LOGCOUNT
          USE Calc , only : TMPTHEORY
          IMPLICIT NONE
@@ -1023,6 +1026,7 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,EREF,VARSUM,WREF) RESULT (FMCPR3BRES)
          USE HElem
+         Use Determinants, only: GetHElement2
          USE Calc , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS

@@ -27,6 +27,7 @@
       contains
 
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,L,LT,nWHTay,iLogging,tSym,ECore,dBeta,dLWdb)
+        Use Determinants, only: GetHElement2
 
       IMPLICIT NONE
       INCLUDE 'basis.inc'
@@ -177,6 +178,7 @@
 !Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
         USE Integrals , only : TDISCONODES
+        Use Determinants, only: GetHElement2
         IMPLICIT NONE
         INCLUDE 'basis.inc'
         Type(BasisFN) G1(*)

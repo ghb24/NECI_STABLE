@@ -1,8 +1,8 @@
 MODULE SymExcit2
       
-      USE Calc , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,CHEMPOT,        &
-     &      EXCITFUNCS
+      USE Calc , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,EXCITFUNCS
       USE Calc , only : TUPOWER
+      Use Integrals, only: ChemPot
       IMPLICIT NONE
 
       TYPE ExcitWeight

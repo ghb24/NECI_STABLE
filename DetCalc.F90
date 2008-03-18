@@ -1,0 +1,632 @@
+#include "macros.h"
+MODULE DetCalc
+        Use HElem
+    IMPLICIT NONE
+     save
+
+!From input
+      REAL*8 B2L  ! From Calc
+      INTEGER NEVAL,NBLK,NKRY,NCYCLE
+      INTEGER DETINV,ICILEVEL
+      INTEGER IOBS,JOBS,KOBS
+      LOGICAL TRHOOFR,TCORR,TFODM
+
+
+      INTEGER NDET
+
+
+
+      LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
+      POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS)
+      include 'basis.inc'
+      TYPE(BasisFN), pointer :: BLOCKSYM(:)
+      INTEGER tagBlockSym
+      INTEGER NBLOCKSTARTS(*)
+      INTEGER NBLOCKS
+      Type(HElement), pointer :: HAMIL(:)
+      INTEGER tagHamil
+      INTEGER, pointer :: NMRKS(:,:)      !NEL-NFROZEN
+      INTEGER tagNMRKS
+      INTEGER iFDEt
+      TYPE(HElement), pointer :: CK(:), CKN(:)
+      INTEGER tagCK, tagCKN
+      REAL*8, pointer :: W(:)
+      INTEGER tagW
+      INTEGER LenHamil
+    
+CONTAINS
+    Subroutine DetCalcInit
+            Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+
+        Use Determinants, only:  FDet, specdet, tSpecDet
+        Use System, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
+         Use System, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+         Use System, only : tParity, tSpn
+        Type(BasisFn) ISym
+
+        integer i,ii
+        integer ierr
+        include 'irat.inc'
+        integer nDetTot
+        
+        character(25), parameter :: this_routine='DetCalcInit'
+        
+
+      IF(.NOT.TCALCHMAT) THEN
+         WRITE(6,*) "Not storing the H matrix."
+         IF(TENERGY.AND..NOT.TBLOCK) THEN
+            WRITE(6,*) "Cannot calculate energies without blocking the Hamiltonian."
+            TENERGY=.FALSE.
+         ENDIF
+         IF(TENERGY.AND.NBLK.NE.0) THEN
+!C.. We're doing a Lanczos without calculating the H mat
+            WRITE(6,*) "Cannot perform Lanczos without Hamiltonian"
+            TENERGY=.FALSE.
+         ENDIF
+      ENDIF
+!C      IF(TCALCHMAT.OR.NPATHS.NE.0.OR.DETINV.GT.0.OR.TBLOCK) THEN
+      IF(TENERGY.OR.TCALCHMAT) THEN
+!C..Need to determine the determinants
+         IF(ICILEVEL.NE.0) THEN
+            WRITE(6,*) "Performing truncated CI at level ",ICILEVEL
+            IF(TSPECDET) THEN
+               WRITE(6,*) "Using SPECDET:"
+               CALL WRITEDET(6,SPECDET,NEL,.TRUE.)!
+               CALL ICOPY(NEL,SPECDET,1,FDET,1)
+            ELSE
+               WRITE(6,*) "Using Fermi DET:"
+               CALL WRITEDET(6,FDET,NEL,.TRUE.)
+            ENDIF 
+!C.. if we're doing a truncated CI expansion
+            CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,0,0,NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
+!C.. We need to add in the FDET
+            NDET=NDET+1
+            II=NDET
+            NBLOCKS=1
+         ELSEIF(TBLOCK) THEN
+            WRITE(6,*) "Determining determinants and blocks."
+            IF(TPARITY) THEN
+               WRITE(6,*) "Using symmetry restriction:"
+               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
+            ENDIF
+            IF(TSPN) THEN
+               WRITE(6,*) "Using spin restriction:",LMS
+            ENDIF
+            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .TRUE.,             &
+     &            NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY,        &
+     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
+            WRITE(6,*) "NBLOCKS:",NBLOCKS
+         ELSEIF(TCSF) THEN
+            WRITE(6,*) "Determining CSFs."
+!C determinants.
+            WRITE(6,*) "Determining determinants and blocks."
+            IF(TPARITY) THEN
+               WRITE(6,*) "Using symmetry restriction:"
+               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
+            ENDIF
+            IF(TSPN) THEN
+               WRITE(6,*) "Using spin restriction:",LMS
+            ENDIF
+            CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS2,TPARITY,        &
+     &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
+            NBLOCKS=1
+            II=NDET
+         ELSE
+            WRITE(6,*) "Determining determinants."
+            IF(TPARITY) THEN
+               WRITE(6,*) "Using symmetry restriction:"
+               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
+            ENDIF
+            IF(TSPN) THEN
+               WRITE(6,*) "Using spin restriction:",LMS
+            ENDIF
+            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+            NBLOCKS=1
+            NDET=II
+         ENDIF
+!C..
+         IF(II.EQ.0) THEN
+            WRITE(6,*) "No determinants found.  Cannot continue"
+            STOP "No determinants found.  Cannot continue"
+         ENDIF
+!C.. NEL now only includes active electrons
+         Allocate(NMrks(nEl,II),stat=ierr)
+         LogAlloc(ierr,'NMRKS',NEL*II,4,tagNMRKS)
+         CALL IAZZERO(NMRKS,(NEL)*II)
+         CALL MEMORY(IP_NBLOCKSTARTS,(NBLOCKS+1)/IRAT+1,"NBLOCKSTARTS")
+         CALL IAZZERO(NBLOCKSTARTS,NBLOCKS)
+         Allocate(BlockSym(NBLOCKS+1),stat=ierr)
+         LogAlloc(ierr, 'BLOCKSYM', NBLOCKS+1,BasisFNSizeB, tagBlockSym)
+
+         CALL IAZZERO(BLOCKSYM,NBLOCKS*BasisFNSize)
+!C..
+
+
+
+         NDET=II   
+         IF(ICILEVEL.NE.0) THEN
+!C.. Use HAMIL to temporarily hold a list of excitation levels
+            CALL ICOPY(NEL,FDET,1,NMRKS,1)
+            Allocate(Hamil(II), stat=ierr)
+            LogAlloc(ierr, 'HAMIL', II, HElementSizeB, tagHamil)
+            CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,NMRKS(1,2),HAMIL,NDET,1,G1,.TRUE.,NBASISMAX,.FALSE.)
+            Deallocate(Hamil)
+            LogDealloc(tagHamil)
+            NDET=NDET+1
+            NBLOCKSTARTS(1)=1
+            NBLOCKSTARTS(2)=II+1
+            IFDET=1
+         ELSEIF(TBLOCK) THEN 
+            CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
+     &           SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM,TCSF)
+         ELSEIF(TCSF) THEN
+            CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
+     &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
+               NBLOCKSTARTS(1)=1
+               NBLOCKSTARTS(2)=II+1
+         ELSE
+            CALL GNDTS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS,TPARITY,SymRestrict,II,IFDET)
+               NBLOCKSTARTS(1)=1
+               NBLOCKSTARTS(2)=II+1
+         ENDIF
+         OPEN(8,FILE='DETS',STATUS='UNKNOWN')
+         DO I=1,NDET
+            CALL WRITEDET(8,NMRKS(1,I),NEL,.FALSE.)
+            CALL GETSYM(NMRKS(1,I),NEL,G1,NBASISMAX,ISYM)
+            CALL WRITESYM(8,ISym%Sym,.TRUE.)
+         ENDDO
+         CLOSE(8)
+!C..
+!C.. Now generate the fermi determiant
+!C.. Work out the fermi det
+         DO I=1,NEL
+            FDET(I)=NMRKS(I,IFDET)
+         ENDDO
+         WRITE(6,*) "Fermi Determinant:",IFDET
+
+         WRITE(6,*) ' NUMBER OF SYMMETRY UNIQUE DETS ' , NDET
+
+!C         WRITE(6,*) ' TOTAL NUMBER OF DETS.' , NDETTOT
+         IF(NEVAL.EQ.0) THEN
+            WRITE(6,*) 'NEVAL=0.  Setting NEVAL=NDET'
+            NEVAL=NDET
+         ENDIF
+         IF(NEVAL.GT.NDET) THEN
+            WRITE(6,*) 'NEVAL>NDET.  Setting NEVAL=NDET'
+            NEVAL=NDET
+         ENDIF
+
+         IF(ABS(DETINV).GT.NDET) THEN
+            WRITE(6,*) 'DETINV=',DETINV,'>NDET=',NDET
+            WRITE(6,*) 'Setting DETINV to 0'
+            DETINV=0
+         ENDIF
+         CALL FLUSH(6)
+    
+!C ==----------------------------------------------------------------==
+!C..Set up memory for c's, nrow and the label
+         IF(TCALCHMAT) THEN
+            WRITE(6,*) "CK Size",NDET*NEVAL*HElementSize
+            Allocate(CkN(nDet*nEval), stat=ierr)
+            LogAlloc(ierr,'CKN',nDet*nEval, HElementSizeB, tagCKN)
+            CALL AZZERO(CKN,NDET*NEVAL*HElementSize)
+!C..
+            Allocate(Ck(nDet*nEval), stat=ierr)
+            LogAlloc(ierr,'CK',nDet*nEval, HElementSizeB, tagCK)
+            CALL AZZERO(CK,NDET*NEVAL*HElementSize)
+!C..
+            allocate(W(nEval), stat=ierr)
+            LogAlloc(ierr, 'W', nEval,8,tagW)
+            CALL AZZERO(W,NEVAL)
+         ENDIF
+!         IF(TREADRHO.AND..NOT.TREAD) THEN
+!            WRITE(10,*) "TREADRHO specified, but not TREAD.  Setting TREAD=.T."
+!            TREAD=.TRUE.
+!         ENDIF
+!C..
+         IF(TREAD) THEN
+           CALL READ_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
+         ENDIF
+      ENDIF
+
+      
+
+
+
+!      TMC=TCALCHMAT.AND.(.NOT.TENERGY)
+
+
+    
+    End Subroutine DetCalcInit
+    
+    Subroutine DoDetCalc
+            Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+      Use HElem
+      Use System, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+      Use System, only : nBasis, nBasisMax, nEl
+      Use Integrals, only: FCK,NMSH,NMAX, UMat
+      Use Logging, only: iLogging
+      Use System, only  : tCSF
+      POINTER (IP_TKE,TKE)
+      REAL*8 TKE(*)
+      REAL*8 A(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
+      POINTER (IP_A,A),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T),(IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR)
+
+        POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
+        REAL*8 WH(*),WORK(*),WORK2(*),V2(*)
+        INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
+
+      integer ierr
+      character(25), parameter :: this_routine = 'DoDetCalc'
+      REAL*8 EXEN,GSEN,FLRI,FLSI
+
+        INTEGER GC,I,ICMAX
+        INTEGER iDeg,III,IN
+        INCLUDE 'irat.inc'
+        INTEGER NBLOCK
+        INTEGER nKry1
+        
+        INTEGER J,JR
+        INTEGER LSCR,LISCR
+        LOGICAL tMC
+        real*8 GetHElement, calct, calcmcen, calcdlwdb
+! Doesn't seem to have been inited
+
+      
+      WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
+      WRITE(6,*) ' NBLK : ' , NBLK 
+      WRITE(6,*) ' NKRY : ' , NKRY
+      WRITE(6,*) ' NEVAL : ' , NEVAL
+
+              WRITE(6,*) ' NCYCLE : ' , NCYCLE
+            WRITE(6,*) ' TCORR : ' , TCORR
+      WRITE(6,*) ' TENERGY : ' , TENERGY
+      IF(TCORR) THEN
+        WRITE(6,*) ' *** EXCHANGE-CORRELATION HOLE WILL BE CALCULATED *** ' 
+      ENDIF
+      WRITE(6,*) ' IOBS : ' , IOBS 
+      WRITE(6,*) ' JOBS : ' , JOBS 
+      WRITE(6,*) ' KOBS : ' , KOBS 
+      WRITE(6,*) ' NMSH : ' , NMSH 
+      IF(IOBS.GT.NMSH.OR.IOBS.LE.0.OR.JOBS.GT.NMSH.OR.JOBS.LE.0.OR.KOBS.GT.NMSH.OR.KOBS.LE.0) THEN
+        STOP ' !!! REFERENCE PARTICLE NOT IN BOX !!! '
+      ENDIF
+
+!C.. now back to the storing H
+      IF(TCALCHMAT) THEN
+         WRITE(6,*) "Calculating H matrix"
+!C..We need to measure HAMIL and LAB first 
+         CALL MEMORY(IP_NROW,NDET,'NROW')
+         CALL IAZZERO(NROW,NDET)
+         ICMAX=1
+!Falsify tMC
+         TMC=.FALSE.
+         CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.TRUE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+         WRITE(6,*) ' FINISHED COUNTING '
+         CALL FLUSH(6)
+!C..Now we know size, allocate memory to HAMIL and LAB
+         LENHAMIL=GC
+         Allocate(Hamil(LenHamil), stat=ierr)
+         LogAlloc(ierr, 'HAMIL', LenHamil, HElementSizeB, tagHamil)
+         CALL AZZERO(HAMIL,LENHAMIL*HElementSize)
+!C..
+         CALL MEMORY(IP_LAB,LENHAMIL/IRAT+1,'LAB')
+         CALL IAZZERO(LAB,LENHAMIL)
+!C..Now we store HAMIL and LAB 
+         CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.FALSE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+
+         IF(BTEST(ILOGGING,7)) THEN
+!C.. we write out H now
+            OPEN(8,FILE='HAMIL',STATUS='UNKNOWN')
+            J=0
+            JR=0
+!C            HMAX=-dflmax()
+!C            HMIN=dflmax()
+            DO I=1,LENHAMIL
+               DO WHILE(I.GT.J)
+                  JR=JR+1
+                  J=J+NROW(JR)
+               ENDDO
+               WRITE(8,"(2I12,$)") JR,LAB(I)
+               IF(HElementSize.EQ.1) THEN
+                  WRITE(8,*) HAMIL(I)
+               ELSE
+                  WRITE(8,*) HAMIL(I),ABS(HAMIL(I))
+               ENDIF
+!C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
+!C               WRITE(14,"(A,$)"),"|"
+!C               CALL WRITEDET(14,NMRKS(1,LAB(I)),NEL,.FALSE.)
+!C              WRITE(14,"(F27.20)") HAMIL(I)
+!C               CALL WRITEDET(14,NMRKS(1,LAB(I)),NEL,.FALSE.)
+!C               WRITE(14,"(A,$)"),"|"
+!C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
+!C               WRITE(14,"(F27.20)") HAMIL(I)
+
+!C               IF(HAMIL(I).GT.HMAX) HMAX=HAMIL(I)
+!C               IF(HAMIL(I).LT.HMIN) HMIN=HAMIL(I)
+            ENDDO
+            CLOSE(8)
+         ENDIF
+        WRITE(6,*) '<D0|H|D0>=',GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET)
+        WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL,G1,NBASIS) 
+!CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
+      ENDIF
+!C.. We've now finished calculating H if we were going to.
+!C.. IF ENERGY CALC (for which we need to have calced H)
+!      i=1
+!        do j=1,10
+!            k=1
+!                do l=1,10
+!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      i=6
+!        do j=1,10
+!            k=6
+!                do l=1,10
+!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      i=1
+!        do j=1,10
+!            k=6
+!                do l=1,10
+!                   Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      i=6
+!        do j=1,10
+!            k=1
+!                do l=1,10
+!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
+!                    write(12,*) i,j,k,l,z
+!                enddo
+!        enddo
+!      CALL FLUSH(12)
+!      do i=1,10
+!        do j=1,10
+!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                ALAT,NBASIS,2,G1,i,j,i,j))
+!            write(12,*) i,i,j,j,z
+!        enddo
+!      enddo
+!      write(12,*) "************************"
+!      do i=1,10
+!        do j=1,10
+!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                ALAT,NBASIS,2,G1,i,j,j,i))
+!                 write(12,*) i,j,j,i,z
+!        enddo
+!      enddo
+!      do i=1,10
+!        do j=1,10
+!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
+!     &                ALAT,NBASIS,2,G1,i,i,j,j))
+!            write(12,*) i,j,i,j,z
+!        enddo
+!      enddo
+!      CALL FLUSH(12)
+! 
+      IF(TENERGY) THEN
+         IF(NBLK.NE.0) THEN
+!C..Things needed for Friesner-Pollard diagonalisation
+            IF(TMC) STOP 'TMC and TENERGY set - Stopping'
+            IF(HElementSize.NE.1)  STOP 'Cannot do Lanczos on Complex orbitals.'
+            NKRY1=NKRY+1
+            NBLOCK=MIN(NEVAL,NBLK)
+            LSCR=MAX(NDET*NEVAL,8*NBLOCK*NKRY)
+            LISCR=6*NBLOCK*NKRY
+!C..
+            WRITE(*,'(/,/,8X,64(1H*))')
+            WRITE(*,'(7X," *",62X,"*")')
+          WRITE(*,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
+            WRITE(*,'(7X," *",62X,"*")')
+            WRITE(*,'(7X,1X,64(1H*))')
+!C..Set up memory for FRSBLKH
+            CALL MEMORY(IP_A,NEVAL*NEVAL,'A')
+            CALL AZZERO(A,NEVAL*NEVAL)
+!C..
+!C,, W is now allocated with CK
+!C..
+            CALL MEMORY(IP_V,NDET*NBLOCK*NKRY1,'V')
+            CALL AZZERO(V,NDET*NBLOCK*NKRY1)
+!C..   
+            CALL MEMORY(IP_AM,NBLOCK*NBLOCK*NKRY1,'AM')
+            CALL AZZERO(AM,NBLOCK*NBLOCK*NKRY1)
+!C..
+            CALL MEMORY(IP_BM,NBLOCK*NBLOCK*NKRY,'BM')
+            CALL AZZERO(BM,NBLOCK*NBLOCK*NKRY)
+!C..
+            CALL MEMORY(IP_T,3*NBLOCK*NKRY*NBLOCK*NKRY,'T')
+            CALL AZZERO(T,3*NBLOCK*NKRY*NBLOCK*NKRY)
+!C..
+            CALL MEMORY(IP_WT,NBLOCK*NKRY,'WT')
+            CALL AZZERO(WT,NBLOCK*NKRY)
+!C..
+            CALL MEMORY(IP_SCR,LSCR,'SCR')
+            CALL AZZERO(SCR,LSCR)
+            CALL MEMORY(IP_ISCR,LISCR,'ISCR')
+            CALL IAZZERO(ISCR,LISCR)
+            CALL MEMORY(IP_INDEX,NEVAL,'INDEX')
+            CALL IAZZERO(INDEX,NEVAL)
+!C..
+            CALL MEMORY(IP_WH,NDET,'WH')
+            CALL AZZERO(WH,NDET)
+            CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
+            CALL AZZERO(WORK2,3*NDET)
+            CALL MEMORY(IP_V2,NDET*NEVAL,'V2')
+            CALL AZZERO(V2,NDET*NEVAL)
+!C..Lanczos iterative diagonalising routine
+            CALL FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+     &  SCR,ISCR,INDEX,WH,WORK2,V2,NCYCLE,B2L)
+            CALL DSCAL(NEVAL,-1.D0,W,1)
+         ELSE
+!C.. We splice in a non-Lanczos diagonalisin routine if NBLOCK=0
+            IF(NEVAL.NE.NDET) THEN
+               WRITE(6,*) "NEVAL.NE.NDET.",NEVAL,NDET," Cannot exactly diagonalize."
+               STOP
+            ENDIF
+            WRITE(6,*) "NBLK=0.  Doing exact diagonalization."
+            IF(TCALCHMAT) THEN
+               CALL MEMORY(IP_WORK,4*NDET*HElementSize,'WORK')
+               CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
+               CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
+            ELSE
+!I_P we've replaced by 0
+               CALL HDIAG_NH(NDET,NBLOCKSTARTS,NBLOCKS,NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR, &
+     &            FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BETA,0,ILOGGING,IFDET,ARR,BLOCKSYM)
+!C.. We're not storing the energies, so we pretend we weren't asked for
+!C.. them
+               TENERGY=.FALSE.
+            ENDIF
+         ENDIF
+!C..
+!  Since we no longer use HAMIL or LAB, we deallocate
+      LogDealloc(tagHamil)
+      Deallocate(Hamil)
+      CALL FREEM(IP_LAB)
+         CALL MEMORY(IP_TKE,NEVAL,'TKE')
+!C.. END ENERGY CALC
+      ENDIF
+      IF(TENERGY) THEN
+         EXEN=CALCMCEN(NDET,NEVAL,CK,W,BETA,0.D0)
+         WRITE(6,"(A,F19.9)") "EXACT E(BETA)=",EXEN
+         GSEN=CALCDLWDB(IFDET,NDET,NEVAL,CK,W,BETA,0.D0)
+         WRITE(6,"(A,F19.9)") "EXACT DLWDB(D0)=",GSEN
+         WRITE(6,"(A,F19.9)") "GROUND E=",W(1)
+      ENDIF
+
+      call FLUSH(6)
+!C.. If we're calculating rhos (for which we have to have calced H
+!No longer used
+!      IF(TRHOIJ) THEN
+!         IF((.NOT.TENERGY).AND.(.NOT.TREADRHO)) THEN
+!            WRITE(6,*) "Calculating approx RHOs"
+!            WRITE(6,*) "Using Trotter decomposition? ",TTROT
+!            WRITE(6,*) "Order of Taylor: ",ABS(NTAY)
+!            CALL CALCAPPROXRHOIJ(BETA,I_P,HAMIL,LAB,NROW,NDET,RHOMIN,RHOMAX,NRHOS,RHOEPS,TTROT,NTAY)
+!         ENDIF
+!      ENDIF
+!C..Free HAMIL AND LAB memory if we no longer need them
+!      IF(TCALCHMAT.AND..NOT.(TMONTE.AND.TMC)) THEN
+!         CALL FREEM(IP_HAMIL)
+!         CALL FREEM(IP_LAB)
+!      ENDIF
+
+!C.. IF ENERGY CALC
+      IF (TENERGY) THEN
+!C..
+         IF(.NOT.TCSF) THEN
+            CALL CFF_CHCK(NDET,NEVAL,NMRKS,NBASISMAX,NEL,G1,CK,ALAT,TKE,nBasis,ILOGGING)
+         ELSE
+            DO I=1,NEVAL
+               TKE(I)=0.D0
+            ENDDO 
+         ENDIF
+         IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
+         IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
+         WRITE(6,*) '       ==--------------------------------------------------== '
+         WRITE(6,'(A5,5X,A15,1X,A18,1x,A20)') 'STATE','KINETIC ENERGY', 'COULOMB ENERGY', 'TOTAL ENERGY'
+         OPEN(15,FILE='ENERGIES',STATUS='UNKNOWN')
+         DO IN=1,NEVAL
+            WRITE(6,'(I5,2X,3(F19.11,2x))') IN,TKE(IN),W(IN)-TKE(IN),W(IN)
+            WRITE(15,"(I7,$)") IN
+            CALL WRITEDET(15,NMRKS(1,IN),NEL,.FALSE.)
+            WRITE(15,"(F19.11)") W(IN)
+         ENDDO
+         CLOSE(15)
+         WRITE(6,*)   '       ==--------------------------------------------------== '
+!C., END energy calc
+      ENDIF
+
+!C.. Jump to here if just read Psi in
+100   CONTINUE
+
+      IF(TRHOOFR) THEN
+        Call CalcRhoOfR()
+      ENDIF
+      IF(TFODM) THEN
+        Call CalcFoDM()
+      ENDIF
+
+
+        End Subroutine DoDetCalc
+    Subroutine CalcRhoOfR()
+        Use System, only: Alat, G1, nBasis, Omega, nEl
+        Use Integrals, only: nMax, nMsh
+        REAL*8 DLINE(*)
+        POINTER (IP_DLINE, DLINE)
+        REAL*8 PSIR(*)
+        POINTER (IP_PSIR, PSIR)
+        REAL*8 RHO(*)
+        POINTER (IP_RHO, RHO)
+        REAL*8 SITAB(*)
+        POINTER (IP_SITAB,SITAB)
+        REAL*8 SCRTCH(*)
+        POINTER (IP_SCRTCH, SCRTCH)
+        REAL*8 XCHOLE(*)
+        POINTER (IP_XCHOLE,XCHOLE)
+        INTEGER iXD, iYD, iZD
+        REAL*8 SPAC, Rs
+!C..Generate memory for RHO and SITAB
+        CALL MEMORY(IP_RHO,NMSH*NMSH*NMSH,'RHO')
+        CALL MEMORY(IP_SITAB,NMSH*NMAX,'SITAB')
+        CALL MEMORY(IP_SCRTCH,NMSH*NMSH*NMSH,'SCRTCH')
+!C..Calculate RHOOFR
+        CALL RHOOFR(nBasis,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,NEL,NDET,NEVAL,RS,ALAT,OMEGA,SCRTCH)
+!C..
+        CALL MEMORY(IP_DLINE,NMSH,'DLINE')
+        CALL AZZERO(DLINE,NMSH)
+!C..Calculate RHOOFR in certain directions
+!C..001
+        CALL PLANARAV(RHO,NMSH,DLINE,0,0,1,SPAC,ALAT)
+        CALL WRITE_LINE(8,'RHOAV001',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
+!C..100
+        CALL PLANARAV(RHO,NMSH,DLINE,1,0,0,SPAC,ALAT)
+        CALL WRITE_LINE(8,'RHOAV100',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
+!C..010
+        CALL PLANARAV(RHO,NMSH,DLINE,0,1,0,SPAC,ALAT)
+        CALL WRITE_LINE(8,'RHOAV010',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
+        IF(TCORR) THEN
+!C..Now generate memory for XCHOLE
+          CALL MEMORY(IP_XCHOLE,NMSH*NMSH*NMSH,'XCHOLE')
+          CALL MEMORY(IP_PSIR,2*NMSH+1,'PSIR')
+          CALL AZZERO(PSIR,2*NMSH+1)
+!C..
+          IXD=1
+          IYD=0
+          IZD=0
+          SPAC=0.D0
+          CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE,SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
+          CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
+!C..
+          CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,DLINE,OMEGA,NMRKS,NDET,NEL,NEVAL)
+!C          OPEN(11,FILE='XCEDENS',STATUS='UNKNOWN')
+!C          DO IZ=1,NMSH
+!C            CALL XCENERGY_DENSITY(CK,PSIR,DLINE,IOBS,JOBS,IZ,G1,
+!C     &       SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,ALAT,OMEGA,
+!C     &       NMRKS,NDET,NEVAL,NEL)
+!C          ENDDO
+!C          CLOSE(11)
+        ENDIF
+    End Subroutine CalcRhoOfR
+    Subroutine CalcFoDM()
+        use System, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
+        REAL*8 SUMA
+        POINTER (IP_SUMA, SUMA)
+        INTEGER ISTATE
+        ISTATE=0
+        WRITE(6,*) ' ISTATE : ' , ISTATE 
+        CALL MEMORY(IP_SUMA,NMAXX*NMAXY*NMAXZ,'SUMA')
+        CALL AZZERO(SUMA,NMAXX*NMAXY*NMAXZ)
+        CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
+    End Subroutine CalcFoDM
+END MODULE DetCalc

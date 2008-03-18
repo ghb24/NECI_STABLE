@@ -760,6 +760,7 @@ case ${Configuration}
      ;;
 
   "PC-PGI")
+     compiler='PGI-pgf95-on-LINUX'
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
@@ -788,6 +789,7 @@ case ${Configuration}
      ;;
 
   "PC-PGI64")
+     compiler='PGI-pgf95-on-LINUX'
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
@@ -795,7 +797,7 @@ case ${Configuration}
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
+     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
      LDFLAGS='-Mnostdlib -Mnostartup' 
      F90FLAGS='-Mfree '
      if [ $debug ]; then
@@ -816,6 +818,7 @@ case ${Configuration}
      ;;
 
   "PC-PGI-MPI")
+     compiler='PGI-pgf95-on-LINUX'
      IRAT=2
      CFLAGS=''
      #CPP='pgf90 -F'
@@ -866,6 +869,7 @@ MAXMEM := 1024 # RAM available, in MB.
      ;;
   
    "ix86-gfortran/64")
+     compiler='GCC-f95-on-LINUX'
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
      CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)" -DPOINTER8'
@@ -892,6 +896,7 @@ MAXMEM := 1024 # RAM available, in MB.
      ;;
 
    "ix86-gfortran/32")
+     compiler='GCC-f95-on-LINUX'
      IRAT=2
      CPP='cpp -P -C -traditional'
      CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
@@ -1082,6 +1087,7 @@ SHELL = /bin/sh
 #--------------- Default Configuration for $Configuration ---------------
 SVNVER := \$(shell svn info | grep Revision |sed "s/Revision://")
 MAXMEM := 1024 # RAM available, in MB.
+compiler = ${compiler}
 SRC  = .
 DEST = ${DEST}
 BIN  = .
@@ -1274,9 +1280,9 @@ lib : \$(OBJ_LIB)
 	rm -f \$@
 	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f90=.F90) \$(DEST)/\$@
 .f.o :
-	\$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$< 
+	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$<" -provides "\$(*F).o " -requires "\$^"
 .f90.o :
-	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<
+	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<" -provides "\$(*F).o " -requires "\$^"
 
 \$(OBJ_CC) :
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
@@ -1285,7 +1291,7 @@ util-sp.o :
 	\$(FCD) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/util-sp.f
 
 %.mod :
-	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$< 
+	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<" -provides "\$(*F).mod" -requires "\$^"
 
 #----------------------------------------------------------------------------
 

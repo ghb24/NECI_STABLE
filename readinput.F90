@@ -119,12 +119,13 @@ MODULE ReadInput
         RETURN
     END SUBROUTINE ReadInputMain
       subroutine checkinput()
-      USE System , only : NEL,TSTARSTORE,TUseBrillouin
+      USE System , only : NEL,TSTARSTORE,TUseBrillouin, Beta
       USE PRECALCREAD , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
-      USE Calc , only : BETA,I_VMAX,NPATHS,SPECDET,                 &
+      USE Calc , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
      &  TDIAGNODES,TSTARSTARS
+      Use Determinants, only : SpecDet
       USE Integrals , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING
       USE input

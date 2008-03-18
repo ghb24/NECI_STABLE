@@ -101,6 +101,15 @@ MODULE UMatCache
          SAVE nAuxBasis,nBasisPairs,tDFInts,DFCoeffs,DFInts,DFFitInts,DFInvFitInts,iDFMethod
 
       Contains
+! AJWT Hopefully Initialize data needed to store special StarStore UMat, which hold integrals <ij|ab>
+!  nOccSpatOrbs is the number of occupied spatial orbitals (probably nEl/2)
+!  nSpatOrbs    is the total number of spatial orbitals (probably nBasis/2)
+      Subroutine InitStarStoreUMat(nOccSpatOrbs,nSpatOrbs)
+         integer nOccSpatOrbs, nSpatOrbs
+         nOcc=nOccSpatOrbs
+         nStates=nSpatOrbs
+      End Subroutine InitStarStoreUMat
+      
 
       !Create new INVBRR for the freezing process
       SUBROUTINE CREATEINVBRR2(BRR2,NBASIS)
