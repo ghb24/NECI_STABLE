@@ -84,14 +84,14 @@ C..Symmetries not needed by UMatInd
          REAL*8 HFE(NBASIS)
          INTEGER BRR(NBASIS),ORBORDER(8)
          INTEGER I
-         integer*8 TotSymRep
+         Type(Symmetry) TotSymRep
  
 C.. We now need to modify G1.  Pretend that all basis functions have
 C.. a different X quantum number, and all have the same spin.
          DO I=1,NBASIS
             G1(I)%k(1)=0
             G1(I)%Ms=-2*(MOD(I,2))+1
-            G1(I)%Sym%s=TotSymRep()
+            G1(I)%Sym=TotSymRep()
             ARR(I,1)=HFE(I)
             ARR(I,2)=HFE(I)
             BRR(I)=I

@@ -722,7 +722,7 @@ MODULE UMatCache
          TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
          INTEGER ISUB,ISUB2
          LOGICAL GetCachedUMatEl,HasKPoints
-         integer*8 TotSymRep
+         Type(Symmetry) TotSymRep
 !         CALL TISET(' GETUMATEL',ISUB)
 !   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 !   Otherwise we just look it up in umat
@@ -765,7 +765,7 @@ MODULE UMatCache
                J=IDJ
                K=IDK
                L=IDL
-               SYM%s=TotSymRep()
+               SYM=TotSymRep()
                SYM=SYMPROD(SYM,SYMCONJ(G1(I*2-1)%Sym))
                SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
                SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
@@ -1409,7 +1409,7 @@ MODULE UMatCache
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
       logical GetCachedUMatEl,LSymSym
-      integer*8 TotSymRep
+      Type(Symmetry) TotSymRep
       type(HElement) UMatEl(0:nTypes-1)
       type(Symmetry) Sym,Symprod,SymConj
       ! 1. test read in.
@@ -1420,7 +1420,7 @@ MODULE UMatCache
         do iSlot=iPair,nSlots
           call GetCacheIndexStates(iPair,nStates,i,k)
           call GetCacheIndexStates(iSlot,nStates,j,l)
-          Sym%s=TotSymRep()
+          Sym=TotSymRep()
 !          Sym=SymProd(Sym,SymConj(G1(I*2-1)%Sym))
 !          Sym=SymProd(Sym,SymConj(G1(J*2-1)%Sym))
 !          Sym=SymProd(Sym,G1(K*2-1)%Sym)

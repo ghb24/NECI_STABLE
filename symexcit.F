@@ -82,7 +82,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          INTEGER ILUT(0:NBASIS/32)
          INTEGER ISUB
          INTEGER ILEVEL
-         integer*8 TotSymRep
+         Type(Symmetry) TotSymRep
 
          LOGICAL ISUHFDET
          
@@ -115,7 +115,7 @@ C.. ISPN=1 is beta, ISPN=2 is alpha
          ENDDO
 C.. Now calculate the resultant symmetry from removing one of each of the classes
          DO I=1,NCL
-            PR%s=TotSymRep()
+            PR=TotSymRep()
             DO J=1,NCL
                L=CLASSCOUNT(1,I)+CLASSCOUNT(2,I)
                IF(J.EQ.I) L=L-1

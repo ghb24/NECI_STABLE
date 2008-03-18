@@ -975,9 +975,10 @@ C.. e.g. if irreps are a1,a2,b1,b2
          TYPE(SYMMETRY) SYMPROD,SymConj
          LOGICAL LSYMSYM
          LCHKSYM=.TRUE.
-         DO I=1,4
+         DO I=1,3
             IF(ISYM%K(I).NE.JSYM%K(I)) LCHKSYM=.FALSE.
          ENDDO
+         IF(ISYM%Ms.NE.JSYM%Ms) LCHKSYM=.FALSE.
 C.. if the symmetry product of I and J doesn't contain the totally
 C.. symmetric irrep, we set sym to .FALSE.
         LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(SymConj(ISYM%SYM),JSYM%SYM))
@@ -1581,16 +1582,16 @@ C.. Set to be totally symmetric
       end function ComposeAbelianSym
 
 
-      integer*8 function TotSymRep()
+      Type(Symmetry)  function TotSymRep()
           ! Our definition of the totally symmetric representation
           ! changes according to whether we're using Abelian/k-point
           ! symmetry or the standard symmetry.  It's just a matter of
           ! convenience, rather than some deep theoretical insight!
           include 'sym.inc'
           if (TAbelian) then
-              TotSymRep=0
+              TotSymRep%s=0
           else
-              TotSymRep=1
+              TotSymRep%s=1
           end if
       end function TotSymRep
 
