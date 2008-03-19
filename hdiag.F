@@ -2,6 +2,7 @@
        SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,
      &                     NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
          USE HElem
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NDET,LENHAMIL
          INTEGER NROW(NDET),LAB(*)
@@ -9,7 +10,6 @@
          REAL*8 W(NDET)
          INTEGER I,J,IND,INDZ,INFO,LDA,NBS
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS),ISUB
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
          REAL*8 GSEN
          CALL TISET('HDIAG     ',ISUB)
@@ -55,10 +55,10 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
      &            NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR,
      &            FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,
      &            BETA,I_P,ILOGGING,IFDET,ARR,BLOCKSYM)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER NBASISMAX(5,2),NBASIS
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NMSH,NMAX,I_P,ILOGGING,BRR(*),INFO
          REAL*8  ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA

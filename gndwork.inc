@@ -1,4 +1,3 @@
-      INCLUDE 'basis.inc'
          TYPE GNDWork
             INTEGER        NSWORK(4)
             TYPE(BasisFN)  IMax(2)

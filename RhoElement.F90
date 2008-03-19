@@ -10,7 +10,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
          Use Determinants, only: GetHElement2
       USE HElem
-      USE System , only : TSTOREASEXCITATIONS
+      USE System , only : TSTOREASEXCITATIONS,BasisFN
       IMPLICIT NONE
       TYPE(HElement) UMat(*),RH
       INTEGER I_P,I_HMAX,NTAY(2),NTRUNC,NEL,NBASIS,NBASISMAX(5,5)
@@ -18,7 +18,6 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
       REAL*8 BETA,ECORE
       LOGICAL LSAME      
       INTEGER NMSH,ISUB,I,BRR(NBASIS),J,IGETEXCITLEVEL
-      INCLUDE 'basis.inc'
       INCLUDE 'uhfdet.inc'
       TYPE(BasisFN) G1(*)
       COMPLEX*16 FCK(*)
@@ -163,8 +162,8 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !.. selection of dets we want.
          Use Determinants, only: GetHElement2
          USE HElem
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          TYPE(HElement) Rho2OrderND2
          COMPLEX*16 FCK(*)
@@ -219,8 +218,8 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
       subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,Arr,ALAT,UMat,ECore,hEl)
          USE HElem
          use UMatCache
+         use System, only: BasisFN
          implicit none
-         include 'basis.inc'
          integer nHFDet(nEl),nJ(nEl),nEl,nBasis
          type(BasisFN) G1(*)
          integer Brr(nBasis),nBasisMax(5,5)

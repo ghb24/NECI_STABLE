@@ -241,12 +241,12 @@ C.. test if NCI is a CSF
 
       SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,BRR,NBASISMAX,
      &  G1,ISYM,NI)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,1),NDET,G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
          INTEGER LMS,IFDET
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) IPARITY
 
          INTEGER ORBS(NBASIS/2,2)
@@ -409,12 +409,12 @@ C.. IEXLEV from NDCH
       SUBROUTINE GNCSFS(NEL,NBASIS,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  IPARITY,NDET,IFDET,TCHKEX,NDCH,ICLIST,TORDER,IEXLEV)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,*),NDET,G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
          INTEGER LMS,IFDET
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) IPARITY        
  
          LOGICAL TCHKEX,TORDER
@@ -817,8 +817,8 @@ C.. Get the Hamiltonian Element between two CSFs
      &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,SUM)
          USE HElem
          Use Determinants, only: GetHelement2
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*),NMSH,NMAX
          REAL*8 ALAT(*)

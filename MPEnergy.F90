@@ -175,8 +175,8 @@ END
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl,nBasisMax,UMat,ALat,nBasis,iss,G1)
          use UMatCache, only : GetUMatEl
          USE HElem
+         use System, only: BasisFN
          implicit none
-         include 'basis.inc'
          Type(HElement) hEl,UMat(*)
          integer nEl,nI(nEl),nJ(nEl),nBasis
          integer nBasisMax(5,5)

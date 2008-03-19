@@ -76,9 +76,9 @@ C..Symmetries not needed by UMatInd
       END
 
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
+         use System, only: Symmetry,BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,NBASISMAX(5,3)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          REAL*8 ARR(NBASIS,2)
          REAL*8 HFE(NBASIS)
@@ -223,9 +223,9 @@ C..Symmetries not needed by UMatInd
          RETURN
       END
       SUBROUTINE READHFBASIS(HFBASIS,HFE,G1,NBASIS)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,NQNS(5),NN
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          REAL*8 HFBASIS(NBASIS,NBASIS),HFE(NBASIS)
          INTEGER I,L,J,NB,NE,IG,N
@@ -479,13 +479,13 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS,ISS,G1)
          USE UMatCache, only: GetUMatEl
          USE Logging, only: HFLogLevel
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 DMAT(NSBASIS,NSBASIS,NSPINS)
          LOGICAL LTRANS
          INTEGER ISS
-         INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
 
          INTEGER ISPN,I,J,K
@@ -519,6 +519,7 @@ C.. vector
          USE UMatCache , only : GetTMATEl,GetUMatEl
          USE Logging, only : HFLogLevel
          USE HElem
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,NBASISMAX(5,3)
          Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
@@ -530,7 +531,6 @@ C.. vector
          LOGICAL TRHF,TTRANS
          REAL*8 RHFMUL
          INTEGER ISS
-         INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
 C         IF(TRHF) THEN
 C            RHFMUL=2.D0
@@ -628,9 +628,9 @@ C.. subtract out the double counting term, and add in the core energy
       END
       SUBROUTINE WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,
      &         TRANSP)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,NSBASIS,NSPINS,I,J,K
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),HFES(NSBASIS,NSPINS)
          LOGICAL TRANSP
@@ -671,13 +671,13 @@ C.. vector unless transposed
 C.. Generate initial density matrix, as well as a guess at the HF DET
       SUBROUTINE GENHFGUESS(FMAT,NSPINS,NSBASIS,R1,R2,WORK,BRR,G1,TRANS,
      &            LMS,FRAND,NELS,HFDET)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),PI,R
          INTEGER ISPN,I,J,ISEED,irand
          REAL*8 RAN2
          INTEGER BRR(NSBASIS*NSPINS),NELR,IREAL,IS
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER LMS
 C.. Working space
@@ -734,9 +734,9 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
       END
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER BRR(*)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER LMS
 C.. Working space

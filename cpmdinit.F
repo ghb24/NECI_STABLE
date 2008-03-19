@@ -1,4 +1,6 @@
       SUBROUTINE CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
          INCLUDE 'sym.inc'
@@ -98,6 +100,8 @@ C.. show it's a generic spatial basis
       END
 C.. Called to retrieve number of basis functions from CPMD
       SUBROUTINE CPMDSYSTEMINIT(LEN)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
          INCLUDE 'sym.inc'
@@ -125,6 +129,8 @@ C.. group
       END
 
       SUBROUTINE EXTRACTSYMLABELS
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
          INCLUDE 'sym.inc'
@@ -211,6 +217,8 @@ C.. Assume there will be no more than 64 irreps
          ENDDO
       END 
       SUBROUTINE FAKEREADCHARTABLE(NSTATES)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
 C.. First set up the labels and chars
@@ -263,6 +271,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
      &                        TMat2D,tCPMDSymTMat,GetUMatEl,TMatSym
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache,TMatInd    
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'
@@ -273,7 +282,6 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          INTEGER ISS,NBASISMAX(*)
          TYPE(HElement) UMAT(0)  ! UMAT dummy for GetUMatEl.
 
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)
          REAL*8 ECORE
          INTEGER NEL

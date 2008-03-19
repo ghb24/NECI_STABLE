@@ -34,11 +34,10 @@
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
          USE Calc , only : TMPTHEORY,StarProd,TStarStars
-         USE System , only : TSTOREASEXCITATIONS
+         USE System , only : TSTOREASEXCITATIONS,BasisFN
          USE Integrals , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          Use Determinants, only: GetHElement2
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
@@ -347,8 +346,8 @@
         SUBROUTINE CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps) 
             USE Integrals , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
             Use Determinants, only: GetHElement2
+            use System, only: BasisFN
             IMPLICIT NONE
-            INCLUDE 'basis.inc'
             TYPE(BasisFN) G1(*)
             TYPE(HElement) :: rhii,UMat(*),rh,rhij,Hij
             COMPLEX*16 :: fck(*)
@@ -1700,8 +1699,8 @@
 
          SUBROUTINE GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
             USE Integrals , only : TCalcRealProd,TCalcRhoProd,TSumProd
+            use System, only: BasisFN
             IMPLICIT NONE
-            INCLUDE 'basis.inc'
             INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasisMax(*),Brr(nBasis),nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl),nj(nEl),nk(nEl),nl(nEl)
             COMPLEX*16 fck(*)
             TYPE(HElement) UMat(*),rh,rhii
@@ -2005,9 +2004,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
            RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElem     
          Use Determinants, only: GetHElement2
+         use System, only: BasisFN
          IMPLICIT NONE
          TYPE(HDElement) FMCPR3Star2
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
@@ -2606,8 +2605,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
          USE HElem      
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging

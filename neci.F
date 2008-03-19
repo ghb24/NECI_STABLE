@@ -20,7 +20,8 @@ C ==------------------------------------------------------------------==
      &   ,nStatesDump
       USE Calc , only : G_VMC_FAC,nActiveSpace
       USE System , only : FCOUL,FCOULDAMPBETA,FCOULDAMPMU,COULDAMPORB,  &
-     &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS
+     &    OrbECutoff,TUSEBRILLOUIN,TSTOREASEXCITATIONS,Symmetry,        &
+     &    SymmetrySize,BasisFN,BasisFNSize
       Use Integrals, only: HFRAND, ChemPot
       use MemoryManager, only: LogMemAlloc,LogMemDealloc,
      &                         LeaveMemoryManager
@@ -72,7 +73,6 @@ C.. NEL now includes all electrons, and well only want active later
       TYPE(HElement),save,allocatable :: HAMIL(:)
       TYPE(HElement),save,pointer :: UMAT(:),UMAT2(:)
       integer,save :: tagUMat=0,tagHamil=0,tagUMat2=0
-      INCLUDE 'basis.inc'
 
       TYPE(Symmetry) FrzSym
       TYPE(BASISFN),allocatable, save :: G1(:)
@@ -2073,12 +2073,12 @@ C ==-------------------------------------------------------------------==
      &	ALAT,TKE,NHG,ILOGGING)
       USE HElem
       USE UMatCache , only : GetTMATEl
+      use System, only: BasisFN
       IMPLICIT NONE
       TYPE(HElement) CG(NDET,NEVAL)
       INTEGER NM(NEL,*),NDET,NEL,NEVAL
       REAL*8 ALAT(3),TKE(NEVAL)
       INTEGER NBASISMAX(3,2),NHG,ILOGGING
-      INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(*)
       CHARACTER*255 STR
       REAL*8 PI,S,SUM
@@ -2273,9 +2273,9 @@ C         WRITE(17,*) CK(1,I),W(I)
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,
      &   DETINV,TSPECDET,SPECDET)
          use HElem
+         use System, only: BasisFN
          implicit none
          include 'irat.inc'
-         include 'basis.inc'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,NBASISMAX(5,5),nBasis
          INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING,ISUB
          TYPE(HElement) UMat(*)
@@ -2501,8 +2501,8 @@ C.. This should only happen for HMAX
      &      BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
          Use Determinants, only: GetHElement2
          USE HElem
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          INTEGER NEL,NI(NEL),I,NBASISMAX(5,5),I_P
          INTEGER BRR(*),NMSH,NMAX,NHG
          COMPLEX*16 FCK(*)
@@ -2551,9 +2551,9 @@ C.. This should only happen for HMAX
 
       REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
          USE HElem
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,I,J
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          REAL*8 ALAT(4),CST,TMAT
          LOGICAL ISCSF
@@ -2661,9 +2661,9 @@ C.. This should only happen for HMAX
       SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
          USE HElem
          USE UMatCache , only : SetupTMAT,TMAT2D,TSTARSTORE
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASIS
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS)
          REAL*8 ALAT(4),HFBASIS(NBASIS,NBASIS),CST
          INTEGER I,J
@@ -2820,6 +2820,7 @@ C.. Normal Hubbard
      &            nActiveBasis)
          USE HElem
          use MemoryManager, only: LogMemAlloc,LogMemDealloc
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          include 'irat.inc'
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)
@@ -2989,9 +2990,10 @@ C.. the Fermi determinant, otherwise the numbers blow up
       END    
 
       SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
+         use System, only: BasisFN
+         implicit none
          INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),NBASISMAX(5,3)
          INTEGER BRR2(NBASIS)
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS)
          REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
          INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K
@@ -3074,9 +3076,9 @@ C               G(3,BRR(I))=J
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,FDET,NEL,ALAT)
          USE HElem
          USE UMatCache
+         use System, only: BasisFN,BasisFNSize,Symmetry
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)
          TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -3352,6 +3354,8 @@ C.. any orbitals which no longer exist, we move outside the basis
       SUBROUTINE WRITESYMCLASSES(NBASIS)
         USE HElem
         USE UMatCache
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         include 'sym.inc'
         INTEGER I,NBASIS
@@ -3372,6 +3376,8 @@ C.. any orbitals which no longer exist, we move outside the basis
       SUBROUTINE SWAPTMAT(NBASIS,NHG,GG)
         USE HElem
         USE UMatCache
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         include 'sym.inc'
         integer I,J,NBASIS,NHG,GG(NHG)
@@ -3424,10 +3430,10 @@ C.. any orbitals which no longer exist, we move outside the basis
       
       SUBROUTINE GENSITESPINOCC(NBASIS,NSBASIS,NSPINS,NBASISMAX,G1,NEL,
      &      LMS,BRR,HFBASIS)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,NBASISMAX(5,5),NSPINS,NSBASIS
          INTEGER NEL,LMS,BRR(NBASIS)
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS)
          
@@ -3506,6 +3512,8 @@ C.. Check spin
          
       END
       SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER NUNIT,NHG,BRR(NHG),I
          INCLUDE 'sym.inc'
@@ -3525,10 +3533,10 @@ C.. Check spin
       
       SUBROUTINE GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis,
      &      nDown,nUp)
+         use System, only: BasisFN
          IMPLICIT NONE
          REAL*8 ARR(nBasis)
          INTEGER BRR(nBasis)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          INTEGER LMS,nEl,nActiveBasis(2),nBasis
          INTEGER I,nDown,nUp,nLeft

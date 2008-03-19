@@ -3,13 +3,12 @@
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
       USE HElem
       Use Determinants, only: GetHElement2
-      USE System , only : TSTAR
+      USE System , only : TSTAR,BasisFN
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(HElement) HAMIL(*)
       INTEGER NDET,NEL,NMSH,NMAX
       INTEGER LAB(*)
-      INCLUDE 'basis.inc'
       TYPE(BasisFn) G1(*)
       INTEGER NMRKS(NEL,*)
       INTEGER NROW(NDET),GC
@@ -115,10 +114,10 @@ C ==-------------------------------------------------------------------==
       END
 C ==---------------------------------------------------------------==
       SUBROUTINE CHK_MS(ND1,ND2,NBASISMAX,NEL,IFLG,G1)
+      use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       DIMENSION ND1(NEL),ND2(NEL)
-      INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(*)
 C..
       MS1=0

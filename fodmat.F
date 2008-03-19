@@ -1,5 +1,6 @@
       SUBROUTINE FODMAT(NEL,NHG,NDET,NEVAL,ISTATE,
      &	NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
+      use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       POINTER (IP_FODM,FODM),(IP_Z,Z),(IP_W,W),(IP_CDETK,CDETK),
@@ -20,7 +21,6 @@ C..Diagonalisation vectors
 C..Diagonalisation vectors
       DIMENSION WORK(*),IWORK(*)
       COMPLEX*16 DMAT(NHG,*),CDET
-      INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
       INTEGER INDX(*)
 C..

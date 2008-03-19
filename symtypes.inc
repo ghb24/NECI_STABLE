@@ -1,4 +1,3 @@
-         INCLUDE 'basis.inc'
          TYPE SymPairProd 
             TYPE(Symmetry) Sym
             INTEGER nPairs

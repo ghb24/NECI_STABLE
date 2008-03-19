@@ -600,6 +600,7 @@ MODULE Calc
     Subroutine CalcDoCalc()
         Use System, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis, nBasisMax
         Use System, only: SymRestrict, tCSF, tParity, tSpn, ALat, Beta
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
         Use DetCalc, only : CK, DetInv, nDet, nEval, tEnergy, tRead, nmrks, w
         Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
         Use Integrals, only: FCK, NMAX, NMSH, UMat, FCK
@@ -610,7 +611,6 @@ MODULE Calc
 !Local Vars
         REAL*8 EN, ExEn, GsEN
         REAL*8 FLRI, FLSI
-        INCLUDE 'basis.inc'
         REAL*8 RH
         LOGICAL tWarn
     
@@ -717,6 +717,7 @@ MODULE Calc
         End Subroutine
     Subroutine DoExactVertexCalc()
         Use System, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax, Arr
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
         Use Integrals, only: fck, nMax, nMsh, UMat,nTay
         Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
         Use Determinants, only: specdet, tSpecDet
@@ -725,7 +726,6 @@ MODULE Calc
         REAL*8 En, ExEn, GSEn
         REAL*8 RH
         INTEGER iDeg, III
-        include 'basis.inc'
         Type(BasisFN) iSym
         LOGICAL tWarn
         

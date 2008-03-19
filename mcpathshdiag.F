@@ -34,8 +34,8 @@ C.,             If 1, only allow doubles.
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          USE Calc , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
@@ -631,8 +631,8 @@ C            CALL PRINT_MEMORY()
      &      NBASISMAX,UMAT,G1,DLWDB2)
          USE HElem
          USE UMatCache , only : GetUMatEl
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p
          REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,NBASISMAX(5,5)

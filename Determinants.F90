@@ -1,6 +1,7 @@
 #include "macros.h"
 MODULE Determinants
     Use HElem
+    use System, only: BasisFN
     implicit none
     save
 ! Set by Calc on input
@@ -17,7 +18,6 @@ MODULE Determinants
 !  Set by input to indicate which type of active basis we need
       Integer iActiveBasis
 !Not really Locals - needed for the DetCalc
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) ISym
 !Used to be from uhfdet.inc
       INTEGER nUHFDet(5000)
@@ -132,11 +132,11 @@ MODULE Determinants
       TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
          Use HElem
          USE System , only : TSTOREASEXCITATIONS
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NMSH,NMAX
          COMPLEX*16 FCK(*)
          REAL*8 ALAT(*)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*)
          TYPE(HElement) UMat(*)

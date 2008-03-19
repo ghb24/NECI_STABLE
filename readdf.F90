@@ -198,7 +198,6 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END 
       SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D,tUMat2D)
          implicit none
-         include 'basis.inc'
          integer nBasis,i,j,k,ilast
          real*8 val,UMat2D(nBasis,nBasis)
          logical tUMat2D
@@ -248,8 +247,8 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          USE HElem
          USE UMatcache , only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
+         use System, only: BasisFN,BasisFNSize,Symmetry
          implicit none
-         include 'basis.inc'
          integer nBasis,Brr(nBasis),i,j
          real*8 Arr(nBasis,2),val,ECore
          type(BasisFN) G1(nBasis)
@@ -288,8 +287,8 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          enddo
       END
       SUBROUTINE InitDaltonBasis(nBasisMax,Arr,Brr,G1,nBasis)
+         use System, only: Symmetry,BasisFN,BasisFNSize
          implicit none
-         include 'basis.inc'
          integer nBasis,Brr(nBasis),i,j,nBasisMax(5,3)
          real*8 Arr(nBasis,2),val,ECore
          type(BasisFN) G1(nBasis)

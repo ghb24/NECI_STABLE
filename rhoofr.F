@@ -76,11 +76,11 @@ C..Calculate integral of RHO
 C ==---------------------------------------------------------==
       SUBROUTINE RLS(NEL,NMSH,NHG,NDET,NDET1,NDET2,G1,
      &	SITAB,NMAX,IC,AUX)
+      use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       DIMENSION NDET1(NEL),NDET2(NEL),AUX(NMSH,NMSH,NMSH)
       DIMENSION SITAB(NMSH,NMAX),AUXX(NEL),AUXY(NEL),AUXZ(NEL)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(NHG)
       INTEGER N1E(NHG),N2E(NHG)
 C..
@@ -202,8 +202,8 @@ C..
       END
 C ==---------------------------------------------------------==
       SUBROUTINE CKRN(NHG,G1,ND1,ND2,ID)
+      use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(NHG)
 C..
       ID=0

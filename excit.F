@@ -136,8 +136,8 @@ C.. determinants within double excitations, which will end up fairly inefficient
       SUBROUTINE GENEXCIT(NI,NORDER,NBASIS,NEL,LIST,ICLIST,NLIST,NMIN,
      &            G1,TSYM,NBASISMAX,TCOUNT)
          USE Calc , only : TNEWEXCITATIONS
+         use System, only: BasisFN
          IMPLICIT NONE
-         include 'basis.inc'
          INTEGER NEL,NI(NEL),NORDER,NBASIS,LIST(NEL,*),ICLIST(*)
          INTEGER NEXCIT(NEL),NLIST,NBASISMAX(5,7)
          TYPE(BASISFN) ISYM
@@ -205,12 +205,12 @@ C.. NSTARTFN is the basis fn to start with for this electron
       RECURSIVE SUBROUTINE GENEXCIT_R(NI,NORDER,NEL,NELEC,NBASIS,LIST,
      &         ICLIST,NLISTPOS,NEXCIT,NLEFT,NSTARTFN,NMIN,G1,ISYM,TSYM,
      &         NBASISMAX,TCOUNT)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NELEC,NORDER,NLISTPOS,NLEFT,NBASIS,NSTARTFN,NNLEFT
          INTEGER NI(NEL),NEXCIT(NEL),LIST(NEL,*),ICLIST(*)
          INTEGER I,J,I1,I2,NMIN,NMAXEX,K
          LOGICAL LISINOLD,LSYM,TSYM,LCHKSYM,TCOUNT
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),ISYM,ISYM2
          INTEGER NBASISMAX(5,3)
 C.. NMAXEX is the maximum number of excitations we're allowed to  have

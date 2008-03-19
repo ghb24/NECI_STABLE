@@ -1,6 +1,7 @@
 #include "macros.h"
 MODULE DetCalc
         Use HElem
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
     IMPLICIT NONE
      save
 
@@ -18,7 +19,6 @@ MODULE DetCalc
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS)
-      include 'basis.inc'
       TYPE(BasisFN), pointer :: BLOCKSYM(:)
       INTEGER tagBlockSym
       INTEGER NBLOCKSTARTS(*)
@@ -40,8 +40,8 @@ CONTAINS
 
         Use Determinants, only:  FDet, specdet, tSpecDet
         Use System, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
-         Use System, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-         Use System, only : tParity, tSpn
+        Use System, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+        Use System, only : tParity, tSpn
         Type(BasisFn) ISym
 
         integer i,ii

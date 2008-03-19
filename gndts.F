@@ -3,11 +3,11 @@ C.. This sets up variables, and calls the recursion
       SUBROUTINE GNDTS(NEL,NHG,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  SymRestrict,II,IFDET)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NHG,LMS,II
          INTEGER NMRKS(NEL,*)
          INTEGER BRR(NHG)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NHG),SymRestrict,kJ
          LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
          INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
@@ -41,11 +41,11 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       RECURSIVE SUBROUTINE GNDTS_R(NEL,NHG,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  SymRestrict,II,IELECS,ISPINS,IELEC,KJ)
+      use System, only: BasisFN
       IMPLICIT NONE
       INTEGER NEL,NHG,LMS,II
       INTEGER NMRKS(NEL,*)
       INTEGER BRR(NHG)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(nHG),kI,kJ,SymRestrict
       LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
       INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS

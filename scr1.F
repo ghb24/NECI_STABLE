@@ -2,9 +2,9 @@
      &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM)
       USE HElem
       USE UMatCache , Only : GetUMatEl,GetTMatEl
+      use System, only: BasisFN
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(*)
       INTEGER NBASISMAX(5,3)
       INTEGER ID,EX(2)

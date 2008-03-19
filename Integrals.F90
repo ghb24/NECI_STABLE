@@ -573,9 +573,9 @@ MODULE Integrals
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
          USE HElem
          USE UMatCache
+         use System, only: Symmetry,BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NHG)
          TYPE(HElement) UMAT(*)
 !!C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -822,6 +822,8 @@ MODULE Integrals
       SUBROUTINE WRITESYMCLASSES(NBASIS)
         USE HElem
         USE UMatCache
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         include 'sym.inc'
         INTEGER I,NBASIS

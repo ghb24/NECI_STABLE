@@ -27,10 +27,8 @@
       contains
 
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,L,LT,nWHTay,iLogging,tSym,ECore,dBeta,dLWdb)
-        Use Determinants, only: GetHElement2
-
-      IMPLICIT NONE
-      INCLUDE 'basis.inc'
+      use Determinants, only: GetHElement2
+      use System, only: BasisFN
       TYPE(BasisFN) G1(*)
       INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
       INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
@@ -179,8 +177,8 @@
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
         USE Integrals , only : TDISCONODES
         Use Determinants, only: GetHElement2
+        use System, only: BasisFN
         IMPLICIT NONE
-        INCLUDE 'basis.inc'
         Type(BasisFN) G1(*)
         COMPLEX*16 fck(*)
         TYPE(HElement) UMat(*),rh,Hel

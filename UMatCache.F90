@@ -276,6 +276,8 @@ MODULE UMatCache
 !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
 !   If the element is zero, return -1 (TMatSym(-1) is set to 0). 
     INTEGER FUNCTION TMatInd(I,J)
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
         include 'sym.inc'
@@ -321,6 +323,8 @@ MODULE UMatCache
       
      ! See notes for TMatInd.
      INTEGER FUNCTION NEWTMatInd(I,J)
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
         include 'sym.inc'
@@ -426,10 +430,12 @@ MODULE UMatCache
       ! See notes in SetupTMat as well.
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
         use System, only: tCPMD
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         include 'cpmddata.inc'
         include 'sym.inc'
-         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
+        integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
         
         ! If this is a CPMD k-point calculation, then we're operating
@@ -538,6 +544,8 @@ MODULE UMatCache
         ENDIF
       END subroutine
       SUBROUTINE WRITETMAT(NBASIS)
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         include 'sym.inc'
         INTEGER II,I,J,NBASIS
@@ -618,6 +626,8 @@ MODULE UMatCache
         
       SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
         use System, only: tCPMD
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
         include 'cpmddata.inc'
         include 'sym.inc'
@@ -705,10 +715,10 @@ MODULE UMatCache
       !Get a U matrix element <ij|u|kl> in multifarious ways, where orbitals are spatial orbitals.  Either from a passed-in UMAT, or ALAT parameters, 
 ! or from UMatcache.
       FUNCTION GetUMatEl(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
+         use System, only: Symmetry,BasisFN
          IMPLICIT NONE
          TYPE(HElement) GetUMatEl
          INTEGER NBASISMAX(5,3),I,J,K,L,NHG,ISS
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NHG)
          REAL*8 ALAT(3),GetNan
          TYPE(HElement) UMAT(*)
@@ -959,8 +969,8 @@ MODULE UMatCache
       END subroutine
 
       SUBROUTINE SETUPUMAT2D(G1,HarInt)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER ierr
          complex*16 HarInt(nStates,nStates)
@@ -1402,8 +1412,8 @@ MODULE UMatCache
 !  calculation.  Need to print out the full set of indices, as the number of
 !  states may change with the next calculation.
       subroutine DumpUMatCache(NHG,G1)
+      use System, only: Symmetry,BasisFN
       implicit none
-      include  'basis.inc'
       integer  NHG
       type(BasisFN) G1(NHG)
       ! Variables

@@ -26,6 +26,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &               WLRI,WLSI,DBETA,DLWDB)
          Use Determinants, only: GetHElement2
          USE HElem
+         use System, only: BasisFN
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
@@ -34,7 +35,6 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
@@ -427,13 +427,13 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElem
+         use System, only: BasisFN
          Use Determinants, only: GetHElement2
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE PRECALCREAD , only : TPREVAR
          USE Calc , only : TMPTHEORY,TDIAGNODES
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
@@ -705,11 +705,11 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
      &   MP2E,NTOTAL)  RESULT (FMCPR3RES)
          USE HElem
+         use System, only: BasisFN
          Use Determinants, only: GetHElement2
          USE Logging , only : G_VMC_LOGCOUNT
          USE Calc , only : TMPTHEORY
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          TYPE(HDElement) FMCPR3RES
          INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
@@ -1026,12 +1026,12 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,EREF,VARSUM,WREF) RESULT (FMCPR3BRES)
          USE HElem
+         use System, only: BasisFN
          Use Determinants, only: GetHElement2
          USE Calc , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II

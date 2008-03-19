@@ -3,8 +3,8 @@ C.. TMAT has sometimes been hidden in ZIA
      &	G1,NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,TOTSUM)
       USE HElem
       USE UMatCache
+      use System, only: BasisFN
       IMPLICIT NONE
-      INCLUDE 'basis.inc'
       TYPE(BasisFn) G1(*)
       INTEGER ISS
       TYPE(HElement) UMAT(*)

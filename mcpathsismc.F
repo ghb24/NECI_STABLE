@@ -19,8 +19,8 @@ C.. NMAX has ARR hidden in it.
          USE Calc , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
          USE Logging , only : G_VMC_LOGCOUNT
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(MCStats) MCSt
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY,NWHTAY
@@ -1597,12 +1597,12 @@ C.. Invert the matrix, and pass the multiplicative factor on.
 
       SUBROUTINE GENRANDOMEXCITSYM(NI,NEL,NBASIS,G1,IEXLEVEL,ISEED,
      &            NBASISMAX,KSYM,NJ)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
          INTEGER IGETEXCITLEVEL
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) KSYM
          INTEGER G1(*),NBASISMAX(5,2)
          LOGICAL LCHKSYM
@@ -1643,10 +1643,10 @@ C.. If the new basis fn's in our original det or our new one, we loop again
 
       SUBROUTINE GETEXCITCOUNTSYM(INODE,NEL,NBASIS,G1,NBASISMAX,
      &            KSYM,BRR,ICOUNT)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,INODE(NEL),NBASIS,G1(*),NBASISMAX(5,2)
          INTEGER ICOUNT,BRR(NBASIS)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) KSYM
          ICOUNT=0
          CALL GENSYMDETSSD(INODE,KSYM,NEL,G1,BRR,NBASIS,0,
@@ -1657,6 +1657,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
 
       SUBROUTINE GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,NEXCITS,
      &      ISEED,NJ)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,NEXCITS,ISEED,NJ(NEL)
          INTEGER I,J,K,IEXL2,NB2,NA,NB,NEX1,NEX2
@@ -1668,7 +1669,6 @@ C.. If the new basis fn's in our original det or our new one, we loop again
          REAL*8 R,IEX
          LOGICAL ISUHFDET
          REAL*8 RAN2
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) KSym
 C         CALL WRITEDET(56,NI,NEL,.TRUE.)
 C         CALL FLUSH(56)
@@ -1738,9 +1738,9 @@ C         CALL FLUSH(57)
       END
       
       SUBROUTINE FINDELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS
          LOGICAL BR
@@ -1754,9 +1754,9 @@ C         CALL FLUSH(57)
          RETURN
       END
       SUBROUTINE FINDNEWELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX,IEX1)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL,IEX1,NBASIS
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          LOGICAL BR
          INTEGER I
@@ -2032,8 +2032,8 @@ C.. Unbias the sum
          USE Calc , only : G_VMC_PI
          USE PRECALCREAD , only : TPREVAR
          USE HElem
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
          TYPE(HElement) Umat(*)

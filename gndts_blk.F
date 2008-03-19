@@ -2,11 +2,11 @@
      &         NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS,
      &         TPARITY,SymRestrict,IFDET,TGENFDET,NDETTOT,BLOCKSYM
      &         )
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,2),NDET
          INTEGER NMRKS(NEL,NDET)
          INTEGER II,NLMAX
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),ISYM,KJ,BLOCKSYM(NBLOCKS),IMAX(2)
          TYPE(BasisFN) SymRestrict
          LOGICAL TCOUNT
@@ -78,9 +78,9 @@ C.. we've found an occupied block
 
       RECURSIVE SUBROUTINE GENSYMDETSSD_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
          INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
@@ -119,10 +119,10 @@ C.. Get the determinants of the same symmetry as KI, but which are only
 C.. singles and doubles of NI
       SUBROUTINE GENSYMDETSSD(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &         NLIST,NBASISMAX)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),NBASISMAX(5,2)
          INTEGER I,J,NLMAX
@@ -141,10 +141,10 @@ C.. As they are generated, they are placed in LSTE, which is of length
 C.. NLIST, up until LSTE is full.  NLIST at the end contains the total
 C.. number of determinants available (even if LSTE doesn't hold them all).
       SUBROUTINE GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST),NBASISMAX(5,2)
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL)
          INTEGER I,J,NLMAX
@@ -159,12 +159,12 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
 
       RECURSIVE SUBROUTINE GENSYMDETS_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
          INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
          LOGICAL LCMP,LCHKSYM,TTILT
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          DO I=NBF,NBASIS
             NJ(NELEC)=BRR(I)
@@ -203,10 +203,10 @@ C.. otherwise we need to add more electrons:
       
 C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
       SUBROUTINE GENSYMDETSS(KI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL),NBASISMAX(5,2)
          INTEGER I,J,NLMAX
@@ -223,6 +223,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
       RECURSIVE SUBROUTINE GENSYMDETSSDN_R(NI,KI,NEL,G1,BRR,NBASIS,LSTE,
      &                NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX,BETA,I_P,
      &       NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,PP,RHOEPS)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
@@ -232,7 +233,6 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          REAL*8 RN,RP,RH,PP,RH2,RHOEPS
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          DO I=NBF,NBASIS
 C.. We continue if we're not searching for a specific det, or if we've
@@ -309,6 +309,7 @@ C.. the first NLIST are stored.
      &         NLIST,NBASISMAX,
      &         BETA,I_P,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,RN,RP,
      &         PP,RHOEPS)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
@@ -317,7 +318,6 @@ C.. the first NLIST are stored.
          REAL*8 RN,RP,PP,RHOEPS
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
          INTEGER I_P,NMSH,NMAX,NTAY
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          CALL IAZZERO(KJ,BASISFNSIZE)
          CALL IAZZERO(NJ,NEL)
@@ -335,8 +335,8 @@ C.. TDONE will be set to TRUE if there are no more dets.
 C.. KI is the sym, NJ contains the working
       SUBROUTINE GENNEXTSYMDET(KI,NEL,G1,BRR,NBASIS,
      &            TDONE,NJ,NN,INDJ,NELEC,NBASISMAX,nActiveBasis)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis),kI,kJ,kJ2
          INTEGER NEL,NI(NEL), NBASIS
          INTEGER NJ(NEL),NELEC,INDJ(NEL),NLAST
@@ -389,6 +389,7 @@ C.. Otherwise we need to go to the next slot
 C.. WORK(2*NEL+18)
       SUBROUTINE GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,
      &      TPARITY,SymRestrict,ISYM,NI,TSETUP,TDONE,Work,nActiveBasis)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3)
          INTEGER LMS,NIWORK(NEL),NI(NEL)
@@ -417,6 +418,7 @@ C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
      &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work,nActiveBasis)
 C,IMAX,ISYM,NELEC,
 C     &      NIWORK,NINDJ)
+         use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work 

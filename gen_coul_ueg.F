@@ -3,8 +3,8 @@ C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_HUBNPBC(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA)
       USE UMatCache , only : UMatInd
+      use System, only: BasisFN
       IMPLICIT NONE
-      INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
       INTEGER NBASISMAX(5,3),ISS,NEL
       REAL*8 UMAT(*)
@@ -90,8 +90,8 @@ C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_UEG(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
       USE UMatCache , only : UMatInd, iPeriodicDampingType
+      use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
-      INCLUDE 'basis.inc'
       TYPE(BASISFN) G1(NHG)
       INTEGER NBASISMAX(5,5),ISS 
       DIMENSION UMAT(*)
@@ -324,8 +324,8 @@ C.. we have a tilted lattice
       END
  
       SUBROUTINE GetHubUMatEl(I,J,K,L,UMAT,NBASISMAX,G1,SUM)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) G1(*),KA,KB
          INTEGER NBASISMAX(5,5)
 C..Cube arrays
@@ -350,10 +350,10 @@ C..Cube arrays
 
       SUBROUTINE GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,
      &      iExchangeDampingType,SUM)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ISS
          INTEGER iExchangeDampingType
-         INCLUDE 'basis.inc'
          TYPE(BasisFn) G1(*)
          INTEGER I,J,K,L,A,B,C
          REAL*8 SUM,ALAT(4),G

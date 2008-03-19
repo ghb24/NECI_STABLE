@@ -6,10 +6,10 @@ C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
       USE HElem
       USE UMatCache , Only : GetUMatEl
+      use System, only: BasisFN
       IMPLICIT NONE
       INTEGER NDET1(NEL)
       INTEGER NDET2(NEL)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(*)
       INTEGER ISS
       INTEGER EX(2,2)
@@ -64,9 +64,9 @@ C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
       USE HElem
       USE UMatCache , Only : GetUMatEl
+      use System, only: BasisFN
       IMPLICIT NONE
       INTEGER nJ(7)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(*)
       INTEGER ISS
       TYPE(HElement) UMAT(*),SUM,SUM2

@@ -1,9 +1,9 @@
       SUBROUTINE RLSXC_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
      &	NDET,NDET1,G1,NHG,AUXC)
+      use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION NDET1(NEL),AUXC(NMSH,NMSH,NMSH)
       DIMENSION SITAB(NMSH,NMAX)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(NHG)
 C..
       CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
@@ -41,9 +41,9 @@ C..
       END	
 C ==-----------------------------------------------------------------==
       FUNCTION U1(ND,NX,NMSH,NHG,G1,SITAB,I,J,K)
+      use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION SITAB(NMSH,NX)
-      INCLUDE 'basis.inc'
       TYPE(BasisFN) G1(NHG)
 C..
       U1=

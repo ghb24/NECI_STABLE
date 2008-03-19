@@ -91,9 +91,9 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          USE HElem
          USE UMatCache , only : TMat2D,TMATSYM,
      &          TSTARSTORE,TMatInd,SetupTMAT
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,NBASISMAX(5,2)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(nBasis)
          REAL*8 BHUB
          INTEGER iSize
@@ -264,6 +264,8 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 
 !Generate the Sym table for a Hubbard Lattice
       Subroutine GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER nBasis,nBasisMax(*)
@@ -338,6 +340,8 @@ C.. Setup the symmetry product table
 !  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
 !  not just one of the subcomponents
       SUBROUTINE GENHUBSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER NSYMMAX

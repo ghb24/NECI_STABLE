@@ -18,6 +18,7 @@
      &         RHOIJ2,BETA,DBETA,RHOIJLAB,NRHOMAXWIDTH,I_HMAX,IMCSTEPS,
      &         G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,NWHTAY,
      &         ILOGGING)
+         use System, only: BasisFN
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET,NRHO
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
@@ -29,7 +30,6 @@
 C         INTEGER NI(4,NEL), NJ(4,NEL)
          LOGICAL LACC
          INTEGER BRR(NBASIS)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NBASIS)
          INTEGER NMRKS(NEL,NDET),NBASISMAX(5,2)
          POINTER (IP_LSTI,LSTI),(IP_DLWDBS,DLWDBS),(IP_WLRIS,WLRIS)
@@ -202,9 +202,9 @@ C.. change the spin
 
 C.. NJ is a list of Quantum numbers of basis fns for each electron
       INTEGER FUNCTION IFINDDET(NJ,NEL,G1,NMRKS,NBASIS,NDET)
+         use System, only: BasisFN
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NJ(4,NEL),NMRKS(NEL,NDET)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(*)
          LOGICAL TFOUND
          TFOUND=.FALSE.
@@ -568,9 +568,9 @@ C.. if there's space, we store
       END
 
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASISMAX(5,3),NI(NEL),NJ(NEL),NQN(5)
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NBASIS)
          INTEGER NCH,ND,NEL,BRR(NBASIS),NBASIS,ISEED
          LOGICAL L
@@ -680,9 +680,9 @@ C.. if we've more electrons to change, we go round again
          RETURN
       END
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
+         use System, only: BasisFN
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NBASIS
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NBASIS),NQNS
          LOGICAL L
          DO I=1,NBASIS
@@ -961,9 +961,9 @@ C.. non-PBC non-tilted - leave things as they are
          RETURN
       END
       INTEGER FUNCTION IGETENEIGHBOUR(IEL,NBASIS,BRR,ISGN,G1,IDIST)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NBASIS)
          INTEGER I,J,NQN4,IDIST,IDIST2
          DO I=1,NBASIS
@@ -984,9 +984,9 @@ C.. make sure we have an orbital of the correct spin
 C.. Find a neighbour in a different degenerate manifold.
 C.. THIS IS NOT ERGODIC
       INTEGER FUNCTION IGETENEIGHBOURDEG(IEL,NBASIS,BRR,ISGN,G1,ISEED)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NBASIS)
          INTEGER I,J,NQN4,DEGS1,DEGS2,ODEG,NDEG,OJ,ISEED,J2
          REAL*8 RAN2
@@ -1031,9 +1031,9 @@ C.. CHeck spin
          RETURN
       END
       INTEGER FUNCTION IGETSNEIGHBOUR(IEL,NBASIS,BRR,ISGN,G1)
+         use System, only: BasisFN
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) G1(NBASIS)
          INTEGER I,J,NQN4
          DO I=1,NBASIS

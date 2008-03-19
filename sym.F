@@ -17,6 +17,8 @@ C.. product in the symmetry table, and OR that with the product.
 ! kpntrep.F in CPMD source.
 
          FUNCTION SYMPROD(ISYM1,ISYM2)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          TYPE(Symmetry) ISYM1, ISYM2
@@ -62,6 +64,8 @@ C.. product in the symmetry table, and OR that with the product.
       END
 
       FUNCTION SymConj(s2)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          TYPE(Symmetry) s,SymConj,s2
@@ -94,6 +98,8 @@ C.. product in the symmetry table, and OR that with the product.
       END
 
       SUBROUTINE WRITESYMTABLE(IUNIT)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER IUNIT,I,J
          INCLUDE 'sym.inc'
@@ -110,6 +116,9 @@ C.. product in the symmetry table, and OR that with the product.
       END
 
       LOGICAL FUNCTION LSYMSYM(SYM)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         implicit none
          include 'sym.inc'
          Type(Symmetry) SYM
          if (TAbelian) then
@@ -128,6 +137,8 @@ C.. symmetry products are merely exclusive ors of the molpro irrep numbers
 C.. We set each of the MOLPRO irreps to a bit in our symmetry specifier.
 C.. A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER NSYMMAX,nSymGen
@@ -186,6 +197,8 @@ C.. NBASIS is the new number of orbs
 C.. GG(I) is the new index of the (old) orb I
 
       SUBROUTINE FREEZESYMLABELS(NHG,NBASIS,GG,FRZ)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER NHG,NBASIS,GG(NHG)
          INTEGER I
@@ -240,6 +253,8 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
       END
 
       SUBROUTINE GENMOLPSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER NSYMMAX
@@ -269,6 +284,8 @@ C.. we have a new rep
 
 C.. delete a symmetry table if one existed.
       SUBROUTINE ENDSYM()
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          IF(IP_SYMTABLE.NE.0) CALL FREEM(IP_SYMTABLE)
@@ -295,6 +312,8 @@ C.. delete a symmetry table if one existed.
 
 C.. Precompute a list of the symmetry product of all pairs of symmetry labels
       SUBROUTINE GENSymStatePairs(NSTATES,FRZ)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
@@ -371,6 +390,8 @@ C.. Now sort the SymPairProds into order
       END
 
       SUBROUTINE GENALLSymStatePairs(NSTATES,TSTORE,FRZ)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          LOGICAL TSTORE,FRZ
@@ -411,6 +432,9 @@ C.. incrememnt the counter in the pairlist
       END
 
       SUBROUTINE FindSymProd(Prod,SymPairProds,nSymPairProds,iProd)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         implicit none
          INCLUDE 'symtypes.inc'
          TYPE(SymPairProd) SymPairProds(nSymPairProds)
          INTEGER nSymPairProds,iProd
@@ -438,6 +462,8 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
 
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL),NBASISMAX(5,3)
@@ -499,6 +525,8 @@ C.. round the momentum
 
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.
       SUBROUTINE GENIRREPS(TKP,IMPROPER_OP,NROTOP)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J,K
@@ -744,6 +772,8 @@ C.. write in terms of I.
 C.. Decompose rep CHARS into irreps in IRREPCHARS.  Bit 0 in IDECOMP corresponds to the first irrep etc.
 C.. CHARS at the end contains the remainder after the decomposition.
       SUBROUTINE DECOMPOSEREP(CHARSIN,IDECOMP)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          TYPE(Symmetry) IDECOMP
@@ -814,9 +844,9 @@ C.. This is used internally in the symmetry routine and destroys CHARS.  For gen
 C,, use DECOMPOSEREP
       LOGICAL FUNCTION GETIRREPDECOMP(CHARS,IRREPCHARS,NIRREPS,NROT,
      &         IDECOMP,CNORM,TAbelian)
+         use System, only: Symmetry
          IMPLICIT NONE
          INTEGER NIRREPS, NROT
-         INCLUDE 'basis.inc'
          TYPE(Symmetry) IDECOMP
          COMPLEX*16 IRREPCHARS(NROT,NIRREPS),CHARS(NROT)
          REAL*8 CNORM, NORM,DIFF
@@ -877,6 +907,8 @@ C.. We've found an (ir)rep which is wholly in CHARS
 
 
       SUBROUTINE GENSYMTABLE
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J,K
@@ -932,6 +964,8 @@ C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
       END
 
       SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER I,J
@@ -968,8 +1002,8 @@ C.. Other irreps contributing to the symmetry have bits set in
 C.. SYM.
 C.. e.g. if irreps are a1,a2,b1,b2
       LOGICAL FUNCTION LCHKSYM(ISYM,JSYM)
+         use System, only: BasisFN,Symmetry
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) ISYM,JSYM
          INTEGER I,IS,JS
          TYPE(SYMMETRY) SYMPROD,SymConj
@@ -986,8 +1020,8 @@ C.. symmetric irrep, we set sym to .FALSE.
       END
       
       LOGICAL FUNCTION LCHKSYMD(NI,NJ,NEL,G1,NBASISMAX)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) ISYM,JSYM,G1(*)
          INTEGER NEL,NI(NEL),NJ(NEL),NBASISMAX(5,3)
          LOGICAL LCHKSYM
@@ -1024,8 +1058,8 @@ C 1 Generic spatial
 
 C.. This only works for momentum variables - 1-4
       SUBROUTINE ADDELECSYM(IEL,G1,NBASISMAX,ISYM)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BASISFN) ISYM,G1(*)
          INTEGER IELEC,NBASISMAX(5,3)
          INTEGER I,IEL,SSYM
@@ -1054,8 +1088,8 @@ C.. (it is +/-CSF_NSBASIS)
       END 
       
       SUBROUTINE ROUNDSYM(ISYM,NBASISMAX)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) ISYM
          INTEGER NBASISMAX(5,3)
          INTEGER I
@@ -1171,8 +1205,8 @@ C.. T1= highest integer less than R1
       END
 
       LOGICAL FUNCTION SYMLT(A,B)
+         use System, only: Symmetry
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(Symmetry) A,B
          IF(A%s.GE.0) THEN
             IF(B%s.GE.0) THEN
@@ -1190,23 +1224,23 @@ C.. T1= highest integer less than R1
          RETURN
       END
       LOGICAL FUNCTION SYMNE(A,B)
+         use System, only: Symmetry
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(Symmetry) A,B
          SYMNE=A%s.NE.B%s
          RETURN
       END
       LOGICAL FUNCTION SYMEQ(A,B)
+         use System, only: Symmetry
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(Symmetry) A,B
          SYMEQ=A%s.EQ.B%s
          RETURN
 !Need to cope with 'unsigned integers'
       END
       LOGICAL FUNCTION SYMGT(A,B)
+         use System, only: Symmetry
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(Symmetry) A,B
          IF(A%s.GE.0) THEN
             IF(B%s.GE.0) THEN
@@ -1226,8 +1260,8 @@ C.. T1= highest integer less than R1
 C.. A binary search to find VAL in TAB.  TAB is sorted
 
       SUBROUTINE BINARYSEARCHSYM(VAL,TAB,ROWLEN,LEN,LOC)
+         use System, only: Symmetry
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(Symmetry) VAL
          INTEGER LOC,LEN,ROWLEN
          INTEGER TAB(ROWLEN,LEN)
@@ -1272,6 +1306,8 @@ C.. Failure
       END
       SUBROUTINE GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &      TPARITY,IPARITY,TSETUP,TDONE,IMAX,ISYM)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER NEL,NBASISMAX(5,3)
@@ -1382,8 +1418,8 @@ C.. lower ones.
          TDONE=.NOT.TMORE
       END
       SUBROUTINE DOSYMLIMDEGEN(IMAX,NBASISMAX)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) IMax(2)
          INTEGER NBASISMAX(5,5),I
          IF(NBASISMAX(3,3).EQ.0) THEN
@@ -1395,8 +1431,8 @@ C.. always a spin symmetry
          IF(IMAX(1)%Ms.NE.IMAX(2)%Ms) IMAX(1)%Ms=0
       END
       SUBROUTINE GETSYMDEGEN(ISYM,NBASISMAX,IDEGEN)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          TYPE(BasisFN) ISym,ISym2
          INTEGER NBASISMAX(5,5),IDEGEN,I,J
          LOGICAL KALLOWED,TDO
@@ -1424,6 +1460,8 @@ C.. Spin
 
 C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE SETUPSYM(NBASISMAX,ISYM)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER NBASISMAX(5,6)
@@ -1433,8 +1471,8 @@ C.. Initialize symmetry to take into account the core electrons
       END
 
       SUBROUTINE WRITEALLSYM(IUNIT,SYM,LTERM)
+         use System, only: BasisFN
          IMPLICIT NONE
-         INCLUDE 'basis.inc'
          INTEGER IUNIT
          TYPE(BASISFN) SYM
          LOGICAL LTERM
@@ -1443,6 +1481,8 @@ C.. Initialize symmetry to take into account the core electrons
          CALL WRITESYM(IUNIT,SYM%SYM,LTERM)
       END
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER IUNIT
@@ -1471,6 +1511,8 @@ C.. Initialize symmetry to take into account the core electrons
          IF(LTERM) WRITE(IUNIT,*)
       END
       SUBROUTINE SetupFreezeAllSym(Sym)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          TYPE(BasisFN) Sym
@@ -1478,6 +1520,8 @@ C.. Set to be totally symmetric
          FrozenSym=Sym
       END
       SUBROUTINE SetupFreezeSym(Sym)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          TYPE(Symmetry) Sym
@@ -1490,6 +1534,8 @@ C.. Set to be totally symmetric
       ! JSS: use Abelian symmetry formulation (allows us to go beyond 64
       ! symmetry operations, and hence deal with larger k-point meshes).
       SUBROUTINE GenKPtIrreps(cKptChars,nTranslat,nKps,KpntInd,nStates)
+      use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use System, only: BasisFN,BasisFNSize,BasisFNSizeB
       IMPLICIT NONE
       COMPLEX*16 cKptChars(nTranslat,nKps)
       INTEGER nTranslat,nKps,KpntInd(nStates)
@@ -1557,6 +1603,8 @@ C.. Set to be totally symmetric
       ! kpntrep.F in CPMD source.
       ! Decompose the symmetry label back into the appropriate
       ! numbers...
+      use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use System, only: BasisFN,BasisFNSize,BasisFNSizeB
       implicit none
       include 'sym.inc'
       integer*8 Isym
@@ -1570,10 +1618,12 @@ C.. Set to be totally symmetric
       end subroutine DecomposeAbelianSym
 
       integer*8 function ComposeAbelianSym(AbelSym)
+          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
           implicit none
           integer  AbelSym(3)
           integer*8 TempVar
-      include 'sym.inc'
+          include 'sym.inc'
           TempVar=AbelSym(3)
 !LShift
           ComposeAbelianSym=IShft(Tempvar,PropBitLen*2)
@@ -1582,11 +1632,15 @@ C.. Set to be totally symmetric
       end function ComposeAbelianSym
 
 
-      Type(Symmetry)  function TotSymRep()
+      function TotSymRep()
           ! Our definition of the totally symmetric representation
           ! changes according to whether we're using Abelian/k-point
           ! symmetry or the standard symmetry.  It's just a matter of
           ! convenience, rather than some deep theoretical insight!
+          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+          implicit none
+          Type(Symmetry) TotSymRep 
           include 'sym.inc'
           if (TAbelian) then
               TotSymRep%s=0
@@ -1597,6 +1651,8 @@ C.. Set to be totally symmetric
 
       ! nBasisMax might well be needed in the future in these functions.
       integer*8 function MinSymRep(nBasisMax)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          implicit none
          integer nbasismax(5,3)
          include 'sym.inc'
@@ -1607,6 +1663,8 @@ C.. Set to be totally symmetric
          endif
       end function MinSymRep
       integer*8 function MaxSymRep(nBasisMax)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          implicit none
          include 'sym.inc'
          integer nbasismax(5,3)
@@ -1620,6 +1678,8 @@ C.. Set to be totally symmetric
          endif
       end function MaxSymRep
       subroutine IncrSym(Sym)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          implicit none
          include 'sym.inc'
          type(Symmetry) Sym
@@ -1642,6 +1702,8 @@ C.. Set to be totally symmetric
       end subroutine IncrSym
 
       SUBROUTINE GETSYMTMATSIZE(Nirrep,nBasis,iSS,iSize)
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         implicit none
         include 'sym.inc'
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
