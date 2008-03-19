@@ -3,6 +3,13 @@
 !This should approximate CID, although O[N^2 M] connections are missing throughout the structure, correponding to the few connections there are between nodes.
 !Current scaling is N^12 if the final star is explicitly diagonalised, or N^8 if it is done solving the polynomial (to do!).
 
+!!BEWARE!! Bugs expected in code - should NOT reattach the original determinants - have already included them in the prediagonalisation when
+!considering the projection of the original determinant. Needs fixing
+
+!Also to do : consider the linear approximation of eigenvectors, which would mean that only a few of the nodes would need to be explicitly diagonalised, before a linear approximation
+!could be taken to approximate the eigensystems from the other nodes. This would rely on the matrices begin the same, and simply the diagonal elements being multiplied by a constant
+!This would reduce the scaling to M^6 - same as CID
+
     MODULE NODEDIAG
       USE HElem
       IMPLICIT NONE
