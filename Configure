@@ -764,7 +764,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
+     CPPFLAGS="-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-Mr8 -Msignextend -Minform=warn -Msecond_underscore'
@@ -793,7 +793,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
+     CPPFLAGS="-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
@@ -844,7 +844,7 @@ case ${Configuration}
   "ix86-g95/32")
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
 MAXMEM := 1024 # RAM available, in MB.
      NCPUS=1
      #-sb is to use Workshop package
@@ -872,7 +872,7 @@ MAXMEM := 1024 # RAM available, in MB.
      compiler='GCC-f95-on-LINUX'
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)" -DPOINTER8'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DPOINTER8"
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none'
@@ -899,7 +899,7 @@ MAXMEM := 1024 # RAM available, in MB.
      compiler='GCC-f95-on-LINUX'
      IRAT=2
      CPP='cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)"'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
@@ -926,7 +926,7 @@ MAXMEM := 1024 # RAM available, in MB.
    "ppc-gfortran/32")
      IRAT=2
      CPP='cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)" -DMAXMEM="$(MAXMEM)" -DGFORTRAN'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DGFORTRAN"
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
@@ -953,7 +953,7 @@ MAXMEM := 1024 # RAM available, in MB.
    "PowerPC-xlf/32")
      IRAT=2
      CPP='cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)'"
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none'
@@ -1329,9 +1329,11 @@ neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 .SUFFIXES: .o .F .F90 .mod .inc
 
 \$(DOBJECTSF): 
-	\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F
+	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F" -provides "\$(*).o " -requires "\$^"
+#	\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F
 \$(DOBJECTSF90):
-	\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90
+	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90" -provides "\$(*).o " -requires "\$^"
+#	\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90
 \$(OBJ_CC) :
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
 
@@ -1339,8 +1341,9 @@ neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	\$(FCD) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/util-sp.F
 
 %.mod :
-	rm -f \$(@)
-	\$(FC) -o \$(DEST)/\$(<:.F90=.o) \$(FFLAGS) \$(CPPFLAGS) \$<
+#	rm -f \$(@)
+	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(DEST)/\$(<:.F90=.o) \$(FFLAGS) \$(CPPFLAGS) \$<" -provides "\$(*).mod" -requires "\$^"
+#	\$(FC) -o \$(DEST)/\$(<:.F90=.o) \$(FFLAGS) \$(CPPFLAGS) \$<
 
 #----------------------------------------------------------------------------
 
