@@ -7,7 +7,7 @@ module PreCalc
     
     Use Integrals, only : ChemPot
     REAL*8, POINTER, DIMENSION(:) :: PGENLIST
-    REAL*8, POINTER, DIMENSION(:) :: NMEM
+    INTEGER, POINTER, DIMENSION(:) :: NMEM
     REAL*8, POINTER, DIMENSION(:,:) :: GRAPHPARAMS
     INTEGER, POINTER, DIMENSION(:,:,:) :: GRAPHS
 #if defined(POINTER8)
