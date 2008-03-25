@@ -15,11 +15,11 @@ MODULE Calc
         LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ
-        LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS
+        LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         
         INTEGER NWHTAY(3,10),NPATHS
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
-        INTEGER IMCSTEPS,IEQSTEPS,MDK(5)
+        INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints
         
         
@@ -60,6 +60,9 @@ MODULE Calc
 
 
 !       Calc defaults      
+          NDets=400
+          Iters=10
+          TGraphMorph=.false.
           LinePoints=10
           TSTARSTARS=.false.
           TDIAGNODES=.false.
@@ -477,6 +480,12 @@ MODULE Calc
 !This indicates the number of times the eigenvalues of the star matrix should be evaluated to achieve the linear approximation when STARSTARS set,
               case("LINEPOINTSSTAR")
                   call geti(LinePoints)
+!This is the number of vertices in the Graph Morph graph.
+              case("GRAPHSIZE")
+                  call geti(NDets)
+!This is the number of times to systematically improve the Graph using the morphing algorithm
+              case("ITERATIONS")
+                  call geti(Iters)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
@@ -824,7 +833,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS
+         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -876,6 +885,9 @@ MODULE Calc
                            tMCDirectSum=.TRUE.
                            G_VMC_FAC=0.D0
                            TMPTHEORY=.TRUE.
+                        case("GRAPHMORPH")
+                            TGraphMorph=.true.
+                            I_HMAX=-21
                         case("STAR")
                            I_HMAX=0
                            do while(item.lt.nitems)

@@ -29,9 +29,10 @@ C.. DLWDB = d ln (wi) / d Beta.
          use System, only: BasisFN
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
+         USE GraphMorph , only : MorphGraph
          USE NODEDIAG , only : fMCPR3StarNodes
          USE Calc , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
-     &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES
+     &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
@@ -234,6 +235,10 @@ C.. forcing them to be disconnected.
                 F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &              L,LT,CNWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
+               ELSEIF(TGraphMorph) THEN
+!This involves iterativly improving a graph in order to maximise the connections between determinants.
+                    IF(I_VMAX.ne.2) STOP 'Error in vertex number'
+                    CALL MorphGraph(F(I_V),DLWDB2)
                ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
@@ -431,8 +436,9 @@ C.. MCPATHSR3 has the same method at each vertex level
          Use Determinants, only: GetHElement2
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
+         USE GraphMorph , only : MorphGraph
          USE PRECALCREAD , only : TPREVAR
-         USE Calc , only : TMPTHEORY,TDIAGNODES
+         USE Calc , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -633,6 +639,10 @@ C.. forcing them to be disconnected.
                 F(I_V)=fMCPR3StarNodes(NI,BETA,I_P,NEL,NBASISMAX,G1,
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &              L,LT,NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2)
+               ELSEIF(TGraphMorph) THEN
+!This involves iterativly improving a graph in order to maximise the connections between determinants.
+                    IF(I_VMAX.ne.2) STOP 'Error in vertex number'
+                    CALL MorphGraph(F(I_V),DLWDB2)
                ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
@@ -1894,7 +1904,7 @@ C.. NLIST contains the length of LSTE for each node
          REAL*8 RH,BETA,RHOEPS
          LOGICAL LSAME,TSYM
          LOGICAL TLOG,TLOG2
-         REAL*8 DBETA,DLWDB,DLWDB2,FMCPR3NVSTARRES
+         REAL*8 DBETA,DLWDB,DLWDB2
          REAL*8 HIJS(0:I_V)
          INTEGER ICLS
          REAL*8 GETHELEMENT2

@@ -312,7 +312,7 @@ sub ECHO_AND_RUN {
   my ($mycommand, $exit_value);
   $mycommand = join(' ',@_);
   $mycommand =~ s/{/\\{/g; # replace curlies to stop globbing
-  print $mycommand;
+  print $mycommand,"\n";
   system($mycommand);
   if ($?==-1) {
     $exit_value = -1;
