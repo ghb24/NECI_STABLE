@@ -52,19 +52,19 @@ logical, save :: MemUnitsBytes = .true. ! If true, then output object size in by
 
 ! Log of memory allocations.
 integer, parameter :: MaxLen = 5000
-type(MemLogEl), save :: MemLog(MaxLen)
+type(MemLogEl), allocatable, save :: MemLog(:)
 integer, save :: ipos=1  ! Next available empty slot in the log.
 
 ! Capture the state of the MemLog at peak usage.  Currently not outputted, but
 ! useful for diagnostics.
-type(MemLogEl), save :: PeakMemLog(MaxLen)
+type(MemLogEl), allocatable, save :: PeakMemLog(:)
 
 type(MemLogEl), save :: LargeObjLog(nLargeObjects) ! Store the largest allocations.
 integer, save :: ismall=1 ! The smallest large object (remember to avoid repeating minloc again and again...)
 
 ! For backwards compatibility with the existing scheme, where the IP address is
 ! stored as the tag. Use long integer (li) so can handle POINTER8.
-integer(li), save :: LookupPointer(MaxLen)
+integer(li), allocatable, save :: LookupPointer(:)
 
 contains
 
@@ -87,6 +87,10 @@ contains
                & 'Illegal maximum memory. Check MEMORY in your input file.')
         endif
 
+
+        allocate(MemLog(MaxLen))
+        allocate(PeakMemLog(MaxLen))
+        allocate(LookupPointer(MaxLen))
         MaxMemory = MaxMemBytes
         MemoryUsed = 0
         MemoryLeft = MaxMemory
