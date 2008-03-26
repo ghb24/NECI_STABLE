@@ -85,9 +85,11 @@ MODULE GraphMorph
 
 !Once the graph is found, the loop over the morphing iterations can begin
         do i=1,Iters
+
             WRITE(6,*) ""
             WRITE(6,"(A,I4,A)") "Starting Iteration ", i, " ..."
             WRITE(6,*) ""
+            CALL FLUSH(6)
 
 !The graph is first diagonalised, and the energy of the graph found, along with the largest eigenvector and eigenvalues.
             CALL DiagGraphMorph()
@@ -96,7 +98,8 @@ MODULE GraphMorph
 !Excitation generators are initialised for each of the determinants in the graph, and the total number of possible
 !connected determinants calculated. Memory allocated for the ensuing calculation.
             CALL CountExcits()
-            WRITE(6,*) "Total number of determinants available from current graph is: ",TotExcits
+            WRITE(6,*) "Fraction of space which is space of excitations is: ", TotExcits/(TotExcits+NDets)
+!            WRITE(6,*) "Total number of determinants available from current graph is: ",TotExcits
 
 !Run through each determinant in the graph, calculating the excitations, storing them, and the rho elements to them.
             CALL FindConnections()
@@ -112,6 +115,7 @@ MODULE GraphMorph
 !Pick NDets new excitations stocastically from normalised list of determinants with probability |c|^2. Ensure connections,
 !allocate and create rho matrix for new graph. Deallocate info for old graph.
             WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
+            CALL FLUSH(6)
             CALL PickNewDets()
 
 !Once graph is fully constructed, the next iteration can begin.
@@ -142,7 +146,7 @@ MODULE GraphMorph
 
     SUBROUTINE ConstructInitialGraph()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : G_VMC_Seed,i_P,RhoEps
+        USE Calc , only : G_VMC_Seed,i_P,RhoEps,G_VMC_Pi
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
@@ -159,12 +163,17 @@ MODULE GraphMorph
         TYPE(HElement) , ALLOCATABLE :: Rhoij(:,:),Hijs(:)
         TYPE(HElement) :: rh
         INTEGER , ALLOCATABLE :: nExcit(:)
-        REAL*8 :: PGen,Seed
+        REAL*8 :: PGen,Seed,OldImport
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
         
         CALL TISET('ConsInitGraph',iSubInit)
 
 !        WRITE(6,*) "FDET is ",FDet(:)
+
+!Set the importance parameter to be equal to 1 if we want random double excitation connected star graphs as initial graphs.
+        OldImport=G_VMC_Pi
+        G_VMC_Pi=1.D0
+        
 !Set Tags to zero, so we know when they are allocated/deallocated
         nExcitTag=0
         iPathTag=0
@@ -294,6 +303,9 @@ MODULE GraphMorph
         IF((HamElems(1)%v).ne.(Hii%v)) THEN
             STOP 'H elements for initial graph incorrect'
         ENDIF
+
+!Return G_VMC_Pi to original value (Just in case it wants to be used later)
+        G_VMC_Pi=OldImport
         
         DEALLOCATE(Rhoii)
         CALL LogMemDealloc(this_routine,RhoiiTag)
@@ -352,7 +364,7 @@ MODULE GraphMorph
         OrigDets=0
         ExcitDets=0
 !Allow a maximum average of ten attempts for every successfully attached determinant
-        Tries=NDets*100000
+        Tries=NDets*10000
         k=0
         Seed=G_VMC_Seed
 
@@ -457,6 +469,8 @@ MODULE GraphMorph
                     GrowGraph(NoVerts+1,i)=AttemptDet(i)
                 enddo
                 NoVerts=NoVerts+1
+!                WRITE(6,"A,I5") "Vertex Added - ",NoVerts
+!                CALL FLUSH(6)
 
                 Success=Success+1
                 IF(OriginalPicked) THEN
@@ -516,6 +530,7 @@ MODULE GraphMorph
     SUBROUTINE NormaliseVector()
         IMPLICIT NONE
         INTEGER :: i
+        REAL*8 :: Stay,Move
         TYPE(HElement) :: Norm
 
 !The bias towards the determinants already in the graph is given by the largest eigenvector, multiplied by its eigenvalue.
@@ -539,14 +554,20 @@ MODULE GraphMorph
         Norm=HElement(SQRT(Norm%v))
 
 !Once the normalisation is found, all elements need to be divided by it.
+!Stay is the total probability of staying with original graph
+        Stay=0.D0
+        Move=0.D0
         do i=2,NDets
             Eigenvector(i)=Eigenvector(i)/Norm
+            Stay=Stay+(Eigenvector(i)%v)*(Eigenvector(i)%v)
         enddo
         do i=1,TotExcits
             ExcitsVector(i)=ExcitsVector(i)/Norm
+            Move=Move+((ExcitsVector(i)%v)*(ExcitsVector(i)%v))
         enddo
 
-        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
+        WRITE(6,*) "Probability of staying at original determinants: ", Stay
+!        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 
     END SUBROUTINE NormaliseVector
 
