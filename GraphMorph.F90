@@ -66,8 +66,11 @@ MODULE GraphMorph
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
+        REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
         INTEGER :: ierr,i
         CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
+
+        OPEN(63,file='MorphStats',Status='unknown')
         
         IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GraphMorph so far'
 
@@ -82,6 +85,8 @@ MODULE GraphMorph
 !Allocate space for largest Eigenvector for various graphs
         ALLOCATE(Eigenvector(NDets),stat=ierr)
         CALL LogMemAlloc('Eigenvector',NDets,8*HElementSize,this_routine,EigenvectorTag)
+
+        WRITE(63,*) "Iteration  Energy  P_stay  Orig_Graph  SucRat   MeanExcit"
 
 !Once the graph is found, the loop over the morphing iterations can begin
         do i=1,Iters
@@ -98,8 +103,8 @@ MODULE GraphMorph
 !Excitation generators are initialised for each of the determinants in the graph, and the total number of possible
 !connected determinants calculated. Memory allocated for the ensuing calculation.
             CALL CountExcits()
-            WRITE(6,*) "Fraction of space which is space of excitations is: ", TotExcits/(TotExcits+NDets)
-!            WRITE(6,*) "Total number of determinants available from current graph is: ",TotExcits
+!            WRITE(6,*) "Fraction of space which is space of excitations is: ", TotExcits/(TotExcits+NDets)
+            WRITE(6,*) "Total number of determinants available from current graph is: ",TotExcits
 
 !Run through each determinant in the graph, calculating the excitations, storing them, and the rho elements to them.
             CALL FindConnections()
@@ -110,13 +115,16 @@ MODULE GraphMorph
 
 !Add the original eigenvector*eigenvalue to the list of determinants - now have vector (contained in Eigenvector*eigenvalue and ExcitsVector) with all
 !determinants in graph, and all possible determinants to excite to. This needs normalising.
-            CALL NormaliseVector()
+            CALL NormaliseVector(PStay)
 
 !Pick NDets new excitations stocastically from normalised list of determinants with probability |c|^2. Ensure connections,
 !allocate and create rho matrix for new graph. Deallocate info for old graph.
             WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
             CALL FLUSH(6)
-            CALL PickNewDets()
+            CALL PickNewDets(Orig_Graph,SucRat,MeanExcit)
+
+!Write out stats
+            WRITE(63,"(I10,5G20.10)") i,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
 
 !Once graph is fully constructed, the next iteration can begin.
         enddo
@@ -139,6 +147,8 @@ MODULE GraphMorph
         Energyxw=HDElement((DLWDB*SI)-Hii%v)
 !        Weight=SI-1.D0
 !        Energy=DLWDB-(Hii%v)
+
+        Close(63)
         
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialGraph'
 
@@ -163,7 +173,8 @@ MODULE GraphMorph
         TYPE(HElement) , ALLOCATABLE :: Rhoij(:,:),Hijs(:)
         TYPE(HElement) :: rh
         INTEGER , ALLOCATABLE :: nExcit(:)
-        REAL*8 :: PGen,Seed,OldImport
+        REAL*8 :: PGen,OldImport
+        INTEGER :: Seed
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
         
         CALL TISET('ConsInitGraph',iSubInit)
@@ -322,16 +333,16 @@ MODULE GraphMorph
     END SUBROUTINE ConstructInitialGraph
 
 !This routine stocastically picks NDets new determinants stochastically from the vector obtained.
-    SUBROUTINE PickNewDets()
+    SUBROUTINE PickNewDets(Orig_Graph,SucRat,MeanExcit)
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
         USE Calc , only : G_VMC_Seed,i_P,RhoEps
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
-        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC
+        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,Seed
         INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel
         INTEGER , ALLOCATABLE :: GrowGraph(:,:)
-        REAL*8 :: r,SucRat,NewPercent,Seed,Ran2
+        REAL*8 :: r,SucRat,Ran2,Orig_Graph,MeanExcit
         LOGICAL :: Attach,OriginalPicked
         TYPE(HElement) :: rh
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
@@ -357,14 +368,16 @@ MODULE GraphMorph
 !NoVerts indicates the number of vertices in the graph so far
         NoVerts=1
 
-!For interesting statistics, keep a record of successful/unsuccessful attachments
+!For interesting statistics, keep a record of successful/unsuccessful attachments, and 
+!mean number of excitations away from HF
         Success=0
         Failure=0
+        MeanExcit=0.D0
 !Also keep a ratio of determinants which were in the graph before, and new ones added.
         OrigDets=0
         ExcitDets=0
 !Allow a maximum average of ten attempts for every successfully attached determinant
-        Tries=NDets*10000
+        Tries=NDets*100000
         k=0
         Seed=G_VMC_Seed
 
@@ -438,6 +451,7 @@ MODULE GraphMorph
 
 !First check on attachment to HF, since wants to be stored in HamElems
                 IC=IGetExcitLevel(AttemptDet,FDet,NEl)
+                MeanExcit=MeanExcit+IC
 !Only double excitations (or single? <- include for completness) of HF contribute
                 IF((IC.eq.2).or.(IC.eq.1)) THEN
                     HamElems(NoVerts+1)=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
@@ -489,18 +503,19 @@ MODULE GraphMorph
 !Attempt to find another determinant to attach
         enddo
 
+!Find average number of excitations away from HF determinant
+        MeanExcit=MeanExcit/(NDets-1)
+
 !Test if graph growing was successful. If not, possible reasons are that the space is too small for
 !such a large graph to be grown easily - reduce NDets, or increase time to search for determinants.
-        IF(NoVerts.ne.NDets) THEN
-            STOP 'Error in attaching determinants to new graph'
-        ENDIF
+        IF(NoVerts.ne.NDets) STOP 'Error in attaching determinants to new graph'
         IF(Success.ne.(NDets-1)) STOP 'Error in attaching determinants to new graph 2'
 
 !Determine success ratio for attachment of determinants into new graph
         SucRat=(Success+0.D0)/(Success+Failure+0.D0)
-        NewPercent=((OrigDets+0.D0)/(ExcitDets+OrigDets+0.D0))*100
+        Orig_Graph=((OrigDets+0.D0)/(ExcitDets+OrigDets+0.D0))*100
         WRITE(6,"(A,F9.5)") "New graph created. Success ratio for adding determinants: ",SucRat
-        WRITE(6,"(A,F9.4)") "Percentage of determinants found in original graph: ",NewPercent
+        WRITE(6,"(A,F9.4)") "Percentage of determinants found in original graph: ",Orig_Graph
 
 !Replace original list of determinants in graph with new list
         CALL IAZZERO(GraphDets,NDets*NEl)
@@ -527,7 +542,7 @@ MODULE GraphMorph
 !The vector is spread between the arrays for the original eigenvector (which needs to be multiplied by corresponding eigenvalue)
 !and the ExcitsVector. The first element of the eigenvector should not be included in the normalisation, as
 !it cannot be picked - the HF is always in each graph.
-    SUBROUTINE NormaliseVector()
+    SUBROUTINE NormaliseVector(Stay)
         IMPLICIT NONE
         INTEGER :: i
         REAL*8 :: Stay,Move
@@ -566,7 +581,9 @@ MODULE GraphMorph
             Move=Move+((ExcitsVector(i)%v)*(ExcitsVector(i)%v))
         enddo
 
-        WRITE(6,*) "Probability of staying at original determinants: ", Stay
+!        WRITE(6,*) "Probability of staying at original determinants: ", Stay
+        WRITE(6,*) "Probability of Moving: ", Move
+!        WRITE(6,*) "Total Probability: ", Stay+Move
 !        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 
     END SUBROUTINE NormaliseVector
