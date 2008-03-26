@@ -30,6 +30,9 @@ C     ==--------------------------------------------------------------==
 #endif
       ! Log using the new memory book-keeping system.  Need to find out
       ! the  position in the log first.
+      ! Assume it wasn't logged correctly (e.g. due to a full log), 
+      ! and correct this assumption if was logged in LookupPointer.
+      iTag=-1
       do i=1,size(LookupPointer)
           if (LookupPointer(i).eq.IP_XM) then
               iTag=i
