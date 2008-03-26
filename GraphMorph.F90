@@ -17,39 +17,39 @@ MODULE GraphMorph
     SAVE
 !This will hold all the determinants in the graph
     INTEGER , ALLOCATABLE :: GraphDets(:,:)
-    INTEGER :: GraphDetsTag
+    INTEGER :: GraphDetsTag=0
 
 !This will hold all the Hamiltononian elements in the graph (zero if > double excit) (H_11) = HF
     TYPE(HElement) , ALLOCATABLE :: HamElems(:)
-    INTEGER :: HamElemsTag
+    INTEGER :: HamElemsTag=0
     
 !This will hold all the determinants of the excitations of the graph
     INTEGER , ALLOCATABLE :: ExcitsDets(:,:)
-    INTEGER :: ExcitsDetsTag
+    INTEGER :: ExcitsDetsTag=0
 
 !This is the number of possible excitations from each determinant in the graph, stored
 !in a cumulative way
     INTEGER , ALLOCATABLE :: NoExcits(:)
-    INTEGER :: NoExcitsTag
+    INTEGER :: NoExcitsTag=0
 !The total number of excitations from the graph
     INTEGER :: TotExcits
 
 !Holds the rho elements between each determinant and its excitations
     TYPE(HElement) , ALLOCATABLE :: ConnectionsToExcits(:)
-    INTEGER :: ConnectionsToExcitsTag
+    INTEGER :: ConnectionsToExcitsTag=0
 
 !The full Rho Matrix for the graph
     TYPE(HElement) , ALLOCATABLE :: GraphRhoMat(:,:)
-    INTEGER :: GraphRhoMatTag
+    INTEGER :: GraphRhoMatTag=0
 !The Largest Eigenvector for the graph
     TYPE(HElement) , ALLOCATABLE :: Eigenvector(:)
-    INTEGER :: EigenvectorTag
+    INTEGER :: EigenvectorTag=0
 !The largest Eigenvalue of the graph
     REAL*8 :: Eigenvalue
 
 !This is the vector of propensity to move towards the excited determinants of the graph
     TYPE(HElement) , ALLOCATABLE :: ExcitsVector(:)
-    INTEGER :: ExcitsVectorTag
+    INTEGER :: ExcitsVectorTag=0
 
 !The rho matrix and Hamiltonian element for the HF determinant
     TYPE(HElement) :: rhii,Hii
@@ -59,21 +59,21 @@ MODULE GraphMorph
 
     contains
 
-    SUBROUTINE MorphGraph(Weight,Energy)
-        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
+    SUBROUTINE MorphGraph(Weight,Energyxw)
+        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,Arr
         USE Calc , only : i_P
         USE Integrals, only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
-        TYPE(HDElement) :: Weight,Energy
+        TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: ierr,i
         CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
         
         IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GraphMorph so far'
 
 !Find rho_ii value, which all rho elements will be divided by, and Hii value
-        CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
-        Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,0,ECore)
+        CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
+        Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 
 !It is first necessary to construct the original graph to work with.
         WRITE(6,"(A,I5,A)") "Constructing random initial graph to morph from with ", NDets, " vertices."
@@ -85,8 +85,9 @@ MODULE GraphMorph
 
 !Once the graph is found, the loop over the morphing iterations can begin
         do i=1,Iters
-
-            WRITE(6,"(A,I4,A)") "Starting Iteration ", i, "..."
+            WRITE(6,*) ""
+            WRITE(6,"(A,I4,A)") "Starting Iteration ", i, " ..."
+            WRITE(6,*) ""
 
 !The graph is first diagonalised, and the energy of the graph found, along with the largest eigenvector and eigenvalues.
             CALL DiagGraphMorph()
@@ -130,17 +131,20 @@ MODULE GraphMorph
         DEALLOCATE(HamElems)
         CALL LogMemDealloc(this_routine,HamElemsTag)
 
-        Weight=SI
-        Energy=DLWDB
+        Weight=HDElement(SI-1.D0)
+        Energyxw=HDElement((DLWDB*SI)-Hii%v)
+!        Weight=SI-1.D0
+!        Energy=DLWDB-(Hii%v)
         
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialGraph'
 
     END SUBROUTINE MorphGraph
 
     SUBROUTINE ConstructInitialGraph()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax
+        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
         USE Calc , only : G_VMC_Seed,i_P,RhoEps
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: ierr,nStore(6),nExcitMemLen,iMaxExcit,nJ(NEl),nExcitTag,iExcit
         INTEGER :: iPathTag,XijTag,RhoiiTag,RhoijTag,HijsTag,iSubInit,i,j,diff
@@ -160,8 +164,15 @@ MODULE GraphMorph
         
         CALL TISET('ConsInitGraph',iSubInit)
 
-!Setup excitation generator
 !        WRITE(6,*) "FDET is ",FDet(:)
+!Set Tags to zero, so we know when they are allocated/deallocated
+        nExcitTag=0
+        iPathTag=0
+        XijTag=0
+        RhoiiTag=0
+        RhoijTag=0
+        HijsTag=0
+!Setup excitation generator
         CALL IAZZERO(nStore,6)
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
         ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
@@ -200,7 +211,8 @@ MODULE GraphMorph
         ExcitGen(:)=0
 
         !Generate the initial graph...(Can speed this up as do not need to know prob, and are recalculating the rho matrix)
-        CALL Fmcpr4d2GenGraph(FDet,NEl,Beta,i_P,iPath,NDets,Xij,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,Alat,UMat,nTay,RhoEps,Rhoii,Rhoij,ECore,Seed,Hijs,nExcit,0,ExcitGen)
+        !Arr sent instead of NMax since getting values straight from modules (not passed through)
+        CALL Fmcpr4d2GenGraph(FDet,NEl,Beta,i_P,iPath,NDets,Xij,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,Alat,UMat,nTay,RhoEps,Rhoii,Rhoij,ECore,Seed,Hijs,nExcit,0,ExcitGen)
 
 !Store initial graph determinants in the GraphDets array
         ALLOCATE(GraphDets(NDets,NEl),stat=ierr)
@@ -224,32 +236,35 @@ MODULE GraphMorph
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag)
         CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
 
-!Do not trust rho matrix from Fmcpr4d2GenGraph - recalculate...
-!        do i=1,NDets
-!            do j=1,NDets
-!                GraphRhoMat(i,j)=Rhoij(i-1,j-1)
-!            enddo
-!        enddo
-!
-!To make sure, put in diagonal elements separatly
-!        do i=1,NDets
-!            GraphRhoMat(i,i)=Rhoii(i-1)
-!        enddo
-
+!Trust rho matrix from Fmcpr4d2GenGraph - no need to recalculate...
         do i=1,NDets
-            do j=i,NDets
-                IF(i.eq.j) THEN
-                    diff=0
-                ELSE
-                    diff=-1
-                ENDIF
-                CALL CalcRho2(GraphDets(i,:),GraphDets(j,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,diff,ECore)
-                GraphRhoMat(i,j)=HElement((rh%v)/(rhii%v))
-                GraphRhoMat(j,i)=HElement((rh%v)/(rhii%v))
+            do j=1,NDets
+                GraphRhoMat(i,j)=Rhoij(i-1,j-1)
             enddo
         enddo
 
-        IF(DREAL(GraphRhoMat(1,1)).ne.1.D0) THEN
+!To make sure, put in diagonal elements separatly
+        do i=1,NDets
+            GraphRhoMat(i,i)=Rhoii(i-1)
+        enddo
+
+!First element is not put in for you...
+        GraphRhoMat(1,1)=rhii
+
+!        do i=1,NDets
+!            do j=i,NDets
+!                IF(i.eq.j) THEN
+!                    diff=0
+!                ELSE
+!                    diff=-1
+!                ENDIF
+!                CALL CalcRho2(GraphDets(i,:),GraphDets(j,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,diff,ECore)
+!                GraphRhoMat(i,j)=rh
+!                GraphRhoMat(j,i)=rh
+!            enddo
+!        enddo
+
+        IF(DREAL(GraphRhoMat(1,1)).ne.(rhii%v)) THEN
 !This could be because the elements haven't been divided by rhii - check value of rhii & then divide by it...
             STOP 'Rho matrix elements for initial graph incorrect'
         ENDIF
@@ -265,9 +280,17 @@ MODULE GraphMorph
         ALLOCATE(HamElems(NDets),stat=ierr)
         CALL LogMemAlloc('HamElems',NDets,8*HElementSize,this_routine,HamElemsTag)
         CALL AZZERO(HamElems,NDets*HElementSize)
+
+!Trust the fmcpr4d2gengraph Hij values. Recalculated ones are identical
         do i=1,NDets
             HamElems(i)=Hijs(i-1)
         enddo
+        HamElems(1)=Hii
+
+!        do i=1,NDets
+!            HamElems(i)=GetHElement2(FDet,GraphDets(i,:),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,-1,ECore)
+!        enddo
+        
         IF((HamElems(1)%v).ne.(Hii%v)) THEN
             STOP 'H elements for initial graph incorrect'
         ENDIF
@@ -278,6 +301,8 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,RhoijTag)
         DEALLOCATE(Hijs)
         CALL LogMemDealloc(this_routine,HijsTag)
+        DEALLOCATE(nExcit)
+        CALL LogMemDealloc(this_routine,nExcitTag)
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialGraph'
         CALL TIHALT('ConsInitGraph',iSubInit)
@@ -286,7 +311,7 @@ MODULE GraphMorph
 
 !This routine stocastically picks NDets new determinants stochastically from the vector obtained.
     SUBROUTINE PickNewDets()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax
+        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
         USE Calc , only : G_VMC_Seed,i_P,RhoEps
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
@@ -298,6 +323,8 @@ MODULE GraphMorph
         LOGICAL :: Attach,OriginalPicked
         TYPE(HElement) :: rh
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
+
+        GrowGraphTag=0
 
 !Allocate Rho Matrix for growing graph
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
@@ -312,7 +339,7 @@ MODULE GraphMorph
         do i=1,NEl
             GrowGraph(1,i)=FDet(i)
         enddo
-        GraphRhoMat(1,1)=HElement(1.D0)
+        GraphRhoMat(1,1)=rhii
         HamElems(1)=Hii
 
 !NoVerts indicates the number of vertices in the graph so far
@@ -325,7 +352,7 @@ MODULE GraphMorph
         OrigDets=0
         ExcitDets=0
 !Allow a maximum average of ten attempts for every successfully attached determinant
-        Tries=NDets*10
+        Tries=NDets*100000
         k=0
         Seed=G_VMC_Seed
 
@@ -335,10 +362,11 @@ MODULE GraphMorph
             k=k+1
 !Stochastically pick determinant to add to the graph from vectors
             r=RAN2(Seed)
-            i=0
+!Set i=1, since we do not want to choose the first determinant of the original graph
+            i=1
 
 !First look through the normalised eigenvector*eigenvalue
-            do while ((r.le.0.D0).and.(i.lt.NDets))
+            do while ((r.gt.0.D0).and.(i.lt.NDets))
                 i=i+1
                 r=r-((Eigenvector(i)%v)*(Eigenvector(i)%v))
             enddo
@@ -346,13 +374,15 @@ MODULE GraphMorph
 !If still not found, then look in Vector of excitations
             IF(r.gt.0.D0) THEN
                 i=0
-                do while ((r.le.0.D0).and.(i.lt.TotExcits))
+                do while ((r.ge.0.D0).and.(i.lt.TotExcits))
                     i=i+1
                     r=r-((ExcitsVector(i)%v)*(ExcitsVector(i)%v))
                 enddo
 
 !Error - cannot find determinant to attach in original graph, or its excitations
                 IF(r.gt.0.D0) THEN
+                    WRITE(6,*) "k = ", k
+                    WRITE(6,*) "r = ", r
                     STOP 'Error in stochastic sampling in PickNewDets'
                 ENDIF
 
@@ -385,7 +415,7 @@ MODULE GraphMorph
 
                 !Determine connectivity to other determinants in the graph, if no connection yet found
                 IF(.not.Attach) THEN
-                    CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,IC,ECore)
+                    CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
                     IF(rh.agt.RhoEps) Attach=.true. 
                 ENDIF
 
@@ -399,10 +429,10 @@ MODULE GraphMorph
 !Only double excitations (or single? <- include for completness) of HF contribute
                 IF((IC.eq.2).or.(IC.eq.1)) THEN
                     HamElems(NoVerts+1)=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
-                    CALL CalcRho2(FDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,IC,ECore)
+                    CALL CalcRho2(FDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
 !Add rhoij contribution. No real need to set a rho epsilon here? We are diagonalising anyway...
-                    GraphRhoMat(1,NoVerts+1)=((rh%v)/(rhii%v))
-                    GraphRhoMat(NoVerts+1,1)=((rh%v)/(rhii%v))
+                    GraphRhoMat(1,NoVerts+1)=rh
+                    GraphRhoMat(NoVerts+1,1)=rh
 
                 ELSE
 !Added determinant not connected to root
@@ -413,14 +443,14 @@ MODULE GraphMorph
 
 !Run through rest of excitations in the graph testing contributions and adding to rho matrix
                 do i=2,NoVerts
-                    CALL CalcRho2(GrowGraph(i,:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,-1,ECore)
-                    GraphRhoMat(i,NoVerts+1)=((rh%v)/(rhii%v))
-                    GraphRhoMat(NoVerts+1,i)=((rh%v)/(rhii%v))
+                    CALL CalcRho2(GrowGraph(i,:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+                    GraphRhoMat(i,NoVerts+1)=rh
+                    GraphRhoMat(NoVerts+1,i)=rh
                 enddo
 
 !Include diagonal rho matrix element for chosen determinant
-                CALL CalcRho2(AttemptDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
-                GraphRhoMat(NoVerts+1,NoVerts+1)=((rh%v)/(rhii%v))
+                CALL CalcRho2(AttemptDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,0,ECore)
+                GraphRhoMat(NoVerts+1,NoVerts+1)=rh
 
 !Add determinant to growing graph
                 do i=1,NEl
@@ -447,14 +477,16 @@ MODULE GraphMorph
 
 !Test if graph growing was successful. If not, possible reasons are that the space is too small for
 !such a large graph to be grown easily - reduce NDets, or increase time to search for determinants.
-        IF(NoVerts.ne.NDets) STOP 'Error in attaching determinants to new graph'
+        IF(NoVerts.ne.NDets) THEN
+            STOP 'Error in attaching determinants to new graph'
+        ENDIF
         IF(Success.ne.(NDets-1)) STOP 'Error in attaching determinants to new graph 2'
 
 !Determine success ratio for attachment of determinants into new graph
         SucRat=(Success+0.D0)/(Success+Failure+0.D0)
-        NewPercent=((ExcitDets+0.D0)/(ExcitDets+OrigDets+0.D0))*100
-        WRITE(6,*) "New graph created. Success ratio for adding determinants: ",SucRat
-        WRITE(6,*) "Percentage of determinants from excitations of original graph: ",NewPercent
+        NewPercent=((OrigDets+0.D0)/(ExcitDets+OrigDets+0.D0))*100
+        WRITE(6,"(A,F9.5)") "New graph created. Success ratio for adding determinants: ",SucRat
+        WRITE(6,"(A,F9.4)") "Percentage of determinants found in original graph: ",NewPercent
 
 !Replace original list of determinants in graph with new list
         CALL IAZZERO(GraphDets,NDets*NEl)
@@ -479,7 +511,8 @@ MODULE GraphMorph
 
 !This is used to normalise the vector of current and excited determinants from which we are going to pick the next graph.
 !The vector is spread between the arrays for the original eigenvector (which needs to be multiplied by corresponding eigenvalue)
-!and the ExcitsVector.
+!and the ExcitsVector. The first element of the eigenvector should not be included in the normalisation, as
+!it cannot be picked - the HF is always in each graph.
     SUBROUTINE NormaliseVector()
         IMPLICIT NONE
         INTEGER :: i
@@ -487,14 +520,14 @@ MODULE GraphMorph
 
 !The bias towards the determinants already in the graph is given by the largest eigenvector, multiplied by its eigenvalue.
 !Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue
-        do i=1,NDets
+        do i=2,NDets
             Eigenvector(i)=Eigenvector(i)*HElement(Eigenvalue)
         enddo
 
 !We need to find the normalisation constant, given by the sum of the squares of all the elements
         Norm=HElement(0.D0)
 !First, sum the squares of the original determinants in the graph
-        do i=1,NDets
+        do i=2,NDets
             Norm=Norm+(Eigenvector(i)*Eigenvector(i))
         enddo
 
@@ -503,8 +536,10 @@ MODULE GraphMorph
             Norm=Norm+(ExcitsVector(i)*ExcitsVector(i))
         enddo
 
+        Norm=HElement(SQRT(Norm%v))
+
 !Once the normalisation is found, all elements need to be divided by it.
-        do i=1,NDets
+        do i=2,NDets
             Eigenvector(i)=Eigenvector(i)/Norm
         enddo
         do i=1,TotExcits
@@ -568,7 +603,7 @@ MODULE GraphMorph
 !This subroutine will go through all determinants, find all excitations, and then calculate the rho element to
 !the determinant in the graph to which it is connected.
     SUBROUTINE FindConnections()
-        USE System, only: G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax
+        USE System, only: G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
         USE Calc , only : i_P
         USE Integrals, only: fck,nMax,nMsh,UMat,nTay
         IMPLICIT NONE
@@ -580,6 +615,8 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='FindConnections'
 
         CALL TISET('FindConns',iSubConns)
+
+        nExcitTag=0
 
 !Allocate memory to hold connections, and form of the determinants of the excitations
         ALLOCATE(ConnectionsToExcits(TotExcits),stat=ierr)
@@ -618,10 +655,10 @@ MODULE GraphMorph
                 CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,3)
                 IF(nJ(1).eq.0) exit lp
                 ExcitCurr=ExcitCurr+1
-                CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,iExcit,ECore)
+                CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
 
 !Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
-                ConnectionsToExcits(ExcitCurr)=HElement((rh%v)/(rhii%v))
+                ConnectionsToExcits(ExcitCurr)=rh
                 do j=1,NEl
                     ExcitsDets(ExcitCurr,j)=nJ(j)
                 enddo
@@ -654,6 +691,7 @@ MODULE GraphMorph
         INTEGER , ALLOCATABLE :: nExcit(:)
 
         TotExcits=0
+        nExcitTag=0
 !Allocate Memory for NoExcits array
         ALLOCATE(NoExcits(NDets),stat=ierr)
         CALL LogMemAlloc('NoExcits',NDets,4,this_routine,NoExcitsTag)
@@ -710,6 +748,9 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphMorph'
 
         CALL TISET('DiagGraphMorph',iSubDiag)
+
+        WorkTag=0
+        EigenvaluesTag=0
 
         ALLOCATE(Eigenvalues(NDets),stat=ierr)
         CALL LogMemAlloc('Eigenvalues',NDets,8,this_routine,EigenvaluesTag)
