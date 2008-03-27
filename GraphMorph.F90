@@ -564,8 +564,6 @@ MODULE GraphMorph
         REAL*8 :: Stay,Move
         TYPE(HElement) :: Norm,Norm1,Norm2
 
-        Biasing=.true.
-
 !The bias towards the determinants already in the graph is given by the largest eigenvector, multiplied by its eigenvalue.
 !Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue
         do i=2,NDets
