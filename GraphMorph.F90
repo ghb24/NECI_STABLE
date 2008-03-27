@@ -566,12 +566,12 @@ MODULE GraphMorph
         Norm=HElement(0.D0)
 !First, sum the squares of the original determinants in the graph
         do i=2,NDets
-            Norm=Norm+(Eigenvector(i)**2)
+            Norm=Norm+(Eigenvector(i)*Eigenvector(i))
         enddo
 
 !Then, sum the squares of the vector for the excitations
         do i=1,TotExcits
-            Norm=Norm+(ExcitsVector(i)**2)
+            Norm=Norm+(ExcitsVector(i)*ExcitsVector(i))
         enddo
 
         Norm=HElement(SQRT(Norm%v))
@@ -582,11 +582,11 @@ MODULE GraphMorph
         Move=0.D0
         do i=2,NDets
             Eigenvector(i)=Eigenvector(i)/Norm
-            Stay=Stay+(Eigenvector(i)%v)**2
+            Stay=Stay+((Eigenvector(i)%v)**2)
         enddo
         do i=1,TotExcits
             ExcitsVector(i)=ExcitsVector(i)/Norm
-            Move=Move+((ExcitsVector(i)%v)**2
+            Move=Move+((ExcitsVector(i)%v)**2)
         enddo
 
         PStay=Stay
