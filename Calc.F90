@@ -14,7 +14,7 @@ MODULE Calc
         LOGICAL TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER
         LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
-        LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ
+        LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,Biasing
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         
         INTEGER NWHTAY(3,10),NPATHS
@@ -25,7 +25,7 @@ MODULE Calc
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
-        REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV
+        REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
 
 
 
@@ -60,6 +60,8 @@ MODULE Calc
 
 
 !       Calc defaults      
+          GraphBias=0.99
+          Biasing=.false.
           NDets=400
           Iters=10
           TGraphMorph=.false.
@@ -486,6 +488,9 @@ MODULE Calc
 !This is the number of times to systematically improve the Graph using the morphing algorithm
               case("ITERATIONS")
                   call geti(Iters)
+              case("GRAPHBIAS")
+                  call getf(GraphBias)
+                  Biasing=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

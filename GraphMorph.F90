@@ -10,7 +10,7 @@ MODULE GraphMorph
     USE System , only : NEl
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
-    USE Calc , only : Iters,NDets!,MoveDets
+    USE Calc , only : Iters,NDets,GraphBias,Biasing
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
     IMPLICIT NONE
@@ -57,6 +57,9 @@ MODULE GraphMorph
 !These are the weight and energy of the current graph respectively
     REAL*8 :: SI,DLWDB
 
+!This is the seed for the random numbers needed in the routines
+    INTEGER :: Seed
+
 !Various stats for printing
     REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
 
@@ -64,7 +67,7 @@ MODULE GraphMorph
 
     SUBROUTINE MorphGraph(Weight,Energyxw)
         USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P
+        USE Calc , only : i_P,G_VMC_Seed
         USE Integrals, only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
@@ -75,6 +78,9 @@ MODULE GraphMorph
         OPEN(63,file='MorphStats',Status='unknown')
         
         IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GraphMorph so far'
+
+!Initialise random number generator
+        Seed=G_VMC_Seed
 
 !Find rho_ii value, which all rho elements will be divided by, and Hii value
         CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
@@ -89,6 +95,9 @@ MODULE GraphMorph
         CALL LogMemAlloc('Eigenvector',NDets,8*HElementSize,this_routine,EigenvectorTag)
 
         WRITE(63,*) "Iteration  Energy  P_stay  Orig_Graph  SucRat   MeanExcit"
+        IF(Biasing) THEN
+            WRITE(6,"(A,F10.7)") "Graph growing biased towards original determinants with probability ", GraphBias
+        ENDIF
 
 !Once the graph is found, the loop over the morphing iterations can begin
         do i=1,Iters
@@ -101,6 +110,7 @@ MODULE GraphMorph
 !The graph is first diagonalised, and the energy of the graph found, along with the largest eigenvector and eigenvalues.
             CALL DiagGraphMorph()
             WRITE(6,"(A,2G20.12)") "Weight and Energy of current graph is: ", SI, DLWDB
+            CALL FLUSH(6)
 
 !Excitation generators are initialised for each of the determinants in the graph, and the total number of possible
 !connected determinants calculated. Memory allocated for the ensuing calculation.
@@ -115,23 +125,18 @@ MODULE GraphMorph
 !tendancy to move to that excited determinant - store this in ExcitsVector
             CALL CreateExcitsVector()
 
-!            IF(MoveDets) THEN
-!If MoveDets is
-
-!            ELSE
 !Add the original eigenvector*eigenvalue to the list of determinants - now have vector (contained in Eigenvector*eigenvalue and ExcitsVector) with all
 !determinants in graph, and all possible determinants to excite to. This needs normalising.
-                CALL NormaliseVector()
+            CALL NormaliseVector()
 
 !Pick NDets new excitations stocastically from normalised list of determinants with probability |c|^2. Ensure connections,
 !allocate and create rho matrix for new graph. Deallocate info for old graph.
-                WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
-                CALL FLUSH(6)
-                CALL PickNewDets()
-!            ENDIF
+            WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
+            CALL FLUSH(6)
+            CALL PickNewDets()
 
 !Write out stats
-            WRITE(63,"(I10,5G20.10)") i,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
+            WRITE(63,"(I10,5G20.12)") i,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
             CALL FLUSH(63)
 
 !Once graph is fully constructed, the next iteration can begin.
@@ -164,7 +169,7 @@ MODULE GraphMorph
 
     SUBROUTINE ConstructInitialGraph()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : G_VMC_Seed,i_P,RhoEps,G_VMC_Pi
+        USE Calc , only : i_P,RhoEps,G_VMC_Pi
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
@@ -182,7 +187,6 @@ MODULE GraphMorph
         TYPE(HElement) :: rh
         INTEGER , ALLOCATABLE :: nExcit(:)
         REAL*8 :: PGen,OldImport
-        INTEGER :: Seed
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
         
         CALL TISET('ConsInitGraph',iSubInit)
@@ -207,8 +211,6 @@ MODULE GraphMorph
         CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
         CALL IAZZERO(nExcit,nExcitMemLen)
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
-!Generate random excitation and chuck
-        Seed=G_VMC_Seed
         CALL GenRandSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,iExcit,0,UMat,nMax,PGen)
 
 !Allocate memory for graph
@@ -343,11 +345,11 @@ MODULE GraphMorph
 !This routine stocastically picks NDets new determinants stochastically from the vector obtained.
     SUBROUTINE PickNewDets()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : G_VMC_Seed,i_P,RhoEps
+        USE Calc , only : i_P,RhoEps
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
-        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,Seed
+        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist
         INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel
         INTEGER , ALLOCATABLE :: GrowGraph(:,:)
         REAL*8 :: r,Ran2
@@ -387,7 +389,6 @@ MODULE GraphMorph
 !Allow a maximum average of ten attempts for every successfully attached determinant
         Tries=NDets*100000
         k=0
-        Seed=G_VMC_Seed
 
 !Continue trying to build graph until fully constructed
         do while ((NoVerts.lt.NDets).and.(k.le.Tries))
@@ -440,6 +441,10 @@ MODULE GraphMorph
 
 !Check the number of excitations away from each other vertex in graph
                 IC=IGetExcitLevel(AttemptDet(:),GrowGraph(i,:),NEl)
+!                dist=IGetExcitLevel(FDet(:),AttemptDet(:),NEl)
+!                IF(dist.gt.2) THEN
+!                    WRITE(6,*) "Higher excitation selected ", dist
+!                ENDIF
                 IF(IC.eq.0) THEN
 !Determinant is already in the graph - exit loop - determinant not valid
                     Attach=.false.
@@ -459,7 +464,10 @@ MODULE GraphMorph
 
 !First check on attachment to HF, since wants to be stored in HamElems
                 IC=IGetExcitLevel(AttemptDet,FDet,NEl)
+!                IF(IC.gt.2) WRITE(6,*) "Higher excitation attached ", IC
+     
                 MeanExcit=MeanExcit+IC
+
 !Only double excitations (or single? <- include for completness) of HF contribute
                 IF(IC.eq.2) THEN!.or.(IC.eq.1)) THEN
                     HamElems(NoVerts+1)=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
@@ -554,7 +562,9 @@ MODULE GraphMorph
         IMPLICIT NONE
         INTEGER :: i
         REAL*8 :: Stay,Move
-        TYPE(HElement) :: Norm
+        TYPE(HElement) :: Norm,Norm1,Norm2
+
+        Biasing=.true.
 
 !The bias towards the determinants already in the graph is given by the largest eigenvector, multiplied by its eigenvalue.
 !Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue
@@ -562,37 +572,79 @@ MODULE GraphMorph
             Eigenvector(i)=Eigenvector(i)*HElement(Eigenvalue)
         enddo
 
+!An addititional bias against the determinants already in the graph can be designed.
+        IF(Biasing) THEN
+!GraphBias is the probability of picking a determinant which is already in the graph.
+!Remember that this is not actually a strict probability, since the way that the graph is grown,
+!means that some determinants will be automatically preferred over others.
+            
+            IF((GraphBias.gt.1.D0).or.(GraphBias.lt.0.D0)) THEN
+                STOP 'Value for Graphbias must be between 1 and 0'
+            ENDIF
+
+            Norm1=HElement(0.D0)
+            do i=2,NDets
+                Norm1=Norm1+(Eigenvector(i)*Eigenvector(i))
+            enddo
+            Norm1=HElement(SQRT((Norm1%v)/GraphBias))
+
+!Divide elements of the eigenvector by the normalisation
+            Stay=0.D0
+            do i=2,NDets
+                Eigenvector(i)=Eigenvector(i)/Norm1
+                Stay=Stay+((Eigenvector(i)%v)**2)
+            enddo
+
+!Now find normalisation for the excitations
+            Norm2=HElement(0.D0)
+            do i=1,TotExcits
+                Norm2=Norm2+(ExcitsVector(i)*ExcitsVector(i))
+            enddo
+            Norm2=HElement(SQRT((Norm2%v)/(1.D0-GraphBias)))
+
+!Divide elements of ExcitsVector by new normalisation
+            Move=0.D0
+            do i=1,TotExcits
+                ExcitsVector(i)=ExcitsVector(i)/Norm2
+                Move=Move+((ExcitsVector(i)%v)**2)
+            enddo
+
+        ELSE
+!No biasing towards excitations
+
 !We need to find the normalisation constant, given by the sum of the squares of all the elements
-        Norm=HElement(0.D0)
+            Norm=HElement(0.D0)
 !First, sum the squares of the original determinants in the graph
-        do i=2,NDets
-            Norm=Norm+(Eigenvector(i)*Eigenvector(i))
-        enddo
+            do i=2,NDets
+                Norm=Norm+(Eigenvector(i)*Eigenvector(i))
+            enddo
 
 !Then, sum the squares of the vector for the excitations
-        do i=1,TotExcits
-            Norm=Norm+(ExcitsVector(i)*ExcitsVector(i))
-        enddo
+            do i=1,TotExcits
+                Norm=Norm+(ExcitsVector(i)*ExcitsVector(i))
+            enddo
 
-        Norm=HElement(SQRT(Norm%v))
+            Norm=HElement(SQRT(Norm%v))
 
 !Once the normalisation is found, all elements need to be divided by it.
 !Stay is the total probability of staying with original graph
-        Stay=0.D0
-        Move=0.D0
-        do i=2,NDets
-            Eigenvector(i)=Eigenvector(i)/Norm
-            Stay=Stay+((Eigenvector(i)%v)**2)
-        enddo
-        do i=1,TotExcits
-            ExcitsVector(i)=ExcitsVector(i)/Norm
-            Move=Move+((ExcitsVector(i)%v)**2)
-        enddo
+            Stay=0.D0
+            Move=0.D0
+            do i=2,NDets
+                Eigenvector(i)=Eigenvector(i)/Norm
+                Stay=Stay+((Eigenvector(i)%v)**2)
+            enddo
+            do i=1,TotExcits
+                ExcitsVector(i)=ExcitsVector(i)/Norm
+                Move=Move+((ExcitsVector(i)%v)**2)
+            enddo
+
+        ENDIF
 
         PStay=Stay
 !        WRITE(6,*) "Probability of staying at original determinants: ", Stay
         WRITE(6,*) "Probability of Moving: ", Move
-!        WRITE(6,*) "Total Probability: ", Stay+Move
+        WRITE(6,*) "Total Probability: ", Stay+Move
 !        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 
     END SUBROUTINE NormaliseVector
@@ -657,7 +709,7 @@ MODULE GraphMorph
         TYPE(HElement) :: rh
         INTEGER , SAVE :: iSubConns
         INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
-        INTEGER :: nExcitTag,iExcit,ExcitCurr
+        INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='FindConnections'
 
@@ -703,6 +755,12 @@ MODULE GraphMorph
                 IF(nJ(1).eq.0) exit lp
                 ExcitCurr=ExcitCurr+1
                 CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+!                Dist=IGetExcitLevel(FDet,nJ,NEl)
+!                IF(Dist.gt.4) THEN
+!                    WRITE(6,*) "Higher than double excitation found - attached to det:", DetCurr
+!                    WRITE(6,*) "Determinant is: ", nJ
+!                    WRITE(6,*) Dist," fold excitation"
+!                ENDIF
 
 !Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
                 ConnectionsToExcits(ExcitCurr)=rh
