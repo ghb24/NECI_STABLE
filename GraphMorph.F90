@@ -10,7 +10,7 @@ MODULE GraphMorph
     USE System , only : NEl
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
-    USE Calc , only : Iters,NDets
+    USE Calc , only : Iters,NDets!,MoveDets
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
     IMPLICIT NONE
@@ -57,6 +57,9 @@ MODULE GraphMorph
 !These are the weight and energy of the current graph respectively
     REAL*8 :: SI,DLWDB
 
+!Various stats for printing
+    REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
+
     contains
 
     SUBROUTINE MorphGraph(Weight,Energyxw)
@@ -66,7 +69,6 @@ MODULE GraphMorph
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
-        REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
         INTEGER :: ierr,i
         CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
 
@@ -113,18 +115,24 @@ MODULE GraphMorph
 !tendancy to move to that excited determinant - store this in ExcitsVector
             CALL CreateExcitsVector()
 
+!            IF(MoveDets) THEN
+!If MoveDets is
+
+!            ELSE
 !Add the original eigenvector*eigenvalue to the list of determinants - now have vector (contained in Eigenvector*eigenvalue and ExcitsVector) with all
 !determinants in graph, and all possible determinants to excite to. This needs normalising.
-            CALL NormaliseVector(PStay)
+                CALL NormaliseVector()
 
 !Pick NDets new excitations stocastically from normalised list of determinants with probability |c|^2. Ensure connections,
 !allocate and create rho matrix for new graph. Deallocate info for old graph.
-            WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
-            CALL FLUSH(6)
-            CALL PickNewDets(Orig_Graph,SucRat,MeanExcit)
+                WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
+                CALL FLUSH(6)
+                CALL PickNewDets()
+!            ENDIF
 
 !Write out stats
             WRITE(63,"(I10,5G20.10)") i,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
+            CALL FLUSH(63)
 
 !Once graph is fully constructed, the next iteration can begin.
         enddo
@@ -333,7 +341,7 @@ MODULE GraphMorph
     END SUBROUTINE ConstructInitialGraph
 
 !This routine stocastically picks NDets new determinants stochastically from the vector obtained.
-    SUBROUTINE PickNewDets(Orig_Graph,SucRat,MeanExcit)
+    SUBROUTINE PickNewDets()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
         USE Calc , only : G_VMC_Seed,i_P,RhoEps
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
@@ -342,7 +350,7 @@ MODULE GraphMorph
         INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,Seed
         INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel
         INTEGER , ALLOCATABLE :: GrowGraph(:,:)
-        REAL*8 :: r,SucRat,Ran2,Orig_Graph,MeanExcit
+        REAL*8 :: r,Ran2
         LOGICAL :: Attach,OriginalPicked
         TYPE(HElement) :: rh
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
@@ -453,7 +461,7 @@ MODULE GraphMorph
                 IC=IGetExcitLevel(AttemptDet,FDet,NEl)
                 MeanExcit=MeanExcit+IC
 !Only double excitations (or single? <- include for completness) of HF contribute
-                IF((IC.eq.2).or.(IC.eq.1)) THEN
+                IF(IC.eq.2) THEN!.or.(IC.eq.1)) THEN
                     HamElems(NoVerts+1)=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
                     CALL CalcRho2(FDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
 !Add rhoij contribution. No real need to set a rho epsilon here? We are diagonalising anyway...
@@ -542,7 +550,7 @@ MODULE GraphMorph
 !The vector is spread between the arrays for the original eigenvector (which needs to be multiplied by corresponding eigenvalue)
 !and the ExcitsVector. The first element of the eigenvector should not be included in the normalisation, as
 !it cannot be picked - the HF is always in each graph.
-    SUBROUTINE NormaliseVector(Stay)
+    SUBROUTINE NormaliseVector()
         IMPLICIT NONE
         INTEGER :: i
         REAL*8 :: Stay,Move
@@ -558,12 +566,12 @@ MODULE GraphMorph
         Norm=HElement(0.D0)
 !First, sum the squares of the original determinants in the graph
         do i=2,NDets
-            Norm=Norm+(Eigenvector(i)*Eigenvector(i))
+            Norm=Norm+(Eigenvector(i)**2)
         enddo
 
 !Then, sum the squares of the vector for the excitations
         do i=1,TotExcits
-            Norm=Norm+(ExcitsVector(i)*ExcitsVector(i))
+            Norm=Norm+(ExcitsVector(i)**2)
         enddo
 
         Norm=HElement(SQRT(Norm%v))
@@ -574,13 +582,14 @@ MODULE GraphMorph
         Move=0.D0
         do i=2,NDets
             Eigenvector(i)=Eigenvector(i)/Norm
-            Stay=Stay+(Eigenvector(i)%v)*(Eigenvector(i)%v)
+            Stay=Stay+(Eigenvector(i)%v)**2
         enddo
         do i=1,TotExcits
             ExcitsVector(i)=ExcitsVector(i)/Norm
-            Move=Move+((ExcitsVector(i)%v)*(ExcitsVector(i)%v))
+            Move=Move+((ExcitsVector(i)%v)**2
         enddo
 
+        PStay=Stay
 !        WRITE(6,*) "Probability of staying at original determinants: ", Stay
         WRITE(6,*) "Probability of Moving: ", Move
 !        WRITE(6,*) "Total Probability: ", Stay+Move
