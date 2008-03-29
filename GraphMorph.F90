@@ -10,7 +10,7 @@ MODULE GraphMorph
     USE System , only : NEl
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
-    USE Calc , only : Iters,NDets,GraphBias,Biasing
+    USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
     IMPLICIT NONE
@@ -50,6 +50,10 @@ MODULE GraphMorph
 !This is the vector of propensity to move towards the excited determinants of the graph
     TYPE(HElement) , ALLOCATABLE :: ExcitsVector(:)
     INTEGER :: ExcitsVectorTag=0
+
+!This is needed if we are using the MoveDets graph growing algorithm to store a copy of the rho matrix in
+    REAL*8 , ALLOCATABLE :: CopyRhoMat(:,:)
+    INTEGER :: CopyRhoMatTag=0
 
 !The rho matrix and Hamiltonian element for the HF determinant
     TYPE(HElement) :: rhii,Hii
@@ -95,8 +99,10 @@ MODULE GraphMorph
         CALL LogMemAlloc('Eigenvector',NDets,8*HElementSize,this_routine,EigenvectorTag)
 
         WRITE(63,*) "Iteration  Energy  P_stay  Orig_Graph  SucRat   MeanExcit"
-        IF(Biasing) THEN
+        IF(TBiasing) THEN
             WRITE(6,"(A,F10.7)") "Graph growing biased towards original determinants with probability ", GraphBias
+        ELSEIF(TMoveDets) THEN
+            WRITE(6,"(A,I3,A)") "Choosing new graph by moving ", NoMoveDets," determinants in previous graph to their excitations..."
         ENDIF
 
 !Once the graph is found, the loop over the morphing iterations can begin
@@ -112,6 +118,14 @@ MODULE GraphMorph
             WRITE(6,"(A,2G20.12)") "Weight and Energy of current graph is: ", SI, DLWDB
             CALL FLUSH(6)
 
+!Write out stats
+            IF(i.eq.1) THEN
+                WRITE(63,"(I10,G20.12,3A20,G20.12)") i,DLWDB,"N/A","N/A","N/A",MeanExcit
+            ELSE
+                WRITE(63,"(I10,5G20.12)") i,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
+            ENDIF
+            CALL FLUSH(63)
+
 !Excitation generators are initialised for each of the determinants in the graph, and the total number of possible
 !connected determinants calculated. Memory allocated for the ensuing calculation.
             CALL CountExcits()
@@ -125,19 +139,28 @@ MODULE GraphMorph
 !tendancy to move to that excited determinant - store this in ExcitsVector
             CALL CreateExcitsVector()
 
+            IF(TMoveDets) THEN
+!MoveDets means that a new graph-growing algorithm is used, where NoMoveDets determinants are selected from the current graph, and replaced
+!by the same number of determinants from its excitations.
+
+!New arrays created - the inverse array from the original set of determinants, and the normalised array for the excitations
+                CALL NormaliseVectorSep()
+
+                CALL MoveDetsGraph()
+
+            ELSE
+
 !Add the original eigenvector*eigenvalue to the list of determinants - now have vector (contained in Eigenvector*eigenvalue and ExcitsVector) with all
 !determinants in graph, and all possible determinants to excite to. This needs normalising.
-            CALL NormaliseVector()
+                CALL NormaliseVector()
 
 !Pick NDets new excitations stocastically from normalised list of determinants with probability |c|^2. Ensure connections,
 !allocate and create rho matrix for new graph. Deallocate info for old graph.
-            WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
-            CALL FLUSH(6)
-            CALL PickNewDets()
+                WRITE(6,*) "Choosing new graph stochastically from previous graph and its excitations..."
+                CALL FLUSH(6)
+                CALL PickNewDets()
 
-!Write out stats
-            WRITE(63,"(I10,5G20.12)") i,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
-            CALL FLUSH(63)
+            ENDIF
 
 !Once graph is fully constructed, the next iteration can begin.
         enddo
@@ -175,6 +198,7 @@ MODULE GraphMorph
         IMPLICIT NONE
         INTEGER :: ierr,nStore(6),nExcitMemLen,iMaxExcit,nJ(NEl),nExcitTag,iExcit
         INTEGER :: iPathTag,XijTag,RhoiiTag,RhoijTag,HijsTag,iSubInit,i,j,diff
+        INTEGER :: iGetExcitLevel
         INTEGER , ALLOCATABLE :: iPath(:,:)
         REAL*8 , ALLOCATABLE :: Xij(:,:)
 #if defined(POINTER8)
@@ -194,8 +218,8 @@ MODULE GraphMorph
 !        WRITE(6,*) "FDET is ",FDet(:)
 
 !Set the importance parameter to be equal to 1 if we want random double excitation connected star graphs as initial graphs.
-        OldImport=G_VMC_Pi
-        G_VMC_Pi=1.D0
+!        OldImport=G_VMC_Pi
+!        G_VMC_Pi=1.D0
         
 !Set Tags to zero, so we know when they are allocated/deallocated
         nExcitTag=0
@@ -325,8 +349,15 @@ MODULE GraphMorph
             STOP 'H elements for initial graph incorrect'
         ENDIF
 
+!Find out manually the mean distance from the HF determinant...
+        MeanExcit=0.D0
+        do i=2,NDets
+            MeanExcit=MeanExcit+iGetExcitLevel(FDet(:),GraphDets(i,:),NEl)
+        enddo
+        MeanExcit=MeanExcit/(NDets-1.D0)
+
 !Return G_VMC_Pi to original value (Just in case it wants to be used later)
-        G_VMC_Pi=OldImport
+!        G_VMC_Pi=OldImport
         
         DEALLOCATE(Rhoii)
         CALL LogMemDealloc(this_routine,RhoiiTag)
@@ -342,6 +373,230 @@ MODULE GraphMorph
 
     END SUBROUTINE ConstructInitialGraph
 
+!This routine move determinants already in the graph, to excitations stocastically
+!TO DO: since this only moves a few determinants, much of the excitation space is still the same
+!this means that only a few of the excitations would need to be reproduced. However, bookkeeping
+!may well be a nightmare
+    SUBROUTINE MoveDetsGraph()
+        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
+        USE Calc , only : i_P,RhoEps
+        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        USE Determinants , only : GetHElement2
+        IMPLICIT NONE
+        INTEGER :: iSubMove,i,j,k,l,Success,Failure,iGetExcitLevel,IC
+        INTEGER , ALLOCATABLE :: MoveDetsFromPaths(:,:)
+        INTEGER :: MoveDetsFromPathsTag=0
+        INTEGER :: AttemptDet(NEl),IndexofDetsFrom(NoMoveDets),ierr,Tries,NoVerts
+        LOGICAL :: Remove,Attach,SameDet
+        TYPE(HElement) :: rh
+        REAL*8 :: r,Ran2
+        CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
+        
+        CALL TISET('MoveDets',iSubMove)
+
+!Allocate space for the determinants to be moved, and to move to
+        ALLOCATE(MoveDetsFromPaths(NoMoveDets,NEl),stat=ierr)
+        CALL LogMemAlloc('MoveDetsFromPaths',NoMoveDets*NEl,4,this_routine,MoveDetsFromPathsTag)
+        CALL IAZZERO(MoveDetsFromPaths,NoMoveDets*NEl)
+        CALL IAZZERO(IndexofDetsFrom,NoMoveDets)
+
+!Prepare for the change in MeanExcits
+        MeanExcit=MeanExcit*(NDets-1)
+
+!First need to pick NoMoveDets determinants stochastically to be moved from the original graph
+        Tries=NoMoveDets*100000
+        k=0
+        Success=0
+        Failure=0
+!No vertices chosen to be removed yet
+        NoVerts=0
+        do while ((NoVerts.lt.NoMoveDets).and.(k.le.Tries))
+            
+            k=k+1
+            r=RAN2(Seed)
+!Set i=1, since we do not want to choose the first determinant of the original graph
+            i=1
+
+!Look through the normalised inverse eigenvector*eigenvalue
+            do while ((r.gt.0.D0).and.(i.lt.NDets))
+                i=i+1
+                r=r-((Eigenvector(i)%v)**2)
+            enddo
+            IF(r.gt.0.D0) STOP 'Problem in counting in MoveDets'
+            
+            do j=1,NEl
+                AttemptDet(j)=GraphDets(i,j)
+            enddo
+
+!Need to test whether graph is allowed to be removed - if not, they cycle around for another attempt at finding a valid determinant
+            Remove=.true.
+            DO j=1,NoVerts
+!Chosen determinant cannot already have been chosen, and must ensure that the other determinants in the graph are still attached.
+                IF(SameDet(AttemptDet(:),MoveDetsFromPaths(j,:),NEl)) THEN
+                    Remove=.false.
+                    EXIT
+                ENDIF
+            ENDDO
+            
+            IF(Remove) THEN
+!Need to look through the rho matrix to check that there is still a connection for the other determinants in the graph
+                do j=1,NDets
+!If we are at a diagonal element, ignore as it is not a connection
+                    IF(j.eq.i) CYCLE
+                    IF(CopyRhoMat(i,j).gt.0.D0) THEN
+!Find that the determinant we are trying to move (i) is already connected to a different determinant (j)
+!See if there are any other connections to determinant j
+                        Remove=.false.
+                        do l=1,NDets
+!Ignore its diagonal element, and the connection to i
+                            IF((l.eq.j).or.(l.eq.i)) CYCLE
+                            IF(ABS(CopyRhoMat(l,j)).gt.0.D0) THEN
+!We have found that j is connected to a different determinant, so it is ok to remove i
+                                Remove=.true.
+                                EXIT
+                            ENDIF
+                        enddo
+                    ENDIF
+!The determinant we want to remove would leave a disconnected graph - we cannot use it
+                    IF(.not.Remove) EXIT
+                enddo
+            ENDIF
+
+            IF(Remove) THEN
+!We are able to successfully remove the chosen determinant
+                Success=Success+1
+                NoVerts=NoVerts+1
+                do j=1,NEl
+                    MoveDetsFromPaths(NoVerts,j)=AttemptDet(j)
+                    GraphDets(i,j)=0
+                enddo
+!Store index of determinant to move
+                IndexofDetsFrom(NoVerts)=i
+!Remove Determinant from rho matrix
+                do j=1,NDets
+                    CopyRhoMat(j,i)=0.D0
+                    CopyRhoMat(i,j)=0.D0
+                    HamElems(i)=HElement(0.D0) 
+                enddo
+!Calculate the change to the MeanExcits value...
+                MeanExcit=MeanExcit-iGetExcitlevel(FDet(:),AttemptDet(:),NEl)                
+            ELSE
+                Failure=Failure+1
+            ENDIF
+
+!Cycle and try to find another determinant to remove
+        enddo
+
+        IF(k.gt.Tries) STOP 'Error in trying to pick a determinant to move'
+
+!Now need to find a determinant from the excitations space to attach
+        NoVerts=0
+        do while ((NoVerts.lt.NoMoveDets).and.(k.le.Tries))
+            
+            k=k+1
+            r=RAN2(Seed)
+            i=0
+
+!Look through the normalised ExcitsVector array 
+            do while ((r.gt.0.D0).and.(i.lt.TotExcits))
+                i=i+1
+                r=r-((ExcitsVector(i)%v)**2)
+            enddo
+            IF(r.gt.0.D0) STOP 'Problem in counting in MoveDets 2'
+            
+            do j=1,NEl
+                AttemptDet(j)=ExcitsDets(i,j)
+            enddo
+
+!First we want to check whether the determinant we have selected is already in the graph
+            Attach=.true.
+            do j=1,NDets
+                IF(SameDet(AttemptDet(:),GraphDets(j,:),NEl)) THEN 
+                    Attach=.false.
+                    EXIT
+                ENDIF
+            enddo
+!Allow the determinant to be one we have already got rid of
+            IF(.not.Attach) THEN
+                do l=(1+NoVerts),NoMoveDets
+                    IF(j.eq.IndexofDetsFrom(l)) THEN
+                        Attach=.true.
+                        EXIT
+                    ENDIF
+                enddo
+            ENDIF
+
+            IF(Attach) THEN
+!Before allowing it to be attached, we must check if the determinant chosen is attached to the graph at all
+                Attach=.false.
+         loop2: do j=1,NDets
+                    do l=(1+NoVerts),NoMoveDets
+!Check we are not trying to attach to a determinant which we have chosen to remove! - (Unless it has already been replaced by a new det)
+                        IF(j.eq.IndexofDetsFrom(l)) CYCLE loop2
+                    enddo
+                    CALL CalcRho2(AttemptDet(:),GraphDets(j,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+                    IF(rh.agt.0.D0) THEN
+                        Attach=.true.
+                        CopyRhoMat(IndexofDetsFrom(NoVerts+1),j)=rh%v
+                        CopyRhoMat(j,IndexofDetsFrom(NoVerts+1))=rh%v
+                    ENDIF
+
+                enddo loop2
+            ENDIF
+
+!Attach the determinant
+            IF(Attach) THEN
+                Success=Success+1
+                NoVerts=NoVerts+1
+                do j=1,NEl
+                    GraphDets(IndexofDetsFrom(NoVerts),j)=AttemptDet(j)
+                enddo
+!Find Diagonal rho matrix element, and hamiltonian element
+                IC=iGetExcitLevel(FDet(:),AttemptDet(:),NEl)
+                HamElems(IndexofDetsFrom(NoVerts))=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
+                CALL CalcRho2(AttemptDet(:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,0,ECore)
+                CopyRhoMat(IndexofDetsFrom(NoVerts),IndexofDetsFrom(NoVerts))=rh%v
+!Calculate the change to the MeanExcits value...
+                MeanExcit=MeanExcit+IC            
+
+            ELSE
+                Failure=Failure+1
+            ENDIF
+!Try to attach another determinant
+        enddo
+        
+        IF(k.gt.Tries) STOP 'Error in trying to pick a determinant to create'
+
+!Move RhoMatrix into the full one
+        ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
+        CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag)
+        do i=1,NDets
+            do j=1,i
+                GraphRhoMat(i,j)=HElement(CopyRhoMat(i,j))
+                GraphRhoMat(j,i)=HElement(CopyRhoMat(j,i))
+            enddo
+        enddo
+
+!Find the final value for MeanExcits, and the success ratio of the algorithm
+        MeanExcit=MeanExcit/(NDets-1)
+        SucRat=(Success+0.D0)/(Success+Failure+0.D0)
+        Orig_Graph=NoMoveDets/(NDets+0.D0)
+
+        DEALLOCATE(CopyRhoMat)
+        CALL LogMemDealloc(this_routine,CopyRhoMatTag)
+        DEALLOCATE(MoveDetsFromPaths)
+        CALL LogMemDealloc(this_routine,MoveDetsFromPathsTag)
+!In the future, these may not have to be completly changed, only modified slightly
+        DEALLOCATE(ExcitsVector)
+        CALL LogMemDealloc(this_routine,ExcitsVectorTag)
+        DEALLOCATE(ExcitsDets)
+        CALL LogMemDealloc(this_routine,ExcitsDetsTag)
+        
+        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in PickNewDets'
+        CALL TIHALT('MoveDets',iSubMove)
+
+    END SUBROUTINE MoveDetsGraph
+
 !This routine stocastically picks NDets new determinants stochastically from the vector obtained.
     SUBROUTINE PickNewDets()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
@@ -353,7 +608,7 @@ MODULE GraphMorph
         INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel
         INTEGER , ALLOCATABLE :: GrowGraph(:,:)
         REAL*8 :: r,Ran2
-        LOGICAL :: Attach,OriginalPicked
+        LOGICAL :: Attach,OriginalPicked,SameDet
         TYPE(HElement) :: rh
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
 
@@ -402,7 +657,7 @@ MODULE GraphMorph
 !First look through the normalised eigenvector*eigenvalue
             do while ((r.gt.0.D0).and.(i.lt.NDets))
                 i=i+1
-                r=r-((Eigenvector(i)%v)*(Eigenvector(i)%v))
+                r=r-((Eigenvector(i)%v)**2)
             enddo
 
 !If still not found, then look in Vector of excitations
@@ -410,7 +665,7 @@ MODULE GraphMorph
                 i=0
                 do while ((r.ge.0.D0).and.(i.lt.TotExcits))
                     i=i+1
-                    r=r-((ExcitsVector(i)%v)*(ExcitsVector(i)%v))
+                    r=r-((ExcitsVector(i)%v)**2)
                 enddo
 
 !Error - cannot find determinant to attach in original graph, or its excitations
@@ -439,13 +694,10 @@ MODULE GraphMorph
             Attach=.false.
             DO i=1,NoVerts
 
-!Check the number of excitations away from each other vertex in graph
-                IC=IGetExcitLevel(AttemptDet(:),GrowGraph(i,:),NEl)
-!                dist=IGetExcitLevel(FDet(:),AttemptDet(:),NEl)
-!                IF(dist.gt.2) THEN
-!                    WRITE(6,*) "Higher excitation selected ", dist
-!                ENDIF
-                IF(IC.eq.0) THEN
+!Check the number of excitations away from each other vertex in graph - or instead, just check if determinant already in graph
+!                IC=IGetExcitLevel(AttemptDet(:),GrowGraph(i,:),NEl)
+!                IF(IC.eq.0) THEN
+                IF(SameDet(AttemptDet(:),GrowGraph(i,:),NEl)) THEN
 !Determinant is already in the graph - exit loop - determinant not valid
                     Attach=.false.
                     EXIT
@@ -453,7 +705,7 @@ MODULE GraphMorph
 
                 !Determine connectivity to other determinants in the graph, if no connection yet found
                 IF(.not.Attach) THEN
-                    CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                    CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
                     IF(rh.agt.RhoEps) Attach=.true. 
                 ENDIF
 
@@ -554,6 +806,57 @@ MODULE GraphMorph
 
     END SUBROUTINE PickNewDets
 
+!This is used to create normalised vectors for the MoveDets stochastic graph-growing algorithm
+    SUBROUTINE NormaliseVectorSep()
+        IMPLICIT NONE
+        TYPE(HElement) :: Norm1,Norm2
+        INTEGER :: iSubNorm,i
+        
+        CALL TISET('NormVecSep',iSubNorm)
+        
+!Setup a normalised Inverse vector of determinants in the graph, so they can be chosen stochastically
+!Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue, then
+!use it as the inverse vector
+        do i=1,NDets
+            Eigenvector(i)=Eigenvector(i)*HElement(Eigenvalue)
+        enddo
+
+        Norm1=HElement(0.D0)
+
+        do i=2,NDets
+            IF(ABS(Eigenvector(i)%v).lt.1.D-10) THEN
+                WRITE(6,*) "For determinant ", i, ", connection is ", Eigenvector(i)
+                STOP 'Numerical errors likely to arise due to such small connection'
+            ENDIF
+!Normalised as the reciprocal of the square of the element. Could also not square it (mod)/cube it - would unfavour/favour smaller
+!connections - make this power an adjustable parameter??? (numerical stability issues?)
+            Eigenvector(i)=HElement(1.D0/((Eigenvector(i)%v)**2))
+            Norm1=Norm1+HElement((Eigenvector(i)%v)**2)
+        enddo
+
+        Norm1=HElement(SQRT(Norm1%v))
+
+        do i=2,NDets
+            Eigenvector(i)=Eigenvector(i)/Norm1
+        enddo
+
+!The excitations need to be normalised separatly, according to their amplitude squared
+
+        Norm2=HElement(0.D0)
+        do i=1,TotExcits
+            Norm2=Norm2+(ExcitsVector(i)*ExcitsVector(i))
+        enddo
+        Norm2=HElement(SQRT(Norm2%v))
+        do i=1,TotExcits
+            ExcitsVector(i)=ExcitsVector(i)/Norm2
+        enddo
+
+        PStay=NoMoveDets/NDets
+
+        CALL TIHALT('NormVecSep',iSubNorm)
+
+    END SUBROUTINE NormaliseVectorSep
+
 !This is used to normalise the vector of current and excited determinants from which we are going to pick the next graph.
 !The vector is spread between the arrays for the original eigenvector (which needs to be multiplied by corresponding eigenvalue)
 !and the ExcitsVector. The first element of the eigenvector should not be included in the normalisation, as
@@ -571,7 +874,7 @@ MODULE GraphMorph
         enddo
 
 !An addititional bias against the determinants already in the graph can be designed.
-        IF(Biasing) THEN
+        IF(TBiasing) THEN
 !GraphBias is the probability of picking a determinant which is already in the graph.
 !Remember that this is not actually a strict probability, since the way that the graph is grown,
 !means that some determinants will be automatically preferred over others.
@@ -847,7 +1150,7 @@ MODULE GraphMorph
         INTEGER, SAVE :: iSubDiag
         INTEGER :: Info,ierr,i
         REAL*8 , ALLOCATABLE :: Work(:),Eigenvalues(:)
-        INTEGER :: WorkTag,EigenvaluesTag
+        INTEGER :: WorkTag,EigenvaluesTag,j
         CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphMorph'
 
         CALL TISET('DiagGraphMorph',iSubDiag)
@@ -862,6 +1165,18 @@ MODULE GraphMorph
 !Workspace needed for diagonaliser
         ALLOCATE(Work(3*NDets),stat=ierr)
         CALL LogMemAlloc('WORK',NDets*3,8,this_routine,WorkTag)
+
+        IF(TMoveDets) THEN
+!If using the MoveDets algorithm, need to keep the rho matrix for the previous graph
+            ALLOCATE(CopyRhoMat(NDets,NDets),stat=ierr)
+            CALL LogMemAlloc('CopyRhoMat',NDets**2,8,this_routine,CopyRhoMatTag)
+            do i=1,NDets
+                do j=1,i
+                    CopyRhoMat(i,j)=GraphRhoMat(i,j)%v
+                    CopyRhoMat(j,i)=GraphRhoMat(j,i)%v
+                enddo
+            enddo
+        ENDIF
 
 !Diagonalise...
 !Eigenvalues now stored in ascending order
@@ -908,3 +1223,30 @@ MODULE GraphMorph
     END SUBROUTINE DiagGraphMorph
 
 END MODULE GraphMorph
+
+!LOGICAL FUNCTION ConnectGraph(Matrix,Dimen,NEl)
+!    IMPLICIT NONE
+!    INTEGER :: NotConnected(NEl,Dimen),NEl,Dimen
+!    REAL*8 :: Matrix
+!    LOGICAL :: ConnectGraph
+!
+!    j=0
+!    do i=1,Dimen
+!!Test if not connected to the excitation level above
+!        IF(Matrix(1,i).eq.0) THEN
+!            j=j+1
+!            NotConnected(1,j)=i
+!        ENDIF
+
+!Tests determinants are the same - requires the same ordering of orbitals in them
+LOGICAL FUNCTION SameDet(nI,nJ,NEl)
+    IMPLICIT NONE
+    INTEGER :: nI(NEl),nJ(NEl),NEl,i
+    SameDet=.true.
+    do i=1,NEl
+        IF(nI(i).ne.nJ(i)) THEN
+            SameDet=.false.
+        ENDIF
+    enddo
+    RETURN
+END FUNCTION

@@ -14,10 +14,10 @@ MODULE Calc
         LOGICAL TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER
         LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
-        LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,Biasing
+        LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         
-        INTEGER NWHTAY(3,10),NPATHS
+        INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints
@@ -60,8 +60,10 @@ MODULE Calc
 
 
 !       Calc defaults      
+          NoMoveDets=1
+          TMoveDets=.false.
           GraphBias=0.99
-          Biasing=.false.
+          TBiasing=.false.
           NDets=400
           Iters=10
           TGraphMorph=.false.
@@ -490,7 +492,10 @@ MODULE Calc
                   call geti(Iters)
               case("GRAPHBIAS")
                   call getf(GraphBias)
-                  Biasing=.true.
+                  TBiasing=.true.
+              case("MOVEDETS")
+                  call geti(NoMoveDets)
+                  TMoveDets=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

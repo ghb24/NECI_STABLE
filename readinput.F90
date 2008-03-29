@@ -124,7 +124,7 @@ MODULE ReadInput
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       USE Calc , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
-     &  TDIAGNODES,TSTARSTARS
+     &  TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets
       Use Determinants, only : SpecDet
       USE Integrals , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING
@@ -132,6 +132,11 @@ MODULE ReadInput
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
+
+!The MoveDets and Biasing algorithms cannot both be used in the GraphMorph Algorithm.
+      IF(TBiasing.and.TMoveDets) THEN
+          CALL report("Biasing algorithm and MoveDets algorithm cannot both be used",.true.)
+      ENDIF
 
 !..RmRootExcitStarsRootChange must be used with DiagStarStars, and not with ExcitStarsRootChange
       IF(TRmRootExcitStarsRootChange.and..not.TDiagStarStars) THEN

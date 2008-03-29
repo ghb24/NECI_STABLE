@@ -2260,7 +2260,7 @@ C.. Update the rho and X (probability) matrices with this new node
                I_VNEXT=I_VNEXT+1
             ENDIF
             ICOUNT=ICOUNT+1
-            IF(ICOUNT.GT.500) THEN
+            IF(ICOUNT.GT.50000) THEN
 C.. give up trying to find something to attach, and go home
                WRITE(6,*) "WARNING: Unable to find attachee to vertex"
                CALL WRITEDET(6,IPATH(1,NEXNODE),NEL,.TRUE.)
