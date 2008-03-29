@@ -241,7 +241,7 @@ C            ENDIF
 C =======================================================================
       SUBROUTINE WRITE_MATRIX(CHAR,M,N,A)
       IMPLICIT REAL*8 (A-H,O-Z)
-      CHARACTER*10 CHAR
+      CHARACTER(*) CHAR
       DIMENSION A(M,N)
       WRITE(6,*) CHAR
       DO I=1,M

@@ -263,22 +263,24 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       SUBROUTINE CALCHFBASIS(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,HFMIX,EDELTA,CDELTA,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
+         Use HElem
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(*)
          REAL*8 ECORE
          REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
-         REAL*8 HFBASIS(NBASIS,NBASIS),HFE(NBASIS)
-         REAL*8 FMAT(*),OFMAT(*)
+         Type(HElement) HFBASIS(NBASIS,NBASIS)
+         REAL*8 HFE(NBASIS)
+         Type(HElement) FMAT(*),OFMAT(*)
          POINTER (IP_FMAT,FMAT),(IP_OFMAT,OFMAT)
-         REAL*8 DMAT(*),ODMAT(*)
+         Type(HElement) DMAT(*),ODMAT(*)
          POINTER (IP_DMAT,DMAT),(IP_ODMAT,ODMAT)
-         REAL*8 WORK(*)
+         Type(HElement) WORK(*)
          POINTER (IP_WORK,WORK)
          REAL*8 HFES(*)
          POINTER (IP_HFES,HFES)
-         REAL*8 R1(*),R2(*)
+         Type(HElement) R1(*),R2(*)
          POINTER (IP_R1,R1),(IP_R2,R2)
          INTEGER NHFIT,NEL,NSTART(NEL)
          INTEGER I,J,K,L,ISPN,ISPS,IS1,IS2
@@ -296,18 +298,18 @@ C         IF(TRHF) STOP 'RHF not supported'
          NSPINS=1+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
          NSBASIS=NBASIS/NSPINS
 C         IF(TRHF) NSPINS=1
-         CALL MEMORY(IP_FMAT,NSBASIS*NSBASIS*NSPINS,"FMAT")
-         CALL MEMORY(IP_OFMAT,NSBASIS*NSBASIS*NSPINS,"OFMAT")
-         CALL MEMORY(IP_DMAT,NSBASIS*NSBASIS*NSPINS,"DMAT")
-         CALL MEMORY(IP_ODMAT,NSBASIS*NSBASIS*NSPINS,"ODMAT")
-         CALL MEMORY(IP_WORK,NSBASIS*3,"WORK")
+         CALL MEMORY(IP_FMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"FMAT")
+       CALL MEMORY(IP_OFMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"OFMAT")
+         CALL MEMORY(IP_DMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"DMAT")
+       CALL MEMORY(IP_ODMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"ODMAT")
+         CALL MEMORY(IP_WORK,NSBASIS*3*HElementSize,"WORK")
          CALL MEMORY(IP_HFES,NSBASIS*NSPINS,"HFES")
-         CALL MEMORY(IP_R1,NSBASIS*NSBASIS,"R1")
-         CALL MEMORY(IP_R2,NSBASIS*NSBASIS,"R2")
+         CALL MEMORY(IP_R1,NSBASIS*NSBASIS*HElementSize,"R1")
+         CALL MEMORY(IP_R2,NSBASIS*NSBASIS*HElementSize,"R2")
 C.. Generate initial HFBASIS vectors as the energy ordered single
 C.. particle basis fns, separated into up and down blocks
-         CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS)
-         CALL AZZERO(DMAT,NSBASIS*NSBASIS*NSPINS)
+         CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS*HElementSize)
+         CALL AZZERO(DMAT,NSBASIS*NSBASIS*NSPINS*HElementSize)
          IF(IHFMETHOD.EQ.0.OR.IHFMETHOD.EQ.-1) THEN
             CALL UHFSCF(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
      &         UMAT,HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
@@ -336,6 +338,7 @@ C.. Unrestricted HF SCF code
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
      &      NSPINS,NSBASIS,HFES,OFMAT,HFMIX,EDELTA,CDELTA,TRHF,R1,R2,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
+         Use HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
@@ -343,12 +346,12 @@ C.. Unrestricted HF SCF code
          REAL*8 ECORE
          REAL*8 ARR(NBASIS)
          INTEGER BRR(NBASIS)
-         REAL*8 HFBASIS(NBASIS,NBASIS),HFE(NBASIS)
-         REAL*8 HFES(NSBASIS,NSPINS)
-         REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
-         REAL*8 OFMAT(NSBASIS,NSBASIS,NSPINS)
-         REAL*8 DMAT(NSBASIS,NSBASIS,NSPINS)
-         REAL*8 ODMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) HFBASIS(NBASIS,NBASIS)
+         REAL*8 HFES(NSBASIS,NSPINS),HFE(NBASIS)
+         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) OFMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) ODMAT(NSBASIS,NSBASIS,NSPINS)
          REAL*8 WORK(NBASIS*3),HFMIX
          REAL*8 R1(NSBASIS,NSBASIS),R2(NSBASIS,NSBASIS)
          INTEGER NHFIT,NEL,NSTART(NEL)
@@ -373,6 +376,8 @@ C         EDELTA=1.D-8
             WRITE(6,*) "Method 0:Linear Mixing"
          ENDIF
          WRITE(6,*) "HF Mixing",HFMIX
+         WRITE(6,*) "E Thresh:",EDELTA
+         WRITE(6,*) "RMSD Thresh:",CDELTA
          IF(NSPINS.EQ.2) THEN
             NELS(2)=(MS+NEL)/2
             NELS(1)=NEL-NELS(2)
@@ -399,13 +404,13 @@ C         EDELTA=1.D-8
       ENDIF
       DO WHILE(BR)
          IF(IRHFB.GT.0) THEN
-            CALL DCOPY(NSBASIS*NSBASIS,FMAT(1,1,IRHFB),1,
+            CALL DCOPY(NSBASIS*NSBASIS*HElementSize,FMAT(1,1,IRHFB),1,
      &         FMAT(1,1,3-IRHFB),1)
-            CALL DCOPY(NSBASIS*NSBASIS,DMAT(1,1,IRHFB),1,
+            CALL DCOPY(NSBASIS*NSBASIS*HElementSize,DMAT(1,1,IRHFB),1,
      &         DMAT(1,1,3-IRHFB),1)
          ENDIF 
-         CALL DCOPY(NSBASIS*NSBASIS*NSPINS,DMAT,1,ODMAT,1)
-         CALL DCOPY(NSBASIS*NSBASIS*NSPINS,FMAT,1,OFMAT,1)
+         CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElementSize,DMAT,1,ODMAT,1)
+         CALL DCOPY(NSBASIS*NSBASIS*NSPINS*HElementSize,FMAT,1,OFMAT,1)
 C.. Construct the Density Matrix
          CALL GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,.FALSE.,ISS,G1)
 C.. See how much our density matrix has changed from last time
@@ -414,7 +419,7 @@ C.. See how much our density matrix has changed from last time
             DO I=1,NSBASIS 
                DO J=1,NSBASIS
                   IF(.NOT.TRHF.OR.TRHF.AND.ISPN.EQ.IRHFB) 
-     &               RMSD=RMSD+(DMAT(I,J,ISPN)-ODMAT(I,J,ISPN))**2
+     &               RMSD=RMSD+SQ(DMAT(I,J,ISPN)-ODMAT(I,J,ISPN))
                ENDDO
             ENDDO
          ENDDO
@@ -447,7 +452,7 @@ C.. Now add back in some of our original F matrix
             WRITE(6,*) "*** WARNING Hartree-Fock did not converge ***"
             BR=.FALSE.
          ENDIF
-         IF(ABS(ECUR-ELAST).LT.EDELTA.AND.RMSD.LT.CDELTA
+         IF(ABS(ECUR-ELAST).LE.EDELTA.AND.RMSD.LE.CDELTA
      &      .AND.IHFIT.GT.5) THEN
             WRITE(6,*) "*** Hartree-Fock converged in ",
      &         IHFIT," iterations."
@@ -460,7 +465,7 @@ C.. Now add back in some of our original F matrix
       IF(BTEST(ILOGGING,11))
      &   CALL WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,.FALSE.) 
 C.. We write out HFMAT  
-      CALL AZZERO(HFBASIS,NBASIS*NBASIS)
+      CALL AZZERO(HFBASIS,NBASIS*NBASIS*HElementSize)
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
               K=(I-1)*NSPINS+ISPN
@@ -480,16 +485,17 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          USE UMatCache, only: GetUMatEl
          USE Logging, only: HFLogLevel
          use System, only: BasisFN
+         Use HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
-         REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
-         REAL*8 DMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
          LOGICAL LTRANS
          INTEGER ISS
          Type(BasisFN) G1(*)
 
          INTEGER ISPN,I,J,K
-         REAL*8 TOT
+         Type(HElement) TOT
 C.. Construct the Density Matrix
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
@@ -500,9 +506,9 @@ C.. Sum over occupied orbitals for our spin
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
                      IF(LTRANS) THEN
-                        TOT=TOT+FMAT(K,I,ISPN)*FMAT(K,J,ISPN)
+                        TOT=TOT+DCONJG(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
                      ELSE
-                        TOT=TOT+FMAT(I,K,ISPN)*FMAT(J,K,ISPN)
+                        TOT=TOT+FMAT(I,K,ISPN)*DCONJG(FMAT(J,K,ISPN))
                      ENDIF
                   ENDDO
                   DMAT(I,J,ISPN)=TOT
@@ -510,7 +516,7 @@ C.. vector
                ENDDO
             ENDDO 
             IF(HFLogLevel.gt.0) 
-     &      CALL WRITE_MATRIX("DMAT",NSBASIS,NSBASIS,DMAT(1,1,ISPN))
+     &      CALL WRITE_HEMATRIX("DMAT",NSBASIS,NSBASIS,DMAT(1,1,ISPN))
          ENDDO
          RETURN
       END 
@@ -538,13 +544,14 @@ C         ELSE
             RHFMUL=1.D0
 C         ENDIF
 C.. Construct the Fock Matrix
-         CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS)
+         CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS*HElementSize)
 C. <ui|F|uj>=tij+Sum_kl(Dkl <ui uk|U|uj ul>-s<ui uk|U|ul uj>) where s=1 if i,k same spin
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
                DO J=I,NSBASIS
-                  TOT=DREAL(GetTMATEl((I-1)*NSPINS+ISPN,
-     &                     (J-1)*NSPINS+ISPN))
+                  TOT=GetTMATEl((I-1)*NSPINS+ISPN,
+     &                     (J-1)*NSPINS+ISPN)
+!                  WRITE(6,*) I,J,TOT
 C.. Now sum in the alpha and beta block of u matrix
                   CALL GTID(NBASISMAX,(I-1)*NSPINS+ISPN,ID1)
                   CALL GTID(NBASISMAX,(J-1)*NSPINS+ISPN,ID2)
@@ -556,19 +563,27 @@ C.. Now sum in the alpha and beta block of u matrix
                            TOT=TOT+HElement(RHFMUL)*
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
      &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
+!                           WRITE(6,"(4I3)", advance='no') I,J,K,L
+!                           WRITE(6,*) HElement(RHFMUL)*
+!     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
+!     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
                            IF(ISPN2.EQ.ISPN)
      &                        TOT=TOT-
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,
      &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID4,ID2)
+!                           IF(ISPN2.EQ.ISPN)
+!     &                        WRITE(6,*)
+!     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,
+!     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID4,ID2)
                         ENDDO
                      ENDDO
                   ENDDO
                   FMAT(I,J,ISPN)=TOT
-                  FMAT(J,I,ISPN)=TOT
+                  FMAT(J,I,ISPN)=DCONJG(TOT)
                ENDDO
             ENDDO
             IF(HFLogLevel.gt.0) 
-     &      CALL WRITE_MATRIX("FMAT",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
+     &      CALL WRITE_HEMATRIX("FMAT",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
          ENDDO
          RETURN
       END
@@ -580,14 +595,14 @@ C.. Now sum in the alpha and beta block of u matrix
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
          REAL*8 HFES(NSBASIS,NSPINS)
-         REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS)
-         REAL*8 DMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
+         Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
 !         REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
          REAL*8 ECUR,ECORE
-         REAL*8 WORK(3*NSBASIS)
+         Type(HElement) WORK(3*NSBASIS),RWORK(3*NSBASIS)
 
          INTEGER INFO
-         REAL*8 TOT,TOT2
+         Type(HElement) TOT,TOT2
          INTEGER ISPN,I,J,K         
 
 C.. First calculate the HF energy double counting contrib
@@ -597,15 +612,20 @@ C.. First calculate the HF energy double counting contrib
                DO K=1,NSBASIS
                   TOT=TOT+DMAT(J,K,ISPN)
      &     *(FMAT(J,K,ISPN)-
-     &      DREAL(GetTMATEl((J-1)*NSPINS+ISPN,(K-1)*NSPINS+ISPN)))
+     &      GetTMATEl((J-1)*NSPINS+ISPN,(K-1)*NSPINS+ISPN))
                ENDDO
             ENDDO
          ENDDO
 
 C.. Now diagonalize the Fock matrix 
          DO ISPN=1,NSPINS
-            CALL DSYEV('V','U',NSBASIS,FMAT(1,1,ISPN),NSBASIS,
-     &         HFES(1,ISPN),WORK,3*NSBASIS, INFO)
+            IF(HElementSize.EQ.1) THEN
+               CALL DSYEV('V','U',NSBASIS,FMAT(1,1,ISPN),NSBASIS,
+     &            HFES(1,ISPN),WORK,3*NSBASIS, INFO)
+            ELSE
+               CALL ZHEEV('V','U',NSBASIS,FMAT(1,1,ISPN),NSBASIS,
+     &            HFES(1,ISPN),WORK,3*NSBASIS,RWORK, INFO)
+            ENDIF
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
             IF(INFO.NE.0) THEN
@@ -613,17 +633,20 @@ C.. vector
                STOP
             ENDIF
             IF(HFLogLevel.gt.0) 
-     &      CALL WRITE_MATRIX("EIGVEC",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
+     &      CALL WRITE_HEMATRIX("EIGVEC",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
+            IF(HFLogLevel.gt.0) 
+     &      CALL WRITE_MATRIX("EIGVAL",1,NSBASIS,HFES(1,ISPN))
          ENDDO
 C.. now calculate the sum of the occupied Fock orbitals
          TOT2=0.D0
          DO ISPN=1,NSPINS
             DO I=1,NELS(ISPN)
-               TOT2=TOT2+HFES(I,ISPN)
+               TOT2=TOT2+HElement(HFES(I,ISPN))
             ENDDO
          ENDDO
 C.. subtract out the double counting term, and add in the core energy
-         ECUR=TOT2-TOT/2.D0+ECORE
+!         WRITE(6,*) "ECUR=",TOT2-TOT/HElement(2.D0)+HElement(ECORE)
+         ECUR=DREAL(TOT2)-DREAL(TOT)/2.D0+ECORE
          RETURN
       END
       SUBROUTINE WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,
@@ -672,9 +695,11 @@ C.. Generate initial density matrix, as well as a guess at the HF DET
       SUBROUTINE GENHFGUESS(FMAT,NSPINS,NSBASIS,R1,R2,WORK,BRR,G1,TRANS,
      &            LMS,FRAND,NELS,HFDET)
          use System, only: BasisFN
+         Use HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         REAL*8 FMAT(NSBASIS,NSBASIS,NSPINS),PI,R
+         Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
+         REAL*8 PI,R
          INTEGER ISPN,I,J,ISEED,irand
          REAL*8 RAN2
          INTEGER BRR(NSBASIS*NSPINS),NELR,IREAL,IS
@@ -709,9 +734,9 @@ C.. vector unless transposed
                ENDDO
                NELR=(BRR(IREAL)-1)/NSPINS+1
                IF(TRANS) THEN
-                  FMAT(I,NELR,ISPN)=1
+                  FMAT(I,NELR,ISPN)=HElement(1.D0)
                ELSE
-                  FMAT(NELR,I,ISPN)=1
+                  FMAT(NELR,I,ISPN)=HElement(1.D0)
                ENDIF
                IF(I.LE.NELS(IS)) THEN
                   WRITE(6,"(I4,A,$)"),BRR(IREAL),","
@@ -723,7 +748,8 @@ C.. vector unless transposed
             WRITE(6,*)
             DO I=1,NSBASIS
                DO J=1,NSBASIS
-                  FMAT(I,J,ISPN)=FMAT(I,J,ISPN)+FRAND*RAN2(irand)
+                  FMAT(I,J,ISPN)=FMAT(I,J,ISPN)+
+     &               HElement(FRAND*RAN2(irand))
                ENDDO
             ENDDO
             CALL GRAMSCHMIDT(FMAT(1,1,ISPN),NSBASIS)
@@ -773,10 +799,11 @@ C.. vector unless transposed
  
       SUBROUTINE GRAMSCHMIDT(MAT,LEN)
 C.. MAT(IELEMENT,IVECTOR)
+         Use HElem
          IMPLICIT NONE
          INTEGER LEN
-         REAL*8 MAT(LEN,LEN)
-         REAL*8 NORM,DOT,SNORM
+         Type(HElement) MAT(LEN,LEN),DOT
+         REAL*8 NORM,SNORM
          INTEGER I,J,K
          DO I=1,LEN
 C.. First dot with all lower vectors, and remove their components
@@ -784,7 +811,7 @@ C.. First dot with all lower vectors, and remove their components
                DOT=0.D0
                NORM=0.D0
                DO K=1,LEN
-                  DOT=DOT+MAT(K,J)*MAT(K,I)
+                  DOT=DOT+DCONJG(MAT(K,J))*MAT(K,I)
                ENDDO
                DO K=1,LEN
                   MAT(K,I)=MAT(K,I)-MAT(K,J)*DOT
@@ -792,29 +819,31 @@ C.. First dot with all lower vectors, and remove their components
             ENDDO
             NORM=0.D0
             DO K=1,LEN
-               NORM=NORM+MAT(K,I)**2
+               NORM=NORM+SQ(MAT(K,I))
             ENDDO        
             SNORM=SQRT(NORM)    
 C            WRITE(6,*) NORM
             DO K=1,LEN
 C               WRITE(6,*) MAT(K,I),MAT(K,I)/SNORM
-               MAT(K,I)=MAT(K,I)/SNORM
+               MAT(K,I)=MAT(K,I)/HElement(SNORM)
             ENDDO
          ENDDO
          RETURN
       END
 
       SUBROUTINE HFLINMIX(FMAT,OFMAT,NSPINS,N,FMIX,R1,R2,WORK)
+         Use HElem
          IMPLICIT NONE
          INTEGER N,NSPINS
-         REAL*8 FMIX,FMAT(N,N,NSPINS),OFMAT(N,N,NSPINS)
+         REAL*8 FMIX
+         Type(HElement) FMAT(N,N,NSPINS),OFMAT(N,N,NSPINS)
          REAL*8 R1(*),R2(*),WORK(*)
          INTEGER I,J,ISPN
          DO ISPN=1,NSPINS
             DO I=1,N
                DO J=1,N
-                  FMAT(I,J,ISPN)=FMIX*FMAT(I,J,ISPN)
-     &               +(1.D0-FMIX)*OFMAT(I,J,ISPN)
+                  FMAT(I,J,ISPN)=HElement(FMIX)*FMAT(I,J,ISPN)
+     &               +HElement(1.D0-FMIX)*OFMAT(I,J,ISPN)
                ENDDO
             ENDDO
             IF(N.LT.3) THEN
@@ -882,16 +911,28 @@ C.. P = S^(-1/2) R is orthogonal.
 C.. MAT is NxN and is returned as an orthogal matrix
 C.. R1 and R2 are NxN workspaces
       SUBROUTINE LOWDIN_ORTH(MAT,N,R1,R2,WORK)
+         Use HElem
          IMPLICIT NONE
          INTEGER N
-         REAL*8 MAT(N,N),R1(N,N),R2(N,N)
-         REAL*8 L(N),LL,WORK(3*N)
+         Type(HElement) MAT(N,N),R1(N,N),R2(N,N)
+         REAL*8 L(N),LL,RWORK(3*N)
+         Type(HElement) WORK(3*N)
          INTEGER INFO,I,J
 C.. R=MAT
 C.. S= R1=1.D0 * R * RT + 0.D0*R1
-         CALL DGEMM('N','T',N,N,N,1.D0,MAT,N,MAT,N,0.D0,R1,N)
+         IF(HElementSize.EQ.1) THEN
+            CALL DGEMM('N','T',N,N,N,1.D0,MAT,N,MAT,N,0.D0,R1,N)
+         ELSE
+            CALL ZGEMM('N','C',N,N,N,(1.D0,0.d0),MAT,N,MAT,N,(0.D0,0.d0)
+     &         ,R1,N)
+         ENDIF
+!         CALL Write_HEMatrix("R",N,N,R1)
 C.. Diagonalize S=R1 into eigenvectors U=R1 and eigenvalues L
-         CALL DSYEV('V','U',N,R1,N,L,WORK,N*3,INFO)
+         IF(HElementSize.EQ.1) THEN
+            CALL DSYEV('V','U',N,R1,N,L,WORK,N*3,INFO)
+         ELSE
+            CALL ZHEEV('V','U',N,R1,N,L,WORK,N*3,RWORK,INFO)
+         ENDIF
 C.. eigenvector 1 is given by R1(I,1)
          IF(INFO.NE.0) THEN
             WRITE(6,*) "INFO=",INFO," on diag in LOWDIN_ORTH. Stopping"
@@ -900,18 +941,28 @@ C.. eigenvector 1 is given by R1(I,1)
 C.. Calculate P = S^(-1/2) R = U L^(-1/2) UT R.  U=R1
 C.. First let R2=U R. U=R1.  R=MAT
 C.. R2=1.D0 * R1 * MAT + 0.D0*R1
-         CALL DGEMM('T','N',N,N,N,1.D0,R1,N,MAT,N,0.D0,R2,N)
+         IF(HElementSize.EQ.1) THEN
+            CALL DGEMM('T','N',N,N,N,1.D0,R1,N,MAT,N,0.D0,R2,N)
+         ELSE
+            CALL ZGEMM('C','N',N,N,N,(1.D0,0.D0),R1,N,MAT,N,(0.D0,0.d0)
+     &         ,R2,N)
+         ENDIF
 C.. Now let R2=L^(-1/2) (U R) = L^(-1/2) R2
 C.. row I is multiplied by (L(I))^(-1/2)
          DO I=1,N
             LL=L(I)**(-0.5D0)
             DO J=1,N
-               R2(I,J)=R2(I,J)*LL
+               R2(I,J)=R2(I,J)*HElement(LL)
             ENDDO
          ENDDO
 C.. Now let MAT = P = U (L^(-1/2) UT R) = U R2.  U=R1
 C.. MAT=1.D0 * U * R2 + 0.D0*MAT
-         CALL DGEMM('N','N',N,N,N,1.D0,R1,N,R2,N,0.D0,MAT,N)
+         IF(HElementSize.EQ.1) THEN
+            CALL DGEMM('N','N',N,N,N,1.D0,R1,N,R2,N,0.D0,MAT,N)
+         ELSE
+            CALL ZGEMM('N','N',N,N,N,(1.D0,0.D0),R1,N,R2,N,(0.D0,0.d0)
+     &         ,MAT,N)
+         ENDIF
 C.. and we should be done, with an orthoganal matrix in MAT
       END                       
 
@@ -1455,4 +1506,22 @@ C.. If we've got a generic spatial sym or hf we mark degeneracies
 C               G1(3,BRR(I))=J
          ENDDO
          RETURN
+      END
+
+      SUBROUTINE Write_HEMatrix(CHAR,M,N,A)
+      Use HElem 
+      IMPLICIT NONE
+      CHARACTER(*) CHAR
+      Type(HElement) A(M,N)
+      Integer I,M,N,J
+      WRITE(6,*) CHAR
+      DO I=1,M
+         IF(HElementSize.EQ.1) THEN
+           WRITE(6,"(12E15.6)") (A(I,J),J=1,N)
+         ELSE
+           WRITE(6,"(6('(',E15.6,',',E15.6,')'))") (A(I,J),J=1,N)
+         ENDIF
+      ENDDO
+ 1000 FORMAT(12E15.6)
+      RETURN
       END
