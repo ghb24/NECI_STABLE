@@ -76,6 +76,7 @@ MODULE GraphMorph
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
+        REAL*8 :: LowestE,BestSI
         INTEGER :: ierr,i
         CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
 
@@ -116,6 +117,15 @@ MODULE GraphMorph
 !The graph is first diagonalised, and the energy of the graph found, along with the largest eigenvector and eigenvalues.
             CALL DiagGraphMorph()
             WRITE(6,"(A,2G20.12)") "Weight and Energy of current graph is: ", SI, DLWDB
+            IF(i.eq.1) THEN
+                LowestE=DLWDB
+                BestSI=SI
+            ELSE
+                IF(DLWDB.lt.LowestE) THEN
+                    LowestE=DLWDB
+                    BestSI=SI
+                ENDIF
+            ENDIF
             CALL FLUSH(6)
 
 !Write out stats
@@ -170,6 +180,10 @@ MODULE GraphMorph
 !There is no beta-dependance, so only largest eigenvector and value needed.
         CALL DiagGraphMorph()
         WRITE(6,"(A,2G20.12)") "Weight and Energy of final graph is: ", SI, DLWDB
+        IF(DLWDB.lt.LowestE) THEN
+            LowestE=DLWDB
+            BestSI=SI
+        ENDIF
 
 !Deallocate info...
         DEALLOCATE(Eigenvector)
@@ -179,8 +193,8 @@ MODULE GraphMorph
         DEALLOCATE(HamElems)
         CALL LogMemDealloc(this_routine,HamElemsTag)
 
-        Weight=HDElement(SI-1.D0)
-        Energyxw=HDElement((DLWDB*SI)-Hii%v)
+        Weight=HDElement(BestSI-1.D0)
+        Energyxw=HDElement((LowestE*BestSI)-Hii%v)
 !        Weight=SI-1.D0
 !        Energy=DLWDB-(Hii%v)
 
@@ -404,7 +418,7 @@ MODULE GraphMorph
         MeanExcit=MeanExcit*(NDets-1)
 
 !First need to pick NoMoveDets determinants stochastically to be moved from the original graph
-        Tries=NoMoveDets*100000
+        Tries=NoMoveDets*1000000
         k=0
         Success=0
         Failure=0
@@ -417,10 +431,10 @@ MODULE GraphMorph
 !Set i=1, since we do not want to choose the first determinant of the original graph
             i=1
 
-!Look through the normalised inverse eigenvector*eigenvalue
+!Look through the normalised inverse eigenvector*eigenvalue (not squared now)
             do while ((r.gt.0.D0).and.(i.lt.NDets))
                 i=i+1
-                r=r-((Eigenvector(i)%v)**2)
+                r=r-(Eigenvector(i)%v)
             enddo
             IF(r.gt.0.D0) STOP 'Problem in counting in MoveDets'
             
@@ -487,8 +501,10 @@ MODULE GraphMorph
 !Cycle and try to find another determinant to remove
         enddo
 
-        IF(k.gt.Tries) STOP 'Error in trying to pick a determinant to move'
-
+        IF(k.gt.Tries) THEN
+            WRITE(6,*) 'Error in trying to pick a determinant to move'
+            STOP 'Error in trying to pick a determinant to move'
+        ENDIF
 !Now need to find a determinant from the excitations space to attach
         NoVerts=0
         do while ((NoVerts.lt.NoMoveDets).and.(k.le.Tries))
@@ -565,7 +581,10 @@ MODULE GraphMorph
 !Try to attach another determinant
         enddo
         
-        IF(k.gt.Tries) STOP 'Error in trying to pick a determinant to create'
+        IF(k.gt.Tries) THEN
+            WRITE(6,*) 'Error in trying to pick a determinant to create'
+            STOP 'Error in trying to pick a determinant to create'
+        ENDIF
 
 !Move RhoMatrix into the full one
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
@@ -810,6 +829,7 @@ MODULE GraphMorph
     SUBROUTINE NormaliseVectorSep()
         IMPLICIT NONE
         TYPE(HElement) :: Norm1,Norm2
+        REAL*8 :: RootofNum
         INTEGER :: iSubNorm,i
         
         CALL TISET('NormVecSep',iSubNorm)
@@ -824,20 +844,18 @@ MODULE GraphMorph
         Norm1=HElement(0.D0)
 
         do i=2,NDets
-            IF(ABS(Eigenvector(i)%v).lt.1.D-10) THEN
-                WRITE(6,*) "For determinant ", i, ", connection is ", Eigenvector(i)
-                STOP 'Numerical errors likely to arise due to such small connection'
-            ENDIF
-!Normalised as the reciprocal of the square of the element. Could also not square it (mod)/cube it - would unfavour/favour smaller
-!connections - make this power an adjustable parameter??? (numerical stability issues?)
-            Eigenvector(i)=HElement(1.D0/((Eigenvector(i)%v)**2))
-            Norm1=Norm1+HElement((Eigenvector(i)%v)**2)
+!            IF(ABS(Eigenvector(i)%v).lt.1.D-17) THEN
+!                WRITE(6,*) "For determinant ", i, ", connection is ", Eigenvector(i)
+!                STOP 'Numerical errors likely to arise due to such small connection'
+!            ENDIF
+!Normalised as the reciprocal of the element. If its squared, then numerical stability means that only one determinant is ever picked - may have to normalise first too...
+            Eigenvector(i)=HElement(1.D0/SQRT(SQRT(ABS(Eigenvector(i)%v))))
+            Norm1=Norm1+Eigenvector(i)
         enddo
-
-        Norm1=HElement(SQRT(Norm1%v))
 
         do i=2,NDets
             Eigenvector(i)=Eigenvector(i)/Norm1
+!            WRITE(6,*) Eigenvector(i)
         enddo
 
 !The excitations need to be normalised separatly, according to their amplitude squared
@@ -1237,6 +1255,13 @@ END MODULE GraphMorph
 !            j=j+1
 !            NotConnected(1,j)=i
 !        ENDIF
+
+REAL*8 FUNCTION RootofNum(Num,Root)
+    INTEGER :: Root
+    REAL*8 :: Num
+    RootofNum=EXP(LOG(Num)/Root)
+    RETURN
+END FUNCTION RootofNum
 
 !Tests determinants are the same - requires the same ordering of orbitals in them
 LOGICAL FUNCTION SameDet(nI,nJ,NEl)

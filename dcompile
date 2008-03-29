@@ -1,5 +1,5 @@
 #!/bin/tcsh
-./Configure ix86-gfortran/64 -d -DEST=${PWD}/dest> Makefile2
+./Configure PC-PGI64 -d -DEST=${PWD}/dest> Makefile2
 touch *.F *.F90
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
 cp -f Makefile dest
