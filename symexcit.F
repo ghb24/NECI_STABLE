@@ -379,7 +379,7 @@ C     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
             ENDDO
          ENDDO       
 
-C         WRITE(6,*) "Number of double excitations: ",NDOUB
+!         WRITE(6,*) "Number of double excitations: ",NDOUB
 
 
 C.. Now calculate the number of single excitations
@@ -415,7 +415,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
           ENDDO         
          ENDIF
 
-C         WRITE(6,*) "Number of single excitations: ",NSING
+!         WRITE(6,*) "Number of single excitations: ",NSING
          NEXCITS=0
          IF(BTEST(ILEVEL,0)) NEXCITS=NEXCITS+NSING
          IF(BTEST(ILEVEL,1)) NEXCITS=NEXCITS+NDOUB

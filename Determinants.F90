@@ -206,7 +206,7 @@ END MODULE Determinants
       end subroutine
 !  Get a matrix element of the unperturbed Hamiltonian.  This is just the sum of the Hartree-Fock eigenvalues
       subroutine DetFreezeBasis(GG)
-        Use Determinants, only: FDet
+        Use Determinants, only: FDet, nUHFDet
         Use System, only : nEl, nBasis
         Use Integrals, only : nFrozen
         implicit none
@@ -232,4 +232,41 @@ END MODULE Determinants
                STOP "After Freezing, FDET has wrong number of electrons"
             ENDIF
          ENDIF
+         IF(nUHFDet(1).NE.0) THEN
+            J=0
+            DO I=1,NEL
+               nUHFDET(I)=GG(nUHFDET(I))
+!C.. any orbitals which no longer exist, we move outside the basis
+               IF(nUHFDET(I).EQ.0) THEN
+                  nUHFDET(I)=nBasis+1
+               ELSE
+                  J=J+1
+               ENDIF
+            ENDDO
+            CALL SORTI(NEL,nUHFDET)
+            IF(J.NE.NEL-NFROZEN) THEN
+               WRITE(6,*) "Failed Freezing Det:"
+               CALL WRITEDET(6,NEL,nUHFDET,.TRUE.)
+               STOP "After Freezing, UHFDET has wrong number of electrons"
+            ENDIF
+         ENDIF
+         WRITE(6,"(A,$)") "Post-Freeze Fermi det (D0):"
+         CALL WRITEDET(6,FDET,NEL-NFROZEN,.TRUE.)
       end subroutine
+
+
+      LOGICAL FUNCTION ISUHFDET(NI,NEL)
+         USE System , only : TUSEBRILLOUIN
+         Use Determinants, only : NUHFDET
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL)
+         INTEGER I
+         ISUHFDET=.FALSE.
+         IF(.NOT.TUSEBRILLOUIN) RETURN
+            ISUHFDET=.TRUE.
+            DO I=1,NEL
+               IF(NI(I).NE.NUHFDET(I)) ISUHFDET=.FALSE.
+            ENDDO
+!         ISUHFDET=.FALSE.
+         RETURN
+      END Function

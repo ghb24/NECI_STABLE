@@ -6,6 +6,7 @@
 
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
         INTEGER HFLOGLEVEL
+        INTEGER PreVarLogging
 
         contains
 
@@ -13,18 +14,19 @@
         IMPLICIT NONE
         LOGICAL eof
         CHARACTER (LEN=100) w
-      
+         INTEGER iLoggingDef 
       !Logging defaults
-      ILOGGING=0
+      ILOGGINGDef=0
       iGlobalTimerLevel=40
       HFLOGLEVEL=0
+      PreVarLogging=0
 
 ! Feb08 defaults
       IF(Feb08) THEN
           !Mcpaths set
-          ILOGGING=2
+          ILOGGINGDef=2
       ENDIF
-      
+      ILogging=iLoggingDef
         logging: do
           call read_line(eof)
           if (eof) then
@@ -104,6 +106,9 @@
               ILOGGING = IOR(ILOGGING,2**11)
           case("HFLOGLEVEL")
               call geti(HFLOGLEVEL)
+          case("SAVEPREVARLOGGING")
+               PreVarLogging=iLogging
+               iLogging=iLoggingDef
           case("ENDLOG")
               exit logging
           case default

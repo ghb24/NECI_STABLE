@@ -726,6 +726,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
     USE HElem
     Use Determinants, only: GetHElement2
     use System, only: BasisFN
+    Use Logging, only: PrevarLogging
     IMPLICIT NONE
     include 'irat.inc'
     TYPE(BasisFN) G1(*)
@@ -839,7 +840,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             F(K)=FMCPR3B(NI,BETA,I_P,IPATH,K,NEL,                                &
      &          NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,       &
      &          RHOEPS,0,RHOII,RHOIJ,CNWHTAY,METH,LOCTAB,                        &
-     &          0,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                   &
+     &          PreVarLogging,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                   &
      &          MP2E,NTOTAL,EREF,VARSUM,TOTAL2)
         
         
@@ -851,7 +852,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             F(K)=FMCPR3B2(NI,BETA,I_P,IPATH,K,NEL,                               &
                NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
                RHOEPS,0,RHOIJ,0,METH,LOCTAB,                                     &
-               0,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                    &
+               PreVarLogging,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                    &
                MP2E,NTOTAL2,PREIV_MAX,EREF,VARSUM,TOTAL2)
 
                
@@ -984,7 +985,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                         !DLWDB2 is just the energy, OETILDE is energy*weight
                         FF=FMCPR4D2(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                            &
                                               NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
-                                             ILOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
+                                             PreVarLOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
                                               I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,K,EXCITGEN(0:K))
 !                        WRITE(60,*) IPATH(:,0),IPATH(:,1),IPATH(:,2),OPROB
 !                        WRITE(60,*) OPROB
@@ -1139,6 +1140,7 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
 
     USE HElem
     use System, only: BasisFN
+    use Logging, only: PreVarLogging
     IMPLICIT NONE
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),NI(NEL)
@@ -1185,7 +1187,7 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
         INWI=0.D0
         FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                          &
                               NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
-                              ILOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
+                              PrevarLOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
                               I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_V,EXCITGEN)
 
         GRAPHS(:,:,b)=IPATH(:,0:I_V)

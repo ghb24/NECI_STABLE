@@ -1775,21 +1775,6 @@ C         CALL FLUSH(57)
          IEX=IEL
          RETURN
       END
-      LOGICAL FUNCTION ISUHFDET(NI,NEL)
-         USE System , only : TUSEBRILLOUIN
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL)
-         INTEGER I
-         INCLUDE 'uhfdet.inc'
-         ISUHFDET=.FALSE.
-         IF(.NOT.TUSEBRILLOUIN) RETURN
-            ISUHFDET=.TRUE.
-            DO I=1,NEL
-               IF(NI(I).NE.NUHFDET(I)) ISUHFDET=.FALSE.
-            ENDDO
-C         ISUHFDET=.FALSE.
-         RETURN
-      END
 
 
 C.. Like MCPATHSR4C, this selects a n-vertex graph.  it chooses which

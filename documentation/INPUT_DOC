@@ -654,6 +654,9 @@ TIMING <iGlobalTimerLevel> (default 40)
 HFLOGLEVEL
    Default 0.  If >0, print out density matrices, fock matrices and eigenvectors
 
+SAVEPRECALCLOGGING
+   Save all currently set logging options to PreVarLogging.  Reset Logging to default.  To specify main logging options, they must be specified after this command.
+
 ENDLOG
     End of logging block.
 
