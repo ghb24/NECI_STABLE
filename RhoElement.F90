@@ -8,7 +8,7 @@
 !.. 
 SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
-         Use Determinants, only: GetHElement2
+         Use Determinants, only: GetHElement2, nUHFDet, E0HFDet
       USE HElem
       USE System , only : TSTOREASEXCITATIONS,BasisFN
       IMPLICIT NONE
@@ -18,7 +18,6 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
       REAL*8 BETA,ECORE
       LOGICAL LSAME      
       INTEGER NMSH,ISUB,I,BRR(NBASIS),J,IGETEXCITLEVEL
-      INCLUDE 'uhfdet.inc'
       TYPE(BasisFN) G1(*)
       COMPLEX*16 FCK(*)
       REAL*8 ALAT(3)  

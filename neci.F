@@ -25,6 +25,7 @@ C ==------------------------------------------------------------------==
       Use Integrals, only: HFRAND, ChemPot
       use MemoryManager, only: LogMemAlloc,LogMemDealloc,
      &                         LeaveMemoryManager
+      Use Determinants, only: nUHFDet
       IMPLICIT REAL*8 (A-H,O-Z) 
       INCLUDE 'cons.inc'
       INCLUDE 'irat.inc'
@@ -136,7 +137,6 @@ C.. The spin including the total spin
       integer*8 TotSymRep
       INTEGER iCacheFlag
       INCLUDE 'csf.inc'
-      INCLUDE 'uhfdet.inc'
       character(len=*),parameter :: thisroutine='NECICB'
 C ==-------------------------------------------------------------------==
       write (6,*)
