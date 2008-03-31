@@ -32,7 +32,8 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE GraphMorph , only : MorphGraph
          USE NODEDIAG , only : fMCPR3StarNodes
          USE Calc , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
-     &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph
+     &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,
+     &          calcp_logweight
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
@@ -407,12 +408,18 @@ C.. save all log files
             DLWDB=-DLWDB
             TOTAL=-TOTAL
          ENDIF
-         WLSI=LOG(TOTAL)
+         if(calcp_logweight) then
+!  For LogWeight, we are passing around and summing log x[G] in the weights.  The total weight, w_i=prod_G x[G]
+!  We return the log of the weight, which is simply the sum of log x[G] which is in total
+            wlsi=total
+         else
+            WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
 C.<D|H exp(-b H)|D> / <D|exp(-b H)|D>
 C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
-         DLWDB=DLWDB/TOTAL
+            DLWDB=DLWDB/TOTAL
+         endif
          CALL TIHALT('MCPATHSR10',ISUB)
          CALL MEMORY_CHECK()
          RETURN
@@ -439,6 +446,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE GraphMorph , only : MorphGraph
          USE PRECALCREAD , only : TPREVAR
          USE Calc , only : TMPTHEORY,TDIAGNODES,TGraphMorph
+         use Calc, only : calcp_logweight
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -685,12 +693,18 @@ C.. save all log files
             CLOSE(10)
             IF(TMPTHEORY) CLOSE(13)
          ENDIF
-         WLSI=LOG(TOTAL)
+         if(calcp_logweight) then
+!  For LogWeight, we are passing around and summing log x[G] in the weights.  The total weight, w_i=prod_G x[G]
+!  We return the log of the weight, which is simply the sum of log x[G] which is in total
+            wlsi=total
+         else
+            WLSI=LOG(TOTAL)
 C.. DLWDB contains <D|H exp(-b H)|D>/rhoii^P and we want 
 C.<D|H exp(-b H)|D> / <D|exp(-b H)|D>
 C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
-         DLWDB=DLWDB/TOTAL
+            DLWDB=DLWDB/TOTAL
+         endif
          TOTAL=HIJS(0)
          IF((MP2E(2).AGT.0.D0)) THEN
             FF=HIJS(0)

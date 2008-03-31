@@ -587,7 +587,11 @@ C.. do we subtract out lower vertices here or later?
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJS(1)
-            RHODIAG_CPPRES=1.D0
+            if(tLogWeight) then
+               RHODIAG_CPPRES=0.d0
+            else
+               RHODIAG_CPPRES=1.D0
+            ENDIF
             RETURN
          ENDIF
          RII=RHOIJ(1,1)
@@ -623,10 +627,9 @@ C.. remove up to IMISS
 !  we ignore w' returned in SI
 !  DD2 returns e~'[g]
 !  where g is this graph missing out vertex I.
-                SI=RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
+                SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2,tLogWeight)
                 IF(DBETA.NE.0.D0) DLWDB=DLWDB-DD2
-                SI=HElement(0)
                ELSE
 ! we return w' E~'
 ! w'[G]E~'[G]=w[G]E~[G]-sum_{g in G} w'[g] E~'[g]
@@ -727,11 +730,14 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          ENDIF
 
 
-         RHODIAG_CPPRES=SI+SI2
 
          if(tLogWeight) then
-            RHODIAG_CPPRES=HDElement(0)
+!  We pass the log x[G] around
+            SI2=LOG(SI2)
+            RHODIAG_CPPRES=SI+SI2
 !  We return zero as the weight of the graph
+         ELSE
+            RHODIAG_CPPRES=SI+SI2
          ENDIF
 
          CALL TIHALTL("RHODIAG_C2",ISUB,55)

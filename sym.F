@@ -1515,9 +1515,9 @@ C.. Initialize symmetry to take into account the core electrons
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         TYPE(BasisFN) Sym
+         TYPE(Symmetry) Sym
 C.. Set to be totally symmetric
-         FrozenSym=Sym
+         FrozenSym%Sym=Sym
       END
       SUBROUTINE SetupFreezeSym(Sym)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB

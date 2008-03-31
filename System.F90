@@ -620,10 +620,6 @@
       ENDIF
       ENDIF
 !C..         (.NOT.TREADINT)
-!C.. Set the initial symmetry to be totally symmetric
-      CALL IAZZERO(FrzSym,SymmetrySize)
-      FrzSym=TotSymRep()
-      CALL SetupFreezeSym(FrzSym)
 
 
 !C.. we actually store twice as much in arr as we need.
@@ -695,6 +691,10 @@
              ENDDO
            ENDDO
          ENDDO
+!C.. Set the initial symmetry to be totally symmetric
+      CALL IAZZERO(FrzSym,SymmetrySize)
+      FrzSym=TotSymRep()
+      CALL SetupFreezeSym(FrzSym)
 !C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG

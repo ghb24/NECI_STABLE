@@ -2972,6 +2972,9 @@ C.. the Fermi determinant, otherwise the numbers blow up
      &       NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &       RHOEPS,ILOGGING,TSYM,ECORE)
             ENDIF
+           ELSE
+! Correct for overcounting
+               III=III-1
            ENDIF
           ENDDO
          IF(TLOG) CLOSE(15)
@@ -3564,10 +3567,14 @@ C.. Check spin
             ENDIF
          ENDIF
          nActiveBasis(2)=I-1
-         I=nEl
+         I=nEl-1
          nLeft=nDown
-         DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
-            I=I-1
+         Do WHILE(nLeft.GT.0.AND.I.Gt.0)
+      
+            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
+               I=I-1
+            ENDDO
+            nLeft=nLeft-1
          ENDDO
          nActiveBasis(1)=I+1
          WRITE(6,*) "Active space:", nActiveBasis(1)," TO ",
