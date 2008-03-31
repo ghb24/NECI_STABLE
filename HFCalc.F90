@@ -29,8 +29,8 @@ MODULE HFCalc
 !C.. primitive basis.
 !C.. We load the coeffs from a file HFBASIS
          IF(THFBASIS.OR.THFCALC.OR.(THFORDER.AND..NOT.TCPMD)) THEN
-            CALL MEMORY(IP_HFBASIS,nBasis*nBasis,'HFBASIS')
-            CALL AZZERO(HFBASIS,nBasis*nBasis)
+            CALL MEMORY(IP_HFBASIS,nBasis*nBasis*HElementSize,'HFBASIS')
+            CALL AZZERO(HFBASIS,nBasis*nBasis*HElementSize)
 !C.. Allocate an array to store the HF Energies
             CALL MEMORY(IP_HFE,nBasis,'HFE')
             CALL AZZERO(HFE,nBasis)
