@@ -41,7 +41,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
 C.. go to end of file
-             ENDFILE(11)
+             Call ENDSeek(11)
 !            I=FSEEK(11,0,2)
             WRITE(11,"(A,$)") "("
             DO K=1,NEL
