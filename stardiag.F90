@@ -168,7 +168,7 @@
             EHFDiff=ExcitInfo(i,2)-rhii
          endif
          CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
-         write(6,*) "rhoii is", rhii
+!         write(6,*) "rhoii is", rhii
 ! Setup MP info
          CALL iCopy(nEl,nI,1,iPath(1,0),1)
          CALL iCopy(nEl,nI,1,iPath(1,2),1)

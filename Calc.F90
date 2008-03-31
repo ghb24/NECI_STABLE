@@ -16,6 +16,7 @@ MODULE Calc
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
+        LOGICAL TInitStar
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -59,7 +60,8 @@ MODULE Calc
       TBEGRAPH = .false.
 
 
-!       Calc defaults      
+!       Calc defaults    
+          TInitStar=.false.
           NoMoveDets=1
           TMoveDets=.false.
           GraphBias=0.99
@@ -496,6 +498,8 @@ MODULE Calc
               case("MOVEDETS")
                   call geti(NoMoveDets)
                   TMoveDets=.true.
+              case("INITSTAR")
+                  TInitStar=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

@@ -10,7 +10,7 @@ MODULE GraphMorph
     USE System , only : NEl
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
-    USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets
+    USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
     IMPLICIT NONE
@@ -92,8 +92,14 @@ MODULE GraphMorph
         Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 
 !It is first necessary to construct the original graph to work with.
-        WRITE(6,"(A,I5,A)") "Constructing random initial graph to morph from with ", NDets, " vertices."
-        CALL ConstructInitialGraph()
+        IF(TInitStar) THEN
+!Let the initial graph be a complete connected star graph.
+            WRITE(6,"(A)") "Constructing random initial fully connected star graph to morph from."
+            CALL ConstructInitialStarGraph()
+        ELSE
+            WRITE(6,"(A,I5,A)") "Constructing random initial graph to morph from with ", NDets, " vertices."
+            CALL ConstructInitialGraph()
+        ENDIF
         
 !Allocate space for largest Eigenvector for various graphs
         ALLOCATE(Eigenvector(NDets),stat=ierr)
@@ -203,6 +209,117 @@ MODULE GraphMorph
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialGraph'
 
     END SUBROUTINE MorphGraph
+
+!This routine constructs the complete connected star graph as the initial graph to begin morphing from
+    SUBROUTINE ConstructInitialStarGraph()
+        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
+        USE Calc , only : i_P,RhoEps
+        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        USE Determinants , only : GetHElement2
+        IMPLICIT NONE
+        INTEGER :: ierr,iSubInitStar,nStore(6),exFlag,nExcitMemLen,iMaxExcit,nJ(NEl)
+        INTEGER , ALLOCATABLE :: nExcit(:)
+        INTEGER :: nExcitTag=0
+        TYPE(HElement) :: rh
+        INTEGER :: iExcit,excitcount,i,j
+        CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialStarGraph'
+        
+        CALL TISET('InitStarGraph',iSubInitStar)
+        CALL IAZZERO(nStore,6)
+!Having exFlag=2 means that only double excitations are generated
+        exFlag=2
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+        CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
+        CALL IAZZERO(nExcit,nExcitMemLen)
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+!First run through all excitations, so we do not store more excitations than necessary
+        
+        excitcount=0
+        do while(.true.)
+            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
+            IF(nJ(1).eq.0) exit
+            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+            IF(rh.agt.0.D0) excitcount=excitcount+1
+        enddo
+
+        DEALLOCATE(nExcit)
+        CALL IAZZERO(nStore,6)
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+        ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+        CALL IAZZERO(nExcit,nExcitMemLen)
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+        iMaxExcit=excitcount
+!NDets is equal to the number of excitations plus 1 (for root)
+        NDets=excitcount+1
+
+        WRITE(6,"(A,I10)") "Total number of determinants in GraphMorph is ", NDets
+
+!Allocate memory needed for calculations
+        ALLOCATE(GraphDets(NDets,NEl),stat=ierr)
+        CALL LogMemAlloc('GraphDets',NDets*NEl,4,this_routine,GraphDetsTag)
+        CALL IAZZERO(GraphDets,NDets*NEl)
+        ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
+        CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag)
+        CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
+        ALLOCATE(HamElems(NDets),stat=ierr)
+        CALL LogMemAlloc('HamElems',NDets,8*HElementSize,this_routine,HamElemsTag)
+        CALL AZZERO(HamElems,NDets*HElementSize)
+
+        HamElems(1)=Hii
+        GraphRhoMat(1,1)=rhii
+        do i=1,NEl
+            GraphDets(1,i)=FDet(i)
+        enddo
+        MeanExcit=0.D0
+        
+        i=1
+!Run through excitations
+        do while(.true.)
+            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
+            IF(nJ(1).eq.0) EXIT
+
+!Since we already know that the excitations are double excitations of FDet, we can put those connections in seperatly (will be quicker)
+            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+
+            IF(.not.(rh.agt.0.D0)) CYCLE
+            i=i+1
+
+            GraphRhoMat(1,i)=rh
+            GraphRhoMat(i,1)=rh
+            
+!Store Path
+            do j=1,NEl
+                GraphDets(i,j)=nJ(j)
+            enddo
+
+!Find hamiltonian element coupling to FDet, and diagonal element of excitation
+            HamElems(i)=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
+            MeanExcit=MeanExcit+iExcit
+            CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,GraphRhoMat(i,i),nTay,0,ECore)
+
+!Cycle through all excitations already generated to determine coupling to them
+            do j=2,(i-1)
+                CALL CalcRho2(GraphDets(j,:),nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+                GraphRhoMat(i,j)=rh
+                GraphRhoMat(j,i)=rh
+            enddo
+        enddo
+
+        MeanExcit=MeanExcit/(i-1)
+
+        IF((ABS(MeanExcit-2.D0)).gt.1.D-08) THEN
+            WRITE(6,*) "Error generating initial star graph"
+            STOP 'Error generating initial star graph'
+        ENDIF
+
+        DEALLOCATE(nExcit)
+        CALL LogMemDealloc(this_routine,nExcitTag)
+
+        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialStarGraph'
+        CALL TIHALT('InitStarGraph',iSubInitStar)
+
+    END SUBROUTINE ConstructInitialStarGraph
 
     SUBROUTINE ConstructInitialGraph()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
