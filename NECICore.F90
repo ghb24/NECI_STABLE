@@ -3,7 +3,7 @@
 Subroutine  NECICore(iCacheFlag, tCPMD)
     use MemoryManager, only: LeaveMemoryManager
     use System, only : SysInit, SysCleanup
-    use Integrals, only : IntInit, IntFreeze, IntCleanup
+    use Integrals, only : IntInit, IntFreeze, IntCleanup, tPostFreezeHF
     use DetCalc, only : DetCalcInit, DoDetCalc
     use Determinants, only : DetPreFreezeInit, DetInit, DetCleanup
     use Calc, only : CalcInit, CalcDoCalc, CalcCleanup
@@ -32,8 +32,9 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
 
 !  This will also call SysPostFreezeInit()
     call DetPreFreezeInit()
-    call HFDoCalc()
+    if(.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
+    if(tPostFreezeHF) call HFDoCalc()
     call DetInit()
 !  Deal with the many-electron basis, setting up sym etc.
 !  If we are doing a determinant-enumerated calc, this will generate lists of determinants.

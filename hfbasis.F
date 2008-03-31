@@ -526,6 +526,7 @@ C.. vector
          USE Logging, only : HFLogLevel
          USE HElem
          use System, only: BasisFN
+         Use Integrals, only: DMatEpsilon
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,NBASISMAX(5,3)
          Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
@@ -560,14 +561,16 @@ C.. Now sum in the alpha and beta block of u matrix
                         DO L=1,NSBASIS
                            CALL GTID(NBASISMAX,(K-1)*NSPINS+ISPN2,ID3)
                            CALL GTID(NBASISMAX,(L-1)*NSPINS+ISPN2,ID4)
-                           TOT=TOT+HElement(RHFMUL)*
+                           IF(DMAT(K,L,ISPN2).AGT.DmatEpsilon)
+     &                      TOT=TOT+HElement(RHFMUL)*
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
      &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
 !                           WRITE(6,"(4I3)", advance='no') I,J,K,L
 !                           WRITE(6,*) HElement(RHFMUL)*
 !     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
 !     &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID2,ID4)
-                           IF(ISPN2.EQ.ISPN)
+                           IF(ISPN2.EQ.ISPN
+     &                        .AND.(DMAT(K,L,ISPN2).AGT.DmatEpsilon))
      &                        TOT=TOT-
      &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,
      &                     NSBASIS*NSPINS,ISS,G1,ID1,ID3,ID4,ID2)

@@ -450,7 +450,13 @@ HF
     Use a HF basis.
 
 CALCULATE      
-    Calculate the HF basis rather than reading it in.
+    Calculate the HF basis rather than reading it in.  Do this before freezing
+
+POSTFREEZEHF
+   Do HF after freezing instead of before (still needs HF and CALCULATE)
+
+DMATEPSILON DMatEpsilon (default 0)
+   The cutoff for density matrix elements.  Use this to speed up calculations by ignoring small density matrix elements.
 
 MAXITERATIONS <NHFIT>
     Set the maximum number of HF iterations.

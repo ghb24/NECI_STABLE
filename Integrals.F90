@@ -20,6 +20,8 @@ MODULE Integrals
         REAL*8 NRCONV,RFCONV,OrbOrder2(8)
         REAL*8 HFMix,HFEDelta,HFCDelta
         REAL*8 HFRand
+        REAL*8 DMatEpsilon !  The cutoff for density matrix elements
+        Logical tPostFreezeHF ! Do we do HF after freezing
 
 ! // Transferred from system
 !        LOGICAL TSTARSTORE
@@ -81,6 +83,8 @@ MODULE Integrals
       tReadInCache=.false.
       iDFMethod=0
       HFRand=0.01
+      DMatEpsilon=0
+      tPostFreezeHF=.false.
 
 !Feb 08 defaults
       IF(Feb08) THEN
@@ -286,6 +290,10 @@ MODULE Integrals
                  call report("keyword "                                 &
      &      //trim(w)//" not recognized in DFMETHOD block",.true.)
               end select
+          case("POSTFREEZEHF")
+            tPostFreezeHF=.true.
+          case("DMATEPSILON")
+            call readf(DMatEpsilon)
           case("ENDINT")
                exit integral
           case default
