@@ -39,7 +39,6 @@
         integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 
-        TYPE(Symmetry) FrzSym
         TYPE(BASISFN) SymRestrict
         INTEGER NBASISMAX(5,7)
         REAL*8 ALAT(5)
@@ -349,19 +348,20 @@
         REAL*8 SUM
 ! Called functions
         type(Symmetry) TotSymRep
+        TYPE(BasisFN) FrzSym
         logical kallowed
 
-      write (6,*)
-      call TimeTag()
-      if (.not.TCPMD) call Envir()
-      write (6,*)
+!      write (6,*)
+!      call TimeTag()
+!      if (.not.TCPMD) call Envir()
+!      write (6,*)
 
       ECORE=0.D0
       
 ! //AJWT TBR
 !      IFDET=0
 !      TRHOIJND=.false.
-      CALL TISET('NECICUBE  ',ISUB)
+      CALL TISET('SysInit   ',ISUB)
 
 
 !C ==-------------------------------------------------------------------==
@@ -691,10 +691,6 @@
              ENDDO
            ENDDO
          ENDDO
-!C.. Set the initial symmetry to be totally symmetric
-      CALL IAZZERO(FrzSym,SymmetrySize)
-      FrzSym=TotSymRep()
-      CALL SetupFreezeSym(FrzSym)
 !C..Check to see if all's well
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
@@ -709,6 +705,10 @@
          CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
       ENDIF
 !C..        (.NOT.TREADINT)
+!C.. Set the initial symmetry to be totally symmetric
+      CALL IAZZERO(FrzSym,SymmetrySize)
+      FrzSym%Sym=TotSymRep()
+      CALL SetupFreezeSym(FrzSym)
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
@@ -748,6 +748,7 @@
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
       IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
+         CALL TiHALT('SysInit   ',ISUB)
         End Subroutine SysInit
 
     Subroutine SysCleanup()

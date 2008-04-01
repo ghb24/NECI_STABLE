@@ -1515,19 +1515,19 @@ C.. Initialize symmetry to take into account the core electrons
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         TYPE(Symmetry) Sym
+         TYPE(BasisFN) Sym
 C.. Set to be totally symmetric
-         FrozenSym%Sym=Sym
+         FrozenSym=Sym
       END
       SUBROUTINE SetupFreezeSym(Sym)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         TYPE(Symmetry) Sym
+         TYPE(BasisFN) Sym
          CALL IAZZERO(FrozenSym,BasisFNSize)
 C.. Set to be totally symmetric
-         FrozenSym%Sym=Sym
+         FrozenSym=Sym
       END
  
 !Deal with K-point symmetries, using translational symmetry operations.
