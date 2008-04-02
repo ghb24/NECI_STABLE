@@ -334,6 +334,8 @@ METHOD <METHOD>
 
     VERTEX SUM READ
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
+    VERTEX GRAPHMORPH
+        This sets up an initial graph, and systematically improves it, by applying the rho matrix of the graph and its excitations as a propagator on the largest eigenvector of the previous graph. From this, an improved graph is stochastically selected, and the process is repeated, lowering the energy.
     VERTEX STAR [ADDSINGLES/COUNTEXCITS] STARSTARS NODAL,DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
         Constructs a star from all determinants connected to the root (ignoring connections between those dets).
         STARSTARS uses an approximation that the change of eigenvalues and the first element of the eigenvectors of the star graph is linear with respect to multiplying the diagonal elements by a constant. Once this scaling is found, all stars of stars are prediagonalised, and reattached to the original graph. This results in N^2 scaling, where N is the number of excitations.
@@ -440,6 +442,24 @@ DETSYM <MDK(I), I=1,4>
 
 DETINV <DETINV>
     Specify the determinant for which the complete vertex series is worked out.  If DETINV is negative, the NPATHS calculations are started at this determinant.
+
+GRAPHSIZE <NDets>
+    This is a GraphMorph option, specifying the number of determinants in the graph to morph
+
+ITERATIONS <Iters>
+    THis is a GraphMorph option, specifying the number of interations to perform while morphing the graph
+
+GRAPHBIAS <GraphBias>
+    This is a GraphMorph option. If each iteration, the graph is being completly renewed, then this bias specifies the probability that an excitation of the previous graph is selected to try and be attached, rather than one of the determinants in the previous graph.
+
+MOVEDETS <NoMoveDets>
+    This is a GraphMorph option. This is a different MC algorithm for growing the graphs, where a number of determiants are deleted from the original graph, and reattached elsewhere in the graph stochastically, according to the probabilities given by the application of the rho propagator to the eigenvector of the previous graph.
+
+INITSTAR
+    This is a GraphMorph option. If specified, the completly connected two-vertex star graph is set up, and this used as the starting point for the morphing. NDets is changed to reflect the number of double excitations in the system.
+
+NOSAMEEXCIT
+    This is a GraphMorph option, where connections between determinants which have the same number of excitations from the reference are ignored. This currently can only be used with INITSTAR, and so the starting graph is simple the doubles star graph (with no cross connections).
 
 ENDCALC
    Ends the calculation block.
@@ -585,6 +605,9 @@ LOGGING
      
 MCPATHS     
     Log in MCPATHS to MCPATHS for full vertex sum and MCSUMMARY when using a METHODS section.  Also log to RHOPII
+
+DISTRIBS
+    This is a GraphMorph option, which writes out the distribution of the excitations in each graph as it morphs over the iterations. First column is iteration number, and then subsequent columns denote the number of n-fold excitations in the graph.
 
 PREVAR
     Log the Vertex level, Iteration number, parameter, and expected variance, for each parameter which was looked for in the PRECALC block, showing the convergence on the optimum value.  This is output to a file called PRECALC.

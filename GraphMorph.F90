@@ -11,6 +11,8 @@ MODULE GraphMorph
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
+    USE Calc , only : TNoCross,TNoSameExcit
+    USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
     IMPLICIT NONE
@@ -55,6 +57,15 @@ MODULE GraphMorph
     REAL*8 , ALLOCATABLE :: CopyRhoMat(:,:)
     INTEGER :: CopyRhoMatTag=0
 
+!If TDistrib is on, then this will show the distribution of determinants among the excitations
+    INTEGER , ALLOCATABLE :: Distribs(:,:)
+    INTEGER :: DistribsTag=0
+
+!If TNoSameExcit is on, then GraphExcitLevel stores the Excitation levels of the determinants in the graph
+!This is because we do not allow connections between determinants of the same excitation level
+    INTEGER , ALLOCATABLE :: GraphExcitLevel(:)
+    INTEGER :: GraphExcitLevelTag=0
+
 !The rho matrix and Hamiltonian element for the HF determinant
     TYPE(HElement) :: rhii,Hii
 
@@ -63,6 +74,9 @@ MODULE GraphMorph
 
 !This is the seed for the random numbers needed in the routines
     INTEGER :: Seed
+
+!This is the iteration of the GraphMorph that we are currently on...
+    INTEGER :: Iteration
 
 !Various stats for printing
     REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
@@ -81,6 +95,9 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph'
 
         OPEN(63,file='MorphStats',Status='unknown')
+        IF(TDistrib) THEN
+            OPEN(64,file='MorphDistrib',Status='unknown')
+        ENDIF
         
         IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GraphMorph so far'
 
@@ -100,6 +117,14 @@ MODULE GraphMorph
             WRITE(6,"(A,I5,A)") "Constructing random initial graph to morph from with ", NDets, " vertices."
             CALL ConstructInitialGraph()
         ENDIF
+
+        IF(TDistrib) THEN
+            WRITE(64,"(A8)",advance='no') "1"
+            do i=1,NEl
+                WRITE(64,"(I8)",advance='no') Distribs(i,1)
+            enddo
+            WRITE(64,*) ""
+        ENDIF
         
 !Allocate space for largest Eigenvector for various graphs
         ALLOCATE(Eigenvector(NDets),stat=ierr)
@@ -113,17 +138,17 @@ MODULE GraphMorph
         ENDIF
 
 !Once the graph is found, the loop over the morphing iterations can begin
-        do i=1,Iters
+        do Iteration=1,Iters
 
             WRITE(6,*) ""
-            WRITE(6,"(A,I4,A)") "Starting Iteration ", i, " ..."
+            WRITE(6,"(A,I4,A)") "Starting Iteration ", Iteration, " ..."
             WRITE(6,*) ""
             CALL FLUSH(6)
 
 !The graph is first diagonalised, and the energy of the graph found, along with the largest eigenvector and eigenvalues.
             CALL DiagGraphMorph()
             WRITE(6,"(A,2G20.12)") "Weight and Energy of current graph is: ", SI, DLWDB
-            IF(i.eq.1) THEN
+            IF(Iteration.eq.1) THEN
                 LowestE=DLWDB
                 BestSI=SI
             ELSE
@@ -135,10 +160,10 @@ MODULE GraphMorph
             CALL FLUSH(6)
 
 !Write out stats
-            IF(i.eq.1) THEN
-                WRITE(63,"(I10,G20.12,3A20,G20.12)") i,DLWDB,"N/A","N/A","N/A",MeanExcit
+            IF(Iteration.eq.1) THEN
+                WRITE(63,"(I10,G20.12,3A20,G20.12)") Iteration,DLWDB,"N/A","N/A","N/A",MeanExcit
             ELSE
-                WRITE(63,"(I10,5G20.12)") i,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
+                WRITE(63,"(I10,5G20.12)") Iteration,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
             ENDIF
             CALL FLUSH(63)
 
@@ -177,6 +202,15 @@ MODULE GraphMorph
                 CALL PickNewDets()
 
             ENDIF
+        
+            IF(TDistrib) THEN
+                WRITE(64,"(I8)",advance='no') Iteration+1
+                do i=1,NEl
+                    WRITE(64,"(I8)",advance='no') Distribs(i,Iteration+1)
+                enddo
+                WRITE(64,*) ""
+                CALL FLUSH(64)
+            ENDIF
 
 !Once graph is fully constructed, the next iteration can begin.
         enddo
@@ -198,13 +232,22 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,GraphDetsTag)
         DEALLOCATE(HamElems)
         CALL LogMemDealloc(this_routine,HamElemsTag)
+        IF(TDistrib) THEN
+            DEALLOCATE(Distribs)
+            CALL LogMemDealloc(this_routine,DistribsTag)
+        ENDIF
+        IF(TNoSameExcit) THEN
+            DEALLOCATE(GraphExcitLevel)
+            CALL LogMemDealloc(this_routine,GraphExcitLevelTag)
+        ENDIF
 
         Weight=HDElement(BestSI-1.D0)
         Energyxw=HDElement((LowestE*BestSI)-Hii%v)
-!        Weight=SI-1.D0
-!        Energy=DLWDB-(Hii%v)
 
         Close(63)
+        IF(TDistrib) THEN
+            Close(64)
+        ENDIF
         
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialGraph'
 
@@ -225,6 +268,7 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialStarGraph'
         
         CALL TISET('InitStarGraph',iSubInitStar)
+        
         CALL IAZZERO(nStore,6)
 !Having exFlag=2 means that only double excitations are generated
         exFlag=2
@@ -254,6 +298,20 @@ MODULE GraphMorph
         NDets=excitcount+1
 
         WRITE(6,"(A,I10)") "Total number of determinants in GraphMorph is ", NDets
+        
+        IF(TDistrib) THEN
+!If TDistribs is true, then we are recording the change in distributions of the graphs over the iterations
+            ALLOCATE(Distribs(NEl,Iters+1),stat=ierr)
+            CALL LogMemAlloc('Distribs',NEl*(Iters+1),4,this_routine,DistribsTag)
+            CALL IAZZERO(Distribs,NEl*(Iters+1))
+        ENDIF
+        IF(TNoSameExcit) THEN
+!We want to store the excitation levels of the determinants in the graph
+            ALLOCATE(GraphExcitLevel(NDets),stat=ierr)
+            CALL LogMemAlloc('GraphExcitLevel',NDets,4,this_routine,GraphExcitLevelTag)
+!This will automatically set the first element (HF) to zero
+            CALL IAZZERO(GraphExcitLevel,NDets)
+        ENDIF
 
 !Allocate memory needed for calculations
         ALLOCATE(GraphDets(NDets,NEl),stat=ierr)
@@ -298,12 +356,21 @@ MODULE GraphMorph
             MeanExcit=MeanExcit+iExcit
             CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,GraphRhoMat(i,i),nTay,0,ECore)
 
+            IF(TDistrib) THEN
+                Distribs(iExcit,1)=Distribs(iExcit,1)+1
+            ENDIF
+            IF(TNoSameExcit) GraphExcitLevel(i)=iExcit
+
 !Cycle through all excitations already generated to determine coupling to them
-            do j=2,(i-1)
-                CALL CalcRho2(GraphDets(j,:),nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
-                GraphRhoMat(i,j)=rh
-                GraphRhoMat(j,i)=rh
-            enddo
+            IF((.not.TNoCross).and.(.not.TNoSameExcit)) THEN
+!If TNoCross is on, then we are ignoring these crosslinks - the normal star graph should result
+                do j=2,(i-1)
+                    CALL CalcRho2(GraphDets(j,:),nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+                    GraphRhoMat(i,j)=rh
+                    GraphRhoMat(j,i)=rh
+                enddo
+            ENDIF
+
         enddo
 
         MeanExcit=MeanExcit/(i-1)
@@ -329,7 +396,7 @@ MODULE GraphMorph
         IMPLICIT NONE
         INTEGER :: ierr,nStore(6),nExcitMemLen,iMaxExcit,nJ(NEl),nExcitTag,iExcit
         INTEGER :: iPathTag,XijTag,RhoiiTag,RhoijTag,HijsTag,iSubInit,i,j,diff
-        INTEGER :: iGetExcitLevel
+        INTEGER :: iGetExcitLevel,IC
         INTEGER , ALLOCATABLE :: iPath(:,:)
         REAL*8 , ALLOCATABLE :: Xij(:,:)
 #if defined(POINTER8)
@@ -352,6 +419,13 @@ MODULE GraphMorph
 !        OldImport=G_VMC_Pi
 !        G_VMC_Pi=1.D0
         
+        IF(TDistrib) THEN
+!If TDistribs is true, then we are recording the change in distributions of the graphs over the iterations
+            ALLOCATE(Distribs(NEl,Iters+1),stat=ierr)
+            CALL LogMemAlloc('Distribs',NEl*(Iters+1),4,this_routine,DistribsTag)
+            CALL IAZZERO(Distribs,NEl*(Iters+1))
+        ENDIF
+
 !Set Tags to zero, so we know when they are allocated/deallocated
         nExcitTag=0
         iPathTag=0
@@ -483,7 +557,11 @@ MODULE GraphMorph
 !Find out manually the mean distance from the HF determinant...
         MeanExcit=0.D0
         do i=2,NDets
-            MeanExcit=MeanExcit+iGetExcitLevel(FDet(:),GraphDets(i,:),NEl)
+            IC=iGetExcitLevel(FDet(:),GraphDets(i,:),NEl)
+            MeanExcit=MeanExcit+IC
+            IF(TDistrib) THEN
+                Distribs(IC,1)=Distribs(IC,1)+1
+            ENDIF
         enddo
         MeanExcit=MeanExcit/(NDets-1.D0)
 
@@ -514,7 +592,7 @@ MODULE GraphMorph
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
-        INTEGER :: iSubMove,i,j,k,l,Success,Failure,iGetExcitLevel,IC
+        INTEGER :: iSubMove,i,j,k,l,Success,Failure,iGetExcitLevel,IC,Excitation,IC1,IC2
         INTEGER , ALLOCATABLE :: MoveDetsFromPaths(:,:)
         INTEGER :: MoveDetsFromPathsTag=0
         INTEGER :: AttemptDet(NEl),IndexofDetsFrom(NoMoveDets),ierr,Tries,NoVerts
@@ -522,6 +600,11 @@ MODULE GraphMorph
         TYPE(HElement) :: rh
         REAL*8 :: r,Ran2
         CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
+
+        IF(TNoCross) THEN
+            WRITE(6,*) "The MoveDetsGraph routine is not yet set up for use with NoCross"
+            STOP "The MoveDetsGraph routine is not yet set up for use with NoCross"
+        ENDIF
         
         CALL TISET('MoveDets',iSubMove)
 
@@ -533,6 +616,14 @@ MODULE GraphMorph
 
 !Prepare for the change in MeanExcits
         MeanExcit=MeanExcit*(NDets-1)
+        IF(TDistrib) THEN
+!If we are recording the distributions, then we want to simply have the same distribution for the previous
+!iteration, and then subtract the determinants that we remove
+            do i=1,NEl
+                Distribs(i,Iteration+1)=Distribs(i,Iteration)
+            enddo
+        ENDIF
+
 
 !First need to pick NoMoveDets determinants stochastically to be moved from the original graph
         Tries=NoMoveDets*1000000
@@ -610,7 +701,11 @@ MODULE GraphMorph
                     HamElems(i)=HElement(0.D0) 
                 enddo
 !Calculate the change to the MeanExcits value...
-                MeanExcit=MeanExcit-iGetExcitlevel(FDet(:),AttemptDet(:),NEl)                
+                IC=iGetExcitLevel(FDet(:),AttemptDet(:),NEl)
+                MeanExcit=MeanExcit-IC       
+                IF(TDistrib) THEN
+                    Distribs(IC,Iteration+1)=Distribs(IC,Iteration+1)-1
+                ENDIF
             ELSE
                 Failure=Failure+1
             ENDIF
@@ -662,16 +757,37 @@ MODULE GraphMorph
             IF(Attach) THEN
 !Before allowing it to be attached, we must check if the determinant chosen is attached to the graph at all
                 Attach=.false.
+                IF(TNoSameExcit) IC1=iGetExcitLevel(FDet(:),AttemptDet(:),NEl)
+
          loop2: do j=1,NDets
                     do l=(1+NoVerts),NoMoveDets
 !Check we are not trying to attach to a determinant which we have chosen to remove! - (Unless it has already been replaced by a new det)
                         IF(j.eq.IndexofDetsFrom(l)) CYCLE loop2
                     enddo
-                    CALL CalcRho2(AttemptDet(:),GraphDets(j,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
-                    IF(rh.agt.0.D0) THEN
-                        Attach=.true.
-                        CopyRhoMat(IndexofDetsFrom(NoVerts+1),j)=rh%v
-                        CopyRhoMat(j,IndexofDetsFrom(NoVerts+1))=rh%v
+
+!IC2 information for vertices already added to graph stored in GraphExcitLevel
+                    IC2=GraphExcitLevel(j)
+!                    IC2=iGetExcitLevel(FDet(:),GraphDets(j,:),NEl)
+                    IF(TNoSameExcit) THEN
+!If TNoSameDet is on, then do not allow connections between determinants from the same excitation level
+                        IF(IC2.ne.IC1) THEN
+                            IC=iGetExcitLevel(AttemptDet(:),GraphDets(j,:),NEl)
+                            CALL CalcRho2(AttemptDet(:),GraphDets(j,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                            IF(rh.agt.0.D0) THEN
+                                Attach=.true.
+                                CopyRhoMat(IndexofDetsFrom(NoVerts+1),j)=rh%v
+                                CopyRhoMat(j,IndexofDetsFrom(NoVerts+1))=rh%v
+                            ENDIF
+                        ENDIF
+                    ELSE
+!Allow all possible connections
+                        IC=iGetExcitLevel(AttemptDet(:),GraphDets(j,:),NEl)
+                        CALL CalcRho2(AttemptDet(:),GraphDets(j,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                        IF(rh.agt.0.D0) THEN
+                            Attach=.true.
+                            CopyRhoMat(IndexofDetsFrom(NoVerts+1),j)=rh%v
+                            CopyRhoMat(j,IndexofDetsFrom(NoVerts+1))=rh%v
+                        ENDIF
                     ENDIF
 
                 enddo loop2
@@ -685,12 +801,17 @@ MODULE GraphMorph
                     GraphDets(IndexofDetsFrom(NoVerts),j)=AttemptDet(j)
                 enddo
 !Find Diagonal rho matrix element, and hamiltonian element
-                IC=iGetExcitLevel(FDet(:),AttemptDet(:),NEl)
-                HamElems(IndexofDetsFrom(NoVerts))=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
+                HamElems(IndexofDetsFrom(NoVerts))=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC1,ECore)
                 CALL CalcRho2(AttemptDet(:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,0,ECore)
                 CopyRhoMat(IndexofDetsFrom(NoVerts),IndexofDetsFrom(NoVerts))=rh%v
 !Calculate the change to the MeanExcits value...
-                MeanExcit=MeanExcit+IC            
+                MeanExcit=MeanExcit+IC1          
+
+!Store the excitation level of the new determinant we are adding
+                IF(TNoSameExcit) GraphExcitLevel(IndexofDetsFrom(NoVerts+1))=IC1
+                IF(TDistrib) THEN
+                    Distribs(IC1,Iteration+1)=Distribs(IC1,Iteration+1)+1
+                ENDIF
 
             ELSE
                 Failure=Failure+1
@@ -741,7 +862,7 @@ MODULE GraphMorph
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist
-        INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel
+        INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel,IC1,IC2
         INTEGER , ALLOCATABLE :: GrowGraph(:,:)
         REAL*8 :: r,Ran2
         LOGICAL :: Attach,OriginalPicked,SameDet
@@ -749,6 +870,7 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
 
         GrowGraphTag=0
+        IF(TNoSameExcit) CALL IAZZERO(GraphExcitLevel,NDets)
 
 !Allocate Rho Matrix for growing graph
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
@@ -828,38 +950,51 @@ MODULE GraphMorph
 
 !Need to test whether graph is accepted - if not, they cycle around for another attempt at finding a valid determinant
             Attach=.false.
+!IC1 is the excitation level of the attempted determinant to attach
+            IC1=iGetExcitLevel(FDet,AttemptDet,NEl)
             DO i=1,NoVerts
 
 !Check the number of excitations away from each other vertex in graph - or instead, just check if determinant already in graph
-!                IC=IGetExcitLevel(AttemptDet(:),GrowGraph(i,:),NEl)
-!                IF(IC.eq.0) THEN
                 IF(SameDet(AttemptDet(:),GrowGraph(i,:),NEl)) THEN
 !Determinant is already in the graph - exit loop - determinant not valid
                     Attach=.false.
                     EXIT
                 ENDIF
 
-                !Determine connectivity to other determinants in the graph, if no connection yet found
+!Determine connectivity to other determinants in the graph, if no connection yet found
                 IF(.not.Attach) THEN
-                    CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
-                    IF(rh.agt.RhoEps) Attach=.true. 
+!excitation level of determinants already in the graph stored in GraphExcitLevel
+!                    IC2=iGetExcitLevel(FDet(:),GrowGraph(i,:),NEl)
+                    IC2=GraphExcitLevel(i)
+                    IF(TNoSameExcit) THEN
+!Don't allow connections to the same excitation level
+                        IF(IC1.ne.IC2) THEN
+                            IC=iGetExcitLevel(GrowGraph(i,:),AttemptDet(:),NEl)
+                            CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                            IF(rh.agt.RhoEps) Attach=.true. 
+                        ENDIF
+                    ELSE
+                        CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+                        IF(rh.agt.RhoEps) Attach=.true. 
+                    ENDIF
                 ENDIF
 
             ENDDO
 
-!Attach new determinant to the list if it passes tests
             IF(Attach) THEN
-
+!Attach new determinant to the list as it passes tests
 !First check on attachment to HF, since wants to be stored in HamElems
-                IC=IGetExcitLevel(AttemptDet,FDet,NEl)
-!                IF(IC.gt.2) WRITE(6,*) "Higher excitation attached ", IC
+!                IF(IC1.gt.2) WRITE(6,*) "Higher excitation attached ", IC1
      
-                MeanExcit=MeanExcit+IC
+                MeanExcit=MeanExcit+IC1
+                IF(TDistrib) THEN
+                    Distribs(IC1,Iteration+1)=Distribs(IC1,Iteration+1)+1
+                ENDIF
 
 !Only double excitations (or single? <- include for completness) of HF contribute
-                IF(IC.eq.2) THEN!.or.(IC.eq.1)) THEN
-                    HamElems(NoVerts+1)=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
-                    CALL CalcRho2(FDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                IF(IC1.eq.2) THEN!.or.(IC1.eq.1)) THEN
+                    HamElems(NoVerts+1)=GetHElement2(FDet,AttemptDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC1,ECore)
+                    CALL CalcRho2(FDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC1,ECore)
 !Add rhoij contribution. No real need to set a rho epsilon here? We are diagonalising anyway...
                     GraphRhoMat(1,NoVerts+1)=rh
                     GraphRhoMat(NoVerts+1,1)=rh
@@ -871,12 +1006,37 @@ MODULE GraphMorph
                     GraphRhoMat(NoVerts+1,1)=HElement(0.D0)
                 ENDIF
 
+                IF(TNoCross) THEN
+!If No Crosslinks, then the graph has a star structure. Attach new determinant to the lowest excitation, and if choosing between multiple,
+!then choose stochastically between them, weighted by their rhoij element
+!We have an excitation other than a double. Where do we connect to?
+                    STOP 'Need to think about what to do here'
+
+                ELSEIF(TNoSameExcit) THEN
+!Don't allow connections to the same excitation level
+                    do i=2,NoVerts
+!Excitation level information stored in GraphExcitLevel
+!                        IC2=iGetExcitLevel(FDet(:),GrowGraph(i,:),NEl)
+                        IC2=GraphExcitLevel(i)
+                        IF(IC1.ne.IC2) THEN
+                            IC=iGetExcitLevel(AttemptDet(:),GrowGraph(i,:),NEl)
+                            CALL CalcRho2(GrowGraph(i,:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                            GraphRhoMat(i,NoVerts+1)=rh
+                            GraphRhoMat(NoVerts+1,i)=rh
+                        ENDIF
+                    enddo
+!Store the excitation level of the attached determinant
+                    GraphExcitLevel(NoVerts+1)=IC1
+                ELSE
+
 !Run through rest of excitations in the graph testing contributions and adding to rho matrix
-                do i=2,NoVerts
-                    CALL CalcRho2(GrowGraph(i,:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
-                    GraphRhoMat(i,NoVerts+1)=rh
-                    GraphRhoMat(NoVerts+1,i)=rh
-                enddo
+                    do i=2,NoVerts
+                        CALL CalcRho2(GrowGraph(i,:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+                        GraphRhoMat(i,NoVerts+1)=rh
+                        GraphRhoMat(NoVerts+1,i)=rh
+                    enddo
+
+                ENDIF
 
 !Include diagonal rho matrix element for chosen determinant
                 CALL CalcRho2(AttemptDet,AttemptDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,0,ECore)
@@ -887,8 +1047,8 @@ MODULE GraphMorph
                     GrowGraph(NoVerts+1,i)=AttemptDet(i)
                 enddo
                 NoVerts=NoVerts+1
-!                WRITE(6,"A,I5") "Vertex Added - ",NoVerts
-!                CALL FLUSH(6)
+!                    WRITE(6,"A,I5") "Vertex Added - ",NoVerts
+!                    CALL FLUSH(6)
 
                 Success=Success+1
                 IF(OriginalPicked) THEN
@@ -898,7 +1058,6 @@ MODULE GraphMorph
                 ENDIF
 
             ELSE
-
 !Determinant chosen not attached to growing graph
                 Failure=Failure+1
 

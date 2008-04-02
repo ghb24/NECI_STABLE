@@ -16,7 +16,7 @@ MODULE Calc
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-        LOGICAL TInitStar
+        LOGICAL TInitStar,TNoCross,TNoSameExcit
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -61,6 +61,8 @@ MODULE Calc
 
 
 !       Calc defaults    
+          TNoSameExcit=.false.
+          TNoCross=.false.
           TInitStar=.false.
           NoMoveDets=1
           TMoveDets=.false.
@@ -500,6 +502,11 @@ MODULE Calc
                   TMoveDets=.true.
               case("INITSTAR")
                   TInitStar=.true.
+              case("NOCROSSING")
+                  TNoCross=.true.
+                  call report("NOCROSSING option not yet working",.true.)
+              case("NOSAMEEXCIT")
+                  TNoSameExcit=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

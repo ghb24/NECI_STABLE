@@ -7,6 +7,7 @@
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
         INTEGER HFLOGLEVEL
         INTEGER PreVarLogging
+        LOGICAL TDistrib
 
         contains
 
@@ -16,6 +17,7 @@
         CHARACTER (LEN=100) w
          INTEGER iLoggingDef 
       !Logging defaults
+      TDistrib=.false.
       ILOGGINGDef=0
       iGlobalTimerLevel=40
       HFLOGLEVEL=0
@@ -34,6 +36,8 @@
           end if
           call readu(w)
           select case(w)
+          case("DISTRIBS")
+              TDistrib=.true.
           case("MCPATHS")
               ILOGGING = IOR(ILOGGING,2**1)
           case("BLOCKING")
