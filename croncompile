@@ -1,0 +1,5 @@
+#!/bin/bash
+. /usr/share/modules/init/bash
+module purge
+module load pgi/64/7.0/7
+./compile
