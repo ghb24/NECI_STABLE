@@ -482,7 +482,7 @@ MODULE GraphMorph
                     connected=.false.
                     do j=1,NDets
                         IF(i.eq.j) CYCLE
-                        IF(abs(Rhoij(i-1,j-1)%v).gt.0.D0) THEN
+                        IF(Rhoij(i-1,j-1).agt.0.D0) THEN
                             connected=.true.
                             EXIT
                         ENDIF
@@ -527,7 +527,7 @@ MODULE GraphMorph
                     connected=.false.
                     do j=1,NDets
                         IF(i.eq.j) CYCLE
-                        IF(abs(Rhoij(i-1,j-1)%v).gt.0.D0) THEN
+                        IF(Rhoij(i-1,j-1).agt.0.D0) THEN
                             connected=.true.
                             EXIT
                         ENDIF
