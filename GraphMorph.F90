@@ -78,6 +78,9 @@ MODULE GraphMorph
 !This is the iteration of the GraphMorph that we are currently on...
     INTEGER :: Iteration
 
+!This is needed in case a disconnected graph is generated - if so, a full new graph will be generated in the first MC
+    LOGICAL :: ReturntoTMoveDets
+
 !Various stats for printing
     REAL*8 :: PStay,Orig_Graph,SucRat,MeanExcit
 
@@ -101,6 +104,7 @@ MODULE GraphMorph
         
         IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GraphMorph so far'
 
+        ReturntoTMoveDets=.false.
 !Initialise random number generator
         Seed=G_VMC_Seed
 
@@ -144,6 +148,14 @@ MODULE GraphMorph
             WRITE(6,"(A,I4,A)") "Starting Iteration ", Iteration, " ..."
             WRITE(6,*) ""
             CALL FLUSH(6)
+
+            IF((Iteration.eq.2).and.ReturntoTMoveDets) THEN
+!If one iteration of regrowing graphs is used, then return to the moving dets algorithm                
+                WRITE(6,*) "Returning to MoveDets algorithm"
+                TMoveDets=.true.
+                ReturntoTMoveDets=.false.
+                TBiasing=.false.
+            ENDIF
 
 !The graph is first diagonalised, and the energy of the graph found, along with the largest eigenvector and eigenvalues.
             CALL DiagGraphMorph()
@@ -525,17 +537,19 @@ MODULE GraphMorph
 !Create a small artificial connection between disconnected determinants and root
                 do i=1,NDets
                     connected=.false.
-                    do j=1,NDets
-                        IF(i.eq.j) CYCLE
-                        IF(Rhoij(i-1,j-1).agt.0.D0) THEN
-                            connected=.true.
-                            EXIT
+                    do while(.not.connected)
+                        do j=1,NDets
+                            IF(i.eq.j) CYCLE
+                            IF(Rhoij(i-1,j-1).agt.0.D0) THEN
+                                connected=.true.
+                                EXIT
+                            ENDIF
+                        enddo
+                        IF(.not.connected) THEN
+                            Rhoij(i-1,1)=HElement(1.D-20)
+                            Rhoij(1,i-1)=HElement(1.D-20)
                         ENDIF
                     enddo
-                    IF(.not.connected) THEN
-                        Rhoij(i-1,1)=HElement(1.D-20)
-                        Rhoij(1,i-1)=HElement(1.D-20)
-                    ENDIF
                 enddo
             ENDIF
         ELSE
@@ -575,14 +589,17 @@ MODULE GraphMorph
 !            WRITE(6,*) ""
         enddo
 
-        Attached=.false.
-        do i=1,NDets-1
-            IF(GraphRhoMat(i,NDets)%v.ne.0.D0) THEN
-                Attached=.true.
-                EXIT
-            ENDIF
+        do j=1,NDets
+            Attached=.false.
+            do i=1,NDets
+                IF(i.eq.j) CYCLE
+                IF((GraphRhoMat(i,j)%v).ne.0.D0) THEN
+                    Attached=.true.
+                    EXIT
+                ENDIF
+            enddo
+            IF(.not.attached) STOP 'determinant is not attached!'
         enddo
-        IF(.not.attached) STOP 'Final determinant is not attached!'
 
 !To make sure, put in diagonal elements separatly
         do i=1,NDets
@@ -707,7 +724,7 @@ MODULE GraphMorph
         ENDIF
 
 !First need to pick NoMoveDets determinants stochastically to be moved from the original graph
-        Tries=NoMoveDets*1000000
+        Tries=NoMoveDets*10000*NDets
         k=0
         Success=0
         Failure=0
@@ -861,11 +878,10 @@ MODULE GraphMorph
                     EXIT
                 ENDIF
             enddo
-!Allow the determinant to be one we have already got rid of
+!Allow the determinant to be one we have already got rid of; this is possible, since a determinant can be specified more than once
             IF(.not.Attach) THEN
                 do l=(1+NoVerts),NoMoveDets
                     IF(j.eq.IndexofDetsFrom(l)) THEN
-                        STOP 'This should never be the case...'
                         Attach=.true.
                         EXIT
                     ENDIF
@@ -1250,7 +1266,7 @@ MODULE GraphMorph
 !                STOP 'Numerical errors likely to arise due to such small connection'
 !            ENDIF
 !Normalised as the reciprocal of the fourth root of the element. If root is changed, then numerical stability means that only one determinant is ever picked...
-            Eigenvector(i)=HElement(1.D0/RootofNum(ABS(Eigenvector(i)%v),4))
+            Eigenvector(i)=HElement(1.D0/RootofNum(ABS(Eigenvector(i)%v),5))
 !            WRITE(6,*) Eigenvector(i)
             Norm1=Norm1+Eigenvector(i)
         enddo
@@ -1270,6 +1286,8 @@ MODULE GraphMorph
         do i=1,TotExcits
             ExcitsVector(i)=ExcitsVector(i)/Norm2
         enddo
+
+        WRITE(6,"(A,F12.5)") "Normalisation constant for the determinants in the graph is ",Norm1%v
 
         PStay=NoMoveDets/NDets
 
@@ -1616,8 +1634,24 @@ MODULE GraphMorph
 
         do i=1,NDets
             Eigenvector(i)=GraphRhoMat(i,NDets)
+            IF(TMoveDets.and.(ABS(Eigenvector(i)%v)).eq.0.D0) THEN
+!There are still the possibility of disconnected clusters - these will be removed by regrowing graph completly...
+                IF(Iteration.eq.1) THEN
+                    WRITE(6,*) "Disconnected cluster found in graph - performing one cycle of regrowing new graph from scratch..."
+                    ReturntoTMoveDets=.true.
+!Choose a low graph bias, which will allow the graph to be created easily
+                    TBiasing=.true.
+                    GraphBias=0.75
+                ELSE
+                    WRITE(6,*) "Disconnected clusters still found...exiting..."
+                    STOP "Disconnected clusters still found...exiting..."
+                ENDIF
+            ENDIF
 !            WRITE(6,*) i,Eigenvector(i)%v
         enddo
+        IF(ReturntoTMoveDets) THEN
+            TMoveDets=.false.
+        ENDIF
 
 !Also need to save the largest Eigenvalue
         Eigenvalue=Eigenvalues(NDets)
