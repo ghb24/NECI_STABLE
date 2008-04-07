@@ -382,6 +382,7 @@ MODULE Integrals
                 CALL GetUMatSize(nBasis,nEl,2,UMATINT)
                 Allocate(UMat(UMatInt), stat=ierr)
                 LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
+                Call AZZERO(UMat,HElementSize*UMatInt)
                 CALL SETUPUMAT2D_DF()
                 IF(TBIN) THEN
                     CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
@@ -401,6 +402,7 @@ MODULE Integrals
                 WRITE(6,*) "UMatSize: ",UMATINT
                 Allocate(UMat(UMatInt), stat=ierr)
                 LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
+                Call AZZERO(UMat,HElementSize*UMatInt)
     !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
                 CALL SetupTMAT(nBasis,nBasisMax(2,3),TMATINT)
     !            CALL MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
@@ -436,6 +438,7 @@ MODULE Integrals
                    CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
                   Allocate(UMat(UMatInt), stat=ierr)
                    LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
+                Call AZZERO(UMat,HElementSize*UMatInt)
                    IF(TUEG.OR.THUB) THEN
                       IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
