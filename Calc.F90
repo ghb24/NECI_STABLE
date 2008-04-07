@@ -33,6 +33,9 @@ MODULE Calc
 !// additional from NECI.F
         INTEGER, Allocatable :: MCDet(:)
         REAL*8 RHOEPS ! calculated from RHOEPSILON
+
+!// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
+        LOGICAL lNoTriples
         contains
 
         SUBROUTINE CalcReadInput()
@@ -139,13 +142,15 @@ MODULE Calc
           TENPT=.false.
           TLADDER=.false. 
 
-
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
+
+          lNoTriples=.false.
 
 !Feb 08 defaults
           IF(Feb08) THEN
               RhoEpsilon=1.D-08
           ENDIF
+         
 
       
             calc: do
@@ -507,6 +512,8 @@ MODULE Calc
                   call report("NOCROSSING option not yet working",.true.)
               case("NOSAMEEXCIT")
                   TNoSameExcit=.true.
+              case("NOTRIPLES")
+                  lNoTriples=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

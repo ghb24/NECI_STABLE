@@ -33,7 +33,7 @@ C.,             If 1, only allow doubles.
          USE HElem 
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
-         USE Calc , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
+         USE Calc , only : TVARCALC,TMPTHEORY,TMODMPTHEORY, lNoTriples
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
@@ -87,6 +87,8 @@ C.,             If 1, only allow doubles.
          REAL*8 VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
          DATA SumP/0.D0/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
+
+         integer iGetExcitLevel
             
             SELECT CASE (IAND(NWHTAY,24))
             CASE(0)
@@ -427,7 +429,13 @@ C.. if we're not connected to this node, we fail now
                   HIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
                   HIJ(IEXFROM,I_VIND+1)=RH
                ENDIF
-            
+           
+               IF(lNoTriples.AND.I_VIND.EQ.1) Then
+                  IF(iGetExcitLevel(nI,nJ,nEl).NE.3) THEN
+                  ELSE
+                     TFAIL=.TRUE.
+                  ENDIF
+               Endif 
 C.. Work out the connectivity of the new node
                DO II=0,I_VIND
 C.. we don't need to calc the connection to the node we excited from
