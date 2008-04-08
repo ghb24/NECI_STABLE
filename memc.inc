@@ -25,7 +25,8 @@ C     == MEMTOT  TOTAL ALLOCATED MEMORY                               ==
 C     == MEMPEAK PEAK ALLOCATED MEMORY   = MAX(MEMTOT)                ==
 C     ==--------------------------------------------------------------==
       INTEGER      I_LEN,I_LENB,I_BLOCK,IB_MIN,LB_MIN,
-     &             NUMPEAK,MEMTOT,MEMPEAK
+     &             NUMPEAK
+      INTEGER*8    MEMTOT,MEMPEAK
       DIMENSION    I_AD1(MEM_LEN),I_AD2(MEM_LEN),I_LEN(MEM_LEN),
      &             I_LENB(MBM)
       COMMON/MEMCNECI2/I_AD1,I_AD2,I_LEN,I_LENB,
