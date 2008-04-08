@@ -779,7 +779,7 @@ C.. indicate we have traversed a particular vertex
      &   RESULT (IMCPR4NRES)
          IMPLICIT NONE
          INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,IPATH(0:I_V-1),IND
-         INTEGER I,J,INODE,ITOT,IMCPR4NRES
+         INTEGER I,J,INODE,ITOT
 C.. Go through all the nodes currently in the path, and through each
 C.. possible attachment for each node
          IF(IND.EQ.I_V) THEN
