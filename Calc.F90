@@ -16,7 +16,7 @@ MODULE Calc
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-        LOGICAL TInitStar,TNoCross,TNoSameExcit
+        LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -64,6 +64,7 @@ MODULE Calc
 
 
 !       Calc defaults    
+          TLanczos=.false.
           TNoSameExcit=.false.
           TNoCross=.false.
           TInitStar=.false.
@@ -176,6 +177,8 @@ MODULE Calc
                   TENERGY = .true.
                   TCALCHMAT = .true.
               case("LANCZOS")
+!Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
+                  TLanczos=.true.
               case("EIGENVALUES")
                   call readi(NEVAL)
               case("READ")

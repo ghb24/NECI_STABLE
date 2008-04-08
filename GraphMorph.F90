@@ -11,7 +11,7 @@ MODULE GraphMorph
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
-    USE Calc , only : TNoCross,TNoSameExcit
+    USE Calc , only : TNoCross,TNoSameExcit,TLanczos
     USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
@@ -104,6 +104,16 @@ MODULE GraphMorph
         
         IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GraphMorph so far'
 
+        IF(TMoveDets) THEN
+            WRITE(6,*) "***************************************"
+            WRITE(6,*) "*** WARNING - MOVEDETS MAY NOT WORK ***"
+            WRITE(6,*) "***************************************"
+        ENDIF
+        IF(TLanczos) THEN
+            WRITE(6,*) "Sorry, but Lanczos diagonalisation not yet working for GraphMorph"
+            STOP "Sorry, but Lanczos diagonalisation not yet working for GraphMorph"
+        ENDIF
+
         ReturntoTMoveDets=.false.
 !Initialise random number generator
         Seed=G_VMC_Seed
@@ -158,7 +168,12 @@ MODULE GraphMorph
             ENDIF
 
 !The graph is first diagonalised, and the energy of the graph found, along with the largest eigenvector and eigenvalues.
-            CALL DiagGraphMorph()
+            IF(TLanczos) THEN
+                CALL DiagGraphLanc()
+            ELSE
+                CALL DiagGraphMorph()
+            ENDIF
+
             WRITE(6,"(A,2G20.12)") "Weight and Energy of current graph is: ", SI, DLWDB
             IF(Iteration.eq.1) THEN
                 LowestE=DLWDB
@@ -503,7 +518,7 @@ MODULE GraphMorph
                 enddo
                 IF(.not.connected) THEN
                     IF(k.gt.15) THEN
-                        WRITE(6,*) "A fully connected initial graph could not be created - allowing a small connection for any disconnected graphs..."
+                        WRITE(6,*) "A fully connected initial graph could not be created - should now recreate the graph from scratch for one iteration..."
 !                        STOP "A fully connected initial graph could not be created - exiting..."
                         EXIT
                     ENDIF
@@ -533,25 +548,25 @@ MODULE GraphMorph
                     ExcitGen(:)=0
                 ENDIF
             enddo
-            IF(.not.connected) THEN
-!Create a small artificial connection between disconnected determinants and root
-                do i=1,NDets
-                    connected=.false.
-                    do while(.not.connected)
-                        do j=1,NDets
-                            IF(i.eq.j) CYCLE
-                            IF(Rhoij(i-1,j-1).agt.0.D0) THEN
-                                connected=.true.
-                                EXIT
-                            ENDIF
-                        enddo
-                        IF(.not.connected) THEN
-                            Rhoij(i-1,1)=HElement(1.D-20)
-                            Rhoij(1,i-1)=HElement(1.D-20)
-                        ENDIF
-                    enddo
-                enddo
-            ENDIF
+!            IF(.not.connected) THEN
+!!Create a small artificial connection between disconnected determinants and root
+!                do i=1,NDets
+!                    connected=.false.
+!                    do while(.not.connected)
+!                        do j=1,NDets
+!                            IF(i.eq.j) CYCLE
+!                            IF(Rhoij(i-1,j-1).agt.0.D0) THEN
+!                                connected=.true.
+!                                EXIT
+!                            ENDIF
+!                        enddo
+!                        IF(.not.connected) THEN
+!                            Rhoij(i-1,1)=HElement(1.D-20)
+!                            Rhoij(1,i-1)=HElement(1.D-20)
+!                        ENDIF
+!                    enddo
+!                enddo
+!            ENDIF
         ELSE
 !Generate the initial graph...(Can speed this up as do not need to know prob, and are recalculating the rho matrix)
 !Arr sent instead of NMax since getting values straight from modules (not passed through)
@@ -589,17 +604,17 @@ MODULE GraphMorph
 !            WRITE(6,*) ""
         enddo
 
-        do j=1,NDets
-            Attached=.false.
-            do i=1,NDets
-                IF(i.eq.j) CYCLE
-                IF((GraphRhoMat(i,j)%v).ne.0.D0) THEN
-                    Attached=.true.
-                    EXIT
-                ENDIF
-            enddo
-            IF(.not.attached) STOP 'determinant is not attached!'
-        enddo
+!        do j=1,NDets
+!            Attached=.false.
+!            do i=1,NDets
+!                IF(i.eq.j) CYCLE
+!                IF((GraphRhoMat(i,j)%v).ne.0.D0) THEN
+!                    Attached=.true.
+!                    EXIT
+!                ENDIF
+!            enddo
+!            IF(.not.attached) STOP 'determinant is not attached!'
+!        enddo
 
 !To make sure, put in diagonal elements separatly
         do i=1,NDets
@@ -1582,6 +1597,300 @@ MODULE GraphMorph
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in CountExcits'
     END SUBROUTINE CountExcits
 
+!This routine uses a Lancsoz iterative diagonalisation technique to diagonalise the rho matrix.
+    SUBROUTINE DiagGraphLanc()
+        IMPLICIT NONE
+        CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphLanc'
+        INTEGER , ALLOCATABLE :: Lab(:,:),NRow(:),ISCR(:),Index(:)
+        TYPE(HElement) , ALLOCATABLE :: Mat(:,:),CK(:,:),CKN(:,:)
+        REAL*8 , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
+        REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
+        INTEGER :: LabTag=0,ATag=0,MatTag=0,NRowTag=0,VTag=0,WTTag=0
+        INTEGER :: AMTag=0,BMTag=0,TTag=0,SCRTag=0,ISCRTag=0,IndexTag=0,WHTag=0
+        INTEGER :: Work2Tag=0,V2Tag=0,WTag=0,CKTag=0,CKNTag=0
+        INTEGER :: iSubLanc,ierr,LenMat,i,j,ICMax,RowElems
+        REAL*8 :: B2L
+        INTEGER :: NEval,NBlk,NKry,NCycle,NBlock,NKry1,LScr,LIScr
+
+        CALL TISET('DiagGraphLanc',iSubLanc)
+
+        IF(TMoveDets) THEN
+!If using the MoveDets algorithm, need to keep the rho matrix for the previous graph
+            ALLOCATE(CopyRhoMat(NDets,NDets),stat=ierr)
+            CALL LogMemAlloc('CopyRhoMat',NDets**2,8,this_routine,CopyRhoMatTag)
+            do i=1,NDets
+                do j=i,NDets
+                    CopyRhoMat(i,j)=GraphRhoMat(i,j)%v
+                    CopyRhoMat(j,i)=GraphRhoMat(j,i)%v
+                enddo
+            enddo
+        ENDIF
+
+!Count the number of non-zero elements in the matrix
+        LenMat=0
+        ICMax=0
+        do i=1,NDets
+            RowElems=0
+            do j=1,NDets
+                IF(GraphRhoMat(i,j).agt.0.D0) THEN
+                    LenMat=LenMat+1
+                    RowElems=RowElems+1
+                ENDIF
+            enddo
+            IF(RowElems.gt.ICMax) ICMax=RowElems
+        enddo
+        WRITE(6,"(A,I10,A,I10,A)") "Of ",NDets*NDets, " possible elements, only ", LenMat," are non-zero."
+
+!This seems to be Alex's way of compressing the matrix, but not the way in the diagonaliser
+!Allocate the rho matrix
+!        ALLOCATE(Mat(LenMat),stat=ierr)
+!        CALL LogMemAlloc('Mat',LenMat,8*HElementSize,this_routine,MatTag)
+!        CALL AZZERO(Mat,LenMat*HElementSize)
+!
+!!Lab indicates the column that the 'i'th non-zero matrix element resides in the full matrix
+!        ALLOCATE(Lab(LenMat),stat=ierr)
+!        CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag)
+!        CALL IAZZERO(Lab,LenMat)
+
+        ALLOCATE(Mat(NDets,ICMax),stat=ierr)
+        CALL LogMemAlloc('Mat',NDets*ICMax,8*HElementSize,this_routine,MatTag)
+        CALL AZZERO(Mat,NDets*ICMax*HElementSize)
+
+!Lab now indicates the position of the non-zero element in the row specified
+        ALLOCATE(Lab(NDets,ICMax),stat=ierr)
+        CALL LogMemAlloc('Lab',NDets*ICMax,4,this_routine,LabTag)
+        CALL IAZZERO(Lab,NDets*ICMax)
+
+!NRow indicated the number of non-zero elements in the 'i'th row of the full matrix
+        ALLOCATE(NRow(NDets),stat=ierr)
+        CALL LogMemAlloc('NRow',NDets,4,this_routine,NRowTag)
+        CALL IAZZERO(NRow,NDets)
+
+!This compresses the rho matrix, so that only the non-zero elements are stored, in a suitable form for the Lanczos diagonaliser.
+        CALL CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
+        WRITE(6,"(A,I8)") "In compressed matrix, maximum number of non-zero elements in any one row is ", ICMax
+
+!Set up parameters for the diagonaliser.
+        B2L=1.D-13
+        NBlk=4
+        NKry=8
+!NEval indicates the number of eigenvalues we want to calculate
+        NEval=4
+        NCycle=200
+        NBlock=MIN(NEval,NBlk)
+        NKry1=NKry+1
+        LScr=MAX(NDets*NEval,8*NBlock*NKry)
+        LIScr=6*NBlock*NKry
+
+!Deallocate GraphRhoMat - no longer needed
+        DEALLOCATE(GraphRhoMat)
+        CALL LogMemDealloc(this_routine,GraphRhoMatTag)
+
+!Allocate memory for diagonaliser
+        ALLOCATE(A(NEval,NEval),stat=ierr)
+        CALL LogMemAlloc('A',NEval*NEval,8,this_routine,ATag)
+        CALL AZZERO(A,NEval*NEval)
+        ALLOCATE(V(NDets*NBlock*NKry1),stat=ierr)
+        CALL LogMemAlloc('V',NDets*NBlock*NKry1,8,this_routine,VTag)
+        CALL AZZERO(V,NDets*NBlock*NKry1)
+        ALLOCATE(AM(NBlock*NBlock*NKry1),stat=ierr)
+        CALL LogMemAlloc('AM',NBlock*NBlock*NKry1,8,this_routine,AMTag)
+        CALL AZZERO(AM,NBlock*NBlock*NKry1)
+        ALLOCATE(BM(NBlock*NBlock*NKry),stat=ierr)
+        CALL LogMemAlloc('BM',NBlock*NBlock*NKry,8,this_routine,BMTag)
+        CALL AZZERO(BM,NBlock*NBlock*NKry)
+        ALLOCATE(T(3*NBlock*NKry*NBlock*NKry),stat=ierr)
+        CALL LogMemAlloc('T',NBlock*NKry*NBlock*NKry*3,8,this_routine,TTag)
+        CALL AZZERO(T,NBlock*NKry*NBlock*NKry*3)
+        ALLOCATE(WT(NBlock*NKry),stat=ierr)
+        CALL LogMemAlloc('WT',NBlock*NKry,8,this_routine,WTTag)
+        CALL AZZERO(WT,NBlock*NKry)
+        ALLOCATE(SCR(LScr),stat=ierr)
+        CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag)
+        CALL AZZERO(SCR,LScr)
+        ALLOCATE(ISCR(LIScr),stat=ierr)
+        CALL LogMemAlloc('ISCR',LIScr,4,this_routine,ISCRTag)
+        CALL IAZZERO(ISCR,LIScr)
+        ALLOCATE(Index(NEval),stat=ierr)
+        CALL LogMemAlloc('Index',NEval,4,this_routine,IndexTag)
+        CALL IAZZERO(Index,NEval)
+        ALLOCATE(WH(NDets),stat=ierr)
+        CALL LogMemAlloc('WH',NDets,8,this_routine,WHTag)
+        CALL AZZERO(WH,NDets)
+        ALLOCATE(Work2(3*NDets),stat=ierr)
+        CALL LogMemAlloc('Work2',3*NDets,8,this_routine,Work2Tag)
+        CALL AZZERO(Work2,3*NDets)
+        ALLOCATE(V2(NDets,NEval),stat=ierr)
+        CALL LogMemAlloc('V2',NDets*NEval,8,this_routine,V2Tag)
+        CALL AZZERO(V2,NDets*NEval)
+
+!W holds the eigenvalues 
+        ALLOCATE(W(NEval),stat=ierr)
+        CALL LogMemAlloc('W',NEval,8,this_routine,WTag)
+        CALL AZZERO(W,NEval)
+
+!CK holds the eigenvectors
+        ALLOCATE(CK(NDets,NEval),stat=ierr)
+        CALL LogMemAlloc('CK',NDets*NEval,8*HElementSize,this_routine,CKTag)
+!The initial trial wavefuntion is set to zero        
+        CALL AZZERO(CK,NDets*NEval*HElementSize)
+        ALLOCATE(CKN(NDets,NEval),stat=ierr)
+        CALL LogMemAlloc('CKN',NDets*NEval,8*HElementSize,this_routine,CKNTag)
+        CALL AZZERO(CKN,NDets*NEval*HElementSize)
+
+!Lanczos iterative diagonalisation routine
+        CALL FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.true.)
+!Mulitply eigenvalues through by -1 to ensure they are positive
+        CALL DSCAL(NEval,-1.D0,W,1)
+
+!        do i=1,NDets
+!            WRITE(6,*) NRow(i)
+!        enddo
+!        WRITE(6,*) "***********"
+
+!        do i=1,NEval
+!            WRITE(6,"(A,I4,A,F20.14)") "Eigenvalue ",i," is: ", W(i)
+!        enddo
+
+!Deallocate memory required by diagonaliser (including original matrix)
+        DEALLOCATE(Mat)
+        CALL LogMemDealloc(this_routine,MatTag)
+        DEALLOCATE(Lab)
+        CALL LogMemDealloc(this_routine,LabTag)
+        DEALLOCATE(NRow)
+        CALL LogMemDealloc(this_routine,NRowTag)
+        DEALLOCATE(A)
+        CALL LogMemDealloc(this_routine,ATag)
+        DEALLOCATE(V)
+        CALL LogMemDealloc(this_routine,VTag)
+        DEALLOCATE(AM)
+        CALL LogMemDealloc(this_routine,AMTag)
+        DEALLOCATE(BM)
+        CALL LogMemDealloc(this_routine,BMTag)
+        DEALLOCATE(T)
+        CALL LogMemDealloc(this_routine,TTag)
+        DEALLOCATE(WT)
+        CALL LogMemDealloc(this_routine,WTTag)
+        DEALLOCATE(SCR)
+        CALL LogMemDealloc(this_routine,ScrTag)
+        DEALLOCATE(ISCR)
+        CALL LogMemDealloc(this_routine,IScrTag)
+        DEALLOCATE(Index)
+        CALL LogMemDealloc(this_routine,IndexTag)
+        DEALLOCATE(WH)
+        CALL LogMemDealloc(this_routine,WHTag)
+        DEALLOCATE(Work2)
+        CALL LogMemDealloc(this_routine,Work2Tag)
+        DEALLOCATE(V2)
+        CALL LogMemDealloc(this_routine,V2Tag)
+
+!Store largest eigenvector - ?first? column of CK (zero it)
+        CALL AZZERO(Eigenvector,NDets*HElementSize)
+
+        do i=1,NDets
+            Eigenvector(i)=CK(i,1)
+            WRITE(6,*) Eigenvector(i)
+            IF(TMoveDets.and.(ABS(Eigenvector(i)%v)).eq.0.D0) THEN
+!There are still the possibility of disconnected clusters - these will be removed by regrowing graph completly...
+                IF(Iteration.eq.1) THEN
+                    WRITE(6,*) "Disconnected cluster found in graph - performing one cycle of regrowing new graph from scratch..."
+                    ReturntoTMoveDets=.true.
+!Choose a low graph bias, which will allow the graph to be created easily
+                    TBiasing=.true.
+                    GraphBias=0.75
+                ELSE
+                    WRITE(6,*) "Disconnected clusters still found...exiting..."
+                    STOP "Disconnected clusters still found...exiting..."
+                ENDIF
+            ENDIF
+        enddo
+        IF(ReturntoTMoveDets) THEN
+            TMoveDets=.false.
+        ENDIF
+
+!Also need to save the largest Eigenvalue
+        Eigenvalue=W(1)
+
+!Find weight and energy of graph.
+!There is no beta-dependance, so only largest eigenvector needed.
+!Note - since we are not having a beta-dependance, 'weight' takes on a slightly different
+!meaning. Here, the weight is simply the square of the first element of the largest eigenvector,
+!i.e. the magnitude of the projection of the graph back onto the HF...
+!        WRITE(6,*) "First element of eigenvector is: ", Eigenvector(1)%v
+        SI=(Eigenvector(1)%v)*(Eigenvector(1)%v)
+        DLWDB=0.D0
+        do i=2,NDets
+            DLWDB=DLWDB+(HamElems(i)%v)*(Eigenvector(i)%v)
+        enddo
+        DLWDB=(DLWDB/(Eigenvector(1)%v))+(HamElems(1)%v)
+
+!Deallocate Eigenvectors and values
+        DEALLOCATE(W)
+        CALL LogMemDealloc(this_routine,WTag)
+        DEALLOCATE(CK)
+        CALL LogMemDealloc(this_routine,CKTag)
+        DEALLOCATE(CKN)
+        CALL LogMemDealloc(this_routine,CKNTag)
+        WRITE(6,*) LabTag,ATag,MatTag,NRowTag,VTag,WTTag,AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag,Work2Tag,V2Tag,WTag,CKTag,CKNTag
+
+        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphLanc'
+        CALL TIHALT('DiagGraphLanc',iSubLanc)
+
+    END SUBROUTINE DiagGraphLanc
+
+!This compresses the rho matrix, so that only the non-zero elements are stored, in a suitable form for the Lanczos diagonaliser.
+    SUBROUTINE CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
+        IMPLICIT NONE
+        INTEGER :: LenMat,i,j
+        TYPE(HElement) :: Mat(NDets,ICMax)
+        INTEGER :: Lab(NDets,ICMax),NRow(NDets),LabElem,RowElems,ICMax,SumElems
+
+!This compression is how Alex uses the Lanczos diagonaliser - however, it seems to be used in a different way
+!ICMax indicates the largest number of non-zero elements in any one row of the matrix
+!        ICMax=0
+!
+!        LabElem=0
+!        do i=1,NDets
+!!Scan along each row of the matrix
+!            RowElems=0
+!            do j=1,NDets
+!                IF(GraphRhoMat(i,j).agt.0.D0) THEN
+!                    LabElem=LabElem+1
+!                    RowElems=RowElems+1
+!                    Mat(LabElem)=GraphRhoMat(i,j)
+!                    Lab(LabElem)=j
+!                ENDIF
+!            enddo
+!            IF(RowElems.gt.ICMax) ICMax=RowElems
+!            NRow(i)=RowElems
+!        enddo
+
+        SumElems=0
+
+        do i=1,NDets
+            RowElems=0
+            do j=1,NDets
+                IF(GraphRhoMat(i,j).agt.0.D0) THEN
+                    RowElems=RowElems+1
+                    Mat(i,RowElems)=GraphRhoMat(i,j)
+                    Lab(i,RowElems)=j
+                ENDIF
+            enddo
+            IF(RowElems.gt.ICMax) THEN
+                WRITE(6,*) "Error in compressing matrix 3"
+                STOP 'Error in compressing matrix 3'
+            ENDIF
+            NRow(i)=RowElems
+            SumElems=SumElems+RowElems
+        enddo
+
+        IF(SumElems.ne.LenMat) THEN
+            WRITE(6,*) "Error in compressing matrix"
+            STOP 'Error in compressing matrix'
+        ENDIF
+
+    END SUBROUTINE CompressMatrix
+
 !This is a routine to find the energy of the graph by diagonalisation, and return as well its eigenvalues and largest eigenvector. Deallocate the RhoMatrix when done.
     SUBROUTINE DiagGraphMorph()
         IMPLICIT NONE
@@ -1609,7 +1918,7 @@ MODULE GraphMorph
             ALLOCATE(CopyRhoMat(NDets,NDets),stat=ierr)
             CALL LogMemAlloc('CopyRhoMat',NDets**2,8,this_routine,CopyRhoMatTag)
             do i=1,NDets
-                do j=1,NDets
+                do j=i,NDets
 !                    IF(i.eq.NDets) WRITE(6,*) j,GraphRhoMat(i,j)%v
 !                    IF(j.eq.NDets) WRITE(6,*) i,GraphRhoMat(j,i)%v
                     CopyRhoMat(i,j)=GraphRhoMat(i,j)%v
@@ -1654,6 +1963,9 @@ MODULE GraphMorph
         ENDIF
 
 !Also need to save the largest Eigenvalue
+!        do i=1,5
+!            WRITE(6,*) "Eigenvalue ", i," is: ",Eigenvalues(NDets-(i-1))
+!        enddo
         Eigenvalue=Eigenvalues(NDets)
 
 !Deallocate RhoMatrix and Eigenvalues (not needed)

@@ -1,12 +1,15 @@
       SUBROUTINE FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &	NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &	WH,WORK2,V2,NCYCLE,B2LIMIT)
+     &	WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT)
       IMPLICIT REAL*8 (A-H,O-Z) 
 C ==----------------------------------------------------------------==
-C ==	M is NDET : the number of rows in Hamil			    ==
-C ==    ICMAX : the MAX. number of columns in Hamil		    ==
+C ==	M is NDET : the number of rows in Hamil			            ==
+C ==    ICMAX : the MAX. number of columns in Hamil	         	    ==
 C ==    N is NEVAL : the number of columns in the wavevector        ==
+C ==    PRINTOUT is a logical testing whether to print results      ==
 C ==----------------------------------------------------------------==
+      
+      LOGICAL :: PRINTOUT
       DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
       DIMENSION V(M*NBLOCK*NKRY1)
       DIMENSION AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
@@ -25,12 +28,15 @@ C..Initialise V0
 C..Calculate top 80% of N 
       NDIAG=N-INT(N*0.2) 
 C..
-      WRITE(6,20000) M,N,NKRY,NBLOCK,NDIAG,LSCR,B2LIMIT
+      IF(PRINTOUT) THEN
+          WRITE(6,20000) M,N,NKRY,NBLOCK,NDIAG,LSCR,B2LIMIT
+      ENDIF
 20000 FORMAT(2X,'M:',I7/2X,'N:',I7/2X,'NKRY:',I7/2X,'NBLOCK:',I7/2X,
      &	'NDIAG:',I7/2X,'LSCR:',I7/2X,'B2LIMIT:',E10.2)
 C ==----------------------------------------------------------------==
       CALL FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
-     &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE)
+     &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
+     &     PRINTOUT)
 C ==----------------------------------------------------------------==
 C..Uncomment to test to see if routine is working
 C      CALL TIPRI
@@ -47,16 +53,20 @@ C      T2 = TIMEC()
 C      T3=(T2-T1)
 C      WRITE(6,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
 C     &	   T3/1000.D0
-      WRITE(6,'(//10X,''Neval'',15X,''Eigenvalue'')')
-      DO I=1,N
-        WRITE(6,'(10X,I3,15X,F19.11)') I,-1.D0*W(I)
-      ENDDO
+C      IF(PRINTOUT) THEN
+C          WRITE(6,'(//10X,''Neval'',15X,''Eigenvalue'')')
+C          DO I=1,N
+C              WRITE(6,'(10X,I3,15X,F19.11)') I,-1.D0*W(I)
+C          ENDDO
+C      ENDIF
 C ==----------------------------------------------------------------==
       END
 C ====================================================================
       SUBROUTINE FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
-     &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE)
+     &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
+     &     PRINTOUT)
       IMPLICIT REAL*8 (A-H,O-Z)
+      LOGICAL :: PRINTOUT
       DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
       DIMENSION V(M*NBLOCK*(NKRY+1))
       DIMENSION AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
@@ -87,7 +97,9 @@ C        WRITE(6,*) 'LSCR2:',LSCR2
 C ====================================================================
       CALL IAZZERO(INDEX,N)
       NHPSI=0
-      WRITE(6,10000) ICYCLE,NCONV,B2MAX,B2MIN,NHPSI
+      IF(PRINTOUT) THEN
+          WRITE(6,10000) ICYCLE,NCONV,B2MAX,B2MIN,NHPSI
+      ENDIF
 10000 FORMAT(2X,'ICYCLE:',I3,1X,'NCONV:',I3,2X,'B2MAX:',F10.5,
      &  6X,'B2MIN:',F10.5,5X,'NHPSI:',I3)
 C..VS=H.V0 
@@ -125,8 +137,10 @@ C..Residual: H(VY) - (VY)E and test for convergence
           IF(B2.LT.B2MIN) B2MIN=B2  
         ENDDO
 C..
-        WRITE(6,'(5X,I4,2X,I4,2X,2(E8.3,3X),F6.2)') 
+        IF(PRINTOUT) THEN
+            WRITE(6,'(5X,I4,2X,I4,2X,2(E8.3,3X),F6.2)') 
      &       ICYCLE,NCONV,B2MAX,B2MIN,DFLOAT(NHPSI)/DFLOAT(N)
+        ENDIF
 C..Order states         
         DO I=NCURR,N
           J=INDEX(I)
@@ -184,12 +198,16 @@ C..Rotate: HV -> HVY
 C ==============================================================
       ENDDO                     ! Loop over icycle 
 C.. End of Lanczos diagonalisation  
- 100  CONTINUE 
-      WRITE(6,'(//''    NCONV:'',I5)') NCONV
+ 100  CONTINUE
+      IF(PRINTOUT) THEN
+          WRITE(6,'(//''    NCONV:'',I5)') NCONV
+      ENDIF
       T2 = TIMEC() 
       T3=(T2-T1)
-      WRITE(6,'(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)')
+      IF(PRINTOUT) THEN
+          WRITE(6,'(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)')
      &     T3/1000.D0
+      ENDIF
       CALL TIHALT('    FRSBLK',ISUB)
 C     ================================================================  
       RETURN
