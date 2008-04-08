@@ -100,6 +100,14 @@ MODULE UMatCache
 
          SAVE nAuxBasis,nBasisPairs,tDFInts,DFCoeffs,DFInts,DFFitInts,DFInvFitInts,iDFMethod
 
+         ! Memory book-keeping tags
+         integer :: tagUMatCacheData=0
+         integer :: tagUMatLabels=0
+         integer :: tagOUMatCacheData=0
+         integer :: tagOUMatLabels=0
+         integer :: tagTMat2D=0
+         integer :: tagTMat2D2=0
+
       Contains
 ! AJWT Hopefully Initialize data needed to store special StarStore UMat, which hold integrals <ij|ab>
 !  nOccSpatOrbs is the number of occupied spatial orbitals (probably nEl/2)
@@ -432,11 +440,13 @@ MODULE UMatCache
         use System, only: tCPMD
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use MemoryManager, only: LogMemAlloc
         IMPLICIT NONE
         include 'cpmddata.inc'
         include 'sym.inc'
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
+        character(len=*),parameter :: thisroutine='SetupTMAT2'
         
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
@@ -503,15 +513,17 @@ MODULE UMatCache
             ! zero by symmetry).
             iSize=nBasisFRZ*nBasisFRZ
             Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
-            Call MemAlloc(ierr,TMAT2D2,HElementSize*iSize,'TMAT2D2')
+            call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElementSize*8,thisroutine,tagTMat2D2)
             Call AZZERO(TMAT2D2,HElementSize*iSize)
         
         ENDIF
       END subroutine
     
       SUBROUTINE DestroyTMAT(NEWTMAT)
+        use MemoryManager, only: LogMemDealloc
         IMPLICIT NONE
         LOGICAL :: NEWTMAT
+        character(len=*), parameter :: thisroutine='DestroyTMat'
 
         IF(TSTARSTORE) THEN
             IF(NEWTMAT) THEN
@@ -530,13 +542,13 @@ MODULE UMatCache
         ELSE
             IF(NEWTMAT) THEN
                 IF(ASSOCIATED(TMAT2D2)) THEN
-                    CALL MemDealloc(TMAT2D2)
+                    call LogMemDealloc(thisroutine,tagTMat2D2)
                     Deallocate(TMAT2D2)
                     NULLIFY(TMAT2D2)
                 ENDIF
             ELSE
                 IF(ASSOCIATED(TMAT2D)) THEN
-                    CALL MemDealloc(TMAT2D)
+                    call LogMemDealloc(thisroutine,tagTMat2D)
                     Deallocate(TMAT2D)
                     NULLIFY(TMAT2D)
                 ENDIF
@@ -628,11 +640,13 @@ MODULE UMatCache
         use System, only: tCPMD
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use MemoryManager, only: LogMemAlloc
         IMPLICIT NONE
         include 'cpmddata.inc'
         include 'sym.inc'
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
+        character(len=*),parameter :: thisroutine='SetupTMAT'
         
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
@@ -705,7 +719,7 @@ MODULE UMatCache
             ! zero by symmetry).
             iSize=nBasis*nBasis
             Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
-            Call MemAlloc(ierr,TMAT2D,HElementSize*iSize,'TMAT2D')
+            call LogMemAlloc('TMAT2D',nBasis*nBasis,HElementSize*8,thisroutine,tagTMat2D)
             Call AZZERO(TMAT2D,HElementSize*iSize)
         
         ENDIF
@@ -925,11 +939,13 @@ MODULE UMatCache
 
 !  TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals
       SUBROUTINE SETUPUMATCACHE(NSTATE,TSMALL)
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
          INTEGER NSTATE
          LOGICAL TSMALL
          INTEGER ierr
          INCLUDE 'irat.inc'
+         character(len=*),parameter :: thisroutine='SETUPUMATCACHE'
          NTYPES=HElementSize
          NHITS=0
          NMISSES=0
@@ -956,9 +972,9 @@ MODULE UMatCache
             WRITE(6,"(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT",NTYPES,NSLOTS,NPAIRS,NSLOTS*NPAIRS*NTYPES
             TUMAT2D=.FALSE.
             Allocate(UMatCacheData(0:nTypes-1,nSlots,nPairs), STAT=ierr)
-            CALL MemAlloc(ierr,UMatCacheData,nTypes*HElementSize*nSlots*nPairs,'UMATCACHE')
+            call LogMemAlloc('UMatCache',nTypes*nSlots*nPairs,8*HelementSize,thisroutine,tagUMatCacheData)
             Allocate(UMatLabels(nSlots,nPairs), STAT=ierr)
-            CALL MemAlloc(ierr,UMatLabels,nSlots*nPairs/irat+1,'UMATLABELS')
+            CALL LogMemAlloc('UMATLABELS',nSlots*nPairs,4,thisroutine,tagUMatLabels)
             CALL AZZERO(UMatCacheData,nTypes*HElementSize*nPairs*nSlots)
             CALL IAZZERO(UMATLABELS,nPairs*nSlots)
             if (.not.tSmallUMat.and.tReadInCache) then
@@ -1040,14 +1056,19 @@ MODULE UMatCache
          ENDIF
          TTRANSFINDX=.TRUE.
       END subroutine
+
+
+      
       SUBROUTINE DESTROYUMATCACHE
+         use MemoryManager, only: LogMemDealloc
          IMPLICIT NONE
+         character(len=*), parameter :: thisroutine='DESTROYUMATCACHE'
          CALL WriteUMatCacheStats()
          IF(ASSOCIated(UMatCacheData)) THEN
             WRITE(6,*) "Destroying UMatCache"
-            CALL MemDealloc(UMatCacheData)
+            CALL LogMemDealloc(thisroutine,tagUMatCacheData)
             Deallocate(UMatCacheData)
-            CALL MemDealloc(UMATLABELS)
+            CALL LogMemDealloc(thisroutine,tagUMATLABELS)
             Deallocate(UMatLabels)
             IF(ASSOCIated(UMat2D)) THEN
                CALL MemDealloc(UMat2D)
@@ -1281,6 +1302,7 @@ MODULE UMatCache
       END subroutine
                 
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
+         use MemoryManager, only: LogMemDealloc
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          TYPE(HElement),Pointer :: NUMat2D(:,:) !(nNew/2,nNew/2)
@@ -1293,6 +1315,7 @@ MODULE UMatCache
          INTEGER onSlots,onPairs,ierr
          LOGICAL toSmallUMat,tlog,toUMat2D
          LOGICAL GetCachedUMatEl
+         character(len=*),parameter :: thisroutine='FreezeUMatCacheInt'
                   
          toUMat2D=tUMat2D
          IF(tUMat2D) then
@@ -1317,7 +1340,9 @@ MODULE UMatCache
 !         onSlots=nSlots
 !         onPairs=nPairs
          OUMatCacheData=>UMatCacheData
+         tagOUMatCacheData=tagUMatCacheData
          OUMatLabels=>UMatLabels
+         tagOUMatLabels=tagUMatLabels
          toSmallUMat=tSmallUMat
          Nullify(UMatCacheData)
          Nullify(UMatLabels)
@@ -1363,9 +1388,9 @@ MODULE UMatCache
            ENDDO
           ENDIF
          ENDDO
-         CALL MemDealloc(OUMatLabels) 
+         CALL LogMemDealloc(thisroutine,tagOUMatLabels) 
          Deallocate(OUMatLabels)
-         CALL MemDealloc(OUMatCacheData) 
+         CALL LogMemDealloc(thisroutine,tagOUMatCacheData) 
          Deallocate(OUMatCacheData)
          CALL SetUMatCacheFlag(0)               
       END subroutine
@@ -1419,7 +1444,7 @@ MODULE UMatCache
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
       logical GetCachedUMatEl,LSymSym
-      Type(Symmetry) TotSymRep
+      type(Symmetry) TotSymRep
       type(HElement) UMatEl(0:nTypes-1)
       type(Symmetry) Sym,Symprod,SymConj
       ! 1. test read in.
