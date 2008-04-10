@@ -336,7 +336,7 @@ METHOD <METHOD>
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
     VERTEX GRAPHMORPH
         This sets up an initial graph, and systematically improves it, by applying the rho matrix of the graph and its excitations as a propagator on the largest eigenvector of the previous graph. From this, an improved graph is stochastically selected, and the process is repeated, lowering the energy.
-    VERTEX STAR [ADDSINGLES/COUNTEXCITS] STARSTARS NODAL,DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
+    VERTEX STAR [ADDSINGLES/COUNTEXCITS] STARSTARS TRIPLES NODAL,DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
         Constructs a star from all determinants connected to the root (ignoring connections between those dets).
         STARSTARS uses an approximation that the change of eigenvalues and the first element of the eigenvectors of the star graph is linear with respect to multiplying the diagonal elements by a constant. Once this scaling is found, all stars of stars are prediagonalised, and reattached to the original graph. This results in N^2 scaling, where N is the number of excitations.
         DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
@@ -351,6 +351,7 @@ METHOD <METHOD>
         ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
         COUNTEXCITS runs through all the symmetry allowed excitations first, and counts the connected determinants on the star. This means that memory requirements are reduced so that only connected determinants are stored. However, the time taken is increased, as it is necessary to run through all determinants in the star twice. Especially useful for large systems with memory restraints, when density fitting has necessarily turned off symmetry. Also useful if a largeish rhoepsilon has been set as these will be counted as disconnected.
         NODAL prediagonalises a completely connected set of virtuals for each set of i,j orbitals. After this, the  diagonalised excitations are solved as a star graph. Must be used with new.
+        TRIPLES prediagonalises an excited star of triple excitations from each double excitation, reattaches the eigenvectors, and solves the complete star. Currently only available with 'NEW', 'COUNTEXCITS' and 'DIAG'.
     
 VVDISALLOW
    Disallow V-vertex to V'-vertex transitions in stochastic time MC.

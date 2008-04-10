@@ -1605,14 +1605,34 @@ MODULE GraphMorph
         TYPE(HElement) , ALLOCATABLE :: Mat(:,:),CK(:,:),CKN(:,:)
         REAL*8 , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
         REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
-        INTEGER :: LabTag=0,ATag=0,MatTag=0,NRowTag=0,VTag=0,WTTag=0
-        INTEGER :: AMTag=0,BMTag=0,TTag=0,SCRTag=0,ISCRTag=0,IndexTag=0,WHTag=0
-        INTEGER :: Work2Tag=0,V2Tag=0,WTag=0,CKTag=0,CKNTag=0
+        INTEGER :: LabTag,ATag,MatTag,NRowTag,VTag,WTTag
+        INTEGER :: AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag
+        INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
         INTEGER :: iSubLanc,ierr,LenMat,i,j,ICMax,RowElems
         REAL*8 :: B2L
         INTEGER :: NEval,NBlk,NKry,NCycle,NBlock,NKry1,LScr,LIScr
 
         CALL TISET('DiagGraphLanc',iSubLanc)
+        
+!Zero memory tags
+        LabTag=0
+        ATag=0
+        MatTag=0
+        NRowTag=0
+        VTag=0
+        WTTag=0
+        AMTag=0
+        BMTag=0
+        TTag=0
+        SCRTag=0
+        ISCRTag=0
+        IndexTag=0
+        WHTag=0
+        Work2Tag=0
+        V2Tag=0
+        WTag=0
+        CKTag=0
+        CKNTag=0
 
         IF(TMoveDets) THEN
 !If using the MoveDets algorithm, need to keep the rho matrix for the previous graph

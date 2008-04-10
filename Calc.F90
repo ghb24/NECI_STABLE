@@ -16,7 +16,7 @@ MODULE Calc
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-        LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos
+        LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos,TStarTrips
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -64,6 +64,7 @@ MODULE Calc
 
 
 !       Calc defaults    
+          TStarTrips=.false.
           TLanczos=.false.
           TNoSameExcit=.false.
           TNoCross=.false.
@@ -864,7 +865,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
+         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -934,6 +935,8 @@ MODULE Calc
                                   TSTARSTARS=.true.
                               case("STARPROD")
                                  STARPROD=.TRUE.
+                              case("TRIPLES")
+                                  TStarTrips=.TRUE.
                               case("COUNTEXCITS")
                                  NWHTAY=IBSET(NWHTAY,8)
                               case("ADDSINGLES")

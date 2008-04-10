@@ -30,10 +30,11 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
+         USE StarDiagTripMod , only : StarDiagTrips
          USE NODEDIAG , only : fMCPR3StarNodes
          USE Calc , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,
-     &          calcp_logweight
+     &          calcp_logweight,TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
@@ -240,6 +241,9 @@ C.. forcing them to be disconnected.
 !This involves iterativly improving a graph in order to maximise the connections between determinants.
                     IF(I_VMAX.ne.2) STOP 'Error in vertex number'
                     CALL MorphGraph(F(I_V),DLWDB2)
+               ELSEIF(TStarTrips) THEN
+!Triple excitations are prediagonalised from each double
+                    CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
@@ -444,8 +448,9 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
+         USE StarDiagTripMod , only : StarDiagTrips
          USE PRECALCREAD , only : TPREVAR
-         USE Calc , only : TMPTHEORY,TDIAGNODES,TGraphMorph
+         USE Calc , only : TMPTHEORY,TDIAGNODES,TGraphMorph,TStarTrips
          use Calc, only : calcp_logweight
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
@@ -651,6 +656,9 @@ C.. forcing them to be disconnected.
 !This involves iterativly improving a graph in order to maximise the connections between determinants.
                     IF(I_VMAX.ne.2) STOP 'Error in vertex number'
                     CALL MorphGraph(F(I_V),DLWDB2)
+               ELSEIF(TStarTrips) THEN
+!Excited stars of triples from all doubles are prediagonalised
+                    CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
