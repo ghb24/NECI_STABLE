@@ -52,7 +52,7 @@
         INTEGER :: nExcitTag,ierr,exFlagHF,exFlagDoub,iMaxExcit,ExcitCount
         INTEGER :: Meth,iSubTrips,nStore(6),nExcitMemLen,nJ(NEl),iExcit,nStore2(6)
         INTEGER :: iMaxExcit2,nExcitMemLen2,nK(NEl),ExcitCountDoubs,nExcitTag2
-        INTEGER :: i,j,k,nRoots,Vert
+        INTEGER :: i,j,k,nRoots,Vert,IC,iGetExcitLevel
         LOGICAL :: TCountExcits,iExcit2
 
         IF(HElementSize.gt.1) STOP 'Only Real orbitals allowed in StarDiagTrips so far'
@@ -116,6 +116,11 @@
                         CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
                         IF(nK(1).eq.0) exit lp1
                         CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit2,ECore)
+!Uncomment this code if you want to only allow triple excitations from each double
+!                        IC=iGetExcitLevel(FDet,nK,NEl)
+!                        IF(IC.ne.3) THEN
+!                            rh=HElement(0.D0)
+!                        ENDIF
                         IF(rh.agt.RhoEps) THEN
                             i=i+1
                             ExcitCount=ExcitCount+1
@@ -134,6 +139,7 @@
             enddo lp2
 
             WRITE(6,*) "Double Excitations found: ",ExcitCountDoubs
+            WRITE(6,*) "Including ALL single excitations from each double as a separate star..."
             WRITE(6,*) "Total Excitations found: ",ExcitCount
         
 !Destroy excitation generator from HF
@@ -203,6 +209,11 @@
                     CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
                     IF(nK(1).eq.0) exit lp4
                     CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit2,ECore)
+!Uncomment this code if you want to only allow triple excitations from each double
+!                    IC=iGetExcitLevel(FDet,nK,NEl)
+!                    IF(IC.ne.3) THEN
+!                        rh=HElement(0.D0)
+!                    ENDIF
                     IF(rh.agt.RhoEps) THEN
                         i=i+1
                         TripsInfo(i,1)=rh/rhjj
@@ -290,30 +301,30 @@
 
 !We now have a large star matrix, with its information in ExcitInfo, which we need to diagonalise.
 !We need to diagonalise this large final star matrix. Only largest eigenvector needed
-        IF(.NOT.BTEST(Meth,0)) THEN
+!        IF(.NOT.BTEST(Meth,0)) THEN
 !This will diagonalise each excited star fully - v. slow - order N^3
-            WRITE(6,*) "Beginning Complete Star Tridiagonalization"
-            CALL StarDiag(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta(1),Energyxw)
+!            WRITE(6,*) "Beginning Complete Star Tridiagonalization"
+!            CALL StarDiag(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta(1),Energyxw)
 
-        ELSE
+!        ELSE
 !Use polynomial diagonalisation, order N
             WRITE(6,*) "Beginning Polynomial Star Diagonalization"
-            nRoots=ExcitCount
-            IF(BTEST(Meth,1)) THEN
+!            nRoots=ExcitCount
+!            IF(BTEST(Meth,1)) THEN
                 nRoots=1
                 WRITE(6,*) "Searching for 1 root"
-            ELSEIF(BTEST(Meth,2)) THEN
-                WRITE(6,*) "Searching for enough roots to converge sum"
-                nRoots=ExcitCount+1
-            ELSEIF(BTEST(Meth,6)) THEN
-                WRITE(6,*) "Searching for enough roots to converge sum - Method 2"
-                nRoots=ExcitCount+2
-            ELSE
-                WRITE(6,*) "Searching for all roots"
-            ENDIF
+!            ELSEIF(BTEST(Meth,2)) THEN
+!                WRITE(6,*) "Searching for enough roots to converge sum"
+!                nRoots=ExcitCount+1
+!            ELSEIF(BTEST(Meth,6)) THEN
+!                WRITE(6,*) "Searching for enough roots to converge sum - Method 2"
+!                nRoots=ExcitCount+2
+!            ELSE
+!                WRITE(6,*) "Searching for all roots"
+!            ENDIF
             CALL StarDiag2(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,Beta,i_P,Weight,dBeta(1),Energyxw,nRoots,iLogging)
-
-        ENDIF
+!
+!        ENDIF
 
         DEALLOCATE(ExcitInfo)
         CALL LogMemDealloc(this_routine,ExcitInfoTag)
