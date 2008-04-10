@@ -17,11 +17,12 @@ MODULE Calc
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos,TStarTrips
+        LOGICAL TMaxExcit
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
-        INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints
+        INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
@@ -52,6 +53,7 @@ MODULE Calc
 
 !     Values for old parameters.
 !     These have no input options to change the defaults, but are used in the code.
+      TMaxExcit=.false.
       TRHOOFR = .false.
       TCORR = .false.
       TFODM = .false.
@@ -518,6 +520,10 @@ MODULE Calc
                   TNoSameExcit=.true.
               case("NOTRIPLES")
                   lNoTriples=.true.
+              case("MAXEXCIT")
+!This imposes a maximum excitation level to the space that GraphMorph can explore
+                  TMaxExcit=.true.
+                  call geti(iMaxExcitLevel)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

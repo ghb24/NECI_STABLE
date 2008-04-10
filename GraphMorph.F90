@@ -11,7 +11,7 @@ MODULE GraphMorph
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
-    USE Calc , only : TNoCross,TNoSameExcit,TLanczos
+    USE Calc , only : TNoCross,TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel
     USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
@@ -1463,7 +1463,7 @@ MODULE GraphMorph
         TYPE(HElement) :: rh
         INTEGER , SAVE :: iSubConns
         INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
-        INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel
+        INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel,IC
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='FindConnections'
 
@@ -1508,19 +1508,39 @@ MODULE GraphMorph
                 CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,3)
                 IF(nJ(1).eq.0) exit lp
                 ExcitCurr=ExcitCurr+1
-                CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
-!                Dist=IGetExcitLevel(FDet,nJ,NEl)
-!                IF(Dist.gt.4) THEN
-!                    WRITE(6,*) "Higher than double excitation found - attached to det:", DetCurr
-!                    WRITE(6,*) "Determinant is: ", nJ
-!                    WRITE(6,*) Dist," fold excitation"
-!                ENDIF
+
+                IF(TMaxExcit) THEN
+!A maximum excitation level for the space of accessible determinants is imposed
+                    IC=iGetExcitLevel(FDet,nJ,NEl)
+                    IF(IC.gt.iMaxExcitLevel) THEN
+!If excitation is further away than we want, then let connection to it = 0
+                        ConnectionsToExcits(ExcitCurr)=HElement(0.D0)
+                    ELSE
+                        CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+!Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
+                        ConnectionsToExcits(ExcitCurr)=rh
+                        do j=1,NEl
+                            ExcitsDets(ExcitCurr,j)=nJ(j)
+                        enddo
+                    ENDIF
+
+                ELSE
+!No restriction on excitation level
+
+                    CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+!                    Dist=IGetExcitLevel(FDet,nJ,NEl)
+!                    IF(Dist.gt.4) THEN
+!                        WRITE(6,*) "Higher than double excitation found - attached to det:", DetCurr
+!                        WRITE(6,*) "Determinant is: ", nJ
+!                        WRITE(6,*) Dist," fold excitation"
+!                    ENDIF
 
 !Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
-                ConnectionsToExcits(ExcitCurr)=rh
-                do j=1,NEl
-                    ExcitsDets(ExcitCurr,j)=nJ(j)
-                enddo
+                    ConnectionsToExcits(ExcitCurr)=rh
+                    do j=1,NEl
+                        ExcitsDets(ExcitCurr,j)=nJ(j)
+                    enddo
+                ENDIF
             enddo lp
 
             IF(ExcitCurr.ne.NoExcits(i)) STOP 'Incorrect counting in FindConnections'
