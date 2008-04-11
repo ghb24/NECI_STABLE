@@ -12,6 +12,7 @@ MODULE GraphMorph
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
     USE Calc , only : TNoCross,TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn
+    USE Calc , only : TSinglesExcitSpace
     USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
@@ -1495,11 +1496,18 @@ MODULE GraphMorph
         TYPE(HElement) :: rh
         INTEGER , SAVE :: iSubConns
         INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
-        INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel,IC
+        INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel,IC,exFlag
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='FindConnections'
 
         CALL TISET('FindConns',iSubConns)
+        
+        IF(TSinglesExcitSpace) THEN
+!Only single excitations of the determinants in the graph are created
+            exFlag=1
+        ELSE
+            exFlag=3
+        ENDIF
 
         nExcitTag=0
 
@@ -1523,11 +1531,11 @@ MODULE GraphMorph
 !Setup excitation generators again for this determinant
             iMaxExcit=0
             CALL IAZZERO(nStore,6)
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
             ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
             CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
             CALL IAZZERO(nExcit,nExcitMemLen)
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 
             IF(i.eq.1) THEN
                 IF(iMaxExcit.ne.NoExcits(i)) STOP 'Error in counting in FindConnections'
@@ -1537,7 +1545,7 @@ MODULE GraphMorph
 
 !Cycle through all excitations of each determinant
         lp: do while(.true.)
-                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,3)
+                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
                 IF(nJ(1).eq.0) exit lp
                 ExcitCurr=ExcitCurr+1
 
@@ -1597,10 +1605,16 @@ MODULE GraphMorph
         USE System, only : G1,nBasis,nBasisMax
         IMPLICIT NONE
         INTEGER :: ierr,i,j,nStore(6),DetCurr(NEl),nJ(NEl),iMaxExcit,nExcitMemLen
-        INTEGER :: nExcitTag
+        INTEGER :: nExcitTag,exFlag
         CHARACTER(len=*), PARAMETER :: this_routine='CountExcits'
         INTEGER , ALLOCATABLE :: nExcit(:)
 
+        IF(TSinglesExcitSpace) THEN
+            exFlag=1
+        ELSE
+            exFlag=3
+        ENDIF
+        
         TotExcits=0
         nExcitTag=0
 !Allocate Memory for NoExcits array
@@ -1619,11 +1633,11 @@ MODULE GraphMorph
 !Create excitation generator
             iMaxExcit=0
             CALL IAZZERO(nStore,6)
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
             ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
             CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
             CALL IAZZERO(nExcit,nExcitMemLen)
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
             
 !Store number of excitations from each determinant cumulativly.
             IF(i.eq.1) THEN

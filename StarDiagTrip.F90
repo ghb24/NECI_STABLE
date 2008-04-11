@@ -23,6 +23,11 @@
       TYPE(HElement) , ALLOCATABLE :: TripsInfo(:,:)
       INTEGER :: TripsInfoTag=0
 
+!Incase we want to do a complete diagonalisation of the triples star
+      TYPE(HElement), ALLOCATABLE :: ExcitMat(:,:)
+      TYPE(HElement), ALLOCATABLE :: HamMat(:)
+      INTEGER :: ExcitMatTag=0,HamMatTag=0
+
 !Vals and first element of the eigenvectors from the prediagonalised excited stars
       REAL*8 , ALLOCATABLE :: Vals(:)
       REAL*8 , ALLOCATABLE :: Vecs(:)
@@ -37,22 +42,23 @@
 ! Currently, only PolyMax works with the routine (lowest energy state), and there is a forced counting of matrix elements.
     SUBROUTINE StarDiagTrips(Energyxw,Weight)
         USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,NWHTay,RhoEps,dBeta
+        USE Calc , only : i_P,NWHTay,RhoEps,dBeta,TFullDiag
         USE Integrals, only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         USE Logging , only : iLogging
         USE StarDiagMod , only : GetValsnVecs
         IMPLICIT NONE
         CHARACTER(len=*), PARAMETER :: this_routine='StarDiagTrips'
-        REAL*8 , ALLOCATABLE :: TempDiags(:)
-        INTEGER :: TempDiagsTag=0
+        REAL*8 , ALLOCATABLE :: TempDiags(:),Work(:),Vals(:)
+        INTEGER :: TempDiagsTag=0,WorkTag=0,ValsTag=0
+        REAL*8 :: Energy
         TYPE(HDElement) :: Weight,Energyxw
-        TYPE(HElement) :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij
+        TYPE(HElement) :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
         INTEGER , ALLOCATABLE :: nExcit(:),nExcit2(:)
         INTEGER :: nExcitTag,ierr,exFlagHF,exFlagDoub,iMaxExcit,ExcitCount
         INTEGER :: Meth,iSubTrips,nStore(6),nExcitMemLen,nJ(NEl),iExcit,nStore2(6)
         INTEGER :: iMaxExcit2,nExcitMemLen2,nK(NEl),ExcitCountDoubs,nExcitTag2
-        INTEGER :: i,j,k,nRoots,Vert,IC,iGetExcitLevel
+        INTEGER :: i,j,k,nRoots,Vert,IC,iGetExcitLevel,DoubIndex,TotElem,Info
         LOGICAL :: TCountExcits,iExcit2
 
         IF(HElementSize.gt.1) STOP 'Only Real orbitals allowed in StarDiagTrips so far'
@@ -149,6 +155,20 @@
         ENDIF
 
 !Allocate memory for calculation
+        IF(TFullDiag) THEN
+            ALLOCATE(ExcitMat(ExcitCount+1,ExcitCount+1),stat=ierr)
+            CALL LogMemAlloc('ExcitMat',(ExcitCount+1)**2,8*HElementSize,this_routine,ExcitMatTag)
+            CALL AZZERO(ExcitMat,((ExcitCount+1)*HElementSize)**2)
+
+            ExcitMat(1,1)=HElement(1.D0)
+
+            ALLOCATE(HamMat(ExcitCount+1),stat=ierr)
+            CALL LogMemAlloc('HamMat',ExcitCount+1,8*HElementSize,this_routine,HamMatTag)
+            CALL AZZERO(HamMat,(ExcitCount+1)*HElementSize)
+            HamMat(1)=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+            
+        ENDIF
+
         ALLOCATE(ExcitInfo(0:ExcitCount,0:2),stat=ierr)
         CALL LogMemAlloc('ExcitInfo',(ExcitCount+1)*3,8*HElementSize,this_routine,ExcitInfoTag)
         CALL AZZERO(ExcitInfo,(ExcitCount+1)*3*HElementSize)
@@ -157,7 +177,7 @@
         ExcitInfo(0,0)=HElement(1.D0)
         ExcitInfo(0,1)=HElement(1.D0)
         ExcitInfo(0,2)=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-
+        
 !Reinitialise HF excitation generator
         nStore(1)=0
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlagHF)
@@ -169,17 +189,25 @@
 !Run through all possible excitations from HF. j counts the double excitations, while Vert counts the vertex which is being reattached to HF
         j=0
         Vert=0
+        TotElem=1
    lp3: do while(.true.)
             CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlagHF)
             IF(nJ(1).eq.0) exit lp3
-            CALL CalcRho2(FDet,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
-            IF(rh.agt.RhoEps) THEN
+            CALL CalcRho2(FDet,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
+            IF(rhij.agt.RhoEps) THEN
                 j=j+1
 
 !Find matrix elements for double excitation
                 CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
-                CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
                 Hij=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+                IF(TFullDiag) THEN
+                    TotElem=TotElem+1
+                    ExcitMat(1,TotElem)=rhij/rhii
+                    ExcitMat(TotElem,1)=rhij/rhii
+                    ExcitMat(TotElem,TotElem)=rhjj/rhii
+                    HamMat(TotElem)=Hij
+                    DoubIndex=TotElem
+                ENDIF
 
 !Allocate memory for triples star
                 ALLOCATE(TripsInfo(0:Triples(j),0:1),stat=ierr)
@@ -208,19 +236,27 @@
            lp4: do while(.true.)
                     CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
                     IF(nK(1).eq.0) exit lp4
-                    CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit2,ECore)
+                    CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjk,nTay,iExcit2,ECore)
 !Uncomment this code if you want to only allow triple excitations from each double
 !                    IC=iGetExcitLevel(FDet,nK,NEl)
 !                    IF(IC.ne.3) THEN
 !                        rh=HElement(0.D0)
 !                    ENDIF
-                    IF(rh.agt.RhoEps) THEN
+                    IF(rhjk.agt.RhoEps) THEN
                         i=i+1
-                        TripsInfo(i,1)=rh/rhjj
+                        TripsInfo(i,1)=rhjk/rhjj
                         
 !Calculate diagonal element
                         CALL CalcRho2(nK,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,0,ECore)
                         TripsInfo(i,0)=rh/rhjj
+
+                        IF(TFullDiag) THEN
+                            TotElem=TotElem+1
+                            ExcitMat(DoubIndex,TotElem)=rhjk/rhii
+                            ExcitMat(TotElem,DoubIndex)=rhjk/rhii
+                            ExcitMat(TotElem,TotElem)=rh/rhii
+                        ENDIF
+
                     ENDIF
 
                 enddo lp4
@@ -289,6 +325,10 @@
         CALL LogMemDealloc(this_routine,nExcitTag)
         CALL IAZZERO(nStore,6)
         
+        IF(TFullDiag.and.(TotElem.ne.(ExcitCount+1))) THEN
+            WRITE(6,*) "We have a counting problem"
+            STOP "We have a counting problem"
+        ENDIF
         IF(j.ne.ExcitCountDoubs) THEN
             WRITE(6,*) "We have a counting problem"
             STOP "We have a counting problem"
@@ -325,6 +365,39 @@
             CALL StarDiag2(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,Beta,i_P,Weight,dBeta(1),Energyxw,nRoots,iLogging)
 !
 !        ENDIF
+
+        IF(TFullDiag) THEN
+!Need to diagonalise the full matrix - this could take a while!
+            ALLOCATE(Work(3*(ExcitCount+1)),stat=ierr)
+            CALL LogMemAlloc('Work',3*(ExcitCount+1),8,this_routine,WorkTag)
+            ALLOCATE(Vals(ExcitCount+1),stat=ierr)
+            CALL LogMemAlloc('Vals',ExcitCount+1,8,this_routine,ValsTag)
+            
+            CALL DSYEV('V','U',ExcitCount+1,ExcitMat,ExcitCount+1,Vals,Work,3*(ExcitCount+1),INFO)
+            IF(INFO.ne.0) THEN
+                WRITE(6,*) "DYSEV error in GetValsnVecs: ",INFO
+                STOP
+            ENDIF
+
+            Energy=0.D0
+            do i=1,ExcitCount+1
+
+                Energy=Energy+(HamMat(i)%v)*ABS(ExcitMat(i,ExcitCount+1)%v)
+            enddo
+            Energy=Energy/(ABS(ExcitMat(1,ExcitCount+1)%v))
+
+            WRITE(6,"(A,G25.17)") "From complete diagonalisation of the rho matrix, the energy is given as: ",Energy
+
+            DEALLOCATE(HamMat)
+            CALL LogMemDealloc(this_routine,HamMatTag)
+            DEALLOCATE(ExcitMat)
+            CALL LogMemDealloc(this_routine,ExcitMatTag)
+            DEALLOCATE(Work)
+            CALL LogMemDealloc(this_routine,WorkTag)
+            DEALLOCATE(Vals)
+            CALL LogMemDealloc(this_routine,ValsTag)
+
+        ENDIF
 
         DEALLOCATE(ExcitInfo)
         CALL LogMemDealloc(this_routine,ExcitInfoTag)

@@ -17,7 +17,7 @@ MODULE Calc
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos,TStarTrips
-        LOGICAL TMaxExcit,TOneExcitConn
+        LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -65,7 +65,9 @@ MODULE Calc
       TBEGRAPH = .false.
 
 
-!       Calc defaults    
+!       Calc defaults   
+          TFullDiag=.false.
+          TSinglesExcitSpace=.false.
           TOneExcitConn=.false.
           TStarTrips=.false.
           TLanczos=.false.
@@ -528,6 +530,12 @@ MODULE Calc
               case("ONEEXCITCONN")
 !This means that determinants can only be attached to each other if they differ by one excitation level from HF
                   TOneExcitConn=.true.
+              case("SINGLESEXCITSPACE")
+!This means that the space accessible to the morphing algorithm is the space of single excitations of the determinants in the graph.
+                  TSinglesExcitSpace=.true.
+              case("FULLDIAGTRIPS")
+!When constructing a star of triples from each double star, then this tag results in a full diagonalisation of this matrix.
+                  TFullDiag=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

@@ -468,6 +468,12 @@ MAXEXCIT <iMaxExcitLevel>
 ONEEXCITCONN
     A GraphMorph option, which means that when the graph is growing, it can only attach to determinants which differ by one excitation level. This is not currently implimented in MoveDets.
 
+SINGLESEXCITSPACE
+    A GraphMorph option, which means that the space which is searched for space to morph into, only the single excitations of determinants in the graph are generated. This should reduce the scaling of the algorithm.
+
+FULLDIAGTRIPS
+    An option when creating a star of triples, to do a full diagonalisation of the triples stars, without any prediagonalisation. Very very slow...
+
 ENDCALC
    Ends the calculation block.
 
