@@ -17,7 +17,7 @@ MODULE Calc
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos,TStarTrips
-        LOGICAL TMaxExcit
+        LOGICAL TMaxExcit,TOneExcitConn
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -66,6 +66,7 @@ MODULE Calc
 
 
 !       Calc defaults    
+          TOneExcitConn=.false.
           TStarTrips=.false.
           TLanczos=.false.
           TNoSameExcit=.false.
@@ -524,6 +525,9 @@ MODULE Calc
 !This imposes a maximum excitation level to the space that GraphMorph can explore
                   TMaxExcit=.true.
                   call geti(iMaxExcitLevel)
+              case("ONEEXCITCONN")
+!This means that determinants can only be attached to each other if they differ by one excitation level from HF
+                  TOneExcitConn=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

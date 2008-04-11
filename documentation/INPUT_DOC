@@ -465,6 +465,9 @@ NOSAMEEXCIT
 MAXEXCIT <iMaxExcitLevel>
     A GraphMorph option, which limits the size of the excitation space, by only allowing excitations out to iMaxExcitLevel away from HF.
 
+ONEEXCITCONN
+    A GraphMorph option, which means that when the graph is growing, it can only attach to determinants which differ by one excitation level. This is not currently implimented in MoveDets.
+
 ENDCALC
    Ends the calculation block.
 

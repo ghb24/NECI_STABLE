@@ -11,7 +11,7 @@ MODULE GraphMorph
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
-    USE Calc , only : TNoCross,TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel
+    USE Calc , only : TNoCross,TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn
     USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
@@ -62,7 +62,8 @@ MODULE GraphMorph
     INTEGER :: DistribsTag=0
 
 !If TNoSameExcit is on, then GraphExcitLevel stores the Excitation levels of the determinants in the graph
-!This is because we do not allow connections between determinants of the same excitation level
+!This is because we do not allow connections between determinants of the same excitation level.
+!We also require the array for TOneExcitConn for the same reasons
     INTEGER , ALLOCATABLE :: GraphExcitLevel(:)
     INTEGER :: GraphExcitLevelTag=0
 
@@ -108,6 +109,10 @@ MODULE GraphMorph
             WRITE(6,*) "***************************************"
             WRITE(6,*) "*** WARNING - MOVEDETS MAY NOT WORK ***"
             WRITE(6,*) "***************************************"
+        ENDIF
+        IF(TMoveDets.and.TOneExcitConn) THEN
+            WRITE(6,*) "TOneExcitConn is not yet implimented in TMoveDets"
+            STOP "TOneExcitConn is not yet implimented in TMoveDets"
         ENDIF
         IF(TLanczos) THEN
             WRITE(6,*) "Sorry, but Lanczos diagonalisation not yet working for GraphMorph"
@@ -263,7 +268,7 @@ MODULE GraphMorph
             DEALLOCATE(Distribs)
             CALL LogMemDealloc(this_routine,DistribsTag)
         ENDIF
-        IF(TNoSameExcit) THEN
+        IF(TNoSameExcit.or.TOneExcitConn) THEN
             DEALLOCATE(GraphExcitLevel)
             CALL LogMemDealloc(this_routine,GraphExcitLevelTag)
         ENDIF
@@ -332,7 +337,7 @@ MODULE GraphMorph
             CALL LogMemAlloc('Distribs',NEl*(Iters+1),4,this_routine,DistribsTag)
             CALL IAZZERO(Distribs,NEl*(Iters+1))
         ENDIF
-        IF(TNoSameExcit) THEN
+        IF(TNoSameExcit.or.TOneExcitConn) THEN
 !We want to store the excitation levels of the determinants in the graph
             ALLOCATE(GraphExcitLevel(NDets),stat=ierr)
             CALL LogMemAlloc('GraphExcitLevel',NDets,4,this_routine,GraphExcitLevelTag)
@@ -386,10 +391,10 @@ MODULE GraphMorph
             IF(TDistrib) THEN
                 Distribs(iExcit,1)=Distribs(iExcit,1)+1
             ENDIF
-            IF(TNoSameExcit) GraphExcitLevel(i)=iExcit
+            IF(TNoSameExcit.or.TOneExcitConn) GraphExcitLevel(i)=iExcit
 
 !Cycle through all excitations already generated to determine coupling to them
-            IF((.not.TNoCross).and.(.not.TNoSameExcit)) THEN
+            IF((.not.TNoCross).and.(.not.TNoSameExcit).and.(.not.TOneExcitConn)) THEN
 !If TNoCross is on, then we are ignoring these crosslinks - the normal star graph should result
                 do j=2,(i-1)
                     CALL CalcRho2(GraphDets(j,:),nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
@@ -1026,7 +1031,7 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
 
         GrowGraphTag=0
-        IF(TNoSameExcit) CALL IAZZERO(GraphExcitLevel,NDets)
+        IF(TNoSameExcit.or.TOneExcitConn) CALL IAZZERO(GraphExcitLevel,NDets)
 
 !Allocate Rho Matrix for growing graph
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
@@ -1129,7 +1134,18 @@ MODULE GraphMorph
                             CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
                             IF(rh.agt.RhoEps) Attach=.true. 
                         ENDIF
+
+                    ELSEIF(TOneExcitConn) THEN
+!Only allow connections between excitation levels which differ by one
+                        IC2=GraphExcitLevel(i)
+                        IF((ABS(IC1-IC2)).eq.1) THEN
+                            IC=iGetExcitLevel(GrowGraph(i,:),AttemptDet(:),NEl)
+                            CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                            IF(rh.agt.RhoEps) Attach=.true. 
+                        ENDIF
+
                     ELSE
+!Allow all connections
                         CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
                         IF(rh.agt.RhoEps) Attach=.true. 
                     ENDIF
@@ -1183,6 +1199,22 @@ MODULE GraphMorph
                     enddo
 !Store the excitation level of the attached determinant
                     GraphExcitLevel(NoVerts+1)=IC1
+
+                ELSEIF(TOneExcitConn) THEN
+!Only allow connections between excitations which differ by one excitation level from HF
+                    do i=2,NoVerts
+!Excitation level information stored in GraphExcitLevel
+                        IC2=GraphExcitLevel(i)
+                        IF((ABS(IC1-IC2)).eq.1) THEN
+                            IC=iGetExcitLevel(AttemptDet(:),GrowGraph(i,:),NEl)
+                            CALL CalcRho2(GrowGraph(i,:),AttemptDet(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                            GraphRhoMat(i,NoVerts+1)=rh
+                            GraphRhoMat(NoVerts+1,i)=rh
+                        ENDIF
+                    enddo
+!Store the excitation level of the attached determinant
+                    GraphExcitLevel(NoVerts+1)=IC1
+
                 ELSE
 
 !Run through rest of excitations in the graph testing contributions and adding to rho matrix
