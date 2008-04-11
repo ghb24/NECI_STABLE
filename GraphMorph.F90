@@ -1610,6 +1610,7 @@ MODULE GraphMorph
         INTEGER , ALLOCATABLE :: nExcit(:)
 
         IF(TSinglesExcitSpace) THEN
+!Only search through single excitations
             exFlag=1
         ELSE
             exFlag=3
