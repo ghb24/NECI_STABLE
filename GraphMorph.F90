@@ -1571,7 +1571,7 @@ MODULE GraphMorph
 
                     CALL GenRandSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,Noatt,0,UMat,Arr,Prob)
                     Attempts=Attempts+1
-!Would it be worth dividing the coupling to a determinant by the probability of generating it?
+!Divide the coupling to a determinant by the probability of generating it, to account for possibility of bias in generation
 
                     IF(TMaxExcit) THEN
 
@@ -1583,6 +1583,7 @@ MODULE GraphMorph
                             NoExcitsCurr=NoExcitsCurr+1
                             CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
 !Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
+                            rh=rh/(HElement(Prob))
                             ConnectionsToExcits(ExcitCurr)=rh
                             do j=1,NEl
                                 ExcitsDets(ExcitCurr,j)=nJ(j)
@@ -1597,6 +1598,7 @@ MODULE GraphMorph
                         NoExcitsCurr=NoExcitsCurr+1
                         CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
 !Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
+                        rh=rh/(HElement(Prob))
                         ConnectionsToExcits(ExcitCurr)=rh
                         do j=1,NEl
                             ExcitsDets(ExcitCurr,j)=nJ(j)
