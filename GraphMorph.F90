@@ -1,3 +1,13 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!   TO DO   !!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!
+!Fix Lanczos code
+!Fix MoveDets code
+!New initial graph growing routine which adds dets in order until complete (not stochastically)
+!Add Ability to MC sample excitations
+!Go to larger graphs, and look at possible convergence
+!Look into MC sampling of rest of excitation space to aid convergence
+
 !This code it designed to generate a random graph, with Ndets distinct determinants in it (including HF), and improve it in an iterative fashion.
 !Once a graph is found, all possible excitations from each determinant  in the graph are found, and then the rho matrix from these additional
 !excitations operate on the original eigenvector of the graph (null padded). This produces a much larger vector (not eigenvector), from which
@@ -12,7 +22,7 @@ MODULE GraphMorph
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
     USE Calc , only : TNoCross,TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn
-    USE Calc , only : TSinglesExcitSpace
+    USE Calc , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits
     USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
@@ -119,6 +129,9 @@ MODULE GraphMorph
             WRITE(6,*) "Sorry, but Lanczos diagonalisation not yet working for GraphMorph"
             STOP "Sorry, but Lanczos diagonalisation not yet working for GraphMorph"
         ENDIF
+        IF(TMCExcitSpace) THEN
+            WRITE(6,"(A,I10,A)") "Searching Excitations of each graph stochastically with ",NoMCExcits, " per determinant"
+        ENDIF
 
         ReturntoTMoveDets=.false.
 !Initialise random number generator
@@ -205,6 +218,7 @@ MODULE GraphMorph
             CALL CountExcits()
 !            WRITE(6,*) "Fraction of space which is space of excitations is: ", TotExcits/(TotExcits+NDets)
             WRITE(6,*) "Total number of determinants available from current graph is: ",TotExcits
+!            CALL FLUSH(6)
 
 !Run through each determinant in the graph, calculating the excitations, storing them, and the rho elements to them.
             CALL FindConnections()
@@ -1431,7 +1445,8 @@ MODULE GraphMorph
         PStay=Stay
 !        WRITE(6,*) "Probability of staying at original determinants: ", Stay
         WRITE(6,*) "Probability of Moving: ", Move
-        WRITE(6,*) "Total Probability: ", Stay+Move
+!        CALL FLUSH(6)
+!        WRITE(6,*) "Total Probability: ", Stay+Move
 !        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 
     END SUBROUTINE NormaliseVector
@@ -1494,7 +1509,9 @@ MODULE GraphMorph
         USE Integrals, only: fck,nMax,nMsh,UMat,nTay
         IMPLICIT NONE
         TYPE(HElement) :: rh
+        REAL*8 :: Prob
         INTEGER , SAVE :: iSubConns
+        INTEGER :: attempts,NoExcitsCurr,Noatt
         INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
         INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel,IC,exFlag
         INTEGER , ALLOCATABLE :: nExcit(:)
@@ -1534,40 +1551,94 @@ MODULE GraphMorph
             CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
             ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
             CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
-            CALL IAZZERO(nExcit,nExcitMemLen)
+!            CALL IAZZERO(nExcit,nExcitMemLen)
+            nExcit(1)=0
             CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 
-            IF(i.eq.1) THEN
-                IF(iMaxExcit.ne.NoExcits(i)) STOP 'Error in counting in FindConnections'
-            ELSE
-                IF(iMaxExcit.ne.(NoExcits(i)-NoExcits(i-1))) STOP 'Error in counting in FindConnections'
-            ENDIF
+            IF(TMCExcitSpace) THEN
+!Excitations are picked stocastically
 
-!Cycle through all excitations of each determinant
-        lp: do while(.true.)
-                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
-                IF(nJ(1).eq.0) exit lp
-                ExcitCurr=ExcitCurr+1
+                Attempts=0
+                NoExcitsCurr=0
 
-                IF(TMaxExcit) THEN
-!A maximum excitation level for the space of accessible determinants is imposed
-                    IC=iGetExcitLevel(FDet,nJ,NEl)
-                    IF(IC.gt.iMaxExcitLevel) THEN
-!If excitation is further away than we want, then let connection to it = 0
-                        ConnectionsToExcits(ExcitCurr)=HElement(0.D0)
+                do while(NoExcitsCurr.lt.NoMCExcits)
+
+                    IF(Attempts.gt.(NoMCExcits*100)) THEN
+                        WRITE(6,*) "Unable to find enough determinants attached to graph determinant ",DetCurr
+                        WRITE(6,*) "Attempts: ", Attempts
+                        STOP "Unable to find enough determinants attached to graph determinant "
+                    ENDIF
+
+                    CALL GenRandSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,Noatt,0,UMat,Arr,Prob)
+                    Attempts=Attempts+1
+!Would it be worth dividing the coupling to a determinant by the probability of generating it?
+
+                    IF(TMaxExcit) THEN
+
+!A maximum excitation level is set - don't allow connection if its too high in excitation space
+                        IC=iGetExcitLevel(FDet,nJ,NEl)
+                        IF(IC.le.iMaxExcitLevel) THEN
+!Throw the random excitation, and don't count it if it is above the excitation level threshold
+                            ExcitCurr=ExcitCurr+1
+                            NoExcitsCurr=NoExcitsCurr+1
+                            CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+!Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
+                            ConnectionsToExcits(ExcitCurr)=rh
+                            do j=1,NEl
+                                ExcitsDets(ExcitCurr,j)=nJ(j)
+                            enddo
+
+                        ENDIF
+
                     ELSE
-                        CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+!No restriction on excitation level 
+        
+                        ExcitCurr=ExcitCurr+1
+                        NoExcitsCurr=NoExcitsCurr+1
+                        CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
 !Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
                         ConnectionsToExcits(ExcitCurr)=rh
                         do j=1,NEl
                             ExcitsDets(ExcitCurr,j)=nJ(j)
                         enddo
+
                     ENDIF
 
+                enddo
+
+            ELSE
+
+                IF(i.eq.1) THEN
+                    IF(iMaxExcit.ne.NoExcits(i)) STOP 'Error in counting in FindConnections'
                 ELSE
+                    IF(iMaxExcit.ne.(NoExcits(i)-NoExcits(i-1))) STOP 'Error in counting in FindConnections'
+                ENDIF
+
+!Cycle through all excitations of each determinant
+            lp: do while(.true.)
+                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
+                    IF(nJ(1).eq.0) exit lp
+                    ExcitCurr=ExcitCurr+1
+
+                    IF(TMaxExcit) THEN
+!A maximum excitation level for the space of accessible determinants is imposed
+                        IC=iGetExcitLevel(FDet,nJ,NEl)
+                        IF(IC.gt.iMaxExcitLevel) THEN
+!If excitation is further away than we want, then let connection to it = 0
+                            ConnectionsToExcits(ExcitCurr)=HElement(0.D0)
+                        ELSE
+                            CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+!Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
+                            ConnectionsToExcits(ExcitCurr)=rh
+                            do j=1,NEl
+                                ExcitsDets(ExcitCurr,j)=nJ(j)
+                            enddo
+                        ENDIF
+
+                    ELSE
 !No restriction on excitation level
 
-                    CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+                        CALL CalcRho2(DetCurr,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
 !                    Dist=IGetExcitLevel(FDet,nJ,NEl)
 !                    IF(Dist.gt.4) THEN
 !                        WRITE(6,*) "Higher than double excitation found - attached to det:", DetCurr
@@ -1576,12 +1647,14 @@ MODULE GraphMorph
 !                    ENDIF
 
 !Store path of determinant in ExcitsDets, and the rho elements in ConnectionsToExcits
-                    ConnectionsToExcits(ExcitCurr)=rh
-                    do j=1,NEl
-                        ExcitsDets(ExcitCurr,j)=nJ(j)
-                    enddo
-                ENDIF
-            enddo lp
+                        ConnectionsToExcits(ExcitCurr)=rh
+                        do j=1,NEl
+                            ExcitsDets(ExcitCurr,j)=nJ(j)
+                        enddo
+                    ENDIF
+                enddo lp
+
+            ENDIF
 
             IF(ExcitCurr.ne.NoExcits(i)) STOP 'Incorrect counting in FindConnections'
 
@@ -1609,52 +1682,73 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='CountExcits'
         INTEGER , ALLOCATABLE :: nExcit(:)
 
-        IF(TSinglesExcitSpace) THEN
-!Only search through single excitations
-            exFlag=1
-        ELSE
-            exFlag=3
-        ENDIF
-        
-        TotExcits=0
-        nExcitTag=0
-!Allocate Memory for NoExcits array
-        ALLOCATE(NoExcits(NDets),stat=ierr)
-        CALL LogMemAlloc('NoExcits',NDets,4,this_routine,NoExcitsTag)
-        CALL IAZZERO(NoExcits,NDets)
-
-!Cycle over all vertices in graph
-        do i=1,NDets
+        IF(TMCExcitSpace) THEN
+!This searches for a given number of excitations stocastically per determinant - no need to count them
             
-!Find determinant form for current vertex
-            do j=1,NEl
-                DetCurr(j)=GraphDets(i,j)
+            TotExcits=NDets*NoMCExcits
+            ALLOCATE(NoExcits(NDets),stat=ierr)
+            CALL LogMemAlloc('NoExcits',NDets,4,this_routine,NoExcitsTag)
+            CALL IAZZERO(NoExcits,NDets)
+
+            do i=1,NDets
+                IF(i.eq.1) THEN
+                    NoExcits(i)=NoMCExcits
+                ELSE
+                    NoExcits(i)=NoExcits(i-1)+NoMCExcits
+                ENDIF
             enddo
 
-!Create excitation generator
-            iMaxExcit=0
-            CALL IAZZERO(nStore,6)
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
-            ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
-            CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
-            CALL IAZZERO(nExcit,nExcitMemLen)
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
-            
-!Store number of excitations from each determinant cumulativly.
-            IF(i.eq.1) THEN
-                NoExcits(i)=iMaxExcit
-            ELSE
-                NoExcits(i)=NoExcits(i-1)+iMaxExcit
-            ENDIF
+        ELSE
+!Search through the entire space of single or single&double excitations of each determinant
 
-            TotExcits=TotExcits+iMaxExcit
+            IF(TSinglesExcitSpace) THEN
+!Only search through single excitations
+                exFlag=1
+            ELSE
+                exFlag=3
+            ENDIF
+            
+            TotExcits=0
+            nExcitTag=0
+!Allocate Memory for NoExcits array
+            ALLOCATE(NoExcits(NDets),stat=ierr)
+            CALL LogMemAlloc('NoExcits',NDets,4,this_routine,NoExcitsTag)
+            CALL IAZZERO(NoExcits,NDets)
+
+!Cycle over all vertices in graph
+            do i=1,NDets
+                
+!Find determinant form for current vertex
+                do j=1,NEl
+                    DetCurr(j)=GraphDets(i,j)
+                enddo
+
+!Create excitation generator
+                iMaxExcit=0
+                CALL IAZZERO(nStore,6)
+                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+                ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+                CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
+                CALL IAZZERO(nExcit,nExcitMemLen)
+                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+                
+!Store number of excitations from each determinant cumulativly.
+                IF(i.eq.1) THEN
+                    NoExcits(i)=iMaxExcit
+                ELSE
+                    NoExcits(i)=NoExcits(i-1)+iMaxExcit
+                ENDIF
+
+                TotExcits=TotExcits+iMaxExcit
 
 !Destroy excitation generator
-            DEALLOCATE(nExcit)
-            CALL LogMemDealloc(this_routine,nExcitTag)
-            CALL IAZZERO(nStore,6)
-        
-        enddo
+                DEALLOCATE(nExcit)
+                CALL LogMemDealloc(this_routine,nExcitTag)
+                CALL IAZZERO(nStore,6)
+            
+            enddo
+
+        ENDIF
 
 !Perform check that all excitations accounted for
         IF(NoExcits(NDets).ne.TotExcits) THEN

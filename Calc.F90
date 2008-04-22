@@ -9,7 +9,7 @@ MODULE Calc
         IMPLICIT NONE
         save
 
-        LOGICAL TSTAR,TTROT
+        LOGICAL TSTAR,TTROT,TMCExcitSpace
         LOGICAL TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
         LOGICAL TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER
         LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
@@ -19,7 +19,7 @@ MODULE Calc
         LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         
-        INTEGER NWHTAY(3,10),NPATHS,NoMoveDets
+        INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
@@ -53,6 +53,8 @@ MODULE Calc
 
 !     Values for old parameters.
 !     These have no input options to change the defaults, but are used in the code.
+      NoMCExcits=5000
+      TMCExcitSpace=.false.
       TMaxExcit=.false.
       TRHOOFR = .false.
       TCORR = .false.
@@ -536,6 +538,10 @@ MODULE Calc
               case("FULLDIAGTRIPS")
 !When constructing a star of triples from each double star, then this tag results in a full diagonalisation of this matrix.
                   TFullDiag=.true.
+              case("MCEXCITSPACE")
+!In GraphMorph, this means that the space of excitations is chosen randomly
+                  TMCExcitSpace=.true.
+                  call geti(NoMCExcits)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

@@ -318,11 +318,18 @@
 
             ENDIF
 
+            DEALLOCATE(Vecs)
+            CALL LogMemDealloc(this_routine,VecsTag)
+            DEALLOCATE(Vals)
+            CALL LogMemDealloc(this_routine,ValsTag)
+
         enddo lp3
 
 !Deallocate the excitation generators for the doubles 
         DEALLOCATE(nExcit)
         CALL LogMemDealloc(this_routine,nExcitTag)
+        DEALLOCATE(Triples)
+        CALL LogMemDealloc(this_routine,TriplesTag)
         CALL IAZZERO(nStore,6)
         
         IF(TFullDiag.and.(TotElem.ne.(ExcitCount+1))) THEN
@@ -375,7 +382,7 @@
             
             CALL DSYEV('V','U',ExcitCount+1,ExcitMat,ExcitCount+1,Vals,Work,3*(ExcitCount+1),INFO)
             IF(INFO.ne.0) THEN
-                WRITE(6,*) "DYSEV error in GetValsnVecs: ",INFO
+                WRITE(6,*) "DYSEV error in AddTrips: ",INFO
                 STOP
             ENDIF
 
