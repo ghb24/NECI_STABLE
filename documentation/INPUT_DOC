@@ -474,6 +474,9 @@ SINGLESEXCITSPACE
 MCEXCITSPACE <NoMCExcits>
     A GraphMorph option which means the space of excitations from each determinant in the graph is sampled stochastically with NoMCExcits determinants chosen per determinant.
 
+GROWINITGRAPH
+    In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations of consecutive determinants.
+
 FULLDIAGTRIPS
     An option when creating a star of triples, to do a full diagonalisation of the triples stars, without any prediagonalisation. Very very slow...
 

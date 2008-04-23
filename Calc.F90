@@ -9,14 +9,14 @@ MODULE Calc
         IMPLICIT NONE
         save
 
-        LOGICAL TSTAR,TTROT,TMCExcitSpace
+        LOGICAL TSTAR,TTROT,TMCExcitSpace,TGrowInitGraph
         LOGICAL TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
         LOGICAL TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER
         LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-        LOGICAL TInitStar,TNoCross,TNoSameExcit,TLanczos,TStarTrips
+        LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
@@ -53,9 +53,6 @@ MODULE Calc
 
 !     Values for old parameters.
 !     These have no input options to change the defaults, but are used in the code.
-      NoMCExcits=5000
-      TMCExcitSpace=.false.
-      TMaxExcit=.false.
       TRHOOFR = .false.
       TCORR = .false.
       TFODM = .false.
@@ -68,13 +65,16 @@ MODULE Calc
 
 
 !       Calc defaults   
+          TGrowInitGraph=.false.
+          NoMCExcits=5000
+          TMCExcitSpace=.false.
+          TMaxExcit=.false.
           TFullDiag=.false.
           TSinglesExcitSpace=.false.
           TOneExcitConn=.false.
           TStarTrips=.false.
           TLanczos=.false.
           TNoSameExcit=.false.
-          TNoCross=.false.
           TInitStar=.false.
           NoMoveDets=1
           TMoveDets=.false.
@@ -518,9 +518,6 @@ MODULE Calc
                   TMoveDets=.true.
               case("INITSTAR")
                   TInitStar=.true.
-              case("NOCROSSING")
-                  TNoCross=.true.
-                  call report("NOCROSSING option not yet working",.true.)
               case("NOSAMEEXCIT")
                   TNoSameExcit=.true.
               case("NOTRIPLES")
@@ -542,6 +539,9 @@ MODULE Calc
 !In GraphMorph, this means that the space of excitations is chosen randomly
                   TMCExcitSpace=.true.
                   call geti(NoMCExcits)
+              case("GROWINITGRAPH")
+!In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations of consecutive determinants
+                  TGrowInitGraph=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

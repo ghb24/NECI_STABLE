@@ -4,7 +4,6 @@
 !Fix Lanczos code
 !Fix MoveDets code
 !New initial graph growing routine which adds dets in order until complete (not stochastically)
-!Add Ability to MC sample excitations
 !Go to larger graphs, and look at possible convergence
 !Look into MC sampling of rest of excitation space to aid convergence
 
@@ -21,8 +20,8 @@ MODULE GraphMorph
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
-    USE Calc , only : TNoCross,TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn
-    USE Calc , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits
+    USE Calc , only : TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn
+    USE Calc , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits,TGrowInitGraph
     USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
@@ -144,10 +143,13 @@ MODULE GraphMorph
 !It is first necessary to construct the original graph to work with.
         IF(TInitStar) THEN
 !Let the initial graph be a complete connected star graph.
-            WRITE(6,"(A)") "Constructing random initial fully connected star graph to morph from."
+            WRITE(6,"(A)") "Constructing random initial star graph to morph from."
             CALL ConstructInitialStarGraph()
+        ELSEIF(TGrowInitGraph) THEN
+            WRITE(6,"(A,I8,A)") "Constructing initial graph in increasing excitation space with ",NDets, " vertices."
+            CALL ConstructExcitsInitGraph()
         ELSE
-            WRITE(6,"(A,I5,A)") "Constructing random initial graph to morph from with ", NDets, " vertices."
+            WRITE(6,"(A,I8,A)") "Constructing random fully connected initial graph to morph from with ", NDets, " vertices."
             CALL ConstructInitialGraph()
         ENDIF
 
@@ -300,6 +302,221 @@ MODULE GraphMorph
 
     END SUBROUTINE MorphGraph
 
+!This routine constructs an initial graph in a non-stocastic manner by adding determinants from increasing excitation levels
+    SUBROUTINE ConstructExcitsInitGraph()
+        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
+        USE Calc , only : i_P,RhoEps
+        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        USE Determinants , only : GetHElement2
+        IMPLICIT NONE
+        INTEGER :: nStore(6),exFlag,nExcitMemLen,iMaxExcit,nJ(NEl)
+        INTEGER , ALLOCATABLE :: nExcit(:)
+        INTEGER :: nExcitTag=0
+        TYPE(HElement) :: rh
+        INTEGER :: iExcit,excitcount,i,j,k,IC,ICRoot
+        CHARACTER(len=*), PARAMETER :: this_routine='ConstructExcitsInitGraph'
+        INTEGER :: ierr,iSubInitExcit,Root,RootDet(NEl),iGetExcitLevel
+        LOGICAL :: SameDet,Connection
+
+        CALL TISET('InitExcitGraph',iSubInitExcit)
+
+!Allow single and double excitations
+        exFlag=3
+
+        IF(TDistrib) THEN
+!We want to record the number of each excitation level for each determinant in the graph
+            ALLOCATE(Distribs(NEl,Iters+1),stat=ierr)
+            CALL LogMemAlloc('Distribs',NEl*(Iters+1),4,this_routine,DistribsTag)
+            CALL IAZZERO(Distribs,NEl*(Iters+1))
+        ENDIF
+
+!Allocate space for graph determinants and rho matrix
+        ALLOCATE(GraphDets(NDets,NEl),stat=ierr)
+        CALL LogMemAlloc('GraphDets',NDets*NEl,4,this_routine,GraphDetsTag)
+        CALL IAZZERO(GraphDets,NDets*NEl)
+        ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
+        CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag)
+        CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
+        ALLOCATE(HamElems(NDets),stat=ierr)
+        CALL LogMemAlloc('HamElems',NDets,8*HElementSize,this_routine,HamElemsTag)
+        CALL AZZERO(HamElems,NDets)
+        IF(TNoSameExcit.or.TOneExcitConn) THEN
+            ALLOCATE(GraphExcitLevel(NDets),stat=ierr)
+            CALL LogMemAlloc('GraphExcitLevel',NDets,4,this_routine,GraphExcitLevelTag)
+            CALL IAZZERO(GraphExcitLevel,NDets)
+        ENDIF
+
+!Put HF Determinant into first element of GraphDets
+        do i=1,NEl
+            GraphDets(1,i)=FDet(i)
+        enddo
+        GraphRhoMat(1,1)=rhii
+        HamElems(1)=Hii
+        MeanExcit=0.D0
+
+        i=1
+        Root=1
+        do while(i.lt.NDets)
+!Cycle through all excitations consecutivly, adding them where possible
+
+            IF(Root.gt.i) THEN
+                WRITE(6,*) "Error - trying to make an unavailable determinant root"
+                STOP "Error - trying to make an unavailable determinant root"
+            ENDIF
+
+!Let root of excitation generator be next available determinant
+            do j=1,NEl
+                RootDet(j)=GraphDets(Root,j)
+                IF(RootDet(j).eq.0) THEN
+                    WRITE(6,*) "Incorrect assignment of root determinant"
+                    STOP "Incorrect assignment of root determinant"
+                ENDIF
+            enddo
+
+!Setup excitation generator for new root
+            CALL IAZZERO(nStore,6)
+            CALL GenSymExcitIt2(RootDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+            ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+            CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
+            nExcit(1)=0
+            CALL GenSymExcitIt2(RootDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+
+            do while(i.lt.NDets)
+
+                CALL GenSymExcitIt2(RootDet,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
+                IF(nJ(1).eq.0) THEN
+!In the next sweep, look at the next determinant being the root
+                    Root=Root+1
+!Deallocate excitation generators
+                    DEALLOCATE(nExcit)
+                    CALL LogMemDealloc(this_routine,nExcitTag)
+                    EXIT
+                ENDIF
+
+                Connection=.false.
+                do j=1,i
+!Look through determinants already in graph to check for double counting and connections
+                    SameDet=.true.
+                    do k=1,NEl
+                        IF(nJ(k).ne.GraphDets(j,k)) THEN
+                            SameDet=.false.
+                        ENDIF
+                    enddo
+!If we have found the determinant somewhere else in the graph, then discount it
+                    IF(SameDet) EXIT
+
+                    IF(.not.Connection) THEN
+                        CALL CalcRho2(GraphDets(j,:),nJ(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+                        IF(rh.agt.0.D0) THEN
+!A connection has been found - we do not need to look for any others
+                            Connection=.true.
+                        ENDIF
+                    ENDIF
+                enddo
+
+!                IF(.not.Connection) WRITE(6,*) "A determinant has been created and not attached"
+
+                IF(Connection.and.(.not.SameDet)) THEN
+!A valid determinant has been found - add it
+                    i=i+1
+                    do j=1,NEl
+                        GraphDets(i,j)=nJ(j)
+                    enddo
+
+!Find diagonal rho matrix element, and connection to HF for HElement
+                    CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,0,ECore)
+                    GraphRhoMat(i,i)=rh
+                    IF(Root.eq.1) THEN
+                        ICRoot=iExcit
+                    ELSE
+                        ICRoot=iGetExcitLevel(FDet,nJ,NEl)
+                    ENDIF
+                    MeanExcit=MeanExcit+(ICRoot+0.D0)
+                    IF(ICRoot.gt.2) THEN
+                        HamElems(i)=HElement(0.D0)
+                        GraphRhoMat(i,1)=HElement(0.D0)
+                        GraphRhoMat(1,i)=HElement(0.D0)
+                    ELSE
+                        HamElems(i)=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,ICRoot,ECore)
+                        CALL CalcRho2(FDet(:),nJ(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,ICRoot,ECore)
+                        GraphRhoMat(i,1)=rh
+                        GraphRhoMat(1,i)=rh
+                    ENDIF
+!Store the excitation level from HF if we are removing excitations from the same level
+                    IF(TNoSameExcit.or.TOneExcitConn) GraphExcitLevel(i)=ICRoot
+
+                    IF(TDistrib) THEN
+!Need to add excitation level of determinant. Also, store the excitation level of the determinants in the current graph
+                        Distribs(ICRoot,1)=Distribs(ICRoot,1)+1
+                    ENDIF
+
+                    do j=2,i-1
+!Need to find connection to all other determinants
+            
+                        IF(TNoSameExcit) THEN
+!Don't allow connections between excitations of the same level
+
+                            IF(GraphExcitLevel(j).ne.ICRoot) THEN
+                                IC=iGetExcitLevel(GraphDets(j,:),nJ(:),NEl)
+                                CALL CalcRho2(GraphDets(j,:),nJ(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                                GraphRhoMat(i,j)=rh
+                                GraphRhoMat(j,i)=rh
+                            ELSE
+                                GraphRhoMat(i,j)=HElement(0.D0)
+                                GraphRhoMat(j,i)=HElement(0.D0)
+                            ENDIF
+
+                        ELSEIF(TOneExcitConn) THEN
+!Only allow connections between determinants which differ in excitation level by one.
+
+                            IF((ABS(GraphExcitLevel(j)-ICRoot)).eq.1) THEN
+                                IC=iGetExcitLevel(GraphDets(j,:),nJ(:),NEl)
+                                CALL CalcRho2(GraphDets(j,:),nJ(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                                GraphRhoMat(i,j)=rh
+                                GraphRhoMat(j,i)=rh
+                            ELSE
+                                GraphRhoMat(i,j)=HElement(0.D0)
+                                GraphRhoMat(j,i)=HElement(0.D0)
+                            ENDIF
+
+                        ELSE
+                            
+                            IC=iGetExcitLevel(GraphDets(j,:),nJ(:),NEl)
+!Fully connect the graph
+                            CALL CalcRho2(GraphDets(j,:),nJ(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,IC,ECore)
+                            GraphRhoMat(i,j)=rh
+                            GraphRhoMat(j,i)=rh
+
+                        ENDIF
+
+!End of searching for connections
+                    enddo
+!Whether we connect the determinant created to the graph
+                ENDIF
+!End of loop for a given root
+            enddo
+!End of searching for excitation - all found
+        enddo
+                    
+!Deallocate excitation generators
+        DEALLOCATE(nExcit)
+        CALL LogMemDealloc(this_routine,nExcitTag)
+
+        IF(i.ne.NDets) THEN
+            WRITE(6,*) "Graph Growing routine has not found all determinant requested"
+            STOP "Graph Growing routine has not found all determinant requested"
+        ENDIF
+
+        WRITE(6,"(A,I4)") "Number of roots needed to create initial graph = ", Root
+
+        MeanExcit=MeanExcit/(NDets-1)
+
+        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructExcitsInitGraph'
+        CALL TIHALT('InitExcitGraph',iSubInitExcit)
+
+    END SUBROUTINE ConstructExcitsInitGraph
+
+
 !This routine constructs the complete connected star graph as the initial graph to begin morphing from
     SUBROUTINE ConstructInitialStarGraph()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
@@ -409,8 +626,8 @@ MODULE GraphMorph
             IF(TNoSameExcit.or.TOneExcitConn) GraphExcitLevel(i)=iExcit
 
 !Cycle through all excitations already generated to determine coupling to them
-            IF((.not.TNoCross).and.(.not.TNoSameExcit).and.(.not.TOneExcitConn)) THEN
-!If TNoCross is on, then we are ignoring these crosslinks - the normal star graph should result
+            IF((.not.TNoSameExcit).and.(.not.TOneExcitConn)) THEN
+!If TNoSameExcit is on, then we are ignoring these crosslinks - the normal star graph should result
                 do j=2,(i-1)
                     CALL CalcRho2(GraphDets(j,:),nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
                     GraphRhoMat(i,j)=rh
@@ -735,11 +952,6 @@ MODULE GraphMorph
         REAL*8 :: r,Ran2
         CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
 
-        IF(TNoCross) THEN
-            WRITE(6,*) "The MoveDetsGraph routine is not yet set up for use with NoCross"
-            STOP "The MoveDetsGraph routine is not yet set up for use with NoCross"
-        ENDIF
-        
         CALL TISET('MoveDets',iSubMove)
 
 !Allocate space for the determinants to be moved, and to move to
@@ -1193,13 +1405,7 @@ MODULE GraphMorph
                     GraphRhoMat(NoVerts+1,1)=HElement(0.D0)
                 ENDIF
 
-                IF(TNoCross) THEN
-!If No Crosslinks, then the graph has a star structure. Attach new determinant to the lowest excitation, and if choosing between multiple,
-!then choose stochastically between them, weighted by their rhoij element
-!We have an excitation other than a double. Where do we connect to?
-                    STOP 'Need to think about what to do here'
-
-                ELSEIF(TNoSameExcit) THEN
+                IF(TNoSameExcit) THEN
 !Don't allow connections to the same excitation level
                     do i=2,NoVerts
 !Excitation level information stored in GraphExcitLevel
