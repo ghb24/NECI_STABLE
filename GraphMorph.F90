@@ -315,7 +315,7 @@ MODULE GraphMorph
         TYPE(HElement) :: rh
         INTEGER :: iExcit,excitcount,i,j,k,IC,ICRoot,Numberadded
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructExcitsInitGraph'
-        INTEGER :: ierr,iSubInitExcit,Root,RootDet(NEl),iGetExcitLevel
+        INTEGER :: ierr,iSubInitExcit,Root,RootDet(NEl),iGetExcitLevel,NoNotAtt_Same,NoNotAtt_NoConn
         LOGICAL :: SameDet,Connection
 
         CALL TISET('InitExcitGraph',iSubInitExcit)
@@ -357,13 +357,20 @@ MODULE GraphMorph
         i=1
         Root=1
 !        Numberadded=0
+!        NoNotAtt_Same=0
+!        NoNotAtt_NoConn=0
         do while(i.lt.NDets)
 !Cycle through all excitations consecutivly, adding them where possible
 
 !            WRITE(6,*) "Number added for root ", Root-1," is = ", Numberadded
+!            WRITE(6,"(A,I5,A,I8)") "Number not added for root ", Root-1," due to already in graph = ", NoNotAtt_Same
+!            WRITE(6,"(A,I5,A,I8)") "Number not added for root ", Root-1," due to no connection = ", NoNotAtt_NoConn
 !            Numberadded=0
+!            NoNotAtt_Same=0
+!            NoNotAtt_NoConn=0
             IF(Root.gt.i) THEN
                 WRITE(6,*) "Error - trying to make an unavailable determinant root"
+                WRITE(6,*) "Trying to select a root of ", Root
                 STOP "Error - trying to make an unavailable determinant root"
             ENDIF
 
@@ -417,8 +424,9 @@ MODULE GraphMorph
                     ENDIF
                 enddo
 
-!                IF(.not.Connection) WRITE(6,*) "A determinant has been created and not attached"
-
+!                IF(.not.Connection) NoNotAtt_NoConn=NoNotAtt_NoConn+1
+!                IF(SameDet) NoNotAtt_Same=NoNotAtt_Same+1
+                
                 IF(Connection.and.(.not.SameDet)) THEN
 !A valid determinant has been found - add it
 !                    Numberadded=Numberadded+1
