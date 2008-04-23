@@ -3,7 +3,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!
 !Fix Lanczos code
 !Fix MoveDets code
-!New initial graph growing routine which adds dets in order until complete (not stochastically)
 !Go to larger graphs, and look at possible convergence
 !Look into MC sampling of rest of excitation space to aid convergence
 
@@ -159,6 +158,7 @@ MODULE GraphMorph
                 WRITE(64,"(I8)",advance='no') Distribs(i,1)
             enddo
             WRITE(64,*) ""
+            CALL FLUSH(64)
         ENDIF
         
 !Allocate space for largest Eigenvector for various graphs
@@ -313,7 +313,7 @@ MODULE GraphMorph
         INTEGER , ALLOCATABLE :: nExcit(:)
         INTEGER :: nExcitTag=0
         TYPE(HElement) :: rh
-        INTEGER :: iExcit,excitcount,i,j,k,IC,ICRoot
+        INTEGER :: iExcit,excitcount,i,j,k,IC,ICRoot,Numberadded
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructExcitsInitGraph'
         INTEGER :: ierr,iSubInitExcit,Root,RootDet(NEl),iGetExcitLevel
         LOGICAL :: SameDet,Connection
@@ -356,9 +356,12 @@ MODULE GraphMorph
 
         i=1
         Root=1
+!        Numberadded=0
         do while(i.lt.NDets)
 !Cycle through all excitations consecutivly, adding them where possible
 
+!            WRITE(6,*) "Number added for root ", Root-1," is = ", Numberadded
+!            Numberadded=0
             IF(Root.gt.i) THEN
                 WRITE(6,*) "Error - trying to make an unavailable determinant root"
                 STOP "Error - trying to make an unavailable determinant root"
@@ -418,6 +421,7 @@ MODULE GraphMorph
 
                 IF(Connection.and.(.not.SameDet)) THEN
 !A valid determinant has been found - add it
+!                    Numberadded=Numberadded+1
                     i=i+1
                     do j=1,NEl
                         GraphDets(i,j)=nJ(j)
