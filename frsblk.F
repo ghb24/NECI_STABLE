@@ -642,6 +642,9 @@ C     VARIABLES
       INTEGER   INFO
 C     ==--------------------------------------------------------------==
       CALL DPOTRF(UPLO,N,SMAT,LDA,INFO)
+      IF(INFO.NE.0) THEN
+          WRITE(6,*) "INFO is : ", INFO
+      ENDIF
       IF(INFO.NE.0) CALL STOPGM('UINV','ILLEGAL RESULTS DGETRF')
       CALL DTRTRI(UPLO,'N',N,SMAT,LDA,INFO)
       IF(INFO.NE.0) CALL STOPGM('UINV','ILLEGAL RESULTS DTRTRI')

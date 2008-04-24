@@ -123,10 +123,6 @@ MODULE GraphMorph
             WRITE(6,*) "TOneExcitConn is not yet implimented in TMoveDets"
             STOP "TOneExcitConn is not yet implimented in TMoveDets"
         ENDIF
-        IF(TLanczos) THEN
-            WRITE(6,*) "Sorry, but Lanczos diagonalisation not yet working for GraphMorph"
-            STOP "Sorry, but Lanczos diagonalisation not yet working for GraphMorph"
-        ENDIF
         IF(TMCExcitSpace) THEN
             WRITE(6,"(A,I10,A)") "Searching Excitations of each graph stochastically with ",NoMCExcits, " per determinant"
         ENDIF
@@ -1982,15 +1978,15 @@ MODULE GraphMorph
     SUBROUTINE DiagGraphLanc()
         IMPLICIT NONE
         CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphLanc'
-        INTEGER , ALLOCATABLE :: Lab(:,:),NRow(:),ISCR(:),Index(:)
-        TYPE(HElement) , ALLOCATABLE :: Mat(:,:),CK(:,:),CKN(:,:)
+        INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
+        TYPE(HElement) , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:)
         REAL*8 , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
         REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
         INTEGER :: LabTag,ATag,MatTag,NRowTag,VTag,WTTag
         INTEGER :: AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag
         INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
         INTEGER :: iSubLanc,ierr,LenMat,i,j,ICMax,RowElems
-        REAL*8 :: B2L
+        REAL*8 :: B2L,SumVec
         INTEGER :: NEval,NBlk,NKry,NCycle,NBlock,NKry1,LScr,LIScr
 
         CALL TISET('DiagGraphLanc',iSubLanc)
@@ -2027,40 +2023,58 @@ MODULE GraphMorph
             enddo
         ENDIF
 
-!Count the number of non-zero elements in the matrix
+
+!This seems to be Alex's way of compressing the matrix, but not the way in the diagonaliser
+!In this method, only the non-zero elements are stored (and only the symmetric matrix)
         LenMat=0
         ICMax=0
         do i=1,NDets
             RowElems=0
-            do j=1,NDets
+            do j=i,NDets
                 IF(GraphRhoMat(i,j).agt.0.D0) THEN
-                    LenMat=LenMat+1
+!                    LenMat=LenMat+1
                     RowElems=RowElems+1
                 ENDIF
             enddo
+            LenMat=LenMat+RowElems
             IF(RowElems.gt.ICMax) ICMax=RowElems
         enddo
-        WRITE(6,"(A,I10,A,I10,A)") "Of ",NDets*NDets, " possible elements, only ", LenMat," are non-zero."
 
-!This seems to be Alex's way of compressing the matrix, but not the way in the diagonaliser
+!        WRITE(6,"(A,I10,A,I10,A)") "Of ",((NDets*NDets+NDets)/2), " possible elements, only ", LenMat," are non-zero."
 !Allocate the rho matrix
-!        ALLOCATE(Mat(LenMat),stat=ierr)
-!        CALL LogMemAlloc('Mat',LenMat,8*HElementSize,this_routine,MatTag)
-!        CALL AZZERO(Mat,LenMat*HElementSize)
+        ALLOCATE(Mat(LenMat),stat=ierr)
+        CALL LogMemAlloc('Mat',LenMat,8*HElementSize,this_routine,MatTag)
+        CALL AZZERO(Mat,LenMat*HElementSize)
 !
 !!Lab indicates the column that the 'i'th non-zero matrix element resides in the full matrix
-!        ALLOCATE(Lab(LenMat),stat=ierr)
-!        CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag)
-!        CALL IAZZERO(Lab,LenMat)
+        ALLOCATE(Lab(LenMat),stat=ierr)
+        CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag)
+        CALL IAZZERO(Lab,LenMat)
 
-        ALLOCATE(Mat(NDets,ICMax),stat=ierr)
-        CALL LogMemAlloc('Mat',NDets*ICMax,8*HElementSize,this_routine,MatTag)
-        CALL AZZERO(Mat,NDets*ICMax*HElementSize)
-
-!Lab now indicates the position of the non-zero element in the row specified
-        ALLOCATE(Lab(NDets,ICMax),stat=ierr)
-        CALL LogMemAlloc('Lab',NDets*ICMax,4,this_routine,LabTag)
-        CALL IAZZERO(Lab,NDets*ICMax)
+!Count the number of non-zero elements in the matrix - the way the diagonaliser seems to want to...
+!Also now only top triangle
+!        LenMat=0
+!        ICMax=0
+!        do i=1,NDets
+!            RowElems=0
+!            do j=i,NDets
+!                IF(GraphRhoMat(i,j).agt.0.D0) THEN
+!                    LenMat=LenMat+1
+!                    RowElems=RowElems+1
+!                ENDIF
+!            enddo
+!            IF(RowElems.gt.ICMax) ICMax=RowElems
+!        enddo
+!        WRITE(6,"(A,I10,A,I10,A)") "Of ",((NDets*NDets+NDets)/2), " possible elements, only ", LenMat," are non-zero."
+!
+!        ALLOCATE(Mat(NDets,ICMax),stat=ierr)
+!        CALL LogMemAlloc('Mat',NDets*ICMax,8,this_routine,MatTag)
+!        CALL AZZERO(Mat,NDets*ICMax)
+!
+!!Lab now indicates the position of the non-zero element in the row specified
+!        ALLOCATE(Lab(NDets,ICMax),stat=ierr)
+!        CALL LogMemAlloc('Lab',NDets*ICMax,4,this_routine,LabTag)
+!        CALL IAZZERO(Lab,NDets*ICMax)
 
 !NRow indicated the number of non-zero elements in the 'i'th row of the full matrix
         ALLOCATE(NRow(NDets),stat=ierr)
@@ -2069,14 +2083,14 @@ MODULE GraphMorph
 
 !This compresses the rho matrix, so that only the non-zero elements are stored, in a suitable form for the Lanczos diagonaliser.
         CALL CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
-        WRITE(6,"(A,I8)") "In compressed matrix, maximum number of non-zero elements in any one row is ", ICMax
+!        WRITE(6,"(A,I8)") "In compressed matrix, maximum number of non-zero elements in any one row is ", ICMax
 
 !Set up parameters for the diagonaliser.
         B2L=1.D-13
         NBlk=4
         NKry=8
 !NEval indicates the number of eigenvalues we want to calculate
-        NEval=4
+        NEval=NDets
         NCycle=200
         NBlock=MIN(NEval,NBlk)
         NKry1=NKry+1
@@ -2132,15 +2146,15 @@ MODULE GraphMorph
 
 !CK holds the eigenvectors
         ALLOCATE(CK(NDets,NEval),stat=ierr)
-        CALL LogMemAlloc('CK',NDets*NEval,8*HElementSize,this_routine,CKTag)
+        CALL LogMemAlloc('CK',NDets*NEval,8,this_routine,CKTag)
 !The initial trial wavefuntion is set to zero        
-        CALL AZZERO(CK,NDets*NEval*HElementSize)
+        CALL AZZERO(CK,NDets*NEval)
         ALLOCATE(CKN(NDets,NEval),stat=ierr)
-        CALL LogMemAlloc('CKN',NDets*NEval,8*HElementSize,this_routine,CKNTag)
-        CALL AZZERO(CKN,NDets*NEval*HElementSize)
+        CALL LogMemAlloc('CKN',NDets*NEval,8,this_routine,CKNTag)
+        CALL AZZERO(CKN,NDets*NEval)
 
 !Lanczos iterative diagonalisation routine
-        CALL FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.true.)
+        CALL FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.)
 !Mulitply eigenvalues through by -1 to ensure they are positive
         CALL DSCAL(NEval,-1.D0,W,1)
 
@@ -2158,8 +2172,6 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,MatTag)
         DEALLOCATE(Lab)
         CALL LogMemDealloc(this_routine,LabTag)
-        DEALLOCATE(NRow)
-        CALL LogMemDealloc(this_routine,NRowTag)
         DEALLOCATE(A)
         CALL LogMemDealloc(this_routine,ATag)
         DEALLOCATE(V)
@@ -2174,10 +2186,6 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,WTTag)
         DEALLOCATE(SCR)
         CALL LogMemDealloc(this_routine,ScrTag)
-        DEALLOCATE(ISCR)
-        CALL LogMemDealloc(this_routine,IScrTag)
-        DEALLOCATE(Index)
-        CALL LogMemDealloc(this_routine,IndexTag)
         DEALLOCATE(WH)
         CALL LogMemDealloc(this_routine,WHTag)
         DEALLOCATE(Work2)
@@ -2188,9 +2196,12 @@ MODULE GraphMorph
 !Store largest eigenvector - ?first? column of CK (zero it)
         CALL AZZERO(Eigenvector,NDets*HElementSize)
 
+        SumVec=0.D0
         do i=1,NDets
-            Eigenvector(i)=CK(i,1)
-            WRITE(6,*) Eigenvector(i)
+!Need to record the *largest* eigenvector - this is a problem for lanczos
+            Eigenvector(i)=CK(i,NDets)
+            SumVec=SumVec+((Eigenvector(i)%v)**2)
+!            WRITE(6,*) Eigenvector(i),W(i)
             IF(TMoveDets.and.(ABS(Eigenvector(i)%v)).eq.0.D0) THEN
 !There are still the possibility of disconnected clusters - these will be removed by regrowing graph completly...
                 IF(Iteration.eq.1) THEN
@@ -2205,12 +2216,15 @@ MODULE GraphMorph
                 ENDIF
             ENDIF
         enddo
+        IF((ABS(SumVec-1.D0)).gt.1.D-08) THEN
+            WRITE(6,*) "Eigenvector NOT NORMALISED!",SumVec
+        ENDIF
         IF(ReturntoTMoveDets) THEN
             TMoveDets=.false.
         ENDIF
 
 !Also need to save the largest Eigenvalue
-        Eigenvalue=W(1)
+        Eigenvalue=W(NDets)
 
 !Find weight and energy of graph.
 !There is no beta-dependance, so only largest eigenvector needed.
@@ -2232,7 +2246,13 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,CKTag)
         DEALLOCATE(CKN)
         CALL LogMemDealloc(this_routine,CKNTag)
-        WRITE(6,*) LabTag,ATag,MatTag,NRowTag,VTag,WTTag,AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag,Work2Tag,V2Tag,WTag,CKTag,CKNTag
+        DEALLOCATE(Index)
+        CALL LogMemDealloc(this_routine,IndexTag)
+        DEALLOCATE(ISCR)
+        CALL LogMemDealloc(this_routine,IScrTag)
+        DEALLOCATE(NRow)
+        CALL LogMemDealloc(this_routine,NRowTag)
+!        WRITE(6,*) LabTag,ATag,MatTag,NRowTag,VTag,WTTag,AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag,Work2Tag,V2Tag,WTag,CKTag,CKNTag
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphLanc'
         CALL TIHALT('DiagGraphLanc',iSubLanc)
@@ -2243,47 +2263,61 @@ MODULE GraphMorph
     SUBROUTINE CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
         IMPLICIT NONE
         INTEGER :: LenMat,i,j
-        TYPE(HElement) :: Mat(NDets,ICMax)
-        INTEGER :: Lab(NDets,ICMax),NRow(NDets),LabElem,RowElems,ICMax,SumElems
+        TYPE(HElement) :: Mat(LenMat)
+        INTEGER :: Lab(LenMat),NRow(NDets),LabElem,RowElems,ICMax,SumElems,lenrow
+!        REAL*8 :: Mat(NDets,ICMax)
+!        INTEGER :: Lab(NDets,ICMax),NRow(NDets),LabElem,RowElems,ICMax,SumElems
 
 !This compression is how Alex uses the Lanczos diagonaliser - however, it seems to be used in a different way
+!Here, only the non-zero elements are stored, and it is stored symmetrically
+!Lab now indicates the column that the ith non-zero matrix resides in
 !ICMax indicates the largest number of non-zero elements in any one row of the matrix
-!        ICMax=0
-!
-!        LabElem=0
-!        do i=1,NDets
-!!Scan along each row of the matrix
-!            RowElems=0
-!            do j=1,NDets
-!                IF(GraphRhoMat(i,j).agt.0.D0) THEN
-!                    LabElem=LabElem+1
-!                    RowElems=RowElems+1
-!                    Mat(LabElem)=GraphRhoMat(i,j)
-!                    Lab(LabElem)=j
-!                ENDIF
-!            enddo
-!            IF(RowElems.gt.ICMax) ICMax=RowElems
-!            NRow(i)=RowElems
-!        enddo
 
+        lenrow=ICMax
         SumElems=0
-
+        ICMax=0
+        LabElem=0
         do i=1,NDets
+!Scan along each row of the matrix
             RowElems=0
-            do j=1,NDets
+!Only scan the upper triangle of the matrix
+            do j=i,NDets
                 IF(GraphRhoMat(i,j).agt.0.D0) THEN
+                    LabElem=LabElem+1
                     RowElems=RowElems+1
-                    Mat(i,RowElems)=GraphRhoMat(i,j)
-                    Lab(i,RowElems)=j
+                    Mat(LabElem)=GraphRhoMat(i,j)
+                    Lab(LabElem)=j
                 ENDIF
             enddo
-            IF(RowElems.gt.ICMax) THEN
-                WRITE(6,*) "Error in compressing matrix 3"
-                STOP 'Error in compressing matrix 3'
-            ENDIF
+            IF(RowElems.gt.ICMax) ICMax=RowElems
             NRow(i)=RowElems
             SumElems=SumElems+RowElems
         enddo
+        IF(ICMax.ne.lenrow) THEN
+            WRITE(6,*) "Stop - error in compressing matrix"
+            STOP "Stop - error in compressing matrix"
+        ENDIF
+
+!This is the way to compress the matrix, as it seems in the actual diagonaliser...
+!Here, the matrix is only partially compressed, with it being of size (NDets,ICMax)
+!        SumElems=0
+!
+!        do i=1,NDets
+!            RowElems=0
+!            do j=i,NDets
+!                IF(GraphRhoMat(i,j).agt.0.D0) THEN
+!                    RowElems=RowElems+1
+!                    Mat(i,RowElems)=GraphRhoMat(i,j)%v
+!                    Lab(i,RowElems)=j
+!                ENDIF
+!            enddo
+!            IF(RowElems.gt.ICMax) THEN
+!                WRITE(6,*) "Error in compressing matrix 3"
+!                STOP 'Error in compressing matrix 3'
+!            ENDIF
+!            NRow(i)=RowElems
+!            SumElems=SumElems+RowElems
+!        enddo
 
         IF(SumElems.ne.LenMat) THEN
             WRITE(6,*) "Error in compressing matrix"
