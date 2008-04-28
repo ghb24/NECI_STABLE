@@ -1812,7 +1812,7 @@ C.. weight.
          TYPE(HDElement) CALCPATHS_N
          REAL*8 X,GETPATHPROB2,RHX
          LOGICAL LISINPATH
-         INTEGER IGETEXCITLEVEL,EXCITGEN(0:I_V)
+         INTEGER IGETEXCITLEVEL
          LOGICAL TLOG,TLOG2,TLOG3
          REAL*8 RP,DBETA(3)
          TYPE(HDElement) DLWDB,DLWDB2
@@ -1824,8 +1824,10 @@ C.. weight.
          INTEGER CUREX(*),NEWEX(*),NEWEXLEN
 #if defined(POINTER8)
          INTEGER*8 PVERTMEMS(0:I_V)
+         INTEGER*8 EXCITGEN(0:I_V)
 #else
          INTEGER PVERTMEMS(0:I_V)
+         INTEGER EXCITGEN(0:I_V)
 #endif
          POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
@@ -2157,10 +2159,6 @@ C.. Setup the spin excit generator
                !Generate Excitation generator
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            .TRUE.,NEWEX,INODE2,IC,0,STORE,3)
-               !Save the pointers to the excitation generator
-               IF(TPREVAR) THEN
-                    PVERTMEMS2=PVERTMEMS
-               ENDIF
 C.. Count the excitations (and generate a random one which we throw)
  
 !24/04/07 - ghb24 - Removing (hopefully) redundant routine calls - now
@@ -2253,7 +2251,14 @@ C.. give up trying to find something to attach, and go home
                RETURN
             ENDIF
          ENDDO
-         !Don't deallocate if want to use the graphs later for MC precalc
+         IF(TPREVAR) THEN
+!Save the pointers to the excitation generator if we are doing MC precalc (Save all node generators)
+!The last element in array is junk and never used (should be same as root)
+            do i=0,I_V-1
+                PVERTMEMS2(i)=PVERTMEMS(i)
+            enddo
+         ENDIF
+!Don't deallocate excitation generators if want to use the graphs later for MC precalc, deallocate later with 154 call
          IF(.NOT.TPREVAR) THEN
             DO I=1,I_V-1
                 CALL FREEM(PVERTMEMS(I))

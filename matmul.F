@@ -1,8 +1,10 @@
-      SUBROUTINE MY_HPSI(NDET,ICMAX,NEVAL,NROW,LAB,HAMIL,CK,CKN)
+      SUBROUTINE MY_HPSI(NDET,ICMAX,NEVAL,NROW,LAB,HAMIL,CK,CKN,
+     &                      TLargest)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION HAMIL(*),CKN(NDET,NEVAL)
       INTEGER LAB(*),NROW(NDET)
       DIMENSION CK(NDET,NEVAL)
+      LOGICAL :: TLargest
 C ==-----------------------------------------------------------------==
       CALL TISET(' MY_HPSI  ',ISUB)
 C ==-----------------------------------------------------------------==
@@ -30,7 +32,9 @@ C..
       ENDDO
 C..Need to do the following mult. by -1 so that eigenvalues are calc. in
 C..ascending order
-      CALL DSCAL(NEVAL*NDET,-1.D0,CKN,1)
+      IF(.NOT.TLargest) THEN
+          CALL DSCAL(NEVAL*NDET,-1.D0,CKN,1)
+      ENDIF
 c      DO I=1,NEVAL
 c        DO J=1,NDET
 c          CKN(J,I)=-1.D0*CKN(J,I)

@@ -263,7 +263,13 @@ MODULE GraphMorph
 
 !Diagonalise final graph, and find weight & energy. 
 !There is no beta-dependance, so only largest eigenvector and value needed.
-        CALL DiagGraphMorph()
+        IF(TLanczos) THEN
+            CALL DiagGraphLanc()
+        ELSE
+            CALL DiagGraphMorph()
+        ENDIF
+        WRITE(63,"(I10,5G20.12)") Iteration,DLWDB,PStay,Orig_Graph,SucRat,MeanExcit
+        
         WRITE(6,"(A,2G20.12)") "Weight and Energy of final graph is: ", SI, DLWDB
         IF(DLWDB.lt.LowestE) THEN
             LowestE=DLWDB
@@ -1976,17 +1982,18 @@ MODULE GraphMorph
 
 !This routine uses a Lancsoz iterative diagonalisation technique to diagonalise the rho matrix.
     SUBROUTINE DiagGraphLanc()
+        USE DetCalc , only : B2L
         IMPLICIT NONE
         CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphLanc'
         INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
-        TYPE(HElement) , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:)
+        REAL*8 , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:), temp(:)
         REAL*8 , ALLOCATABLE :: A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)
         REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:)
         INTEGER :: LabTag,ATag,MatTag,NRowTag,VTag,WTTag
         INTEGER :: AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag
         INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
         INTEGER :: iSubLanc,ierr,LenMat,i,j,ICMax,RowElems
-        REAL*8 :: B2L,SumVec
+        REAL*8 :: SumVec,LancVar
         INTEGER :: NEval,NBlk,NKry,NCycle,NBlock,NKry1,LScr,LIScr
 
         CALL TISET('DiagGraphLanc',iSubLanc)
@@ -2065,7 +2072,7 @@ MODULE GraphMorph
 !            enddo
 !            IF(RowElems.gt.ICMax) ICMax=RowElems
 !        enddo
-!        WRITE(6,"(A,I10,A,I10,A)") "Of ",((NDets*NDets+NDets)/2), " possible elements, only ", LenMat," are non-zero."
+!!        WRITE(6,"(A,I10,A,I10,A)") "Of ",((NDets*NDets+NDets)/2), " possible elements, only ", LenMat," are non-zero."
 !
 !        ALLOCATE(Mat(NDets,ICMax),stat=ierr)
 !        CALL LogMemAlloc('Mat',NDets*ICMax,8,this_routine,MatTag)
@@ -2080,20 +2087,21 @@ MODULE GraphMorph
         ALLOCATE(NRow(NDets),stat=ierr)
         CALL LogMemAlloc('NRow',NDets,4,this_routine,NRowTag)
         CALL IAZZERO(NRow,NDets)
+        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphLanc'
 
 !This compresses the rho matrix, so that only the non-zero elements are stored, in a suitable form for the Lanczos diagonaliser.
         CALL CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
 !        WRITE(6,"(A,I8)") "In compressed matrix, maximum number of non-zero elements in any one row is ", ICMax
 
 !Set up parameters for the diagonaliser.
-        B2L=1.D-13
-        NBlk=4
-        NKry=8
 !NEval indicates the number of eigenvalues we want to calculate
-        NEval=NDets
+        NEval=10
+!        B2L=1.D-25
+        NBlk=8
+        NKry=8
         NCycle=200
-        NBlock=MIN(NEval,NBlk)
         NKry1=NKry+1
+        NBlock=MIN(NEval,NBlk)
         LScr=MAX(NDets*NEval,8*NBlock*NKry)
         LIScr=6*NBlock*NKry
 
@@ -2152,11 +2160,16 @@ MODULE GraphMorph
         ALLOCATE(CKN(NDets,NEval),stat=ierr)
         CALL LogMemAlloc('CKN',NDets*NEval,8,this_routine,CKNTag)
         CALL AZZERO(CKN,NDets*NEval)
+        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphLanc'
 
 !Lanczos iterative diagonalisation routine
-        CALL FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.)
-!Mulitply eigenvalues through by -1 to ensure they are positive
-        CALL DSCAL(NEval,-1.D0,W,1)
+        CALL FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.)
+!Mulitply eigenvalues through by -1 to ensure they are positive - no longer needed
+!        CALL DSCAL(NEval,-1.D0,W,1)
+!If first element of eigenvector is positive, multiply whole lot through by -1
+!       IF(CK(1,1).gt.0.D0) THEN
+!           CALL DSCAL(NDets,-1.D0,CK(:,1),1)
+!       ENDIF
 
 !        do i=1,NDets
 !            WRITE(6,*) NRow(i)
@@ -2192,16 +2205,30 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,Work2Tag)
         DEALLOCATE(V2)
         CALL LogMemDealloc(this_routine,V2Tag)
+        
+        
+!        ALLOCATE(temp(NDets))
+!        CALL AZZERO(temp,NDets)
+!        OPEN(24,FILE='fort.23',Status='old')
+!        do i=1,NDets
+!            READ(24,*) temp(i)
+!        enddo
 
 !Store largest eigenvector - ?first? column of CK (zero it)
-        CALL AZZERO(Eigenvector,NDets*HElementSize)
+        CALL AZZERO(Eigenvector,NDets)
 
         SumVec=0.D0
+!        LancVar=0.D0
         do i=1,NDets
 !Need to record the *largest* eigenvector - this is a problem for lanczos
-            Eigenvector(i)=CK(i,NDets)
+            Eigenvector(i)=HElement(CK(i,1))
+!            LancVar=LancVar+ABS(temp(i)-Eigenvector(i)%v)/Eigenvector(i)%v
             SumVec=SumVec+((Eigenvector(i)%v)**2)
-!            WRITE(6,*) Eigenvector(i),W(i)
+!            IF(i.le.NEval) THEN
+!                WRITE(6,*) Eigenvector(i),W(i)
+!            ELSE
+!                WRITE(6,*) Eigenvector(i)
+!            ENDIF
             IF(TMoveDets.and.(ABS(Eigenvector(i)%v)).eq.0.D0) THEN
 !There are still the possibility of disconnected clusters - these will be removed by regrowing graph completly...
                 IF(Iteration.eq.1) THEN
@@ -2216,6 +2243,11 @@ MODULE GraphMorph
                 ENDIF
             ENDIF
         enddo
+        
+!        DEALLOCATE(temp)
+
+!        WRITE(6,*) "The variance of the eigenvector components is: ", LancVar/NDets
+
         IF((ABS(SumVec-1.D0)).gt.1.D-08) THEN
             WRITE(6,*) "Eigenvector NOT NORMALISED!",SumVec
         ENDIF
@@ -2224,7 +2256,7 @@ MODULE GraphMorph
         ENDIF
 
 !Also need to save the largest Eigenvalue
-        Eigenvalue=W(NDets)
+        Eigenvalue=W(1)
 
 !Find weight and energy of graph.
 !There is no beta-dependance, so only largest eigenvector needed.
@@ -2263,7 +2295,7 @@ MODULE GraphMorph
     SUBROUTINE CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
         IMPLICIT NONE
         INTEGER :: LenMat,i,j
-        TYPE(HElement) :: Mat(LenMat)
+        REAL*8 :: Mat(LenMat)
         INTEGER :: Lab(LenMat),NRow(NDets),LabElem,RowElems,ICMax,SumElems,lenrow
 !        REAL*8 :: Mat(NDets,ICMax)
 !        INTEGER :: Lab(NDets,ICMax),NRow(NDets),LabElem,RowElems,ICMax,SumElems
@@ -2285,7 +2317,7 @@ MODULE GraphMorph
                 IF(GraphRhoMat(i,j).agt.0.D0) THEN
                     LabElem=LabElem+1
                     RowElems=RowElems+1
-                    Mat(LabElem)=GraphRhoMat(i,j)
+                    Mat(LabElem)=GraphRhoMat(i,j)%v
                     Lab(LabElem)=j
                 ENDIF
             enddo
@@ -2301,7 +2333,7 @@ MODULE GraphMorph
 !This is the way to compress the matrix, as it seems in the actual diagonaliser...
 !Here, the matrix is only partially compressed, with it being of size (NDets,ICMax)
 !        SumElems=0
-!
+!!
 !        do i=1,NDets
 !            RowElems=0
 !            do j=i,NDets
@@ -2378,6 +2410,8 @@ MODULE GraphMorph
 
         do i=1,NDets
             Eigenvector(i)=GraphRhoMat(i,NDets)
+!            WRITE(6,*) Eigenvector(i),Eigenvalues(NDets-(i-1))
+!            WRITE(23,*) Eigenvector(i)
             IF(TMoveDets.and.(ABS(Eigenvector(i)%v)).eq.0.D0) THEN
 !There are still the possibility of disconnected clusters - these will be removed by regrowing graph completly...
                 IF(Iteration.eq.1) THEN
@@ -2393,6 +2427,7 @@ MODULE GraphMorph
             ENDIF
 !            WRITE(6,*) i,Eigenvector(i)%v
         enddo
+
         IF(ReturntoTMoveDets) THEN
             TMoveDets=.false.
         ENDIF

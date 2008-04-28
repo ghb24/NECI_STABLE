@@ -1,6 +1,6 @@
       SUBROUTINE FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &	NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &	WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT)
+     &	WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT,TLargest)
       IMPLICIT REAL*8 (A-H,O-Z) 
 C ==----------------------------------------------------------------==
 C ==	M is NDET : the number of rows in Hamil			            ==
@@ -9,7 +9,7 @@ C ==    N is NEVAL : the number of columns in the wavevector        ==
 C ==    PRINTOUT is a logical testing whether to print results      ==
 C ==----------------------------------------------------------------==
       
-      LOGICAL :: PRINTOUT
+      LOGICAL :: PRINTOUT,TLargest
       DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
       DIMENSION V(M*NBLOCK*NKRY1)
       DIMENSION AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
@@ -36,7 +36,7 @@ C..
 C ==----------------------------------------------------------------==
       CALL FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
      &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
-     &     PRINTOUT)
+     &     PRINTOUT,TLargest)
 C ==----------------------------------------------------------------==
 C..Uncomment to test to see if routine is working
 C      CALL TIPRI
@@ -64,9 +64,9 @@ C ==----------------------------------------------------------------==
 C ====================================================================
       SUBROUTINE FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
      &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
-     &     PRINTOUT)
+     &     PRINTOUT,TLargest)
       IMPLICIT REAL*8 (A-H,O-Z)
-      LOGICAL :: PRINTOUT
+      LOGICAL :: PRINTOUT,TLargest
       DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
       DIMENSION V(M*NBLOCK*(NKRY+1))
       DIMENSION AM(NBLOCK*NBLOCK*(NKRY+1)),BM(NBLOCK*NBLOCK*NKRY)
@@ -104,7 +104,7 @@ C ====================================================================
      &  6X,'B2MIN:',F10.5,5X,'NHPSI:',I3)
 C..VS=H.V0 
 C..My matrix multiplication routine implimented 8/11/02 DCT
-      CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V0,VS)
+      CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V0,VS,TLargest)
 C      CALL HPSI(M,N,H,V0,VS)
       NHPSI=NHPSI+N 
 C..   Ovlap: V0^T VS. 
@@ -164,13 +164,13 @@ C ==------------------------------------------------------------------==
 C Preparation for refinement
 C ==------------------------------------------------------------------==
           CALL PRPKRV(M,NBLEFF,NKRY,NCONV,V0(1,1),V0(1,I),VS(1,I),V,
-     &         AM,BM,H,W(I),SCR,LSCR,NHPSI,ICMAX,LAB,NROW)
+     &         AM,BM,H,W(I),SCR,LSCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 
 C Refinement Loop
 C ==------------------------------------------------------------------==
           NBLK=NBLEFF*NKRY
           CALL KRYREF(M,NBLEFF,NKRY,NCONV,V0,W,V,AM,BM,T,NBLK*NBLK,WT,
-     &         NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW)
+     &         NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C ==------------------------------------------------------------------==
 C..V=[V_1 V_2.. V_L] Y' 
           CALL DGEMM('N','N',M,NBLEFF,NBLK,1.D0,V,M,T,NBLK,0.D0,
@@ -183,7 +183,7 @@ C..GS orthogonalisation on refined states
         CALL MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A)
 C..HPSI: H V0. Enter only refined states 
         CALL MY_HPSI(M,ICMAX,NLEFT,NROW,LAB,H,
-     &		V0(1,NCURR),VS(1,NCURR))
+     &		V0(1,NCURR),VS(1,NCURR),TLargest)
 C        CALL HPSI(M,NLEFT,H,V0(1,NCURR),VS(1,NCURR))
         NHPSI=NHPSI+NLEFT 
 C..Ovlap: V0^T VS  
@@ -330,12 +330,13 @@ C ======================================================================
       END
 C ======================================================================
       SUBROUTINE KRYREF(M,N,NKRY,NCONV,V0,W,V,AM,BM,T,LDT,WT,
-     &	   LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW)
+     &	   LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C     ==================================================================
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
       DIMENSION T(LDT,*),WT(LDWT),H(*),W(N),SCR(LSCR),ISCR(LISCR)
       DIMENSION LAB(M,*),NROW(M)
+      LOGICAL :: TLargest
 C     ==================================================================
       CALL TISET('    KRYREF',ISUB)
       DO I=3,NKRY
@@ -344,7 +345,7 @@ C..V_I = V_I - V_(I-1) A_(I-1)
 C..V_I B_I = V_I
         CALL MGS(M,N,V(1,1,I),M,BM(1,1,I),N)
 C..HPSI:  H V_I
-        CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,I),V(1,1,I+1))
+        CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,I),V(1,1,I+1),TLargest)
 C        CALL HPSI(M,N,H,V(1,1,I),V(1,1,I+1))
         NHPSI=NHPSI+N 
 C.. project out converged states
@@ -399,7 +400,7 @@ C ===================================================================
       END
 C ==================================================================
       SUBROUTINE PRPKRV(M,N,NKRY,NCONV,VCONV,V0,VS,V,AM,BM,H,W,
-     &     SCR,LSCR,NHPSI,ICMAX,LAB,NROW)
+     &     SCR,LSCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C ==------------------------------------------------------------------==
 C == Returns A_1,A_2,B_2 and V in a form suitable for krylov          ==
 C == refinement                                                       ==
@@ -408,6 +409,7 @@ C ==------------------------------------------------------------------==
       DIMENSION VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1),
      &     AM(N,N,NKRY+1),BM(N,N,NKRY),SCR(LSCR),W(N),H(*)
       DIMENSION LAB(M,*),NROW(M)
+      LOGICAL :: TLargest
 C ==------------------------------------------------------------------==
       CALL TISET('    PRPKRV',ISEUB)
 C ==------------------------------------------------------------------==
@@ -426,7 +428,7 @@ C..   Setup A_1=diag(w)
         AM(I,I,1)=W(I)
       ENDDO
 C..V_3=H.V2
-      CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,2),V(1,1,3))
+      CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,2),V(1,1,3),TLargest)
 C      CALL HPSI(M,N,H,V(1,1,2),V(1,1,3))
       NHPSI=NHPSI+N 
 C.. project out converged states
