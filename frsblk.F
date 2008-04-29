@@ -1,15 +1,17 @@
       SUBROUTINE FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &	NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
-     &	WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT,TLargest)
+     &	WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
       IMPLICIT REAL*8 (A-H,O-Z) 
 C ==----------------------------------------------------------------==
 C ==	M is NDET : the number of rows in Hamil			            ==
 C ==    ICMAX : the MAX. number of columns in Hamil	         	    ==
 C ==    N is NEVAL : the number of columns in the wavevector        ==
 C ==    PRINTOUT is a logical testing whether to print results      ==
+C ==    TSeeded if true, means that a seed for RAN2 has been set,   ==
+C ==    and shouldn't be reset.
 C ==----------------------------------------------------------------==
       
-      LOGICAL :: PRINTOUT,TLargest
+      LOGICAL :: PRINTOUT,TLargest,TSeeded
       DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
       DIMENSION V(M*NBLOCK*NKRY1)
       DIMENSION AM(NBLOCK*NBLOCK*NKRY1),BM(NBLOCK*NBLOCK*NKRY)
@@ -23,7 +25,7 @@ C..temp
       DIMENSION LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
 C..Initialise V0 
-      CALL SETUP_MATRIX(M,N,V0,.FALSE.)
+      CALL SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
       CALL MGS(M,N,V0,M,A,N)
 C..Calculate top 80% of N 
       NDIAG=N-INT(N*0.2) 
@@ -225,14 +227,18 @@ C     ==================================================================
       RETURN 
       END 
 C =======================================================================
-      SUBROUTINE SETUP_MATRIX(M,N,A,TSYM)
+      SUBROUTINE SETUP_MATRIX(M,N,A,TSYM,TSeeded)
       IMPLICIT REAL*8 (A-H,O-Z)
 C..M = NDET
 C..N = NEVAL
       DIMENSION A(M,N)
-      LOGICAL TSYM 
+      LOGICAL TSYM,TSeeded 
       integer iseed
-      iseed=1
+      IF(TSeeded) THEN
+          iseed=0
+      ELSE
+          iseed=1
+      ENDIF
       IF(TSYM) THEN 
         DO I=1,N
           DO J=I,M 

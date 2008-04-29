@@ -466,7 +466,7 @@ CONTAINS
             CALL AZZERO(V2,NDET*NEVAL)
 !C..Lanczos iterative diagonalising routine
             CALL FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
-     &  SCR,ISCR,INDEX,WH,WORK2,V2,NCYCLE,B2L,.true.,.false.)
+     &  SCR,ISCR,INDEX,WH,WORK2,V2,NCYCLE,B2L,.true.,.false.,.false.)
 
 !Multiply all eigenvalues by -1.
             CALL DSCAL(NEVAL,-1.D0,W,1)

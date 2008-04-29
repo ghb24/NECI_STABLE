@@ -1627,6 +1627,7 @@ MODULE GraphMorph
             Move=0.D0
             do i=1,TotExcits
                 ExcitsVector(i)=ExcitsVector(i)/Norm2
+                IF(GraphBias.eq.1.D0) ExcitsVector(i)=HElement(0.D0)
                 Move=Move+((ExcitsVector(i)%v)**2)
             enddo
 
@@ -1982,7 +1983,7 @@ MODULE GraphMorph
 
 !This routine uses a Lancsoz iterative diagonalisation technique to diagonalise the rho matrix.
     SUBROUTINE DiagGraphLanc()
-        USE DetCalc , only : B2L
+        USE DetCalc , only : B2L, nBlk, nKry, NEval
         IMPLICIT NONE
         CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphLanc'
         INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
@@ -1994,7 +1995,8 @@ MODULE GraphMorph
         INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
         INTEGER :: iSubLanc,ierr,LenMat,i,j,ICMax,RowElems
         REAL*8 :: SumVec,LancVar
-        INTEGER :: NEval,NBlk,NKry,NCycle,NBlock,NKry1,LScr,LIScr
+        INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr
+        LOGICAL :: TSeeded
 
         CALL TISET('DiagGraphLanc',iSubLanc)
         
@@ -2095,15 +2097,26 @@ MODULE GraphMorph
 
 !Set up parameters for the diagonaliser.
 !NEval indicates the number of eigenvalues we want to calculate
-        NEval=10
+        IF(NEval.eq.0) THEN
+!NEval is set to 0 by default, computing all eigenvectors
+            NEval=10
+        ENDIF
 !        B2L=1.D-25
-        NBlk=8
-        NKry=8
+!        NBlk=4
+!        NKry=8
         NCycle=200
         NKry1=NKry+1
         NBlock=MIN(NEval,NBlk)
         LScr=MAX(NDets*NEval,8*NBlock*NKry)
         LIScr=6*NBlock*NKry
+
+!Check whether RAN2 has been initialised yet, or not
+        IF(Seed.eq.0) THEN
+            TSeeded=.true.
+        ELSE
+            TSeeded=.false.
+        ENDIF
+        WRITE(6,*) "TSeeded: ", TSeeded
 
 !Deallocate GraphRhoMat - no longer needed
         DEALLOCATE(GraphRhoMat)
@@ -2163,7 +2176,7 @@ MODULE GraphMorph
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphLanc'
 
 !Lanczos iterative diagonalisation routine
-        CALL FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.)
+        CALL FRSBLKH(NDets,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded)
 !Mulitply eigenvalues through by -1 to ensure they are positive - no longer needed
 !        CALL DSCAL(NEval,-1.D0,W,1)
 !If first element of eigenvector is positive, multiply whole lot through by -1
@@ -2222,8 +2235,8 @@ MODULE GraphMorph
         do i=1,NDets
 !Need to record the *largest* eigenvector - this is a problem for lanczos
             Eigenvector(i)=HElement(CK(i,1))
-!            LancVar=LancVar+ABS(temp(i)-Eigenvector(i)%v)/Eigenvector(i)%v
-            SumVec=SumVec+((Eigenvector(i)%v)**2)
+!            LancVar=LancVar+ABS(temp(i)-Eigenvector(i)%v)/ABS(Eigenvector(i)%v)
+!            SumVec=SumVec+((Eigenvector(i)%v)**2)
 !            IF(i.le.NEval) THEN
 !                WRITE(6,*) Eigenvector(i),W(i)
 !            ELSE
@@ -2245,12 +2258,11 @@ MODULE GraphMorph
         enddo
         
 !        DEALLOCATE(temp)
-
 !        WRITE(6,*) "The variance of the eigenvector components is: ", LancVar/NDets
 
-        IF((ABS(SumVec-1.D0)).gt.1.D-08) THEN
-            WRITE(6,*) "Eigenvector NOT NORMALISED!",SumVec
-        ENDIF
+!        IF((ABS(SumVec-1.D0)).gt.1.D-08) THEN
+!            WRITE(6,*) "Eigenvector NOT NORMALISED!",SumVec
+!        ENDIF
         IF(ReturntoTMoveDets) THEN
             TMoveDets=.false.
         ENDIF
