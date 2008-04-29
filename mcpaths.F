@@ -2417,7 +2417,7 @@ C         DLWDB=DLWDB-LIST(1,2)
       SUBROUTINE EndSeek(unit)
          IMPLICIT NONE
          INTEGER unit
-         do while (1)
+         do while (.true.)
             READ(unit,*,end=678)
          enddo
 678      return
