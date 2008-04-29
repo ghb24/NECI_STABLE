@@ -2366,6 +2366,9 @@ C         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
             IF(III.EQ.1) THEN
                WLRI0=WLRI
                WLSI0=WLSI
+           else
+               WLRI0=0.d0
+               WLSI0=0.d0
             ENDIF  
             IF(TNPDERIV) THEN
 C.. if we're calculating the derivatives too
