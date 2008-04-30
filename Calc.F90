@@ -28,6 +28,7 @@ MODULE Calc
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
+        REAL*8 GrowGraphsExpo
 
 
 
@@ -65,6 +66,7 @@ MODULE Calc
 
 
 !       Calc defaults   
+          GrowGraphsExpo=2.D0
           TGrowInitGraph=.false.
           NoMCExcits=5000
           TMCExcitSpace=.false.
@@ -542,6 +544,9 @@ MODULE Calc
               case("GROWINITGRAPH")
 !In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations of consecutive determinants
                   TGrowInitGraph=.true.
+              case("GROWGRAPHSEXPO")
+!In GraphMorph, this is the exponent to which the components of the excitation vector and eigenvector will be raised to turn them into probabilities.
+                  call getf(GrowGraphsExpo)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

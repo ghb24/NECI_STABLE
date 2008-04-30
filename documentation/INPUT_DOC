@@ -480,6 +480,9 @@ GROWINITGRAPH
 FULLDIAGTRIPS
     An option when creating a star of triples, to do a full diagonalisation of the triples stars, without any prediagonalisation. Very very slow...
 
+GROWGRAPHSEXPO <GrowGraphsExpo>
+    A GraphMorph option. This is the exponent to which the components of the excitations vector and the eigenvector are raised in order to turn them into probabilities. Default is 2.D0. The higher the value, the more that larger weighted determinants will be favoured, though this might result in the graph growing algorithm to get stuck.
+
 ENDCALC
    Ends the calculation block.
 

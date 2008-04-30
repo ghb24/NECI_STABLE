@@ -1,7 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!   TO DO   !!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!
-!Fix Lanczos code
 !Fix MoveDets code
 !Go to larger graphs, and look at possible convergence
 !Look into MC sampling of rest of excitation space to aid convergence
@@ -20,7 +19,7 @@ MODULE GraphMorph
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
     USE Calc , only : TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn
-    USE Calc , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits,TGrowInitGraph
+    USE Calc , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits,TGrowInitGraph,GrowGraphsExpo
     USE Logging , only : TDistrib
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
@@ -395,6 +394,8 @@ MODULE GraphMorph
 
             do while(i.lt.NDets)
 
+                WRITE(6,*) i
+                CALL FLUSH(6)
                 CALL GenSymExcitIt2(RootDet,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,iExcit,0,nStore,exFlag)
                 IF(nJ(1).eq.0) THEN
 !In the next sweep, look at the next determinant being the root
@@ -1251,7 +1252,7 @@ MODULE GraphMorph
         DEALLOCATE(ExcitsDets)
         CALL LogMemDealloc(this_routine,ExcitsDetsTag)
         
-        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in PickNewDets'
+        IF(ierr.ne.0) STOP 'Problem in allocation somewhere in MoveDetsGraph'
         CALL TIHALT('MoveDets',iSubMove)
 
     END SUBROUTINE MoveDetsGraph
@@ -1263,7 +1264,7 @@ MODULE GraphMorph
         USE Integrals , only : fck,nMax,nMsh,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
-        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist
+        INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist,Rej_SameDet
         INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel,IC1,IC2
         INTEGER , ALLOCATABLE :: GrowGraph(:,:)
         REAL*8 :: r,Ran2
@@ -1297,6 +1298,7 @@ MODULE GraphMorph
 !mean number of excitations away from HF
         Success=0
         Failure=0
+        Rej_SameDet=0
         MeanExcit=0.D0
 !Also keep a ratio of determinants which were in the graph before, and new ones added.
         OrigDets=0
@@ -1317,7 +1319,7 @@ MODULE GraphMorph
 !First look through the normalised eigenvector*eigenvalue
             do while ((r.gt.0.D0).and.(i.lt.NDets))
                 i=i+1
-                r=r-((Eigenvector(i)%v)**2)
+                r=r-((Eigenvector(i)%v)**(GrowGraphsExpo))
             enddo
 
 !If still not found, then look in Vector of excitations
@@ -1325,7 +1327,7 @@ MODULE GraphMorph
                 i=0
                 do while ((r.ge.0.D0).and.(i.lt.TotExcits))
                     i=i+1
-                    r=r-((ExcitsVector(i)%v)**2)
+                    r=r-((ExcitsVector(i)%v)**(GrowGraphsExpo))
                 enddo
 
 !Error - cannot find determinant to attach in original graph, or its excitations
@@ -1359,6 +1361,7 @@ MODULE GraphMorph
 !Check the number of excitations away from each other vertex in graph - or instead, just check if determinant already in graph
                 IF(SameDet(AttemptDet(:),GrowGraph(i,:),NEl)) THEN
 !Determinant is already in the graph - exit loop - determinant not valid
+                    Rej_SameDet=Rej_SameDet+1
                     Attach=.false.
                     EXIT
                 ENDIF
@@ -1494,7 +1497,18 @@ MODULE GraphMorph
 
 !Test if graph growing was successful. If not, possible reasons are that the space is too small for
 !such a large graph to be grown easily - reduce NDets, or increase time to search for determinants.
-        IF(NoVerts.ne.NDets) STOP 'Error in attaching determinants to new graph'
+        IF(NoVerts.ne.NDets) THEN
+            WRITE(6,*) "Error in attaching determinants to new graph"
+            WRITE(6,*) "Out of ",Tries," attempts to attach determinants, ",Failure, " failed."
+            WRITE(6,*) "Of these failures, ", Rej_SameDet," of these were due to the same determinant being picked"
+            WRITE(6,*) "The rest were due to the determinants not being connected to the growing graph"
+            WRITE(6,*) "Eigenvector components are: "
+            do k=2,NDets
+                WRITE(6,*) Eigenvector(k)
+            enddo
+            STOP 'Error in attaching determinants to new graph'
+        ENDIF
+        IF(Tries.gt.NDets*100000) STOP 'Should never get here'
         IF(Success.ne.(NDets-1)) STOP 'Error in attaching determinants to new graph 2'
 
 !Determine success ratio for attachment of determinants into new graph
@@ -1548,7 +1562,7 @@ MODULE GraphMorph
 !                STOP 'Numerical errors likely to arise due to such small connection'
 !            ENDIF
 !Normalised as the reciprocal of the fourth root of the element. If root is changed, then numerical stability means that only one determinant is ever picked...
-            Eigenvector(i)=HElement(1.D0/RootofNum(ABS(Eigenvector(i)%v),5))
+            Eigenvector(i)=HElement(1.D0/RootofNum(ABS(Eigenvector(i)%v),5.D0))
 !            WRITE(6,*) Eigenvector(i)
             Norm1=Norm1+Eigenvector(i)
         enddo
@@ -1584,8 +1598,8 @@ MODULE GraphMorph
     SUBROUTINE NormaliseVector()
         IMPLICIT NONE
         INTEGER :: i
-        REAL*8 :: Stay,Move
-        TYPE(HElement) :: Norm,Norm1,Norm2
+        REAL*8 :: Stay,Move,RootofNum
+        REAL*8 :: Norm,Norm1,Norm2
 
 !The bias towards the determinants already in the graph is given by the largest eigenvector, multiplied by its eigenvalue.
 !Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue
@@ -1603,71 +1617,74 @@ MODULE GraphMorph
                 STOP 'Value for Graphbias must be between 1 and 0'
             ENDIF
 
-            Norm1=HElement(0.D0)
+            Norm1=0.D0
+!The elements of the vectors can be turned into probabilities by raising to powers other than two
             do i=2,NDets
-                Norm1=Norm1+(Eigenvector(i)*Eigenvector(i))
+                Norm1=Norm1+(ABS(Eigenvector(i)%v)**(GrowGraphsExpo))
             enddo
-            Norm1=HElement(SQRT((Norm1%v)/GraphBias))
+            Norm1=RootofNum((Norm1/GraphBias),GrowGraphsExpo)
+!            Norm1=SQRT(Norm1/GraphBias)
 
 !Divide elements of the eigenvector by the normalisation
             Stay=0.D0
             do i=2,NDets
-                Eigenvector(i)=Eigenvector(i)/Norm1
-                Stay=Stay+((Eigenvector(i)%v)**2)
+                Eigenvector(i)=HElement(ABS(Eigenvector(i)%v)/Norm1)
+                Stay=Stay+(ABS(Eigenvector(i)%v)**(GrowGraphsExpo))
             enddo
 
 !Now find normalisation for the excitations
-            Norm2=HElement(0.D0)
+            Norm2=0.D0
             do i=1,TotExcits
-                Norm2=Norm2+(ExcitsVector(i)*ExcitsVector(i))
+                Norm2=Norm2+(ABS(ExcitsVector(i)%v)**(GrowGraphsExpo))
             enddo
-            Norm2=HElement(SQRT((Norm2%v)/(1.D0-GraphBias)))
+!            Norm2=SQRT(Norm2/(1.D0-GraphBias))
+            Norm2=RootofNum((Norm2/(1.D0-GraphBias)),GrowGraphsExpo)
 
 !Divide elements of ExcitsVector by new normalisation
             Move=0.D0
             do i=1,TotExcits
-                ExcitsVector(i)=ExcitsVector(i)/Norm2
-                IF(GraphBias.eq.1.D0) ExcitsVector(i)=HElement(0.D0)
-                Move=Move+((ExcitsVector(i)%v)**2)
+                ExcitsVector(i)=HElement(ABS(ExcitsVector(i)%v)/Norm2)
+!                IF(GraphBias.eq.1.D0) ExcitsVector(i)=HElement(0.D0)
+                Move=Move+ABS((ExcitsVector(i)%v)**(GrowGraphsExpo))
             enddo
 
         ELSE
 !No biasing towards excitations
 
 !We need to find the normalisation constant, given by the sum of the squares of all the elements
-            Norm=HElement(0.D0)
+            Norm=0.D0
 !First, sum the squares of the original determinants in the graph
             do i=2,NDets
-                Norm=Norm+(Eigenvector(i)*Eigenvector(i))
+                Norm=Norm+(ABS(Eigenvector(i)%v)**(GrowGraphsExpo))
             enddo
 
 !Then, sum the squares of the vector for the excitations
             do i=1,TotExcits
-                Norm=Norm+(ExcitsVector(i)*ExcitsVector(i))
+                Norm=Norm+(ABS(ExcitsVector(i)%v)**(GrowGraphsExpo))
             enddo
 
-            Norm=HElement(SQRT(Norm%v))
+            Norm=RootofNum(Norm,GrowGraphsExpo)
 
 !Once the normalisation is found, all elements need to be divided by it.
 !Stay is the total probability of staying with original graph
             Stay=0.D0
             Move=0.D0
             do i=2,NDets
-                Eigenvector(i)=Eigenvector(i)/Norm
-                Stay=Stay+((Eigenvector(i)%v)**2)
+                Eigenvector(i)=HElement(ABS(Eigenvector(i)%v)/Norm)
+                Stay=Stay+ABS((Eigenvector(i)%v)**(GrowGraphsExpo))
             enddo
             do i=1,TotExcits
-                ExcitsVector(i)=ExcitsVector(i)/Norm
-                Move=Move+((ExcitsVector(i)%v)**2)
+                ExcitsVector(i)=HElement(ABS(ExcitsVector(i)%v)/Norm)
+                Move=Move+ABS((ExcitsVector(i)%v)**(GrowGraphsExpo))
             enddo
 
         ENDIF
 
         PStay=Stay
-!        WRITE(6,*) "Probability of staying at original determinants: ", Stay
+        WRITE(6,*) "Probability of staying at original determinants: ", Stay
         WRITE(6,*) "Probability of Moving: ", Move
 !        CALL FLUSH(6)
-!        WRITE(6,*) "Total Probability: ", Stay+Move
+        WRITE(6,*) "Total Probability: ", Stay+Move
 !        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 
     END SUBROUTINE NormaliseVector
@@ -2099,7 +2116,13 @@ MODULE GraphMorph
 !NEval indicates the number of eigenvalues we want to calculate
         IF(NEval.eq.0) THEN
 !NEval is set to 0 by default, computing all eigenvectors
-            NEval=10
+            IF(NDets.gt.25) THEN
+                WRITE(6,*) "Resetting NEval to 10 eigenvectors"
+                NEval=10
+            ELSE
+                WRITE(6,*) "Computing all eigenvectors"
+                NEval=NDets
+            ENDIF
         ENDIF
 !        B2L=1.D-25
 !        NBlk=4
@@ -2116,7 +2139,7 @@ MODULE GraphMorph
         ELSE
             TSeeded=.false.
         ENDIF
-        WRITE(6,*) "TSeeded: ", TSeeded
+!        WRITE(6,*) "TSeeded: ", TSeeded
 
 !Deallocate GraphRhoMat - no longer needed
         DEALLOCATE(GraphRhoMat)
@@ -2491,9 +2514,13 @@ END MODULE GraphMorph
 !        ENDIF
 
 REAL*8 FUNCTION RootofNum(Num,Root)
-    INTEGER :: Root
+    REAL*8 :: Root
     REAL*8 :: Num
-    RootofNum=EXP(LOG(Num)/Root)
+    IF(Num.lt.1.D-16) THEN
+        RootofNum=0.D0
+    ELSE
+        RootofNum=EXP(LOG(Num)/Root)
+    ENDIF
     RETURN
 END FUNCTION RootofNum
 
