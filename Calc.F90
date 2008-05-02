@@ -18,6 +18,7 @@ MODULE Calc
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
+        LOGICAL THDiag
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -65,7 +66,8 @@ MODULE Calc
       TBEGRAPH = .false.
 
 
-!       Calc defaults   
+!       Calc defaults 
+          THDiag=.false.
           GrowGraphsExpo=2.D0
           TGrowInitGraph=.false.
           NoMCExcits=5000
@@ -894,7 +896,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips
+         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -949,6 +951,12 @@ MODULE Calc
                         case("GRAPHMORPH")
                             TGraphMorph=.true.
                             I_HMAX=-21
+                            call readu(w)
+                            select case(w)
+                            case("HDIAG")
+                                !If this is true, then it uses the hamiltonian matrix to determinant coupling to excitations, and to diagonalise to calculate the energy
+                                THDiag=.true.
+                            endselect
                         case("STAR")
                            I_HMAX=0
                            do while(item.lt.nitems)

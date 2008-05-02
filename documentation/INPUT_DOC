@@ -334,8 +334,8 @@ METHOD <METHOD>
 
     VERTEX SUM READ
         Read in from pre-existing MCPATHS file for that vertex level [Only really useful in a METHODS section]
-    VERTEX GRAPHMORPH
-        This sets up an initial graph, and systematically improves it, by applying the rho matrix of the graph and its excitations as a propagator on the largest eigenvector of the previous graph. From this, an improved graph is stochastically selected, and the process is repeated, lowering the energy.
+    VERTEX GRAPHMORPH [HDIAG]
+        This sets up an initial graph, and systematically improves it, by applying the rho matrix of the graph and its excitations as a propagator on the largest eigenvector of the previous graph. From this, an improved graph is stochastically selected, and the process is repeated, lowering the energy. If HDIAG is specified, it is the hamiltonian matrix elements which determine the coupling between determinants, and it is the hamiltonian matrix which is diagonalised in each iteration in order to calculate the energy.
     VERTEX STAR [ADDSINGLES/COUNTEXCITS] STARSTARS TRIPLES NODAL,DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
         Constructs a star from all determinants connected to the root (ignoring connections between those dets).
         STARSTARS uses an approximation that the change of eigenvalues and the first element of the eigenvectors of the star graph is linear with respect to multiplying the diagonal elements by a constant. Once this scaling is found, all stars of stars are prediagonalised, and reattached to the original graph. This results in N^2 scaling, where N is the number of excitations.
