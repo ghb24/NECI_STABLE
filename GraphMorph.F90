@@ -1486,7 +1486,7 @@ MODULE GraphMorph
                     ELSE
 !Allow all connections
                         IF(THDiag) THEN
-                            rh=GetHElement2(AttemptDet(:),GrowGraph(i,:),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,IC,ECore)
+                            rh=GetHElement2(AttemptDet(:),GrowGraph(i,:),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,-1,ECore)
                             IF(rh.agt.0.D0) Attach=.true.
                         ELSE
                             CALL CalcRho2(AttemptDet(:),GrowGraph(i,:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
@@ -1593,8 +1593,8 @@ MODULE GraphMorph
                     GrowGraph(NoVerts+1,i)=AttemptDet(i)
                 enddo
                 NoVerts=NoVerts+1
-!                    WRITE(6,"A,I5") "Vertex Added - ",NoVerts
-!                    CALL FLUSH(6)
+!                WRITE(6,"A,I5") "Vertex Added - ",NoVerts
+                CALL FLUSH(6)
 
                 Success=Success+1
                 IF(OriginalPicked) THEN
@@ -1761,11 +1761,11 @@ MODULE GraphMorph
             Norm2=RootofNum((Norm2/(1.D0-GraphBias)),GrowGraphsExpo)
 
 !Divide elements of ExcitsVector by new normalisation
-            Move=0.D0
+!            Move=0.D0
             do i=1,TotExcits
                 ExcitsVector(i)=HElement(ABS(ExcitsVector(i)%v)/Norm2)
 !                IF(GraphBias.eq.1.D0) ExcitsVector(i)=HElement(0.D0)
-                Move=Move+ABS((ExcitsVector(i)%v)**(GrowGraphsExpo))
+!                Move=Move+ABS((ExcitsVector(i)%v)**(GrowGraphsExpo))
             enddo
 
         ELSE
@@ -1788,23 +1788,23 @@ MODULE GraphMorph
 !Once the normalisation is found, all elements need to be divided by it.
 !Stay is the total probability of staying with original graph
             Stay=0.D0
-            Move=0.D0
+!            Move=0.D0
             do i=2,NDets
                 Eigenvector(i)=HElement(ABS(Eigenvector(i)%v)/Norm)
                 Stay=Stay+ABS((Eigenvector(i)%v)**(GrowGraphsExpo))
             enddo
             do i=1,TotExcits
                 ExcitsVector(i)=HElement(ABS(ExcitsVector(i)%v)/Norm)
-                Move=Move+ABS((ExcitsVector(i)%v)**(GrowGraphsExpo))
+!                Move=Move+ABS((ExcitsVector(i)%v)**(GrowGraphsExpo))
             enddo
 
         ENDIF
 
         PStay=Stay
         WRITE(6,*) "Probability of staying at original determinants: ", Stay
-        WRITE(6,*) "Probability of Moving: ", Move
+!        WRITE(6,*) "Probability of Moving: ", Move
 !        CALL FLUSH(6)
-        WRITE(6,*) "Total Probability: ", Stay+Move
+!        WRITE(6,*) "Total Probability: ", Stay+Move
 !        WRITE(6,*) "Normalisation constant for propagation vector: ", Norm
 
     END SUBROUTINE NormaliseVector
@@ -2394,13 +2394,14 @@ MODULE GraphMorph
 !Store largest eigenvector - ?first? column of CK (zero it)
         CALL AZZERO(Eigenvector,NDets)
 
-        SumVec=0.D0
+!        SumVec=0.D0
 !        LancVar=0.D0
         do i=1,NDets
 !Need to record the largest/smallest eigenvector - depending on whether THDiag is on or off
             Eigenvector(i)=HElement(CK(i,1))
 !            LancVar=LancVar+ABS(temp(i)-Eigenvector(i)%v)/ABS(Eigenvector(i)%v)
 !            SumVec=SumVec+((Eigenvector(i)%v)**2)
+!            WRITE(22,*) Eigenvector(i)
 !            IF(i.le.NEval) THEN
 !                WRITE(6,*) Eigenvector(i),W(i)
 !            ELSE
