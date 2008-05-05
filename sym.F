@@ -308,6 +308,8 @@ C.. delete a symmetry table if one existed.
          IP_SYMLABELLIST=0
          IF(IP_SYMLABELCOUNTS.NE.0) CALL FREEM(IP_SYMLABELCOUNTS)
          IP_SYMLABELCOUNTS=0
+         IF(IP_SYMCLASSES2.NE.0) CALL FREEM(IP_SYMCLASSES2)
+         IP_SYMCLASSES2=0
       END
 
 C.. Precompute a list of the symmetry product of all pairs of symmetry labels
