@@ -1346,9 +1346,9 @@ MODULE GraphMorph
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist,Rej_SameDet
-        INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel,IC1,IC2
+        INTEGER :: Success,Failure,OrigDets,ExcitDets,Tries,iGetExcitLevel,IC1,IC2,IndexRemoved
         INTEGER , ALLOCATABLE :: GrowGraph(:,:)
-        REAL*8 :: r,Ran2
+        REAL*8 :: r,Ran2,Sumdetsprob,RootofNum,NormFactor
         LOGICAL :: Attach,OriginalPicked,SameDet
         TYPE(HElement) :: rh
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
@@ -1379,6 +1379,9 @@ MODULE GraphMorph
 !NoVerts indicates the number of vertices in the graph so far
         NoVerts=1
 
+!Sumdetsprob is the sum of the probabilities of the determinants in the graph already
+        Sumdetsprob=1.D0
+
 !For interesting statistics, keep a record of successful/unsuccessful attachments, and 
 !mean number of excitations away from HF
         Success=0
@@ -1397,13 +1400,18 @@ MODULE GraphMorph
             
             k=k+1
 !Stochastically pick determinant to add to the graph from vectors
-            r=RAN2(Seed)
+!Multiply the random number by 1-the sum of the probabilities of the determinants which are already in the graph
+!Since these probabilities have now been set to zero in the vectors, they will not be chosen again.
+            r=RAN2(Seed)*Sumdetsprob
+!            NormFactor=RootofNum(Sumdetsprob,GrowGraphsExpo)
+!            WRITE(6,*) Sumdetsprob,NormFactor
 !Set i=1, since we do not want to choose the first determinant of the original graph
             i=1
 
 !First look through the normalised eigenvector*eigenvalue
             do while ((r.gt.0.D0).and.(i.lt.NDets))
                 i=i+1
+!                r=r-(((Eigenvector(i)%v)/NormFactor)**(GrowGraphsExpo))
                 r=r-((Eigenvector(i)%v)**(GrowGraphsExpo))
             enddo
 
@@ -1412,6 +1420,7 @@ MODULE GraphMorph
                 i=0
                 do while ((r.ge.0.D0).and.(i.lt.TotExcits))
                     i=i+1
+!                    r=r-(((ExcitsVector(i)%v)/NormFactor)**(GrowGraphsExpo))
                     r=r-((ExcitsVector(i)%v)**(GrowGraphsExpo))
                 enddo
 
@@ -1424,6 +1433,7 @@ MODULE GraphMorph
 
 !Determinant picked is from excitations...
                 OriginalPicked=.false.
+                IndexRemoved=i
                 do j=1,NEl
                     AttemptDet(j)=ExcitsDets(i,j)
                 enddo
@@ -1431,6 +1441,7 @@ MODULE GraphMorph
             ELSE
 !Determinant picked is from original graph...
                 OriginalPicked=.true.
+                IndexRemoved=i
                 do j=1,NEl
                     AttemptDet(j)=GraphDets(i,j)
                 enddo
@@ -1447,6 +1458,18 @@ MODULE GraphMorph
                 IF(SameDet(AttemptDet(:),GrowGraph(i,:),NEl)) THEN
 !Determinant is already in the graph - exit loop - determinant not valid
                     Rej_SameDet=Rej_SameDet+1
+
+!The only way that the same determinant can be picked again is if it is multiply specified and already included from elsewhere
+!Therefore, we can remove this reference from the list in the same way
+                    IF(OriginalPicked) THEN
+                        Sumdetsprob=Sumdetsprob-((Eigenvector(IndexRemoved)%v)**(GrowGraphsExpo))
+                        Eigenvector(IndexRemoved)=HElement(0.D0)
+                    ELSE
+                        Sumdetsprob=Sumdetsprob-((ExcitsVector(IndexRemoved)%v)**(GrowGraphsExpo))
+                        ExcitsVector(IndexRemoved)=HElement(0.D0)
+                    ENDIF
+
+!Do not attach determinant, and no need to carry on testing connections                    
                     Attach=.false.
                     EXIT
                 ENDIF
@@ -1499,6 +1522,17 @@ MODULE GraphMorph
 
             IF(Attach) THEN
 !Attach new determinant to the list as it passes tests
+
+!Make the probability of picking the determinants again = 0.
+!Need to first sum the probability so that the random number can be adjusted accordingly
+                IF(OriginalPicked) THEN
+                    Sumdetsprob=Sumdetsprob-((Eigenvector(IndexRemoved)%v)**(GrowGraphsExpo))
+                    Eigenvector(IndexRemoved)=HElement(0.D0)
+                ELSE
+                    Sumdetsprob=Sumdetsprob-((ExcitsVector(IndexRemoved)%v)**(GrowGraphsExpo))
+                    ExcitsVector(IndexRemoved)=HElement(0.D0)
+                ENDIF
+
 !First check on attachment to HF, since wants to be stored in HamElems
 !                IF(IC1.gt.2) WRITE(6,*) "Higher excitation attached ", IC1
      
@@ -1594,7 +1628,7 @@ MODULE GraphMorph
                 enddo
                 NoVerts=NoVerts+1
 !                WRITE(6,"A,I5") "Vertex Added - ",NoVerts
-                CALL FLUSH(6)
+!                CALL FLUSH(6)
 
                 Success=Success+1
                 IF(OriginalPicked) THEN
