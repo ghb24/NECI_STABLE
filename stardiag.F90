@@ -2305,7 +2305,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER I,J
          TYPE(HElement) RR
          
-         IF(HElementSize.GT.1) STOP "STARDIAG cannot function with complex orbitals."
+         IF(HElementSize.GT.1) THEN
+             CALL STOPGM("StarDiag","STARDIAG cannot function with complex orbitals.")
+         END IF
 
          CALL TISET('STARDIAG  ',ISUB)
          CALL MEMORY(IP_RIJMAT,NLIST*NLIST,"RIJMAT")
@@ -2514,9 +2516,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                   RR=HElement(ROOTS(I))-LIST(J,0)
                   IF(.NOT.(RR.AGT.1d-13)) THEN
 !see comment below
-                     WRITE(6,"(A,I6,A,G25.16,A,G25.16,A,I6)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",LIST(J,0)," J=",J
-                     WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J,LIST(J,0),LIST(J,1)
-                     WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J-1,LIST(J-1,0),LIST(J-1,1)
+                     WRITE(6,"(A,I6,A,G25.16,A,G25.16,A,I6)") "WARNING: Eigenvalue I=",I,":",ROOTS(I), " dangerously close to rhojj=",abs(LIST(J,0))," J=",J
+                     WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J,abs(LIST(J,0)),abs(LIST(J,1))
+                     WRITE(6,"(A,I6,2G25.16)") "POLE,NUMER",J-1,abs(LIST(J-1,0)),abs(LIST(J-1,1))
                   ENDIF
                   NORM=NORM+SQ(LIST(J,1)/RR)
                ENDDO
