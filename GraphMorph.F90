@@ -338,6 +338,7 @@ MODULE GraphMorph
         CALL LogMemAlloc('GraphDets',NDets*NEl,4,this_routine,GraphDetsTag)
         CALL IAZZERO(GraphDets,NDets*NEl)
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
+        IF(ierr.ne.0) STOP 'Problem in allocation of GraphRhoMat'
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag)
         CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
         IF(.NOT.THDiag) THEN
@@ -1856,6 +1857,7 @@ MODULE GraphMorph
 !Allocate space to hold this new vector - could get away without allocating any more memory by simply multiplying Connections
 !array by needed element of eigenvector...?
         ALLOCATE(ExcitsVector(TotExcits),stat=ierr)
+        IF(ierr.ne.0) STOP 'Problem in allocation of ExcitsVector'
         CALL LogMemAlloc('ExcitsVector',TotExcits,8*HElementSize,this_routine,ExcitsVectorTag)
         CALL AZZERO(ExcitsVector,TotExcits*HElementSize)
 
@@ -1923,9 +1925,11 @@ MODULE GraphMorph
 
 !Allocate memory to hold connections, and form of the determinants of the excitations
         ALLOCATE(ConnectionsToExcits(TotExcits),stat=ierr)
+        IF(ierr.ne.0) STOP 'Problem in allocation of ConnectionsToExcits vector'
         CALL LogMemAlloc('ConnectionsToExcits',TotExcits,8*HElementSize,this_routine,ConnectionsToExcitsTag)
         CALL AZZERO(ConnectionsToExcits,TotExcits*HElementSize)
         ALLOCATE(ExcitsDets(TotExcits,NEl),stat=ierr)
+        IF(ierr.ne.0) STOP 'Problem in allocation of ExcitsDets vector'
         CALL LogMemAlloc('ExcitsDets',TotExcits*NEl,4,this_routine,ExcitsDetsTag)
         CALL IAZZERO(ExcitsDets,TotExcits*NEl)
 

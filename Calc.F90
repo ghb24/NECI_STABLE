@@ -18,7 +18,7 @@ MODULE Calc
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-        LOGICAL THDiag
+        LOGICAL THDiag,TMCStar
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
@@ -67,6 +67,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TMCStar=.false.
           THDiag=.false.
           GrowGraphsExpo=2.D0
           TGrowInitGraph=.false.
@@ -896,7 +897,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag
+         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -970,6 +971,8 @@ MODULE Calc
                                  TDIAGNODES=.TRUE.
                               case("STARSTARS")
                                   TSTARSTARS=.true.
+                              case("MCSTAR")
+                                  TMCSTAR=.true.
                               case("STARPROD")
                                  STARPROD=.TRUE.
                               case("TRIPLES")
