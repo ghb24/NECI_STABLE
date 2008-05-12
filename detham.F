@@ -3,7 +3,8 @@
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
       USE HElem
       Use Determinants, only: GetHElement2
-      USE System , only : TSTAR,BasisFN
+      USE System , only : BasisFN
+      USE Calc , only : TStar
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(HElement) HAMIL(*)

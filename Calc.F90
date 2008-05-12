@@ -29,7 +29,7 @@ MODULE Calc
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
-        REAL*8 GrowGraphsExpo
+        REAL*8 GrowGraphsExpo,DeltaH
 
 
 
@@ -67,6 +67,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          DeltaH=1.D-04
           TMCStar=.false.
           THDiag=.false.
           GrowGraphsExpo=2.D0
@@ -550,6 +551,8 @@ MODULE Calc
               case("GROWGRAPHSEXPO")
 !In GraphMorph, this is the exponent to which the components of the excitation vector and eigenvector will be raised to turn them into probabilities.
                   call getf(GrowGraphsExpo)
+              case("DELTAH")
+                  call getf(DELTAH)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

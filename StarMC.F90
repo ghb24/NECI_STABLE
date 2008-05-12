@@ -4,23 +4,23 @@
 ! walker populating the HF determinant. Because of this, all graphs can be calculated from a discrete 
 ! diffusion problem. In this case, the principle is used to calculate the energy of the star graph, by 
 ! picking a determinant of the graph at random (including HF), and then pushing electron density onto
-! connected determinants according to the rho matrix element connecting them. This can be consdered a
-! local application of the rho matrix a random determinant, and so the correct energy should be eventually
+! connected determinants according to the hamiltonian matrix element connecting them. This can be consdered a
+! local application of the hamiltonian matrix a random determinant, and so the correct energy should be eventually
 ! converged upon.
 
 MODULE MCStarMod
     USE HElem
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc 
     USE System , only : NEl
+    USE Calc , only : DeltaH
     USE Determinants , only : FDet
     IMPLICIT NONE
     SAVE
 
 !Array to hold the excitation info for the determinants
 !.. LIST(0,...) corresponds to J=I
-!.. LIST(J,0) = RHOJJ
-!.. LIST(J,1) = RHOIJ
-!.. LIST(J,2) = HIJ
+!.. LIST(J,0) = HJJ
+!.. LIST(J,1) = HIJ
     TYPE(HElement) , ALLOCATABLE :: ExcitInfo(:,:)
     INTEGER :: ExcitInfoTag=0
 
@@ -32,7 +32,7 @@ MODULE MCStarMod
 
     REAL*8 :: NormFactor,HFReNorm
 
-    TYPE(HElement) :: rhii,Hii
+    TYPE(HElement) :: Hii
 
 !The intermediate weights and energys of the star graph, calculated with the updated wavevector are stored
     TYPE(HElement) :: TempEnergyxw,TempWeight
@@ -56,8 +56,7 @@ MODULE MCStarMod
 !Initialise random number generator
         Seed=G_VMC_Seed
 
-!Find rho_ii value, which all rho elements will be divided by, and Hii value
-        CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
+!Find Hii value
         Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 
 !First fill excitinfo
@@ -68,7 +67,13 @@ MODULE MCStarMod
 
 !Routine to pick determinants at random (inc. HF) according to probability given by eigenvector component.
 !The wavevector is then propagated in all possible allowed directions, and the energy updated
-        CALL PropagateLocalWavevector()
+!        CALL PropagateLocalWavevector()
+
+!SingleHApp returns the result of applying the Hamiltonian once to the initial vector, either stocastically, or exactly
+!        CALL SingleHApp(.true.)
+
+!PowerMethDiag iterativly calculates Psi(t+1) = Psi(t) - Delta* H|Psi(t)> to converge to ground state
+        CALL PowerMethDiag()
 
         CLOSE(63)
 
@@ -80,12 +85,12 @@ MODULE MCStarMod
 
 !Return final info
         Weight=HDElement((TempWeight%v)-1.D0)
-        Energyxw=HDElement(TempEnergyxw%v)
+        Energyxw=HDElement(TempEnergyxw%v+(Hii%v*TempWeight%v)-Hii%v)
 
         RETURN
     END SUBROUTINE MCStar
 
-!This routine finds all Hij, rho_ij and rho_jj elements for all double excitations in the star graph, and fills ExcitInfo with this
+!This routine finds all Hij and H_jj elements for all double excitations in the star graph, and fills ExcitInfo with this
     SUBROUTINE FindStarExcits()
         USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
         USE Calc , only : i_P,RhoEps,dBeta
@@ -107,11 +112,11 @@ MODULE MCStarMod
 
 !HFReNorm is equal to the increase in total probability when the propagation step is from the HF determinant
 !This is simply equal to the increase electron probability on each determinant, i.e. 1 (rhii/rhii) + sum_j (|rhij|/rhii)^x
-        HFReNorm=1.D0
+        HFReNorm=(Hii%v)**2
 
 !        TCountExcits=BTEST(nWHTay,8)
-!.. Allow both singles and doubles
-        exFlag=3
+!.. Allow only doubles
+        exFlag=2
 
 !.. Count the excitations. - First call of GenSymExcitIt2 calculates memory needed for internal use in excitation generators
         nStore(1)=0
@@ -123,62 +128,33 @@ MODULE MCStarMod
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 
 ! iMaxExcit now contains the number of excitations.
-!TCountExcits will run through all excitations possible, determine if they are connected, and then only store these.
-!Will be twice as expensive, as needs to run through all excitations twice - however, will only store memory needed.
-        
-!        IF(TCountExcits) THEN
-!            Write(6,"(A,I10,A)") "Counting excitations - Running through all ",iMaxExcit," excitations to determine number connected"
-!            ExcitCount=0
-!            do while(.true.)
-!                CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
-!                IF(nJ(1).eq.0) exit
-!                CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
-!                IF(rh.agt.RhoEps) ExcitCount=ExcitCount+1
-!            enddo
-!
-!!Set number of excitations to number of connected determinants, and reset generator
-!            Deallocate(nExcit)
-!            nStore(1)=0
-!            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
-!            Allocate(nExcit(nExcitMemLen))
-!            nExcit(1)=0
-!            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
-!
-!!set number of excitations to exact number there are
-!            iMaxExcit=ExcitCount
-!                        
-!        ENDIF
-        
 !.. Allocate memory for the lists
         Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
-        Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
-        CALL LogMemAlloc('ExcitInfo',(iMaxExcit+1)*3,HElementSize,this_routine,ExcitInfoTag)
-        CALL AZZERO(ExcitInfo,(iMaxExcit+1)*3*HElementSize)
+        Allocate(ExcitInfo(0:iMaxExcit,0:1),stat=iErr)
+        CALL LogMemAlloc('ExcitInfo',(iMaxExcit+1)*2,HElementSize,this_routine,ExcitInfoTag)
+        CALL AZZERO(ExcitInfo,(iMaxExcit+1)*2*HElementSize)
 
         i=0
-        ExcitInfo(i,0)=1.D0
-        ExcitInfo(i,1)=1.D0
-        ExcitInfo(i,2)=Hii
+        ExcitInfo(i,0)=Hii
+        ExcitInfo(i,1)=Hii
                     
         do while(.true.)
             CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit
 
-!Calculate and store rhoij element
-            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit,ECore)
+!Calculate and store Hij element
+            rh=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
             
-            if(rh .agt. RhoEps) then
+            if(rh .agt. 0.D0) then
                i=i+1
-!Divide all elements though by rhoii
-               ExcitInfo(i,1)=rh/rhii
+               
+               ExcitInfo(i,1)=rh
 
 !Calculate a value which will be equal to the change in total probability if the HF determinant is chosen in a propagation step
                 HFReNorm=HFReNorm+((ABS(ExcitInfo(i,1)%v))**2)
                
-!Calculate and store rho_jj elements
-               CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,0,ECore)
-               ExcitInfo(i,0)=rh/rhii
-               ExcitInfo(i,2)=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
+!Calculate and store H_jj elements
+               ExcitInfo(i,0)=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,0,ECore)
 
             endif
         enddo
@@ -188,13 +164,16 @@ MODULE MCStarMod
         Deallocate(nExcit)
 
 !If we want, we should be able to determine the value from polynomial diagonalisation of the full star matrix to compare
-        WRITE(6,*) "Calculating highest eigenvector of star by polynomial diagonalisation for comparison..."
-        nRoots=1
-        StarWeight=0.D0
-        DLWDB=0.D0
-        CALL StarDiag2(0,NEl,NoExcits+1,ExcitInfo,iMaxExcit+1,Beta,i_P,StarWeight,dBeta(1),DLWDB,nRoots,iLogging)
-        DLWDB=DLWDB+Hii%v
-        StarWeight=StarWeight+1.D0
+        WRITE(6,*) "Calculating highest eigenvector of star by diagonalisation for comparison..."
+        CALL CalcHStar(DLWDB,StarWeight)
+!        nRoots=1
+!        StarWeight=0.D0
+!        DLWDB=0.D0
+!        CALL StarDiag2(0,NEl,NoExcits+1,ExcitInfo,iMaxExcit+1,Beta,i_P,StarWeight,dBeta(1),DLWDB,nRoots,iLogging)
+!        DLWDB=DLWDB+Hii%v
+!        StarWeight=StarWeight+1.D0
+!        DLWDB=-109.2913369045749
+!        StarWeight=1.D0
         WRITE(6,*) "Energy of Star Graph calculated to be: ", DLWDB/StarWeight
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in FindStarExcits'
@@ -225,7 +204,7 @@ MODULE MCStarMod
 !For an initial guess, let the components be equal to their rhoij/rhii elements (can be negative)
 !For this specific case, we already know the normalisation constant from HFReNorm
         NormCons=HElement(SQRT(HFReNorm))
-        Eigenvector(0)=HElement(1.D0)/NormCons
+        Eigenvector(0)=Hii/NormCons
         NormCheck=(Eigenvector(0)%v)**2
         do i=1,NoExcits
             Eigenvector(i)=ExcitInfo(i,1)/NormCons
@@ -237,13 +216,17 @@ MODULE MCStarMod
             STOP "Initial trial wavevector not correctly normalised"
         ENDIF
 
+!Star initial wavevector as simply the HF determinant
+!        Eigenvector(0)=HElement(1.D0)
+
 !Calculate initial energy of star with trial wavevector
         TempEnergyxw=HElement(0.D0)
-        do i=1,NoExcits
-            TempEnergyxw=TempEnergyxw+(Eigenvector(i)*ExcitInfo(i,2))
+        do i=0,NoExcits
+            TempEnergyxw=TempEnergyxw+(ExcitInfo(i,1)*Eigenvector(i))
         enddo
+
         TempWeight=Eigenvector(0)
-        StarEnergy=(TempEnergyxw%v/TempWeight%v)+Hii%v
+        StarEnergy=TempEnergyxw%v/TempWeight%v
 
 !Set the NormFactor to be the initial normalisation factor of the trial wavevector
 !This is simply equal to the sum of the probabilities, or the sum of the squares of the trial eigenvector
@@ -253,6 +236,209 @@ MODULE MCStarMod
 
     END SUBROUTINE CreateInitTrialWavevector
 
+!This subroutine applies the hamiltonian to a *normalised* vector (the one in "Eigenvector"), either stochastically trough repeated
+!choosing of a determinant in the vector, according to some probability distribution, and a local application of the
+!hamiltonian, (TStoch=.true.), or in one shot to all determinants (TStoch=.false.) - equivalent to the matrix multiplication
+!of the vector by the star matrix. If TStoch=.true., then Iters defines the number of determinants to pick from the 
+!vector to propagate.
+    SUBROUTINE SingleHApp(TStoch)
+        USE Calc , only : Iters
+        IMPLICIT NONE
+        LOGICAL :: TStoch
+        INTEGER :: i,j,Iterations
+        REAL*8 :: NormFactor,prob,r,RAN2,OrigRoot,OrigExcit
+        TYPE(HElement) :: VectorChange(0:NoExcits),Norm
+
+        IF(TStoch) THEN
+!Simulate the effect of a single application of the hamiltonian stocahstically by picking a number of
+!determinants from the trial wavevector to locally propagate.
+
+            NormFactor=1.D0
+            CALL AZZERO(VectorChange,(NoExcits+1)*HElementSize)
+            
+!In this case, the probability of picking any determinant is uniform across all determinants in the graph.
+            Prob=1.D0/(NoExcits+1)
+
+!Cycle over the number of iterations of local application of H to the graph we want
+            do Iterations=1,Iters
+
+!Since the original vector is normalised, there is no need to search through a renormalised vector each time,
+!since it doesn't change
+                r=RAN2(Seed)
+
+!                NormCheck=0.D0
+!                do j=0,NoExcits
+!                    WRITE(6,*) Eigenvector(j)%v**2
+!                    Normcheck=NormCheck+(Eigenvector(j)%v**2)
+!                enddo
+!                WRITE(6,*) "NORMCHECK: ",Normcheck,NormFactor
+
+!Set i=-1, to allow all excitation + root
+                i=-1
+
+!We first need to choose an excitation or root according to the renormalised trial wavevector
+                do while ((r.gt.0.D0).and.(i.lt.NoExcits))
+                    i=i+1
+
+!                    r=r-((Eigenvector(i)%v)**2)
+!Change so selected with probability given by 1/NDets
+                    r=r-prob
+                enddo
+
+                IF(r.gt.0.D0) THEN
+!Error in normalisation of wavevector
+                    WRITE(6,*) "Error in normalisation of trial wavevector - exiting..."
+                    STOP 'Error in normalisation of trial wavevector'
+                ENDIF
+
+                IF(i.eq.0) THEN
+!Root is selected to propagate from...
+!                    WRITE(6,*) "ROOT PICKED"
+!Renormalise the VectorChange each time - this is not strictly necessary, but can be simplified if not for debugging purposes
+                    NormFactor=0.D0
+                    
+                    do j=1,NoExcits
+!Add to the wavevector components of the excitations Hij
+!However, since the determinant was chosen with a certain probability, this needs to be divided out
+!                        VectorChange(j)=VectorChange(j)+(ExcitInfo(j,1)/Eigenvector(0))
+                        VectorChange(j)=VectorChange(j)+(ExcitInfo(j,1)*Eigenvector(0)/HElement(prob))
+                        NormFactor=NormFactor+((VectorChange(j)%v)**2)
+                    enddo
+
+!The root also increases its wavevector component by Hii
+                    VectorChange(0)=VectorChange(0)+(Hii*Eigenvector(0)/HElement(prob))
+!                    VectorChange(0)=VectorChange(0)+(Hii/Eigenvector(0))
+                    NormFactor=NormFactor+((VectorChange(0)%v)**2)
+
+                ELSE
+!Excitation i is selected to propagate from...
+!                    WRITE(6,*) "EXCIT PICKED",Iterations
+!We need to store the normalisation factor for the previous VectorChange (i.e. sum pf probs)
+!though in this case it should always be one
+                    
+!The root is increased by a proportion given by Hij
+!The original values of the eigenvectors are needed to avoid renormalisation
+                    OrigRoot=VectorChange(0)%v
+                    VectorChange(0)=VectorChange(0)+ExcitInfo(i,1)*Eigenvector(i)/HElement(prob)
+!                    VectorChange(0)=VectorChange(0)+ExcitInfo(i,1)/Eigenvector(i)
+
+!The excitation itself is increased by the diagonal element of the rho-matrix, again divided by the cpt. of eigenvector
+                    OrigExcit=VectorChange(i)%v
+                    VectorChange(i)=VectorChange(i)+ExcitInfo(i,0)*Eigenvector(i)/HElement(prob)
+!                    VectorChange(i)=VectorChange(i)+ExcitInfo(i,0)/Eigenvector(i)
+
+!The full normalisation does not need to be calculated again
+                    NormFactor=NormFactor**2
+                    NormFactor=NormFactor-((OrigRoot**2)-(VectorChange(0)%v**2))-((OrigExcit**2)-(VectorChange(i)%v**2))
+!                    NormFactor=0.D0
+!                    do j=0,NoExcits
+!                        NormFactor=NormFactor+((VectorChange(j)%v)**2)
+!                    enddo
+                
+                ENDIF
+
+!Although only really need to do this at the end, renormalise VectorChange fully
+                NormFactor=SQRT(NormFactor)
+                    
+!If desired, write out all components of VectorChange
+                WRITE(3,"(I8)",advance='no') Iterations
+                do j=0,NoExcits
+                    WRITE(3,"(G25.14)",advance='no') VectorChange(j)%v/NormFactor
+                enddo
+                WRITE(3,*) ""
+
+            enddo
+            
+            do j=0,NoExcits
+!Return final wavevector in Eigenvector array
+                Eigenvector(j)=VectorChange(j)
+            enddo
+
+
+        ELSE
+!Multiply the vector by the star matrix in one go
+!First the root is chosen, and all determinants updated accordingly
+            VectorChange(0)=(Eigenvector(0)*Hii)
+            do j=1,NoExcits
+                VectorChange(j)=Eigenvector(0)*ExcitInfo(j,1)
+            enddo
+!Then the excitations are chosen sequentially and the final change calculated
+            do j=1,NoExcits
+                VectorChange(j)=VectorChange(j)+Eigenvector(j)*ExcitInfo(j,0)
+                VectorChange(0)=VectorChange(0)+Eigenvector(j)*ExcitInfo(j,1)
+            enddo
+
+!The eigenvector now is the vector that results from the exact application of the hamiltonian
+!            WRITE(17,*) "The Exact application of the hamiltonian to the initial vector gives: "
+            Norm=HElement(0.D0)
+            do j=0,NoExcits
+!Renormalise resultant wavefunction
+                Norm=Norm+HElement((VectorChange(j)%v)**2)
+            enddo
+            Norm=HElement(SQRT(Norm%v))
+            do j=0,NoExcits
+!Return final wavevector in Eigenvector array
+                Eigenvector(j)=VectorChange(j)/Norm
+            enddo
+
+!            do j=0,NoExcits
+!Option to write out resultant vector
+!                WRITE(17,*) Eigenvector(j)%v
+!            enddo
+
+        ENDIF
+
+    RETURN
+    END SUBROUTINE SingleHApp
+            
+!In this routine, the hamiltonian is continually applied to the hamiltonian, and the energy updated.
+!This should converge to the ground state, though it is not strictly the power method.
+    SUBROUTINE PowerMethDiag()
+        USE Calc , only : Iters
+        IMPLICIT NONE
+        TYPE(HElement) :: Delta,VectorChange(0:NoExcits)
+        TYPE(HElement) :: TempWeight,TempEnergyxw,Norm
+        REAL*8 :: StarEnergy
+        INTEGER :: It,j
+        
+        Delta=HElement(DeltaH)
+
+        do It=1,Iters
+!Loop over the number of applications of the hamiltonian
+
+!            WRITE(14,"(I8)",advance='no') It
+            do j=0,NoExcits
+!                WRITE(14,"(G25.14)",advance='no') Eigenvector(j)%v
+!Save the original vector, since the routine will change it
+                VectorChange(j)=Eigenvector(j)
+            enddo
+!            WRITE(14,*) ""
+
+            CALL SingleHApp(.false.)
+
+!Eigenvector now has been operated on by the hamiltonian
+!Subtract Delta*Eigenvector from the original vector
+!Also need to renormalise
+            Norm=HElement(0.D0)
+            do j=0,NoExcits
+                Eigenvector(j)=VectorChange(j)-(Delta*(Eigenvector(j)))
+                Norm=Norm+HElement(Eigenvector(j)%v**2)
+            enddo
+
+            Norm=HElement(SQRT(Norm%v))
+            TempEnergyxw=HElement(0.D0)
+            do j=0,NoExcits
+                Eigenvector(j)=Eigenvector(j)/Norm
+                TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
+            enddo
+            TempWeight=Eigenvector(0)
+            StarEnergy=TempEnergyxw%v/TempWeight%v
+!Write out energy
+            WRITE(63,"(I15,2G22.14)") It+1,StarEnergy,TempWeight%v
+
+        enddo
+
+        END SUBROUTINE PowerMethDiag
 
 !In this routine, determinants are picked stochastically according to the magnitude of their component of 
 !the wavevector at that time squared. If the root is picked, then the weight of all excitations are increased
@@ -263,10 +449,17 @@ MODULE MCStarMod
         USE Calc , only : Iters
         IMPLICIT NONE
         INTEGER :: Iterations,iSubProp,i,j
-        REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit
+        REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
         CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
+        TYPE(HElement) :: Delta,Norm,TestVect(0:NoExcits)
         
         CALL TISET('PropLocalWaveVec',iSubProp)
+        CALL AZZERO(TestVect,(NoExcits+1)*HElementSize)
+        Delta=HElement(DeltaH)
+        Prob=1.D0/(NoExcits+1)
+!        do i=0,NoExcits
+!            WRITE(4,*) ((ExcitInfo(i,1)%v)**2)/HFReNorm
+!        enddo
 
 !Cycle over the number of iterations of local application of rho to the graph we want
         do Iterations=1,Iters
@@ -274,6 +467,21 @@ MODULE MCStarMod
 !Multiply by NormFactor - the sum of the probabilities
 !This renormalises the wavevector each time
             r=RAN2(Seed)*NormFactor
+!            WRITE(6,*) NormFactor
+
+!            NormCheck=0.D0
+!            do j=0,NoExcits
+!                WRITE(6,*) Eigenvector(j)%v**2
+!                Normcheck=NormCheck+(Eigenvector(j)%v**2)
+!            enddo
+!            WRITE(6,*) "NORMCHECK: ",Normcheck,NormFactor
+
+!            WRITE(3,"(I8)",advance='no') Iterations
+!            do j=0,NoExcits
+!                WRITE(3,"(G25.14)",advance='no') Eigenvector(j)%v
+!            enddo
+!            WRITE(3,*) ""
+!            WRITE(3,*) ""
 
 !Set i=-1, to allow all excitation + root
             i=-1
@@ -282,7 +490,9 @@ MODULE MCStarMod
             do while ((r.gt.0.D0).and.(i.lt.NoExcits))
                 i=i+1
 
-                r=r-((Eigenvector(i)%v)**2)
+!                r=r-((Eigenvector(i)%v)**2)
+!Change so selected with probability given by 1/NDets
+                r=r-prob
             enddo
 
             IF(r.gt.0.D0) THEN
@@ -293,59 +503,157 @@ MODULE MCStarMod
 
             IF(i.eq.0) THEN
 !Root is selected to propagate from...
-                WRITE(6,*) "ROOT PICKED"
+!                WRITE(6,*) "ROOT PICKED"
 !Set normfactor back to zero - all values change, so we have to create a full new normfactor, and energy factors
                 TempEnergyxw=HElement(0.D0)
                 TempWeight=HElement(0.D0)
-                NormFactor=0.D0
+!                Norm=HElement(NormFactor)
+!                NormFactor=0.D0
                 
                 do j=1,NoExcits
-!Add to the wavevector components of the excitations rhoij/rhii
+!Add to the wavevector components of the excitations Hij
 !However, since the determinant was chosen with probability given by the component squared, 
 !one of these factors needs to be divided out to achieve the correct weighting of each determiant
-                    Eigenvector(j)=Eigenvector(j)+ExcitInfo(j,1)/Eigenvector(0)
-                    NormFactor=NormFactor+((Eigenvector(j)%v)**2)
+!                    Eigenvector(j)=Eigenvector(j)-(Delta*(ExcitInfo(j,1)/Eigenvector(0))*Norm)
+!                    TestVect(j)=TestVect(j)+(ExcitInfo(j,1)/Eigenvector(0))
+                    TestVect(j)=TestVect(j)+(ExcitInfo(j,1)*Eigenvector(0)/HElement(prob))
+                   
+!                    NormFactor=NormFactor+((Eigenvector(j)%v)**2)
 !Calculate energy again...
-                    TempEnergyxw=TempEnergyxw+HElement(ExcitInfo(j,2)%v*Eigenvector(j)%v)
+!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
                 enddo
 
 !The root also increases its wavevector component by rhii/rhii, and is divided through by the same
 !factor for the same reason
-                Eigenvector(0)=Eigenvector(0)+HElement(1.D0)/Eigenvector(0)
-                NormFactor=NormFactor+Eigenvector(0)%v
+!                Eigenvector(0)=Eigenvector(0)-(Delta*Norm*Hii/Eigenvector(0))
+                TestVect(0)=TestVect(0)+(Hii*Eigenvector(0)/HElement(prob))
+!                TestVect(0)=TestVect(0)+(Hii/Eigenvector(0))
+!                NormFactor=NormFactor+(Eigenvector(0)%v)**2
+                
+!                NormFactor=SQRT(NormFactor)
+!                do j=0,NoExcits
+!                    Eigenvector(j)=Eigenvector(j)/HElement(NormFactor)
+!                enddo
+!                NormFactor=1.D0
+!                do j=0,NoExcits
+!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
+!                enddo
 
-                TempWeight=Eigenvector(0)
+
+
+!                TempEnergyxw=TempEnergyxw+(ExcitInfo(0,1)*Eigenvector(0))
+!                TempWeight=Eigenvector(0)
 
             ELSE
 !Excitation i is selected to propagate from...
-                WRITE(6,*) "EXCIT PICKED"
+!                WRITE(6,*) "EXCIT PICKED"
+!                Norm=HElement(NormFactor)
                 
 !The root is increased by a proportion given by rhij/rhii, divided by the component of the eigenvector chosen
 !The original values of the eigenvectors are needed to avoid renormalisation
-                OrigRoot=Eigenvector(0)%v
-                Eigenvector(0)=Eigenvector(0)+ExcitInfo(i,1)/Eigenvector(i)
+!                OrigRoot=Eigenvector(0)%v
+!                Eigenvector(0)=Eigenvector(0)-(Delta*Norm*ExcitInfo(i,1)/Eigenvector(i))
+                TestVect(0)=TestVect(0)+ExcitInfo(i,1)*Eigenvector(i)/HElement(prob)
+!                TestVect(0)=TestVect(0)+ExcitInfo(i,1)/Eigenvector(i)
 
 !The excitation itself is increased by the diagonal element of the rho-matrix, again divided by the cpt. of eigenvector
-                OrigExcit=Eigenvector(i)%v
-                Eigenvector(i)=Eigenvector(i)+ExcitInfo(i,0)/Eigenvector(i)
+!                OrigExcit=Eigenvector(i)%v
+                TestVect(i)=TestVect(i)+ExcitInfo(i,0)*Eigenvector(i)/HElement(prob)
+!                Eigenvector(i)=Eigenvector(i)-(Delta*Norm*ExcitInfo(i,0)/Eigenvector(i))
 
 !The full normalisation does not need to be calculated again
-                NormFactor=((Eigenvector(0)%v)**2)+((Eigenvector(i)%v)**2)
-                NormFactor=NormFactor+(1.D0-(OrigRoot**2)-(OrigExcit**2))
+!                NormFactor=NormFactor-((OrigRoot**2)-(Eigenvector(0)%v**2))-((OrigExcit**2)-(Eigenvector(i)%v**2))
+!
+!!The same trick can be used to calculate the desired terms in the energy - first show change due to changed excit value
+!                TempEnergyxw=TempEnergyxw-(ExcitInfo(i,1)*(HElement(OrigExcit)-Eigenvector(i)))
+!!...then due to change in root
+!                TempEnergyxw=TempEnergyxw-(ExcitInfo(0,1)*(HElement(OrigRoot)-Eigenvector(0)))
+!                TempWeight=Eigenvector(0)
 
-!The same trick can be used to calculate the desired terms in the energy
-                TempEnergyxw=TempEnergyxw-(ExcitInfo(i,2)*(HElement(OrigRoot)-Eigenvector(i)))
-                TempWeight=Eigenvector(0)
+!CALCULATE FULL NORMALISATION AND ENERGY AGAIN...
+!                NormFactor=0.D0
+!                do j=0,NoExcits
+!                    NormFactor=NormFactor+(Eigenvector(j)%v)**2
+!                enddo
+!                NormFactor=SQRT(NormFactor)
+!                do j=0,NoExcits
+!                    Eigenvector(j)=Eigenvector(j)/HElement(NormFactor)
+!                enddo
+!                NormFactor=1.D0
+!                TempEnergyxw=HElement(0.D0)
+!                do j=0,NoExcits
+!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
+!                enddo
+!                TempWeight=Eigenvector(0)
 
             ENDIF
                 
-            StarEnergy=(TempEnergyxw%v/TempWeight%v)+Hii%v
-            WRITE(63,"(I15,2G22.14)") 1,StarEnergy,NormFactor
+!            StarEnergy=TempEnergyxw%v/TempWeight%v
+!Renormalise TestVect
+            Norm=HElement(0.D0)
+            do j=0,NoExcits
+                Norm=Norm+HElement((TestVect(j)%v)**2)
+            enddo
+            Norm=HElement(SQRT(Norm%v))
+            WRITE(3,"(I8)",advance='no') Iterations
+            do j=0,NoExcits
+                WRITE(3,"(G25.14)",advance='no') TestVect(j)%v/Norm%v
+            enddo
+            WRITE(3,*) ""
+!            WRITE(63,"(I15,2G22.14)") Iterations+1,StarEnergy,NormFactor
 
         enddo
         
         CALL TIHALT('PropLocalWaveVec',iSubProp)
 
     END SUBROUTINE PropagateLocalWavevector
+
+    SUBROUTINE CalcHStar(DLWDB,StarWeight)
+        IMPLICIT NONE
+        REAL*8 DLWDB,StarWeight,Vals(NoExcits+1)
+        REAL*8 , ALLOCATABLE :: StarMat(:,:), Work(:)
+        CHARACTER(len=*), PARAMETER :: this_routine='CalcHStar'
+        INTEGER :: iErr,Info,i,j,StarMatTag=0
+
+        ALLOCATE(StarMat(NoExcits+1,NoExcits+1),stat=iErr)
+        IF(iErr.ne.0) STOP 'ERROR in allocation of full star matrix'
+        CALL LogMemAlloc('StarMat',(NoExcits+1)**2,8,this_routine,StarMatTag)
+        CALL AZZERO(StarMat,(NoExcits+1)**2)
+        CALL AZZERO(Vals,NoExcits+1)
+        ALLOCATE(Work(3*(NoExcits+1)),stat=ierr)
+        CALL AZZERO(Work,3*(NoExcits+1))
+
+        do i=2,NoExcits+1
+            StarMat(i,i)=ExcitInfo(i-1,0)%v
+            StarMat(i,1)=ExcitInfo(i-1,1)%v
+            StarMat(1,i)=ExcitInfo(i-1,1)%v
+        enddo
+        StarMat(1,1)=ExcitInfo(0,0)%v
+        
+!        do i=1,NoExcits+1
+!            do j=1,NoExcits+1
+!                WRITE(14,"F20.14,$") StarMat(i,j)
+!            enddo
+!            write(14,*) ""
+!            write(14,*) ""
+!        enddo
+
+        CALL DSYEV('V','U',NoExcits+1,StarMat,NoExcits+1,Vals,Work,3*(NoExcits+1),Info)
+        IF(Info.ne.0) THEN
+            WRITE(6,*) "DYSEV error in DiagHStar: ",Info
+            STOP
+        ENDIF
+
+!Energy is smallest eigenvalue, weight is first element of corresponding eigenvector
+!DLWDB is Energy*Weight
+        DLWDB=Vals(1)*StarMat(1,1)
+        StarWeight=StarMat(1,1)
+
+        DEALLOCATE(Work)
+        DEALLOCATE(StarMat)
+        CALL LogMemDealloc(this_routine,StarMatTag)
+
+        RETURN
+    END SUBROUTINE CalcHStar
 
 END MODULE MCStarMod
