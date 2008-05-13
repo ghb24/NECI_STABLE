@@ -846,7 +846,7 @@ case ${Configuration}
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER="$(SVNVER)"'
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER="$(SVNVER)" -DPARALLEL'
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
@@ -854,20 +854,22 @@ case ${Configuration}
      LDFLAGS='-Mnostdlib -Mnostartup' 
      F90FLAGS='-Mfree '
      if [ $debug ]; then
-       FC='pgf90 -c -g '
+       FC='mpif90 -c -g '
        CC='gcc -g -sb -C -errtags'
-       LD='pgf90 -g'
-       FCD='pgf90 -c -g '
+       LD='mpif90 -g'
+       FCD='mpif90 -c -g '
        CCD='gcc -g -sb -C -errtags'
-       LDD='pgf90 -g'
+       LDD='mpif90 -g'
      else
-       FC='pgf90 -c -fastsse -tp k8-64'
+       FC='mpif90 -c -fastsse -tp k8-64'
        CC='gcc -O2 -Wall -m64'
-       LD='pgf90 -fastsse -tp k8-64'
-       FCD='pgf90 -c -g'
+       LD='mpif90 -fastsse -tp k8-64'
+       FCD='mpif90 -c -g'
        CCD='gcc -g -sb -C -errtags'
-       LDD='pgf90 -g'
+       LDD='mpif90 -g'
      fi
+     LDLIB='ld'
+     LDLIBFLAGS=''
      ;;
 
   "ix86-g95/32")
@@ -1102,6 +1104,11 @@ else
   exec 3>&1
 fi
 
+if [ "$LDLIB" -eq "" ] ; then
+  LDLIB=$LD
+  LDLIBFLAGS=$LDFLAGS
+fi
+
 cat << END >&3
 #----------------------------------------------------------------------------
 # Makefile for neci.x (plane wave electronic calculation)
@@ -1134,6 +1141,8 @@ AR = ${AR}
 FCD = ${FCD}
 LDD = ${LDD}
 ARD = ${ARD}
+LDLIB= ${LDLIB}
+LDLIBFLAGS= ${LDLIBFLAGS}
 #----------------------------------------------------------------------------
 END
 #There is Personal Configuration.
@@ -1283,7 +1292,7 @@ neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
-	 \$(LD) \$(LDFLAGS) -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC)
+	 \$(LDLIB) \$(LDLIBFLAGS) -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	 objcopy --keep-global-symbols=\$(SRC)/GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
 
 #----------------------------------------------------------------------------

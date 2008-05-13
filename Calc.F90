@@ -689,6 +689,7 @@ MODULE Calc
         REAL*8 FLRI, FLSI
         REAL*8 RH
         LOGICAL tWarn
+!   call Par2vSum(FDet)
     
     !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 

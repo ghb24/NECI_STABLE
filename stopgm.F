@@ -1,10 +1,10 @@
 C     ==================================================================
       SUBROUTINE STOPGM(A,B)
 C     ==--------------------------------------------------------------==
-      IMPLICIT NONE
 #ifdef PARALLEL
-!      INCLUDE 'system.h'
+         Use Parallel, only : me => iProcIndex, StopAll =>MPIStopAll
 #endif
+      IMPLICIT NONE
 C     Arguments
       CHARACTER*(*) A,B
 C     Variables
@@ -17,7 +17,7 @@ C     CALL END_SWAP
       WRITE(*,'(//,A,A,A,A,A,I4,A)')
      &     ' PROGRAM STOPS IN SUBROUTINE ',A,'| ',B,' [PROC=',ME,']'
       NC=999
-      CALL MY_STOPALL(NC)
+      CALL STOPALL(NC)
 #else
       WRITE(*,'(//,A,A,A,A)') ' PROGRAM STOPS IN SUBROUTINE ',A,'| ',B
       STOP 999

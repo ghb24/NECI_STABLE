@@ -6,7 +6,7 @@
 !!   This STORE can then be passed to SYMGENEXCITS.
 C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
-     &      ICOUNT,ILEVEL)
+     &      ICOUNT,ILEVEL,iMinElec1,iMaxElec1)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
@@ -20,6 +20,7 @@ C.. Setup for symmetry routine below.
          INTEGER ICOUNT
          LOGICAL TCOUNT
          INTEGER ILEVEL
+         INTEGER iMinElec1,iMaxElec1
          CALL IAZZERO(STORE,6*2)
          CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &      +SymmetrySize*(NEL*NEL+1),
@@ -28,7 +29,8 @@ C.. Setup for symmetry routine below.
          CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
-     &      DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
+     &      DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
+     &      iMaxElec1)
 C.. If we're just counting, we don't need to keep DSTORE
          IF(TCOUNT) CALL FREEM(IP_DSTORE)
       END
@@ -45,7 +47,7 @@ C.. We do this by checking whether any of the []' in the
 C.. global symprods table multiply by [] to give the symmetric rep.
 
       SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
+     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
@@ -59,6 +61,10 @@ C.. global symprods table multiply by [] to give the symmetric rep.
 
          TYPE(SymClass) CLASSES(*)
          INTEGER CLASSCOUNT(2,NEL)
+         INTEGER THISCLASSCOUNT(2,NEL)
+!  ThisClassCount is used to list only electrons which this processor deals with
+         INTEGER PREVCLASSCOUNT(2,NEL)
+!  PrevClassCount is used to list electrons which lower indexed processors deal with
          TYPE(Symmetry) SYMPRODS(0:NEL*NEL)
          TYPE(Symmetry) PR,PR2
          INTEGER NPR
@@ -89,6 +95,8 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          Type(Symmetry) TotSymRep
 
          LOGICAL ISUHFDET
+
+         INTEGER iMinElec1,iMaxElec1
          
          CALL TISETL('SYMSUEXCIT',ISUB,65)
 
@@ -103,6 +111,12 @@ C.. Each state's symmetry falls into a class SymClasses(ISTATE).
                IF(SymClasses((NI(I)+1)/2).EQ.CLASSES(J)%SymLab) THEN
                   ISPN=(G1(NI(I))%Ms+3)/2
                   CLASSCOUNT(ISPN,J)=CLASSCOUNT(ISPN,J)+1
+                  IF(I.GE.iMinElec1.AND.i.LE.iMaxElec1) THEN
+                     THISCLASSCOUNT(ISPN,J)=THISCLASSCOUNT(ISPN,J)+1
+                  ENDIF
+                  IF(I.LT.iMinElec1) THEN
+                     PREVCLASSCOUNT(ISPN,J)=PREVCLASSCOUNT(ISPN,J)+1
+                  ENDIF
                   TNEW=.FALSE.
                   EXIT
                ENDIF
@@ -115,6 +129,18 @@ C.. ISPN=1 is beta, ISPN=2 is alpha
                CLASSES(NCL)%SymLab=SymClasses((NI(I)+1)/2)
                CLASSCOUNT(ISPN,NCL)=1
                CLASSCOUNT(3-ISPN,NCL)=0
+               IF(I.GE.iMinElec1.AND.i.LE.iMaxElec1) THEN
+                  THISCLASSCOUNT(ISPN,NCL)=1
+                  THISCLASSCOUNT(3-ISPN,NCL)=0
+               ELSE
+                  THISCLASSCOUNT(1:2,NCL)=0
+               ENDIF
+               IF(I.LT.iMinElec1) THEN
+                  PREVCLASSCOUNT(ISPN,NCL)=1
+                  PREVCLASSCOUNT(3-ISPN,NCL)=0
+               ELSE
+                  PREVCLASSCOUNT(1:2,NCL)=0
+               ENDIF
             ENDIF
          ENDDO
 C.. Now calculate the resultant symmetry from removing one of each of the classes
@@ -157,23 +183,44 @@ C.. SymLabels(ISYMLABEL)
                   SYMPRODS(NPR)=PR
                ENDIF
 C.. 1 corresponds to beta beta, 2 to alpha/beta and beta/alpha, and 3 to alpha, alpha
+!  The number of pairs is somewhat more complex when we split electron 1 between processors
+!  For systems where we require the upper-triangle (excluding diagonal) we have
+!  NThis*(NAll+(NAll-NThis)-1)/2  pairs
+!  For cases where we allow all pairs, it's just NThis*NAll
                IF(I.EQ.J) THEN
-                  ICC1=CLASSCOUNT(1,I)*(CLASSCOUNT(1,I)-1)/2
-                  ICC2=CLASSCOUNT(1,I)*CLASSCOUNT(2,I)
-                  ICC3=CLASSCOUNT(2,I)*(CLASSCOUNT(2,I)-1)/2
+                  ICC1=THISCLASSCOUNT(1,I)*
+     &               (2*CLASSCOUNT(1,I)-THISCLASSCOUNT(1,I)
+     &                  -2*PREVCLASSCOUNT(1,I)-1)/2
+!If we have all electrons being considered here then the alpha beta lot is simple, and just Nalpha*Nbeta
+!                  ICC2=CLASSCOUNT(1,I)*CLASSCOUNT(2,I)
+!  However, if we are splitting electron 1 between processors, alpha electrons here can only interact with beta
+!    electrons with higher index, and the same witb beta on alpha
+!  Therefore we have NThisA*(NAllB-NPrevB)+ NThisB*(NAllA-NPrevA-NThisA)
+                  ICC2=THISCLASSCOUNT(1,I)*
+     &               (CLASSCOUNT(2,I)-PREVCLASSCOUNT(2,I))
+     &               + THISCLASSCOUNT(2,I)*
+     &         (CLASSCOUNT(1,I)-PREVCLASSCOUNT(1,I)-THISCLASSCOUNT(1,I))
+
+                  ICC3=THISCLASSCOUNT(2,I)*
+     &               (2*CLASSCOUNT(2,I)-THISCLASSCOUNT(2,I)
+     &               -2*PREVCLASSCOUNT(2,I)-1)/2
                ELSE
-                  ICC1=CLASSCOUNT(1,I)*CLASSCOUNT(1,J)
-                  ICC2=CLASSCOUNT(1,I)*CLASSCOUNT(2,J)
-     &                +CLASSCOUNT(2,I)*CLASSCOUNT(1,J)
-                  ICC3=CLASSCOUNT(2,I)*CLASSCOUNT(2,J)
+                  ICC1=THISCLASSCOUNT(1,I)*CLASSCOUNT(1,J)
+                  ICC2=THISCLASSCOUNT(1,I)*CLASSCOUNT(2,J)
+     &                +THISCLASSCOUNT(2,I)*CLASSCOUNT(1,J)
+                  ICC3=THISCLASSCOUNT(2,I)*CLASSCOUNT(2,J)
                ENDIF
                SYMPRODCOUNT(1,K)=SYMPRODCOUNT(1,K)+ICC1
                SYMPRODCOUNT(2,K)=SYMPRODCOUNT(2,K)+ICC2
                SYMPRODCOUNT(3,K)=SYMPRODCOUNT(3,K)+ICC3
      
                NPAIRS=NPAIRS+ICC1+ICC2+ICC3
-C                  WRITE(6,"(A,I6,Z4,5I6)") "SYMPROD ",K,SYMPRODS(K),I,J,
-C     &               ICC1,ICC2,ICC3
+!                  WRITE(6,"(6I6)") CLASSCOUNT(1:2,I),
+!     &  THISCLASSCOUNT(1:2,I), PREVCLASSCOUNT(1:2,I)
+!                  WRITE(6,"(6I6)") CLASSCOUNT(1:2,J),
+!     &  THISCLASSCOUNT(1:2,J), PREVCLASSCOUNT(1:2,J)
+!                  WRITE(6,"(A,I6,Z4,5I6)") "SYMPROD ",K,SYMPRODS(K),I,J,
+!     &               ICC1,ICC2,ICC3
             ENDDO
          ENDDO
          SYMPRODS(0)%s=0 ! For historical reasons.  Should never be needed.
@@ -241,7 +288,7 @@ C.. ORBPAIRS starting at index SYMPRODIND(1,ISPN,I)+1.
 C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          CALL IAZZERO(ORBPAIRS,2*NPAIRS)
          L=0
-         DO I=1,NEL
+         DO I=iMinElec1,iMaxElec1
             
             DO J=I+1,NEL
                L=L+1
@@ -398,10 +445,12 @@ C.. For each class, see what sym prods it can interact with
      &                         SymLabels(CLASSES(I)%SymLab))))) THEN
                   DO ISPN=1,2
                      ICC=0
+! Work out which virtuals are available
                      DO K=1,NCL
-                       IF(CLASSES(K)%SymLab.EQ.J) ICC=CLASSCOUNT(ISPN,K)
+                       IF(CLASSES(K)%SymLab.EQ.J)
+     &                  ICC=CLASSCOUNT(ISPN,K)
                      ENDDO
-                     ICC=CLASSCOUNT(ISPN,I)*
+                     ICC=THISCLASSCOUNT(ISPN,I)*
      &                  (SYMLABELCOUNTS(2,J)-ICC)
                      NSING=NSING+ICC
                      IF(ICC.NE.0) NEXCITTYPES=NEXCITTYPES+1
@@ -478,9 +527,9 @@ C     &                         PR,PR2
                         ICC=0
                         DO K=1,NCL
                            IF(CLASSES(K)%SymLab.EQ.J) 
-     &                        ICC=CLASSCOUNT(ISPN,K)
+     &                        ICC=THISCLASSCOUNT(ISPN,K)
                         ENDDO
-                        ICC=CLASSCOUNT(ISPN,I)*
+                        ICC=THISCLASSCOUNT(ISPN,I)*
      &                     (SYMLABELCOUNTS(2,J)-ICC)
                         IF(ICC.NE.0) THEN
                            NEXCITTYPES=NEXCITTYPES+1
@@ -840,6 +889,29 @@ C.. to actually generate the excitations
          INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
+!  STORE contains lengths of various components of the excitation generator
+         INTEGER STORE(6)
+!  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
+         INTEGER ICOUNT
+         INTEGER NMEM(*),NJ(NEL),IC,IFRZ
+         LOGICAL TSETUP
+         INTEGER ILEVEL
+         CALL GenSymExcitIt2Par(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,1,NEL)
+      END
+
+C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 specifiers used for parallelization
+
+
+      SUBROUTINE GENSYMEXCITIT3Par(NI,
+     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use System, only: nEl,G1, nBasis,nBasisMax
+         IMPLICIT NONE 
+         INCLUDE 'irat.inc'
+         INCLUDE 'sym.inc'
+         INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
 !  STORE contains lengths of various components of the excitation generator
@@ -855,6 +927,37 @@ C.. to actually generate the excitations
          INTEGER GET_ADDR
 #endif
          INTEGER ILEVEL
+
+         INTEGER iMinElec1, iMaxElec1
+         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
+      END
+      SUBROUTINE GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         IMPLICIT NONE
+         INCLUDE 'irat.inc'
+         INCLUDE 'sym.inc'
+         INTEGER NEL,NI(NEL),NBASIS
+         INTEGER G1(nBasis),NBASISMAX(*)
+         POINTER (IP_DSTORE,DSTORE)
+         INTEGER DSTORE(*)
+!  STORE contains lengths of various components of the excitation generator
+         INTEGER STORE(6)
+!  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
+         INTEGER*8 STORE2(6)
+         INTEGER ICOUNT
+         INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
+         LOGICAL TSETUP
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
+         INTEGER GET_ADDR
+#endif
+         INTEGER ILEVEL
+
+         INTEGER iMinElec1, iMaxElec1
          IF(TSETUP) THEN
 C.. This is the first time we've been called for setup.
 !  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
@@ -866,7 +969,9 @@ C.. This is the first time we've been called for setup.
 C.. Just count.
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &            DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
+     &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
+     &           iMaxElec1)
+
                CALL FREEM(IP_DSTORE)
                DO i=1,6
                   STORE(i)=STORE2(i)
@@ -918,7 +1023,8 @@ C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
 !!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
                CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
-     &            DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL)
+     &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
+     &          iMaxElec1)
                NMEM(6)=STORE2(6)
                NMEM(23)=ICOUNT
                IC=ICOUNT
@@ -943,7 +1049,8 @@ C     &         (NMEM(I),I=7,14)
             CALL SYMGENEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
-     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NJ,IC)
+     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NJ,IC,iMinElec1,
+     &         iMaxElec1)
 C            CALL WRITEDET(6,NI,NEL,.FALSE.)
 C            WRITE(6,"(A,$)"), "->"
 C            IF(NJ(1).NE.0) THEN
@@ -968,7 +1075,7 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
      &               I,J,K,L,ICC,LS,
-     &               NK,IC)
+     &               NK,IC,iMinElec1,iMaxElec1)
       USE System , only : TSTOREASEXCITATIONS
       use System, only: Symmetry,SymmetrySize,SymmetrySizeB
       use System, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -993,7 +1100,8 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER SYMPRODIND(2,3,0:*)
       INTEGER IC
       LOGICAL tDebugPrint
-      tDebugPrint=.false. 
+      INTEGER iMinElec1, iMaxElec1
+      tDebugPrint=.false.
 
       DO WHILE(.TRUE.)
 C.. see if we need a new EXCIT
@@ -1012,8 +1120,16 @@ C.. a single
                ITO=EXCITTYPES(4,IEXCIT)
                L=0
                K=SYMLABELCOUNTS(2,ITO)
+!  J will run along symblabels
                J=0
+!  I will run along the determinant
                I=0
+!  Take into account the we may only be doing a subset of the electrons
+               DO WHILE(I.LT.NEL)
+                  IF(NI(I+1).GE.iMinElec1) EXIT
+                  I=I+1
+               ENDDO
+!  I now is the index of the first electron allowed in our subset
                IF(tDebugPrint)
      &         WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
      &            IFROM)
@@ -1044,31 +1160,42 @@ C.. no more possible K, so we get a new I
 C.. I and J run in parallel, and for each J, we check whether it's in 
 C.. the det.  If it is, then we carry on.
 C.. SYMLABELLIST holds a list of states grouped under symmlabel, and ordered within that symlabel
-C.. SYMLABELCOUNTS(1,J) is the index within SYMLABELLIST of the first state of symlabel I
-C.. SYMLABELCOUNTS(2,J) is the number of states with symlabel I
+C.. SYMLABELCOUNTS(1,J) is the index within SYMLABELLIST of the first state of symlabel J
+C.. SYMLABELCOUNTS(2,J) is the number of states with symlabel J
 !..  J runs along the symlabel looking for states of that symmetry
 !..  I runs along the determinant comparing against electrons of that symmetry.
 !..  We're looking for electrons in the det which are also in the SYMLABELLIST, and we run I and J
 !..   in parallel along each to keep the search efficient.
-               L2=I.LT.NEL
+!  instead of NEL, we have iMaxElec1
+               L2=I.LT.iMaxElec1
                L1=.TRUE.
+!  This loop, dependent on L2 gets a new I
                DO WHILE(L2)
                   I=I+1
                   L1=J.LT.SYMLABELCOUNTS(2,IFROM)
+!  This loop dependent on L1 gets a new J
                   DO WHILE(L1)
                      IFROMSL=(SYMLABELLIST(SYMLABELCOUNTS(1,IFROM)+J)*2
      &                     +ISPN)
                      ICC(1)=IFROMSL
 C                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+!  If J points to an electron lower than the current in the det, inc J
                      IF(IFROMSL.LT.NI(I)) J=J+1
+!  If J was a lower elec, and there are more J to get, then carry on in this loop
                      L1=IFROMSL.LT.NI(I)
      &                     .AND.J.LT.SYMLABELCOUNTS(2,IFROM)
                   ENDDO
-C.. see if we need a new I.
-                  L2=IFROMSL.NE.NI(I).AND.I.LT.NEL
+C.. see if we need a new I because NI(I)<IFROMSL which is the current electron corresponging to J.
+!  Instead of NEL we have iMaxElec1
+                  L2=IFROMSL.NE.NI(I).AND.I.LT.iMaxElec1
+!  If I.EQ.NEL, then we're run out of electrons, because the next electron we get will be in pos NEL+1
                ENDDO
 C.. If we've gone too far, signal a new excit
-               IF(L1.OR.(I.EQ.NEL.AND.IFROMSL.NE.NI(I))) I=-1
+!  If L1 is true then we never made it into the get new J loop because L2 was FALSE because there were no more electrons to get in the det. Alternatively we've hit the last electron in the det, and not found a correspondence in the sym excit list.  Either way we signal to give up on this set of excitations, as we cannot find a valid I.
+!  Instead of NEL we use iMaxElec1
+               IF(L1.OR.(I.EQ.iMaxElec1.AND.IFROMSL.NE.NI(I))) I=-1
+
+!  Cycle back to the beginning with our new valid I (or invalid I signalling find a new excit type), and look for a K
                CYCLE
             ENDIF
 C.. it's a valid K, but is it in the det already?

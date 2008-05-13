@@ -126,6 +126,9 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       SUBROUTINE PRINT_MEMORY
 C     ==--------------------------------------------------------------==
+#ifdef PARALLEL
+         use Parallel, only: me => iProcIndex, nProc => nProcessors
+#endif
       IMPLICIT NONE
 #ifdef POINTER8
       INTEGER*8 I_AD1,I_AD2

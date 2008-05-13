@@ -173,6 +173,16 @@ MODULE Determinants
          CALL TIHALTL('GETHELEM2 ',ISUB,60)
          RETURN
       END FUNCTION
+!Call GetHElement2 without needing so many arguments
+      TYPE(HElement) FUNCTION GetHElement3(NI,NJ,iC)
+         Use HElem
+         USE System, only : nEl,nBasisMax,G1,nBasis,Brr
+         use System, only : ECore,ALat,NMSH
+         use Integrals, only : UMat,FCK,NMAX
+         INTEGER NI(nEl),NJ(nEl),iC
+         GetHElement3=GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC,ECore)
+      END Function GetHElement3
+
       Subroutine DetCleanup()
       End Subroutine DetCleanup
 END MODULE Determinants
@@ -270,3 +280,5 @@ END MODULE Determinants
 !         ISUHFDET=.FALSE.
          RETURN
       END Function
+
+

@@ -15,17 +15,11 @@ Program NECI
 !     &  ORBORDER,NFROZEN,NTFROZEN,TRHF,HFCDELTA,IHFMETHOD,TREADHF,      &
 !     &  TREADTUMAT
 !      USE Logging , only : ILOGGING
-      Use ReadInput, only : ReadInputMain
     Implicit none
-   integer ios
-    character(255) Filename
-    Filename="";
     Write(6,*) "STARTING NECI"
 !  ios will tell us if there's been an error reading in
-    ios=0
-    Call ReadInputMain(Filename,ios)
 ! Pass in iCacheFlag as 0
-    If (ios.eq.0) Call NECICore(0,.False.) !Indicate not called by CPMD
+    Call NECICore(0,.False.) !Indicate not called by CPMD
 !  Horror oh horror.  trunk compability
 !      if (ios.eq.0)                                                     &
 !     & CALL NECICB(NEL,TSPN,LMS,TPARITY,IPARITY,NMAXX,NMAXY,NMAXZ,      &

@@ -170,7 +170,7 @@ C.. If we're actually using CSFs
                ENDIF
 C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
                CALL SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
-     &            TCOUNT,ICOUNT,ILEVEL)
+     &            TCOUNT,ICOUNT,ILEVEL,1,nEl)
                IF(.NOT.TCOUNT) THEN
                   IF(ICOUNT.GT.NLIST) THEN
                      WRITE(6,*) "Exctiation list size",NLIST

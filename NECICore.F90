@@ -8,19 +8,29 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
     use Determinants, only : DetPreFreezeInit, DetInit, DetCleanup
     use Calc, only : CalcInit, CalcDoCalc, CalcCleanup
     use HFCalc, only: HFDoCalc
+    use Parallel, only: MPIInit, MPIEnd
+    Use ReadInput, only : ReadInputMain
     Implicit none
 !Set by CPMD to determine whether cache is saved
     Integer iCacheFlag
     INTEGER iSub
     Logical tCPMD
+   integer ios
+    character(255) Filename
+    Filename="";
+    ios=0
 
+#ifdef PARALLEL
+     Call MPIInit(tCPMD)
+#endif
       call TimeTag()
       if (.not.TCPMD) call Envir()
       write (6,*)
       CALL TISET('NECICUBE  ',ISUB)
-
-
-
+   if(.not.tCPMD) THEN
+    Call ReadInputMain(Filename,ios)
+    If (ios.ne.0) stop 'Error in Read'
+   ENDIF
 ! Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system
     call SysInit()
@@ -51,6 +61,9 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
     call DetCleanup()
     call IntCleanup(iCacheFlag)
     call SysCleanup()
+#ifdef PARALLEL
+     Call MPIEnd(tCPMD)
+#endif
           CALL MEMORY_CHECK
 ! ==-------------------------------------------------------------------==
       CALL TIHALT('NECICUBE  ',ISUB)
