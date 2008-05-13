@@ -1,3 +1,4 @@
+#ifdef PARALLEL
 !Module with Parallel information etc.
 !
 !  NECI will run as a standalone parallel app or in conjunction with CPMD.
@@ -23,7 +24,7 @@
 
 module Parallel
 ! This is mixed case to avoid it being picked up by the the Configure script, as it doesn't require a module file.
-   uSe mpi
+   uSE mpi
    IMPLICIT NONE
    save
    integer iProcIndex
@@ -192,7 +193,7 @@ End
 ! 
 Subroutine Par2vSum(nI)
    USE HElem
-   uSe MPI
+   uSE MPI
    Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
    Use System, only: nEl,Beta
    Use Determinants, only: HElement, GetHElement3
@@ -312,5 +313,5 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dEt=dEt-dE1
    dw=dw-1
 end subroutine
-
+#endif
 

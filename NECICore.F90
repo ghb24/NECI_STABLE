@@ -8,7 +8,9 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
     use Determinants, only : DetPreFreezeInit, DetInit, DetCleanup
     use Calc, only : CalcInit, CalcDoCalc, CalcCleanup
     use HFCalc, only: HFDoCalc
+#ifdef PARALLEL
     use Parallel, only: MPIInit, MPIEnd
+#endif
     Use ReadInput, only : ReadInputMain
     Implicit none
 !Set by CPMD to determine whether cache is saved

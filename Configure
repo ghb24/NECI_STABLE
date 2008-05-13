@@ -1104,9 +1104,9 @@ else
   exec 3>&1
 fi
 
-if [ "$LDLIB" -eq "" ] ; then
-  LDLIB=$LD
-  LDLIBFLAGS=$LDFLAGS
+if [ -z "$LDLIB" ] ; then
+  LDLIB=${LD}
+  LDLIBFLAGS=${LDFLAGS}
 fi
 
 cat << END >&3
