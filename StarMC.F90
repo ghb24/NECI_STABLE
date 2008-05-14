@@ -67,13 +67,13 @@ MODULE MCStarMod
 
 !Routine to pick determinants at random (inc. HF) according to probability given by eigenvector component.
 !The wavevector is then propagated in all possible allowed directions, and the energy updated
-!        CALL PropagateLocalWavevector()
+        CALL PropagateLocalWavevector()
 
 !SingleHApp returns the result of applying the Hamiltonian once to the initial vector, either stocastically, or exactly
 !        CALL SingleHApp(.true.)
 
 !PowerMethDiag iterativly calculates Psi(t+1) = Psi(t) - Delta* H|Psi(t)> to converge to ground state
-        CALL PowerMethDiag()
+!        CALL PowerMethDiag()
 
         CLOSE(63)
 
@@ -85,7 +85,7 @@ MODULE MCStarMod
 
 !Return final info
         Weight=HDElement((TempWeight%v)-1.D0)
-        Energyxw=HDElement(TempEnergyxw%v+(Hii%v*TempWeight%v)-Hii%v)
+        Energyxw=HDElement(TempEnergyxw%v-Hii%v)
 
         RETURN
     END SUBROUTINE MCStar
@@ -440,169 +440,122 @@ MODULE MCStarMod
 
         END SUBROUTINE PowerMethDiag
 
-!In this routine, determinants are picked stochastically according to the magnitude of their component of 
-!the wavevector at that time squared. If the root is picked, then the weight of all excitations are increased
-!according to the size of their rij/rhii values, and the root component is increased by 1. Normalisation constants
-!are also increased accordingly. If an excitation is chosen, then the root increases by rij/rhii, and the
-!excitation chosen is increased by rhjj/rhii. Again the results affect normalisation.
+!In this routine, determinants are picked stochastically, and those determinants are operated on by the Hamiltonian. 
+!If the root is picked, then the weight of all excitations are increased according to the size of their Hij values, 
+!and the root component is increased by Hii. If an excitation is chosen, then the root increases by Hij, and the
+!excitation chosen is increased by Hjj.
     SUBROUTINE PropagateLocalWavevector()
-        USE Calc , only : Iters
+        USE Calc , only : Iters,HApp,TStoch
+!HApp is the number of determinants (i) which will be chosen to have H locally acted upon them, before the wavevector is updated
+!TStoch tells us whether to choose the determinants to apply H to locally should be picked stochastically, or just run through them all
         IMPLICIT NONE
-        INTEGER :: Iterations,iSubProp,i,j
+        INTEGER :: Iterations,iSubProp,i,j,ierr,Apps,ChangeVectTag=0,TimesUpdatedTag=0
         REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
         CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
-        TYPE(HElement) :: Delta,Norm,TestVect(0:NoExcits)
+        TYPE(HElement) :: Delta,ProbAll
+        TYPE(HElement) , ALLOCATABLE :: ChangeVect(:)
+        INTEGER , ALLOCATABLE :: TimesUpdated(:)
         
         CALL TISET('PropLocalWaveVec',iSubProp)
-        CALL AZZERO(TestVect,(NoExcits+1)*HElementSize)
+        ALLOCATE(ChangeVect(0:NoExcits),Stat=ierr)
+        CALL LogMemAlloc('ChangeVect',NoExcits+1,8*HElementSize,this_routine,ChangeVectTag)
+        ALLOCATE(TimesUpdated(0:NoExcits),Stat=ierr)
+        CALL LogMemAlloc('TimesUpdated',NoExcits+1,4,this_routine,TimesUpdatedTag)
+
+        IF(.not.TStoch) HApp=NoExcits+1
+            
+
         Delta=HElement(DeltaH)
         Prob=1.D0/(NoExcits+1)
-!        do i=0,NoExcits
-!            WRITE(4,*) ((ExcitInfo(i,1)%v)**2)/HFReNorm
-!        enddo
+        ProbAll=HElement(Prob)/HElement(HApp)
 
-!Cycle over the number of iterations of local application of rho to the graph we want
+!Cycle over the number of times to update the trial wavevector
         do Iterations=1,Iters
 
-!Multiply by NormFactor - the sum of the probabilities
-!This renormalises the wavevector each time
-            r=RAN2(Seed)*NormFactor
-!            WRITE(6,*) NormFactor
+!Re-zero the vector to record change. This could be a scaling bottleneck in the future
+            CALL AZZERO(ChangeVect,(NoExcits+1)*HElementSize)
+            CALL IAZZERO(TimesUpdated,NoExcits+1)
 
-!            NormCheck=0.D0
-!            do j=0,NoExcits
-!                WRITE(6,*) Eigenvector(j)%v**2
-!                Normcheck=NormCheck+(Eigenvector(j)%v**2)
-!            enddo
-!            WRITE(6,*) "NORMCHECK: ",Normcheck,NormFactor
-
-!            WRITE(3,"(I8)",advance='no') Iterations
-!            do j=0,NoExcits
-!                WRITE(3,"(G25.14)",advance='no') Eigenvector(j)%v
-!            enddo
-!            WRITE(3,*) ""
-!            WRITE(3,*) ""
-
-!Set i=-1, to allow all excitation + root
+            TempEnergyxw=HElement(0.D0)
+            TempWeight=HElement(0.D0)
             i=-1
 
-!We first need to choose an excitation or root according to the renormalised trial wavevector
-            do while ((r.gt.0.D0).and.(i.lt.NoExcits))
-                i=i+1
+!Cycle over the number of local applications of the Hamiltonian to a given determinant before each update of the wavevector
+            do Apps=1,HApp
 
-!                r=r-((Eigenvector(i)%v)**2)
-!Change so selected with probability given by 1/NDets
-                r=r-prob
-            enddo
+                IF(TStoch) THEN
 
-            IF(r.gt.0.D0) THEN
+                    r=RAN2(Seed)
+
+!If we pick i with a uniform probability, then we do not need to search for the selected determinant, we can go straight there...
+                    r=r/Prob
+                    i=INT(r)
+!                    WRITE(6,*) i
+                    IF((i.lt.0).or.(i.gt.NoExcits)) THEN
 !Error in normalisation of wavevector
-                WRITE(6,*) "Error in normalisation of trial wavevector - exiting..."
-                STOP 'Error in normalisation of trial wavevector'
-            ENDIF
+                        WRITE(6,*) "Error in normalisation of trial wavevector - exiting..."
+                        STOP 'Error in normalisation of trial wavevector'
+                    ENDIF
 
-            IF(i.eq.0) THEN
+                ELSE
+!Pick each i sequentially
+                    i=i+1
+                ENDIF
+
+
+                IF(i.eq.0) THEN
 !Root is selected to propagate from...
-!                WRITE(6,*) "ROOT PICKED"
-!Set normfactor back to zero - all values change, so we have to create a full new normfactor, and energy factors
-                TempEnergyxw=HElement(0.D0)
-                TempWeight=HElement(0.D0)
-!                Norm=HElement(NormFactor)
-!                NormFactor=0.D0
+!                    WRITE(6,*) "ROOT PICKED"
                 
-                do j=1,NoExcits
-!Add to the wavevector components of the excitations Hij
-!However, since the determinant was chosen with probability given by the component squared, 
-!one of these factors needs to be divided out to achieve the correct weighting of each determiant
-!                    Eigenvector(j)=Eigenvector(j)-(Delta*(ExcitInfo(j,1)/Eigenvector(0))*Norm)
-!                    TestVect(j)=TestVect(j)+(ExcitInfo(j,1)/Eigenvector(0))
-                    TestVect(j)=TestVect(j)+(ExcitInfo(j,1)*Eigenvector(0)/HElement(prob))
-                   
-!                    NormFactor=NormFactor+((Eigenvector(j)%v)**2)
-!Calculate energy again...
-!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
-                enddo
+                    do j=0,NoExcits
+!                        ChangeVect(i)=ChangeVect(i)+(ExcitInfo(j,1)*Eigenvector(j))/ProbAll
+                        ChangeVect(i)=ChangeVect(i)+(ExcitInfo(j,1)*Eigenvector(j))
+!                         Eigenvector(i)=Eigenvector(i)-(Delta*(ExcitInfo(j,1)*Eigenvector(j)))
+                    enddo
 
-!The root also increases its wavevector component by rhii/rhii, and is divided through by the same
-!factor for the same reason
-!                Eigenvector(0)=Eigenvector(0)-(Delta*Norm*Hii/Eigenvector(0))
-                TestVect(0)=TestVect(0)+(Hii*Eigenvector(0)/HElement(prob))
-!                TestVect(0)=TestVect(0)+(Hii/Eigenvector(0))
-!                NormFactor=NormFactor+(Eigenvector(0)%v)**2
-                
-!                NormFactor=SQRT(NormFactor)
-!                do j=0,NoExcits
-!                    Eigenvector(j)=Eigenvector(j)/HElement(NormFactor)
-!                enddo
-!                NormFactor=1.D0
-!                do j=0,NoExcits
-!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
-!                enddo
-
-
-
-!                TempEnergyxw=TempEnergyxw+(ExcitInfo(0,1)*Eigenvector(0))
-!                TempWeight=Eigenvector(0)
-
-            ELSE
+                ELSE
 !Excitation i is selected to propagate from...
-!                WRITE(6,*) "EXCIT PICKED"
-!                Norm=HElement(NormFactor)
+!                    WRITE(6,*) "EXCIT PICKED"
                 
-!The root is increased by a proportion given by rhij/rhii, divided by the component of the eigenvector chosen
-!The original values of the eigenvectors are needed to avoid renormalisation
-!                OrigRoot=Eigenvector(0)%v
-!                Eigenvector(0)=Eigenvector(0)-(Delta*Norm*ExcitInfo(i,1)/Eigenvector(i))
-                TestVect(0)=TestVect(0)+ExcitInfo(i,1)*Eigenvector(i)/HElement(prob)
-!                TestVect(0)=TestVect(0)+ExcitInfo(i,1)/Eigenvector(i)
+                    ChangeVect(i)=ChangeVect(i)+(ExcitInfo(i,1)*Eigenvector(0))+(ExcitInfo(i,0)*Eigenvector(i))
+!                    ChangeVect(i)=ChangeVect(i)+((ExcitInfo(i,1)*Eigenvector(0))/ProbAll)+((ExcitInfo(i,0)*Eigenvector(i))/ProbAll)
+!                    Eigenvector(i)=Eigenvector(i)-(Delta*(ExcitInfo(i,1)*Eigenvector(0))+(ExcitInfo(i,0)*Eigenvector(i)))
 
-!The excitation itself is increased by the diagonal element of the rho-matrix, again divided by the cpt. of eigenvector
-!                OrigExcit=Eigenvector(i)%v
-                TestVect(i)=TestVect(i)+ExcitInfo(i,0)*Eigenvector(i)/HElement(prob)
-!                Eigenvector(i)=Eigenvector(i)-(Delta*Norm*ExcitInfo(i,0)/Eigenvector(i))
+                ENDIF
+                TimesUpdated(i)=TimesUpdated(i)+1
 
-!The full normalisation does not need to be calculated again
-!                NormFactor=NormFactor-((OrigRoot**2)-(Eigenvector(0)%v**2))-((OrigExcit**2)-(Eigenvector(i)%v**2))
-!
-!!The same trick can be used to calculate the desired terms in the energy - first show change due to changed excit value
-!                TempEnergyxw=TempEnergyxw-(ExcitInfo(i,1)*(HElement(OrigExcit)-Eigenvector(i)))
-!!...then due to change in root
-!                TempEnergyxw=TempEnergyxw-(ExcitInfo(0,1)*(HElement(OrigRoot)-Eigenvector(0)))
-!                TempWeight=Eigenvector(0)
+            enddo
 
-!CALCULATE FULL NORMALISATION AND ENERGY AGAIN...
-!                NormFactor=0.D0
-!                do j=0,NoExcits
-!                    NormFactor=NormFactor+(Eigenvector(j)%v)**2
-!                enddo
-!                NormFactor=SQRT(NormFactor)
-!                do j=0,NoExcits
-!                    Eigenvector(j)=Eigenvector(j)/HElement(NormFactor)
-!                enddo
-!                NormFactor=1.D0
-!                TempEnergyxw=HElement(0.D0)
-!                do j=0,NoExcits
-!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
-!                enddo
-!                TempWeight=Eigenvector(0)
+!Apply the changes to update the original vector
+            do i=0,NoExcits
+                IF(ChangeVect(i).agt.0.D0) THEN
+                    Eigenvector(i)=Eigenvector(i)-(Delta*(ChangeVect(i)/HElement(TimesUpdated(i))))
+!                    Eigenvector(i)=Eigenvector(i)-(Delta*(ChangeVect(i)))
+                ENDIF
+!Calculate the energy for the given set of local applications
+                TempEnergyxw=TempEnergyxw+(ExcitInfo(i,1)*Eigenvector(i))
+            enddo
+            TempWeight=Eigenvector(0)
+                
+            StarEnergy=TempEnergyxw%v/TempWeight%v
+            
+!            WRITE(3,"(I8)",advance='no') Iterations
+!            do j=0,NoExcits
+!                WRITE(3,"(G25.14)",advance='no') TestVect(j)%v/Norm%v
+!            enddo
+!            WRITE(3,*) ""
+            WRITE(63,"(I15,2G22.14)") Iterations+1,StarEnergy,Eigenvector(0)
 
+            IF(Eigenvector(0).agt.1.D8) THEN
+                do i=0,NoExcits
+                    Eigenvector(i)=Eigenvector(i)/HElement(1.D10)
+                enddo
             ENDIF
-                
-!            StarEnergy=TempEnergyxw%v/TempWeight%v
-!Renormalise TestVect
-            Norm=HElement(0.D0)
-            do j=0,NoExcits
-                Norm=Norm+HElement((TestVect(j)%v)**2)
-            enddo
-            Norm=HElement(SQRT(Norm%v))
-            WRITE(3,"(I8)",advance='no') Iterations
-            do j=0,NoExcits
-                WRITE(3,"(G25.14)",advance='no') TestVect(j)%v/Norm%v
-            enddo
-            WRITE(3,*) ""
-!            WRITE(63,"(I15,2G22.14)") Iterations+1,StarEnergy,NormFactor
 
         enddo
+
+        DEALLOCATE(ChangeVect)
+        CALL LogMemDealloc(this_routine,ChangeVectTag)
         
         CALL TIHALT('PropLocalWaveVec',iSubProp)
 
@@ -657,3 +610,185 @@ MODULE MCStarMod
     END SUBROUTINE CalcHStar
 
 END MODULE MCStarMod
+
+
+!!In this routine, determinants are picked stochastically according to the magnitude of their component of 
+!!the wavevector at that time squared. If the root is picked, then the weight of all excitations are increased
+!!according to the size of their rij/rhii values, and the root component is increased by 1. Normalisation constants
+!!are also increased accordingly. If an excitation is chosen, then the root increases by rij/rhii, and the
+!!excitation chosen is increased by rhjj/rhii. Again the results affect normalisation.
+!    SUBROUTINE PropagateLocalWavevector()
+!        USE Calc , only : Iters
+!        IMPLICIT NONE
+!        INTEGER :: Iterations,iSubProp,i,j
+!        REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
+!        CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
+!        TYPE(HElement) :: Delta,Norm,TestVect(0:NoExcits)
+!        
+!        CALL TISET('PropLocalWaveVec',iSubProp)
+!        CALL AZZERO(TestVect,(NoExcits+1)*HElementSize)
+!        Delta=HElement(DeltaH)
+!        Prob=1.D0/(NoExcits+1)
+!!Nois is the number of determinants (i) which will be chosen to have H locally acted upon them, before the wavevector
+!!is updated
+!        Nois=NoExcits+1
+!!        do i=0,NoExcits
+!!            WRITE(4,*) ((ExcitInfo(i,1)%v)**2)/HFReNorm
+!!        enddo
+!
+!!Cycle over the number of iterations of local application of rho to the graph we want
+!        do Iterations=1,Iters
+!
+!!Multiply by NormFactor - the sum of the probabilities
+!!This renormalises the wavevector each time
+!            r=RAN2(Seed)
+!!            r=RAN2(Seed)*NormFactor
+!!            WRITE(6,*) NormFactor
+!
+!!            NormCheck=0.D0
+!!            do j=0,NoExcits
+!!                WRITE(6,*) Eigenvector(j)%v**2
+!!                Normcheck=NormCheck+(Eigenvector(j)%v**2)
+!!            enddo
+!!            WRITE(6,*) "NORMCHECK: ",Normcheck,NormFactor
+!
+!!            WRITE(3,"(I8)",advance='no') Iterations
+!!            do j=0,NoExcits
+!!                WRITE(3,"(G25.14)",advance='no') Eigenvector(j)%v
+!!            enddo
+!!            WRITE(3,*) ""
+!!            WRITE(3,*) ""
+!
+!!Set i=-1, to allow all excitation + root
+!!            i=-1
+!
+!!We first need to choose an excitation or root according to the renormalised trial wavevector
+!!            do while ((r.gt.0.D0).and.(i.lt.NoExcits))
+!!                i=i+1
+!!
+!!                r=r-((Eigenvector(i)%v)**2)
+!!Change so selected with probability given by 1/NDets
+!!                r=r-prob
+!!            enddo
+!!            IF(r.gt.0.D0) THEN
+!!Error in normalisation of wavevector
+!!                WRITE(6,*) "Error in normalisation of trial wavevector - exiting..."
+!!                STOP 'Error in normalisation of trial wavevector'
+!!            ENDIF
+!
+!!If we pick i with a uniform probability, then we do not need to search for the selected determinant, we can go straight there...
+!            r=r/Prob
+!            i=INT(r)
+!            WRITE(6,*) i
+!            IF((i.lt.0).or.(i.gt.NoExcits)) THEN
+!!Error in normalisation of wavevector
+!                WRITE(6,*) "Error in normalisation of trial wavevector - exiting..."
+!                STOP 'Error in normalisation of trial wavevector'
+!            ENDIF
+!
+!            IF(i.eq.0) THEN
+!!Root is selected to propagate from...
+!!                WRITE(6,*) "ROOT PICKED"
+!!Set normfactor back to zero - all values change, so we have to create a full new normfactor, and energy factors
+!                TempEnergyxw=HElement(0.D0)
+!                TempWeight=HElement(0.D0)
+!!                Norm=HElement(NormFactor)
+!!                NormFactor=0.D0
+!                
+!                do j=1,NoExcits
+!!Add to the wavevector components of the excitations Hij
+!!However, since the determinant was chosen with probability given by the component squared, 
+!!one of these factors needs to be divided out to achieve the correct weighting of each determiant
+!!                    Eigenvector(j)=Eigenvector(j)-(Delta*(ExcitInfo(j,1)/Eigenvector(0))*Norm)
+!                    Eigenvector(j)=Eigenvector(j)-(ExcitInfo(j,1)/Eigenvector(0))*Norm)
+!!                    TestVect(j)=TestVect(j)+(ExcitInfo(j,1)*Eigenvector(0)/HElement(prob))
+!                   
+!!                    NormFactor=NormFactor+((Eigenvector(j)%v)**2)
+!!Calculate energy again...
+!!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
+!                enddo
+!
+!!The root also increases its wavevector component by rhii/rhii, and is divided through by the same
+!!factor for the same reason
+!!                Eigenvector(0)=Eigenvector(0)-(Delta*Norm*Hii/Eigenvector(0))
+!                TestVect(0)=TestVect(0)+(Hii*Eigenvector(0)/HElement(prob))
+!!                TestVect(0)=TestVect(0)+(Hii/Eigenvector(0))
+!!                NormFactor=NormFactor+(Eigenvector(0)%v)**2
+!                
+!!                NormFactor=SQRT(NormFactor)
+!!                do j=0,NoExcits
+!!                    Eigenvector(j)=Eigenvector(j)/HElement(NormFactor)
+!!                enddo
+!!                NormFactor=1.D0
+!!                do j=0,NoExcits
+!!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
+!!                enddo
+!
+!
+!
+!!                TempEnergyxw=TempEnergyxw+(ExcitInfo(0,1)*Eigenvector(0))
+!!                TempWeight=Eigenvector(0)
+!
+!            ELSE
+!!Excitation i is selected to propagate from...
+!!                WRITE(6,*) "EXCIT PICKED"
+!!                Norm=HElement(NormFactor)
+!                
+!!The root is increased by a proportion given by rhij/rhii, divided by the component of the eigenvector chosen
+!!The original values of the eigenvectors are needed to avoid renormalisation
+!!                OrigRoot=Eigenvector(0)%v
+!!                Eigenvector(0)=Eigenvector(0)-(Delta*Norm*ExcitInfo(i,1)/Eigenvector(i))
+!                TestVect(0)=TestVect(0)+ExcitInfo(i,1)*Eigenvector(i)/HElement(prob)
+!!                TestVect(0)=TestVect(0)+ExcitInfo(i,1)/Eigenvector(i)
+!
+!!The excitation itself is increased by the diagonal element of the rho-matrix, again divided by the cpt. of eigenvector
+!!                OrigExcit=Eigenvector(i)%v
+!                TestVect(i)=TestVect(i)+ExcitInfo(i,0)*Eigenvector(i)/HElement(prob)
+!!                Eigenvector(i)=Eigenvector(i)-(Delta*Norm*ExcitInfo(i,0)/Eigenvector(i))
+!
+!!The full normalisation does not need to be calculated again
+!!                NormFactor=NormFactor-((OrigRoot**2)-(Eigenvector(0)%v**2))-((OrigExcit**2)-(Eigenvector(i)%v**2))
+!!
+!!!The same trick can be used to calculate the desired terms in the energy - first show change due to changed excit value
+!!                TempEnergyxw=TempEnergyxw-(ExcitInfo(i,1)*(HElement(OrigExcit)-Eigenvector(i)))
+!!!...then due to change in root
+!!                TempEnergyxw=TempEnergyxw-(ExcitInfo(0,1)*(HElement(OrigRoot)-Eigenvector(0)))
+!!                TempWeight=Eigenvector(0)
+!
+!!CALCULATE FULL NORMALISATION AND ENERGY AGAIN...
+!!                NormFactor=0.D0
+!!                do j=0,NoExcits
+!!                    NormFactor=NormFactor+(Eigenvector(j)%v)**2
+!!                enddo
+!!                NormFactor=SQRT(NormFactor)
+!!                do j=0,NoExcits
+!!                    Eigenvector(j)=Eigenvector(j)/HElement(NormFactor)
+!!                enddo
+!!                NormFactor=1.D0
+!!                TempEnergyxw=HElement(0.D0)
+!!                do j=0,NoExcits
+!!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
+!!                enddo
+!!                TempWeight=Eigenvector(0)
+!
+!            ENDIF
+!                
+!!            StarEnergy=TempEnergyxw%v/TempWeight%v
+!!Renormalise TestVect
+!            Norm=HElement(0.D0)
+!            do j=0,NoExcits
+!                Norm=Norm+HElement((TestVect(j)%v)**2)
+!            enddo
+!            Norm=HElement(SQRT(Norm%v))
+!            WRITE(3,"(I8)",advance='no') Iterations
+!            do j=0,NoExcits
+!                WRITE(3,"(G25.14)",advance='no') TestVect(j)%v/Norm%v
+!            enddo
+!            WRITE(3,*) ""
+!!            WRITE(63,"(I15,2G22.14)") Iterations+1,StarEnergy,NormFactor
+!
+!        enddo
+!        
+!        CALL TIHALT('PropLocalWaveVec',iSubProp)
+!
+!    END SUBROUTINE PropagateLocalWavevector

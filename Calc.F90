@@ -18,10 +18,10 @@ MODULE Calc
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-        LOGICAL THDiag,TMCStar
+        LOGICAL THDiag,TMCStar,TStoch
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
-        INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED
+        INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
         
@@ -67,6 +67,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TStoch=.true.
+          HApp=1
           DeltaH=1.D-04
           TMCStar=.false.
           THDiag=.false.
@@ -553,6 +555,12 @@ MODULE Calc
                   call getf(GrowGraphsExpo)
               case("DELTAH")
                   call getf(DELTAH)
+              case("HAPP")
+!For graph MC, this indicates the number of local applications of the hamiltonian to random determinants before the trial eigenvector is updated
+                  call geti(HApp)
+              case("NON-STOCH")
+!For graph MC, this indicates whether the determinants to apply the hamiltonian to locally are picked stochastically, or whether to run through all of them 
+                  TStoch=.false.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
