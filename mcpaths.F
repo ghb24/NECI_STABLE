@@ -68,7 +68,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM,LISNAN
          REAL*8 DBETA
-         TYPE(HDElement) DLWDB,DLWDB2,EREF
+         TYPE(HDElement) DLWDB,DLWDB2,EREF,ODLWDB2
          TYPE(HElement)  HIJS(0:I_VMAX)
 #if defined(POINTER8)
          INTEGER*8 LOCTAB(3,I_VMAX)
@@ -79,7 +79,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          TYPE(HDElement) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
          INTEGER KSYM(5),I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
-         TYPE(HDElement) FF,DLWDB3
+         TYPE(HDElement) FF,DLWDB3,TEMPTOT
          REAL*8 FSQ(2:I_VMAX),STD
          INTEGER NMEM(*),NMEMLEN,INODE2(NEL)
          POINTER (IP_NMEM,NMEM)
@@ -273,7 +273,6 @@ C.. forcing them to be disconnected. - this uses new excitation generators
 C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
 C.. levels by regarding all previous levels as a composite object with the Et and wi
 C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightings of the levels 
-
                 g_MultiWeight(0)=0.D0
                 DO J=1,I_VMAX
                   IF(g_MultiWeight(J).NE.0.D0) THEN
@@ -292,7 +291,7 @@ C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightin
 !  The last of the multi
                  I_V2=NWHTAY(3,I_VMAX)
               ENDIF
-             ELSE
+             ELSE  !If G_VMC_FAC.EQ.0
                 I_V1=I_V
                 I_V2=I_VMAX
              ENDIF
@@ -326,7 +325,8 @@ C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightin
      &               WLRI,WLSI,DBETA,DLWDB,I_V1)
                F(I_V)=WLSI
                IF(TMPTHEORY) THEN
-                  MP2E(I_V)=DLWDB
+C  Add the cumulative change
+                  MP2E(I_V)=MP2E(I_V)+DLWDB
                ENDIF
 !If the routine does many levels of MC, it rebiases them itself, taking into account 
 !the DLWDB2 we give it, and adds them into DLWDB.
@@ -396,13 +396,21 @@ C.. save all log files
             CALL WRITECLASSPATHS()
 ! If we've done a multi, we don't need to do any more
             IF(I_V1.NE.0.AND.G_VMC_FAC.NE.0.D0) EXIT
+!  Write out partial MP energy info for every cycle
+         IF(((MP2E(2).AGt.0.D0))) THEN
+            TEMPTOT=HIJS(0)
+            DO J=2,I_VMAX
+               TEMPTOT=TEMPTOT+MP2E(J)
+               WRITE(STR,"(A10,I1,A10)") "Partial MP",J," ENERGY = "
+               WRITE(6,"(A14,G25.16)") STR,TEMPTOT
+            ENDDO
+         ENDIF
          ENDDO
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,0)) THEN
             CLOSE(10)
             IF(TMPTHEORY) CLOSE(13)
          ENDIF
-         IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF((MP2E(2).AGt.0.D0)) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
@@ -411,6 +419,7 @@ C.. save all log files
                WRITE(6,"(A14,G25.16)") STR,FF
             ENDDO
          ENDIF
+         IF(BTEST(ILOGGING,9)) CLOSE(12)
          IF(TOTAL%v.LT.0) THEN
             DLWDB=-DLWDB
             TOTAL=-TOTAL
