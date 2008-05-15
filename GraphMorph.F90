@@ -1664,7 +1664,7 @@ MODULE GraphMorph
             enddo
             STOP 'Error in attaching determinants to new graph'
         ENDIF
-        IF(Tries.gt.NDets*100000) STOP 'Should never get here'
+        IF(Tries.gt.NDets*5000) STOP 'Should never get here'
         IF(Success.ne.(NDets-1)) STOP 'Error in attaching determinants to new graph 2'
 
 !Determine success ratio for attachment of determinants into new graph
