@@ -1392,8 +1392,8 @@ MODULE GraphMorph
 !Also keep a ratio of determinants which were in the graph before, and new ones added.
         OrigDets=0
         ExcitDets=0
-!Allow a maximum average of ten attempts for every successfully attached determinant
-        Tries=NDets*100000
+!Allow a maximum average of 5000 attempts for every successfully attached determinant
+        Tries=NDets*5000
         k=0
 
 !Continue trying to build graph until fully constructed
@@ -1652,6 +1652,7 @@ MODULE GraphMorph
 
 !Test if graph growing was successful. If not, possible reasons are that the space is too small for
 !such a large graph to be grown easily - reduce NDets, or increase time to search for determinants.
+!Also, check that Tries hasn't gone above the range allowed for an integer
         IF(NoVerts.ne.NDets) THEN
             WRITE(6,*) "Error in attaching determinants to new graph"
             WRITE(6,*) "Out of ",Tries," attempts to attach determinants, ",Failure, " failed."
