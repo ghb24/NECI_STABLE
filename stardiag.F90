@@ -2570,8 +2570,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IF(TEXPRHO) WRITE(6,*) "EXPONENTIAL EXPANSION OF RHO MATRIX USED"
          write(6,*)
          WRITE(6,*) "Final SI=",SI
-         WRITE(6,*) "Norm of i projection:", NORMCHECK
-         IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  Convergence may not be reached."
+         IF(NROOTS.eq.(NLIST-1)) THEN
+!We are searching for all roots, therefore sum of squares of projection onto root should be unity
+             WRITE(6,*) "Norm of i projection:", NORMCHECK
+             IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  Convergence may not be reached."
+         ENDIF
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(0,2)%v
          CALL TIHALT("STARDIAG2 ",ISUB)
