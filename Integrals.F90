@@ -611,6 +611,9 @@ MODULE Integrals
             IF(ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6.AND.       &
      &        G1(BRR(NFROZEN))%SYM%s.EQ.G1(BRR(NFROZEN+1))%SYM%s) THEN
                STOP "Cannot freeze in the middle of a degenerate set"
+            ELSE IF (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6) THEN
+               write (6,'(\a)') 'WARNING: Freezing in the middle of a degenerate set.'
+               write (6,'(a\)') 'This should only be done for debugging purposes.'
             ENDIF
          ENDIF
          IF(NTFROZEN.GT.0) THEN
@@ -618,6 +621,9 @@ MODULE Integrals
      &         .AND.G1(BRR(NHG-NTFROZEN))%SYM%s                         &
      &               .EQ.G1(BRR(NHG-NTFROZEN+1))%SYM%s) THEN
           STOP "Cannot freeze in the middle of a degenerate virtual set"
+            ELSE IF (ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6) THEN
+               write (6,'(\a)') 'WARNING: Freezing in the middle of a degenerate set.'
+               write (6,'(a\)') 'This should only be done for debugging purposes.'
             ENDIF
          ENDIF
 
