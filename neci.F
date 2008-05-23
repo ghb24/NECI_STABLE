@@ -3002,7 +3002,7 @@ C.. the Fermi determinant, otherwise the numbers blow up
          INTEGER BRR2(NBASIS)
          TYPE(BASISFN) G1(NBASIS)
          REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
-         INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K
+         INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K,ISPIN
          REAL*8 OEN
          IDONE=0
          ITOT=0
@@ -3034,7 +3034,10 @@ C.. we use the symmetries of the spatial orbitals
                   IBFN=IBFN+1
                ENDDO
              ENDDO
-             CALL SORT2(IDONE-ITOT,ARR2(ITOT+1,1),BRR2(ITOT+1))
+C Beta sort
+             CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+1,1),BRR2(ITOT+1),2)
+C Alpha sort
+             CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+2,1),BRR2(ITOT+2),2)
              ITOT=IDONE
             ENDDO
             DO I=1,NBASIS
@@ -3047,7 +3050,10 @@ C.. we use the symmetries of the spatial orbitals
             CALL ICOPY(NBASIS,BRR2,1,BRR,1)
             CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
          ENDIF
-         CALL SORT2(NBASIS-IDONE,ARR(IDONE+1,1),BRR(IDONE+1))
+C beta sort
+         CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+1,1),BRR(IDONE+1),2)
+C alpha sort
+         CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+2,1),BRR(IDONE+2),2)
 C.. We need to now go through each set of degenerate orbitals, and make
 C.. the correct ones are paired together in BRR otherwise bad things
 C.. happen in FREEZEBASIS
@@ -3057,25 +3063,28 @@ C.. ascending order
          J=1
 C         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
          ITOT=1
-         DO I=2,NBASIS
+         DO ISPIN=0,1
+          DO I=2+ISPIN,NBASIS,2
             IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
 C.. We don't have degenerate orbitals
 C.. First deal with the last set of degenerate orbitals
 C.. We sort them into order of BRR
-               CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1))
+               CALL SORT2SKIP_(ITOT,BRR(I-ITOT+ISPIN),
+     &            ARR(I-ITOT+ISPIN,1),2)
 C.. now setup the new degenerate set.
-               J=J+1
+               J=J+2
                ITOT=1
             ELSE
-               ITOT=ITOT+1
+               ITOT=ITOT+2
             ENDIF
             OEN=ARR(I,1)
             IF(NBASISMAX(3,3).EQ.1) THEN
 C.. If we've got a generic spatial sym or hf we mark degeneracies
 C               G(3,BRR(I))=J
             ENDIF
+          ENDDO
+          CALL SORT2SKIP_(ITOT,BRR(I-ITOT+ISPIN),ARR(I-ITOT+ISPIN,1),2)
          ENDDO
-         CALL SORT2_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1))
       END
 
       SUBROUTINE FREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,

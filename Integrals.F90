@@ -394,17 +394,18 @@ MODULE Integrals
              ELSEIF(TREADINT) THEN
                 WRITE(6,*) ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
     !.. Generate the 2e integrals (UMAT)
-               IF(NBASISMAX(2,3).eq.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
+                ISPINSKIP=NBasisMax(2,3)
+                IF(ISPINSKIP.eq.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
     !!C.. We can only do restricted systems, so alpha and beta spinorbital
     !!C... integrals will be the same 
     !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
-                CALL GetUMatSize(nBasis,nEl,nBasisMax(2,3),UMATINT)
+                CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
                 WRITE(6,*) "UMatSize: ",UMATINT
                 Allocate(UMat(UMatInt), stat=ierr)
                 LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                 Call AZZERO(UMat,HElementSize*UMatInt)
     !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
-                CALL SetupTMAT(nBasis,nBasisMax(2,3),TMATINT)
+                CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
     !            CALL MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
     !            CALL AZZERO(TMAT,HElementSize*nBasis*nBasis)
                 IF(TBIN) THEN
@@ -413,7 +414,6 @@ MODULE Integrals
                     CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
                 ENDIF
                 WRITE(6,*) ' ECORE=',ECORE
-                ISPINSKIP=2
              ELSE
     !!C.. We need to init the arrays regardless of whether we're storing H
     !!C..Need to initialise the Fourier arrays

@@ -723,7 +723,7 @@ C.. vector unless transposed
          WRITE(6,*) "Generating HF Guess..."
          NEL=0
          DO IS=1,NSPINS
-            IF(LMS.GE.0) THEN
+            IF(LMS.LT.0) THEN
                ISPN=IS
             ELSE
                ISPN=NSPINS+1-IS
@@ -776,6 +776,7 @@ C.. vector unless transposed
          NSBASIS=NBASIS/2
          NELS(2)=(LMS+NEL)/2
          NELS(1)=NEL-NELS(2)
+         WRITE(6,*) "NELS:", NELS,LMS,NEL
          NEL=0
          DO IS=1,2
             IF(LMS.GE.0) THEN
