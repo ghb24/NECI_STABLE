@@ -313,5 +313,13 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dEt=dEt-dE1
    dw=dw-1
 end subroutine
+#else
+module Parallel
+!Dummy so we actually create a module
+   IMPLICIT NONE
+   save
+   integer iProcIndex
+   integer nProcessors
+end module
 #endif
 
