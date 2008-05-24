@@ -3059,21 +3059,21 @@ C.. the correct ones are paired together in BRR otherwise bad things
 C.. happen in FREEZEBASIS
 C.. We do this by ensuring that within a degenerate set, the BRR are in
 C.. ascending order
-         OEN=ARR(1,1)
-         J=1
 C         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
-         ITOT=1
          DO ISPIN=0,1
-          DO I=2+ISPIN,NBASIS,2
+          OEN=ARR(1+ISPIN,1)
+          J=1+ISPIN
+          ITOT=2
+          DO I=3+ISPIN,NBASIS,2
             IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
 C.. We don't have degenerate orbitals
 C.. First deal with the last set of degenerate orbitals
 C.. We sort them into order of BRR
-               CALL SORT2SKIP_(ITOT,BRR(I-ITOT+ISPIN),
-     &            ARR(I-ITOT+ISPIN,1),2)
+               CALL SORT2SKIP_(ITOT,BRR(I-ITOT),
+     &            ARR(I-ITOT,1),2)
 C.. now setup the new degenerate set.
                J=J+2
-               ITOT=1
+               ITOT=2
             ELSE
                ITOT=ITOT+2
             ENDIF
@@ -3083,7 +3083,7 @@ C.. If we've got a generic spatial sym or hf we mark degeneracies
 C               G(3,BRR(I))=J
             ENDIF
           ENDDO
-          CALL SORT2SKIP_(ITOT,BRR(I-ITOT+ISPIN),ARR(I-ITOT+ISPIN,1),2)
+          CALL SORT2SKIP_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1),2)
          ENDDO
       END
 
