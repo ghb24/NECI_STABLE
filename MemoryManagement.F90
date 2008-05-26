@@ -108,17 +108,19 @@ contains
 
 
 
-    subroutine LogMemAlloc(ObjectName,ObjectSize,ElementSize,AllocRoutine,tag,nCalls)
+    subroutine LogMemAlloc(ObjectName,ObjectSize,ElementSize,AllocRoutine,tag,err,nCalls)
     ! Log a memory allocation.
     ! INPUT:
     !       ObjectName - Name of object.
     !       ObjectSize - Number of elements in object.
     !       ElementSize - Number of bytes per element.
     !       AllocRoutine - routine in which object is allocated.
+    !       err (optional) - error output from allocate statement (checked if present).
     ! OUTPUT:
     !       tag - position in memory log the object is stored at.
     !             If -1, then the log is full and it's not been stored.
-    !       nCalls - optional.  Increments nCalls: counts the number of times
+    ! IN/OUT:
+    !       nCalls (optional) -  increments nCalls: counts the number of times
     !       a routine has called the LogMemAlloc routine.
 
     implicit none
@@ -127,6 +129,7 @@ contains
     integer, intent(in) :: ObjectSize
     integer, intent(in) :: ElementSize
     integer, intent(out) :: tag
+    integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
  
     integer(li), parameter :: DefaultMem=1024**3
@@ -148,6 +151,12 @@ contains
     if (MemoryLeft.lt.0.and.nWarn.lt.MaxWarn) then
         write (6,*) 'WARNING: Memory used exceeds maximum memory set',MemoryLeft
         nWarn=nWarn+1
+    end if
+
+    if (present(err)) then
+        if (err.ne.0) then
+            call StopGM('LogMemAlloc','Failed to allocate array '//ObjectName//' in '//AllocRoutine)
+        end if
     end if
 
     if (ipos.gt.MaxLen) then
@@ -185,11 +194,12 @@ contains
 
 
 
-    subroutine LogMemDealloc(DeallocRoutine,tag)
+    subroutine LogMemDealloc(DeallocRoutine,tag,err)
     ! Log a memory deallocation.
     ! INPUT:
     !       DeallocRoutine - routine in which object is deallocated.
     !       tag - position in memory log the object is stored at.
+    !       err (optional) - error output from deallocate statement (checked if present).
     ! OUTPUT:
     !       tag - 0 if successfully logged (or noted that it wasn't stored in
     !             the log in the first place).
@@ -198,7 +208,11 @@ contains
 
     character(len=*), intent(in) :: DeallocRoutine
     integer, intent(inout) :: tag
+    integer, intent(in), optional :: err
     integer :: i,ismallloc(1)
+    character(len=25) :: ObjectName
+
+    ObjectName='Unknown'
 
     if (tag.eq.0) then
         write (6,*) 'Warning: attempting to log deallocation but never logged allocation.'
@@ -225,6 +239,7 @@ contains
         else
             ! Object was stored in the cache.
             MemLog(tag)%DeallocRoutine=DeallocRoutine
+            ObjectName=MemLog(tag)%ObjectName
 
             ! Check to see if object is larger than the smallest of the large
             ! objects: if so, keep a record of it.
@@ -260,6 +275,13 @@ contains
         tag=0
 
     end if
+
+    if (present(err)) then
+        if (err.ne.0) then
+            call StopGM('LogMemAlloc','Failed to deallocate array '//ObjectName//' in '//DeallocRoutine)
+        end if
+    end if
+
 
     return
     end subroutine LogMemDealloc
