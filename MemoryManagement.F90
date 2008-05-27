@@ -16,6 +16,7 @@ module MemoryManager
 
 implicit none
 
+!private
 private
 public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer
 ! Allow users to do the potentially dangerous thing of changing how the log is run.
@@ -68,17 +69,29 @@ integer(li), allocatable, save :: LookupPointer(:)
 
 contains
 
-    subroutine InitMemoryManager(MaxMemBytes)
+    subroutine InitMemoryManager(MemSize)
     ! Initialise memory manager.
+
+    ! In:
+    !    MemSize (optional) : max amount of memory used in MB.
 
     use common_routines, only: internal_error
     implicit none
 
-    integer(li), intent(in) :: MaxMemBytes
+    integer(li), intent(in), optional :: MemSize
+    integer(li) :: MaxMemBytes
+    integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
     character(len=*), parameter :: ThisRoutine = 'InitMemoryManager'
 
+
+    if (present(MemSize)) then
+        MaxMemBytes=MemSize*1024**2
+    else
+        MaxMemBytes=MaxMemLimit*1024**2
+    end if
+
     if (initialised) then
-        write (6,*) 'Already initialised memorymanager.  Not re-initialsing.'
+        write (6,*) 'Already initialised memory manager.  Not re-initialsing.'
     else
         if (MaxMemBytes.le.0) then
             write (6,*) 'Illegal maximum memory value passed to memorymanager.'
@@ -132,7 +145,7 @@ contains
     integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
  
-    integer(li), parameter :: DefaultMem=1024**3
+    integer(li), parameter :: DefaultMem=1024
     integer :: ObjectSizeBytes,ismallloc(1)
 
     if (present(nCalls)) nCalls=nCalls+1
@@ -211,6 +224,11 @@ contains
     integer, intent(in), optional :: err
     integer :: i,ismallloc(1)
     character(len=25) :: ObjectName
+
+    if (.not.initialised) then
+        write (6,*) 'Memory manager not initialised. Cannot log deallocation.'
+        return
+    end if
 
     ObjectName='Unknown'
 
@@ -301,6 +319,11 @@ contains
     character(len=*), parameter :: memoryfile = 'TMPMemoryusage.dat'
     character(len=*), parameter :: fmt1='(3a19)'
 
+    if (.not.initialised) then
+        write (6,*) 'Memory manager not initialised. Cannot leave memory manager.'
+        return
+    end if
+
     if (MemoryUsed.eq.MaxMemoryUsed) then
         ! Peak memory usage is now.
         PeakMemLog(:)=MemLog(:)
@@ -352,6 +375,11 @@ contains
         write (iunit,*) '================================================================'
         close(iunit)
     end if
+
+    initialised=.false.
+    deallocate(MemLog)
+    deallocate(PeakMemLog)
+    deallocate(LookupPointer)
 
     return
     end subroutine LeaveMemoryManager
