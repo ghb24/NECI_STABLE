@@ -1,7 +1,7 @@
 ! NECICore is the main outline of the NECI Program.  It is called AFTER ReadInput has been called.
 
 Subroutine  NECICore(iCacheFlag, tCPMD)
-    use MemoryManager, only: InitMemoryManager,LeaveMemoryManager
+    use MemoryManager, only: InitMemoryManager,LeaveMemoryManager,initialised=>MemInit
     use System, only : SysInit, SysCleanup
     use Integrals, only : IntInit, IntFreeze, IntCleanup, tPostFreezeHF
     use DetCalc, only : DetCalcInit, DoDetCalc
@@ -26,6 +26,7 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
     Call MPIInit(tCPMD)
 #endif
     call TimeTag()
+    if (.not.MemInit) call InitMemoryManager()
     if (.not.TCPMD) call Envir()
     write (6,*)
     CALL TISET('NECICUBE  ',ISUB)
