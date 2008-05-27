@@ -1,7 +1,7 @@
 ! NECICore is the main outline of the NECI Program.  It is called AFTER ReadInput has been called.
 
 Subroutine  NECICore(iCacheFlag, tCPMD)
-    use MemoryManager, only: LeaveMemoryManager
+    use MemoryManager, only: InitMemoryManager,LeaveMemoryManager
     use System, only : SysInit, SysCleanup
     use Integrals, only : IntInit, IntFreeze, IntCleanup, tPostFreezeHF
     use DetCalc, only : DetCalcInit, DoDetCalc
@@ -17,22 +17,22 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
     Integer iCacheFlag
     INTEGER iSub
     Logical tCPMD
-   integer ios
+    integer ios
     character(255) Filename
     Filename="";
     ios=0
 
 #ifdef PARALLEL
-     Call MPIInit(tCPMD)
+    Call MPIInit(tCPMD)
 #endif
-      call TimeTag()
-      if (.not.TCPMD) call Envir()
-      write (6,*)
-      CALL TISET('NECICUBE  ',ISUB)
-   if(.not.tCPMD) THEN
-    Call ReadInputMain(Filename,ios)
-    If (ios.ne.0) stop 'Error in Read'
-   ENDIF
+    call TimeTag()
+    if (.not.TCPMD) call Envir()
+    write (6,*)
+    CALL TISET('NECICUBE  ',ISUB)
+    if(.not.tCPMD) THEN
+        call ReadInputMain(Filename,ios)
+        If (ios.ne.0) stop 'Error in Read'
+    endif
 ! Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system
     call SysInit()
@@ -64,13 +64,13 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
     call IntCleanup(iCacheFlag)
     call SysCleanup()
 #ifdef PARALLEL
-     Call MPIEnd(tCPMD)
+    call MPIEnd(tCPMD)
 #endif
-          CALL MEMORY_CHECK
+    CALL MEMORY_CHECK
 ! ==-------------------------------------------------------------------==
-      CALL TIHALT('NECICUBE  ',ISUB)
+    CALL TIHALT('NECICUBE  ',ISUB)
 ! ==-------------------------------------------------------------------==
-      CALL LeaveMemoryManager
-      CALL TIPRI
+    CALL LeaveMemoryManager
+    CALL TIPRI
 
 End Subroutine NECICore
