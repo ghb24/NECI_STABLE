@@ -136,7 +136,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          
 
 !Run through determinants in graph
-         NBins=75
+         NBins=100
          CALL AZZERO(S,NDET*(NDET+1))
          MinS=100.0
          MaxS=-100.0
