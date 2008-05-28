@@ -2356,6 +2356,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
              WRITE(6,*) "Number of EIGENVALUES not specified. Computing all eigenvalues (slow)."
              NEval=NList
          ENDIF
+         IF(NEval.gt.NList) THEN
+             WRITE(6,*) "Number of EIGENVALUES set to largest number than of connected doubles."
+             WRITE(6,*) "Resetting number of EIGENVALUES to size of matrix."
+             NEval=NList
+         ENDIF
          NCycle=200
          NKry1=NKry+1
          NBlock=MIN(NEval,NBlk)
