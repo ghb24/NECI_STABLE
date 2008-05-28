@@ -282,3 +282,125 @@ END MODULE Determinants
       END Function
 
 
+! Generate the active space from a basis.
+! The Active basis can be used to in PATHS calculations and (?) as a CASCI
+
+! nActiveBasis(1:2) contains (First Active Basis Fn, Last Active Basis Fn)
+! nDown is the number of orbital sets  below the Fermi level
+! nUp is the number of orbital sets  above the Fermi level
+
+      SUBROUTINE GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis, nDown,nUp)
+         use System, only: BasisFN
+         IMPLICIT NONE
+         REAL*8 ARR(nBasis)
+         INTEGER BRR(nBasis)
+         TYPE(BasisFN) G1(nBasis)
+         INTEGER LMS,nEl,nActiveBasis(2),nBasis
+         INTEGER I,nDown,nUp,nLeft
+         I=nEl+1
+         nLeft=1+nUp
+         IF(nDown.NE.0.AND.nUp.NE.0) WRITE(6,*) "Including ",-nDown,",",nUp," extra degenerate sets in active space."
+         DO WHILE (nLeft.GT.0.AND.I.LT.nBasis)
+            DO WHILE (I.LT.nBasis.AND.ABS(ARR(I)-ARR(I-1)).LT.1.d-5)
+               I=I+1
+            ENDDO
+            nLeft=nLeft-1
+            IF(nLeft.EQ.nUp.AND.I.NE.nEl+1) WRITE(6,*) "Fermi determinant degenerate.  "
+            IF(nLeft.ne.0) I=I+2
+         ENDDO
+         IF(I.EQ.nEl+1.and.nDown.eq.0) THEN
+!We have no degeneracies at the Fermi Energy
+            WRITE(6,*) "Fermi determinant non-degenerate.  "
+            IF(nDown.eq.0) THEN
+               WRITE(6,*) "Active space empty."
+               nActiveBasis(1)=nEl+1
+               nActiveBasis(2)=nEl
+               RETURN
+            ENDIF
+         ENDIF
+         nActiveBasis(2)=I-1
+         I=nEl-1
+         nLeft=nDown
+         Do WHILE(nLeft.GT.0.AND.I.Gt.0)
+      
+            DO WHILE (I.GT.0.AND.ABS(ARR(I)-ARR(I+1)).LT.1.d-5)
+               I=I-1
+            ENDDO
+            nLeft=nLeft-1
+         ENDDO
+         nActiveBasis(1)=I+1
+         WRITE(6,*) "Active space:", nActiveBasis(1)," TO ",nActiveBasis(2)," (ordered labels)."
+         WRITE(6,*) "Active space electrons:",nEl-nActiveBasis(1)+1
+         RETURN 
+      END
+
+      SUBROUTINE GENRANDOMDET(NEL,NBASIS,MCDET)
+         IMPLICIT NONE
+         INTEGER NEL,NBASIS,MCDET(NEL)
+         INTEGER I,J,EL,SEED
+         LOGICAL BR
+         REAL*8 RAN2
+         SEED=-7
+         DO I=1,NEL
+            BR=.TRUE.
+            DO WHILE (BR)
+               BR=.FALSE.
+               EL=INT(RAN2(SEED)*NBASIS+1)
+               DO J=1,I-1
+                  IF(MCDET(J).EQ.EL) BR=.TRUE.
+               ENDDO
+            ENDDO
+            MCDET(I)=EL
+         ENDDO
+         CALL SORTI(NEL,MCDET)
+         RETURN
+      END
+
+! Write determinant NI(NEL) to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
+      SUBROUTINE WRITEDET(NUNIT,NI,NEL,LTERM)
+         IMPLICIT NONE
+         INTEGER NUNIT,NEL,NI(NEL),I
+         LOGICAL LTERM
+         INTEGER IEL
+         CHARACTER*2 SUFF
+         INCLUDE 'csf.inc'
+         WRITE(NUNIT,"(A,$)") "("
+         DO I=1,NEL
+            IEL=NI(I)
+            IF(IEL.GE.CSF_NBSTART) THEN
+               WRITE(NUNIT,"(I3,$)"),(IEL-CSF_NBSTART)/4+1
+               IEL=IAND(IEL-CSF_NBSTART,3)
+               IF(IEL.EQ.0) THEN
+                  WRITE(NUNIT,"(A,$)") "-B,"
+               ELSEIF(IEL.EQ.1) THEN
+                  WRITE(NUNIT,"(A,$)") "-A,"
+               ELSEIF(IEL.EQ.2) THEN
+                  WRITE(NUNIT,"(A,$)") "+B,"
+               ELSE
+                  WRITE(NUNIT,"(A,$)") "+A,"
+               ENDIF
+            ELSE
+               WRITE(NUNIT,"(I5,A,$)") IEL,","
+            ENDIF
+         ENDDO
+         WRITE(NUNIT,"(A,$)") ")"
+         IF(LTERM) WRITE(NUNIT,*)
+         RETURN
+      END
+
+! Calculate the one-electron part of the energy of a det
+      REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
+         USE HElem
+         USE UMatCache , only : GetTMatEl
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL),G1(*),NBASIS,I
+         LOGICAL ISCSF
+         CALCT=0.D0
+         IF(ISCSF(NI,NEL)) RETURN
+         DO I=1,NEL
+            CALCT=CALCT+DREAL(GetTMATEl(NI(I),NI(I)))
+         ENDDO
+         RETURN
+      END
+
+

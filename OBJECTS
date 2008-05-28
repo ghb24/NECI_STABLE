@@ -19,7 +19,7 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
           chebint.o sorti.o calcpathnci.o factorpoly.o rhodiag.o \
           hdiag.o gndts_blk.o mcpathsismc.o mcpathsmcmc.o \
           mcpathsch.o readint.o hubbard.o excit.o mcpathsold.o \
-          rootfind.o cpmdinit.o neci.o mcpathshdiag.o \
+          rootfind.o cpmdinit.o mcpathshdiag.o \
           oexcit.o
 
 OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \

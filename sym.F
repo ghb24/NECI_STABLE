@@ -1734,3 +1734,24 @@ C.. Set to be totally symmetric
         iSize=iSize+2
         !This is to allow the index of '-1' in the array to give a zero value
       END SUBROUTINE GETSYMTMATSIZE
+
+
+      SUBROUTINE WRITESYMCLASSES(NBASIS)
+        USE HElem
+        USE UMatCache
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        IMPLICIT NONE
+        include 'sym.inc'
+        INTEGER I,NBASIS
+        
+        DO I=1,NBASIS/2
+            WRITE(13,*) I,SYMCLASSES(I)
+            CALL FLUSH(13)
+        ENDDO
+        DO I=1,NSYMLABELS
+            WRITE(13,*) I,SYMLABELCOUNTS(2,I)
+        ENDDO
+        WRITE(13,*) "******************"
+        CALL FLUSH(13)
+      END

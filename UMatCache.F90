@@ -1782,4 +1782,57 @@ END MODULE UMatCache
          RETURN
       END function
 
+      SUBROUTINE SWAPTMAT(NBASIS,NHG,GG)
+        USE HElem
+        USE UMatCache
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        IMPLICIT NONE
+        include 'sym.inc'
+        integer I,J,NBASIS,NHG,GG(NHG)
+        integer*8 TMATINT,LG
+        
+         IF(TSTARSTORE) THEN
+            !Transfer across the vectors for indexing TMAT
+            CALL FREEM(IP_SYMCLASSES2)
+            !copy across the new frozen symclasses and symlabelstuff
+            CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
+            !Redo SYMLABELCOUNTS
+            CALL GENSymStatePairs(NBASIS/2,.false.)
+            CALL FREEM(IP_SYMLABELCOUNTSCUM)
+            IP_SYMLABELCOUNTSCUM=IP_SYMLABELCOUNTSCUM2
+            IP_SYMLABELCOUNTSCUM2=0
+            CALL FREEM(IP_SYMLABELINTSCUM)
+            IP_SYMLABELINTSCUM=IP_SYMLABELINTSCUM2
+            IP_SYMLABELINTSCUM2=0
+             !Deallocate TMAT & reallocate with right size
+             CALL DestroyTMAT(.false.)
+             !CALL SetupTMAT(NBASIS,2,TMATINT)
+             !DO LG=1,TMATINT
+             !    TMATSYM(LG)=TMATSYM2(LG)
+             !ENDDO
+             !CALL DestroyTMAT(.true.)
+             TMATSYM => TMATSYM2
+             NULLIFY(TMATSYM2)
+             !Swap the INVBRR and deallocate old one
+             CALL MemDealloc(INVBRR)
+             Deallocate(INVBRR)
+             INVBRR => INVBRR2
+             NULLIFY(INVBRR2)
+         ELSE
+             !Deallocate TMAT & reallocate with right size
+             CALL DestroyTMAT(.false.)
+             !CALL SetupTMAT(NBASIS,2,TMATINT)
+             !IF(TMATINT.ne.(NBASIS*NBASIS)) STOP 'Errorfrz'
+             TMAT2D => TMAT2D2
+             NULLIFY(TMAT2D2)
+!             DO I=1,NBASIS
+!                 DO J=1,NBASIS
+!                     TMAT2D(NBASIS,NBASIS)=
+!     &               TMAT2D2(NBASIS,NBASIS)
+!                 ENDDO
+!             ENDDO
+             !CALL DestroyTMAT(.true.)
+         ENDIF
+      END
       

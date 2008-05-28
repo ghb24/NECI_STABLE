@@ -1,5 +1,5 @@
 #include "macros.h"
-      MODULE System
+MODULE System
         USE input
         
         IMPLICIT NONE
@@ -751,6 +751,182 @@
         End Subroutine SysInit
 
     Subroutine SysCleanup()
-      CALL ENDSYM()
+        CALL ENDSYM()
     End Subroutine SysCleanup
-      END MODULE System
+END MODULE System
+
+
+!Write out the current basis to unit nUnit
+SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
+    use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+    use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+    IMPLICIT NONE
+    INTEGER NUNIT,NHG,BRR(NHG),I
+    INCLUDE 'sym.inc'
+    TYPE(BASISFN) G1(NHG)
+    REAL*8 ARR(NHG,2)
+    DO I=1,NHG
+        WRITE(NUNIT,'(6I7,$)') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+        CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
+        WRITE(NUNIT,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
+    ENDDO
+    RETURN
+END
+
+SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
+   use System, only: BasisFN
+   implicit none
+   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),NBASISMAX(5,3)
+   INTEGER BRR2(NBASIS)
+   TYPE(BASISFN) G1(NBASIS)
+   REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
+   INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K,ISPIN
+   REAL*8 OEN
+   IDONE=0
+   ITOT=0
+!.. copy the default ordered energies.
+   CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
+   CALL DCOPY(NBASIS,ARR(1,1),1,ARR2(1,2),1)
+   WRITE(6,"(A,8I4)") "Ordering Basis (Closed): ", (ORBORDER(I,1),I=1,8)
+   WRITE(6,"(A,8I4)") "Ordering Basis (Open  ): ", (ORBORDER(I,2),I=1,8)
+   IF(NBASISMAX(3,3).EQ.1) THEN
+!.. we use the symmetries of the spatial orbitals
+      DO ITYPE=1,2
+         IBFN=1
+         DO I=1,8
+            DO J=1,ORBORDER(I,ITYPE)
+               DO WHILE(IBFN.LE.NBASIS.AND.(G1(IBFN)%SYM%s.LT.I-1.OR.BRR(IBFN).EQ.0))
+                  IBFN=IBFN+1
+               ENDDO
+               IF(IBFN.GT.NBASIS) THEN
+                  STOP "Cannot find enough basis fns of correct symmetry"
+               ENDIF
+               IDONE=IDONE+1 
+               BRR2(IDONE)=IBFN
+               BRR(IBFN)=0
+               ARR2(IDONE,1)=ARR(IBFN,1)
+               IBFN=IBFN+1
+            ENDDO
+         ENDDO
+! Beta sort
+         CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+1,1),BRR2(ITOT+1),2)
+! Alpha sort
+         CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+2,1),BRR2(ITOT+2),2)
+         ITOT=IDONE
+      ENDDO
+      DO I=1,NBASIS
+         IF(BRR(I).NE.0) THEN
+            ITOT=ITOT+1
+            BRR2(ITOT)=BRR(I)
+            ARR2(ITOT,1)=ARR(I,1)
+         ENDIF
+      ENDDO
+      CALL ICOPY(NBASIS,BRR2,1,BRR,1)
+      CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
+   ENDIF
+! beta sort
+   CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+1,1),BRR(IDONE+1),2)
+! alpha sort
+   CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+2,1),BRR(IDONE+2),2)
+!.. We need to now go through each set of degenerate orbitals, and make
+!.. the correct ones are paired together in BRR otherwise bad things
+!.. happen in FREEZEBASIS
+!.. We do this by ensuring that within a degenerate set, the BRR are in
+!.. ascending order
+!         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
+   DO ISPIN=0,1
+      OEN=ARR(1+ISPIN,1)
+      J=1+ISPIN
+      ITOT=2
+      DO I=3+ISPIN,NBASIS,2
+         IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
+!.. We don't have degenerate orbitals
+!.. First deal with the last set of degenerate orbitals
+!.. We sort them into order of BRR
+            CALL SORT2SKIP_(ITOT,BRR(I-ITOT), ARR(I-ITOT,1),2)
+!.. now setup the new degenerate set.
+            J=J+2
+            ITOT=2
+         ELSE
+            ITOT=ITOT+2
+         ENDIF
+         OEN=ARR(I,1)
+         IF(NBASISMAX(3,3).EQ.1) THEN
+!.. If we've got a generic spatial sym or hf we mark degeneracies
+!               G(3,BRR(I))=J
+         ENDIF
+      ENDDO
+      CALL SORT2SKIP_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1),2)
+   ENDDO
+END subroutine
+
+! See if a given G vector is within a (possibly tilted) unit cell.
+!  Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+      LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
+         IMPLICIT NONE
+         INTEGER G(5),NBASISMAX(5,5),NMAXX,I,J,AX,AY
+         INTEGER KX,KY
+         REAL*8 MX,MY,XX,YY
+         LOGICAL TALLOW
+         TALLOW=.TRUE.
+         IF(NBASISMAX(3,3).EQ.1) THEN
+!.. spatial symmetries
+            IF(G(1).NE.0) TALLOW=.FALSE.
+         ELSEIF(NBASISMAX(3,3).EQ.0) THEN
+!.. Hubbard
+            IF(NBASISMAX(1,3).EQ.1) THEN
+!.. Tilted hubbard
+               NMAXX=NBASISMAX(1,5)
+!            NMAXY=
+               AX=NBASISMAX(1,4)
+               AY=NBASISMAX(2,4)
+!.. (XX,YY) is the position of the bottom right corner of the unit cell
+               XX=((AX+AY)/2.D0)*NMAXX
+               YY=((AY-AX)/2.D0)*NMAXX
+               MX=XX*AX+YY*AY
+               MY=XX*AY-YY*AX
+               I=G(1)
+               J=G(2)
+               KX=I*AX+J*AY
+               KY=I*AY-J*AX
+               IF(KX.GT.MX) TALLOW=.FALSE.
+               IF(KY.GT.MY) TALLOW=.FALSE.
+               IF(KX.LE.-MX) TALLOW=.FALSE.
+               IF(KY.LE.-MY) TALLOW=.FALSE.
+            ELSEIF(NBASISMAX(1,3).GE.4.OR.NBASISMAX(1,3).EQ.2) THEN
+!.. Real space Hubbard
+               IF(G(1).EQ.0.AND.G(2).EQ.0.AND.G(3).EQ.0) THEN
+                  TALLOW=.TRUE.
+               ELSE
+                  TALLOW=.FALSE.
+               ENDIF
+!            ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. mom space non-pbc non-tilt hub - parity sym
+!               IF(  (G(1).EQ.0.OR.G(1).EQ.1)
+!     &         .AND.(G(2).EQ.0.OR.G(2).EQ.1)
+!     &         .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
+!                  TALLOW=.TRUE.
+!               ELSE
+!                  TALLOW=.FALSE.
+!               ENDIF
+!            ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!.. non-pbc hubbard
+!               TALLOW=.TRUE.
+!               IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
+!     &            TALLOW=.FALSE.
+!               IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
+!     &            TALLOW=.FALSE.
+!               IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
+!     &            TALLOW=.FALSE.
+            ELSE
+!.. Normal Hubbard
+               TALLOW=.TRUE.
+               IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1)) TALLOW=.FALSE.
+               IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1)) TALLOW=.FALSE.
+               IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1)) TALLOW=.FALSE.
+            ENDIF
+         ENDIF         
+         KALLOWED=TALLOW
+         RETURN
+      END
+

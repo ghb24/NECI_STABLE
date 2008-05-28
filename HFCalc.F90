@@ -56,7 +56,8 @@ MODULE HFCalc
             CALL FLUSH(6)
 !C.. If in Hubbard, we generate site-spin occupations
             IF(THUB) THEN
-               CALL GENSITESPINOCC(NBASIS,NBASIS/ISPINSKIP,ISPINSKIP,NBASISMAX,G1,NEL,LMS,BRR,HFBASIS)
+!  Don't think this works
+!               CALL GENSITESPINOCC(NBASIS,NBASIS/ISPINSKIP,ISPINSKIP,NBASISMAX,G1,NEL,LMS,BRR,HFBASIS)
             ENDIF
 !C.. We now generate a new U matrix corresponding to the HF basis fns
 !C.. This requires a new matrix UMAT2 to be set up, as our HF basis is

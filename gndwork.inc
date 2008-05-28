@@ -4,9 +4,9 @@
             TYPE(BasisFN)  ISym
             INTEGER        nElec
             INTEGER        niWork(1)
-C           (nEl)
-C            INTEGER        nIndJ(nEl)
+!           (nEl)
+!            INTEGER        nIndJ(nEl)
 
-C           nIndJ is niWork(1+nEl)
+!           nIndJ is niWork(1+nEl)
          END TYPE
          integer, PARAMETER :: GNDWorkSize=5+3*BasisFNSize

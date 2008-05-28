@@ -632,3 +632,326 @@ CONTAINS
         CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
     End Subroutine CalcFoDM
 END MODULE DetCalc
+
+! If we have a list of determinants NMRKS calculate 'PATHS' for NPATHS of them.
+      SUBROUTINE CALCRHOPII2(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET, &
+     &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,  &
+     &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,   &
+     &   DETINV,TSPECDET,SPECDET)
+         use HElem
+         use System, only: BasisFN
+         implicit none
+         include 'irat.inc'
+         INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,NBASISMAX(5,5),nBasis
+         INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING,ISUB
+         TYPE(HElement) UMat(*)
+         TYPE(HDElement) DLWDB, DLWDB2, DLWDB3, DLWDB4
+         TYPE(BasisFN) g1(*),ALAT(*)
+         LOGICAL TSYM
+         REAL*8 BETA,FCK(*),RHOEPS
+         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE),(IP_RIJLIST,RIJLIST)
+         INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
+         INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
+         REAL*8 RIJLIST(*)
+         INTEGER NMRKS(NEL,NDET),NPATHS
+         INTEGER III,NWHTAY,I,IMAX,ILMAX
+         REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
+         REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
+         LOGICAL TNPDERIV
+         INTEGER DETINV
+         INTEGER ISTART,IEND
+         LOGICAL TSPECDET
+         INTEGER SPECDET(NEL)
+         TOT=0.D0
+         NORM=0.D0
+         DLWDB2=0.D0
+         IMAX=I_HMAX
+         IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
+         CALL TISET('CLCRHOPII2',ISUB)
+         ILMAX=NDET
+!.. we don't need lists for I_HMAX=8
+         IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
+!         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
+         CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
+         CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
+        CALL MEMORY(IP_RIJLIST,(1+ILMAX)*IMAX*2,"RIJLIST")
+         IF(I_VMAX.NE.0) THEN
+            WRITE(6,*) "Using Vertex approximation.  I_VMAX=",I_VMAX
+            IF(I_HMAX.EQ.0) WRITE(6,*) "I_HMAX=0.  Summing all I_HMAX up to P using contour"
+            IF(I_HMAX.GT.0) WRITE(6,*) "I_HMAX=",I_HMAX
+         ELSEIF(I_HMAX.NE.0) THEN
+            WRITE(6,*) "Using hop-restricted paths. I_HMAX:",I_HMAX
+         ELSE
+            WRITE(6,*) "I_HMAX=I_VMAX=0. Using rho diagonalisation."
+         ENDIF
+         IF(I_HMAX.EQ.-10) THEN
+            OPEN(11,FILE="MCSUMMARY",STATUS="UNKNOWN")
+            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(11)
+         ELSE
+            OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
+            WRITE(11,*) "Calculating ",NPATHS," W_Is..."
+            CLOSE(11)
+         ENDIF
+         OPEN(15,FILE='RHOPII',STATUS='UNKNOWN')
+         IF(DETINV.NE.0) THEN
+            ISTART=ABS(DETINV)
+            IEND=ABS(DETINV)
+         ELSEIF(TSPECDET) THEN
+            ISTART=0
+            IEND=0
+            WRITE(6,*) "Using specified det:"
+            CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
+         ELSE
+            ISTART=1
+            IEND=NPATHS
+         ENDIF
+         DO III=ISTART,IEND
+            IF(III.NE.0) THEN
+              IF(NPATHS.EQ.1)  CALL WRITEDET(6,NMRKS(1,III),NEL,.TRUE.) 
+               CALL MCPATHSR3(NMRKS(1,III),BETA,I_P,I_HMAX,I_VMAX,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT, &
+     &         UMAT,NTAY, RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
+            ELSE
+               CALL MCPATHSR3(SPECDET,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
+     &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
+            ENDIF
+            WRITE(15,"(I12,$)") III
+            IF(TSPECDET) THEN
+               CALL WRITEDET(15,SPECDET,NEL,.FALSE.)
+            ELSE
+               CALL WRITEDET(15,NMRKS(1,III),NEL,.FALSE.)
+            ENDIF
+            WRITE(15,"(A,3G25.16,$)") " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
+            IF(III.EQ.1) THEN
+               WLRI0=WLRI
+               WLSI0=WLSI
+           else
+               WLRI0=0.d0
+               WLSI0=0.d0
+            ENDIF  
+            IF(TNPDERIV) THEN
+!.. if we're calculating the derivatives too
+               IF(III.NE.0) THEN
+               CALL MCPATHSR3(NMRKS(1,III),BETA+DBETA,I_P,I_HMAX,    &
+     &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
+     &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
+     &            ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
+               CALL MCPATHSR3(NMRKS(1,III),BETA-DBETA,I_P,I_HMAX,    &
+     &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
+     &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
+     &            ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
+               ELSE
+               CALL MCPATHSR3(SPECDET,BETA+DBETA,I_P,I_HMAX,         &
+     &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
+     &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
+     &            ILOGGING,ECORE,ILMAX,WLRI1,WLSI1,DBETA,DLWDB3)
+               CALL MCPATHSR3(SPECDET,BETA-DBETA,I_P,I_HMAX,         &
+     &            I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,       &
+     &            NMAX,ALAT,UMAT,NTAY,RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,&
+     &            ILOGGING,ECORE,ILMAX,WLRI2,WLSI2,DBETA,DLWDB4)
+               ENDIF
+               DLWDB=-(I_P*(WLRI1-WLRI2)+(WLSI1-WLSI2))/(2*DBETA)
+            ELSE
+               DLWDB=DLWDB2
+            ENDIF
+!.. we calculate the energy with weightings normalized to the weight of
+!.. the Fermi determinant, otherwise the numbers blow up
+            WINORM=EXP(I_P*(WLRI-WLRI0)+(WLSI-WLSI0))
+            NORM=NORM+WINORM
+            TOT=TOT+WINORM*DREAL(DLWDB)
+            WRITE(15,*) DLWDB
+            IF(DETINV.EQ.III.AND.III.NE.0) THEN
+               CALL FLUSH(15)
+               WRITE(6,*) "Investigating det ",DETINV
+               CALL FLUSH(6)
+               CALL WIRD_SUBSET(NMRKS(1,DETINV),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
+     &       RHOEPS,ILOGGING,TSYM,ECORE)
+            ENDIF
+          ENDDO
+         CLOSE(15)
+         WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
+         CALL FREEM(IP_RIJLIST)
+         CALL FREEM(IP_LSTE)
+         CALL FREEM(IP_ICE)
+         CALL TIHALT('CLCRHOPII2',ISUB)
+         RETURN
+      END    
+
+!   Using the exact eigenvectors and -values calculate the exact value of rho^P_ii
+
+!.. Note if TWARN becomes set, the RHII sum did not converge.
+!.. FLSI will remain usable, but will be equal to log RHII(P), so the 
+!.. sum I_P*FLRI+FLSI will still retain the correct value.
+      SUBROUTINE CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ETRIAL,FLRI,FLSI,TWARN)
+         USE HElem
+         IMPLICIT NONE
+         INTEGER NDET,NEVAL
+         TYPE(HElement) CK(NDET,NEVAL)
+         REAL*8 W(NEVAL)
+         REAL*8 RHII,FLRI,FLSI,ETRIAL,BETA,RH,R
+         INTEGER I_P,I,IK,ILOGGING
+         LOGICAL LISNAN,TWARN
+         RH=0.D0
+         RHII=0.D0
+         TWARN=.FALSE.
+!.. We decompose ln(RHO^(P)_II) = p ln RHO_II + ln sI
+
+!.. First we work out RHO_II
+!         WRITE(6,*) BETA,I_P
+         DO IK=1,NEVAL
+            R=SQ(CK(I,IK))
+            R=R*EXP(-(W(IK)-W(1))*BETA/I_P)
+            RHII=RHII+R
+         ENDDO
+         IF(NEVAL.NE.NDET.AND.EXP(-(W(NEVAL)-W(1))*BETA/I_P).GT.1.D-2) THEN
+!.. If we don't have all our eigenvectors and we think our sum has not
+!.. converged, we print a warning the first time.
+!.. we cannot calculate a proper RHII so we just guess at 1
+            IF(I.EQ.1) THEN
+             WRITE(6,*) 'WARNING: For Det 1 RHII sum has not converged.'
+             WRITE(6,*) ' Setting RHII=1'
+            ENDIF
+            TWARN=.TRUE.
+            RHII=1.D0
+            FLRI=0.D0
+         ELSE
+
+!.. and Log it
+           FLRI=LOG(RHII)-(W(1))*BETA/I_P
+         ENDIF
+!.. Now we work out RHO^(P)_II/RHO_II^P = sI         
+         DO IK=1,NEVAL
+            R=SQ(CK(I,IK))
+            RH=RH+R*EXP(-(W(IK)-W(1))*BETA)
+         ENDDO
+         FLSI=LOG(RH)-W(1)*BETA-I_P*FLRI
+         IF(LISNAN((RH+1)-RH)) THEN
+            RH=0
+            FLSI=0
+         ENDIF
+!         WRITE(17,*) CK(1,I),W(I)
+         RETURN
+      END
+
+!  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E(Beta)
+      REAL*8 FUNCTION CALCMCEN(NDET,NEVAL,CK,W,BETA,ETRIAL)
+         USE HElem
+         IMPLICIT NONE
+         INTEGER NDET,NEVAL,IK
+         TYPE(HElement) CK(NDET,NEVAL)
+         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
+         EN=0.D0
+         DNORM=0.D0
+         DO IK=1,NEVAL
+            EN=EN+(W(IK))*EXP(-(W(IK)-W(1))*BETA)
+            DNORM=DNORM+EXP(-(W(IK)-W(1))*BETA)
+         ENDDO
+         CALCMCEN=EN/DNORM
+         RETURN
+      END
+
+!  Given an exact calculation of eigen-vectors and -values, calculate the expectation value of E~(Beta)_I for det I
+      REAL*8 FUNCTION CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ETRIAL)
+         USE HElem
+         IMPLICIT NONE
+         INTEGER NDET,NEVAL,IK,I
+         TYPE(HElement) CK(NDET,NEVAL)
+         REAL*8  W(NEVAL),BETA,DNORM,EN,ETRIAL
+         EN=0.D0
+         DNORM=0.D0
+         DO IK=1,NEVAL
+            EN=EN+SQ(CK(I,IK))*(W(IK))*EXP(-(W(IK)-W(1))*BETA)
+            DNORM=DNORM+SQ(CK(I,IK))*EXP(-(W(IK)-W(1))*BETA)
+         ENDDO
+         CALCDLWDB=EN/DNORM
+         RETURN
+      END
+
+      SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,ALAT,TKE,NHG,ILOGGING)
+      USE HElem
+      USE UMatCache , only : GetTMATEl
+      use System, only: BasisFN
+      IMPLICIT NONE
+      TYPE(HElement) CG(NDET,NEVAL)
+      INTEGER NM(NEL,*),NDET,NEL,NEVAL
+      REAL*8 ALAT(3),TKE(NEVAL)
+      INTEGER NBASISMAX(3,2),NHG,ILOGGING
+      TYPE(BASISFN) G1(*)
+      CHARACTER*255 STR
+      REAL*8 PI,S,SUM
+      TYPE(HDElement) AUX
+      INTEGER I,J,IN,IEL,L
+!..Calculate the expectation value of the kinetic energy
+!..<Psi|T|Psi>
+      PI=ACOS(-1.D0)
+      DO IN=1,NEVAL
+        TKE(IN)=0.D0
+        DO I=1,NDET
+          SUM=0.D0
+          DO J=1,NEL
+            AUX=GetTMATEl(NM(J,I),NM(J,I))
+!((ALAT(1)**2)*((G1(1,NM(J,I))**2)/(ALAT(1)**2)+
+!     &		(G1(2,NM(J,I))**2)/(ALAT(2)**2)+
+!     &		(G1(3,NM(J,I))**2)/(ALAT(3)**2)))
+            SUM=SUM+DREAL(AUX)
+          ENDDO
+!..Cube multiplier
+!          CST=PI*PI/(2.D0*ALAT(1)*ALAT(1))
+!.. Deal with the UEG
+!          IF(NBASISMAX(1,1).LE.0) CST=CST*4.D0
+!          SUM=CST*SUM 
+          TKE(IN)=TKE(IN)+SUM*SQ(CG(I,IN))
+        ENDDO
+      ENDDO
+! ==--------------------------------------------------------------==
+      IF(.FALSE.) THEN
+!      IF(BTEST(ILOGGING,7)) THEN
+      OPEN(10,FILE='PSI',STATUS='UNKNOWN')
+      DO J=1,NEVAL
+        IF(J.EQ.1) THEN
+          WRITE(10,*) ' GROUND STATE COEFFICIENTS  ' 
+        ELSE
+          WRITE(10,*) ' COEFFICIENTS FOR EXCITED STATE NUMBER : ' , J
+        ENDIF
+        S=0.D0
+        DO I=1,NDET
+         IF(CG(I,J).AGT.1.D-15) THEN
+            DO IEL=1,NEL
+               WRITE(10,"(I3,I3,2I3,2X,$)") (G1(NM(1,IEL))%K(L),L=1,5)
+            ENDDO
+            IF(HElementSize.EQ.1) THEN
+               WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
+            ELSE
+               WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
+            ENDIF
+         ENDIF
+         S=S+SQ(CG(I,J))
+        ENDDO
+        WRITE(10,'(A,F19.5)') ' SQUARE OF COEFFICIENTS : ' , S
+        WRITE(10,*)
+      ENDDO
+      CLOSE(10)
+      ENDIF
+      RETURN
+      END
+
+
+!Given exact eigenvalues and vectors, do monte carlo in det space with exact weights and E~
+       REAL*8 FUNCTION DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS)
+         INTEGER NDET,NEVAL,I_P,ILOGGING
+         REAL*8 CK(NEVAL),W(NEVAL),BETA,ECORE
+
+         REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET),EN
+         INTEGER I
+         LOGICAL TWARN
+         
+         DO I=1,NDET
+            CALL CALCRHOPII(I,NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,ECORE,WLRIS(I),WLSIS(I),TWARN)
+            DLWDBS(I)=CALCDLWDB(I,NDET,NEVAL,CK,W,BETA,ECORE)
+         ENDDO
+         EN=DMONTECARLOEXWI(NDET,WLRIS,WLSIS,DLWDBS,I_P,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,ILOGGING)
+         WRITE(6,*) "EXACT MC RESULT=",EN
+         DOEXMC=EN
+         RETURN
+      END
+

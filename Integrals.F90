@@ -612,8 +612,8 @@ MODULE Integrals
      &        G1(BRR(NFROZEN))%SYM%s.EQ.G1(BRR(NFROZEN+1))%SYM%s) THEN
                STOP "Cannot freeze in the middle of a degenerate set"
             ELSE IF (ABS(ARR(NFROZEN,1)-ARR(NFROZEN+1,1)).LT.1.D-6) THEN
-               write (6,'(\a)') 'WARNING: Freezing in the middle of a degenerate set.'
-               write (6,'(a\)') 'This should only be done for debugging purposes.'
+               write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+               write (6,'(a)') 'This should only be done for debugging purposes.'
             ENDIF
          ENDIF
          IF(NTFROZEN.GT.0) THEN
@@ -622,8 +622,8 @@ MODULE Integrals
      &               .EQ.G1(BRR(NHG-NTFROZEN+1))%SYM%s) THEN
           STOP "Cannot freeze in the middle of a degenerate virtual set"
             ELSE IF (ABS(ARR(NHG-NTFROZEN,1)-ARR(NHG-NTFROZEN+1,1)).LT.1.D-6) THEN
-               write (6,'(\a)') 'WARNING: Freezing in the middle of a degenerate set.'
-               write (6,'(a\)') 'This should only be done for debugging purposes.'
+               write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+               write (6,'(a)') 'This should only be done for debugging purposes.'
             ENDIF
          ENDIF
 
@@ -856,4 +856,45 @@ MODULE Integrals
         CALL FLUSH(13)
       END subroutine writesymclasses
 
-      END MODULE Integrals
+END MODULE Integrals
+
+
+! Calculate the diagonal matrix elements for the Uniform electron gas
+!  CST is PI*PI/2L*L for the non-periodic case, and
+!  CST is 4*PI*PI/2L*L for the periodic case, and
+
+!  For the periodic case we must also add in a periodic images correction
+!  which is 1/2 (<ii|ii> - <ii|ii>cell) for each orbital
+!  We calculate <ii|ii>cell with a potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
+!  Rc=ALAT(4).
+
+      SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
+         USE HElem
+         USE UMatCache , only : SetupTMAT,TMAT2D,TSTARSTORE
+         use System, only: BasisFN
+         IMPLICIT NONE
+         INTEGER NBASIS
+         TYPE(BASISFN) G1(NBASIS)
+         REAL*8 ALAT(4),HFBASIS(NBASIS,NBASIS),CST
+         INTEGER I,J
+         INTEGER iSIZE
+         REAL*8 SUM,S1,OMEGA
+         LOGICAL TPERIODIC
+         REAL*8, PARAMETER :: PI=3.1415926535897932384626433832795029D0
+         IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
+         OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
+         IF(TSTARSTORE) STOP 'Cannot use TSTARSTORE with UEG'
+         CALL SetupTMAT(NBASIS,2,iSIZE)
+          DO I=1,NBASIS
+           TMAT2D(I,I)=((ALAT(1)**2)*((G1(I)%K(1)**2)/(ALAT(1)**2)+        &
+     &         (G1(I)%K(2)**2)/(ALAT(2)**2)+(G1(I)%K(3)**2)/(ALAT(3)**2)))
+           TMAT2D(I,I)=TMAT2D(I,I)*HElement(CST)
+!..  The G=0 component is explicitly calculated for the cell interactions as 2 PI Rc**2 .
+!     we *1/2 as we attribute only half the interaction to this cell.
+           IF(TPERIODIC) TMAT2D(I,I)=TMAT2D(I,I)-HElement(PI*ALAT(4)**2/OMEGA)
+            WRITE(10,*) I,I,TMAT2D(I,I)
+         ENDDO
+         CLOSE(10)
+         RETURN
+      END
+
