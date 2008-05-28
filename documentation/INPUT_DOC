@@ -339,7 +339,7 @@ METHOD <METHOD>
     VERTEX STAR [ADDSINGLES/COUNTEXCITS] STARSTARS TRIPLES NODAL,DIAG,POLY,POLYMAX  <OLD, NEW [H0]>
         Constructs a star from all determinants connected to the root (ignoring connections between those dets).
         STARSTARS uses an approximation that the change of eigenvalues and the first element of the eigenvectors of the star graph is linear with respect to multiplying the diagonal elements by a constant. Once this scaling is found, all stars of stars are prediagonalised, and reattached to the original graph. This results in N^2 scaling, where N is the number of excitations.
-        DIAG does a complete diagonalization on the resultant matrix.  This can be very slow.
+        DIAG does a complete diagonalization on the resultant matrix.  This can be very slow. However, by specifying LANCZOS in the CALC block, you can do a Lanczos diagonalisation, which scales much better. EIGENVALUES can also be specify to only evaluate the first few eigenvalues.
         POLY uses the special properties of the matrix to find the roots of the polynomial and uses them to calculate the relevant values.  This is order Ngraph**2
         POLYMAX is POLY but only finds the highest root of the polynomial, so is order Ngraph.  It can be used when P is very large (i.e. BETA is very large (say 40))
         POLYCONVERGE is poly but adds i out of N roots lambda_i such that (N-i) lamba_i**P < 10**-3, i.e. we evaluate enough roots such that a very conservative error estimate of the contribution of the remaining roots is negligible.

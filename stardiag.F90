@@ -33,7 +33,7 @@
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
-         USE Calc , only : TMPTHEORY,StarProd,TStarStars
+         USE Calc , only : TMPTHEORY,StarProd,TStarStars,TLanczos
          USE System , only : TSTOREASEXCITATIONS,BasisFN
          USE Integrals , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          Use Determinants, only: GetHElement2
@@ -290,10 +290,16 @@
                     WRITE(6,*) "Complete Product Star Diagonalisation -  beware - large scaling!"
                     CALL StarDiagSC(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
                 ENDIF
+            ELSEIF(TLanczos) THEN
+!Lanczos diagonalisation
+
+                WRITE(6,*) "Performing Lanczos diagonalisation of the star graph"
+                CALL StarDiagLanc(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
             ELSE
                 CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
             ENDIF
-         ELSE
+         
+        ELSE
 
             WRITE(6,*) "Beginning Polynomial Star Diagonalization"
             nRoots=iExcit
@@ -2288,7 +2294,182 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          
          RETURN
       END
-                
+
+!Use a Lanczos routine to find the first NEval eigenvectors of the rho matrix, and from this the energy of the star graph.
+      SUBROUTINE StarDiagLanc(nEl,NList,List,ILMax,i_P,SI,DBeta,DLWDB)
+         USE HElem
+         USE DetCalc , only : B2L,nBlk,nKry,NEval
+         USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+         IMPLICIT NONE
+         CHARACTER(len=*), PARAMETER :: this_routine='StarDiagLanc'
+         INTEGER :: nEl,i_P,NList,ILMax,iSub,i,j,LenMat,ICMax
+         REAL*8 :: List(ILMax,0:2)
+         REAL*8 :: SI,DLWDB,DBeta
+         LOGICAL :: TSeeded
+         INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr,ierr,Work2Tag=0
+         INTEGER :: V2Tag=0,WTag=0,CKTag=0,CKNTag=0,AMTag=0,BMTag=0
+         INTEGER :: TTag=0,SCRTag=0,ISCRTag=0,IndexTag=0,WHTag=0
+         INTEGER :: LabTag=0,ATag=0,MatTag=0,NRowTag=0,VTag=0,WTTag=0
+         REAL*8 , ALLOCATABLE :: Work2(:),WH(:),V2(:,:),W(:),A(:,:),V(:)
+         REAL*8 , ALLOCATABLE :: AM(:),BM(:),T(:),WT(:),SCR(:)
+         REAL*8 , ALLOCATABLE :: Mat(:),CK(:,:),CKN(:,:)
+         INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
+         
+         IF(HElementSize.GT.1) THEN
+             CALL STOPGM("StarDiagLanc","StarDiagLanc cannot function with complex orbitals.")
+         ENDIF
+
+         CALL TISET('StarDiagLanc',iSub)
+
+         LenMat=(NList*2)-1
+         ICMax=NList
+
+         ALLOCATE(Mat(LenMat),stat=ierr)
+         CALL LogMemAlloc('Mat',LenMat,8,this_routine,MatTag,ierr)
+         CALL AZZERO(Mat,LenMat)
+         ALLOCATE(Lab(LenMat),stat=ierr)
+         CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag,ierr)
+         CALL IAZZERO(Lab,LenMat)
+         ALLOCATE(NRow(NList),stat=ierr)
+         CALL LogMemAlloc('NRow',NList,4,this_routine,NRowTag,ierr)
+         CALL IAZZERO(NRow,NList)
+
+!Fill compressed rho-matrix
+         IF((List(1,1).ne.List(1,0)).or.(List(1,1).ne.1.D0)) THEN
+             CALL STOPGM("StarDiagLanc","Error with rho matrix elements")
+         ENDIF
+         NRow(1)=NList
+         Mat(1)=List(1,1)
+         Lab(1)=1
+         do i=2,NList
+             Mat(i)=List(i,1)
+             Mat(NList+(i-1))=List(i,0)
+             Lab(i)=i
+             Lab(NList+(i-1))=i
+             NRow(i)=1
+         enddo
+
+!Set up parameters for the diagonaliser.
+!NEval indicates the number of eigenvalues we want to calculate
+         IF(NEval.eq.0) THEN
+!NEval is set to 0 by default, computing all eigenvectors
+             WRITE(6,*) "Number of EIGENVALUES not specified. Computing all eigenvalues (slow)."
+             NEval=NList
+         ENDIF
+         NCycle=200
+         NKry1=NKry+1
+         NBlock=MIN(NEval,NBlk)
+         LScr=MAX(NList*NEval,8*NBlock*NKry)
+         LIScr=6*NBlock*NKry
+
+!Allocate memory for diagonaliser
+         ALLOCATE(A(NEval,NEval),stat=ierr)
+         CALL LogMemAlloc('A',NEval*NEval,8,this_routine,ATag,ierr)
+         CALL AZZERO(A,NEval*NEval)
+         ALLOCATE(V(NList*NBlock*NKry1),stat=ierr)
+         CALL LogMemAlloc('V',NList*NBlock*NKry1,8,this_routine,VTag,ierr)
+         CALL AZZERO(V,NList*NBlock*NKry1)
+         ALLOCATE(AM(NBlock*NBlock*NKry1),stat=ierr)
+         CALL LogMemAlloc('AM',NBlock*NBlock*NKry1,8,this_routine,AMTag,ierr)
+         CALL AZZERO(AM,NBlock*NBlock*NKry1)
+         ALLOCATE(BM(NBlock*NBlock*NKry),stat=ierr)
+         CALL LogMemAlloc('BM',NBlock*NBlock*NKry,8,this_routine,BMTag,ierr)
+         CALL AZZERO(BM,NBlock*NBlock*NKry)
+         ALLOCATE(T(3*NBlock*NKry*NBlock*NKry),stat=ierr)
+         CALL LogMemAlloc('T',NBlock*NKry*NBlock*NKry*3,8,this_routine,TTag,ierr)
+         CALL AZZERO(T,NBlock*NKry*NBlock*NKry*3)
+         ALLOCATE(WT(NBlock*NKry),stat=ierr)
+         CALL LogMemAlloc('WT',NBlock*NKry,8,this_routine,WTTag,ierr)
+         CALL AZZERO(WT,NBlock*NKry)
+         ALLOCATE(SCR(LScr),stat=ierr)
+         CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
+         CALL AZZERO(SCR,LScr)
+         ALLOCATE(ISCR(LIScr),stat=ierr)
+         CALL LogMemAlloc('ISCR',LIScr,4,this_routine,ISCRTag,ierr)
+         CALL IAZZERO(ISCR,LIScr)
+         ALLOCATE(Index(NEval),stat=ierr)
+         CALL LogMemAlloc('Index',NEval,4,this_routine,IndexTag,ierr)
+         CALL IAZZERO(Index,NEval)
+         ALLOCATE(WH(NList),stat=ierr)
+         CALL LogMemAlloc('WH',NList,8,this_routine,WHTag,ierr)
+         CALL AZZERO(WH,NList)
+         ALLOCATE(Work2(3*NList),stat=ierr)
+         CALL LogMemAlloc('Work2',3*NList,8,this_routine,Work2Tag,ierr)
+         CALL AZZERO(Work2,3*NList)
+         ALLOCATE(V2(NList,NEval),stat=ierr)
+         CALL LogMemAlloc('V2',NList*NEval,8,this_routine,V2Tag,ierr)
+         CALL AZZERO(V2,NList*NEval)
+ 
+!W holds the eigenvalues 
+         ALLOCATE(W(NEval),stat=ierr)
+         CALL LogMemAlloc('W',NEval,8,this_routine,WTag,ierr)
+         CALL AZZERO(W,NEval)
+
+!CK holds the eigenvectors
+         ALLOCATE(CK(NList,NEval),stat=ierr)
+         CALL LogMemAlloc('CK',NList*NEval,8,this_routine,CKTag,ierr)
+!The initial trial wavefuntion is set to zero        
+         CALL AZZERO(CK,NList*NEval)
+         ALLOCATE(CKN(NList,NEval),stat=ierr)
+         CALL LogMemAlloc('CKN',NList*NEval,8,this_routine,CKNTag,ierr)
+         CALL AZZERO(CKN,NList*NEval)
+
+         TSeeded=.false.
+
+         CALL FRSBLKH(NList,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded)
+         
+!Deallocate memory required by diagonaliser (including original matrix)
+         DEALLOCATE(Mat)
+         CALL LogMemDealloc(this_routine,MatTag)
+         DEALLOCATE(Lab)
+         CALL LogMemDealloc(this_routine,LabTag)
+         DEALLOCATE(A)
+         CALL LogMemDealloc(this_routine,ATag)
+         DEALLOCATE(V)
+         CALL LogMemDealloc(this_routine,VTag)
+         DEALLOCATE(AM)
+         CALL LogMemDealloc(this_routine,AMTag)
+         DEALLOCATE(BM)
+         CALL LogMemDealloc(this_routine,BMTag)
+         DEALLOCATE(T)
+         CALL LogMemDealloc(this_routine,TTag)
+         DEALLOCATE(WT)
+         CALL LogMemDealloc(this_routine,WTTag)
+         DEALLOCATE(SCR)
+         CALL LogMemDealloc(this_routine,ScrTag)
+         DEALLOCATE(WH)
+         CALL LogMemDealloc(this_routine,WHTag)
+         DEALLOCATE(Work2)
+         CALL LogMemDealloc(this_routine,Work2Tag)
+         DEALLOCATE(V2)
+         CALL LogMemDealloc(this_routine,V2Tag)
+ 
+         WRITE(6,*) "Highest root: ",W(1)
+         SI=0.D0
+
+!Eigenvectors are stored in CK(i,x) where i runs over the dimension of the matrix, and 
+!x runs over all the eigenvectors (NEval), where 1 is the eigenvector corresponding to
+!infinite temperature
+         do i=1,NEval
+             SI=SI+(CK(1,i)**2)*(W(i)**i_P)
+             IF(DBeta.ne.0.D0) THEN
+!Calculate <D|H exp(-b H)|D>/Rho_ii^P
+                 do j=1,NEval
+                     DLWDB=DLWDB+List(j,2)*CK(j,i)*(W(i)**i_P)*CK(1,i)
+                 enddo
+             ENDIF
+         enddo
+
+         WRITE(6,*) "Final SI= ",SI
+         SI=SI-1.D0
+         DLWDB=DLWDB-LIST(1,2)
+
+
+         CALL TIHALT("StarDiagLanc",iSub)
+         RETURN
+
+      END SUBROUTINE StarDiagLanc
+        
       
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElem
