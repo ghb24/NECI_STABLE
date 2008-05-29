@@ -2452,14 +2452,23 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WRITE(6,*) "Highest root: ",W(1)
          SI=0.D0
 
+!         do i=1,NEval
+!             WRITE(2,*) W(NEval-(i-1))
+!         enddo
+
+!         do i=1,NList
+!This prints out the largest eigenvector
+!             WRITE(3,"(F22.16)") CK(i,1)
+!         enddo
+
 !Eigenvectors are stored in CK(i,x) where i runs over the dimension of the matrix, and 
 !x runs over all the eigenvectors (NEval), where 1 is the eigenvector corresponding to
-!infinite temperature
+!infinite temperature (i.e. largest eigenvalue)
          do i=1,NEval
              SI=SI+(CK(1,i)**2)*(W(i)**i_P)
              IF(DBeta.ne.0.D0) THEN
 !Calculate <D|H exp(-b H)|D>/Rho_ii^P
-                 do j=1,NEval
+                 do j=1,NList
                      DLWDB=DLWDB+List(j,2)*CK(j,i)*(W(i)**i_P)*CK(1,i)
                  enddo
              ENDIF
@@ -2548,6 +2557,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !         WRITE(67,*) "Eigenvalues are: "
 !         DO I=1,NLIST
 !            WRITE(67,"F22.16,$") WLIST(I)
+!            WRITE(67,"(F22.16)") WLIST(I)
+!         ENDDO
+
+!         DO I=1,NLIST
+!            WRITE(68,"(F22.16)") RIJMAT(((NLIST-1)*NLIST)+I)
 !         ENDDO
 
 !Divide through by largest eigenvalue to prevent blowing up in some cases
