@@ -77,7 +77,6 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
          USE System , only : FCOULDAMPBETA,FCOULDAMPMU
          IMPLICIT NONE
          INTEGER I,NHG,J
-         INCLUDE 'fcoul.inc'
          REAL*8 DERFC
          IF(FCOULDAMPBETA.LT.0.D0) THEN
            COULDAMP=1.D0

@@ -2,11 +2,11 @@
 #  LIST OF FILES
 #
 OBJ_AL  = sort2.o fctrl.o sltcnd.o \
-          scr.o scr1.o scr2.o matmul.o dotp.o \
-          freem.o get_addr.o kb07ad.o memory.o prmem.o \
-          readsr.o stopgm.o detham.o util.o frsblk.o \
+          scr.o scr1.o scr2.o matmul.o \
+          freem.o get_addr.o memory.o prmem.o \
+          stopgm.o detham.o util.o frsblk.o \
           sort_1.o lineup.o gen_coul.o sym.o\
-          gndts.o util-sp.o xcnrgy_dnsty.o xcener.o \
+          gndts.o xcnrgy_dnsty.o xcener.o \
           symexcit.o ranlux.o timer.o envir.o
 
 OBJ_CU  = fcoul.o rhoofr.o write_rho.o \

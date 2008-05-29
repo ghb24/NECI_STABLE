@@ -154,10 +154,8 @@ C     ==--------------------------------------------------------------==
 C     ==--------------------------------------------------------------==
 #ifdef POINTER8
       CALL I8COPY(I_BLOCK,I_AD1,1,I_SORT,1)
-      CALL KB07AI8(I_SORT,I_BLOCK,INDEX)
 #else
       CALL ICOPY(I_BLOCK,I_AD1,1,I_SORT,1)
-      CALL KB07AI(I_SORT,I_BLOCK,INDEX)
 #endif
 #ifdef PARALLEL
       IFORM=INT(LOG10(REAL(NPROC)))+1
@@ -223,8 +221,11 @@ C         IMAX=I_BLOCK
 C      ELSE
          IMAX=MBM
 C      ENDIF
+      DO I=1,MBM
+         INDEX(I)=I
+      ENDDO
       CALL ICOPY(IMAX,I_LENB,1,I_SORT,1)
-      CALL KB07AI(I_SORT,IMAX,INDEX)
+      CALL SORT2I(IMAX,I_SORT,INDEX)
       WRITE(6,'(/,1x,64("="))')
       WRITE(6,'(20X,A)') '  BIG MEMORY ALLOCATIONS '
       DO I=IMAX,1,-2

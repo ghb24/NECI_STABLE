@@ -362,35 +362,6 @@ C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE NUMCPUS(NCPUS)
-C     ==--------------------------------------------------------------==
-      IMPLICIT NONE
-C     Arguments
-      INTEGER NCPUS
-C     Variables
-      INTEGER IA,IE,MCPUS
-      LOGICAL ERROR
-      CHARACTER*80 STRING
-      SAVE MCPUS
-      DATA MCPUS /0/
-C     ==--------------------------------------------------------------==
-      IF(MCPUS.NE.0) THEN
-        NCPUS=MCPUS
-      ELSE
-        CALL MY_GETENV('NCPUS',STRING)
-        CALL XSTRING(STRING,IA,IE)
-        IF(IA.GT.IE.OR.STRING(IA:IE).EQ.' ') THEN
-          NCPUS=1
-        ELSE
-          CALL READSI(STRING,IA,IE,NCPUS,ERROR)
-        ENDIF
-        NCPUS=MAX(NCPUS,1)
-        MCPUS=NCPUS
-      ENDIF
-C     ==--------------------------------------------------------------==
-      RETURN
-      END
-C     ==================================================================
       SUBROUTINE INVMAT(N,A,B,INFO)
 C     ==--------------------------------------------------------------==
 C     == Inverse Matrix A(N,N)                                        ==
@@ -751,34 +722,6 @@ C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE SETKWF(NGW,NSTATE,A)
-C     ==--------------------------------------------------------------==
-C     == A USES INVERSION SYMMETRY.                                   ==
-C     == WE TRANSFORM A IN ARRAY WITHOUT INVERSION SYMMETRY.          ==
-C     ==--------------------------------------------------------------==
-      IMPLICIT NONE
-      INCLUDE 'geq0.inc'
-C     Arguments
-      INTEGER    NGW,NSTATE
-      COMPLEX*16 A(NGW,2*NSTATE)
-C     Variables
-      INTEGER    I,II,J
-C     ==--------------------------------------------------------------==
-      DO I=NSTATE,2,-1
-        CALL DCOPY(2*NGW,A(1,I),1,A(1,2*I-1),1)
-      ENDDO
-      DO I=1,NSTATE
-        II=2*I
-        CALL DCOPY(2*NGW,A(1,II-1),1,A(1,II),1)
-        DO J=1,NGW
-          A(J,II)=DCONJG(A(J,II))
-        ENDDO
-      ENDDO
-      IF(GEQ0) CALL ZCLEAN_K(A,NSTATE,NGW)
-C     ==--------------------------------------------------------------==
-      RETURN
-      END
-C     ==================================================================
       FUNCTION DGIVE(A,N)
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
@@ -1055,3 +998,48 @@ C.. Numerical Recipes RAN2
          RAN2=r
          RETURN
       END
+
+
+!  Used to be in readsr.F
+C     ==================================================================
+      SUBROUTINE XSTRING(STRING,IA,IE)
+C     ==--------------------------------------------------------------==
+C     == Give index of the first and last non-blank character         ==
+C     == blank characters are " " and CHAR(9) (tab)                   ==
+C     == more blank characters are char(13) (cr) and CHAR(10) (newl)  ==
+C     == STRING (INPUT)                                               ==
+C     == IA,IE  (OUTPUT)                                              ==
+C     ==--------------------------------------------------------------==
+      IMPLICIT NONE
+C     Arguments
+      CHARACTER STRING*(*)
+      INTEGER IA,IE
+C     Variables
+      INTEGER SLEN,I
+C     ==--------------------------------------------------------------==
+      SLEN=LEN(STRING)
+      IA=1
+      DO I=1,SLEN
+         IF(STRING(I:I).NE.' '.AND.
+     &       STRING(I:I).NE.CHAR(9).AND.      !tab character
+     &       STRING(I:I).NE.CHAR(10).AND.     !newline character
+     &       STRING(I:I).NE.CHAR(13) ) THEN   !carriage return character
+           IA=I
+           GOTO 10
+         ENDIF
+      ENDDO
+ 10   CONTINUE
+      DO I=IA,SLEN
+         IF(STRING(I:I).EQ.' '.OR.
+     &       STRING(I:I).EQ.CHAR(0).OR. !\0 character
+     &       STRING(I:I).EQ.CHAR(9)) THEN !tab character
+           IE=I-1
+           GOTO 20
+         ENDIF
+      ENDDO
+      IE=SLEN
+ 20   CONTINUE
+C     ==--------------------------------------------------------------==
+      RETURN
+      END
+C     ==================================================================
