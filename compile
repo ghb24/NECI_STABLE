@@ -18,4 +18,6 @@ cp Makefile dest
 touch *.F *.F90
 cd dest
 make neci.x
+stat=$?
 cd ..
+exit $stat
