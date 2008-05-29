@@ -1,5 +1,16 @@
 #!/bin/bash
+# Initialise modules for compiling code via cron, and then call the compile
+# script.
+
 . /usr/share/modules/init/bash
 module purge
-module load pgi/64/7.0/7
-./compile
+
+case $platform in
+	PC-PGI) module load pgi/32/7.1/6;;
+	PC-PGI64) module load pgi/64/7.1/6;;
+	*) echo "Default: use PC-PGI64"
+	   platform=PC-PGI64
+	   module load pgi/64/7.1/6;;
+esac
+
+./compile $platform
