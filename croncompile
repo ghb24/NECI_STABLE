@@ -5,6 +5,8 @@
 . /usr/share/modules/init/bash
 module purge
 
+platform=$1
+
 case $platform in
 	PC-PGI) module load pgi/32/7.0/7;;
 	PC-PGI64) module load pgi/64/7.0/7;;
