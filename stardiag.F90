@@ -2322,7 +2322,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
       SUBROUTINE StarDiagMC(nEl,NList,List,ILMax,SI,DLWDB,Hii,MaxDiag)
          USE HElem
-         USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft
+         USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau
          USE MemoryManager , only : LogMemAlloc,LogMemDealloc
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
@@ -2330,7 +2330,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,StepsSft,WalkOnExcit,l
          INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
-         REAL*8 :: List(ILMax,0:2),SI,DLWDB,Hii,MaxDiag,Tau,Ran2,Norm,GrowRate
+         REAL*8 :: List(ILMax,0:2),SI,DLWDB,Hii,MaxDiag,Ran2,Norm,GrowRate
          REAL*8 :: rat,damp
          LOGICAL :: TFullDiag,printvec,DetSign
          REAL*8 , ALLOCATABLE :: HMat(:,:),WList(:),Work(:)
@@ -2352,7 +2352,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          MaxWalkers=100*InitWalkers
 
 !Damping will eventually be an input parameter
-         Damp=10.D0
+         Damp=15.D0
 
          toprint=MIN(NList,8)
 !Initialise random number seed
@@ -2371,8 +2371,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          ELSE
              WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
          ENDIF
-         WRITE(6,*) "Choosing Tau so that Tau*Hii_max = 0.999 "
-         Tau=0.999/MaxDiag
+         IF(Tau.eq.0.D0) THEN
+            WRITE(6,*) "Choosing Tau so that Tau*Hii_max = 0.999 "
+            Tau=0.999/MaxDiag
+         ELSE
+             IF(Tau.gt.0.999/MaxDiag) THEN
+                 WRITE(6,*) "Illegal value of Tau chosen - resetting..."
+                 WRITE(6,*) "Choosing Tau so that Tau*Hii_max = 0.999 "
+                 Tau=0.999/MaxDiag
+             ENDIF
+         ENDIF
          WRITE(6,*) "Tau = ", Tau
 
          TFullDiag=.true.
@@ -2488,6 +2496,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !Run through all double excits and determine whether to create
                      do k=2,NList
 !Prob of creating a new walker on the excit is given by tau*abs(Hij)
+                         rat=tau*abs(List(k,2))
 
 
 
@@ -2532,6 +2541,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                  ELSE
 !We are at an excitation - only possibility is to create walker at HF
                      DetCurr=WalkVec(j)%Det
+                     rat=tau*abs(List(DetCurr,2))
 
 
 

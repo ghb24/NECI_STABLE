@@ -30,7 +30,7 @@ MODULE Calc
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
-        REAL*8 GrowGraphsExpo,DeltaH,DiagSft
+        REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau
 
 
 
@@ -68,6 +68,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          Tau=0.D0
           InitWalkers=3000
           NMCyc=2000
           DiagSft=0.D0
@@ -574,6 +575,9 @@ MODULE Calc
               case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
                   call getf(DiagSft)
+              case("TAU")
+!For FCIMC, this can be considered the timestep of the simulation. If not set, it will default to the value which will allow the fastest destruction of walkers.
+                  call getf(Tau)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
