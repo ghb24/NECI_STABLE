@@ -24,12 +24,13 @@ MODULE Calc
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
+        INTEGER InitWalkers,NMCyc
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
-        REAL*8 GrowGraphsExpo,DeltaH
+        REAL*8 GrowGraphsExpo,DeltaH,DiagSft
 
 
 
@@ -67,6 +68,9 @@ MODULE Calc
 
 
 !       Calc defaults 
+          InitWalkers=3000
+          NMCyc=2000
+          DiagSft=0.D0
           TStoch=.true.
           HApp=1
           DeltaH=1.D-04
@@ -561,6 +565,15 @@ MODULE Calc
               case("NON-STOCH")
 !For graph MC, this indicates whether the determinants to apply the hamiltonian to locally are picked stochastically, or whether to run through all of them 
                   TStoch=.false.
+              case("INITWALKERS")
+!For FCIMC, this is the number of walkers to start with
+                  call geti(InitWalkers)
+              case("NMCYC")
+!For FCIMC, this is the number of MC cycles to perform
+                  call geti(NMCyc)
+              case("DIAGSHIFT")
+!For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
+                  call getf(DiagSft)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
@@ -985,6 +998,7 @@ MODULE Calc
                               case("STARSTARS")
                                   TSTARSTARS=.true.
                               case("MCSTAR")
+                                  NWHTAY=IBSET(NWHTAY,0)
                                   TMCSTAR=.true.
                               case("STARPROD")
                                  STARPROD=.TRUE.

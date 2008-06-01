@@ -33,7 +33,7 @@
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
-         USE Calc , only : TMPTHEORY,StarProd,TStarStars,TLanczos
+         USE Calc , only : TMPTHEORY,StarProd,TStarStars,TLanczos,TMCStar
          USE System , only : TSTOREASEXCITATIONS,BasisFN
          USE Integrals , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          Use Determinants, only: GetHElement2
@@ -43,7 +43,7 @@
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
          TYPE(HElement) UMat(*)
-         REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta
+         REAL*8 Beta, ALat(3),RhoEps,ECore,dBeta,MaxDiag
          TYPE(HDElement) dLWdB
          TYPE(HDElement) fMCPR3StarNewExcit
          TYPE(HElement) HIJS(0:2)
@@ -64,10 +64,12 @@
          INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
          INTEGER iErr,nK(nEl),nL(nEl)
          INTEGER nRoots,i,j
-         TYPE(HElement) rh,rhii,EHFDiff
+         TYPE(HElement) rh,rhii,EHFDiff,Hii
          TYPE(HDElement) MP2E(2:2)        
          LOGICAL tStarSingles,tCountExcits
          INTEGER nIExcitFormat(nEl)
+         
+!This needs to be removed, as it'll eventually be an input parameter
 
 !         LARGERHOJJ(:)=0.D0
          fMCPR3StarNewExcit=HDElement(0.D0)
@@ -156,6 +158,14 @@
          ExcitInfo(i,0)=1.D0
          ExcitInfo(i,1)=1.D0
          ExcitInfo(i,2)=GetHElement2(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,00,ECore)
+         IF(TMCStar) THEN
+!Hii is HF energy - <D0|H|D0>, ExcitInfo(i,1) now is <Di|H|Di>-Hii. 
+!All diagonal elements are therefore positive, and increasing down the leading diagonal.
+!MaxDiag is the largest diagonal element.
+             Hii=ExcitInfo(0,2)
+             ExcitInfo(i,0)=0.D0
+             MaxDiag=0.D0
+         ENDIF
          if(BTEST(nWhTay,5)) then
 ! We use the Zeroth order N-particle Hartree-Fock hamiltonian (as MP theory), but shifted by E_HF-E0.
 
@@ -198,9 +208,18 @@
                   rh=rh+EHFDiff
                   rh=rh*HElement(-Beta/I_P)
                   rh=exp(rh)
+                  ExcitInfo(i,0)=rh/rhii
                else
                   !RHO_JJ elements
-                   CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
+                   IF(TMCStar) THEN
+!If we are solving star using MC, then we want the Hamiltonian matrix, rather than rho matrix elements for diagonal elements, and subtract the HF energy from them all
+                       ExcitInfo(i,0)=GetHElement2(nJ,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,0,ECore)
+                       ExcitInfo(i,0)=ExcitInfo(i,0)-Hii
+                       IF(ExcitInfo(i,0).agt.MaxDiag) MaxDiag=ExcitInfo(i,0)%v
+                   ELSE
+                       CALL CalcRho2(nJ,nJ,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
+                       ExcitInfo(i,0)=rh/rhii
+                   ENDIF
                   
 !                  do j=1,10000
 !                    IF((rh.agt.LARGERHOJJ(J)).or.(LARGERHOJJ(J).eq.0.D0)) THEN
@@ -210,7 +229,6 @@
 !                  ENDDO
 !765               CONTINUE
                endif
-               ExcitInfo(i,0)=rh/rhii
                ExcitInfo(i,2)=GetHElement2(nIExcitFormat,nJ,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
 !               write(75,*) rh,rh/rhii
 !Now do MP2
@@ -298,6 +316,11 @@
             ELSE
                 CALL StarDiag(0,nEl,iExcit+1,ExcitInfo,iMaxExcit+1,i_P,fMCPR3StarNewExcit,dBeta,dLWdB)
             ENDIF
+
+        ELSEIF(TMCStar) THEN
+
+            WRITE(6,*) "Performing Monte Carlo diagonalization of the star graph"
+            CALL StarDiagMC(nEl,iExcit+1,ExcitInfo,iMaxExcit+1,fMCPR3StarNewExcit,dLWdB,Hii,MaxDiag)
          
         ELSE
 
@@ -2294,6 +2317,394 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          
          RETURN
       END
+
+!Use a MC sampling technique to find the eigenvector correesponding to the smallest eigenvalue.
+!List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
+      SUBROUTINE StarDiagMC(nEl,NList,List,ILMax,SI,DLWDB,Hii,MaxDiag)
+         USE HElem
+         USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft
+         USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+         IMPLICIT NONE
+         CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
+         INTEGER :: i,j,nEl,NList,ILMax,iSub,Info,ierr,WorkL,toprint
+         INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr
+         INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,StepsSft,WalkOnExcit,l
+         INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
+         REAL*8 :: List(ILMax,0:2),SI,DLWDB,Hii,MaxDiag,Tau,Ran2,Norm,GrowRate
+         REAL*8 :: rat,damp
+         LOGICAL :: TFullDiag,printvec,DetSign
+         REAL*8 , ALLOCATABLE :: HMat(:,:),WList(:),Work(:)
+         TYPE Walker
+!Det indicates the determinant that the walker is currently at. WSign: +ve = .true. , -ve = .false.
+!Initially, dets are HF and sign is positive
+             INTEGER :: Det=1
+             LOGICAL :: WSign=.true.
+         END TYPE Walker
+         TYPE(Walker) , POINTER :: WalkVec(:),WalkVec2(:)
+         
+         CALL TISET('StarDiagMC',iSub)
+
+         IF(HElementSize.GT.1) THEN
+             CALL STOPGM("StarDiagMC","StarDiagMC cannot function with complex orbitals.")
+         ENDIF
+
+!Set the maximum number of walkers allowed
+         MaxWalkers=100*InitWalkers
+
+!Damping will eventually be an input parameter
+         Damp=10.D0
+
+         toprint=MIN(NList,8)
+!Initialise random number seed
+         Seed=G_VMC_Seed
+         OPEN(15,file='StarMCStats',status='unknown')
+         printvec=.true.
+         IF(printvec) THEN
+             WRITE(6,*) "Writing first ",toprint," components of vector to file..."
+             OPEN(14,file='VecConv',status='unknown')
+         ENDIF
+
+         WRITE(6,*) "Diagonal root value is: ", List(1,0)
+         WRITE(6,*) "Largest Diagonal value is: ", MaxDiag
+         IF(DiagSft.gt.0.D0) THEN
+             CALL StopGM("StarDiagMC","Intial value of DiagSft should be negative.")
+         ELSE
+             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
+         ENDIF
+         WRITE(6,*) "Choosing Tau so that Tau*Hii_max = 0.999 "
+         Tau=0.999/MaxDiag
+         WRITE(6,*) "Tau = ", Tau
+
+         TFullDiag=.true.
+         IF(TFullDiag) THEN
+
+             ALLOCATE(HMat(NList,NList),stat=ierr)
+             CALL LogMemAlloc('HMat',NList**2,8,this_routine,HMatTag,ierr)
+             CALL AZZERO(HMat,NList**2)
+             ALLOCATE(WList(NList),stat=ierr)
+             CALL LogMemAlloc('WList',NList,8,this_routine,WListTag,ierr)
+             CALL AZZERO(WList,NList)
+             WorkL=3*NList
+             ALLOCATE(Work(WorkL),stat=ierr)
+             CALL LogMemAlloc('Work',WorkL,8,this_routine,WorkTag,ierr)
+             
+
+!.. Now we fill the HMat array
+             DO i=1,NLIST
+                 HMat(i,1)=List(i,2)
+                 HMat(1,i)=List(i,2)
+                 HMat(i,i)=List(i,0)
+             ENDDO
+
+!             WRITE(67,*) "Size of HMat is ", NLIST
+!             WRITE(67,*) "********"
+!             WRITE(67,*) "OFF DIAG LIST is "
+!             DO I=1,ILMAX
+!                 WRITE(67,"E14.6,$") LIST(I,2)
+!             ENDDO
+!             WRITE(67,*) ""
+!             WRITE(67,*) "********"
+!             WRITE(67,*) "ON DIAG LIST is "
+!             DO I=1,ILMAX
+!                 WRITE(67,"E14.6,$") LIST(I,0)
+!             ENDDO
+!             WRITE(67,*) ""
+!             WRITE(67,*) "********"
+!             WRITE(67,*) "HMAT is "
+!             DO I=1,NLIST
+!                 DO J=1,NLIST
+!                     WRITE(67,"E14.6,$") HMat(i,j)
+!                 ENDDO
+!                 WRITE(67,*) ""
+!             ENDDO
+!             WRITE(67,*) "************"
+
+!.. Diagonalize
+             CALL DSYEV('V','L',NList,HMat,NList,WList,Work,WorkL,Info)
+             IF(Info.NE.0) THEN
+                 WRITE(6,*) 'DYSEV error: ',Info
+                 STOP
+             ENDIF
+
+!Print out first few eigenvalues - want lowest ones
+             WRITE(6,*) "Lowest eigenvalues are: "
+             do i=1,toprint
+                 WRITE(6,*) i,WList(i)
+             enddo
+!Print out ground state eigenvector
+             OPEN(13,file='WAVEVECTOR',Status='unknown')
+             do i=1,toprint
+                 WRITE(13,*) i,HMat(i,1)
+             enddo
+             CLOSE(13)
+
+             DEALLOCATE(HMat)
+             CALL LogMemDealloc(this_routine,HMatTag)
+             DEALLOCATE(WList)
+             CALL LogMemDealloc(this_routine,WListTag)
+             DEALLOCATE(Work)
+             CALL LogMemDealloc(this_routine,WorkTag)
+ 
+         ENDIF
+
+!Allocate memory to hold walkers
+         ALLOCATE(WalkVec(MaxWalkers),stat=ierr)
+         CALL LogMemAlloc('WalkVec',MaxWalkers,5,this_routine,WalkVecTag,ierr)
+         ALLOCATE(WalkVec2(MaxWalkers),stat=ierr)
+         CALL LogMemAlloc('WalkVec2',MaxWalkers,5,this_routine,WalkVec2Tag,ierr)
+
+!Setup initial trial walker position - already they are all set to be at HF to start (with positive sign)
+!TotWalkers contains the number of current walkers at each step
+         TotWalkers=InitWalkers
+         TotWalkersOld=InitWalkers
+
+!         IF(printvec) THEN
+!If we want to write out first few
+!             WRITE(14,*) 1,1.D0
+!             do i=2,toprint
+!                 WRITE(14,*) i,0.D0
+!             enddo
+!             WRITE(14,*) ""
+!         ENDIF
+         
+!Print out initial starting configurations
+         WRITE(6,*) ""
+         WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers"
+         WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers"
+         WRITE(6,"(I9,G14.5,I9,G15.5,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+         WRITE(15,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+
+!Start MC run - NMCyc indicates the number of times to run through all walkers
+         do i=1,NMCyc
+
+!VecSlot indicates the next free position in WalkVec2
+             VecSlot=1
+
+             do j=1,TotWalkers
+!j runs through all current walkers
+                
+                 IF((WalkVec(j)%Det).eq.1) THEN
+!We are at HF - treat this walker slightly differently, since it is attached to all excits
+!Run through all double excits and determine whether to create
+                     do k=2,NList
+!Prob of creating a new walker on the excit is given by tau*abs(Hij)
+
+
+
+!NEW IDEA - it is also proportional to the number of walkers on that excitation - count them
+!                         WalkOnExcit=0
+!                         do l=1,TotWalkers
+!                             IF(WalkVec(l)%Det.eq.k) WalkOnExcit=WalkOnExcit+1
+!                         enddo
+!                         rat=tau*abs(List(k,2))*WalkOnExcit
+!                         IF(rat.gt.1.D0) THEN
+!                             WRITE(6,*) "***WARNING*** Prob of creating walker > 1 - reduce tau"
+!                             STOP
+!                         ENDIF
+
+
+
+                         IF(rat.gt.Ran2(Seed)) THEN
+!Determine sign, and create new walker at k
+                             WalkVec2(VecSlot)%Det=k
+!If product of signs is +ve, create -ve walker, else create +ve walker
+                             IF(WalkVec(j)%WSign) THEN
+!Walker is positive
+                                 IF(List(k,2).gt.0.D0) THEN
+                                     WalkVec2(VecSlot)%WSign=.false. !-ve walker
+                                 ELSE
+                                     WalkVec2(VecSlot)%WSign=.true. !+ve walker
+                                 ENDIF
+                             ELSE
+!Walker is negative
+                                 IF(List(k,2).gt.0.D0) THEN
+                                     WalkVec2(VecSlot)%WSign=.true. !+ve walker
+                                 ELSE
+                                     WalkVec2(VecSlot)%WSign=.false. !-ve walker
+                                 ENDIF
+                             ENDIF
+!Increase walker number, and the next available slot
+                             VecSlot=VecSlot+1
+                         ENDIF
+
+                     enddo
+
+                 ELSE
+!We are at an excitation - only possibility is to create walker at HF
+                     DetCurr=WalkVec(j)%Det
+
+
+
+!NEW IDEA - it is also proportional to the number of walkers on that excitation - count them
+!                     WalkOnExcit=0
+!                     do l=1,TotWalkers
+!                         IF(WalkVec(l)%Det.eq.1) WalkOnExcit=WalkOnExcit+1
+!                     enddo
+!                     rat=tau*abs(List(DetCurr,2))*WalkOnExcit
+!                     IF(rat.gt.1.D0) THEN
+!                         WRITE(6,*) "***WARNING*** Prob of creating walker > 1 - reduce tau"
+!                         STOP
+!                     ENDIF
+
+
+
+
+                     IF(rat.gt.Ran2(Seed)) THEN
+!Create new walker at HF
+                         WalkVec2(VecSlot)%Det=1
+!If product of signs is +ve, create -ve walker, else create +ve walker
+                         IF(WalkVec(j)%WSign) THEN
+!Walker is positive
+                             IF(List(DetCurr,2).gt.0.D0) THEN
+                                 WalkVec2(VecSlot)%WSign=.false. !-ve walker
+                             ELSE
+                                 WalkVec2(VecSlot)%WSign=.true. !+ve walker
+                             ENDIF
+                         ELSE
+!Walker is negative
+                             IF(List(DetCurr,2).gt.0.D0) THEN
+                                 WalkVec2(VecSlot)%WSign=.true. !+ve walker
+                             ELSE
+                                 WalkVec2(VecSlot)%WSign=.false. !-ve walker
+                             ENDIF
+                         ENDIF
+!Increase walker number, and the next available slot
+                         VecSlot=VecSlot+1
+                     ENDIF
+
+!We have finished looking at excitations of walker determinant
+                 ENDIF
+
+!Next we have to decide if the walker wants to self-destruct or not
+!Kill with prob (Hii-DiagSft)*tau - this should ALWAYS be positive
+                 rat=tau*(List((WalkVec(j)%Det),0)-DiagSft)
+                 IF(Ran2(Seed).gt.rat) THEN
+!This walker is spared - copy him across to the new WalkVec - in the same position
+!If the walker isn't copied across, it has self-destructed
+                     WalkVec2(VecSlot)%Det=1
+                     WalkVec2(VecSlot)%WSign=WalkVec(j)%WSign
+                     VecSlot=VecSlot+1
+                 ENDIF
+
+!Finish cycling over walkers
+             enddo
+
+!Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
+             TotWalkersNew=VecSlot-1
+             rat=(TotWalkersNew+0.D0)/(MaxWalkers+0.D0)
+             IF(rat.gt.0.9) THEN
+                 WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
+             ENDIF
+
+!In this next section, we annihilate pairs of walkers on the same determinant with opposing signs
+!This does not have to be performed every cycle - however, we have to at the moment,since it is the only way we transfer the determinants between arrays
+!              IF(mod(i,1).eq.0) THEN
+              IF(.true.) THEN
+
+!First need to order the vector of new walkers according to determinant the walker is on
+!                 CALL SORTIW(TotWalkersNew,WalkVec2(1:TotWalkersNew))
+                !***TEST***
+!In the future, we'll run through all the blocks of walkers corresponding to a given determinant, and cancel them, setting the det=0 if it is cancelled.
+!For now we'll simply histogram them according to the determinant they're on
+                
+!Use the redundant List(i,1) vector to store wavefunctions, depicted by the residual concentration of walkers - zero it
+                  do j=1,NList
+                      List(j,1)=0.D0
+                  enddo
+                
+                  do j=1,TotWalkersNew
+!Run through all walkers
+                        
+                      IF((WalkVec2(j)%Det).gt.NList) THEN
+                          WRITE(6,*) "Serious problem here..."
+                          STOP 'Serious problem here...'
+                      ENDIF
+
+                      IF(WalkVec2(j)%WSign) THEN
+!Walker is positive - add to determinant contribution
+                          List((WalkVec2(j)%Det),1)=List((WalkVec2(j)%Det),1)+1.D0
+                      ELSE
+!Walker is negative - subtract from determinant contribution
+                          List((WalkVec2(j)%Det),1)=List((WalkVec2(j)%Det),1)-1.D0
+                      ENDIF
+
+                  enddo
+
+                  VecSlot=1
+                  Norm=0.D0
+                  do j=1,NList
+!Run through all determinants - normalise, find new number of walkers, and find new WalkVec
+                      NWalk=nint(List(j,1))
+                      IF(NWalk.gt.0) THEN
+!Norm will be used to normalise the eigenvector
+                          Norm=Norm+(List(j,1)**2)
+                          IF(((List(j,1)+0.D0)/(abs(List(j,1))+0.D0)).lt.0.D0) THEN
+!Component has overall negative sign
+                              DetSign=.false.
+                          ELSE
+                              DetSign=.true.
+                          ENDIF
+                          do k=1,abs(NWalk)
+                              WalkVec(VecSlot)%Det=j
+                              WalkVec(VecSlot)%WSign=DetSign
+                              VecSlot=VecSlot+1
+                          enddo
+
+                      ENDIF
+
+                  enddo
+
+                  IF(printvec.and.(mod(i,50).eq.0)) THEN
+!If we want to, we can renormalise the trial vector - only do this every 50 cycles
+                      Norm=SQRT(Norm)
+                      do j=1,NList
+                          List(j,1)=List(j,1)/Norm
+                      enddo
+                      do j=1,toprint
+                          WRITE(14,*) j,List(j,1)
+                      enddo
+                      WRITE(14,*) ""
+                  ENDIF
+
+!The new number of cancelled determinants is given by one less than VecSlot again.
+                  TotWalkers=VecSlot-1
+
+             ENDIF
+                    
+!Now we want to calculate the change in the shift of the diagonal elements...
+!We only want to change every so often, so that walker numbers have a chance to acclimatise between shift change
+             StepsSft=50
+             IF(mod(i,StepsSft).eq.0) THEN
+                 GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+                 DiagSft=DiagSft-(log(GrowRate))/(Damp*Tau*(StepsSft+0.D0))
+!Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
+                 WRITE(6,"(I9,G14.5,I9,G15.5,I9)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                 WRITE(15,"(I9,G16.7,I9,G16.7,I9)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                 CALL FLUSH(15)
+                 CALL FLUSH(6)
+                 TotWalkersOld=TotWalkers
+             ENDIF
+
+!Finish MC Cycle
+         enddo
+
+         SI=1.D0
+         DLWDB=DiagSft
+
+!Deallocate memory
+         DEALLOCATE(WalkVec)
+         CALL LogMemDealloc(this_routine,WalkVecTag)
+         DEALLOCATE(WalkVec2)
+         CALL LogMemDealloc(this_routine,WalkVec2Tag)
+
+         IF(printvec) CLOSE(14)
+         CLOSE(15)
+
+         CALL TIHALT('StarDiagMC',iSub)
+
+         RETURN
+
+      END SUBROUTINE StarDiagMC
 
 !Use a Lanczos routine to find the first NEval eigenvectors of the rho matrix, and from this the energy of the star graph.
       SUBROUTINE StarDiagLanc(nEl,NList,List,ILMax,i_P,SI,DBeta,DLWDB)
