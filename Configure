@@ -49,6 +49,7 @@ where the name of the configuration is:
    PC-PGI                     PC-PGI-MPI
    PC-PGI64-MPI               ix86-g95/32
    ix86-gfortran/64           ix86-gfortran/32
+   PC-ifort64
 Use Configure in the directory where the SOURCE FILES are.
 Ex: Configure SUN > Makefile
 See the description of options with Configure -help
@@ -814,6 +815,34 @@ case ${Configuration}
        FCD='pgf90 -c -g'
        CCD='cc -g -sb -C -errtags'
        LDD='pgf90 -g'
+     fi
+     ;;
+
+  "PC-ifort64")
+     compiler='INTEL-ifort-on-LINUX'
+     IRAT=2
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
+     NCPUS=2
+     #-sb is to use Workshop package
+     FFLAGS='-r8'
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lmkl_lapack -lmkl -lmkl_em64t -lmkl_sequential -lguide -lpthreads $(QMMM_LIBS)' 
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     F90FLAGS=''
+     if [ $debug ]; then
+       FC='ifort -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='ifort -g'
+       FCD='pgf90 -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='ifort -g'
+     else
+       FC='ifort -c -O3 -no-prec-div -static -xT'
+       CC='cc -O'
+       LD='ifort  -O3 -no-prec-div -static -xW'
+       FCD='ifort -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='ifort -g'
      fi
      ;;
 

@@ -1874,8 +1874,7 @@ C.. GETPATHPROB gives us the probability of generating the path
                IF(IC.GT.10000) THEN
                   WRITE(6,*) "Have thrown away 10000 graphs with pGen<",
      &               DBETA(3) 
-                  STOP "Have thrown away 10000 graphs with pGen<"
-     &               //"pGenEpsilon"
+              STOP "Have thrown away 10000 graphs with pGen<pGenEpsilon"
                ENDIF
             ENDDO
             ICLS=0

@@ -3,7 +3,7 @@ MODULE Integrals
             Use MemoryManager, only: LogMemAlloc, LogMemDealloc
         USE input
         USE HElem
-        USE System , only : NEL,defaults,Feb08,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH
+        USE System , only : NEL,defaults,Feb08,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
         use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
         IMPLICIT NONE
         save
@@ -308,7 +308,8 @@ MODULE Integrals
         Subroutine IntInit(iCacheFlag)
 !who knows what for
             Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-            USE UMatCache, only : FreezeTransfer, SetupTMat, CreateInvBRR, GetUMatSize, SetupUMat2D_df
+            Use System, only: BasisFN
+            USE UMatCache, only: FreezeTransfer, SetupTMat, CreateInvBRR, GetUMatSize, SetupUMat2D_df
             Use UMatCache, only: InitStarStoreUMat
             Use System, only : nBasisMax, Alpha,BHub, BRR,nmsh
             Use System, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
@@ -583,8 +584,10 @@ MODULE Integrals
       SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
          USE HElem
-         USE UMatCache
          use System, only: Symmetry,BasisFN,BasisFNSize
+         USE UMatCache, only: FreezeTransfer,tCPMDSymTMat,GetTMatEl,GetUMatEl,tMatSym2,tMat2D2
+         Use UMatCache, only: NewTMatInd, GetNewTMatEl,tUMat2D,UMatCacheData,UMatInd
+         Use UMatCache, only: SetupTMat2, FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
          TYPE(BASISFN) G1(NHG)
@@ -838,9 +841,9 @@ MODULE Integrals
       END   subroutine intfreezebasis
       SUBROUTINE WRITESYMCLASSES(NBASIS)
         USE HElem
-        USE UMatCache
-        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        USE UMatCache
         IMPLICIT NONE
         include 'sym.inc'
         INTEGER I,NBASIS
@@ -870,8 +873,8 @@ END MODULE Integrals
 
       SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
          USE HElem
-         USE UMatCache , only : SetupTMAT,TMAT2D,TSTARSTORE
          use System, only: BasisFN
+         USE UMatCache , only : SetupTMAT,TMAT2D,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
          TYPE(BASISFN) G1(NBASIS)

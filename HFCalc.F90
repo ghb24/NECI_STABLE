@@ -6,6 +6,7 @@ MODULE HFCalc
    contains
       subroutine HFDoCalc()
       Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+      Use System, only: BasisFN
       Use Integrals, only: tHFBasis, tHFCalc, iHFMethod, tReadHF, nHFIt, HFMix, HFCDelta, HFEDelta
       Use Integrals, only: HFRand, tStarStore, tRHF, ntFrozen, tReadTUMat
       Use System, only : tCPMD,  tHFOrder,nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS

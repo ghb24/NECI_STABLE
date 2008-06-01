@@ -786,8 +786,7 @@ C.. CHARS at the end contains the remainder after the decomposition.
          if (TAbelian) then
              ! We shouldn't be here!  Using symmetry "quantum" numbers
              ! rather than irreps.
-             stop "Should not be decomposing irreps with Abelian "//
-     &             "symmetry option on."
+             stop "Should not be decomposing irreps with Abelian sym"
          end if
          IDECOMP%s=0
          CALL DCOPY(NROT*2,CHARSIN,1,CHARS,1)
@@ -858,8 +857,7 @@ C,, use DECOMPOSEREP
          if (TAbelian) then
              ! We shouldn't be here!  Using symmetry "quantum" numbers
              ! rather than irreps.
-             stop "Should not be decomposing irreps with Abelian "//
-     &             "symmetry option on."
+             stop "Should not be decomposing irreps with Abelian sym"
          end if
          IDECOMP%s=0
 C,. First check norm of this state

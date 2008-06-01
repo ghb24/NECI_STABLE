@@ -488,7 +488,7 @@ C.. Now generate all the RHOIJ elements for this new node
      &    RESULT (IMCPR4NCRES)
          IMPLICIT NONE
          INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,IPATH(0:I_V-1),IND
-         INTEGER I,J,INODE,ITOT,IMCPR4NCRES
+         INTEGER I,J,INODE,ITOT
          LOGICAL BR
 C.. Go through all the nodes currently in the path, and through each
 C.. possible attachment for each node

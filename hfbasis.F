@@ -130,8 +130,7 @@ C.. Generic spatial symmetry
          NHG=NBASIS
          CALL TISET('CALCHFUMAT',ISUB)
          WRITE(6,*) 'CALCULATING HF UMAT'
-         STOP "HF UMAT calculation broken through UMAT/TMAT reindexing."
-     &      //"  Please fix"
+       STOP "HF UMAT calc broken through U/TMAT reindexing. Please fix"
 C ==--------------------------------------------------------------------==
          OPEN(10,FILE='UMAT2',STATUS='UNKNOWN')
 C.. A, B, C, D denote basis fns in the HF basis.  These basis fns
