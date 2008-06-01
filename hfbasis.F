@@ -779,9 +779,9 @@ C.. vector unless transposed
          NEL=0
          DO IS=1,2
             IF(LMS.GE.0) THEN
-               ISPN=IS
-            ELSE
                ISPN=3-IS
+            ELSE
+               ISPN=IS
             ENDIF
             IREAL=1
             DO I=1,NSBASIS
