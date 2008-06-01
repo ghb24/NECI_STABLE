@@ -1,3 +1,4 @@
+! Old, deprecated code.  No longer used.
       SUBROUTINE EXCIT_DUMP(UNT,NI,NEL,G1,NBASIS,NBASISMAX,
      &         NMEM,IFRZ)
          IMPLICIT NONE
