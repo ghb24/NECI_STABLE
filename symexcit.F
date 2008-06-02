@@ -654,9 +654,9 @@ C..      ENDIF(.NOT.TCOUNT)
          INTEGER ORBPAIRS(2,*)
          INTEGER ILUT(0:*)
          INTEGER SYMPRODIND(2,3,0:*)
-         INTEGER ISYM(5)
          INTEGER G1(*),NBASISMAX(*)
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
+         type(BasisFN) ISYM
 
          ICOUNT=0
 
@@ -712,7 +712,7 @@ C.. We've found a virtual into which we can excite our occupied orb.
                            CALL ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
-C                           WRITE(26,'(Z6)') ISYM(5) 
+C                           WRITE(26,'(Z6)') ISYM 
                         ENDIF
                         L=L-1
                         K=K+1
@@ -788,7 +788,7 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
-C                           WRITE(26,'(Z6)') ISYM(5) 
+C                           WRITE(26,'(Z6)') ISYM
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                         ENDIF
                      ELSEIF(ISPN.EQ.2) THEN
@@ -812,7 +812,7 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
-C                           WRITE(26,'(Z6)') ISYM(5) 
+C                           WRITE(26,'(Z6)') ISYM 
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                         ENDIF
 C.. If neither virtuals are in NI, and they're not the same(which would give
@@ -836,7 +836,7 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
-C                           WRITE(26,'(Z6)') ISYM(5) 
+C                           WRITE(26,'(Z6)') ISYM 
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                         ENDIF
                      ELSEIF(ISPN.EQ.3) THEN
@@ -860,7 +860,7 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
-C                           WRITE(26,'(Z6)') ISYM(5) 
+C                           WRITE(26,'(Z6)') ISYM 
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                         ENDIF
                      ENDIF

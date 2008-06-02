@@ -36,9 +36,9 @@ C.,             If 1, only allow doubles.
          USE Calc , only : TVARCALC,TMPTHEORY,TMODMPTHEORY, lNoTriples
          use System, only: BasisFN
          IMPLICIT NONE
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
+         INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMAT(*),R

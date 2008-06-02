@@ -753,10 +753,10 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
          USE Logging , only : G_VMC_LOGCOUNT
          USE Calc , only : TMPTHEORY
          IMPLICIT NONE
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(*),ISYM
          TYPE(HDElement) FMCPR3RES
          INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5)
+         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX
          INTEGER I,IVLMAX,II
          REAL*8 ALAT(*),ECORE
          COMPLEX*16 FCK(*)
@@ -1075,9 +1075,9 @@ C.,             If 1, only allow doubles.
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          IMPLICIT NONE
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,ISYM(5),II
+         INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMAT(*),R
@@ -1913,9 +1913,11 @@ C.. and also includes the removal of subgraphs
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS
      &   ) RESULT (FMCPR3NVSTARRES)
          
+         use System, only: BasisFN
          IMPLICIT NONE
+         type(BasisFN) ISYM
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX,ISYM(5)
+         INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX
          INTEGER I,IVLMAX,II
          REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE,TOTAL,R
          REAL*8 CALCPATHS_N
