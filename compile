@@ -9,6 +9,7 @@ elif [ -e .compileconf ]; then
 else
 	platform=PC-PGI64
 fi
+echo "Using platform: $platform"
 
 ./Configure $platform -DEST=${PWD}/dest> Makefile2
 
