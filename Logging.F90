@@ -6,8 +6,8 @@
 
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
         INTEGER HFLOGLEVEL
-        INTEGER PreVarLogging
-        LOGICAL TDistrib
+        INTEGER PreVarLogging,WavevectorPrint
+        LOGICAL TDistrib,TPopsFile,TCalcWavevector
 
         contains
 
@@ -17,6 +17,9 @@
         CHARACTER (LEN=100) w
          INTEGER iLoggingDef 
       !Logging defaults
+      TCalcWavevector=.false.
+      WavevectorPrint=100
+      TPopsFile=.false.
       TDistrib=.false.
       ILOGGINGDef=0
       iGlobalTimerLevel=40
@@ -38,6 +41,13 @@
           select case(w)
           case("DISTRIBS")
               TDistrib=.true.
+          case("POPSFILE")
+!This is so that the determinants at the end of the MC run are written out, to enable them to be read back in using READPOPS in the Calc section, if you want to restart the simulation at a later date.
+              TPopsFile=.true.
+          case("WAVEVECTORPRINT")
+!This is for FCIMC - if on, it will calculate the exact eigenvector & values initially, and then print out the running wavevector every WavevectorPrint MC steps. However, this is slower.
+              TCalcWavevector=.true.
+              call readi(WavevectorPrint)
           case("MCPATHS")
               ILOGGING = IOR(ILOGGING,2**1)
           case("BLOCKING")

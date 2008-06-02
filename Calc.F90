@@ -18,19 +18,19 @@ MODULE Calc
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-        LOGICAL THDiag,TMCStar,TStoch
+        LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
-        INTEGER InitWalkers,NMCyc
+        INTEGER InitWalkers,NMCyc,StepsSft
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
-        REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau
+        REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau,SftDamp,ScaleWalkers
 
 
 
@@ -68,6 +68,11 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TBinCancel=.false.  
+          ScaleWalkers=1.D0
+          TReadPops=.false.
+          StepsSft=100
+          SftDamp=10.0
           Tau=0.D0
           InitWalkers=3000
           NMCyc=2000
@@ -578,11 +583,30 @@ MODULE Calc
               case("TAU")
 !For FCIMC, this can be considered the timestep of the simulation. If not set, it will default to the value which will allow the fastest destruction of walkers.
                   call getf(Tau)
+              case("SHIFTDAMP")
+!For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
+                  call getf(SftDamp)
+              case("STEPSSHIFT")
+!For FCIMC, this is the number of steps taken before the Diag shift is updated
+                  call geti(StepsSft)
+              case("READPOPS")
+!For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
+!DiagSft and InitWalkers will be overwritten with the values in that file.
+                  TReadPops=.true.
+              case("SCALEWALKERS")
+!For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
+                  call getf(ScaleWalkers)
+              case("BINCANCEL")
+!This is a seperate method to cancel down to find the residual walkers from a list, involving binning the walkers into their determinants. This has to refer to the whole space, and so is much slower.
+                  TBinCancel=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
               end select
             end do calc
+            IF((.not.TReadPops).and.(ScaleWalkers.ne.1.D0)) THEN
+                call report("Can only specify to scale walkers if READPOPS is set",.true.)
+            ENDIF
           if(.not.tEnergy.and.I_VMAX.eq.1)  tNeedsVirts=.false.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
         END SUBROUTINE CalcReadInput
         Subroutine CalcInit()
