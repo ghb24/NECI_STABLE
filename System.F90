@@ -64,6 +64,10 @@ MODULE System
         INTEGER tagG1
         
         INTEGER LMS2
+
+!  Set if we turn symmetry off
+
+       LOGICAL lNoSymmetry
         
         contains
 
@@ -113,6 +117,8 @@ MODULE System
           OrbECutoff=-1e20
           tStoreAsExcitations=.false.
           TBIN=.false.
+
+          lNoSymmetry=.false.
 
 !Feb08 defaults:
           IF(Feb08) THEN
@@ -206,6 +212,8 @@ MODULE System
                  STOT=0
               endif
               TCSF = .true.
+          case("NOSYMMETRY")
+              lNoSymmetry=.true.
           case("SYM")
               TPARITY = .true.
               do I = 1,4
@@ -651,7 +659,16 @@ MODULE System
          WRITE(6,*) ' *** CREATING BASIS FNs FROM FCIDUMP *** '
          CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN) 
          NBASIS=LEN
-         CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
+!C.. we're reading in integrals and have a molpro symmetry table
+         IF(lNoSymmetry) THEN
+            WRITE(6,*) "Turning Symmetry off"
+            CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
+            DO I=1,nBasis
+               G1(I)%Sym%s=0
+            ENDDO
+         ELSE
+            CALL GENMOLPSYMTABLE(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR)
+         ENDIF
       ELSE
 !C.. Create plane wave basis functions
          IG=0
@@ -724,7 +741,12 @@ MODULE System
       NOCC=NEl/2 
       IF(TREADINT) THEN
 !C.. we're reading in integrals and have a molpro symmetry table
-         CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
+         IF(lNoSymmetry) THEN
+            WRITE(6,*) "Turning Symmetry off"
+            CALL GENMOLPSYMREPS(1,G1,NBASIS,ARR,BRR) 
+         ELSE
+            CALL GENMOLPSYMREPS(NBASISMAX(5,2)+1,G1,NBASIS,ARR,BRR) 
+         ENDIF
       ELSEIF(TCPMD) THEN
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
