@@ -2334,7 +2334,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
          REAL*8 :: List(ILMax,0:2),SI,DLWDB,Hii,MaxDiag,Ran2,Norm,GrowRate
          REAL*8 :: rat,r
-         LOGICAL :: TFullDiag,DetSign
+         LOGICAL :: DetSign
          REAL*8 , ALLOCATABLE :: HMat(:,:),WList(:),Work(:)
          TYPE Walker
 !Det indicates the determinant that the walker is currently at. WSign: +ve = .true. , -ve = .false.
