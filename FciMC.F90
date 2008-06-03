@@ -189,7 +189,7 @@ MODULE FciMCMod
 
                     CALL GenRandSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,IC,0,UMat,Arr,Prob)
 
-                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,IC)
+                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,-1)
                     IF(Child.eq.1) THEN
 !We have successfully created a positive child at nJ
                         do k=1,NEl
@@ -352,11 +352,14 @@ MODULE FciMCMod
     SUBROUTINE InitFCIMCCalc()
         IMPLICIT NONE
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot
+        INTEGER :: DetLT,VecSlot,MemoryFac
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
+!MemoryFac is the factor by which space will be made available for extra walkers
+        MemoryFac=1000
+
 !Set the maximum number of walkers allowed
-        MaxWalkers=100*InitWalkers
+        MaxWalkers=MemoryFac*InitWalkers
 
 !Allocate memory to hold walkers
         ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
@@ -413,7 +416,7 @@ MODULE FciMCMod
                 enddo
                 WRITE(6,*) "Total number of walkers is now: ",InitWalkers
 !Set the new maximum number of walkers allowed
-                MaxWalkers=100*InitWalkers
+                MaxWalkers=MemoryFac*InitWalkers
 
 !Deallocate old memory block for WalkVec
                 DEALLOCATE(WalkVecDets)
