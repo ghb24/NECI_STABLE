@@ -107,6 +107,9 @@ MODULE FciMCMod
                 ENDIF
                 CALL FLUSH(15)
                 CALL FLUSH(6)
+
+!Reset TotWalkersOld so that it is the number of walkers now
+                TotWalkersOld=TotWalkers
             ENDIF
 
 !End of MC cycle
