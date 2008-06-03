@@ -18,7 +18,7 @@ MODULE Calc
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-        LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel
+        LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -68,6 +68,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TFCIMC=.false.
           TBinCancel=.false.  
           ScaleWalkers=1.D0
           TReadPops=.false.
@@ -555,6 +556,7 @@ MODULE Calc
                   TFullDiag=.true.
               case("MCEXCITSPACE")
 !In GraphMorph, this means that the space of excitations is chosen randomly
+!It is also an option in FCIMC, where it indicates the number of excitations to be chosen randomly from each chosen walker
                   TMCExcitSpace=.true.
                   call geti(NoMCExcits)
               case("GROWINITGRAPH")
@@ -951,7 +953,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar
+         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -961,6 +963,9 @@ MODULE Calc
                     case("VERTEX")
                         call readu(w)
                         select case(w)
+                        case("FCIMC")
+                            I_HMAX=-21
+                            TFCIMC=.true.
                         case("SUM")
                            do while(item.lt.nitems)
                             call readu(w)
