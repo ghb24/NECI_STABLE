@@ -14,6 +14,9 @@ MODULE FciMCMod
     LOGICAL , POINTER :: WalkVecSign(:),WalkVec2Sign(:)
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
 
+!MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
+    INTEGER :: MemoryFac=1000
+
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter
     INTEGER :: exFlag=3
 
@@ -91,7 +94,9 @@ MODULE FciMCMod
         do Iter=1,NMCyc
             
             CALL PerformFCIMCyc()
-            
+
+!            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+
             IF(mod(Iter,StepsSft).eq.0) THEN
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
@@ -249,6 +254,11 @@ MODULE FciMCMod
 !Destroy excitation generators for current walker
             DEALLOCATE(nExcit)
             CALL LogMemDealloc(this_routine,nExcitTag)
+        
+            rat=(VecSlot+0.D0)/(MaxWalkers+0.D0)
+            IF(rat.gt.0.9) THEN
+                WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
+            ENDIF
 
 !Finish cycling over walkers
         enddo
@@ -352,11 +362,8 @@ MODULE FciMCMod
     SUBROUTINE InitFCIMCCalc()
         IMPLICIT NONE
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,MemoryFac
+        INTEGER :: DetLT,VecSlot
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
-
-!MemoryFac is the factor by which space will be made available for extra walkers
-        MemoryFac=1000
 
 !Set the maximum number of walkers allowed
         MaxWalkers=MemoryFac*InitWalkers
