@@ -538,7 +538,7 @@ MODULE FciMCMod
 !Child is created - what sign is it?
             IF(WSign) THEN
 !Parent particle is positive
-                IF((rh%v).gt.0.D0) THEN
+                IF(real(rh%v).gt.0.D0) THEN
                     AttemptCreate=-1     !-ve walker created
                 ELSE
                     AttemptCreate=1      !+ve walker created
@@ -546,7 +546,7 @@ MODULE FciMCMod
 
             ELSE
 !Parent particle is negative
-                IF((rh%v).gt.0.D0) THEN
+                IF(real(rh%v).gt.0.D0) THEN
                     AttemptCreate=1      !+ve walker created
                 ELSE
                     AttemptCreate=-1     !-ve walker created
@@ -581,7 +581,7 @@ MODULE FciMCMod
 
 !Subtract the current value of the shift and multiply by tau
         rh=HElement(Tau)*(rh-(HElement(DiagSft)))
-        IF((rh%v).lt.0.D0) THEN
+        IF(real(rh%v).lt.0.D0) THEN
             WRITE(6,*) "Serious problem with -ve death probabilities..."
             STOP "Serious problem with -ve death probabilities..."
         ENDIF
