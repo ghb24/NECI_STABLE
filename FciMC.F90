@@ -255,10 +255,10 @@ MODULE FciMCMod
             DEALLOCATE(nExcit)
             CALL LogMemDealloc(this_routine,nExcitTag)
         
-            rat=(VecSlot+0.D0)/(MaxWalkers+0.D0)
-            IF(rat.gt.0.9) THEN
-                WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
-            ENDIF
+!            rat=(VecSlot+0.D0)/(MaxWalkers+0.D0)
+!            IF(rat.gt.0.9) THEN
+!                WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
+!            ENDIF
 
 !Finish cycling over walkers
         enddo
@@ -275,11 +275,97 @@ MODULE FciMCMod
 !transfer the residual particles back onto WalkVec
         CALL AnnihilatePairs(TotWalkersNew)
         
+        IF(TotWalkers.gt.(InitWalkers*5)) THEN
+
+!Particle number is too large - kill four out of five of them randomly
+            WRITE(6,*) "Killing randomly selected particles in order to reduce total number..."
+            CALL ThermostatParticles(.true.)
+
+!Need to reduce totwalkersOld, so that the change in shift is also reflected by this
+            TotWalkersOld=nint((TotWalkersOld+0.D0)/5.D0)
+
+        ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
+
+!Particle number is too small - double every particle in its current position
+            WRITE(6,*) "Doubling particle population to increase total number..."
+            CALL ThermostatParticles(.false.)
+
+!Need to increase TotWalkersOld, so that the change in shift is also reflected by this
+            TotWalkersOld=TotWalkersOld*2
+
+        ENDIF
+
         CALL TIHALT('MCyc',iSubCyc)
 
         RETURN
 
     END SUBROUTINE PerformFCIMCyc
+
+!This routine acts as a thermostat for the simulation - killing random particles if the population becomes too large, or 
+!Doubling them if it gets too low...
+    SUBROUTINE ThermostatParticles(HighLow)
+        IMPLICIT NONE
+        LOGICAL :: HighLow
+        INTEGER :: VecSlot,i,j,ToCull,Culled,OrigWalkers,Chosen
+        REAL*8 :: Ran2
+
+        IF(HighLow) THEN
+!The population is too large - cull 4 out of 5 randomly selected particles
+
+            OrigWalkers=TotWalkers
+            ToCull=nint((TotWalkers+0.D0)/5.D0)
+            Culled=0
+
+            do while (Culled.lt.ToCull)
+
+!Pick a random walker between 1 and TotWalkers
+                Chosen=int((Ran2(Seed)*TotWalkers)+1.D0)
+
+!Move the Walker at the end of the list to the position of the walker we have chosen to destroy
+                do i=1,NEl
+                    WalkVecDets(i,Chosen)=WalkVecDets(i,TotWalkers)
+                enddo
+                WalkVecSign(Chosen)=WalkVecSign(TotWalkers)
+
+                TotWalkers=TotWalkers-1
+                Culled=Culled+1
+
+            enddo
+
+            IF(TotWalkers.ne.(OrigWalkers-ToCull)) THEN
+                WRITE(6,*) "Error in culling walkers..."
+                STOP "Error in culling walkers..."
+            ENDIF
+
+        ELSE
+!The population is too low - give it a boost by doubling every particle
+
+            VecSlot=TotWalkers+1
+            do i=1,TotWalkers
+
+!Add clone of walker, at the same determinant, to the end of the list
+                do j=1,NEl
+                    WalkVecDets(j,VecSlot)=WalkVecDets(j,i)
+                enddo
+                WalkVecSign(VecSlot)=WalkVecSign(i)
+
+                VecSlot=VecSlot+1
+
+            enddo
+
+            TotWalkers=TotWalkers*2
+
+            IF((VecSlot-1).ne.TotWalkers) THEN
+                WRITE(6,*) "Problem in doubling all particles..."
+                STOP "Problem in doubling all particles..."
+            ENDIF
+
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE ThermostatParticles
+
 
 !This routine looks at the change in residual particle number over a number of cycles, and adjusts the 
 !value of the diagonal shift in the hamiltonian in order to compensate for this
@@ -538,7 +624,7 @@ MODULE FciMCMod
 !Child is created - what sign is it?
             IF(WSign) THEN
 !Parent particle is positive
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(dreal(rh%v).gt.0.D0) THEN
                     AttemptCreate=-1     !-ve walker created
                 ELSE
                     AttemptCreate=1      !+ve walker created
@@ -546,7 +632,7 @@ MODULE FciMCMod
 
             ELSE
 !Parent particle is negative
-                IF(real(rh%v).gt.0.D0) THEN
+                IF(dreal(rh%v).gt.0.D0) THEN
                     AttemptCreate=1      !+ve walker created
                 ELSE
                     AttemptCreate=-1     !-ve walker created
@@ -581,7 +667,7 @@ MODULE FciMCMod
 
 !Subtract the current value of the shift and multiply by tau
         rh=HElement(Tau)*(rh-(HElement(DiagSft)))
-        IF(real(rh%v).lt.0.D0) THEN
+        IF(dreal(rh%v).lt.0.D0) THEN
             WRITE(6,*) "Serious problem with -ve death probabilities..."
             STOP "Serious problem with -ve death probabilities..."
         ENDIF
