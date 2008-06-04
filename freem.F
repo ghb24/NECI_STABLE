@@ -39,6 +39,7 @@ C     ==--------------------------------------------------------------==
               exit
           end if
       end do
+      LookupPointer(iTag)=0
       call LogMemDealloc('unknown',iTag)
 C..Statistics and memory checks
       DO I=1,I_BLOCK

@@ -199,7 +199,7 @@ contains
     end if
 
     if (debug) then
-        write (6,*) 'Allocating memory: ',tag,ObjectSizeBytes,ObjectName,AllocRoutine,MemoryUsed
+        write (6,"(A,2I,' ',A,' ',A,' ',I)") 'Allocating memory: ',tag,ObjectSizeBytes,ObjectName,AllocRoutine,MemoryUsed
     end if
 
     return
@@ -252,7 +252,7 @@ contains
         if (tag.eq.-1) then
             ! No record of it in the log: can only print out a debug message.
             if (debug) then
-                write (6,*) 'Deallocating memory in: ',DeallocRoutine,tag
+                write (6,"(2A,I)") 'Deallocating memory in: ',DeallocRoutine,tag
             end if
         else
             ! Object was stored in the cache.
@@ -284,7 +284,7 @@ contains
                 end if
             end if
             if (debug) then
-                write (6,*) 'Deallocating memory: ',tag,MemLog(tag)
+                write (6,"(A,I,' ',A,' ',A,' ',A,' ',I)") 'Deallocating memory: ',tag,MemLog(tag)
             end if
         end if
 
