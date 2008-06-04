@@ -1461,7 +1461,9 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
 C.. before this.
 C.. This version is based on GenRandSymExcitIt2, but does not need values it extracts from modules
-      SUBROUTINE GenRandSymExcitIt3(NI,NMEM,NJ,ISEED,IC,IFRZ,PGEN)
+!  IC is the excitation level, and iCount the total number of allowed excitations
+      SUBROUTINE GenRandSymExcitIt3(NI,NMEM,NJ,ISEED,IC,IFRZ,PGEN,
+     &      ICOUNT)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          use System, only: nEl,G1, nBasis,nBasisMax
@@ -1473,17 +1475,44 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER STORE(6),ICOUNT
-         INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
+         INTEGER STORE(6)
+         INTEGER NMEM(*),NJ(NEL),IC,ICOUNT,IFRZ,I
          INTEGER ISEED
          REAL*8 PGEN
-         call GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,NJ,ISEED,IC,IFRZ,UMAT,ARR,PGEN)
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
+         INTEGER GET_ADDR
+#endif
+C.. The second setup.  Now NMEM is allocated, we store all the info
+C.. NMEM is as follows:
+C..   1           -  5           STORE(1:5)
+C..   6           -  6           STORE(6) = NEXCITTYPES
+C.. Data for the iterators
+C..   23 NEXCIT      total number of excitations
+C..  (STORE(1)=24)-  STORE(2)-1  DSTORE
+C..   STORE(2)    -  STORE(3)-1  EXCITTYPES
+C..   STORE(3)    -  STORE(4)-1  NALLOWPPS
+C..   STORE(4)    -  STORE(5)-1  ORBPAIRS
+C..   STORE(5)    -  ...         SYMPRODIND
+
+C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
+C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
+C.. Actually generate a det
+         IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
+         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
+     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
+     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
+     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
+     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
+         ICOUNT=NMEM(23)
       END
 C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
 C.. before this.
+C.. ICOUNT returned is the total number of possible excitations.  To get the excitation level,
+C..   use GenRandSymExcitIt3
       SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,NJ,ISEED,IC,IFRZ,UMAT,ARR,PGEN)
+     &         NMEM,NJ,ISEED,ICOUNT,IFRZ,UMAT,ARR,PGEN)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
@@ -1493,8 +1522,8 @@ C.. before this.
          INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER STORE(6),ICOUNT
-         INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
+         INTEGER STORE(6)
+         INTEGER NMEM(*),NJ(NEL),ICOUNT,IFRZ,I,IC
          LOGICAL TSETUP
 #ifdef POINTER8
          INTEGER*8 GET_ADDR
@@ -1525,7 +1554,7 @@ C.. Actually generate a det
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
      &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
-         IC=NMEM(23)
+         ICOUNT=NMEM(23)
       END
       SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
      &               CLASSES,                                           &
