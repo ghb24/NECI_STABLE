@@ -32,6 +32,7 @@ MODULE Calc
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
         REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau,SftDamp,ScaleWalkers
+        REAL*8 GrowMaxFactor,CullFactor
 
 
 
@@ -69,6 +70,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          GrowMaxFactor=500
+          CullFactor=200
           TStartMP1=.false.
           TFCIMC=.false.
           TBinCancel=.false.  
@@ -606,6 +609,12 @@ MODULE Calc
               case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
                   TStartMP1=.true.
+              case("GROWMAXFACTOR")
+!For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
+                  call getf(GrowMaxFactor)
+              case("CULLFACTOR")
+!For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
+                  call getf(CullFactor)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

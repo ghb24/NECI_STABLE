@@ -2,6 +2,7 @@ MODULE FciMCMod
     USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
+    USE Calc , only : GrowMaxFactor,CullFactor
     USE Determinants , only : FDet,GetHElement2
     USE Integrals , only : fck,NMax,nMsh,UMat
     USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint
@@ -275,14 +276,16 @@ MODULE FciMCMod
 !transfer the residual particles back onto WalkVec
         CALL AnnihilatePairs(TotWalkersNew)
         
-        IF(TotWalkers.gt.(InitWalkers*5)) THEN
+        IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 
 !Particle number is too large - kill four out of five of them randomly
+            WRITE(6,"(A,F8.2)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
             WRITE(6,*) "Killing randomly selected particles in order to reduce total number..."
+            WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
             CALL ThermostatParticles(.true.)
 
 !Need to reduce totwalkersOld, so that the change in shift is also reflected by this
-            TotWalkersOld=nint((TotWalkersOld+0.D0)/5.D0)
+            TotWalkersOld=nint((TotWalkersOld+0.D0)/CullFactor)
 
         ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
 
@@ -310,10 +313,10 @@ MODULE FciMCMod
         REAL*8 :: Ran2
 
         IF(HighLow) THEN
-!The population is too large - cull 4 out of 5 randomly selected particles
+!The population is too large - cull TotWalkers/CullFactor randomly selected particles
 
             OrigWalkers=TotWalkers
-            ToCull=nint((TotWalkers+0.D0)/5.D0)
+            ToCull=nint((TotWalkers+0.D0)/CullFactor)
             Culled=0
 
             do while (Culled.lt.ToCull)
