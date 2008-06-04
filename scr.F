@@ -65,6 +65,7 @@ C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
         ENDDO
       ENDDO
       SUM2=SUM4+SUM5
+!      WRITE(6,*) "1e:", SUM1
 !      WRITE(6,*) "Coulomb:", SUM4
 !      WRITE(6,*) "Exchange:", SUM5
 C..

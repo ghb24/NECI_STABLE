@@ -114,7 +114,7 @@ MODULE System
           TTILT = .false.
           TALPHA = .false.
           ISTATE = 1
-          OrbECutoff=-1e20
+          OrbECutoff=1e20
           tStoreAsExcitations=.false.
           TBIN=.false.
 
@@ -573,7 +573,7 @@ MODULE System
          WRITE(6,*) "Fermi Energy EF=",FKF*FKF/2
          WRITE(6,*) "Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
       ENDIF
-      IF(OrbECutoff.gt.-1e-20) WRITE(6,*) "Orbital Energy Cutoff:",OrbECutoff
+      IF(OrbECutoff.ne.1e-20) WRITE(6,*) "Orbital Energy Cutoff:",OrbECutoff
       WRITE(6,'(1X,A,F19.5)') ' VOLUME : ' , OMEGA
       WRITE(6,*) ' TALPHA : ' , TALPHA
       WRITE(6,'(1X,A,F19.5)') ' ALPHA : ' , ALPHA

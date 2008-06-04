@@ -147,7 +147,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                DO I=1,NBASIS
                   CALL HUBKIN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
      &               NBASISMAX,BHUB,
-     &               TTILT,SUM)
+     &               TTILT,SUM,TREAL)
                   TMAT2D(I,I)=SUM
                   WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
@@ -155,7 +155,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                DO I=1,NBASIS
                   CALL HUBKINN(G1(I)%k(1),G1(I)%k(2),G1(I)%k(3),
      &               NBASISMAX,BHUB,
-     &               TTILT,SUM)
+     &               TTILT,SUM,TREAL)
                   TMAT2D(I,I)=SUM
                   WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
@@ -284,6 +284,7 @@ C.. Now generate a list of sym labels.
          CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
          NSYMLABELS=NSYM
          nSyms=1
+         tAbelian=.false.
          DO I=1,NBASIS/2
 C.. place the sym label of each state in SymClasses(ISTATE).
             IF(ALL(G1(I*2)%k.EQ.0)) THEN
@@ -365,8 +366,8 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
-         DO I=1,NBASIS
-            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
-         ENDDO
+!         DO I=1,NBASIS
+!            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
+!         ENDDO
       END
 

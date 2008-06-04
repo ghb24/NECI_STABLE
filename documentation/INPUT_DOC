@@ -465,6 +465,9 @@ INITSTAR
 NOSAMEEXCIT
     This is a GraphMorph option, where connections between determinants which have the same number of excitations from the reference are ignored. This currently can only be used with INITSTAR, and so the starting graph is simple the doubles star graph (with no cross connections).
 
+NOTRIPLES
+   In HDIAG v3+ calculations disallow triple-excitations of the root as the 3rd vertex.
+
 MAXEXCIT <iMaxExcitLevel>
     A GraphMorph option, which limits the size of the excitation space, by only allowing excitations out to iMaxExcitLevel away from HF.
 

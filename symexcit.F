@@ -900,8 +900,35 @@ C.. to actually generate the excitations
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,1,NEL)
       END
 
-C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 specifiers used for parallelization
+!GenSymExcitIt3Par and GenSymExcitIt3 are versions GenSymExcitIt2 which do not require information taken from System and Integrals modules to be specified on the command line
+      SUBROUTINE GENSYMEXCITIT3(NI,TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use System, only: nEl,G1, nBasis,nBasisMax
+         IMPLICIT NONE 
+         INCLUDE 'irat.inc'
+         INCLUDE 'sym.inc'
+         INTEGER NI(NEL)
+         POINTER (IP_DSTORE,DSTORE)
+         INTEGER DSTORE(*)
+!  STORE contains lengths of various components of the excitation generator
+         INTEGER STORE(6)
+!  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
+         INTEGER*8 STORE2(6)
+         INTEGER ICOUNT
+         INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
+         LOGICAL TSETUP
+#ifdef POINTER8
+         INTEGER*8 GET_ADDR
+#else
+         INTEGER GET_ADDR
+#endif
+         INTEGER ILEVEL
 
+         INTEGER iMinElec1, iMaxElec1
+         CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,1,nEl)
+      END
 
       SUBROUTINE GENSYMEXCITIT3Par(NI,
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
@@ -932,6 +959,9 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
          CALL GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
       END
+
+
+C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 specifiers used for parallelization
       SUBROUTINE GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -1427,6 +1457,28 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
             ENDIF
          ENDIF
       ENDDO 
+      END
+C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
+C.. before this.
+C.. This version is based on GenRandSymExcitIt2, but does not need values it extracts from modules
+      SUBROUTINE GenRandSymExcitIt3(NI,NMEM,NJ,ISEED,IC,IFRZ,PGEN)
+         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use System, only: nEl,G1, nBasis,nBasisMax
+         use System, only: Arr,nMax
+         use Integrals, only: UMat
+         IMPLICIT NONE
+         INCLUDE 'irat.inc'
+         INCLUDE 'sym.inc'
+         INTEGER NI(NEL)
+         POINTER (IP_DSTORE,DSTORE)
+         INTEGER DSTORE(*)
+         INTEGER STORE(6),ICOUNT
+         INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
+         INTEGER ISEED
+         REAL*8 PGEN
+         call GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
+     &         NMEM,NJ,ISEED,IC,IFRZ,UMAT,ARR,PGEN)
       END
 C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
 C.. before this.

@@ -416,35 +416,44 @@ MODULE Integrals
                 ENDIF
                 WRITE(6,*) ' ECORE=',ECORE
              ELSE
+               IF(.NOT.(TUEG.OR.THUB)) THEN
     !!C.. We need to init the arrays regardless of whether we're storing H
     !!C..Need to initialise the Fourier arrays
-                Allocate(Fck(nMsh**3),stat=ierr)
-                LogAlloc(ierr,'FCK',NMSH**3,16,tagFCK)
-                CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
+                   Allocate(Fck(nMsh**3),stat=ierr)
+                   LogAlloc(ierr,'FCK',NMSH**3,16,tagFCK)
+                   CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
     !            CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
     !!C..
-                CALL MEMORY_CHECK()
-                IF(NMAXZ.EQ.0) THEN
+                   CALL MEMORY_CHECK()
+                   IF(NMAXZ.EQ.0) THEN
     !!C..   We're doing a 2D simulation
-                   CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA)
-                ELSE
-                   CALL INITFOU(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA)
-                ENDIF
-                CALL MEMORY_CHECK()
-                ISPINSKIP=NBASISMAX(2,3)
-                IF(NBASISMAX(1,3).GE.0) THEN
-    !!C.. we pre-compute the 2-e integrals
-                   WRITE(6,*) "Generating 2e integrals"
-    !!C.. Generate the 2e integrals (UMAT)
-                   CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-                  Allocate(UMat(UMatInt), stat=ierr)
-                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
-                Call AZZERO(UMat,HElementSize*UMatInt)
+                      CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA)
+                   ELSE
+                      CALL INITFOU(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA)
+                   ENDIF
+                   CALL MEMORY_CHECK()
+               ENDIF
+               ISPINSKIP=NBASISMAX(2,3)
+               IF(NBASISMAX(1,3).GE.0) THEN
                    IF(TUEG.OR.THUB) THEN
                       IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
+    !!C.. we pre-compute the 2-e integrals
+                         WRITE(6,*) "Generating 2e integrals"
+    !!C.. Generate the 2e integrals (UMAT)
+                         CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
+                         Allocate(UMat(UMatInt), stat=ierr)
+                         LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
+                         Call AZZERO(UMat,HElementSize*UMatInt)
                          CALL CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,UMAT)
                       ELSEIF(THUB.AND..NOT.TPBC) THEN
+    !!C.. we pre-compute the 2-e integrals
+                         WRITE(6,*) "Generating 2e integrals"
+    !!C.. Generate the 2e integrals (UMAT)
+                         CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
+                         Allocate(UMat(UMatInt), stat=ierr)
+                         LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
+                         Call AZZERO(UMat,HElementSize*UMatInt)
     !!C.. Non-periodic hubbard (mom space)
                          CALL GEN_COUL_HUBNPBC(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA)
                       ELSE
@@ -462,6 +471,13 @@ MODULE Integrals
     !!C.. The UEG doesn't store coul integrals
                       ENDIF
                    ELSE
+    !!C.. we pre-compute the 2-e integrals
+                      WRITE(6,*) "Generating 2e integrals"
+    !!C.. Generate the 2e integrals (UMAT)
+                      CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
+                      Allocate(UMat(UMatInt), stat=ierr)
+                      LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
+                      Call AZZERO(UMat,HElementSize*UMatInt)
                       CALL GEN_COUL(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP)
                    ENDIF
                 ELSE

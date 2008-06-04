@@ -1,8 +1,24 @@
-#!/bin/tcsh
-./Configure PC-PGI64 -d -DEST=${PWD}/dest> Makefile2
-touch *.F *.F90
+#!/bin/bash
+
+if [ "$#" -ne 0 ]; then
+	platform=$1
+elif [ -e .compileconf ]; then
+	# Read the user's default platform (if the .compileconf exists 
+	# in the current working directory).
+	platform=`cat .compileconf`
+else
+	platform=PC-PGI64
+fi
+echo "Using platform: $platform"
+
+./Configure -d $platform -DEST=${PWD}/dest> Makefile2
+
+cp irat.inc dest
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
-cp -f Makefile dest
+cp Makefile dest
+touch *.F *.F90
 cd dest
 make neci.x
+stat=$?
 cd ..
+exit $stat
