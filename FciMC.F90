@@ -1,7 +1,7 @@
 MODULE FciMCMod
-    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax
+    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits
+    USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Determinants , only : FDet,GetHElement2
     USE Integrals , only : fck,NMax,nMsh,UMat
     USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint
@@ -96,6 +96,7 @@ MODULE FciMCMod
             CALL PerformFCIMCyc()
 
 !            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+!            CALL FLUSH(6)
 
             IF(mod(Iter,StepsSft).eq.0) THEN
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
@@ -159,10 +160,9 @@ MODULE FciMCMod
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCyc()
-        USE System , only : Arr
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,DetCurr(NEl),iMaxExcit,nExcitMemLen,nStore(6)
-        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew
+        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount
         REAL*8 :: Prob,rat
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
@@ -192,9 +192,9 @@ MODULE FciMCMod
 
                 do i=1,NoMCExcits
 
-                    CALL GenRandSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,IC,0,UMat,Arr,Prob)
+                    CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
 
-                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,-1)
+                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,IC)
                     IF(Child.eq.1) THEN
 !We have successfully created a positive child at nJ
                         do k=1,NEl
@@ -444,12 +444,102 @@ MODULE FciMCMod
 
     END SUBROUTINE AnnihilatePairs
 
-!This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
-    SUBROUTINE InitFCIMCCalc()
+!This routine calculates the MP1 eigenvector, and uses it as a guide for setting the initial walker configuration
+    SUBROUTINE StartWavevector(WaveType)
+        USE Calc , only : i_P
+        USE System , only : Beta
+        USE Integrals , only : nTay
         IMPLICIT NONE
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot
-        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
+        INTEGER :: ierr,i,j,WaveType,ExcitStoreTag=0,EigenvectorTag=0,k,VecSlot,NoDoublesWalk
+        CHARACTER(len=*), PARAMETER :: this_routine='StartWavevector'
+        REAL*8 :: TypeChange,SumComp,GrowFactor
+        INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit,NoComps,WalkersOnDet
+        INTEGER , ALLOCATABLE :: nExcit(:),ExcitStore(:,:)
+        REAL*8 , ALLOCATABLE :: Eigenvector(:)
+        TYPE(HElement) :: rhii,rhij,rhjj
+
+        IF((WaveType.eq.1).or.(WaveType.eq.2)) THEN
+!If WaveType=1, we want to calculate the MP1 wavevector as our initial configuration, and WaveType=2 is the star wavevector
+        
+            IF(WaveType.eq.1) THEN
+!For MP1 wavefunction, we want TypeChange=1.D0, but star will require the star correlation energy
+                TypeChange=1.D0
+            ELSEIF(WaveType.eq.2) THEN
+!Star energy not yet proparly coded & tested
+                STOP 'Star initial wavefunction not yet working'
+!                StarWeight=fMCPR3StarNewExcit(FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,nTay,RhoEps,iExcit,iMaxExcit,nWHTay,iLogging,TSym,ECore,DBeta,DLWDB,MP2E)
+!                TypeChange=DLWDB
+            ENDIF
+            
+
+!First, generate all excitations, and store their determianants, and rho matrix elements 
+            nStore(1)=0
+            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+            ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+            CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
+            nExcit(1)=0
+            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+
+            ALLOCATE(Eigenvector(iMaxExcit+1),stat=ierr)
+            CALL LogMemAlloc('Eigenvector',iMaxExcit+1,8,this_routine,EigenvectorTag,ierr)
+            CALL AZZERO(Eigenvector,iMaxExcit+1)
+
+!Also need to store the determinants which each component of the eigenvector refers to...
+            ALLOCATE(ExcitStore(NEl,iMaxExcit+1),stat=ierr)
+            CALL LogMemAlloc('ExcitStore',(iMaxExcit+1)*NEl,4,this_routine,ExcitStoreTag,ierr)
+            CALL IAZZERO(ExcitStore,(iMaxExcit+1)*NEl)
+            
+            CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
+
+            i=1
+            do j=1,NEl
+                ExcitStore(j,i)=FDet(j)
+            enddo
+            Eigenvector(i)=1.D0
+            SumComp=1.D0
+!Need to ensure that Low-Diag is being used to recover MP1 wavefunction, where c_j=rh_ij/(rh_jj - 1)
+            do while (.true.)
+                CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
+                IF(nJ(1).eq.0) EXIT
+                i=i+1
+                CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
+                CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+
+!We want the value of rho_jj/rho_ii
+                rhjj=rhjj/rhii
+                do j=1,NEl
+                    ExcitStore(j,i)=nJ(j)
+                enddo
+                Eigenvector(i)=(rhij%v)/((rhjj%v)-TypeChange)
+                SumComp=SumComp+Eigenvector(i)
+            enddo
+
+            NoComps=i
+
+            WRITE(6,*) "Number of components found for new starting wavevector: ",NoComps
+
+            DEALLOCATE(nExcit)
+            CALL LogMemDealloc(this_routine,nExcitTag)
+
+        ENDIF
+
+        GrowFactor=(InitWalkers+0.D0)/SumComp
+
+        WRITE(6,*) "Growth factor of initial wavevector is: ",GrowFactor
+
+!Find actual number of new initial walkers
+        NoDoublesWalk=0
+        InitWalkers=0
+        do i=1,NoComps
+            WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
+            InitWalkers=InitWalkers+WalkersOnDet
+            IF(i.ne.1) THEN
+                NoDoublesWalk=NoDoublesWalk+WalkersOnDet
+            ENDIF
+        enddo
+
+        WRITE(6,*) "New number of initial walkers is: ",InitWalkers
+        WRITE(6,*) "Number of walkers on double excitations: ",NoDoublesWalk
 
 !Set the maximum number of walkers allowed
         MaxWalkers=MemoryFac*InitWalkers
@@ -463,8 +553,79 @@ MODULE FciMCMod
         CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
         ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+    
+        VecSlot=1
+!Cycle over components
+        do i=1,NoComps
+!Cycle over number of initial walkers wanted in each component
+            IF(Eigenvector(i).gt.0.D0) THEN
+!Walkers in this determinant are positive
+                WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
+                do j=1,WalkersOnDet
+                    do k=1,NEl
+                        WalkVecDets(k,VecSlot)=ExcitStore(k,i)
+                    enddo
+                    WalkVecSign(VecSlot)=.true.
+                    VecSlot=VecSlot+1
+                enddo
 
-        IF(TReadPops) THEN
+            ELSE
+                WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
+                do j=1,WalkersOnDet
+                    do k=1,NEl
+                        WalkVecDets(k,VecSlot)=ExcitStore(k,i)
+                    enddo
+                    WalkVecSign(VecSlot)=.false.
+                    VecSlot=VecSlot+1
+                enddo
+            ENDIF
+
+        enddo
+
+        IF((VecSlot-1).ne.InitWalkers) THEN
+            WRITE(6,*) "Problem in assigning particles proportionally to given wavevector..."
+            STOP "Problem in assigning particles proportionally to given wavevector..."
+        ENDIF
+
+        DEALLOCATE(Eigenvector)
+        CALL LogMemDealloc(this_routine,EigenvectorTag)
+        DEALLOCATE(ExcitStore)
+        CALL LogMemDealloc(this_routine,ExcitStoreTag)
+
+        RETURN
+
+    END SUBROUTINE StartWavevector
+
+
+!This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
+    SUBROUTINE InitFCIMCCalc()
+        IMPLICIT NONE
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
+        INTEGER :: DetLT,VecSlot
+        CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
+
+
+        IF(TStartMP1) THEN
+!Start the initial distribution off at the distribution of the MP1 eigenvector
+
+            WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
+            CALL StartWavevector(1)
+
+        ELSEIF(TReadPops) THEN
+
+!Set the maximum number of walkers allowed
+            MaxWalkers=MemoryFac*InitWalkers
+
+!Allocate memory to hold walkers
+            ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+
             IF((ABS(ScaleWalkers-1.D0)).lt.1.D-8) THEN
 !Read in walker positions
                 do i=1,InitWalkers
@@ -589,6 +750,19 @@ MODULE FciMCMod
         ELSE
 !If not reading in from POPSFILE, then we need to initialise the particle positions - start at HF with positive sign
 
+!Set the maximum number of walkers allowed
+            MaxWalkers=MemoryFac*InitWalkers
+
+!Allocate memory to hold walkers
+            ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+
             do j=1,InitWalkers
                 do k=1,NEl
                     WalkVecDets(k,j)=FDet(k)
@@ -619,12 +793,18 @@ MODULE FciMCMod
         rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
         rat=Tau*abs(rh%v)/Prob
+        IF(rat.gt.1.D0) THEN
+            WRITE(6,*) "*** Probability > 1 to create child. *** Reducing tau."
+            Tau=Prob/abs(rh%v)
+            WRITE(6,*) "*** New Tau is ", Tau
+            rat=1.D0
+        ENDIF
 !Stochastically choose whether to create or not according to Ran2
         IF(rat.gt.Ran2(Seed)) THEN
 !Child is created - what sign is it?
             IF(WSign) THEN
 !Parent particle is positive
-                IF(dreal(rh%v).gt.0.D0) THEN
+                IF(real(rh%v).gt.0.D0) THEN
                     AttemptCreate=-1     !-ve walker created
                 ELSE
                     AttemptCreate=1      !+ve walker created
@@ -632,7 +812,7 @@ MODULE FciMCMod
 
             ELSE
 !Parent particle is negative
-                IF(dreal(rh%v).gt.0.D0) THEN
+                IF(real(rh%v).gt.0.D0) THEN
                     AttemptCreate=1      !+ve walker created
                 ELSE
                     AttemptCreate=-1     !-ve walker created
@@ -653,7 +833,7 @@ MODULE FciMCMod
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),DetLT
         TYPE(HElement) :: rh
-        REAL*8 :: Ran2
+        REAL*8 :: Ran2,rat
 
 !Test if determinant is FDet - in a strongly single-configuration problem, this will save time
         IF(DetLT(DetCurr,FDet,NEl).eq.0) THEN
@@ -666,14 +846,16 @@ MODULE FciMCMod
         ENDIF
 
 !Subtract the current value of the shift and multiply by tau
-        rh=HElement(Tau)*(rh-(HElement(DiagSft)))
-        IF(dreal(rh%v).lt.0.D0) THEN
-            WRITE(6,*) "Serious problem with -ve death probabilities..."
-            STOP "Serious problem with -ve death probabilities..."
+        rat=Tau*((rh%v)-DiagSft)
+        IF(rat.gt.1.D0) THEN
+!If probs of dying is greater than one, reduce tau
+            WRITE(6,*) "*** Death probability > 1. *** Tau to large - reducing tau"
+            Tau=1.D0/((rh%v)-DiagSft)
+            WRITE(6,*) "***Tau reduced to ", Tau
         ENDIF
-    
+
 !Stochastically choose whether to die or not
-        IF(rh.agt.Ran2(Seed)) THEN
+        IF(rat.gt.Ran2(Seed)) THEN
 !Kill particle
             AttemptDie=.true.
         ELSE

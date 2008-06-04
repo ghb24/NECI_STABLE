@@ -19,6 +19,7 @@ MODULE Calc
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC
+        LOGICAL TStartMP1
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -68,6 +69,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TStartMP1=.false.
           TFCIMC=.false.
           TBinCancel=.false.  
           ScaleWalkers=1.D0
@@ -601,6 +603,9 @@ MODULE Calc
               case("BINCANCEL")
 !This is a seperate method to cancel down to find the residual walkers from a list, involving binning the walkers into their determinants. This has to refer to the whole space, and so is much slower.
                   TBinCancel=.true.
+              case("STARTMP1")
+!For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
+                  TStartMP1=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
