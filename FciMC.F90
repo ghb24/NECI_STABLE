@@ -2,7 +2,7 @@ MODULE FciMCMod
     USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
-    USE Calc , only : GrowMaxFactor,CullFactor
+    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets
     USE Determinants , only : FDet,GetHElement2
     USE Integrals , only : fck,NMax,nMsh,UMat
     USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint
@@ -28,11 +28,19 @@ MODULE FciMCMod
     contains
 
     SUBROUTINE FciMC(Weight,Energyxw)
+        Use MCDets, only : MCDetsCalc
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,iSub
         CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
 
+        if(NMCyc.lt.0.or.TMCDets) then
+
+           CALL MCDetsCalc(FDet,G_VMC_Seed,-NMCyc,Tau,SftDamp,10000*InitWalkers,InitWalkers,StepsSft,DiagSft)
+            Weight=1.d0
+            Energyxw=1.d0
+            return
+        endif
         CALL TISET('FCIMC',iSub)
 
         IF(HElementSize.gt.1) THEN

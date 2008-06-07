@@ -18,7 +18,7 @@ MODULE Calc
         LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-        LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC
+        LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
         LOGICAL TStartMP1
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
@@ -74,6 +74,7 @@ MODULE Calc
           CullFactor=200
           TStartMP1=.false.
           TFCIMC=.false.
+          TMCDets=.false.
           TBinCancel=.false.  
           ScaleWalkers=1.D0
           TReadPops=.false.
@@ -747,6 +748,7 @@ MODULE Calc
         Use Integrals, only: FCK, NMAX, NMSH, UMat, FCK
         Use Integrals, only: HFEDelta, HFMix,nTay
         Use Logging, only: iLogging
+        Use MCDets, only: MCDetsCalc
 !Calls
         REAL*8 DMonteCarlo2
 !Local Vars
@@ -755,6 +757,10 @@ MODULE Calc
         REAL*8 RH
         LOGICAL tWarn
 !   call Par2vSum(FDet)
+         integer iSeed
+         iSeed=7 
+!      call MCDetsCalc(FDet, iSeed, nwhtay(1))
+!      stop
     
     !C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
@@ -967,7 +973,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC
+         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -980,6 +986,9 @@ MODULE Calc
                         case("FCIMC")
                             I_HMAX=-21
                             TFCIMC=.true.
+                        case("MCDets")
+                            I_HMAX=-21
+                            TMCDets=.true.
                         case("SUM")
                            do while(item.lt.nitems)
                             call readu(w)

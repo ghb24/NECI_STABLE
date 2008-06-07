@@ -355,6 +355,33 @@ METHOD <METHOD>
         COUNTEXCITS runs through all the symmetry allowed excitations first, and counts the connected determinants on the star. This means that memory requirements are reduced so that only connected determinants are stored. However, the time taken is increased, as it is necessary to run through all determinants in the star twice. Especially useful for large systems with memory restraints, when density fitting has necessarily turned off symmetry. Also useful if a largeish rhoepsilon has been set as these will be counted as disconnected.
         NODAL prediagonalises a completely connected set of virtuals for each set of i,j orbitals. After this, the  diagonalised excitations are solved as a star graph. Must be used with new.
         TRIPLES prediagonalises an excited star of triple excitations from each double excitation, reattaches the eigenvectors, and solves the complete star. Currently only available with 'NEW', 'COUNTEXCITS' and 'DIAG'.
+
+      VERTEX FCIMC
+      VERTEX MCDets
+         Two different codebases that run Monte Carlo calculations in purely determinant space.
+         These have a series 'particles' (or 'walkers') which sample determinant space.
+            FCIMC maintains a list of walkers which may contain duplicates, and which must must be sorted at every iteration.  Each walker has its own excitation generator
+            MCDets maintains at most one 'particle' at each determinant, which may then contain subparticles (which correspond to the individual 'walkers' in FCIMC), in a binary tree.  This makes some efficiency savings where the same information about a determinant is not duplicated.
+
+         OPTIONS available in both
+            Tau 
+               The timestep.  Must be set such that max(Hjj, abs(Hij))*tau <1 . Default 0.0 (Must be set) 
+            InitWalkers
+               Initial population of walkers.  Default 3000
+            StepsSft
+               Number of evoution timesteps before the EShift is updated.  Defauly 100
+            SftDamp
+               Damping factor.  >1 means more damping in FCIMC.  <1 means more damping in MCDets
+            NMCyc
+               Total number of timesteps to take
+            DiagSft
+               Initial value of the diagonal shift
+
+         Only available in FCIMC
+            ScaleWalkers
+            TReadPops
+            ???
+          
     
 VVDISALLOW
    Disallow V-vertex to V'-vertex transitions in stochastic time MC.
