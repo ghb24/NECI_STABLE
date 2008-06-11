@@ -12,7 +12,7 @@
 !.. ExcitInfo(J,0) = RHOJJ
 !.. ExcitInfo(J,1) = RHOIJ
 !.. ExcitInfo(J,2) = HIJ
-      TYPE(HElement), POINTER :: ExcitInfo(:,:)
+      TYPE(HElement) , ALLOCATABLE :: ExcitInfo(:,:)
       INTEGER :: ExcitInfoTag=0
 
 !Triples stores info on the number of triples from each double
@@ -24,8 +24,8 @@
       INTEGER :: TripsInfoTag=0
 
 !Incase we want to do a complete diagonalisation of the triples star
-      TYPE(HElement), ALLOCATABLE :: ExcitMat(:,:)
-      TYPE(HElement), ALLOCATABLE :: HamMat(:)
+      REAL*8 , ALLOCATABLE :: ExcitMat(:,:)
+      REAL*8 , ALLOCATABLE :: HamMat(:)
       INTEGER :: ExcitMatTag=0,HamMatTag=0
 
 !Vals and first element of the eigenvectors from the prediagonalised excited stars
@@ -34,6 +34,7 @@
       INTEGER :: ValsTag=0,VecsTag=0
       
       TYPE(HElement) :: rhii
+      TYPE(HElement) :: Hii
 
       Contains
 
@@ -49,8 +50,8 @@
         USE StarDiagMod , only : GetValsnVecs
         IMPLICIT NONE
         CHARACTER(len=*), PARAMETER :: this_routine='StarDiagTrips'
-        REAL*8 , ALLOCATABLE :: TempDiags(:),Work(:),Vals(:)
-        INTEGER :: TempDiagsTag=0,WorkTag=0,ValsTag=0
+        REAL*8 , ALLOCATABLE :: TempDiags(:),Work(:),Vals2(:)
+        INTEGER :: TempDiagsTag=0,WorkTag=0,Vals2Tag=0
         REAL*8 :: Energy
         TYPE(HDElement) :: Weight,Energyxw
         TYPE(HElement) :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
@@ -121,7 +122,8 @@
                lp1: do while(.true.)
                         CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
                         IF(nK(1).eq.0) exit lp1
-                        CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit2,ECore)
+!                        CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit2,ECore)
+                        rh=HElement(0.D0)
 !Uncomment this code if you want to only allow triple excitations from each double
 !                        IC=iGetExcitLevel(FDet,nK,NEl)
 !                        IF(IC.ne.3) THEN
@@ -157,15 +159,16 @@
 !Allocate memory for calculation
         IF(TFullDiag) THEN
             ALLOCATE(ExcitMat(ExcitCount+1,ExcitCount+1),stat=ierr)
-            CALL LogMemAlloc('ExcitMat',(ExcitCount+1)**2,8*HElementSize,this_routine,ExcitMatTag)
-            CALL AZZERO(ExcitMat,((ExcitCount+1)*HElementSize)**2)
+            CALL LogMemAlloc('ExcitMat',(ExcitCount+1)**2,8,this_routine,ExcitMatTag)
+            CALL AZZERO(ExcitMat,(ExcitCount+1)**2)
 
-            ExcitMat(1,1)=HElement(1.D0)
+            ExcitMat(1,1)=1.D0
 
             ALLOCATE(HamMat(ExcitCount+1),stat=ierr)
-            CALL LogMemAlloc('HamMat',ExcitCount+1,8*HElementSize,this_routine,HamMatTag)
-            CALL AZZERO(HamMat,(ExcitCount+1)*HElementSize)
-            HamMat(1)=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+            CALL LogMemAlloc('HamMat',ExcitCount+1,8,this_routine,HamMatTag)
+            CALL AZZERO(HamMat,(ExcitCount+1))
+            Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+            HamMat(1)=Hii%v
             
         ENDIF
 
@@ -202,10 +205,10 @@
                 Hij=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,iExcit,ECore)
                 IF(TFullDiag) THEN
                     TotElem=TotElem+1
-                    ExcitMat(1,TotElem)=rhij/rhii
-                    ExcitMat(TotElem,1)=rhij/rhii
-                    ExcitMat(TotElem,TotElem)=rhjj/rhii
-                    HamMat(TotElem)=Hij
+                    ExcitMat(1,TotElem)=(rhij%v)/(rhii%v)
+                    ExcitMat(TotElem,1)=(rhij%v)/(rhii%v)
+                    ExcitMat(TotElem,TotElem)=(rhjj%v)/(rhii%v)
+                    HamMat(TotElem)=(Hij%v)
                     DoubIndex=TotElem
                 ENDIF
 
@@ -236,7 +239,8 @@
            lp4: do while(.true.)
                     CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
                     IF(nK(1).eq.0) exit lp4
-                    CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjk,nTay,iExcit2,ECore)
+                    rhjk=HElement(0.D0)
+!                    CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjk,nTay,iExcit2,ECore)
 !Uncomment this code if you want to only allow triple excitations from each double
 !                    IC=iGetExcitLevel(FDet,nK,NEl)
 !                    IF(IC.ne.3) THEN
@@ -252,9 +256,9 @@
 
                         IF(TFullDiag) THEN
                             TotElem=TotElem+1
-                            ExcitMat(DoubIndex,TotElem)=rhjk/rhii
-                            ExcitMat(TotElem,DoubIndex)=rhjk/rhii
-                            ExcitMat(TotElem,TotElem)=rh/rhii
+                            ExcitMat(DoubIndex,TotElem)=(rhjk%v)/(rhii%v)
+                            ExcitMat(TotElem,DoubIndex)=(rhjk%v)/(rhii%v)
+                            ExcitMat(TotElem,TotElem)=(rh%v)/(rhii%v)
                         ENDIF
 
                     ENDIF
@@ -316,6 +320,11 @@
                     ExcitInfo(Vert,2)=HElement(Vecs(k))*Hij
                 enddo
 
+                DEALLOCATE(Vecs)
+                CALL LogMemDealloc(this_routine,VecsTag)
+                DEALLOCATE(Vals)
+                CALL LogMemDealloc(this_routine,ValsTag)
+
             ENDIF
 
             DEALLOCATE(Vecs)
@@ -348,18 +357,37 @@
 
 !We now have a large star matrix, with its information in ExcitInfo, which we need to diagonalise.
 !We need to diagonalise this large final star matrix. Only largest eigenvector needed
+            WRITE(65,*) "RHOMAT is "
+            DO I=1,ExcitCount+1
+                DO J=1,ExcitCount+1
+                    IF(I.eq.1) THEN
+                        WRITE(65,"(E14.6)",advance='no') ExcitInfo(J-1,1)
+                    ELSEIF(J.eq.1) THEN
+                        WRITE(65,"(E14.6)",advance='no') ExcitInfo(I-1,1)
+                    ELSEIF(J.eq.I) THEN
+                        WRITE(65,"(E14.6)",advance='no') ExcitInfo(I-1,0)
+                    ELSE
+                        WRITE(65,"(E14.6)",advance='no') 0.D0
+                    ENDIF
+                ENDDO
+                WRITE(65,*) ""
+            ENDDO
+            WRITE(65,*) "**************"
+            DO I=1,ExcitCount+1
+                WRITE(65,"(E14.6)") ExcitInfo(I-1,2)
+            ENDDO
 !        IF(.NOT.BTEST(Meth,0)) THEN
 !This will diagonalise each excited star fully - v. slow - order N^3
 !            WRITE(6,*) "Beginning Complete Star Tridiagonalization"
-!            CALL StarDiag(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta(1),Energyxw)
+            CALL StarDiag(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,i_P,Weight,dBeta(1),Energyxw)
 
 !        ELSE
 !Use polynomial diagonalisation, order N
-            WRITE(6,*) "Beginning Polynomial Star Diagonalization"
+!            WRITE(6,*) "Beginning Polynomial Star Diagonalization"
 !            nRoots=ExcitCount
 !            IF(BTEST(Meth,1)) THEN
-                nRoots=1
-                WRITE(6,*) "Searching for 1 root"
+!                nRoots=1
+!                WRITE(6,*) "Searching for 1 root"
 !            ELSEIF(BTEST(Meth,2)) THEN
 !                WRITE(6,*) "Searching for enough roots to converge sum"
 !                nRoots=ExcitCount+1
@@ -369,7 +397,12 @@
 !            ELSE
 !                WRITE(6,*) "Searching for all roots"
 !            ENDIF
-            CALL StarDiag2(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,Beta,i_P,Weight,dBeta(1),Energyxw,nRoots,iLogging)
+
+
+!            CALL SORT3RN(ExcitCount,ExcitInfo(1:ExcitCount,0),ExcitInfo(1:ExcitCount,1),ExcitInfo(1:ExcitCount,2),HElementSize)
+
+
+!            CALL StarDiag2(0,NEl,ExcitCount+1,ExcitInfo,ExcitCount+1,Beta,i_P,Weight,dBeta(1),Energyxw,nRoots,iLogging)
 !
 !        ENDIF
 
@@ -377,21 +410,44 @@
 !Need to diagonalise the full matrix - this could take a while!
             ALLOCATE(Work(3*(ExcitCount+1)),stat=ierr)
             CALL LogMemAlloc('Work',3*(ExcitCount+1),8,this_routine,WorkTag)
-            ALLOCATE(Vals(ExcitCount+1),stat=ierr)
-            CALL LogMemAlloc('Vals',ExcitCount+1,8,this_routine,ValsTag)
+            ALLOCATE(Vals2(ExcitCount+1),stat=ierr)
+            CALL LogMemAlloc('Vals2',ExcitCount+1,8,this_routine,Vals2Tag)
             
-            CALL DSYEV('V','U',ExcitCount+1,ExcitMat,ExcitCount+1,Vals,Work,3*(ExcitCount+1),INFO)
+            WRITE(66,*) "RHOMAT is "
+            DO I=1,ExcitCount+1
+                DO J=1,ExcitCount+1
+                    WRITE(66,"(E14.6)",advance='no') ExcitMat(I,J)
+                ENDDO
+                WRITE(66,*) ""
+            ENDDO
+            WRITE(66,*) "**************"
+            DO I=1,ExcitCount+1
+                WRITE(66,"(E14.6)") HamMat(I)
+            ENDDO
+
+
+            
+            CALL DSYEV('V','U',ExcitCount+1,ExcitMat,ExcitCount+1,Vals2,Work,3*(ExcitCount+1),INFO)
             IF(INFO.ne.0) THEN
                 WRITE(6,*) "DYSEV error in AddTrips: ",INFO
                 STOP
             ENDIF
-
+            WRITE(66,*) "**************"
+            DO I=1,ExcitCount+1
+                WRITE(66,*) Vals2(i) 
+            ENDDO
+            WRITE(66,*) "**************"
+            DO I=1,ExcitCount+1
+                WRITE(66,*) ABS(ExcitMat(I,ExcitCount+1))
+            ENDDO
+                
+            
             Energy=0.D0
-            do i=1,ExcitCount+1
-
-                Energy=Energy+(HamMat(i)%v)*ABS(ExcitMat(i,ExcitCount+1)%v)
+            do i=2,ExcitCount+1
+                Energy=Energy+HamMat(i)*ABS(ExcitMat(i,ExcitCount+1))
             enddo
-            Energy=Energy/(ABS(ExcitMat(1,ExcitCount+1)%v))
+            Energy=Energy/(ABS(ExcitMat(1,ExcitCount+1)))
+            Energy=Energy+(Hii%v)
 
             WRITE(6,"(A,G25.17)") "From complete diagonalisation of the rho matrix, the energy is given as: ",Energy
 
@@ -401,8 +457,8 @@
             CALL LogMemDealloc(this_routine,ExcitMatTag)
             DEALLOCATE(Work)
             CALL LogMemDealloc(this_routine,WorkTag)
-            DEALLOCATE(Vals)
-            CALL LogMemDealloc(this_routine,ValsTag)
+            DEALLOCATE(Vals2)
+            CALL LogMemDealloc(this_routine,Vals2Tag)
 
         ENDIF
 
