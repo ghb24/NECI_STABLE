@@ -7,7 +7,7 @@
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
         INTEGER HFLOGLEVEL
         INTEGER PreVarLogging,WavevectorPrint
-        LOGICAL TDistrib,TPopsFile,TCalcWavevector
+        LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
 
         contains
 
@@ -25,6 +25,7 @@
       iGlobalTimerLevel=40
       HFLOGLEVEL=0
       PreVarLogging=0
+      TDetPops=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -39,6 +40,8 @@
           end if
           call readu(w)
           select case(w)
+          case("DETPOPS")
+              TDetPops=.true.
           case("DISTRIBS")
               TDistrib=.true.
           case("POPSFILE")

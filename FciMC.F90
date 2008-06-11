@@ -1,11 +1,21 @@
+!!!!!!!!!
+! TO DO !
+!!!!!!!!!
+!Test Dynamic Tau Changing
+!Initial Graph-Morph Graph
+!Test of LD with MP1
+!Test POPSFILE read/write
+!Setup Init Star
+
 MODULE FciMCMod
     USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
-    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets
+    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth
     USE Determinants , only : FDet,GetHElement2
+    USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
-    USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint
+    USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint,TDetPops
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
     USE HElem
     IMPLICIT NONE
@@ -15,13 +25,30 @@ MODULE FciMCMod
     LOGICAL , POINTER :: WalkVecSign(:),WalkVec2Sign(:)
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
 
-!MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=1000
+!InitPopsVector is used to store the initial populations of the determinants. This can be used for comparison when TNoBirth is true.
+    INTEGER , ALLOCATABLE :: InitPops(:)
+    INTEGER :: InitPopsTag=0
 
-    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter
+    INTEGER , ALLOCATABLE :: ExcitStore(:,:)
+    INTEGER :: ExcitStoreTag=0
+
+    REAL*8 , ALLOCATABLE :: TransMat(:,:),PopsVec(:)
+    INTEGER :: TransMatTag=0,PopsVecTag=0,SizeOfSpace
+
+!MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
+    INTEGER :: MemoryFac=10000
+
+    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
 
-    REAL*8 :: GrowRate
+!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
+!NoCulls is the number of culls in a given shift update cycle
+    INTEGER :: NoCulls=0
+!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
+!Only 10 culls/growth increases are allowed in a given shift cycle
+    INTEGER :: CullInfo(10,3)
+
+    REAL*8 :: GrowRate,DieRat
 
     TYPE(HElement) :: Hii
 
@@ -31,8 +58,9 @@ MODULE FciMCMod
         Use MCDets, only : MCDetsCalc
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
-        INTEGER :: i,iSub
+        INTEGER :: i,j,iSub,WalkOnDet,DetLT,DetCurr(NEl),ExpectedDets
         CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
+        TYPE(HElement) :: Hamii
 
         if(NMCyc.lt.0.or.TMCDets) then
 
@@ -57,6 +85,12 @@ MODULE FciMCMod
         OPEN(15,file='FCIMCStats',status='unknown')
 
         IF(TReadPops) THEN
+            
+            IF(TNoBirth) THEN
+                WRITE(6,*) "Cannot use NOBIRTHS with READPOPS"
+                STOP "Cannot use NOBIRTHS with READPOPS"
+            ENDIF
+
             WRITE(6,*) "Reading in POPSFILE to restart calculation..."
             OPEN(17,FILE='POPSFILE',Status='old')
             READ(17,*) InitWalkers
@@ -83,17 +117,19 @@ MODULE FciMCMod
 
         CALL InitFCIMCCalc()
 
+        IF(.NOT.TNoBirth) THEN
 !Print out initial starting configurations
-        WRITE(6,*) ""
-        WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers"
-        WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers"
+            WRITE(6,*) ""
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers"
+            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers"
 !TotWalkersOld is the number of walkers last time the shift was changed
-        IF(TReadPops) THEN
-            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-            WRITE(15,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-        ELSE
-            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-            WRITE(15,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+            IF(TReadPops) THEN
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+            ELSE
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+            ENDIF
         ENDIF
         
 !Reset TotWalkersOld so that it is the number of walkers now
@@ -108,23 +144,72 @@ MODULE FciMCMod
 !            CALL FLUSH(6)
 
             IF(mod(Iter,StepsSft).eq.0) THEN
+
+                IF(TNoBirth) THEN
+!If we have TNoBirth flag, the populations on each determinant simply exponentially decay, and so at each StepsSft, we want to know the population on each determinant
+!When creating wavevector, store the initial number of particles on each determinant (order them).
+                    do i=1,NoComps
+                        do j=1,NEl
+                            DetCurr(j)=ExcitStore(j,i)
+                        enddo
+                        WalkOnDet=0
+                        do j=1,TotWalkers
+                            IF(DetLT(DetCurr,WalkVecDets(:,j),NEl).eq.0) THEN
+!Walker is on chosen determinant
+                                WalkOnDet=WalkOnDet+1
+                            ENDIF
+                        enddo
+
+                        Hamii=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        Hamii=Hamii-Hii
+!The expected number of determinants now is the original number on each determinant * exp(-tau*Iter*(Hii-DiagSft)
+                        ExpectedDets=exp(-Tau*Iter*((Hamii%v)-DiagSft))*InitPops(i)
+
+                        WRITE(6,*) Iter,i,WalkOnDet,ExpectedDets
+                        WRITE(15,*) Iter,i,WalkOnDet,ExpectedDets
+                        CALL FLUSH(15)
+                        CALL FLUSH(6)
+
+                    enddo
+                    WRITE(6,*) ""
+                    WRITE(15,*) ""
+
+!This can be compared to the actual number of particles on each of the determinants.
+!This will only work when we start with the MP1 wavefunction.
+
+                ELSE
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
-                CALL UpdateDiagSft()
+                    CALL UpdateDiagSft()
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-                IF(TReadPops) THEN
-                    WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                    WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                ELSE
-                    WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                    WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                ENDIF
-                CALL FLUSH(15)
-                CALL FLUSH(6)
+                    IF(TReadPops) THEN
+                        WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                        WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                    ELSE
+                        WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                        WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                    ENDIF
+
+                    IF(TDetPops) THEN
+
+                        do i=1,SizeOfSpace
+                            WRITE(67,"(F10.5,$)") TransMat(1,i)
+                        enddo
+                        WRITE(67,*) ""
+
+                    ENDIF
+
+
+                    CALL FLUSH(15)
+                    CALL FLUSH(6)
 
 !Reset TotWalkersOld so that it is the number of walkers now
-                TotWalkersOld=TotWalkers
+                    TotWalkersOld=TotWalkers
+                ENDIF
+
+!                WRITE(6,*) DieRat
+
             ENDIF
 
 !End of MC cycle
@@ -150,6 +235,20 @@ MODULE FciMCMod
         Energyxw=HDElement(2.D0*DiagSft)
 
 !Deallocate memory
+        IF(TNoBirth) THEN
+            DEALLOCATE(ExcitStore)
+            CALL LogMemDealloc(this_routine,ExcitStoreTag)
+            DEALLOCATE(InitPops)
+            CALL LogMemDealloc(this_routine,InitPopsTag)
+        ENDIF
+        IF(TDetPops) THEN
+            DEALLOCATE(ExcitStore)
+            CALL LogMemDealloc(this_routine,ExcitStoreTag)
+            DEALLOCATE(PopsVec)
+            CALL LogMemDealloc(this_routine,PopsVecTag)
+            DEALLOCATE(TransMat)
+            CALL LogMemDealloc(this_routine,TransMatTag)
+        ENDIF
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         DEALLOCATE(WalkVec2Dets)
@@ -171,7 +270,7 @@ MODULE FciMCMod
     SUBROUTINE PerformFCIMCyc()
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,DetCurr(NEl),iMaxExcit,nExcitMemLen,nStore(6)
-        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount
+        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount,NoDie
         REAL*8 :: Prob,rat
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
@@ -180,6 +279,7 @@ MODULE FciMCMod
         
 !VecSlot indicates the next free position in WalkVec2
         VecSlot=1
+        NoDie=0
 
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -253,12 +353,14 @@ MODULE FciMCMod
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
             IF(.NOT.AttemptDie(DetCurr)) THEN
 !This indicates that the particle is spared...copy him across to WalkVec2
+                NoDie=NoDie+1
                 do k=1,NEl
                     WalkVec2Dets(k,VecSlot)=DetCurr(k)
                 enddo
                 WalkVec2Sign(VecSlot)=WalkVecSign(j)
                 VecSlot=VecSlot+1
             ENDIF
+            
 
 !Destroy excitation generators for current walker
             DEALLOCATE(nExcit)
@@ -271,6 +373,9 @@ MODULE FciMCMod
 
 !Finish cycling over walkers
         enddo
+
+        NoDie=TotWalkers-NoDie
+        DieRat=(NoDie+0.D0)/(TotWalkers+0.D0)
                 
 !Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
         TotWalkersNew=VecSlot-1
@@ -285,24 +390,42 @@ MODULE FciMCMod
         CALL AnnihilatePairs(TotWalkersNew)
         
         IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
+!Particle number is too large - kill them randomly
 
-!Particle number is too large - kill four out of five of them randomly
-            WRITE(6,"(A,F8.2)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
+!Log the fact that we have made a cull
+            NoCulls=NoCulls+1
+            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!CullInfo(:,1) is walkers before cull
+            CullInfo(NoCulls,1)=TotWalkers
+!CullInfo(:,3) is MC Steps into shift cycle before cull
+            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+
+            WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
             WRITE(6,*) "Killing randomly selected particles in order to reduce total number..."
             WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
             CALL ThermostatParticles(.true.)
 
 !Need to reduce totwalkersOld, so that the change in shift is also reflected by this
-            TotWalkersOld=nint((TotWalkersOld+0.D0)/CullFactor)
+!The Shift is no longer calculated like this...
+!            TotWalkersOld=nint((TotWalkersOld+0.D0)/CullFactor)
 
-        ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
-
+        ELSEIF((TotWalkers.lt.(InitWalkers/2)).and.(.NOT.TNoBirth)) THEN
 !Particle number is too small - double every particle in its current position
+
+!Log the fact that we have made a cull
+            NoCulls=NoCulls+1
+            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!CullInfo(:,1) is walkers before cull
+            CullInfo(NoCulls,1)=TotWalkers
+!CullInfo(:,3) is MC Steps into shift cycle before cull
+            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+            
             WRITE(6,*) "Doubling particle population to increase total number..."
             CALL ThermostatParticles(.false.)
 
 !Need to increase TotWalkersOld, so that the change in shift is also reflected by this
-            TotWalkersOld=TotWalkersOld*2
+!The shift is no longer calculated like this...
+!            TotWalkersOld=TotWalkersOld*2
 
         ENDIF
 
@@ -324,7 +447,7 @@ MODULE FciMCMod
 !The population is too large - cull TotWalkers/CullFactor randomly selected particles
 
             OrigWalkers=TotWalkers
-            ToCull=nint((TotWalkers+0.D0)/CullFactor)
+            ToCull=TotWalkers-nint((TotWalkers+0.D0)/CullFactor)
             Culled=0
 
             do while (Culled.lt.ToCull)
@@ -347,6 +470,9 @@ MODULE FciMCMod
                 WRITE(6,*) "Error in culling walkers..."
                 STOP "Error in culling walkers..."
             ENDIF
+
+!CullInfo(:,2) is the new number of total walkers
+            CullInfo(NoCulls,2)=TotWalkers
 
         ELSE
 !The population is too low - give it a boost by doubling every particle
@@ -371,6 +497,9 @@ MODULE FciMCMod
                 STOP "Problem in doubling all particles..."
             ENDIF
 
+!CullInfo(:,2) is the new number of total walkers
+            CullInfo(NoCulls,2)=TotWalkers
+
         ENDIF
 
         RETURN
@@ -382,8 +511,40 @@ MODULE FciMCMod
 !value of the diagonal shift in the hamiltonian in order to compensate for this
     SUBROUTINE UpdateDiagSft()
         IMPLICIT NONE
+        INTEGER :: j,k,GrowthSteps
 
-        GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+        IF(NoCulls.eq.0) THEN
+            GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+        ELSEIF(NoCulls.eq.1) THEN
+!GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
+            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
+            GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
+
+            NoCulls=0
+            CALL IAZZERO(CullInfo,30)
+        ELSE
+            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
+            do j=2,NoCulls
+    
+                GrowthSteps=CullInfo(j,3)
+                do k=1,j-1
+                    GrowthSteps=GrowthSteps-CullInfo(k,3)
+                enddo
+
+                GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
+
+            enddo
+
+            GrowthSteps=StepsSft
+            do k=1,NoCulls
+                GrowthSteps=GrowthSteps-CullInfo(k,3)
+            enddo
+            GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
+
+            NoCulls=0
+            CALL IAZZERO(CullInfo,30)
+
+        ENDIF
         DiagSft=DiagSft-(log(GrowRate))/(SftDamp*Tau*(StepsSft+0.D0))
         IF((DiagSft).gt.0.D0) THEN
             WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
@@ -461,11 +622,11 @@ MODULE FciMCMod
         USE System , only : Beta
         USE Integrals , only : nTay
         IMPLICIT NONE
-        INTEGER :: ierr,i,j,WaveType,ExcitStoreTag=0,EigenvectorTag=0,k,VecSlot,NoDoublesWalk
+        INTEGER :: ierr,i,j,WaveType,EigenvectorTag=0,k,VecSlot,NoDoublesWalk
         CHARACTER(len=*), PARAMETER :: this_routine='StartWavevector'
         REAL*8 :: TypeChange,SumComp,GrowFactor
-        INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit,NoComps,WalkersOnDet
-        INTEGER , ALLOCATABLE :: nExcit(:),ExcitStore(:,:)
+        INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit,WalkersOnDet
+        INTEGER , ALLOCATABLE :: nExcit(:)
         REAL*8 , ALLOCATABLE :: Eigenvector(:)
         TYPE(HElement) :: rhii,rhij,rhjj
 
@@ -598,10 +759,35 @@ MODULE FciMCMod
             STOP "Problem in assigning particles proportionally to given wavevector..."
         ENDIF
 
-        DEALLOCATE(Eigenvector)
-        CALL LogMemDealloc(this_routine,EigenvectorTag)
-        DEALLOCATE(ExcitStore)
-        CALL LogMemDealloc(this_routine,ExcitStoreTag)
+        IF(TNoBirth) THEN
+!Allocate memory to hold all initial determinants and their starting populations
+            ALLOCATE(InitPops(NoComps),stat=ierr)
+            CALL LogMemAlloc('InitPops',NoComps,4,this_routine,InitPopsTag)
+                
+            WRITE(6,*) ""
+            WRITE(6,*) "    Step   Components   WalkersOnDet   Expected"
+            WRITE(15,*) "#    Step   Components   WalkersOnDet   Expected"
+
+            do i=1,NoComps
+                InitPops(i)=abs(nint(Eigenvector(i)*GrowFactor))
+                WRITE(6,"(2I9,2G16.7)") 0,i,InitPops(i),InitPops(i)
+                WRITE(15,"(2I9,2G16.7)") 0,1,InitPops(i),InitPops(i)
+            enddo
+            WRITE(6,*) ""
+            WRITE(15,*) ""
+
+!Can deallocate the eigenvector, but we want to keep the ExcitStore in order to compare the populations at a later date
+            DEALLOCATE(Eigenvector)
+            CALL LogMemDealloc(this_routine,EigenvectorTag)
+
+        ELSE
+
+            DEALLOCATE(Eigenvector)
+            CALL LogMemDealloc(this_routine,EigenvectorTag)
+            DEALLOCATE(ExcitStore)
+            CALL LogMemDealloc(this_routine,ExcitStoreTag)
+
+        ENDIF
 
         RETURN
 
@@ -610,9 +796,11 @@ MODULE FciMCMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalc()
+        USE DetCalc , only : NDet
         IMPLICIT NONE
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot
+        TYPE(HElement) :: rh
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
 
@@ -781,27 +969,82 @@ MODULE FciMCMod
                 WalkVecSign(j)=.true.
             enddo
 
+            IF(TNoBirth) THEN
+                
+                WRITE(6,*) ""
+                WRITE(6,*) "    Step   Components   WalkersOnDet   Expected"
+                WRITE(15,*) "#    Step   Components   WalkersOnDet   Expected"
+
+                ALLOCATE(InitPops(1),stat=ierr)
+                CALL LogMemAlloc('InitPops',1,4,this_routine,InitPopsTag)
+                ALLOCATE(ExcitStore(NEl,1),stat=ierr)
+                CALL LogMemAlloc('ExcitStore',NEl,4,this_routine,ExcitStoreTag)
+
+                NoComps=1
+                do j=1,NEl
+                    ExcitStore(j,1)=FDet(j)
+                enddo
+                InitPops(1)=InitWalkers
+                WRITE(6,"(2I9,2G16.7)") 0,1,InitWalkers,InitWalkers
+                WRITE(15,"(2I9,2G16.7)") 0,1,InitWalkers,InitWalkers
+
+            ELSEIF(TDetPops) THEN
+                
+                SizeofSpace=NDET
+                WRITE(6,*) "Size of space is: ", SizeOfSpace
+
+                ALLOCATE(PopsVec(SizeofSpace),stat=ierr)
+                CALL LogMemAlloc('PopsVec',SizeofSpace,8,this_routine,PopsVecTag)
+                CALL AZZERO(PopsVec,SizeofSpace)
+                ALLOCATE(TransMat(SizeofSpace,SizeofSpace),stat=ierr)
+                CALL LogMemAlloc('TransMat',SizeofSpace**2,8,this_routine,TransMatTag)
+                CALL AZZERO(TransMat,SizeofSpace**2)
+
+                IF(DetLT(NMRKS(:,1),FDet,NEl).ne.0) THEN
+                    WRITE(6,*) "Problem with NMRKS"
+                    STOP "Problem with NMRKS"
+                ENDIF
+                
+                do j=1,SizeOfSpace
+                    rh=GetHElement2(FDet,NMRKS(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
+                    WRITE(67,"(F10.5,$)") rh%v
+                enddo
+                WRITE(67,*) ""
+                WRITE(67,*) ""
+
+            ENDIF
+
         ENDIF
 
 !TotWalkers contains the number of current walkers at each step
         TotWalkers=InitWalkers
         TotWalkersOld=InitWalkers
 
+        CALL IAZZERO(CullInfo,30)
+        NoCulls=0
+
+
         RETURN
 
     END SUBROUTINE InitFCIMCCalc
+
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
     INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i
         LOGICAL :: WSign
         REAL*8 :: Prob,Ran2,rat
         TYPE(HElement) :: rh
 
 !Calculate off diagonal hamiltonian matrix element between determinants
-        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+        IF(TNoBirth) THEN
+            rh=HElement(0.D0)
+        ELSE
+            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+        ENDIF
+
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
         rat=Tau*abs(rh%v)/Prob
         IF(rat.gt.1.D0) THEN
@@ -828,6 +1071,33 @@ MODULE FciMCMod
                 ELSE
                     AttemptCreate=-1     !-ve walker created
                 ENDIF
+            ENDIF
+
+            IF(TDetPops) THEN
+
+                StoreNumTo=0
+                StoreNumFrom=0
+                do i=1,SizeOfSpace
+                    IF((DetLT(nJ,NMRKS(:,i),NEl).eq.0).and.(StoreNumTo.eq.0)) THEN
+!Found position of determinant
+                        StoreNumTo=i
+                    ENDIF
+                    IF((DetLT(DetCurr,NMRKS(:,i),NEl).eq.0).and.(StoreNumFrom.eq.0)) THEN
+                        StoreNumFrom=i
+                    ENDIF
+                    IF((StoreNumTo.ne.0).and.(StoreNumFrom.ne.0)) EXIT
+                enddo
+
+                IF(AttemptCreate.eq.-1) THEN
+!If creating a negative particle, reduce the connection
+                    TransMat(StoreNumFrom,StoreNumTo)=TransMat(StoreNumFrom,StoreNumTo)-0.00001
+                    TransMat(StoreNumTo,StoreNumFrom)=TransMat(StoreNumTo,StoreNumFrom)-0.00001
+                ELSE
+!If creating a positive particle, increase connection
+                    TransMat(StoreNumFrom,StoreNumTo)=TransMat(StoreNumFrom,StoreNumTo)+0.00001
+                    TransMat(StoreNumTo,StoreNumFrom)=TransMat(StoreNumTo,StoreNumFrom)+0.00001
+                ENDIF
+
             ENDIF
 
         ELSE
@@ -872,6 +1142,7 @@ MODULE FciMCMod
         ELSE
 !Particle survives to fight another day...
             AttemptDie=.false.
+
         ENDIF
 
         RETURN
@@ -900,4 +1171,15 @@ INTEGER FUNCTION DetLT(DetA,DetB,NEl)
 
 END FUNCTION DetLT
 
+!A function to get the factorial of the number Num
+INTEGER*8 FUNCTION Fact(Num)
+    IMPLICIT NONE
+    INTEGER :: Num,i
 
+    Fact=Num
+    do i=Num-1,2,-1
+        Fact=Fact*i
+    enddo
+    RETURN
+
+END FUNCTION Fact

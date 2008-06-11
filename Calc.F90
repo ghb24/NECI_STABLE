@@ -19,7 +19,7 @@ MODULE Calc
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
-        LOGICAL TStartMP1
+        LOGICAL TStartMP1,TNoBirth
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -70,8 +70,9 @@ MODULE Calc
 
 
 !       Calc defaults 
-          GrowMaxFactor=500
-          CullFactor=200
+          TNoBirth=.false.
+          GrowMaxFactor=9000
+          CullFactor=5
           TStartMP1=.false.
           TFCIMC=.false.
           TMCDets=.false.
@@ -616,6 +617,9 @@ MODULE Calc
               case("CULLFACTOR")
 !For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
                   call getf(CullFactor)
+              case("NOBIRTH")
+!For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
+                  TNoBirth=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
