@@ -20,7 +20,7 @@ Type ParticleData
    integer                 iParent     !The index of the parent node
    integer                 iBefore     !The child node from this which is less than it 
    integer                 iAfter      !The child node from this which is greater than it
-   integer                 iProgeny    !  Set to the number of children we have spawned
+   integer                 iProgeny    !  Set to the number of children we have spawned at this particle
 End Type
 integer, parameter :: ParticleDataSize=HDElementSize+6
 integer, parameter :: ParticleDataSizeB=ParticleDataSize*8
@@ -39,7 +39,7 @@ Type ParticleList
    integer iNextFreeParticle                    !The next position to be allocated
    integer nSubParticles                        !Sum of the number of subparticles at each node
    integer nEl                                  !Number of electrons in a det - used to allocate ParticleDets
-   integer, allocatable :: ParticleDets(:,:)    !The Determinant corresponding to each node
+   integer, allocatable :: ParticleDets(:,:)    !The Determinant corresponding to each node ! (nel, nMaxParticles)
    integer tagParticleDets
    Type(ParticleData), allocatable :: ParticleData(:)      !All other info for each particle
    integer tagParticleData
@@ -178,15 +178,15 @@ subroutine ClearParticleList(PL)
    PL%ParticleDets(:,:)=0
 end subroutine ClearParticleList
 
-!Get the next particle.  We traverse the tree as follows.  
+!Get the next particle with non-zero weight.  We traverse the tree as follows.  
 !  Start at HEAD node
 !    The next node after CURRENT is
-!     iBefore (if non-zero)
-!     iAfter (if non-zero)
+!     iBefore (if its weight is non-zero)
+!     iAfter (if its weight is non-zero)
 !     Recursing up the tree, the first non-zero iAfter, otherwise 0
 
 !The Int version does not do a copy to P
-
+!  If there are no more particles, it returns iParticle=0
 subroutine GetNextParticleInt(PL,iParticle)
    implicit none
    Type(ParticleList) PL
@@ -214,6 +214,8 @@ subroutine GetNextParticleInt(PL,iParticle)
       endif
    endif
 end subroutine GetNextParticleInt
+! GetnextParticle Gets the particle after iParticle.  If iParticle=0, it returns the head node.
+!  It puts the Particle info into P.  If there are no more particles, it returns iParticle=0
 subroutine GetNextParticle(PL,iParticle,P)
    implicit none
    Type(ParticleList) PL
@@ -325,6 +327,7 @@ subroutine AddParticleNode(PL,iParticle)
    endif   
 end subroutine AddParticleNode
 
+!returns iNode as the node nI is in if already there (and Action=0).  Otherwise Action=-1 for needing a new node before the returned iNode, or +1 for after.
 subroutine FindParticleNode(PL,nI,iNode,iAction)
    implicit none
    Type(ParticleList) PL
@@ -410,7 +413,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
    integer iParticle
 
    
-   Type(ParticleList) PL(2)
+   Type(ParticleList) PL(2)      ! 2 particle lists - one for past cycle and one created this cycle
    Type(Particle) P
    
    integer iPL,nPL
@@ -423,20 +426,21 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
    integer iOldCount
    integer iStep
    integer iCount
-   logical tLogExGens
-   integer iNode,iAction,ICMin,ICMax
-   real*8 dInitShift,ICMean
-   Type(HDElement) ECumlTot,ECumlTotSq
-   integer nECumls,iGetExcitLevel
+   logical tLogExGens            !Turn on memory logging for excitation generators?
+   integer iNode,iAction         !Internal loop variables documented later
+   integer ICMin,ICMax           ! Min and Max excitation level we encounter in a step
+   real*8 dInitShift
+   real*8 ICMean                 !Mean excit level 
+   Type(HDElement) ECumlTot,ECumlTotSq ! Used to give stats on the energy fluctuation
+   integer nECumls               ! "
+   integer iGetExcitLevel
    tLogExGens=.false.
 !   dTau=1e-2
 !   dMu=1e-1
 !   nMaxParticles=1000
 !   nInitParticles=1000
 !   iStep=10
-! We switch the current particle list between 1 and 2
-   iPL=1
-   nPL=2
+   
    ECumlTot=0.d0
    nECumls=0
    call writeDet(6,nI,nEl,.true.)
@@ -459,9 +463,13 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 !Now setup the generator (Store contains some necessary info)
    call GenSymExcitIt3(nI,.true.,ExGen,nJ,iC,0,Store,3)
 
+! We switch the current particle list between 1 and 2  iPL is current.  nPL is the one we're creating
+   iPL=1
+   nPL=2
+!  Allocate particle lists in PL
    call AllocParticleList(PL(1),nMaxParticles,nEl)
    call AllocParticleList(PL(2),nMaxParticles,nEl)
-!Setup single particle with weight 100 at the HF det
+!Setup single particle with weight nInitParticles at the HF det
    call AddParticle(PL(iPL),nI,nInitParticles,+1,EHF,exGen,tagExGen,iPreExisted)
 
    write(6,*) "nCycles:",nCycles
@@ -469,12 +477,12 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 
    do iCycle=1,nCycles
       call ClearParticleList(PL(nPL))
-      iParticle=0
+      iParticle=0 !Just get the head node first and its info in P
       call GetNextParticle(PL(iPL),iParticle,P)
       ICMean=0.D0
       ICMin=10
       ICMax=0
-      do while (iParticle.gt.0)
+      do while (iParticle.gt.0)  !i.e. while we're at a valid particle
 ! Each Particle has iWeight of subparticles at the same det
          write(56,'(I,$)')  P%d%iWeight
 
@@ -499,16 +507,18 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
                inewWeight=iNewWeight+1
             endif
             if(iNewWeight.gt.0) then
+!Copies accross to the nPL list (if actually creating more weight at particle)
                call AddParticle(PL(nPL),P%nI,iNewWeight,+P%d%iSgn,P%d%hHii,P%d%exGen,P%d%tagExGen,iPreExisted)
+!Number of subparticles of this particle which have are present at end of creation/death process
                iNewCount=iNewCount+iNewWeight
             endif
          enddo !iSubPart
-!Save the number of children we've spawned
+!Save the number of children we've spawned at this det
          PL(iPL)%ParticleData(iParticle)%iProgeny=iNewCount
          call GetNextParticle(PL(iPL),iParticle,P)
       enddo !iParticle
       ICMean=ICMean/(Pl(NPl)%NSubparticles)
-      write(56,*)
+!      write(56,*)
 ! Secondly we might create positive or negative particle at an excitation
       iParticle=0
       call GetNextParticle(PL(iPL),iParticle,P)
@@ -532,7 +542,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 ! This a new particle is createdif r > a random num
             if(r.gt.1) write(6,*) "Warning: Child creation probabililty>1"
             if(r.gt.rnum) then
-!  See if this particle's already in the list
+!  See if this particle's already in the list.  iNode is the node it's in in PL(nPL) if it exists, or a new clean node ready to receive it.  iAction is set if 
                call FindParticleNode(PL(nPL),nJ,iNode,iAction)
                if(iAction.ne.0) then
 !  If it doesn't already exist,
@@ -557,6 +567,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
                endif
 !  Add it to the new list
                iSgn=-isign(1,DREAL(hHij))*P%d%iSgn
+!  Adds on the weight if iAction=0 or creates a new node w.r.t iNode and iAction if iAction +-1
                call AddParticleInt(PL(nPL),nJ,1,iSgn,hHjj,ExGen,tagExGen,iNode,iAction)
             endif
          enddo !iSubPart
@@ -587,7 +598,6 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
          write(6,*) "All particles have died."
          return
       endif
-! Switch to the other particle list
       if(mod(iCycle,iStep).eq.0) then
          EShift=EShift+HDElement(dMu*log((iOldCount+0.d0)/PL(nPL)%nSubParticles)/(dTau*iStep))
          iOldCount=PL(nPL)%nSubParticles
@@ -599,6 +609,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
             nECumls=nECumls+1
          endif
       endif
+! Switch to the other particle list
       nPL=iPL
       iPL=3-iPL
    end do !iCycle
