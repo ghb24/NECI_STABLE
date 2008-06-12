@@ -47,9 +47,9 @@ where the name of the configuration is:
    FUJITSU-VPP-MPI            FUJITSU-VPP-JPN
    FUJITSU-VPP-MPJP           PC-ABSOFT
    PC-PGI                     PC-PGI-MPI
-   PC-PGI64-MPI               ix86-g95/32
-   ix86-gfortran/64           ix86-gfortran/32
-   PC-ifort64
+   PC-PGI64-MPI               PC-PGI64-MPI-UCL 
+   ix86-g95/32                ix86-gfortran/64
+   ix86-gfortran/32           PC-ifort64
 Use Configure in the directory where the SOURCE FILES are.
 Ex: Configure SUN > Makefile
 See the description of options with Configure -help
@@ -896,6 +896,37 @@ case ${Configuration}
        FCD='mpif90 -c -g'
        CCD='gcc -g -sb -C -errtags'
        LDD='mpif90 -g'
+     fi
+     LDLIB='ld'
+     LDLIBFLAGS=''
+     ;;
+
+  "PC-PGI64-MPI-UCL")
+     compiler='PGI-pgf95-on-LINUX'
+     IRAT=2
+     CFLAGS='-D__PGI'
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DPARALLEL"
+     NCPUS=2
+     #-sb is to use Workshop package
+     FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
+     LFLAGS='-L ~/ma/lib/fftw-3.1.2/lib -lfftw3 -lacml -L/opt/vltmpi/OPENIB/mpi.pgcc.rsh/lib/shared/lib -lmpichf90 -lmpich -Wl,--unresolved-symbols=ignore-in-shared-libs'
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     F90FLAGS='-Mfree '
+     if [ $debug ]; then
+       FC='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -c -g '
+       CC='gcc -g -sb -C -errtags'
+       LD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -g'
+       FCD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -c -g '
+       CCD='gcc -g -sb -C -errtags'
+       LDD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -g'
+     else
+       FC='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -c -fast -O4'
+       CC='gcc -O2 -Wall -m64'
+       LD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -O4'
+       FCD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -c -g'
+       CCD='gcc -g -sb -C -errtags'
+       LDD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -g'
      fi
      LDLIB='ld'
      LDLIBFLAGS=''
