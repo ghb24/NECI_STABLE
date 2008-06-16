@@ -282,6 +282,8 @@ MODULE FciMCMod
         INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount,NoDie
         REAL*8 :: Prob,rat,Kik
         INTEGER , ALLOCATABLE :: nExcit(:)
+        LOGICAL :: TDiffused        !Indicates whether a particle has diffused or not
+        LOGICAL :: TDie             !Indicated whether a particle should self-destruct on DetCurr
         CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
         
         CALL TISET('MCyc',iSubCyc)
@@ -295,6 +297,7 @@ MODULE FciMCMod
             do k=1,NEl
                 DetCurr(k)=WalkVecDets(k,j)
             enddo
+            TDiffused=.false.
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             iMaxExcit=0
@@ -361,39 +364,47 @@ MODULE FciMCMod
 
             ENDIF
 
-!We now have to decide whether the parent particle (j) wants to self-destruct or not...
-            IF(.NOT.AttemptDie(DetCurr,Kik)) THEN
-!This indicates that the particle is spared...copy him across to WalkVec2
-!NoDie actually counts number of particles spared - later it is transformed into the number that actually die
-                NoDie=NoDie+1
-                IF(TDiffuse) THEN
-!Attempt to diffuse the walker to another random connected excitation - first, pick an excitation...
-                    CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
-                    IF(AttemptDiffuse(DetCurr,nJ,Prob,IC)) THEN
+            IF(TDiffuse) THEN
+!Next look at possibility of diffusion to another determinant
+                CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
+                IF(AttemptDiffuse(DetCurr,nJ,Prob,IC)) THEN
 !Walker wants to diffuse to nJ from DetCurr, and keep the same sign - copy across nJ, rather than the original walker
-                        do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=nJ(k)
-                        enddo
-                        WalkVec2Sign(VecSlot)=WalkVecSign(j)
-                        VecSlot=VecSlot+1
-                    ELSE
-!Walker does not want to diffuse anywhere, and stays where it is - copy across original walker
-                        do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=DetCurr(k)
-                        enddo
-                        WalkVec2Sign(VecSlot)=WalkVecSign(j)
-                        VecSlot=VecSlot+1
-                    ENDIF
-                ELSE
-!We are not attempting to diffuse anywhere - just copy across the walker
                     do k=1,NEl
-                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                        WalkVec2Dets(k,VecSlot)=nJ(k)
                     enddo
                     WalkVec2Sign(VecSlot)=WalkVecSign(j)
                     VecSlot=VecSlot+1
+                    TDiffused=.true.
+                    NoDie=NoDie+1
                 ENDIF
             ENDIF
-            
+
+!We now have to decide whether the parent particle (j) wants to self-destruct or not...
+            TDie=AttemptDie(DetCurr,Kik)
+            IF((.NOT.TDie).AND.(.NOT.TDiffused)) THEN
+!This indicates that the particle is spared and we are not diffusing...copy him across to WalkVec2
+!NoDie actually counts number of particles spared - later it is transformed into the number that actually die
+                NoDie=NoDie+1
+                do k=1,NEl
+                    WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                enddo
+                WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                VecSlot=VecSlot+1
+            ELSEIF(TDie.AND.TDiffused) THEN
+!This means that the particle is destroyed, but the actual particle has already diffused to a different determinant (nJ).
+!We need to destroy on the original determinant by creating an opposing signed particle on the original determinant.
+                do k=1,NEl
+                    WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                enddo
+                IF(WalkVecSign(j)) THEN
+                    WalkVec2Sign(VecSlot)=.FALSE.
+                ELSE
+                    WalkVec2Sign(VecSlot)=.TRUE.
+                ENDIF
+                VecSlot=VecSlot+1
+!Since we have already indicated that the particle is spared since it is copied accross, just in a different determinant, we have to subtract to ge the correct number of particles spared.
+                NoDie=NoDie-1
+            ENDIF
 
 !Destroy excitation generators for current walker
             DEALLOCATE(nExcit)
