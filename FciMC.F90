@@ -11,7 +11,7 @@ MODULE FciMCMod
     USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
-    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth
+    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -71,8 +71,17 @@ MODULE FciMCMod
         endif
         CALL TISET('FCIMC',iSub)
 
+        IF(TDiffuse) THEN
+            IF((.NOT.TMCExcitSpace).or.(NoMCExcits.ne.1)) THEN
+                CALL STOPGM("FCIMC","Diffusion can only work with one MCExcitSpace")
+            ENDIF
+            IF((Lambda.ge.1.D0).or.(Lambda.lt.0.D0)) THEN
+                CALL STOPGM("FCIMC","Diffusion coefficient must be between zero and one")
+            ENDIF
+        ENDIF
+
         IF(HElementSize.gt.1) THEN
-            CALL STOPGM("StarDiagMC","StarDiagMC cannot function with complex orbitals.")
+            CALL STOPGM("FCIMC","StarDiagMC cannot function with complex orbitals.")
         ENDIF
 
         WRITE(6,*) ""
@@ -271,7 +280,7 @@ MODULE FciMCMod
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,DetCurr(NEl),iMaxExcit,nExcitMemLen,nStore(6)
         INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount,NoDie
-        REAL*8 :: Prob,rat
+        REAL*8 :: Prob,rat,Kik
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
         
@@ -303,7 +312,8 @@ MODULE FciMCMod
 
                     CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
 
-                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,IC)
+                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,IC,Kik)
+!Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
                     IF(Child.eq.1) THEN
 !We have successfully created a positive child at nJ
                         do k=1,NEl
@@ -329,7 +339,8 @@ MODULE FciMCMod
                     CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
                     IF(nJ(1).eq.0) EXIT
 
-                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,1.D0,IC)
+                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,1.D0,IC,Kik)
+!Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
                     IF(Child.eq.1) THEN
 !We have successfully created a positive child at nJ
                         do k=1,NEl
@@ -351,14 +362,36 @@ MODULE FciMCMod
             ENDIF
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-            IF(.NOT.AttemptDie(DetCurr)) THEN
+            IF(.NOT.AttemptDie(DetCurr,Kik)) THEN
 !This indicates that the particle is spared...copy him across to WalkVec2
+!NoDie actually counts number of particles spared - later it is transformed into the number that actually die
                 NoDie=NoDie+1
-                do k=1,NEl
-                    WalkVec2Dets(k,VecSlot)=DetCurr(k)
-                enddo
-                WalkVec2Sign(VecSlot)=WalkVecSign(j)
-                VecSlot=VecSlot+1
+                IF(TDiffuse) THEN
+!Attempt to diffuse the walker to another random connected excitation - first, pick an excitation...
+                    CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
+                    IF(AttemptDiffuse(DetCurr,nJ,Prob,IC)) THEN
+!Walker wants to diffuse to nJ from DetCurr, and keep the same sign - copy across nJ, rather than the original walker
+                        do k=1,NEl
+                            WalkVec2Dets(k,VecSlot)=nJ(k)
+                        enddo
+                        WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                        VecSlot=VecSlot+1
+                    ELSE
+!Walker does not want to diffuse anywhere, and stays where it is - copy across original walker
+                        do k=1,NEl
+                            WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                        enddo
+                        WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                        VecSlot=VecSlot+1
+                    ENDIF
+                ELSE
+!We are not attempting to diffuse anywhere - just copy across the walker
+                    do k=1,NEl
+                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                    enddo
+                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                    VecSlot=VecSlot+1
+                ENDIF
             ENDIF
             
 
@@ -1028,14 +1061,39 @@ MODULE FciMCMod
 
     END SUBROUTINE InitFCIMCCalc
 
+!This function tells us whether we want to diffuse from DetCurr to nJ
+    LOGICAL FUNCTION AttemptDiffuse(DetCurr,nJ,Prob,IC)
+        IMPLICIT NONE
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,i
+        REAL*8 Prob,Ran2,rat
+        TYPE(HElement) :: rh
+
+!Calculate off-diagonal hamiltonian matrix element between determinants
+        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+        
+!rat is the probability of diffusing to nJ
+        rat=Tau*Lambda*abs(rh%v)/Prob
+
+        IF(rat.gt.1.D0) CALL STOPGM("AttemptDiffuse","*** Probability > 1 to diffuse.")
+
+        IF(rat.gt.Ran2(Seed)) THEN
+            AttemptDiffuse=.true.
+        ELSE
+            AttemptDiffuse=.false.
+        ENDIF
+
+        RETURN
+
+    END FUNCTION AttemptDiffuse
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
-    INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC)
+!Kik returns the probability of creating the child without any diffusion term.
+    INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC,Kik)
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i
         LOGICAL :: WSign
-        REAL*8 :: Prob,Ran2,rat
+        REAL*8 :: Prob,Ran2,rat,Kik
         TYPE(HElement) :: rh
 
 !Calculate off diagonal hamiltonian matrix element between determinants
@@ -1046,12 +1104,15 @@ MODULE FciMCMod
         ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        rat=Tau*abs(rh%v)/Prob
+        Kik=Tau*abs(rh%v)/Prob
+
+        IF(TDiffuse) THEN
+            rat=(1.D0-Lambda)*Kik
+        ELSE
+            rat=Kik
+        ENDIF
         IF(rat.gt.1.D0) THEN
-            WRITE(6,*) "*** Probability > 1 to create child. *** Reducing tau."
-            Tau=Prob/abs(rh%v)
-            WRITE(6,*) "*** New Tau is ", Tau
-            rat=1.D0
+            CALL STOPGM("AttemptCreate","*** Probability > 1 to create child.")
         ENDIF
 !Stochastically choose whether to create or not according to Ran2
         IF(rat.gt.Ran2(Seed)) THEN
@@ -1110,11 +1171,12 @@ MODULE FciMCMod
     END FUNCTION AttemptCreate
 
 !This function tells us whether we should kill the particle at determinant DetCurr
-    LOGICAL FUNCTION AttemptDie(DetCurr)
+!If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
+    LOGICAL FUNCTION AttemptDie(DetCurr,Kik)
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),DetLT
         TYPE(HElement) :: rh
-        REAL*8 :: Ran2,rat
+        REAL*8 :: Ran2,rat,Kik
 
 !Test if determinant is FDet - in a strongly single-configuration problem, this will save time
         IF(DetLT(DetCurr,FDet,NEl).eq.0) THEN
@@ -1126,13 +1188,16 @@ MODULE FciMCMod
             rh=rh-Hii
         ENDIF
 
+        IF(TDiffuse) THEN
+!If also diffusing, then the probability of dying must be reduced, since the probability of annihilation has been increased by it.
+            rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)
+        ELSE
 !Subtract the current value of the shift and multiply by tau
-        rat=Tau*((rh%v)-DiagSft)
+            rat=Tau*((rh%v)-DiagSft)
+        ENDIF
         IF(rat.gt.1.D0) THEN
 !If probs of dying is greater than one, reduce tau
-            WRITE(6,*) "*** Death probability > 1. *** Tau to large - reducing tau"
-            Tau=1.D0/((rh%v)-DiagSft)
-            WRITE(6,*) "***Tau reduced to ", Tau
+            CALL STOPGM("AttemptDie","*** Death probability > 1. *** Tau too large")
         ENDIF
 
 !Stochastically choose whether to die or not

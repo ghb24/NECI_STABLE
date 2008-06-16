@@ -19,7 +19,7 @@ MODULE Calc
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
-        LOGICAL TStartMP1,TNoBirth
+        LOGICAL TStartMP1,TNoBirth,TDiffuse
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -32,7 +32,7 @@ MODULE Calc
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
         REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau,SftDamp,ScaleWalkers
-        REAL*8 GrowMaxFactor,CullFactor
+        REAL*8 GrowMaxFactor,CullFactor,Lambda
 
 
 
@@ -70,6 +70,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          Lambda=0.D0
+          TDiffuse=.false.
           TNoBirth=.false.
           GrowMaxFactor=9000
           CullFactor=5
@@ -620,6 +622,10 @@ MODULE Calc
               case("NOBIRTH")
 !For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
                   TNoBirth=.true.
+              case("MCDIFFUSE")
+                  TDiffuse=.true.
+!Lambda indicates the amount of diffusion compared to spawning in the FCIMC algorithm.
+                  call getf(Lambda)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
