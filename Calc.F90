@@ -19,13 +19,13 @@ MODULE Calc
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
-        LOGICAL TStartMP1,TNoBirth,TDiffuse
+        LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
-        INTEGER InitWalkers,NMCyc,StepsSft
+        INTEGER InitWalkers,NMCyc,StepsSft,FlipTauCyc
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
@@ -70,6 +70,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TFlipTau=.false.
+          FlipTauCyc=73     !A prime
           Lambda=0.D0
           TDiffuse=.false.
           TNoBirth=.false.
@@ -626,6 +628,10 @@ MODULE Calc
                   TDiffuse=.true.
 !Lambda indicates the amount of diffusion compared to spawning in the FCIMC algorithm.
                   call getf(Lambda)
+              case("FLIPTAU")
+!This indicates that time is to be reversed every FlipTauCyc cycles in the FCIMC algorithm. This might help with undersampling problems.
+                  TFlipTau=.true.
+                  call geti(FlipTauCyc)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

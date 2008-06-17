@@ -11,7 +11,7 @@ MODULE FciMCMod
     USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
-    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse
+    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -111,6 +111,9 @@ MODULE FciMCMod
         ENDIF
 
         WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+        IF(TFlipTau) THEN
+            WRITE(6,*) "Flipping the sign of Tau once every :", FlipTauCyc
+        ENDIF
 
 !Initialise random number seed
         Seed=G_VMC_Seed
@@ -118,11 +121,11 @@ MODULE FciMCMod
 !Calculate Hii
         Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 
-        IF(DiagSft.gt.0.D0) THEN
-            CALL StopGM("StarDiagMC","Intial value of DiagSft should be negative.")
-        ELSE
+!        IF(DiagSft.gt.0.D0) THEN
+!            CALL StopGM("StarDiagMC","Intial value of DiagSft should be negative.")
+!        ELSE
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
-        ENDIF
+!        ENDIF
 
         CALL InitFCIMCCalc()
 
@@ -151,6 +154,11 @@ MODULE FciMCMod
 
 !            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
 !            CALL FLUSH(6)
+
+            IF(TFlipTau) THEN
+!If we are flipping the sign of tau every FlipTauCyc cycles
+                IF(mod(Iter,FlipTauCyc).eq.0) Tau=Tau*(-1.D0)
+            ENDIF
 
             IF(mod(Iter,StepsSft).eq.0) THEN
 
@@ -279,18 +287,19 @@ MODULE FciMCMod
     SUBROUTINE PerformFCIMCyc()
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,DetCurr(NEl),iMaxExcit,nExcitMemLen,nStore(6)
-        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount,NoDie
+        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount!,NoDie
         REAL*8 :: Prob,rat,Kik
         INTEGER , ALLOCATABLE :: nExcit(:)
         LOGICAL :: TDiffused        !Indicates whether a particle has diffused or not
-        LOGICAL :: TDie             !Indicated whether a particle should self-destruct on DetCurr
+        INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
+        LOGICAL :: WSign
         CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
         
         CALL TISET('MCyc',iSubCyc)
         
 !VecSlot indicates the next free position in WalkVec2
         VecSlot=1
-        NoDie=0
+!        NoDie=0
 
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -317,21 +326,20 @@ MODULE FciMCMod
 
                     Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,IC,Kik)
 !Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
-                    IF(Child.eq.1) THEN
-!We have successfully created a positive child at nJ
-                        do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=nJ(k)
-                        enddo
-                        WalkVec2Sign(VecSlot)=.true.
-                        VecSlot=VecSlot+1
-                    ELSEIF(Child.eq.-1) THEN
-!We have successfully created a negative child at nJ
-                        do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=nJ(k)
-                        enddo
-                        WalkVec2Sign(VecSlot)=.false.
-                        VecSlot=VecSlot+1
+                    IF(Child.gt.0) THEN
+!We have successfully created at least one positive child at nJ
+                        WSign=.true.
+                    ELSE
+!We have successfully created at least one negative child at nJ
+                        WSign=.false.
                     ENDIF
+                    do l=1,abs(Child)
+                        do k=1,NEl
+                            WalkVec2Dets(k,VecSlot)=nJ(k)
+                        enddo
+                        WalkVec2Sign(VecSlot)=WSign
+                        VecSlot=VecSlot+1
+                    enddo
 
                 enddo
 
@@ -344,21 +352,20 @@ MODULE FciMCMod
 
                     Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,1.D0,IC,Kik)
 !Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
-                    IF(Child.eq.1) THEN
-!We have successfully created a positive child at nJ
-                        do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=nJ(k)
-                        enddo
-                        WalkVec2Sign(VecSlot)=.true.
-                        VecSlot=VecSlot+1
-                    ELSEIF(Child.eq.-1) THEN
-!We have successfully created a negative child at nJ
-                        do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=nJ(k)
-                        enddo
-                        WalkVec2Sign(VecSlot)=.false.
-                        VecSlot=VecSlot+1
+                    IF(Child.gt.0) THEN
+!We have successfully created at least one positive child at nJ
+                        WSign=.true.
+                    ELSE
+!We have successfully created at least one negative child at nJ
+                        WSign=.false.
                     ENDIF
+                    do l=1,abs(Child)
+                        do k=1,NEl
+                            WalkVec2Dets(k,VecSlot)=nJ(k)
+                        enddo
+                        WalkVec2Sign(VecSlot)=WSign
+                        VecSlot=VecSlot+1
+                    enddo
 
                 enddo
 
@@ -375,35 +382,69 @@ MODULE FciMCMod
                     WalkVec2Sign(VecSlot)=WalkVecSign(j)
                     VecSlot=VecSlot+1
                     TDiffused=.true.
-                    NoDie=NoDie+1
+!                    NoDie=NoDie+1
                 ENDIF
             ENDIF
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-            TDie=AttemptDie(DetCurr,Kik)
-            IF((.NOT.TDie).AND.(.NOT.TDiffused)) THEN
+            iDie=AttemptDie(DetCurr,Kik)
+!iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
+            IF((iDie.le.0).AND.(.NOT.TDiffused)) THEN
 !This indicates that the particle is spared and we are not diffusing...copy him across to WalkVec2
+!If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
 !NoDie actually counts number of particles spared - later it is transformed into the number that actually die
-                NoDie=NoDie+1
-                do k=1,NEl
-                    WalkVec2Dets(k,VecSlot)=DetCurr(k)
+!                NoDie=NoDie+1+abs(iDie)
+                do l=1,(abs(iDie)+1)
+                    do k=1,NEl
+                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                    enddo
+                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                    VecSlot=VecSlot+1
                 enddo
-                WalkVec2Sign(VecSlot)=WalkVecSign(j)
-                VecSlot=VecSlot+1
-            ELSEIF(TDie.AND.TDiffused) THEN
-!This means that the particle is destroyed, but the actual particle has already diffused to a different determinant (nJ).
+            ELSEIF((iDie.gt.1).AND.(.NOT.TDiffused)) THEN
+!This indicates that particles on DetCurr want to be killed. The first kill will simply be performed by not copying accross the original particle.
+!Therefore, if iDie = 1, then we can simply ignore it.
+!However, after that anti-particles will need to be created on the same determinant.
+!                NoDie=NoDie-(iDie-1)
+                do l=1,(iDie-1)
+                    do k=1,NEl
+                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                    enddo
+                    IF(WalkVecSign(j)) THEN
+!Copy accross new anti-particles
+                        WalkVec2Sign(VecSlot)=.FALSE.
+                    ELSE
+                        WalkVec2Sign(VecSlot)=.TRUE.
+                    ENDIF
+                    VecSlot=VecSlot+1
+                enddo
+            ELSEIF((iDie.gt.0).AND.TDiffused) THEN
+!This means that the particle is destroyed, as well as possibly more, but the actual particle has already diffused to a different determinant (nJ).
 !We need to destroy on the original determinant by creating an opposing signed particle on the original determinant.
-                do k=1,NEl
-                    WalkVec2Dets(k,VecSlot)=DetCurr(k)
-                enddo
-                IF(WalkVecSign(j)) THEN
-                    WalkVec2Sign(VecSlot)=.FALSE.
-                ELSE
-                    WalkVec2Sign(VecSlot)=.TRUE.
-                ENDIF
-                VecSlot=VecSlot+1
+                do l=1,iDie
+                    do k=1,NEl
+                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                    enddo
+                    IF(WalkVecSign(j)) THEN
+                        WalkVec2Sign(VecSlot)=.FALSE.
+                    ELSE
+                        WalkVec2Sign(VecSlot)=.TRUE.
+                    ENDIF
+                    VecSlot=VecSlot+1
+                
 !Since we have already indicated that the particle is spared since it is copied accross, just in a different determinant, we have to subtract to ge the correct number of particles spared.
-                NoDie=NoDie-1
+!                    NoDie=NoDie-1
+                enddo
+            ELSEIF((iDie.lt.0).AND.TDiffused) THEN
+!Here, the particle is is recreated. However, the original particle has moved to a new determinant, and so additional particles need to be created on the original determinant, which are identical to the original.
+                do l=1,(abs(iDie))
+                    do k=1,NEl
+                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                    enddo
+                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                    VecSlot=VecSlot+1
+                enddo
+
             ENDIF
 
 !Destroy excitation generators for current walker
@@ -418,8 +459,8 @@ MODULE FciMCMod
 !Finish cycling over walkers
         enddo
 
-        NoDie=TotWalkers-NoDie
-        DieRat=(NoDie+0.D0)/(TotWalkers+0.D0)
+!        NoDie=TotWalkers-NoDie
+!        DieRat=(NoDie+0.D0)/(TotWalkers+0.D0)
                 
 !Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
         TotWalkersNew=VecSlot-1
@@ -589,11 +630,11 @@ MODULE FciMCMod
             CALL IAZZERO(CullInfo,30)
 
         ENDIF
-        DiagSft=DiagSft-(log(GrowRate))/(SftDamp*Tau*(StepsSft+0.D0))
-        IF((DiagSft).gt.0.D0) THEN
-            WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
-            STOP
-        ENDIF
+        DiagSft=DiagSft-(log(GrowRate))/(SftDamp*abs(Tau)*(StepsSft+0.D0))
+!        IF((DiagSft).gt.0.D0) THEN
+!            WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
+!            STOP
+!        ENDIF
 
     END SUBROUTINE UpdateDiagSft
 
@@ -1102,7 +1143,7 @@ MODULE FciMCMod
 !Kik returns the probability of creating the child without any diffusion term.
     INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC,Kik)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate
         LOGICAL :: WSign
         REAL*8 :: Prob,Ran2,rat,Kik
         TYPE(HElement) :: rh
@@ -1115,16 +1156,22 @@ MODULE FciMCMod
         ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        Kik=Tau*abs(rh%v)/Prob
+        Kik=abs(Tau)*abs(rh%v)/Prob
 
         IF(TDiffuse) THEN
             rat=(1.D0-Lambda)*Kik
         ELSE
             rat=Kik
         ENDIF
-        IF(rat.gt.1.D0) THEN
-            CALL STOPGM("AttemptCreate","*** Probability > 1 to create child.")
-        ENDIF
+!        IF(rat.lt.0.D0) THEN
+!            CALL STOPGM("AttemptCreate","*** Probability < 0 to create child.")
+!        ENDIF
+
+!If probability is > 1, then we can just create multiple children at the chosen determinant
+        ExtraCreate=INT(rat)
+        rat=rat-DREAL(ExtraCreate)
+
+
 !Stochastically choose whether to create or not according to Ran2
         IF(rat.gt.Ran2(Seed)) THEN
 !Child is created - what sign is it?
@@ -1145,36 +1192,69 @@ MODULE FciMCMod
                 ENDIF
             ENDIF
 
-            IF(TDetPops) THEN
-
-                StoreNumTo=0
-                StoreNumFrom=0
-                do i=1,SizeOfSpace
-                    IF((DetLT(nJ,NMRKS(:,i),NEl).eq.0).and.(StoreNumTo.eq.0)) THEN
-!Found position of determinant
-                        StoreNumTo=i
-                    ENDIF
-                    IF((DetLT(DetCurr,NMRKS(:,i),NEl).eq.0).and.(StoreNumFrom.eq.0)) THEN
-                        StoreNumFrom=i
-                    ENDIF
-                    IF((StoreNumTo.ne.0).and.(StoreNumFrom.ne.0)) EXIT
-                enddo
-
-                IF(AttemptCreate.eq.-1) THEN
-!If creating a negative particle, reduce the connection
-                    TransMat(StoreNumFrom,StoreNumTo)=TransMat(StoreNumFrom,StoreNumTo)-0.00001
-                    TransMat(StoreNumTo,StoreNumFrom)=TransMat(StoreNumTo,StoreNumFrom)-0.00001
-                ELSE
-!If creating a positive particle, increase connection
-                    TransMat(StoreNumFrom,StoreNumTo)=TransMat(StoreNumFrom,StoreNumTo)+0.00001
-                    TransMat(StoreNumTo,StoreNumFrom)=TransMat(StoreNumTo,StoreNumFrom)+0.00001
-                ENDIF
-
-            ENDIF
-
         ELSE
 !No child particle created
             AttemptCreate=0
+        ENDIF
+
+        IF(ExtraCreate.ne.0) THEN
+!Need to include the definitely create additional particles from a initial probability > 1
+
+            IF(AttemptCreate.lt.0) THEN
+!In this case particles are negative
+                AttemptCreate=AttemptCreate-ExtraCreate
+            ELSEIF(AttemptCreate.gt.0) THEN
+!Include extra positive particles
+                AttemptCreate=AttemptCreate+ExtraCreate
+            ELSEIF(AttemptCreate.eq.0) THEN
+!No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
+                IF(WSign) THEN
+                    IF(real(rh%v).gt.0.D0) THEN
+                        AttemptCreate=-1*ExtraCreate    !Additional particles are negative
+                    ELSE
+                        AttemptCreate=ExtraCreate       !Additional particles are positive
+                    ENDIF
+                ELSE
+                    IF(real(rh%v).gt.0.D0) THEN
+                        AttemptCreate=ExtraCreate
+                    ELSE
+                        AttemptCreate=-1*ExtraCreate
+                    ENDIF
+                ENDIF
+            ENDIF
+        ENDIF
+
+        IF(Tau.lt.0.D0) THEN
+!If tau is negative, we are going back in time, and so will actually create antiparticles - flip sign again...
+            AttemptCreate=-AttemptCreate
+        ENDIF
+
+        IF(TDetPops) THEN
+!Here, we want to record the details of every spawning connection
+
+            StoreNumTo=0
+            StoreNumFrom=0
+            do i=1,SizeOfSpace
+                IF((DetLT(nJ,NMRKS(:,i),NEl).eq.0).and.(StoreNumTo.eq.0)) THEN
+!Found position of determinant
+                    StoreNumTo=i
+                ENDIF
+                IF((DetLT(DetCurr,NMRKS(:,i),NEl).eq.0).and.(StoreNumFrom.eq.0)) THEN
+                    StoreNumFrom=i
+                ENDIF
+                IF((StoreNumTo.ne.0).and.(StoreNumFrom.ne.0)) EXIT
+            enddo
+
+            IF(AttemptCreate.lt.0) THEN
+!If creating a negative particle, reduce the connection
+                TransMat(StoreNumFrom,StoreNumTo)=TransMat(StoreNumFrom,StoreNumTo)-(AttemptCreate*0.00001)
+                TransMat(StoreNumTo,StoreNumFrom)=TransMat(StoreNumTo,StoreNumFrom)-(AttemptCreate*0.00001)
+            ELSE
+!If creating a positive particle, increase connection
+                TransMat(StoreNumFrom,StoreNumTo)=TransMat(StoreNumFrom,StoreNumTo)+(AttemptCreate*0.00001)
+                TransMat(StoreNumTo,StoreNumFrom)=TransMat(StoreNumTo,StoreNumFrom)+(AttemptCreate*0.00001)
+            ENDIF
+
         ENDIF
 
         RETURN
@@ -1183,9 +1263,11 @@ MODULE FciMCMod
 
 !This function tells us whether we should kill the particle at determinant DetCurr
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
-    LOGICAL FUNCTION AttemptDie(DetCurr,Kik)
+!The function allows multiple births(if +ve shift) or deaths from the same particle.
+!The returned number is the number of deaths if positive, and the number of births if negative.
+    INTEGER FUNCTION AttemptDie(DetCurr,Kik)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),DetLT
+        INTEGER :: DetCurr(NEl),DetLT,iKill
         TYPE(HElement) :: rh
         REAL*8 :: Ran2,rat,Kik
 
@@ -1206,20 +1288,26 @@ MODULE FciMCMod
 !Subtract the current value of the shift and multiply by tau
             rat=Tau*((rh%v)-DiagSft)
         ENDIF
-        IF(rat.gt.1.D0) THEN
+
+!        IF(rat.gt.1.D0) THEN
 !If probs of dying is greater than one, reduce tau
-            CALL STOPGM("AttemptDie","*** Death probability > 1. *** Tau too large")
-        ENDIF
+!            CALL STOPGM("AttemptDie","*** Death probability > 1. *** Tau too large")
+!        ENDIF
+
+        iKill=INT(rat)
+        rat=rat-DREAL(iKill)
 
 !Stochastically choose whether to die or not
-        IF(rat.gt.Ran2(Seed)) THEN
-!Kill particle
-            AttemptDie=.true.
-        ELSE
-!Particle survives to fight another day...
-            AttemptDie=.false.
-
+        IF(abs(rat).gt.Ran2(Seed)) THEN
+            IF(rat.ge.0.D0) THEN
+!Depends whether we are trying to kill or give birth to particles.
+                iKill=iKill+1
+            ELSE
+                iKill=iKill-1
+            ENDIF
         ENDIF
+
+        AttemptDie=iKill
 
         RETURN
 
