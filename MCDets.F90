@@ -5,7 +5,14 @@
 MODULE MCDets
    use HElem
    IMPLICIT NONE
+   logical,parameter    :: tLogExGens=.false.           !Turn on memory logging for excitation generators?  Best not to as slow
 
+!This holds an excitation generator and reference counting associated with it
+Type ExcitGen
+   integer, pointer     :: exData(:)       !Its excitation generator (allocation and deallocation managed by the calling routine)
+   integer                 tagExData    !A memory tag for its excitation generator
+   integer                 iRefCount   !A reference count for this excitation generator
+End Type ExcitGen
 ! Setup Particle and Particle list formalism
 
 ! Particle holds information about a given collection of subparticles all at the same det
@@ -15,11 +22,10 @@ Type ParticleData
    type(HDElement)         hHii        !Its diagonal Hamil element
    integer                 iWeight     !Its weight (the number of subparticles in it)
    integer                 iSgn        !Its sign
-   real*8, pointer     :: exGen(:)       !Its excitation generator (allocation and deallocation managed by the calling routine)
-   integer                 tagExGen    !A memory tag for its excitation generator
    integer                 iParent     !The index of the parent node
    integer                 iBefore     !The child node from this which is less than it 
    integer                 iAfter      !The child node from this which is greater than it
+   Type(ExcitGen),pointer::exGen       !A pointer to the excitation generator which manages its own existence with reference counting
    integer                 iProgeny    !  Set to the number of children we have spawned at this particle
 End Type
 integer, parameter :: ParticleDataSize=HDElementSize+6
@@ -97,7 +103,7 @@ subroutine DeallocParticleList(PL)
    Deallocate(PL%ParticleData)
 end subroutine DeallocParticleList
 
-subroutine AddParticle(PL,nI,iWeight,iSgn,hHii,ExGen,tagExGen,iPreExisted)
+subroutine AddParticle(PL,nI,iWeight,iSgn,hHii,exGen,iPreExisted)
 !Add a particle to this list
 ! First find a node to put it at
    implicit none
@@ -105,16 +111,15 @@ subroutine AddParticle(PL,nI,iWeight,iSgn,hHii,ExGen,tagExGen,iPreExisted)
    integer nI(PL%nEl)
    integer iWeight,iSgn
    Type(HDElement) hHii
-   real*8, pointer :: ExGen(:)
-   integer tagExGen
+   Type(ExcitGen), pointer :: ExGen
    integer iNode,iAction
    integer iPreExisted
    iPreExisted=0
    call FindParticleNode(PL,nI,iNode,iAction)
    if(iAction.eq.0) iPreExisted=1
-   call AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,tagExGen,iNode,iAction)
+   call AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,iNode,iAction)
 end subroutine AddParticle
-subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,tagExGen,iNode,iAction)
+subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,iNode,iAction)
 !Add a particle to this list
 ! First find a node to put it at
    implicit none
@@ -122,8 +127,7 @@ subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,tagExGen,iNode,iAction)
    integer nI(PL%nEl)
    integer iWeight,iSgn
    Type(HDElement) hHii
-   real*8, pointer :: ExGen(:)
-   integer tagExGen
+   Type(ExcitGen), pointer :: ExGen
    integer iNode,iAction
    if(iAction.eq.0) then
 ! This particle matches this node.  Just change its Weight
@@ -160,7 +164,7 @@ subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,tagExGen,iNode,iAction)
    PL%ParticleData(iNode)%iSgn=iSgn
    PL%ParticleData(iNode)%hHii=hHii
    PL%ParticleData(iNode)%ExGen=>ExGen
-   PL%ParticleData(iNode)%tagExGen=tagExGen
+   call AddReference(ExGen)
    PL%ParticleData(iNode)%iAfter=0
    PL%ParticleData(iNode)%iBefore=0
    PL%ParticleDets(:,iNode)=nI(:)
@@ -378,13 +382,64 @@ subroutine DumpParticleList(iunit,PL)
    do while (iParticle.ne.0)
       write(iUnit,"(I,$)") iParticle
       call WriteDet(iUnit,P%nI,PL%nEl,.false.)
-      write(iUnit,"(6I)") P%d%iWeight,P%d%iSgn,P%d%iParent, P%d%iBefore,P%d%iAfter,P%d%tagExGen
+      write(iUnit,"(7I)") P%d%iWeight,P%d%iSgn,P%d%iParent, P%d%iBefore,P%d%iAfter,P%d%ExGen%tagExData,P%d%ExGen%iRefCount
       call GetNextParticle(PL,iParticle,P)
    enddo
    Deallocate(P%nI)
 end subroutine DumpParticleList
    
+subroutine AllocateExGen(exGen,nI,nEl,this_routine)
+   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Type(ExcitGen), pointer :: exGen
+   integer nEl 
+   integer nI(nEl),nJ(nEl)
+   integer Store(6)  !Used for Excit gen
+   integer iLen,iC     
+   integer ierr
+   character(*) this_routine
+
+
+   Allocate(exGen)
+   exGen%iRefCount=0
+
+!.. Setup the spin excit generator
+   Store(1)=0
+   ! .true. for
+   ! 3 for both singles and doubles. (Brill theorem is taken into account if needed however)
+   call GenSymExcitIt3(nI,.true.,iLen,nJ,iC,0,Store,3)
+   ExGen%tagExData=0
+   Allocate(exGen%exData(iLen),STAT=ierr)
+   if(tLogExGens) LogAlloc(ierr,'exGen',iLen,8,exGen%tagExData)
+   ExGen%exData(1)=0
+!Now setup the generator (Store contains some necessary info)
+   call GenSymExcitIt3(nI,.true.,exGen%exData,nJ,iC,0,Store,3)
+   return
+end subroutine AllocateExGen
    
+subroutine DeallocateExGen(exGen,this_routine)
+   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Type(ExcitGen) exGen
+   integer ierr
+   character(*) this_routine
+   if(exGen%iRefCount.ne.0) then
+      stop 'Attempting to deallocate referenced excitation generator'
+   endif
+!   write(6,*) "Dealloc",ExGen%tagExData
+   if(tLogExGens) LogDealloc(ExGen%tagExData)
+   Deallocate(ExGen%ExData)
+end subroutine DeallocateExGen
+
+subroutine AddReference(exGen)
+   Type(ExcitGen) exGen
+   exGen%iRefCount=exGen%iRefCount+1
+end subroutine
+
+subroutine DelReference(exGen)
+   Type(ExcitGen) exGen
+   exGen%iRefCount=exGen%iRefCount-1
+end subroutine
+   
+
 
 subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iStep,dInitShift)
    Use HElem
@@ -396,10 +451,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
    integer nI(nEl)   !The root determinant
    integer iSeed     !Random number seed
    integer nCycles   !Number of cycles we should do
-   integer Store(6)  !Used for Excit gen
-   integer iLen      
-   real*8, pointer :: exGen(:)
-   integer tagExGen
+   Type(ExcitGen), pointer :: exGen
    integer nJ(nEl)   !Store generated determinants
    real*8  pGen      !Store generation prob of dets
    integer iC        ! The level of excitation returned
@@ -426,15 +478,13 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
    integer iOldCount
    integer iStep
    integer iCount
-   logical tLogExGens            !Turn on memory logging for excitation generators?
    integer iNode,iAction         !Internal loop variables documented later
    integer ICMin,ICMax           ! Min and Max excitation level we encounter in a step
    real*8 dInitShift
    real*8 ICMean                 !Mean excit level 
    Type(HDElement) ECumlTot,ECumlTotSq ! Used to give stats on the energy fluctuation
    integer nECumls               ! "
-   integer iGetExcitLevel
-   tLogExGens=.false.
+   integer iTot
 !   dTau=1e-2
 !   dMu=1e-1
 !   nMaxParticles=1000
@@ -451,17 +501,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
    EHF=GetHElement3(nI,nI,0)
    EShift=EHF+EShift
 
-!.. Setup the spin excit generator
-   Store(1)=0
-   ! .true. for
-   ! 3 for both singles and doubles. (Brill theorem is taken into account if needed however)
-   call GenSymExcitIt3(nI,.true.,iLen,nJ,iC,0,Store,3)
-   Allocate(exGen(iLen),STAT=ierr)
-   if(tLogExGens) LogAlloc(ierr,'exGen',iLen,8,tagExGen)
-   ExGen(1)=0
-
-!Now setup the generator (Store contains some necessary info)
-   call GenSymExcitIt3(nI,.true.,ExGen,nJ,iC,0,Store,3)
+   call AllocateExGen(exGen,nI,nEl,this_routine)
 
 ! We switch the current particle list between 1 and 2  iPL is current.  nPL is the one we're creating
    iPL=1
@@ -470,129 +510,19 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
    call AllocParticleList(PL(1),nMaxParticles,nEl)
    call AllocParticleList(PL(2),nMaxParticles,nEl)
 !Setup single particle with weight nInitParticles at the HF det
-   call AddParticle(PL(iPL),nI,nInitParticles,+1,EHF,exGen,tagExGen,iPreExisted)
+   call AddParticle(PL(iPL),nI,nInitParticles,+1,EHF,exGen,iPreExisted)
 
    write(6,*) "nCycles:",nCycles
    iOldCount=nInitParticles
 
    do iCycle=1,nCycles
       call ClearParticleList(PL(nPL))
-      iParticle=0 !Just get the head node first and its info in P
-      call GetNextParticle(PL(iPL),iParticle,P)
-      ICMean=0.D0
-      ICMin=10
-      ICMax=0
-      do while (iParticle.gt.0)  !i.e. while we're at a valid particle
-! Each Particle has iWeight of subparticles at the same det
-         write(56,'(I,$)')  P%d%iWeight
-
-         IC=iGetExcitLevel(Ni,P%Ni,NEl)
-         ICmean=ICmean+IC*(P%d%iWeight)
-         IF(IC.lt.ICMin) ICMin=IC
-         IF(IC.gt.ICMax) ICMax=IC
-         
-         iNewCount=0
-         do iSubPart=1,P%d%iWeight
-! With this current subparticle we do two processes.  Firstly we deplete the current particle according to 
-! Hii and tau
-            r=DREAL(P%d%hHii-EShift)*dTau !Prob of death
-            r=1-r ! Prob of survival
-            iNewWeight=floor(r)  ! Number of newly created definitely
-            r=r-iNewWeight
-!            if(r.lt.0) THEN write(6,*) "Warning: Self-destruction  probabililty <0"
-! This particle doesn't self-destruct if a random num is > r
-            rnum=ran2(iSeed)
-            if(r.gt.rnum) then
-!  Add it to the new list
-               inewWeight=iNewWeight+1
-            endif
-            if(iNewWeight.gt.0) then
-!Copies accross to the nPL list (if actually creating more weight at particle)
-               call AddParticle(PL(nPL),P%nI,iNewWeight,+P%d%iSgn,P%d%hHii,P%d%exGen,P%d%tagExGen,iPreExisted)
-!Number of subparticles of this particle which have are present at end of creation/death process
-               iNewCount=iNewCount+iNewWeight
-            endif
-         enddo !iSubPart
-!Save the number of children we've spawned at this det
-         PL(iPL)%ParticleData(iParticle)%iProgeny=iNewCount
-         call GetNextParticle(PL(iPL),iParticle,P)
-      enddo !iParticle
-      ICMean=ICMean/(Pl(NPl)%NSubparticles)
-!      write(56,*)
-! Secondly we might create positive or negative particle at an excitation
-      iParticle=0
-      call GetNextParticle(PL(iPL),iParticle,P)
-      do while (iParticle.gt.0)
-!         call WriteDet(6,P%nI,nEl,.false.)
-!         write(6,*) P%d%iProgeny
-         
-         do iSubPart=1,P%d%iWeight
-! generate a random excitation of the root
-            call GenRandSymExcitIt3(P%nI,P%d%ExGen,nJ,iSeed,iC,0,pGen,iCount)
-! The excitation is in nJ, and its gen prob in pGen.
-!  Just print out for now
-!            write(6,*)  pGen
-            hHij=GetHElement3(P%nI,nJ,iC)
-
-! see if we create a particle in it
-            
-            r=DREAL(abs(hHij))*dTau/pGen
-!            WRITE(6,*) r,hHij
-            rnum=ran2(iSeed)
-! This a new particle is createdif r > a random num
-            if(r.gt.1) write(6,*) "Warning: Child creation probabililty>1"
-            if(r.gt.rnum) then
-!  See if this particle's already in the list.  iNode is the node it's in in PL(nPL) if it exists, or a new clean node ready to receive it.  iAction is set if 
-               call FindParticleNode(PL(nPL),nJ,iNode,iAction)
-               if(iAction.ne.0) then
-!  If it doesn't already exist,
-!  Now we have to get info about this particle
-                  hHjj=GetHElement3(nJ,nJ,0)
-
-!.. Setup the spin excit generator
-                  Store(1)=0
-               ! .true. for
-               ! 3 for both singles and doubles. (Brill theorem is taken into account if needed however)
-                  call GenSymExcitIt3(nJ,.true.,iLen,nJ,iC,0,Store,3)
-!  We're using exGen as a temporary place to store our pointer allocations so no worry about 'reallocating' to a currently allocated pointer
-                  tagExGen=0
-                  Allocate(exGen(iLen),STAT=ierr)
-                  if(tLogExGens) LogAlloc(ierr,'exGen',iLen,8,tagExGen)
-                  ExGen(1)=0
-!Now setup the generator (Store contains some necessary info)
-                  call GenSymExcitIt3(nJ,.true.,ExGen,nJ,iC,0,Store,3)
-
-               else
-! Already exists, so we don't recalculate info
-               endif
-!  Add it to the new list
-               iSgn=-isign(1,DREAL(hHij))*P%d%iSgn
-!  Adds on the weight if iAction=0 or creates a new node w.r.t iNode and iAction if iAction +-1
-               call AddParticleInt(PL(nPL),nJ,1,iSgn,hHjj,ExGen,tagExGen,iNode,iAction)
-            endif
-         enddo !iSubPart
-! Just see if we need to keep our old excitation generator around, otherwise kill it
-         if(P%d%iProgeny.eq.0) then
-!            WRITE(6,*) "Progeny 0",iParticle
-            if(tLogExGens) LogDealloc(P%d%tagExGen)
-            Deallocate(P%d%ExGen)
-         endif
-         call GetNextParticle(PL(iPL),iParticle,P)
-      enddo !iParticle
+      call SpawnParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
+      call PropagateParticles(PL,iPL,nPL,dTau,EShift,ICmean,ICmin,ICMax,nI,nEl,iSeed,ExGen,P)
+      call CleanupParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
 !      write(6,*) "Cycle",iCycle
 !      call DumpParticleList(6,PL(nPL))
          
-! We need to go around removing dead nodes of the new tree without any particles
-!      iParticle=0
-!      call GetNextZeroParticle(PL(nPL),iParticle, P)
-!      do while (iParticle.gt.0)
-! deallocate the excitation generator memory for this particle
-!         LogDealloc(P%d%tagExGen)
-!         Deallocate(P%d%ExGen)
-!  now remove it from the list.  iParticle will now contain the next particle after this particle, or zero if there are none
-!         call DeleteParticle(PL(nPL),iParticle)
-!         if(iParticle.gt.0)  call GetNextZeroParticle(PL(nPL),iParticle, P)
-!      enddo !iParticle
 
       if(PL(nPL)%nSubParticles.eq.0) then
          write(6,*) "All particles have died."
@@ -602,7 +532,8 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
          EShift=EShift+HDElement(dMu*log((iOldCount+0.d0)/PL(nPL)%nSubParticles)/(dTau*iStep))
          iOldCount=PL(nPL)%nSubParticles
          WRITE(6,'(2I9,G20.12,F10.5,2I7)') iCycle, PL(nPL)%nSubParticles,EShift,ICMean,ICMin,ICMax
-         WRITE(76,*) iCycle, PL(nPL)%nSubParticles,EShift,ICMean,ICMin,ICMax
+         WRITE(76,"(2I,2G,2I)") iCycle, PL(nPL)%nSubParticles,DReal(EShift),ICMean,ICMin,ICMax
+         call flush(76)
          if(mod(iCycle,iStep*10).eq.0) then
             ECumlTot=ECumlTot+EShift
             ECumlTotSq=ECumlTotSq+EShift*EShift
@@ -620,12 +551,176 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
    iParticle=0
    call GetNextParticle(PL(iPL),iParticle,P)
    do while (iParticle.gt.0)
-      if(tLogExGens) LogDealloc(P%d%tagExGen)
-      Deallocate(P%d%ExGen)
+      call DeallocateExGen(P%d%ExGen,this_routine)
       call GetNextParticle(PL(iPL),iParticle,P)
    enddo
    call DeallocParticleList(PL(1))
    call DeallocParticleList(PL(2))
    call DeallocParticle(P)
 end subroutine MCDetsCalc
+
+subroutine PropagateParticles(PL,iPL,nPL,dTau,EShift,ICmean,ICmin,ICMax,nI,nEl,iSeed,ExGen,P)
+   Type(ParticleList) PL(2)
+   integer iPL,nPL
+   integer icmin,icmax
+   real*8 icmean
+   real*8 dTau
+   Type(HDElement) EShift
+   integer iSeed
+   Type(ExcitGen),pointer :: ExGen
+   Type(Particle) P
+
+   integer iParticle
+   integer iC 
+   integer iNewCount,iNewWeight
+   integer iSubPart
+   integer nEl,nI(nEl)
+   real*8 r,rnum
+   integer iPreExisted
+   
+   integer iGetExcitLevel
+   real*8 RAN2 ! external
+   character(25), parameter :: this_routine='PropagateParticles'
+
+   iParticle=0 !Just get the head node first and its info in P
+   call GetNextParticle(PL(iPL),iParticle,P)
+   ICMean=0.D0
+   ICMin=10
+   ICMax=0
+   do while (iParticle.gt.0)  !i.e. while we're at a valid particle
+! Each Particle has iWeight of subparticles at the same det
+!         write(6,*) iParticle,P%d%exGen%tagExData
+!         write(56,'(I,$)')  P%d%iWeight
+
+      IC=iGetExcitLevel(Ni,P%Ni,NEl)
+      ICmean=ICmean+IC*(P%d%iWeight)
+      IF(IC.lt.ICMin) ICMin=IC
+      IF(IC.gt.ICMax) ICMax=IC
+      
+      iNewCount=0
+      do iSubPart=1,P%d%iWeight
+! With this current subparticle we do two processes.  Firstly we deplete the current particle according to 
+! Hii and tau
+         r=DREAL(P%d%hHii-EShift)*dTau !Prob of death
+         r=1-r ! Prob of survival
+         iNewWeight=int(r)  ! Number of newly created definitely
+         r=r-iNewWeight
+!            if(r.lt.0) THEN write(6,*) "Warning: Self-destruction  probabililty <0"
+! This particle doesn't self-destruct if a random num is > r
+         rnum=ran2(iSeed)
+         if(r.gt.rnum) then
+!  Add it to the new list
+            inewWeight=iNewWeight+1
+         endif
+         if(iNewWeight.gt.0) then
+!Copies accross to the nPL list (if actually creating more weight at particle)
+            call AddParticle(PL(nPL),P%nI,iNewWeight,+P%d%iSgn,P%d%hHii,P%d%exGen,iPreExisted)
+!Number of subparticles of this particle which have are present at end of creation/death process
+            iNewCount=iNewCount+iNewWeight
+         endif
+      enddo !iSubPart
+      call DelReference(P%d%exGen)
+!Save the number of children we've spawned at this det
+      PL(iPL)%ParticleData(iParticle)%iProgeny=iNewCount
+      call GetNextParticle(PL(iPL),iParticle,P)
+   enddo !iParticle
+!      call DumpParticleList(6,PL(nPL))
+   ICMean=ICMean/(Pl(NPl)%NSubparticles)
+
+end Subroutine PropagateParticles
+subroutine SpawnParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
+   Use Determinants, only: GetHElement3
+   Type(ParticleList) PL(2)
+   integer iPL,nPL
+   integer nEl
+   integer iSeed
+   real*8 dTau
+   Type(ExcitGen),pointer :: exGen
+   Type(Particle) P
+
+   integer iParticle
+   integer iSubPart
+   integer iAction
+   Type(HElement) hHij
+   Type(HDelement) HHjj
+   integer nJ(nEl)
+   integer iC,iCount
+   integer iNode
+   integer iSgn
+   real*8 pGen
+   real*8 r,rnum
+
+   real*8 ran2
+   character(25), parameter :: this_routine='SpawnParticles'
+
+!      write(56,*)
+! Secondly we might create positive or negative particle at an excitation
+   iParticle=0
+   call GetNextParticle(PL(iPL),iParticle,P)
+   do while (iParticle.gt.0)
+!         write(6,*) iParticle,P%d%exGen%tagExData
+!         call WriteDet(6,P%nI,nEl,.false.)
+!         write(6,*) P%d%iProgeny
+      
+      do iSubPart=1,P%d%iWeight
+! generate a random excitation of the root
+         call GenRandSymExcitIt3(P%nI,P%d%ExGen%exData,nJ,iSeed,iC,0,pGen,iCount)
+! The excitation is in nJ, and its gen prob in pGen.
+!  Just print out for now
+!            write(6,*)  pGen
+         hHij=GetHElement3(P%nI,nJ,iC)
+
+! see if we create a particle in it
+         
+         r=DREAL(abs(hHij))*dTau/pGen
+!            WRITE(6,*) r,hHij
+         rnum=ran2(iSeed)
+! This a new particle is createdif r > a random num
+         if(r.gt.1) write(6,*) "Warning: Child creation probabililty>1"
+         if(r.gt.rnum) then
+!  See if this particle's already in the list.  iNode is the node it's in in PL(nPL) if it exists, or a new clean node ready to receive it.  iAction is set if 
+            call FindParticleNode(PL(nPL),nJ,iNode,iAction)
+            if(iAction.ne.0) then
+!  If it doesn't already exist,
+!  Now we have to get info about this particle
+               hHjj=GetHElement3(nJ,nJ,0)
+               call AllocateExGen(exGen,nJ,nEl,this_routine)
+            else
+! Already exists, so we don't recalculate info
+            endif
+!  Add it to the new list
+!   If the Hij element is -ve then keep the same sign, otherwise flip the sign
+            iSgn=-P%d%iSgn
+            if(DREAL(hHij).lt.0) iSgn=-iSgn
+!  Adds on the weight if iAction=0 or creates a new node w.r.t iNode and iAction if iAction +-1
+            call AddParticleInt(PL(nPL),nJ,1,iSgn,hHjj,ExGen,iNode,iAction)
+         endif
+      enddo !iSubPart
+      call GetNextParticle(PL(iPL),iParticle,P)
+   enddo !iParticle
+end subroutine SpawnParticles
+subroutine CleanupParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
+   Use Determinants, only: GetHElement3
+   Type(ParticleList) PL(2)
+   integer iPL,nPL
+   integer nEl
+   integer iSeed
+   real*8 dTau
+   Type(ExcitGen),pointer :: exGen
+   Type(Particle) P
+
+   integer iParticle
+   integer iSubPart
+   character(25), parameter :: this_routine='SpawnParticles'
+   iParticle=0
+   call GetNextParticle(PL(iPL),iParticle,P)
+   do while (iParticle.gt.0)
+      if(P%d%exGen%iRefCount.eq.0) then
+!            WRITE(6,*) "Progeny 0",iParticle
+         call DeallocateExGen(P%d%ExGen,this_routine)
+      endif
+! Just see if we need to keep our old excitation generator around, otherwise kill it
+      call GetNextParticle(PL(iPL),iParticle,P)
+   enddo !iParticle
+end subroutine CleanupParticles
 end Module MCDets
