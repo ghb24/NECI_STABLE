@@ -747,7 +747,6 @@ MODULE UMatCache
          INTEGER ISUB,ISUB2
          LOGICAL GetCachedUMatEl,HasKPoints
          Type(Symmetry) TotSymRep
-!         CALL TISET(' GETUMATEL',ISUB)
 !   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 !   Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
@@ -798,8 +797,6 @@ MODULE UMatCache
 !   Check the symmetry of the 4-index integrals
               IF(.NOT.LSYMSYM(SYM)) THEN
                   GETUMATEL=0.D0
-! JSS --- comment out the following TIHALT.  (TISET commented out above.)
-!                 CALL TIHALT(' GETUMATEL',ISUB)
                   RETURN
               ELSE
                
@@ -813,19 +810,7 @@ MODULE UMatCache
                 ENDIF
                 ! As we're not looping over i,j,k,l, it's safe to return the
                 ! k-pnt related labels in the same variables.
-!            if (idi.eq.59.and.idj.eq.1.and.idk.eq.67.and.idl.eq.1)then
-!                write (6,*) 
-!            end if
-!            if (idi.eq.59.and.idj.eq.2.and.idk.eq.67.and.idl.eq.2)then
-!                write (6,*) 
-!            end if
-!            if (idi.eq.60.and.idj.eq.1.and.idk.eq.68.and.idl.eq.1)then
-!                write (6,*) 
-!            end if
                 call KPntSymInt(I,J,K,L,I,J,K,L)
-!                if (i.eq.63.and.j.eq.75.and.k.eq.47.and.l.eq.63) then
-!                   write (6,*) 
-!                end if
                 IF(TTRANSFINDX) THEN
                  I=InvTransTable(I)
                  J=InvTransTable(J)
@@ -851,7 +836,6 @@ MODULE UMatCache
 !   Otherwise we call CPMD
 !                    write (6,*) TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L)
                      IF(TTRANSFINDX) THEN
-!         WRITE(6,"(A,4I5,$)") "MM",TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L)
                         CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems)
                      ELSE
                         CALL INITFINDXI(I,J,K,L,UElems)
@@ -864,28 +848,11 @@ MODULE UMatCache
                      GETUMATEL=UElems(IAND(ITYPE,1))
 !  Bit 1 tells us whether we need to complex conj the integral
                      IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
-!                     WRITE(6,"(A3,6I6,$)") "I",I,J,K,L,A,B
-!                     WRITE(6,*) UElems
-!                     IF(TTRANSFINDX) THEN
-!                        CALL INITFINDXI(TRANSTABLE(K),TRANSTABLE(J),TRANSTABLE(I),TRANSTABLE(L),UElems)
-!                     ELSE
-!                        CALL INITFINDXI(K,J,I,L,UElems)
-!                     ENDIF
-!                     WRITE(6,*) "I",K,J,I,L,UElems
-!                     CALL INITFINDXI(I,L,K,J,UElems)
-!                     WRITE(6,*) "I",I,L,K,J,UElems
-!                     CALL INITFINDXI(IDI,IDJ,IDK,IDL,UElems)
-!                     WRITE(6,*) "I",IDI,IDJ,IDK,IDL,UElems
-!                     CALL INITFINDXI(8,4,5,8,UElems)
-!                     WRITE(6,*) "I",8,4,5,8,UElems
                   ENDIF
 !  Because we've asked for the integral in the form to be stored, we store as iType=0
                   IF(ICACHE.NE.0) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI,0)
                   NMISSES=NMISSES+1
-!                  WRITE(6,*) "MISS",I,J,K,L,A,B,GETUMATEL
                ELSE
-!                  WRITE(6,*) "HIT ",IDI,IDJ,IDK,IDL,GETUMATEL
-!                  WRITE(6,*) A,B
                   NHITS=NHITS+1
               ENDIF
              ENDIF
@@ -918,7 +885,6 @@ MODULE UMatCache
                      IF(XXX.ne.-1) THEN
                          GETUMATEL=UMAT(XXX)
                      ELSE
-                         !GETUMATEL=HElement(0.D0)
                          GETUMATEL=HElement(GETNAN())
                      ENDIF
                  ENDIF
@@ -929,11 +895,7 @@ MODULE UMatCache
          ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
             CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
          ENDIF
-!         write (6,*) idi,idj,idk,idl,GetUMatEl
-!         WRITE(6,"(4I5,$)") IDI,IDJ,IDK,IDL
-!         WRITE(6,*) GETUMATEL,ABS(GETUMATEL)
          RETURN
-!         CALL TIHALT(' GETUMATEL',ISUB)
       END function
 
 
