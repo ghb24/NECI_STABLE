@@ -11,7 +11,7 @@ else
 fi
 echo "Using platform: $platform"
 
-./Configure $platform -DEST=${PWD}/dest> Makefile2
+./Configure $platform -d -DEST=${PWD}/dest> Makefile2
 
 cp irat.inc dest
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile

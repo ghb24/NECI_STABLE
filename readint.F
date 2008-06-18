@@ -180,8 +180,8 @@ C.. set momentum to 0
          USE HElem
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-         USE UMatCache , only : UMatInd,TMatind,TMat2D,TMATSYM,
-     &                          TSTARSTORE,UMAT2D,TUMAT2D
+         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D
+         use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 ECORE,ARR(NBASIS,2)
@@ -272,8 +272,8 @@ C.. If we've changed the eigenvalues, we write out the basis again
          USE HElem
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-         USE UMatCache , only : UMatInd,TMatind,TMat2D,TMATSYM,
-     &                          TSTARSTORE,UMAT2D,TUMAT2D
+         USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
+         use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 ECORE,ARR(NBASIS,2)

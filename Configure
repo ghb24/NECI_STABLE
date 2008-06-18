@@ -1378,9 +1378,9 @@ lib : \$(OBJ_LIB)
 	rm -f \$@
 	\$(CPP) \$(CPPFLAGS) \$(SRC)/\$(@:.f90=.F90) \$(DEST)/\$@
 .f.o :
-	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$<" -provides "\$(*F).o " -requires "\$^"
+	\$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$< 
 .f90.o :
-	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<" -provides "\$(*F).o " -requires "\$^"
+	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<
 
 \$(OBJ_CC) :
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
@@ -1389,7 +1389,7 @@ util-sp.o :
 	\$(FCD) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/util-sp.f
 
 %.mod :
-	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<" -provides "\$(*F).mod" -requires "\$^"
+	\$(FC) \$(FFLAGS) \$(F90FLAGS) \$< 
 
 #----------------------------------------------------------------------------
 
@@ -1427,11 +1427,9 @@ neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 .SUFFIXES: .o .F .F90 .mod .inc
 
 \$(DOBJECTSF): 
-	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F" -provides "\$(*).o " -requires "\$^"
-#	\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F
+	\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F
 \$(DOBJECTSF90):
-	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90" -provides "\$(*).o " -requires "\$^"
-#	\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90
+	\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90
 \$(OBJ_CC) :
 	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
 
@@ -1439,9 +1437,8 @@ neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
 	\$(FCD) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/util-sp.F
 
 %.mod :
-#	rm -f \$(@)
-	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(DEST)/\$(<:.F90=.o) \$(FFLAGS) \$(CPPFLAGS) \$<" -provides "\$(*).mod" -requires "\$^"
-#	\$(FC) -o \$(DEST)/\$(<:.F90=.o) \$(FFLAGS) \$(CPPFLAGS) \$<
+	rm -f \$(@)
+	\$(FC) -o \$(DEST)/\$(<:.F90=.o) \$(FFLAGS) \$(CPPFLAGS) \$<
 
 #----------------------------------------------------------------------------
 

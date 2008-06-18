@@ -268,10 +268,11 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElem
          use System, only: BasisFN
-         USE UMatCache, only: nstatesumat=>nstates,tUMAT2D,
-     &                        TMat2D,tCPMDSymTMat,GetUMatEl,TMatSym
+         USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
-     &                        SetupUMatCache,TMatInd    
+     &                        SetupUMatCache,GetUMatEl
+         use OneEInts, only: TMat2D,tCPMDSymTMat,TMatSym
+         use OneEInts, only: TMatInd
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          INCLUDE 'cpmddata.inc'

@@ -2,7 +2,7 @@ C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE CALCHFTMAT(NBASIS,HFBASIS,NORBUSED)
         USE HElem
-        USE UMatCache , only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
+        USE OneEInts, only : GetTMATEl,TMAT2D,TMAT2D2,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 HFBASIS(NBASIS,NBASIS)
@@ -30,7 +30,7 @@ C.. Ti=Sum_a,b(c_ia* c_ib <u_a(1)|h(1)|u_b(1)>)
 C..   =Sum_a(|c_ia|^2 <u_a|(p^2)/2|u_a>)
       SUBROUTINE READHFTMAT(NBASIS,HFBASIS)
          USE HElem
-         USE UMatCache , only : TMAT2D2
+         USE OneEInts, only : TMAT2D2
          IMPLICIT NONE
          INTEGER NBASIS
          REAL*8 HFBASIS(NBASIS,NBASIS)
@@ -521,8 +521,9 @@ C.. vector
       END 
       SUBROUTINE GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
      &                  TRHF,ISS,G1)
-         USE UMatCache , only : GetTMATEl,GetUMatEl
-         USE Logging, only : HFLogLevel
+         USE OneEInts, only: GetTMATEl
+         USE UMatCache, only: GetUMatEl
+         USE Logging, only: HFLogLevel
          USE HElem
          use System, only: BasisFN
          Use Integrals, only: DMatEpsilon
@@ -591,7 +592,7 @@ C.. Now sum in the alpha and beta block of u matrix
       END
       SUBROUTINE DIAGFMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,HFES,WORK,
      &         ECORE,ECUR)
-         USE UMatCache , only : GetTMatEl
+         USE OneEInts, only : GetTMatEl
          USE Logging, only :HFLogLevel
          USE HElem
          IMPLICIT NONE
@@ -1344,7 +1345,8 @@ C.. TOT now contains dE/dcij, so we store this
 
       SUBROUTINE CALCDEDCIJ2(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,UMAT,
      &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR,ISS)            
-         USE UMatCache , only : UMatInd,GetTMatEl
+         USE UMatCache, only : UMatInd
+         use OneEInts, only: GetTMatEl
          USE HElem
          IMPLICIT NONE
          REAL*8 CMAT(NSBASIS,NSBASIS,NSPINS)

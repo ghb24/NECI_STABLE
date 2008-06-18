@@ -14,7 +14,8 @@ MODULE HFCalc
       Use Logging, only: iLogging
       Use Determinants, only: FDet, nUHFDet
       Use Integrals, only: UMat, tagUMat
-      Use UMatCache, only: TMat2D, SetupTMat2, DestroyTMat, GetUMatSize
+      Use UMatCache, only: GetUMatSize
+      Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
       character(25), parameter :: this_routine='HFDoCalc'
       REAL*8 HFBASIS(*),HFE(*)
       Type(HElement),pointer :: UMat2(:)

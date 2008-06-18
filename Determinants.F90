@@ -391,7 +391,7 @@ END MODULE Determinants
 ! Calculate the one-electron part of the energy of a det
       REAL*8 FUNCTION CALCT(NI,NEL,G1,NBASIS)
          USE HElem
-         USE UMatCache , only : GetTMatEl
+         USE OneEInts, only : GetTMatEl
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),G1(*),NBASIS,I
          LOGICAL ISCSF

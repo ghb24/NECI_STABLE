@@ -390,7 +390,7 @@ C.. Calculate <phi_a | T | phi_c > from <u_i |T|u_k>
       SUBROUTINE GETTRTMATEL(A,C,NHG,BTRANS,NSBASIS,
      &            NSPINS,SUM)
          USE HElem
-         USE UMatCache , Only : GetTMatEl
+         USE OneEInts, Only : GetTMatEl
          IMPLICIT NONE
          INTEGER A,C
          INTEGER I,K

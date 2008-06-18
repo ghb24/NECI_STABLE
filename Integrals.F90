@@ -308,8 +308,8 @@ MODULE Integrals
         Subroutine IntInit(iCacheFlag)
 !who knows what for
             Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-            Use System, only: BasisFN
-            USE UMatCache, only: FreezeTransfer, SetupTMat, CreateInvBRR, GetUMatSize, SetupUMat2D_df
+            Use OneEInts, only: SetupTMat
+            USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
             Use UMatCache, only: InitStarStoreUMat
             Use System, only : nBasisMax, Alpha,BHub, BRR,nmsh
             Use System, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
@@ -600,10 +600,10 @@ MODULE Integrals
       SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
          USE HElem
+         use OneEInts
          use System, only: Symmetry,BasisFN,BasisFNSize
-         USE UMatCache, only: FreezeTransfer,tCPMDSymTMat,GetTMatEl,GetUMatEl,tMatSym2,tMat2D2
-         Use UMatCache, only: NewTMatInd, GetNewTMatEl,tUMat2D,UMatCacheData,UMatInd
-         Use UMatCache, only: SetupTMat2, FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
+         USE UMatCache, only: FreezeTransfer,GetUMatEl,UMatCacheData,UMatInd,TUMat2D
+         Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
          TYPE(BASISFN) G1(NHG)
@@ -890,7 +890,7 @@ END MODULE Integrals
       SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
          USE HElem
          use System, only: BasisFN
-         USE UMatCache , only : SetupTMAT,TMAT2D,TSTARSTORE
+         USE OneEInts, only : SetupTMAT,TMAT2D,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS
          TYPE(BASISFN) G1(NBASIS)

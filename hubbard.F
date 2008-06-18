@@ -86,12 +86,10 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
       RETURN
       END
 
-      SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,
-     &         TPBC)
+      SUBROUTINE CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
          USE HElem
          use System, only: BasisFN
-         USE UMatCache , only : TMat2D,TMATSYM,
-     &          TSTARSTORE,TMatInd,SetupTMAT
+         USE OneEInts,only : TMat2D,TMATSYM,TSTARSTORE,TMatInd,SetupTMAT
          IMPLICIT NONE
          INTEGER NBASIS,NBASISMAX(5,2)
          TYPE(BasisFN) G1(nBasis)

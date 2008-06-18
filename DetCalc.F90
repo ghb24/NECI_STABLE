@@ -869,7 +869,7 @@ END MODULE DetCalc
 
       SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,ALAT,TKE,NHG,ILOGGING)
       USE HElem
-      USE UMatCache , only : GetTMATEl
+      USE OneEInts, only : GetTMATEl
       use System, only: BasisFN
       IMPLICIT NONE
       TYPE(HElement) CG(NDET,NEVAL)

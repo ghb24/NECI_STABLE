@@ -2,6 +2,7 @@ C.. TMAT has sometimes been hidden in ZIA
       SUBROUTINE SCR0(NEL,NBASISMAX,NDET1,NDET2,
      &	G1,NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,TOTSUM)
       USE HElem
+      Use OneEInts, only: GetTMatEl
       USE UMatCache
       use System, only: BasisFN
       IMPLICIT NONE
