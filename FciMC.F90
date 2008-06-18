@@ -75,7 +75,7 @@ MODULE FciMCMod
             IF((.NOT.TMCExcitSpace).or.(NoMCExcits.ne.1)) THEN
                 CALL STOPGM("FCIMC","Diffusion can only work with one MCExcitSpace")
             ENDIF
-            IF((Lambda.ge.1.D0).or.(Lambda.lt.0.D0)) THEN
+            IF((Lambda.gt.1.D0).or.(Lambda.lt.0.D0)) THEN
                 CALL STOPGM("FCIMC","Diffusion coefficient must be between zero and one")
             ENDIF
         ENDIF
@@ -157,7 +157,10 @@ MODULE FciMCMod
 
             IF(TFlipTau) THEN
 !If we are flipping the sign of tau every FlipTauCyc cycles
-                IF(mod(Iter,FlipTauCyc).eq.0) Tau=Tau*(-1.D0)
+                IF(mod(Iter,FlipTauCyc).eq.0) THEN
+                    Tau=Tau*(-1.D0)
+                    DiagSft=DiagSft*(-1.D0)
+                ENDIF
             ENDIF
 
             IF(mod(Iter,StepsSft).eq.0) THEN
@@ -204,8 +207,13 @@ MODULE FciMCMod
                         WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
                         WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
                     ELSE
-                        WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                        WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                        IF(Tau.gt.0.D0) THEN
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                        ELSE
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                        ENDIF
                     ENDIF
 
                     IF(TDetPops) THEN
@@ -472,7 +480,9 @@ MODULE FciMCMod
 !This routine now cancels down the particles with opposing sign on each determinant
 !This routine does not necessarily need to be called every Iter, but it does at the moment, since it is the only way to 
 !transfer the residual particles back onto WalkVec
+
         CALL AnnihilatePairs(TotWalkersNew)
+!        WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers
         
         IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 !Particle number is too large - kill them randomly
@@ -630,7 +640,7 @@ MODULE FciMCMod
             CALL IAZZERO(CullInfo,30)
 
         ENDIF
-        DiagSft=DiagSft-(log(GrowRate))/(SftDamp*abs(Tau)*(StepsSft+0.D0))
+        DiagSft=DiagSft-(log(GrowRate))/(SftDamp*Tau*(StepsSft+0.D0))
 !        IF((DiagSft).gt.0.D0) THEN
 !            WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
 !            STOP
@@ -1308,6 +1318,7 @@ MODULE FciMCMod
         ENDIF
 
         AttemptDie=iKill
+!        IF(AttemptDie.le.-1) WRITE(6,*) Iter,AttemptDie,rat
 
         RETURN
 
