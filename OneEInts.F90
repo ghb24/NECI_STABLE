@@ -24,24 +24,24 @@ integer :: tagTMat2D2=0
 
 contains
 
-    !Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
-    !Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
-    ! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
-    ! For the TMat(i,j) to be non-zero, i and j have to belong to the same symmetry.
-    ! We store the non-zero elements in TMatSym(:).
-    ! The indexing scheme is:
-    !   Arrange basis into blocks of the same symmetry, ie so TMat is of a block
-    !   (but not necessarily block diagonal) nature.  Order the blocks by their
-    !   symmetry index.
-    !   Within each block, convert i and j to a spatial index and label by the 
-    !   (energy) order in which they come within that symmetry: i->k,j->l.
-    !   We only need to store the upper diagonal of each block:
-    !        blockind=k*(k-1)/2+l, l<k.
-    !   The overall index depends on the number of non-zero integrals in the blocks
-    !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
-    !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
-    !   If the element is zero, return -1 (TMatSym(-1) is set to 0). 
-    INTEGER FUNCTION TMatInd(I,J)
+      !Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
+      !Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
+      ! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
+      ! For the TMat(i,j) to be non-zero, i and j have to belong to the same symmetry.
+      ! We store the non-zero elements in TMatSym(:).
+      ! The indexing scheme is:
+      !   Arrange basis into blocks of the same symmetry, ie so TMat is of a block
+      !   (but not necessarily block diagonal) nature.  Order the blocks by their
+      !   symmetry index.
+      !   Within each block, convert i and j to a spatial index and label by the 
+      !   (energy) order in which they come within that symmetry: i->k,j->l.
+      !   We only need to store the upper diagonal of each block:
+      !        blockind=k*(k-1)/2+l, l<k.
+      !   The overall index depends on the number of non-zero integrals in the blocks
+      !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
+      !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
+      !   If the element is zero, return -1 (TMatSym(-1) is set to 0). 
+      INTEGER FUNCTION TMatInd(I,J)
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
@@ -85,12 +85,12 @@ contains
             TMatInd=Block+ind
             RETURN
         ENDIF
-      END function
+      END FUNCTION TMatInd
      
 
 
-     ! See notes for TMatInd.
-     INTEGER FUNCTION NEWTMatInd(I,J)
+      ! See notes for TMatInd.
+      INTEGER FUNCTION NEWTMatInd(I,J)
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
@@ -130,7 +130,7 @@ contains
             NEWTMatInd=Block+ind
             RETURN
         ENDIF
-      END function
+      END FUNCTION NewTMatInd
 
 
 
@@ -153,12 +153,12 @@ contains
         ELSE
             GetTMatEl=TMAT2D(I,J)
         ENDIF
-      END function
+      END FUNCTION GetTMatEl
 
 
 
       ! See GetTMatEl.
-      FUNCTION GetNEWTMATEl(I,J)
+      FUNCTION GetNewTMatEl(I,J)
         IMPLICIT NONE
         INTEGER I,J
         TYPE(HElement) GetNEWTMATEl
@@ -174,136 +174,10 @@ contains
         ELSE
             GetNEWTMATEl=TMAT2D2(I,J)
         ENDIF
-      END function
-    
+      END FUNCTION GetNewTMatEl
 
 
-      ! See notes in SetupTMat as well.
-      SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
-        use System, only: tCPMD
-        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-        use MemoryManager, only: LogMemAlloc
-        IMPLICIT NONE
-        include 'cpmddata.inc'
-        include 'sym.inc'
-        integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
-        integer iSize
-        character(len=*),parameter :: thisroutine='SetupTMAT2'
-        
-        ! If this is a CPMD k-point calculation, then we're operating
-        ! under Abelian symmetry: can use George's memory efficient
-        ! TMAT.
-        if (tCPMD) tCPMDSymTMat=tKP
-        IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
-            ! Set up info for indexing scheme (see TMatInd for full description).
-            Nirrep=NSYMLABELS
-            nBi=nBasisFRZ/iSS
-            iSize=0
-            IF(IP_SYMLABELINTSCUM2.ne.0) CALL FREEM(IP_SYMLABELINTSCUM2)
-            IF(IP_StateSymMap2.ne.0) call FreeM(IP_StateSymMap2) ! I feel dirty doing this.
-            CALL MEMORY(IP_SYMLABELINTSCUM2,Nirrep,'SYMLABELINTSCUM2')
-            CALL IAZZERO(SYMLABELINTSCUM2,Nirrep)
-            CALL MEMORY(IP_SYMLABELCOUNTSCUM2,Nirrep,'SYMLABELCOUNTSCUM2')
-            CALL IAZZERO(SYMLABELCOUNTSCUM2,Nirrep)
-            call Memory(IP_StateSymMap2,nBi,'StateSymMap2')
-            do i=1,Nirrep
-            !SYMLABELCOUNTS is now mbas only for the frozen orbitals
-                basirrep=SYMLABELCOUNTS(2,i)
-                iSize=iSize+(basirrep*(basirrep+1))/2
-                ! # of integrals in this symmetry class and all preceeding
-                ! symmetry classes.
-                SYMLABELINTSCUM2(i)=iSize
-                ! JSS: we no longer need SymLabelCountsCum, but it's a useful test.
-                ! SymLabelCountsCum is the cumulative total # of basis functions
-                ! in the preceeding symmetry classes.
-                IF(i.eq.1) THEN
-                    SYMLABELCOUNTSCUM2(i)=0
-                ELSE
-                    DO t=1,(i-1)
-                        SYMLABELCOUNTSCUM2(i)=SYMLABELCOUNTSCUM2(i)+SYMLABELCOUNTS(2,t)
-                    ENDDO
-                ENDIF
-!                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-!                call flush(6)
-                ! JSS: Label states of symmetry i by the order in which they come.
-                nStateIrrep=0
-                do iState=1,nBi
-                    if (SymClasses2(iState).eq.i) then
-                        nStateIrrep=nStateIrrep+1
-                        StateSymMap2(iState)=nStateIrrep
-                    end if
-                end do
-            enddo
-            IF((SYMLABELCOUNTSCUM2(Nirrep)+basirrep).ne.nBI) THEN
-                DO i=1,Nirrep
-                    WRITE(14,*) SYMLABELCOUNTS(2,i)
-                    CALL FLUSH(14)
-                ENDDO
-                STOP 'Not all basis functions found while setting up TMAT2'
-            ENDIF
-            !iSize=iSize+2
-            !This is to allow the index of '-1' in the array to give a zero value
-            !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
-            
-            Allocate(TMATSYM2(-1:iSize),STAT=ierr)
-            CALL MemAlloc(ierr,TMATSYM2,HElementSize*(iSize+2),'TMATSYM2')
-            CALL AZZERO(TMATSYM2,HElementSize*(iSize+2))
-
-        ELSE
-
-            ! Using a square array to hold <i|h|j> (incl. elements which are
-            ! zero by symmetry).
-            iSize=nBasisFRZ*nBasisFRZ
-            Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
-            call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElementSize*8,thisroutine,tagTMat2D2)
-            Call AZZERO(TMAT2D2,HElementSize*iSize)
-        
-        ENDIF
-      END subroutine
-   
-
-
-      SUBROUTINE DestroyTMAT(NEWTMAT)
-        use MemoryManager, only: LogMemDealloc
-        IMPLICIT NONE
-        LOGICAL :: NEWTMAT
-        character(len=*), parameter :: thisroutine='DestroyTMat'
-
-        IF(TSTARSTORE) THEN
-            IF(NEWTMAT) THEN
-                IF(ASSOCIATED(TMATSYM2)) THEN
-                    CALL MemDealloc(TMATSYM2)
-                    Deallocate(TMATSYM2)
-                    NULLIFY(TMATSYM2)
-                ENDIF
-            ELSE
-                IF(ASSOCIATED(TMATSYM)) THEN
-                    CALL MemDealloc(TMATSYM)
-                    Deallocate(TMATSYM)
-                    NULLIFY(TMATSYM)
-                ENDIF
-            ENDIF
-        ELSE
-            IF(NEWTMAT) THEN
-                IF(ASSOCIATED(TMAT2D2)) THEN
-                    call LogMemDealloc(thisroutine,tagTMat2D2)
-                    Deallocate(TMAT2D2)
-                    NULLIFY(TMAT2D2)
-                ENDIF
-            ELSE
-                IF(ASSOCIATED(TMAT2D)) THEN
-                    call LogMemDealloc(thisroutine,tagTMat2D)
-                    Deallocate(TMAT2D)
-                    NULLIFY(TMAT2D)
-                ENDIF
-            ENDIF
-        ENDIF
-      END subroutine
-
-
-
-      SUBROUTINE WRITETMAT(NBASIS)
+      SUBROUTINE WriteTMat(NBASIS)
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
@@ -382,7 +256,7 @@ contains
         WRITE(12,*) "*********************************"
         WRITE(12,*) "*********************************"
         CALL FLUSH(12)
-      END subroutine
+      END SUBROUTINE WriteTMat
         
 
 
@@ -478,7 +352,133 @@ contains
 
 
      
-      SUBROUTINE SWAPTMAT(NBASIS,NHG,GG)
+      ! See notes in SetupTMat as well.
+      SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
+        use System, only: tCPMD
+        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use MemoryManager, only: LogMemAlloc
+        IMPLICIT NONE
+        include 'cpmddata.inc'
+        include 'sym.inc'
+        integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
+        integer iSize
+        character(len=*),parameter :: thisroutine='SetupTMAT2'
+        
+        ! If this is a CPMD k-point calculation, then we're operating
+        ! under Abelian symmetry: can use George's memory efficient
+        ! TMAT.
+        if (tCPMD) tCPMDSymTMat=tKP
+        IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
+            ! Set up info for indexing scheme (see TMatInd for full description).
+            Nirrep=NSYMLABELS
+            nBi=nBasisFRZ/iSS
+            iSize=0
+            IF(IP_SYMLABELINTSCUM2.ne.0) CALL FREEM(IP_SYMLABELINTSCUM2)
+            IF(IP_StateSymMap2.ne.0) call FreeM(IP_StateSymMap2) ! I feel dirty doing this.
+            CALL MEMORY(IP_SYMLABELINTSCUM2,Nirrep,'SYMLABELINTSCUM2')
+            CALL IAZZERO(SYMLABELINTSCUM2,Nirrep)
+            CALL MEMORY(IP_SYMLABELCOUNTSCUM2,Nirrep,'SYMLABELCOUNTSCUM2')
+            CALL IAZZERO(SYMLABELCOUNTSCUM2,Nirrep)
+            call Memory(IP_StateSymMap2,nBi,'StateSymMap2')
+            do i=1,Nirrep
+            !SYMLABELCOUNTS is now mbas only for the frozen orbitals
+                basirrep=SYMLABELCOUNTS(2,i)
+                iSize=iSize+(basirrep*(basirrep+1))/2
+                ! # of integrals in this symmetry class and all preceeding
+                ! symmetry classes.
+                SYMLABELINTSCUM2(i)=iSize
+                ! JSS: we no longer need SymLabelCountsCum, but it's a useful test.
+                ! SymLabelCountsCum is the cumulative total # of basis functions
+                ! in the preceeding symmetry classes.
+                IF(i.eq.1) THEN
+                    SYMLABELCOUNTSCUM2(i)=0
+                ELSE
+                    DO t=1,(i-1)
+                        SYMLABELCOUNTSCUM2(i)=SYMLABELCOUNTSCUM2(i)+SYMLABELCOUNTS(2,t)
+                    ENDDO
+                ENDIF
+!                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
+!                call flush(6)
+                ! JSS: Label states of symmetry i by the order in which they come.
+                nStateIrrep=0
+                do iState=1,nBi
+                    if (SymClasses2(iState).eq.i) then
+                        nStateIrrep=nStateIrrep+1
+                        StateSymMap2(iState)=nStateIrrep
+                    end if
+                end do
+            enddo
+            IF((SYMLABELCOUNTSCUM2(Nirrep)+basirrep).ne.nBI) THEN
+                DO i=1,Nirrep
+                    WRITE(14,*) SYMLABELCOUNTS(2,i)
+                    CALL FLUSH(14)
+                ENDDO
+                STOP 'Not all basis functions found while setting up TMAT2'
+            ENDIF
+            !iSize=iSize+2
+            !This is to allow the index of '-1' in the array to give a zero value
+            !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
+            
+            Allocate(TMATSYM2(-1:iSize),STAT=ierr)
+            CALL MemAlloc(ierr,TMATSYM2,HElementSize*(iSize+2),'TMATSYM2')
+            CALL AZZERO(TMATSYM2,HElementSize*(iSize+2))
+
+        ELSE
+
+            ! Using a square array to hold <i|h|j> (incl. elements which are
+            ! zero by symmetry).
+            iSize=nBasisFRZ*nBasisFRZ
+            Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
+            call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElementSize*8,thisroutine,tagTMat2D2)
+            Call AZZERO(TMAT2D2,HElementSize*iSize)
+        
+        ENDIF
+      END SUBROUTINE SetupTMat2
+    
+
+
+      SUBROUTINE DestroyTMat(NEWTMAT)
+        use MemoryManager, only: LogMemDealloc
+        IMPLICIT NONE
+        LOGICAL :: NEWTMAT
+        character(len=*), parameter :: thisroutine='DestroyTMat'
+
+        IF(TSTARSTORE) THEN
+            IF(NEWTMAT) THEN
+                IF(ASSOCIATED(TMATSYM2)) THEN
+                    CALL MemDealloc(TMATSYM2)
+                    Deallocate(TMATSYM2)
+                    NULLIFY(TMATSYM2)
+                ENDIF
+            ELSE
+                IF(ASSOCIATED(TMATSYM)) THEN
+                    CALL MemDealloc(TMATSYM)
+                    Deallocate(TMATSYM)
+                    NULLIFY(TMATSYM)
+                ENDIF
+            ENDIF
+        ELSE
+            IF(NEWTMAT) THEN
+                IF(ASSOCIATED(TMAT2D2)) THEN
+                    call LogMemDealloc(thisroutine,tagTMat2D2)
+                    Deallocate(TMAT2D2)
+                    NULLIFY(TMAT2D2)
+                ENDIF
+            ELSE
+                IF(ASSOCIATED(TMAT2D)) THEN
+                    call LogMemDealloc(thisroutine,tagTMat2D)
+                    Deallocate(TMAT2D)
+                    NULLIFY(TMAT2D)
+                ENDIF
+            ENDIF
+        ENDIF
+      END SUBROUTINE DestroyTMat
+
+   
+
+
+      SUBROUTINE SwapTMat(NBASIS,NHG,GG)
         USE HElem
         USE UMatCache
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -530,7 +530,7 @@ contains
 !             ENDDO
              !CALL DestroyTMAT(.true.)
          ENDIF
-      END
+      END SUBROUTINE SwapTMat
       
       
 
