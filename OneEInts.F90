@@ -4,6 +4,10 @@ module OneEInts
 ! h is the one-particle Hamiltonian operator and i and j are spin-orbitals.
 ! Variables associated with this usually have TMAT in the name.
 
+! The 2 or NEW versions of routines and variables are used for the set of
+! orbitals after freezing has been done. The "original" versions are used in the
+! pre-freezing stage.
+
 USE HElem
 USE System, only: TSTARSTORE
 
@@ -12,10 +16,24 @@ implicit none
 save
 public
 
-TYPE(HElement), dimension(:,:), POINTER :: TMAT2D
+! For storing the <i|h|j> elements which are non-zero by symmetry.
+! Ranges from -1 to N, where N is the # of non-zero elements. The -1
+! element is used to return the zero value.  Used for Abelian symmetries,
+! where i and j must span the same representation in order for <i|h|j> 
+! to be non-zero.
+! The symmetries used in Dalton and Molpro are all Abelian.
 TYPE(HElement), dimension(:), POINTER :: TMATSYM
+! For non-Abelian symmetries, we store the entire <i|h|j> matrix, as 
+! the direct products of the representations can contain the totally
+! symmetric representation (and are not necessarily the same).  We could
+! compress this in a similar fashion at some point.
+TYPE(HElement), dimension(:,:), POINTER :: TMAT2D
+
 TYPE(HElement), dimension(:), POINTER :: TMATSYM2
 TYPE(HElement), dimension(:,:), POINTER :: TMAT2D2
+
+! True if using TMatSym in CPMD (currently only if using k-points, which form
+! an Abelian group).
 logical tCPMDSymTMat
 
 ! Memory book-keeping tags
@@ -24,24 +42,28 @@ integer :: tagTMat2D2=0
 
 contains
 
-      !Get the index of TMAT element h_IJ (I&J are spin-orbs). This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
-      !Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
-      ! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
-      ! For the TMat(i,j) to be non-zero, i and j have to belong to the same symmetry.
-      ! We store the non-zero elements in TMatSym(:).
-      ! The indexing scheme is:
-      !   Arrange basis into blocks of the same symmetry, ie so TMat is of a block
-      !   (but not necessarily block diagonal) nature.  Order the blocks by their
-      !   symmetry index.
-      !   Within each block, convert i and j to a spatial index and label by the 
-      !   (energy) order in which they come within that symmetry: i->k,j->l.
-      !   We only need to store the upper diagonal of each block:
-      !        blockind=k*(k-1)/2+l, l<k.
-      !   The overall index depends on the number of non-zero integrals in the blocks
-      !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
-      !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
-      !   If the element is zero, return -1 (TMatSym(-1) is set to 0). 
       INTEGER FUNCTION TMatInd(I,J)
+        ! In: 
+        !    i,j: spin orbitals.
+        ! Return the index of the <i|h|j> element in TMatSym2.
+        ! This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
+        ! Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
+        ! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
+        ! For the TMat(i,j) to be non-zero, i and j have to belong to the same symmetry, as we're working in Abelian groups.
+        ! We store the non-zero elements in TMatSym(:).
+        !
+        ! The indexing scheme is:
+        !   Arrange basis into blocks of the same symmetry, ie so TMat is of a block
+        !   (but not necessarily block diagonal) nature.  Order the blocks by their
+        !   symmetry index.
+        !   Within each block, convert i and j to a spatial index and label by the 
+        !   (energy) order in which they come within that symmetry: i->k,j->l.
+        !   We only need to store the upper diagonal of each block:
+        !        blockind=k*(k-1)/2+l, l<k.
+        !   The overall index depends on the number of non-zero integrals in the blocks
+        !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
+        !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
+        !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0). 
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
@@ -89,8 +111,11 @@ contains
      
 
 
-      ! See notes for TMatInd.
       INTEGER FUNCTION NEWTMatInd(I,J)
+      ! In: 
+      !    i,j: spin orbitals.
+      ! Return the index of the <i|h|j> element in TMatSym2.
+      ! See notes for TMatInd. Used post-freezing.
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
@@ -98,7 +123,7 @@ contains
         include 'sym.inc'
         A=mod(I,2)
         B=mod(J,2)
-        !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
+        ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
         IF(A.ne.B) THEN
             NEWTMatInd=-1
             RETURN
@@ -134,8 +159,10 @@ contains
 
 
 
-      !Input at spin orbitals
       FUNCTION GetTMatEl(I,J)
+      ! In: 
+      !    i,j: spin orbitals.
+      ! Return <i|h|j>, the "TMat" element.
         IMPLICIT NONE
         INTEGER I,J
         TYPE(HElement) GetTMatEl
@@ -157,8 +184,11 @@ contains
 
 
 
-      ! See GetTMatEl.
       FUNCTION GetNewTMatEl(I,J)
+      ! In: 
+      !    i,j: spin orbitals.
+      ! Return <i|h|j>, the "TMat" element.
+      ! Used post-freezing. See also GetTMatEl.
         IMPLICIT NONE
         INTEGER I,J
         TYPE(HElement) GetNEWTMATEl
@@ -178,6 +208,8 @@ contains
 
 
       SUBROUTINE WriteTMat(NBASIS)
+        ! In:
+        !    nBasis: size of basis (# orbitals).
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         IMPLICIT NONE
@@ -261,6 +293,12 @@ contains
 
 
       SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
+        ! In:
+        !    nBasis: number of basis functions (orbitals).
+        !    iSS: ratio of nBasis to the number of spatial orbitals.
+        !    iSize: number of elements in TMat/TMatSym.
+        ! Initial allocation of TMat2D or TMatSym (if using symmetry-compressed
+        ! storage of the <i|h|j> integrals).
         use System, only: tCPMD
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -274,8 +312,7 @@ contains
         
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
-        ! TMAT.  Bit of a hack for now: should place this line somewhere more
-        ! relevant.
+        ! TMAT.  
         if (tCPMD) tCPMDSymTMat=tKP
         IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
             ! Set up info for indexing scheme (see TMatInd for full description).
@@ -352,8 +389,14 @@ contains
 
 
      
-      ! See notes in SetupTMat as well.
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
+        ! In:
+        !    nBasisFRZ: number of active basis functions (orbitals).
+        !    iSS: ratio of nBasisFRZ to the number of active spatial orbitals.
+        !    iSize: number of elements in TMat2/TMatSym2.
+        ! Initial allocation of TMat2D2 or TMatSym2 (if using symmetry-compressed
+        ! storage of the <i|h|j> integrals) for post-freezing.
+        ! See also notes in SetupTMat.
         use System, only: tCPMD
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -439,6 +482,9 @@ contains
 
 
       SUBROUTINE DestroyTMat(NEWTMAT)
+        ! In:
+        !    NewTMat : if true, destroy arrays used in storing "new" (post-freezing) TMat,
+        !              else destroy those used for the pre-freezing TMat.
         use MemoryManager, only: LogMemDealloc
         IMPLICIT NONE
         LOGICAL :: NEWTMAT
@@ -479,6 +525,15 @@ contains
 
 
       SUBROUTINE SwapTMat(NBASIS,NHG,GG)
+        ! In:
+        !    nBasis: the number of active orbitals post-freezing.
+        !    NHG: the number of orbitals used initially (pre-freezing).
+        !    GG: GG(I) is the new (post-freezing) index of the old
+        !        (pre-freezing) orbital I.
+        ! During freezing, we need to know the TMat arrays both pre- and
+        ! post-freezing.  Once freezing is done, clear all the pre-freezing
+        ! arrays and point them to the post-freezing arrays, so the code
+        ! referencing pre-freezing arrays can be used post-freezing.
         USE HElem
         USE UMatCache
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
