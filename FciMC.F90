@@ -1389,6 +1389,7 @@ MODULE FciMCMod
 
                     Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
                 ENDIF
+                rat=(Tau*((rh%v)-DiagSft))+(Lambda*Kik)     !This is now the probability with the correct unbiasing
             ELSE
                 IF(TFullUnbias) THEN
 
@@ -1415,9 +1416,9 @@ MODULE FciMCMod
                     Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
 
                 ENDIF
+                rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)     !This is now the probability with the correct unbiasing
             ENDIF
 
-            rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)     !This is now the probability with the correct unbiasing
         ELSE
 !Subtract the current value of the shift and multiply by tau
             rat=Tau*((rh%v)-DiagSft)
