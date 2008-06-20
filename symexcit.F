@@ -1095,9 +1095,9 @@ C            ENDIF
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NBASIS,G1(nBasis),NBASISMAX(*)
          INTEGER NMEM(*),IFRZ(*)
-         CALL IAZZERO(NMEM,22)
-         NMEM(11)=-1
-         NMEM(7)=0
+!         CALL IAZZERO(NMEM,22)
+         NMEM(11)=-1  ! Set I=-1 (i.e. start from the first electron again)
+         NMEM(7)=0  !set iExcit=0 (i.e. start from the first excit class again
       END
 C                  CALL RESETEXIT(IPATH(1,LOCTAB(3,IVLEVEL)),NEL,G1,
 C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
@@ -1135,6 +1135,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
 
       DO WHILE(.TRUE.)
 C.. see if we need a new EXCIT
+!         WRITE(6,*) I,iExcit,nExcitTypes
          IF(I.LT.0) THEN
 C.. move to the next excitation
             IEXCIT=IEXCIT+1

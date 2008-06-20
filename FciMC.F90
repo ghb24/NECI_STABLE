@@ -353,6 +353,8 @@ MODULE FciMCMod
 
             ELSE
 !Run through all possible excitations of each walker
+                
+                CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
 
                 do while(.true.)
                     CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
@@ -417,7 +419,7 @@ MODULE FciMCMod
             ENDIF
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-            iDie=AttemptDie(DetCurr,Kik)
+            iDie=AttemptDie(DetCurr,Kik,nExcitMemLen,nExcit,nStore)
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
             IF(iDie.le.0) THEN
@@ -1343,12 +1345,11 @@ MODULE FciMCMod
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
 !The function allows multiple births(if +ve shift) or deaths from the same particle.
 !The returned number is the number of deaths if positive, and the number of births if negative.
-    INTEGER FUNCTION AttemptDie(DetCurr,Kik)
+    INTEGER FUNCTION AttemptDie(DetCurr,Kik,nExcitMemLen,nExcit,nStore)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),DetLT,iKill,nExcitMemLen,nStore(6)
+        INTEGER :: DetCurr(NEl),DetLT,iKill,nExcitMemLen,nStore(6),nExcit(nExcitMemLen)
         INTEGER :: nJ(NEl),IC,iMaxExcit,ierr,nExcitTag=0
         CHARACTER(len=*) , PARAMETER :: this_routine='AttemptDie'
-        INTEGER , ALLOCATABLE :: nExcit(:)
         TYPE(HElement) :: rh,rhij
         REAL*8 :: Ran2,rat,Kik
 
@@ -1367,14 +1368,11 @@ MODULE FciMCMod
             IF(TExtraPartDiff) THEN
 
                 IF(TFullUnbias) THEN
+
+
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
-                    iMaxExcit=0
-                    CALL IAZZERO(nStore,6)
-                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
-                    ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
-                    CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-                    nExcit(1)=0
-                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+                    
+                    CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
                     
                     Kik=0.D0    !If we are fully unbiasing, then the unbiasing factor is reset and recalculated from all excitations of DetCurr
                     do while(.true.)
@@ -1384,39 +1382,34 @@ MODULE FciMCMod
                         Kik=Kik+(DREAL(rhij%v))
                     enddo
 
-                    DEALLOCATE(nExcit)
-                    CALL LogMemDealloc(this_routine,nExcitTag)
+                    CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
 
                     Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
                 ENDIF
+
                 rat=(Tau*((rh%v)-DiagSft))+(Lambda*Kik)     !This is now the probability with the correct unbiasing
+
             ELSE
                 IF(TFullUnbias) THEN
 
-!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
-                    iMaxExcit=0
-                    CALL IAZZERO(nStore,6)
-                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
-                    ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
-                    CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-                    nExcit(1)=0
-                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+                    CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
                     
                     Kik=0.D0    !If we are fully unbiasing, then the unbiasing factor is reset and recalculated from all excitations of DetCurr
                     do while(.true.)
                         CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
+!                        CALL WRITEDET(6,nJ,NEl,.true.)
                         IF(nJ(1).eq.0) EXIT
                         rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
                         Kik=Kik+abs(DREAL(rhij%v))
                     enddo
 
-                    DEALLOCATE(nExcit)
-                    CALL LogMemDealloc(this_routine,nExcitTag)
+                    CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
 
                     Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
-
                 ENDIF
+
                 rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)     !This is now the probability with the correct unbiasing
+
             ENDIF
 
         ELSE
