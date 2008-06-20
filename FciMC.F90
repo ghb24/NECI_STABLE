@@ -1214,7 +1214,7 @@ MODULE FciMCMod
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
-!Kik returns the probability of creating the child without any diffusion term.
+!Kik returns the a value which can be used to unbias the diffusion at the birth/death stage
     INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC,Kik)
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate
@@ -1230,13 +1230,17 @@ MODULE FciMCMod
         ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        Kik=abs(Tau)*rh%v/Prob
-
         IF(TDiffuse) THEN
+            IF(TExtraPartDiff) THEN
+                Kik=Tau*rh%v/Prob
+            ELSE
+                Kik=Tau*abs(rh%v)/Prob
+            ENDIF
             rat=(1.D0-Lambda)*abs(Kik)
         ELSE
-            rat=abs(Kik)
+            rat=Tau*abs(rh%v)/Prob
         ENDIF
+
 !        IF(rat.lt.0.D0) THEN
 !            CALL STOPGM("AttemptCreate","*** Probability < 0 to create child.")
 !        ENDIF
@@ -1385,7 +1389,6 @@ MODULE FciMCMod
 
                     Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
                 ENDIF
-                rat=(Tau*((rh%v)-DiagSft))+(Lambda*Kik)
             ELSE
                 IF(TFullUnbias) THEN
 
@@ -1403,16 +1406,18 @@ MODULE FciMCMod
                         CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
                         IF(nJ(1).eq.0) EXIT
                         rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-                        Kik=Kik+(DREAL(rhij%v))
+                        Kik=Kik+abs(DREAL(rhij%v))
                     enddo
 
                     DEALLOCATE(nExcit)
                     CALL LogMemDealloc(this_routine,nExcitTag)
 
                     Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
+
                 ENDIF
-                rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)
             ENDIF
+
+            rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)     !This is now the probability with the correct unbiasing
         ELSE
 !Subtract the current value of the shift and multiply by tau
             rat=Tau*((rh%v)-DiagSft)
