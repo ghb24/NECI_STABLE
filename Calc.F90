@@ -19,7 +19,8 @@ MODULE Calc
         LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
-        LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau
+        LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
+        LOGICAL TFullUnbias
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -70,6 +71,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TFullUnbias=.false.
+          TExtraPartDiff=.false.
           TFlipTau=.false.
           FlipTauCyc=73     !A prime
           Lambda=0.D0
@@ -632,6 +635,12 @@ MODULE Calc
 !This indicates that time is to be reversed every FlipTauCyc cycles in the FCIMC algorithm. This might help with undersampling problems.
                   TFlipTau=.true.
                   call geti(FlipTauCyc)
+              case("NON-PARTCONSDIFF")
+!This is a seperate partitioning of the diffusion matrices in FCIMC in which the antidiffusion matrix (+ve connections) create a net increase of two particles.
+                  TExtraPartDiff=.true.
+              case("FULLUNBIASDIFF")
+                  TFullUnbias=.true.
+!This is for FCIMC, and fully unbiases for the diffusion process by summing over all connections
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

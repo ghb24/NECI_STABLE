@@ -12,6 +12,7 @@ MODULE FciMCMod
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
+    USE Calc , only : TExtraPartDiff,TFullUnbias
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -295,26 +296,25 @@ MODULE FciMCMod
     SUBROUTINE PerformFCIMCyc()
         IMPLICIT NONE
         INTEGER :: VecSlot,i,j,k,l,DetCurr(NEl),iMaxExcit,nExcitMemLen,nStore(6)
-        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount!,NoDie
+        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount
         REAL*8 :: Prob,rat,Kik
         INTEGER , ALLOCATABLE :: nExcit(:)
-        LOGICAL :: TDiffused        !Indicates whether a particle has diffused or not
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
         LOGICAL :: WSign
+        LOGICAL :: KeepOrig
+        INTEGER :: CreateAtI,CreateAtJ,tocopy
         CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
         
         CALL TISET('MCyc',iSubCyc)
         
 !VecSlot indicates the next free position in WalkVec2
         VecSlot=1
-!        NoDie=0
 
         do j=1,TotWalkers
 !j runs through all current walkers
             do k=1,NEl
                 DetCurr(k)=WalkVecDets(k,j)
             enddo
-            TDiffused=.false.
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             iMaxExcit=0
@@ -379,42 +379,79 @@ MODULE FciMCMod
 
             ENDIF
 
+            KeepOrig=.true.
             IF(TDiffuse) THEN
 !Next look at possibility of diffusion to another determinant
                 CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
-                IF(AttemptDiffuse(DetCurr,nJ,Prob,IC)) THEN
-!Walker wants to diffuse to nJ from DetCurr, and keep the same sign - copy across nJ, rather than the original walker
+                CALL AttemptDiffuse(DetCurr,nJ,Prob,IC,WalkVecSign(j),KeepOrig,CreateAtI,CreateAtJ)
+                !If we want to keep the original walker, then KeepOrig is true, However, we do not want to copy it accross yet, because we want to see if it is killed first in the birth/death process
+!                IF(KeepOrig) THEN
+!                    do k=1,NEl
+!                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+!                    enddo
+!                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
+!                    VecSlot=VecSlot+1
+!                ENDIF
+                do l=1,abs(CreateAtI)       !Sum in the number of walkers to create at the original determinant
+                    do k=1,NEl
+                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                    enddo
+                    IF(CreateAtI.gt.0) THEN
+                        WalkVec2Sign(VecSlot)=.true.
+                    ELSE
+                        WalkVec2Sign(VecSlot)=.false.
+                    ENDIF
+                    VecSlot=VecSlot+1
+                enddo
+                do l=1,abs(CreateAtJ)       !Add the number of walkers to create at nJ
                     do k=1,NEl
                         WalkVec2Dets(k,VecSlot)=nJ(k)
                     enddo
-                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                    IF(CreateAtJ.gt.0) THEN
+                        WalkVec2Sign(VecSlot)=.true.
+                    ELSE
+                        WalkVec2Sign(VecSlot)=.false.
+                    ENDIF
                     VecSlot=VecSlot+1
-                    TDiffused=.true.
-!                    NoDie=NoDie+1
-                ENDIF
+                enddo
             ENDIF
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
             iDie=AttemptDie(DetCurr,Kik)
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
-            IF((iDie.le.0).AND.(.NOT.TDiffused)) THEN
-!This indicates that the particle is spared and we are not diffusing...copy him across to WalkVec2
+
+            IF(iDie.le.0) THEN
+!This indicates that the particle is spared and we may want to create more...copy them across to WalkVec2
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
-!NoDie actually counts number of particles spared - later it is transformed into the number that actually die
-!                NoDie=NoDie+1+abs(iDie)
-                do l=1,(abs(iDie)+1)
+        
+                IF(KeepOrig) THEN
+                    ToCopy=abs(iDie)+1  !This is because we need to copy accross the original particle too
+                ELSE
+                    IF(iDie.eq.0) THEN
+                        ToCopy=0        !Indicates that want to spare original particle, which has already been copied accross previously, or previously been annihilated
+                    ELSE
+                        ToCopy=abs(iDie)
+                    ENDIF
+                ENDIF
+
+                do l=1,ToCopy    !We need to copy accross one more, since we need to include the original spared particle
                     do k=1,NEl
                         WalkVec2Dets(k,VecSlot)=DetCurr(k)
                     enddo
                     WalkVec2Sign(VecSlot)=WalkVecSign(j)
                     VecSlot=VecSlot+1
                 enddo
-            ELSEIF((iDie.gt.1).AND.(.NOT.TDiffused)) THEN
+
+            ELSEIF(iDie.gt.0) THEN
 !This indicates that particles on DetCurr want to be killed. The first kill will simply be performed by not copying accross the original particle.
 !Therefore, if iDie = 1, then we can simply ignore it.
 !However, after that anti-particles will need to be created on the same determinant.
-!                NoDie=NoDie-(iDie-1)
-                do l=1,(iDie-1)
+
+                IF(KeepOrig) iDie=iDie-1    
+!This is because we can already kill one particle by not copying accross the particle which was originally there (and still is even after diffusion). 
+!If KeepOrig is false, then the particle has already diffused somewhere else, and so antiparticles need to be created in its place.
+
+                do l=1,iDie
                     do k=1,NEl
                         WalkVec2Dets(k,VecSlot)=DetCurr(k)
                     enddo
@@ -426,33 +463,7 @@ MODULE FciMCMod
                     ENDIF
                     VecSlot=VecSlot+1
                 enddo
-            ELSEIF((iDie.gt.0).AND.TDiffused) THEN
-!This means that the particle is destroyed, as well as possibly more, but the actual particle has already diffused to a different determinant (nJ).
-!We need to destroy on the original determinant by creating an opposing signed particle on the original determinant.
-                do l=1,iDie
-                    do k=1,NEl
-                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
-                    enddo
-                    IF(WalkVecSign(j)) THEN
-                        WalkVec2Sign(VecSlot)=.FALSE.
-                    ELSE
-                        WalkVec2Sign(VecSlot)=.TRUE.
-                    ENDIF
-                    VecSlot=VecSlot+1
-                
-!Since we have already indicated that the particle is spared since it is copied accross, just in a different determinant, we have to subtract to ge the correct number of particles spared.
-!                    NoDie=NoDie-1
-                enddo
-            ELSEIF((iDie.lt.0).AND.TDiffused) THEN
-!Here, the particle is is recreated. However, the original particle has moved to a new determinant, and so additional particles need to be created on the original determinant, which are identical to the original.
-                do l=1,(abs(iDie))
-                    do k=1,NEl
-                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
-                    enddo
-                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
-                    VecSlot=VecSlot+1
-                enddo
-
+            
             ENDIF
 
 !Destroy excitation generators for current walker
@@ -467,9 +478,6 @@ MODULE FciMCMod
 !Finish cycling over walkers
         enddo
 
-!        NoDie=TotWalkers-NoDie
-!        DieRat=(NoDie+0.D0)/(TotWalkers+0.D0)
-                
 !Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
         TotWalkersNew=VecSlot-1
         rat=(TotWalkersNew+0.D0)/(MaxWalkers+0.D0)
@@ -1124,10 +1132,11 @@ MODULE FciMCMod
     END SUBROUTINE InitFCIMCCalc
 
 !This function tells us whether we want to diffuse from DetCurr to nJ
-    LOGICAL FUNCTION AttemptDiffuse(DetCurr,nJ,Prob,IC)
+    SUBROUTINE AttemptDiffuse(DetCurr,nJ,Prob,IC,WSign,KeepOrig,CreateAtI,CreateAtJ)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,i
-        REAL*8 Prob,Ran2,rat
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,i,CreateAtI,CreateAtJ
+        REAL*8 :: Prob,Ran2,rat
+        LOGICAL :: WSign,KeepOrig
         TYPE(HElement) :: rh
 
 !Calculate off-diagonal hamiltonian matrix element between determinants
@@ -1139,14 +1148,69 @@ MODULE FciMCMod
         IF(rat.gt.1.D0) CALL STOPGM("AttemptDiffuse","*** Probability > 1 to diffuse.")
 
         IF(rat.gt.Ran2(Seed)) THEN
-            AttemptDiffuse=.true.
+            IF(TExtraPartDiff) THEN
+!We want to perform the non-total number conserving diffusion matrix - anti-diffusion creates 2 new particles
+                IF(real(rh%v).gt.0.D0) THEN
+!Perform anti-diffusion - particle number will increase
+                    IF(WSign) THEN
+!We have a positive walker
+                        KeepOrig=.true.
+                        CreateAtI=1
+                        CreateAtJ=-1
+                    ELSE
+!We have a negative walker
+                        KeepOrig=.true.
+                        CreateAtI=-1
+                        CreateAtJ=1
+                    ENDIF
+                ELSE
+!Perform diffusion - particle number will remain constant
+                    IF(WSign) THEN
+                        KeepOrig=.false.    !Particle is annihilated by newly created opposing signed particle
+                        CreateAtI=0
+                        CreateAtJ=1
+                    ELSE
+                        KeepOrig=.false.
+                        CreateAtI=0
+                        CreateAtJ=-1
+                    ENDIF
+                ENDIF
+            ELSE
+!We are performing a number-conserving diffusion process - this will have a different diagonal birth/death unbiasing probability
+                IF(real(rh%v).gt.0.D0) THEN
+!Perform anti-diffusion, but conserve total particle number
+                    IF(WSign) THEN
+                        KeepOrig=.false.
+                        CreateAtI=0
+                        CreateAtJ=-1
+                    ELSE
+                        KeepOrig=.false.
+                        CreateAtI=0
+                        CreateAtJ=1
+                    ENDIF
+                ELSE
+!Perform diffusion - this should conserve particle number, and be the same as the other diffusion process
+                    IF(WSign) THEN
+                        KeepOrig=.false.
+                        CreateAtI=0
+                        CreateAtJ=1
+                    ELSE
+                        KeepOrig=.false.
+                        CreateAtI=0
+                        CreateAtJ=-1
+                    ENDIF
+                ENDIF
+            ENDIF
         ELSE
-            AttemptDiffuse=.false.
+!No diffusion will occur...
+            KeepOrig=.true.        !We don't want to copy it accross, because it still can die - wait to see if it dies before copying accross
+            CreateAtI=0
+            CreateAtJ=0
         ENDIF
 
         RETURN
 
-    END FUNCTION AttemptDiffuse
+    END SUBROUTINE AttemptDiffuse
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
@@ -1166,12 +1230,12 @@ MODULE FciMCMod
         ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        Kik=abs(Tau)*abs(rh%v)/Prob
+        Kik=abs(Tau)*rh%v/Prob
 
         IF(TDiffuse) THEN
-            rat=(1.D0-Lambda)*Kik
+            rat=(1.D0-Lambda)*abs(Kik)
         ELSE
-            rat=Kik
+            rat=abs(Kik)
         ENDIF
 !        IF(rat.lt.0.D0) THEN
 !            CALL STOPGM("AttemptCreate","*** Probability < 0 to create child.")
@@ -1277,8 +1341,11 @@ MODULE FciMCMod
 !The returned number is the number of deaths if positive, and the number of births if negative.
     INTEGER FUNCTION AttemptDie(DetCurr,Kik)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),DetLT,iKill
-        TYPE(HElement) :: rh
+        INTEGER :: DetCurr(NEl),DetLT,iKill,nExcitMemLen,nStore(6)
+        INTEGER :: nJ(NEl),IC,iMaxExcit,ierr,nExcitTag=0
+        CHARACTER(len=*) , PARAMETER :: this_routine='AttemptDie'
+        INTEGER , ALLOCATABLE :: nExcit(:)
+        TYPE(HElement) :: rh,rhij
         REAL*8 :: Ran2,rat,Kik
 
 !Test if determinant is FDet - in a strongly single-configuration problem, this will save time
@@ -1292,8 +1359,60 @@ MODULE FciMCMod
         ENDIF
 
         IF(TDiffuse) THEN
-!If also diffusing, then the probability of dying must be reduced, since the probability of annihilation has been increased by it.
-            rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)
+!If also diffusing, then the probability of dying must be modified, since the diagonal elements have been altered
+            IF(TExtraPartDiff) THEN
+
+                IF(TFullUnbias) THEN
+!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
+                    iMaxExcit=0
+                    CALL IAZZERO(nStore,6)
+                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+                    ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+                    CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
+                    nExcit(1)=0
+                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+                    
+                    Kik=0.D0    !If we are fully unbiasing, then the unbiasing factor is reset and recalculated from all excitations of DetCurr
+                    do while(.true.)
+                        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
+                        IF(nJ(1).eq.0) EXIT
+                        rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+                        Kik=Kik+(DREAL(rhij%v))
+                    enddo
+
+                    DEALLOCATE(nExcit)
+                    CALL LogMemDealloc(this_routine,nExcitTag)
+
+                    Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
+                ENDIF
+                rat=(Tau*((rh%v)-DiagSft))+(Lambda*Kik)
+            ELSE
+                IF(TFullUnbias) THEN
+
+!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
+                    iMaxExcit=0
+                    CALL IAZZERO(nStore,6)
+                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+                    ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+                    CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
+                    nExcit(1)=0
+                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+                    
+                    Kik=0.D0    !If we are fully unbiasing, then the unbiasing factor is reset and recalculated from all excitations of DetCurr
+                    do while(.true.)
+                        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
+                        IF(nJ(1).eq.0) EXIT
+                        rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+                        Kik=Kik+(DREAL(rhij%v))
+                    enddo
+
+                    DEALLOCATE(nExcit)
+                    CALL LogMemDealloc(this_routine,nExcitTag)
+
+                    Kik=Kik*Tau    !Unbias with the tau*sum of connected elements
+                ENDIF
+                rat=(Tau*((rh%v)-DiagSft))-(Lambda*Kik)
+            ENDIF
         ELSE
 !Subtract the current value of the shift and multiply by tau
             rat=Tau*((rh%v)-DiagSft)
