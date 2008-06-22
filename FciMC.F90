@@ -12,7 +12,7 @@ MODULE FciMCMod
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
-    USE Calc , only : TExtraPartDiff,TFullUnbias
+    USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -49,9 +49,9 @@ MODULE FciMCMod
 !Only 10 culls/growth increases are allowed in a given shift cycle
     INTEGER :: CullInfo(10,3)
 
-    REAL*8 :: GrowRate,DieRat
+    REAL*8 :: GrowRate,DieRat,MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
 
-    TYPE(HElement) :: Hii
+    TYPE(HElement) :: Hii,rhii
 
     contains
 
@@ -493,6 +493,14 @@ MODULE FciMCMod
 
         CALL AnnihilatePairs(TotWalkersNew)
 !        WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers
+
+
+        IF(TNodalCutoff) THEN
+!If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff,
+!then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
+            CALL TestWavevectorNodes()
+        ENDIF
+
         
         IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 !Particle number is too large - kill them randomly
@@ -539,6 +547,105 @@ MODULE FciMCMod
         RETURN
 
     END SUBROUTINE PerformFCIMCyc
+
+!If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff,
+!then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
+    SUBROUTINE TestWavevectorNodes()
+        USE Calc , only : i_P
+        USE System , only : Beta
+        USE Integrals , only : nTay
+        IMPLICIT NONE
+        INTEGER :: TotWalkersOrig,VecSlot,IC,iGetExcitLevel,j,k
+        REAL*8 :: EigenComp
+        LOGICAL :: Component
+        TYPE(HElement) :: rhjj,rhij
+
+        TotWalkersOrig=TotWalkers
+
+!VecSlot indicates the next free position in WalkVec
+        VecSlot=1
+
+        do j=1,TotWalkers
+!j runs through all current walkers
+!IC labels the excitation level away from the HF determinant
+            IC=iGetExcitLevel(FDet,WalkVecDets(:,j),NEl)
+
+            IF((IC.gt.2).or.(IC.eq.1)) THEN
+!More than double excitations/singles are not included in the MP1 wavefunction, therefore we can copy these straight across
+                IF(VecSlot.lt.j) THEN
+!Only copy accross to VecSlot if VecSlot<j, otherwise, if VecSlot=j, particle already in right place.
+                    do k=1,NEl
+                        WalkVecDets(k,VecSlot)=WalkVecDets(k,j)
+                    enddo
+                    WalkVecSign(VecSlot)=WalkVecSign(j)
+                ENDIF
+                VecSlot=VecSlot+1
+
+            ELSEIF((IC.eq.2).or.(IC.eq.0)) THEN
+                IF(IC.eq.2) THEN
+!We are at a double excitation - first find the desired sign of the determinant.
+                    CALL CalcRho2(FDet,WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,IC,ECore)
+                    IF((real(rhij%v)).gt.0) THEN
+!Positive rho connection indicates that the component of the MP1 wavevector is also positive
+                        Component=.true.
+                    ELSE
+                        Component=.false.
+                    ENDIF
+                ELSE
+!We are at the HF determinant
+                    Component=.true.    !HF component of MP1 wavevector always wants to be positive
+                ENDIF
+
+                IF((WalkVecSign(j).and.Component).or.((.NOT.WalkVecSign(j)).and.(.NOT.Component))) THEN
+!The particle is of the same sign as the MP1 wavevector component, so whether or not the determinant is of fixed sign, the particle does not want to be destroyed
+                    IF(VecSlot.lt.j) THEN
+!Only copy accross to VecSlot if VecSlot<j, otherwise, if VecSlot=j, particle already in right place.
+                        do k=1,NEl
+                            WalkVecDets(k,VecSlot)=WalkVecDets(k,j)
+                        enddo
+                        WalkVecSign(VecSlot)=WalkVecSign(j)
+                    ENDIF
+                    VecSlot=VecSlot+1
+                ELSE
+                    !Particle is of a different sign to the component of the MP1 wavefunction - if the determinant is of fixed sign, we don't want to copy it across. Find if fixed sign...
+                    IF(IC.eq.2) THEN
+                        CALL CalcRho2(WalkVecDets(:,j),WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+!We want the value of rho_jj/rho_ii
+                        rhjj=rhjj/rhii
+!EigenComp is now the component of the normalised MP1 wavefunction for the double excitation WalkVecDets(:,j)
+                        EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
+                    ELSE
+!Here, EigenComp is the component of the normalised MP1 wavefunction at the HF determinant (should always be +ve)
+                        EigenComp=1.D0/MPNorm
+                    ENDIF
+
+                    IF(EigenComp.lt.NodalCutoff) THEN
+!Determinant does not have a fixed sign - keep the particle
+                        IF(VecSlot.lt.j) THEN
+!Only copy accross to VecSlot if VecSlot<j, otherwise, if VecSlot=j, particle already in right place.
+                            do k=1,NEl
+                                WalkVecDets(k,VecSlot)=WalkVecDets(k,j)
+                            enddo
+                            WalkVecSign(VecSlot)=WalkVecSign(j)
+                        ENDIF
+                        VecSlot=VecSlot+1
+                    ENDIF
+                ENDIF
+            ELSE
+                CALL STOPGM("TestWavevectorNodes","Should not be here - wrong IC calculated")
+            ENDIF
+        enddo   !end loop over all walkers
+
+!Total number of particles now modified by killing of wrong signed particles
+        TotWalkers=VecSlot-1
+    
+        IF((TotWalkersOrig-TotWalkers).ne.0) THEN
+            WRITE(6,*) "Some particles killed by Nodal approximation: ", TotWalkersOrig-TotWalkers
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE TestWavevectorNodes
 
 !This routine acts as a thermostat for the simulation - killing random particles if the population becomes too large, or 
 !Doubling them if it gets too low...
@@ -733,7 +840,7 @@ MODULE FciMCMod
         INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit,WalkersOnDet
         INTEGER , ALLOCATABLE :: nExcit(:)
         REAL*8 , ALLOCATABLE :: Eigenvector(:)
-        TYPE(HElement) :: rhii,rhij,rhjj
+        TYPE(HElement) :: rhij,rhjj
 
         IF((WaveType.eq.1).or.(WaveType.eq.2)) THEN
 !If WaveType=1, we want to calculate the MP1 wavevector as our initial configuration, and WaveType=2 is the star wavevector
@@ -774,7 +881,15 @@ MODULE FciMCMod
             enddo
             Eigenvector(i)=1.D0
             SumComp=1.D0
+            
+            IF(nTay(2).ne.3) THEN
 !Need to ensure that Low-Diag is being used to recover MP1 wavefunction, where c_j=rh_ij/(rh_jj - 1)
+!Fock-partition-lowdiag is not set - it must be in order to use the given formulation for the MP1 wavefunction
+                WRITE(6,*) "FOCK-PARTITION-LOWDIAG is not specified. It must be to use NODALCUTOFF."
+                WRITE(6,*) "Resetting all rho integrals to use FOCK-PARTITION-LOWDIAG"
+                nTay(2)=3
+            ENDIF
+            
             do while (.true.)
                 CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
                 IF(nJ(1).eq.0) EXIT
@@ -1128,10 +1243,106 @@ MODULE FciMCMod
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
 
+        IF(TNodalCutoff) CALL CalcNodalSurface()
 
         RETURN
 
     END SUBROUTINE InitFCIMCCalc
+
+!This routine calculates the normalisation for the MP1 wavefunction. This is needed if a nodal structure is being applied, and can also calculate the number of determinants which are being constrained.
+    SUBROUTINE CalcNodalSurface()
+        USE Calc , only : i_P
+        USE System , only : Beta
+        USE Integrals , only : nTay
+        IMPLICIT NONE
+        INTEGER :: ierr,i,j,k,Doubs,FixedSign
+        REAL*8 :: EigenComp
+        CHARACTER(len=*), PARAMETER :: this_routine='CalcNodalSurface'
+        INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit
+        INTEGER , ALLOCATABLE :: nExcit(:)
+        TYPE(HElement) :: rhij,rhjj
+
+        WRITE(6,"(A,F19.9)") "Calculating the nodal structure of the MP1 wavefunction with a normalised cutoff of ",NodalCutoff
+
+        IF(nTay(2).ne.3) THEN
+!Fock-partition-lowdiag is not set - it must be in order to use the given formulation for the MP1 wavefunction
+            WRITE(6,*) "FOCK-PARTITION-LOWDIAG is not specified. It must be to use NODALCUTOFF."
+            WRITE(6,*) "Resetting all rho integrals to use FOCK-PARTITION-LOWDIAG"
+            nTay(2)=3
+        ENDIF
+
+!First, generate all excitations, and store their determianants, and rho matrix elements 
+        nStore(1)=0
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,2)
+        ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+        CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
+        nExcit(1)=0
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,2)
+
+!Calculate rho_ii
+        CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
+
+        Doubs=0
+!The HF determiant has a component 1         
+        MPNorm=1.D0
+!Need to ensure that Low-Diag is being used to recover MP1 wavefunction, where c_j=rh_ij/(rh_jj - 1)
+        do while (.true.)
+            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,2)
+            IF(nJ(1).eq.0) EXIT
+            Doubs=Doubs+1
+            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
+            CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+
+!We want the value of rho_jj/rho_ii
+            rhjj=rhjj/rhii
+!EigenComp is now the component of the MP1 wavefunction for nJ, but unnormalised
+            EigenComp=(rhij%v)/((rhjj%v)-1.D0)
+            MPNorm=MPNorm+(EigenComp**2)
+        enddo
+
+        WRITE(6,"(A,I15)") "Number of double excitations found in MP Wavevector: ",Doubs
+
+!Find the normalisation for the MP1 wavevector
+        MPNorm=SQRT(MPNorm)
+
+!Reset the excitation generator, so that we can run through the excitations again and calculate the number of components of the MP1 wavefunction which will be sign-constrained
+        CALL ResetExit2(FDet,NEl,G1,nBasis,nBasisMax,nExcit,0)
+
+        FixedSign=0     !FixedSign is the number of determinants which are fixed in sign with the given value of the NodalCutoff
+
+        IF((1.D0/MPNorm).gt.NodalCutoff) THEN
+!This indicates that the HF is included in the fixed sign approximation, and so will always be constrained to have net positive particles.
+            FixedSign=FixedSign+1
+            WRITE(6,*) "Hartree-Fock determinant constrained to always have net positive sign"
+        ELSE
+            WRITE(6,"(A,F17.9)") "Hartree-Fock determinant NOT constrained to have net positive sign, since normalised component is only: ", 1.D0/MPNorm
+        ENDIF
+
+        do while(.true.)
+            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,2)
+            IF(nJ(1).eq.0) EXIT
+            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
+            CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+
+!We want the value of rho_jj/rho_ii
+            rhjj=rhjj/rhii
+!EigenComp is now the component of the MP1 wavefunction for nJ, but now normalised
+            EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
+            IF(EigenComp.gt.NodalCutoff) THEN
+!Increase the counter of number of determinants with fixed sign
+                FixedSign=FixedSign+1
+            ENDIF
+
+        enddo
+
+        WRITE(6,*) "Total number of determinants constrained by fixed sign: ", FixedSign
+
+        DEALLOCATE(nExcit)
+        CALL LogMemDealloc(this_routine,nExcitTag)
+
+        RETURN
+
+    END SUBROUTINE CalcNodalSurface
 
 !This function tells us whether we want to diffuse from DetCurr to nJ
     SUBROUTINE AttemptDiffuse(DetCurr,nJ,Prob,IC,WSign,KeepOrig,CreateAtI,CreateAtJ)
@@ -1249,7 +1460,7 @@ MODULE FciMCMod
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
-        rat=rat-DREAL(ExtraCreate)
+        rat=rat-REAL(ExtraCreate)
 
 
 !Stochastically choose whether to create or not according to Ran2
@@ -1379,7 +1590,7 @@ MODULE FciMCMod
                         CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
                         IF(nJ(1).eq.0) EXIT
                         rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-                        Kik=Kik+(DREAL(rhij%v))
+                        Kik=Kik+(rhij%v)
                     enddo
 
                     CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
@@ -1400,7 +1611,7 @@ MODULE FciMCMod
 !                        CALL WRITEDET(6,nJ,NEl,.true.)
                         IF(nJ(1).eq.0) EXIT
                         rhij=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-                        Kik=Kik+abs(DREAL(rhij%v))
+                        Kik=Kik+abs(rhij%v)
                     enddo
 
                     CALL ResetExIt2(DetCurr,NEl,G1,nBasis,nBasisMax,nExcit,0)
@@ -1423,7 +1634,7 @@ MODULE FciMCMod
 !        ENDIF
 
         iKill=INT(rat)
-        rat=rat-DREAL(iKill)
+        rat=rat-REAL(iKill)
 
 !Stochastically choose whether to die or not
         IF(abs(rat).gt.Ran2(Seed)) THEN

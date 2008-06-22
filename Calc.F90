@@ -20,7 +20,7 @@ MODULE Calc
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
-        LOGICAL TFullUnbias
+        LOGICAL TFullUnbias,TNodalCutoff
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -33,7 +33,7 @@ MODULE Calc
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
         REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau,SftDamp,ScaleWalkers
-        REAL*8 GrowMaxFactor,CullFactor,Lambda
+        REAL*8 GrowMaxFactor,CullFactor,Lambda,NodalCutoff
 
 
 
@@ -71,6 +71,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TNodalCutoff=.false.
+          NodalCutoff=0.75
           TFullUnbias=.false.
           TExtraPartDiff=.false.
           TFlipTau=.false.
@@ -641,6 +643,10 @@ MODULE Calc
               case("FULLUNBIASDIFF")
                   TFullUnbias=.true.
 !This is for FCIMC, and fully unbiases for the diffusion process by summing over all connections
+              case("NODALCUTOFF")
+                  TNodalCutoff=.true.
+                  call getf(NodalCutoff)
+!This is for all types of FCIMC, and constrains a determinant to be of the same sign as the MP1 wavefunction at that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
