@@ -490,10 +490,10 @@ MODULE FciMCMod
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
         ENDIF
         
-        IF(TNodalCutoff) THEN
+        IF(TNodalCutoff.and.(NodalCutoff.lt.0.D0)) THEN
 !If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff
 !then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
-            CALL TestWavevectorNodes(TotWalkersNew)
+            CALL TestWavevectorNodes(TotWalkersNew,2)
         ENDIF
 
 !This routine now cancels down the particles with opposing sign on each determinant
@@ -503,11 +503,11 @@ MODULE FciMCMod
 !        WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers
 
 
-!        IF(TNodalCutoff) THEN
+        IF(TNodalCutoff.and.(NodalCutoff.ge.0.D0)) THEN
 !If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff
 !then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
-!            CALL TestWavevectorNodes(TotWalkers)
-!        ENDIF
+            CALL TestWavevectorNodes(TotWalkers,1)
+        ENDIF
 
         
         IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
@@ -558,15 +558,29 @@ MODULE FciMCMod
 
 !If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff,
 !then the walkers at that determinant must be of the same sign, or they are killed.
-    SUBROUTINE TestWavevectorNodes(Particles)
+!Particles indicates the number of particles to look through, and iArray is 1 if the WalkVecDets array is active, and 2 if the WalkVec2Dets array is active.
+    SUBROUTINE TestWavevectorNodes(Particles,iArray)
         USE Calc , only : i_P
         USE System , only : Beta
         USE Integrals , only : nTay
         IMPLICIT NONE
-        INTEGER :: ParticlesOrig,VecSlot,IC,iGetExcitLevel,j,k,NoatHF,Particles
+        INTEGER :: ParticlesOrig,VecSlot,IC,iGetExcitLevel,j,k,NoatHF,Particles,iArray
+        INTEGER , POINTER :: ActiveVecDets(:,:)
+        LOGICAL , POINTER :: ActiveVecSign(:)
         REAL*8 :: EigenComp,EnergyNum
         LOGICAL :: Component
         TYPE(HElement) :: Hamij,Fj!,rhjj,rhij
+
+!We first need to point to the active array
+        IF(iArray.eq.1) THEN
+            ActiveVecDets => WalkVecDets
+            ActiveVecSign => WalkVecSign
+        ELSEIF(iArray.eq.2) THEN
+            ActiveVecDets => WalkVec2Dets
+            ActiveVecSign => WalkVec2Sign
+        ELSE
+            CALL STOPGM("TestWavevectorNodes","Error with iArray")
+        ENDIF
 
         EnergyNum=0.D0  !EnergyNum indicates the sum over all the hamiltonian matrix elements between the double excitations and HF
         NoatHF=0
@@ -578,23 +592,23 @@ MODULE FciMCMod
         do j=1,Particles
 !j runs through all current walkers
 !IC labels the excitation level away from the HF determinant
-            IC=iGetExcitLevel(FDet,WalkVecDets(:,j),NEl)
+            IC=iGetExcitLevel(FDet,ActiveVecDets(:,j),NEl)
 
             IF((IC.gt.2).or.(IC.eq.1)) THEN
 !More than double excitations/singles are not included in the MP1 wavefunction, therefore we can copy these straight across
                 IF(VecSlot.lt.j) THEN
 !Only copy accross to VecSlot if VecSlot<j, otherwise, if VecSlot=j, particle already in right place.
                     do k=1,NEl
-                        WalkVecDets(k,VecSlot)=WalkVecDets(k,j)
+                        ActiveVecDets(k,VecSlot)=ActiveVecDets(k,j)
                     enddo
-                    WalkVecSign(VecSlot)=WalkVecSign(j)
+                    ActiveVecSign(VecSlot)=ActiveVecSign(j)
                 ENDIF
                 VecSlot=VecSlot+1
 
             ELSEIF((IC.eq.2).or.(IC.eq.0)) THEN
                 IF(IC.eq.2) THEN
 !We are at a double excitation - first find the desired sign of the determinant.
-                    Hamij=GetHElement2(FDet,WalkVecDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+                    Hamij=GetHElement2(FDet,ActiveVecDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
 !                    CALL CalcRho2(FDet,WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,IC,ECore)
                     IF((real(Hamij%v)).lt.0) THEN
 !Negative Hamiltonian connection indicates that the component of the MP1 wavevector is positive
@@ -608,25 +622,25 @@ MODULE FciMCMod
                     Component=.true.    !HF component of MP1 wavevector always wants to be positive
                 ENDIF
 
-                IF((WalkVecSign(j).and.Component).or.((.NOT.WalkVecSign(j)).and.(.NOT.Component))) THEN
+                IF((ActiveVecSign(j).and.Component).or.((.NOT.ActiveVecSign(j)).and.(.NOT.Component))) THEN
 !The particle is of the same sign as the MP1 wavevector component, so whether or not the determinant is of fixed sign, the particle does not want to be destroyed
                     IF(VecSlot.lt.j) THEN
 !Only copy accross to VecSlot if VecSlot<j, otherwise, if VecSlot=j, particle already in right place.
                         do k=1,NEl
-                            WalkVecDets(k,VecSlot)=WalkVecDets(k,j)
+                            ActiveVecDets(k,VecSlot)=ActiveVecDets(k,j)
                         enddo
-                        WalkVecSign(VecSlot)=WalkVecSign(j)
+                        ActiveVecSign(VecSlot)=ActiveVecSign(j)
                     ENDIF
                     VecSlot=VecSlot+1
 
 !Add to the estimate for the energy if we want to keep the particle
-                    IF(WalkVecSign(j)) THEN
+                    IF(ActiveVecSign(j)) THEN
                         EnergyNum=EnergyNum+(DREAL(Hamij%v))
                     ELSE
                         EnergyNum=EnergyNum-(DREAL(Hamij%v))
                     ENDIF
                     IF(IC.eq.0) THEN
-                        IF(WalkVecSign(j)) THEN
+                        IF(ActiveVecSign(j)) THEN
                             NoatHF=NoatHF+1
                         ELSE
                             NoatHF=NoatHF-1
@@ -636,7 +650,7 @@ MODULE FciMCMod
                 ELSE
 !Particle is of a different sign to the component of the MP1 wavefunction - if the determinant is of fixed sign, we don't want to copy it across. Find if fixed sign...
                     IF(IC.eq.2) THEN
-                        CALL GetH0Element(WalkVecDets(:,j),NEl,Arr,nBasis,ECore,Fj)
+                        CALL GetH0Element(ActiveVecDets(:,j),NEl,Arr,nBasis,ECore,Fj)
 !                        CALL CalcRho2(WalkVecDets(:,j),WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
 !We want the value of rho_jj/rho_ii
 !                        rhjj=rhjj/rhii
@@ -648,25 +662,25 @@ MODULE FciMCMod
                         EigenComp=1.D0/MPNorm
                     ENDIF
 
-                    IF(EigenComp.lt.NodalCutoff) THEN
+                    IF(EigenComp.lt.abs(NodalCutoff)) THEN
 !Determinant does not have a fixed sign - keep the particle
                         IF(VecSlot.lt.j) THEN
 !Only copy accross to VecSlot if VecSlot<j, otherwise, if VecSlot=j, particle already in right place.
                             do k=1,NEl
-                                WalkVecDets(k,VecSlot)=WalkVecDets(k,j)
+                                ActiveVecDets(k,VecSlot)=ActiveVecDets(k,j)
                             enddo
-                            WalkVecSign(VecSlot)=WalkVecSign(j)
+                            ActiveVecSign(VecSlot)=ActiveVecSign(j)
                         ENDIF
                         VecSlot=VecSlot+1
 
 !Add to the estimate for the energy if we want to keep the particle
-                        IF(WalkVecSign(j)) THEN
+                        IF(ActiveVecSign(j)) THEN
                             EnergyNum=EnergyNum+(DREAL(Hamij%v))
                         ELSE
                             EnergyNum=EnergyNum-(DREAL(Hamij%v))
                         ENDIF
                         IF(IC.eq.0) THEN
-                            IF(WalkVecSign(j)) THEN
+                            IF(ActiveVecSign(j)) THEN
                                 NoatHF=NoatHF+1
                             ELSE
                                 NoatHF=NoatHF-1
@@ -1311,12 +1325,13 @@ MODULE FciMCMod
 
         WRITE(6,"(A,F19.9)") "Calculating the nodal structure of the MP1 wavefunction with a normalised cutoff of ",NodalCutoff
 
-        IF(nTay(2).ne.3) THEN
+!        IF(nTay(2).ne.3) THEN
+!This is no longer needed since the MP1 components are calculated exactly
 !Fock-partition-lowdiag is not set - it must be in order to use the given formulation for the MP1 wavefunction
-            WRITE(6,*) "FOCK-PARTITION-LOWDIAG is not specified. It must be to use NODALCUTOFF."
-            WRITE(6,*) "Resetting all rho integrals to use FOCK-PARTITION-LOWDIAG"
-            nTay(2)=3
-        ENDIF
+!            WRITE(6,*) "FOCK-PARTITION-LOWDIAG is not specified. It must be to use NODALCUTOFF."
+!            WRITE(6,*) "Resetting all rho integrals to use FOCK-PARTITION-LOWDIAG"
+!            nTay(2)=3
+!        ENDIF
 
 !First, generate all excitations, and store their determianants, and rho matrix elements 
         nStore(1)=0
@@ -1360,7 +1375,7 @@ MODULE FciMCMod
 
         FixedSign=0     !FixedSign is the number of determinants which are fixed in sign with the given value of the NodalCutoff
 
-        IF((1.D0/MPNorm).gt.NodalCutoff) THEN
+        IF((1.D0/MPNorm).gt.abs(NodalCutoff)) THEN
 !This indicates that the HF is included in the fixed sign approximation, and so will always be constrained to have net positive particles.
             FixedSign=FixedSign+1
             WRITE(6,*) "Hartree-Fock determinant constrained to always have net positive sign"
@@ -1381,7 +1396,7 @@ MODULE FciMCMod
 !EigenComp is now the component of the MP1 wavefunction for nJ, but now normalised
 !            EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
             EigenComp=abs(((Hamij%v)/(Fj%v-FZero%v))/MPNorm)
-            IF(EigenComp.gt.NodalCutoff) THEN
+            IF(EigenComp.gt.abs(NodalCutoff)) THEN
 !Increase the counter of number of determinants with fixed sign
                 FixedSign=FixedSign+1
             ENDIF
