@@ -52,6 +52,8 @@ MODULE FciMCMod
     REAL*8 :: GrowRate,DieRat,MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
     REAL*8 :: ProjectionE,SumE
 
+    INTEGER :: CycwNoHF     !Count the number of iterations which don't have any walkers on HF - in this case, ignore running average of energy, but count it so it is not included in demonimator
+
     TYPE(HElement) :: Hii,rhii,FZero
 
     contains
@@ -119,8 +121,10 @@ MODULE FciMCMod
 
 !Initialise random number seed
         Seed=G_VMC_Seed
+!Initialise variables for calculation of the running average
         ProjectionE=0.D0
         SumE=0.D0
+        CycwNoHF=0
 
 !Calculate Hii
         Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -701,8 +705,14 @@ MODULE FciMCMod
             WRITE(6,*) "Some particles killed by Nodal approximation: ", ParticlesOrig-Particles
         ENDIF
 
-        SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(DREAL(Hii%v)))
-        ProjectionE=SumE/(Iter+0.D0)
+        IF(NoatHF.ne.0) THEN
+!The energy cannot be calculated via the projection back onto the HF if there are no particles at HF
+            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(DREAL(Hii%v)))
+            ProjectionE=SumE/((Iter-CycwNoHF)+0.D0)
+        ELSE
+            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
+            WRITE(6,*) "No positive particles at reference determinant during iteration: ",Iter
+        ENDIF
 
         RETURN
 
