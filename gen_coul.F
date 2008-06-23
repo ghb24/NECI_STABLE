@@ -1,6 +1,7 @@
       SUBROUTINE GEN_COUL(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS)
       use System, only: BasisFN
+      use UMatCache, only: GTID
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
       INTEGER NBASISMAX(5,3),ISS

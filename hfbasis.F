@@ -117,7 +117,7 @@ C.. Generic spatial symmetry
       END
       SUBROUTINE CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
      &            HFE,ARR,BRR,NORBUSED)
-         USE UMatCache , only : UMatInd
+         USE UMatCache , only : UMatInd,GTID
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
          REAL*8 UMAT(*)
@@ -522,7 +522,7 @@ C.. vector
       SUBROUTINE GENFMAT(FMAT,DMAT,UMAT,NSBASIS,NSPINS,NBASISMAX,
      &                  TRHF,ISS,G1)
          USE OneEInts, only: GetTMATEl
-         USE UMatCache, only: GetUMatEl
+         USE UMatCache, only: GetUMatEl,GTID
          USE Logging, only: HFLogLevel
          USE HElem
          use System, only: BasisFN
@@ -1345,7 +1345,7 @@ C.. TOT now contains dE/dcij, so we store this
 
       SUBROUTINE CALCDEDCIJ2(CMAT,DEDCIJ,NDET1,NSPINS,NSBASIS,UMAT,
      &         ECORE, NBASIS,G1,NBASISMAX,NELS,NEL,ECUR,ISS)            
-         USE UMatCache, only : UMatInd
+         USE UMatCache, only : UMatInd,GTID
          use OneEInts, only: GetTMatEl
          USE HElem
          IMPLICIT NONE

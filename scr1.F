@@ -1,7 +1,7 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
      &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM)
       USE HElem
-      USE UMatCache, only : GetUMatEl
+      USE UMatCache, only : GetUMatEl,GTID
       use OneEInts, only: GetTMatEl
       use System, only: BasisFN
       IMPLICIT NONE

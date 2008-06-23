@@ -604,6 +604,7 @@ MODULE Integrals
          use System, only: Symmetry,BasisFN,BasisFNSize
          USE UMatCache, only: FreezeTransfer,GetUMatEl,UMatCacheData,UMatInd,TUMat2D
          Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
+         use UMatCache, only: GTID
          IMPLICIT NONE
          INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
          TYPE(BASISFN) G1(NHG)

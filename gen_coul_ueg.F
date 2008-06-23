@@ -2,7 +2,7 @@ C.. This is based upon the GEN_COUL for electrons in a cubic box
 C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_HUBNPBC(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA)
-      USE UMatCache , only : UMatInd
+      USE UMatCache , only : UMatInd,GTID
       use System, only: BasisFN
       IMPLICIT NONE
       TYPE(BASISFN) G1(NHG)
@@ -89,7 +89,7 @@ C.. This is based upon the GEN_COUL for electrons in a cubic box
 C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_UEG(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
-      USE UMatCache , only : UMatInd, iPeriodicDampingType
+      USE UMatCache , only : UMatInd, iPeriodicDampingType,GTID
       use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
