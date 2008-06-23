@@ -557,10 +557,6 @@ MODULE Calc
                   TNoSameExcit=.true.
               case("NOTRIPLES")
                   lNoTriples=.true.
-              case("MAXEXCIT")
-!This imposes a maximum excitation level to the space that GraphMorph can explore
-                  TMaxExcit=.true.
-                  call geti(iMaxExcitLevel)
               case("ONEEXCITCONN")
 !This means that determinants can only be attached to each other if they differ by one excitation level from HF
                   TOneExcitConn=.true.
@@ -589,6 +585,10 @@ MODULE Calc
               case("NON-STOCH")
 !For graph MC, this indicates whether the determinants to apply the hamiltonian to locally are picked stochastically, or whether to run through all of them 
                   TStoch=.false.
+              case("MAXEXCIT")
+!This imposes a maximum excitation level to the space that GraphMorph can explore.
+                  TMaxExcit=.true.
+                  call geti(iMaxExcitLevel)
               case("INITWALKERS")
 !For FCIMC, this is the number of walkers to start with
                   call geti(InitWalkers)

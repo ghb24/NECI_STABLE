@@ -50,8 +50,9 @@ MODULE FciMCMod
     INTEGER :: CullInfo(10,3)
 
     REAL*8 :: GrowRate,DieRat,MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
+    REAL*8 :: ProjectionE,SumE
 
-    TYPE(HElement) :: Hii,rhii
+    TYPE(HElement) :: Hii,rhii,FZero
 
     contains
 
@@ -118,6 +119,8 @@ MODULE FciMCMod
 
 !Initialise random number seed
         Seed=G_VMC_Seed
+        ProjectionE=0.D0
+        SumE=0.D0
 
 !Calculate Hii
         Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -133,15 +136,15 @@ MODULE FciMCMod
         IF(.NOT.TNoBirth) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers"
-            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers"
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E"
+            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E"
 !TotWalkersOld is the number of walkers last time the shift was changed
             IF(TReadPops) THEN
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
             ELSE
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
             ENDIF
         ENDIF
         
@@ -205,15 +208,15 @@ MODULE FciMCMod
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                     IF(TReadPops) THEN
-                        WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                        WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                     ELSE
                         IF(Tau.gt.0.D0) THEN
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                         ELSE
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                         ENDIF
                     ENDIF
 
@@ -486,20 +489,25 @@ MODULE FciMCMod
         IF(rat.gt.0.9) THEN
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
         ENDIF
+        
+        IF(TNodalCutoff) THEN
+!If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff
+!then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
+            CALL TestWavevectorNodes(TotWalkersNew)
+        ENDIF
 
 !This routine now cancels down the particles with opposing sign on each determinant
 !This routine does not necessarily need to be called every Iter, but it does at the moment, since it is the only way to 
 !transfer the residual particles back onto WalkVec
-
         CALL AnnihilatePairs(TotWalkersNew)
 !        WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers
 
 
-        IF(TNodalCutoff) THEN
-!If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff,
+!        IF(TNodalCutoff) THEN
+!If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff
 !then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
-            CALL TestWavevectorNodes()
-        ENDIF
+!            CALL TestWavevectorNodes(TotWalkers)
+!        ENDIF
 
         
         IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
@@ -549,23 +557,25 @@ MODULE FciMCMod
     END SUBROUTINE PerformFCIMCyc
 
 !If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff,
-!then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
-    SUBROUTINE TestWavevectorNodes()
+!then the walkers at that determinant must be of the same sign, or they are killed.
+    SUBROUTINE TestWavevectorNodes(Particles)
         USE Calc , only : i_P
         USE System , only : Beta
         USE Integrals , only : nTay
         IMPLICIT NONE
-        INTEGER :: TotWalkersOrig,VecSlot,IC,iGetExcitLevel,j,k
-        REAL*8 :: EigenComp
+        INTEGER :: ParticlesOrig,VecSlot,IC,iGetExcitLevel,j,k,NoatHF,Particles
+        REAL*8 :: EigenComp,EnergyNum
         LOGICAL :: Component
-        TYPE(HElement) :: rhjj,rhij
+        TYPE(HElement) :: Hamij,Fj!,rhjj,rhij
 
-        TotWalkersOrig=TotWalkers
+        EnergyNum=0.D0  !EnergyNum indicates the sum over all the hamiltonian matrix elements between the double excitations and HF
+        NoatHF=0
 
+        ParticlesOrig=Particles
 !VecSlot indicates the next free position in WalkVec
         VecSlot=1
 
-        do j=1,TotWalkers
+        do j=1,Particles
 !j runs through all current walkers
 !IC labels the excitation level away from the HF determinant
             IC=iGetExcitLevel(FDet,WalkVecDets(:,j),NEl)
@@ -584,15 +594,17 @@ MODULE FciMCMod
             ELSEIF((IC.eq.2).or.(IC.eq.0)) THEN
                 IF(IC.eq.2) THEN
 !We are at a double excitation - first find the desired sign of the determinant.
-                    CALL CalcRho2(FDet,WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,IC,ECore)
-                    IF((real(rhij%v)).gt.0) THEN
-!Positive rho connection indicates that the component of the MP1 wavevector is also positive
+                    Hamij=GetHElement2(FDet,WalkVecDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!                    CALL CalcRho2(FDet,WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,IC,ECore)
+                    IF((real(Hamij%v)).lt.0) THEN
+!Negative Hamiltonian connection indicates that the component of the MP1 wavevector is positive
                         Component=.true.
                     ELSE
                         Component=.false.
                     ENDIF
                 ELSE
 !We are at the HF determinant
+                    Hamij=Hii
                     Component=.true.    !HF component of MP1 wavevector always wants to be positive
                 ENDIF
 
@@ -606,14 +618,31 @@ MODULE FciMCMod
                         WalkVecSign(VecSlot)=WalkVecSign(j)
                     ENDIF
                     VecSlot=VecSlot+1
+
+!Add to the estimate for the energy if we want to keep the particle
+                    IF(WalkVecSign(j)) THEN
+                        EnergyNum=EnergyNum+(DREAL(Hamij%v))
+                    ELSE
+                        EnergyNum=EnergyNum-(DREAL(Hamij%v))
+                    ENDIF
+                    IF(IC.eq.0) THEN
+                        IF(WalkVecSign(j)) THEN
+                            NoatHF=NoatHF+1
+                        ELSE
+                            NoatHF=NoatHF-1
+                        ENDIF
+                    ENDIF
+
                 ELSE
-                    !Particle is of a different sign to the component of the MP1 wavefunction - if the determinant is of fixed sign, we don't want to copy it across. Find if fixed sign...
+!Particle is of a different sign to the component of the MP1 wavefunction - if the determinant is of fixed sign, we don't want to copy it across. Find if fixed sign...
                     IF(IC.eq.2) THEN
-                        CALL CalcRho2(WalkVecDets(:,j),WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+                        CALL GetH0Element(WalkVecDets(:,j),NEl,Arr,nBasis,ECore,Fj)
+!                        CALL CalcRho2(WalkVecDets(:,j),WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
 !We want the value of rho_jj/rho_ii
-                        rhjj=rhjj/rhii
+!                        rhjj=rhjj/rhii
 !EigenComp is now the component of the normalised MP1 wavefunction for the double excitation WalkVecDets(:,j)
-                        EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
+!                        EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
+                        EigenComp=abs(((Hamij%v)/(Fj%v-FZero%v))/MPNorm)
                     ELSE
 !Here, EigenComp is the component of the normalised MP1 wavefunction at the HF determinant (should always be +ve)
                         EigenComp=1.D0/MPNorm
@@ -629,6 +658,21 @@ MODULE FciMCMod
                             WalkVecSign(VecSlot)=WalkVecSign(j)
                         ENDIF
                         VecSlot=VecSlot+1
+
+!Add to the estimate for the energy if we want to keep the particle
+                        IF(WalkVecSign(j)) THEN
+                            EnergyNum=EnergyNum+(DREAL(Hamij%v))
+                        ELSE
+                            EnergyNum=EnergyNum-(DREAL(Hamij%v))
+                        ENDIF
+                        IF(IC.eq.0) THEN
+                            IF(WalkVecSign(j)) THEN
+                                NoatHF=NoatHF+1
+                            ELSE
+                                NoatHF=NoatHF-1
+                            ENDIF
+                        ENDIF
+
                     ENDIF
                 ENDIF
             ELSE
@@ -637,11 +681,14 @@ MODULE FciMCMod
         enddo   !end loop over all walkers
 
 !Total number of particles now modified by killing of wrong signed particles
-        TotWalkers=VecSlot-1
+        Particles=VecSlot-1
     
-        IF((TotWalkersOrig-TotWalkers).ne.0) THEN
-            WRITE(6,*) "Some particles killed by Nodal approximation: ", TotWalkersOrig-TotWalkers
+        IF((ParticlesOrig-Particles).ne.0) THEN
+            WRITE(6,*) "Some particles killed by Nodal approximation: ", ParticlesOrig-Particles
         ENDIF
+
+        SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(DREAL(Hii%v)))
+        ProjectionE=SumE/(Iter+0.D0)
 
         RETURN
 
@@ -1260,7 +1307,7 @@ MODULE FciMCMod
         CHARACTER(len=*), PARAMETER :: this_routine='CalcNodalSurface'
         INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit
         INTEGER , ALLOCATABLE :: nExcit(:)
-        TYPE(HElement) :: rhij,rhjj
+        TYPE(HElement) :: Fj,Hamij!,rhij,rhjj
 
         WRITE(6,"(A,F19.9)") "Calculating the nodal structure of the MP1 wavefunction with a normalised cutoff of ",NodalCutoff
 
@@ -1279,24 +1326,27 @@ MODULE FciMCMod
         nExcit(1)=0
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,2)
 
-!Calculate rho_ii
-        CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
+!Calculate F0
+        CALL GetH0Element(FDet,NEl,Arr,nBasis,ECore,FZero)
+!        CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
 
         Doubs=0
-!The HF determiant has a component 1         
+!The HF determinant has a component 1         
         MPNorm=1.D0
-!Need to ensure that Low-Diag is being used to recover MP1 wavefunction, where c_j=rh_ij/(rh_jj - 1)
         do while (.true.)
             CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,2)
             IF(nJ(1).eq.0) EXIT
             Doubs=Doubs+1
-            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
-            CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+            Hamij=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fj)
+!            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
+!            CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
 
 !We want the value of rho_jj/rho_ii
-            rhjj=rhjj/rhii
+!            rhjj=rhjj/rhii
 !EigenComp is now the component of the MP1 wavefunction for nJ, but unnormalised
-            EigenComp=(rhij%v)/((rhjj%v)-1.D0)
+!            EigenComp=(rhij%v)/((rhjj%v)-1.D0)
+            EigenComp=(Hamij%v)/(Fj%v-FZero%v)
             MPNorm=MPNorm+(EigenComp**2)
         enddo
 
@@ -1321,13 +1371,16 @@ MODULE FciMCMod
         do while(.true.)
             CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,2)
             IF(nJ(1).eq.0) EXIT
-            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
-            CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+            Hamij=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fj)
+!            CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
+!            CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
 
 !We want the value of rho_jj/rho_ii
-            rhjj=rhjj/rhii
+!            rhjj=rhjj/rhii
 !EigenComp is now the component of the MP1 wavefunction for nJ, but now normalised
-            EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
+!            EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
+            EigenComp=abs(((Hamij%v)/(Fj%v-FZero%v))/MPNorm)
             IF(EigenComp.gt.NodalCutoff) THEN
 !Increase the counter of number of determinants with fixed sign
                 FixedSign=FixedSign+1
