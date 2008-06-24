@@ -56,6 +56,8 @@ MODULE FciMCMod
 
     INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
 
+    INTEGER :: NetPositive
+
     TYPE(HElement) :: Hii,rhii,FZero
 
     contains
@@ -144,15 +146,15 @@ MODULE FciMCMod
         IF(.NOT.TNoBirth) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E"
-            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E"
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E   Net+veWalk"
+            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E   Net+veWalk"
 !TotWalkersOld is the number of walkers last time the shift was changed
             IF(TReadPops) THEN
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
             ELSE
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
             ENDIF
         ENDIF
         
@@ -216,15 +218,15 @@ MODULE FciMCMod
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                     IF(TReadPops) THEN
-                        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-                        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
+                        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
                     ELSE
                         IF(Tau.gt.0.D0) THEN
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
                         ELSE
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
                         ENDIF
                     ENDIF
 
@@ -572,7 +574,7 @@ MODULE FciMCMod
         USE System , only : Beta
         USE Integrals , only : nTay
         IMPLICIT NONE
-        INTEGER :: ParticlesOrig,VecSlot,IC,iGetExcitLevel,j,k,NoatHF,Particles,iArray
+        INTEGER :: ParticlesOrig,VecSlot,IC,iGetExcitLevel,j,k,NoatHF,Particles,iArray,NoPositive,NoNegative
         INTEGER , POINTER :: ActiveVecDets(:,:)
         LOGICAL , POINTER :: ActiveVecSign(:)
         REAL*8 :: EigenComp,EnergyNum
@@ -592,6 +594,8 @@ MODULE FciMCMod
 
         EnergyNum=0.D0  !EnergyNum indicates the sum over all the hamiltonian matrix elements between the double excitations and HF
         NoatHF=0
+        NoPositive=0    !Total number of positive particles
+        NoNegative=0    !Total number of negative particles
 
         ParticlesOrig=Particles
 !VecSlot indicates the next free position in WalkVec
@@ -612,6 +616,12 @@ MODULE FciMCMod
                     ActiveVecSign(VecSlot)=ActiveVecSign(j)
                 ENDIF
                 VecSlot=VecSlot+1
+
+                IF(ActiveVecSign(j)) THEN
+                    NoPositive=NoPositive+1
+                ELSE
+                    NoNegative=NoNegative+1
+                ENDIF
 
             ELSEIF((IC.eq.2).or.(IC.eq.0)) THEN
                 IF(IC.eq.2) THEN
@@ -644,8 +654,10 @@ MODULE FciMCMod
 !Add to the estimate for the energy if we want to keep the particle
                     IF(ActiveVecSign(j)) THEN
                         EnergyNum=EnergyNum+(DREAL(Hamij%v))
+                        NoPositive=NoPositive+1
                     ELSE
                         EnergyNum=EnergyNum-(DREAL(Hamij%v))
+                        NoNegative=NoNegative+1
                     ENDIF
                     IF(IC.eq.0) THEN
                         IF(ActiveVecSign(j)) THEN
@@ -684,8 +696,10 @@ MODULE FciMCMod
 !Add to the estimate for the energy if we want to keep the particle
                         IF(ActiveVecSign(j)) THEN
                             EnergyNum=EnergyNum+(DREAL(Hamij%v))
+                            NoPositive=NoPositive+1
                         ELSE
                             EnergyNum=EnergyNum-(DREAL(Hamij%v))
+                            NoNegative=NoNegative+1
                         ENDIF
                         IF(IC.eq.0) THEN
                             IF(ActiveVecSign(j)) THEN
@@ -714,7 +728,6 @@ MODULE FciMCMod
         SumENum=SumENum+EnergyNum
         ProjectionE=(SumENum/(SumNoatHF+0.D0))-DREAL(Hii%v)
 
-
 !        IF(NoatHF.ne.0) THEN
 !The energy cannot be calculated via the projection back onto the HF if there are no particles at HF
 !            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(DREAL(Hii%v)))
@@ -723,6 +736,9 @@ MODULE FciMCMod
 !            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
 !            WRITE(6,*) "No positive particles at reference determinant during iteration: ",Iter
 !        ENDIF
+
+        NetPositive=NoPositive-NoNegative
+!        WRITE(6,*) ParticlesOrig,Particles,NetPositive,NoPositive,NoNegative
 
         RETURN
 
