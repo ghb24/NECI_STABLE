@@ -50,9 +50,11 @@ MODULE FciMCMod
     INTEGER :: CullInfo(10,3)
 
     REAL*8 :: GrowRate,DieRat,MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
-    REAL*8 :: ProjectionE,SumE
+    REAL*8 :: ProjectionE,SumENum
 
     INTEGER :: CycwNoHF     !Count the number of iterations which don't have any walkers on HF - in this case, ignore running average of energy, but count it so it is not included in demonimator
+
+    INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
 
     TYPE(HElement) :: Hii,rhii,FZero
 
@@ -123,7 +125,9 @@ MODULE FciMCMod
         Seed=G_VMC_Seed
 !Initialise variables for calculation of the running average
         ProjectionE=0.D0
-        SumE=0.D0
+!        SumE=0.D0
+        SumENum=0.D0
+        SumNoatHF=0
         CycwNoHF=0
 
 !Calculate Hii
@@ -705,14 +709,20 @@ MODULE FciMCMod
             WRITE(6,*) "Some particles killed by Nodal approximation: ", ParticlesOrig-Particles
         ENDIF
 
-        IF(NoatHF.ne.0) THEN
+!Calculate the time average of the numerator and demonimator to calculate the running average of the energy - this will then not be affected by the case when there aren't any particles at the HF determinant
+        SumNoatHF=SumNoatHF+NoatHF
+        SumENum=SumENum+EnergyNum
+        ProjectionE=(SumENum/(SumNoatHF+0.D0))-DREAL(Hii%v)
+
+
+!        IF(NoatHF.ne.0) THEN
 !The energy cannot be calculated via the projection back onto the HF if there are no particles at HF
-            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(DREAL(Hii%v)))
-            ProjectionE=SumE/((Iter-CycwNoHF)+0.D0)
-        ELSE
-            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
-            WRITE(6,*) "No positive particles at reference determinant during iteration: ",Iter
-        ENDIF
+!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(DREAL(Hii%v)))
+!            ProjectionE=SumE/((Iter-CycwNoHF)+0.D0)
+!        ELSE
+!            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
+!            WRITE(6,*) "No positive particles at reference determinant during iteration: ",Iter
+!        ENDIF
 
         RETURN
 
