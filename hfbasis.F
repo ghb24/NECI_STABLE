@@ -119,7 +119,7 @@ C.. Generic spatial symmetry
      &            HFE,ARR,BRR,NORBUSED)
          USE UMatCache , only : UMatInd,GTID
          IMPLICIT NONE
-         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,*)
          REAL*8 UMAT(*)
          REAL*8 UMAT2(*),ARR(NBASIS)
          REAL*8 UMATT((((NBASIS/ISS)*(NBASIS/ISS-1))/2)**2)

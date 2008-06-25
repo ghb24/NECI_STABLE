@@ -600,8 +600,8 @@ MODULE Integrals
       SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
      &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
          USE HElem
-         use OneEInts
          use System, only: Symmetry,BasisFN,BasisFNSize
+         use OneEInts
          USE UMatCache, only: FreezeTransfer,GetUMatEl,UMatCacheData,UMatInd,TUMat2D
          Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
          use UMatCache, only: GTID

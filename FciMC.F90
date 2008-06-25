@@ -22,6 +22,8 @@ MODULE FciMCMod
     IMPLICIT NONE
     SAVE
 
+    INTEGER, PARAMETER :: r2=kind(0.d0)
+
     INTEGER , POINTER :: WalkVecDets(:,:),WalkVec2Dets(:,:)
     LOGICAL , POINTER :: WalkVecSign(:),WalkVec2Sign(:)
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
@@ -653,10 +655,10 @@ MODULE FciMCMod
 
 !Add to the estimate for the energy if we want to keep the particle
                     IF(ActiveVecSign(j)) THEN
-                        EnergyNum=EnergyNum+(DREAL(Hamij%v))
+                        EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
                         NoPositive=NoPositive+1
                     ELSE
-                        EnergyNum=EnergyNum-(DREAL(Hamij%v))
+                        EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
                         NoNegative=NoNegative+1
                     ENDIF
                     IF(IC.eq.0) THEN
@@ -695,10 +697,10 @@ MODULE FciMCMod
 
 !Add to the estimate for the energy if we want to keep the particle
                         IF(ActiveVecSign(j)) THEN
-                            EnergyNum=EnergyNum+(DREAL(Hamij%v))
+                            EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
                             NoPositive=NoPositive+1
                         ELSE
-                            EnergyNum=EnergyNum-(DREAL(Hamij%v))
+                            EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
                             NoNegative=NoNegative+1
                         ENDIF
                         IF(IC.eq.0) THEN
@@ -726,11 +728,11 @@ MODULE FciMCMod
 !Calculate the time average of the numerator and demonimator to calculate the running average of the energy - this will then not be affected by the case when there aren't any particles at the HF determinant
         SumNoatHF=SumNoatHF+NoatHF
         SumENum=SumENum+EnergyNum
-        ProjectionE=(SumENum/(SumNoatHF+0.D0))-DREAL(Hii%v)
+        ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,r2)
 
 !        IF(NoatHF.ne.0) THEN
 !The energy cannot be calculated via the projection back onto the HF if there are no particles at HF
-!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(DREAL(Hii%v)))
+!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(REAL(Hii%v,r2)))
 !            ProjectionE=SumE/((Iter-CycwNoHF)+0.D0)
 !        ELSE
 !            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average

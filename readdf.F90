@@ -246,8 +246,8 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          USE HElem
-         USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          use System, only: BasisFN,BasisFNSize,Symmetry
+         USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          implicit none
          integer nBasis,Brr(nBasis),i,j
          real*8 Arr(nBasis,2),val,ECore

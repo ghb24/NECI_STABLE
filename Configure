@@ -826,20 +826,20 @@ case ${Configuration}
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lmkl_lapack -lmkl -lmkl_em64t -lmkl_sequential -lguide -lpthreads $(QMMM_LIBS)' 
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml'
      LDFLAGS='-Mnostdlib -Mnostartup' 
      F90FLAGS=''
      if [ $debug ]; then
-       FC='ifort -c -g '
+       FC='ifort -c -g -r8 '
        CC='cc -g -sb -C -errtags'
-       LD='ifort -g'
-       FCD='pgf90 -c -g '
+       LD='ifort -g -r8'
+       FCD='ifort -c -g '
        CCD='cc -g -sb -C -errtags'
        LDD='ifort -g'
      else
-       FC='ifort -c -O3 -no-prec-div -static -xT'
+       FC='ifort -c -O3 -no-prec-div -static -r8'
        CC='cc -O'
-       LD='ifort  -O3 -no-prec-div -static -xW'
+       LD='ifort  -O3 -no-prec-div -static -r8'
        FCD='ifort -c -g'
        CCD='cc -g -sb -C -errtags'
        LDD='ifort -g'
