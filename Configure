@@ -48,8 +48,8 @@ where the name of the configuration is:
    FUJITSU-VPP-MPJP           PC-ABSOFT
    PC-PGI                     PC-PGI-MPI
    PC-PGI64-MPI               PC-PGI64-MPI-UCL 
-   ix86-g95/32                ix86-gfortran/64
-   ix86-gfortran/32           PC-ifort64
+   ix86-g95/32                ix86-gfortran64
+   ix86-gfortran32           PC-ifort64
 Use Configure in the directory where the SOURCE FILES are.
 Ex: Configure SUN > Makefile
 See the description of options with Configure -help
@@ -959,7 +959,7 @@ MAXMEM := 1024 # RAM available, in MB.
      fi
      ;;
   
-   "ix86-gfortran/64")
+   "ix86-gfortran64")
      compiler='GCC-f95-on-LINUX'
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
@@ -986,7 +986,7 @@ MAXMEM := 1024 # RAM available, in MB.
      fi
      ;;
 
-   "ix86-gfortran/32")
+   "ix86-gfortran32")
      compiler='GCC-f95-on-LINUX'
      IRAT=2
      CPP='cpp -P -C -traditional'
@@ -996,7 +996,6 @@ MAXMEM := 1024 # RAM available, in MB.
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
      LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pc-cygwin/3.4.4/libg2c.a' 
      LDFLAGS='-Mnostdlib -Mnostartup' 
-     PreprocSep=""
      if [ $debug ]; then
        FC='gfortran -c -g '
        CC='cc -g -sb -C -errtags'
@@ -1005,7 +1004,7 @@ MAXMEM := 1024 # RAM available, in MB.
        CCD='cc -g -sb -C -errtags'
        LDD='gfortran -g'
      else
-       FC='gfortran -c -O4 -fast'
+       FC='gfortran -c -O4'
        CC='cc -O'
        LD='gfortran -O4'
        FCD='gfortran -c -g'
@@ -1014,7 +1013,7 @@ MAXMEM := 1024 # RAM available, in MB.
      fi
      ;;
 
-   "ppc-gfortran/32")
+   "ppc-gfortran32")
      IRAT=2
      CPP='cpp -P -C -traditional'
      CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DGFORTRAN"

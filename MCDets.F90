@@ -297,7 +297,7 @@ subroutine DeleteParticle(PL,iParticle)
       endif
    endif
 !  Deal with the hanging
-   if(iHanging) then
+   if(iHanging.ne.0) then
       call AddParticleNode(PL,iHanging)
    endif
 !  Now note that we are zero
