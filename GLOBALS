@@ -11,8 +11,8 @@ lsymsym_
 symprod_
 symconj_
 totsymrep_
-__readinput__readinputmain
-__memorymanager__initmemorymanager
-__memorymanager__logmemalloc
-__memorymanager__logmemdealloc
-__memorymanager__leavememorymanager
+readinput_readinputmain_
+memorymanager_initmemorymanager_
+memorymanager_logmemalloc_
+memorymanager_logmemdealloc_
+memorymanager_leavememorymanager_
