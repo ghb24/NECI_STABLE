@@ -722,7 +722,7 @@ MODULE System
       ENDIF
 !C..        (.NOT.TREADINT)
 !C.. Set the initial symmetry to be totally symmetric
-      CALL IAZZERO(FrzSym,SymmetrySize)
+      CALL IAZZERO(FrzSym,BasisFNSize)
       FrzSym%Sym=TotSymRep()
       CALL SetupFreezeSym(FrzSym)
 !C..Now we sort them using SORT2 and then SORT
