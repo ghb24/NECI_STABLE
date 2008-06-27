@@ -20,7 +20,7 @@ MODULE Calc
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
-        LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil
+        LOGICAL TFullUnbias,TNodalCutoff
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -71,7 +71,6 @@ MODULE Calc
 
 
 !       Calc defaults 
-          TNoAnnihil=.false.
           TNodalCutoff=.false.
           NodalCutoff=0.75
           TFullUnbias=.false.
@@ -648,9 +647,6 @@ MODULE Calc
                   TNodalCutoff=.true.
                   call getf(NodalCutoff)
 !This is for all types of FCIMC, and constrains a determinant to be of the same sign as the MP1 wavefunction at that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
-              case("NOANNIHIL")
-                  TNoAnnihil=.true.
-!For FCIMC, this removes the annihilation of particles on the same determinant step.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
