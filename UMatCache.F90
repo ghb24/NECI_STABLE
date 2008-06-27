@@ -1086,12 +1086,9 @@ MODULE UMatCache
           call GetCacheIndexStates(iPair,i,k)
           call GetCacheIndexStates(iSlot,j,l)
           Sym=TotSymRep()
-!          Sym=SymProd(Sym,SymConj(G1(I*2-1)%Sym))
-!          Sym=SymProd(Sym,SymConj(G1(J*2-1)%Sym))
-!          Sym=SymProd(Sym,G1(K*2-1)%Sym)
-!          Sym=SymProd(Sym,G1(L*2-1)%Sym)
+          ! All integrals stored in the cache are non-zero by symmetry.
           if (LSymSym(Sym)) then
-              if (.not.GetCachedUMatEl(i,j,k,l,UMatEl,iCache1,iCache2,A,B,0)) then
+              if (.not.GetCachedUMatEl(i,j,k,l,UMatEl,iCache1,iCache2,A,B,iType)) then
                   if (TTRANSFINDX) then
                       i=InvTransTable(i)
                       j=InvTransTable(j)
