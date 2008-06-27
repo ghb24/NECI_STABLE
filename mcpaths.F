@@ -733,13 +733,16 @@ C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
             DLWDB=DLWDB/TOTAL
          endif
          TOTAL=HIJS(0)
-         IF((MP2E(2).AGT.0.D0)) THEN
-            FF=HIJS(0)
-            DO I=2,I_VMAX
-               FF=FF+MP2E(I)
-               WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
-               WRITE(6,"(A14,G25.16)") STR,FF
-            ENDDO
+! Only print out MP energies if I_VMAX>1 [MP2E(2:I_VMAX)]
+         IF (I_VMAX.gt.1) THEN 
+             IF((MP2E(2).AGT.0.D0)) THEN
+                FF=HIJS(0)
+                DO I=2,I_VMAX
+                   FF=FF+MP2E(I)
+                   WRITE(STR,"(A2,I1,A10)") "MP",I," ENERGY = "
+                   WRITE(6,"(A14,G25.16)") STR,FF
+                ENDDO
+             ENDIF
          ENDIF
          CALL TIHALT('MCPATHSR3 ',ISUB)
          CALL MEMORY_CHECK()
