@@ -12,7 +12,7 @@ MODULE FciMCMod
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
-    USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff
+    USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -24,9 +24,15 @@ MODULE FciMCMod
 
     INTEGER, PARAMETER :: r2=kind(0.d0)
 
-    INTEGER , POINTER :: WalkVecDets(:,:),WalkVec2Dets(:,:)
-    LOGICAL , POINTER :: WalkVecSign(:),WalkVec2Sign(:)
+    INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)
+    LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
+
+!Pointers to point at the correct arrays for use
+    INTEGER , POINTER :: CurrentDets(:,:)
+    LOGICAL , POINTER :: CurrentSign(:)
+    INTEGER , POINTER :: NewDets(:,:)
+    LOGICAL , POINTER :: NewSign(:)
 
 !InitPopsVector is used to store the initial populations of the determinants. This can be used for comparison when TNoBirth is true.
     INTEGER , ALLOCATABLE :: InitPops(:)
@@ -52,7 +58,7 @@ MODULE FciMCMod
     INTEGER :: CullInfo(10,3)
 
     REAL*8 :: GrowRate,DieRat,MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
-    REAL*8 :: ProjectionE,SumENum
+    REAL*8 :: ProjectionE,SumENum,SumE,ProjectionEInst
 
     INTEGER :: CycwNoHF     !Count the number of iterations which don't have any walkers on HF - in this case, ignore running average of energy, but count it so it is not included in demonimator
 
@@ -74,7 +80,7 @@ MODULE FciMCMod
 
         if(NMCyc.lt.0.or.TMCDets) then
 
-           CALL MCDetsCalc(FDet,G_VMC_Seed,-NMCyc,Tau,SftDamp,10000*InitWalkers,InitWalkers,StepsSft,DiagSft)
+           CALL MCDetsCalc(FDet,G_VMC_Seed,-NMCyc,Tau,SftDamp,10000*InitWalkers,InitWalkers,StepsSft,DiagSft,GrowMaxFactor,CullFactor)
             Weight=1.d0
             Energyxw=1.d0
             return
@@ -129,7 +135,8 @@ MODULE FciMCMod
         Seed=G_VMC_Seed
 !Initialise variables for calculation of the running average
         ProjectionE=0.D0
-!        SumE=0.D0
+        ProjectionEInst=0.D0
+        SumE=0.D0
         SumENum=0.D0
         SumNoatHF=0
         CycwNoHF=0
@@ -148,15 +155,15 @@ MODULE FciMCMod
         IF(.NOT.TNoBirth) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E   Net+veWalk"
-            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers   Proj.E   Net+veWalk"
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     Proj.E-Inst"
+            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      Net+veWalk     Proj.E-Inst"
 !TotWalkersOld is the number of walkers last time the shift was changed
             IF(TReadPops) THEN
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
             ELSE
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
             ENDIF
         ENDIF
         
@@ -190,7 +197,7 @@ MODULE FciMCMod
                         enddo
                         WalkOnDet=0
                         do j=1,TotWalkers
-                            IF(DetLT(DetCurr,WalkVecDets(:,j),NEl).eq.0) THEN
+                            IF(DetLT(DetCurr,CurrentDets(:,j),NEl).eq.0) THEN
 !Walker is on chosen determinant
                                 WalkOnDet=WalkOnDet+1
                             ENDIF
@@ -220,15 +227,15 @@ MODULE FciMCMod
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                     IF(TReadPops) THEN
-                        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
-                        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
+                        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
+                        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                     ELSE
                         IF(Tau.gt.0.D0) THEN
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                         ELSE
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                         ENDIF
                     ENDIF
 
@@ -267,7 +274,7 @@ MODULE FciMCMod
                 WRITE(16,*) NMCyc, "   MC CYCLES"
             ENDIF
             do i=1,TotWalkers
-                WRITE(16,*) WalkVecDets(:,i),WalkVecSign(i)
+                WRITE(16,*) CurrentDets(:,i),CurrentSign(i)
             enddo
             CLOSE(16)
         ENDIF
@@ -322,13 +329,13 @@ MODULE FciMCMod
         
         CALL TISET('MCyc',iSubCyc)
         
-!VecSlot indicates the next free position in WalkVec2
+!VecSlot indicates the next free position in NewDets
         VecSlot=1
 
         do j=1,TotWalkers
 !j runs through all current walkers
             do k=1,NEl
-                DetCurr(k)=WalkVecDets(k,j)
+                DetCurr(k)=CurrentDets(k,j)
             enddo
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
@@ -347,7 +354,7 @@ MODULE FciMCMod
 
                     CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
 
-                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,Prob,IC,Kik)
+                    Child=AttemptCreate(DetCurr,CurrentSign(j),nJ,Prob,IC,Kik)
 !Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
                     IF(Child.gt.0) THEN
 !We have successfully created at least one positive child at nJ
@@ -358,9 +365,9 @@ MODULE FciMCMod
                     ENDIF
                     do l=1,abs(Child)
                         do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=nJ(k)
+                            NewDets(k,VecSlot)=nJ(k)
                         enddo
-                        WalkVec2Sign(VecSlot)=WSign
+                        NewSign(VecSlot)=WSign
                         VecSlot=VecSlot+1
                     enddo
 
@@ -375,7 +382,7 @@ MODULE FciMCMod
                     CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.FALSE.,nExcit,nJ,IC,0,nStore,exFlag)
                     IF(nJ(1).eq.0) EXIT
 
-                    Child=AttemptCreate(DetCurr,WalkVecSign(j),nJ,1.D0,IC,Kik)
+                    Child=AttemptCreate(DetCurr,CurrentSign(j),nJ,1.D0,IC,Kik)
 !Kik is the off-diagonal hamiltonian matrix element for the walker. This is used for the augmentation of the death term if TDiffuse is on.
                     IF(Child.gt.0) THEN
 !We have successfully created at least one positive child at nJ
@@ -386,9 +393,9 @@ MODULE FciMCMod
                     ENDIF
                     do l=1,abs(Child)
                         do k=1,NEl
-                            WalkVec2Dets(k,VecSlot)=nJ(k)
+                            NewDets(k,VecSlot)=nJ(k)
                         enddo
-                        WalkVec2Sign(VecSlot)=WSign
+                        NewSign(VecSlot)=WSign
                         VecSlot=VecSlot+1
                     enddo
 
@@ -400,34 +407,34 @@ MODULE FciMCMod
             IF(TDiffuse) THEN
 !Next look at possibility of diffusion to another determinant
                 CALL GenRandSymExcitIt3(DetCurr,nExcit,nJ,Seed,IC,0,Prob,iCount)
-                CALL AttemptDiffuse(DetCurr,nJ,Prob,IC,WalkVecSign(j),KeepOrig,CreateAtI,CreateAtJ)
+                CALL AttemptDiffuse(DetCurr,nJ,Prob,IC,CurrentSign(j),KeepOrig,CreateAtI,CreateAtJ)
                 !If we want to keep the original walker, then KeepOrig is true, However, we do not want to copy it accross yet, because we want to see if it is killed first in the birth/death process
 !                IF(KeepOrig) THEN
 !                    do k=1,NEl
-!                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+!                        NewDets(k,VecSlot)=DetCurr(k)
 !                    enddo
-!                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
+!                    NewSign(VecSlot)=CurrentSign(j)
 !                    VecSlot=VecSlot+1
 !                ENDIF
                 do l=1,abs(CreateAtI)       !Sum in the number of walkers to create at the original determinant
                     do k=1,NEl
-                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                        NewDets(k,VecSlot)=DetCurr(k)
                     enddo
                     IF(CreateAtI.gt.0) THEN
-                        WalkVec2Sign(VecSlot)=.true.
+                        NewSign(VecSlot)=.true.
                     ELSE
-                        WalkVec2Sign(VecSlot)=.false.
+                        NewSign(VecSlot)=.false.
                     ENDIF
                     VecSlot=VecSlot+1
                 enddo
                 do l=1,abs(CreateAtJ)       !Add the number of walkers to create at nJ
                     do k=1,NEl
-                        WalkVec2Dets(k,VecSlot)=nJ(k)
+                        NewDets(k,VecSlot)=nJ(k)
                     enddo
                     IF(CreateAtJ.gt.0) THEN
-                        WalkVec2Sign(VecSlot)=.true.
+                        NewSign(VecSlot)=.true.
                     ELSE
-                        WalkVec2Sign(VecSlot)=.false.
+                        NewSign(VecSlot)=.false.
                     ENDIF
                     VecSlot=VecSlot+1
                 enddo
@@ -438,7 +445,7 @@ MODULE FciMCMod
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
             IF(iDie.le.0) THEN
-!This indicates that the particle is spared and we may want to create more...copy them across to WalkVec2
+!This indicates that the particle is spared and we may want to create more...copy them across to NewDets
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
         
                 IF(KeepOrig) THEN
@@ -453,9 +460,9 @@ MODULE FciMCMod
 
                 do l=1,ToCopy    !We need to copy accross one more, since we need to include the original spared particle
                     do k=1,NEl
-                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                        NewDets(k,VecSlot)=DetCurr(k)
                     enddo
-                    WalkVec2Sign(VecSlot)=WalkVecSign(j)
+                    NewSign(VecSlot)=CurrentSign(j)
                     VecSlot=VecSlot+1
                 enddo
 
@@ -470,13 +477,13 @@ MODULE FciMCMod
 
                 do l=1,iDie
                     do k=1,NEl
-                        WalkVec2Dets(k,VecSlot)=DetCurr(k)
+                        NewDets(k,VecSlot)=DetCurr(k)
                     enddo
-                    IF(WalkVecSign(j)) THEN
+                    IF(CurrentSign(j)) THEN
 !Copy accross new anti-particles
-                        WalkVec2Sign(VecSlot)=.FALSE.
+                        NewSign(VecSlot)=.FALSE.
                     ELSE
-                        WalkVec2Sign(VecSlot)=.TRUE.
+                        NewSign(VecSlot)=.TRUE.
                     ENDIF
                     VecSlot=VecSlot+1
                 enddo
@@ -508,11 +515,24 @@ MODULE FciMCMod
             CALL TestWavevectorNodes(TotWalkersNew,2)
         ENDIF
 
+        IF(TNoAnnihil) THEN
+!We are not annihilating particles - this will make things much quicker.
+
+!However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
+            CurrentDets=>WalkVec2Dets
+            CurrentSign=>WalkVec2Sign
+            NewDets=>WalkVecDets
+            NewSign=>WalkVecSign
+
+            TotWalkers=TotWalkersNew
+
+        ELSE
 !This routine now cancels down the particles with opposing sign on each determinant
 !This routine does not necessarily need to be called every Iter, but it does at the moment, since it is the only way to 
-!transfer the residual particles back onto WalkVec
-        CALL AnnihilatePairs(TotWalkersNew)
-!        WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers
+!transfer the residual particles back onto CurrentDets
+            CALL AnnihilatePairs(TotWalkersNew)
+!            WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers
+        ENDIF
 
 
         IF(TNodalCutoff.and.(NodalCutoff.ge.0.D0)) THEN
@@ -585,11 +605,11 @@ MODULE FciMCMod
 
 !We first need to point to the active array
         IF(iArray.eq.1) THEN
-            ActiveVecDets => WalkVecDets
-            ActiveVecSign => WalkVecSign
+            ActiveVecDets => CurrentDets
+            ActiveVecSign => CurrentSign
         ELSEIF(iArray.eq.2) THEN
-            ActiveVecDets => WalkVec2Dets
-            ActiveVecSign => WalkVec2Sign
+            ActiveVecDets => NewDets
+            ActiveVecSign => NewSign
         ELSE
             CALL STOPGM("TestWavevectorNodes","Error with iArray")
         ENDIF
@@ -600,7 +620,7 @@ MODULE FciMCMod
         NoNegative=0    !Total number of negative particles
 
         ParticlesOrig=Particles
-!VecSlot indicates the next free position in WalkVec
+!VecSlot indicates the next free position in ActiveVec
         VecSlot=1
 
         do j=1,Particles
@@ -629,7 +649,6 @@ MODULE FciMCMod
                 IF(IC.eq.2) THEN
 !We are at a double excitation - first find the desired sign of the determinant.
                     Hamij=GetHElement2(FDet,ActiveVecDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!                    CALL CalcRho2(FDet,WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,IC,ECore)
                     IF((real(Hamij%v)).lt.0) THEN
 !Negative Hamiltonian connection indicates that the component of the MP1 wavevector is positive
                         Component=.true.
@@ -673,11 +692,7 @@ MODULE FciMCMod
 !Particle is of a different sign to the component of the MP1 wavefunction - if the determinant is of fixed sign, we don't want to copy it across. Find if fixed sign...
                     IF(IC.eq.2) THEN
                         CALL GetH0Element(ActiveVecDets(:,j),NEl,Arr,nBasis,ECore,Fj)
-!                        CALL CalcRho2(WalkVecDets(:,j),WalkVecDets(:,j),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
-!We want the value of rho_jj/rho_ii
-!                        rhjj=rhjj/rhii
 !EigenComp is now the component of the normalised MP1 wavefunction for the double excitation WalkVecDets(:,j)
-!                        EigenComp=abs(((rhij%v)/((rhjj%v)-1.D0))/MPNorm)
                         EigenComp=abs(((Hamij%v)/(Fj%v-FZero%v))/MPNorm)
                     ELSE
 !Here, EigenComp is the component of the normalised MP1 wavefunction at the HF determinant (should always be +ve)
@@ -730,14 +745,14 @@ MODULE FciMCMod
         SumENum=SumENum+EnergyNum
         ProjectionE=(SumENum/(SumNoatHF+0.D0))-REAL(Hii%v,r2)
 
-!        IF(NoatHF.ne.0) THEN
+        IF(NoatHF.ne.0) THEN
 !The energy cannot be calculated via the projection back onto the HF if there are no particles at HF
-!            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(REAL(Hii%v,r2)))
-!            ProjectionE=SumE/((Iter-CycwNoHF)+0.D0)
-!        ELSE
-!            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
+            SumE=SumE+((EnergyNum/(NoatHF+0.D0))-(REAL(Hii%v,r2)))
+            ProjectionEInst=SumE/((Iter-CycwNoHF)+0.D0)
+        ELSE
+            CycwNoHF=CycwNoHF+1         !Record the fact that there are no particles at HF in this run, so we do not bias the average
 !            WRITE(6,*) "No positive particles at reference determinant during iteration: ",Iter
-!        ENDIF
+        ENDIF
 
         NetPositive=NoPositive-NoNegative
 !        WRITE(6,*) ParticlesOrig,Particles,NetPositive,NoPositive,NoNegative
@@ -768,9 +783,9 @@ MODULE FciMCMod
 
 !Move the Walker at the end of the list to the position of the walker we have chosen to destroy
                 do i=1,NEl
-                    WalkVecDets(i,Chosen)=WalkVecDets(i,TotWalkers)
+                    CurrentDets(i,Chosen)=CurrentDets(i,TotWalkers)
                 enddo
-                WalkVecSign(Chosen)=WalkVecSign(TotWalkers)
+                CurrentSign(Chosen)=CurrentSign(TotWalkers)
 
                 TotWalkers=TotWalkers-1
                 Culled=Culled+1
@@ -793,9 +808,9 @@ MODULE FciMCMod
 
 !Add clone of walker, at the same determinant, to the end of the list
                 do j=1,NEl
-                    WalkVecDets(j,VecSlot)=WalkVecDets(j,i)
+                    CurrentDets(j,VecSlot)=CurrentDets(j,i)
                 enddo
-                WalkVecSign(VecSlot)=WalkVecSign(i)
+                CurrentSign(VecSlot)=CurrentSign(i)
 
                 VecSlot=VecSlot+1
 
@@ -872,23 +887,23 @@ MODULE FciMCMod
         INTEGER :: DetLT
 
 !First, it is necessary to sort the list of determinants
-        CALL SortDets(TotWalkersNew,WalkVec2Dets(:,1:TotWalkersNew),NEl,WalkVec2Sign(1:TotWalkersNew),1)
+        CALL SortDets(TotWalkersNew,NewDets(:,1:TotWalkersNew),NEl,NewSign(1:TotWalkersNew),1)
 
-!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to WalkVec
+!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
         j=1
 !j is the counter over all uncancelled walkers - it indicates when we have reached the end of the list of total walkers
         do k=1,NEl
 !DetCurr is the current determinant
-            DetCurr(k)=WalkVec2Dets(k,j)
+            DetCurr(k)=NewDets(k,j)
         enddo
         VecSlot=1
 
         do while(j.le.TotWalkersNew)
 !Loop over all walkers
             TotWalkersDet=0
-            do while ((DetLT(WalkVec2Dets(:,j),DetCurr,NEl).eq.0).and.(j.le.TotWalkersNew))
+            do while ((DetLT(NewDets(:,j),DetCurr,NEl).eq.0).and.(j.le.TotWalkersNew))
 !Loop over all walkers on DetCurr and count residual number after cancelling
-                IF(WalkVec2Sign(j)) THEN
+                IF(NewSign(j)) THEN
                     TotWalkersDet=TotWalkersDet+1
                 ELSE
                     TotWalkersDet=TotWalkersDet-1
@@ -900,24 +915,24 @@ MODULE FciMCMod
 !Positive sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
                     do k=1,NEl
-                        WalkVecDets(k,VecSlot)=DetCurr(k)
+                        CurrentDets(k,VecSlot)=DetCurr(k)
                     enddo
-                    WalkVecSign(VecSlot)=.true.
+                    CurrentSign(VecSlot)=.true.
                     VecSlot=VecSlot+1
                 enddo
             ELSE
 !Negative sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
                     do k=1,NEl
-                        WalkVecDets(k,VecSlot)=DetCurr(k)
+                        CurrentDets(k,VecSlot)=DetCurr(k)
                     enddo
-                    WalkVecSign(VecSlot)=.false.
+                    CurrentSign(VecSlot)=.false.
                     VecSlot=VecSlot+1
                 enddo
             ENDIF
 !Now update the current determinant
             do k=1,NEl
-                DetCurr(k)=WalkVec2Dets(k,j)
+                DetCurr(k)=NewDets(k,j)
             enddo
         enddo
 !The new number of residual cancelled walkers is given by one less that VecSlot again.
@@ -1045,6 +1060,11 @@ MODULE FciMCMod
         ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
     
+        CurrentDets=>WalkVecDets
+        CurrentSign=>WalkVecSign
+        NewDets=>WalkVec2Dets
+        NewSign=>WalkVec2Sign
+
         VecSlot=1
 !Cycle over components
         do i=1,NoComps
@@ -1054,9 +1074,9 @@ MODULE FciMCMod
                 WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
                 do j=1,WalkersOnDet
                     do k=1,NEl
-                        WalkVecDets(k,VecSlot)=ExcitStore(k,i)
+                        CurrentDets(k,VecSlot)=ExcitStore(k,i)
                     enddo
-                    WalkVecSign(VecSlot)=.true.
+                    CurrentSign(VecSlot)=.true.
                     VecSlot=VecSlot+1
                 enddo
 
@@ -1064,9 +1084,9 @@ MODULE FciMCMod
                 WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
                 do j=1,WalkersOnDet
                     do k=1,NEl
-                        WalkVecDets(k,VecSlot)=ExcitStore(k,i)
+                        CurrentDets(k,VecSlot)=ExcitStore(k,i)
                     enddo
-                    WalkVecSign(VecSlot)=.false.
+                    CurrentSign(VecSlot)=.false.
                     VecSlot=VecSlot+1
                 enddo
             ENDIF
@@ -1144,35 +1164,40 @@ MODULE FciMCMod
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
 
+            CurrentDets=>WalkVecDets
+            CurrentSign=>WalkVecSign
+            NewDets=>WalkVec2Dets
+            NewSign=>WalkVec2Sign
+
             IF((ABS(ScaleWalkers-1.D0)).lt.1.D-8) THEN
 !Read in walker positions
                 do i=1,InitWalkers
-                    READ(17,*) WalkVecDets(:,i),WalkVecSign(i)
+                    READ(17,*) CurrentDets(:,i),CurrentSign(i)
                 enddo
             ELSE
 !Read in walker positions - we will scale these later...
                 do i=1,InitWalkers
-                    READ(17,*) WalkVec2Dets(:,i),WalkVec2Sign(i)
+                    READ(17,*) NewDets(:,i),NewSign(i)
                 enddo
                 WRITE(6,*) "Scaling number of walkers by: ",ScaleWalkers
                 ReadWalkers=InitWalkers
                 InitWalkers=0
 !First, count the total number of initial walkers on each determinant - sort into list
-                CALL SortDets(ReadWalkers,WalkVec2Dets(:,1:ReadWalkers),NEl,WalkVec2Sign(1:ReadWalkers),1)
+                CALL SortDets(ReadWalkers,NewDets(:,1:ReadWalkers),NEl,NewSign(1:ReadWalkers),1)
 
                 j=1
 !j is the counter over all read in walkers - it indicates when we have reached the end of the entire list
                 do k=1,NEl
 !DetCurr is the current determinant
-                    DetCurr(k)=WalkVec2Dets(k,j)
+                    DetCurr(k)=NewDets(k,j)
                 enddo
 
                 do while(j.le.ReadWalkers)
 !Loop over all walkers
                     TotWalkersDet=0
-                    do while ((DetLT(WalkVec2Dets(:,j),DetCurr,NEl).eq.0).and.(j.le.ReadWalkers))
+                    do while ((DetLT(NewDets(:,j),DetCurr,NEl).eq.0).and.(j.le.ReadWalkers))
 !Loop over all walkers on DetCurr and count residual number after cancelling
-                        IF(WalkVec2Sign(j)) THEN
+                        IF(NewSign(j)) THEN
                             TotWalkersDet=TotWalkersDet+1
                         ELSE
                             TotWalkersDet=TotWalkersDet-1
@@ -1181,7 +1206,7 @@ MODULE FciMCMod
                     enddo
 !Now update the current determinant
                     do k=1,NEl
-                        DetCurr(k)=WalkVec2Dets(k,j)
+                        DetCurr(k)=NewDets(k,j)
                     enddo
 !Count total number of initial walkers
                     InitWalkers=InitWalkers+abs(nint((TotWalkersDet+0.D0)*ScaleWalkers))
@@ -1201,48 +1226,51 @@ MODULE FciMCMod
                 CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
                 ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+                
+                CurrentDets=>WalkVecDets
+                CurrentSign=>WalkVecSign
 
 !Now multiply them up...
                 j=1
                 VecSlot=1
 !j is the counter over all read in walkers - it indicates when we have reached the end of the entire list
                 do k=1,NEl
-                    DetCurr(k)=WalkVec2Dets(k,j)
+                    DetCurr(k)=NewDets(k,j)
                 enddo
 !DetCurr is the current determinant
                 do while(j.le.ReadWalkers)
 !Loop over all walkers
                     TotWalkersDet=0
-                    do while ((DetLT(WalkVec2Dets(:,j),DetCurr,NEl).eq.0).and.(j.le.ReadWalkers))
+                    do while ((DetLT(NewDets(:,j),DetCurr,NEl).eq.0).and.(j.le.ReadWalkers))
 !Loop over all walkers on DetCurr and count residual number after cancelling
-                        IF(WalkVec2Sign(j)) THEN
+                        IF(NewSign(j)) THEN
                             TotWalkersDet=TotWalkersDet+1
                         ELSE
                             TotWalkersDet=TotWalkersDet-1
                         ENDIF
                         j=j+1
                     enddo
-!Now multiply up the number of walkers, and insert into WalkVec
+!Now multiply up the number of walkers, and insert into CurrentDets
                     TotWalkersDet=nint((TotWalkersDet+0.D0)*ScaleWalkers)
                     IF(TotWalkersDet.gt.0) THEN
                         do l=1,abs(TotWalkersDet)
                             do k=1,NEl
-                                WalkVecDets(k,VecSlot)=DetCurr(k)
+                                CurrentDets(k,VecSlot)=DetCurr(k)
                             enddo
-                            WalkVecSign(VecSlot)=.true.
+                            CurrentSign(VecSlot)=.true.
                             VecSlot=VecSlot+1
                         enddo
                     ELSE
                         do l=1,abs(TotWalkersDet)
                             do k=1,NEl
-                                WalkVecDets(k,VecSlot)=DetCurr(k)
+                                CurrentDets(k,VecSlot)=DetCurr(k)
                             enddo
-                            WalkVecSign(VecSlot)=.false.
+                            CurrentSign(VecSlot)=.false.
                             VecSlot=VecSlot+1
                         enddo
                     ENDIF
                     do k=1,NEl
-                        DetCurr(k)=WalkVec2Dets(k,j)
+                        DetCurr(k)=NewDets(k,j)
                     enddo
                 enddo
                 IF((VecSlot-1).ne.InitWalkers) THEN
@@ -1259,6 +1287,9 @@ MODULE FciMCMod
                 CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
                 ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+
+                NewDets=>WalkVec2Dets
+                NewSign=>WalkVec2Sign
 
             ENDIF
 
@@ -1281,11 +1312,16 @@ MODULE FciMCMod
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
 
+            CurrentDets=>WalkVecDets
+            CurrentSign=>WalkVecSign
+            NewDets=>WalkVec2Dets
+            NewSign=>WalkVec2Sign
+
             do j=1,InitWalkers
                 do k=1,NEl
-                    WalkVecDets(k,j)=FDet(k)
+                    CurrentDets(k,j)=FDet(k)
                 enddo
-                WalkVecSign(j)=.true.
+                CurrentSign(j)=.true.
             enddo
 
             IF(TNoBirth) THEN

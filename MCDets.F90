@@ -1,3 +1,13 @@
+! TO DO
+! Separate routines for death/spawning to allow multiple growth/death
+! Sort output for consistency
+!** Add optional energy calculations (both types) - store IC for each particle (print mean & max/min)
+! Impliment culling
+!** Impliment fixed-sign approx (extra memory slots for H0 and Hij)
+! Updatesft in new routine
+!** Net positive particles
+!** Read & Dump pops
+
 !  Do Monte Carlo in pure determinant space.
 #include "macros.h"
 
@@ -11,7 +21,10 @@ MODULE MCDets
 Type ExcitGen
    integer, pointer     :: exData(:)       !Its excitation generator (allocation and deallocation managed by the calling routine)
    integer                 tagExData    !A memory tag for its excitation generator
-   integer                 iRefCount   !A reference count for this excitation generator
+   integer                 iRefCount   !A reference count for this excitation generator. We only want to deallocate the excitgen if
+!all particles have finished using it. If a node is killed, it can still be present in the new particle list, since other excitations
+!may have generated it in the current cycle. Therefore we want to keep the excitation generator.
+
 End Type ExcitGen
 ! Setup Particle and Particle list formalism
 
@@ -22,13 +35,15 @@ Type ParticleData
    type(HDElement)         hHii        !Its diagonal Hamil element
    integer                 iWeight     !Its weight (the number of subparticles in it)
    integer                 iSgn        !Its sign
+   integer                 IC0         !Its excitation level away from HF determinant
+   type(HElement)          hHi0        !Its Hamiltonian matrix element between itself and HF determinant
    integer                 iParent     !The index of the parent node
    integer                 iBefore     !The child node from this which is less than it 
    integer                 iAfter      !The child node from this which is greater than it
    Type(ExcitGen),pointer::exGen       !A pointer to the excitation generator which manages its own existence with reference counting
    integer                 iProgeny    !  Set to the number of children we have spawned at this particle
 End Type
-integer, parameter :: ParticleDataSize=HDElementSize+6
+integer, parameter :: ParticleDataSize=HDElementSize+HElementSize+7
 integer, parameter :: ParticleDataSizeB=ParticleDataSize*8
 
 ! Particle contains all info about each particle
@@ -51,7 +66,453 @@ Type ParticleList
    integer tagParticleData
    integer iHeadParticle                        !The first node
 End Type
+
+!Summary of four types:
+!ExcitGen - holds excitgen and reference counting associated with it.
+!ParticleData - non-array info for each particle
+!ParticleList - Contains the whole binary tree - all particles (including particleData type and determinant for each one), and details about the overall tree
+!Particle - holds data for a single particle - a single determinant and its data
 contains
+
+subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iStep,dInitShift,GrowMaxFactor,CullFactor)
+   Use HElem
+   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Use Determinants, only: GetHElement3
+   Use System, only: BasisFN,nEl
+   IMPLICIT NONE
+   character(25), parameter :: this_routine='MCDets'
+   integer nI(nEl)   !The root determinant
+   integer iSeed     !Random number seed
+   integer nCycles   !Number of cycles we should do
+   Type(ExcitGen), pointer :: exGen
+   integer nJ(nEl)   !Store generated determinants
+   real*8  pGen      !Store generation prob of dets
+   integer iC        ! The level of excitation returned
+   integer ierr      !errors in memory allocation
+   integer iCycle    !Cycle counter
+   Type(Helement) hHij
+   Type(Helement) hRhIJ  
+   Type(Helement) hRhJJ  
+ 
+   Type(HDElement) EShift, EHF,hHjj
+   integer iParticle
+
+   
+   Type(ParticleList) PL(2)      ! 2 particle lists - one for past cycle and one created this cycle
+   Type(Particle) P
+   
+   integer iPL,nPL
+   integer iSubPart,iNewCount
+   integer nMaxParticles,isgn,iNewWeight
+   real*8 r,rnum,dtau,dMu,GrowRate
+   real*8 RAN2 ! external
+   integer iPreExisted
+   integer nInitParticles
+   integer iOldCount
+   integer iStep
+   integer iCount
+   integer NoCulls               !The number of culls/growths in a given shift cycle
+!CullInfo is the number of walkers before and after the cull (columns 1&2), and the third element is the previous number of steps before this cull...
+!Only 15 culls/growth increases are allowed in a given shift cycle
+   integer CullInfo(15,3)   
+   real*8 GrowMaxFactor,CullFactor      !Info for the culling routine
+   integer iNode,iAction         !Internal loop variables documented later
+   integer ICMin,ICMax           ! Min and Max excitation level we encounter in a step
+   real*8 dInitShift
+   real*8 ICMean                 !Mean excit level 
+   integer iTot
+!   dTau=1e-2
+!   dMu=1e-1
+!   nMaxParticles=1000
+!   nInitParticles=1000
+!   iStep=10
+
+    NoCulls=0
+    CALL IAZZERO(CullInfo,45)
+
+    OPEN(15,file='FCIMCStats',status='unknown')     !Open same file as FCIMC.F90 for consistency
+
+    WRITE(6,*) ""
+    WRITE(6,*) "Performing MC Dets...."
+    write(6,*) "nCycles:",nCycles
+    WRITE(6,*) "Initial number of walkers chosen to be: ", nInitParticles
+    WRITE(6,*) "Damping parameter for Diag Shift set to: ", dMu
+    WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", dInitShift
+    WRITE(6,*) "       Step  Shift  ParticleChange  GrowRate  TotParticles        Proj.E      Net+veWalk     Proj.E-Inst"
+    WRITE(15,*) "#       Step  Shift  ParticleChange  GrowRate  TotParticles        Proj.E      Net+veWalk     Proj.E-Inst"
+
+   
+!   call writeDet(6,nI,nEl,.true.)
+! We need to allocate space for our current particle
+   call AllocParticle(P,nEl)   
+   
+   EShift=dInitShift
+   EHF=GetHElement3(nI,nI,0)
+   EShift=EHF+EShift
+
+!   WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
+!   WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
+
+   call AllocateExGen(exGen,nI,nEl,this_routine)
+
+! We switch the current particle list between 1 and 2  iPL is current.  nPL is the one we're creating
+   iPL=1
+   nPL=2
+!  Allocate particle lists in PL
+   call AllocParticleList(PL(1),nMaxParticles,nEl)
+   call AllocParticleList(PL(2),nMaxParticles,nEl)
+!Setup single particle with weight nInitParticles at the HF det - Current PL, FDet, Initial Particles, Sign, HF Energy (diag elem), Exitgen for nI, Returned value whether node was in list.
+   call AddParticle(PL(iPL),nI,nInitParticles,+1,EHF,HElement(EHF%v),0,exGen,iPreExisted)
+
+   iOldCount=nInitParticles
+
+   do iCycle=1,nCycles
+      call ClearParticleList(PL(nPL))   !Zero list contained in nPL
+      call SpawnParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P,nI,EHF)   !Run through all subparticles and determine if they want to spawn weight to neighbouring particles
+      call PropagateParticles(PL,iPL,nPL,dTau,EShift,ICmean,ICmin,ICMax,nI,nEl,iSeed,ExGen,P)   !Attempt to kill all subparticles
+      call CleanupParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)      !Search through all particles and deallocate exgens if no longer used
+!      write(6,*) "Cycle",iCycle
+!      call DumpParticleList(6,PL(nPL))
+
+      if(PL(nPL)%nSubParticles.eq.0) then
+         write(6,*) "All particles have died."
+         return
+      endif
+
+      IF(PL(nPL)%nSubParticles.gt.(nInitParticles*GrowMaxFactor)) THEN
+!Particle number has grown too large - cull particles randomly
+         WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to over ",GrowMaxFactor," times initial number..."
+         call CullParticles(PL(nPL),.true.,iSeed,NoCulls,CullInfo,iCycle,iStep,CullFactor)
+
+      ELSEIF(PL(nPL)%nSubParticles.lt.(nInitParticles/2)) THEN
+!Particle number has dropped too low - double all particles
+         WRITE(6,*) "Total number of particles has dropped to half initial number - doubling all particles..."
+         call CullParticles(PL(nPL),.false.,iSeed,NoCulls,CullInfo,iCycle,iStep,CullFactor)
+      ENDIF
+
+      if(mod(iCycle,iStep).eq.0) then
+!Update shift & print out info
+
+         call UpdateShift(PL(nPL),EShift,dMu,dTau,iStep,CullInfo,NoCulls,iOldCount,GrowRate)
+
+         WRITE(6,'(I9,G20.12,I10,F10.5,I12)') iCycle, DREAL(EShift), PL(nPL)%nSubParticles-iOldCount,GrowRate,PL(nPL)%nSubParticles
+         WRITE(15,'(I9,G20.12,I10,F10.5,I12)') iCycle, DREAL(EShift), PL(nPL)%nSubParticles-iOldCount,GrowRate,PL(nPL)%nSubParticles
+         call flush(15)
+         call flush(6)
+         iOldCount=PL(nPL)%nSubParticles
+
+      endif
+
+! Switch the current and new particle lists around
+      nPL=iPL
+      iPL=3-iPL
+   end do !iCycle
+
+!   write(6,*) "Average EShift:", DReal(ECumlTot)/nECumls
+!   write(6,*) "Std of EShift:", sqrt((DReal(ECumlTotSq)/nECumls-(DReal(ECumlTot)/nECumls)**2)/(nECumls-1))
+
+!Final tidy...
+! We need to deallocate all the excitation generators in the last particle list we created 
+   iParticle=0
+   call GetNextParticle(PL(iPL),iParticle,P)
+   do while (iParticle.gt.0)
+      P%d%ExGen%iRefCount=0     !Need to set all references to zero before it will let you deallocate
+      call DeallocateExGen(P%d%ExGen,this_routine)
+      call GetNextParticle(PL(iPL),iParticle,P)
+   enddo
+   call DeallocParticleList(PL(1))
+   call DeallocParticleList(PL(2))
+   call DeallocParticle(P)
+
+   CLOSE(15)
+
+end subroutine MCDetsCalc
+
+
+!Routine to update the shift
+subroutine UpdateShift(PL,EShift,dMu,dTau,iStep,CullInfo,NoCulls,iOldCount,GrowRate)
+   Type(ParticleList) PL
+   integer iStep,NoCulls,iOldCount,GrowthSteps,j,k
+   real*8 dMu,dTau,GrowRate
+   Type(HDElement) EShift
+!CullInfo is the number of walkers before and after the cull (columns 1&2), and the third element is the previous number of steps before this cull...
+!Only 15 culls/growth increases are allowed in a given shift cycle
+   integer CullInfo(15,3)   
+
+   IF(NoCulls.eq.0) THEN
+       GrowRate=(PL%nSubParticles+0.D0)/(iOldCount+0.D0)
+   ELSE
+!We have had culling in this update of the shift which needs to be taken into account
+       GrowRate=((CullInfo(1,3)+0.D0)/(iStep+0.D0))*((CullInfo(1,1)+0.D0)/(iOldCount+0.D0))
+       do j=2,NoCulls
+
+           GrowthSteps=CullInfo(j,3)
+           do k=1,j-1
+               GrowthSteps=GrowthSteps-CullInfo(k,3)
+           enddo
+
+           GrowRate=GrowRate+((GrowthSteps+0.D0)/(iStep+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
+
+       enddo
+
+       GrowthSteps=iStep
+       do k=1,NoCulls
+           GrowthSteps=GrowthSteps-CullInfo(k,3)
+       enddo
+       GrowRate=GrowRate+((GrowthSteps+0.D0)/(iStep+0.D0))*((PL%nSubParticles+0.D0)/(CullInfo(NoCulls,2)+0.D0))
+
+       NoCulls=0
+       CALL IAZZERO(CullInfo,45)
+
+   ENDIF
+
+   EShift=EShift-HDElement(dMu*log(GrowRate)/(dTau*iStep))
+
+   RETURN
+
+end subroutine UpdateShift
+   
+
+!The number of particles has grown/shrunk too much - reduce/double the number of subparticles
+!This is done by running through all particles, and stochastically reducing/doubling their weights
+subroutine CullParticles(PL,tHighLow,iSeed,NoCulls,CullInfo,iCycle,iStep,CullFactor)
+   Type(ParticleList) PL
+   Logical tHighLow     !Indicates whether we are culling, or doubling weights
+   integer iCycle,iStep    !MC Cycle we are on, and the frequency with which the shift is updated
+   integer iSeed,iParticle,Culled,ToCull,NoCulls
+!CullInfo is the number of walkers before and after the cull (columns 1&2), and the third element is the previous number of steps before this cull...
+!Only 15 culls/growth increases are allowed in a given shift cycle
+   integer CullInfo(15,3)   
+   real*8 r,rnum,ran2,CullFactor
+   type(Particle) P
+
+   NoCulls=NoCulls+1      !Log the fact we have made a cull
+   IF(NoCulls.gt.15) CALL STOPGM("CullParticles","Too many culls/growths in a given shift cycle")
+     
+!CullInfo(:,1) is total subparticles before cull
+   CullInfo(NoCulls,1)=PL%nSubParticles
+!CullInfo(:,3) is MC Steps into shift cycle before cull
+   CullInfo(NoCulls,3)=mod(iCycle,iStep)
+
+   Culled=0
+   iParticle=0 !Just get the head node first and its info in P
+   call GetNextParticle(PL,iParticle,P)
+
+   do while (iParticle.gt.0)    !i.e. while we're at a valid particle
+
+       IF(tHighLow) THEN
+!There are too many particles - cull all weights with CullFactor
+           r=(P%d%iWeight+0.D0)/CullFactor
+           ToCull=INT(r)
+           r=r-(ToCull+0.D0)
+           rnum=ran2(iSeed)
+           IF(r.gt.rnum) THEN
+!Cull an additional subparticle
+               ToCull=ToCull+1
+           ENDIF
+           
+           PL%ParticleData(iParticle)%iWeight=PL%ParticleData(iParticle)%iWeight-ToCull
+
+           Culled=Culled+ToCull
+!           WRITE(6,*) iParticle,P%d%iWeight,PL%ParticleData(iParticle)%iWeight
+
+       ELSE
+!There are too few particles - non-stochastically double the weight on every particle
+
+           PL%ParticleData(iParticle)%iWeight=PL%ParticleData(iParticle)%iWeight*2
+
+       ENDIF
+
+       call GetNextParticle(PL,iParticle,P)
+
+   enddo
+
+   IF(tHighLow) THEN
+       WRITE(6,*) "Total particle number culled from ", PL%nSubParticles," by ", Culled," particles."
+       PL%nSubParticles=PL%nSubParticles-Culled
+   ELSE
+       WRITE(6,*) "Total particle number increased from ", PL%nSubParticles," to ",PL%nSubParticles*2
+       PL%nSubParticles=PL%nSubParticles*2
+   ENDIF
+   
+   CullInfo(NoCulls,2)=PL%nSubParticles     !The second column of CullInfo contains info about populations after culling
+   
+   RETURN
+
+end subroutine CullParticles
+
+
+!Run through all particles, and attempt to kill them in turn
+subroutine PropagateParticles(PL,iPL,nPL,dTau,EShift,ICmean,ICmin,ICMax,nI,nEl,iSeed,ExGen,P)
+   Type(ParticleList) PL(2)
+   integer iPL,nPL
+   integer icmin,icmax
+   real*8 icmean
+   real*8 dTau
+   Type(HDElement) EShift
+   integer iSeed
+   Type(ExcitGen),pointer :: ExGen
+   Type(Particle) P
+
+   integer iParticle
+   integer iC 
+   integer iNewCount,iNewWeight
+   integer iSubPart
+   integer nEl,nI(nEl)
+   real*8 r,rnum
+   integer iPreExisted
+   
+   integer iGetExcitLevel
+   real*8 RAN2 ! external
+   character(25), parameter :: this_routine='PropagateParticles'
+
+   iParticle=0 !Just get the head node first and its info in P
+   call GetNextParticle(PL(iPL),iParticle,P)
+   ICMean=0.D0
+   ICMin=10
+   ICMax=0
+   do while (iParticle.gt.0)  !i.e. while we're at a valid particle
+! Each Particle has iWeight of subparticles at the same det
+!         write(6,*) iParticle,P%d%exGen%tagExData
+!         write(56,'(I,$)')  P%d%iWeight
+
+      IC=iGetExcitLevel(Ni,P%Ni,NEl)
+      ICmean=ICmean+IC*(P%d%iWeight)
+      IF(IC.lt.ICMin) ICMin=IC
+      IF(IC.gt.ICMax) ICMax=IC
+      
+      iNewCount=0
+      do iSubPart=1,P%d%iWeight
+! With this current subparticle we do two processes.  Firstly we deplete the current particle according to 
+! Hii and tau
+         r=DREAL(P%d%hHii-EShift)*dTau !Prob of death
+         r=(1.D0)-r ! Prob of survival
+         iNewWeight=int(r)  ! Number of newly created definitely
+         r=r-iNewWeight
+!            if(r.lt.0) THEN write(6,*) "Warning: Self-destruction  probabililty <0"
+! This particle doesn't self-destruct if a random num is > r
+         rnum=ran2(iSeed)
+         if(r.gt.rnum) then
+!  Add it to the new list
+            iNewWeight=iNewWeight+1
+         endif
+         if(iNewWeight.gt.0) then
+!Copies accross to the nPL list (if actually creating more weight at particle) - sign is same sign as before
+!Will need to search though the nPL copy of PL to see if particle already exists. If it does then iPreExisted=1 
+            call AddParticle(PL(nPL),P%nI,iNewWeight,+P%d%iSgn,P%d%hHii,P%d%hHi0,P%d%IC0,P%d%exGen,iPreExisted)
+!Number of subparticles of this particle which have are present at end of creation/death process
+            iNewCount=iNewCount+iNewWeight
+         endif
+      enddo !iSubPart
+
+      call DelReference(P%d%exGen)   !Reduce the reference for this exgen by one. 
+!Even though this node is finished with in iPL, it may be present in nPL, so keep reference
+
+!Save the number of children we've spawned at this det
+      PL(iPL)%ParticleData(iParticle)%iProgeny=iNewCount
+      call GetNextParticle(PL(iPL),iParticle,P)
+   enddo !iParticle
+!      call DumpParticleList(6,PL(nPL))
+   ICMean=ICMean/(Pl(nPL)%NSubparticles)
+
+end Subroutine PropagateParticles
+
+!Arguments: Particle Lists(2),Current index, new index, Tau, NEl, Seed, ExGen for ..., Empty particle slot,HFDet,HF Energy
+subroutine SpawnParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P,nI,EHF)
+   Use Determinants, only: GetHElement3
+   Type(ParticleList) PL(2)
+   integer iPL,nPL
+   integer nEl
+   integer iSeed
+   real*8 dTau
+   Type(ExcitGen),pointer :: exGen
+   Type(Particle) P
+
+   integer iParticle
+   integer iSubPart
+   integer iAction
+   Type(HElement) hHij,hHi0
+   Type(HDelement) HHjj,EHF
+   integer nJ(nEl),nI(nEl),IC0
+   integer iC,iCount,ExtraCreate
+   integer iNode,iGetExcitLevel
+   integer iSgn
+   real*8 pGen
+   real*8 r,rnum
+
+   real*8 ran2
+   character(25), parameter :: this_routine='SpawnParticles'
+
+!      write(56,*)
+! Secondly we might create positive or negative particle at an excitation
+   iParticle=0      ! setting iParticle to zero initialises run through nodes in list
+   call GetNextParticle(PL(iPL),iParticle,P)    !Finds next particle and puts it into P
+   do while (iParticle.gt.0)
+!         write(6,*) iParticle,P%d%exGen%tagExData
+!         call WriteDet(6,P%nI,nEl,.false.)
+!         write(6,*) P%d%iProgeny
+      
+      do iSubPart=1,P%d%iWeight     !Run through the integer weight on each particle
+! generate a random excitation of iParticle
+         call GenRandSymExcitIt3(P%nI,P%d%ExGen%exData,nJ,iSeed,iC,0,pGen,iCount)
+! The excitation is in nJ, and its gen prob in pGen.
+!            write(6,*)  pGen
+         hHij=GetHElement3(P%nI,nJ,iC)  !This is the connection strength to nJ from P
+
+! see if we create a particle in nJ, which we do with probability given by r
+         r=DREAL(abs(hHij))*dTau/pGen
+!            WRITE(6,*) r,hHij
+
+!If probability > 1, then we can just create change the weights of particle created at nJ by more than +-1
+         ExtraCreate=INT(r)
+         r=r-real(ExtraCreate)
+
+         rnum=ran2(iSeed)
+! There is new weight created if r > a random num
+!         if(r.gt.1) write(6,*) "Warning: Child creation probabililty>1"
+         if(r.gt.rnum) ExtraCreate=ExtraCreate+1
+         
+         if(ExtraCreate.gt.0) then
+! Particle is created, or if particle is already in the list, its weight is increased by ExtraCreate
+!  See if this particle's already in the list.  iNode is the node it's in in PL(nPL) if it exists, or a new clean node ready to receive it.  iAction is set 
+! to 1 if it doesn't already exist.
+            call FindParticleNode(PL(nPL),nJ,iNode,iAction)
+            if(iAction.ne.0) then
+
+!  Now we have to get info about this particle to add it to the particle list
+               hHjj=GetHElement3(nJ,nJ,0)   !Find Diagonal element
+               call AllocateExGen(exGen,nJ,nEl,this_routine)    !Find excitation generator for nJ
+
+               IC0=iGetExcitLevel(nI,nJ,nEl)
+               IF(IC0.eq.0) THEN
+!Particle created is on the HF det - hHi0 is HF Energy
+                  hHi0=HElement(EHF%v)
+               ELSEIF(IC0.eq.2) THEN
+!Created particle is a double excit - calculate connection back to HF
+                  hHi0=GetHElement3(nI,nJ,IC0)
+               ELSE
+!Created particle is a single/ > double, therefore connection back to HF = 0
+                  hHi0=HElement(0.D0)
+               ENDIF
+
+            else
+! Already exists, so we don't recalculate info
+            endif
+!  Add it to the new list
+!   If the Hij element is -ve then keep the same sign, otherwise flip the sign
+            iSgn=-P%d%iSgn
+            if(DREAL(hHij).lt.0) iSgn=-iSgn
+!  Adds on the weight if iAction=0 or creates a new node w.r.t iNode and iAction if iAction +-1
+!  PL to add the weight to, determinant to add (if iAction+-1), weight to add, sign of weight to add, Diag Elem (if iAction+-1),
+!  Exgen for nJ (if iAction+-1), Node in PL(nPL) to add weight, +- = New particle
+            call AddParticleInt(PL(nPL),nJ,ExtraCreate,iSgn,hHjj,hHi0,IC0,ExGen,iNode,iAction)
+         endif
+
+      enddo !iSubPart
+      call GetNextParticle(PL(iPL),iParticle,P)
+   enddo !iParticle
+end subroutine SpawnParticles
+
 
 ! Particle management functions
 
@@ -103,44 +564,53 @@ subroutine DeallocParticleList(PL)
    Deallocate(PL%ParticleData)
 end subroutine DeallocParticleList
 
-subroutine AddParticle(PL,nI,iWeight,iSgn,hHii,exGen,iPreExisted)
+subroutine AddParticle(PL,nI,iWeight,iSgn,hHii,hHi0,IC0,exGen,iPreExisted)
 !Add a particle to this list
 ! First find a node to put it at
    implicit none
    Type(ParticleList) PL
    integer nI(PL%nEl)
-   integer iWeight,iSgn
+   integer iWeight,iSgn,IC0
    Type(HDElement) hHii
+   Type(HElement) hHi0
    Type(ExcitGen), pointer :: ExGen
    integer iNode,iAction
    integer iPreExisted
    iPreExisted=0
    call FindParticleNode(PL,nI,iNode,iAction)
    if(iAction.eq.0) iPreExisted=1
-   call AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,iNode,iAction)
+   call AddParticleInt(PL,nI,iWeight,iSgn,hHii,hHi0,IC0,ExGen,iNode,iAction)
 end subroutine AddParticle
-subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,iNode,iAction)
+
+
+!  Adds on the weight if iAction=0 or creates a new node w.r.t iNode and iAction if iAction +-1
+!  PL to add the weight to, determinant to add (if iAction+-1), weight to add, sign of weight to add, Diag Elem (if iAction+-1),
+!  Connection to HF(if iAction+-1), ExcitLevel from HF, Exgen for nJ (if iAction+-1), Node in PL(nPL) to add weight, +- = New particle
+subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,hHi0,IC0,ExGen,iNode,iAction)
 !Add a particle to this list
 ! First find a node to put it at
    implicit none
    Type(ParticleList) PL
    integer nI(PL%nEl)
-   integer iWeight,iSgn
+   integer iWeight,iSgn,IC0
    Type(HDElement) hHii
+   Type(HElement) hHi0
    Type(ExcitGen), pointer :: ExGen
    integer iNode,iAction
    if(iAction.eq.0) then
 ! This particle matches this node.  Just change its Weight
-      PL%nSubParticles=PL%nSubParticles-PL%ParticleData(iNode)%iWeight
-      PL%ParticleData(iNode)%iWeight=PL%ParticleData(iNode)%iWeight*PL%ParticleData(iNode)%iSgn+iSgn*iWeight
+      PL%nSubParticles=PL%nSubParticles-PL%ParticleData(iNode)%iWeight  !Remove original weight on node from total weight
+      PL%ParticleData(iNode)%iWeight=PL%ParticleData(iNode)%iWeight*PL%ParticleData(iNode)%iSgn+iSgn*iWeight  !Calculate new weight on the particle
       if(PL%ParticleData(iNode)%iWeight.lt.0) then
-         PL%ParticleData(iNode)%iWeight=-PL%ParticleData(iNode)%iWeight
-         PL%ParticleData(iNode)%iSgn=-1
+!Find the sign of the weight
+         PL%ParticleData(iNode)%iWeight=-PL%ParticleData(iNode)%iWeight     !Weight is always positive value
+         PL%ParticleData(iNode)%iSgn=-1     !Update the sign of the particle
       else
          PL%ParticleData(iNode)%iSgn=1
       endif
-      PL%nSubParticles=PL%nSubParticles+PL%ParticleData(iNode)%iWeight
+      PL%nSubParticles=PL%nSubParticles+PL%ParticleData(iNode)%iWeight    !Update the new total weight of the system
       return
+
    elseif(iAction.eq.1) then
 ! This particle is greater than this node, and we're at the end of the line
       if(iNode.ne.0) PL%ParticleData(iNode)%iAfter=PL%iNextFreeParticle
@@ -163,6 +633,8 @@ subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,ExGen,iNode,iAction)
    PL%ParticleData(iNode)%iWeight=iWeight
    PL%ParticleData(iNode)%iSgn=iSgn
    PL%ParticleData(iNode)%hHii=hHii
+   PL%ParticleData(iNode)%hHi0=hHi0
+   PL%ParticleData(iNode)%IC0=IC0
    PL%ParticleData(iNode)%ExGen=>ExGen
    call AddReference(ExGen)
    PL%ParticleData(iNode)%iAfter=0
@@ -218,6 +690,8 @@ subroutine GetNextParticleInt(PL,iParticle)
       endif
    endif
 end subroutine GetNextParticleInt
+
+
 ! GetnextParticle Gets the particle after iParticle.  If iParticle=0, it returns the head node.
 !  It puts the Particle info into P.  If there are no more particles, it returns iParticle=0
 subroutine GetNextParticle(PL,iParticle,P)
@@ -440,265 +914,6 @@ subroutine DelReference(exGen)
 end subroutine
    
 
-
-subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iStep,dInitShift)
-   Use HElem
-   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-   Use Determinants, only: GetHElement3
-   Use System, only: BasisFN,nEl
-   IMPLICIT NONE
-   character(25), parameter :: this_routine='MCDets'
-   integer nI(nEl)   !The root determinant
-   integer iSeed     !Random number seed
-   integer nCycles   !Number of cycles we should do
-   Type(ExcitGen), pointer :: exGen
-   integer nJ(nEl)   !Store generated determinants
-   real*8  pGen      !Store generation prob of dets
-   integer iC        ! The level of excitation returned
-   integer ierr      !errors in memory allocation
-   integer iCycle    !Cycle counter
-   Type(Helement) hHij
-   Type(Helement) hRhIJ  
-   Type(Helement) hRhJJ  
- 
-   Type(HDElement) EShift, EHF,hHjj
-   integer iParticle
-
-   
-   Type(ParticleList) PL(2)      ! 2 particle lists - one for past cycle and one created this cycle
-   Type(Particle) P
-   
-   integer iPL,nPL
-   integer iSubPart,iNewCount
-   integer nMaxParticles,isgn,iNewWeight
-   real*8 r,rnum,dtau,dMu
-   real*8 RAN2 ! external
-   integer iPreExisted
-   integer nInitParticles
-   integer iOldCount
-   integer iStep
-   integer iCount
-   integer iNode,iAction         !Internal loop variables documented later
-   integer ICMin,ICMax           ! Min and Max excitation level we encounter in a step
-   real*8 dInitShift
-   real*8 ICMean                 !Mean excit level 
-   Type(HDElement) ECumlTot,ECumlTotSq ! Used to give stats on the energy fluctuation
-   integer nECumls               ! "
-   integer iTot
-!   dTau=1e-2
-!   dMu=1e-1
-!   nMaxParticles=1000
-!   nInitParticles=1000
-!   iStep=10
-   
-   ECumlTot=0.d0
-   nECumls=0
-   call writeDet(6,nI,nEl,.true.)
-! We need to allocate space for our current particle
-   call AllocParticle(P,nEl)   
-   
-   EShift=dInitShift
-   EHF=GetHElement3(nI,nI,0)
-   EShift=EHF+EShift
-
-   call AllocateExGen(exGen,nI,nEl,this_routine)
-
-! We switch the current particle list between 1 and 2  iPL is current.  nPL is the one we're creating
-   iPL=1
-   nPL=2
-!  Allocate particle lists in PL
-   call AllocParticleList(PL(1),nMaxParticles,nEl)
-   call AllocParticleList(PL(2),nMaxParticles,nEl)
-!Setup single particle with weight nInitParticles at the HF det
-   call AddParticle(PL(iPL),nI,nInitParticles,+1,EHF,exGen,iPreExisted)
-
-   write(6,*) "nCycles:",nCycles
-   iOldCount=nInitParticles
-
-   do iCycle=1,nCycles
-      call ClearParticleList(PL(nPL))
-      call SpawnParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
-      call PropagateParticles(PL,iPL,nPL,dTau,EShift,ICmean,ICmin,ICMax,nI,nEl,iSeed,ExGen,P)
-      call CleanupParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
-!      write(6,*) "Cycle",iCycle
-!      call DumpParticleList(6,PL(nPL))
-         
-
-      if(PL(nPL)%nSubParticles.eq.0) then
-         write(6,*) "All particles have died."
-         return
-      endif
-      if(mod(iCycle,iStep).eq.0) then
-         EShift=EShift+HDElement(dMu*log((iOldCount+0.d0)/PL(nPL)%nSubParticles)/(dTau*iStep))
-         iOldCount=PL(nPL)%nSubParticles
-         WRITE(6,'(2I9,G20.12,F10.5,2I7)') iCycle, PL(nPL)%nSubParticles,EShift,ICMean,ICMin,ICMax
-         WRITE(76,"(2I,2G,2I)") iCycle, PL(nPL)%nSubParticles,DReal(EShift),ICMean,ICMin,ICMax
-         call flush(76)
-         if(mod(iCycle,iStep*10).eq.0) then
-            ECumlTot=ECumlTot+EShift
-            ECumlTotSq=ECumlTotSq+EShift*EShift
-            nECumls=nECumls+1
-         endif
-      endif
-! Switch to the other particle list
-      nPL=iPL
-      iPL=3-iPL
-   end do !iCycle
-
-   write(6,*) "Average EShift:", DReal(ECumlTot)/nECumls
-   write(6,*) "Std of EShift:", sqrt((DReal(ECumlTotSq)/nECumls-(DReal(ECumlTot)/nECumls)**2)/(nECumls-1))
-! We need to deallocate all the excitation generators in the last particle list we created 
-   iParticle=0
-   call GetNextParticle(PL(iPL),iParticle,P)
-   do while (iParticle.gt.0)
-      call DeallocateExGen(P%d%ExGen,this_routine)
-      call GetNextParticle(PL(iPL),iParticle,P)
-   enddo
-   call DeallocParticleList(PL(1))
-   call DeallocParticleList(PL(2))
-   call DeallocParticle(P)
-end subroutine MCDetsCalc
-
-subroutine PropagateParticles(PL,iPL,nPL,dTau,EShift,ICmean,ICmin,ICMax,nI,nEl,iSeed,ExGen,P)
-   Type(ParticleList) PL(2)
-   integer iPL,nPL
-   integer icmin,icmax
-   real*8 icmean
-   real*8 dTau
-   Type(HDElement) EShift
-   integer iSeed
-   Type(ExcitGen),pointer :: ExGen
-   Type(Particle) P
-
-   integer iParticle
-   integer iC 
-   integer iNewCount,iNewWeight
-   integer iSubPart
-   integer nEl,nI(nEl)
-   real*8 r,rnum
-   integer iPreExisted
-   
-   integer iGetExcitLevel
-   real*8 RAN2 ! external
-   character(25), parameter :: this_routine='PropagateParticles'
-
-   iParticle=0 !Just get the head node first and its info in P
-   call GetNextParticle(PL(iPL),iParticle,P)
-   ICMean=0.D0
-   ICMin=10
-   ICMax=0
-   do while (iParticle.gt.0)  !i.e. while we're at a valid particle
-! Each Particle has iWeight of subparticles at the same det
-!         write(6,*) iParticle,P%d%exGen%tagExData
-!         write(56,'(I,$)')  P%d%iWeight
-
-      IC=iGetExcitLevel(Ni,P%Ni,NEl)
-      ICmean=ICmean+IC*(P%d%iWeight)
-      IF(IC.lt.ICMin) ICMin=IC
-      IF(IC.gt.ICMax) ICMax=IC
-      
-      iNewCount=0
-      do iSubPart=1,P%d%iWeight
-! With this current subparticle we do two processes.  Firstly we deplete the current particle according to 
-! Hii and tau
-         r=DREAL(P%d%hHii-EShift)*dTau !Prob of death
-         r=1-r ! Prob of survival
-         iNewWeight=int(r)  ! Number of newly created definitely
-         r=r-iNewWeight
-!            if(r.lt.0) THEN write(6,*) "Warning: Self-destruction  probabililty <0"
-! This particle doesn't self-destruct if a random num is > r
-         rnum=ran2(iSeed)
-         if(r.gt.rnum) then
-!  Add it to the new list
-            inewWeight=iNewWeight+1
-         endif
-         if(iNewWeight.gt.0) then
-!Copies accross to the nPL list (if actually creating more weight at particle)
-            call AddParticle(PL(nPL),P%nI,iNewWeight,+P%d%iSgn,P%d%hHii,P%d%exGen,iPreExisted)
-!Number of subparticles of this particle which have are present at end of creation/death process
-            iNewCount=iNewCount+iNewWeight
-         endif
-      enddo !iSubPart
-      call DelReference(P%d%exGen)
-!Save the number of children we've spawned at this det
-      PL(iPL)%ParticleData(iParticle)%iProgeny=iNewCount
-      call GetNextParticle(PL(iPL),iParticle,P)
-   enddo !iParticle
-!      call DumpParticleList(6,PL(nPL))
-   ICMean=ICMean/(Pl(NPl)%NSubparticles)
-
-end Subroutine PropagateParticles
-subroutine SpawnParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
-   Use Determinants, only: GetHElement3
-   Type(ParticleList) PL(2)
-   integer iPL,nPL
-   integer nEl
-   integer iSeed
-   real*8 dTau
-   Type(ExcitGen),pointer :: exGen
-   Type(Particle) P
-
-   integer iParticle
-   integer iSubPart
-   integer iAction
-   Type(HElement) hHij
-   Type(HDelement) HHjj
-   integer nJ(nEl)
-   integer iC,iCount
-   integer iNode
-   integer iSgn
-   real*8 pGen
-   real*8 r,rnum
-
-   real*8 ran2
-   character(25), parameter :: this_routine='SpawnParticles'
-
-!      write(56,*)
-! Secondly we might create positive or negative particle at an excitation
-   iParticle=0
-   call GetNextParticle(PL(iPL),iParticle,P)
-   do while (iParticle.gt.0)
-!         write(6,*) iParticle,P%d%exGen%tagExData
-!         call WriteDet(6,P%nI,nEl,.false.)
-!         write(6,*) P%d%iProgeny
-      
-      do iSubPart=1,P%d%iWeight
-! generate a random excitation of the root
-         call GenRandSymExcitIt3(P%nI,P%d%ExGen%exData,nJ,iSeed,iC,0,pGen,iCount)
-! The excitation is in nJ, and its gen prob in pGen.
-!  Just print out for now
-!            write(6,*)  pGen
-         hHij=GetHElement3(P%nI,nJ,iC)
-
-! see if we create a particle in it
-         
-         r=DREAL(abs(hHij))*dTau/pGen
-!            WRITE(6,*) r,hHij
-         rnum=ran2(iSeed)
-! This a new particle is createdif r > a random num
-         if(r.gt.1) write(6,*) "Warning: Child creation probabililty>1"
-         if(r.gt.rnum) then
-!  See if this particle's already in the list.  iNode is the node it's in in PL(nPL) if it exists, or a new clean node ready to receive it.  iAction is set if 
-            call FindParticleNode(PL(nPL),nJ,iNode,iAction)
-            if(iAction.ne.0) then
-!  If it doesn't already exist,
-!  Now we have to get info about this particle
-               hHjj=GetHElement3(nJ,nJ,0)
-               call AllocateExGen(exGen,nJ,nEl,this_routine)
-            else
-! Already exists, so we don't recalculate info
-            endif
-!  Add it to the new list
-!   If the Hij element is -ve then keep the same sign, otherwise flip the sign
-            iSgn=-P%d%iSgn
-            if(DREAL(hHij).lt.0) iSgn=-iSgn
-!  Adds on the weight if iAction=0 or creates a new node w.r.t iNode and iAction if iAction +-1
-            call AddParticleInt(PL(nPL),nJ,1,iSgn,hHjj,ExGen,iNode,iAction)
-         endif
-      enddo !iSubPart
-      call GetNextParticle(PL(iPL),iParticle,P)
-   enddo !iParticle
-end subroutine SpawnParticles
 subroutine CleanupParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
    Use Determinants, only: GetHElement3
    Type(ParticleList) PL(2)
@@ -711,7 +926,7 @@ subroutine CleanupParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
 
    integer iParticle
    integer iSubPart
-   character(25), parameter :: this_routine='SpawnParticles'
+   character(25), parameter :: this_routine='CleanupParticles'
    iParticle=0
    call GetNextParticle(PL(iPL),iParticle,P)
    do while (iParticle.gt.0)
@@ -723,4 +938,5 @@ subroutine CleanupParticles(PL,iPL,nPL,dTau,nEl,iSeed,ExGen,P)
       call GetNextParticle(PL(iPL),iParticle,P)
    enddo !iParticle
 end subroutine CleanupParticles
+
 end Module MCDets
