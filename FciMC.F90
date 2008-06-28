@@ -519,10 +519,17 @@ MODULE FciMCMod
 !We are not annihilating particles - this will make things much quicker.
 
 !However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
-            CurrentDets=>WalkVec2Dets
-            CurrentSign=>WalkVec2Sign
-            NewDets=>WalkVecDets
-            NewSign=>WalkVecSign
+            IF(associated(CurrentDets,target=WalkVecDets)) THEN
+                CurrentDets=>WalkVec2Dets
+                CurrentSign=>WalkVec2Sign
+                NewDets=>WalkVecDets
+                NewSign=>WalkVecSign
+            ELSE
+                CurrentDets=>WalkVecDets
+                CurrentSign=>WalkVecSign
+                NewDets=>WalkVec2Dets
+                NewSign=>WalkVec2Sign
+            ENDIF
 
             TotWalkers=TotWalkersNew
 
