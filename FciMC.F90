@@ -1872,59 +1872,76 @@ MODULE FciMCMod
 !Perform MC cycles
             do j=1,InitWalkers
 !Cycle over all walkers
-                
-                CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nJ,Seed,ICJ,0,ProbJ,iCountJ)  !First random excitation is to attempt to move to
-                CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nK,Seed,ICK,0,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
-                Hij=GetHElement2(CurrentDets(:,j),nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICJ,ECore)
-                Hik=GetHElement2(CurrentDets(:,j),nK,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICK,ECore)
 
-!Attempt diffusion away to nJ
-                rat=Tau*abs(real(Hij%v,r2))/ProbJ
-                
-                IF(rat.gt.1.D0) CALL STOPGM("AttemptDiffuse","*** Probability > 1 to diffuse.")
+!First we have to see if we're going to perform a self-hop, or allow an attempt at a diffusive move.
+!                rat=Tau/(HiiArray(j)-(real(Hii%v,r2))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+                rat=Tau*((HiiArray(j)/(real(Hii%v,r2)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+                                                        !Higher excitations have smaller prob, so resampled fewer times and lower excitations sampled for longer.
 
                 IF(rat.gt.Ran2(Seed)) THEN
+!We want to self-hop. Resum in energy, but to not allow an attempted move away from excit. We also update the effect on the shift later.
+                        
+                        SumENum=SumENum+(real(Hi0Array(j)%v,r2))
+                        IF(ICWalk(j).eq.0) SumNoatHF=SumNoatHF+1
+                        NewHii=HiiArray(j)
+
+                ELSE
+!We do not have to self-hop. Attempt to diffuse away from determinant.
+                
+                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nJ,Seed,ICJ,0,ProbJ,iCountJ)  !First random excitation is to attempt to move to
+                    CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nK,Seed,ICK,0,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
+                    Hij=GetHElement2(CurrentDets(:,j),nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICJ,ECore)
+                    Hik=GetHElement2(CurrentDets(:,j),nK,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICK,ECore)
+
+!Attempt diffusion away to nJ
+                    rat=Tau*abs(real(Hij%v,r2))/ProbJ
+                
+                    IF(rat.gt.1.D0) CALL STOPGM("AttemptDiffuse","*** Probability > 1 to diffuse.")
+
+                    IF(rat.gt.Ran2(Seed)) THEN
 !Diffusion successful - need to update all the information
                    
-                    CurrentDets(:,j)=nJ(:)
+                        CurrentDets(:,j)=nJ(:)
 
-                    IF(real(Hij%v,r2).gt.0.D0) THEN
+                        IF(real(Hij%v,r2).gt.0.D0) THEN
 !This is the anti-diffusion
-                        IF(CurrentSign(j)) THEN
+                            IF(CurrentSign(j)) THEN
 !Walker is positive
-                            CurrentSign(j)=.false.  !Want negative walker
+                                CurrentSign(j)=.false.  !Want negative walker
+                            ELSE
+                                CurrentSign(j)=.true.   !Positive walker
+                            ENDIF
                         ELSE
-                            CurrentSign(j)=.true.   !Positive walker
-                        ENDIF
-                    ELSE
 !This is diffusion - no need to flip sign, since we want to keep the same signs.
-                    ENDIF
+                        ENDIF
 
 !Sum in new energy
-                    ICWalk(j)=iGetExcitLevel(FDet,nJ,NEl)
-                    IF(ICWalk(j).eq.2) THEN
-                        Hi0Array(j)=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,2,ECore)
-                        SumENum=SumENum+(real(Hi0Array(j)%v,r2))
-                    ELSEIF(ICWalk(j).eq.0) THEN
-                        Hi0Array(j)=Hii
-                        SumENum=SumENum+(real(Hii%v,r2))
-                        SumNoatHF=SumNoatHF+1
-                    ELSE
-                        Hi0Array(j)=HElement(0.D0)
-                    ENDIF
+                        ICWalk(j)=iGetExcitLevel(FDet,nJ,NEl)
+                        IF(ICWalk(j).eq.2) THEN
+                            Hi0Array(j)=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,2,ECore)
+                            SumENum=SumENum+(real(Hi0Array(j)%v,r2))
+                        ELSEIF(ICWalk(j).eq.0) THEN
+                            Hi0Array(j)=Hii
+                            SumENum=SumENum+(real(Hii%v,r2))
+                            SumNoatHF=SumNoatHF+1
+                        ELSE
+                            Hi0Array(j)=HElement(0.D0)
+                        ENDIF
 
 !Create and save new excitation generator
-                    CALL SetupExitgen(nJ,ExcitGens(j),nExcitMemLen)
+                        CALL SetupExitgen(nJ,ExcitGens(j),nExcitMemLen)
 
-                    tempHii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-                    NewHii=real(tempHii%v,r2)  !This is the new diagonal matrix element
+                        tempHii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+                        NewHii=real(tempHii%v,r2)  !This is the new diagonal matrix element
                                                                                                        
-                ELSE
+                    ELSE
 !Attempted diffusion away is not successful - still need to update the energy
                     
-                    SumENum=SumENum+(real(Hi0Array(j)%v,r2))
-                    IF(ICWalk(j).eq.0) SumNoatHF=SumNoatHF+1
-                    NewHii=HiiArray(j)
+                        SumENum=SumENum+(real(Hi0Array(j)%v,r2))
+                        IF(ICWalk(j).eq.0) SumNoatHF=SumNoatHF+1
+                        NewHii=HiiArray(j)
+
+                    ENDIF
 
                 ENDIF
 
