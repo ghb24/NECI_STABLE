@@ -20,7 +20,7 @@ MODULE Calc
         LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
-        LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil
+        LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -71,6 +71,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TMCDiffusion=.false.
           TNoAnnihil=.false.
           TNodalCutoff=.false.
           NodalCutoff=0.75
@@ -1008,7 +1009,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets
+         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -1024,6 +1025,8 @@ MODULE Calc
                         case("MCDets")
                             I_HMAX=-21
                             TMCDets=.true.
+                        case("MCDIFFUSION")
+                            TMCDiffusion=.true.
                         case("SUM")
                            do while(item.lt.nitems)
                             call readu(w)
