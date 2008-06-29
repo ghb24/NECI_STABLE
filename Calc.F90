@@ -1022,11 +1022,14 @@ MODULE Calc
                         case("FCIMC")
                             I_HMAX=-21
                             TFCIMC=.true.
+                            call readu(w)
+                            select case(w)
+                            case("MCDIFFUSION")
+                                TMCDiffusion=.true.
+                            endselect
                         case("MCDets")
                             I_HMAX=-21
                             TMCDets=.true.
-                        case("MCDIFFUSION")
-                            TMCDiffusion=.true.
                         case("SUM")
                            do while(item.lt.nitems)
                             call readu(w)

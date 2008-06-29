@@ -68,10 +68,10 @@ MODULE FciMCMod
 
     TYPE(HElement) :: Hii,rhii,FZero
 
-    TYPE ExcitGen
-        INTEGER , POINTER :: ExData(:)      !This stores the excitation generator
+    TYPE ExcitGenerator
+        INTEGER , POINTER :: ExcitData(:)      !This stores the excitation generator
     END TYPE
-    TYPE(ExcitGen) , ALLOCATABLE :: ExGens(:)   !This will store the excitation generators for the walkers in MCDiffusion
+    TYPE(ExcitGenerator) , ALLOCATABLE :: ExcitGens(:)   !This will store the excitation generators for the walkers in MCDiffusion
 
     contains
 
@@ -104,6 +104,8 @@ MODULE FciMCMod
         IF(HElementSize.gt.1) THEN
             CALL STOPGM("FCIMC","StarDiagMC cannot function with complex orbitals.")
         ENDIF
+        
+        OPEN(15,file='FCIMCStats',status='unknown')
 
 !Initialise random number seed
     Seed=G_VMC_Seed
@@ -119,6 +121,7 @@ MODULE FciMCMod
 
         IF(TMCDiffusion) THEN
             CALL MCDiffusion()
+            CLOSE(15)
             RETURN
         ENDIF
 
@@ -128,8 +131,6 @@ MODULE FciMCMod
         IF(TCalcWaveVector) THEN
             WRITE(6,*) "Wavevector calculation is only available in star MC..."
         ENDIF
-
-        OPEN(15,file='FCIMCStats',status='unknown')
 
         IF(TReadPops) THEN
             
@@ -1835,27 +1836,27 @@ MODULE FciMCMod
         WRITE(6,*) " Iteration   Shift    ExpectedGrowthRate   ProjectionE"
         WRITE(15,*) "# Iteration   Shift    ExpectedGrowthRate   ProjectionE"
         
-        WRITE(6,"(I9,3G16.7)") 0,DiagSft,0.D0,real(Hii%v,r2)
-        WRITE(15,"(I9,3G16.7)") 0,DiagSft,0.D0,real(Hii%v,r2)
+        WRITE(6,"(I9,3G16.7)") 0,DiagSft,0.D0,0.D0
+        WRITE(15,"(I9,3G16.7)") 0,DiagSft,0.D0,0.D0
 
 !Need to store excitation generators for each of the particles
-        ALLOCATE(ExGens(InitWalkers),stat=ierr)     !Array to hold excitation generators for each walker
+        ALLOCATE(ExcitGens(InitWalkers),stat=ierr)     !Array to hold excitation generators for each walker
         ALLOCATE(ICWalk(InitWalkers),stat=ierr)     !Array to hold excitation level for each walker
         ALLOCATE(Hi0Array(InitWalkers),stat=ierr)   !Array to hold connection back to HF for each walker
         ALLOCATE(HiiArray(InitWalkers),stat=ierr)   !Array to hold diagonal hamiltonian element for each walker
         IF(ierr.ne.0) CALL STOPGM("MCDiffusion","Error in allocation")
 
-        CALL SetupExitgen(FDet,ExGens(1),nExcitMemLen)
+        CALL SetupExitgen(FDet,ExcitGens(1),nExcitMemLen)
         ICWalk(1)=0
         Hi0Array(1)=Hii
         HiiArray(1)=real(Hii%v,r2)
 
         do i=2,InitWalkers
 !Copy the excitation generator for FDet to all the other initial walkers
-            ALLOCATE(ExGens(i)%ExData(nExcitMemLen),stat=ierr)
+            ALLOCATE(ExcitGens(i)%ExcitData(nExcitMemLen),stat=ierr)
             IF(ierr.ne.0) CALL STOPGM("MCDiffusion","Error in allocation")
             do j=1,nExcitMemLen
-                ExGens(i)%ExData(j)=ExGens(1)%ExData(j)
+                ExcitGens(i)%ExcitData(j)=ExcitGens(1)%ExcitData(j)
             enddo
             ICWalk(i)=0
             Hi0Array(i)=Hii
@@ -1872,8 +1873,8 @@ MODULE FciMCMod
             do j=1,InitWalkers
 !Cycle over all walkers
                 
-                CALL GenRandSymExcitIt3(CurrentDets(:,j),ExGens(i)%ExData,nJ,Seed,ICJ,0,ProbJ,iCountJ)  !First random excitation is to attempt to move to
-                CALL GenRandSymExcitIt3(CurrentDets(:,j),ExGens(i)%ExData,nK,Seed,ICK,0,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
+                CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nJ,Seed,ICJ,0,ProbJ,iCountJ)  !First random excitation is to attempt to move to
+                CALL GenRandSymExcitIt3(CurrentDets(:,j),ExcitGens(j)%ExcitData,nK,Seed,ICK,0,ProbK,iCountK)  !Second is to unbias the diffusion in the birth/death prob
                 Hij=GetHElement2(CurrentDets(:,j),nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICJ,ECore)
                 Hik=GetHElement2(CurrentDets(:,j),nK,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,ICK,ECore)
 
@@ -1884,10 +1885,8 @@ MODULE FciMCMod
 
                 IF(rat.gt.Ran2(Seed)) THEN
 !Diffusion successful - need to update all the information
-                    
-                    do i=1,NEl
-                        CurrentDets(i,j)=nJ(i)
-                    enddo
+                   
+                    CurrentDets(:,j)=nJ(:)
 
                     IF(real(Hij%v,r2).gt.0.D0) THEN
 !This is the anti-diffusion
@@ -1915,7 +1914,7 @@ MODULE FciMCMod
                     ENDIF
 
 !Create and save new excitation generator
-                    CALL SetupExitgen(nJ,ExGens(j),nExcitMemLen)
+                    CALL SetupExitgen(nJ,ExcitGens(j),nExcitMemLen)
 
                     tempHii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
                     NewHii=real(tempHii%v,r2)  !This is the new diagonal matrix element
@@ -1931,7 +1930,7 @@ MODULE FciMCMod
 
                 rat=Tau*(((HiiArray(j)-(real(Hii%v,r2)))-DiagSft)-(abs(real(Hik%v,r2))/ProbK))      !This is the prob of death, adjusted to unbias for the diffusion
 
-                HiiArray(j)=NewHii      !Nowwe can update the HiiArray to take into account if the walker has moved to a new position
+                HiiArray(j)=NewHii      !Now we can update the HiiArray to take into account if the walker has moved to a new position
 
                 SumDeathProb=SumDeathProb+rat   !Sum the death probabilities
 
@@ -1941,13 +1940,17 @@ MODULE FciMCMod
 
             IF(mod(Iter,StepsSft).eq.0) THEN
         
-                SumDeathProb=SumDeathProb/(InitWalkers+StepsSft+0.D0)       !This now indicates the average death probability per walker per cycle
+                SumDeathProb=SumDeathProb/(InitWalkers*StepsSft+0.D0)       !This now indicates the average death probability per walker per cycle
+!                WRITE(6,*) SumDeathProb
 
-                ExpectedWalkers=InitWalkers+0.D0    !This is the number of walkers we start off with at the beginning of the update shift cycle.
-                do i=1,StepsSft
-                    ExpectedWalkers=ExpectedWalkers-ExpectedWalkers*SumDeathProb    !Each cycle, we expected to lose the number of walkers at the beginning of the cycle * P_death
-                enddo                                                               !Alternativly, we can say that a the beginning of each cycle, the number of walkers is the same, 
-                                                                                    !but this would be ignoring the change at each cycle (though could be done analytically)
+!                ExpectedWalkers=InitWalkers+0.D0    !This is the number of walkers we start off with at the beginning of the update shift cycle.
+!                do i=1,StepsSft
+!                    ExpectedWalkers=ExpectedWalkers-ExpectedWalkers*SumDeathProb    
+!                enddo                                                               
+
+                IF(SumDeathProb.gt.1.D0) CALL STOPGM("MCDIFFUSION","Average Death prob. > 1")
+
+                ExpectedWalkers=InitWalkers*((1.D0-SumDeathProb)**StepsSft)
 
                 GrowRate=(ExpectedWalkers)/(InitWalkers+0.D0)  !This is the expected growth rate over the previous StepsSft
 
@@ -1969,24 +1972,24 @@ MODULE FciMCMod
 
     END SUBROUTINE MCDiffusion
    
-    SUBROUTINE SetupExitgen(nI,ExGen,nExcitMemLen)
+    SUBROUTINE SetupExitgen(nI,ExcitGen,nExcitMemLen)
         IMPLICIT NONE
-        TYPE(ExcitGen) :: ExGen
+        TYPE(ExcitGenerator) :: ExcitGen
         INTEGER :: ierr,iMaxExcit,nStore(6),nExcitMemLen,nJ(NEl)
         INTEGER :: nI(NEl)
 
-        IF(Allocated(ExGen%ExData)) THEN
-            DEALLOCATE(ExGen%ExData)
+        IF(Allocated(ExcitGen%ExcitData)) THEN
+            DEALLOCATE(ExcitGen%ExcitData)
         ENDIF
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
         iMaxExcit=0
         CALL IAZZERO(nStore,6)
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(ExGen%ExData(nExcitMemLen),stat=ierr)
+        ALLOCATE(ExcitGen%ExcitData(nExcitMemLen),stat=ierr)
         IF(ierr.ne.0) CALL STOPGM("SetupExcitGen","Problem allocating excitation generator")
-        ExGen%ExData(1)=0
-        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExGen%ExData,nJ,iMaxExcit,0,nStore,3)
+        ExcitGen%ExcitData(1)=0
+        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
 
     END SUBROUTINE SetupExitgen
 
