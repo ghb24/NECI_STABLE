@@ -201,6 +201,8 @@ EXCITE <ICILEVEL> [default=0]
 
 ENERGY
     Calculate the energy by diagonalising.  Requires that one of COMPLETE, LANCZOS, or READ be set.
+    Exact E(Beta) is printed out as E(Beta) = sum_alpha E_alpha exp(-beta E_alpha) / sum_alpha exp(-beta E_alpha)
+      This will of course change depending upon the symmetry subspace chosen for diagonalization for finite temperature.
 
 COMPLETE
     Do a full diagonalisation working out all eigenvectors and eigenvalues.  if HAMILTONIAN is OFF, this throws away the eigenvectors and eigenvalues after having used them for calculation.  Relevant parameters are HAMILTONIAN and BLOCK
