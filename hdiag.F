@@ -288,8 +288,8 @@ C.. Now work out exact wi etc.
             CALL GETSYMDEGEN(BLOCKSYM(I+1),NBASISMAX,IDEG)
             DO III=1,NBLK
                WRITE(15,"(2I4,I7,$)") I+1,III,NBS+III-1
-               CALL WRITEDET(15,NMRKS(1,NBS+III-1),NEL,.FALSE.)
-               WRITE(15,"(I7,F19.11,I5)") NBS+III-1,W(III),IDEG
+!               CALL WRITEDET(15,NMRKS(1,NBS+III-1),NEL,.FALSE.)
+               WRITE(15,"(F19.11,I5)") W(III),IDEG
 
                IF(ABS(W(III)/ELOWEST-1.D0).LT.1.D-6) THEN
                   GELOWEST=GELOWEST+IDEG

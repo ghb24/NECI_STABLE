@@ -540,8 +540,8 @@ CONTAINS
          OPEN(15,FILE='ENERGIES',STATUS='UNKNOWN')
          DO IN=1,NEVAL
             WRITE(6,'(I5,2X,3(F19.11,2x))') IN,TKE(IN),W(IN)-TKE(IN),W(IN)
-            WRITE(15,"(I7,$)") IN
-            CALL WRITEDET(15,NMRKS(1,IN),NEL,.FALSE.)
+!            WRITE(15,"(I7,$)") IN
+!            CALL WRITEDET(15,NMRKS(1,IN),NEL,.FALSE.)
             WRITE(15,"(F19.11)") W(IN)
          ENDDO
          CLOSE(15)

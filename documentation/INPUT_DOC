@@ -203,6 +203,7 @@ ENERGY
     Calculate the energy by diagonalising.  Requires that one of COMPLETE, LANCZOS, or READ be set.
     Exact E(Beta) is printed out as E(Beta) = sum_alpha E_alpha exp(-beta E_alpha) / sum_alpha exp(-beta E_alpha)
       This will of course change depending upon the symmetry subspace chosen for diagonalization for finite temperature.
+    The diagonalization procedure creates a list of determinants, which is printed out to DETS.
 
 COMPLETE
     Do a full diagonalisation working out all eigenvectors and eigenvalues.  if HAMILTONIAN is OFF, this throws away the eigenvectors and eigenvalues after having used them for calculation.  Relevant parameters are HAMILTONIAN and BLOCK
@@ -762,3 +763,87 @@ CSFs are printed thus: (CLOSED, OPEN).  CLOSED is a list of orbitals in closed s
                  and (7,8) and (19,20) each singly occupied.  BBAA corresponds to an Ms=0 state (two beta, two alpha) (these labels are always B...BA...A).
                  ++-- corresponds to 2S=+1+1-1-1=0 and with the ++-- generation combination (see branching diagrams).  The other possible
                  combination would be +-+- (the partial sums can never go below 0, so e.g. +--+ is not allowed)
+
+Output Files
+
+TMAT
+   The one electron integrals
+      Di Dj <Di|h|Dj>
+
+   where h is the appropriate one-electron operator for the system
+
+DETS
+   This contains a list of determinants when they are enumerated.  This consists of two columns:
+      Determinant   Symmetry
+
+   Determinant contains an ordered list of NEL numbers, separated by commas, surrounded by ():  e.g. (    1,    2,   13,   14,)
+   Symmetry will vary with the system
+
+BLOCKS
+   If the Hamiltonian is Blocked, this is a list of the blocks
+      BlockIndex  K(1)  K(2)  K(3)  MS SYM   nDets nTotDets
+
+   BlockIndex starts from 1
+   K(1:3) are momentum values for the Hubbard and UEG symmetries
+   MS is 2*S_z
+   Sym is the spatial symmetry - may be a single number or a set of numbers enclosed in ()
+   nDets is the number of Symmetry Unique determinants in this block (the ones we've listed)
+   nTotDets is the total number of determinants in this block.
+
+HAMIL
+   Prints out the non-zero elements of the Hamiltonian in three columns
+      i  j  <Di|H|Dj>
+
+      i<=j, and i increases.  Di corresponds to determinant at line i in DETS.
+
+ENERGIES
+   Prints out a list of eigenvalues in the order they're generated.  If the Hamiltonian is Blocked, then these will not all be in ascending order, but only ascending order within each block
+
+RHOPIIex
+   If a diagonalization is performed, this is printed out (Calculated by CalcRhoPII).  It contains:
+      Determinant=Di    w_i   P ln rho_ii    ln s_i   E~_i  Degeneracy
+
+   Determinant is the det enclosed in ()
+   w_i is the calcuated value of <Di|e^{-\beta H}|Di>
+   P ln rho_ii:  P is I_P.  rho_ii is <Di|e^{-(\beta/P) H}|Di> to some approximation.
+   s_i is defined from ln w_i = P ln rho_ii + ln s_i
+   E~_i is the value of <Di|H e^{-\beta H} |Di> / w_i
+   Degeneracy is the number of symmetry related determinants to this which we aren't calculating explicitly.
+
+RHOPII
+   Calculated when a vertex sum is performed.
+      Index Determinant=Di    w_i   P ln rho_ii    ln s_i   E~_i  Degeneracy
+
+   Index begins at 0   
+   Determinant is the det enclosed in ()
+   w_i is the calcuated value of <Di|e^{-\beta H}|Di>
+   P ln rho_ii:  P is I_P.  rho_ii is <Di|e^{-(\beta/P) H}|Di> to some approximation.
+   s_i is defined from ln w_i = P ln rho_ii + ln s_i
+   E~_i is the value of <Di|H e^{-\beta H} |Di> / w_i
+
+CLASSPATHS
+   Calculated when a vertex sum is performed.  Lists properties of the graphs by class
+      Class nGs TotWeight   TotwEt TotWeightPos   TotWeightNeg
+
+   Class is a binary string indicating the connectivity of the graph
+      The connectivity matrix has 1 if there's a line in the graph
+      e.g. a 3-vertex graph.  The bits are labelled from the bottom right starting from 0
+         (. 2 1 )  (bits)                   (. 1 1 )
+         (  . 0 )  -> 210     connections:  (  . 0 ) -> 110 (binary) -> 6 (decimal)
+         (    . )                           (    . ) 
+
+   nGs         is the number of graphs that fell in this class
+   TotWeight   is the total weight (w_i) of those graphs
+   TotEt       is the total value of w_i E~_i for those graphs
+   TotWeightPos is the total of positive weights
+   TotWeightNeg is the total of negative weights
+
+CLASSPATHS2
+   Calculated when a vertex sum is performed.  A histogram of the weights for each graph type
+   Header:
+      Class nGs   TotWeightPos   TotWeightNeg
+   Body:
+      log_10(weight)    nPos  nNeg
+
+   Class, nGs, TotWeightPos, TotWeightNeg as above.
+   Body consists of lines from -1 to -15 listing number of +ve and -ve graphs in that band.  top and bottom bands catch overspills/            
