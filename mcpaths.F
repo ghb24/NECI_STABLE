@@ -33,10 +33,11 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE MCStarMod , only : MCStar
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCMod , only : FciMC
+         USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          USE Calc , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,
-     &          calcp_logweight,TStarTrips,TFCIMC
+     &          calcp_logweight,TStarTrips,TFCIMC,TReturnPathMC
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          IMPLICIT NONE
@@ -249,6 +250,9 @@ C.. forcing them to be disconnected.
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
                     CALL FciMC(F(I_V),DLWDB2)
+               ELSEIF(TReturnPathMC) THEN
+!A MC simulation involving replicating particles, constrained to returning paths is run
+                    CALL ReturnPathMC(F(I_V),DLWDB2)
                ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators
@@ -465,9 +469,10 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE MCStarMod , only : MCStar
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCMod , only : FciMC
+         USE ReturnPathMCMod , only : ReturnPathMC
          USE PRECALCREAD , only : TPREVAR
          USE Calc , only : TMPTHEORY,TDIAGNODES,TGraphMorph,TStarTrips
-         use Calc, only : calcp_logweight,TFCIMC
+         use Calc, only : calcp_logweight,TFCIMC,TReturnPathMC
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -678,6 +683,9 @@ C.. forcing them to be disconnected.
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
                     CALL FciMC(F(I_V),DLWDB2)
+               ELSEIF(TReturnPathMC) THEN
+!A MC simulation involving replicating particles, constrained to returning paths is run
+                    CALL ReturnPathMC(F(I_V),DLWDB2)
                ELSE
 C.. This code generates a star consisting of all the two-vertex terms,
 C.. forcing them to be disconnected. - this uses new excitation generators

@@ -21,19 +21,20 @@ MODULE Calc
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
         LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
+        LOGICAL TRhoElems,TReturnPathMC
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
-        INTEGER InitWalkers,NMCyc,StepsSft,FlipTauCyc
+        INTEGER InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
         REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
         REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
         REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau,SftDamp,ScaleWalkers
-        REAL*8 GrowMaxFactor,CullFactor,Lambda,NodalCutoff
+        REAL*8 GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
 
 
 
@@ -71,6 +72,10 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TRhoElems=.false.
+          TReturnPathMC=.false.
+          CLMax=NEl
+          PRet=1.D0
           TMCDiffusion=.false.
           TNoAnnihil=.false.
           TNodalCutoff=.false.
@@ -643,15 +648,21 @@ MODULE Calc
 !This is a seperate partitioning of the diffusion matrices in FCIMC in which the antidiffusion matrix (+ve connections) create a net increase of two particles.
                   TExtraPartDiff=.true.
               case("FULLUNBIASDIFF")
-                  TFullUnbias=.true.
 !This is for FCIMC, and fully unbiases for the diffusion process by summing over all connections
+                  TFullUnbias=.true.
               case("NODALCUTOFF")
+!This is for all types of FCIMC, and constrains a determinant to be of the same sign as the MP1 wavefunction at that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
                   TNodalCutoff=.true.
                   call getf(NodalCutoff)
-!This is for all types of FCIMC, and constrains a determinant to be of the same sign as the MP1 wavefunction at that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
               case("NOANNIHIL")
-                  TNoAnnihil=.true.
 !For FCIMC, this removes the annihilation of particles on the same determinant step.
+                  TNoAnnihil=.true.
+              case("MAXCHAINLENGTH")
+!For closed path MC, this is the maximum allowed chain length before it is forced to come back
+                  call geti(CLMAX)
+              case("RETURNBIAS")
+!For closed path MC, this is the return bias at any point to spawn at the parent determinant
+                  call getf(PRet)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
@@ -1010,6 +1021,7 @@ MODULE Calc
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion
+         USE Calc , only : TRhoElems,TReturnPathMC
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -1026,6 +1038,14 @@ MODULE Calc
                             select case(w)
                             case("MCDIFFUSION")
                                 TMCDiffusion=.true.
+                            endselect
+                        case("RETURNPATHMC")
+                            I_HMAX=-21
+                            TReturnPathMC=.true.
+                            call readu(w)
+                            select case(w)
+                            case("RHOELEMS")
+                                TRhoElems=.true.
                             endselect
                         case("MCDets")
                             I_HMAX=-21

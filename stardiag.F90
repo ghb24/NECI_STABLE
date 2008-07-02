@@ -2466,7 +2466,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          ENDIF
 
 !Set the maximum number of walkers allowed
-         MaxWalkers=100*InitWalkers
+         MaxWalkers=1000*InitWalkers
 
 !Allocate memory to hold walkers
          ALLOCATE(WalkVec(MaxWalkers),stat=ierr)
@@ -2853,11 +2853,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !             StepsSft=100
              IF(mod(i,StepsSft).eq.0) THEN
                  GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
-                 DiagSft=DiagSft-(log(GrowRate))/(SftDamp*Tau*(StepsSft+0.D0))
-                 IF((DiagSft).gt.0.D0) THEN
-                     WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
-                     STOP
-                 ENDIF
+                 DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                  IF(TReadPops) THEN
                      WRITE(15,"(I9,G16.7,I9,G16.7,I9)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
@@ -2868,6 +2865,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                  ENDIF
                  CALL FLUSH(15)
                  CALL FLUSH(6)
+                 IF((DiagSft).gt.0.D0) THEN
+                     WRITE(6,*) "***WARNING*** - DiagSft trying to become positive...",DiagSft
+                     STOP
+                 ENDIF
                  TotWalkersOld=TotWalkers
              ENDIF
 
