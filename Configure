@@ -33,26 +33,14 @@ Message () {
 cat << END >&2
 Configure  [options] Name_of_Configuration
 where the name of the configuration is:
-   IBM-RISC                   IBM-SP2
-   IBM-SP3                    CRAY-YMP
-   CRAY-C94                   CRAY-T90
-   CRAY-T3D                   CRAY-T3E
-   CRAY-T3E-PACX              SGI-ORIGIN
-   SGI-ORIGIN-MPI             DEC-ALPHA
-   DEC-ALPHA-MPI              COMPAQ-SC80
-   SUN                        NEC-SX4
-   HP                         HP-MPI 
-   HITACHI-SR2201             HITACHI-SR8000
-   FUJITSU-VPP5000            FUJITSU-VPP
-   FUJITSU-VPP-MPI            FUJITSU-VPP-JPN
-   FUJITSU-VPP-MPJP           PC-ABSOFT
-   PC-PGI                     PC-PGI-MPI
-   PC-PGI64-MPI               PC-PGI64-MPI-UCL 
-   ix86-g95/32                ix86-gfortran/64
-   ix86-gfortran/32           PC-ifort64
+END
+\ls CONFIGURE >&2
+cat << END >&2
+
 Use Configure in the directory where the SOURCE FILES are.
 Ex: Configure SUN > Makefile
 See the description of options with Configure -help
+
 END
 }
 
