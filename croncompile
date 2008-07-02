@@ -10,6 +10,7 @@ platform=$1
 case $platform in
 	PC-PGI) module load pgi/32/7.0/7;;
 	PC-PGI64) module load pgi/64/7.0/7;;
+    ifort64) module load ifort/64/10.1/015 acml/64/ifort/4.0/up;;
 	*) echo "Default: use PC-PGI64"
 	   platform=PC-PGI64
 	   module load pgi/64/7.0/7;;
