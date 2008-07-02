@@ -1,0 +1,25 @@
+     compiler='GCC-f95-on-LINUX'
+     IRAT=2
+     CPP='cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
+     NCPUS=1
+     #-sb is to use Workshop package
+     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
+     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pc-cygwin/3.4.4/libg2c.a' 
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     PreprocSep=""
+     if [ $debug ]; then
+       FC='gfortran -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='gfortran -g'
+       FCD='gfortran -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     else
+       FC='gfortran -c -O4 -fast'
+       CC='cc -O'
+       LD='gfortran -O4'
+       FCD='gfortran -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     fi

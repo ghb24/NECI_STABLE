@@ -1,0 +1,24 @@
+     IRAT=2
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
+MAXMEM := 1024 # RAM available, in MB.
+     NCPUS=1
+     #-sb is to use Workshop package
+     FFLAGS=''
+     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     if [ $debug ]; then
+       FC='g95 -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='g95 -g'
+       FCD='g95 -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='g95 -g'
+     else
+       FC='g95 -c -O4 -fast'
+       CC='cc -O'
+       LD='g95 -O4'
+       FCD='g95 -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='g95 -g'
+     fi

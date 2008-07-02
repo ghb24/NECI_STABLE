@@ -1,0 +1,24 @@
+     IRAT=2
+     CPP='cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DGFORTRAN"
+     NCPUS=1
+     #-sb is to use Workshop package
+     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
+     LFLAGS='-L/Users/athom/QC_EXT_LIBS/MAC_GX/fftw/lib -lfftw -framework vecLib'
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     PreprocSep=""
+     if [ $debug ]; then
+       FC='gfortran -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='gfortran -g'
+       FCD='gfortran -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     else
+       FC='gfortran -c -O4 -fast'
+       CC='cc -O'
+       LD='gfortran -O4'
+       FCD='gfortran -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='gfortran -g'
+     fi

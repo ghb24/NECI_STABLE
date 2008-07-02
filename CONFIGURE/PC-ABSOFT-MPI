@@ -1,0 +1,25 @@
+IRAT=2
+     CFLAGS=''
+     #CPP='pgf90 -F'
+     CPP='/lib/cpp -P -C'
+     CPPFLAGS='-D__NOINT8 -D__Linux -D__ABSOFT -DLAPACK -DFFT_DEFAULT \
+               -DPARALLEL -DMP_LIBRARY=__MPI'
+     #-sb is to use Workshop package
+     #-sb is to use Workshop package
+     FFLAGS='-I/usr/local/mpich/include/'
+#     LFLAGS='-L/usr/lib/lapack -L/usr/absoft/lib -lm -llapack -lblas \
+#             -lU77 -lf2c -L/usr/local/mpich/build/LINUX/ch_p4/lib/ -lmpich'
+     LFLAGS='-L/usr/absoft/lib -llapack -lblas -lU77\
+             -L/usr/local/mpich/build/LINUX/ch_p4/lib/ -lmpich'
+     if [ $debug ]; then
+       FC='f90 -c -B108 -YEXT_NAMES=LCS -g'
+       CC='cc -g -sb -C -errtags'
+       LD='f90 -g -X-Bstatic'
+     else
+#      -B108: append underscore; -B100: PentiumII or higher;
+#      -YEXT_NAMES=LCS: fold to lowercase
+       FC='f90 -c -B108 -B100 -YEXT_NAMES=LCS -O'
+       CC='cc -g -sb -C -errtags'
+       LD='f90 -O -X-Bstatic'
+       CC='cc -O'
+     fi

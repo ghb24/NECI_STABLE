@@ -1,0 +1,27 @@
+     compiler='PGI-pgf95-on-LINUX'
+     IRAT=2
+     CFLAGS='-D__PGI'
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
+     NCPUS=2
+     #-sb is to use Workshop package
+     FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
+     LDFLAGS='-Mnostdlib -Mnostartup' 
+     F90FLAGS='-Mfree '
+     GLOBALS='GLOBALS-pgi'
+     if [ $debug ]; then
+       FC='pgf90 -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='pgf90 -g'
+       FCD='pgf90 -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='pgf90 -g'
+     else
+       FC='pgf90 -c -O4 -fast'
+       CC='cc -O'
+       LD='pgf90 -O4'
+       FCD='pgf90 -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='pgf90 -g'
+     fi
