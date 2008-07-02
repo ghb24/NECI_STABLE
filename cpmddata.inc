@@ -41,7 +41,7 @@
       REAL*8  ROT_CHAR(NSTATES,NROTOP),EIGENVALUES(NSTATES),XI,         &
      &        PIInt(NStates)
       COMPLEX*16  TRANS_CHAR(NSTATES,NTRANSLAT),                        &
-     &            GROUP_CHAR(NTRANSLAT*NROTOP,NSTATES),                 &
+     &            GROUP_CHAR(nSpGpOp,NSTATES),                          &
      &            TRANS_CHAR_TABLE(NTRANSLAT,NTRANSLAT),                &
      &            KPNT_CHAR(NKPTRANS,NKPS)
       INTEGER K_VECTORS(3,NTRANSLAT),CELLSIZES(3)
