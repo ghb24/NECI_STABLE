@@ -23,28 +23,24 @@ MODULE ReturnPathMCMod
     END TYPE
 
     TYPE Part                   !This is the type for a spawning particle
-!        INTEGER :: Det(NEl)     !This is the current determinant of the particle
-        INTEGER , ALLOCATABLE :: Det(:)     !This is the current determinant of the particle
+        INTEGER , ALLOCATABLE :: Det(:)     !This is the current determinant of the particle - (NEl)
         INTEGER :: ChainLength  !This is the current length of the chain back to HF (If at HF, ChainLength = 0)
-!        INTEGER :: IC0(CLMax)   !This is the excitation level of the particle w.r.t. HF determinant for now (IC0(ChainLength)) and all its histories
-!        REAL*8 :: Kii(CLMax)    !This is the diagonal K-matrix element: Hii-H00 for now (Kii(CLMax)) and all its histories
-        INTEGER , ALLOCATABLE :: IC0(:)   !This is the excitation level of the particle w.r.t. HF determinant for now (IC0(ChainLength)) and all its histories
-        REAL*8 , ALLOCATABLE :: Kii(:)    !This is the diagonal K-matrix element: Hii-H00 for now (Kii(CLMax)) and all its histories
-!        INTEGER :: HistExcit(CLMax)             !HistExcit(i) is the number of excitations between the determinant at History(:,i) and History(:,i-1)
-        INTEGER , ALLOCATABLE :: HistExcit(:)             !HistExcit(i) is the number of excitations between the determinant at History(:,i) and History(:,i-1)
+        INTEGER , ALLOCATABLE :: IC0(:)   !This is the excitation level of the particle w.r.t. HF determinant for now (IC0(ChainLength)) and all its histories - (CLMax)
+        REAL*8 , ALLOCATABLE :: Kii(:)    !This is the diagonal K-matrix element: Hii-H00 for now (Kii(CLMax)) and all its histories - (CLMax)
+        INTEGER , ALLOCATABLE :: HistExcit(:)             !HistExcit(i) is the number of excitations between the determinant at History(:,i) and History(:,i-1) - size(CLMax)
 !The number of excitations between the current determinant the one it was spawned from is given in HistExcit(ChainLength)
         REAL*8 :: Hi0           !This is the off-diagonal hamiltonian matrix element between the determinant and HF
 !IC0(1) contains information about the double excitation
         LOGICAL :: WSign        !This is the sign of the particle
-!        INTEGER :: History(NEl,CLMax-1)         !This is the history of the particle. HF is not included in the history - this is the start for all particles
         INTEGER , ALLOCATABLE :: History(:,:)         !This is the history of the particle. HF is not included in the history - this is the start for all particles
 !The first double excitation from HF is stored in History(:,1)
 !The previous excitation (i.e. the one the particle was spawned from) is stored in History(:,ChainLength-1)
+!Is of size History(NEl,CLMax-1)
         TYPE(ExcitGenerator) :: ExGen           !This is the excitation generator for the determinant the particle is currently at
 
 !Might also be worth saving the excitation generators for all previous determinants
     END TYPE
-!    INTEGER :: PartSize=((CLMax*(NEl+4))+4)*4
+    
     INTEGER :: PartSize
 
 
@@ -56,7 +52,7 @@ MODULE ReturnPathMCMod
     TYPE(ExcitGenerator) :: FDetExGen   !This is the excitation generator for the HF determinant
 
     !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=10000
+    INTEGER :: MemoryFac=300
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,Iter
     INTEGER :: exFlag=3
@@ -110,6 +106,7 @@ MODULE ReturnPathMCMod
                 CALL UpdateSft()        !Update shift
 
 !Write out info
+                ProjectionE=SumENum/REAL(SumNoatHF,r2)
                 WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                 WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
 
@@ -156,7 +153,29 @@ MODULE ReturnPathMCMod
 
         do j=1,TotWalkers
 
-!First attempt to spawn from the determinant we are on - this can involve attempting to spawn back, with prob PRet, or to an excit
+!First, sum in the energy contribution from the walker.
+            IF((ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)).eq.2) THEN
+!We are at a double excitation - sum the energy into SumENum
+                IF(ActiveVec(j)%WSign) THEN
+                    SumENum=SumENum+ActiveVec(j)%Hi0
+                ELSE
+                    SumENum=SumENum-ActiveVec(j)%Hi0
+                ENDIF
+            ELSEIF((ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)).eq.0) THEN
+!We are at HF - sum in energy and correction to SumNoatHF
+!                IF(ActiveVec(j)%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
+                IF(ActiveVec(j)%WSign) THEN
+!                    SumENum=SumENum+ActiveVec(j)%Hi0    !Hi0 here should equal Hii
+                    SumNoatHF=SumNoatHF+1
+                ELSE
+                    CALL STOPGM("DoNMCyc","Should not have negative particles at HF")
+!                    SumENum=SumENum-ActiveVec(j)%Hi0
+                    SumNoatHF=SumNoatHF-1
+                ENDIF
+            ENDIF
+
+
+!Now attempt to spawn from the determinant we are on - this can involve attempting to spawn back, with prob PRet, or to an excit
             Preturn=FindPRet(ActiveVec(j))       !The PReturn may change depending on various parameters - calculate it here
 
             IF((Preturn.eq.1.D0).or.(Preturn.gt.Ran2(Seed))) THEN
