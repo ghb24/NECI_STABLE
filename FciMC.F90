@@ -69,7 +69,7 @@ MODULE FciMCMod
     TYPE(HElement) :: Hii,rhii,FZero
 
     TYPE ExcitGenerator
-        INTEGER , POINTER :: ExcitData(:)      !This stores the excitation generator
+        INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
     END TYPE
     TYPE(ExcitGenerator) , ALLOCATABLE :: ExcitGens(:)   !This will store the excitation generators for the walkers in MCDiffusion
 
