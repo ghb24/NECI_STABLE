@@ -17,9 +17,9 @@
        CCD='cc -g -sb -C -errtags'
        LDD='ifort -g'
      else
-       FC='ifort -c -O3 -no-prec-div -static -r8'
+       FC='ifort -c -O3 -no-prec-div -Bstatic -r8'
        CC='cc -O'
-       LD='ifort  -O3 -no-prec-div -static -r8'
+       LD='ifort  -O3 -no-prec-div -Bstatic -r8'
        FCD='ifort -c -g'
        CCD='cc -g -sb -C -errtags'
        LDD='ifort -g'
