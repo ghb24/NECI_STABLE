@@ -119,6 +119,9 @@ MODULE ReturnPathMCMod
 
         enddo   !End MC Cycle
 
+        Weight=HDElement(0.D0)
+        Energyxw=HDElement(SumENum/REAL(SumNoatHF,r2))
+
 !Deallocate Memory
         do j=1,MaxWalkers
             DEALLOCATE(WalkVec(j)%Det)
@@ -181,7 +184,7 @@ MODULE ReturnPathMCMod
             IF((Preturn.eq.1.D0).or.(Preturn.gt.Ran2(Seed))) THEN
 !We are only allowed to generate the return determinant
 
-                ToSpawn=SpawnReturn(ActiveVec(j),PReturn)   !This tells us how many particles to spawn back, and their sign
+                ToSpawn=SpawnReturn(ActiveVec(j),Preturn)   !This tells us how many particles to spawn back, and their sign
 
                 do k=1,abs(ToSpawn)
 !We have decided that we want to spawn at the return determinant - copy through the correct number of new particles

@@ -289,8 +289,8 @@ MODULE FciMCMod
             CLOSE(16)
         ENDIF
 
-        Weight=HDElement(1.D0)
-        Energyxw=HDElement(2.D0*DiagSft)
+        Weight=HDElement(0.D0)
+        Energyxw=HDElement(DiagSft)
 
 !Deallocate memory
         IF(TNoBirth) THEN
