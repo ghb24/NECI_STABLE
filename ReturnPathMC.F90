@@ -209,8 +209,8 @@ MODULE ReturnPathMCMod
                     ExcitLevel=iGetExcitLevel(FDet,nJ,NEl)
                     IF(ExcitLevel.gt.ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)) THEN
 !Excitation generated is one which is deeper into excitation space w.r.t. HF than the parent particle...see if we can spawn there.
-                
-                        ToSpawn=SpawnForward(ActiveVec(j),PReturn,nJ,IC,Hij)    !Calculate number to spawn deeped into excit space
+                        
+                        ToSpawn=SpawnForward(ActiveVec(j),PReturn,nJ,IC,Hij)    !Calculate number to spawn deeper into excit space
 
                         IF(ToSpawn.ne.0) THEN
 !We are creating at least one new particle - find things out about it...
@@ -749,6 +749,11 @@ MODULE ReturnPathMCMod
         Hii=REAL(HiiHEl%v,r2)
         CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
         rhii=REAL(rhiiHEl%v,r2)
+        IF(TRhoElems) THEN
+            WRITE(6,"(A,F20.10)") "Root diagonal element is: ",rhii
+        ELSE
+            WRITE(6,"(A,F20.10)") "Root diagonal element is: ",Hii
+        ENDIF
 
         PartSize=((CLMax*(NEl+4))+4)*4      !This is the size of a particle (without exgen stuff)
 
