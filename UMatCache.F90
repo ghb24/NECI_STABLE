@@ -414,7 +414,7 @@ MODULE UMatCache
                  L=InvTransTable(L)
                 ENDIF
                ENDIF
-!    This will rearrange I,J,K,L into the correct order
+!   This will rearrange I,J,K,L into the correct order
 !   (i,k)<=(j,l) and i<=k, j<=l.
                IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B,ITYPE)) THEN
 !   We don't have a stored UMAT - we call to generate it.
@@ -718,7 +718,7 @@ MODULE UMatCache
 
 
       SUBROUTINE FillUpCache()
-         ! Disperse the <ik|u|jk> integrals throughout the cache.
+         ! Disperse the (pre-calculated) <ik|u|jk> integrals throughout the cache.
          ! The cache consists of an unordered set (in the standard UMatCache
          ! sense) of labels and elements.
          ! We must order this, and then distribute the elements throughout each set of SLOTS.
