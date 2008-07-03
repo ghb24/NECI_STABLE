@@ -577,7 +577,12 @@ MODULE ReturnPathMCMod
         TYPE(Part) :: Particle
         REAL*8 :: rat,Ran2
 
-        rat=Tau*((Particle%Kii(Particle%ChainLength))-DiagSft)  !Prob of death
+        IF(Particle%ChainLength.eq.0) THEN
+!We are at HF, so Kii is zero
+            rat=-Tau*DiagSft
+        ELSE
+            rat=Tau*((Particle%Kii(Particle%ChainLength))-DiagSft)  !Prob of death
+        ENDIF
 
         AttemptDestruct=INT(rat)
         rat=rat-REAL(AttemptDestruct,r2)
