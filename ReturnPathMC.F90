@@ -154,14 +154,14 @@ MODULE ReturnPathMCMod
         do j=1,TotWalkers
 
 !First, sum in the energy contribution from the walker.
-            IF((ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)).eq.2) THEN
+            IF(ActiveVec(j)%ChainLength.eq.1) THEN
 !We are at a double excitation - sum the energy into SumENum
                 IF(ActiveVec(j)%WSign) THEN
                     SumENum=SumENum+ActiveVec(j)%Hi0
                 ELSE
                     SumENum=SumENum-ActiveVec(j)%Hi0
                 ENDIF
-            ELSEIF((ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)).eq.0) THEN
+            ELSEIF(ActiveVec(j)%ChainLength.eq.0) THEN
 !We are at HF - sum in energy and correction to SumNoatHF
 !                IF(ActiveVec(j)%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
                 IF(ActiveVec(j)%WSign) THEN
@@ -207,7 +207,7 @@ MODULE ReturnPathMCMod
                     CALL GenSymExcitIt2(ActiveVec(j)%Det,NEl,G1,nBasis,nBasisMax,.FALSE.,ActiveVec(j)%ExGen%ExcitData,nJ,IC,0,ActiveVec(j)%ExGen%nStore,exFlag)
                     IF(nJ(1).eq.0) EXIT
                     ExcitLevel=iGetExcitLevel(FDet,nJ,NEl)
-                    IF(ExcitLevel.gt.ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)) THEN
+                    IF((ActiveVec(j)%ChainLength.eq.0).or.(ExcitLevel.gt.ActiveVec(j)%IC0(ActiveVec(j)%ChainLength))) THEN
 !Excitation generated is one which is deeper into excitation space w.r.t. HF than the parent particle...see if we can spawn there.
                         
                         ToSpawn=SpawnForward(ActiveVec(j),PReturn,nJ,IC,Hij)    !Calculate number to spawn deeper into excit space

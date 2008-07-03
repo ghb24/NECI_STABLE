@@ -571,7 +571,7 @@ MODULE FciMCMod
             CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 
             WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
-            WRITE(6,*) "Killing randomly selected particles in order to reduce total number..."
+            WRITE(6,*) "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
             WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
             CALL ThermostatParticles(.true.)
 

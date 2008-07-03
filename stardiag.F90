@@ -2332,8 +2332,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,WalkOnExcit,l,TotWalkersDet
          INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
+         INTEGER :: SumNoatHF
          REAL*8 :: List(ILMax,0:2),SI,DLWDB,Hii,MaxDiag,Ran2,Norm,GrowRate
-         REAL*8 :: rat,r
+         REAL*8 :: rat,r,SumENum,ProjectionE
          LOGICAL :: DetSign
          REAL*8 , ALLOCATABLE :: HMat(:,:),WList(:),Work(:)
          TYPE Walker
@@ -2378,6 +2379,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          toprint=MIN(NList,8)
 !Initialise random number seed
          Seed=G_VMC_Seed
+         SumNoatHF=0
+         SumENum=0.D0
          OPEN(15,file='StarMCStats',status='unknown')
          IF(TCalcWavevector) THEN
              WRITE(6,*) "Writing first ",toprint," components of vector to file..."
@@ -2594,11 +2597,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers"
          WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers"
          IF(TReadPops) THEN
-             WRITE(6,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-             WRITE(15,"(I9,G16.7,I9,G16.7,I9)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
+             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
          ELSE
-             WRITE(6,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-             WRITE(15,"(I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
+             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
          ENDIF
 
 !Start MC run - NMCyc indicates the number of times to run through all walkers
@@ -2611,6 +2614,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !j runs through all current walkers
 
                  IF((WalkVec(j)%Det).eq.1) THEN
+
+                     SumNoatHF=SumNoatHF+1
+                     
 !We are at HF - treat this walker slightly differently, since it is attached to all excits
 !Run through all double excits and determine whether to create
 !Change, so that now we are only selecting a single excitation at random - 
@@ -2649,7 +2655,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
                  ELSE
 !We are at an excitation - only possibility is to create walker at HF
+
                      DetCurr=WalkVec(j)%Det
+                     
+                     IF(WalkVec(j)%WSign) THEN
+                         SumENum=SumENum+List(DetCurr,2)
+                     ELSE
+                         SumENum=SumENum-List(DetCurr,2)
+                     ENDIF
                      rat=tau*abs(List(DetCurr,2))
 
                      IF(rat.gt.Ran2(Seed)) THEN
@@ -2852,16 +2865,19 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !We only want to change every so often, so that walker numbers have a chance to acclimatise between shift change
 !             StepsSft=100
              IF(mod(i,StepsSft).eq.0) THEN
+
+                 ProjectionE=(SumENum/(SumNoatHF+0.D0))
+                 
                  GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
                  DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                  IF(TReadPops) THEN
-                     WRITE(15,"(I9,G16.7,I9,G16.7,I9)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                     WRITE(6,"(I9,G16.7,I9,G16.7,I9)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                     WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                     WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") i+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                  ELSE
-                     WRITE(15,"(I9,G16.7,I9,G16.7,I9)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
-                     WRITE(6,"(I9,G16.7,I9,G16.7,I9)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
+                     WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                     WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                  ENDIF
                  CALL FLUSH(15)
                  CALL FLUSH(6)
@@ -2969,11 +2985,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !NEval is set to 0 by default, computing all eigenvectors
              WRITE(6,*) "Number of EIGENVALUES not specified. Computing all eigenvalues (slow)."
              NEval=NList
-         ENDIF
-         IF(NEval.gt.NList) THEN
+         ELSEIF(NEval.gt.NList) THEN
              WRITE(6,*) "Number of EIGENVALUES set to largest number than of connected doubles."
              WRITE(6,*) "Resetting number of EIGENVALUES to size of matrix."
              NEval=NList
+         ELSE
+             WRITE(6,"(A,I6,A)") "Calculating ",NEval," largest EIGENVALUES..."
          ENDIF
          NCycle=200
          NKry1=NKry+1
