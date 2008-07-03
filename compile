@@ -1,5 +1,28 @@
 #!/bin/bash
 
+usage() {
+    cat<<END
+usage: ./compile [-d] [platform]
+Clean build of NECI using platform (default: PC-PGI64) as the configuration.
+Options:
+    -d Compile with the compiler debug options on.
+END
+}
+
+dbgflag=''
+
+while getopts 'cdghkmnp:' options; do
+    case $options in
+        d)  dbgflag='-d';;
+        h)  usage
+            exit 1;;
+        \?) usage
+            exit 1;;
+        *)  usage
+            exit 1;;
+    esac
+done
+
 if [ "$#" -ne 0 ]; then
 	platform=$1
 elif [ -e .compileconf ]; then
@@ -11,12 +34,13 @@ else
 fi
 echo "Using platform: $platform"
 
-./Configure $platform -d -DEST=${PWD}/dest> Makefile2
+./Configure $platform -DEST=${PWD}/dest> Makefile2
 
 cp irat.inc dest
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
 cp Makefile dest
 touch *.F *.F90
+make clean
 cd dest
 make neci.x
 stat=$?
