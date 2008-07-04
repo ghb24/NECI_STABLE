@@ -872,19 +872,13 @@ MODULE ReturnPathMCMod
             GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
             do j=2,NoCulls
 
-                GrowthSteps=CullInfo(j,3)
-                do k=1,j-1
-                    GrowthSteps=GrowthSteps-CullInfo(k,3)
-                enddo
-
+!This is needed since the steps between culls are stored cumulatively
+                GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
                 GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
 
             enddo
 
-            GrowthSteps=StepsSft
-            do k=1,NoCulls
-                GrowthSteps=GrowthSteps-CullInfo(k,3)
-            enddo
+            GrowthSteps=StepsSft-CullInfo(NoCulls,3)
             GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
 
             NoCulls=0

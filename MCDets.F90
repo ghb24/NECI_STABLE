@@ -246,19 +246,13 @@ subroutine UpdateShift(PL,EShift,dMu,dTau,iStep,CullInfo,NoCulls,iOldCount,GrowR
        GrowRate=((CullInfo(1,3)+0.D0)/(iStep+0.D0))*((CullInfo(1,1)+0.D0)/(iOldCount+0.D0))
        do j=2,NoCulls
 
-           GrowthSteps=CullInfo(j,3)
-           do k=1,j-1
-               GrowthSteps=GrowthSteps-CullInfo(k,3)
-           enddo
-
+!This is needed since the steps between culls are stored cumulativly
+           GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
            GrowRate=GrowRate+((GrowthSteps+0.D0)/(iStep+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
 
        enddo
 
-       GrowthSteps=iStep
-       do k=1,NoCulls
-           GrowthSteps=GrowthSteps-CullInfo(k,3)
-       enddo
+       GrowthSteps=iStep-CullInfo(NoCulls,3)
        GrowRate=GrowRate+((GrowthSteps+0.D0)/(iStep+0.D0))*((PL%nSubParticles+0.D0)/(CullInfo(NoCulls,2)+0.D0))
 
        NoCulls=0
