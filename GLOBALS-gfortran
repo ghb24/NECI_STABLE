@@ -1,0 +1,16 @@
+necicore_
+cacheumatel_
+getcachedumatel_
+lsymsym_
+symprod_
+symconj_
+totsymrep_
+__readinput__readinputmain
+__memorymanager__initmemorymanager
+__memorymanager__logmemalloc
+__memorymanager__logmemdealloc
+__memorymanager__leavememorymanager
+__memorymanager__lookuppointer
+__system__nel
+__system__tspn
+__system__lms
