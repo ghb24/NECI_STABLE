@@ -4,9 +4,10 @@
      CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DPOINTER8"
      NCPUS=1
      #-sb is to use Workshop package
-     FFLAGS='-fcray-pointer -ffree-line-length-none'
-     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -lacml -lacml_mv -lg2c' # -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
-     LDFLAGS='-Mnostdlib -Mnostartup' 
+     FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
+     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -latlas -lg2c'
+     LDFLAGS='-nostdlib' 
+     GLOBALS='GLOBALS-gfortran'
      if [ $debug ]; then
        FC='gfortran -c -g '
        CC='cc -g -sb -C -errtags'
@@ -15,11 +16,10 @@
        CCD='cc -g -sb -C -errtags'
        LDD='gfortran -g'
      else
-       FC='gfortran -c -O4 -fast'
+       FC='gfortran -c -O4'
        CC='cc -O'
        LD='gfortran -O4'
        FCD='gfortran -c -g'
        CCD='cc -g -sb -C -errtags'
        LDD='gfortran -g'
      fi
-
