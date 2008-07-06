@@ -11,7 +11,7 @@ END
 
 dbgflag=''
 
-while getopts 'cdghkmnp:' options; do
+while getopts 'dh' options; do
     case $options in
         d)  dbgflag='-d';;
         h)  usage
@@ -22,6 +22,9 @@ while getopts 'cdghkmnp:' options; do
             exit 1;;
     esac
 done
+
+# Remove flags from argument list
+shift $(($OPTIND - 1))
 
 if [ "$#" -ne 0 ]; then
 	platform=$1
@@ -34,7 +37,7 @@ else
 fi
 echo "Using platform: $platform"
 
-./Configure $platform -DEST=${PWD}/dest> Makefile2
+./Configure $dbgflag $platform -DEST=${PWD}/dest> Makefile2
 
 cp irat.inc dest
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
