@@ -31,13 +31,13 @@ done
 shift $(($OPTIND - 1))
 
 . /usr/share/modules/init/bash
-module purge
 
 echo $dbflag
 platform=$1
 echo "Requested platform: $platform"
 
 if [[ $load -eq 1 ]]; then
+    module purge
     case $platform in
         PC-PGI) module load pgi/32/7.0/7;;
         PC-PGI64) module load pgi/64/7.0/7;;
