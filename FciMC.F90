@@ -13,6 +13,7 @@ MODULE FciMCMod
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
+    USE Calc , only : NDets,RhoApp,TResumFCIMC
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -73,6 +74,18 @@ MODULE FciMCMod
     END TYPE
     TYPE(ExcitGenerator) , ALLOCATABLE :: ExcitGens(:)   !This will store the excitation generators for the walkers in MCDiffusion
 
+    REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
+    INTEGER :: GraphRhoMatTag=0
+
+    REAL*8 , ALLOCATABLE :: GraphVec(:)         !This stores the final components for the propagated graph in ResumFCIMC
+    INTEGER :: GraphVecTag=0
+
+    INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
+    INTEGER :: DetsinGraphTag=0
+
+    REAL*8 , ALLOCATABLE :: GraphVecProbs(:)    !This stores the probabilities of obtaining each determinant in the graph for ResumFCIMC
+    INTEGER :: GraphVecProbsTag=0
+
     contains
 
     SUBROUTINE FciMC(Weight,Energyxw)
@@ -108,7 +121,7 @@ MODULE FciMCMod
         OPEN(15,file='FCIMCStats',status='unknown')
 
 !Initialise random number seed
-    Seed=G_VMC_Seed
+        Seed=G_VMC_Seed
 !Calculate Hii
         Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 !Initialise variables for calculation of the running average
@@ -125,8 +138,14 @@ MODULE FciMCMod
             RETURN
         ENDIF
 
-        WRITE(6,*) ""
-        WRITE(6,*) "Performing FCIMC...."
+        IF(TResumFciMC) THEN
+            WRITE(6,*) ""
+            WRITE(6,*) "Performing FCIMC...."
+        ELSE
+            WRITE(6,*) ""
+            WRITE(6,*) "Performing FCIMC...."
+        ENDIF
+
 
         IF(TCalcWaveVector) THEN
             WRITE(6,*) "Wavevector calculation is only available in star MC..."
@@ -183,7 +202,11 @@ MODULE FciMCMod
 !Start MC simulation...
         do Iter=1,NMCyc
             
-            CALL PerformFCIMCyc()
+            IF(TResumFciMC) THEN
+                CALL PerformResumFCIMCyc()
+            ELSE
+                CALL PerformFCIMCyc()
+            ENDIF
 
 !            WRITE(6,"(I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers
 !            CALL FLUSH(6)
@@ -234,6 +257,8 @@ MODULE FciMCMod
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
                     CALL UpdateDiagSft()
+
+                    IF(TResumFCIMC) ProjectionE=SumENum/REAL(SumNoatHF,r2)
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                     IF(TReadPops) THEN
@@ -307,6 +332,16 @@ MODULE FciMCMod
             DEALLOCATE(TransMat)
             CALL LogMemDealloc(this_routine,TransMatTag)
         ENDIF
+        IF(TResumFciMC) THEN
+            DEALLOCATE(GraphRhoMat)
+            CALL LogMemDealloc(this_routine,GraphRhoMatTag)
+            DEALLOCATE(GraphVec)
+            CALL LogMemDealloc(this_routine,GraphVecTag)
+            DEALLOCATE(DetsinGraph)
+            CALL LogMemDealloc(this_routine,DetsInGraphTag)
+            DEALLOCATE(GraphVecProbs)
+            CALL LogMemDealloc(this_routine,GraphVecProbsTag)
+        ENDIF
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         DEALLOCATE(WalkVec2Dets)
@@ -323,6 +358,357 @@ MODULE FciMCMod
         RETURN
 
     END SUBROUTINE FciMC
+
+!This performs a resummed FCIMC calculation, where small graphs are created from each walker at the space, and the true matrix propagated around
+    SUBROUTINE PerformResumFCIMCyc()
+        IMPLICIT NONE
+        TYPE(ExcitGenerator) :: ExcitGen
+        INTEGER :: TotWalkersNew,ExcitLevel,nExcitMemLen,iGetExcitLevel,VecSlot,i,j
+        TYPE(HElement) :: Hij0
+        REAL*8 :: rat
+
+
+!VecSlot indicates the next free position in NewDets
+        VecSlot=1
+
+        do j=1,TotWalkers
+
+            ExcitLevel=iGetExcitLevel(CurrentDets(:,j),FDet(:),NEl)
+            IF(ExcitLevel.eq.0) THEN
+                IF(CurrentSign(j)) THEN
+                    SumNoatHF=SumNoatHF+1
+                ELSE
+                    SumNoatHF=SumNoatHF-1
+                ENDIF
+            ELSEIF(ExcitLevel.eq.2) THEN
+!At double excit - sum in energy
+                Hij0=GetHElement2(FDet(:),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                IF(CurrentSign(j)) THEN
+                    SumENum=SumENum+REAL(Hij0%v,r2)
+                ELSE
+                    SumENum=SumENum-REAL(Hij0%v,r2)
+                ENDIF
+            ENDIF
+
+!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.)
+            CALL SetupExitgen(CurrentDets(:,j),ExcitGen,nExcitMemLen)
+
+            CALL CreateGraph(CurrentDets(:,j),ExcitGen)     !Construct a graph of size NDets with the current particle at the root
+            CALL ApplyRhoMat()  !Successivly apply the rho matrix to the particle RhoApp times
+            CALL CreateNewParts(CurrentSign(j),VecSlot)   !Create new particles according to the components of GraphVec, and put them into NewVec
+
+!Destroy excitation generators for current walker
+            DEALLOCATE(ExcitGen%ExcitData)
+        
+!Finish cycling over walkers
+        enddo
+
+!Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
+        TotWalkersNew=VecSlot-1
+        rat=(TotWalkersNew+0.D0)/(MaxWalkers+0.D0)
+        IF(rat.gt.0.9) THEN
+            WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
+        ENDIF
+        
+        IF(TNodalCutoff.and.(NodalCutoff.lt.0.D0)) THEN
+!If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff
+!then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
+            CALL TestWavevectorNodes(TotWalkersNew,2)
+        ENDIF
+
+        IF(TNoAnnihil) THEN
+!We are not annihilating particles - this will make things much quicker.
+
+!However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
+            IF(associated(CurrentDets,target=WalkVecDets)) THEN
+                CurrentDets=>WalkVec2Dets
+                CurrentSign=>WalkVec2Sign
+                NewDets=>WalkVecDets
+                NewSign=>WalkVecSign
+            ELSE
+                CurrentDets=>WalkVecDets
+                CurrentSign=>WalkVecSign
+                NewDets=>WalkVec2Dets
+                NewSign=>WalkVec2Sign
+            ENDIF
+
+            TotWalkers=TotWalkersNew
+
+        ELSE
+!This routine now cancels down the particles with opposing sign on each determinant
+!This routine does not necessarily need to be called every Iter, but it does at the moment, since it is the only way to 
+!transfer the residual particles back onto CurrentDets
+            CALL AnnihilatePairs(TotWalkersNew)
+!            WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers
+        ENDIF
+
+
+        IF(TNodalCutoff.and.(NodalCutoff.ge.0.D0)) THEN
+!If TNodalCutoff is set, then we are imposing a nodal boundary on the wavevector - if the MP1 wavefunction has a component which is larger than a NodalCutoff
+!then the net number of walkers must be the same sign, or it is set to zero walkers, and they are killed.
+            CALL TestWavevectorNodes(TotWalkers,1)
+        ENDIF
+
+        
+        IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
+!Particle number is too large - kill them randomly
+
+!Log the fact that we have made a cull
+            NoCulls=NoCulls+1
+            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!CullInfo(:,1) is walkers before cull
+            CullInfo(NoCulls,1)=TotWalkers
+!CullInfo(:,3) is MC Steps into shift cycle before cull
+            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+
+            WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
+            WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
+            WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
+            CALL ThermostatParticles(.true.)
+
+!Need to reduce totwalkersOld, so that the change in shift is also reflected by this
+!The Shift is no longer calculated like this...
+!            TotWalkersOld=nint((TotWalkersOld+0.D0)/CullFactor)
+
+        ELSEIF((TotWalkers.lt.(InitWalkers/2)).and.(.NOT.TNoBirth)) THEN
+!Particle number is too small - double every particle in its current position
+
+!Log the fact that we have made a cull
+            NoCulls=NoCulls+1
+            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!CullInfo(:,1) is walkers before cull
+            CullInfo(NoCulls,1)=TotWalkers
+!CullInfo(:,3) is MC Steps into shift cycle before cull
+            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+            
+            WRITE(6,*) "Doubling particle population to increase total number..."
+            CALL ThermostatParticles(.false.)
+
+!Need to increase TotWalkersOld, so that the change in shift is also reflected by this
+!The shift is no longer calculated like this...
+!            TotWalkersOld=TotWalkersOld*2
+
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE PerformResumFCIMCyc
+
+    SUBROUTINE CreateNewParts(WSign,VecSlot)
+        IMPLICIT NONE
+        LOGICAL :: WSign
+        INTEGER :: i,j,VecSlot,Create,ExtraCreate,StochCreate,iKill
+        REAL*8 :: Ran2,rat
+
+        do i=1,NDets
+!Augment the list of creation probabilities by dividing through by the probabilities
+            GraphVec(i)=GraphVec(i)/GraphVecProbs(i)
+            Create=INT(abs(GraphVec(i)))
+
+            rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+            IF(rat.gt.Ran2(Seed)) Create=Create+1
+            IF(.not.WSign) Create=-Create
+            IF(GraphVec(i).lt.0.D0) Create=-Create
+!            IF((GraphVec(i).lt.0.D0).and.(i.eq.1)) THEN
+!                CALL STOPGM("CreateParts", "trying to create opposite signed particle on root")
+!            ENDIF
+!            IF(i.eq.1) WRITE(6,*) GraphVec(i),Create, WSign
+
+!Now actually create the particles in NewDets and NewSign
+            do j=1,abs(Create)
+                NewDets(:,VecSlot)=DetsInGraph(:,i)
+                IF(Create.lt.0) THEN
+                    NewSign(VecSlot)=.false.
+                ELSE
+                    NewSign(VecSlot)=.true.
+                ENDIF
+                VecSlot=VecSlot+1
+            enddo
+        enddo
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!   T E S T - to reduce to original spawning when RhoApp=1 and NDets=2    !!!!!!!!!!!!!!!!!!!!!!!!
+
+!        do i=1,2
+!            GraphVec(i)=GraphVec(i)/GraphVecProbs(i)
+!        enddo
+!
+!!First deal with spawning prob.....GraphVec(2) has -tau*Hij/Pj    spawning prob is tau*abs(Hij)/Pj so take abs value
+!        rat=abs(GraphVec(2))
+!        ExtraCreate=INT(rat)
+!        rat=rat-REAL(ExtraCreate)
+!        IF(rat.gt.Ran2(Seed)) THEN
+!            StochCreate=1
+!        ELSE
+!            StochCreate=0
+!        ENDIF
+!        IF(WSign) THEN
+!!Parent particle is positive
+!            IF(GraphVec(2).lt.0.D0) THEN
+!                Create=-StochCreate-ExtraCreate     !-ve walker created
+!            ELSE
+!                Create=StochCreate+ExtraCreate      !+ve walker created
+!            ENDIF
+!
+!        ELSE
+!!Parent particle is negative
+!            IF(GraphVec(2).lt.0.D0) THEN
+!                Create=StochCreate+ExtraCreate      !+ve walker created
+!            ELSE
+!                Create=-StochCreate-ExtraCreate     !-ve walker created
+!            ENDIF
+!        ENDIF
+!
+!        do j=1,abs(Create)
+!            NewDets(:,VecSlot)=DetsInGraph(:,2)
+!            IF(Create.lt.0) THEN
+!                NewSign(VecSlot)=.false.
+!            ELSE
+!                NewSign(VecSlot)=.true.
+!            ENDIF
+!            VecSlot=VecSlot+1
+!        enddo
+!
+!!Now deal with death......GraphVec(1) has 1-tau*((Hii-H00)-Sft)    Death probability is tau*((Hii-H00)-Sft)
+!        rat=1.D0-GraphVec(1)        !This is now death prob
+!        iKill=INT(rat)
+!        rat=rat-REAL(iKill)
+!        IF(abs(rat).gt.Ran2(Seed)) THEN
+!            IF(rat.ge.0.D0) THEN
+!!Depends whether we are trying to kill or give birth to particles.
+!                iKill=iKill+1
+!            ELSE
+!                iKill=iKill-1
+!            ENDIF
+!        ENDIF
+!
+!        IF(iKill.eq.0) THEN
+!!Want to keep particle - copy accross
+!            NewDets(:,VecSlot)=DetsInGraph(:,1)
+!            IF(WSign) THEN
+!                NewSign(VecSlot)=.true.
+!            ELSE
+!                NewSign(VecSlot)=.false.
+!            ENDIF
+!            VecSlot=VecSlot+1
+!        ELSEIF(iKill.eq.1) THEN
+!!Don't copy accross
+!        ELSE
+!            WRITE(6,*) Iter,iKill,-(1.D0-GraphVec(1)),GraphVec(1)
+!            CALL STOPGM("CreateParts","Trying to kill/survive > 1")
+!        ENDIF
+
+        RETURN
+
+    END SUBROUTINE CreateNewParts
+
+!This applies the rho matrix successive times to a root determinant. From this, GraphVec is filled with the correct probabilities for the determinants in the graph
+    SUBROUTINE ApplyRhoMat()
+        IMPLICIT NONE
+        REAL*8 :: TempVec(NDets)
+        INTEGER :: i,j,k
+        
+        
+        CALL AZZERO(GraphVec,NDets)
+        CALL AZZERO(TempVec,NDets)
+
+        GraphVec(1)=1.D0    !Set the initial vector to be 1 at the root (i.e. for one walker initially)
+
+        do i=1,RhoApp   !Cycle over the number of times we want to apply the rho matrix
+
+!            CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
+!            CALL DCOPY(NDets,TempVec,1,GraphVec,1)
+!            CALL AZZERO(TempVec,NDets)
+
+
+            do j=1,NDets
+                TempVec(j)=0.D0
+                do k=1,NDets
+                    TempVec(j)=TempVec(j)+GraphRhoMat(j,k)*GraphVec(k)
+                enddo
+            enddo
+            do j=1,NDets
+                GraphVec(j)=TempVec(j)
+            enddo
+            
+        enddo
+
+        RETURN
+
+    END SUBROUTINE ApplyRhoMat
+            
+
+
+!This creates a graph of size NDets with all determinants attached to nI. It also forms the matrix for it, and puts it in GraphRhoMat, with the dets used in DetsInGraph(NEl,NDets)
+    SUBROUTINE CreateGraph(nI,ExcitGen)
+        IMPLICIT NONE
+        INTEGER :: nI(NEl),IC,iCount,nJ(NEl),i,j,Attempts
+        REAL*8 :: Prob,RemovedProb
+        TYPE(ExcitGenerator) :: ExcitGen
+        TYPE(HElement) :: Hamii,Hamij
+        LOGICAL :: SameDet,CompiPath
+
+        CALL AZZERO(GraphVecProbs,NDets)
+        CALL AZZERO(GraphRhoMat,NDets**2)
+
+        DetsInGraph(:,1)=nI(:)
+        GraphVecProbs(1)=1.D0
+        RemovedProb=0.D0        !RemovedProb is the sum of the probabilities of the excitations already picked. This allows for unbiasing when we only select distinct determinants.
+
+!Find diagonal element for root determinant
+        Hamii=GetHElement2(nI,nI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2)))
+        
+        i=2
+        do while(i.le.NDets)    !loop until all connections found
+
+            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+
+            SameDet=.false.
+            do j=2,(i-1)
+                IF(CompiPath(nJ,DetsInGraph(:,j),NEl)) THEN
+!determinants are the same - ignore them
+                    SameDet=.true.
+                    Attempts=Attempts+1     !Increment the attempts counter
+                    IF(Attempts.gt.100) CALL STOPGM("CreateGraph","More than 100 attempts needed to grow graph")
+                    EXIT
+                ENDIF
+            enddo
+
+            IF(.not.SameDet) THEN
+!Determinant is distinct - add it
+                DetsInGraph(:,i)=nJ(:)
+                GraphVecProbs(i)=Prob/(1.D0-RemovedProb)
+
+!                IF(RemovedProb.ne.0) CALL STOPGM("CreateGraph","Removed Prob.ne.0")
+                RemovedProb=RemovedProb+Prob
+
+!First find connection to root
+                Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
+                GraphRhoMat(i,1)=GraphRhoMat(1,i)
+
+!Then find connection to other determinants
+                do j=2,(i-1)
+                    Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
+                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
+                    GraphRhoMat(j,i)=GraphRhoMat(i,j)
+                enddo
+
+!Find diagonal element
+                Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
+
+                i=i+1   !increment the excit counter
+                Attempts=0      !Reset the attempts counter
+
+            ENDIF
+
+        enddo
+
+        RETURN
+
+    END SUBROUTINE CreateGraph
+                
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCyc()
@@ -571,7 +957,7 @@ MODULE FciMCMod
             CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 
             WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
-            WRITE(6,*) "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
+            WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
             WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
             CALL ThermostatParticles(.true.)
 
@@ -1398,6 +1784,18 @@ MODULE FciMCMod
 
         IF(TNodalCutoff.and.(.not.TMCDiffusion)) CALL CalcNodalSurface()
 
+        IF(TResumFciMC) THEN
+!Allocate memory to hold graphs and corresponding vectors for ResumFciMC.
+            ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
+            CALL LogMemAlloc('GraphRhoMat',NDets**2,8,this_routine,GraphRhoMatTag)
+            ALLOCATE(GraphVec(NDets),stat=ierr)
+            CALL LogMemAlloc('GraphVec',NDets,8,this_routine,GraphVecTag)
+            ALLOCATE(DetsinGraph(NEl,NDets),stat=ierr)
+            CALL LogMemAlloc('DetsinGraph',NEl*NDets,4,this_routine,DetsinGraphTag)
+            ALLOCATE(GraphVecProbs(NDets),stat=ierr)
+            CALL LogMemAlloc('GraphVecProbs',NDets,8,this_routine,GraphVecProbsTag)
+        ENDIF
+
         RETURN
 
     END SUBROUTINE InitFCIMCCalc
@@ -1869,9 +2267,11 @@ MODULE FciMCMod
 
 !First we have to see if we're going to perform a self-hop, or allow an attempt at a diffusive move.
 !                rat=Tau/(HiiArray(j)-(real(Hii%v,r2))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
-                rat=Tau*((HiiArray(j)/(real(Hii%v,r2)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+!                rat=Tau*((HiiArray(j)/(real(Hii%v,r2)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+                rat=1.D0-Tau*((HiiArray(j)-(real(Hii%v,r2)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
                                                         !Higher excitations have smaller prob, so resampled fewer times and lower excitations sampled for longer.
 
+                IF((rat.lt.0.D0).or.(rat.gt.1.D0)) CALL STOPGM("DiffusionMC","Incorrect self-hop probability")
                 IF(rat.gt.Ran2(Seed)) THEN
 !We want to self-hop. Resum in energy, but to not allow an attempted move away from excit. We also update the effect on the shift later.
                         

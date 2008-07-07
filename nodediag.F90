@@ -382,7 +382,7 @@
       DO I=1,nEl
           IF(nI(I).ne.nJ(I)) THEN
               COMPIPATH=.FALSE.
-              EXIT
+              RETURN
           ENDIF
       ENDDO
       RETURN

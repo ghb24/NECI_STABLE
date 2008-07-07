@@ -21,13 +21,14 @@ MODULE Calc
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
         LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
-        LOGICAL TRhoElems,TReturnPathMC
+        LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
         INTEGER InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
+        INTEGER RhoApp
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
@@ -72,6 +73,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          RhoApp=10
+          TResumFCIMC=.false.
           TRhoElems=.false.
           TReturnPathMC=.false.
           CLMax=NEl
@@ -663,6 +666,9 @@ MODULE Calc
               case("RETURNBIAS")
 !For closed path MC, this is the return bias at any point to spawn at the parent determinant
                   call getf(PRet)
+              case("RHOAPP")
+!This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before particles are assigned to the nodes
+                  call geti(RhoApp)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
@@ -1021,7 +1027,7 @@ MODULE Calc
          use UMatCache , only : TSTARSTORE
          USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion
-         USE Calc , only : TRhoElems,TReturnPathMC
+         USE Calc , only : TRhoElems,TReturnPathMC, TResumFCIMC
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -1038,6 +1044,8 @@ MODULE Calc
                             select case(w)
                             case("MCDIFFUSION")
                                 TMCDiffusion=.true.
+                            case("RESUMFCIMC")
+                                TResumFCIMC=.true.
                             endselect
                         case("RETURNPATHMC")
                             I_HMAX=-21
