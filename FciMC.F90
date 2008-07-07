@@ -83,8 +83,7 @@ MODULE FciMCMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
 
-    REAL*8 , ALLOCATABLE :: GraphVecProbs(:)    !This stores the probabilities of obtaining each determinant in the graph for ResumFCIMC
-    INTEGER :: GraphVecProbsTag=0
+    REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph
 
     contains
 
@@ -139,6 +138,7 @@ MODULE FciMCMod
         ENDIF
 
         IF(TResumFciMC) THEN
+            IF(NDets.lt.2) CALL STOPGM("CreateGraph","Graphsize too small...")
             WRITE(6,*) ""
             WRITE(6,*) "Performing FCIMC...."
         ELSE
@@ -339,8 +339,6 @@ MODULE FciMCMod
             CALL LogMemDealloc(this_routine,GraphVecTag)
             DEALLOCATE(DetsinGraph)
             CALL LogMemDealloc(this_routine,DetsInGraphTag)
-            DEALLOCATE(GraphVecProbs)
-            CALL LogMemDealloc(this_routine,GraphVecProbsTag)
         ENDIF
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
@@ -501,8 +499,12 @@ MODULE FciMCMod
         REAL*8 :: Ran2,rat
 
         do i=1,NDets
-!Augment the list of creation probabilities by dividing through by the probabilities
-            GraphVec(i)=GraphVec(i)/GraphVecProbs(i)
+
+            IF(i.ne.1) THEN
+!Augment the list of creation probabilities by dividing through by the probability of creating a graph with that excitation in it.
+                GraphVec(i)=GraphVec(i)/((NDets-1)*RootExcitProb)
+            ENDIF
+               
             Create=INT(abs(GraphVec(i)))
 
             rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
@@ -647,16 +649,15 @@ MODULE FciMCMod
         TYPE(HElement) :: Hamii,Hamij
         LOGICAL :: SameDet,CompiPath
 
-        CALL AZZERO(GraphVecProbs,NDets)
         CALL AZZERO(GraphRhoMat,NDets**2)
 
         DetsInGraph(:,1)=nI(:)
-        GraphVecProbs(1)=1.D0
         RemovedProb=0.D0        !RemovedProb is the sum of the probabilities of the excitations already picked. This allows for unbiasing when we only select distinct determinants.
 
 !Find diagonal element for root determinant
         Hamii=GetHElement2(nI,nI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
         GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2)))
+
         
         i=2
         do while(i.le.NDets)    !loop until all connections found
@@ -675,12 +676,17 @@ MODULE FciMCMod
             enddo
 
             IF(.not.SameDet) THEN
+!Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
+                IF(i.eq.2) THEN
+                    RootExcitProb=Prob
+                ELSE
+                    IF(abs(Prob-RootExcitProb).gt.1.D-07) THEN
+                        CALL STOPGM("CreateGraph","Excitation probabilities are not uniform - problem here...")
+                    ENDIF
+                ENDIF
+
 !Determinant is distinct - add it
                 DetsInGraph(:,i)=nJ(:)
-                GraphVecProbs(i)=Prob/(1.D0-RemovedProb)
-
-!                IF(RemovedProb.ne.0) CALL STOPGM("CreateGraph","Removed Prob.ne.0")
-                RemovedProb=RemovedProb+Prob
 
 !First find connection to root
                 Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
@@ -1792,8 +1798,6 @@ MODULE FciMCMod
             CALL LogMemAlloc('GraphVec',NDets,8,this_routine,GraphVecTag)
             ALLOCATE(DetsinGraph(NEl,NDets),stat=ierr)
             CALL LogMemAlloc('DetsinGraph',NEl*NDets,4,this_routine,DetsinGraphTag)
-            ALLOCATE(GraphVecProbs(NDets),stat=ierr)
-            CALL LogMemAlloc('GraphVecProbs',NDets,8,this_routine,GraphVecProbsTag)
         ENDIF
 
         RETURN
