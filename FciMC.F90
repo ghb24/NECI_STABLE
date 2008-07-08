@@ -706,7 +706,8 @@ MODULE FciMCMod
 
 !Find diagonal element
                 Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
+!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
+                GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
 
                 i=i+1   !increment the excit counter
                 Attempts=0      !Reset the attempts counter
