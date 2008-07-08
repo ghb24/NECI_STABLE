@@ -85,6 +85,8 @@ MODULE FciMCMod
 
     REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph
 
+!    REAL*8 :: SumCreateProb     !This is the culmulative probability of creating particles. It can be used as a more accurate determination of shift change for small walker numbers.
+
     contains
 
     SUBROUTINE FciMC(Weight,Energyxw)
@@ -130,6 +132,7 @@ MODULE FciMCMod
         SumENum=0.D0
         SumNoatHF=0
         CycwNoHF=0
+!        SumCreateProb=0.D0
 
         IF(TMCDiffusion) THEN
             CALL MCDiffusion()
@@ -504,7 +507,7 @@ MODULE FciMCMod
 !Augment the list of creation probabilities by dividing through by the probability of creating a graph with that excitation in it.
                 GraphVec(i)=GraphVec(i)/((NDets-1)*RootExcitProb)
             ENDIF
-               
+
             Create=INT(abs(GraphVec(i)))
 
             rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
@@ -656,7 +659,8 @@ MODULE FciMCMod
 
 !Find diagonal element for root determinant
         Hamii=GetHElement2(nI,nI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2)))
+!        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2)))
+        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
 
         
         i=2
