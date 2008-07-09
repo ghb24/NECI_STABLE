@@ -1,6 +1,9 @@
 !!!!!!!!!
 ! TO DO !
 !!!!!!!!!
+
+!If graphsize=-1, allow each walker to form the N^2M^2 matrix from its excitations in resumFCIMC. This is then applied RhoApp times.
+
 !Test Dynamic Tau Changing
 !Initial Graph-Morph Graph
 !Test of LD with MP1
@@ -71,6 +74,7 @@ MODULE FciMCMod
 
     TYPE ExcitGenerator
         INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
+        INTEGER :: nStore(6)
     END TYPE
     TYPE(ExcitGenerator) , ALLOCATABLE :: ExcitGens(:)   !This will store the excitation generators for the walkers in MCDiffusion
 
@@ -83,7 +87,9 @@ MODULE FciMCMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
 
-    REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph
+    REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph.
+
+    LOGICAL :: TResumAllConns=.false.    !If set, this means that all possible connections to a walker are created for the graph.
 
 !    REAL*8 :: SumCreateProb     !This is the culmulative probability of creating particles. It can be used as a more accurate determination of shift change for small walker numbers.
 
@@ -141,7 +147,8 @@ MODULE FciMCMod
         ENDIF
 
         IF(TResumFciMC) THEN
-            IF(NDets.lt.2) CALL STOPGM("CreateGraph","Graphsize too small...")
+            IF(NDets.lt.0) TResumAllConns=.true.
+            IF(NDets.eq.1.or.NDets.eq.0) CALL STOPGM("CreateGraph","Graphsize too small...")
             WRITE(6,*) ""
             WRITE(6,*) "Performing FCIMC...."
         ELSE
@@ -365,6 +372,7 @@ MODULE FciMCMod
         IMPLICIT NONE
         TYPE(ExcitGenerator) :: ExcitGen
         INTEGER :: TotWalkersNew,ExcitLevel,nExcitMemLen,iGetExcitLevel,VecSlot,i,j
+        INTEGER :: TotExcits,TotComps
         TYPE(HElement) :: Hij0
         REAL*8 :: rat
 
@@ -392,11 +400,11 @@ MODULE FciMCMod
             ENDIF
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.)
-            CALL SetupExitgen(CurrentDets(:,j),ExcitGen,nExcitMemLen)
+            CALL SetupExitgen(CurrentDets(:,j),ExcitGen,nExcitMemLen,TotExcits)
 
-            CALL CreateGraph(CurrentDets(:,j),ExcitGen)     !Construct a graph of size NDets with the current particle at the root
-            CALL ApplyRhoMat()  !Successivly apply the rho matrix to the particle RhoApp times
-            CALL CreateNewParts(CurrentSign(j),VecSlot)   !Create new particles according to the components of GraphVec, and put them into NewVec
+            CALL CreateGraph(CurrentDets(:,j),ExcitGen,TotExcits,TotComps)     !Construct a graph of size NDets with the current particle at the root
+            CALL ApplyRhoMat(TotComps)  !Successivly apply the rho matrix to the particle RhoApp times
+            CALL CreateNewParts(CurrentSign(j),VecSlot,TotComps)   !Create new particles according to the components of GraphVec, and put them into NewVec
 
 !Destroy excitation generators for current walker
             DEALLOCATE(ExcitGen%ExcitData)
@@ -495,15 +503,21 @@ MODULE FciMCMod
 
     END SUBROUTINE PerformResumFCIMCyc
 
-    SUBROUTINE CreateNewParts(WSign,VecSlot)
+    SUBROUTINE CreateNewParts(WSign,VecSlot,TotComps)
         IMPLICIT NONE
         LOGICAL :: WSign
-        INTEGER :: i,j,VecSlot,Create,ExtraCreate,StochCreate,iKill
+        INTEGER :: i,j,VecSlot,Create,ExtraCreate,StochCreate,iKill,TotComps,Components
         REAL*8 :: Ran2,rat
 
-        do i=1,NDets
+        IF(TResumAllConns) THEN
+            Components=TotComps
+        ELSE
+            Components=NDets
+        ENDIF
 
-            IF(i.ne.1) THEN
+        do i=1,Components
+
+            IF((i.ne.1).and.(.not.TResumAllConns)) THEN
 !Augment the list of creation probabilities by dividing through by the probability of creating a graph with that excitation in it.
                 GraphVec(i)=GraphVec(i)/((NDets-1)*RootExcitProb)
             ENDIF
@@ -607,35 +621,43 @@ MODULE FciMCMod
     END SUBROUTINE CreateNewParts
 
 !This applies the rho matrix successive times to a root determinant. From this, GraphVec is filled with the correct probabilities for the determinants in the graph
-    SUBROUTINE ApplyRhoMat()
+    SUBROUTINE ApplyRhoMat(TotComps)
         IMPLICIT NONE
-        REAL*8 :: TempVec(NDets)
-        INTEGER :: i,j,k
+        REAL*8 , ALLOCATABLE :: TempVec(:)
+        INTEGER :: i,j,k,TotComps,ierr,Components
         
-        
-        CALL AZZERO(GraphVec,NDets)
-        CALL AZZERO(TempVec,NDets)
+        IF(TResumAllConns) THEN
+!TotComps is the total dimension of the matrix if all excitations included (i.e. iMaxExcit+1)
+            Components=TotComps
+        ELSE
+            Components=NDets
+        ENDIF
+
+        ALLOCATE(TempVec(Components),stat=ierr)
+        CALL AZZERO(GraphVec,Components)
+        CALL AZZERO(TempVec,Components)
 
         GraphVec(1)=1.D0    !Set the initial vector to be 1 at the root (i.e. for one walker initially)
 
         do i=1,RhoApp   !Cycle over the number of times we want to apply the rho matrix
 
-!            CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
-!            CALL DCOPY(NDets,TempVec,1,GraphVec,1)
-!            CALL AZZERO(TempVec,NDets)
+!            CALL DGEMV('n',Components,Components,1.D0,GraphRhoMat,Components,GraphVec,1,0.D0,TempVec,1)
+!            CALL DCOPY(Components,TempVec,1,GraphVec,1)
+!            CALL AZZERO(TempVec,Components)
 
-
-            do j=1,NDets
+            do j=1,Components
                 TempVec(j)=0.D0
-                do k=1,NDets
+                do k=1,Components
                     TempVec(j)=TempVec(j)+GraphRhoMat(j,k)*GraphVec(k)
                 enddo
             enddo
-            do j=1,NDets
+            do j=1,Components
                 GraphVec(j)=TempVec(j)
             enddo
             
         enddo
+
+        DEALLOCATE(TempVec)
 
         RETURN
 
@@ -644,15 +666,27 @@ MODULE FciMCMod
 
 
 !This creates a graph of size NDets with all determinants attached to nI. It also forms the matrix for it, and puts it in GraphRhoMat, with the dets used in DetsInGraph(NEl,NDets)
-    SUBROUTINE CreateGraph(nI,ExcitGen)
+    SUBROUTINE CreateGraph(nI,ExcitGen,TotExcits,TotComps)
         IMPLICIT NONE
-        INTEGER :: nI(NEl),IC,iCount,nJ(NEl),i,j,Attempts
+        INTEGER :: nI(NEl),IC,iCount,nJ(NEl),i,j,Attempts,TotExcits,ierr,TotComps
         REAL*8 :: Prob,RemovedProb
         TYPE(ExcitGenerator) :: ExcitGen
         TYPE(HElement) :: Hamii,Hamij
         LOGICAL :: SameDet,CompiPath
 
-        CALL AZZERO(GraphRhoMat,NDets**2)
+        IF(TResumAllConns) THEN
+            TotComps=TotExcits+1
+            IF(ALLOCATED(GraphRhoMat)) DEALLOCATE(GraphRhoMat)
+            IF(ALLOCATED(GraphVec)) DEALLOCATE(GraphVec)
+            IF(ALLOCATED(DetsinGraph)) DEALLOCATE(DetsinGraph)
+            ALLOCATE(GraphRhoMat(TotComps,TotComps),stat=ierr)
+            ALLOCATE(GraphVec(TotComps),stat=ierr)
+            ALLOCATE(DetsinGraph(NEl,TotComps),stat=ierr)
+            CALL AZZERO(GraphRhoMat,TotComps**2)
+            CALL IAZZERO(DetsinGraph,NEl*TotComps)
+        ELSE
+            CALL AZZERO(GraphRhoMat,NDets**2)
+        ENDIF
 
         DetsInGraph(:,1)=nI(:)
         RemovedProb=0.D0        !RemovedProb is the sum of the probabilities of the excitations already picked. This allows for unbiasing when we only select distinct determinants.
@@ -662,34 +696,14 @@ MODULE FciMCMod
 !        GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2)))
         GraphRhoMat(1,1)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
 
-        
-        i=2
-        do while(i.le.NDets)    !loop until all connections found
-
-            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
-
-            SameDet=.false.
-            do j=2,(i-1)
-                IF(CompiPath(nJ,DetsInGraph(:,j),NEl)) THEN
-!determinants are the same - ignore them
-                    SameDet=.true.
-                    Attempts=Attempts+1     !Increment the attempts counter
-                    IF(Attempts.gt.100) CALL STOPGM("CreateGraph","More than 100 attempts needed to grow graph")
-                    EXIT
-                ENDIF
-            enddo
-
-            IF(.not.SameDet) THEN
-!Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
-                IF(i.eq.2) THEN
-                    RootExcitProb=Prob
-                ELSE
-                    IF(abs(Prob-RootExcitProb).gt.1.D-07) THEN
-                        CALL STOPGM("CreateGraph","Excitation probabilities are not uniform - problem here...")
-                    ENDIF
-                ENDIF
-
+        IF(TResumAllConns) THEN
+!We want to run through all possible connections to nI...
+            i=2
+            do while(.true.)
+                CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,ExcitGen%ExcitData,nJ,IC,0,ExcitGen%nStore,exFlag)
+                IF(nJ(1).eq.0) EXIT
 !Determinant is distinct - add it
+                IF(i.gt.TotComps) CALL STOPGM("CreateGraph","Problem creating graph")
                 DetsInGraph(:,i)=nJ(:)
 
 !First find connection to root
@@ -708,13 +722,67 @@ MODULE FciMCMod
                 Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
 !                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
                 GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
+                i=i+1   !Increment counter
+            
+            enddo   !loop over excitations
 
-                i=i+1   !increment the excit counter
-                Attempts=0      !Reset the attempts counter
+        ELSE
+!Here we are choosing a stochastic graph with a smaller number of excitations chosen at random
+        
+            i=2
+            do while(i.le.NDets)    !loop until all connections found
 
-            ENDIF
+                CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
 
-        enddo
+                SameDet=.false.
+                do j=2,(i-1)
+                    IF(CompiPath(nJ,DetsInGraph(:,j),NEl)) THEN
+    !determinants are the same - ignore them
+                        SameDet=.true.
+                        Attempts=Attempts+1     !Increment the attempts counter
+                        IF(Attempts.gt.100) CALL STOPGM("CreateGraph","More than 100 attempts needed to grow graph")
+                        EXIT
+                    ENDIF
+                enddo
+
+                IF(.not.SameDet) THEN
+    !Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
+                    IF(i.eq.2) THEN
+                        RootExcitProb=Prob
+                    ELSE
+                        IF(abs(Prob-RootExcitProb).gt.1.D-07) THEN
+                            CALL STOPGM("CreateGraph","Excitation probabilities are not uniform - problem here...")
+                        ENDIF
+                    ENDIF
+
+    !Determinant is distinct - add it
+                    DetsInGraph(:,i)=nJ(:)
+
+    !First find connection to root
+                    Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+                    GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
+                    GraphRhoMat(i,1)=GraphRhoMat(1,i)
+
+    !Then find connection to other determinants
+                    do j=2,(i-1)
+                        Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
+                        GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
+                        GraphRhoMat(j,i)=GraphRhoMat(i,j)
+                    enddo
+
+    !Find diagonal element
+                    Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+    !                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
+                    GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
+
+                    i=i+1   !increment the excit counter
+                    Attempts=0      !Reset the attempts counter
+
+                ENDIF
+
+            enddo
+
+        ENDIF
 
         RETURN
 
@@ -2222,7 +2290,7 @@ MODULE FciMCMod
 
     SUBROUTINE MCDiffusion()
         IMPLICIT NONE
-        INTEGER :: ierr,nExcitMemLen
+        INTEGER :: ierr,nExcitMemLen,TotExcits
         CHARACTER(len=*) , PARAMETER :: this_routine='MCDiffusion'
         INTEGER :: nJ(NEl),nK(NEl),ICJ,ICK,iCountJ,iCountK,i,j,iGetExcitLevel
         REAL*8 :: ProbJ,ProbK,Ran2,rat,NewHii,SumDeathProb,ExpectedWalkers
@@ -2247,7 +2315,7 @@ MODULE FciMCMod
         ALLOCATE(HiiArray(InitWalkers),stat=ierr)   !Array to hold diagonal hamiltonian element for each walker
         IF(ierr.ne.0) CALL STOPGM("MCDiffusion","Error in allocation")
 
-        CALL SetupExitgen(FDet,ExcitGens(1),nExcitMemLen)
+        CALL SetupExitgen(FDet,ExcitGens(1),nExcitMemLen,TotExcits)
         ICWalk(1)=0
         Hi0Array(1)=Hii
         HiiArray(1)=real(Hii%v,r2)
@@ -2332,7 +2400,7 @@ MODULE FciMCMod
                         ENDIF
 
 !Create and save new excitation generator
-                        CALL SetupExitgen(nJ,ExcitGens(j),nExcitMemLen)
+                        CALL SetupExitgen(nJ,ExcitGens(j),nExcitMemLen,TotExcits)
 
                         tempHii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
                         NewHii=real(tempHii%v,r2)  !This is the new diagonal matrix element
@@ -2392,10 +2460,10 @@ MODULE FciMCMod
 
     END SUBROUTINE MCDiffusion
    
-    SUBROUTINE SetupExitgen(nI,ExcitGen,nExcitMemLen)
+    SUBROUTINE SetupExitgen(nI,ExcitGen,nExcitMemLen,iMaxExcit)
         IMPLICIT NONE
         TYPE(ExcitGenerator) :: ExcitGen
-        INTEGER :: ierr,iMaxExcit,nStore(6),nExcitMemLen,nJ(NEl)
+        INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl)
         INTEGER :: nI(NEl)
 
         IF(Allocated(ExcitGen%ExcitData)) THEN
@@ -2404,12 +2472,12 @@ MODULE FciMCMod
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
         iMaxExcit=0
-        CALL IAZZERO(nStore,6)
-        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        CALL IAZZERO(ExcitGen%nStore,6)
+        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,ExcitGen%nStore,3)
         ALLOCATE(ExcitGen%ExcitData(nExcitMemLen),stat=ierr)
         IF(ierr.ne.0) CALL STOPGM("SetupExcitGen","Problem allocating excitation generator")
         ExcitGen%ExcitData(1)=0
-        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
+        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,ExcitGen%nStore,3)
 
     END SUBROUTINE SetupExitgen
 

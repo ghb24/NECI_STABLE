@@ -549,7 +549,7 @@ MODULE Calc
 !This indicates the number of times the eigenvalues of the star matrix should be evaluated to achieve the linear approximation when STARSTARS set,
               case("LINEPOINTSSTAR")
                   call geti(LinePoints)
-!This is the number of vertices in the Graph Morph graph.
+!This is the number of vertices in the Graph Morph graph. Alternativly, it is used by ResumFCIMC, as the size of their graphs. Then, if it is negative, the graph is all possible connections
               case("GRAPHSIZE")
                   call geti(NDets)
 !This is the number of times to systematically improve the Graph using the morphing algorithm
