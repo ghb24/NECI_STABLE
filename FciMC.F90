@@ -62,8 +62,8 @@ MODULE FciMCMod
     INTEGER :: CycwNoHF     !Count the number of iterations which don't have any walkers on HF - in this case, ignore running average of energy, but count it so it is not included in demonimator
 
     INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
-    INTEGER :: TimesAtDoubs     !This counts the number of cycles that the doubles/HF are populated at all in an update cycle
-    LOGICAL :: TPopulated       !Logical as to whether this cycle has had a population on Doubles/HF
+    REAL*8 :: MeanExcitLevel    
+    INTEGER :: MinExcitLevel
 
     INTEGER :: NetPositive
 
@@ -135,8 +135,8 @@ MODULE FciMCMod
         SumENum=0.D0
         SumNoatHF=0
         CycwNoHF=0
-        TimesatDoubs=0
-        TPopulated=.false.
+        MeanExcitLevel=0.D0
+        MinExcitLevel=Nel+10
 !        SumCreateProb=0.D0
 
         IF(TMCDiffusion) THEN
@@ -193,15 +193,15 @@ MODULE FciMCMod
         IF(.NOT.TNoBirth) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     Proj.E-Inst   CycleswhereHF/DoubsPop"
-            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      Net+veWalk     Proj.E-Inst"
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     Proj.E-Inst   MeanExcitLevel   MinExcitLevel"
+            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      Net+veWalk     Proj.E-Inst   MeanExcitLevel   MinExcitLevel"
 !TotWalkersOld is the number of walkers last time the shift was changed
             IF(TReadPops) THEN
                 WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
                 WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
             ELSE
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,TimesatDoubs
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,TimesatDoubs
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,MeanExcitLevel,MinExcitLevel
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,MeanExcitLevel,MinExcitLevel
             ENDIF
         ENDIF
         
@@ -212,7 +212,6 @@ MODULE FciMCMod
         do Iter=1,NMCyc
             
             IF(TResumFciMC) THEN
-                TPopulated=.false.
                 CALL PerformResumFCIMCyc()
             ELSE
                 CALL PerformFCIMCyc()
@@ -268,7 +267,10 @@ MODULE FciMCMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
                     CALL UpdateDiagSft()
 
-                    IF(TResumFCIMC) ProjectionE=SumENum/REAL(SumNoatHF,r2)
+                    IF(TResumFCIMC) THEN
+                        ProjectionE=SumENum/REAL(SumNoatHF,r2)
+                        MeanExcitLevel=MeanExcitLevel/real(StepsSft,r2)
+                    ENDIF
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                     IF(TReadPops) THEN
@@ -276,15 +278,16 @@ MODULE FciMCMod
                         WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                     ELSE
                         IF(Tau.gt.0.D0) THEN
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,TimesatDoubs
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,TimesatDoubs
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,MeanExcitLevel,MinExcitLevel
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,MeanExcitLevel,MinExcitLevel
                         ELSE
                             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                         ENDIF
                     ENDIF
 
-                    TimesatDoubs=0
+                    MinExcitLevel=Nel+10
+                    MeanExcitLevel=0.D0
 
                     IF(TDetPops) THEN
 
@@ -385,15 +388,13 @@ MODULE FciMCMod
         do j=1,TotWalkers
 
             ExcitLevel=iGetExcitLevel(CurrentDets(:,j),FDet(:),NEl)
+            MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
+            IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
             IF(ExcitLevel.eq.0) THEN
                 IF(CurrentSign(j)) THEN
                     SumNoatHF=SumNoatHF+1
                 ELSE
                     SumNoatHF=SumNoatHF-1
-                ENDIF
-                IF(.not.TPopulated) THEN
-                    TPopulated=.true.
-                    TimesatDoubs=TimesatDoubs+1
                 ENDIF
             ELSEIF(ExcitLevel.eq.2) THEN
 !At double excit - sum in energy
@@ -403,15 +404,10 @@ MODULE FciMCMod
                 ELSE
                     SumENum=SumENum-REAL(Hij0%v,r2)
                 ENDIF
-                IF(.not.TPopulated) THEN
-                    TPopulated=.true.
-                    TimesatDoubs=TimesatDoubs+1
-                ENDIF
             ENDIF
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.)
             CALL SetupExitgen(CurrentDets(:,j),ExcitGen,nExcitMemLen,TotExcits)
-
             CALL CreateGraph(CurrentDets(:,j),ExcitGen,TotExcits,TotComps)     !Construct a graph of size NDets with the current particle at the root
             CALL ApplyRhoMat(TotComps)  !Successivly apply the rho matrix to the particle RhoApp times
             CALL CreateNewParts(CurrentSign(j),VecSlot,TotComps)   !Create new particles according to the components of GraphVec, and put them into NewVec
@@ -421,6 +417,8 @@ MODULE FciMCMod
         
 !Finish cycling over walkers
         enddo
+
+        MeanExcitLevel=MeanExcitLevel/(REAL(TotWalkers,r2))
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
         TotWalkersNew=VecSlot-1
