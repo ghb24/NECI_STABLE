@@ -13,6 +13,9 @@ MODULE ReturnPathMCMod
     IMPLICIT NONE
     SAVE
 
+    INTEGER , ALLOCATABLE :: HFDet(:)           !This is the HF determinant - do not want to use FDet as this is pre-frozen
+    INTEGER :: HFDetTag=0
+
     INTEGER , PARAMETER :: r2=kind(0.D0)
     
     TYPE ExcitGenerator                         !Derived type for an excitation generator
@@ -68,6 +71,8 @@ MODULE ReturnPathMCMod
     REAL*8 :: GrowRate
     REAL*8 :: ProjectionE,SumENum
     INTEGER*8 :: SumNoatHF
+    INTEGER :: MinExit,MaxExit,SumWalkersCyc
+    REAL*8 :: MeanExit
 
     REAL*8 :: Hii,rhii
 
@@ -90,11 +95,11 @@ MODULE ReturnPathMCMod
         CALL InitRetPathMC()    !Initialise variables and allocate memory for calculation
         
         WRITE(6,*) ""
-        WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E"
-        WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E"
+        WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E   MeanExit   MinExit   MaxExit"
+        WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E   MeanExit   MinExit   MaxExit"
 
-        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,0,MaxExit
+        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,0,MaxExit
 
 !Start MC simulation
         do Iter=1,NMCyc
@@ -107,13 +112,19 @@ MODULE ReturnPathMCMod
 
 !Write out info
                 ProjectionE=SumENum/REAL(SumNoatHF,r2)
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
+                MeanExit=MeanExit/real(SumWalkersCyc,r2)
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 
                 CALL FLUSH(15)
                 CALL FLUSH(6)       !Probably remove flushes for big systems
 
                 TotWalkersOld=TotWalkers    !Reset 'old' number of walkers for next shift update cycle
+                MeanExit=0.D0
+                MinExit=NEl+10
+                MaxExit=0
+                SumWalkersCyc=0
+                
 
             ENDIF
 
@@ -139,6 +150,8 @@ MODULE ReturnPathMCMod
         enddo
         DEALLOCATE(WalkVec)
         DEALLOCATE(WalkVec2)
+        DEALLOCATE(HFDet)
+        CALL LogMemDealloc(this_routine,HFDetTag)
 
         CLOSE(15)
 
@@ -150,7 +163,7 @@ MODULE ReturnPathMCMod
     SUBROUTINE DoNMCyc()
         REAL*8 :: Preturn,Ran2,Hij,hHi0,DiagElem,rat
         INTEGER :: VecSlot,j,k,ToSpawn,IC,ExcitLevel,nJ(NEl),iDie
-        INTEGER :: iGetExcitLevel
+        INTEGER :: iGetExcitLevel,ExLevel
 
         VecSlot=1   !This indicates the next free slot in NewVec
 
@@ -164,6 +177,10 @@ MODULE ReturnPathMCMod
                 ELSE
                     SumENum=SumENum-ActiveVec(j)%Hi0
                 ENDIF
+                ExLevel=ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)
+                MeanExit=MeanExit+ExLevel
+                IF(ExLevel.gt.MaxExit) MaxExit=ExLevel
+                IF(ExLevel.lt.MinExit) MinExit=ExLevel
             ELSEIF(ActiveVec(j)%ChainLength.eq.0) THEN
 !We are at HF - sum in energy and correction to SumNoatHF
 !                IF(ActiveVec(j)%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
@@ -175,8 +192,15 @@ MODULE ReturnPathMCMod
 !                    SumENum=SumENum-ActiveVec(j)%Hi0
                     SumNoatHF=SumNoatHF-1
                 ENDIF
+                ExLevel=0
+                IF(ExLevel.lt.MinExit) MinExit=ExLevel
+            ELSE
+!Sum into mean excitation level
+                ExLevel=ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)
+                MeanExit=MeanExit+ExLevel
+                IF(ExLevel.gt.MaxExit) MaxExit=ExLevel
+                IF(ExLevel.lt.MinExit) MinExit=ExLevel
             ENDIF
-
 
 !Now attempt to spawn from the determinant we are on - this can involve attempting to spawn back, with prob PRet, or to an excit
             Preturn=FindPRet(ActiveVec(j))       !The PReturn may change depending on various parameters - calculate it here
@@ -209,7 +233,7 @@ MODULE ReturnPathMCMod
                 do while(.true.)
                     CALL GenSymExcitIt2(ActiveVec(j)%Det,NEl,G1,nBasis,nBasisMax,.FALSE.,ActiveVec(j)%ExGen%ExcitData,nJ,IC,0,ActiveVec(j)%ExGen%nStore,exFlag)
                     IF(nJ(1).eq.0) EXIT
-                    ExcitLevel=iGetExcitLevel(FDet,nJ,NEl)
+                    ExcitLevel=iGetExcitLevel(HFDet,nJ,NEl)
                     IF((ActiveVec(j)%ChainLength.eq.0).or.(ExcitLevel.gt.ActiveVec(j)%IC0(ActiveVec(j)%ChainLength))) THEN
 !Excitation generated is one which is deeper into excitation space w.r.t. HF than the parent particle...see if we can spawn there.
                         
@@ -219,7 +243,7 @@ MODULE ReturnPathMCMod
 !We are creating at least one new particle - find things out about it...
                             DiagElem=GetConnection(nJ,nJ,0)   !Find diagonal element
                             IF(ExcitLevel.eq.2) THEN
-!Particle will have connection to HF, therefore it must have been spawned from FDet, and so hHi0=Hij
+!Particle will have connection to HF, therefore it must have been spawned from HFDet, and so hHi0=Hij
                                 hHi0=Hij
                             ENDIF
 
@@ -273,6 +297,8 @@ MODULE ReturnPathMCMod
 
         enddo   !End cycling over walkers
 
+        SumWalkersCyc=SumWalkersCyc+TotWalkers
+        
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkers=VecSlot-1
         rat=(TotWalkers+0.D0)/(MaxWalkers+0.D0)
@@ -516,7 +542,7 @@ MODULE ReturnPathMCMod
         INTEGER :: ierr,j,k
         
 !Since we are at HF, there is no Kii or IC0 contribution since they start at the first link in the chain
-        Particle%Det(:)=FDet(:)     !All walkers start at HF
+        Particle%Det(:)=HFDet(:)     !All walkers start at HF
         Particle%Hi0=Hii            !Connection of HF is simply HF energy
         Particle%ChainLength=0      !Initial Chain Length = 0 as at HF
         Particle%WSign=WSign
@@ -646,7 +672,7 @@ MODULE ReturnPathMCMod
                 CALL STOPGM("SpawnReturn","Chainlength is one, but we are not at a double excitation")
             ENDIF
 
-            Hij=GetConnection(FDet,Particle%Det,2)
+            Hij=GetConnection(HFDet,Particle%Det,2)
 
         ELSEIF(Particle%ChainLength.gt.1) THEN
 !Particle is some way along a chain. Its previous determinant can be ascertained from its history.
@@ -746,6 +772,17 @@ MODULE ReturnPathMCMod
         CHARACTER , PARAMETER :: this_routine='InitRetPath'
         TYPE(HElement) :: HiiHel,rhiiHel
 
+        SumWalkersCyc=0
+        MeanExit=0.D0
+        MaxExit=0
+        MinExit=NEl+10
+
+        ALLOCATE(HFDet(NEl),stat=ierr)
+        CALL LogMemAlloc('HFDet',NEl,4,this_routine,HFDetTag)
+        do j=1,NEl
+            HFDet(j)=FDet(j)
+        enddo
+
 !Provide various tests that variables are within allowed ranges
         IF((PRet.gt.1.D0).or.(PRet.lt.0.D0)) CALL STOPGM("ReturnPathMC","PRet must be a normalised probability")
         IF(HElementSize.gt.1) CALL STOPGM("ReturnPathMC","ReturnPathMC cannot function with complex orbitals.")
@@ -753,9 +790,9 @@ MODULE ReturnPathMCMod
         MaxWalkers=InitWalkers*MemoryFac    !Set maximum number of allowed walkers
 
 !Calculate Hii and rhii
-        HiiHEl=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        HiiHEl=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
         Hii=REAL(HiiHEl%v,r2)
-        CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
+        CALL CalcRho2(HFDet,HFDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
         rhii=REAL(rhiiHEl%v,r2)
         IF(TRhoElems) THEN
             WRITE(6,"(A,F20.10)") "Root diagonal element is: ",rhii
@@ -796,7 +833,7 @@ MODULE ReturnPathMCMod
         CALL FLUSH(6)
 
         FDetExGen%ForCurrentDet=.false.
-        CALL SetupExitGen(FDet,FDetExGen)
+        CALL SetupExitGen(HFDet,FDetExGen)
 
         do j=1,InitWalkers
             CALL SetupHFParticle(ActiveVec(j),.true.)

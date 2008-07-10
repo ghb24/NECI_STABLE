@@ -64,6 +64,8 @@ MODULE FciMCMod
     INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
     REAL*8 :: MeanExcitLevel    
     INTEGER :: MinExcitLevel
+    INTEGER :: MaxExcitLevel
+    INTEGER :: SumWalkersCyc    !Sum of all walkers in an update cycle
 
     INTEGER :: NetPositive
 
@@ -137,6 +139,8 @@ MODULE FciMCMod
         CycwNoHF=0
         MeanExcitLevel=0.D0
         MinExcitLevel=Nel+10
+        MaxExcitLevel=0
+        SumWalkersCyc=0
 !        SumCreateProb=0.D0
 
         IF(TMCDiffusion) THEN
@@ -193,15 +197,15 @@ MODULE FciMCMod
         IF(.NOT.TNoBirth) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     Proj.E-Inst   MeanExcitLevel   MinExcitLevel"
-            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      Net+veWalk     Proj.E-Inst   MeanExcitLevel   MinExcitLevel"
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     Proj.E-Inst   MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
+            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      Net+veWalk     Proj.E-Inst   MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
 !TotWalkersOld is the number of walkers last time the shift was changed
             IF(TReadPops) THEN
                 WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
                 WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
             ELSE
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,MeanExcitLevel,MinExcitLevel
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,MeanExcitLevel,MinExcitLevel
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,2I5)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,2I5)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
             ENDIF
         ENDIF
         
@@ -269,7 +273,7 @@ MODULE FciMCMod
 
                     IF(TResumFCIMC) THEN
                         ProjectionE=SumENum/REAL(SumNoatHF,r2)
-                        MeanExcitLevel=MeanExcitLevel/real(StepsSft,r2)
+                        MeanExcitLevel=MeanExcitLevel/real(SumWalkersCyc,r2)
                     ENDIF
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
@@ -278,8 +282,8 @@ MODULE FciMCMod
                         WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                     ELSE
                         IF(Tau.gt.0.D0) THEN
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,MeanExcitLevel,MinExcitLevel
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,I5)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,MeanExcitLevel,MinExcitLevel
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,2I5)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,F16.7,2I5)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
                         ELSE
                             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
@@ -287,7 +291,9 @@ MODULE FciMCMod
                     ENDIF
 
                     MinExcitLevel=Nel+10
+                    MaxExcitLevel=0
                     MeanExcitLevel=0.D0
+                    SumWalkersCyc=0
 
                     IF(TDetPops) THEN
 
@@ -390,6 +396,7 @@ MODULE FciMCMod
             ExcitLevel=iGetExcitLevel(CurrentDets(:,j),FDet(:),NEl)
             MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
             IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
+            IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
             IF(ExcitLevel.eq.0) THEN
                 IF(CurrentSign(j)) THEN
                     SumNoatHF=SumNoatHF+1
@@ -418,7 +425,7 @@ MODULE FciMCMod
 !Finish cycling over walkers
         enddo
 
-        MeanExcitLevel=MeanExcitLevel/(REAL(TotWalkers,r2))
+        SumWalkersCyc=SumWalkersCyc+TotWalkers
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
         TotWalkersNew=VecSlot-1
