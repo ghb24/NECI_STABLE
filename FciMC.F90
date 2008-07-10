@@ -1,12 +1,7 @@
 !!!!!!!!!
 ! TO DO !
 !!!!!!!!!
-
-!If graphsize=-1, allow each walker to form the N^2M^2 matrix from its excitations in resumFCIMC. This is then applied RhoApp times.
-
-!Test Dynamic Tau Changing
 !Initial Graph-Morph Graph
-!Test of LD with MP1
 !Test POPSFILE read/write
 !Setup Init Star
 
@@ -67,6 +62,8 @@ MODULE FciMCMod
     INTEGER :: CycwNoHF     !Count the number of iterations which don't have any walkers on HF - in this case, ignore running average of energy, but count it so it is not included in demonimator
 
     INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+    INTEGER :: TimesAtDoubs     !This counts the number of cycles that the doubles/HF are populated at all in an update cycle
+    LOGICAL :: TPopulated       !Logical as to whether this cycle has had a population on Doubles/HF
 
     INTEGER :: NetPositive
 
@@ -138,6 +135,8 @@ MODULE FciMCMod
         SumENum=0.D0
         SumNoatHF=0
         CycwNoHF=0
+        TimesatDoubs=0
+        TPopulated=.false.
 !        SumCreateProb=0.D0
 
         IF(TMCDiffusion) THEN
@@ -194,15 +193,15 @@ MODULE FciMCMod
         IF(.NOT.TNoBirth) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     Proj.E-Inst"
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     Proj.E-Inst   CycleswhereHF/DoubsPop"
             WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      Net+veWalk     Proj.E-Inst"
 !TotWalkersOld is the number of walkers last time the shift was changed
             IF(TReadPops) THEN
                 WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
                 WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
             ELSE
-                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
-                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst
+                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,TimesatDoubs
+                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,TotWalkers,ProjectionEInst,TimesatDoubs
             ENDIF
         ENDIF
         
@@ -213,6 +212,7 @@ MODULE FciMCMod
         do Iter=1,NMCyc
             
             IF(TResumFciMC) THEN
+                TPopulated=.false.
                 CALL PerformResumFCIMCyc()
             ELSE
                 CALL PerformFCIMCyc()
@@ -272,17 +272,19 @@ MODULE FciMCMod
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                     IF(TReadPops) THEN
-                        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
+                        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                         WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter+PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                     ELSE
                         IF(Tau.gt.0.D0) THEN
-                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
-                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
+                            WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,TimesatDoubs
+                            WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst,TimesatDoubs
                         ELSE
                             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,I9,G16.7)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,NetPositive,ProjectionEInst
                         ENDIF
                     ENDIF
+
+                    TimesatDoubs=0
 
                     IF(TDetPops) THEN
 
@@ -389,6 +391,10 @@ MODULE FciMCMod
                 ELSE
                     SumNoatHF=SumNoatHF-1
                 ENDIF
+                IF(.not.TPopulated) THEN
+                    TPopulated=.true.
+                    TimesatDoubs=TimesatDoubs+1
+                ENDIF
             ELSEIF(ExcitLevel.eq.2) THEN
 !At double excit - sum in energy
                 Hij0=GetHElement2(FDet(:),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
@@ -396,6 +402,10 @@ MODULE FciMCMod
                     SumENum=SumENum+REAL(Hij0%v,r2)
                 ELSE
                     SumENum=SumENum-REAL(Hij0%v,r2)
+                ENDIF
+                IF(.not.TPopulated) THEN
+                    TPopulated=.true.
+                    TimesatDoubs=TimesatDoubs+1
                 ENDIF
             ENDIF
 
@@ -737,7 +747,7 @@ MODULE FciMCMod
                 SameDet=.false.
                 do j=2,(i-1)
                     IF(CompiPath(nJ,DetsInGraph(:,j),NEl)) THEN
-    !determinants are the same - ignore them
+!determinants are the same - ignore them
                         SameDet=.true.
                         Attempts=Attempts+1     !Increment the attempts counter
                         IF(Attempts.gt.100) CALL STOPGM("CreateGraph","More than 100 attempts needed to grow graph")
@@ -746,7 +756,7 @@ MODULE FciMCMod
                 enddo
 
                 IF(.not.SameDet) THEN
-    !Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
+!Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
                     IF(i.eq.2) THEN
                         RootExcitProb=Prob
                     ELSE
@@ -755,24 +765,24 @@ MODULE FciMCMod
                         ENDIF
                     ENDIF
 
-    !Determinant is distinct - add it
+!Determinant is distinct - add it
                     DetsInGraph(:,i)=nJ(:)
 
-    !First find connection to root
+!First find connection to root
                     Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
                     GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
                     GraphRhoMat(i,1)=GraphRhoMat(1,i)
 
-    !Then find connection to other determinants
+!Then find connection to other determinants
                     do j=2,(i-1)
                         Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
                         GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
                         GraphRhoMat(j,i)=GraphRhoMat(i,j)
                     enddo
 
-    !Find diagonal element
+!Find diagonal element
                     Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-    !                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
+!                GraphRhoMat(i,i)=1.D0-(Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-(DiagSft/REAL(RhoApp,r2))))
                     GraphRhoMat(i,i)=1.D0-Tau*((REAL(Hamii%v,r2)-REAL(Hii%v,r2))-DiagSft)
 
                     i=i+1   !increment the excit counter
@@ -2345,7 +2355,7 @@ MODULE FciMCMod
 !First we have to see if we're going to perform a self-hop, or allow an attempt at a diffusive move.
 !                rat=Tau/(HiiArray(j)-(real(Hii%v,r2))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
 !                rat=Tau*((HiiArray(j)/(real(Hii%v,r2)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
-                rat=1.D0-Tau*((HiiArray(j)-(real(Hii%v,r2)))-DiagSft)      !This is the probability of self-hopping, rather than attempting a diffusive move
+                rat=0.8*(1.D0-Tau*((HiiArray(j)-(real(Hii%v,r2)))-DiagSft))      !This is the probability of self-hopping, rather than attempting a diffusive move
                                                         !Higher excitations have smaller prob, so resampled fewer times and lower excitations sampled for longer.
 
                 IF((rat.lt.0.D0).or.(rat.gt.1.D0)) CALL STOPGM("DiffusionMC","Incorrect self-hop probability")
