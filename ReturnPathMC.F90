@@ -75,6 +75,7 @@ MODULE ReturnPathMCMod
     REAL*8 :: MeanExit
 
     REAL*8 :: Hii,rhii
+    TYPE(HElement) :: HFDiag
 
     contains
 
@@ -163,44 +164,14 @@ MODULE ReturnPathMCMod
     SUBROUTINE DoNMCyc()
         REAL*8 :: Preturn,Ran2,Hij,hHi0,DiagElem,rat
         INTEGER :: VecSlot,j,k,ToSpawn,IC,ExcitLevel,nJ(NEl),iDie
-        INTEGER :: iGetExcitLevel,ExLevel
+        INTEGER :: iGetExcitLevel
 
         VecSlot=1   !This indicates the next free slot in NewVec
 
         do j=1,TotWalkers
 
 !First, sum in the energy contribution from the walker.
-            IF(ActiveVec(j)%ChainLength.eq.1) THEN
-!We are at a double excitation - sum the energy into SumENum
-                IF(ActiveVec(j)%WSign) THEN
-                    SumENum=SumENum+ActiveVec(j)%Hi0
-                ELSE
-                    SumENum=SumENum-ActiveVec(j)%Hi0
-                ENDIF
-                ExLevel=ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)
-                MeanExit=MeanExit+ExLevel
-                IF(ExLevel.gt.MaxExit) MaxExit=ExLevel
-                IF(ExLevel.lt.MinExit) MinExit=ExLevel
-            ELSEIF(ActiveVec(j)%ChainLength.eq.0) THEN
-!We are at HF - sum in energy and correction to SumNoatHF
-!                IF(ActiveVec(j)%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
-                IF(ActiveVec(j)%WSign) THEN
-!                    SumENum=SumENum+ActiveVec(j)%Hi0    !Hi0 here should equal Hii
-                    SumNoatHF=SumNoatHF+1
-                ELSE
-                    CALL STOPGM("DoNMCyc","Should not have negative particles at HF")
-!                    SumENum=SumENum-ActiveVec(j)%Hi0
-                    SumNoatHF=SumNoatHF-1
-                ENDIF
-                ExLevel=0
-                IF(ExLevel.lt.MinExit) MinExit=ExLevel
-            ELSE
-!Sum into mean excitation level
-                ExLevel=ActiveVec(j)%IC0(ActiveVec(j)%ChainLength)
-                MeanExit=MeanExit+ExLevel
-                IF(ExLevel.gt.MaxExit) MaxExit=ExLevel
-                IF(ExLevel.lt.MinExit) MinExit=ExLevel
-            ENDIF
+            CALL SumInE(ActiveVec(j))
 
 !Now attempt to spawn from the determinant we are on - this can involve attempting to spawn back, with prob PRet, or to an excit
             Preturn=FindPRet(ActiveVec(j))       !The PReturn may change depending on various parameters - calculate it here
@@ -273,7 +244,7 @@ MODULE ReturnPathMCMod
 
             IF(iDie.le.0) THEN
 !Particle survives (or possibly increases in number), and wants to be copied across to NewVec
-                
+
                 do k=1,abs(iDie)+1
                     CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength,ActiveVec(j)%WSign,VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
                     VecSlot=VecSlot+1
@@ -351,6 +322,47 @@ MODULE ReturnPathMCMod
 
     END SUBROUTINE DoNMCyc
    
+!Sum in the energy contributions and excitation level statistics for a particle
+    SUBROUTINE SumInE(Particle)
+        TYPE(Part) :: Particle
+        INTEGER :: ExLevel
+
+        IF(Particle%ChainLength.eq.1) THEN
+!We are at a double excitation - sum the energy into SumENum
+            IF(Particle%WSign) THEN
+                SumENum=SumENum+Particle%Hi0
+            ELSE
+                SumENum=SumENum-Particle%Hi0
+            ENDIF
+            ExLevel=Particle%IC0(Particle%ChainLength)
+            MeanExit=MeanExit+ExLevel
+            IF(ExLevel.gt.MaxExit) MaxExit=ExLevel
+            IF(ExLevel.lt.MinExit) MinExit=ExLevel
+        ELSEIF(Particle%ChainLength.eq.0) THEN
+!We are at HF - sum in energy and correction to SumNoatHF
+!                IF(Particle%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
+            IF(Particle%WSign) THEN
+!                    SumENum=SumENum+Particle%Hi0    !Hi0 here should equal Hii
+                SumNoatHF=SumNoatHF+1
+            ELSE
+                CALL STOPGM("DoNMCyc","Should not have negative particles at HF")
+!                    SumENum=SumENum-Particle%Hi0
+                SumNoatHF=SumNoatHF-1
+            ENDIF
+            ExLevel=0
+            IF(ExLevel.lt.MinExit) MinExit=ExLevel
+        ELSE
+!Sum into mean excitation level
+            ExLevel=Particle%IC0(Particle%ChainLength)
+            MeanExit=MeanExit+ExLevel
+            IF(ExLevel.gt.MaxExit) MaxExit=ExLevel
+            IF(ExLevel.lt.MinExit) MinExit=ExLevel
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE SumInE
+
 !This routine acts as a thermostat for the simulation - killing random particles if the population becomes too large, or 
 !Doubling them if it gets too low...
     SUBROUTINE ThermostatParticles(HighLow)
@@ -606,11 +618,24 @@ MODULE ReturnPathMCMod
         TYPE(Part) :: Particle
         REAL*8 :: rat,Ran2
 
-        IF(Particle%ChainLength.eq.0) THEN
+        IF(TRhoElems) THEN
+            IF(Particle%ChainLength.eq.0) THEN
 !We are at HF, so Kii is zero
-            rat=-Tau*DiagSft
+                rat=EXP(Tau*DiagSft)
+            ELSE
+                rat=GetSpawnRhoEl(Particle%Det,Particle%Det,.true.,Particle%Kii(Particle%ChainLength))
+            ENDIF
+!GetSpawnRhoEl will recover the spawning rate. The death rate will be 1 - this.
+            rat=1.D0-rat
+
         ELSE
-            rat=Tau*((Particle%Kii(Particle%ChainLength))-DiagSft)  !Prob of death
+            IF(Particle%ChainLength.eq.0) THEN
+!We are at HF, so Kii is zero
+                rat=-Tau*DiagSft
+            ELSE
+                rat=Tau*((Particle%Kii(Particle%ChainLength))-DiagSft)  !Prob of death
+            ENDIF
+
         ENDIF
 
         AttemptDestruct=INT(rat)
@@ -624,32 +649,81 @@ MODULE ReturnPathMCMod
             ENDIF
         ENDIF
 
+        RETURN
+
     END FUNCTION AttemptDestruct
+
+!This is redone since we want to change the diagonal elements due to the shift + we want tau to be as defined in the module
+    REAL*8 FUNCTION GetSpawnRhoEl(nI,nJ,LSame,Conn)
+        INTEGER :: nI(NEl),nJ(NEl),iGetExcitLevel
+        LOGICAL :: LSame
+        REAL*8 :: Conn      !For off-diagonal, this = Hij. For Diagonal, this equals Ei-E0
+        REAL*8 :: UExp
+        TYPE(HElement) :: EDiag,RH,EDiag2
+
+        IF(LSame) THEN
+
+!Calculate a diagonal rho matrix element
+!            IF(NTAY(2).eq.3) THEN
+!Partition with Trotter with H(0) having just the Fock Operators
+!Fock-Partition-Lowdiag
+                RH=EXP(-Tau*(Conn-DiagSft))
+!            ELSEIF(NTAY(2).eq.2) THEN
+!Partition with Trotter with H(0) having just the Fock Operators
+!Fock-Partition
+!                CALL STOPGM("GetSpawnRhoElement","This is not functional yet")
+!            ENDIF
+
+        ELSE
+
+!We want a diagonal element - this is exactly the same as in calcrho2
+            call GetH0Element(nI,nEl,Arr,nBasis,ECore,EDiag2)
+            call GetH0Element(nJ,nEl,Arr,nBasis,ECore,EDiag)
+            EDiag=(EDiag2+EDiag)/HElement(2.D0)
+            UExp=-Tau*Conn
+            RH=EXP(-Tau*REAL(EDiag%v,r2))*UExp
+
+        ENDIF
+
+        GetSpawnRhoEl=REAL(RH%v,r2)
+
+    END FUNCTION GetSpawnRhoEl
 
 
 !Call this function when we have decided to spawn to a determinant further down the chain and have decided that it is deeper into excitation space w.r.t HF
 !Will return the number and sign of the particles spawned there (nJ). IC is the no. of excitations between particle and nJ.
     INTEGER FUNCTION SpawnForward(Particle,Preturn,nJ,IC,Hij)
         TYPE(Part) :: Particle
-        REAL*8 :: Preturn,Hij,rat,Ran2
+        REAL*8 :: Preturn,Hij,rat,Ran2,rhoel
         INTEGER :: nJ(:),IC
 
         IF(Preturn.eq.1.D0) CALL STOPGM("SpawnForward","Preturn=1, but trying to spawn forward")
 
-!First calculate connection to parent determinant
+!First calculate connection to parent determinant - this is the hamiltonian matrix element
         Hij=GetConnection(Particle%Det,nJ,IC)
 
-        rat=Tau*abs(Hij)/(1.D0-Preturn)
+        IF(TRhoElems) THEN
+            IF(IC.eq.0) CALL STOPGM("SpawnForward","IC should not be zero")
+            rhoel=GetSpawnRhoEl(Particle%Det,nJ,.false.,Hij)
+            rat=abs(rhoel)/(1.D0-Preturn)
+        ELSE
+            rat=Tau*abs(Hij)/(1.D0-Preturn)
+        ENDIF
         SpawnForward=INT(rat)
         rat=rat-REAL(SpawnForward,r2)
         IF(rat.gt.Ran2(Seed)) SpawnForward=SpawnForward+1   !Stochastic step successful at creating another particle
         
         IF(SpawnForward.gt.0) THEN
 !Attempt to spawn at return determinant is successful - determine sign of new particles
-            IF((Particle%WSign).and.(Hij.gt.0.D0)) THEN             !Positive particle & connection
-                SpawnForward=-SpawnForward                          !New particles negative
-            ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.D0)) THEN    !Negative particle & connection
-                SpawnForward=-SpawnForward                          !New particles negative
+            IF(TRhoElems) THEN
+                IF(.not.Particle%WSign) SpawnForward=-SpawnForward
+                IF(rhoel.lt.0.D0) SpawnForward=-SpawnForward
+            ELSE
+                IF((Particle%WSign).and.(Hij.gt.0.D0)) THEN             !Positive particle & connection
+                    SpawnForward=-SpawnForward                          !New particles negative
+                ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.D0)) THEN    !Negative particle & connection
+                    SpawnForward=-SpawnForward                          !New particles negative
+                ENDIF
             ENDIF
         ENDIF
 
@@ -662,7 +736,8 @@ MODULE ReturnPathMCMod
 !SpawnReturn will then tell us if the attempt is successful by indicating the number of particles spawned and sign of the resultant particle(s)
     INTEGER FUNCTION SpawnReturn(Particle,Preturn)
         TYPE(Part) :: Particle
-        REAL*8 :: Hij,Ran2,Preturn,rat
+        REAL*8 :: Hij,Ran2,Preturn,rat,rhoel
+        INTEGER :: nJ(NEl)
 
 !First, need to find return determinant, and calculate connection to it
         IF(Particle%ChainLength.eq.1) THEN
@@ -673,20 +748,31 @@ MODULE ReturnPathMCMod
             ENDIF
 
             Hij=GetConnection(HFDet,Particle%Det,2)
+            IF(TRhoElems) THEN
+                nJ(:)=HFDet(:)
+            ENDIF
 
         ELSEIF(Particle%ChainLength.gt.1) THEN
 !Particle is some way along a chain. Its previous determinant can be ascertained from its history.
 !The previous determinant is stored in History(:,ChainLength-1), and the number of excitations between them in HistExcit(ChainLength)
 
             Hij=GetConnection(Particle%Det,Particle%History(:,(Particle%ChainLength)-1),Particle%HistExcit(Particle%ChainLength))
+            IF(TRhoElems) THEN
+                nJ(:)=Particle%History(:,(Particle%ChainLength)-1)
+            ENDIF
 
         ELSE
 !Particle has a chainlength of 0 (or less than zero!) - it cannot spawn to a previous determinant, as there are none - error here
             CALL STOPGM("SpawnReturn","Cannot return if at HF")
         ENDIF
 
-!Prob of accepting to spawn to a previous determinant given by tau*abs(Hij)/Preturn
-        rat=Tau*abs(Hij)/Preturn
+!Prob of accepting to spawn to a previous determinant given by tau*abs(Hij)/Preturn (rho matrix elements already has tau included)
+        IF(TRhoElems) THEN
+            rhoel=GetSpawnRhoEl(Particle%Det,nJ,.false.,Hij)
+            rat=abs(rhoel)/Preturn
+        ELSE
+            rat=Tau*abs(Hij)/Preturn
+        ENDIF
         SpawnReturn=INT(rat)              !Number of particles we are definatly creating (can create multiple new particles if prob > 1)
         rat=rat-REAL(SpawnReturn,r2)
 
@@ -694,10 +780,15 @@ MODULE ReturnPathMCMod
 
         IF(SpawnReturn.gt.0) THEN
 !Attempt to spawn at return determinant is successful - determine sign of new particles
-            IF((Particle%WSign).and.(Hij.gt.0.D0)) THEN             !Positive particle & connection
-                SpawnReturn=-SpawnReturn                            !New particles negative
-            ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.D0)) THEN    !Negative particle & connection
-                SpawnReturn=-SpawnReturn                            !New particles negative
+            IF(TRhoElems) THEN
+                IF(.not.Particle%WSign) SpawnReturn=-SpawnReturn
+                IF(rhoel.lt.0.D0) SpawnReturn=-SpawnReturn
+            ELSE
+                IF((Particle%WSign).and.(Hij.gt.0.D0)) THEN             !Positive particle & connection
+                    SpawnReturn=-SpawnReturn                            !New particles negative
+                ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.D0)) THEN    !Negative particle & connection
+                    SpawnReturn=-SpawnReturn                            !New particles negative
+                ENDIF
             ENDIF
         ENDIF
 
@@ -705,21 +796,27 @@ MODULE ReturnPathMCMod
 
     END FUNCTION SpawnReturn
 
-!This function simply gets the connection between two determinants
+!This function simply gets the connection between two determinants - i.e. the Hij element
+!For diagonal elements (IC.eq.0) then the Hii element is found and the EHF subtracted from it, to give the Kii element
+!However, if TRhoElems is on, then it returns Ei-E0 for diagonal elements.
     REAL*8 FUNCTION GetConnection(nI,nJ,IC)
         INTEGER :: nI(NEl),nJ(NEl),IC
         TYPE(HElement) :: rhiiHEl,HiiHEl
 
-        IF(TRhoElems) THEN
+        IF(TRhoElems.and.(IC.eq.0)) THEN
 !We want to calculate rho transition matrix elements
 
-            CALL CalcRho2(nI,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,IC,ECore)
-            GetConnection=REAL(rhiiHEl%v,r2)
+!            CALL CalcRho2(nI,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,IC,ECore)
+!            GetConnection=REAL(rhiiHEl%v,r2)
 
-            IF(IC.eq.0) THEN
+!            IF(IC.eq.0) THEN
 !We are after Hii-H00 so subtract the reference energy
-                GetConnection=GetConnection-rhii
-            ENDIF
+!                GetConnection=GetConnection-rhii
+!            ENDIF
+
+            call GetH0Element(nI,NEl,Arr,nBasis,ECore,rhiiHEl)
+            rhiiHEl=rhiiHEl-HFDiag
+            GetConnection=Real(rhiiHEl%v,r2)
 
         ELSE
 !We want to calculate Hamiltonian transition matrix elements
@@ -794,6 +891,8 @@ MODULE ReturnPathMCMod
         Hii=REAL(HiiHEl%v,r2)
         CALL CalcRho2(HFDet,HFDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhiiHEl,nTay,0,ECore)
         rhii=REAL(rhiiHEl%v,r2)
+        call GetH0Element(HFDet,NEl,Arr,nBasis,ECore,HFDiag)
+
         IF(TRhoElems) THEN
             WRITE(6,"(A,F20.10)") "Root diagonal element is: ",rhii
         ELSE
