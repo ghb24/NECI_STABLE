@@ -37,7 +37,7 @@ else
 fi
 echo "Using platform: $platform"
 
-./Configure $dbgflag $platform -DEST=${PWD}/dest> Makefile2
+./mkconfig.sh $dbgflag $platform -DEST=${PWD}/dest> Makefile2
 
 cp irat.inc dest
 sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
