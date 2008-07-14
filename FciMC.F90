@@ -1445,7 +1445,7 @@ MODULE FciMCMod
         INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit,WalkersOnDet
         INTEGER , ALLOCATABLE :: nExcit(:)
         REAL*8 , ALLOCATABLE :: Eigenvector(:)
-        TYPE(HElement) :: rhij,rhjj
+        TYPE(HElement) :: rhij,rhjj,Hamij,Fj,MP2E
 
         IF((WaveType.eq.1).or.(WaveType.eq.2)) THEN
 !If WaveType=1, we want to calculate the MP1 wavevector as our initial configuration, and WaveType=2 is the star wavevector
@@ -1459,7 +1459,8 @@ MODULE FciMCMod
 !                StarWeight=fMCPR3StarNewExcit(FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,nTay,RhoEps,iExcit,iMaxExcit,nWHTay,iLogging,TSym,ECore,DBeta,DLWDB,MP2E)
 !                TypeChange=DLWDB
             ENDIF
-            
+        
+            MP2E=0.D0
 
 !First, generate all excitations, and store their determianants, and rho matrix elements 
             nStore(1)=0
@@ -1478,7 +1479,8 @@ MODULE FciMCMod
             CALL LogMemAlloc('ExcitStore',(iMaxExcit+1)*NEl,4,this_routine,ExcitStoreTag,ierr)
             CALL IAZZERO(ExcitStore,(iMaxExcit+1)*NEl)
             
-            CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
+!            CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
+            CALL GetH0Element(FDet,NEl,Arr,nBasis,ECore,FZero)
 
             i=1
             do j=1,NEl
@@ -1487,27 +1489,24 @@ MODULE FciMCMod
             Eigenvector(i)=1.D0
             SumComp=1.D0
             
-            IF(nTay(2).ne.3) THEN
-!Need to ensure that Low-Diag is being used to recover MP1 wavefunction, where c_j=rh_ij/(rh_jj - 1)
-!Fock-partition-lowdiag is not set - it must be in order to use the given formulation for the MP1 wavefunction
-                WRITE(6,*) "FOCK-PARTITION-LOWDIAG is not specified. It must be to use NODALCUTOFF."
-                WRITE(6,*) "Resetting all rho integrals to use FOCK-PARTITION-LOWDIAG"
-                nTay(2)=3
-            ENDIF
-            
             do while (.true.)
                 CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
                 IF(nJ(1).eq.0) EXIT
                 i=i+1
-                CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
-                CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
+!                CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
+!                CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
 
 !We want the value of rho_jj/rho_ii
-                rhjj=rhjj/rhii
+!                rhjj=rhjj/rhii
+                Hamij=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+                CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fj)
+
                 do j=1,NEl
                     ExcitStore(j,i)=nJ(j)
                 enddo
-                Eigenvector(i)=(rhij%v)/((rhjj%v)-TypeChange)
+!                Eigenvector(i)=(rhij%v)/((rhjj%v)-TypeChange)
+                MP2E=MP2E%v-((Hamij%v)**2)/((Fj%v)-(FZero%v))
+                Eigenvector(i)=(Hamij%v)/(Fj%v-FZero%v)
                 SumComp=SumComp+Eigenvector(i)
             enddo
 
@@ -1517,6 +1516,8 @@ MODULE FciMCMod
 
             DEALLOCATE(nExcit)
             CALL LogMemDealloc(this_routine,nExcitTag)
+
+            DiagSft=real(MP2E%v,KIND(0.D0))
 
         ENDIF
 
