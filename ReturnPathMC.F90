@@ -225,7 +225,7 @@ MODULE ReturnPathMCMod
                                 ELSE
                                     CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength+1,.false.,VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
                                 ENDIF
-
+                    
                                 VecSlot=VecSlot+1
 
                             enddo
@@ -334,7 +334,7 @@ MODULE ReturnPathMCMod
             ELSE
                 SumENum=SumENum-Particle%Hi0
             ENDIF
-            ExLevel=Particle%IC0(Particle%ChainLength)
+            ExLevel=Particle%IC0(1)
             MeanExit=MeanExit+ExLevel
             IF(ExLevel.gt.MaxExit) MaxExit=ExLevel
             IF(ExLevel.lt.MinExit) MinExit=ExLevel
@@ -342,11 +342,9 @@ MODULE ReturnPathMCMod
 !We are at HF - sum in energy and correction to SumNoatHF
 !                IF(Particle%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
             IF(Particle%WSign) THEN
-!                    SumENum=SumENum+Particle%Hi0    !Hi0 here should equal Hii
                 SumNoatHF=SumNoatHF+1
             ELSE
                 CALL STOPGM("DoNMCyc","Should not have negative particles at HF")
-!                    SumENum=SumENum-Particle%Hi0
                 SumNoatHF=SumNoatHF-1
             ENDIF
             ExLevel=0
@@ -440,6 +438,7 @@ MODULE ReturnPathMCMod
         TYPE(Part) :: Particle
         INTEGER :: NewChainLength,VecSlot,nJ(NEl),ExcitLevel,IC
         REAL*8 :: DiagElem,hHi0
+        TYPE(HElement) :: ConntoHF
         LOGICAL :: WSign
 
         IF(Particle%ChainLength.eq.NewChainLength) THEN
@@ -480,10 +479,16 @@ MODULE ReturnPathMCMod
 
                 NewVec(VecSlot)%Kii(1:NewChainLength)=Particle%Kii(1:NewChainLength)
                 NewVec(VecSlot)%IC0(1:NewChainLength)=Particle%IC0(1:NewChainLength)
+                
                 IF(Particle%IC0(NewChainLength).gt.2) THEN
 !Excitation is more than a double, so connection to HF = 0
                     NewVec(VecSlot)%Hi0=0.D0
+                ELSE
+!Need calculate the connection to HF - we are at a double excitation
+                    ConntoHF=GetHElement2(NewVec(VecSlot)%Det,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Particle%IC0(NewChainLength),ECore)
+                    NewVec(VecSlot)%Hi0=REAL(ConntoHF%v,r2)
                 ENDIF
+                
                 NewVec(VecSlot)%ChainLength=NewChainLength
                 NewVec(VecSlot)%WSign=WSign
                 IF(NewChainLength.eq.1) THEN
