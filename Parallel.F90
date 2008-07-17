@@ -142,6 +142,20 @@ Subroutine MPIDSum(dValues, iLen, dReturn)
    end if
 end Subroutine
 
+!MPIDSumRoot
+!Same as above, but only updates the value on the root processor
+Subroutine MPIDSumRoot(dValues,iLen,dReturn,Root)
+    REAL*8 :: dValues(*),dReturn(*)
+    INTEGER :: iLen
+    INTEGER :: g,ierr,rc,Root
+    g=MPI_COMM_WORLD
+    call MPI_REDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,MPI_SUM,Root,g,ierr)
+    if(ierr.ne.MPI_SUCCESS) then
+        print *,'Error summing values in MPIDSumRoot. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,ierr)
+    endif
+end subroutine MPIDSumRoot
+
 ! MPIHelSum
 !
 !  dValues(iLen)  (in)  Array of Type(HElement).  The corresponding elements for each processor are summed and returnd into dReturn(iLen)
