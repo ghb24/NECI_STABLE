@@ -678,10 +678,12 @@ MODULE FciMCParMod
                 Chosen=int((Ran2(Seed)*TotWalkers)+1.D0)
 
 !Move the Walker at the end of the list to the position of the walker we have chosen to destroy
-                do i=1,NEl
-                    CurrentDets(i,Chosen)=CurrentDets(i,TotWalkers)
-                enddo
+                CurrentDets(:,Chosen)=CurrentDets(:,TotWalkers)
                 CurrentSign(Chosen)=CurrentSign(TotWalkers)
+                CurrentH(:,Chosen)=CurrentH(:,TotWalkers)
+                CurrentIC(Chosen)=CurrentIC(TotWalkers)
+                CALL CopyExitgenPar(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
+                CurrentExcits(TotWalkers)%ExitGenForDet=.false.
 
                 TotWalkers=TotWalkers-1
                 Culled=Culled+1
@@ -703,10 +705,11 @@ MODULE FciMCParMod
             do i=1,TotWalkers
 
 !Add clone of walker, at the same determinant, to the end of the list
-                do j=1,NEl
-                    CurrentDets(j,VecSlot)=CurrentDets(j,i)
-                enddo
+                CurrentDets(:,VecSlot)=CurrentDets(:,i)
                 CurrentSign(VecSlot)=CurrentSign(i)
+                CurrentH(:,VecSlot)=CurrentH(:,i)
+                CurrentIC(VecSlot)=CurrentIC(i)
+                CALL CopyExitgenPar(CurrentExcits(i),CurrentExcits(VecSlot))
 
                 VecSlot=VecSlot+1
 
@@ -969,7 +972,7 @@ MODULE FciMCParMod
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed-iProcIndex
-        WRITE(8,*) iProcIndex
+!        WRITE(18,*) iProcIndex
 
 !Calculate Hii
         TempHii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
