@@ -103,11 +103,11 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      Net+veWalk     MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
-            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      Net+veWalk     MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
+            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      +veWalkFrac     MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
+            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      +veWalkFrac     MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(6,"(I9,G16.7,I9,G16.7,I9,2G16.7,G16.7,F16.7,2I5)") 0,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(15,"(I9,G16.7,I9,G16.7,I9,2G16.7,G16.7,F16.7,2I5)") 0,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
         ENDIF
         
 
@@ -161,7 +161,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) CLOSE(15)
 
-        CALL MPIEnd(.false.)    !Finalize MPI
+!        CALL MPIEnd(.false.)    !Finalize MPI
 
         RETURN
 
@@ -179,7 +179,7 @@ MODULE FciMCParMod
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
-
+        
         do j=1,TotWalkers
 !j runs through all current walkers
 
@@ -298,16 +298,24 @@ MODULE FciMCParMod
         IF(associated(CurrentDets,target=WalkVecDets)) THEN
             CurrentDets=>WalkVec2Dets
             CurrentSign=>WalkVec2Sign
+            CurrentIC=>WalkVec2IC
+            CurrentH=>WalkVec2H
             CurrentExcits=>WalkVec2Excits
             NewDets=>WalkVecDets
             NewSign=>WalkVecSign
+            NewIC=>WalkVecIC
+            NewH=>WalkVecH
             NewExcits=>WalkVecExcits
         ELSE
             CurrentDets=>WalkVecDets
             CurrentSign=>WalkVecSign
+            CurrentIC=>WalkVecIC
+            CurrentH=>WalkVecH
             CurrentExcits=>WalkVecExcits
             NewDets=>WalkVec2Dets
             NewSign=>WalkVec2Sign
+            NewIC=>WalkVec2IC
+            NewH=>WalkVec2H
             NewExcits=>WalkVec2Excits
         ENDIF
 
@@ -570,8 +578,8 @@ MODULE FciMCParMod
             AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,r2)
         ENDIF
 
-        PosFrac=real(PosFrac,r2)/real(SumWalkersCyc,r2)
-        CALL MPI_Reduce(PosFrac,AllPosFrac,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        PosFrac=PosFrac/real(SumWalkersCyc,r2)
+        CALL MPI_Reduce(PosFrac,AllPosFrac,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         IF(iProcIndex.eq.Root) THEN
             AllPosFrac=AllPosFrac/real(nProcessors,r2)
         ENDIF
@@ -622,8 +630,8 @@ MODULE FciMCParMod
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
             WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
             WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            CALL FLUSH(15)
-            CALL FLUSH(6)
+!            CALL FLUSH(15)
+!            CALL FLUSH(6)
         ENDIF
 
 !Now need to reinitialise all variables on all processers
@@ -939,7 +947,7 @@ MODULE FciMCParMod
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
 
-        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
+!        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
 
         IF(HElementSize.gt.1) THEN
             CALL STOPGM("FCIMCPar","FciMCPar cannot function with complex orbitals.")
@@ -1209,8 +1217,12 @@ MODULE FciMCParMod
         ELSE
 !We want to copy the excitation generator
             ALLOCATE(NewExit%ExcitData(OrigExit%nExcitMemLen),stat=ierr)
+!            IF(OrigExit%nExcitMemLen.eq.0) THEN
+!                CALL STOPGM("CopyExitgenPar","Problem allocating memory for new excit")
+!            ENDIF
             IF(ierr.ne.0) CALL STOPGM("CopyExitgenPar","Problem with allocating memory for new excitation generator")
             NewExit%ExcitData(:)=OrigExit%ExcitData(:)
+            NewExit%nExcitMemLen=OrigExit%nExcitMemLen
             NewExit%ExitGenForDet=.true.
         ENDIF
 
