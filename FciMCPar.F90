@@ -114,7 +114,7 @@ MODULE FciMCParMod
 !Start MC simulation...
         do Iter=1,NMCyc
             
-            CALL PerformFCIMCyc()
+            CALL PerformFCIMCycPar()
 
             IF(mod(Iter,StepsSft).eq.0) THEN
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
@@ -957,7 +957,7 @@ MODULE FciMCParMod
         enddo
 
 !Setup excitation generator for the HF determinant
-        CALL SetupExcitgenPar(HFDet,HFExcit)
+        CALL SetupExitgenPar(HFDet,HFExcit)
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed-iProcIndex
@@ -1008,7 +1008,7 @@ MODULE FciMCParMod
             CALL FLUSH(6)
             CALL MPIStopAll(1)
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
-            CALL StartWavevectorPar(1)
+!            CALL StartWavevectorPar(1)
 
         ELSE
 !initialise the particle positions - start at HF with positive sign
@@ -1341,6 +1341,15 @@ MODULE FciMCParMod
     INTEGER :: DetsinGraphTag=0
 
     REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph.
+
+    contains
+
+    SUBROUTINE FciMCPar(Weight,Energyxw)
+    TYPE(HDElement) :: Weight,Energyxw
+
+        CALL STOPGM("FciMCPar","Entering the wrong FCIMCPar parallel routine")
+
+    END SUBROUTINE FciMCPar
 
 END MODULE FciMCParMod
     

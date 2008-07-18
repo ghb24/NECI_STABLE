@@ -32,7 +32,11 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE GraphMorph , only : MorphGraph
          USE MCStarMod , only : MCStar
          USE StarDiagTripMod , only : StarDiagTrips
+#ifdef PARALLEL
+         USE FciMCParMod , only : FciMCPar
+#else         
          USE FciMCMod , only : FciMC
+#endif
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          USE Calc , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
@@ -249,7 +253,11 @@ C.. forcing them to be disconnected.
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
+#ifdef PARALLEL
+                    CALL FciMCPar(F(I_V),DLWDB2)
+#else
                     CALL FciMC(F(I_V),DLWDB2)
+#endif
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
@@ -468,7 +476,11 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE GraphMorph , only : MorphGraph
          USE MCStarMod , only : MCStar
          USE StarDiagTripMod , only : StarDiagTrips
+#ifdef PARALLEL
+         USE FciMCParMod , only : FciMCPar
+#else         
          USE FciMCMod , only : FciMC
+#endif
          USE ReturnPathMCMod , only : ReturnPathMC
          USE PRECALCREAD , only : TPREVAR
          USE Calc , only : TMPTHEORY,TDIAGNODES,TGraphMorph,TStarTrips
@@ -682,7 +694,11 @@ C.. forcing them to be disconnected.
                     CALL StarDiagTrips(DLWDB2,F(I_V))
                ELSEIF(TFCIMC) THEN
 !A MC simulation involving replicating particles is run
+#ifdef PARALLEL
+                    CALL FciMCPar(F(I_V),DLWDB2)
+#else
                     CALL FciMC(F(I_V),DLWDB2)
+#endif
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
