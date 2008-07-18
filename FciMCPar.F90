@@ -551,7 +551,7 @@ MODULE FciMCParMod
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
 !We need to collate the information from the different processors
-        CALL MPIDSumRoot(TotWalkers,1,AllTotWalkers,Root)
+        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
         
@@ -1253,4 +1253,95 @@ MODULE FciMCParMod
 
 END MODULE FciMCParMod
 
+#else
+
+MODULE FciMCParMod
+!Dummy module so we can use it in serial - contains all global variables
+    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
+    USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+    USE Calc , only : TStartMP1
+    USE Calc , only : GrowMaxFactor,CullFactor
+    USE Calc , only : RhoApp,TResumFCIMC
+    USE Determinants , only : FDet,GetHElement2
+    USE DetCalc , only : NMRKS
+    USE Integrals , only : fck,NMax,nMsh,UMat
+    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    USE HElem
+    USE Parallel
+    IMPLICIT NONE
+    SAVE
+
+    INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
+    INTEGER, PARAMETER :: r2=kind(0.d0)
+    
+    TYPE ExcitGenerator
+        INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
+        INTEGER :: nExcitMemLen                    !This is the length of the excitation generator
+        LOGICAL :: ExitGenForDet=.false.           !This is true when the excitation generator stored corresponds to the determinant
+    END TYPE
+    
+    TYPE(ExcitGenerator) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
+    INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)    !Contains determinant list
+    LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)        !Contains sign list
+    INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)            !Contains excit level list
+    REAL*8 , ALLOCATABLE , TARGET :: WalkVecH(:,:),WalkVec2H(:,:)       !First element is diagonal hamiltonian element - second is the connection to HF determinant
+    INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
+    INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0
+
+!Pointers to point at the correct arrays for use
+    INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
+    LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
+    INTEGER , POINTER :: CurrentIC(:), NewIC(:)
+    REAL*8 , POINTER :: CurrentH(:,:), NewH(:,:)
+    TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
+    
+    INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
+    INTEGER :: HFDetTag=0
+    TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
+
+!MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
+    INTEGER :: MemoryFac=3000
+
+    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
+    INTEGER :: exFlag=3
+
+!This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
+!NoCulls is the number of culls in a given shift update cycle for each variable
+    INTEGER :: NoCulls=0
+!CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
+!Only 10 culls/growth increases are allowed in a given shift cycle
+    INTEGER :: CullInfo(10,3)
+
+!The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
+    REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
+    INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+    REAL*8 :: PosFrac           !This is the fraction of positive particles on each node
+    INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
+    REAL*8 :: MeanExcitLevel    
+    INTEGER :: MinExcitLevel
+    INTEGER :: MaxExcitLevel
+
+!These are the global variables, calculated on the root processor, from the values above
+    REAL*8 :: AllGrowRate,AllMeanExcitLevel
+    INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc
+    REAL*8 :: AllSumNoatHF,AllSumENum,AllPosFrac
+
+    REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
+
+    TYPE(HElement) :: rhii,FZero
+    REAL*8 :: Hii
+
+    REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
+    INTEGER :: GraphRhoMatTag=0
+
+    REAL*8 , ALLOCATABLE :: GraphVec(:)         !This stores the final components for the propagated graph in ResumFCIMC
+    INTEGER :: GraphVecTag=0
+
+    INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
+    INTEGER :: DetsinGraphTag=0
+
+    REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph.
+
+END MODULE FciMCParMod
+    
 #endif

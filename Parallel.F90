@@ -145,7 +145,7 @@ end Subroutine
 !MPIDSumRoot
 !Same as above, but only updates the value on the root processor
 Subroutine MPIDSumRoot(dValues,iLen,dReturn,Root)
-    REAL*8 :: dValues(*),dReturn(*)
+    REAL*8 :: dValues,dReturn
     INTEGER :: iLen
     INTEGER :: g,ierr,rc,Root
     g=MPI_COMM_WORLD
