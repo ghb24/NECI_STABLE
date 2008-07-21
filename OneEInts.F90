@@ -299,7 +299,7 @@ contains
         !    iSize: number of elements in TMat/TMatSym.
         ! Initial allocation of TMat2D or TMatSym (if using symmetry-compressed
         ! storage of the <i|h|j> integrals).
-        use System, only: tCPMD
+        use System, only: tCPMD,tVASP
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         use MemoryManager, only: LogMemAlloc
@@ -314,6 +314,7 @@ contains
         ! under Abelian symmetry: can use George's memory efficient
         ! TMAT.  
         if (tCPMD) tCPMDSymTMat=tKP
+        if (tVASP) tCPMDSymTMat=.true.
         IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
             ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
@@ -397,7 +398,7 @@ contains
         ! Initial allocation of TMat2D2 or TMatSym2 (if using symmetry-compressed
         ! storage of the <i|h|j> integrals) for post-freezing.
         ! See also notes in SetupTMat.
-        use System, only: tCPMD
+        use System, only: tCPMD,tVASP
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         use MemoryManager, only: LogMemAlloc
@@ -412,6 +413,7 @@ contains
         ! under Abelian symmetry: can use George's memory efficient
         ! TMAT.
         if (tCPMD) tCPMDSymTMat=tKP
+        if (tVASP) tCPMDSymTMat=.true.
         IF(TSTARSTORE.or.tCPMDSymTMat) THEN 
             ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
