@@ -7,7 +7,7 @@ MODULE System
 
         LOGICAL TSTARBIN,TREADINT,THFORDER,TDFREAD,TPBC,TUEG,TCPMD,THUB
         LOGICAL TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT
-        LOGICAL TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore
+        LOGICAL TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP
         INTEGER LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB
         INTEGER iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY
         REAL*8 BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB
@@ -87,6 +87,7 @@ MODULE System
           TPBC=.false.
           TUEG=.false.
           TCPMD=.false.
+          tVASP=.false.
           THUB=.false.
           TUEG=.false.
           LMS=0
@@ -176,11 +177,13 @@ MODULE System
             TPBC=.true.
         case("UEG")
             TUEG = .true.
+        case("VASP")
+            tVASP= .true.
         case("CPMD")
             TCPMD = .true.
             call readu(w)
             select case(w)
-        case("ORDER")
+            case("ORDER")
                 THFORDER = .true.
             end select
         case default
@@ -312,7 +315,7 @@ MODULE System
         end do system
         if(NEL.eq.0)                                                    &
      &     call report("Number of electrons cannot be zero.",.true.)
-        if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD)) then
+        if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then
            if(NMAXX.EQ.0)                                               &
      &        call report("Must specify CELL "                          &
      &        //"- the number of basis functions in each dim.",         &
@@ -336,6 +339,7 @@ MODULE System
         
         Subroutine SysInit
             Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+            implicit none
             character(25), parameter :: this_routine='SysInit'
             integer ierr
 
@@ -432,6 +436,9 @@ MODULE System
             CALL WRITEALLSYM(5,SymRestrict)
          ENDIF
          IF(THFORDER) WRITE(6,*)      "Ordering according to 1-electron energies."
+      ELSEIF(tVASP) THEN
+         WRITE(6,*) ' *** GENERIC SYSTEM USING HF ORBITALS PRODUCED BY VASP *** '
+         CALL VASPSystemInit(LEN)   
       ELSEIF(TREADINT) THEN
 !C.. we read in the integrals from FCIDUMP and ignore most config
 !C..   
@@ -650,6 +657,11 @@ MODULE System
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
          NBASIS=LEN
          iSpinSkip=NBasisMax(2,3)
+      ELSEIF(tVASP) THEN
+         WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM VASP *** '
+         CALL VASPBasisInit(ARR,BRR,G1,LEN) ! This also modifies nBasisMax
+         NBASIS=LEN
+         iSpinSkip=NBasisMax(2,3)
       ELSEIF(TREADINT.AND.TDFREAD) THEN
          WRITE(6,*) ' *** Creating Basis Fns from Dalton output ***'
          call InitDaltonBasis(nBasisMax,Arr,Brr,G1,Len)
@@ -751,6 +763,10 @@ MODULE System
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
          CALL GENCPMDSYMREPS(G1,NBASIS,ARR,BRR,1.d-5)
+      ELSEIF(tVASP) THEN
+!C.. If VASP-based calculation, then we've generated the symmetry table earlier,
+!C.. but we still need the sym reps table. DEGENTOL=1.d-6. CHECK w/AJWT.
+         CALL GENSYMREPS(G1,NBASIS,ARR,BRR,1.d-6)
       ELSEIF(THUB.AND..NOT.TREAL) THEN
          CALL GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
          CALL GENHUBSYMREPS(nBasis/2,G1,NBASIS,ARR,BRR)
