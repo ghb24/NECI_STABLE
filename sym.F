@@ -1533,11 +1533,10 @@ C.. Set to be totally symmetric
 !Deal with K-point symmetries, using translational symmetry operations.
       ! JSS: use Abelian symmetry formulation (allows us to go beyond 64
       ! symmetry operations, and hence deal with larger k-point meshes).
-      SUBROUTINE GenKPtIrreps(cKptChars,nTranslat,nKps,KpntInd,nStates)
+      SUBROUTINE GenKPtIrreps(nTranslat,nKps,KpntInd,nStates)
       use System, only: Symmetry,SymmetrySize,SymmetrySizeB
       use System, only: BasisFN,BasisFNSize,BasisFNSizeB
       IMPLICIT NONE
-      COMPLEX*16 cKptChars(nTranslat,nKps)
       INTEGER nTranslat,nKps,KpntInd(nStates)
       INTEGER I,J,nStates
       integer*8  ComposeAbelianSym
@@ -1549,11 +1548,6 @@ C.. Set to be totally symmetric
       CALL AZZERO(SYMLABELCHARS,nSymLabels*nRot*2)
       CALL MEMORY(IP_SYMLABELS,nSymLabels,'SYMLABELS')
       CALL MEMORY(IP_SymClasses,nStates,'SymClasses')
-!     DO I=1,nKps
-!        DO J=1,nRot
-!           SymLabelChars(J,I)=cKptChars(J,I)
-!        ENDDO
-!     ENDDO
       DO I=1,nStates
         SymClasses(I)=KpntInd(I)
         SymLabels(KPntInd(I))%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))

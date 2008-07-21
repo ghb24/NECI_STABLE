@@ -38,7 +38,7 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
          IF(TKP) THEN
 !  We've got a k-point code, so we're not currently using spatial symmetry.  We use translational symmetry according to the k-points
 !            JSS: Use Abelian symmetry formulation.
-             CALL GenKPtIrreps(KPNT_CHAR,NKPTRANS,NKPS,KPNTIND,NSTATES)
+             CALL GenKPtIrreps(NKPTRANS,NKPS,KPNTIND,NSTATES)
          ELSE
              CALL ExtractSymLabels
              CALL GENIRREPS(TKP,IMPROPER_OP,NROTOP)
