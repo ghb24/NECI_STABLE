@@ -11,7 +11,7 @@ MODULE FciMCMod
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
-    USE Calc , only : NDets,RhoApp,TResumFCIMC
+    USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -44,7 +44,7 @@ MODULE FciMCMod
     INTEGER :: TransMatTag=0,PopsVecTag=0,SizeOfSpace
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=10000
+    INTEGER :: MemoryFac=1000
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
@@ -656,19 +656,19 @@ MODULE FciMCMod
 
         do i=1,RhoApp   !Cycle over the number of times we want to apply the rho matrix
 
-!            CALL DGEMV('n',Components,Components,1.D0,GraphRhoMat,Components,GraphVec,1,0.D0,TempVec,1)
-!            CALL DCOPY(Components,TempVec,1,GraphVec,1)
-!            CALL AZZERO(TempVec,Components)
+            CALL DGEMV('n',Components,Components,1.D0,GraphRhoMat,Components,GraphVec,1,0.D0,TempVec,1)
+            CALL DCOPY(Components,TempVec,1,GraphVec,1)
+            CALL AZZERO(TempVec,Components)
 
-            do j=1,Components
-                TempVec(j)=0.D0
-                do k=1,Components
-                    TempVec(j)=TempVec(j)+GraphRhoMat(j,k)*GraphVec(k)
-                enddo
-            enddo
-            do j=1,Components
-                GraphVec(j)=TempVec(j)
-            enddo
+!            do j=1,Components
+!                TempVec(j)=0.D0
+!                do k=1,Components
+!                    TempVec(j)=TempVec(j)+GraphRhoMat(j,k)*GraphVec(k)
+!                enddo
+!            enddo
+!            do j=1,Components
+!                GraphVec(j)=TempVec(j)
+!            enddo
             
         enddo
 
@@ -1171,17 +1171,17 @@ MODULE FciMCMod
 
 !Add to the estimate for the energy if we want to keep the particle
                     IF(ActiveVecSign(j)) THEN
-                        EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
+                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
                         NoPositive=NoPositive+1
                     ELSE
-                        EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
+                        IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
                         NoNegative=NoNegative+1
                     ENDIF
                     IF(IC.eq.0) THEN
                         IF(ActiveVecSign(j)) THEN
-                            NoatHF=NoatHF+1
+                            IF(Iter.gt.NEquilSteps) NoatHF=NoatHF+1
                         ELSE
-                            NoatHF=NoatHF-1
+                            IF(Iter.gt.NEquilSteps) NoatHF=NoatHF-1
                         ENDIF
                     ENDIF
 
@@ -1209,17 +1209,17 @@ MODULE FciMCMod
 
 !Add to the estimate for the energy if we want to keep the particle
                         IF(ActiveVecSign(j)) THEN
-                            EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
+                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum+(REAL(Hamij%v,r2))
                             NoPositive=NoPositive+1
                         ELSE
-                            EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
+                            IF(Iter.gt.NEquilSteps) EnergyNum=EnergyNum-(REAL(Hamij%v,r2))
                             NoNegative=NoNegative+1
                         ENDIF
                         IF(IC.eq.0) THEN
                             IF(ActiveVecSign(j)) THEN
-                                NoatHF=NoatHF+1
+                                IF(Iter.gt.NEquilSteps) NoatHF=NoatHF+1
                             ELSE
-                                NoatHF=NoatHF-1
+                                IF(Iter.gt.NEquilSteps) NoatHF=NoatHF-1
                             ENDIF
                         ENDIF
 

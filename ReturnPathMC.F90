@@ -5,6 +5,7 @@ MODULE ReturnPathMCMod
     USE Calc , only : PRet  !This is the probability of generating the return determinant to spawn to
     USE Calc , only : CLMax   !This is the maximum allowed chain length
     USE Calc , only : TRhoElems     !This tells us to use rho elements rather than H-elements
+    USE Calc , only : NEquilSteps
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat,nTay
@@ -330,9 +331,9 @@ MODULE ReturnPathMCMod
         IF(Particle%ChainLength.eq.1) THEN
 !We are at a double excitation - sum the energy into SumENum
             IF(Particle%WSign) THEN
-                SumENum=SumENum+Particle%Hi0
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum+Particle%Hi0
             ELSE
-                SumENum=SumENum-Particle%Hi0
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum-Particle%Hi0
             ENDIF
             ExLevel=Particle%IC0(1)
             MeanExit=MeanExit+ExLevel
@@ -342,10 +343,10 @@ MODULE ReturnPathMCMod
 !We are at HF - sum in energy and correction to SumNoatHF
 !                IF(Particle%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
             IF(Particle%WSign) THEN
-                SumNoatHF=SumNoatHF+1
+                IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
             ELSE
                 CALL STOPGM("DoNMCyc","Should not have negative particles at HF")
-                SumNoatHF=SumNoatHF-1
+                IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
             ENDIF
             ExLevel=0
             IF(ExLevel.lt.MinExit) MinExit=ExLevel

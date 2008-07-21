@@ -7,9 +7,9 @@
 MODULE FciMCParMod
     USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
     USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    USE Calc , only : TStartMP1
+    USE Calc , only : TStartMP1,NEquilSteps
     USE Calc , only : GrowMaxFactor,CullFactor
-    USE Calc , only : RhoApp,TResumFCIMC
+    USE Calc , only : NDets,RhoApp,TResumFCIMC
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -48,7 +48,7 @@ MODULE FciMCParMod
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=3000
+    INTEGER :: MemoryFac=700
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
@@ -85,10 +85,11 @@ MODULE FciMCParMod
     REAL*8 , ALLOCATABLE :: GraphVec(:)         !This stores the final components for the propagated graph in ResumFCIMC
     INTEGER :: GraphVecTag=0
 
+    REAL*8 , ALLOCATABLE :: GraphKii(:)         !This stores the diagonal Kii matrix elements for the determinants in the graph
+    INTEGER :: GraphKiiTag=0
+
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
-
-    REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph.
 
     contains
 
@@ -103,8 +104,8 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E      +veWalkFrac     MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
-            WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E      +veWalkFrac     MeanExcitLevel   MinExcitLevel   MaxExcitLevel"
+            WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers        Proj.E      +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
+            WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers         Proj.E      +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
 !TotWalkersOld is the number of walkers last time the shift was changed
             WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
             WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
@@ -144,6 +145,17 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,WalkVecHTag)
         DEALLOCATE(WalkVec2H)
         CALL LogMemDealloc(this_routine,WalkVec2HTag)
+        
+        IF(TResumFCIMC.and.(NDets.gt.2)) THEN
+            DEALLOCATE(GraphRhoMat)
+            CALL LogMemDealloc(this_routine,GraphRhoMatTag)
+            DEALLOCATE(GraphVec)
+            CALL LogMemDealloc(this_routine,GraphVecTag)
+            DEALLOCATE(GraphKii)
+            CALL LogMemDealloc(this_routine,GraphKiiTag)
+            DEALLOCATE(DetsinGraph)
+            CALL LogMemDealloc(this_routine,DetsinGraphTag)
+        ENDIF
 
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)
@@ -188,16 +200,23 @@ MODULE FciMCParMod
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             CALL SetupExitgenPar(CurrentDets(:,j),CurrentExcits(j))
-
-            CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
-
+            
             IF(TResumFCIMC) THEN
-                WRITE(6,*) "Resum facility not yet operational"
-                CALL FLUSH(6)
-                CALL MPIStopAll(1)
 
-                CALL ResumFciMCPar(CurrentDets(:,j),CurrentSign(j),CurrentH(1,j),nJ,IC,Prob,VecSlot,CurrentExcits(j),j)
+                IF(NDets.eq.2) THEN
+
+                    CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                    CALL ResumFciMCPar(CurrentDets(:,j),CurrentSign(j),CurrentH(1,j),nJ,IC,Prob,VecSlot,CurrentExcits(j),j)
+
+                ELSE
+
+                    CALL ResumGraphPar(CurrentDets(:,j),CurrentSign(j),VecSlot,CurrentExcits(j),j)
+
+                ENDIF
+
             ELSE
+
+                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
 !Calculate number of children to spawn
  
                 Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
@@ -370,18 +389,18 @@ MODULE FciMCParMod
         IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
         IF(ExcitLevel.eq.0) THEN
             IF(WSign) THEN
-                SumNoatHF=SumNoatHF+1
+                IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
                 PosFrac=PosFrac+1.D0
             ELSE
-                SumNoatHF=SumNoatHF-1
+                IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
             ENDIF
         ELSEIF(ExcitLevel.eq.2) THEN
 !At double excit - sum in energy
             IF(WSign) THEN
-                SumENum=SumENum+Hij0
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum+Hij0
                 PosFrac=PosFrac+1.D0
             ELSE
-                SumENum=SumENum-Hij0
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum-Hij0
             ENDIF
         ELSE
             IF(WSign) THEN
@@ -393,8 +412,151 @@ MODULE FciMCParMod
 
     END SUBROUTINE SumEContrib
     
+    SUBROUTINE ResumGraphPar(nI,WSign,VecSlot,nIExcitGen,VecInd)
+        INTEGER :: nI(NEl),VecSlot,VecInd,ExcitLevel,iGetExcitLevel,Create,i,j
+        TYPE(ExcitGenerator) :: nIExcitGen
+        TYPE(HElement) :: HOffDiag
+        LOGICAL :: WSign,ChildSign
+        REAL*8 :: Prob,rat,Ran2
 
-!This performs a resummed FCIMC calculation, where small graphs are created from each walker at the space, and the true matrix propagated around
+        CALL CreateGraphPar(nI,nIExcitGen,Prob,VecInd)      !Create graph with NDets distinct determinants
+        CALL ApplyRhoMatPar()   !Apply the rho matrix successive times
+
+!First find how many to create at the root determinant
+        Create=INT(abs(GraphVec(1)))
+        rat=abs(GraphVec(1))-REAL(Create,r2)
+        IF(rat.gt.Ran2(Seed)) Create=Create+1
+        IF(.not.WSign) Create=-Create
+        IF(GraphVec(1).lt.0.D0) Create=-Create
+        do j=1,abs(Create)
+            NewDets(:,VecSlot)=nI(:)
+            IF(Create.lt.0) THEN
+                NewSign(VecSlot)=.false.
+            ELSE
+                NewSign(VecSlot)=.true.
+            ENDIF
+            NewIC(VecSlot)=CurrentIC(VecInd)
+            NewH(:,VecSlot)=CurrentH(:,VecInd)
+            CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot))
+            VecSlot=VecSlot+1
+        enddo
+
+        do i=2,NDets
+!Now create the new particles according the the final vector GraphVec
+            
+            GraphVec(i)=GraphVec(i)/((NDets-1)*Prob)    !Augment the component by the chances of picking that determinant
+    
+            Create=INT(abs(GraphVec(i)))
+            rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+            IF(rat.gt.Ran2(Seed)) Create=Create+1
+            IF(abs(Create).gt.0) THEN
+                IF(.not.WSign) Create=-Create
+                IF(GraphVec(i).lt.0.D0) Create=-Create
+!Find needed information out about the new particles
+!Calculate excitation level, connection to HF. Diagonal ham element info is already stored
+                
+                ExcitLevel=iGetExcitLevel(HFDet,DetsinGraph(:,i),NEl)
+                IF(ExcitLevel.eq.2) THEN
+!Only need it for double excitations, since these are the only ones which contribute to energy
+                    HOffDiag=GetHElement2(HFDet,DetsinGraph(:,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                ENDIF
+                IF(Create.lt.0) THEN
+                    ChildSign=.false.
+                ELSE
+                    ChildSign=.true.
+                ENDIF
+                
+!Now actually create the particles in NewDets and NewSign
+                do j=1,abs(Create)
+                    NewDets(:,VecSlot)=DetsInGraph(:,i)
+                    NewSign(VecSlot)=ChildSign
+                    NewIC(VecSlot)=ExcitLevel
+                    NewH(1,VecSlot)=GraphKii(i)       !Diagonal H El previously stored
+                    NewH(2,VecSlot)=REAL(HOffDiag%v,r2)
+                    NewExcits(VecSlot)%ExitGenForDet=.false.
+                    VecSlot=VecSlot+1
+                enddo
+
+            ENDIF
+
+        enddo
+
+        RETURN
+
+    END SUBROUTINE ResumGraphPar
+
+    SUBROUTINE CreateGraphPar(nI,nIExcitGen,Prob,VecInd)
+        INTEGER :: nI(NEl),VecInd,nJ(NEl),iCount,IC,i,j,Attempts
+        TYPE(ExcitGenerator) :: nIExcitGen
+        REAL*8 :: Prob,Kii,ExcitProb
+        LOGICAL :: SameDet,CompiPath
+        TYPE(HElement) :: Hamij,Hamii
+
+        CALL AZZERO(GraphRhoMat,NDets*NDets)
+
+!Do not need to put the root determinant in the first column of DetsinGraph -
+!just assume its there.
+        
+        Kii=CurrentH(1,VecInd)      !This is now the Kii element of the root
+        GraphRhoMat(1,1)=1.D0-Tau*(Kii-DiagSft)
+
+        i=2
+        do while(i.lt.NDets)    !Loop until all determinants found
+
+            CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+
+            SameDet=.false.
+            do j=2,(i-1)
+                IF(CompiPath(nJ,DetsinGraph(:,j),NEl)) THEN
+!Determinants are the same as already created determinant - ignore it
+    
+                    SameDet=.true.
+                    Attempts=Attempts+1
+                    IF(Attempts.gt.100) CALL STOPGM("CreateGraphPar","More than 100 attempts needed to grow graph")
+                    EXIT
+                ENDIF
+            enddo
+
+            IF(.not.SameDet) THEN
+!Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
+                IF(i.eq.2) THEN
+                    ExcitProb=Prob
+                ELSE
+                    IF(abs(Prob-ExcitProb).gt.1.D-07) THEN
+                        CALL STOPGM("CreateGraph","Excitation probabilities are not uniform - problem here...")
+                    ENDIF
+                ENDIF
+
+!Determinant is distinct - add it
+                DetsinGraph(:,i)=nJ(:)
+!First find connection to root
+                Hamij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+                GraphRhoMat(1,i)=-Tau*REAL(Hamij%v,r2)
+                GraphRhoMat(i,1)=GraphRhoMat(1,i)
+
+!Then find connection to other determinants
+                do j=2,(i-1)
+                    Hamij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
+                    GraphRhoMat(i,j)=-Tau*REAL(Hamij%v,r2)
+                    GraphRhoMat(j,i)=GraphRhoMat(i,j)
+                enddo
+
+!Find diagonal element - and store it for later on...
+                Hamii=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                GraphKii(i)=REAL(Hamii%v,r2)-Hii                !Again, the root value is not stored
+                GraphRhoMat(i,i)=1.D0-Tau*(GraphKii(i)-DiagSft)
+                
+                i=i+1
+
+            ENDIF
+        enddo
+
+        RETURN
+
+    END SUBROUTINE CreateGraphPar
+
+
+!This performs a resummed FCIMC calculation, where two-vertex graphs are created from each walker at the space, and the true matrix propagated around
     SUBROUTINE ResumFciMCPar(nI,WSign,Kii,nJ,IC,Prob,VecSlot,nIExcitGen,VecInd)
         INTEGER :: IC,nI(NEl),nJ(NEl),VecSlot,VecInd
         TYPE(ExcitGenerator) :: nIExcitGen
@@ -412,7 +574,11 @@ MODULE FciMCParMod
         RhoMat(2,1)=RhoMat(1,2)
         RhoMat(2,2)=1.D0-Tau*(Kjj-DiagSft)
 
-        CALL ApplyRhoMatPar(RhoMat,Vector)  !Successivly apply the rho matrix to the particle RhoApp times
+!        WRITE(6,*) "Rhomat is : ",RhoMat
+
+        CALL ApplyRhoMatTwoPar(RhoMat,Vector)  !Successivly apply the rho matrix to the particle RhoApp times
+
+!        WRITE(6,*) "Rhomat applied to get : ",Vector
 
         Vector(2)=Vector(2)/Prob         !Divide the final weight of the excitation by the probability of creating it
 
@@ -435,7 +601,7 @@ MODULE FciMCParMod
 !First deal with root
         Create=INT(abs(Vector(1)))
 
-        rat=abs(GraphVec(1))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+        rat=abs(Vector(1))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
         IF(rat.gt.Ran2(Seed)) Create=Create+1
         
         IF((abs(Create)).gt.0) THEN
@@ -474,7 +640,7 @@ MODULE FciMCParMod
 !Now do the same for the excitation...
         Create=INT(abs(Vector(2)))
 
-        rat=abs(GraphVec(2))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+        rat=abs(Vector(2))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
         IF(rat.gt.Ran2(Seed)) Create=Create+1
         
         IF((abs(Create)).gt.0) THEN
@@ -513,8 +679,36 @@ MODULE FciMCParMod
     END SUBROUTINE CreateNewPartsPar
 
 !This applies the rho matrix successive times to a root determinant. From this, GraphVec is filled with the correct probabilities for the determinants in the graph
-    SUBROUTINE ApplyRhoMatPar(RhoMat,FinalVec)
-        IMPLICIT NONE
+    SUBROUTINE ApplyRhoMatPar()
+        REAL*8 :: TempVec(NDets)
+        INTEGER :: i,j,k
+
+        CALL AZZERO(GraphVec,NDets)
+        GraphVec(1)=1.D0        !Set the initial vector to be 1 at the root (i.e. for one walker initially)
+        
+        do i=1,RhoApp
+
+            CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
+            CALL DCOPY(NDets,TempVec,1,GraphVec,1)
+            CALL AZZERO(TempVec,NDets)
+            
+!            do j=1,NDets
+!                TempVec(j)=0.D0
+!                do k=1,NDets
+!                    TempVec(j)=TempVec(j)+GraphRhoMat(j,k)*GraphVec(k)
+!                enddo
+!            enddo
+!            GraphVec(:)=TempVec(:)
+
+        enddo
+
+        RETURN
+
+    END SUBROUTINE ApplyRhoMatPar
+
+
+!This applies the rho matrix successive times to a root determinant for two vertex graphs. From this, GraphVec is filled with the correct probabilities for the determinants in the graph
+    SUBROUTINE ApplyRhoMatTwoPar(RhoMat,FinalVec)
         REAL*8 :: RhoMat(2,2),FinalVec(2),TempVec(2)
         INTEGER :: i,j,k
         
@@ -523,26 +717,22 @@ MODULE FciMCParMod
 
         do i=1,RhoApp   !Cycle over the number of times we want to apply the rho matrix
 
-!            CALL DGEMV('n',Components,Components,1.D0,GraphRhoMat,Components,GraphVec,1,0.D0,TempVec,1)
+!            CALL DGEMV('n',Components,Components,1.D0,RhoMat,Components,GraphVec,1,0.D0,TempVec,1)
 !            CALL DCOPY(Components,TempVec,1,GraphVec,1)
 !            CALL AZZERO(TempVec,Components)
 
-            TempVec(1)=0.D0
-            TempVec(2)=0.D0
-            
-            TempVec(1)=TempVec(1)+GraphRhoMat(1,1)*FinalVec(1)
-            TempVec(1)=TempVec(1)+GraphRhoMat(1,2)*FinalVec(2)
-            
-            TempVec(2)=TempVec(2)+GraphRhoMat(2,1)*FinalVec(1)
-            TempVec(2)=TempVec(2)+GraphRhoMat(2,2)*FinalVec(2)
+            TempVec(1)=(RhoMat(1,1)*FinalVec(1))+(RhoMat(1,2)*FinalVec(2))
+            TempVec(2)=(RhoMat(2,1)*FinalVec(1))+(RhoMat(2,2)*FinalVec(2))
             
             FinalVec(1)=TempVec(1)
             FinalVec(2)=TempVec(2)
+
+!            WRITE(6,*) "TempVec for i=",i," is: ",TempVec
             
         enddo
 
         RETURN
-    END SUBROUTINE ApplyRhoMatPar
+    END SUBROUTINE ApplyRhoMatTwoPar
 
 
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
@@ -628,9 +818,9 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-!            CALL FLUSH(15)
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            CALL FLUSH(15)
 !            CALL FLUSH(6)
         ENDIF
 
@@ -943,10 +1133,9 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        USE DetCalc , only : NDet
-        IMPLICIT NONE
+        USE Calc, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot
+        INTEGER :: DetLT,VecSlot,error
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
 
@@ -972,7 +1161,6 @@ MODULE FciMCParMod
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed-iProcIndex
-!        WRITE(18,*) iProcIndex
 
 !Calculate Hii
         TempHii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -1002,8 +1190,29 @@ MODULE FciMCParMod
         ENDIF
 
         IF(TResumFciMC) THEN
+            IF(NDets.gt.2) THEN
+                IF(.not.EXCITFUNCS(10)) THEN
+                    WRITE(6,*) "Cannot have an excitation bias with multiple determinant graphs...exiting."
+                    CALL STOPGM("InitFCIMCCalcPar","Cannot have biasing with Graphsizes > 2")
+                ENDIF
+
+!Allocate memory for graphs...
+                ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
+                CALL LogMemAlloc('GraphRhoMat',NDets**2,8,this_routine,GraphRhoMatTag,ierr)
+                ALLOCATE(GraphVec(NDets),stat=ierr)
+                CALL LogMemAlloc('GraphVec',NDets,8,this_routine,GraphVecTag,ierr)
+                ALLOCATE(GraphKii(NDets),stat=ierr)
+                CALL LogMemAlloc('GraphKii',NDets,8,this_routine,GraphKiiTag,ierr)
+                ALLOCATE(DetsinGraph(NEl,NDets),stat=ierr)
+                CALL LogMemAlloc('DetsinGraph',NDets*NEl,4,this_routine,DetsinGraphTag,ierr)
+                
+            ELSEIF(NDets.lt.2) THEN
+                WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
+                CALL STOPGM("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
+            ENDIF
             IF(iProcIndex) THEN
-                WRITE(6,*) "Resumming in multiple transitions to/from each excitation - only ONE excitation supported in each graph"
+                WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
+                WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
             ENDIF
         ENDIF
         WRITE(6,*) ""
@@ -1026,6 +1235,9 @@ MODULE FciMCParMod
 
 !Set the maximum number of walkers allowed
             MaxWalkers=MemoryFac*InitWalkers
+
+!Put a barrier here so all processes synchronise
+            CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
 !Allocate memory to hold walkers
             ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
@@ -1066,6 +1278,11 @@ MODULE FciMCParMod
                 CurrentIC(j)=0
             enddo
 
+            WRITE(6,*) "Initial memory allocation sucessful..."
+
+!Put a barrier here so all processes synchronise
+            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL STOPGM("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
@@ -1079,6 +1296,9 @@ MODULE FciMCParMod
                 CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
             enddo
 
+            WRITE(6,*) "Initial allocation of excitation generators successful..."
+            CALL FLUSH(6)
+
         ENDIF
 
 !TotWalkers contains the number of current walkers at each step
@@ -1087,6 +1307,9 @@ MODULE FciMCParMod
 
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
+
+!Put a barrier here so all processes synchronise
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
         RETURN
 
@@ -1354,8 +1577,6 @@ MODULE FciMCParMod
 
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
-
-    REAL*8 :: RootExcitProb     !This is the probability of generating an excitation from the current root in the ResumFCIMC current graph.
 
     contains
 

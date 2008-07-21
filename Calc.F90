@@ -28,7 +28,7 @@ MODULE Calc
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
         INTEGER InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
-        INTEGER RhoApp
+        INTEGER RhoApp,NEquilSteps
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
@@ -73,6 +73,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          NEquilSteps=0
           RhoApp=10
           TResumFCIMC=.false.
           TRhoElems=.false.
@@ -636,6 +637,11 @@ MODULE Calc
               case("CULLFACTOR")
 !For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
                   call getf(CullFactor)
+              case("EQUILSTEPS")
+!For FCIMC, this indicates the number of cycles which have to
+!pass before the energy of the system from the doubles
+!population is counted
+                  call geti(NEquilSteps)
               case("NOBIRTH")
 !For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
                   TNoBirth=.true.

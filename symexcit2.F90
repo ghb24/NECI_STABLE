@@ -259,31 +259,33 @@ MODULE SymExcit2
             ENDIF
 !            CALL TIHALT('UMATELWT',ISUB)
          ENDIF
-         IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN
-            W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
-            IF(ABS(W2).LT.1.D-2) W2=1.D-2
-            Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
-         ENDIF
-         IF(EXCITFUNCS(1)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2,CUR_VERT))
-         !chempotweighting - using a chemical potential cut-off
-         IF(EXCITFUNCS(4)) THEN
-             IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
-             IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
-                Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+         IF(.not.EXCITFUNCS(10)) THEN
+             IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN
+                W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
+                IF(ABS(W2).LT.1.D-2) W2=1.D-2
+                Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
              ENDIF
-         ENDIF
-         !CHEMPOT-TWOFROM
-         IF(EXCITFUNCS(5)) THEN
-             IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
-             IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
-                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+             IF(EXCITFUNCS(1)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2,CUR_VERT))
+!chempotweighting - using a chemical potential cut-off
+             IF(EXCITFUNCS(4)) THEN
+                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
+                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
+                    Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+                 ENDIF
              ENDIF
-         ENDIF
-         !PolyExcitWeighting
-         IF(EXCITFUNCS(2)) THEN
-             IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2,CUR_VERT)) Weight=Weight
-             IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2,CUR_VERT)) THEN
-                 Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+!CHEMPOT-TWOFROM
+             IF(EXCITFUNCS(5)) THEN
+                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
+                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
+                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+                 ENDIF
+             ENDIF
+!PolyExcitWeighting
+             IF(EXCITFUNCS(2)) THEN
+                 IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2,CUR_VERT)) Weight=Weight
+                 IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2,CUR_VERT)) THEN
+                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+                 ENDIF
              ENDIF
          ENDIF
          RETURN
