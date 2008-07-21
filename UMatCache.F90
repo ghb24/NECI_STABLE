@@ -102,6 +102,7 @@ MODULE UMatCache
       integer :: tagOUMatLabels=0
       integer :: tagTMat2D=0
       integer :: tagTMat2D2=0
+      integer :: tagUMat2D=0
 
       Contains
 
@@ -325,7 +326,8 @@ MODULE UMatCache
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-         use System, only: Symmetry,BasisFN
+         use System, only: Symmetry,BasisFN,tVASP
+         use vasp_neci_interface, only: CONSTRUCT_IJAB_one
          IMPLICIT NONE
          TYPE(HElement) GetUMatEl
          INTEGER NBASISMAX(5,3),I,J,K,L,NHG,ISS
@@ -333,6 +335,7 @@ MODULE UMatCache
          REAL*8 ALAT(3),GetNan
          TYPE(HElement) UMAT(*)
          TYPE(HElement) UElems(0:nTypes-1)
+         complex*16 VaspInt(1,1)
          INTEGER A,B,C,XXX
          INTEGER IDI,IDJ,IDK,IDL
          REAL*8 SUM
@@ -422,6 +425,13 @@ MODULE UMatCache
 !   We're using density fitting
                      Call GetDF2EInt(I,J,K,L,UElems)
                      GetUMatEl=UElems(0)
+                  ELSE IF (tVASP) then
+                     IF(TTRANSFINDX) THEN
+                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),VASPInt)
+                     ELSE
+                        CALL CONSTRUCT_IJAB_one(I,J,K,L,VASPInt)
+                     END IF
+                     UElems(1)%v=VASPInt(1,1)
                   ELSE
 !   Otherwise we call CPMD
                      IF(TTRANSFINDX) THEN
