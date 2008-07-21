@@ -314,7 +314,7 @@ MODULE Integrals
             Use System, only : nBasisMax, Alpha,BHub, BRR,nmsh
             Use System, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
             Use System, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER
-            Use System, only: thub,tpbc,treadint,ttilt,TUEG     
+            Use System, only: thub,tpbc,treadint,ttilt,TUEG,tVASP
             Use System, only: uhub, arr,alat,treal
             INTEGER iCacheFlag
             COMPLEX*16 COEFF(*)
@@ -360,6 +360,10 @@ MODULE Integrals
                 CALL GENSymStatePairs(nBasis/2,.false.)
                 CALL SetupTMAT(nBasis,2,TMATINT)
                 CALL CPMDINIT2INDINT(nBasis,I,NBASISMAX,ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
+             ELSEIF(tVASP) THEN
+                CALL GENSymStatePairs(nBasis/2,.false.)
+                CALL SetupTMAT(nBasis,2,TMATINT)
+                CALL VASPInitIntegrals(I,ECore,tHFOrder)
              ELSEIF(TREADINT.AND.TDFREAD) THEN
                 Allocate(UMat(1), stat=ierr)
                 LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
