@@ -37,11 +37,13 @@ else
 fi
 echo "Using platform: $platform"
 
-./mkconfig.sh $dbgflag $platform -DEST=${PWD}/dest> Makefile2
+./mkconfig.sh $dbgflag $platform -DEST=${PWD}/DESTDIR > mktemplate
 
 cp irat.inc dest
-sed -e 's/#CMPLXFLAG//' Makefile2 > Makefile
-cp Makefile dest
+cp irat.inc kdest
+sed -e 's/#CMPLXFLAG//' -e "s/DESTDIR/dest/" mktemplate > dest/Makefile
+sed -e 's/#CMPLXFLAG/-D__CMPLX/' -e "s/DESTDIR/kdest/"  mktemplate > kdest/Makefile
+
 touch *.F *.F90
 make clean
 cd dest
