@@ -32,18 +32,18 @@ module Parallel
 Contains
 
 ! MPIInit
-!     tCPMD    (in) Set if using CPMD's MPI interface, so we don't have to init our own.
+!     tExternal    (in) Set if using VASP/CPMD's MPI interface, so we don't have to init our own.
 !
 !Determine the number of processors, and fork each off to its own NodeFile output file
 
-Subroutine MPIInit(tCPMD)
+Subroutine MPIInit(tExternal)
    Use Determinants, only: FDet
    implicit none
-   logical tCPMD
+   logical tExternal
    integer numtasks, rank, ierr, rc
    integer a,b,g
    character*20 NodeFile
-   if(tCPMD) then
+   if(tExternal) then
      write(6,*) 'Using CPMD MPI configuration'
    else 
      write(6,*) 'Initing MPI'
@@ -56,7 +56,7 @@ Subroutine MPIInit(tCPMD)
    endif
    call MPI_COMM_RANK(MPI_COMM_WORLD, iProcIndex, ierr)
    call MPI_COMM_SIZE(MPI_COMM_WORLD, nProcessors, ierr)
-   if(tCPMD) then
+   if(tExternal) then
       write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
    else
       if(iProcIndex.eq.0) then
@@ -84,15 +84,16 @@ end Subroutine
 
 ! MPIEnd
 !
-!  tCPMD    (in)  Set if using CPMD's MPI interface
+!  tExternal    (in)  Set if using an external program's MPI interface
+!  (currently CPMD or VASP).
 !
-!  Shutdown our MPI Interface if we're not using CPMD's
-Subroutine MPIEnd(tCPMD)
+!  Shutdown our MPI Interface if we're not using CPMD/VASP's
+Subroutine MPIEnd(tExternal)
    uSe mpi
    implicit none
-   logical tCPMD
+   logical tExternal
    integer ierr
-   if(.not.tCPMD) then
+   if(.not.tExternal) then
       call MPI_FINALIZE(ierr)
    endif
 end subroutine
