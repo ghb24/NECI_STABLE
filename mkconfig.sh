@@ -353,20 +353,27 @@ cat << END >&3
 clean : 
 	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(DEST)/*.o \$(DEST)/*.mod
 
-neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS) \$(OBJ_CC)
+neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
 	 rm -f neci.x
 	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/neci.x neci.x; fi
-	 \$(LD) -o \$(BIN)/neci.x necimain.o timetag.o \$(OBJECTS) \$(OBJ_CC) \$(LFLAGS)
+	 \$(LD) -o \$(BIN)/neci.x necimain.o timetag.o \$(OBJECTS) \$(LFLAGS)
 
-neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
+neci-cpmd.a : \$(OBJECTSCPMDLIB)
 	 rm -f timetag.f
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
 	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
-	 \$(LDLIB) \$(LDLIBFLAGS) -r -o \$(DEST)/neci2.a timetag.o \$(OBJECTSNOCPMD) \$(OBJ_CC)
-	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci.a
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a timetag.o \$(OBJECTSCPMDLIB)
+	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-cpmd.a
+
+neci-vasp.a : \$(OBJECTSVASPLIB)
+	 rm -f timetag.f
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
+	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a timetag.o \$(OBJECTSVASPLIB)
+	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
 
 #----------------------------------------------------------------------------
 # Generate library libcpmd.a
@@ -428,10 +435,17 @@ neci.x : \$(DEST)/necimain.o \$(DOBJECTS) \$(OBJ_CC)
 	 rm -f \$(DEST)/neci.x
 	 \$(LD) -o \$(DEST)/neci.x \$(DEST)/necimain.o \$(DEST)/timetag.o \$(DOBJECTS) \$(OBJ_CC) \$(LFLAGS)
 
-neci.a : \$(OBJECTSNOCPMD) \$(OBJ_CC)
-	 \$(FC) -o \$(DEST)/timetag.o \$(CPPFLAGS) \$(FFLAGS) timetag.F
-	 \$(LD) \$(LDFLAGS) -r -o \$(DEST)/neci2.a \$(DEST)/timetag.o \$(DOBJECTSNOCPMD) \$(OBJ_CC)
-	 objcopy --keep-global-symbols=GLOBALS \$(DEST)/neci2.a \$(DEST)/neci.a
+neci-cpmd.a : \$(OBJECTSCPMDLIB)
+	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/timetag.f
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/timetag.o \$(OBJECTSCPMDLIB)
+	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-cpmd.a
+     rm neci2.a
+
+neci-vasp.a : \$(OBJECTSVASPLIB)
+	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/timetag.f
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/timetag.o \$(OBJECTSCPMDLIB)
+	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
+     rm neci2.a
 
 #----------------------------------------------------------------------------
 # Explicit rules

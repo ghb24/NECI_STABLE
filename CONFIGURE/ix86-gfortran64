@@ -6,7 +6,7 @@
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
      LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lg2c'
-     LDFLAGS='-nostdlib' 
+     LDFLAGS='-nostdlib -r' 
      GLOBALS='GLOBALS-gfortran'
      if [ $debug ]; then
        FC='gfortran -c -g '

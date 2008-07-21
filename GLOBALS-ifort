@@ -17,3 +17,4 @@ memorymanager_mp_logmemalloc_
 memorymanager_mp_logmemdealloc_
 memorymanager_mp_leavememorymanager_
 memorymanager_mp_lookuppointer_
+vasp_interface_mp_necireceivevaspdata_
