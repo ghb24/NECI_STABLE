@@ -1,3 +1,5 @@
+! This file is obsolete, and has been replaced by necimain.
+      
 C ==------------------------------------------------------------------==
       SUBROUTINE NECICB(NEL,TSPN,LMS,TPARITY,IPARITY,NMAXX,NMAXY,
      &	NMAXZ,NMSH,BOX,BOA,COA,TALPHA,ALPHA,ISTATE,NEVAL,B2L,NCYCLE,
