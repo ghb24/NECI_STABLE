@@ -1,6 +1,6 @@
 ! NECICore is the main outline of the NECI Program.  It is called AFTER ReadInput has been called.
 
-Subroutine  NECICore(iCacheFlag, tCPMD)
+Subroutine  NECICore(iCacheFlag, tCPMD,tVASP)
     use MemoryManager, only: InitMemoryManager,LeaveMemoryManager
     use System, only : SysInit, SysCleanup
     use Integrals, only : IntInit, IntFreeze, IntCleanup, tPostFreezeHF
@@ -16,23 +16,23 @@ Subroutine  NECICore(iCacheFlag, tCPMD)
 !Set by CPMD to determine whether cache is saved
     Integer iCacheFlag
     INTEGER iSub
-    Logical tCPMD
+    Logical tCPMD,tVASP
     integer ios
     character(255) Filename
     Filename="";
     ios=0
 
 #ifdef PARALLEL
-    Call MPIInit(tCPMD)
+    Call MPIInit(tCPMD.or.tVASP)
 #endif
     call TimeTag()
     if (.not.TCPMD) then
         call Envir()
         call InitMemoryManager()
     end if
-    write (6,*)
+    write (6,*) 'tVASP',tVASP
     CALL TISET('NECICUBE  ',ISUB)
-    if(.not.tCPMD) THEN
+    if(.not.tCPMD.and..not.tVASP) THEN
         call ReadInputMain(Filename,ios)
         If (ios.ne.0) stop 'Error in Read'
     endif
