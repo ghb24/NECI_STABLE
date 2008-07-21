@@ -190,10 +190,10 @@ cat << END >&3
 # Author: `who am i | cut -d' ' -f 1`
 #----------------------------------------------------------------------------
 #
-SHELL = /bin/sh
+SHELL = /bin/bash
 #
 #--------------- Default Configuration for $Configuration ---------------
-SVNVER := \$(shell svn info | grep Revision |sed "s/Revision://")
+SVNVER := \$(shell grep Revision <(svn info || echo 'Revision:"not under svn"') |sed "s/Revision://")
 MAXMEM := 1024 # RAM available, in MB.
 compiler = ${compiler}
 SRC  = .
