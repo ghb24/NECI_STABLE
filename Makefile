@@ -43,6 +43,12 @@ clean:
 	cd dest; ${MAKE} clean
 	cd kdest; ${MAKE} clean
 
+mkfiles:
+	./compile -m
+
+dbgmkfiles:
+	./compile -d -m
+
 help:
 	@echo -e \
 "neci		make neci.x.\n"\
@@ -56,4 +62,6 @@ help:
 "neci-vasp	make neci library for integration with gamma-point (currently not implemented in vasp) and k-point versions of vasp.\n"\
 "all		make neci.x and all four libraries.\n"\
 "newall		produce new makefiles and clean make of neci.x and all four libraries.\n"\
+"mkfiles    make new makefiles.\n"\
+"dbgmkfiles make new makefiles with debug flags on.\n"\
 "clean		remove all *.f*, *.o, *.mod, *.a and *.x from the dest and kdest subdirectories."

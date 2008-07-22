@@ -3,17 +3,26 @@
 usage() {
     cat<<END
 usage: ./compile [-d] [platform]
-Clean build of NECI using platform (default: PC-PGI64) as the configuration.
+Generate new makefiles and do a clean build of NECI using platform as the configuration.
+If platform is not specified, then the platform given in .compileconf is used.
+If .compileconf also doesn't exist, then the default (PC-PGI64) is used.
+
 Options:
     -d Compile with the compiler debug options on.
+    -f Fast: don't do a make clean before compiling.
+    -m Only make new makefiles.
 END
 }
 
 dbgflag=''
+compile=1
+fast=0
 
-while getopts 'dh' options; do
+while getopts 'dfmh' options; do
     case $options in
         d)  dbgflag='-d';;
+        f)  fast=1 ;;
+        m)  compile=0 ;;
         h)  usage
             exit 1;;
         \?) usage
@@ -35,6 +44,7 @@ elif [ -e .compileconf ]; then
 else
 	platform=PC-PGI64
 fi
+
 echo "Using platform: $platform"
 
 ./mkconfig.sh $dbgflag $platform -DEST=${PWD}/DESTDIR > mktemplate
@@ -44,10 +54,15 @@ cp irat.inc kdest
 sed -e 's/#CMPLXFLAG//' -e "s/DESTDIR/dest/" mktemplate > dest/Makefile
 sed -e 's/#CMPLXFLAG/-D__CMPLX/' -e "s/DESTDIR/kdest/"  mktemplate > kdest/Makefile
 
-touch *.F *.F90
-make clean
-cd dest
-make neci.x
-stat=$?
-cd ..
-exit $stat
+if [[ $compile -eq 1 ]]; then
+    if [[ $fast -eq 0 ]]; then
+        echo "make clean"
+        touch *.F *.F90
+        make clean
+    fi
+    cd dest
+    make neci.x
+    stat=$?
+    cd ..
+    exit $stat
+fi
