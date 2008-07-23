@@ -48,7 +48,7 @@ MODULE FciMCParMod
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=700
+    INTEGER :: MemoryFac=500
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
@@ -104,11 +104,11 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers        Proj.E      +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
-            WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers         Proj.E      +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
+            WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers        Proj.E      +veWalkFrac    SumNoatHF   MeanExcitLevel  MinExcit   MaxExcit"
+            WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers         Proj.E      +veWalkFrac    SumNoatHF   MeanExcitLevel  MinExcit   MaxExcit"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllSumNoatHF,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllSumNoatHF,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
         ENDIF
         
 
@@ -242,7 +242,7 @@ MODULE FciMCParMod
                         HDiag=0.D0
                     ELSE
                         HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                        HDiag=(REAL(HDiagTemp%v,r2)-Hii
+                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ENDIF
 
                     do l=1,abs(Child)
@@ -822,8 +822,8 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllSumNoatHF,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllSumNoatHF,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             CALL FLUSH(15)
 !            CALL FLUSH(6)
         ENDIF
