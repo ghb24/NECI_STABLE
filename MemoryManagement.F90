@@ -1,6 +1,45 @@
-! JSS.  Memory book-keeping routines.  Contains some elements of the initialisation, 
+! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation, 
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
 ! written by Alston Misquitta, with permission.
+
+!=====================================================================================
+
+! USAGE 
+!
+! See individual routines for more detail and optional arguments for
+! error checking the allocation/deallocation.
+!
+! 1. Initialise the logger:
+!      call InitMemSize(MemSize) 
+!    where:
+!      MemSize: max amount of memory available in MB.
+!
+! 2. For each array to be logged, define an integer "tag" with an initial value of 0.
+!      real(8), allocatable :: testarr(:)
+!      integer :: tag_testarr=0
+!    Make sure you save the tag (and the array!) if used for an array stored in a 
+!    module which can go out of scope between allocation and deallocation.
+!
+! 3. At allocation, call the allocation logger:
+!      allocate(testarr(N))
+!      call LogMemAlloc('testarr',N,8,'allocating_routine',tag_testarr)
+!    where:
+!      'testarr' is the name of the array being logged;
+!       N is the size of the array;
+!       8 is the number of bytes per element in the array;
+!       'allocating_routine' is the routine in which the allocation is performed;
+!       tag_testarr is the "tag" of the array being logged.
+!
+! 4. At deallocation, call the deallocation logger:
+!      deallocate(testarr)
+!      call LogMemDealloc('deallocating_routine',tag_testarr)
+!    where:
+!      'deallocating_routine' is the routine in which the deallocation is performed.
+!
+! 5. At the end of the calculation, print out memory usage:
+!      call LeaveMemoryManager()
+
+!=====================================================================================
 
 ! Log memory usage in one of two ways:
 !   1. Store everything.  The size of the log (MaxLen) had best be suitably large.
@@ -11,6 +50,9 @@
 !   allocation-deallocation is often LIFO and it allows us to be efficient in
 !   storing the actions without wasting much effort searching the log.
 ! This is controlled by the CachingMemLog (true==approach 2) flag.
+
+! Using a "tag" for each allocated routine makes searching the log for an array
+! trivial (and fast).
 
 module MemoryManager
 
@@ -63,7 +105,7 @@ type(MemLogEl), allocatable, save :: PeakMemLog(:)
 type(MemLogEl), save :: LargeObjLog(nLargeObjects) ! Store the largest allocations.
 integer, save :: ismall=1 ! The smallest large object (remember to avoid repeating minloc again and again...)
 
-! For backwards compatibility with the existing scheme, where the IP address is
+! For backwards compatibility with the existing CPMD scheme, where the IP address is
 ! stored as the tag. Use long integer (li) so can handle POINTER8.
 integer(li), allocatable, save :: LookupPointer(:)
 
@@ -73,7 +115,9 @@ contains
     ! Initialise memory manager.
 
     ! In:
-    !    MemSize (optional) : max amount of memory used in MB.
+    !    MemSize (optional) : max amount of memory available in MB.
+
+    ! MAXMEM must be set via c pre-processing or set to be an integer.
 
     use common_routines, only: internal_error
     implicit none
@@ -145,14 +189,13 @@ contains
     integer, intent(in), optional :: err
     integer, intent(inout), optional :: nCalls
  
-    integer(li), parameter :: DefaultMem=1024
     integer :: ObjectSizeBytes,ismallloc(1)
 
     if (present(nCalls)) nCalls=nCalls+1
 
     if (.not.initialised) then
         write (6,*) 'Memory manager not initialised. Doing so now with 1GB limit.'
-        call InitMemoryManager(DefaultMem)
+        call InitMemoryManager()
     end if
 
     ObjectSizeBytes=ObjectSize*ElementSize
@@ -306,7 +349,7 @@ contains
 
 
 
-    subroutine LeaveMemoryManager
+    subroutine LeaveMemoryManager()
     ! Call this to print out the largest memory allocations.
     ! If debug flag is on, then the full memory log is dumped to file.
 
