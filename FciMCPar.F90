@@ -126,7 +126,7 @@ MODULE FciMCParMod
         enddo
 
         Weight=HDElement(0.D0)
-        Energyxw=HDElement(DiagSft)
+        Energyxw=HDElement(ProjectionE)
 
 !Deallocate memory
         DEALLOCATE(WalkVecDets)
@@ -183,11 +183,11 @@ MODULE FciMCParMod
     SUBROUTINE PerformFCIMCycPar()
         INTEGER :: VecSlot,i,j,k,l
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount
-        REAL*8 :: Prob,rat
+        REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,iGetExcitLevel
         LOGICAL :: WSign
-        TYPE(HElement) :: HDiag,HOffDiag
+        TYPE(HElement) :: HDiagTemp,HOffDiag
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -239,19 +239,19 @@ MODULE FciMCParMod
                     ENDIF
                     IF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
-                        HDiag=HElement(0.D0)
+                        HDiag=0.D0
                     ELSE
-                        HDiag=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiag=(REAL(HDiagTemp%v,r2)-Hii
                     ENDIF
 
-            
                     do l=1,abs(Child)
 !Copy across children - cannot copy excitation generators, as do not know them
                         NewDets(:,VecSlot)=nJ(:)
                         NewSign(VecSlot)=WSign
                         NewExcits(VecSlot)%ExitGenForDet=.false.
                         NewIC(VecSlot)=ExcitLevel
-                        NewH(1,VecSlot)=REAL(HDiag%v,r2)-Hii      !Diagonal H-element-Hii
+                        NewH(1,VecSlot)=HDiag                     !Diagonal H-element-Hii
                         NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
                         VecSlot=VecSlot+1
                     enddo
@@ -459,6 +459,10 @@ MODULE FciMCParMod
                 IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                     HOffDiag=GetHElement2(HFDet,DetsinGraph(:,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                ELSEIF(ExcitLevel.eq.0) THEN
+                    IF(ABS(GraphKii(i)).gt.1.D-07) THEN
+                        CALL STOPGM("ResumGraphPar","Diagonal K-mat element should be zero for HF particles")
+                    ENDIF
                 ENDIF
                 IF(Create.lt.0) THEN
                     ChildSign=.false.
@@ -1210,7 +1214,7 @@ MODULE FciMCParMod
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
                 CALL STOPGM("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
             ENDIF
-            IF(iProcIndex) THEN
+            IF(iProcIndex.eq.root) THEN
                 WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
                 WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
             ENDIF
