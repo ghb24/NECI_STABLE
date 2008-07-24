@@ -398,12 +398,21 @@ contains
     iobjloc(:)=maxloc(ObjectSizes)
     iobj=iobjloc(1)
     ObjectSizes(iobj)=ObjectSizes(iobj)+1
-    do i=2,min(nLargeObjects+1,ismall)
+    do i=2,nLargeObjects+1
+        ! Print out i-1 large object.
         write (6,fmt1,advance='no') ' '//AllMemEl(iobj)%ObjectName,AllMemEl(iobj)%AllocRoutine,AllMemEl(iobj)%DeallocRoutine
         call WriteMemSize(6,AllMemEl(iobj)%ObjectSize)
+        ! Find the next large object.
         iobjloc=maxloc(ObjectSizes,mask=ObjectSizes.lt.ObjectSizes(iobj))
         iobj=iobjloc(1)
-        ObjectSizes(iobj)=ObjectSizes(iobj)+1
+        if (AllMemEl(iobj)%ObjectName.eq.''                        &
+             .and.AllMemEl(iobj)%AllocRoutine.eq.''                &
+             .and.AllMemEl(iobj)%DeallocRoutine.eq.'unknown'       &
+             .and.AllMemEl(iobj)%ObjectSize.eq.0) then
+             ! Have logged less than nLargeObjects allocations.
+             exit
+         end if
+         ObjectSizes(iobj)=ObjectSizes(iobj)+1 ! So we don't find this object next time round.
     end do
     if (warned) then
         write (6,*) '== NOTE: Length of logging arrays exceeded. Length needed is ',ipos
