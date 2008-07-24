@@ -126,7 +126,6 @@ contains
 
     ! MAXMEM must be set via c pre-processing or set to be an integer.
 
-    use common_routines, only: internal_error
     implicit none
 
     integer(li), intent(in), optional :: MemSize
@@ -147,8 +146,8 @@ contains
         if (MaxMemBytes.le.0) then
             write (6,*) 'Illegal maximum memory value passed to memorymanager.'
             write (6,*) 'MaxMemgbytes = ',dfloat(MaxMemBytes)/(1024**2)
-            call internal_error(ThisRoutine,__LINE__,&
-               & 'Illegal maximum memory. Check MEMORY in your input file.')
+            write (6,*) 'Setting maximum memory available to 1GB.'
+            MaxMemBytes=1024**3
         endif
 
 
@@ -250,7 +249,7 @@ contains
     end if
 
     if (debug) then
-        write (6,"(A,2I,' ',A,' ',A,' ',I)") 'Allocating memory: ',tag,ObjectSizeBytes,ObjectName,AllocRoutine,MemoryUsed
+        write (6,"(A,I6,I12,' ',A,' ',A,' ',I12)") 'Allocating memory: ',tag,ObjectSizeBytes,ObjectName,AllocRoutine,MemoryUsed
     end if
 
     return
@@ -303,7 +302,7 @@ contains
         if (tag.eq.-1) then
             ! No record of it in the log: can only print out a debug message.
             if (debug) then
-                write (6,"(2A,I)") 'Deallocating memory in: ',DeallocRoutine,tag
+                write (6,"(2A,I5)") 'Deallocating memory in: ',DeallocRoutine,tag
             end if
         else
             ! Object was stored in the cache.
@@ -335,7 +334,7 @@ contains
                 end if
             end if
             if (debug) then
-                write (6,"(A,I,' ',A,' ',A,' ',A,' ',I)") 'Deallocating memory: ',tag,MemLog(tag)
+                write (6,"(A,I5,' ',A,' ',A,' ',A,' ',I12)") 'Deallocating memory: ',tag,MemLog(tag)
             end if
         end if
 
