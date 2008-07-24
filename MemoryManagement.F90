@@ -398,7 +398,7 @@ contains
     iobjloc(:)=maxloc(ObjectSizes)
     iobj=iobjloc(1)
     ObjectSizes(iobj)=ObjectSizes(iobj)+1
-    do i=2,min(nLargeObjects+1,ipos)
+    do i=2,min(nLargeObjects+1,ismall)
         write (6,fmt1,advance='no') ' '//AllMemEl(iobj)%ObjectName,AllMemEl(iobj)%AllocRoutine,AllMemEl(iobj)%DeallocRoutine
         call WriteMemSize(6,AllMemEl(iobj)%ObjectSize)
         iobjloc=maxloc(ObjectSizes,mask=ObjectSizes.lt.ObjectSizes(iobj))
