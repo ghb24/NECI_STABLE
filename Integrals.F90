@@ -596,7 +596,7 @@ MODULE Integrals
             end if
 !If we're told explicitly not to destroy the cache, we don't
               if(.NOT.BTEST(iCacheFlag,0)) THEN
-                  CALL DESTROYUMATCACHE()
+                 CALL DESTROYUMATCACHE()
               ELSE
                  Call WriteUMatCacheStats()
               ENDIF
