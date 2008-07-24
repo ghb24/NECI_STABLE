@@ -1,3 +1,5 @@
+module MemoryManager
+
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation, 
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS), 
 ! written by Alston Misquitta, with permission.
@@ -53,8 +55,6 @@
 
 ! Using a "tag" for each allocated routine makes searching the log for an array
 ! trivial (and fast).
-
-module MemoryManager
 
 implicit none
 
@@ -185,7 +185,8 @@ contains
     !             If -1, then the log is full and it's not been stored.
     ! IN/OUT:
     !       nCalls (optional) -  increments nCalls: counts the number of times
-    !       a routine has called the LogMemAlloc routine.
+    !       a routine has called the LogMemAlloc routine (useful for tracking 
+    !       repeated allocations in debugging).
 
     implicit none
 
