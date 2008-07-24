@@ -50,6 +50,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
 
    HarXCSum=dcmplx(0.d0,0.d0)
    write (6,*) "Calculating TMAT"
+   open(10,file='TMAT',status='unknown')
    do I=1,nStatesUsed
       ! Subtract out the double counting. Assume closed-shell.
       HarXC=dcmplx(0.d0,0.d0)
@@ -63,16 +64,15 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
       end do
       II=I*2-1
       TMATSYM(TMatInd(II+1,II+1))=HElement(eigv(I))-HarXC
-      write (6,*) II+1,TMATSYM(TMatInd(II+1,II+1))
-      write (6,*) I,HarXCSum
+      write (10,*) I,J,TMATSYM(TMatInd(II+1,II+1))
    end do
    
 
    if (tOrder) then
       call StopGM('VASPInitIntegrals','tOrder not implemented in VASP interface yet.')
    end if
-   WRITE (6,*) "Finished TMAT"
-   CLOSE (10)
+   write (6,*) "Finished TMAT"
+   close (10)
 
    call TIHALT('VASPInitInts',ISUB)
    
