@@ -67,6 +67,19 @@ public :: CachingMemLog
 ! Routines that need to be accessible.
 public :: InitMemoryManager,LogMemAlloc,LogMemDealloc,LeaveMemoryManager
 
+
+! Configuration.
+integer, parameter :: MaxLen = 5000 ! size of memory log (max number of arrays
+                                    ! that can be logged at any one time if 
+                                    ! CachingMemLog=.true., else max total number of 
+                                    ! arrays that can be logged in a calculation).
+integer, parameter :: MaxWarn = 10  ! maximum number of low memory warning messages to be printed.
+integer, parameter :: nLargeObjects = 10 ! maximum number of the largest memory allocations remember.
+logical, save :: CachingMemLog = .true. ! See above for how MemLog is used.
+logical, save :: MemUnitsBytes = .true. ! If true, then output object size in bytes/KB/MB.
+                                        ! If false, then output in words (an ugly unit!).
+
+
 integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
 
 type MemLogEl
@@ -85,16 +98,10 @@ integer(li), save :: MaxMemoryUsed
 ! Warnings, debug flags, output parameters.
 logical, save :: initialised = .false.
 logical, save :: warned = .false.
-integer, parameter :: MaxWarn = 10 ! maximum number of low memory warning messages to be printed.
-integer, parameter :: nLargeObjects = 10 ! maximum number of the largest memory allocations remember.
 integer, save :: nWarn = 0
 logical, save :: debug = .false.
-logical, save :: CachingMemLog = .true. ! See above for how MemLog is used.
-logical, save :: MemUnitsBytes = .true. ! If true, then output object size in bytes/KB/MB.
-                                        ! If false, then output in words.
 
 ! Log of memory allocations.
-integer, parameter :: MaxLen = 5000
 type(MemLogEl), allocatable, save :: MemLog(:)
 integer, save :: ipos=1  ! Next available empty slot in the log.
 
