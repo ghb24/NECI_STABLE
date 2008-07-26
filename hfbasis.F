@@ -52,7 +52,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
      &            HFE,ARR,BRR)
          USE UMatCache , only : UMatInd
          IMPLICIT NONE
-         INTEGER NBASIS,ISS,NBASISMAX(5,2),G1(*)
+         INTEGER NBASIS,ISS,nBasisMax(5,*),G1(*)
          REAL*8 UMAT(*)
          REAL*8 UMAT2(*),ARR(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
@@ -78,7 +78,7 @@ C..Symmetries not needed by UMatInd
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
          use System, only: Symmetry,BasisFN
          IMPLICIT NONE
-         INTEGER NBASIS,NBASISMAX(5,3)
+         INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
          REAL*8 ARR(NBASIS,2)
          REAL*8 HFE(NBASIS)
@@ -119,7 +119,7 @@ C.. Generic spatial symmetry
      &            HFE,ARR,BRR,NORBUSED)
          USE UMatCache , only : UMatInd,GTID
          IMPLICIT NONE
-         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,*)
+         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 UMAT2(*),ARR(NBASIS)
          REAL*8 UMATT((((NBASIS/ISS)*(NBASIS/ISS-1))/2)**2)
@@ -264,7 +264,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          Use HElem
          IMPLICIT NONE
-         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 ECORE
          REAL*8 ARR(NBASIS)
@@ -340,7 +340,7 @@ C.. Unrestricted HF SCF code
          Use HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
          REAL*8 UMAT(NSBASIS,NSBASIS,NSBASIS,NSBASIS)
          REAL*8 ECORE
          REAL*8 ARR(NBASIS)
@@ -528,7 +528,7 @@ C.. vector
          use System, only: BasisFN
          Use Integrals, only: DMatEpsilon
          IMPLICIT NONE
-         INTEGER NSBASIS,NSPINS,NBASISMAX(5,3)
+         INTEGER NSBASIS,NSPINS,nBasisMax(5,*)
          Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
          Type(HElement) DMAT(NSBASIS,NSBASIS,NSPINS)
 !         REAL*8 TMAT(NSBASIS*NSPINS,NSBASIS*NSPINS)
@@ -977,7 +977,7 @@ C.. Unrestricted Hartree Fock with a gradient descent method.
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
-         INTEGER NBASIS,G1(*),ISS,NBASISMAX(5,2)
+         INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 ECORE
          REAL*8 ARR(NBASIS)

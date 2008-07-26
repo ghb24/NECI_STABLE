@@ -330,7 +330,7 @@ MODULE UMatCache
          use vasp_neci_interface, only: CONSTRUCT_IJAB_one
          IMPLICIT NONE
          TYPE(HElement) GetUMatEl
-         INTEGER NBASISMAX(5,3),I,J,K,L,NHG,ISS
+         INTEGER nBasisMax(5,*),I,J,K,L,NHG,ISS
          TYPE(BasisFN) G1(NHG)
          REAL*8 ALAT(3),GetNan
          TYPE(HElement) UMAT(*)
@@ -1133,7 +1133,7 @@ MODULE UMatCache
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
          ! Convert from spin orbitals to spatial orbitals.
          IMPLICIT NONE
-         INTEGER GIND,NBASISMAX(5,3),ID
+         INTEGER GIND,nBasisMax(5,*),ID
             IF(NBASISMAX(2,3).GT.0) THEN
                ID=(GIND-1)/NBASISMAX(2,3)+1
             ELSE

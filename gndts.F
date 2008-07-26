@@ -10,7 +10,7 @@ C.. This sets up variables, and calls the recursion
          INTEGER BRR(NHG)
          TYPE(BasisFN) G1(NHG),SymRestrict,kJ
          LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
-         INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
+         INTEGER nBasisMax(5,*),IFDET,IDETS,ITDETS
 C..  This will hold which determinant each electron is on at the moment
          INTEGER IELECS(NEL)
 C..  This will hold the spin of each electron
@@ -48,7 +48,7 @@ C.. The recursive routine in GNDTS.  IELEC is the current electron
       INTEGER BRR(NHG)
       TYPE(BasisFN) G1(nHG),kI,kJ,SymRestrict
       LOGICAL TCOUNT,TSPN,TPARITY,TPRTY
-      INTEGER NBASISMAX(5,2),IFDET,IDETS,ITDETS
+      INTEGER nBasisMax(5,*),IFDET,IDETS,ITDETS
 
       INTEGER IELECS(NEL)
       INTEGER ISPINS(NEL)

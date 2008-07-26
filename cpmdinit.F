@@ -4,7 +4,7 @@
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
          INCLUDE 'sym.inc'
-         INTEGER NBASISMAX(5,2), BRR(LEN),LEN
+         INTEGER nBasisMax(5,*), BRR(LEN),LEN
          TYPE(BASISFN) G1(LEN)
          REAL*8 ARR(LEN,2)
          INTEGER I,J

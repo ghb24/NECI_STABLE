@@ -23,7 +23,7 @@ C.. the best vertex at each level.
          REAL*8 RHOII(0:I_VMAX),RHOIJ(0:I_VMAX,0:I_VMAX)
          REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
-         INTEGER  G1(*),NBASISMAX(5,2)
+         INTEGER  G1(*),nBasisMax(5,*)
          INTEGER LSTE(*),ILMAX
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
@@ -115,7 +115,7 @@ C.. save all log files
      &   ECORE,ICOUNT)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE

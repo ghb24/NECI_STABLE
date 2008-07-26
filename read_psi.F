@@ -1,7 +1,7 @@
       SUBROUTINE READ_PSI(BOX,BOA,COA,NDET,NEVAL,
      &		NBASISMAX,NEL,CK,W)
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER NBASISMAX(5,2)
+      INTEGER nBasisMax(5,*)
 C..
       DIMENSION CK(NDET,NEVAL)
       DIMENSION W(NEVAL)
@@ -63,7 +63,7 @@ C ==----------------------------------------------------------------==
      &	NBASISMAX,NEL,CK,W)
       USE HElem
       IMPLICIT NONE
-      INTEGER NBASISMAX(5,2)
+      INTEGER nBasisMax(5,*)
 C..
       TYPE(HElement) CK(NDET,NEVAL)
       REAL*8 W(NEVAL),BOA,BOX,COA
@@ -90,7 +90,7 @@ C..
      &	NBASISMAX,NEL,CK,W)
       USE HElem
       IMPLICIT NONE
-      INTEGER NBASISMAX(5,2)
+      INTEGER nBasisMax(5,*)
 C..
       TYPE(HElement) CK(NDET,NEVAL)
       REAL*8 W(NEVAL),BOA,BOX,COA

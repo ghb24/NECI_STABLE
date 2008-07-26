@@ -3,7 +3,7 @@
      &         NMEM,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(*)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
@@ -24,7 +24,7 @@ C.. now call a routine to reset the current type's lists
      &         TYPES,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NBASISMAX(5,6)
+         INTEGER nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
@@ -65,7 +65,7 @@ C..Debugging junk
      &         NMEM,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6),NJ(NEL)
+         INTEGER NLIST,nBasisMax(5,*),NJ(NEL)
          INTEGER G1(*)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
@@ -86,7 +86,7 @@ C.. now call a routine to reset the current type's lists
      &         TYPES,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
@@ -168,7 +168,7 @@ C.. ISYM, and discarded if it has the wrong symmetry
      &         TSETUP,NMEM,NJ,ISEED,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6),NJ(NEL)
+         INTEGER NLIST,nBasisMax(5,*),NJ(NEL)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
@@ -236,7 +236,7 @@ C.. Return a count of the number of up to double excitations of NI
 C.. available within the same symmetry and Sz.  This does not enumerate them all.
       SUBROUTINE COUNTSYMEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,NEX,IFRZ)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,G1(5,NBASIS),NBASIS,NBASISMAX(5,6)
+         INTEGER NI(NEL),NEL,G1(5,NBASIS),NBASIS,nBasisMax(5,*)
          INTEGER NEX
 
          INTEGER TYPES(5,*),NTYPES
@@ -271,7 +271,7 @@ C.. ISYM, and discarded if it has the wrong symmetry
      &         TSETUP,NMEM,NJ,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6),NJ(NEL)
+         INTEGER NLIST,nBasisMax(5,*),NJ(NEL)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
@@ -335,7 +335,7 @@ C.. list LIST, and their excitation level into list ICLIST.
      &            LIST,ICLIST,NLIST,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
@@ -387,7 +387,7 @@ C.. it is just returned
      &         NMEM,IC,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,*),NTYPES
          POINTER (IP_TYPES, TYPES)
@@ -418,7 +418,7 @@ C.. each individual type's count in the TYPES(5,*)
       SUBROUTINE COUNTSYMEXCIT2(NI,NEL,G1,NBASIS,NBASISMAX,NEX,
      &      TYPES,NTYPES,IFRZ)
          IMPLICIT NONE
-         INTEGER NI(NEL),NEL,G1(5,NBASIS),NBASIS,NBASISMAX(5,6)
+         INTEGER NI(NEL),NEL,G1(5,NBASIS),NBASIS,nBasisMax(5,*)
          INTEGER NEX
 
          INTEGER TYPES(5,*),NTYPES
@@ -447,7 +447,7 @@ C.. Generate a random excitation of TYPE TYPES(1:5,NTYPE)
      &         TYPES,ISEED,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
@@ -490,7 +490,7 @@ C.. Best not to call directly, but let  GENSYMEXCITIT() do the work
      &         TYPES,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYPES(5,NTYPES),NTYPES,NTYPE
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
@@ -594,7 +594,7 @@ C.. so just return.
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,G1(5,*),NBASIS,TYPES(5,*),NTYPE,TYP
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
-         INTEGER NSYM(2),NSYME(2),IEL,I,NSPN,NBASISMAX(5,6),NS,NSE
+         INTEGER NSYM(2),NSYME(2),IEL,I,NSPN,nBasisMax(5,*),NS,NSE
          LOGICAL TNS,TOPT
          INTEGER ISYM
          INTEGER IFRZ(0:NBASIS)
@@ -847,7 +847,7 @@ C.. For a given Excitation symmetry type, generate all excitatiosn
      &         TYP,LIST,ICLIST,NLIST,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,LIST(NEL,NLIST),ICLIST(NLIST)
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER TYP(5),NSPN,NJ(NEL)
          INTEGER NFULL(2,-3:NEL),NFREE(2,-3:NBASIS),NSYM,NSYME
@@ -960,7 +960,7 @@ C.. TYPE(5,*)=number of excitations of this type (calculated later)
       SUBROUTINE GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,6),NBASIS
+         INTEGER nBasisMax(5,*),NBASIS
          INTEGER NTYPES,TYPES(5,NTYPES) 
 
          INTEGER NTY2
@@ -1127,7 +1127,7 @@ C.. This does not take into account TSYM exclusions.
      &   NTYPE,NFULL,NFREE,IFRZ)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NJ(NEL),NBASIS
-         INTEGER NLIST,NBASISMAX(5,6)
+         INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(5,NBASIS)
          INTEGER NFULL(2,2,-3:NEL),NFREE(2,2,-3:NBASIS)
          INTEGER SPNS(2,2),IC

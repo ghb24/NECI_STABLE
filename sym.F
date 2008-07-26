@@ -468,7 +468,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         INTEGER NEL,NI(NEL),NBASISMAX(5,3)
+         INTEGER NEL,NI(NEL),nBasisMax(5,*)
          TYPE(BasisFn) G1(*),ISym
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
@@ -1023,7 +1023,7 @@ C.. symmetric irrep, we set sym to .FALSE.
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,JSYM,G1(*)
-         INTEGER NEL,NI(NEL),NJ(NEL),NBASISMAX(5,3)
+         INTEGER NEL,NI(NEL),NJ(NEL),nBasisMax(5,*)
          LOGICAL LCHKSYM
          CALL GETSYM(NI,NEL,G1,NBASISMAX,ISYM)
          CALL GETSYM(NJ,NEL,G1,NBASISMAX,JSYM)
@@ -1061,7 +1061,7 @@ C.. This only works for momentum variables - 1-4
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,G1(*)
-         INTEGER IELEC,NBASISMAX(5,3)
+         INTEGER IELEC,nBasisMax(5,*)
          INTEGER I,IEL,SSYM
          CALL GETUNCSFELEC(IEL,IELEC,SSYM)
         IF(NBASISMAX(1,3).LT.4) THEN
@@ -1091,7 +1091,7 @@ C.. (it is +/-CSF_NSBASIS)
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) ISYM
-         INTEGER NBASISMAX(5,3)
+         INTEGER nBasisMax(5,*)
          INTEGER I
          IF(NBASISMAX(3,3).EQ.-2) THEN
 C.. particle in a box
@@ -1156,7 +1156,7 @@ C 1 Generic spatial
       SUBROUTINE MOMPBCSYM(K1,NBASISMAX)
 C.. NB the third column of NBASISMAX tells us whether it is tilted
          IMPLICIT NONE
-         INTEGER K1(3),NBASISMAX(5,5)
+         INTEGER K1(3),nBasisMax(5,*)
          INTEGER J,LDIM,AX,AY,LENX,LENY,KK2,T1,T2
          REAL*8 R1,R2,NORM
          AX=NBASISMAX(1,4)
@@ -1310,7 +1310,7 @@ C.. Failure
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         INTEGER NEL,NBASISMAX(5,3)
+         INTEGER NEL,nBasisMax(5,*)
          INTEGER LMS
          TYPE(BasisFN) IPARITY,ISYM,IMax(2)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2
@@ -1421,7 +1421,7 @@ C.. lower ones.
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) IMax(2)
-         INTEGER NBASISMAX(5,5),I
+         INTEGER nBasisMax(5,*),I
          IF(NBASISMAX(3,3).EQ.0) THEN
             DO I=1,3
                IF(IMax(2)%k(I).NE.IMAX(1)%k(I)) IMAX(1)%k(I)=0
@@ -1434,7 +1434,7 @@ C.. always a spin symmetry
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) ISym,ISym2
-         INTEGER NBASISMAX(5,5),IDEGEN,I,J
+         INTEGER nBasisMax(5,*),IDEGEN,I,J
          LOGICAL KALLOWED,TDO
          IDEGEN=0
          IF(NBASISMAX(3,3).EQ.0) THEN
@@ -1464,7 +1464,7 @@ C.. Initialize symmetry to take into account the core electrons
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'sym.inc'
-         INTEGER NBASISMAX(5,6)
+         INTEGER nBasisMax(5,*)
          TYPE(BasisFN) ISym
          ISym=FrozenSym
          RETURN
@@ -1648,7 +1648,7 @@ C.. Set to be totally symmetric
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          implicit none
-         integer nbasismax(5,3)
+         integer nBasisMax(5,*)
          include 'sym.inc'
          if(TAbelian) then
             MinSymRep=0
@@ -1661,7 +1661,7 @@ C.. Set to be totally symmetric
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          implicit none
          include 'sym.inc'
-         integer nbasismax(5,3)
+         integer nBasisMax(5,*)
          integer abel(3)
          integer*8 ComposeAbelianSym
          abel(:)=nprop(:)-1

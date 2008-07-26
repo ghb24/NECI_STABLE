@@ -65,7 +65,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX)
          TYPE(HDElement) FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
-         INTEGER  NBASISMAX(5,5)
+         INTEGER  nBasisMax(5,*)
          INTEGER LSTE(*),ILMAX,ISUBPRE
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
@@ -503,7 +503,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX)
          TYPE(HDElement) RHOII(0:I_VMAX),TOTAL,FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
-         INTEGER NBASISMAX(5,5)
+         INTEGER nBasisMax(5,*)
          INTEGER LSTE(*),ILMAX
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
@@ -790,7 +790,7 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          TYPE(HDElement) FMCPR3RES
-         INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,L,LT,ILOGGING,J,K,I_VMAX
          INTEGER I,IVLMAX,II
          REAL*8 ALAT(*),ECORE
@@ -1111,7 +1111,7 @@ C.,             If 1, only allow doubles.
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
-         INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
@@ -1751,7 +1751,7 @@ C.. dramatically.  Code unfinished
      &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
             
          IMPLICIT NONE
-         INTEGER I_V,NEL,I_P,NBASISMAX(5,5),G1(*),NBASIS,BRR(*),NMSH
+         INTEGER I_V,NEL,I_P,nBasisMax(5,*),G1(*),NBASIS,BRR(*),NMSH
          INTEGER NTAY(2),NWHTAY,ILOGGING,LT,NMAX
          REAL*8 FCK(*), ALAT(*),UMAT(*),ECORE
          INTEGER NI(NEL),ILMAX

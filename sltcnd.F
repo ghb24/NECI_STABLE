@@ -17,7 +17,7 @@ C..
       INTEGER GBS(4,*)
       TYPE(HElement) UMAT(*),SUM
       REAL*8 KP
-      INTEGER NBASISMAX(5,3)
+      INTEGER nBasisMax(5,*)
 C..Cube Arrays
       COMPLEX*16 FCK(-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1)
       REAL*8 ALAT(3)

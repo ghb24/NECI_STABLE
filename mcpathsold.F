@@ -13,7 +13,7 @@ C.. which do not necessarily have distinct nodes
          REAL*8 TOTAL,RHOII(0:I_HMAX)
          REAL*8 FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
-         INTEGER  G1(5,NBASIS),NBASISMAX(5,2),ILMAX
+         INTEGER  G1(5,NBASIS),nBasisMax(5,*),ILMAX
          INTEGER LSTE(NEL,ILMAX,0:I_HMAX-1)
          INTEGER ICE(ILMAX,0:I_HMAX-1),NLIST
          LOGICAL TLOG

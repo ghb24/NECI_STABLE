@@ -13,7 +13,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
       USE System , only : TSTOREASEXCITATIONS,BasisFN
       IMPLICIT NONE
       TYPE(HElement) UMat(*),RH
-      INTEGER I_P,I_HMAX,NTAY(2),NTRUNC,NEL,NBASIS,NBASISMAX(5,5)
+      INTEGER I_P,I_HMAX,NTAY(2),NTRUNC,NEL,NBASIS,nBasisMax(5,*)
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       REAL*8 BETA,ECORE
       LOGICAL LSAME      
@@ -168,7 +168,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          COMPLEX*16 FCK(*)
          REAL*8 ALAT(*),ECORE
          TYPE(HElement) UMat(*)
-         INTEGER NEL,NBASIS,NBASISMAX(5,5),BRR(*)
+         INTEGER NEL,NBASIS,nBasisMax(5,*),BRR(*)
          INTEGER NI(NEL),NJ(NEL),IC2,NMSH,NMAX
          INTEGER LSTI(NEL,NBASIS*NBASIS*NEL*NEL)
          INTEGER LSTJ(NEL,NBASIS*NBASIS*NEL*NEL)
@@ -221,7 +221,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          implicit none
          integer nHFDet(nEl),nJ(nEl),nEl,nBasis
          type(BasisFN) G1(*)
-         integer Brr(nBasis),nBasisMax(5,5)
+         integer Brr(nBasis),nBasisMax(5,*)
          type(HElement) UMat(*)  
          type(HElement) hEl
          real*8 Arr(nBasis,2),ECore

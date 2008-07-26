@@ -642,7 +642,7 @@ END MODULE DetCalc
          use System, only: BasisFN
          implicit none
          include 'irat.inc'
-         INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,NBASISMAX(5,5),nBasis
+         INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
          INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING,ISUB
          TYPE(HElement) UMat(*)
          TYPE(HDElement) DLWDB, DLWDB2, DLWDB3, DLWDB4

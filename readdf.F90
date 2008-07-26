@@ -4,7 +4,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          USE HElem
          use UMatCache
          implicit none
-         integer nEl,nBasisMax(5,3),Len,lMs
+         integer nEl,nBasisMax(5,*),Len,lMs
          character(*), parameter :: C_file='SAV_D____a'
          character(*), parameter :: nolabel='        '
          character(3) file_status
@@ -289,7 +289,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       SUBROUTINE InitDaltonBasis(nBasisMax,Arr,Brr,G1,nBasis)
          use System, only: Symmetry,BasisFN,BasisFNSize
          implicit none
-         integer nBasis,Brr(nBasis),i,j,nBasisMax(5,3)
+         integer nBasis,Brr(nBasis),i,j,nBasisMax(5,*)
          real*8 Arr(nBasis,2),val,ECore
          type(BasisFN) G1(nBasis)
          Type(Symmetry) TotSymRep

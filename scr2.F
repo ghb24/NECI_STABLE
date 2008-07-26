@@ -17,7 +17,7 @@ C..that are NOT common to both.
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 ALAT(3)
       INTEGER NEL,NHG
-      INTEGER NBASISMAX(5,3)
+      INTEGER nBasisMax(5,*)
       REAL*8 COULCOUPLE
       REAL*8 COULDAMP
       LOGICAL TSIGN,TEXCH
@@ -73,7 +73,7 @@ C..that are NOT common to both.
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       REAL*8 ALAT(3),COULCOUPLE
       INTEGER NHG,EX(2,2)
-      INTEGER NBASISMAX(5,3)
+      INTEGER nBasisMax(5,*)
       LOGICAL TSIGN,TEXCH
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
 

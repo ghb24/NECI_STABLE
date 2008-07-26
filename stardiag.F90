@@ -39,7 +39,7 @@
          Use Determinants, only: GetHElement2
          IMPLICIT NONE
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
+         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
          TYPE(HElement) UMat(*)
@@ -383,7 +383,7 @@
             REAL*8 :: Beta,ALat(3),ECore,RhoEps
             INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
-            INTEGER :: iSub,i,j,iExcit,nI(nEl),i_P,nEl,nBasisMax(5,5),nBasis,Brr(nBasis),nMsh
+            INTEGER :: iSub,i,j,iExcit,nI(nEl),i_P,nEl,nBasisMax(5,*),nBasis,Brr(nBasis),nMsh
             INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,Info,temp,IGETEXCITLEVEL
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
@@ -2037,7 +2037,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          TYPE(HDElement) FMCPR3Star2
          TYPE(BasisFN) G1(*)
-         INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
          REAL*8 ALAT(*),ECORE
          TYPE(HElement) UMat(*)
@@ -3444,7 +3444,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          use System, only: BasisFN
          IMPLICIT NONE
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,5),Brr(nBasis),nBasis,nMsh
+         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          COMPLEX*16 fck(*)
          TYPE(HElement) UMat(*)

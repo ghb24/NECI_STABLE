@@ -55,7 +55,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
          TYPE(BasisFN) G1(nBasis)
-         INTEGER NBASISMAX(5,3)
+         INTEGER nBasisMax(5,*)
          LOGICAL TCOUNT
          INTEGER*8 STORE(*)
 
@@ -1591,7 +1591,7 @@ C.. Actually generate a det
          LOGICAL L1B,L1A,L2B,L2A
       LOGICAL ISVALIDDET
       TYPE(BasisFN) G1(nBasis)
-      INTEGER NBASISMAX(5,3)
+      INTEGER nBasisMax(5,*)
       TYPE(HElement) UMAT(*)
       REAL*8 RCOUNT,R
       REAL*8 PGEN
@@ -1814,7 +1814,7 @@ C.. Actually generate a det
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
-         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,3)
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,*)
          INTEGER ExcitTypes(5,*)
          TYPE(BasisFN) G1(nBasis) 
          INTEGER iLUT(*),iTotal
@@ -1883,7 +1883,7 @@ C.. Actually generate a det
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'symtypes.inc'
-         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,3)
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,*)
          INTEGER ExcitTypes(5,*)
          TYPE(BasisFN) G1(nBasis) 
          TYPE(HElement) UMat(*)

@@ -53,17 +53,14 @@ MODULE ReadInput
         Else
             ir=5                    !file descriptor 5 is stdin
             Write(6,*) "Reading from STDIN"
-            ! Save the input to a temporary file so we can scan for the 
-            ! defaults option and then re-read it for all other options.
-            open(7,status='scratch',iostat=ios) 
         Endif
+        Write (6,'(/,64("*"),/)')
         Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
 
 
     !Look to find default options (line can be added anywhere in input)
         Do
             Call read_line(tEof)
-            if (ir.eq.5) write (7,*) trim(char) ! Dump line from STDIN to temporary file.
             If(tEof) Exit
             Call readu(w)
             Select case(w)
@@ -79,16 +76,11 @@ MODULE ReadInput
                     write(6,*) "No defaults selected - using 'default' defaults"
                     idDef=idDefault
                 end select
-            case("END")
-                exit
             end select
         End Do
 !Now return to the beginning and process the whole input file
-        if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.
         Rewind(ir)
         Call input_options(echo_lines=.true.,skip_blank_lines=.true.)
-
-        Write (6,'(/,64("*"),/)')
 
         Do
             Call read_line(tEof)
@@ -119,7 +111,7 @@ MODULE ReadInput
             end select
         end do
         write (6,'(/,64("*"),/)')
-        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
+        IF(IR.EQ.1) CLOSE(1)
    99   IF (ios.gt.0) THEN
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
         END IF

@@ -824,7 +824,7 @@ C.. Get the Hamiltonian Element between two CSFs
          REAL*8 ALAT(*)
          TYPE(HElement) UMat(*)
          COMPLEX*16 FCK(*)
-         INTEGER NEL,NCI(NEL),NCJ(NEL),NBASISMAX(5,5)
+         INTEGER NEL,NCI(NEL),NCJ(NEL),nBasisMax(5,*)
          TYPE(HElement) SUM,SUM2,HEL
          REAL*8 ECORE
          

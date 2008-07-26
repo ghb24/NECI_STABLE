@@ -140,7 +140,7 @@ MODULE Determinants
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*)
          TYPE(HElement) UMat(*)
-         INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,5),iC2
+         INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,*),iC2
          REAL*8 ECore
          TYPE(HElement) Sum,Sum2
          INTEGER IGETEXCITLEVEL

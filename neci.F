@@ -97,7 +97,7 @@ C..
       REAL*8 RH,ETRIAL,ECORE
       REAL*8 RHOIJ(*),RHOIJ1(*),RHOIJ2(*)
       INTEGER RHOIJLAB(*),RHOIJROWS(*)
-      INTEGER NBASISMAX(5,7),I_VMAX,NPATHS,NBASIS
+      INTEGER nBasisMax(5,*),I_VMAX,NPATHS,NBASIS
       LOGICAL TSPINPOLAR,TBEGRAPH,THFBASIS,THUB,TNPDERIV,THFCALC
       POINTER (IP_HFBASIS,HFBASIS),(IP_HFE,HFE)
 !      POINTER (IP_TMAT2,TMAT2)
@@ -2275,7 +2275,7 @@ C.. This should only happen for HMAX
          USE UMatCache
          use System, only: BasisFN,BasisFNSize,Symmetry
          IMPLICIT NONE
-         INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
+         INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
          TYPE(BASISFN) G1(NHG)
          TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
@@ -2557,7 +2557,7 @@ C.. any orbitals which no longer exist, we move outside the basis
      &      LMS,BRR,HFBASIS)
          use System, only: BasisFN
          IMPLICIT NONE
-         INTEGER NBASIS,NBASISMAX(5,5),NSPINS,NSBASIS
+         INTEGER NBASIS,nBasisMax(5,*),NSPINS,NSBASIS
          INTEGER NEL,LMS,BRR(NBASIS)
          TYPE(BASISFN) G1(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS)

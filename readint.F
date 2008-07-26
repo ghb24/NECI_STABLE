@@ -1,6 +1,6 @@
       SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          IMPLICIT NONE
-         INTEGER NEL,NBASISMAX(5,3),LEN,LMS
+         INTEGER NEL,nBasisMax(5,*),LEN,LMS
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
          LOGICAL TBIN,exists,UHF
          CHARACTER*3 :: fmat
@@ -63,7 +63,7 @@ C.. SHow that there's no momentum conservation
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),BRR(LEN),LEN
+         INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
          REAL*8 ARR(LEN,2)
          REAL*8 Z

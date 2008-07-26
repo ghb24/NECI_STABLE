@@ -6,7 +6,7 @@ C.. but with a simpler coulomb integral
       use System, only: BasisFN
       IMPLICIT NONE
       TYPE(BASISFN) G1(NHG)
-      INTEGER NBASISMAX(5,3),ISS,NEL
+      INTEGER nBasisMax(5,*),ISS,NEL
       REAL*8 UMAT(*)
       REAL*8 UHUB,OMEGA
 C..Cube arrays
@@ -93,7 +93,7 @@ C.. but with a simpler coulomb integral
       use System, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
-      INTEGER NBASISMAX(5,5),ISS 
+      INTEGER nBasisMax(5,*),ISS 
       DIMENSION UMAT(*)
 C..Cube arrays
       COMPLEX*16 FCK(-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1,-NMSH/2:NMSH/2-1)
@@ -284,7 +284,7 @@ C      ENDIF
 C
       LOGICAL FUNCTION CHKMOMEQ(K1,K2,NBASISMAX,KDIM)
 C.. NB the third column of NBASISMAX tells us whether it is tilted
-         INTEGER KDIM,K1(KDIM),K2(KDIM),NBASISMAX(5,3)
+         INTEGER KDIM,K1(KDIM),K2(KDIM),nBasisMax(5,*)
          INTEGER J,LDIM,KK1,KK2
          LOGICAL LCMP
          LCMP=.TRUE.
@@ -327,7 +327,7 @@ C.. we have a tilted lattice
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BASISFN) G1(*),KA,KB
-         INTEGER NBASISMAX(5,5)
+         INTEGER nBasisMax(5,*)
 C..Cube arrays
          LOGICAL CHKMOMEQ,LCHKSYM
          INTEGER I,J,K,L

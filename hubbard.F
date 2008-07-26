@@ -2,7 +2,7 @@ C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
      &            UMAT)
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,NBASISMAX(5,3),G1(*)
+         INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
          REAL*8 UMAT(NBASIS,NBASIS,NBASIS,NBASIS)
          REAL*8 UHUB
          INTEGER I,J,K,IC
@@ -24,7 +24,7 @@ C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER NBASISMAX(5,5),AX,AY
+      INTEGER nBasisMax(5,*),AX,AY
       INTEGER LX,LY,LZ,DX,DY,DZ
       LOGICAL TTILT,TREAL
       INCLUDE 'cons.inc'
@@ -57,7 +57,7 @@ C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ).  NON-PBC
 C..Returned in sum
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER NBASISMAX(5,5),AX,AY
+      INTEGER nBasisMax(5,*),AX,AY
       LOGICAL TTILT,TREAL
       INTEGER II,JJ,KK
       INCLUDE 'cons.inc'
@@ -91,7 +91,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          use System, only: BasisFN
          USE OneEInts,only : TMat2D,TMATSYM,TSTARSTORE,TMatInd,SetupTMAT
          IMPLICIT NONE
-         INTEGER NBASIS,NBASISMAX(5,2)
+         INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
          REAL*8 BHUB
          INTEGER iSize
@@ -178,7 +178,7 @@ C
       SUBROUTINE SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &            TPBC,TREAL)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),NMAXX,NMAXY,NMAXZ,LEN
+         INTEGER nBasisMax(5,*),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC,TREAL
          IF(TPBC) THEN
             NBASISMAX(1,3)=0
@@ -228,7 +228,7 @@ C         ENDIF
 
       SUBROUTINE SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &         TPBC,ITILTX,ITILTY)
-         INTEGER NBASISMAX(5,5),NMAXX,NMAXY,NMAXZ,LEN
+         INTEGER nBasisMax(5,*),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC
          INTEGER ITILTX,ITILTY
          IF(TPBC) THEN

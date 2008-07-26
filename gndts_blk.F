@@ -4,7 +4,7 @@
      &         )
          use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,2),NDET
+         INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*),NDET
          INTEGER NMRKS(NEL,NDET)
          INTEGER II,NLMAX
          TYPE(BASISFN) G1(NBASIS),ISYM,KJ,BLOCKSYM(NBLOCKS),IMAX(2)
@@ -83,7 +83,7 @@ C.. we've found an occupied block
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
-         INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
+         INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
          LOGICAL LCMP,LCHKSYM,TTILT
          INTEGER IGETEXCITLEVEL,ICE
          DO I=NBF,NBASIS
@@ -124,7 +124,7 @@ C.. singles and doubles of NI
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
-         INTEGER NJ(NEL),NBASISMAX(5,2)
+         INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER I,J,NLMAX
          CALL IAZZERO(KJ,BASISFNSIZE)
          CALL IAZZERO(NJ,NEL)
@@ -144,7 +144,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
-         INTEGER NLIST,LSTE(NEL,NLIST),NBASISMAX(5,2)
+         INTEGER NLIST,LSTE(NEL,NLIST),nBasisMax(5,*)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
          INTEGER NJ(NEL)
          INTEGER I,J,NLMAX
@@ -163,7 +163,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
-         INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
+         INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
          LOGICAL LCMP,LCHKSYM,TTILT
          TYPE(BASISFN) G1(NBASIS),KI,KJ,KJ2
          DO I=NBF,NBASIS
@@ -208,7 +208,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
          TYPE(BASISFN) G1(NBASIS),KI,KJ
-         INTEGER NJ(NEL),NBASISMAX(5,2)
+         INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER I,J,NLMAX
          CALL IAZZERO(KJ,BASISFNSIZE)
          CALL IAZZERO(NI,NEL)
@@ -227,7 +227,7 @@ C.. Generate determinants with a given symmetry, given by KI, as GENSYMDETS
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF
-         INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
+         INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
          LOGICAL LCMP,LCHKSYM,TTILT
          INTEGER IGETEXCITLEVEL,ICE
          REAL*8 RN,RP,RH,PP,RH2,RHOEPS
@@ -313,7 +313,7 @@ C.. the first NLIST are stored.
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,BRR(NBASIS)
          INTEGER NLIST,LSTE(NEL,NLIST)
-         INTEGER NJ(NEL),NBASISMAX(5,2)
+         INTEGER NJ(NEL),nBasisMax(5,*)
          INTEGER I,J,NLMAX
          REAL*8 RN,RP,PP,RHOEPS
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
@@ -340,7 +340,7 @@ C.. KI is the sym, NJ contains the working
          TYPE(BasisFN) G1(nBasis),kI,kJ,kJ2
          INTEGER NEL,NI(NEL), NBASIS
          INTEGER NJ(NEL),NELEC,INDJ(NEL),NLAST
-         INTEGER I,J,BRR(NBASIS),NN(NEL),NBASISMAX(5,2)
+         INTEGER I,J,BRR(NBASIS),NN(NEL),nBasisMax(5,*)
          LOGICAL LCHKSYM,LCONT,TDONE
          INTEGER nActiveBasis(2)
          TDONE=.FALSE.
@@ -391,7 +391,7 @@ C.. WORK(2*NEL+18)
      &      TPARITY,SymRestrict,ISYM,NI,TSETUP,TDONE,Work,nActiveBasis)
          use System, only: BasisFN,BasisFNSize
          IMPLICIT NONE
-         INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3)
+         INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)
          INTEGER LMS,NIWORK(NEL),NI(NEL)
 C         INTEGER WORK(5*NEL+18)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE
@@ -422,7 +422,7 @@ C     &      NIWORK,NINDJ)
          IMPLICIT NONE
          INCLUDE 'gndwork.inc'
          TYPE(GNDWork) Work 
-         INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(5,3)
+         INTEGER NEL,NBASIS,BRR(NBASIS),nBasisMax(5,*)
          TYPE (BasisFN) G1(NBASIS),SymRestrict
          INTEGER LMS,NIWORK(NEL),NI(NEL)
          LOGICAL TSPN,TPARITY,TSETUP,TMORE,TDONE,KALLOWED,TMORE2

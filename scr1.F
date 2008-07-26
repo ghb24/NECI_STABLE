@@ -7,7 +7,7 @@
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
       TYPE(BasisFN) G1(*)
-      INTEGER NBASISMAX(5,3)
+      INTEGER nBasisMax(5,*)
       INTEGER ID,EX(2)
       TYPE(HElement) UMAT(*)
 C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)

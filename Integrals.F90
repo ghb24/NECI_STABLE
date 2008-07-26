@@ -467,6 +467,7 @@ MODULE Integrals
                      LogAlloc(ierr,'FCK',NMSH**3,16,tagFCK)
                      CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
                      CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
+                     WRITE(6,*) NMSH,NMAX
                      LogAlloc(ierr,'ZIA',2*(NMSH+1)*NMAX*NMAX,16,tagZIA)
     !!C..
                      CALL MEMORY_CHECK()

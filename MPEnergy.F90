@@ -179,7 +179,7 @@ END
          implicit none
          Type(HElement) hEl,UMat(*)
          integer nEl,nI(nEl),nJ(nEl),nBasis
-         integer nBasisMax(5,5)
+         integer nBasisMax(5,*)
          type(BasisFn) G1(*)
          integer Ex(2,2),ex2(2,2),iss
          logical tSign

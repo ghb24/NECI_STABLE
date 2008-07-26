@@ -1232,7 +1232,7 @@ MODULE Calc
          TYPE(HElement),allocatable  :: RIJLIST(:)
          integer :: tagRIJList=0
          REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
-         INTEGER NPATHS,NI(NEL),I_P,NBASISMAX(5,5)
+         INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INCLUDE 'gndwork.inc'
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(NBASIS)
@@ -1383,7 +1383,7 @@ MODULE Calc
          USE HElem
          use System, only: BasisFN
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),I,NBASISMAX(5,5),I_P
+         INTEGER NEL,NI(NEL),I,nBasisMax(5,*),I_P
          INTEGER BRR(*),NMSH,NMAX,NHG
          COMPLEX*16 FCK(*)
          REAL*8 RHOEPSILON,BETA,ECORE,ALAT(*)

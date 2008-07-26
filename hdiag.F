@@ -231,7 +231,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          use System, only: BasisFN
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
-         INTEGER NBASISMAX(5,2),NBASIS
+         INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
          INTEGER NMSH,NMAX,I_P,ILOGGING,BRR(*),INFO
          REAL*8  ALAT(3),UMAT(*),ICMAX(*),GC(*),BETA

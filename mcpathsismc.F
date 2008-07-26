@@ -36,7 +36,7 @@ C.. NMAX has ARR hidden in it.
          TYPE(HDElement) FF
          TYPE(HDElement) WLRI,WLSI
          TYPE(BasisFN) G1(*)
-         INTEGER NBASISMAX(5,5),BRR(*)
+         INTEGER nBasisMax(5,*),BRR(*)
          INTEGER LSTE(*),ILMAX,I_VMAX,NEL,NBASIS
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
@@ -704,7 +704,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
      &   ECORE,ISEED)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
@@ -869,7 +869,7 @@ C.. not very efficient.
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
@@ -1027,7 +1027,7 @@ C.. XIJ is proportional to RHO_JJ**ABS(RP).
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS)
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
@@ -1184,7 +1184,7 @@ C..
          USE Calc , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE
@@ -1604,7 +1604,7 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          LOGICAL BR,BR2
          INTEGER IGETEXCITLEVEL
          TYPE(BasisFN) KSYM
-         INTEGER G1(*),NBASISMAX(5,2)
+         INTEGER G1(*),nBasisMax(5,*)
          LOGICAL LCHKSYM
          REAL*8 RAN2
          IF(IEXLEVEL.GT.2)
@@ -1645,7 +1645,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
      &            KSYM,BRR,ICOUNT)
          use System, only: BasisFN
          IMPLICIT NONE
-         INTEGER NEL,INODE(NEL),NBASIS,G1(*),NBASISMAX(5,2)
+         INTEGER NEL,INODE(NEL),NBASIS,G1(*),nBasisMax(5,*)
          INTEGER ICOUNT,BRR(NBASIS)
          TYPE(BasisFN) KSYM
          ICOUNT=0
@@ -1663,7 +1663,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
          INTEGER I,J,K,IEXL2,NB2,NA,NB,NEX1,NEX2
          INTEGER IEX1,IEX2,IIEX1,IIEX2
          LOGICAL BR
-         INTEGER NBASISMAX(5,6)
+         INTEGER nBasisMax(5,*)
          INTEGER NEX1A,NEX1B,NEX2A,NEX2B,G1(*)
          INTEGER NEXAB
          REAL*8 R,IEX
@@ -1795,7 +1795,7 @@ C.. weight.
          IMPLICIT NONE
          TYPE(HDElement) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
-         INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,ALAT(*),ECORE
@@ -2024,7 +2024,7 @@ C.. Unbias the sum
          REAL*8 BETA,ALAT(*),ECORE
          TYPE(HElement) Umat(*)
          TYPE(BasisFN) G1(*)
-         INTEGER I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH
+         INTEGER I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH
          INTEGER NMAX,NTAY
 #if defined(POINTER8)
          INTEGER*8 PVERTMEMS2(0:I_V)
@@ -2310,7 +2310,7 @@ C.. a wrongly biased MC
          USE Calc , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER NBASISMAX(5,2),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),ALAT(*),UMAT(*),ECORE

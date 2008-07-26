@@ -31,7 +31,7 @@ C         INTEGER NI(4,NEL), NJ(4,NEL)
          LOGICAL LACC
          INTEGER BRR(NBASIS)
          TYPE(BasisFN) G1(NBASIS)
-         INTEGER NMRKS(NEL,NDET),NBASISMAX(5,2)
+         INTEGER NMRKS(NEL,NDET),nBasisMax(5,*)
          POINTER (IP_LSTI,LSTI),(IP_DLWDBS,DLWDBS),(IP_WLRIS,WLRIS)
          POINTER (IP_WLSIS,WLSIS)
          INTEGER LSTI(3,*)
@@ -174,7 +174,7 @@ C               WI=WJ
 
       SUBROUTINE GENNEWDET(NI,NJ,NEL,NBASISMAX,ISEED)
          IMPLICIT REAL*8 (A-H,O-Z)
-         INTEGER NBASISMAX(5,2),NI(4,NEL),NJ(4,NEL)
+         INTEGER nBasisMax(5,*),NI(4,NEL),NJ(4,NEL)
          REAL*8 RAN2
          DO I=1,NEL
             DO J=1,4
@@ -254,7 +254,7 @@ C.. We couldn't find it
          INTEGER NI(NEL), NJ(NEL),MCDET(NEL)
          LOGICAL LACC,LISVALID
          INTEGER BRR(NBASIS),RHOEPS
-         INTEGER G1(*),NBASISMAX(5,2)
+         INTEGER G1(*),nBasisMax(5,*)
          CHARACTER*50 STR
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)
          INTEGER LSTE(*)
@@ -570,7 +570,7 @@ C.. if there's space, we store
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          use System, only: BasisFN
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),NI(NEL),NJ(NEL),NQN(5)
+         INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
          TYPE(BasisFN) G1(NBASIS)
          INTEGER NCH,ND,NEL,BRR(NBASIS),NBASIS,ISEED
          LOGICAL L
@@ -630,7 +630,7 @@ C.. We do this by exciting an electron into a spinorbital of close energy.
 C.. This does not take into account any symmetries.
       SUBROUTINE GENNEWDET3(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,2),NI(NEL),NJ(NEL),NQN(5),G1(*)
+         INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5),G1(*)
          INTEGER NCH,ND,BRR(NBASIS),NBASIS,NEL,ISEED
          LOGICAL L
          CHARACTER*20 STR
@@ -798,7 +798,7 @@ C            WRITE(6,*) "Store ",NODE
          INTEGER NI(NEL), NJ(NEL)
          LOGICAL LACC
          INTEGER BRR(NBASIS)
-         INTEGER G1(*),NMRKS(NEL,NDET),NBASISMAX(5,2)
+         INTEGER G1(*),NMRKS(NEL,NDET),nBasisMax(5,*)
          REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET)
          LOGICAL LISNAN
          REAL*8 RAN2
@@ -898,7 +898,7 @@ c            IF(MOD(IT,100).EQ.0) WRITE(6,*) IT
       END
 
       SUBROUTINE PBC(NQN, NBASISMAX)
-         INTEGER NQN(5), NBASISMAX(5,5)
+         INTEGER NQN(5), nBasisMax(5,*)
          INTEGER MPN,MMN,L,IQN,NMAXX
          LOGICAL TALLOW
          IF(NBASISMAX(1,3).EQ.0) THEN

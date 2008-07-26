@@ -37,7 +37,7 @@ C.,             If 1, only allow doubles.
          use System, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
-         INTEGER I_V,NEL,I_P,NBASISMAX(5,5),NBASIS,BRR(*),NMSH,NMAX
+         INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,I_VIND,NWHTAY,ILOGGING,J,K,I_VMAX,II
          INTEGER I
          COMPLEX*16 FCK(*)
@@ -643,7 +643,7 @@ C            CALL PRINT_MEMORY()
          IMPLICIT NONE
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p
          REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub
-         INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,NBASISMAX(5,5)
+         INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
          INTEGER EXCITLEV,IGETEXCITLEVEL_,hist
          TYPE(HDElement) Weight,DLWDB2
          TYPE(HElement) UMAT(*),ME

@@ -24,7 +24,7 @@ MODULE SymExcit2
          IMPLICIT NONE
          INCLUDE 'sym.inc'
          INTEGER ExcitType(5)
-         INTEGER nBasis,nBasisMax(5,3)
+         INTEGER nBasis,nBasisMax(5,*)
          INTEGER OrbPairs(2,*)
          REAL*8 Norm
          INTEGER iCount
@@ -73,7 +73,7 @@ MODULE SymExcit2
          INTEGER iCount
          INTEGER iFromIndex
          LOGICAL L1B,L1A,L2B,L2A
-         INTEGER NBASISMAX(5,3)
+         INTEGER nBasisMax(5,*)
          TYPE(BasisFN) G1(*)
          TYPE(HElement) UMAT(*)
          REAL*8 Norm
@@ -147,7 +147,7 @@ MODULE SymExcit2
          use System, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
-         INTEGER NBASISMAX(5,3),NBASIS
+         INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(*)
          TYPE(HElement) UMAT(*)
          TYPE(ExcitWeight) ExWeights(iCount+1)
@@ -170,7 +170,7 @@ MODULE SymExcit2
          use System, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
-         INTEGER nBasisMax(5,3),nBasis
+         INTEGER nBasisMax(5,*),nBasis
          TYPE(BasisFN) G1(*)
          TYPE(HElement) UMat(*)
          TYPE(ExcitWeight) ExWeights(iCount+1)
@@ -189,7 +189,7 @@ MODULE SymExcit2
          USE HElem
          use System, only: BasisFN
          IMPLICIT NONE
-         INTEGER nBasisMax(5,3),nBasis
+         INTEGER nBasisMax(5,*),nBasis
          TYPE(BasisFN) G1(nBasis)
 !  We fake ISS
          INTEGER I,J,K,L
@@ -233,7 +233,7 @@ MODULE SymExcit2
          USE UMatCache , only : GetUMatEl,GTID
          use System, only: BasisFN
          IMPLICIT NONE
-         INTEGER NBASISMAX(5,3),NBASIS
+         INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(NBASIS)
 !  We fake ISS
          INTEGER ISS
@@ -311,7 +311,7 @@ MODULE SymExcit2
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL SYMEQ
-         INTEGER nBasisMax(5,3)
+         INTEGER nBasisMax(5,*)
          TYPE(HElement) UMat(*)
          TYPE(ExcitWeight) ews(*)
          POINTER(IP_ews,ews)
@@ -429,7 +429,7 @@ MODULE SymExcit2
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL SYMEQ
-         INTEGER nBasisMax(5,3)
+         INTEGER nBasisMax(5,*)
          TYPE(ExcitWeight) ews(*)
          POINTER(IP_ews,ews)
          INTEGER iLUT(*)
