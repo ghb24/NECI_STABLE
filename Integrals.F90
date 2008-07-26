@@ -317,6 +317,9 @@ MODULE Integrals
             Use System, only: thub,tpbc,treadint,ttilt,TUEG,tVASP
             Use System, only: uhub, arr,alat,treal
             INTEGER iCacheFlag
+            COMPLEX*16 ZIA(*)
+            POINTER (IP_ZIA,ZIA)
+            INTEGER tagZIA
             COMPLEX*16 COEFF(*)
             POINTER (IP_COEFF,COEFF)
             INTEGER i
@@ -420,23 +423,6 @@ MODULE Integrals
                 ENDIF
                 WRITE(6,*) ' ECORE=',ECORE
              ELSE
-               IF(.NOT.(TUEG.OR.THUB)) THEN
-    !!C.. We need to init the arrays regardless of whether we're storing H
-    !!C..Need to initialise the Fourier arrays
-                   Allocate(Fck(nMsh**3),stat=ierr)
-                   LogAlloc(ierr,'FCK',NMSH**3,16,tagFCK)
-                   CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
-    !            CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
-    !!C..
-                   CALL MEMORY_CHECK()
-                   IF(NMAXZ.EQ.0) THEN
-    !!C..   We're doing a 2D simulation
-                      CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA)
-                   ELSE
-                      CALL INITFOU(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA)
-                   ENDIF
-                   CALL MEMORY_CHECK()
-               ENDIF
                ISPINSKIP=NBASISMAX(2,3)
                IF(NBASISMAX(1,3).GE.0) THEN
                    IF(TUEG.OR.THUB) THEN
@@ -475,14 +461,34 @@ MODULE Integrals
     !!C.. The UEG doesn't store coul integrals
                       ENDIF
                    ELSE
+    !!C.. We need to init the arrays regardless of whether we're storing H
+    !!C..Need to initialise the Fourier arrays
+                     Allocate(Fck(nMsh**3),stat=ierr)
+                     LogAlloc(ierr,'FCK',NMSH**3,16,tagFCK)
+                     CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
+                     CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
+                     LogAlloc(ierr,'ZIA',2*(NMSH+1)*NMAX*NMAX,16,tagZIA)
+    !!C..
+                     CALL MEMORY_CHECK()
+                     IF(NMAXZ.EQ.0) THEN
+    !!C..   We're doing a 2D simulation
+                        CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
+                     ELSE
+                        CALL INITFOU(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
+                     ENDIF
+                     CALL MEMORY_CHECK()
     !!C.. we pre-compute the 2-e integrals
-                      WRITE(6,*) "Generating 2e integrals"
+                     WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
-                      CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
-                      Allocate(UMat(UMatInt), stat=ierr)
-                      LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
-                      Call AZZERO(UMat,HElementSize*UMatInt)
-                      CALL GEN_COUL(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP)
+                     CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
+                     Allocate(UMat(UMatInt), stat=ierr)
+                     LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
+                     Call AZZERO(UMat,HElementSize*UMatInt)
+                     CALL GEN_COUL(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,ZIA)
+                     LogDealloc(tagZIA)
+                     Call FreeM(IP_ZIA)
+                     LogDealloc(tagFCK)
+                     Deallocate(FCK)
                    ENDIF
                 ELSE
                    WRITE(6,*) "Not precomputing 2-e integrals"
@@ -610,7 +616,7 @@ MODULE Integrals
          Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
          use UMatCache, only: GTID
          IMPLICIT NONE
-         INTEGER NHG,NBASIS,NBASISMAX(5,6),ISS
+         INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
          TYPE(BASISFN) G1(NHG)
          TYPE(HElement) UMAT(*)
 !!C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
