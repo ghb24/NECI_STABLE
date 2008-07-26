@@ -1,14 +1,14 @@
       SUBROUTINE GEN_COUL(NEL,NBASISMAX,
-     &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS)
+     &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,ZIA)
       use System, only: BasisFN
-      use UMatCache, only: GTID
+      use UMatCache, only: GTID, UMatInd
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
-      INTEGER NBASISMAX(5,3),ISS
-      DIMENSION UMAT(NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
+      INTEGER nBasisMax(5,*),ISS
+      DIMENSION UMAT(*)
 C..Cube arrays
       COMPLEX*16 FCK(NMSH,NMSH,NMSH)
-!      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
+      COMPLEX*16 ZIA(-NMSH/2:NMSH/2,NMAX,NMAX)
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
 C..
@@ -32,16 +32,17 @@ C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
               CALL GTID(NBASISMAX,J,ID2)
               CALL GTID(NBASISMAX,K,ID3)
               CALL GTID(NBASISMAX,L,ID4)
-              IF(UMAT(ID1,ID2,ID3,ID4).NE.0.D0) GOTO 100
+              IF(UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0)).NE.0.D0) GOTO 100
               CALL SLATCOULFOU(G1(I),G1(J),
-     &		G1(K),G1(L),NMSH,FCK,NMAX,SUM)
+     &		G1(K),G1(L),NMSH,FCK,NMAX,ZIA,SUM)
 c              SUM=SUM*COUPLE 
 C..Original call
-              UMAT(ID1,ID2,ID3,ID4)=SUM
+              UMAT(UMatInd(ID1,ID2,ID3,ID4,0,0))=SUM
+!              UMAT(ID1,ID2,ID3,ID4)=SUM
 C..Symmetries
-              UMAT(ID3,ID4,ID1,ID2)=SUM
-              UMAT(ID2,ID1,ID4,ID3)=SUM
-              UMAT(ID4,ID3,ID2,ID1)=SUM
+!              UMAT(ID3,ID4,ID1,ID2)=SUM
+!              UMAT(ID2,ID1,ID4,ID3)=SUM
+!              UMAT(ID4,ID3,ID2,ID1)=SUM
               IF(SUM.LE.1.D-10) GOTO 100 
               WRITE(10,'(4I7,F19.9)') ID1,ID2,ID3,ID4,SUM
 100           CONTINUE

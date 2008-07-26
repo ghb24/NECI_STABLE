@@ -3,11 +3,11 @@ C.. Routines needed for the initialisation of the Fourier
 C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU2D(NMESHX,CK,COEFF,NMAX,
-     &     A,TALPHA,ALPHA,OMEGA)
+     &     A,TALPHA,ALPHA,OMEGA,ZIA)
       IMPLICIT REAL*8(A-H,O-Z)
       COMPLEX*16 CK(NMESHX,NMESHX,NMESHX)
       COMPLEX*16 COEFF(3*NMESHX+48)
-!      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       REAL*8 A(3)
       LOGICAL TALPHA
       DATA IFIRST/0/
@@ -18,7 +18,7 @@ C..
 C..      
       T1 = TIMEC()
       CALL GEN_CK_FFT2D(NMESHX,CK,COEFF,A,TALPHA,ALPHA,OMEGA)
-      CALL GEN_ZIA(NMESHX,NMAX)
+      CALL GEN_ZIA(NMESHX,NMAX,ZIA)
       T2 = TIMEC()
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2+1,NMESHX/2+1,NMESHX/2+1)

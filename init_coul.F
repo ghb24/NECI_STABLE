@@ -3,11 +3,11 @@ C.. Routines needed for the initialisation of the Fourier
 C.. Method of evaluating the Coulomb integrals
 C  ========================================================              
       SUBROUTINE INITFOU(NMESHX,CK,COEFF,NMAX,
-     &     A,TALPHA,ALPHA,OMEGA)
+     &     A,TALPHA,ALPHA,OMEGA,ZIA)
       IMPLICIT REAL*8(A-H,O-Z)
       COMPLEX*16 CK(NMESHX,NMESHX,NMESHX)
       COMPLEX*16 COEFF(3*NMESHX+48)
-!      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       REAL*8 A(3)
       LOGICAL TALPHA
       DATA IFIRST/0/
@@ -18,7 +18,7 @@ C..
 C..      
       T1 = TIMEC()
       CALL GEN_CK_FFT(NMESHX,CK,COEFF,A,TALPHA,ALPHA,OMEGA)
-      CALL GEN_ZIA(NMESHX,NMAX)
+      CALL GEN_ZIA(NMESHX,NMAX,ZIA)
       T2 = TIMEC()
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2,NMESHX/2,NMESHX/2)
@@ -225,15 +225,14 @@ c      stop
       RETURN
       END
 C ============================================================
-      SUBROUTINE GEN_ZIA(KMAX,NMAX)
+      SUBROUTINE GEN_ZIA(KMAX,NMAX,ZIA)
       IMPLICIT REAL*8(A-H,O-Z)
-!      COMPLEX*16 ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
+      COMPLEX*16 ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
       DO K=-KMAX/2,KMAX/2
         DO N=1,NMAX
           DO M=1,NMAX
-            STOP 'ZIA now redundant - should not be used'
-!            ZIA(K,N,M)=0.25D0*(ZIO(N-M+K)+ZIO(-N+M+K)
-!     &           -ZIO(N+M+K)-ZIO(-N-M+K))
+            ZIA(K,N,M)=0.25D0*(ZIO(N-M+K)+ZIO(-N+M+K)
+     &           -ZIO(N+M+K)-ZIO(-N-M+K))
           ENDDO
         ENDDO
       ENDDO

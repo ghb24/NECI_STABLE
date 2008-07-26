@@ -40,7 +40,7 @@ MODULE System
 
 
         TYPE(BASISFN) SymRestrict
-        INTEGER NBASISMAX(5,7)
+        INTEGER nBasisMax(5,7)
         REAL*8 ALAT(5)
         REAL*8 ECore
         INTEGER nBasis
@@ -186,6 +186,7 @@ MODULE System
             case("ORDER")
                 THFORDER = .true.
             end select
+        case("BOX")
         case default
             call report ("System type "//trim(w)                        &
      &               //" not valid",.true.)
@@ -814,7 +815,7 @@ END
 SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
    use System, only: BasisFN
    implicit none
-   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),NBASISMAX(5,3)
+   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
    INTEGER BRR2(NBASIS)
    TYPE(BASISFN) G1(NBASIS)
    REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
@@ -902,7 +903,7 @@ END subroutine
 !  Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
       LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
          IMPLICIT NONE
-         INTEGER G(5),NBASISMAX(5,5),NMAXX,I,J,AX,AY
+         INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
          INTEGER KX,KY
          REAL*8 MX,MY,XX,YY
          LOGICAL TALLOW
