@@ -64,5 +64,8 @@ if [[ $compile -eq 1 ]]; then
     make neci.x
     stat=$?
     cd ..
-    exit $stat
+    if [[ $stat -eq 0 && ! -e neci.x ]]; then
+        ln -s dest/neci.x neci.x
+    fi
 fi
+exit $stat
