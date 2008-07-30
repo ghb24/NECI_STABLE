@@ -1,5 +1,3 @@
-# Test 1
-# Test 2
 SHELL=/bin/bash
 
 neci:
@@ -52,7 +50,8 @@ dbgmkfiles:
 	./compile -d -m
 
 help:
-	@echo -e \
+	@echo -e "make [target]\n\n"\
+"Targets:\n"\
 "neci		make neci.x.\n"\
 "new		make new makefile and clean compile of neci.x.\n"\
 "dbg		make new makefile, turn debug flags on and clean compile of neci.x.\n"\
@@ -64,6 +63,6 @@ help:
 "neci-vasp	make neci library for integration with gamma-point (currently not implemented in vasp) and k-point versions of vasp.\n"\
 "all		make neci.x and all four libraries.\n"\
 "newall		produce new makefiles and clean make of neci.x and all four libraries.\n"\
-"mkfiles    make new makefiles.\n"\
-"dbgmkfiles make new makefiles with debug flags on.\n"\
+"mkfiles		make new makefiles.\n"\
+"dbgmkfiles	make new makefiles with debug flags on.\n"\
 "clean		remove all *.f*, *.o, *.mod, *.a and *.x from the dest and kdest subdirectories."
