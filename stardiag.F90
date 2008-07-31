@@ -173,10 +173,7 @@
             IF(nTay(2).eq.5) THEN
                call GetH0ElementDCCorr(nI,nI,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,nMax,ALAT,UMat,ECore,rhii)
             ELSE
-               write (6,'(a/a)') 'WARNING: the call to GetH0Element is clearly incorrect, and will probably fail.',
-                                 'Please correct if using this section of the code.'
-               call flush(6)
-               call GetH0Element(nI,nEl,nMax,nBasis,rhii)
+               call GetH0Element(nI,nEl,nMax,nBasis,ECore,rhii)
             ENDIF
             EHFDiff=ExcitInfo(i,2)-rhii
          endif
@@ -207,10 +204,7 @@
                    CALL GETEXCITSCHANGE(nI,nJ,nEl,EXCITSTORE(:,i))
                ENDIF
                if(btest(nwhtay,5)) then
-                  write (6,'(a/a)') 'WARNING: the call to GetH0Element is clearly incorrect, and will probably fail.',
-                                  'Please correct if using this section of the code.'
-                  call flush(6)
-                  call GetH0Element(nJ,nEl,nMax,nBasis,rh)
+                  call GetH0Element(nJ,nEl,nMax,nBasis,ECore,rh)
                   rh=rh+EHFDiff
                   rh=rh*HElement(-Beta/I_P)
                   rh=exp(rh)
