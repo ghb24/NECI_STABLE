@@ -41,7 +41,7 @@ C.. The new node is connected to this node
       END
 
 C.. Get the orbitals which are excited in going from I to J
-C.. IEX(1,*) are in I, and IEX(2,*) are in J
+C.. EX(1,*) are in I, and EX(2,*) are in J
 C.. TSIGN is set to the parity of the permutations required to line up the orbitals
 C..   TRUE means ODD.
 C.. If there are too many excitations to fit, then we put -excitlevel in EX(1,1) and EX(2,1)
