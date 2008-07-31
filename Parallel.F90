@@ -194,6 +194,10 @@ Subroutine GetProcElectrons(iProcIndex,nProcessors, iMinElec, iMaxElec)
    nCur=((nProcessors+1-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
    nCur=nEl+1-(1+sqrt(1.d0+4*nCur))/2
    iMinElec=ceiling(nCur)
+   if(floor(nCur).eq.ceiling(nCur)) then
+! We hit smack bang on an integer for nCur, so to avoid duplicating this electron here and in the previous processor, we choose the next one.
+      iMinElec=iMinElec+1
+   endif
    nCur=((nProcessors-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
    nCur=nEl+1-(1+sqrt(1.d0+4*nCur))/2
    iMaxElec=floor(nCur)
