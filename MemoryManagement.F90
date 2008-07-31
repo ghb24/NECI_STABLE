@@ -38,7 +38,12 @@ module MemoryManager
 !    where:
 !      'deallocating_routine' is the routine in which the deallocation is performed.
 !
-! 5. At the end of the calculation, print out memory usage:
+! 5. If, at any point you want to print (to STOUT) the allocated elements of the memory log:
+!      call PrintMemory()
+!    Optional arguments exist for printing out the deallocated elements and
+!    printing to other units.
+!
+! 6. At the end of the calculation, print out memory usage:
 !      call LeaveMemoryManager()
 
 !=====================================================================================
@@ -60,7 +65,7 @@ implicit none
 
 !private
 private
-public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer
+public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer,PrintMemory
 ! Allow users to do the potentially dangerous thing of changing how the log is run.
 ! We'll hope they'll only use this for good...
 public :: CachingMemLog 
@@ -405,9 +410,9 @@ contains
         ! Find the next large object.
         iobjloc=maxloc(ObjectSizes,mask=ObjectSizes.lt.ObjectSizes(iobj))
         iobj=iobjloc(1)
-        if (AllMemEl(iobj)%ObjectName.eq.''                        &
-             .and.AllMemEl(iobj)%AllocRoutine.eq.''                &
-             .and.AllMemEl(iobj)%DeallocRoutine.eq.'unknown'       &
+        if (AllMemEl(iobj)%ObjectName.eq.''                                &
+             .and.AllMemEl(iobj)%AllocRoutine.eq.''                        &
+             .and.AllMemEl(iobj)%DeallocRoutine.eq.'not deallocated'       &
              .and.AllMemEl(iobj)%ObjectSize.eq.0) then
              ! Have logged less than nLargeObjects allocations.
              exit
@@ -423,15 +428,7 @@ contains
         ! Dump entire memory log to file.
         call getunit(iunit)
         open(unit=iunit,file=memoryfile,form='formatted',status='unknown')
-        call WriteMemLogHeader(iunit)
-        do iobj = 1, min(ipos,MaxLen)
-            write (iunit,fmt1) ' '//MemLog(iobj)%ObjectName,MemLog(iobj)%AllocRoutine,MemLog(iobj)%DeallocRoutine
-            call WriteMemSize(iunit,AllMemEl(iobj)%ObjectSize)
-        enddo
-        if (warned) then
-            write (iunit,*) '== NOTE: Length of logging arrays exceeded. Length needed is ',ipos
-        endif
-        write (iunit,*) '================================================================'
+        call PrintMemory(.true.,iunit)
         close(iunit)
     end if
 
@@ -443,11 +440,59 @@ contains
     return
     end subroutine LeaveMemoryManager
 
+
+
+    subroutine PrintMemory(PrintDeallocated,iunit)
+    ! Print out the memory log.  If using the cache memory log, then it will
+    ! only print out the elements stored, *not* any which have been
+    ! over-written.  By default, only the active allocations are printed out to
+    ! STOUT.
+    !
+    ! INPUT:
+    !      PrintDeallocated (optional, default=.false.) - print out objects which
+    !                       have been deallocated (but are still present in the cache).
+    !      iunit (optional, default=6) - unit to output to.
+
+    implicit none
+    logical, intent(in), optional :: PrintDeallocated
+    integer, intent(in), optional :: iunit
+
+    logical :: pd
+    integer :: io,iobj
+    character(len=*), parameter :: fmt1='(3a19)'
+
+    if (present(PrintDeallocated)) then
+        pd=PrintDeallocated
+    else
+        pd=.false.
+    end if
+
+    if (present(iunit)) then
+        io=iunit
+    else
+        io=6
+    end if
+
+    call WriteMemLogHeader(io)
+    do iobj = 1, min(ipos,MaxLen)
+        if (pd.or.MemLog(iobj)%DeallocRoutine.eq.'not deallocated') then
+            write (io,fmt1,advance='no') ' '//MemLog(iobj)%ObjectName,MemLog(iobj)%AllocRoutine,MemLog(iobj)%DeallocRoutine
+            call WriteMemSize(io,MemLog(iobj)%ObjectSize)
+        end if
+    enddo
+    if (ipos.gt.MaxLen) then
+        write (io,*) '== NOTE: Length of logging arrays exceeded. Length needed is ',ipos
+    endif
+    write (io,*) '================================================================'
+
+    return
+    end subroutine PrintMemory
     
+
 
     subroutine WriteMemLogHeader(iunit)
     implicit none
-    integer :: iunit
+    integer, intent(in) :: iunit
     write (iunit,*)
     write (iunit,*) '================================================================'
     write (iunit,*) 'Memory usage'
