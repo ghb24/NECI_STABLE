@@ -85,6 +85,7 @@ def latex2html(node, source):
     # Always called from the document root directory.
     # Place the math images in the mathimg subdirectory 
     # of the document root directory.
+    print os.getcwd
     path=os.path.join(os.getcwd(),'build/html/','mathimg')
     print 'path:',path
     if not isdir(path):
@@ -114,4 +115,6 @@ def latex2html(node, source):
         cls = ''
     else:
         cls = 'class="center" '
+    print 'source',source
+    path=source.split('/source/')[-1].count('/')*'../'+'mathimg'
     return '<img src="%s/%s.png" %s%s/>' % (path, name, align, cls)
