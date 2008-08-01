@@ -801,43 +801,6 @@ C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-C      SUBROUTINE STORE(C0,NUM,IOPT,IUNIT)
-C     ==--------------------------------------------------------------==
-C     == STORE IN A FILE AN ARRAY TO DEBUG                            ==
-C     ==--------------------------------------------------------------==
-C      IMPLICIT NONE
-C     Arguments
-C      INTEGER NUM,IOPT,IUNIT
-C      REAL*8  C0(2,*)
-C     Variables
-C      INTEGER I,J
-C      REAL*8  DNRM2,DOTP
-C     ==--------------------------------------------------------------==
-C      OPEN(UNIT=IUNIT,STATUS= 'UNKNOWN')
-C      IF(IOPT.EQ.1) THEN
-C        WRITE(IUNIT,*) 0, SQRT(DOTP(NUM,C0(1,1),C0(1,1))),0.D0
-C      ELSEIF(IOPT.EQ.2) THEN
-C        WRITE(IUNIT,*) 0, DNRM2(2*IOPT*NUM,C0(1,1),1),0.D0
-C      ENDIF
-C      IF(IOPT.LE.2) THEN
-C        DO I=1,NUM*IOPT
-C          WRITE(IUNIT,*) I, C0(1,I), C0(2,I)
-C        ENDDO
-C      ELSE
-C        DO I=1,NUM/2
-C          DO J=1,2
-C            WRITE(IUNIT,*) 2*(I-1)+J, C0(J,I)
-C          ENDDO
-C        ENDDO
-C        IF(2*(NUM/2).NE.NUM) WRITE(IUNIT,*) NUM, C0(1,NUM/2+1)
-C      ENDIF
-C      CLOSE(UNIT=IUNIT)
-CC     ==--------------------------------------------------------------==
-C      RETURN
-C      END
-C     ==================================================================
-C     == USED TO DEBUG.                                               ==
-C     ==================================================================
       SUBROUTINE DETERM(DMAT,N,ISCR,LSCR,DD)
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
