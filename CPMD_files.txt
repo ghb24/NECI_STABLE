@@ -1,0 +1,18 @@
+The following files are based on CPMD and need to be stripped from the codebase.  These are just the files in NECI and CPMD which have a common name.  There may be functions in common too. AJWT
+
+dotp.F
+envir.F
+envj.inc
+erf.F
+freem.F
+frsblk.F
+get_addr.F
+irat.inc
+memc.inc
+memory.F
+prmem.F
+rhoofr.F
+stopgm.F
+time*.F
+util.F
+xcener.F
