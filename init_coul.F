@@ -8,7 +8,7 @@ C  ========================================================
       COMPLEX*16 CK(NMESHX,NMESHX,NMESHX)
       COMPLEX*16 COEFF(3*NMESHX+48)
       COMPLEX*16 ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
-      REAL*8 A(3)
+      REAL*8 A(3),DERF
       LOGICAL TALPHA
       DATA IFIRST/0/
       SAVE IFIRST 
@@ -121,7 +121,7 @@ C..
             IF(AUX.NE.0.D0) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
-                AUX=1.D0/R*(-1)**(I+J+K)*ERF(R/ALPHA)
+                AUX=1.D0/R*(-1)**(I+J+K)*DERF(R/ALPHA)
               ELSE
                 AUX=1.D0/SQRT(AUX)*(-1)**(I+J+K)
               ENDIF

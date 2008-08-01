@@ -11,7 +11,7 @@ OBJ_AL  = sort2.o fctrl.o sltcnd.o \
 
 OBJ_CU  = fcoul.o rhoofr.o write_rho.o \
           xchole.o rlsxc_sc.o rlsxc1_sc.o rlsxc2_sc.o \
-          xcholes.o fodmat.o blas_tuned_NECSX.o erf.o \
+          xcholes.o fodmat.o blas_tuned_NECSX.o \
 	  read_psi.o gen_coul_ueg.o \
           hfbasis.o scrtransf.o csf.o
 
