@@ -4,7 +4,6 @@ envir.F
 envj.inc
 freem.F
 frsblk.F
-get_addr.F ! Just a wrapper for LOC.  We don't use the special case machine, so can replace all get_addr with loc.
 irat.inc
 memc.inc
 memory.F
