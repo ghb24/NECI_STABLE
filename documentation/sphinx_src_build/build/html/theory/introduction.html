@@ -1,0 +1,159 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Introduction &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+          URL_ROOT:    '../',
+          VERSION:     '0.1',
+          COLLAPSE_MODINDEX: false,
+          FILE_SUFFIX: '.html'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/interface.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="contents" title="Global table of contents" href="../contents.html" />
+    <link rel="index" title="Global index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Theoretical review" href="index.html" />
+    <link rel="next" title="Graph evaluation" href="graph_evaluation.html" />
+    <link rel="prev" title="Theoretical review" href="index.html" />
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="graph_evaluation.html" title="Graph evaluation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Theoretical review"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Theoretical review</a> &raquo;</li>
+      </ul>
+    </div>
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  
+  <div class="section" id="introduction">
+<span id="theory-introduction"></span><h1 id="introduction"><span id="theory-introduction"></span>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p>The energy of a system can be evaluated using a standard statisical mechanics result:</p>
+<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-67b6038017.png" class="center" /><p>We choose to work in a Slater Determinant space, which is, by construction, anti-symmetric.  In this space the energy expression becomes:</p>
+<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-6f2e8d3b35.png" class="center" /><p>A given term in the numerator is simply the differential of the
+corresponding term in the denominator.  There is a cleaner and more
+efficient way of evaluating the numerator than differentiation, but we
+will first turn our attention to the denominator.</p>
+<p>We can expand each term into a closed path of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-0c9a0fdaaa.png" /> steps through the discrete Slater Determinant space:</p>
+<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-1923eb947b.png" class="center" /><p>where the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix consists of elements
+<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-5e386e6fee.png" align="absmiddle" />.</p>
+<p>Each path does not necessarily visit <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d62b198ef0.png" /> determinants: &#8220;hopping&#8221;
+terms are allowed.  Due to the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix being diagonally
+dominant, paths containing small numbers of unique determinants will
+tend to have a much greater contribution to the overall energy.</p>
+<p>The size of the Slater determinant space grows factorially with the number
+of electrons and virtual orbitals, making it impossible to sum together
+all the paths.  Furthermore, the sign of a path is an incredibly poorly
+behaved quantity.  It is possible to perform an analytical resummation
+of the paths into objects we term graphs, where each graph contains
+paths which only visit the vertices contained within the graph.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">To come: pictures of paths &#8211;&gt; graph.</p>
+</div>
+<p>The expression for the energy now becomes a sum over Slater determinants and a sum graphs which originate from each Slater determinant:</p>
+<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-a9fca3e975.png" class="center" /><p>Furthermore, the graphs have a much better sign behaviour: there are many graphs with a definite-positive weight, at least for graphs with less than 5 vertices, which makes a Monte Carlo approach feasible.</p>
+<p>The resummation of paths into graphs still leaves a sum that is far too
+large to be completely evaluated.  There are various approximations we
+can apply.</p>
+<blockquote>
+<ol class="arabic">
+<li><p class="first">Use a single reference reference approach, i.e. approximate the
+energy with:</p>
+<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-781b0b5a89.png" class="center" /><p>where <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-b1a2733247.png" /> refers to the reference (i.e. Hartree&#8211;Fock)
+determinant.</p>
+<p>This sum, in general, still contains too many terms (and grows
+too rapidly with system size) to be of much use.</p>
+</li>
+<li><p class="first">Truncate the sum at a certain graph size (e.g. restrict it to
+two or three vertices).  This approach is referred to as a
+<strong>VERTEX SUM</strong> approach.</p>
+</li>
+<li><p class="first">Find a large graph that is a good approximation to the ground state
+and is easy to evaluate.  Our current model is the single and
+double excitation star, which contains all single and double
+excitations connected to the reference determinant but ignores any
+connections between the excited determinants.  In other words,
+it couples all the single and double excitations together,
+but only through the reference determinant.  This method is
+referred to as a <strong>VERTEX STAR</strong> approach.  The star contains all
+graphs in the sum truncated at the two vertex level and much more but
+at no additional costly integrals to evaluate.  This makes it a very
+attractive approach.</p>
+</li>
+</ol>
+</blockquote>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">To come: the propogation operator.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="index.html" title="previous chapter">Theoretical review</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="graph_evaluation.html" title="next chapter">Graph evaluation</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/theory/introduction.txt">Show Source</a></li>
+            </ul>
+            <h3>Quick search</h3>
+            <form class="search" action="../search.html" method="get">
+              <input type="text" name="q" size="18" /> <input type="submit" value="Go" />
+              <input type="hidden" name="check_keywords" value="yes" />
+              <input type="hidden" name="area" value="default" />
+            </form>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="graph_evaluation.html" title="Graph evaluation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Theoretical review"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Theoretical review</a> &raquo;</li>
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2008, Alavi Group.
+      Last updated on Aug 01, 2008.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+    </div>
+  </body>
+</html>
