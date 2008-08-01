@@ -64,13 +64,13 @@
 <dt><strong>ALLPATHS</strong></dt>
 <dd>Choose all determinants (i.e. set NPATHS = -1).</dd>
 <dt><strong>BETA</strong> [BETA]</dt>
-<dd>Set <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-59ed813421.png" />.</dd>
+<dd>Set <img src="../mathimg/math-59ed813421.png" />.</dd>
 <dt><strong>BETAOVERP</strong> [BETAP]</dt>
 <dd><p class="first">Default= 1.d-4.</p>
-<p class="last">Set <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d631c515e6.png" />.</p>
+<p class="last">Set <img src="../mathimg/math-d631c515e6.png" />.</p>
 </dd>
 <dt><strong>DELTABETA</strong> [DBETA]</dt>
-<dd><p class="first">Set <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-ae1e8f371a.png" />.  If given a negative value, calculate it exactly.</p>
+<dd><p class="first">Set <img src="../mathimg/math-ae1e8f371a.png" />.  If given a negative value, calculate it exactly.</p>
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">What is this used for?</p>
@@ -175,8 +175,8 @@ respectively from the Fermi level</dd>
 </blockquote>
 </dd>
 <dt><strong>RHOEPSILON</strong> [RHOEPSILON]</dt>
-<dd>Set the minimum significant value of an element in the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" />
-matrix as a fraction of the maximum value in the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> matrix.
+<dd>Set the minimum significant value of an element in the <img src="../mathimg/math-7b83fdec7c.png" />
+matrix as a fraction of the maximum value in the <img src="../mathimg/math-7b83fdec7c.png" /> matrix.
 Matrix elements below this threshold are set to be 0.</dd>
 <dt><strong>STARCONVERGE</strong> [STARCONV]</dt>
 <dd><p class="first">Default 1.d-3.</p>
@@ -185,11 +185,11 @@ is significant.</p>
 </dd>
 <dt><strong>TROTTER</strong></dt>
 <dd><p class="first">Default.</p>
-<p class="last">Perform a Trotter decomposition to evaluate the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> matrix elements.</p>
+<p class="last">Perform a Trotter decomposition to evaluate the <img src="../mathimg/math-7b83fdec7c.png" /> matrix elements.</p>
 </dd>
 <dt><strong>TIMESTEPS</strong> [I_P]</dt>
-<dd>Set P, the timesteps into which <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d9830dc24c.png" /> is split.  Automatically
-sets <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-83160e68c0.png" /> (as required) but returns an error message if <strong>BETAOVERP</strong>
+<dd>Set P, the timesteps into which <img src="../mathimg/math-d9830dc24c.png" /> is split.  Automatically
+sets <img src="../mathimg/math-83160e68c0.png" /> (as required) but returns an error message if <strong>BETAOVERP</strong>
 is also used.</dd>
 <dt><strong>WORKOUT</strong> [NDETWORK]</dt>
 <dd><p class="first">Sets the number of determinants which are worked out exactly.</p>
@@ -218,12 +218,12 @@ determinant to be handled separately.</p>
 <dd><p class="first">Calculate the vertex sum approximation.</p>
 <dl class="docutils">
 <dt><strong>OLD</strong></dt>
-<dd>Diagonalise the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix using the original method.</dd>
+<dd>Diagonalise the <img src="../mathimg/math-f2e3547a85.png" /> matrix using the original method.</dd>
 <dt><strong>NEW</strong></dt>
-<dd>Diagonalise the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix using a more modern, more
+<dd>Diagonalise the <img src="../mathimg/math-f2e3547a85.png" /> matrix using a more modern, more
 efficient method.  Recommended.</dd>
 <dt><strong>HDIAG</strong></dt>
-<dd>Diagonalise the Hamiltonian matrix instead of the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> matrix
+<dd>Diagonalise the Hamiltonian matrix instead of the <img src="../mathimg/math-7b83fdec7c.png" /> matrix
 in order to calculate the weight and energy contribution of each graph.</dd>
 <dt><strong>SUB2VSTAR</strong></dt>
 <dd>Remove paths which were present in the 2-vertex
@@ -231,9 +231,9 @@ star for each graph.  If this is specified for ANY vertex level,
 it applies to all <strong>SUM</strong> and MC vertex levels.</dd>
 <dt><strong>LOGWEIGHT</strong></dt>
 <dd>Form Q as a multiplication of factors from graphs.  This results
-in the quantity <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-cb4a00a382.png" /> being used instead
-of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-e77c0c5d68.png" />, which also translates to the energy expression
-only involving <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7df5be85f7.png" /> not weights.  Hopefully this
+in the quantity <img src="../mathimg/math-cb4a00a382.png" /> being used instead
+of <img src="../mathimg/math-e77c0c5d68.png" />, which also translates to the energy expression
+only involving <img src="../mathimg/math-7df5be85f7.png" /> not weights.  Hopefully this
 is size-consistent.</dd>
 </dl>
 <div class="last admonition warning">
@@ -368,7 +368,7 @@ routine version specified in <strong>EXCITATIONS</strong> <strong>OLD</strong> o
 the <strong>NEW</strong> excitation routine.  Much more memory efficient.</dd>
 <dt><strong>NEW H0</strong></dt>
 <dd><p class="first">Use the zeroth order N-particle Hamiltonian (shifted such that
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-c3062627d2.png" align="absmiddle" />) rather than the fully interacting
+<img src="../mathimg/math-c3062627d2.png" align="absmiddle" />) rather than the fully interacting
 Hamiltonian to generate the roots of the polynomial.</p>
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
@@ -388,7 +388,7 @@ first few eigenvalues.</dd>
 <dt><strong>POLY</strong></dt>
 <dd><p class="first">Use the special properties of the matrix to find the roots of
 the polynomial and uses them to calculate the relevant values.
-This is order <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-bca7569790.png" />.</p>
+This is order <img src="../mathimg/math-bca7569790.png" />.</p>
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">Ngraph==nDets?</p>
@@ -396,18 +396,18 @@ This is order <img src="/home/jss43/projects/NECI-documentation/build/html/mathi
 </dd>
 <dt><strong>POLYMAX</strong></dt>
 <dd>Similar to <strong>POLY</strong> but only finds the highest root of the polynomial, so
-is order Ngraph.  It can be used when P is very large (i.e. <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-59ed813421.png" />
+is order Ngraph.  It can be used when P is very large (i.e. <img src="../mathimg/math-59ed813421.png" />
 is very large, e.g. 40).</dd>
 <dt><strong>POLYCONVERGE</strong></dt>
-<dd>Similar to <strong>POLY</strong> but adds i out of N <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-391549a107.png" align="absmiddle" />
-roots, such that <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-e38f81417a.png" align="absmiddle" />, i.e. we
+<dd>Similar to <strong>POLY</strong> but adds i out of N <img src="../mathimg/math-391549a107.png" align="absmiddle" />
+roots, such that <img src="../mathimg/math-e38f81417a.png" align="absmiddle" />, i.e. we
 evaluate enough roots such that a very conservative error
 estimate of the contribution of the remaining roots is
 negligible.</dd>
 <dt><strong>POLYCONVERGE2</strong></dt>
 <dd>Similar to <strong>POLYCONVERGE</strong> but requires
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-8ef54ce35a.png" align="absmiddle" />, where
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-13a3ebeea5.png" /> is the cumulative sum of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-32b591c6c4.png" align="absmiddle" />,
+<img src="../mathimg/math-8ef54ce35a.png" align="absmiddle" />, where
+<img src="../mathimg/math-13a3ebeea5.png" /> is the cumulative sum of <img src="../mathimg/math-32b591c6c4.png" align="absmiddle" />,
 which should be a better estimate of the convergence.</dd>
 </dl>
 </blockquote>
@@ -417,7 +417,7 @@ which should be a better estimate of the convergence.</dd>
 <dt><strong>MCSTAR</strong></dt>
 <dd><p class="first">Use a basic implementation of the spawning algorithm in
 order to sample the star graph stochastically. The sampling uses
-elements of the Hamiltonian matrix rather than the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> matrix,
+elements of the Hamiltonian matrix rather than the <img src="../mathimg/math-7b83fdec7c.png" /> matrix,
 so there will be some differences in the converged energy
 compared to a <strong>VERTEX STAR NEW</strong> calculation.</p>
 <p class="last">Many of the <strong>FCIMC</strong> options are also available with MCStar,
@@ -459,7 +459,7 @@ algorithm and is much more experimental.</p>
 </dd>
 <dt><strong>VERTEX</strong> <strong>GRAPHMORPH</strong> [<strong>HDIAG</strong>]</dt>
 <dd><p class="first">Set up an initial graph and systematically improve it, by applying the
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> matrix of the graph and its excitations as a propagator
+<img src="../mathimg/math-7b83fdec7c.png" /> matrix of the graph and its excitations as a propagator
 on the largest eigenvector of the graph. From this, an improved graph
 is stochastically selected, and the process is repeated, lowering
 the energy. If <strong>HDIAG</strong> is specified, it is the hamiltonian matrix
@@ -552,7 +552,7 @@ Default 3000.</blockquote>
 <dd><p class="first">Default 0.0.</p>
 <p>Set the number of evoution timesteps before
 the EShift is updated.  Must be set such that
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7a497a81dc.png" align="absmiddle" /> .</p>
+<img src="../mathimg/math-7a497a81dc.png" align="absmiddle" /> .</p>
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
 <p>Brilliantly, there&#8217;s a comment in the code which states (contradictorily):</p>
@@ -582,7 +582,7 @@ they are culled.</p>
 <p class="last">Set the factor by which the total number of particles is reduced once it reaches the GrowMaxFactor limit</p>
 </dd>
 <dt><strong>NOBIRTH</strong></dt>
-<dd>Force the off-diagonal <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> (?) matrix elements to become zero,
+<dd>Force the off-diagonal <img src="../mathimg/math-7b83fdec7c.png" /> (?) matrix elements to become zero,
 and hence obtain an exponential decay of the initial populations
 on the determinants, at a rate which can be exactly calculated and
 compared against.</dd>
@@ -655,12 +655,12 @@ Moller&#8211;Plesset.  Only works for <strong>VERTEX SUM NEW</strong> and <stron
 SUM HDIAG</strong> and only at the 2-vertex level.</dd>
 <dt><strong>LADDER</strong></dt>
 <dd>Use ladder diagram perturbation theory, rather than Moller&#8211;Plesset.
-The energy denominator is <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-62f44f9e1c.png" align="absmiddle" />.  Only works
+The energy denominator is <img src="../mathimg/math-62f44f9e1c.png" align="absmiddle" />.  Only works
 for <strong>VERTEX SUM NEW</strong> and <strong>VERTEX SUM HDIAG</strong> and only at the
 2-vertex level.</dd>
 <dt><strong>MPMODTHEORY</strong></dt>
 <dd>Perform a hybrid of Epstein&#8211;Nesbet and Moller&#8211;Plesset theory,
-which includes only the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-a265f32e42.png" />
+which includes only the <img src="../mathimg/math-a265f32e42.png" />
 terms in the denominator.  Only works for <strong>VERTEX SUM NEW</strong> and
 <strong>VERTEX SUM HDIAG</strong> and only at the 2-vertex level.</dd>
 </dl>
@@ -701,11 +701,11 @@ are a diagonalisation?</p>
 <dd><p class="first">Calculate the energy by diagonalising the Hamiltonian matrix.
 Requires one of <strong>COMPLETE</strong>, <strong>LANCZOS</strong>, or <strong>READ</strong> to be set.</p>
 <p>Exact E(Beta) is printed out as:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f5fb2fc145.png" class="center" /><p>The result will, of course, change depending upon the symmetry subspace
+<img src="../mathimg/math-f5fb2fc145.png" class="center" /><p>The result will, of course, change depending upon the symmetry subspace
 chosen for diagonalization for finite temperatures.</p>
 <p>The diagonalization procedure creates a list of determinants, which
 is printed out to the DETS file.</p>
-<p>The weight, <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-955c02b1dc.png" align="absmiddle" /> and weighted energy, <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-28ebc6ec97.png" align="absmiddle" /> are also calculated for all NPATH determinants.</p>
+<p>The weight, <img src="../mathimg/math-955c02b1dc.png" align="absmiddle" /> and weighted energy, <img src="../mathimg/math-28ebc6ec97.png" align="absmiddle" /> are also calculated for all NPATH determinants.</p>
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
 <p><strong>ENERGY</strong> was documented twice in the INPUT_DOC file.  This is not
@@ -769,7 +769,7 @@ graph with NoMCExcits determinants chosen per determinant.</dd>
 <dd>Grow the graphs using an alternative Monte Carlo, where a number
 of determiants are deleted from the previous graph and reattached
 elsewhere in the graph in a stochastic manner, according to the
-probabilities given by the application of the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> propagator
+probabilities given by the application of the <img src="../mathimg/math-7b83fdec7c.png" /> propagator
 to the eigenvector of the previous graph.</dd>
 <dt><strong>NOSAMEEXCIT</strong></dt>
 <dd>Ignore the connections between determinants which are of the
@@ -815,8 +815,8 @@ probabilities.</p>
 <dt><strong>CIMC</strong></dt>
 <dd>Perform a configuration interation space Monte Carlo.</dd>
 <dt><strong>BETAEQ</strong> [BETAEQ]</dt>
-<dd><p class="first">Default is set to be <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-59ed813421.png" />, as set above.</p>
-<p>Set <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-59ed813421.png" /> to have a different value for the equilibriation steps.</p>
+<dd><p class="first">Default is set to be <img src="../mathimg/math-59ed813421.png" />, as set above.</p>
+<p>Set <img src="../mathimg/math-59ed813421.png" /> to have a different value for the equilibriation steps.</p>
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">What are the equilibriation steps?</p>
@@ -855,7 +855,7 @@ specified, the code will return an error and exit.**</p>
 <dt><strong>GRAPHEPSILON</strong> [GRAPHEPSILON]</dt>
 <dd><p class="first">Default 0.0.</p>
 <p>The minimum significant value of the weight of a graph.</p>
-<p class="last">Ignore the contributions to the weight and <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7df5be85f7.png" /> of all
+<p class="last">Ignore the contributions to the weight and <img src="../mathimg/math-7df5be85f7.png" /> of all
 graphs with a weight that is smaller in magnitude than GRAPHEPSILON.</p>
 </dd>
 <dt><strong>IMPORTANCE</strong> [G_VMC_PI]</dt>
@@ -908,12 +908,12 @@ unoccupied spin orbitals k and l:</p>
 <ul>
 <li><dl class="first docutils">
 <dt>the probability of choosing pair (ij) is proportional to</dt>
-<dd><img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-95b1ed256a.png" class="center" /></dd>
+<dd><img src="../mathimg/math-95b1ed256a.png" class="center" /></dd>
 </dl>
 </li>
 <li><dl class="first docutils">
 <dt>the probability of choosing pair (kl) is proportional to</dt>
-<dd><img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-e69a076f8d.png" class="center" /></dd>
+<dd><img src="../mathimg/math-e69a076f8d.png" class="center" /></dd>
 </dl>
 </li>
 </ul>
@@ -925,11 +925,11 @@ are set to 1).</p>
 <p>Weighting system for the choice of virtual orbitals in
 the excitations.</p>
 <p>The probability of choosing the pair of spin orbitals, kl, to excite
-to is set to be constant for <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d821c66cde.png" align="absmiddle" /> is less than
+to is set to be constant for <img src="../mathimg/math-d821c66cde.png" align="absmiddle" /> is less than
 g_VMC_PolyExcitToWeight1.  For higher energy virtual orbitals,
 the weighting applied is a decaying polynomial which goes as:</p>
 <blockquote>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d4569f1bd7.png" class="center" /></blockquote>
+<img src="../mathimg/math-d4569f1bd7.png" class="center" /></blockquote>
 <p class="last">g_VMC_PolyExcitToWeight1 is constrained to be not more than the
 energy of the highest virtual orbital.</p>
 </dd>
@@ -968,7 +968,7 @@ level increases.</blockquote>
 <dt><strong>UFORM-POWER</strong></dt>
 <dd>New power form for the U-matrix element weighting using the
 appropriate <strong>EXCITWEIGHT</strong> element, which is believed to be
-better. This uses the form <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-57ce473bfa.png" />, rather than the
+better. This uses the form <img src="../mathimg/math-57ce473bfa.png" />, rather than the
 exponential form.</dd>
 </dl>
 </div>

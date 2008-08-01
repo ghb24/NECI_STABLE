@@ -50,36 +50,36 @@
   <div class="section" id="graph-evaluation">
 <span id="theory-graph-evaluation"></span><h1 id="graph-evaluation"><span id="theory-graph-evaluation"></span>Graph evaluation<a class="headerlink" href="#graph-evaluation" title="Permalink to this headline">¶</a></h1>
 <p>There are two approaches to evaluating the weight and energy contribution
-of a given graph: either by diagonalising the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" />  matrix of
+of a given graph: either by diagonalising the <img src="../mathimg/math-f2e3547a85.png" />  matrix of
 the graph or by diagonalising the Hamiltonian matrix of the graph.</p>
 <div class="section" id="rhodiag">
 <h2 id="rhodiag"><strong>RHODIAG</strong><a class="headerlink" href="#rhodiag" title="Permalink to this headline">¶</a></h2>
-<p>Diagonalisation of the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" />  matrix is referred to as <strong>RHODIAG</strong>
+<p>Diagonalisation of the <img src="../mathimg/math-f2e3547a85.png" />  matrix is referred to as <strong>RHODIAG</strong>
 in the input documentation.</p>
-<p>The <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" />  matrix of the graph is the evaluation of the
+<p>The <img src="../mathimg/math-f2e3547a85.png" />  matrix of the graph is the evaluation of the
 high-temperature thermal density operator on the space of Slater
 determinants spanned by the graph, or more formally:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-ac5a967f06.png" class="center" /><p>We can obtain the eigenvectors and -values, <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7486b18997.png" align="absmiddle" /> and
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-0697fdf90f.png" align="absmiddle" /> of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-25176e1e09.png" /> via matrix diagonalisation, and can
+<img src="../mathimg/math-ac5a967f06.png" class="center" /><p>We can obtain the eigenvectors and -values, <img src="../mathimg/math-7486b18997.png" align="absmiddle" /> and
+<img src="../mathimg/math-0697fdf90f.png" align="absmiddle" /> of <img src="../mathimg/math-25176e1e09.png" /> via matrix diagonalisation, and can
 then use them to evaluate the weight of the graph:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d22dbdc691.png" class="center" /><p>where we have applied the identity operator, <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-4644f34952.png" align="absmiddle" /> twice and used:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-454b4964b9.png" class="center" /><p>In a similar fashion, the energy contribution, <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-5b6f6c3753.png" align="absmiddle" /> can be evaluated:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d6b2a6b08b.png" class="center" /><p>The <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix elements can be evaluated using a Taylor expansion
+<img src="../mathimg/math-d22dbdc691.png" class="center" /><p>where we have applied the identity operator, <img src="../mathimg/math-4644f34952.png" align="absmiddle" /> twice and used:</p>
+<img src="../mathimg/math-454b4964b9.png" class="center" /><p>In a similar fashion, the energy contribution, <img src="../mathimg/math-5b6f6c3753.png" align="absmiddle" /> can be evaluated:</p>
+<img src="../mathimg/math-d6b2a6b08b.png" class="center" /><p>The <img src="../mathimg/math-f2e3547a85.png" /> matrix elements can be evaluated using a Taylor expansion
 with or without a Trotter approximation to improve the accuracy of the expansion.</p>
 </div>
 <div class="section" id="hdiag">
 <h2 id="hdiag"><strong>HDIAG</strong><a class="headerlink" href="#hdiag" title="Permalink to this headline">¶</a></h2>
 <p>Alternatively, we can use a slightly simpler approach which avoids having to evaluate
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix by dealing with the Hamiltonian matrix directly.  This method is referred
+<img src="../mathimg/math-f2e3547a85.png" /> matrix by dealing with the Hamiltonian matrix directly.  This method is referred
 to as <strong>HDIAG</strong> in the input documentation.  The two approaches give
 essentially the same result.  In an analogous fashion to the application
-of the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7b83fdec7c.png" /> matrix in the space of the graph, we consider the Hamiltonian to be a propogator
+of the <img src="../mathimg/math-7b83fdec7c.png" /> matrix in the space of the graph, we consider the Hamiltonian to be a propogator
 acting in the space of the graph:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7f37bf4633.png" class="center" /><p>We can evaluate use this to evaluate the weight of the graph:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-b1251ee8a6.png" class="center" /><p>where now <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7486b18997.png" align="absmiddle" /> and <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-0697fdf90f.png" align="absmiddle" /> are eigenvectors and
+<img src="../mathimg/math-7f37bf4633.png" class="center" /><p>We can evaluate use this to evaluate the weight of the graph:</p>
+<img src="../mathimg/math-b1251ee8a6.png" class="center" /><p>where now <img src="../mathimg/math-7486b18997.png" align="absmiddle" /> and <img src="../mathimg/math-0697fdf90f.png" align="absmiddle" /> are eigenvectors and
 -values of the Hamiltonian matrix in the space of the graph.</p>
 <p>Similarly, we can obtain the energy contribution of the graph:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-327499b1c2.png" class="center" /></div>
+<img src="../mathimg/math-327499b1c2.png" class="center" /></div>
 </div>
 
 

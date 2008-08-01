@@ -168,33 +168,33 @@ Use to perturb away from an initially converged Hartree&#8211;Fock solution.</p>
 <div class="section" id="partioning-options">
 <h2 id="partioning-options">Partioning options<a class="headerlink" href="#partioning-options" title="Permalink to this headline">¶</a></h2>
 <p>If the weight and energy contribution from a graph are evaulated from
-diagonalising the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrices, then various schemes are
-available to deal with the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-19b5b195ef.png" /> operator.</p>
+diagonalising the <img src="../mathimg/math-f2e3547a85.png" /> matrices, then various schemes are
+available to deal with the <img src="../mathimg/math-19b5b195ef.png" /> operator.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">More detail on these needed.</p>
 </div>
 <dl class="docutils">
 <dt><strong>FOCK-PARTITION</strong></dt>
-<dd>For calculation of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> operator with the Trotter
+<dd>For calculation of <img src="../mathimg/math-f2e3547a85.png" /> operator with the Trotter
 approximation, partition the Hamiltonian according to the N-electron
 Fock operator and Coulomb perturbation.</dd>
 <dt><strong>FOCK-PARTITION-LOWDIAG</strong></dt>
-<dd>For calculation of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> operator with Trotter approximation,
+<dd>For calculation of <img src="../mathimg/math-f2e3547a85.png" /> operator with Trotter approximation,
 partition the Hamiltonian according to the N-electron Fock operator
 and coulomb perturbation.  Take just the first order approximation
-(i.e. ignore the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d631c515e6.png" /> term) for the diagonal terms of the
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix.</dd>
+(i.e. ignore the <img src="../mathimg/math-d631c515e6.png" /> term) for the diagonal terms of the
+<img src="../mathimg/math-f2e3547a85.png" /> matrix.</dd>
 <dt><strong>FOCK-PARTITION-DCCORRECT-LOWDIAG</strong></dt>
-<dd>For calculation of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> operator with Trotter approximation,
+<dd>For calculation of <img src="../mathimg/math-f2e3547a85.png" /> operator with Trotter approximation,
 partition the Hamiltonian according to the N-electron Fock operator
 and Coulomb perturbation.  Remove the Coulomb double counting in the
 Fock operator.Take just the first order approximation (i.e. ignore
-the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d631c515e6.png" /> term) for the diagonal terms of the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" />
+the <img src="../mathimg/math-d631c515e6.png" /> term) for the diagonal terms of the <img src="../mathimg/math-f2e3547a85.png" />
 matrix.</dd>
 <dt><strong>DIAG-PARTITION</strong></dt>
 <dd><p class="first">Default partitioning scheme.</p>
-<p class="last">For calculation of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> operator with Trotter approximation,
+<p class="last">For calculation of <img src="../mathimg/math-f2e3547a85.png" /> operator with Trotter approximation,
 partition the Hamiltonian as the diagonal and non-diagonal matrix
 elements between the determinants.</p>
 </dd>
@@ -221,7 +221,7 @@ integral cache.</p>
 <p>The total amount of memory used by the cache will be in the order of
 NSLOTS*NSTATES*(NSTATES-1)/2  words.</p>
 <p>If nSlots=0, then disable caching of integrals calculated on the fly,
-but retain precomputation of 2-index 2-electron integrals (<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-88e0ba69ca.png" /> and <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-68d65c399b.png" />.</p>
+but retain precomputation of 2-index 2-electron integrals (<img src="../mathimg/math-88e0ba69ca.png" /> and <img src="../mathimg/math-68d65c399b.png" />.</p>
 <p>If nSlots=-1, no 2-electron integrals are stored.</p>
 <p>Disabling the cache is very expensive.</p>
 <p class="last">The keyword <strong>SLOTS</strong> is optional and is present to contrast with
@@ -242,11 +242,11 @@ slots is then set accordingly.</dd>
 </div>
 <dl class="docutils">
 <dt><strong>NRCONV</strong> [NRCONV]</dt>
-<dd><p class="first">Default <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-7731117884.png" />.</p>
+<dd><p class="first">Default <img src="../mathimg/math-7731117884.png" />.</p>
 <p class="last">This sets the convergence criteria for the Newton-Raphson algorithm
 in findroot. This takes place after initial bounds for the root are
 calculated using regular falsi (see above). Values smaller than
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-9ff00d70ee.png" /> tend to create a fault since the Newton-Raphson
+<img src="../mathimg/math-9ff00d70ee.png" /> tend to create a fault since the Newton-Raphson
 algorithm cannot converge given the number of iterations allowed.</p>
 </dd>
 <dt><strong>NRSTEPSMAX</strong> [NRSTEPSMAX]</dt>
@@ -256,7 +256,7 @@ is only applicable for the star graph, when trying to find
 the roots of the polynomial using <strong>POLY</strong> <strong>NEW</strong>, <strong>POLY</strong> <strong>OLD</strong> or
 <strong>POLYCONVERGE</strong>. Default value is 50.</dd>
 <dt><strong>RFCONV</strong> [RFCONV]</dt>
-<dd><p class="first">Default <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-63a59f0066.png" />.</p>
+<dd><p class="first">Default <img src="../mathimg/math-63a59f0066.png" />.</p>
 <p class="last">Set the convergence criteria for the Regular falsi algorithm in
 findroot. Only used with a star calculation which involves calculating
 the roots of a polynomial to find the eigenvalues. A Newton-Raphson

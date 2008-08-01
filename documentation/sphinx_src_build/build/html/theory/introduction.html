@@ -50,16 +50,16 @@
   <div class="section" id="introduction">
 <span id="theory-introduction"></span><h1 id="introduction"><span id="theory-introduction"></span>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
 <p>The energy of a system can be evaluated using a standard statisical mechanics result:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-67b6038017.png" class="center" /><p>We choose to work in a Slater Determinant space, which is, by construction, anti-symmetric.  In this space the energy expression becomes:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-6f2e8d3b35.png" class="center" /><p>A given term in the numerator is simply the differential of the
+<img src="../mathimg/math-67b6038017.png" class="center" /><p>We choose to work in a Slater Determinant space, which is, by construction, anti-symmetric.  In this space the energy expression becomes:</p>
+<img src="../mathimg/math-6f2e8d3b35.png" class="center" /><p>A given term in the numerator is simply the differential of the
 corresponding term in the denominator.  There is a cleaner and more
 efficient way of evaluating the numerator than differentiation, but we
 will first turn our attention to the denominator.</p>
-<p>We can expand each term into a closed path of <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-0c9a0fdaaa.png" /> steps through the discrete Slater Determinant space:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-1923eb947b.png" class="center" /><p>where the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix consists of elements
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-5e386e6fee.png" align="absmiddle" />.</p>
-<p>Each path does not necessarily visit <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-d62b198ef0.png" /> determinants: &#8220;hopping&#8221;
-terms are allowed.  Due to the <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-f2e3547a85.png" /> matrix being diagonally
+<p>We can expand each term into a closed path of <img src="../mathimg/math-0c9a0fdaaa.png" /> steps through the discrete Slater Determinant space:</p>
+<img src="../mathimg/math-1923eb947b.png" class="center" /><p>where the <img src="../mathimg/math-f2e3547a85.png" /> matrix consists of elements
+<img src="../mathimg/math-5e386e6fee.png" align="absmiddle" />.</p>
+<p>Each path does not necessarily visit <img src="../mathimg/math-d62b198ef0.png" /> determinants: &#8220;hopping&#8221;
+terms are allowed.  Due to the <img src="../mathimg/math-f2e3547a85.png" /> matrix being diagonally
 dominant, paths containing small numbers of unique determinants will
 tend to have a much greater contribution to the overall energy.</p>
 <p>The size of the Slater determinant space grows factorially with the number
@@ -73,7 +73,7 @@ paths which only visit the vertices contained within the graph.</p>
 <p class="last">To come: pictures of paths &#8211;&gt; graph.</p>
 </div>
 <p>The expression for the energy now becomes a sum over Slater determinants and a sum graphs which originate from each Slater determinant:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-a9fca3e975.png" class="center" /><p>Furthermore, the graphs have a much better sign behaviour: there are many graphs with a definite-positive weight, at least for graphs with less than 5 vertices, which makes a Monte Carlo approach feasible.</p>
+<img src="../mathimg/math-a9fca3e975.png" class="center" /><p>Furthermore, the graphs have a much better sign behaviour: there are many graphs with a definite-positive weight, at least for graphs with less than 5 vertices, which makes a Monte Carlo approach feasible.</p>
 <p>The resummation of paths into graphs still leaves a sum that is far too
 large to be completely evaluated.  There are various approximations we
 can apply.</p>
@@ -81,7 +81,7 @@ can apply.</p>
 <ol class="arabic">
 <li><p class="first">Use a single reference reference approach, i.e. approximate the
 energy with:</p>
-<img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-781b0b5a89.png" class="center" /><p>where <img src="/home/jss43/projects/NECI-documentation/build/html/mathimg/math-b1a2733247.png" /> refers to the reference (i.e. Hartree&#8211;Fock)
+<img src="../mathimg/math-781b0b5a89.png" class="center" /><p>where <img src="../mathimg/math-b1a2733247.png" /> refers to the reference (i.e. Hartree&#8211;Fock)
 determinant.</p>
 <p>This sum, in general, still contains too many terms (and grows
 too rapidly with system size) to be of much use.</p>
