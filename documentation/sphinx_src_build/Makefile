@@ -23,7 +23,7 @@ help:
 	@echo "  linkcheck to check all external links for integrity"
 
 clean:
-	-rm -rf build/* mathimg*
+	-find build -type f  | grep -v .svn | xargs rm
 
 html:
 	mkdir -p build/html build/doctrees
