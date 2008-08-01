@@ -59,9 +59,9 @@ C..Save the Cube specific pointers
 C..
       SAVE IP_RHOIJ,IP_RHOIJLAB,IP_RHOIJROWS,IP_RHOIJ1,IP_RHOIJ2
 #ifdef POINTER8
-      INTEGER*8 GET_ADDR
+      INTEGER*8 LOC
 #else
-      INTEGER GET_ADDR
+      INTEGER LOC
 #endif
 C.. NEL now includes all electrons, and well only want active later
       INTEGER NMRKS(NEL-NFROZEN,*),LAB(*),NROW(*),IKILL(*)

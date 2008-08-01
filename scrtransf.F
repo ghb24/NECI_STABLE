@@ -36,9 +36,9 @@ C.. The Slater Condon Rules for a transformed basis
 C..
 C.. 
 #ifdef POINTER8
-      INTEGER*8 GET_ADDR
+      INTEGER*8 LOC
 #else
-      INTEGER GET_ADDR
+      INTEGER LOC
 #endif
       INTEGER IC,NEL,NHG
       INTEGER NDET1(NEL),NDET2(NEL)

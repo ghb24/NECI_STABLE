@@ -919,9 +919,9 @@ C.. to actually generate the excitations
          INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
          LOGICAL TSETUP
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
          INTEGER ILEVEL
 
@@ -949,9 +949,9 @@ C.. to actually generate the excitations
          INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
          LOGICAL TSETUP
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
          INTEGER ILEVEL
 
@@ -981,9 +981,9 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
          INTEGER NMEM(*),NJ(NEL),IC,IFRZ,I
          LOGICAL TSETUP
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
          INTEGER ILEVEL
 
@@ -1040,7 +1040,7 @@ C..   DSTORE(NEL*SymClassSize+1) - ,,,        ILUT
                ICOUNT=24
 C.. Put the addresses in store
                DO I=1,5
-                  STORE2(I)=GET_ADDR(NMEM(ICOUNT))
+                  STORE2(I)=LOC(NMEM(ICOUNT))
                   ICOUNT=ICOUNT+STORE(I)
                ENDDO
                CALL IAZZERO(NMEM(6),ICOUNT-6)
@@ -1069,9 +1069,9 @@ C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
             ENDIF
          ELSE
 C.. Actually generate a det
-C            WRITE(6,"(A,Z10,8I4,$)") "GET",GET_ADDR(NMEM(1)),
+C            WRITE(6,"(A,Z10,8I4,$)") "GET",LOC(NMEM(1)),
 C     &         (NMEM(I),I=7,14)
-            IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
+            IP_DSTORE=LOC(NMEM(NMEM(1)))
 !!      SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
 !!     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
 !!     &               I,J,K,L,ICC,LS,
@@ -1481,9 +1481,9 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          INTEGER ISEED
          REAL*8 PGEN
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
 C.. The second setup.  Now NMEM is allocated, we store all the info
 C.. NMEM is as follows:
@@ -1500,7 +1500,7 @@ C..   STORE(5)    -  ...         SYMPRODIND
 C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
-         IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
+         IP_DSTORE=LOC(NMEM(NMEM(1)))
          CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
@@ -1527,9 +1527,9 @@ C..   use GenRandSymExcitIt3
          INTEGER NMEM(*),NJ(NEL),ICOUNT,IFRZ,I,IC
          LOGICAL TSETUP
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
          INTEGER ISEED
          REAL*8 UMAT(*),PGEN
@@ -1549,7 +1549,7 @@ C..   STORE(5)    -  ...         SYMPRODIND
 C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
-         IP_DSTORE=GET_ADDR(NMEM(NMEM(1)))
+         IP_DSTORE=LOC(NMEM(NMEM(1)))
          CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
@@ -1790,12 +1790,12 @@ C.. Actually generate a det
          TYPE(BasisFN) G1(nBasis) 
          INTEGER DStore(*)
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
          POINTER(IP_DSTORE,DSTORE)
-         IP_DSTORE=GET_ADDR(nIExcitor(nIExcitor(1)))
+         IP_DSTORE=LOC(nIExcitor(nIExcitor(1)))
          CALL IsConnectedDet2(nI,nJ,nEl,G1,nBasisMax,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
      &      DStore(SymClassSize*nEl+1),
@@ -1842,14 +1842,14 @@ C.. Actually generate a det
          TYPE(HElement) UMat(*)
          INTEGER DStore(*)
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
          POINTER(IP_DSTORE,DSTORE)
          REAL*8 pGen
          REAL*8 Arr(nBasis,2)
-         IP_DSTORE=GET_ADDR(nIExcitor(nIExcitor(1)))
+         IP_DSTORE=LOC(nIExcitor(nIExcitor(1)))
          CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,
      &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
      &      DStore(SymClassSize*nEl+1),
@@ -2006,15 +2006,15 @@ C.. Count the excitations (and generate a random one which we throw)
          INTEGER ILEN,IPOST,INLEN,LEN,ILEAD
          INTEGER ADDR,LEAD,POST,LINES
 #ifdef POINTER8
-         INTEGER*8 GET_ADDR
+         INTEGER*8 LOC
 #else
-         INTEGER GET_ADDR
+         INTEGER LOC
 #endif
          INTEGER,PARAMETER :: LINELEN=16
          ILEN=INLEN*4
          LEN=ILEN
-         ADDR=16*(GET_ADDR(MEM)/LINELEN)
-         ILEAD=GET_ADDR(MEM)-ADDR
+         ADDR=16*(LOC(MEM)/LINELEN)
+         ILEAD=LOC(MEM)-ADDR
          IPOST=MOD(LEAD+LEN,LINELEN)
          IF(IPOST.NE.0) IPOST=16-IPOST
          LINES=(ILEAD+ILEN+IPOST)/LINELEN

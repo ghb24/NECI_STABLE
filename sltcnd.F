@@ -8,9 +8,9 @@
 C..
 C.. 
 #ifdef POINTER8
-      INTEGER*8 GET_ADDR
+      INTEGER*8 LOC
 #else
-      INTEGER GET_ADDR
+      INTEGER LOC
 #endif
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER N1E(NHG),N2E(NHG)

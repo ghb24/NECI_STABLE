@@ -262,11 +262,11 @@ C     ==--------------------------------------------------------------==
       REAL*8  POINTDUMMY
       POINTER (IP_POINT,POINTDUMMY)
 #ifdef POINTER8
-      INTEGER*8 GET_ADDR
+      INTEGER*8 LOC
       INTEGER*8 I_AD1,I_AD2
       INTEGER*8 IP_XM
 #else
-      INTEGER GET_ADDR
+      INTEGER LOC
       INTEGER  I_AD1,I_AD2
       INTEGER*8 IP_XM
 #endif
@@ -281,7 +281,7 @@ C     ==--------------------------------------------------------------==
 C     ==--------------------------------------------------------------==
 C     ==  FREE MEMORY ASSOCIATED WITH POINTER IP_POINT                ==
 C     ==--------------------------------------------------------------==
-      IP_XM=GET_ADDR(XM)
+      IP_XM=LOC(XM)
       ! Log using the new memory book-keeping system.  Need to find out
       ! the  position in the log first.
       do i=1,size(LookupPointer)

@@ -14,13 +14,13 @@ C     Arguments
 C     Variables
 #if defined(POINTER8)
       INTEGER*8 I_AD1,I_AD2
-      INTEGER*8 MALLOC,GET_ADDR
+      INTEGER*8 MALLOC,LOC
 #elif defined(__NEC)
       INTEGER   I_AD1,I_AD2
-      INTEGER   MALLOCW,GET_ADDR
+      INTEGER   MALLOCW,LOC
 #else
       INTEGER   I_AD1,I_AD2
-      INTEGER   MALLOC,GET_ADDR
+      INTEGER   MALLOC,LOC
 #endif
       REAL*8    XM(0:LENGTH+1)
       POINTER   (IP_XM,XM)
@@ -122,15 +122,15 @@ CC /AJWT
         IE=IE+19+1
         CALL STOPGM('MEMORY',LINE(1:IE))
       ENDIF
-      IP_POINT=GET_ADDR(XM(1))
+      IP_POINT=LOC(XM(1))
 C..Statistics and memory checks
       XM(0)=ZFIRST
       XM(LENGTH+1)=ZLAST
       I_BLOCK=I_BLOCK+1
       IF(I_BLOCK.GT.MEM_LEN) I_BLOCK=MEM_LEN
       IF(NUMPEAK.LT.I_BLOCK) NUMPEAK=I_BLOCK
-      I_AD1(I_BLOCK)=GET_ADDR(XM(0))
-      I_AD2(I_BLOCK)=GET_ADDR(XM(LENGTH+1))
+      I_AD1(I_BLOCK)=LOC(XM(0))
+      I_AD2(I_BLOCK)=LOC(XM(LENGTH+1))
       I_LEN(I_BLOCK)=LENGTH
       I_TAG(I_BLOCK)=TAG
       ! Store in the new memory book-keeping system.
@@ -184,13 +184,13 @@ C     Arguments
 C     Variables
 #if defined(POINTER8)
       INTEGER*8 I_AD1,I_AD2
-      INTEGER*8 MALLOC,GET_ADDR
+      INTEGER*8 MALLOC,LOC
 #elif defined(__NEC)
       INTEGER   I_AD1,I_AD2
-      INTEGER   MALLOCW,GET_ADDR
+      INTEGER   MALLOCW,LOC
 #else
       INTEGER   I_AD1,I_AD2
-      INTEGER   MALLOC,GET_ADDR
+      INTEGER   MALLOC,LOC
 #endif
       REAL*8    XM(LENGTH)
 #ifdef CRAY
@@ -219,18 +219,18 @@ C      WRITE(14,*) TAG,LENGTH
         IE=IE+19+1
         CALL STOPGM('MEMORY',LINE(1:IE))
       ENDIF
-      IP_POINT=GET_ADDR(XM(1))
+      IP_POINT=LOC(XM(1))
 C..Statistics and memory checks
       I_BLOCK=I_BLOCK+1
       IF(I_BLOCK.GT.MEM_LEN) I_BLOCK=MEM_LEN
       IF(NUMPEAK.LT.I_BLOCK) NUMPEAK=I_BLOCK
-      I_AD1(I_BLOCK)=GET_ADDR(XM(1))
+      I_AD1(I_BLOCK)=LOC(XM(1))
       ! Store in the new memory book-keeping system.
       call LogMemAlloc(Tag,Length,8,'unknown',iTag)
       if (iTag.ne.-1) LookupPointer(iTag)=int(I_AD1(I_BLOCK),kind=li)
-!GET_ADDR(XM(1))
+!LOC(XM(1))
       I_AD2(I_BLOCK)=0
-!GET_ADDR(XM(LENGTH+1))
+!LOC(XM(LENGTH+1))
       I_LEN(I_BLOCK)=LENGTH
       I_TAG(I_BLOCK)=TAG
       MEMTOT=MEMTOT+LENGTH
