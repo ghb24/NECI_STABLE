@@ -7,12 +7,12 @@ frsblk.F
 irat.inc
 timer.F
 util.F
+xcener.F ! Only needed for XCENERGY_DENSITY, which is currently commented out.  Appears to have little (if anything) to do with CPMD's version. (JSS)
 
 Unrelated files?
 ================
 
 rhoofr.F ! Appears to be completely unrelated to CPMD's rhoofr.F.
-xcener.F ! Only needed for XCENERGY_DENSITY, which is currently commented out.  Appears to have little (if anything) to do with CPMD's version. (JSS)
 
 Memory routines
 ===============
@@ -23,3 +23,15 @@ These are ready to be removed as and when we remove all crap pointers.
 freem.F
 memc.inc
 memory.F
+
+Additional routines
+===================
+
+DSCAL     (from blas though!)
+GAMMLN
+SORT      (from Numerical Recipes though) 
+SORT2     (from Numerical Recipes though)
+SORT2I    (from Numerical Recipes though)
+ZCOPY     (from blas though!)
+
+So really we only need to worry about GAMMLN in addition to the above files.
