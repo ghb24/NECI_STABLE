@@ -115,7 +115,6 @@ CC /AJWT
      *             ' ALLOCATION OF',LENGTH,' WORDS OF MEMORY FAILED
      *             FOR ',TAG
         WRITE(*,'(1X,64("*"),/)')
-        CALL PRMEM('    MEMORY')
         CALL LeaveMemoryManager
         CALL XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'
@@ -212,7 +211,6 @@ C      WRITE(14,*) TAG,LENGTH
      *             ' ALLOCATION OF',LENGTH,' WORDS OF MEMORY FAILED
      *             FOR ',TAG
         WRITE(*,'(1X,64("*"),/)')
-        CALL PRMEM('    MEMORY')
         CALL LeaveMemoryManager
         CALL XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'

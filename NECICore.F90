@@ -25,9 +25,8 @@ Subroutine  NECICore(iCacheFlag, tCPMD,tVASP)
 #ifdef PARALLEL
     Call MPIInit(tCPMD.or.tVASP)
 #endif
-    call TimeTag()
+    call environment_report(tCPMD)
     if (.not.TCPMD) then
-        call Envir()
         call InitMemoryManager()
     end if
     write (6,*) 'tVASP',tVASP

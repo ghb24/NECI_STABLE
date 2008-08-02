@@ -193,7 +193,7 @@ cat << END >&3
 SHELL = /bin/bash
 #
 #--------------- Default Configuration for $Configuration ---------------
-SVNVER := \$(shell grep Revision <(svn info || echo 'Revision:"not under svn"') |sed "s/Revision://")
+SVNVER := \$(shell echo -n \" && grep Revision <(svn info || echo 'Revision:not under svn') |sed "s/Revision://" && echo -n \" ) 
 MAXMEM := 1024 # RAM available, in MB.
 compiler = ${compiler}
 SRC  = .
@@ -353,36 +353,36 @@ cat << END >&3
 clean : 
 	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(DEST)/*.o \$(DEST)/*.mod
 
-neci.x : necimain.o \$(SRC)/timetag.F \$(OBJECTS)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
+neci.x : necimain.o \$(SRC)/environment_report.F90 \$(OBJECTS)
+	 rm -f environment_report.F90
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/environment_report.F90 \$(DEST)/environment_report.f90
+	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/environment_report.f90
 	 rm -f neci.x
 	 if [ \$(BIN) != '.' ]; then ln -s \$(BIN)/neci.x neci.x; fi
-	 \$(LD) -o \$(BIN)/neci.x necimain.o timetag.o \$(OBJECTS) \$(LFLAGS)
+	 \$(LD) -o \$(BIN)/neci.x necimain.o environment_report.o \$(OBJECTS) \$(LFLAGS)
 
 neci-cpmd.a : \$(OBJECTSCPMDLIB)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a timetag.o \$(OBJECTSCPMDLIB)
+	 rm -f environment_report.F90
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/environment_report.F90 \$(DEST)/environment_report.f90
+	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/environment_report.f90
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a environment_report.o \$(OBJECTSCPMDLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-cpmd.a
 
 neci-vasp.a : \$(OBJECTSVASPLIB)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/timetag.f
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a timetag.o \$(OBJECTSVASPLIB)
+	 rm -f environment_report.F90
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/environment_report.F90 \$(DEST)/environment_report.f90
+	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/environment_report.f90
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a environment_report.o \$(OBJECTSVASPLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
 
 #----------------------------------------------------------------------------
 # Generate library libcpmd.a
 #----------------------------------------------------------------------------
 lib : \$(OBJ_LIB)
-	 rm -f timetag.f
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/timetag.F \$(DEST)/timetag.f
-	 \$(FC) \$(FFLAGS) \$(DEST)/timetag.f
-	 \$(AR) libcpmd.a timetag.o \$(OBJ_LIB)
+	 rm -f environment_report.F90
+	 \$(CPP) \$(CPPFLAGS) \$(SRC)/environment_report.F90 \$(DEST)/environment_report.F90
+	 \$(FC) \$(FFLAGS) \$(DEST)/environment_report.F90
+	 \$(AR) libcpmd.a environment_report.o \$(OBJ_LIB)
 	 \$(RANLIB) libcpmd.a
 
 #----------------------------------------------------------------------------
@@ -431,19 +431,19 @@ clean :
 	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(DEST)/*.o \$(DEST)/*.mod
 
 neci.x : \$(DEST)/necimain.o \$(DOBJECTS) \$(OBJ_CC)
-	 \$(FC) -o \$(DEST)/timetag.o \$(CPPFLAGS) \$(FFLAGS) timetag.F
+	 \$(FC) -o \$(DEST)/environment_report.o \$(CPPFLAGS) \$(FFLAGS) environment_report.F90
 	 rm -f \$(DEST)/neci.x
-	 \$(LD) -o \$(DEST)/neci.x \$(DEST)/necimain.o \$(DEST)/timetag.o \$(DOBJECTS) \$(OBJ_CC) \$(LFLAGS)
+	 \$(LD) -o \$(DEST)/neci.x \$(DEST)/necimain.o \$(DEST)/environment_report.o \$(DOBJECTS) \$(OBJ_CC) \$(LFLAGS)
 
 neci-cpmd.a : \$(OBJECTSCPMDLIB)
-	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/timetag.f
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/timetag.o \$(OBJECTSCPMDLIB)
+	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/environment_report.F90
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-cpmd.a
      rm neci2.a
 
 neci-vasp.a : \$(OBJECTSVASPLIB)
-	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/timetag.f
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/timetag.o \$(OBJECTSCPMDLIB)
+	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/environment_report.F90
+	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
      rm neci2.a
 

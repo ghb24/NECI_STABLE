@@ -1,15 +1,29 @@
 The following files are based on CPMD and need to be stripped from the codebase.  These are just the files in NECI and CPMD which have a common name.  There may be functions in common too. AJWT
 
+We were bad
+===========
+
 envir.F
 envj.inc
-freem.F
 frsblk.F
 irat.inc
-memc.inc
-memory.F
-prmem.F
-rhoofr.F ! Appears to be completely unrelated to CPMD's rhoofr.F.
 stopgm.F
 time*.F
 util.F
+
+Unrelated files?
+================
+
+rhoofr.F ! Appears to be completely unrelated to CPMD's rhoofr.F.
 xcener.F ! Only needed for XCENERGY_DENSITY, which is currently commented out.  Appears to have little (if anything) to do with CPMD's version. (JSS)
+
+Memory routines
+===============
+
+These are ready to be removed as and when we remove all crap pointers.
+(Or we could just write a wrapper for LogMem{A,Dea}lloc.)
+
+freem.F
+memc.inc
+memory.F
+prmem.F
