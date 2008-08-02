@@ -1,3 +1,5 @@
+Legacy: for non-keyword driven input.
+
 NNR:		NMSH**3
 ALAT(3): 	X,Y,Z dim of box
 LEN:    	# of possible basis fn spinorbitals from basis set
