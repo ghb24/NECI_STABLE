@@ -100,13 +100,18 @@ end subroutine
 
 ! MPIStopAll
 !  
-!  n     (in)  MPI Abort parameter (???)
+!  In:
+!     error_str: parameter string containing error used as argument to STOP.
 !  
 !  Abort all processors
-Subroutine MPIStopAll(n)
-   integer n,rc
-   call MPI_ABORT(MPI_COMM_WORLD, rc, n)
-   stop 999
+Subroutine MPIStopAll(error_str)
+   character(3), parameter :: error_str
+   integer error_code,ierror
+   ! errorcode: Error returned to invoking environment.
+   ! ierror: error status (of abort: was abort successful?)
+   ! Currently neither are analysed.
+   call MPI_ABORT(MPI_COMM_WORLD, error_code, ierror)
+   stop error_str
 end
 
 ! MPIISum
