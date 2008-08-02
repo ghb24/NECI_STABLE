@@ -4,7 +4,7 @@
 OBJ_AL  = sort2.o fctrl.o sltcnd.o \
           scr.o scr1.o scr2.o matmul.o \
           freem.o memory.o \
-          stopgm.o detham.o util.o frsblk.o \
+          detham.o util.o frsblk.o \
           sort_1.o lineup.o gen_coul.o sym.o\
           gndts.o xcnrgy_dnsty.o xcener.o \
           symexcit.o ranlux.o timer.o 
