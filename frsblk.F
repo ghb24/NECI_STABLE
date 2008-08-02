@@ -653,9 +653,9 @@ C     ==--------------------------------------------------------------==
       IF(INFO.NE.0) THEN
           WRITE(6,*) "INFO is : ", INFO
       ENDIF
-      IF(INFO.NE.0) CALL STOPGM('UINV','ILLEGAL RESULTS DGETRF')
+      IF(INFO.NE.0) CALL Stop_All('UINV','ILLEGAL RESULTS DGETRF')
       CALL DTRTRI(UPLO,'N',N,SMAT,LDA,INFO)
-      IF(INFO.NE.0) CALL STOPGM('UINV','ILLEGAL RESULTS DTRTRI')
+      IF(INFO.NE.0) CALL Stop_All('UINV','ILLEGAL RESULTS DTRTRI')
 C     ==--------------------------------------------------------------==
       RETURN
       END

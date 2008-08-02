@@ -44,7 +44,7 @@ C     ==--------------------------------------------------------------==
       IF(NTIMER.GT.NTIMX) THEN
         WRITE(*,*) ' PARAMETER NTIMX IN INCLUDE FILE time.inc TOO ',
      *               'SMALL'
-        CALL STOPGM('TISET',' PARAMETER')
+        CALL Stop_All('TISET',' PARAMETER')
       ENDIF
       NSTIM=NTIMER
       TNAM(NSTIM)=SNAME
@@ -84,12 +84,12 @@ C     ==--------------------------------------------------------------==
           ENDIF
         ENDDO
         WRITE(*,*) ' NO SUCH TIME HANDLE ',SNAME
-        CALL STOPGM('TIHALT',' HANDLE   ')
+        CALL Stop_All('TIHALT',' HANDLE   ')
   100   CONTINUE
       ELSE
         IF(SNAME.NE.TNAM(NSTIM)) THEN
           WRITE(*,*) ' INCONSISTENT HANDLE IN TIHALT ',SNAME,TNAM(NSTIM)
-          CALL STOPGM('TIHALT',' HANDLE   ')
+          CALL Stop_All('TIHALT',' HANDLE   ')
         ENDIF
       ENDIF
       DCT=TIMEC()*0.001D0-CTSTA(NSTIM)
@@ -176,7 +176,7 @@ C     ==================================================================
 !        TJSTART=TIME1
 !        TJSLOOP=TJSTART
 !      ELSE
-!        CALL STOPGM('TISTART','CALLED ONCE')
+!        CALL Stop_All('TISTART','CALLED ONCE')
 !      ENDIF
 !C     ==--------------------------------------------------------------==
 !      RETURN
@@ -272,7 +272,7 @@ C     ==================================================================
 !      END
 C     ==================================================================
 C     ==================================================================
-C      SUBROUTINE STOPGM(A,B)
+C      SUBROUTINE Stop_All(A,B)
 C     ==--------------------------------------------------------------==
 C      IMPLICIT NONE
 C     Arguments

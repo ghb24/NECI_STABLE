@@ -223,7 +223,7 @@ contains
 
     if (present(err)) then
         if (err.ne.0) then
-            call StopGM('LogMemAlloc','Failed to allocate array '//ObjectName//' in '//AllocRoutine)
+            call Stop_All('LogMemAlloc','Failed to allocate array '//ObjectName//' in '//AllocRoutine)
         end if
     end if
 
@@ -351,7 +351,7 @@ contains
 
     if (present(err)) then
         if (err.ne.0) then
-            call StopGM('LogMemAlloc','Failed to deallocate array '//ObjectName//' in '//DeallocRoutine)
+            call Stop_All('LogMemAlloc','Failed to deallocate array '//ObjectName//' in '//DeallocRoutine)
         end if
     end if
 

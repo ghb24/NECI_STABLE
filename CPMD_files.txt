@@ -3,12 +3,9 @@ The following files are based on CPMD and need to be stripped from the codebase.
 We were bad
 ===========
 
-envir.F
-envj.inc
 frsblk.F
 irat.inc
-stopgm.F
-time*.F
+timer.F
 util.F
 
 Unrelated files?
@@ -26,4 +23,3 @@ These are ready to be removed as and when we remove all crap pointers.
 freem.F
 memc.inc
 memory.F
-prmem.F

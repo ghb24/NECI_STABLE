@@ -2348,7 +2348,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL TISET('StarDiagMC',iSub)
 
          IF(HElementSize.GT.1) THEN
-             CALL STOPGM("StarDiagMC","StarDiagMC cannot function with complex orbitals.")
+             CALL Stop_All("StarDiagMC","StarDiagMC cannot function with complex orbitals.")
          ENDIF
          
          IF(Tau.eq.0.D0) THEN
@@ -2390,7 +2390,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WRITE(6,*) "Diagonal root value is: ", List(1,0)
          WRITE(6,*) "Largest Diagonal value is: ", MaxDiag
          IF(DiagSft.gt.0.D0) THEN
-             CALL StopGM("StarDiagMC","Intial value of DiagSft should be negative.")
+             CALL Stop_All("StarDiagMC","Intial value of DiagSft should be negative.")
          ELSE
              WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
          ENDIF
@@ -2946,7 +2946,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER , ALLOCATABLE :: Lab(:),NRow(:),ISCR(:),Index(:)
          
          IF(HElementSize.GT.1) THEN
-             CALL STOPGM("StarDiagLanc","StarDiagLanc cannot function with complex orbitals.")
+             CALL Stop_All("StarDiagLanc","StarDiagLanc cannot function with complex orbitals.")
          ENDIF
 
          CALL TISET('StarDiagLanc',iSub)
@@ -2966,7 +2966,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
 !Fill compressed rho-matrix
          IF((List(1,1).ne.List(1,0)).or.(List(1,1).ne.1.D0)) THEN
-             CALL STOPGM("StarDiagLanc","Error with rho matrix elements")
+             CALL Stop_All("StarDiagLanc","Error with rho matrix elements")
          ENDIF
          NRow(1)=NList
          Mat(1)=List(1,1)
@@ -3132,7 +3132,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          TYPE(HElement) RR
          
          IF(HElementSize.GT.1) THEN
-             CALL STOPGM("StarDiag","STARDIAG cannot function with complex orbitals.")
+             CALL Stop_All("StarDiag","STARDIAG cannot function with complex orbitals.")
          END IF
 
          CALL TISET('STARDIAG  ',ISUB)

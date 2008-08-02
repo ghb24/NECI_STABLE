@@ -281,7 +281,7 @@ subroutine CullParticles(PL,tHighLow,iSeed,NoCulls,CullInfo,iCycle,iStep,CullFac
    type(Particle) P
 
    NoCulls=NoCulls+1      !Log the fact we have made a cull
-   IF(NoCulls.gt.15) CALL STOPGM("CullParticles","Too many culls/growths in a given shift cycle")
+   IF(NoCulls.gt.15) CALL Stop_All("CullParticles","Too many culls/growths in a given shift cycle")
      
 !CullInfo(:,1) is total subparticles before cull
    CullInfo(NoCulls,1)=PL%nSubParticles
@@ -613,7 +613,7 @@ subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,hHi0,IC0,ExGen,iNode,iAction)
       iNode=PL%iNextFreeParticle
       PL%iNextFreeParticle=iNode+1
       PL%nParticles=PL%nParticles+1
-      if(PL%iNextFreeParticle.gt.PL%nMaxParticles) call stopgm("Particle List Full")
+      if(PL%iNextFreeParticle.gt.PL%nMaxParticles) call Stop_All("Particle List Full")
    elseif(iAction.eq.-1) then
 ! This particle is less than this node, and we're at the end of the line
       if(iNode.ne.0) PL%ParticleData(iNode)%iBefore=PL%iNextFreeParticle
@@ -622,7 +622,7 @@ subroutine AddParticleInt(PL,nI,iWeight,iSgn,hHii,hHi0,IC0,ExGen,iNode,iAction)
       iNode=PL%iNextFreeParticle
       PL%iNextFreeParticle=iNode+1
       PL%nParticles=PL%nParticles+1
-      if(PL%iNextFreeParticle.gt.PL%nMaxParticles) call stopgm("Particle List Full")
+      if(PL%iNextFreeParticle.gt.PL%nMaxParticles) call Stop_All("Particle List Full")
    endif   
    PL%ParticleData(iNode)%iWeight=iWeight
    PL%ParticleData(iNode)%iSgn=iSgn

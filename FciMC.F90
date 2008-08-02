@@ -337,7 +337,7 @@ MODULE FciMCMod
             IF(NoCulls.gt.10) THEN
                 WRITE(6,*) "Too Many Culls"
                 CALL FLUSH(6)
-                CALL STOPGM("FCIMC","Too Many Culls")
+                CALL Stop_All("FCIMC","Too Many Culls")
             ENDIF
 
 !CullInfo(:,1) is walkers before cull
@@ -355,7 +355,7 @@ MODULE FciMCMod
 
 !Log the fact that we have made a cull
             NoCulls=NoCulls+1
-            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !CullInfo(:,1) is walkers before cull
             CullInfo(NoCulls,1)=TotWalkers
 !CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -470,7 +470,7 @@ MODULE FciMCMod
 
                     SameDet=.true.
                     Attempts=Attempts+1
-                    IF(Attempts.gt.100) CALL STOPGM("CreateGraphPar","More than 100 attempts needed to grow graph")
+                    IF(Attempts.gt.100) CALL Stop_All("CreateGraphPar","More than 100 attempts needed to grow graph")
                     EXIT
                 ENDIF
             enddo
@@ -481,7 +481,7 @@ MODULE FciMCMod
                     ExcitProb=Prob
                 ELSE
                     IF(abs(Prob-ExcitProb).gt.1.D-07) THEN
-                        CALL STOPGM("CreateGraph","Excitation probabilities are not uniform - problem here...")
+                        CALL Stop_All("CreateGraph","Excitation probabilities are not uniform - problem here...")
                     ENDIF
                 ENDIF
 
@@ -791,7 +791,7 @@ MODULE FciMCMod
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
         IF(HElementSize.gt.1) THEN
-            CALL STOPGM("FCIMCPar","FciMCPar cannot function with complex orbitals.")
+            CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
         ENDIF
         
         OPEN(15,file='FCIMCStats',status='unknown')
@@ -826,7 +826,7 @@ MODULE FciMCMod
             IF(NDets.gt.2) THEN
                 IF(.not.EXCITFUNCS(10)) THEN
                     WRITE(6,*) "Cannot have an excitation bias with multiple determinant graphs...exiting."
-                    CALL STOPGM("InitFCIMCCalc","Cannot have biasing with Graphsizes > 2")
+                    CALL Stop_All("InitFCIMCCalc","Cannot have biasing with Graphsizes > 2")
                 ENDIF
 
 !Allocate memory for graphs...
@@ -841,7 +841,7 @@ MODULE FciMCMod
 
             ELSEIF(NDets.lt.2) THEN
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
-                CALL STOPGM("InitFCIMCCalc","Graphs cannot be smaller than two vertices")
+                CALL Stop_All("InitFCIMCCalc","Graphs cannot be smaller than two vertices")
             ENDIF
             WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
             WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
@@ -857,7 +857,7 @@ MODULE FciMCMod
 
             WRITE(6,*) "This feature not ready yet"
             CALL FLUSH(6)
-            CALL STOPGM("InitFCIMC","StartMP1 feature no longer operational")
+            CALL Stop_All("InitFCIMC","StartMP1 feature no longer operational")
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
 
         ELSE
@@ -909,7 +909,7 @@ MODULE FciMCMod
 
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
-            IF(ierr.ne.0) CALL STOPGM("InitFCIMMCCalc","Error in allocating walker excitation generators")
+            IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalc","Error in allocating walker excitation generators")
 
 !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
@@ -1029,9 +1029,9 @@ MODULE FciMCMod
 !We want to copy the excitation generator
             ALLOCATE(NewExit%ExcitData(OrigExit%nExcitMemLen),stat=ierr)
 !            IF(OrigExit%nExcitMemLen.eq.0) THEN
-!                CALL STOPGM("CopyExitgen","Problem allocating memory for new excit")
+!                CALL Stop_All("CopyExitgen","Problem allocating memory for new excit")
 !            ENDIF
-            IF(ierr.ne.0) CALL STOPGM("CopyExitgen","Problem with allocating memory for new excitation generator")
+            IF(ierr.ne.0) CALL Stop_All("CopyExitgen","Problem with allocating memory for new excitation generator")
             CALL ICOPY(OrigExit%nExcitMemLen,OrigExit%ExcitData,1,NewExit%ExcitData,1)
 !            NewExit%ExcitData(:)=OrigExit%ExcitData(:)
             NewExit%nExcitMemLen=OrigExit%nExcitMemLen
@@ -1050,7 +1050,7 @@ MODULE FciMCMod
         IF(ExcitGen%ExitGenForDet) THEN
 !The excitation generator is already allocated for the determinant in question - no need to recreate it
             IF(.not.Allocated(ExcitGen%ExcitData)) THEN
-                CALL STOPGM("SetupExitgen","Excitation generator meant to already be set up")
+                CALL Stop_All("SetupExitgen","Excitation generator meant to already be set up")
             ENDIF
 
         ELSE
@@ -1064,7 +1064,7 @@ MODULE FciMCMod
             CALL IAZZERO(nStore,6)
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%nExcitMemLen),stat=ierr)
-            IF(ierr.ne.0) CALL STOPGM("SetupExcitGen","Problem allocating excitation generator")
+            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
             ExcitGen%ExcitData(1)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
 
@@ -1335,15 +1335,15 @@ END FUNCTION Fact
 !
 !        IF(TDiffuse) THEN
 !            IF((.NOT.TMCExcitSpace).or.(NoMCExcits.ne.1)) THEN
-!                CALL STOPGM("FCIMC","Diffusion can only work with one MCExcitSpace")
+!                CALL Stop_All("FCIMC","Diffusion can only work with one MCExcitSpace")
 !            ENDIF
 !            IF((Lambda.gt.1.D0).or.(Lambda.lt.0.D0)) THEN
-!                CALL STOPGM("FCIMC","Diffusion coefficient must be between zero and one")
+!                CALL Stop_All("FCIMC","Diffusion coefficient must be between zero and one")
 !            ENDIF
 !        ENDIF
 !
 !        IF(HElementSize.gt.1) THEN
-!            CALL STOPGM("FCIMC","StarDiagMC cannot function with complex orbitals.")
+!            CALL Stop_All("FCIMC","StarDiagMC cannot function with complex orbitals.")
 !        ENDIF
 !        
 !        OPEN(15,file='FCIMCStats',status='unknown')
@@ -1373,7 +1373,7 @@ END FUNCTION Fact
 !
 !        IF(TResumFciMC) THEN
 !            IF(NDets.lt.0) TResumAllConns=.true.
-!            IF(NDets.eq.1.or.NDets.eq.0) CALL STOPGM("CreateGraph","Graphsize too small...")
+!            IF(NDets.eq.1.or.NDets.eq.0) CALL Stop_All("CreateGraph","Graphsize too small...")
 !            WRITE(6,*) ""
 !            WRITE(6,*) "Performing FCIMC...."
 !        ELSE
@@ -1409,7 +1409,7 @@ END FUNCTION Fact
 !        ENDIF
 !
 !!        IF(DiagSft.gt.0.D0) THEN
-!!            CALL StopGM("StarDiagMC","Intial value of DiagSft should be negative.")
+!!            CALL Stop_All("StarDiagMC","Intial value of DiagSft should be negative.")
 !!        ELSE
 !            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
 !!        ENDIF
@@ -1701,7 +1701,7 @@ END FUNCTION Fact
 !
 !!Log the fact that we have made a cull
 !            NoCulls=NoCulls+1
-!            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !!CullInfo(:,1) is walkers before cull
 !            CullInfo(NoCulls,1)=TotWalkers
 !!CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -1721,7 +1721,7 @@ END FUNCTION Fact
 !
 !!Log the fact that we have made a cull
 !            NoCulls=NoCulls+1
-!            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !!CullInfo(:,1) is walkers before cull
 !            CullInfo(NoCulls,1)=TotWalkers
 !!CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -1766,7 +1766,7 @@ END FUNCTION Fact
 !            IF(.not.WSign) Create=-Create
 !            IF(GraphVec(i).lt.0.D0) Create=-Create
 !!            IF((GraphVec(i).lt.0.D0).and.(i.eq.1)) THEN
-!!                CALL STOPGM("CreateParts", "trying to create opposite signed particle on root")
+!!                CALL Stop_All("CreateParts", "trying to create opposite signed particle on root")
 !!            ENDIF
 !!            IF(i.eq.1) WRITE(6,*) GraphVec(i),Create, WSign
 !
@@ -1850,7 +1850,7 @@ END FUNCTION Fact
 !!!Don't copy accross
 !!        ELSE
 !!            WRITE(6,*) Iter,iKill,-(1.D0-GraphVec(1)),GraphVec(1)
-!!            CALL STOPGM("CreateParts","Trying to kill/survive > 1")
+!!            CALL Stop_All("CreateParts","Trying to kill/survive > 1")
 !!        ENDIF
 !
 !        RETURN
@@ -1940,7 +1940,7 @@ END FUNCTION Fact
 !                CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,ExcitGen%ExcitData,nJ,IC,0,ExcitGen%nStore,exFlag)
 !                IF(nJ(1).eq.0) EXIT
 !!Determinant is distinct - add it
-!                IF(i.gt.TotComps) CALL STOPGM("CreateGraph","Problem creating graph")
+!                IF(i.gt.TotComps) CALL Stop_All("CreateGraph","Problem creating graph")
 !                DetsInGraph(:,i)=nJ(:)
 !
 !!First find connection to root
@@ -1977,7 +1977,7 @@ END FUNCTION Fact
 !!determinants are the same - ignore them
 !                        SameDet=.true.
 !                        Attempts=Attempts+1     !Increment the attempts counter
-!                        IF(Attempts.gt.100) CALL STOPGM("CreateGraph","More than 100 attempts needed to grow graph")
+!                        IF(Attempts.gt.100) CALL Stop_All("CreateGraph","More than 100 attempts needed to grow graph")
 !                        EXIT
 !                    ENDIF
 !                enddo
@@ -1988,7 +1988,7 @@ END FUNCTION Fact
 !                        RootExcitProb=Prob
 !                    ELSE
 !                        IF(abs(Prob-RootExcitProb).gt.1.D-07) THEN
-!                            CALL STOPGM("CreateGraph","Excitation probabilities are not uniform - problem here...")
+!                            CALL Stop_All("CreateGraph","Excitation probabilities are not uniform - problem here...")
 !                        ENDIF
 !                    ENDIF
 !
@@ -2266,7 +2266,7 @@ END FUNCTION Fact
 !
 !!Log the fact that we have made a cull
 !            NoCulls=NoCulls+1
-!            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !!CullInfo(:,1) is walkers before cull
 !            CullInfo(NoCulls,1)=TotWalkers
 !!CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -2286,7 +2286,7 @@ END FUNCTION Fact
 !
 !!Log the fact that we have made a cull
 !            NoCulls=NoCulls+1
-!            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+!            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !!CullInfo(:,1) is walkers before cull
 !            CullInfo(NoCulls,1)=TotWalkers
 !!CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -2330,7 +2330,7 @@ END FUNCTION Fact
 !            ActiveVecDets => NewDets
 !            ActiveVecSign => NewSign
 !        ELSE
-!            CALL STOPGM("TestWavevectorNodes","Error with iArray")
+!            CALL Stop_All("TestWavevectorNodes","Error with iArray")
 !        ENDIF
 !
 !        EnergyNum=0.D0  !EnergyNum indicates the sum over all the hamiltonian matrix elements between the double excitations and HF
@@ -2448,7 +2448,7 @@ END FUNCTION Fact
 !                    ENDIF
 !                ENDIF
 !            ELSE
-!                CALL STOPGM("TestWavevectorNodes","Should not be here - wrong IC calculated")
+!                CALL Stop_All("TestWavevectorNodes","Should not be here - wrong IC calculated")
 !            ENDIF
 !        enddo   !end loop over all walkers
 !
@@ -3231,7 +3231,7 @@ END FUNCTION Fact
 !!rat is the probability of diffusing to nJ
 !        rat=Tau*Lambda*abs(rh%v)/Prob
 !
-!        IF(rat.gt.1.D0) CALL STOPGM("AttemptDiffuse","*** Probability > 1 to diffuse.")
+!        IF(rat.gt.1.D0) CALL Stop_All("AttemptDiffuse","*** Probability > 1 to diffuse.")
 !
 !        IF(rat.gt.Ran2(Seed)) THEN
 !            IF(TExtraPartDiff) THEN
@@ -3328,7 +3328,7 @@ END FUNCTION Fact
 !        ENDIF
 !
 !!        IF(rat.lt.0.D0) THEN
-!!            CALL STOPGM("AttemptCreate","*** Probability < 0 to create child.")
+!!            CALL Stop_All("AttemptCreate","*** Probability < 0 to create child.")
 !!        ENDIF
 !
 !!If probability is > 1, then we can just create multiple children at the chosen determinant
@@ -3503,7 +3503,7 @@ END FUNCTION Fact
 !
 !!        IF(rat.gt.1.D0) THEN
 !!If probs of dying is greater than one, reduce tau
-!!            CALL STOPGM("AttemptDie","*** Death probability > 1. *** Tau too large")
+!!            CALL Stop_All("AttemptDie","*** Death probability > 1. *** Tau too large")
 !!        ENDIF
 !
 !        iKill=INT(rat)
@@ -3551,7 +3551,7 @@ END FUNCTION Fact
 !        ALLOCATE(ICWalk(InitWalkers),stat=ierr)     !Array to hold excitation level for each walker
 !        ALLOCATE(Hi0Array(InitWalkers),stat=ierr)   !Array to hold connection back to HF for each walker
 !        ALLOCATE(HiiArray(InitWalkers),stat=ierr)   !Array to hold diagonal hamiltonian element for each walker
-!        IF(ierr.ne.0) CALL STOPGM("MCDiffusion","Error in allocation")
+!        IF(ierr.ne.0) CALL Stop_All("MCDiffusion","Error in allocation")
 !
 !        CALL SetupExitgen(FDet,ExcitGens(1),nExcitMemLen,TotExcits)
 !        ICWalk(1)=0
@@ -3561,7 +3561,7 @@ END FUNCTION Fact
 !        do i=2,InitWalkers
 !!Copy the excitation generator for FDet to all the other initial walkers
 !            ALLOCATE(ExcitGens(i)%ExcitData(nExcitMemLen),stat=ierr)
-!            IF(ierr.ne.0) CALL STOPGM("MCDiffusion","Error in allocation")
+!            IF(ierr.ne.0) CALL Stop_All("MCDiffusion","Error in allocation")
 !            do j=1,nExcitMemLen
 !                ExcitGens(i)%ExcitData(j)=ExcitGens(1)%ExcitData(j)
 !            enddo
@@ -3586,7 +3586,7 @@ END FUNCTION Fact
 !                rat=0.8*(1.D0-Tau*((HiiArray(j)-(real(Hii%v,r2)))-DiagSft))      !This is the probability of self-hopping, rather than attempting a diffusive move
 !                                                        !Higher excitations have smaller prob, so resampled fewer times and lower excitations sampled for longer.
 !
-!                IF((rat.lt.0.D0).or.(rat.gt.1.D0)) CALL STOPGM("DiffusionMC","Incorrect self-hop probability")
+!                IF((rat.lt.0.D0).or.(rat.gt.1.D0)) CALL Stop_All("DiffusionMC","Incorrect self-hop probability")
 !                IF(rat.gt.Ran2(Seed)) THEN
 !!We want to self-hop. Resum in energy, but to not allow an attempted move away from excit. We also update the effect on the shift later.
 !                        
@@ -3605,7 +3605,7 @@ END FUNCTION Fact
 !!Attempt diffusion away to nJ
 !                    rat=Tau*abs(real(Hij%v,r2))/ProbJ
 !                
-!                    IF(rat.gt.1.D0) CALL STOPGM("AttemptDiffuse","*** Probability > 1 to diffuse.")
+!                    IF(rat.gt.1.D0) CALL Stop_All("AttemptDiffuse","*** Probability > 1 to diffuse.")
 !
 !                    IF(rat.gt.Ran2(Seed)) THEN
 !!Diffusion successful - need to update all the information
@@ -3674,7 +3674,7 @@ END FUNCTION Fact
 !!                    ExpectedWalkers=ExpectedWalkers-ExpectedWalkers*SumDeathProb    
 !!                enddo                                                               
 !
-!                IF(SumDeathProb.gt.1.D0) CALL STOPGM("MCDIFFUSION","Average Death prob. > 1")
+!                IF(SumDeathProb.gt.1.D0) CALL Stop_All("MCDIFFUSION","Average Death prob. > 1")
 !
 !                ExpectedWalkers=InitWalkers*((1.D0-SumDeathProb)**StepsSft)
 !
@@ -3713,7 +3713,7 @@ END FUNCTION Fact
 !        CALL IAZZERO(ExcitGen%nStore,6)
 !        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,ExcitGen%nStore,3)
 !        ALLOCATE(ExcitGen%ExcitData(nExcitMemLen),stat=ierr)
-!        IF(ierr.ne.0) CALL STOPGM("SetupExcitGen","Problem allocating excitation generator")
+!        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
 !        ExcitGen%ExcitData(1)=0
 !        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,ExcitGen%nStore,3)
 !

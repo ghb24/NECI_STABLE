@@ -447,7 +447,7 @@ C     ==--------------------------------------------------------------==
       ELSEIF(IOPT.EQ.21) THEN
         CALL DSPEV('V','U',N,AP,W,Z,LDZ,AUX,INFO)
       ENDIF
-      IF(INFO.NE.0) CALL STOPGM('DSPEVY','FAILED TO DIAGONALIZE')
+      IF(INFO.NE.0) CALL Stop_All('DSPEVY','FAILED TO DIAGONALIZE')
 C     ==--------------------------------------------------------------==
       RETURN
       END
@@ -810,9 +810,9 @@ C     Arguments
 C     Variables
       INTEGER    I,INFO
 C     ==--------------------------------------------------------------==
-      IF(LSCR.LT.N) CALL STOPGM('DETERM','SCRATCH TOO SMALL')
+      IF(LSCR.LT.N) CALL Stop_All('DETERM','SCRATCH TOO SMALL')
       CALL ZGETRF(N,N,DMAT,N,ISCR,INFO)
-      IF(INFO.NE.0) CALL STOPGM('DETERM','ILLEGAL RESULTS')
+      IF(INFO.NE.0) CALL Stop_All('DETERM','ILLEGAL RESULTS')
       DD=1.D0
       DO I=1,N
         DD=DD*DMAT(I,I)
@@ -1002,6 +1002,21 @@ C     ==--------------------------------------------------------------==
       ENDDO
       IE=SLEN
  20   CONTINUE
+C     ==--------------------------------------------------------------==
+      RETURN
+      END
+C     ==================================================================
+      SUBROUTINE TEST_SCR(A,TAG,LSCR,LENGTH)
+C     ==--------------------------------------------------------------==
+      IMPLICIT NONE
+C     Arguments
+      CHARACTER*(*) A,TAG
+      INTEGER       LSCR,LENGTH
+C     ==--------------------------------------------------------------==
+      IF(LSCR.LT.LENGTH) THEN
+        WRITE(*,'("LSCR=",I9," ",A,"=",I9)') LSCR,TAG,LENGTH
+        CALL Stop_All(A,'SCRATCH ARRAY TOO SMALL')
+      ENDIF
 C     ==--------------------------------------------------------------==
       RETURN
       END

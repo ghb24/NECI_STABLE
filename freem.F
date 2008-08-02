@@ -50,7 +50,7 @@ C..Statistics and memory checks
       ENDDO
       WRITE(*,*) ' FREEM | Could not find pointer ',IP_XM
       CALL PRINT_MEMORY
-      CALL STOPGM('FREEM',' NO SUCH POINTER')
+      CALL Stop_All('FREEM',' NO SUCH POINTER')
   100 CONTINUE
       LENGTH=I_LEN(II)
       ERROR=ZFIRST.NE.XM(0).OR.ZLAST.NE.XM(LENGTH+1)
@@ -69,7 +69,7 @@ c..free memory
       CALL HPDEALLC(IP_XM,IERR,0)
       IF(IERR.NE.0) THEN
         WRITE(*,*) ' FREEM | Error in deallocation of memory '
-        CALL STOPGM('FREEM',' ')
+        CALL Stop_All('FREEM',' ')
       ENDIF
 #elif __IBM
       CALL FREE(%VAL(IP_XM))
@@ -118,7 +118,7 @@ C     ==--------------------------------------------------------------==
 !     *  WRITE(6,'(A)') ' MEMORY_CHECK| ALL ARRAY BOUNDARIES ARE OK '
       ELSE
         CALL PRINT_MEMORY
-        CALL STOPGM('MEMORY_CHECK',' CORRUPTED MEMORY')
+        CALL Stop_All('MEMORY_CHECK',' CORRUPTED MEMORY')
       ENDIF
 C     ==--------------------------------------------------------------==
       RETURN
@@ -299,7 +299,7 @@ C..Statistics and memory checks
       ENDDO
       WRITE(*,*) ' FREEM | Could not find pointer ',IP_XM
       CALL PRINT_MEMORY
-      CALL STOPGM('FREEM',' NO SUCH POINTER')
+      CALL Stop_All('FREEM',' NO SUCH POINTER')
   100 CONTINUE
       LENGTH=I_LEN(II)
       ERROR=.FALSE.

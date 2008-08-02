@@ -292,7 +292,7 @@ MODULE ReturnPathMCMod
 
 !Log the fact that we have made a cull
             NoCulls=NoCulls+1
-            IF(NoCulls.gt.15) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+            IF(NoCulls.gt.15) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !CullInfo(:,1) is walkers before cull
             CullInfo(NoCulls,1)=TotWalkers
 !CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -308,7 +308,7 @@ MODULE ReturnPathMCMod
 
 !Log the fact that we have made a cull
             NoCulls=NoCulls+1
-            IF(NoCulls.gt.15) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+            IF(NoCulls.gt.15) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !CullInfo(:,1) is walkers before cull
             CullInfo(NoCulls,1)=TotWalkers
 !CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -341,11 +341,11 @@ MODULE ReturnPathMCMod
             IF(ExLevel.lt.MinExit) MinExit=ExLevel
         ELSEIF(Particle%ChainLength.eq.0) THEN
 !We are at HF - sum in energy and correction to SumNoatHF
-!                IF(Particle%Hi0.ne.Hii) CALL STOPGM("DoNMCyc","Problem with particles at HF")
+!                IF(Particle%Hi0.ne.Hii) CALL Stop_All("DoNMCyc","Problem with particles at HF")
             IF(Particle%WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
             ELSE
-                CALL STOPGM("DoNMCyc","Should not have negative particles at HF")
+                CALL Stop_All("DoNMCyc","Should not have negative particles at HF")
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
             ENDIF
             ExLevel=0
@@ -534,9 +534,9 @@ MODULE ReturnPathMCMod
                 NewVec(VecSlot)%History(:,NewChainLength-1)=Particle%Det(:)
             ELSEIF(NewChainLength.eq.1) THEN
 !No history, since we are at double excit
-                IF(ExcitLevel.ne.2) CALL STOPGM("CreateParticle","First link in chain is not a double excit")
+                IF(ExcitLevel.ne.2) CALL Stop_All("CreateParticle","First link in chain is not a double excit")
             ELSE
-                CALL STOPGM("CreateParticle","Wanting to create more distant link in chain, but is trying to create HF")
+                CALL Stop_All("CreateParticle","Wanting to create more distant link in chain, but is trying to create HF")
             ENDIF
 
 !The excitgen has not been created
@@ -545,7 +545,7 @@ MODULE ReturnPathMCMod
 
         ELSE
 !Not sure what we are trying to do here - we are creating a particle which is > 1 link away from the original - should not be possible
-            CALL STOPGM("CreateParticle","Trying to create a particle which is > 1 link away - error")
+            CALL Stop_All("CreateParticle","Trying to create a particle which is > 1 link away - error")
         ENDIF
 
         RETURN
@@ -601,14 +601,14 @@ MODULE ReturnPathMCMod
         IF(.not.OrigExGen%ForCurrentDet) THEN
 !The particle we are trying to create does not have the correct corresponding excitation generator
             NewExGen%ForCurrentDet=.false.
-!            CALL STOPGM("CopyExGen","Trying to copy accross an exGen, but it is not for the desired determinant")
+!            CALL Stop_All("CopyExGen","Trying to copy accross an exGen, but it is not for the desired determinant")
             RETURN
         ENDIF
         IF(Allocated(NewExGen%ExcitData)) THEN
             DEALLOCATE(NewExGen%ExcitData)
         ENDIF
         ALLOCATE(NewExGen%ExcitData(OrigExGen%ExcitLen),stat=ierr)
-        IF(ierr.ne.0) CALL STOPGM("CopyExGen","Problem in allocation of ExGen")
+        IF(ierr.ne.0) CALL Stop_All("CopyExGen","Problem in allocation of ExGen")
         do i=1,OrigExGen%ExcitLen
             NewExGen%ExcitData(i)=OrigExGen%ExcitData(i)
         enddo
@@ -677,7 +677,7 @@ MODULE ReturnPathMCMod
 !            ELSEIF(NTAY(2).eq.2) THEN
 !Partition with Trotter with H(0) having just the Fock Operators
 !Fock-Partition
-!                CALL STOPGM("GetSpawnRhoElement","This is not functional yet")
+!                CALL Stop_All("GetSpawnRhoElement","This is not functional yet")
 !            ENDIF
 
         ELSE
@@ -703,13 +703,13 @@ MODULE ReturnPathMCMod
         REAL*8 :: Preturn,Hij,rat,Ran2,rhoel
         INTEGER :: nJ(:),IC
 
-        IF(Preturn.eq.1.D0) CALL STOPGM("SpawnForward","Preturn=1, but trying to spawn forward")
+        IF(Preturn.eq.1.D0) CALL Stop_All("SpawnForward","Preturn=1, but trying to spawn forward")
 
 !First calculate connection to parent determinant - this is the hamiltonian matrix element
         Hij=GetConnection(Particle%Det,nJ,IC)
 
         IF(TRhoElems) THEN
-            IF(IC.eq.0) CALL STOPGM("SpawnForward","IC should not be zero")
+            IF(IC.eq.0) CALL Stop_All("SpawnForward","IC should not be zero")
             rhoel=GetSpawnRhoEl(Particle%Det,nJ,.false.,Hij)
             rat=abs(rhoel)/(1.D0-Preturn)
         ELSE
@@ -750,7 +750,7 @@ MODULE ReturnPathMCMod
 !Particle has a chainlength of 1, (i.e. is at a double excitation) - therefore it wants to try to return to HF
             IF((Particle%HistExcit(1).ne.2).or.(Particle%IC0(1).ne.2)) THEN
 !Quick check that we are actually at a double excitation
-                CALL STOPGM("SpawnReturn","Chainlength is one, but we are not at a double excitation")
+                CALL Stop_All("SpawnReturn","Chainlength is one, but we are not at a double excitation")
             ENDIF
 
             Hij=GetConnection(HFDet,Particle%Det,2)
@@ -769,7 +769,7 @@ MODULE ReturnPathMCMod
 
         ELSE
 !Particle has a chainlength of 0 (or less than zero!) - it cannot spawn to a previous determinant, as there are none - error here
-            CALL STOPGM("SpawnReturn","Cannot return if at HF")
+            CALL Stop_All("SpawnReturn","Cannot return if at HF")
         ENDIF
 
 !Prob of accepting to spawn to a previous determinant given by tau*abs(Hij)/Preturn (rho matrix elements already has tau included)
@@ -859,7 +859,7 @@ MODULE ReturnPathMCMod
             RETURN
         ELSEIF(Particle%IC0(Particle%ChainLength).eq.0) THEN
 !Particle says it is at the HF - however, it should only be allowed to go deeper into excit space, and so chainlength should be 0 - error here
-            CALL STOPGM("FindPRet","Particle should only be allowed to go deeper into excit space")
+            CALL Stop_All("FindPRet","Particle should only be allowed to go deeper into excit space")
         ELSE
 !Particle is free to attempt to return, or proceed further into excit space
             FindPRet=PRet
@@ -887,8 +887,8 @@ MODULE ReturnPathMCMod
         enddo
 
 !Provide various tests that variables are within allowed ranges
-        IF((PRet.gt.1.D0).or.(PRet.lt.0.D0)) CALL STOPGM("ReturnPathMC","PRet must be a normalised probability")
-        IF(HElementSize.gt.1) CALL STOPGM("ReturnPathMC","ReturnPathMC cannot function with complex orbitals.")
+        IF((PRet.gt.1.D0).or.(PRet.lt.0.D0)) CALL Stop_All("ReturnPathMC","PRet must be a normalised probability")
+        IF(HElementSize.gt.1) CALL Stop_All("ReturnPathMC","ReturnPathMC cannot function with complex orbitals.")
 
         MaxWalkers=InitWalkers*MemoryFac    !Set maximum number of allowed walkers
 
@@ -928,7 +928,7 @@ MODULE ReturnPathMCMod
             ALLOCATE(WalkVec2(j)%Kii(CLMax),stat=ierr)
             ALLOCATE(WalkVec2(j)%HistExcit(CLMax),stat=ierr)
             ALLOCATE(WalkVec2(j)%History(NEl,CLMax-1),stat=ierr)
-            IF(ierr.ne.0) CALL STOPGM("InitRetPath","Problem allocating initial memory")
+            IF(ierr.ne.0) CALL Stop_All("InitRetPath","Problem allocating initial memory")
         enddo
 
         ActiveVec=>WalkVec      !Point ActiveVec to WalkVec initially
@@ -969,7 +969,7 @@ MODULE ReturnPathMCMod
         IF(ExcitGen%ForCurrentDet) THEN
 
             IF(.not.Allocated(ExcitGen%ExcitData)) THEN
-                CALL STOPGM("SetupExitGen","ExGen supposedly already created, but not present")
+                CALL Stop_All("SetupExitGen","ExGen supposedly already created, but not present")
             ENDIF
 
             RETURN
@@ -985,7 +985,7 @@ MODULE ReturnPathMCMod
             CALL IAZZERO(ExcitGen%nStore,6)
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitLen,nJ,iMaxExcit,0,ExcitGen%nStore,exFlag)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%ExcitLen),stat=ierr)
-            IF(ierr.ne.0) CALL STOPGM("SetupExcitGen","Problem allocating excitation generator")
+            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
             ExcitGen%ExcitData(1)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,ExcitGen%nStore,exFlag)
             ExcitGen%ForCurrentDet=.true.

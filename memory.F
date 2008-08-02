@@ -58,7 +58,7 @@ C     ==--------------------------------------------------------------==
       LEN=LENGTH+2
       IF(LEN.LT.0) THEN
         WRITE(*,*) ' MEMORY| MEMORY REQUIRED:',LEN,' WORDS'
-        CALL STOPGM('MEMORY','NEGATIVE OR TOO BIG VALUE')
+        CALL Stop_All('MEMORY','NEGATIVE OR TOO BIG VALUE')
       ENDIF
 #ifdef CRAY
 C     Integer=integer*8
@@ -78,7 +78,7 @@ C     Check if 8 * LEN is in the range of integer.
 C       Integer=integer*4 : 2^31=2147483648, 2^28=268435456
         IF(LEN.GT.2**28) THEN
           WRITE(*,*) ' MEMORY| MEMORY REQUIRED:',LEN,' WORDS'
-          CALL STOPGM('MEMORY','TOO BIG VALUE')
+          CALL Stop_All('MEMORY','TOO BIG VALUE')
         ENDIF
       ENDIF
       LEN = 8 * LEN
@@ -119,7 +119,7 @@ CC /AJWT
         CALL XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'
         IE=IE+19+1
-        CALL STOPGM('MEMORY',LINE(1:IE))
+        CALL Stop_All('MEMORY',LINE(1:IE))
       ENDIF
       IP_POINT=LOC(XM(1))
 C..Statistics and memory checks
@@ -215,7 +215,7 @@ C      WRITE(14,*) TAG,LENGTH
         CALL XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'
         IE=IE+19+1
-        CALL STOPGM('MEMORY',LINE(1:IE))
+        CALL Stop_All('MEMORY',LINE(1:IE))
       ENDIF
       IP_POINT=LOC(XM(1))
 C..Statistics and memory checks

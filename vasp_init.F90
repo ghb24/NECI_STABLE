@@ -69,7 +69,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    
 
    if (tOrder) then
-      call StopGM('VASPInitIntegrals','tOrder not implemented in VASP interface yet.')
+      call Stop_All('VASPInitIntegrals','tOrder not implemented in VASP interface yet.')
    end if
    write (6,*) "Finished TMAT"
    close (10)

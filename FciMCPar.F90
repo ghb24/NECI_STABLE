@@ -363,7 +363,7 @@ MODULE FciMCParMod
 
 !Log the fact that we have made a cull
             NoCulls=NoCulls+1
-            IF(NoCulls.gt.10) CALL STOPGM("PerformFCIMCyc","Too Many Culls")
+            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !CullInfo(:,1) is walkers before cull
             CullInfo(NoCulls,1)=TotWalkers
 !CullInfo(:,3) is MC Steps into shift cycle before cull
@@ -461,7 +461,7 @@ MODULE FciMCParMod
                     HOffDiag=GetHElement2(HFDet,DetsinGraph(:,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
                 ELSEIF(ExcitLevel.eq.0) THEN
                     IF(ABS(GraphKii(i)).gt.1.D-07) THEN
-                        CALL STOPGM("ResumGraphPar","Diagonal K-mat element should be zero for HF particles")
+                        CALL Stop_All("ResumGraphPar","Diagonal K-mat element should be zero for HF particles")
                     ENDIF
                 ENDIF
                 IF(Create.lt.0) THEN
@@ -516,7 +516,7 @@ MODULE FciMCParMod
     
                     SameDet=.true.
                     Attempts=Attempts+1
-                    IF(Attempts.gt.100) CALL STOPGM("CreateGraphPar","More than 100 attempts needed to grow graph")
+                    IF(Attempts.gt.100) CALL Stop_All("CreateGraphPar","More than 100 attempts needed to grow graph")
                     EXIT
                 ENDIF
             enddo
@@ -527,7 +527,7 @@ MODULE FciMCParMod
                     ExcitProb=Prob
                 ELSE
                     IF(abs(Prob-ExcitProb).gt.1.D-07) THEN
-                        CALL STOPGM("CreateGraph","Excitation probabilities are not uniform - problem here...")
+                        CALL Stop_All("CreateGraph","Excitation probabilities are not uniform - problem here...")
                     ENDIF
                 ENDIF
 
@@ -1146,7 +1146,7 @@ MODULE FciMCParMod
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
 
         IF(HElementSize.gt.1) THEN
-            CALL STOPGM("FCIMCPar","FciMCPar cannot function with complex orbitals.")
+            CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
         ENDIF
         
         IF(iProcIndex.eq.Root) THEN
@@ -1197,7 +1197,7 @@ MODULE FciMCParMod
             IF(NDets.gt.2) THEN
                 IF(.not.EXCITFUNCS(10)) THEN
                     WRITE(6,*) "Cannot have an excitation bias with multiple determinant graphs...exiting."
-                    CALL STOPGM("InitFCIMCCalcPar","Cannot have biasing with Graphsizes > 2")
+                    CALL Stop_All("InitFCIMCCalcPar","Cannot have biasing with Graphsizes > 2")
                 ENDIF
 
 !Allocate memory for graphs...
@@ -1212,7 +1212,7 @@ MODULE FciMCParMod
                 
             ELSEIF(NDets.lt.2) THEN
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
-                CALL STOPGM("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
+                CALL Stop_All("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
             ENDIF
             IF(iProcIndex.eq.root) THEN
                 WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
@@ -1289,7 +1289,7 @@ MODULE FciMCParMod
 
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
-            IF(ierr.ne.0) CALL STOPGM("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
+            IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
 
 !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
@@ -1448,9 +1448,9 @@ MODULE FciMCParMod
 !We want to copy the excitation generator
             ALLOCATE(NewExit%ExcitData(OrigExit%nExcitMemLen),stat=ierr)
 !            IF(OrigExit%nExcitMemLen.eq.0) THEN
-!                CALL STOPGM("CopyExitgenPar","Problem allocating memory for new excit")
+!                CALL Stop_All("CopyExitgenPar","Problem allocating memory for new excit")
 !            ENDIF
-            IF(ierr.ne.0) CALL STOPGM("CopyExitgenPar","Problem with allocating memory for new excitation generator")
+            IF(ierr.ne.0) CALL Stop_All("CopyExitgenPar","Problem with allocating memory for new excitation generator")
             NewExit%ExcitData(:)=OrigExit%ExcitData(:)
             NewExit%nExcitMemLen=OrigExit%nExcitMemLen
             NewExit%ExitGenForDet=.true.
@@ -1468,7 +1468,7 @@ MODULE FciMCParMod
         IF(ExcitGen%ExitGenForDet) THEN
 !The excitation generator is already allocated for the determinant in question - no need to recreate it
             IF(.not.Allocated(ExcitGen%ExcitData)) THEN
-                CALL STOPGM("SetupExitgenPar","Excitation generator meant to already be set up")
+                CALL Stop_All("SetupExitgenPar","Excitation generator meant to already be set up")
             ENDIF
 
         ELSE
@@ -1482,7 +1482,7 @@ MODULE FciMCParMod
             CALL IAZZERO(nStore,6)
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%nExcitMemLen),stat=ierr)
-            IF(ierr.ne.0) CALL STOPGM("SetupExcitGen","Problem allocating excitation generator")
+            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
             ExcitGen%ExcitData(1)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
 
@@ -1587,7 +1587,7 @@ MODULE FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
     TYPE(HDElement) :: Weight,Energyxw
 
-        CALL STOPGM("FciMCPar","Entering the wrong FCIMCPar parallel routine")
+        CALL Stop_All("FciMCPar","Entering the wrong FCIMCPar parallel routine")
 
     END SUBROUTINE FciMCPar
 
