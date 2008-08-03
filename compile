@@ -49,8 +49,11 @@ echo "Using platform: $platform"
 
 ./mkconfig.sh $dbgflag $platform -DEST=${PWD}/DESTDIR > mktemplate
 
-cp irat.inc dest
-cp irat.inc kdest
+test ! -d dest && mkdir dest
+test ! -d kdest && mkdir kdest
+
+cp irat.inc dest/
+cp irat.inc kdest/
 sed -e 's/#CMPLXFLAG//' -e "s/DESTDIR/dest/" mktemplate > dest/Makefile
 sed -e 's/#CMPLXFLAG/-D__CMPLX/' -e "s/DESTDIR/kdest/"  mktemplate > kdest/Makefile
 
