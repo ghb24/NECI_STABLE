@@ -39,7 +39,7 @@ C.. we extract the KEs from TMAT
       ENDDO
 C..Now for the two electron part
 C  JSS --access the <ij|ij> and <ij|ji> integrals directly.  Note J>I and how the integrals are
-C  stored in UMAT2D (see note in cpmddata.inc).   
+C  stored in UMAT2D (see note in UMatCache.F90).
       SUM4=HElement(0)
       SUM5=HElement(0)
       DO I=1,NEL-1
