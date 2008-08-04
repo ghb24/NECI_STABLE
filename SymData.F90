@@ -8,13 +8,15 @@ module SymData
 
     implicit none
 
+    save
+
     !Hold information about pairs of orbitals according to the symmetry of their product.
     TYPE SymPairProd 
         TYPE(Symmetry) Sym  !The symmetry of a set of pairs
         INTEGER nPairs      !The number of pairs where the direct product of the syms of the orbs in the pair is Sym
         INTEGER nIndex      !The index of the first of these pairs in the complete list of pairs (SymStatePairs)
     ENDTYPE
-    INTEGER, PARAMETER  :: SymPairProdSize=SymmetrySize+2
+    INTEGER, PARAMETER :: SymPairProdSize=SymmetrySize+2
 
     !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single symmetry of an orbital which is present in the determinant being excited from
     TYPE SymClass 
@@ -43,9 +45,9 @@ module SymData
     INTEGER :: PropBitLen
 
     ! The symmetry conjugate of each symmetry (i.e. its index in the list of irreps)
-    INTEGER :: SymConjTab(:) ! length=nSym
+    INTEGER, ALLOCATABLE :: SymConjTab(:) ! length=nSym
 
-    TYPE(Symmetry) SYMTABLE(NSYM,NSYM)
+    TYPE(Symmetry), ALLOCATABLE :: SYMTABLE(:,:) ! size=NSYM,NSYM
 
     ! SYMREPS is used to group together degenerate sets of orbitals of the same
     ! sym (e.g. the six orbitals which might make up a T2g set), and is used
@@ -58,57 +60,78 @@ module SymData
     !     SYMREPS(1,IBASISFN) contains the numnber of the representation
     !                         of which IBASISFN is a part.
     !     SYMPREPS(2,IREP) contains the degeneracy of the rep IREP
-    INTEGER SYMREPS(:,:) ! size=2,
+    INTEGER, ALLOCATABLE :: SYMREPS(:,:) ! size=2,
 
     ! The total number of symmetry labels is NSYMLABELS
-    INTEGER NSYMLABELS
+    INTEGER :: NSYMLABELS
     ! The symmetry bit string, decomposing the sym label into its component
     ! irreps is in SYMLABELS(ISYMLABEL).
-    Type(Symmetry) SYMLABELS(:)
-    INTEGER StateSymMap(:),StateSymMap2(:)
+    Type(Symmetry), ALLOCATABLE :: SYMLABELS(:)
+    INTEGER, ALLOCATABLE ::  StateSymMap(:),StateSymMap2(:)
     ! SymClasses is used to classify all states which transform with the same
     ! symmetry for the excitation generation routines.
     ! Each state's symmetry falls into a class ISYMLABEL=SymClasses(ISTATE).
-    INTEGER SymClasses(:)
-    INTEGER SymClasses2(:)
+    INTEGER, POINTER ::  SymClasses(:)
+    INTEGER, POINTER ::  SymClasses2(:)
     ! The characters of this class are stored in 
     ! SYMLABELCHARS(1:NROT, SymClasses(ISTATE)).
-    COMPLEX*16 SYMLABELCHARS(NROT,NSYMLABELS)
+    COMPLEX*16, ALLOCATABLE ::  SYMLABELCHARS(:,:) ! size=NROT,NSYMLABELS
 
     !.. SYMLABELLIST holds a list of states grouped under symmlabel
-    INTEGER SYMLABELLIST(:)
+    INTEGER, ALLOCATABLE ::  SYMLABELLIST(:)
 
     ! SYMLABELCOUNTS(1,I) is the index within SYMLABELLIST of the first state
     ! of symlabel I
     ! SYMLABELCOUNTS(2,I) is the number of states with symlabel I
     ! SYMLABELCOUNTSCUM(I) is the cumulative number of states with symlabel I
     ! SYMLABELINTSCUM(I) is the cumulative number of one-electron integrals with symlabel I
-    INTEGER SYMLABELCOUNTS(:,:) ! size=2,
-    INTEGER SYMLABELCOUNTSCUM(:)
-    INTEGER SYMLABELINTSCUM(:)
+    INTEGER, ALLOCATABLE ::  SYMLABELCOUNTS(:,:) ! size=2,
+    INTEGER, POINTER ::  SYMLABELCOUNTSCUM(:)
+    INTEGER, POINTER ::  SYMLABELINTSCUM(:)
 
     ! These ones are for when freezing orbitals
-    INTEGER SYMLABELCOUNTSCUM2(:)
-    INTEGER SYMLABELINTSCUM2(:)
+    INTEGER, POINTER ::  SYMLABELCOUNTSCUM2(:)
+    INTEGER, POINTER ::  SYMLABELINTSCUM2(:)
 
     ! NROT is the number of symmetry operations
-    INTEGER NROT
+    INTEGER :: NROT
     ! All symmetries are decomposable into component irreps.
     ! The characters corresponding to each irrep are in IRREPCHARS
-    COMPLEX*16 IRREPCHARS(:,:) ! size=NROT,NSYM
+    COMPLEX*16, ALLOCATABLE ::  IRREPCHARS(:,:) ! size=NROT,NSYM
 
     ! SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs
     ! available, the number of pairs of states (listed in SymStatePairs), and
     ! the index of the start of this list.
-    TYPE(SymPairProd) SymPairProds(:)
-    INTEGER nSymPairProds
+    TYPE(SymPairProd), ALLOCATABLE :: SymPairProds(:)
+    INTEGER :: nSymPairProds
     ! For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
     ! [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of states whose
     ! prod is of that symmetry.
-    INTEGER SymStatePairs(:,:) ! shape=2,0:*
+    INTEGER, ALLOCATABLE ::  SymStatePairs(:,:) ! shape=2,0:*
 
 
     LOGICAL TAbelian  ! TAbelian for Abelian point groups (specifically k-point
                       ! symmetry).
+
+    ! Memory logging tags.
+    INTEGER :: tagKPntSym 
+    INTEGER :: tagSymConjTab
+    INTEGER :: tagSYMTABLE
+    INTEGER :: tagSYMREPS 
+    INTEGER :: tagSYMLABELS
+    INTEGER :: tagStateSymMap
+    INTEGER :: tagStateSymMap2
+    INTEGER :: tagSymClasses
+    INTEGER :: tagSymClasses2
+    INTEGER :: tagSYMLABELCHARS
+    INTEGER :: tagSYMLABELLIST
+    INTEGER :: tagSYMLABELCOUNTS
+    INTEGER :: tagSYMLABELCOUNTSCUM
+    INTEGER :: tagSYMLABELINTSCUM
+    INTEGER :: tagSYMLABELCOUNTSCUM2
+    INTEGER :: tagSYMLABELINTSCUM2
+    INTEGER :: tagIRREPCHARS
+    INTEGER :: tagSymStatePairs
+    INTEGER :: tagSymPairProds
 
 end module SymData
