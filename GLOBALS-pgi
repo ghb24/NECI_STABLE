@@ -4,6 +4,8 @@
 ..Dm_calc
 ..Dm_integrals
 ..Dm_memorymanager
+..Dm_cpmddata
+..Dm_symdata
 necicore_
 cacheumatel_
 getcachedumatel_

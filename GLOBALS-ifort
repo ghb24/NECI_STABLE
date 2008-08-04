@@ -4,6 +4,8 @@ system._
 calc._
 integrals._
 memorymanager._
+symdata._
+cpmddata._
 necicore_
 cacheumatel_
 getcachedumatel_
