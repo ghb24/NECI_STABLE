@@ -38,7 +38,11 @@ MODULE UMatCache
       integer iDumpCacheFlag,nStatesDump
       logical tReadInCache
 
-! For the more frequently used <ij|u|ij> and <ij|u|ji> integrals, we store them in a separate cache (if TUMat2D is true)
+! For the more frequently used <ij|u|ij> and <ij|u|ji> integrals, we store them
+! in a separate cache (if TUMat2D is true).
+!     UMAT2D : Stores the integrals of the form <ij|ij> and <ij|ji>
+!     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
+!     off-diagonal elements of the lower triangle.
       TYPE(HElement), Pointer :: UMat2D(:,:) !(nStates,nStates)
       LOGICAL tUMat2D
 
@@ -1119,8 +1123,8 @@ MODULE UMatCache
 
 
       logical function HasKPoints()
+         use CPMDData, only: NKPS
          IMPLICIT NONE
-         include 'cpmddata.inc'
          IF(NKPS.GT.1) THEN
             HasKPoints=.TRUE.
          ELSE

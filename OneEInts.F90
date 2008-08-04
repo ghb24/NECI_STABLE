@@ -300,6 +300,7 @@ contains
         !    iSize: number of elements in TMat/TMatSym.
         ! Initial allocation of TMat2D or TMatSym (if using symmetry-compressed
         ! storage of the <i|h|j> integrals).
+        use CPMDData, only: tKP
         use System, only: tCPMD,tVASP
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -308,7 +309,6 @@ contains
         use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
         use MemoryManager, only: LogMemAlloc,LogMemDealloc
         IMPLICIT NONE
-        include 'cpmddata.inc'
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
         character(len=*),parameter :: thisroutine='SetupTMAT'
@@ -415,6 +415,7 @@ contains
         ! Initial allocation of TMat2D2 or TMatSym2 (if using symmetry-compressed
         ! storage of the <i|h|j> integrals) for post-freezing.
         ! See also notes in SetupTMat.
+        use CPMDData, only: tKP
         use System, only: tCPMD,tVASP
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -423,7 +424,6 @@ contains
         use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
         use MemoryManager, only: LogMemAlloc,LogMemDealloc
         IMPLICIT NONE
-        include 'cpmddata.inc'
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
         character(len=*),parameter :: thisroutine='SetupTMAT2'

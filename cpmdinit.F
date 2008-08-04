@@ -3,8 +3,10 @@
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: KPntSym,tAbelian,nSym,SymClasses,
      &                      SymLabelChars
+         use CPMDData, only: EigenValues,Project,BigCell,Trans_Label
+         use CPMDData, only: K_Vectors,KPntInd,CellSizes,TKP,Improper_OP
+         use CPMDData, only: nStates,NKPTrans,nKPS,nRotOp
          IMPLICIT NONE
-         INCLUDE 'cpmddata.inc'
          INTEGER nBasisMax(5,*), BRR(LEN),LEN
          TYPE(BASISFN) G1(LEN)
          REAL*8 ARR(LEN,2)
@@ -97,8 +99,8 @@ C.. Called to retrieve number of basis functions from CPMD
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nRot
+         use CPMDData, only:tSpaceGp,nSpGpOp,nRotOp,nKPTrans,tKP,nStates
          IMPLICIT NONE
-         INCLUDE 'cpmddata.inc'
          INTEGER LEN
          LEN=NSTATES*2
          IF(TSPACEGP) THEN
@@ -114,8 +116,8 @@ C.. group
       END
       
       SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR,BRR)
+         use CPMDData, only: DegenTol
          IMPLICIT NONE
-         INCLUDE 'cpmddata.inc'
          INTEGER BRR(NBASIS),NBASIS,G1(*)
          REAL*8 ARR(NBASIS,2)
          CALL GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
@@ -130,8 +132,9 @@ C.. group
          use SymData, only: IRREPCHARS
          use SymData, only: tagSymLabels,tagSymLabelChars,tagSymClasses
          use SymData, only: tagIRREPCHARS
+         use CPMDData, only: nStates,Rot_Label,tSpaceGp,Group_Char
+         use CPMDData, only: Rot_Char
          IMPLICIT NONE
-         INCLUDE 'cpmddata.inc'
          INTEGER I,J,K
          INTEGER LABELS(2,NSTATES)
          character(*), parameter :: this_routine='ExtractSymLabels'
@@ -198,15 +201,16 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
       SUBROUTINE CPMDINIT2INDINT(NHG,NORBUSED,NBASISMAX,ISS,G1,NEL,
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElem
+         use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
          use System, only: BasisFN
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache,GetUMatEl
          use OneEInts, only: TMat2D,tCPMDSymTMat,TMatSym
          use OneEInts, only: TMatInd
+         use MemoryManager, only: LogMemAlloc,LogMemDealloc
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
-         INCLUDE 'cpmddata.inc'
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
          REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
@@ -229,6 +233,8 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          integer :: info
          real*8,allocatable :: rwork(:),FockEigv(:)
          complex*16,allocatable :: work(:)
+         integer :: tagHarInt=0
+         character(*), parameter :: this_routine='CPMDINIT2INDINT'
          CALL TISET('CPMDINIT2I',ISUB)
 
          ECORE=EIONION
@@ -243,8 +249,11 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
          IF(.NOT.BTEST(iCacheFlag,1)) THEN
 !Don't initialize the cache if it's already there
             allocate(HarInt(NStatesUsed,NStatesUsed))
+            call LogMemAlloc('HarInt',nStatesUsed**2,16,this_routine,
+     &                                                        tagHarInt)
+            allocate(PIInt(nStates))
+            call LogMemAlloc('PIInt',nStates,8,this_routine,tagPIInt)
 !            allocate(FockMat(nStatesUsed,nStatesUsed))
-            call Memory(IP_PIInt,nStates,'PIInt')
 C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          ENDIF
@@ -371,7 +380,9 @@ C.. Set the UMAT cache to cache normally again
 
          IF(.not.BTEST(iCacheFlag,0)) THEN
             deallocate(HarInt)
-            call FreeM(IP_PIInt)
+            call LogMemDealloc(this_routine,tagHarInt)
+            deallocate(PIInt)
+            call LogMemDealloc(this_routine,tagPIInt)
          endif
          CALL TIHALT('CPMDINIT2I',ISUB)
       END   
