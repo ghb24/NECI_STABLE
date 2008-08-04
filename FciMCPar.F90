@@ -346,7 +346,7 @@ MODULE FciMCParMod
             IF(NoCulls.gt.10) THEN
                 WRITE(6,*) "Too Many Culls"
                 CALL FLUSH(6)
-                CALL MPIStopAll(2)
+                CALL MPIStopAll('999')
             ENDIF
 !CullInfo(:,1) is walkers before cull
             CullInfo(NoCulls,1)=TotWalkers
@@ -616,10 +616,10 @@ MODULE FciMCParMod
 !Test since the root should not change sign - comment out later
             IF(WSign.and.(Create.lt.0)) THEN
                 WRITE(6,*) "Root determinant should not change sign"
-                CALL MPIStopAll(3)
+                CALL MPIStopAll('999')
             ELSEIF((.not.WSign).and.(Create.gt.0)) THEN
                 WRITE(6,*) "Root determinant should not change sign"
-                CALL MPIStopAll(3)
+                CALL MPIStopAll('999')
             ENDIF
             
             IF(Create.lt.0) THEN
@@ -1230,7 +1230,7 @@ MODULE FciMCParMod
 
             WRITE(6,*) "This feature not ready yet"
             CALL FLUSH(6)
-            CALL MPIStopAll(1)
+            CALL MPIStopAll('999')
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
 !            CALL StartWavevectorPar(1)
 

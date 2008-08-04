@@ -105,7 +105,7 @@ end subroutine
 !  
 !  Abort all processors
 Subroutine MPIStopAll(error_str)
-   character(3), parameter :: error_str
+   character(3) :: error_str
    integer error_code,ierror
    ! errorcode: Error returned to invoking environment.
    ! ierror: error status (of abort: was abort successful?)
