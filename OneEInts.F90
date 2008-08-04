@@ -47,7 +47,7 @@ contains
         !    i,j: spin orbitals.
         ! Return the index of the <i|h|j> element in TMatSym2.
         ! This is only used with TSTARSTORE, where the TMAT is compressed to only store states, not spin-orbitals,
-        ! Added compression supplied by only storing symmetry allowed integrals - therefore needs sym.inc info.
+        ! Added compression supplied by only storing symmetry allowed integrals - therefore needs SymData info.
         ! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
         ! For the TMat(i,j) to be non-zero, i and j have to belong to the same symmetry, as we're working in Abelian groups.
         ! We store the non-zero elements in TMatSym(:).
@@ -66,9 +66,9 @@ contains
         !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0). 
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SymData, only: SymClasses,StateSymMap,SymLabelIntsCum
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
-        include 'sym.inc'
         A=mod(I,2)
         B=mod(J,2)
         !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
@@ -118,9 +118,9 @@ contains
       ! See notes for TMatInd. Used post-freezing.
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SymData, only: SymClasses2,StateSymMap,SymLabelIntsCum2
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,cumulative,K,L
-        include 'sym.inc'
         A=mod(I,2)
         B=mod(J,2)
         ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
@@ -212,11 +212,12 @@ contains
         !    nBasis: size of basis (# orbitals).
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SymData, only: SymLabelCounts,SymLabelCountsCum,nSymLabels
+        use SymData, only: SymLabelIntsCum,SymLabelIntsCum2,SymLabelCountsCum2
         IMPLICIT NONE
-        include 'sym.inc'
         INTEGER II,I,J,NBASIS
         
-        IF(IP_SYMLABELINTSCUM.ne.0) THEN
+        IF(associated(SYMLABELINTSCUM)) THEN
             write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
             DO I=1,NSYMLABELS
                 WRITE(12,"(I5,$)") SYMLABELCOUNTS(2,I)
@@ -235,7 +236,7 @@ contains
             WRITE(12,*) ""
             WRITE(12,*) "**********************************"
         ENDIF
-        IF(IP_SYMLABELINTSCUM2.ne.0) THEN
+        IF(associated(SYMLABELINTSCUM2)) THEN
             write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
             DO I=1,NSYMLABELS
                 WRITE(12,"(I5,$)") SYMLABELCOUNTS(2,I)
@@ -302,10 +303,12 @@ contains
         use System, only: tCPMD,tVASP
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-        use MemoryManager, only: LogMemAlloc
+        use SymData, only: SymLabelCounts,SymLabelCountsCum,SymClasses
+        use SymData, only: SymLabelIntsCum,nSymLabels,StateSymMap
+        use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
+        use MemoryManager, only: LogMemAlloc,LogMemDealloc
         IMPLICIT NONE
         include 'cpmddata.inc'
-        include 'sym.inc'
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
         character(len=*),parameter :: thisroutine='SetupTMAT'
@@ -320,14 +323,28 @@ contains
             Nirrep=NSYMLABELS
             nBi=nBasis/iSS
             iSize=0
-            IF(IP_SYMLABELINTSCUM.ne.0) CALL FREEM(IP_SYMLABELINTSCUM)
-            IF(IP_SYMLABELCOUNTSCUM.ne.0) CALL FREEM(IP_SYMLABELCOUNTSCUM)
-            IF(IP_StateSymMap.ne.0) call FreeM(IP_StateSymMap) ! I feel dirty doing this.
-            CALL MEMORY(IP_SYMLABELINTSCUM,Nirrep,'SYMLABELINTSCUM')
-            CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
-            CALL MEMORY(IP_SYMLABELCOUNTSCUM,Nirrep,'SYMLABELCOUNTSCUM')
+
+            if (associated(SymLabelIntsCum)) then
+                deallocate(SymLabelIntsCum)
+                call LogMemDealloc(thisroutine,tagSymLabelIntsCum)
+            end if
+            if (allocated(StateSymMap)) then
+                deallocate(StateSymMap)
+                call LogMemDealloc(thisroutine,tagStateSymMap)
+            end if
+            if (associated(SymLabelCountsCum)) then
+                deallocate(SymLabelCountsCum)
+                call LogMemDealloc(thisroutine,tagSymLabelCountsCum)
+            end if
+
+            allocate(SymLabelIntsCum(nIrrep))
+            call LogMemAlloc('SymLabelIntsCum',nIrrep,4,thisroutine,tagSymLabelIntsCum)
+            allocate(SymLabelCountsCum(nIrrep))
+            call LogMemAlloc('SymLabelCountsCum',nIrrep,4,thisroutine,tagSymLabelCountsCum)
+            allocate(StateSymMap(nBi))
+            call LogMemAlloc('StateSymMap',nBi,4,thisroutine,tagStateSymMap)
             CALL IAZZERO(SYMLABELCOUNTSCUM,Nirrep)
-            call Memory(IP_StateSymMap,nBi,'StateSymMap')
+            CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
             do i=1,Nirrep
                 basirrep=SYMLABELCOUNTS(2,i)
                 ! Block diagonal.
@@ -401,10 +418,12 @@ contains
         use System, only: tCPMD,tVASP
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-        use MemoryManager, only: LogMemAlloc
+        use SymData, only: SymLabelCounts,SymClasses2,SymLabelCountsCum2
+        use SymData, only: SymLabelIntsCum2,nSymLabels,StateSymMap2
+        use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
+        use MemoryManager, only: LogMemAlloc,LogMemDealloc
         IMPLICIT NONE
         include 'cpmddata.inc'
-        include 'sym.inc'
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize
         character(len=*),parameter :: thisroutine='SetupTMAT2'
@@ -419,13 +438,22 @@ contains
             Nirrep=NSYMLABELS
             nBi=nBasisFRZ/iSS
             iSize=0
-            IF(IP_SYMLABELINTSCUM2.ne.0) CALL FREEM(IP_SYMLABELINTSCUM2)
-            IF(IP_StateSymMap2.ne.0) call FreeM(IP_StateSymMap2) ! I feel dirty doing this.
-            CALL MEMORY(IP_SYMLABELINTSCUM2,Nirrep,'SYMLABELINTSCUM2')
+            if (associated(SymLabelIntsCum2)) then
+                deallocate(SymLabelIntsCum2)
+                call LogMemDealloc(thisroutine,tagSymLabelIntsCum2)
+            end if
+            if (allocated(StateSymMap2)) then
+                deallocate(StateSymMap2)
+                call LogMemDealloc(thisroutine,tagStateSymMap2)
+            end if
+            allocate(SymLabelIntsCum2(nIrrep))
+            call LogMemAlloc('SymLabelIntsCum2',nIrrep,4,thisroutine,tagSymLabelIntsCum2)
+            allocate(SymLabelCountsCum2(nIrrep))
+            call LogMemAlloc('SymLabelCountsCum2',nIrrep,4,thisroutine,tagSymLabelCountsCum2)
+            allocate(StateSymMap2(nBi))
+            call LogMemAlloc('StateSymMap2',nBi,4,thisroutine,tagStateSymMap2)
             CALL IAZZERO(SYMLABELINTSCUM2,Nirrep)
-            CALL MEMORY(IP_SYMLABELCOUNTSCUM2,Nirrep,'SYMLABELCOUNTSCUM2')
             CALL IAZZERO(SYMLABELCOUNTSCUM2,Nirrep)
-            call Memory(IP_StateSymMap2,nBi,'StateSymMap2')
             do i=1,Nirrep
             !SYMLABELCOUNTS is now mbas only for the frozen orbitals
                 basirrep=SYMLABELCOUNTS(2,i)
@@ -540,24 +568,32 @@ contains
         USE UMatCache
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SymData, only: SymLabelCountsCum,SymLabelIntsCum
+        use SymData, only: SymLabelCountsCum2,SymLabelIntsCum2
+        use SymData, only: tagSymLabelCountsCum,tagSymLabelIntsCum
+        use SymData, only: SymClasses2,tagSymClasses2
+        use MemoryManager, only: LogMemDealloc
         IMPLICIT NONE
-        include 'sym.inc'
         integer I,J,NBASIS,NHG,GG(NHG)
         integer*8 TMATINT,LG
+        character(*),parameter :: this_routine='SwapTMat'
         
          IF(TSTARSTORE) THEN
             !Transfer across the vectors for indexing TMAT
-            CALL FREEM(IP_SYMCLASSES2)
+            deallocate(SymClasses2)
+            call LogMemDealloc(this_routine,tagSymClasses2)
             !copy across the new frozen symclasses and symlabelstuff
             CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
             !Redo SYMLABELCOUNTS
             CALL GENSymStatePairs(NBASIS/2,.false.)
-            CALL FREEM(IP_SYMLABELCOUNTSCUM)
-            IP_SYMLABELCOUNTSCUM=IP_SYMLABELCOUNTSCUM2
-            IP_SYMLABELCOUNTSCUM2=0
-            CALL FREEM(IP_SYMLABELINTSCUM)
-            IP_SYMLABELINTSCUM=IP_SYMLABELINTSCUM2
-            IP_SYMLABELINTSCUM2=0
+            deallocate(SYMLABELCOUNTSCUM)
+            call LogMemDealloc(this_routine,tagSYMLABELCOUNTSCUM)
+            deallocate(SYMLABELINTSCUM)
+            call LogMemDealloc(this_routine,tagSYMLABELINTSCUM)
+            SYMLABELCOUNTSCUM=>SYMLABELCOUNTSCUM2
+            nullify(SymLabelCountsCum2)
+            SYMLABELINTSCUM=>SYMLABELINTSCUM2
+            nullify(SymLabelIntsCum2)
              !Deallocate TMAT & reallocate with right size
              CALL DestroyTMAT(.false.)
              !CALL SetupTMAT(NBASIS,2,TMATINT)

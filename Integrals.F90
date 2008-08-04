@@ -872,8 +872,8 @@ MODULE Integrals
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         USE UMatCache
+        use SymData, only: SymClasses,SymLabelCounts,nSymLabels
         IMPLICIT NONE
-        include 'sym.inc'
         INTEGER I,NBASIS
         
         DO I=1,NBASIS/2

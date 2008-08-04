@@ -262,24 +262,37 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 
 !Generate the Sym table for a Hubbard Lattice
       Subroutine GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         use MemoryManager, only: LogMemAlloc,LogMemDealloc
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: nSym,SymConjTab,SymClasses,SymLabels
+         use SymData, only: nSymLabels,tAbelian,SymTable
+         use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
+         use SymData, only: tagSymTable
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)
          INTEGER I,J,nSyms,K
-         TYPE(Symmetry) SYMT2(nBasis/2,nBasis/2)
          TYPE(BasisFN) NQNS,S
-         POINTER (IP_SYMT2,SYMT2)
          INTEGER iFindBasisFn
+         character(*),parameter:: this_routine='GenHubMomIrrepsSymTable'
          nSym=nBasis/2
          WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",  &
      &    nBasis/2 , " generators for Hubbard momentum" 
 
 C.. Now generate a list of sym labels.
-         CALL MEMORY(IP_SYMLABELS,NSYM*SymmetrySize,"SYMLABELS")
-         CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
+         if (allocated(SymLabels)) then
+             write (6,'(a/a)') 'Warning: SymLabels already allocated.',
+     &                         'Deallocating and reallocating.'
+             deallocate(SymLabels)
+             call LogMemDealloc(this_routine,tagSymLabels)
+         end if
+         allocate(SymLabels(nSym))
+         call LogMemAlloc('SymLabels',nSym,SymmetrySize,this_routine,
+     &                                                     tagSymLabels)
+         allocate(SymClasses(nBasis))
+         call LogMemAlloc('SymClasses',nBasis,4,this_routine,
+     &                                                    tagSymClasses)
          NSYMLABELS=NSYM
          nSyms=1
          tAbelian=.false.
@@ -296,9 +309,12 @@ C.. list the symmetry string of each sym label
             SymLabels(I)%s=2**(I-1)
          ENDDO
 C.. Setup the symmetry product table
-         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
-         IP_SYMT2=IP_SYMTABLE
-         CALL MEMORY(IP_SymConjTab,NSYM,'SymConjTab')
+         allocate(SymTable(nSym,nSym))
+         call LogMemAlloc('SymTable',nSym**2,SymmetrySize,this_routine,
+     &                                                      tagSymTable)
+         allocate(SymConjTab(nSym))
+         call LogMemAlloc('SymConjTable',nSym,4,this_routine,
+     &                                                    tagSymConjTab)
          CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
@@ -321,7 +337,7 @@ C.. Setup the symmetry product table
      &               I*2, J*2
                   STOP "Cannot find symmetry product."
                ENDIF
-               SymT2(SymClasses(I),SymClasses(J))=
+               SymTable(SymClasses(I),SymClasses(J))=
      &            SymLabels(SymClasses(K/2))
             ENDDO
          ENDDO
@@ -339,18 +355,21 @@ C.. Setup the symmetry product table
 !  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
 !  not just one of the subcomponents
       SUBROUTINE GENHUBSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
+         use MemoryManager, only: LogMemAlloc
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymReps,tagSymReps
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER NSYMMAX
          INTEGER I,J
          TYPE(BasisFN) G1(NBASIS)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
+         character(*), parameter :: this_routine='GenHubSymReps'
          
 C.. now work out which reps are degenerate and label them
-         CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
+         allocate(SymReps(2,nBasis))
+         call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
          
          DO I=1,NBASIS

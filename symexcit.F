@@ -9,9 +9,9 @@ C.. Setup for symmetry routine below.
      &      ICOUNT,ILEVEL,iMinElec1,iMaxElec1)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
-         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
@@ -50,8 +50,10 @@ C.. global symprods table multiply by [] to give the symmetric rep.
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymClass,SymClasses,SymLabelCounts
+         use SymData, only: SymStatePairs,SymLabels,SymPairProds
+         use SymData, only: nSymPairProds,nSymLabels
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
          TYPE(BasisFN) G1(nBasis)
@@ -592,9 +594,9 @@ C..      ENDIF(.NOT.TCOUNT)
      &   ICLIST,ICOUNT)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymClassSize
          IMPLICIT NONE
          INTEGER NBASIS,NEL,NI(NEL),G1(nBasis),NBASISMAX(*)
-         INCLUDE 'sym.inc'
          INTEGER*8 STORE(6)
          INTEGER ORBPAIRS(2,*)
          POINTER (IP_ORBPAIRS,ORBPAIRS)
@@ -636,12 +638,13 @@ C..      ENDIF(.NOT.TCOUNT)
      &               LSTE,ICLIST,ICOUNT)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+         use SymData, only: SymLabelList,SymPairProds
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
          
          INTEGER I,J,K,L
          INTEGER NJ(NEL),NK(NEL)
-         INCLUDE 'sym.inc'
          TYPE(SymClass) CLASSES(*)
          INTEGER IEXCIT
          INTEGER IFROM,ITO,ISPN
@@ -886,7 +889,6 @@ C.. to actually generate the excitations
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'irat.inc'
-         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
 !  STORE contains lengths of various components of the excitation generator
@@ -907,7 +909,6 @@ C.. to actually generate the excitations
          use System, only: nEl,G1, nBasis,nBasisMax
          IMPLICIT NONE 
          INCLUDE 'irat.inc'
-         INCLUDE 'sym.inc'
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
@@ -937,7 +938,6 @@ C.. to actually generate the excitations
          use System, only: nEl,G1, nBasis,nBasisMax
          IMPLICIT NONE 
          INCLUDE 'irat.inc'
-         INCLUDE 'sym.inc'
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
@@ -966,9 +966,9 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
-         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
@@ -1109,12 +1109,13 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       USE System , only : TSTOREASEXCITATIONS
       use System, only: Symmetry,SymmetrySize,SymmetrySizeB
       use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+      use SymData, only: SymLabelList,SymPairProds
       IMPLICIT NONE
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
       
       INTEGER I,J,K,L
       INTEGER NK(NEL)
-      INCLUDE 'sym.inc'
       TYPE(SymClass) CLASSES(*)
       INTEGER IEXCIT
       INTEGER IFROM,ITO,ISPN
@@ -1470,9 +1471,9 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          use System, only: nEl,G1, nBasis,nBasisMax
          use System, only: Arr,nMax
          use Integrals, only: UMat
+         use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
-         INCLUDE 'sym.inc'
          INTEGER NI(NEL)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
@@ -1516,9 +1517,9 @@ C..   use GenRandSymExcitIt3
      &         NMEM,NJ,ISEED,ICOUNT,IFRZ,UMAT,ARR,PGEN)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
-         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis),NBASISMAX(*)
          POINTER (IP_DSTORE,DSTORE)
@@ -1566,12 +1567,12 @@ C.. Actually generate a det
       USE symexcit2
       use System, only: Symmetry,SymmetrySize,SymmetrySizeB
       use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SymData, only: SymClass,SymLabelCounts,SymLabelList
       INTEGER NBASIS
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
       
       INTEGER I,J,K,L
       INTEGER NK(NEL)
-      INCLUDE 'sym.inc'
       TYPE(SymClass) CLASSES(*)
       INTEGER IEXCIT
       INTEGER IFROM,ITO,ISPN
@@ -1784,8 +1785,8 @@ C.. Actually generate a det
      &      nBasis)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymClassSize 
          IMPLICIT NONE
-         INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis) 
          INTEGER DStore(*)
@@ -1813,7 +1814,6 @@ C.. Actually generate a det
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
-         INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,*)
          INTEGER ExcitTypes(5,*)
          TYPE(BasisFN) G1(nBasis) 
@@ -1835,8 +1835,8 @@ C.. Actually generate a det
          USE HElem
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymClassSize
          IMPLICIT NONE
-         INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis) 
          TYPE(HElement) UMat(*)
@@ -1882,7 +1882,6 @@ C.. Actually generate a det
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
-         INCLUDE 'symtypes.inc'
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,*)
          INTEGER ExcitTypes(5,*)
          TYPE(BasisFN) G1(nBasis) 

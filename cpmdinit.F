@@ -1,9 +1,10 @@
       SUBROUTINE CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: KPntSym,tAbelian,nSym,SymClasses,
+     &                      SymLabelChars
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
-         INCLUDE 'sym.inc'
          INTEGER nBasisMax(5,*), BRR(LEN),LEN
          TYPE(BASISFN) G1(LEN)
          REAL*8 ARR(LEN,2)
@@ -12,11 +13,6 @@
          LOGICAL IMPROP(NKPS)
          LOGICAL ALL1D
          integer*8  ComposeAbelianSym
-C         NBASISMAX(1,1)=1
-C         NBASISMAX(1,2)=NSTATES
-C         NBASISMAX(1,3)=2
-C         NBASISMAX(4,1)=-1
-C         NBASISMAX(4,2)=1
          NBASISMAX(1,1)=0
          NBASISMAX(2,1)=0
          NBASISMAX(3,1)=0
@@ -45,8 +41,6 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
              CALL GENSYMTABLE
          END IF
 
-C         CALL FAKEEIGENVALUES
-
          CALL IAZZERO(G1,LEN*BasisFNSize)
          ALL1D=.TRUE.
          DO I=1,NSTATES
@@ -72,7 +66,7 @@ C         CALL FAKEEIGENVALUES
                   G1(I*2)%K(J)=0
                ENDDO
             ENDIF
-C.. Fake the eigenvalues
+C.. the eigenvalues
             ARR(2*I-1,1)=EIGENVALUES(I)
             ARR(2*I,1)=EIGENVALUES(I)
             ARR(2*I-1,2)=EIGENVALUES(I)
@@ -102,11 +96,10 @@ C.. Called to retrieve number of basis functions from CPMD
       SUBROUTINE CPMDSYSTEMINIT(LEN)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: nRot
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
-         INCLUDE 'sym.inc'
          INTEGER LEN
-C         CALL FAKEREADCHARTABLE(NSTATES)
          LEN=NSTATES*2
          IF(TSPACEGP) THEN
 C.. We're dealing with a complete space group rather than just a point
@@ -129,53 +122,39 @@ C.. group
       END
 
       SUBROUTINE EXTRACTSYMLABELS
+         use MemoryManager, only: LogMemAlloc
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: nSymLabels,SymLabelChars,nRot,SymClasses
+         use SymData, only: SymLabels,SymLabelChars,SymClasses
+         use SymData, only: IRREPCHARS
+         use SymData, only: tagSymLabels,tagSymLabelChars,tagSymClasses
+         use SymData, only: tagIRREPCHARS
          IMPLICIT NONE
          INCLUDE 'cpmddata.inc'
-         INCLUDE 'sym.inc'
          INTEGER I,J,K
          INTEGER LABELS(2,NSTATES)
-C         IF(TSPACEGP) THEN
-C            NSYMLABELS=NSTATES
-C         ELSE
-            NSYMLABELS=0
-            DO I=1,NSTATES
-               IF(ROT_LABEL(I).GT.NSYMLABELS) NSYMLABELS=ROT_LABEL(I)
-            ENDDO
-C         ENDIF
-         CALL MEMORY(IP_SYMLABELCHARS,NSYMLABELS*NROT*2,'SYMLABELCH')
+         character(*), parameter :: this_routine='ExtractSymLabels'
+         NSYMLABELS=0
+         DO I=1,NSTATES
+           IF(ROT_LABEL(I).GT.NSYMLABELS) NSYMLABELS=ROT_LABEL(I)
+         ENDDO
+         allocate(SymLabelChars(nRot,nSymLabels))
+         call LogMemAlloc('SymLabelChars',nSymLabels*nRot*2,16,
+     &                                    this_routine,tagSymLabelChars)
          CALL AZZERO(SYMLABELCHARS,NSYMLABELS*NROT*2)
-         CALL MEMORY(IP_SYMLABELS,nSymLabels,'SYMLABELS')
-         CALL MEMORY(IP_SymClasses,NSTATES,'SymClasses')
+         allocate(SymLabels(nSymLabels))
+         call LogMemAlloc('SymLabels',nSymLabels,4,this_routine,
+     &                                                     tagSymLabels)
+         allocate(SymClasses(nStates))
+         call LogMemAlloc('SymClasses',nStates,4,this_routine,
+     &                                                    tagSymClasses)
 C.. Two versions - one for space groups and one for point groups
          IF(TSPACEGP) THEN
 C.. space group is more complex as we have separate translational and
 C.. rotational labels.  We will need to compare each pair of t&r labels
 C.. with a stored list.
             WRITE(6,*) "Using space group representation."
-C            NSYMLABELS=0
-C            DO I=1,NSTATES
-C               DO K=1,NSYMLABELS
-C                  IF(LABELS(1,K).EQ.ROT_LABEL(I)
-C     &               .AND.LABELS(2,K).EQ.TRANS_LABEL(I)) THEN
-CC.. We can re-use the old label
-C                     SymClasses(I)=K
-C                     EXIT
-C                  ENDIF
-C               END DO
-C               IF(K.GT.NSYMLABELS) THEN
-C                  NSYMLABELS=K
-CC.. we've found a new symlabel - fill it
-C                  DO J=1,NROT
-CC.. Indices need to be inverted so cannot straight ICOPY
-C                     SYMLABELCHARS(J,K)=GROUP_CHAR(I,J)
-C                  ENDDO
-C                  SymClasses(I)=K
-C                  LABELS(1,K)=ROT_LABEL(I)
-C                  LABELS(2,K)=TRANS_LABEL(I)
-C               ENDIF
-C            ENDDO
             DO I=1,NSTATES
                IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
 C.. we've found an uninitialized symlabel - fill it
@@ -204,58 +183,10 @@ C.. Indices need to be inverted so cannot straight ICOPY
          CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 C.. Allocate memory gor irreps.
 C.. Assume there will be no more than 64 irreps
-         CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
-      END
-
-      SUBROUTINE FAKEEIGENVALUES
-         IMPLICIT NONE
-         INCLUDE 'cpmddata.inc'
-         INTEGER I
-         CALL MEMORY(IP_EIGENVALUES,NSTATES,"EIGENVALUES")
-         DO I=1,NSTATES
-            EIGENVALUES(I)=I
-         ENDDO
-      END 
-      SUBROUTINE FAKEREADCHARTABLE(NSTATES)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-         IMPLICIT NONE
-         INCLUDE 'sym.inc'
-C.. First set up the labels and chars
-         INTEGER CHARS(16,7)
-         DATA ((CHARS(J,I),J=1,16),I=1,7)
-     &               /1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-     &               2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2,
-     &               2, 0, 0,-2, 0, 0, 0, 0,-2, 0, 0, 2, 0, 0, 0, 0,
-     &               1,-1,-1, 1, 1, 1,-1,-1, 1,-1,-1, 1, 1, 1,-1,-1,
-     &               4, 0, 0,-4, 0, 0, 0, 0,-4, 0, 0, 4, 0, 0, 0, 0,
-     &               1,-1,-1, 1,-1,-1, 1, 1, 1,-1,-1, 1,-1,-1, 1, 1,
-     &               2,-2,-2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2,-2,-2/
-         INTEGER LABS(19)
-         DATA LABS /1,2,2,1,3,3,4,2,2,1,5,5,5,5,
-     &              3,3,6,7,7/
-         INTEGER NSTATES,I,J
-         INTEGER ARRAY(*)
-         POINTER (IP_ARRAY,ARRAY)
-         NSYMLABELS=7
-         NROT=16
-         NSTATES=19
-         CALL MEMORY(IP_SYMLABELS,NSYMLABELS*SymmetrySize,"SYMLABELS")
-         CALL MEMORY(IP_SymClasses,NSTATES,"SymClasses")
-         CALL MEMORY(IP_SYMLABELCHARS,NROT*NSYMLABELS*2,"SYMLABELCH")
-         IP_ARRAY=IP_SYMLABELCHARS
-         CALL MEMORY(IP_IRREPCHARS,NROT*NSYMLABELS*2,"IRREPCH")
-         DO I=1,7
-            DO J=1,16
-               ARRAY((I-1)*16+J)=CHARS(J,I)
-            ENDDO
-         ENDDO
-         DO I=1,NSTATES
-            SymClasses(I)=LABS(I)
-         ENDDO
-         WRITE(6,*) "SYMMETRY CLASSES", IP_SYMLABELCHARS,
-     &      LOC(SYMLABELCHARS)
-         CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
+         allocate(IRREPCHARS(NROT,NROT)) ! nSym==nRot
+         call LogMemAlloc('IRREPCHARS',nROT**2,16,this_routine,
+     &                                                    tagIRREPCHARS)
+         !CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
       END
 
 C.. Calculate the h_ij elements for CPMD orbitals.

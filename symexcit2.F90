@@ -22,7 +22,6 @@ MODULE SymExcit2
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER ExcitType(5)
          INTEGER nBasis,nBasisMax(5,*)
          INTEGER OrbPairs(2,*)
@@ -62,7 +61,7 @@ MODULE SymExcit2
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE HElem
-         INCLUDE 'sym.inc'
+         use SymData, only: SymPairProds,SymStatePairs
          INTEGER ExcitType(5)
          INTEGER NBASIS
          INTEGER IFROM,ITO,ISPN
@@ -300,12 +299,12 @@ MODULE SymExcit2
          USE HElem
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: nSymPairProds,SymPairProds
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L
          INTEGER nI(nEl),nJ(nEl),nEl,nBasis
          INTEGER iFrom,iFromIndex,iTo,iToIndex
-         INCLUDE 'sym.inc'
          TYPE(BasisFn) G1(nBasis)
          TYPE(Symmetry) Sym,Prod
          TYPE(Symmetry) SYMPROD
@@ -423,7 +422,6 @@ MODULE SymExcit2
          LOGICAL L
          INTEGER nI(nEl),nJ(nEl),nEl,nBasis
          INTEGER iFrom,iFromIndex,iTo,iToIndex
-         INCLUDE 'sym.inc'
          TYPE(BasisFn) G1(nBasis)
          TYPE(Symmetry) Sym,Prod
          TYPE(Symmetry) SYMPROD

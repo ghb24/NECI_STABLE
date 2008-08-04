@@ -19,8 +19,8 @@ C.. product in the symmetry table, and OR that with the product.
          FUNCTION SYMPROD(ISYM1,ISYM2)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymTable,nProp,tAbelian
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          TYPE(Symmetry) ISYM1, ISYM2
          TYPE(Symmetry) SYMPROD
          TYPE(Symmetry) IS1,IS2
@@ -38,7 +38,8 @@ C.. product in the symmetry table, and OR that with the product.
                 SYMPROD%s=0
                 RETURN
              ENDIF
-             IF(IP_SYMTABLE.EQ.0) STOP 'SYMMETRY TABLE NOT ALLOCATED'
+             IF (.not.allocated(SYMTABLE)) 
+     &                               STOP 'SYMMETRY TABLE NOT ALLOCATED'
              IS1=ISYM1
              I=1
              SYMPROD%s=0
@@ -66,8 +67,8 @@ C.. product in the symmetry table, and OR that with the product.
       FUNCTION SymConj(s2)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: tAbelian,nProp,SymConjTab
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          TYPE(Symmetry) s,SymConj,s2
          INTEGER i,AbelConj(3)
          integer*8 ComposeAbelianSym
@@ -100,9 +101,9 @@ C.. product in the symmetry table, and OR that with the product.
       SUBROUTINE WRITESYMTABLE(IUNIT)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymTable,nSym
          IMPLICIT NONE
          INTEGER IUNIT,I,J
-         INCLUDE 'sym.inc'
          
          DO I=0,NSYM-1
             DO J=0,NSYM-1
@@ -118,8 +119,8 @@ C.. product in the symmetry table, and OR that with the product.
       LOGICAL FUNCTION LSYMSYM(SYM)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: tAbelian
          implicit none
-         include 'sym.inc'
          Type(Symmetry) SYM
          if (TAbelian) then
              LSymSym=Sym%s.eq.0
@@ -139,8 +140,11 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
+         use SymData, only: tAbelian,SymLabels
+         use SymData, only: tagSymLabels,tagSymClasses
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER NSYMMAX,nSymGen
          INTEGER I,J
          TYPE(BasisFN) G1(*)
@@ -148,6 +152,7 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          REAL*8 ARR(NBASIS)
          TYPE(Symmetry) SYMT2(NSYMMAX,NSYMMAX)
          POINTER (IP_SYMT2,SYMT2)
+         character(*), parameter :: this_routine='GenMolPSymTable'
         
          TAbelian=.true.
          PropBitLen=1
@@ -171,8 +176,12 @@ C.. Setup the symmetry product table
 !         ENDDO
 C.. Now generate a list of sym labels.
          NSYMLABELS=NSYMMAX
-         CALL MEMORY(IP_SYMLABELS,NSYMLABELS*SymmetrySize,"SYMLABELS")
-         CALL MEMORY(IP_SymClasses,NBASIS,"SymClasses")
+         allocate(SymLabels(nSymLabels))
+         call LogMemAlloc('SymLabels',nSymLabels,SymmetrySize,
+     &                                        this_routine,tagSymLabels)
+         allocate(SymClasses(nBasis))
+         call LogMemAlloc('SymClasses',nBasis,4,this_routine,
+     &                                                    tagSymClasses)
          DO I=1,NBASIS,2
 C.. place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
 C.. the log_2 of the symmetry bit string
@@ -199,12 +208,14 @@ C.. GG(I) is the new index of the (old) orb I
       SUBROUTINE FREEZESYMLABELS(NHG,NBASIS,GG,FRZ)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only:SymReps,SymClasses,SymClasses2,tagSymClasses2
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
          INTEGER NHG,NBASIS,GG(NHG)
          INTEGER I
          INTEGER NSL(NBASIS)
          LOGICAL FRZ
-         INCLUDE 'sym.inc'
+         character(*), parameter :: this_routine='FreezeSymLabels'
 C.. SYMLABELS is used to classify all states which transform with the same symmetry
 C.. for the excitation generation routines
 C.. Each state's symmetry falls into a class SymClasses(ISTATE).
@@ -231,8 +242,10 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
                 Symreps(1,i)=NSL(i)
             enddo
         ELSE
-            IF(IP_SYMCLASSES2.ne.0) STOP 'Problem in freezing'
-            CALL MEMORY(IP_SYMCLASSES2,NBASIS/2,'SYMCLASSES2')
+            IF(associated(SYMCLASSES2)) STOP 'Problem in freezing'
+            allocate(SymClasses2(nBasis/2))
+            call LogMemAlloc('SymClasses2',nBasis/2,4,this_routine,
+     &                                                   tagSymClasses2)
             DO I=1,NHG,2
                 IF(GG(I).NE.0) THEN
                     NSL((GG(I)+1)/2)=SymClasses((I+1)/2)
@@ -255,18 +268,19 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
       SUBROUTINE GENMOLPSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymReps,tagSymReps
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER NSYMMAX
          INTEGER I,J
          TYPE(BasisFN) G1(NBASIS)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
-         INTEGER SYMT2(NSYMMAX,NSYMMAX)
-         POINTER (IP_SYMT2,SYMT2)
+         character(*), parameter :: this_routine='GENMOLPSYMREPS'
          
 C.. now work out which reps are degenerate and label them
-         CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
+         allocate(SymReps(2,nBasis))
+         call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
          DO I=1,NBASIS
             IF(I.GT.1.AND.(ABS(ARR(I)-ARR(I-1)).LT.1.D-5
@@ -286,48 +300,103 @@ C.. delete a symmetry table if one existed.
       SUBROUTINE ENDSYM()
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use MemoryManager, only: LogMemDealloc
+         use SymData, only: SymTable,SymConjTab,SymReps,SymClasses
+         use SymData, only: SymClasses2,SymLabels,SymLabelChars
+         use SymData, only: IRREPChars,SymStatePairs,SymLabelList
+         use SymData, only: SymLabelCounts
+         use SymData, only: tagSymTable,tagSymConjTab,tagSymReps
+         use SymData, only: tagSymClasses2,tagSymLabels,tagSymLabelChars
+         use SymData, only: tagIRREPChars,tagSymStatePairs,tagSymClasses
+         use SymData, only: tagSymLabelCounts,tagSymLabelList
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
-         IF(IP_SYMTABLE.NE.0) CALL FREEM(IP_SYMTABLE)
-         IP_SYMTABLE=0
-         IF(IP_SymConjTab.NE.0) CALL FREEM(IP_SymConjTab)
-         IP_SymConjTab=0
-         IF(IP_SYMREPS.NE.0) CALL FREEM(IP_SYMREPS)
-         IP_SYMREPS=0
-         IF(IP_SymClasses.NE.0) CALL FREEM(IP_SymClasses)
-         IP_SymClasses=0
-         IF(IP_SYMLABELS.NE.0) CALL FREEM(IP_SYMLABELS)
-         IP_SYMLABELS=0
-         IF(IP_SYMLABELCHARS.NE.0) CALL FREEM(IP_SYMLABELCHARS)
-         IP_SYMLABELCHARS=0
-         IF(IP_IRREPCHARS.NE.0) CALL FREEM(IP_IRREPCHARS)
-         IP_IRREPCHARS=0
-         IF(IP_SymStatePairs.NE.0) CALL FREEM(IP_SymStatePairs)
-         IP_SymStatePairs=0
-         IF(IP_SYMLABELLIST.NE.0) CALL FREEM(IP_SYMLABELLIST)
-         IP_SYMLABELLIST=0
-         IF(IP_SYMLABELCOUNTS.NE.0) CALL FREEM(IP_SYMLABELCOUNTS)
-         IP_SYMLABELCOUNTS=0
-         IF(IP_SYMCLASSES2.NE.0) CALL FREEM(IP_SYMCLASSES2)
-         IP_SYMCLASSES2=0
+         character(*), parameter :: this_routine='EndSym'
+         if (allocated(SymTable)) then
+             deallocate(SymTable)
+             call LogMemDealloc(this_routine,tagSymTable)
+         end if
+         if (allocated(SymConjTab)) then
+             deallocate(SymConjTab)
+             call LogMemDealloc(this_routine,tagSymConjTab)
+         end if
+         if (allocated(SymReps)) then
+             deallocate(SymReps)
+             call LogMemDealloc(this_routine,tagSymReps)
+         end if
+         if (associated(SymClasses)) then
+             deallocate(SymClasses)
+             call LogMemDealloc(this_routine,tagSymClasses)
+         end if
+         nullify(SymClasses)
+         if (associated(SymClasses2)) then
+             deallocate(SymClasses2)
+             call LogMemDealloc(this_routine,tagSymClasses2)
+         end if
+         nullify(SymClasses2)
+         if (allocated(SymLabels)) then
+             !deallocate(SymLabels)
+             call LogMemDealloc(this_routine,tagSymLabels)
+         end if
+         if (allocated(SymLabelChars)) then
+             deallocate(SymLabelChars)
+             call LogMemDealloc(this_routine,tagSymLabelChars)
+         end if
+         if (allocated(IRREPCHARS)) then
+             deallocate(IRREPCHARS)
+             call LogMemDealloc(this_routine,tagIRREPCHARS)
+         end if
+         if (allocated(SymStatePairs)) then
+             deallocate(SymStatePairs)
+             call LogMemDealloc(this_routine,tagSymStatePairs)
+         end if
+         if (allocated(SymLabelList)) then
+             deallocate(SymLabelList)
+             call LogMemDealloc(this_routine,tagSymLabelList)
+         end if
+         if (allocated(SymLabelCounts)) then
+             deallocate(SymLabelCounts)
+             call LogMemDealloc(this_routine,tagSymLabelCounts)
+         end if
       END
 
 C.. Precompute a list of the symmetry product of all pairs of symmetry labels
       SUBROUTINE GENSymStatePairs(NSTATES,FRZ)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymLabelList,SymClasses
+         use SymData, only: SymClasses2,SymPairProds,SymPairProdSize
+         use SymData, only: SymStatePairs,nSymPairProds,nSymLabels
+         use SymData, only: tagSymPairProds,tagSymLabelList
+         use SymData, only: tagSymLabelCounts,tagSymStatePairs
+         use MemoryManager, only: LogMemAlloc,LogMemDealloc
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
          INTEGER TEMPLIST(NSTATES)
          LOGICAL FRZ
+         character(*), parameter :: this_routine='GenSymStatePairs'
          !May need to deallocate, since this info is allocated in storage of UMAT before freezing
-         IF(IP_SYMLABELLIST.ne.0) CALL FREEM(IP_SYMLABELLIST)
-         IF(IP_SYMLABELCOUNTS.ne.0) CALL FREEM(IP_SYMLABELCOUNTS)
-         IF(IP_SYMSTATEPAIRS.ne.0) CALL FREEM(IP_SYMSTATEPAIRS)
-         IF(IP_SYMPAIRPRODS.ne.0) CALL FREEM(IP_SYMPAIRPRODS)
-         CALL MEMORY(IP_SYMLABELLIST,NSTATES,'SYMLABELLIST')
-         CALL MEMORY(IP_SYMLABELCOUNTS,2*NSYMLABELS,'SYMLABELCOUNTS')
+         if (allocated(SymPairProds)) then
+             deallocate(SymPairProds)
+             call LogMemDealloc(this_routine,tagSymPairProds)
+         end if
+         if (allocated(SymLabelList)) then
+             deallocate(SymLabelList)
+             call LogMemDealloc(this_routine,tagSymLabelList)
+         end if
+         if (allocated(SymLabelCounts)) then
+             deallocate(SymLabelCounts)
+             call LogMemDealloc(this_routine,tagSymLabelCounts)
+         end if
+         if (allocated(SymStatePairs)) then
+             deallocate(SymStatePairs)
+             call LogMemDealloc(this_routine,tagSymStatePairs)
+         end if
+         allocate(SymLabelList(nStates))
+         call LogMemAlloc('SymLabelList',nStates,4,this_routine,
+     &                                                  tagSymLabelList)
+         allocate(SymLabelCounts(2,nSymLabels))
+         call LogMemAlloc('SymLabelCounts',2*nSymLabels,4,this_routine,
+     &                                                tagSymLabelCounts)
 C.. First deal with listing single states
          DO I=1,NSTATES
             SYMLABELLIST(I)=I
@@ -365,9 +434,9 @@ C.. sort the symlabellist
 C.. Now deal with pairs of states
 
 
-         CALL MEMORY(IP_SymPairProds,
-     &         SymPairProdSize*nSymLabels*nSymLabels,
-     &      "SymPairProds")
+         allocate(SymPairProds(nSymLabels**2))
+         call LogMemAlloc('SymPairProds',nSymLabels**2,
+     &                   SymPairProdSize*8,this_routine,tagSymPairProds)
          CALL IAZZERO(SymPairProds,
      &         SymPairProdSize*nSymLabels*nSymLabels)
 C.. Now enumerate all pairs, and classify their product, but don't store them.
@@ -384,9 +453,9 @@ C.. Now sort the SymPairProds into order
          ENDDO
          WRITE(6,*) TOT," STATE PAIRS"
          WRITE(6,*) NSYMPAIRPRODS," DISTINCT ORBITAL PAIR PRODUCT SYMS"
-         CALL MEMORY(IP_SymStatePairs,
-     &         TOT*2,
-     &      "SymStatePairs")
+         allocate(SymStatePairs(2,0:TOT-1))
+         call LogMemAlloc('SymStatePairs',2*TOT,4,this_routine,
+     &                                                 tagSymStatePairs)
          CALL IAZZERO(SymStatePairs,TOT*2)
          CALL GENALLSymStatePairs(NSTATES,.TRUE.,FRZ)
       END
@@ -394,8 +463,9 @@ C.. Now sort the SymPairProds into order
       SUBROUTINE GENALLSymStatePairs(NSTATES,TSTORE,FRZ)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabels,SymClasses,SymClasses2
+         use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          LOGICAL TSTORE,FRZ
          INTEGER I,J
          TYPE(Symmetry) PROD
@@ -436,8 +506,8 @@ C.. incrememnt the counter in the pairlist
       SUBROUTINE FindSymProd(Prod,SymPairProds,nSymPairProds,iProd)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymPairProd
          implicit none
-         INCLUDE 'symtypes.inc'
          TYPE(SymPairProd) SymPairProds(nSymPairProds)
          INTEGER nSymPairProds,iProd
          TYPE(Symmetry) Prod
@@ -466,8 +536,8 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymReps
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
          TYPE(BasisFn) G1(*),ISym
          INTEGER I,J,NI2(NEL)
@@ -529,8 +599,9 @@ C.. Given a set of characters of states, generate all relevant irreps which span
       SUBROUTINE GENIRREPS(TKP,IMPROPER_OP,NROTOP)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: IRREPCHARS,nRot,SymLabelChars,nSym,tAbelian
+         use SymData, only: SymLabels,nSymLabels
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER I,J,K
          LOGICAL LDO,LDO2
          TYPE(Symmetry) iDecomp
@@ -776,8 +847,8 @@ C.. CHARS at the end contains the remainder after the decomposition.
       SUBROUTINE DECOMPOSEREP(CHARSIN,IDECOMP)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: nRot,nSym,tAbelian,IRREPCHARS
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          TYPE(Symmetry) IDECOMP
          COMPLEX*16 CHARS(NROT),CHARSIN(NROT),TOT
          REAL*8 CNORM
@@ -909,15 +980,22 @@ C.. We've found an (ir)rep which is wholly in CHARS
       SUBROUTINE GENSYMTABLE
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: IRREPCHARS,SymConjTab,tAbelian,nSym,SymTable
+         use SymData, only: nRot,tagSymTable,tagSymConjTab
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER I,J,K
          LOGICAL GETIRREPDECOMP
          COMPLEX*16 CHARS(NROT)
          TYPE(Symmetry) IDECOMP
          REAL*8 CNORM
-         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
-         CALL MEMORY(IP_SymConjTab,nSym,'SymConjTab')
+         character(*), parameter :: this_routine='GENSYMTABLE'
+         allocate(SymTable(nSym,nSym))
+         call LogMemAlloc('SymTable',nSym**2,SymmetrySize,this_routine,
+     &                                                      tagSymTable)
+         allocate(SymConjTab(nSym))
+         call LogMemAlloc('SymConjTab',nSym,4,this_routine,
+     &                                                    tagSymConjTab)
          DO I=1,NSYM
             DO K=1,NROT
                CHARS(K)=DCONJG(IRREPCHARS(K,I))
@@ -966,17 +1044,20 @@ C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
       SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymReps,tAbelian,tagSymReps
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER I,J
          TYPE(BasisFN) G1(nBasis)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS,2)
          REAL*8 DEGENTOL
          LOGICAL SYMEQ
+         character(*), parameter :: this_routine='GenSymReps'
 
 C.. now work out which reps are degenerate and label them
-         CALL MEMORY(IP_SYMREPS,2*NBASIS,'SYMREPS')
+         allocate(SymReps(2,nBasis))
+         call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
          DO I=1,NBASIS
 C            WRITE(6,*) "SR2",I
@@ -1308,8 +1389,8 @@ C.. Failure
      &      TPARITY,IPARITY,TSETUP,TDONE,IMAX,ISYM)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: tAbelian
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER NEL,nBasisMax(5,*)
          INTEGER LMS
          TYPE(BasisFN) IPARITY,ISYM,IMax(2)
@@ -1462,8 +1543,8 @@ C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE SETUPSYM(NBASISMAX,ISYM)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: FrozenSym
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER nBasisMax(5,*)
          TYPE(BasisFN) ISym
          ISym=FrozenSym
@@ -1483,8 +1564,8 @@ C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: nSym,tAbelian
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          INTEGER IUNIT
          TYPE(SYMMETRY) SYM
          LOGICAL LTERM
@@ -1513,8 +1594,8 @@ C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE SetupFreezeAllSym(Sym)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: FrozenSym
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          TYPE(BasisFN) Sym
 C.. Set to be totally symmetric
          FrozenSym=Sym
@@ -1522,8 +1603,8 @@ C.. Set to be totally symmetric
       SUBROUTINE SetupFreezeSym(Sym)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: FrozenSym
          IMPLICIT NONE
-         INCLUDE 'sym.inc'
          TYPE(BasisFN) Sym
          CALL IAZZERO(FrozenSym,BasisFNSize)
 C.. Set to be totally symmetric
@@ -1536,18 +1617,28 @@ C.. Set to be totally symmetric
       SUBROUTINE GenKPtIrreps(nTranslat,nKps,KpntInd,nStates)
       use System, only: Symmetry,SymmetrySize,SymmetrySizeB
       use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SymData, only: SymLabels,SymLabelChars,nRot,nSymLabels,KPntSym
+      use SymData, only: SymClasses,tagSymLabelChars,tagSymLabels
+      use SymData, only: tagSymClasses
+      use MemoryManager, only: LogMemAlloc
       IMPLICIT NONE
       INTEGER nTranslat,nKps,KpntInd(nStates)
       INTEGER I,J,nStates
       integer*8  ComposeAbelianSym
-      INCLUDE 'sym.inc'
       type(Symmetry) SymConj,SymProd
+      character(*), parameter :: this_routine='GenKPtIrreps'
       nSymLabels=nKps
       nRot=nTranslat
-      CALL MEMORY(IP_SYMLABELCHARS,nSymLabels*nRot*2,'SYMLABELCH')
+      allocate(SymLabelChars(nRot,nSymLabels))
+      call LogMemAlloc('SymLabelChars',nSymLabels*nRot,16,this_routine,
+     &                                                 tagSymLabelChars)
+      allocate(SymLabels(nSymLabels))
+      call LogMemAlloc('SymLabels',nSymLabels,4,this_routine,
+     &                                                     tagSymLabels)
+      allocate(SymClasses(nStates))
+      call LogMemAlloc('SymClasses',nStates,4,this_routine,
+     &                                                    tagSymClasses)
       CALL AZZERO(SYMLABELCHARS,nSymLabels*nRot*2)
-      CALL MEMORY(IP_SYMLABELS,nSymLabels,'SYMLABELS')
-      CALL MEMORY(IP_SymClasses,nStates,'SymClasses')
       DO I=1,nStates
         SymClasses(I)=KpntInd(I)
         SymLabels(KPntInd(I))%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))
@@ -1599,8 +1690,8 @@ C.. Set to be totally symmetric
       ! numbers...
       use System, only: Symmetry,SymmetrySize,SymmetrySizeB
       use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SymData, only: PropBitLen
       implicit none
-      include 'sym.inc'
       integer*8 Isym
       integer  AbelSym(3)
 !RShift
@@ -1614,10 +1705,10 @@ C.. Set to be totally symmetric
       integer*8 function ComposeAbelianSym(AbelSym)
           use System, only: Symmetry,SymmetrySize,SymmetrySizeB
           use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+          use SymData, only: PropBitLen
           implicit none
           integer  AbelSym(3)
           integer*8 TempVar
-          include 'sym.inc'
           TempVar=AbelSym(3)
 !LShift
           ComposeAbelianSym=IShft(Tempvar,PropBitLen*2)
@@ -1633,9 +1724,9 @@ C.. Set to be totally symmetric
           ! convenience, rather than some deep theoretical insight!
           use System, only: Symmetry,SymmetrySize,SymmetrySizeB
           use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+          use SymData, only: tAbelian
           implicit none
           Type(Symmetry) TotSymRep 
-          include 'sym.inc'
           if (TAbelian) then
               TotSymRep%s=0
           else
@@ -1647,9 +1738,9 @@ C.. Set to be totally symmetric
       integer*8 function MinSymRep(nBasisMax)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: tAbelian
          implicit none
          integer nBasisMax(5,*)
-         include 'sym.inc'
          if(TAbelian) then
             MinSymRep=0
          else
@@ -1659,8 +1750,8 @@ C.. Set to be totally symmetric
       integer*8 function MaxSymRep(nBasisMax)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: tAbelian,nProp
          implicit none
-         include 'sym.inc'
          integer nBasisMax(5,*)
          integer abel(3)
          integer*8 ComposeAbelianSym
@@ -1674,8 +1765,8 @@ C.. Set to be totally symmetric
       subroutine IncrSym(Sym)
          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: tAbelian,nProp
          implicit none
-         include 'sym.inc'
          type(Symmetry) Sym
          integer abel(3),i
          logical lcont
@@ -1698,15 +1789,23 @@ C.. Set to be totally symmetric
       SUBROUTINE GETSYMTMATSIZE(Nirrep,nBasis,iSS,iSize)
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SymData, only: SymLabelCounts,SymLabelCountsCum
+        use SymData, only: SymLabelIntsCum
+        use SymData, only: tagSymLabelIntsCum,tagSymLabelCountsCum
+        use MemoryManager, only: LogMemAlloc
         implicit none
-        include 'sym.inc'
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
         integer*8 iSize
+        character, parameter :: this_routine='GetSymTMatSize'
         nBi=nBasis/iSS
         iSize=0
-        CALL MEMORY(IP_SYMLABELINTSCUM,Nirrep,'SYMLABELINTSCUM')
+        allocate(SymLabelIntsCum(nIrrep))
+        call LogMemAlloc('SymLabelIntsCum',nIrrep,4,this_routine,
+     &                                               tagSymLabelIntsCum)
+        allocate(SymLabelCountsCum(nIrrep))
+        call LogMemAlloc('SymLabelCountsCum',nIrrep,4,this_routine,
+     &                                             tagSymLabelCountsCum)
         CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
-        CALL MEMORY(IP_SYMLABELCOUNTSCUM,Nirrep,'SYMLABELCOUNTSCUM')
         CALL IAZZERO(SYMLABELCOUNTSCUM,Nirrep)
         do i=1,Nirrep
             basirrep=SYMLABELCOUNTS(2,i)
@@ -1733,8 +1832,8 @@ C.. Set to be totally symmetric
         USE UMatCache
         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SymData, only: nSymLabels,SymClasses,SymLabelCounts
         IMPLICIT NONE
-        include 'sym.inc'
         INTEGER I,NBASIS
         
         DO I=1,NBASIS/2

@@ -1,11 +1,13 @@
 subroutine VaspSystemInit(ArrLEN)
+   use MemoryManager, only: LogMemAlloc
    use System, only: Symmetry,SymmetrySize,SymmetrySizeB
    use System, only: BasisFN,BasisFNSize,BasisFNSizeB
    use vasp_interface
+   use SymData, only: nRot,PropBitLen,tAbelian,nProp,KPntSym,tagKPntSym
    implicit none
-   include 'sym.inc'
    integer :: ArrLEN
    integer :: i,ik
+   character(*),parameter :: this_routine='VaspSystemInit'
 
    ArrLEN=nStates*2
    nRot=nKP
@@ -14,7 +16,8 @@ subroutine VaspSystemInit(ArrLEN)
    tAbelian=.true.
    write (6,*) tAbelian,nProp,PropBitLen,nRot,ArrLEN
 
-   call Memory(IP_KPntSym,3*nKP,'KPntSym')
+   allocate(KPntSym(3,nKP))
+   call LogMemAlloc('KPntSym',3*nKP,4,this_routine,tagKPntSym)
    do ik=1,nKP
       do i=1,3
          KPntSym(i,ik)=kpnts(i,ik)*nProp(i)
@@ -85,8 +88,8 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    use System, only: Symmetry,SymmetrySize,SymmetrySizeB
    use System, only: BasisFN,BasisFNSize,BasisFNSizeB,nBASISMax
    use vasp_interface, only: q,nStates,nKP,KPntInd,eigv
+   use SymData, only: KPntSym,nSym
    implicit none
-   include 'sym.inc'
    real(q) :: ARR(LEN,2)
    integer :: BRR(LEN),LEN
    type(BasisFN) :: G1(LEN)

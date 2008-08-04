@@ -191,7 +191,6 @@ C.. set momentum to 0
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
          LOGICAL LWRITE,UHF
          INTEGER ISPINS,ISPN,ISPN2
-         include 'sym.inc'
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -283,7 +282,6 @@ C.. If we've changed the eigenvalues, we write out the basis again
          INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
          LOGICAL LWRITE,UHF
-         include 'sym.inc'
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          UHF=.FALSE.
