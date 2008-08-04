@@ -9,6 +9,8 @@
 !.. ExcitInfo(J,2) = HIJ
          TYPE(HElement), POINTER :: ExcitInfo(:,:)
          TYPE(HElement), ALLOCATABLE, TARGET :: ExcitInfo2(:,:)
+         integer :: tagExcitInfo=0
+         integer :: tagExcitInfo2=0
          TYPE(HElement), ALLOCATABLE :: temprhos(:,:)
 
 !Offrho is used with TSumProd to store the original star off-diagonal elements when using TSumProd, which changes the values in EXCITINFO
@@ -37,6 +39,7 @@
          USE System , only : TSTOREASEXCITATIONS,BasisFN
          USE Integrals , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          Use Determinants, only: GetHElement2
+         use MemoryManager, only: LogMemAlloc,LogMemDealloc
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
@@ -50,6 +53,7 @@
 !         REAL*8 LARGERHOJJ(10000)
          INTEGER iPath(nEl,0:2),UniqProd
          LOGICAL tSym
+         character(*), parameter :: this_routine='fMCPR3StarNewExcit'
 !.. New lists are generated here
 !.. This will contain all the info needed to work out the value of the
 !.. star
@@ -140,7 +144,7 @@
          ENDIF
          Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
-         CALL MemAlloc(iErr,ExcitInfo,(iMaxExcit+1)*3*HElementSize,"ExcitInfo")
+         call LogMemAlloc('ExcitInfo',3*(iMaxExcit+1),8*HElementSize,this_routine,tagExcitInfo,iErr)
 !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
          IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
@@ -342,11 +346,11 @@
         ENDIF
          
          IF(ASSOCIATED(ExcitInfo)) THEN
-            call MemDealloc(ExcitInfo)
+            call LogMemDealloc(this_routine,tagExcitInfo)
             Deallocate(ExcitInfo)
          ENDIF
          IF(ALLOCATED(ExcitInfo2)) THEN
-             call MemDealloc(ExcitInfo2)
+             call LogMemDealloc(this_routine,tagExcitInfo2)
              Deallocate(ExcitInfo2)
          ENDIF
          IF(ALLOCATED(EXCITSTORE)) THEN
@@ -376,6 +380,7 @@
             USE Integrals , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
             Use Determinants, only: GetHElement2
             use System, only: BasisFN
+            use MemoryManager, only: LogMemAlloc,LogMemDealloc
             IMPLICIT NONE
             TYPE(BasisFN) G1(*)
             TYPE(HElement) :: rhii,UMat(*),rh,rhij,Hij
@@ -389,6 +394,7 @@
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             REAL*8, ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
             LOGICAL :: HFFound
+            character(*), parameter :: this_routine='CalcExcitStar'
             
             WRITE(6,*) "Explicitly calculating and prediagonalising all double excitations from the original excitations of the star graph"
             
@@ -468,7 +474,7 @@
 
 !Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues and vectors to ExcitInfo2(0:TotExcits,0:2)
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
-            CALL MemAlloc(iErr,ExcitInfo2,(TotExcits+1)*3*HElementSize,"ExcitInfo2")
+            call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
             CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
 
 !Fill original star matrix - INCORRECT - do not want to include original excitations - these are already included in the prediagonalised elements
@@ -619,7 +625,7 @@
             iExcit=TotExcits
             iMaxExcit=TotExcits
 
-            Call MemDealloc(ExcitInfo)
+            Call LogMemDealloc(this_routine,tagExcitInfo)
             DEALLOCATE(ExcitInfo)
 
             ExcitInfo => ExcitInfo2
@@ -870,6 +876,7 @@
 !GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
             USE Integrals , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
+            use MemoryManager, only: LogMemAlloc,LogMemDealloc
             IMPLICIT NONE
             INTEGER :: iSub,NextVertex,i,j,iErr,iMaxExcit,iExcit
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
@@ -877,6 +884,7 @@
             REAL*8 :: RhoValue,RhoEps,OffRhoValue
             TYPE(HElement) :: Rhoia
             LOGICAL :: FoundRoot
+            character(*), parameter :: this_routine='GetStarStars'
 
             CALL TISET('GetStarStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
@@ -892,7 +900,7 @@
             CALL MemAlloc(iErr,NewOffDiagRhos,iExcit*HElementSize,"NewOffDiagRhos")
             CALL AZZERO(NewOffDiagRhos,iExcit*HElementSize)
             ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
-            CALL MemAlloc(iErr,ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize,"ExcitInfo2")
+            call LogMemAlloc('ExcitInfo2',(iExcit*(iExcit+1)+1)*3,8*HElementSize,this_routine,tagExcitInfo2,iErr)
             CALL AZZERO(ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize)
             iMaxExcit=iExcit*(iExcit+1)
             
@@ -978,7 +986,7 @@
 
             iExcit=NextVertex-1
 
-            Call MemDealloc(ExcitInfo)
+            Call LogMemDealloc(this_routine,tagExcitInfo)
             DEALLOCATE(ExcitInfo)
 
             ExcitInfo => ExcitInfo2
@@ -991,6 +999,7 @@
 
         SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
             USE Calc , only : LinePoints
+            use MemoryManager, only: LogMemAlloc,LogMemDealloc
             IMPLICIT NONE
             INTEGER :: i,j,iMaxExcit,iExcit,iSub,nWHTay,HalfiExcit,ierr,lowerrhojj
             REAL*8 :: RhoEps,LineRhoValues(LinePoints),RhoValue,Vals(LinePoints),meanx,RhoGap,EigenMax
@@ -998,6 +1007,7 @@
             LOGICAL :: ReachMax
             REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
             TYPE(HElement) :: tmp(3)
+            character(*), parameter :: this_routine='GetLinRootChangeStars'
 
             CALL TISET('GetLinRootChangeStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
@@ -1196,7 +1206,7 @@
 
 !Linearly change diagonal elements - rho_jj' = GradVal*(rho_jj - 1) + eigenmax
             ALLOCATE(ExcitInfo2(0:iExcit,0:2),stat=ierr)
-            CALL MemAlloc(iErr,ExcitInfo2,(iExcit+1)*3*HElementSize,"ExcitInfo2")
+            call LogMemAlloc('ExcitInfo2',3*(iExcit+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
             CALL AZZERO(ExcitInfo2,(iExcit+1)*3*HElementSize)
             
 !Put HF determinant into element 0
@@ -1211,7 +1221,7 @@
                 ExcitInfo2(i,0)=EigenMax+(GradVal*(DREAL(ExcitInfo(i,0))-1.D0))
             enddo
 
-            CALL MemDealloc(ExcitInfo)
+            CALL LogMemDealloc(this_routine,tagExcitInfo)
             DEALLOCATE(ExcitInfo)
 
             ExcitInfo => ExcitInfo2
@@ -1248,6 +1258,7 @@
         SUBROUTINE GetLinStarStars(iMaxExcit,iExcit,RhoEps)
             USE Calc , only : LinePoints
             USE Integrals , only : TQuadValMax,TQuadVecMax
+            use MemoryManager, only: LogMemAlloc,LogMemDealloc
             IMPLICIT NONE
             INTEGER :: i,j,iErr,isub,CSE,NextVertex,iMaxExcit
             INTEGER :: iExcit,TotExcits,HalfiExcit
@@ -1271,6 +1282,7 @@
 !These arrays hold various data for calculating the gradient, and R^2 value for the linear approximation for each eigenvalue & vector.
             REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:),IncptVecs(:),SxyVals(:),SxyVecs(:)
             REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
+            character(*), parameter :: this_routine='GetLinStarStars'
 
             CALL TISET('GetLinStarStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
@@ -1564,6 +1576,7 @@
             TotExcits=CSE
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
             CALL MemAlloc(iErr,ExcitInfo2,(TotExcits+1)*3*HElementSize,"ExcitInfo2")
+            call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
             CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
 
 !Fill original star matrix - NO!! Do not want to double count i --> j excitations.
@@ -1644,7 +1657,7 @@
             iExcit=TotExcits
             iMaxExcit=TotExcits
 
-            call MemDealloc(ExcitInfo)
+            call LogMemDealloc(this_routine,tagExcitInfo)
             Deallocate(ExcitInfo)
 
 !Resort again - so that root is in element 0, then ordered by rho_jj in ascending order - probably not needed...
