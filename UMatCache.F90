@@ -107,6 +107,8 @@ MODULE UMatCache
       integer :: tagTMat2D=0
       integer :: tagTMat2D2=0
       integer :: tagUMat2D=0
+      integer :: tagTransTable=0
+      integer :: tagInvTransTable=0
 
       Contains
 
@@ -567,17 +569,19 @@ MODULE UMatCache
          ! Out:
          !    HarInt(i,j)=<i|v_har|j>, where v_har is the Hartree potential.
          use System, only: BasisFN
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER ierr
          complex*16 HarInt(nStates,nStates)
+         character(len=*),parameter :: thisroutine='SETUPUMAT2D'
          IF((NSLOTSINIT.LT.0).AND.(.not.TSTARSTORE)) THEN
             TUMAT2D=.FALSE.
             WRITE(6,*) "Not using UMAT2D."
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
-            Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
+            call LogMemAlloc('UMat2D',nStates**2,8*HelementSize,thisroutine,tagUMat2D,ierr)
             CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
          ENDIF
       END SUBROUTINE SetupUMat2D
@@ -587,15 +591,17 @@ MODULE UMatCache
       SUBROUTINE SETUPUMAT2D_DF()
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for 
          ! density fitting calculations.
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
          INTEGER ierr
+         character(len=*),parameter :: thisroutine='SETUPUMAT2D_DF'
          IF(NSLOTSINIT.LT.0) THEN
             TUMAT2D=.FALSE.
             WRITE(6,*) "Not using UMAT2D."
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
-            Call MemAlloc(ierr,UMat2D,HElementSize*NSTATES*NSTATES,'UMAT2D')
+            call LogMemAlloc('UMat2D',nStates**2,8*HelementSize,thisroutine,tagUMat2D,ierr)
             IF(TSTARSTORE) THEN
                 RETURN
             ELSE
@@ -612,10 +618,12 @@ MODULE UMatCache
          ! Currently only called in cpmdinit to re-order states by the
          ! one-particle energies (option is rarely used).
          ! Copy to UMatCache's translation table.
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
          INTEGER TRANS(NSTATES),ierr
+         character(*), parameter :: thisroutine='SetupUMatTrans'
          Allocate(TransTable(nStates),STAT=ierr)
-         CALL MemAlloc(ierr,TransTable,NSTATES,'TransTable')
+         call LogMemAlloc('TransTable',nStates,4,thisroutine,tagTransTable,ierr)
          CALL ICOPY(NSTATES,TRANS,1,TransTable,1)
          TTRANSGTID=.TRUE.
       END SUBROUTINE SetUMatTrans
@@ -629,14 +637,16 @@ MODULE UMatCache
          !    nNew: # of new states.
          !    OldNew: convert index in the old (pre-freezing) indexing scheme to
          !            the new (post-freezing) indexing scheme.
+         use MemoryManager, only: LogMemAlloc
          IMPLICIT NONE
          INTEGER nNew,nOld,I
          INTEGER OldNew(*),ierr
          LOGICAL tDiff
+         character(*), parameter :: thisroutine='SetupUMatTransTable'
          Allocate(TransTable(nNew/2),STAT=ierr)
-         CALL MemAlloc(ierr,TransTable,nNew/2,'TransTable')
+         call LogMemAlloc('TransTable',nNew/2,4,thisroutine,tagTransTable,ierr)
          Allocate(InvTransTable(nOld/2),STAT=ierr)
-         CALL MemAlloc(ierr,InvTransTable,nOld/2,'InvTransTable')
+         call LogMemAlloc('InvTransTable',nOld/2,4,thisroutine,tagInvTransTable,ierr)
          CALL IAZZERO(InvTransTable, nOld/2)
          tDiff=.FALSE.
          DO I=2,nOld,2
@@ -669,15 +679,15 @@ MODULE UMatCache
             CALL LogMemDealloc(thisroutine,tagUMATLABELS)
             Deallocate(UMatLabels)
             IF(ASSOCIated(UMat2D)) THEN
-               CALL MemDealloc(UMat2D)
+               CALL LogMemDealloc(thisroutine,tagUMat2D)
                Deallocate(UMat2D) 
             ENDIF
             IF(ASSOCIated(TransTable)) THEN
-               CALL MemDealloc(TransTable)
+               CALL LogMemDealloc(thisroutine,tagTransTable)
                Deallocate(TransTable)
             ENDIF
             IF(ASSOCIated(InvTRANSTABLE)) THEN
-               CALL MemDealloc(InvTransTable)
+               CALL LogMemDealloc(thisroutine,tagInvTransTable)
                Deallocate(InvTRANSTABLE)
             ENDIF
          ENDIF
@@ -915,12 +925,15 @@ MODULE UMatCache
 
 
       SUBROUTINE FreezeUMAT2D(OldBasis,NewBasis,OrbTrans,iSS)
+         use MemoryManager, only: LogMemAlloc,LogMemDealloc
          IMPLICIT NONE
          INTEGER NewBasis,OldBasis,iSS,ierr,OrbTrans(OldBasis),i,j
          TYPE(HElement),POINTER :: NUMat2D(:,:)
+         integer :: tagNUMat2D=0
+         character(len=*),parameter :: thisroutine='FreezeUMat2D'
 
          Allocate(NUMat2D(NewBasis/iSS,NewBasis/iSS),STAT=ierr)
-         CALL MemAlloc(ierr,NUMat2D,HElementSize*(NewBasis/iSS)**2,'NUMat2D')
+         call LogMemAlloc('UMat2D',(NewBasis/iSS)**2,8*HelementSize,thisroutine,tagNUMat2D,ierr)
          NUMat2D(:,:)=HElement(0.D0)
          DO i=1,OldBasis/2
             IF(OrbTrans(i*2).NE.0) THEN
@@ -931,20 +944,22 @@ MODULE UMatCache
                 ENDDO
             ENDIF
         ENDDO
-        CALL MemDealloc(UMat2D)
+        call LogMemDealloc(thisroutine,tagUMat2D)
         Deallocate(UMat2D)
         UMat2D=>NUMat2D
         NULLIFY(NUMat2D)
+        tagUMat2D=tagNUMat2D
         RETURN
       END SUBROUTINE FreezeUMAT2D
                 
 
 
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
-         use MemoryManager, only: LogMemDealloc
+         use MemoryManager, only: LogMemAlloc,LogMemDealloc
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          TYPE(HElement),Pointer :: NUMat2D(:,:) !(nNew/2,nNew/2)
+         integer :: tagNUMat2D=0
          TYPE(HElement) El(0:nTypes-1)
          INTEGER i,j,k,l,m,n
          INTEGER ni,nj,nk,nl,nm,nn,A,B,iType
@@ -959,7 +974,7 @@ MODULE UMatCache
          toUMat2D=tUMat2D
          IF(tUMat2D) then
             Allocate(NUMat2D(nNew/2,nNew/2),STAT=ierr)
-            CALL MemAlloc(ierr,NUMat2D,HElementSize*(nNew/2)**2,'NUMat2D')
+            call LogMemAlloc('UMat2D',(nNew/2)**2,8*HelementSize,thisroutine,tagNUMat2D,ierr)
 ! /2 because UMat2D works in states, not in orbitals
             DO i=1,nOld/2
                IF(OrbTrans(i*2).NE.0) THEN
@@ -970,9 +985,11 @@ MODULE UMatCache
                   ENDDO
                ENDIF
             ENDDO    
-            CALL MemDealloc(UMat2D)
+            CALL LogMemDealloc(thisroutine,tagUMat2D)
             Deallocate(UMat2D)
             UMat2D=>NUMat2D
+            nullify(NUMat2D)
+            tagUMat2D=tagNUMat2D
          endif
 ! Now go through the other cache.
 ! First save the memory used for it.
