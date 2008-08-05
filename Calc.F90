@@ -91,8 +91,8 @@ MODULE Calc
           Lambda=0.D0
           TDiffuse=.false.
           TNoBirth=.false.
-          GrowMaxFactor=9000
-          CullFactor=5
+          GrowMaxFactor=175.D0
+          CullFactor=2.D0
           TStartMP1=.false.
           TFCIMC=.false.
           TMCDets=.false.
@@ -634,6 +634,12 @@ MODULE Calc
               case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                   call getf(GrowMaxFactor)
+                  IF(GrowMaxFactor.gt.175.D0) THEN
+                      WRITE(6,*) "**************************"
+                      WRITE(6,*) "******   WARNING   *******"
+                      WRITE(6,*) "**************************"
+                      WRITE(6,*) "GrowMaxFactor > 175 - Memory problems possible since MemoryFac is only 200"
+                  ENDIF
               case("CULLFACTOR")
 !For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
                   call getf(CullFactor)
