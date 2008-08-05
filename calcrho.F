@@ -50,7 +50,7 @@ C            IGETEXCITLEVEL=2
 !0, 1, 2, or 3 if the distance is more than a double excitation.
       INTEGER FUNCTION IGetExcitLevel_2(NI,NJ,NEL,MaxExcit)
         IMPLICIT NONE
-        INTEGER :: NI(NEl),NJ(NEl),NEl,MaxExcit,I,IC,j
+        INTEGER :: NI(NEl),NJ(NEl),NEl,MaxExcit,I,IC,j,MaxIC
         LOGICAL :: CommonOrb
         LOGICAL :: ISCSF
 
@@ -59,11 +59,13 @@ C            IGETEXCITLEVEL=2
             RETURN
         ENDIF
         IF(MaxExcit.ge.NEl) THEN
-            MaxExcit=NEl-1
+            MaxIC=NEl-1
+        ELSE
+            MaxIC=MaxExcit
         ENDIF
         I=1   !Index for electron in NI
         IC=0  !Number of excitation levels between determinants
-        DO WHILE(IC.le.MaxExcit)
+        DO WHILE((IC.le.MaxIC).and.(I.le.NEl))
             CommonOrb=.false.
             do j=1,NEL
                 IF(NJ(j).eq.NI(I)) THEN

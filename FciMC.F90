@@ -204,11 +204,6 @@ MODULE FciMCMod
                     ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
                     ExcitLevel=iGetExcitLevel(HFDet,nJ,NEl)
-                    ExcitLevelNew=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-                    IF(ExcitLevel.ne.ExcitLevelNew) THEN
-                        ExcitLevelNew=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-                        CALL Stop_All("PerformFCIMCyc","Excitlevel functions giving different answers")
-                    ENDIF
                     IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                         HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
