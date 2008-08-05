@@ -341,7 +341,7 @@ MODULE UMatCache
          REAL*8 ALAT(3),GetNan
          TYPE(HElement) UMAT(*)
          TYPE(HElement) UElems(0:nTypes-1)
-         complex*16 VaspInt(1,1)
+         complex*16 vasp_int(1,0:1)
          INTEGER A,B,C,XXX
          INTEGER IDI,IDJ,IDK,IDL
          REAL*8 SUM
@@ -433,12 +433,14 @@ MODULE UMatCache
                      GetUMatEl=UElems(0)
                   ELSE IF (tVASP) then
                      IF(TTRANSFINDX) THEN
-                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems(0)%v)
-                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(L),TRANSTABLE(K),TRANSTABLE(J),UElems(1)%v)
+                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),vasp_int(1,0))
+                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(L),TRANSTABLE(K),TRANSTABLE(J),vasp_int(1,1))
                      ELSE
-                        CALL CONSTRUCT_IJAB_one(I,J,K,L,UElems(0)%v)
-                        CALL CONSTRUCT_IJAB_one(I,L,K,J,UElems(1)%v)
+                        CALL CONSTRUCT_IJAB_one(I,J,K,L,vasp_int(1,0))
+                        CALL CONSTRUCT_IJAB_one(I,L,K,J,vasp_int(1,1))
                      END IF
+                     UElems(0)=HElement(vasp_int(1,0))
+                     UElems(1)=HElement(vasp_int(1,1))
                      GetUMatEl=UElems(0)
 !  Bit 0 tells us which integral in the slot we need
                      GETUMATEL=UElems(IAND(ITYPE,1))
