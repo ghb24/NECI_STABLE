@@ -165,7 +165,7 @@ MODULE FciMCMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
         REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,iGetExcitLevel
+        INTEGER :: ExcitLevel,iGetExcitLevel,ExcitLevelNew,iGetExcitLevel_2
         LOGICAL :: WSign
         TYPE(HElement) :: HDiagTemp,HOffDiag
 
@@ -204,6 +204,11 @@ MODULE FciMCMod
                     ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
                     ExcitLevel=iGetExcitLevel(HFDet,nJ,NEl)
+                    ExcitLevelNew=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+                    IF(ExcitLevel.ne.ExcitLevelNew) THEN
+                        ExcitLevelNew=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+                        CALL Stop_All("PerformFCIMCyc","Excitlevel functions giving different answers")
+                    ENDIF
                     IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                         HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)

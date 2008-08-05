@@ -31,12 +31,57 @@ C            IGETEXCITLEVEL=2
          IC=0
          DO I=1,NEL
             DO J=1,NEL
-               IF(NI(I).EQ.NJ(J)) IC=IC+1
+               IF(NI(I).EQ.NJ(J)) THEN
+                   IC=IC+1
+                   EXIT
+               ENDIF
             ENDDO
          ENDDO
          IGETEXCITLEVEL=NEL-IC
          RETURN
       END
+
+!This routine is the same as IGetExcitLevel, but for two differences.
+!First, this will only work for ordered lists of occupied orbitals
+!Secondly, this will only find the number of excitation levels apart up
+!to a maximum excitation level of MaxExcit. If the distance away is more than this
+!it will simply return MaxExcit+1. i.e. if only want to know if it is a double
+!excitation or less, then CALL IGetExcitLevel_2(NI,NJ,NEL,2). This will return
+!0, 1, 2, or 3 if the distance is more than a double excitation.
+      INTEGER FUNCTION IGetExcitLevel_2(NI,NJ,NEL,MaxExcit)
+        IMPLICIT NONE
+        INTEGER :: NI(NEl),NJ(NEl),NEl,MaxExcit,I,IC,j
+        LOGICAL :: CommonOrb
+        LOGICAL :: ISCSF
+
+        IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
+            CALL GETCSFEXCITLEVEL(NI,NJ,NEL,IGETEXCITLEVEL_2)
+            RETURN
+        ENDIF
+        IF(MaxExcit.ge.NEl) THEN
+            MaxExcit=NEl-1
+        ENDIF
+        I=1   !Index for electron in NI
+        IC=0  !Number of excitation levels between determinants
+        DO WHILE(IC.le.MaxExcit)
+            CommonOrb=.false.
+            do j=1,NEL
+                IF(NJ(j).eq.NI(I)) THEN
+                    CommonOrb=.true.
+                    EXIT
+                ELSEIF(NJ(j).gt.NI(I)) THEN
+                    EXIT
+                ENDIF
+            enddo
+            IF(.not.CommonOrb) THEN
+                IC=IC+1
+            ENDIF
+            I=I+1
+        ENDDO
+        IGetExcitLevel_2=IC
+        RETURN
+      END
+
 
 C.. Very unnecessarily complex, but would be faster for large numbers of
 C.. electrons.
