@@ -13,12 +13,13 @@ integer :: nKP,nStates,KPMsh(3)
 
 contains
 
-   subroutine NECIReceiveVASPData(vasp_nbands,vasp_nkpts,vasp_kpnts,vasp_kpmsh,vasp_xi,vasp_kpntind,vasp_eigv,vasp_umat2D)
+   subroutine NECIReceiveVASPData(vasp_nbands,vasp_nkpts,vasp_kpnts,vasp_kpmsh,vasp_xi,vasp_kpntind,vasp_eigv,vasp_umat2D,vasp_nEl)
       use HElem
+      use System, only: nEl
       use UMatCache, only: SetupUMatCache,UMat2D,tagUMat2D,tUMat2D
       implicit none
       integer :: vasp_nbands,vasp_nkpts,vasp_kpntind(vasp_nbands*vasp_nkpts),vasp_kpmsh(3)
-      real(q) :: vasp_kpnts(3,vasp_nkpts),vasp_xi,vasp_eigv(vasp_nbands*vasp_nkpts)
+      real(q) :: vasp_kpnts(3,vasp_nkpts),vasp_xi,vasp_eigv(vasp_nbands*vasp_nkpts),vasp_nEl
       complex(q) :: vasp_umat2d(vasp_nbands*vasp_nkpts,vasp_nbands*vasp_nkpts)
       integer :: i,j,ik,ierr
 
@@ -30,6 +31,7 @@ contains
       do i=1,nKP
          write (6,*) vasp_kpnts(:,i)
       end do 
+      nEl=nint(vasp_nEl*nKP)
 
       allocate(KPNTInd(nStates))
       allocate(eigv(nStates))
