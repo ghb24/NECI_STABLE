@@ -364,6 +364,8 @@ MODULE Integrals
                 CALL SetupTMAT(nBasis,2,TMATINT)
                 CALL CPMDINIT2INDINT(nBasis,I,NBASISMAX,ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
              ELSEIF(tVASP) THEN
+                Allocate(UMat(1), stat=ierr)
+                LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
                 CALL GENSymStatePairs(nBasis/2,.false.)
                 CALL SetupTMAT(nBasis,2,TMATINT)
                 CALL VASPInitIntegrals(I,ECore,tHFOrder)
