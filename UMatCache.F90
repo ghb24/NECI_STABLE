@@ -1,4 +1,4 @@
-!Based on umatcache.F, this modulises the umat cache, and retrieval functions.
+
 MODULE UMatCache
       USE HElem
       USE System , only : TSTARSTORE
@@ -433,11 +433,17 @@ MODULE UMatCache
                      GetUMatEl=UElems(0)
                   ELSE IF (tVASP) then
                      IF(TTRANSFINDX) THEN
-                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),VASPInt)
+                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems(0)%v)
+                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(L),TRANSTABLE(K),TRANSTABLE(J),UElems(1)%v)
                      ELSE
-                        CALL CONSTRUCT_IJAB_one(I,J,K,L,VASPInt)
+                        CALL CONSTRUCT_IJAB_one(I,J,K,L,UElems(0)%v)
+                        CALL CONSTRUCT_IJAB_one(I,L,K,J,UElems(1)%v)
                      END IF
-                     UElems(1)%v=VASPInt(1,1)
+                     GetUMatEl=UElems(0)
+!  Bit 0 tells us which integral in the slot we need
+                     GETUMATEL=UElems(IAND(ITYPE,1))
+!  Bit 1 tells us whether we need to complex conj the integral
+                     IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
                   ELSE
 !   Otherwise we call CPMD
                      IF(TTRANSFINDX) THEN
@@ -679,7 +685,7 @@ MODULE UMatCache
             CALL LogMemDealloc(thisroutine,tagUMATLABELS)
             Deallocate(UMatLabels)
             IF(ASSOCIated(UMat2D)) THEN
-               CALL LogMemDealloc(thisroutine,tagUMat2D)
+               CALL LogMemDealloc(thisroutine,tagUMAT2D)
                Deallocate(UMat2D) 
             ENDIF
             IF(ASSOCIated(TransTable)) THEN
