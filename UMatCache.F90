@@ -605,7 +605,7 @@ MODULE UMatCache
             IF(TSTARSTORE) THEN
                 RETURN
             ELSE
-                CALL ReadDalton2EIntegrals(nStates,UMat2D)
+                CALL ReadDalton2EIntegrals(nStates,UMat2D,.true.)
             ENDIF
          ENDIF
       END SUBROUTINE SetupUMat2D_DF
