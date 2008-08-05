@@ -613,7 +613,7 @@ MODULE UMatCache
             IF(TSTARSTORE) THEN
                 RETURN
             ELSE
-                CALL ReadDalton2EIntegrals(nStates,UMat2D,.true.)
+                CALL ReadDalton2EIntegrals(nStates,UMat2D,tUMat2D)
             ENDIF
          ENDIF
       END SUBROUTINE SetupUMat2D_DF
@@ -687,7 +687,7 @@ MODULE UMatCache
             CALL LogMemDealloc(thisroutine,tagUMATLABELS)
             Deallocate(UMatLabels)
             IF(ASSOCIated(UMat2D)) THEN
-               CALL LogMemDealloc(thisroutine,tagUMAT2D)
+               CALL LogMemDealloc(thisroutine,tagUMat2D)
                Deallocate(UMat2D) 
             ENDIF
             IF(ASSOCIated(TransTable)) THEN
