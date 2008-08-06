@@ -251,7 +251,7 @@ SAVE
 public :: init_record_handler, write_record, read_record, leave_record_handler
 public :: query_record_handler
 !Pertaining to the Full Table of Contents (toc)
-integer, dimension(:), allocatable :: toc !The full Table of Contents 
+integer(4), dimension(:), allocatable :: toc !The full Table of Contents 
 integer :: len_full_toc                   !length of the full TOC
 !Pertaining to each record (maxlen is set in record_handler_arrays)
 real(dp), dimension(maxlen) :: values    !values stored in record
@@ -316,6 +316,13 @@ contains
   logical :: openit, readit, iamopen, iexist, error
   integer :: stat
   logical :: overwrite_file, warn, initialize, add_file
+  integer(4) :: reclenrat !used to fix differences in record lengths between compilers
+  inquire(iolength=reclenrat) reclenrat
+!  AJWT 
+!  some compilers give reclenrat as 4, and others 1
+!  We want to count in bytes not words, so we change reclenrat to 4/reclenrat
+!  later we shall use reclen/reclenrat as our length scale
+  reclenrat=4/reclenrat
   !------------
   !
   info = 0
@@ -409,8 +416,9 @@ contains
       endif
     endif
     call getunit(fileunit)
+    
     open (fileunit,file=filename,status='unknown',access='direct',&
-         & recl=reclen,form='unformatted',action='readwrite',iostat=stat)
+         & recl=reclen/reclenrat,form='unformatted',action='readwrite',iostat=stat)
     call io_check(filename,stat,info,openingfile=.true.)
     if (info.lt.0) return
     !
@@ -431,7 +439,7 @@ contains
     if (.not.iamopen) then
       call getunit(fileunit)
       open (fileunit,file=filename,status='old',access='direct',&
-           & recl=reclen,form='unformatted',action='read',iostat=stat)
+           & recl=reclen/reclenrat,form='unformatted',action='read',iostat=stat)
       call io_check(filename,stat,info,openingfile=.true.)
       if (info.lt.0) return
     else
@@ -475,8 +483,15 @@ contains
   character(3) :: file_status
   logical :: l_check_status, l_check_len_rec1, l_check_num_recs
   logical :: l_file_open, l_file_exists
-  integer :: stat, curr, next, length
+  integer(4) :: stat, curr, next, length
   integer :: i
+  integer(4) :: reclenrat !used to fix differences in record lengths between compilers
+  inquire(iolength=reclenrat) reclenrat
+!  AJWT 
+!  some compilers give reclenrat as 4, and others 1
+!  We want to count in bytes not words, so we change reclenrat to 4/reclenrat
+!  later we shall use reclen/reclenrat as our length scale
+  reclenrat=4/reclenrat
   !------------
   info = 0
   !
@@ -532,7 +547,7 @@ contains
       if (.not.l_file_open) then
         call getunit(fileunit)
         open (fileunit,file=filename,status='old',access='direct',&
-             &recl=reclen,form='unformatted',action='read',iostat=stat)
+             &recl=reclen/reclenrat,form='unformatted',action='read',iostat=stat)
         call io_check(filename,stat,info,openingfile=.true.)
         if (info.lt.0) return
       else
@@ -605,7 +620,7 @@ contains
   character(10), intent(in) :: filename
   integer, intent(out) :: info
   !------------
-  integer, dimension(len_one_toc) :: one_toc
+  integer(4), dimension(len_one_toc) :: one_toc
   integer :: i
   integer :: stat, record
   integer :: entries_in_toc
@@ -743,9 +758,10 @@ contains
   !------------
   character(3) :: filestatus
   integer :: stat
-  integer :: num_entries, rec_num, i
+  integer(4) :: num_entries
+  integer :: rec_num, i
   character(8) :: readlabel
-  integer :: next_rec
+  integer(4) :: next_rec
   !------------
   info = 0
   !
