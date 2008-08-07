@@ -561,7 +561,7 @@ MODULE Integrals
                    LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat)
             ENDIF 
             CALL MEMORY_CHECK()
-            CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,ARR,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
+            CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
             CALL MEMORY_CHECK()
             WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
             WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
@@ -611,9 +611,9 @@ MODULE Integrals
               ENDIF
         END Subroutine IntCleanup
       SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
-     &         G1,NBASISMAX,ISS,ARR,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
+     &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
          USE HElem
-         use System, only: Symmetry,BasisFN,BasisFNSize
+         use System, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr
          use OneEInts
          USE UMatCache, only: FreezeTransfer,GetUMatEl,UMatCacheData,UMatInd,TUMat2D
          Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
@@ -626,7 +626,7 @@ MODULE Integrals
          TYPE(HElement) UMAT2(*)
          REAL*8 ECORE
 !!C.. was (NBASIS/ISS,NBASIS/ISS,NBASIS/ISS,NBASIS/ISS)
-         REAL*8 ARR(NHG,2),ARR2(NBASIS,2)
+         REAL*8 ARR2(NBASIS,2)
          INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),GG(NHG)
          TYPE(BASISFN) G2(NHG)
          INTEGER NTFROZEN
@@ -634,10 +634,11 @@ MODULE Integrals
          INTEGER IB,JB,KB,LB,AB,BB,IPB,JPB,KPB,LPB
          INTEGER IDIP,IDJP,IDKP,IDLP
          INTEGER IDA,IDB,SGN
-         INTEGER iSize
+         INTEGER iSize,ierr
          INTEGER FDET(NEL),NEL
          TYPE(Symmetry) KSYM
          REAL*8 ALAT(3)
+         character(*), parameter :: this_routine='IntFreezeBasis'
 
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym
          IF(NFROZEN.GT.0) THEN
@@ -861,6 +862,11 @@ MODULE Integrals
          FREEZETRANSFER=.false.
 !C.. Copy the new BRR and ARR over the old ones
          CALL SWAPTMAT(NBASIS,NHG,GG)
+         deallocate(arr)
+         LogDealloc(tagarr)
+         allocate(arr(nBasis,2),stat=ierr)
+         LogAlloc(ierr,'Arr',2*nBasis,8,tagArr)
+
          CALL ICOPY(NBASIS,BRR2,1,BRR,1)
          CALL DCOPY(NBASIS*2,ARR2,1,ARR,1)
 !C.. Now reset the total number of orbitals

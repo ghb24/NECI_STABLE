@@ -56,7 +56,8 @@ MODULE System
         
 !Renewed for compile
 
-        REAL*8, pointer         :: Arr(:,:)        !List of orbital energies.  (:,1) is ordered, (:,2) is the energy of orbital :
+        REAL*8, pointer         :: Arr(:,:)        !List of orbital energies.  (:,1) is ordered, (:,2) is the energy of orbital.
+                                                   !Reallocated with the correct (new) size during freezing.
         INTEGER tagArr
         INTEGER, pointer        :: BRR(:)          !Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital
         INTEGER tagBrr
@@ -638,9 +639,12 @@ MODULE System
 
 
 !C.. we actually store twice as much in arr as we need.
-!C.. the ARR(1:LEN) are the energies of the orbitals ordered according to
-!C.. BRR.  ARR(LEN+1:2*LEN) are the energies of the orbitals with default 
+!C.. the ARR(1:LEN,1) are the energies of the orbitals ordered according to
+!C.. BRR.  ARR(1:LEN,2) are the energies of the orbitals with default 
 !C.. ordering.
+!C.. ARR is reallocated in IntFreezeBasis if orbitals are frozen so that it
+!C.. has the correct size and shape to contain the eigenvalues of the active
+!C.. basis.
       WRITE(6,*) "# basis", Len
       Allocate(Arr(LEN,2),STAT=ierr)
       LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
