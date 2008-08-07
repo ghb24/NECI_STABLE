@@ -143,7 +143,7 @@ MODULE Determinants
          INTEGER I,nEl,NI(nEl),NJ(nEl),iC,nBasisMax(5,*),iC2
          REAL*8 ECore
          TYPE(HElement) Sum,Sum2
-         INTEGER IGETEXCITLEVEL
+         INTEGER IGETEXCITLEVEL_2
          LOGICAL ISCSF
          INTEGER ISUB
          IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
@@ -159,7 +159,9 @@ MODULE Determinants
          endif
          IC=IC2
          GetHElement2%v=0.D0
-         IF(IC.LT.0) IC=IGETEXCITLEVEL(NI,NJ,NEL)
+         IF(IC.LT.0) THEN
+             IC=IGETEXCITLEVEL_2(NI,NJ,NEL,2)   !Calculate whether connected or not
+         ENDIF
 !.. if we differ by more than 2 spin orbital, then the hamiltonian element is 0         
          IF(IC.GT.2) RETURN
 !.. SLTCND has IC is # electrons the same in 2 dets

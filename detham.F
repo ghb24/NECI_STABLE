@@ -21,7 +21,7 @@ C..Cube Arrays
 C..
       INTEGER ICMAX,ISUB,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
-      INTEGER IGETEXCITLEVEL,STEP,IMAXJ
+      INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
       TYPE(HElement) SUM
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
@@ -65,7 +65,8 @@ C..   IC is the number of pairs which are the *SAME* in both determinants
             IF(KI.EQ.KJ) THEN
               IC=NEL
             ELSE
-              IC=NEL-IGETEXCITLEVEL(NMRKS(1,KI),NMRKS(1,KJ),NEL)
+C..              IC=NEL-IGETEXCITLEVEL(NMRKS(1,KI),NMRKS(1,KJ),NEL)
+              IC=NEL-IGETEXCITLEVEL_2(NMRKS(1,KI),NMRKS(1,KJ),NEL,2)
 C..   If determinants differ by more than 2 spin orbitals IC < 2
               IF(IC.LT.(NEL-2)) GOTO 500
             ENDIF

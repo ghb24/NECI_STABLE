@@ -4,7 +4,7 @@ MODULE FciMCMod
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
-    USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps
+    USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -42,7 +42,7 @@ MODULE FciMCMod
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
     INTEGER :: MemoryFac=200
 
-    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
+    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,TotSign,TotSignOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
 
 !This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
@@ -52,7 +52,7 @@ MODULE FciMCMod
 !Only 10 culls/growth increases are allowed in a given shift cycle
     INTEGER :: CullInfo(10,3)
 
-!The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
+!The following variables are calculated at the end of each update cycle, are combined to the root processor
     REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
     INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
     REAL*8 :: PosFrac           !This is the fraction of positive particles on each node
@@ -165,12 +165,13 @@ MODULE FciMCMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
         REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,iGetExcitLevel,ExcitLevelNew,iGetExcitLevel_2
+        INTEGER :: ExcitLevel,ExcitLevelNew,iGetExcitLevel_2
         LOGICAL :: WSign
         TYPE(HElement) :: HDiagTemp,HOffDiag
 
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
+        TotSign=0
 
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -203,7 +204,7 @@ MODULE FciMCMod
                         WSign=.false.
                     ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
-                    ExcitLevel=iGetExcitLevel(HFDet,nJ,NEl)
+                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
                     IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                         HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
@@ -225,7 +226,6 @@ MODULE FciMCMod
                         NewIC(VecSlot)=ExcitLevel
                         NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
                         NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
-!                        CALL SumEContrib(nJ,ExcitLevel,NewH(2,VecSlot),WSign)
                         VecSlot=VecSlot+1
                     enddo
 
@@ -246,7 +246,6 @@ MODULE FciMCMod
                         CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(:,VecSlot)=CurrentH(:,j)
-!                        CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentH(2,j),CurrentSign(j))
                         VecSlot=VecSlot+1
                     enddo
 
@@ -277,14 +276,13 @@ MODULE FciMCMod
 !Finish cycling over walkers
         enddo
 
+!        WRITE(6,*) "***" , Iter,TotSign,TotSignOld
+
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
         SumWalkersCyc=SumWalkersCyc+TotWalkers
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
-!        IF((Iter.ge.4960).and.(Iter.le.4985)) THEN
-!            WRITE(6,*) Iter,TotWalkers,TotWalkersNew,TotWalkersNew-TotWalkers
-!        ENDIF
         rat=(TotWalkersNew+0.D0)/(MaxWalkers+0.D0)
         IF(rat.gt.0.9) THEN
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
@@ -340,8 +338,12 @@ MODULE FciMCMod
                 CALL Stop_All("FCIMC","Too Many Culls")
             ENDIF
 
-!CullInfo(:,1) is walkers before cull
-            CullInfo(NoCulls,1)=TotWalkers
+            IF(TSignShift) THEN
+!CullInfo(:,1) is walkers/residualsign before cull
+                CullInfo(NoCulls,1)=TotSign
+            ELSE
+                CullInfo(NoCulls,1)=TotWalkers
+            ENDIF
 !CullInfo(:,3) is MC Steps into shift cycle before cull
             CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 
@@ -356,8 +358,12 @@ MODULE FciMCMod
 !Log the fact that we have made a cull
             NoCulls=NoCulls+1
             IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
-!CullInfo(:,1) is walkers before cull
-            CullInfo(NoCulls,1)=TotWalkers
+            IF(TSignShift) THEN
+!CullInfo(:,1) is walkers/residualsign before cull
+                CullInfo(NoCulls,1)=TotSign
+            ELSE
+                CullInfo(NoCulls,1)=TotWalkers
+            ENDIF
 !CullInfo(:,3) is MC Steps into shift cycle before cull
             CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 
@@ -371,7 +377,7 @@ MODULE FciMCMod
     END SUBROUTINE PerformFCIMCyc
 
     SUBROUTINE ResumGraph(nI,WSign,VecSlot,nIExcitGen,VecInd)
-        INTEGER :: nI(NEl),VecSlot,VecInd,ExcitLevel,iGetExcitLevel,Create,i,j
+        INTEGER :: nI(NEl),VecSlot,VecInd,ExcitLevel,iGetExcitLevel_2,Create,i,j
         TYPE(ExcitGenerator) :: nIExcitGen
         TYPE(HElement) :: HOffDiag
         LOGICAL :: WSign,ChildSign
@@ -413,7 +419,7 @@ MODULE FciMCMod
 !Find needed information out about the new particles
 !Calculate excitation level, connection to HF. Diagonal ham element info is already stored
 
-                ExcitLevel=iGetExcitLevel(HFDet,DetsinGraph(:,i),NEl)
+                ExcitLevel=iGetExcitLevel_2(HFDet,DetsinGraph(:,i),NEl,NEl)
                 IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                     HOffDiag=GetHElement2(HFDet,DetsinGraph(:,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
@@ -548,26 +554,53 @@ MODULE FciMCMod
         INTEGER :: j,k,GrowthSteps
 
         IF(NoCulls.eq.0) THEN
-            GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+            IF(TSignShift) THEN
+!                WRITE(6,*) TotSign,TotSignOld,TotWalkers,TotWalkersOld
+                GrowRate=(ABS(TotSign)+0.D0)/(ABS(TotSignOld)+0.D0)
+            ELSE
+                GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+            ENDIF
         ELSEIF(NoCulls.eq.1) THEN
 !GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
-            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
-            GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
+            IF(TSignShift) THEN
+                GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*(ABS(CullInfo(1,1)+0.D0))/(ABS(TotSignOld+0.D0))
+                GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((ABS(TotSign)+0.D0)/(ABS(CullInfo(1,2))+0.D0))
+
+            ELSE
+                GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
+                GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
+            ENDIF
 
             NoCulls=0
             CALL IAZZERO(CullInfo,30)
         ELSE
-            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
-            do j=2,NoCulls
+!More than one cull in this update cycle
+            IF(TSignShift) THEN
+                GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((ABS(CullInfo(1,1))+0.D0)/(ABS(TotSignOld)+0.D0))
+                do j=2,NoCulls
 
 !This is needed since the steps between culling is stored cumulatively
-                GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
-                GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
+                    GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
+                    GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((ABS(CullInfo(j,1))+0.D0)/(ABS(CullInfo(j-1,2))+0.D0))
 
-            enddo
+                enddo
 
-            GrowthSteps=StepsSft-CullInfo(NoCulls,3)
-            GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
+                GrowthSteps=StepsSft-CullInfo(NoCulls,3)
+                GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((ABS(TotSign)+0.D0)/(ABS(CullInfo(NoCulls,2))+0.D0))
+
+            ELSE
+                GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
+                do j=2,NoCulls
+
+!This is needed since the steps between culling is stored cumulatively
+                    GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
+                    GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
+
+                enddo
+
+                GrowthSteps=StepsSft-CullInfo(NoCulls,3)
+                GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
+            ENDIF
 
             NoCulls=0
             CALL IAZZERO(CullInfo,30)
@@ -598,6 +631,7 @@ MODULE FciMCMod
         PosFrac=0.D0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
+        TotSignOld=TotSign
 
         RETURN
 
@@ -617,20 +651,27 @@ MODULE FciMCMod
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
                 PosFrac=PosFrac+1.D0
+                TotSign=TotSign+1
             ELSE
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
+                TotSign=TotSign-1
             ENDIF
         ELSEIF(ExcitLevel.eq.2) THEN
 !At double excit - sum in energy
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum+Hij0
                 PosFrac=PosFrac+1.D0
+                TotSign=TotSign+1
             ELSE
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum-Hij0
+                TotSign=TotSign-1
             ENDIF
         ELSE
             IF(WSign) THEN
                 PosFrac=PosFrac+1.D0
+                TotSign=TotSign+1
+            ELSE
+                TotSign=TotSign-1
             ENDIF
         ENDIF
 
@@ -659,6 +700,13 @@ MODULE FciMCMod
 !Pick a random walker between 1 and TotWalkers
                 Chosen=int((Ran2(Seed)*TotWalkers)+1.D0)
 
+                IF(CurrentSign(Chosen)) THEN
+!Walker that is removed is positive - therefore totsign is one less than it was before
+                    TotSign=TotSign-1
+                ELSE
+                    TotSign=TotSign+1
+                ENDIF
+
 !Move the Walker at the end of the list to the position of the walker we have chosen to destroy
                 CurrentDets(:,Chosen)=CurrentDets(:,TotWalkers)
                 CurrentSign(Chosen)=CurrentSign(TotWalkers)
@@ -677,14 +725,25 @@ MODULE FciMCMod
                 STOP "Error in culling walkers..."
             ENDIF
 
-!CullInfo(:,2) is the new number of total walkers
-            CullInfo(NoCulls,2)=TotWalkers
+            IF(TSignShift) THEN
+!CullInfo(:,2) is the new number of total walkers/residualsign
+                CullInfo(NoCulls,2)=TotSign
+            ELSE
+                CullInfo(NoCulls,2)=TotWalkers
+            ENDIF
 
         ELSE
 !The population is too low - give it a boost by doubling every particle
 
             VecSlot=TotWalkers+1
             do i=1,TotWalkers
+                
+                IF(CurrentSign(Chosen)) THEN
+!Walker that is doubled is positive - therefore totsign is one more than it was before
+                    TotSign=TotSign+1
+                ELSE
+                    TotSign=TotSign-1
+                ENDIF
 
 !Add clone of walker, at the same determinant, to the end of the list
                 CurrentDets(:,VecSlot)=CurrentDets(:,i)
@@ -703,8 +762,13 @@ MODULE FciMCMod
                 WRITE(6,*) "Problem in doubling all particles..."
                 STOP "Problem in doubling all particles..."
             ENDIF
-!CullInfo(:,2) is the new number of total walkers
-            CullInfo(NoCulls,2)=TotWalkers
+
+            IF(TSignShift) THEN
+!CullInfo(:,2) is the new number of total walkers/residualsign
+                CullInfo(NoCulls,2)=TotSign
+            ELSE
+                CullInfo(NoCulls,2)=TotWalkers
+            ENDIF
 
         ENDIF
 
@@ -928,6 +992,9 @@ MODULE FciMCMod
 !TotWalkers contains the number of current walkers at each step
         TotWalkers=InitWalkers
         TotWalkersOld=InitWalkers
+!TotSign is the sum of the walkers x sign
+        TotSign=InitWalkers
+        TotSignOld=InitWalkers
 
         CALL IAZZERO(CullInfo,30)
         NoCulls=0

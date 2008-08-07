@@ -21,7 +21,7 @@ MODULE Calc
         LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
         LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
-        LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC
+        LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -73,6 +73,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TSignShift=.false.
           NEquilSteps=0
           RhoApp=10
           TResumFCIMC=.false.
@@ -681,6 +682,10 @@ MODULE Calc
               case("RHOAPP")
 !This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before particles are assigned to the nodes
                   call geti(RhoApp)
+              case("SIGNSHIFT")
+!This is for FCIMC and involves calculating the change in shift depending on the absolute value of the sum of the signs of the walkers.
+!This should hopefully mean that annihilation is implicitly taken into account.
+                  TSignShift=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
