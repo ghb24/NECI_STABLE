@@ -21,6 +21,10 @@ MODULE HElem
          module procedure HElemNeg
       end interface
       interface operator (*)
+         module procedure HElemMulInt
+         module procedure HElemMulReal
+         module procedure HElemMulHDElem
+         module procedure HElemMulHElem
          module procedure HElemMul
       end interface
       interface operator (**)
@@ -73,6 +77,8 @@ MODULE HElem
       end interface
       interface operator (*)
          module procedure HDElemMul
+         module procedure HDElemMulInt
+         module procedure HDElemMulReal
       end interface
       interface operator (/)
          module procedure HDElemDiv
@@ -150,9 +156,32 @@ MODULE HElem
          HElemPow%v=h%v**r
          RETURN
       END FUNCTION
+      TYPE(HElement) FUNCTION HElemMulInt(h1,i)
+         TYPE(HElement), intent(in) :: h1
+         integer, intent(in) :: i
+         HElemMulInt%v=h1%v*i
+         RETURN
+      END FUNCTION
+      TYPE(HElement) FUNCTION HElemMulReal(h1,r)
+         TYPE(HElement), intent(in) :: h1
+         real*8, intent(in) :: r
+         HElemMulReal%v=h1%v*r
+         RETURN
+      END FUNCTION
       TYPE(HElement) FUNCTION HElemMul(h1,h2)
          TYPE(HElement), intent(in) :: h1,h2
          HElemMul%v=h1%v*h2%v
+         RETURN
+      END FUNCTION
+      TYPE(HElement) FUNCTION HElemMulHElem(h1,h2)
+         TYPE(HElement), intent(in) :: h1,h2
+         HElemMulHElem%v=h1%v*h2%v
+         RETURN
+      END FUNCTION
+      TYPE(HElement) FUNCTION HElemMulHDElem(h1,hd1)
+         TYPE(HElement), intent(in) :: h1
+         TYPE(HDElement), intent(in) :: hd1
+         HElemMulHDElem%v=h1%v*hd1%v
          RETURN
       END FUNCTION
       TYPE(HElement) FUNCTION HElemDiv(h1,h2)
@@ -234,6 +263,18 @@ MODULE HElem
       TYPE(HDElement) FUNCTION HDElemMul(h1,h2)
          TYPE(HDElement), intent(in) :: h1,h2
          HDElemMul%v=h1%v*h2%v
+         RETURN
+      END FUNCTION
+      TYPE(HDElement) FUNCTION HDElemMulInt(h1,i)
+         TYPE(HDElement), intent(in) :: h1
+         integer, intent(in) :: i
+         HDElemMulInt%v=h1%v*i
+         RETURN
+      END FUNCTION
+      TYPE(HDElement) FUNCTION HDElemMulReal(h1,r)
+         TYPE(HDElement), intent(in) :: h1
+         real*8, intent(in) :: r
+         HDElemMulReal%v=h1%v*r
          RETURN
       END FUNCTION
       TYPE(HDElement) FUNCTION HDElemDiv(h1,h2)
