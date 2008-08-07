@@ -24,7 +24,6 @@ MODULE HElem
          module procedure HElemMulInt
          module procedure HElemMulReal
          module procedure HElemMulHDElem
-         module procedure HElemMulHElem
          module procedure HElemMul
       end interface
       interface operator (**)
@@ -171,11 +170,6 @@ MODULE HElem
       TYPE(HElement) FUNCTION HElemMul(h1,h2)
          TYPE(HElement), intent(in) :: h1,h2
          HElemMul%v=h1%v*h2%v
-         RETURN
-      END FUNCTION
-      TYPE(HElement) FUNCTION HElemMulHElem(h1,h2)
-         TYPE(HElement), intent(in) :: h1,h2
-         HElemMulHElem%v=h1%v*h2%v
          RETURN
       END FUNCTION
       TYPE(HElement) FUNCTION HElemMulHDElem(h1,hd1)
