@@ -22,6 +22,7 @@ MODULE Calc
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
         LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
         LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
+        LOGICAL THFRetBias
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -73,6 +74,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          THFRetBias=.false.
           TSignShift=.false.
           NEquilSteps=0
           RhoApp=10
@@ -686,6 +688,11 @@ MODULE Calc
 !This is for FCIMC and involves calculating the change in shift depending on the absolute value of the sum of the signs of the walkers.
 !This should hopefully mean that annihilation is implicitly taken into account.
                   TSignShift=.true.
+              case("HFRETBIAS")
+!This is a simple guiding function for FCIMC - if we are at a double excitation, then we return to the HF determinant with a probability PRet.
+!This is unbiased by the acceptance probability of returning to HF.
+                  THFRetBias=.true.
+                  call getf(PRet)
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)
