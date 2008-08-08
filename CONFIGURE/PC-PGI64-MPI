@@ -25,5 +25,5 @@
        CCD='gcc -g -sb -C -errtags'
        LDD='mpif90 -g'
      fi
-     LDLIB='ld'
-     LDLIBFLAGS=''
+     LDLIB= pgf90
+     LDLIBFLAGS = -Mnostdlib -Mnostartup -Wl,-r
