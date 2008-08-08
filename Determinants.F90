@@ -185,10 +185,39 @@ MODULE Determinants
          GetHElement3=GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC,ECore)
       END Function GetHElement3
 
+      type(HElement) function GetH0Element3(nI)
+         ! Wrapper for GetH0Element.
+         ! Returns the matrix element of the unperturbed Hamiltonian, which is
+         ! just the sum of the eigenvalues of the occupied orbitals and the core
+         ! energy.
+         !  Note that GetH0Element{1,2} don't exist. The name is to be
+         !  consistent with GetHElement3, i.e. offer the most abstraction possible.
+         ! In: 
+         !    nI(nEl)  list of occupied spin orbitals in the determinant.
+         use HElem
+         use System, only: nEl,nBasis,Arr,ECore
+         integer nI(nEl)
+         type(HElement) hEl
+         call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
+         GetH0Element3=hEl
+      end function
+
       Subroutine DetCleanup()
       End Subroutine DetCleanup
 END MODULE Determinants
+
       subroutine GetH0Element(nI,nEl,Arr,nBasis,ECore,hEl)
+         !  Get a matrix element of the unperturbed Hamiltonian.  This is just
+         !  the sum of the Hartree-Fock eigenvalues and the core energy.
+         !  In:
+         !     nI(nEl)  list of occupied spin orbitals in the determinant.
+         !     nEl      # of electrons.
+         !     Arr      array containing the eigenvalues of the spin-orbitals.
+         !              (See System for how it's defined/stored).
+         !     nBasis   # spin orbitals.
+         !     ECore    Core energy.
+         !  Out:
+         !     hEl      <D_i|H_0|D_i>, the unperturbed Hamiltonian matrix element.
          USE System , only : TSTOREASEXCITATIONS
          USE HElem
          implicit none
@@ -216,7 +245,7 @@ END MODULE Determinants
 !         write(77,*) "H0",hEl
 !         call flush(77)
       end subroutine
-!  Get a matrix element of the unperturbed Hamiltonian.  This is just the sum of the Hartree-Fock eigenvalues
+
       subroutine DetFreezeBasis(GG)
         Use Determinants, only: FDet, nUHFDet
         Use System, only : nEl, nBasis
