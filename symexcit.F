@@ -874,6 +874,15 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
 C         WRITE(6,*) "COUNT:",ICOUNT
       END
 
+! For a symmetry excitation generator stored in NMEM, return the total number of excitations from it in iCount.
+      SUBROUTINE GetSymExcitCount(NMEM,iCount)
+         IMPLICIT NONE
+         INTEGER NMEM(*)
+         INTEGER iCount
+         iCount=NMEM(23)
+         RETURN
+      END SUBROUTINE GetSymExcitCount
+
 C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
 C.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
 C.. first with STORE(1)=0, and then again.  Finally it can be called with TSETUP=.FALSE. 
