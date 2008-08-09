@@ -7,5 +7,6 @@ Output files
 
 .. toctree::
    :maxdepth: 1
+   :glob:
 
-   mcpaths.rst
+   *
