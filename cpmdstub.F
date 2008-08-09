@@ -1,9 +1,10 @@
 C.. A stub containing dummy functions in CPMD, which will appear on linking appropriately.
 
-      SUBROUTINE INITFINDXI(I,J,K,L,UMATEL)
+      SUBROUTINE INITFINDXI(I,J,K,L,UMATEL,gen2ints)
          IMPLICIT NONE
          INTEGER I,J,K,L
          REAL*8 UMATEL
+         logical gen2ints
          UMATEL=0.D0
       END
 

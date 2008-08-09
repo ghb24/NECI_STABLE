@@ -5,6 +5,7 @@ MODULE Calc
         USE System , only : NEL,Feb08,defaults
         USE Integrals , only : NFROZEN
         Use Determinants, only :nActiveSpace
+        use UMatCache, only: gen2CPMDInts
         
         IMPLICIT NONE
         save
@@ -701,7 +702,16 @@ MODULE Calc
             IF((.not.TReadPops).and.(ScaleWalkers.ne.1.D0)) THEN
                 call report("Can only specify to scale walkers if READPOPS is set",.true.)
             ENDIF
-          if(.not.tEnergy.and.I_VMAX.eq.1)  tNeedsVirts=.false.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
+
+          ! Set if we need virtual orbitals  (usually set).  Will be unset (by
+          ! Calc readinput) if I_VMAX=1 and TENERGY is false
+          if(.not.tEnergy.and.I_VMAX.eq.1)  tNeedsVirts=.false.
+
+          ! If the max vertex level is 2 or less, then we just need to calculate
+          ! <ij|ab> and never need <ib|aj> for double excitations.  We do need
+          ! them if we're doing a complete diagonalisation.
+          gen2CPMDInts=MAXVAL(NWHTAY(3,:)).ge.3.or.TEnergy
+
         END SUBROUTINE CalcReadInput
         Subroutine CalcInit()
             Use System, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF

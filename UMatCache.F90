@@ -74,6 +74,11 @@ MODULE UMatCache
 ! When UMatCacheFlag is reset to 0, the data which are present are spread evenly around the slots for a given Pair.
       INTEGER UMatCacheFlag
 
+! If the max vertex level is 2 or less, then we just need to calculate
+! <ij|ab> and never need <ib|aj>, unless the integral is for a single
+! excitation.
+      LOGICAL gen2CPMDInts
+
 ! nHits and nMisses are the number of cache hits and misses.
       INTEGER nHits,nMisses
 ! The number of cache overwrites
@@ -351,7 +356,7 @@ MODULE UMatCache
          TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
          INTEGER ISUB,ISUB2
          Type(Symmetry) TotSymRep
-         logical GetCachedUMatEl
+         logical GetCachedUMatEl,calc2ints
 !   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 !   Otherwise we just look it up in umat
          IF(NBASISMAX(1,3).GE.0) THEN
@@ -448,10 +453,13 @@ MODULE UMatCache
                      IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
                   ELSE
 !   Otherwise we call CPMD
+!   Only need <IJ|KL> if we're doing a 2-vertex calculation unless the integral
+!   is for a single excitation, in which case we need <IL|JK> as well.
+                     calc2ints=gen2CPMDInts.or.(IDI.eq.IDJ.or.IDI.eq.IDK.or.IDI.eq.IDL.or.IDJ.eq.IDK.or.IDJ.eq.IDL)
                      IF(TTRANSFINDX) THEN
-                        CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems)
+                        CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems,calc2ints)
                      ELSE
-                        CALL INITFINDXI(I,J,K,L,UElems)
+                        CALL INITFINDXI(I,J,K,L,UElems,calc2ints)
 !InitFindxI returns up to two integrals in UElems
 !  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).
 !  TYPE 0          TYPE 1
