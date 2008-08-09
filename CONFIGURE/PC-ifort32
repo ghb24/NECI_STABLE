@@ -1,0 +1,26 @@
+     compiler='INTEL-ifort9-on-LINUX'
+     IRAT=2
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
+     NCPUS=2
+     #-sb is to use Workshop package
+     FFLAGS='-r8'
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml'
+     LDFLAGS='-nostdlib -nostartfiles -Wl,-r' 
+     F90FLAGS=''
+     GLOBALS='GLOBALS-ifort'
+     if [ $debug ]; then
+       FC='ifort -c -g'
+       CC='cc -g -sb -C -errtags'
+       LD='ifort -g -Bstatic'
+       FCD='ifort -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='ifort -g'
+     else
+       FC='ifort -c -O3' 
+       CC='cc -O'
+       LD='ifort -O3 -Bstatic'
+       FCD='ifort -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='ifort -g'
+     fi
