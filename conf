@@ -1,2 +1,0 @@
-#!/bin/tcsh
-./mkconfig.sh PC-PGI -DEST=${PWD}/dest> Makefile
