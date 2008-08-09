@@ -4,7 +4,7 @@ MODULE FciMCMod
     USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
-    USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet
+    USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -165,8 +165,8 @@ MODULE FciMCMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
         REAL*8 :: Prob,rat,HDiag,Ran2,TotProb
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,ExcitLevelNew,iGetExcitLevel_2
-        LOGICAL :: WSign,SpawnBias
+        INTEGER :: ExcitLevel,iGetExcitLevel_2,MaxExcits
+        LOGICAL :: WSign,SpawnBias,SameDet,TGenGuideDet
         TYPE(HElement) :: HDiagTemp,HOffDiag
 
 !VecSlot indicates the next free position in NewDets
@@ -187,7 +187,7 @@ MODULE FciMCMod
 
             ELSE
                 IF(THFRetBias) THEN
-!We want the simplest guiding function - if we're at a double, return to HF with PRet probability
+!We want the simplest guiding function - if we're at a double, attempt to spawn at HF with PRet probability
                     SpawnBias=.false.
                     TotProb=1.D0  
                     
@@ -196,18 +196,22 @@ MODULE FciMCMod
                         IF(Ran2(Seed).lt.PRet) THEN
 !Ensure that we try to spawn children at HF -   Modify prob of doing this to equal PRet
                             SpawnBias=.true.
-!                            Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),HFDet,PRet,2,-1.D0)
-                            Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),HFDet,PRet,2,CurrentH(2,j))
+                            IF(TExcludeRandGuide) THEN
+!In this method of unbiasing the Guiding function, we unbias completely at this stage
+                                Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),HFDet,PRet,2,CurrentH(2,j))
+                            ELSE
+!No need to unbias here - divide by 1, not PRet
+                                Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),HFDet,1.D0,2,CurrentH(2,j))
+                            ENDIF
                             IF(Child.ne.0) THEN
                                 IF(Child.gt.0) THEN
-!We have successfully created at least one positive child at HF
-                                    WSign=.true.
+                                    WSign=.true. !We have successfully created at least one positive child at HF
                                 ELSE
-!We have successfully created at least one negative child at HF
-                                    WSign=.false.
+                                    WSign=.false. !We have successfully created at least one negative child at HF
                                 ENDIF
 
                                 do l=1,abs(Child)
+!                                IF(abs(Child).gt.1) WRITE(6,*) "Multiple children created (returned)"
 !Copy across children to HF - can also copy across known excitation generator
                                     NewDets(:,VecSlot)=HFDet(:)
                                     NewSign(VecSlot)=WSign
@@ -221,7 +225,7 @@ MODULE FciMCMod
                             ENDIF   !End if child created
 
                         ELSE
-
+                            
                             TotProb=1.D0-PRet
                             
                         ENDIF   !End if Spawning back at HF due to bias
@@ -231,13 +235,68 @@ MODULE FciMCMod
                     IF(.not.SpawnBias) THEN
 !We are either at a double but have decided not to try to spawn back to HF, or we are not at a double
 
-!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
+!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry).
                         CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
                         CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
-!                        WRITE(6,*) TotProb,CurrentIC(j),Prob
+
+                        !TESTS
+                        CALL GetSymExcitCount2(CurrentExcits(j)%ExcitData,MaxExcits)
+                        IF(ABS((1.D0/MaxExcits)-Prob).gt.1.D-07) THEN
+                            WRITE(6,*) "PROBLEM WITH PGENS!"
+                            WRITE(6,*) MaxExcits,1.D0/MaxExcits,Prob
+                            CALL Stop_All("PerformFCIMCyc","Problem with PGens")
+                        ENDIF
                         IF((CurrentIC(j).eq.2).and.(TotProb.ne.(1.D0-PRet))) WRITE(6,*) "PROBLEM HERE!!"
                         IF((CurrentIC(j).ne.2).and.(TotProb.ne.1.D0)) WRITE(6,*) "PROBLEM HERE!"
-                        TotProb=TotProb*Prob    !TotProb is initially 1, or 1-PRet if its a double which is not going back
+
+
+                        IF(TExcludeRandGuide) THEN
+!We must not be allowed to generate a guiding determinant from a double excitation
+                
+                            IF(CurrentIC(j).eq.2) THEN 
+
+                                IF(SameDet(HFDet,nJ,NEl)) THEN
+                                    TGenGuideDet=.true.    !Have not generated a guiding determinant (HF)
+                                ELSE
+                                    TGenGuideDet=.false.     !Have generated a guiding determinant (HF)
+                                ENDIF
+                                do while(TGenGuideDet)
+!Generate another randomly connected determinant in order to not generate a guiding determinant
+
+                                    CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                                    IF(.not.(SameDet(HFDet,nJ,NEl))) TGenGuideDet=.false.
+                                    
+                                enddo   !Have now definitely generated a non-HF determinant
+!Need to change the probabilities of generating these excitations, since there is now a determinant which is forbidden
+
+                                Prob=1.D0/(MaxExcits-1)      !Prob is now 1/(N-1) - do not allow excit weighting
+                                TotProb=TotProb*Prob
+                                
+                            ELSE
+!We are not at a double - want to unbias with normal prob
+                                TotProb=Prob
+                                
+                            ENDIF
+
+                        ELSE
+!The other unbiasing method allows the guiding determinant to be generated, but we unbias it differently.
+
+                            IF(CurrentIC(j).eq.2) THEN
+                                IF(SameDet(HFDet,nJ,NEl)) THEN
+!We are at a double, and have decided to randomly attempt a return to the guiding function HF determinant, so we need to change 
+!the Pgen - it wants to be unbiased by dividing by just PGen, not PGen*(1-PRet).
+                                    TotProb=Prob
+                                ELSE
+                                    TotProb=TotProb*Prob    !TotProb should initially by 1, or 1-PRet if we are at a double
+                                ENDIF
+
+                            ELSE
+
+                                TotProb=Prob
+                                
+                            ENDIF
+                            
+                        ENDIF !Choice of unbiasing methods
 
 !Calculate number of children to spawn
                         Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,TotProb,IC,-1.D0)
@@ -278,7 +337,7 @@ MODULE FciMCMod
 
                     ENDIF   !End if we are trying to create a child which isn't a returning spawn
 
-                ELSE
+                ELSE    !Not using HFRetBias
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
                     CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
                     CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
@@ -366,8 +425,7 @@ MODULE FciMCMod
 
 !Finish cycling over walkers
         enddo
-
-!        WRITE(6,*) "***" , Iter,TotSign,TotSignOld
+!        WRITE(76,*) Iter,Spawnreted,Doubnotret,others
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
         SumWalkersCyc=SumWalkersCyc+TotWalkers
@@ -1086,6 +1144,9 @@ MODULE FciMCMod
             ELSE
                 WRITE(6,*) "Return bias to HF determinant set, with PRet = ", PRet
             ENDIF
+            IF(TExcludeRandGuide.and.(.not.EXCITFUNCS(10))) THEN
+                CALL Stop_All("InitFCIMCCalc","Cannot have excitation weighting if using ExcludeRandGuide unbiasing with a guiding function")
+            ENDIF
         ENDIF
 
 !TotWalkers contains the number of current walkers at each step
@@ -1211,7 +1272,8 @@ MODULE FciMCMod
     SUBROUTINE SetupExitgen(nI,ExcitGen)
         TYPE(ExcitGenerator) :: ExcitGen
         INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl)
-        INTEGER :: nI(NEl),nStore(6)
+        INTEGER :: nI(NEl),nStore(6),iCount,IC!,Exitlevel,iGetExcitLevel
+!        REAL*8 :: Prob
 
         IF(ExcitGen%ExitGenForDet) THEN
 !The excitation generator is already allocated for the determinant in question - no need to recreate it
@@ -1234,6 +1296,12 @@ MODULE FciMCMod
             ExcitGen%ExcitData(1)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
 
+
+!Check generation probabilities
+!            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!            Exitlevel=iGetExcitLevel(nI,HFDet,NEl)
+!            IF(ABS((1.D0/iMaxExcit)-Prob).gt.1.D-07) WRITE(6,"I5,I5,I9,2G20.10") ExitLevel,IC,iMaxExcit,1.D0/iMaxExcit,Prob
+            
 !Indicate that the excitation generator is now correctly allocated.
             ExcitGen%ExitGenForDet=.true.
 

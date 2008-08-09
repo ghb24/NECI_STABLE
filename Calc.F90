@@ -23,7 +23,7 @@ MODULE Calc
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
         LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
         LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
-        LOGICAL THFRetBias
+        LOGICAL THFRetBias,TExcludeRandGuide
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -75,6 +75,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TExcludeRandGuide=.false.
           THFRetBias=.false.
           TSignShift=.false.
           NEquilSteps=0
@@ -694,6 +695,9 @@ MODULE Calc
 !This is unbiased by the acceptance probability of returning to HF.
                   THFRetBias=.true.
                   call getf(PRet)
+              case("EXCLUDERANDGUIDE")
+!This is an alternative method to unbias for the HFRetBias. It invloves disallowing random excitations back to the guiding function (HF Determinant)
+                  TExcludeRandGuide=.true.
               case default
                   call report("Keyword "                                &
      &              //trim(w)//" not recognized in CALC block",.true.)

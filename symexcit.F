@@ -875,13 +875,13 @@ C         WRITE(6,*) "COUNT:",ICOUNT
       END
 
 ! For a symmetry excitation generator stored in NMEM, return the total number of excitations from it in iCount.
-      SUBROUTINE GetSymExcitCount(NMEM,iCount)
+      SUBROUTINE GetSymExcitCount2(NMEM,iCount)
          IMPLICIT NONE
          INTEGER NMEM(*)
          INTEGER iCount
          iCount=NMEM(23)
          RETURN
-      END SUBROUTINE GetSymExcitCount
+      END SUBROUTINE GetSymExcitCount2
 
 C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
 C.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
