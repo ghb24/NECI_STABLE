@@ -29,7 +29,7 @@ C..
 C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,COEFF,A,TALPHA,ALPHA,OMEGA)
       IMPLICIT REAL*8(A-H,O-Z)
-#ifdef __PGI
+#ifndef __alpha || __SGI 
       INTEGER FFTW_R2HC
       PARAMETER (FFTW_R2HC=0)
       INTEGER FFTW_HC2R
@@ -156,7 +156,7 @@ C..FORWARD TRANSFORM
       LA1=N1
       LA2=N2 
       CALL ZFFT_3D('C','C','F',DIST,DIST,N1,N2,N3,LA1,LA2,1,1,1)
-#elif __PGI
+#else
       N1=N
       N2=N
       N3=N
