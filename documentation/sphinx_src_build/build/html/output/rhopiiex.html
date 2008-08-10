@@ -2,7 +2,7 @@
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Examples &mdash; NECI v0.1 documentation</title>
+    <title>RHOPIIex &mdash; NECI v0.1 documentation</title>
     <link rel="stylesheet" href="../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
@@ -19,9 +19,8 @@
     <link rel="index" title="Global index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
-    <link rel="up" title="Input options" href="index.html" />
-    <link rel="next" title="Output files" href="../output/index.html" />
-    <link rel="prev" title="Logging" href="logging.html" />
+    <link rel="up" title="Output files" href="index.html" />
+    <link rel="prev" title="RHOPII" href="rhopii.html" />
   </head>
   <body>
     <div class="related">
@@ -31,13 +30,10 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="rhopii.html" title="RHOPII"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Output files</a> &raquo;</li>
       </ul>
     </div>
     <div class="document">
@@ -46,9 +42,22 @@
           <div class="body">
             
   
-  <div class="section" id="examples">
-<span id="input-examples"></span><h1 id="examples"><span id="input-examples"></span>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
-<p>To be added.</p>
+  <div class="section" id="rhopiiex">
+<span id="output-rhopiiex"></span><h1 id="rhopiiex"><span id="output-rhopiiex"></span>RHOPIIex<a class="headerlink" href="#rhopiiex" title="Permalink to this headline">¶</a></h1>
+<p>RHOPIIex is produced if a diagonalization is performed. The data is calculated
+by CalcRhoPII.  It contains:</p>
+<pre>Determinant=Di   w_i   P ln rho_ii   ln s_i   E~_i   Degeneracy</pre>
+<p>where:</p>
+<blockquote>
+<p>Determinant is formed by the list of spin-obitals enclosed in parentheses.</p>
+<p>w_i is the calcuated value of <img src="../mathimg/math-1c59793bb7.png" align="absmiddle" />.</p>
+<p>P ln rho_ii is formed by P, the path length, and rho_ii is
+<img src="../mathimg/math-f397cc8b9f.png" align="absmiddle" />
+calculaed to the approximation specified by the input parameters.</p>
+<p>s_i is defined from <img src="../mathimg/math-6fa99a6f35.png" align="absmiddle" />.</p>
+<p>E~_i is the value of <img src="../mathimg/math-9c8973de59.png" align="absmiddle" />.</p>
+<p>Degeneracy is the number of symmetry related determinants which are not explicitly calculated.</p>
+</blockquote>
 </div>
 
 
@@ -58,12 +67,10 @@
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
             <h4>Previous topic</h4>
-            <p class="topless"><a href="logging.html" title="previous chapter">Logging</a></p>
-            <h4>Next topic</h4>
-            <p class="topless"><a href="../output/index.html" title="next chapter">Output files</a></p>
+            <p class="topless"><a href="rhopii.html" title="previous chapter">RHOPII</a></p>
             <h3>This Page</h3>
             <ul class="this-page-menu">
-              <li><a href="../_sources/input/examples.txt">Show Source</a></li>
+              <li><a href="../_sources/output/rhopiiex.txt">Show Source</a></li>
             </ul>
             <h3>Quick search</h3>
             <form class="search" action="../search.html" method="get">
@@ -82,13 +89,10 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="rhopii.html" title="RHOPII"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Output files</a> &raquo;</li>
       </ul>
     </div>
     <div class="footer">

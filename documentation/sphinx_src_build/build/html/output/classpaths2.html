@@ -2,7 +2,7 @@
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Examples &mdash; NECI v0.1 documentation</title>
+    <title>CLASSPATHS2 &mdash; NECI v0.1 documentation</title>
     <link rel="stylesheet" href="../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
@@ -19,9 +19,9 @@
     <link rel="index" title="Global index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
-    <link rel="up" title="Input options" href="index.html" />
-    <link rel="next" title="Output files" href="../output/index.html" />
-    <link rel="prev" title="Logging" href="logging.html" />
+    <link rel="up" title="Output files" href="index.html" />
+    <link rel="next" title="DETS" href="dets.html" />
+    <link rel="prev" title="CLASSPATHS" href="classpaths.html" />
   </head>
   <body>
     <div class="related">
@@ -31,13 +31,13 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
+          <a href="dets.html" title="DETS"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="classpaths.html" title="CLASSPATHS"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Output files</a> &raquo;</li>
       </ul>
     </div>
     <div class="document">
@@ -46,9 +46,20 @@
           <div class="body">
             
   
-  <div class="section" id="examples">
-<span id="input-examples"></span><h1 id="examples"><span id="input-examples"></span>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
-<p>To be added.</p>
+  <div class="section" id="classpaths2">
+<span id="output-classpaths2"></span><h1 id="classpaths2"><span id="output-classpaths2"></span>CLASSPATHS2<a class="headerlink" href="#classpaths2" title="Permalink to this headline">¶</a></h1>
+<p>CLASSPATHS2 is calculated when a vertex sum is performed and gives a histogram of the weights for each graph type.</p>
+<p>For each graph type, a header is printed out followed by the histogram data.</p>
+<p>Header:</p>
+<pre>Class nGs   TotWeightPos   TotWeightNeg</pre>
+<p>Body:</p>
+<pre>log_10(weight)   nPos   nNeg</pre>
+<p>where:</p>
+<blockquote>
+<p>Class, nGs, TotWeightPos, TotWeightNeg are the same as in CLASSPATHS.</p>
+<p>The body consists of lines from -1 to -15 listing number of +ve and -ve graphs
+with a weight in that band.  The top and bottom bands catch any overspills.</p>
+</blockquote>
 </div>
 
 
@@ -58,12 +69,12 @@
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
             <h4>Previous topic</h4>
-            <p class="topless"><a href="logging.html" title="previous chapter">Logging</a></p>
+            <p class="topless"><a href="classpaths.html" title="previous chapter">CLASSPATHS</a></p>
             <h4>Next topic</h4>
-            <p class="topless"><a href="../output/index.html" title="next chapter">Output files</a></p>
+            <p class="topless"><a href="dets.html" title="next chapter">DETS</a></p>
             <h3>This Page</h3>
             <ul class="this-page-menu">
-              <li><a href="../_sources/input/examples.txt">Show Source</a></li>
+              <li><a href="../_sources/output/classpaths2.txt">Show Source</a></li>
             </ul>
             <h3>Quick search</h3>
             <form class="search" action="../search.html" method="get">
@@ -82,13 +93,13 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
+          <a href="dets.html" title="DETS"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="classpaths.html" title="CLASSPATHS"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Output files</a> &raquo;</li>
       </ul>
     </div>
     <div class="footer">

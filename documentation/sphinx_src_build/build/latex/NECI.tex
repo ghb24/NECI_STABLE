@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{August 01, 2008}
+\date{August 10, 2008}
 \release{0.1}
 \author{Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -110,7 +110,9 @@ Requirements:
 \begin{itemize}
 \item {} \begin{description}
 \item[subversion]
-The Alavi group currently only distributes code via the wwmm subversion repository (account required), which is kindly hosted by the Unilever Centre.
+The Alavi group currently only distributes code via the wwmm
+subversion repository (account required), which is kindly hosted
+by the Unilever Centre.
 
 \end{description}
 
@@ -137,19 +139,26 @@ The NECI source code can be downloaded from:
 svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/NECI/trunk NECI
 \end{Verbatim}
 
-Various branches also exist, but they may or may not be stable or under active development.
+Various branches also exist, but they may or may not be stable or under
+active development.
 
 
 \subsection{CPMD}
 
-Our modified version of CPMD (containing the necessary routines for integration with NECI) can be downloaded from:
+Our modified version of CPMD (containing the necessary routines for
+integration with NECI) can be downloaded from:
 
 \begin{Verbatim}[commandchars=@\[\]]
 svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/CPMD/branches/QMC/trunk CPMD
 \end{Verbatim}
 
-Again, there exist various branches and they may or may not be stable or under active development.
-It is suggested that you place NECI as a subdirectory of the CPMD source, as that is how the CPMD configuration files in the repository are set up.
+Again, there exist various branches and they may or may not be stable
+or under active development.
+The default setting used in the compilation scripts are to have the NECI source as
+a subdirectory of the CPMD source.  This can be changed by using the
+command line options or setting them in the .compileconf file (see below).
+It is suggested that you place NECI as a subdirectory of the CPMD source,
+as that is how the CPMD configuration files in the repository are set up.
 
 
 \subsection{VASP}
@@ -167,21 +176,47 @@ svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/VASP/vasp.5 vasp.5
 
 \subsection{CPMD and NECI}
 
-For historical reasons, CPMD and NECI are much more closely interwoven than NECI is with VASP.  In addition, the tools used to compile CPMD and NECI are very similar (but then they were written by the same people!).
+For historical reasons, CPMD and NECI are much more closely interwoven
+than NECI is with VASP.  In addition, the tools used to compile CPMD and
+NECI are very similar (but then they were written by the same people!).
 
-The repository version of CPMD depends upon NECI, thus NECI must be compiled first.  Various scripts take care of this for us.
+The repository version of CPMD depends upon NECI, thus NECI must be
+compiled first.  Various scripts take care of this for us.
 
-CPMD and NECI have CONFIGURE subdirectories.  Each file in a CONFIGURE subdirector contains the necessary information to compile the code using a certain compiler.  Most of the time only the paths and flags for the FFTW, LAPACK and BLAS libraries, given in the LFLAGS variable, will need to be adjusted (if that).  It is necessary to use the same compiler to compile CPMD and NECI.  We have compiled and tested the codebases with the gfortran (4.2 and later), Portland and Intel compilers in 32 and 64 bit.  The mkconfig.sh scripts in the CPMD and NECI directories produce the relevant makefiles, but this is better done via helper scripts.
+CPMD and NECI have CONFIGURE subdirectories.  Each file in a CONFIGURE
+subdirector contains the necessary information to compile the code using
+a certain compiler.  Most of the time only the paths and flags for the
+FFTW, LAPACK and BLAS libraries, given in the LFLAGS variable, will need
+to be adjusted (if that).  It is necessary to use the same compiler to
+compile CPMD and NECI.  We have compiled and tested the codebases with the
+gfortran (4.2 and later), Portland and Intel compilers in 32 and 64 bit.
+The mkconfig.sh scripts in the CPMD and NECI directories produce the
+relevant makefiles, but this is better done via helper scripts.
 
-Please note that not all the CPMD configure scripts will work: many of them were supplied with CPMD and have never been used with our modified version.  Please only use platforms that exist in the NECI/CONFIGURE directory as well as the CPMD/CONFIGURE directory.  It is easy to make your own configuration files using existing ones as a template.
+Please note that not all the CPMD configure scripts will work: many of
+them were supplied with CPMD and have never been used with our modified
+version.  Please only use platforms that exist in the NECI/CONFIGURE
+directory as well as the CPMD/CONFIGURE directory.  It is easy to make
+your own configuration files using existing ones as a template.
 
-Note that some of the platforms obtain LAPACK and BLAS as part of atlas, ACML or MKL, so this will need to bechanged if different source libraries are used.
+Note that some of the platforms obtain LAPACK and BLAS as part of atlas,
+ACML or MKL, so this will need to bechanged if different source libraries
+are used.
 
-Two versions of CPMD (and the corresponding NECI library) exist, gcpmd.x (for gamma-point calculations) and kcpmd.x (for k-point calculations), to take advantage of some substantial memory savings when running gamma-point calculations, as all wavefunctions are then real.  This is controlled via a C pre-processing statement.  As neci.x is only for molecular calculations, it only exists in one form.
+Two versions of CPMD (and the corresponding NECI library) exist, gcpmd.x
+(for gamma-point calculations) and kcpmd.x (for k-point calculations),
+to take advantage of some substantial memory savings when running
+gamma-point calculations, as all wavefunctions are then real.  This is
+controlled via a C pre-processing statement.  As neci.x is only for
+molecular calculations, it only exists in one form.
 
-runmake.sh and compile are scripts for CPMD and NECI respectively which control the process of creating makefiles and compiling the codebases.  They both refer to a ``platform'', which is just a name of one of the configuration files in the CONFIGURE subdirectories.
+runmake.sh and compile are scripts for CPMD and NECI respectively which
+control the process of creating makefiles and compiling the codebases.
+They both refer to a ``platform'', which is just a name of one of the
+configuration files in the CONFIGURE subdirectories.
 
-compile by default generates new makefile (for both gamma-point and k-point compilations) and does a clean build of neci.x:
+compile by default generates new makefile (for both gamma-point and
+k-point compilations) and does a clean build of neci.x:
 
 \begin{Verbatim}[commandchars=@\[\]]
 @lb[]NECI@rb[]$ ./compile -h
@@ -197,30 +232,55 @@ Options:
 -m Only make new makefiles.
 \end{Verbatim}
 
-In contrast, runmake.sh has a different default behaviour, in that it doesn't produce new makefiles by default, and does not do clean builds:
+In contrast, runmake.sh has a different default behaviour, in that it
+doesn't produce new makefiles by default, and does not do clean builds:
 
 \begin{Verbatim}[commandchars=@\[\]]
 @lb[]CPMD@rb[]$ ./runmake.sh -h
-Usage: ./runmake.sh @lb[]options@rb[]
-Compile NECI (neci.x) and CPMD/NECI for gamma point (gcpmd.x) and k-point (kcpmd.x) calculations.
+Usage: ./runmake.sh @lb[]-c@rb[] @lb[]-h@rb[]
+Compile NECI (neci.x) and CPMD/NECI code for Gamma point (gcpmd.x)
+code and for k-point sampling (kcpmd.x).
+Warning: the option to set the NECI source directory are
+*only* used when a new makefile is produced (i.e. requires the -m or -p
+flag).
 
 Options:
--c Recompile only CPMD routines.
--d Generate new makefiles for debugging. Recompile (at least) CPMD/qmc routines and all of NECI.
--g Compile only Gamma point code.
--k Compile only K-point code.
--m Generate new makefiles for NECI and CPMD using the platform given in .compileconf.
-   Defaults to PC-PGI64 if .compileconf does not exist.
--n Recompile only NECI routines.
--p @lb[]platform@rb[] Generate new makefiles for NECI and CPMD using the platform configuration.
--h Print this message.
+    -c  Recompile only CPMD routines.
+    -d  Generate new makefiles for debugging.  Recompile (at least)
+        CPMD/qmc routines and all of NECI.
+    -g  Compile only Gamma point code.
+    -k  Compile only K-point code.
+    -m  Generate new Makefiles by running mkconfig scripts in NECI and
+        CPMD directories, using the default platform (PC-PGI64 unless
+        otherwise specified in .compileconf), and compiles.
+    -n  Recompile only NECI routines.
+    -p @lb[]32,64,platform@rb[]
+        Produce makefile for @lb[]pgi-32bit,pgi-64bit,platform@rb[]
+        compilation, where platform is an alternative configuration (eg
+        for gfortran).
+    -s @lb[]NECI source directory@rb[]
+        Set the location of the directory containing the NECI source code.
+        Warning: must be used only when new makefiles are produced (i.e.
+        when -m or -p are specified).
+    -h  Print this message.
 \end{Verbatim}
 
-Note that runmake.sh produces new makefiles for CPMD \textbf{and} for NECI, and compiles neci.x, the NECI libraries needed for CPMD, and gcpmd.x and kcpmd.x.  To aid compilation, the dest subdirectories in the CPMD and NECI source directories contains the compiled objects for the gamma-point code and the kdest subdirectories contain the compiled objects for the k-point code.
+Note that runmake.sh produces new makefiles for CPMD \textbf{and} for NECI,
+and compiles neci.x, the NECI libraries needed for CPMD, and gcpmd.x
+and kcpmd.x.  To aid compilation, the dest subdirectories in the CPMD and
+NECI source directories contains the compiled objects for the gamma-point
+code and the kdest subdirectories contain the compiled objects for the
+k-point code.
 
-Both the NECI and CPMD scripts default to compiling the codebases using the Portland 64-bit compiler, if a platform is not specified either via the command line or given in .compileconf, which is a text file which contains the name of the desired platform.  Note that runmake.sh will use the same platform for both the CPMD and NECI makefiles.
+Both the NECI and CPMD scripts default to compiling the codebases using
+the Portland 64-bit compiler, if a platform is not specified either via
+the command line or given in .compileconf, which is a text file which
+contains the name of the desired platform.  Note that runmake.sh will
+use the same platform for both the CPMD and NECI makefiles.
 
-The CPMD and NECI source directories also contain controlling Makefiles to further help the make process (and generally just act as wrappers for the runmake.sh and compile scripts).  Run
+The CPMD and NECI source directories also contain controlling Makefiles
+to further help the make process (and generally just act as wrappers
+for the runmake.sh and compile scripts).  Run:
 
 \begin{Verbatim}[commandchars=@\[\]]
 make help
@@ -235,6 +295,37 @@ To quickest way to compile both CPMD and NECI is to run:
 \end{Verbatim}
 
 from within the CPMD source directory.
+
+
+\subsubsection{.compileconf}
+
+The .compileconf files are not under source code management and allow local defaults
+to be set.  It is used both in the CPMD and NECI compilation scripts.
+
+When running runmake.sh, please note that it uses the CPMD .compileconf information
+for compiling NECI, rather than the NECI .compileconf file.  This is to ensure that
+the same platform is used for both.
+
+The settings in .compileconf are overridden by command line options, but override
+any defaults in the compilation scripts.
+
+.compileconf in its simplest form simply contains the name of the desired
+platform, e.g.:
+
+\begin{Verbatim}[commandchars=@\[\]]
+PC@PYGbe[-]ifort64
+\end{Verbatim}
+
+will use the PC-ifort64 platform as the default.
+
+The CPMD .compileconf can be used to set local defaults for more
+variables---see the comments in runmake.sh for more details.  For example, to set
+different defaults for the platform and the location of the NECI source:
+
+\begin{Verbatim}[commandchars=@\[\]]
+platform=PC-ifort64
+NECIsrc=~/NECI/source
+\end{Verbatim}
 
 
 \subsubsection{File structure}
@@ -261,17 +352,20 @@ NECI library for VASP k-point code.
 CPMD files:
 \begin{description}
 \item[\textbf{CPMD/gcpmd.x}]
-Gamma-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).  Must not be used for k-point calculations!
+Gamma-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
+Must not be used for k-point calculations!
 
 \item[\textbf{CPMD/kcpmd.x}]
-k-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).  Must not be used for gamma-point calculations!
+k-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
+Must not be used for gamma-point calculations!
 
 \end{description}
 
 
 \subsection{VASP}
 
-James has managed it.  It's not completely pleasant.  More to follow once it's been made easier!
+James has managed it.  It's not completely pleasant.  More to follow
+once it's been made easier!
 
 
 \section{testcode}
@@ -285,7 +379,8 @@ Every night the latest version of the codebase is checked out of the
 subversion repository and tested against a variety of compilers, giving
 confidence in the continued stability of the codebase.
 
-testcode and the set of test jobs (both for NECI and CPMD-NECI), can be checked out of the subversion repository:
+testcode and the set of test jobs (both for NECI and CPMD-NECI), can be
+checked out of the subversion repository:
 
 \begin{Verbatim}[commandchars=@\[\]]
 svn checkout https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/testcode testcode
@@ -2708,7 +2803,10 @@ All the logging options should say to which file they print output.  Please corr
 \end{notice}
 \begin{description}
 \item[\textbf{LOGGING}]
-Start the logging input block.  The logging options allow additional (potentially expensive, potentially verbose) information to be printed out during a calculation.  By default, all logging options are turned off.
+Start the logging input block.  The logging options allow additional
+(potentially expensive, potentially verbose) information to be
+printed out during a calculation.  By default, all logging options
+are turned off.
 
 \end{description}
 
@@ -2728,9 +2826,11 @@ More than one of the options can be specified.
 Log the following to the PATHS file:
 \begin{description}
 \item[\textbf{LABEL}]
-Logs the determinants contained by each graph as each determinant is generated in the format:
+Logs the determinants contained by each graph as each determinant
+is generated in the format:
 {[}$(D_0),(D_1),...,D_v),${]}
-where each determinant given as a comma-separated list of the indices of the occupied orbitals:
+where each determinant given as a comma-separated list of the
+indices of the occupied orbitals:
 e.g. $D_0 =$ (    1,    2,    9,   10,).
 
 If CSFs are being used, then the CSF is printed.  There is no newline after this.
@@ -2810,8 +2910,8 @@ If LEVEL is set to be positive, the density matrices, fock matrices and
 eigenvectors during a Hartree--Fock calculation are printed out to SDOUT.
 
 \item[\textbf{MCPATHS}]
-Log MCPATHS data to the MCPATHS file for full vertex sum and MCSUMMARY file when
-using a METHODS section.  Also log to the RHOPII file.
+Log MCPATHS data to the MCPATHS file for full vertex sum and MCSUMMARY
+file when using a METHODS section.  Also log to the RHOPII file.
 
 \item[\textbf{PSI}]
 Log PSI\_COMP.
@@ -2862,10 +2962,10 @@ file.
 Allows different logging levels to be used in the \textbf{PRECALC} block
 than for the main calculation.
 
-All logging options specified before \textbf{SAVEPRECALCLOGGING} are only used in
-the the \textbf{PRECALC} part of the calculation.  All logging options specified
-after  \textbf{SAVEPRECALCLOGGING} are only used in the the main part of the
-calculation.
+All logging options specified before \textbf{SAVEPRECALCLOGGING} are only
+used in the the \textbf{PRECALC} part of the calculation.  All logging
+options specified after  \textbf{SAVEPRECALCLOGGING} are only used in the
+the main part of the calculation.
 
 \end{description}
 
@@ -2885,17 +2985,20 @@ and/or log the vertex MC contribution every cycle.  Setting
 Delta $=\tilde{E}-\tilde{E}_{\textrm{ref}}$, where
 $\tilde{E}_{\textrm{ref}}$ is usually the 1-vertex graph:
 \begin{description}
-\item[\textbf{EVERY}]\begin{description}
-\item[write a VMC file with the following info, with a new line each time the current graph changes:]
+\item[\textbf{EVERY}]
+write a VMC file with the following info, with a new line each
+time the current graph changes:
+\begin{quote}
+
 tot \# virt steps, \# steps in this graph, \#verts, Class, Weight, Delta, \textless{}sign(W)\textgreater{}, \textless{}Delta sign(W)\textgreater{}, \textasciitilde{}standard deviation \textless{}Delta sign\textgreater{}/\textless{}sign\textgreater{},pgen
+\end{quote}
 
-\end{description}
+\item[n:]
+write a VERTEXMC file with the following info:
+\begin{quote}
 
-\item[n:]\begin{description}
-\item[write a VERTEXMC file with the following info:]
 0, \#graphs, \textless{}sign(W)\textgreater{}, stdev(sign(W)), \textless{}Delta\textgreater{}, \textless{}sign Delta\textgreater{}/\textless{}sign\textgreater{}, \textless{}Delta\textasciicircum{}2\textgreater{}, acc ratio, trees ratio, nontree+ ratio, non-tree- ratio, \textless{}Delta sign(W)\textgreater{}, E\textasciitilde{} reference, \#sequences,w reference
-
-\end{description}
+\end{quote}
 
 \end{description}
 
@@ -2925,6 +3028,154 @@ To be added.
 
 
 \hypertarget{output-index}{}\chapter{Output files}
+
+\resetcurrentobjects
+
+
+\hypertarget{output-blocks}{}\section{BLOCKS}
+
+BLOCKS contains the list of blocks used if the \textbf{BLOCK} option is used to
+calculate the Hamiltonian in the form:
+
+\begin{Verbatim}[commandchars=@\[\]]
+BlockIndex   K(1)   K(2)   K(3)   MS SYM   nDets nTotDets
+\end{Verbatim}
+
+where:
+\begin{quote}
+
+BlockIndex starts from 1.
+
+K(1:3) are momentum values for the \textbf{HUBBARD} and \textbf{UEG} symmetries and
+are irrelevant for other systems.
+
+MS is $2S_z$.
+
+Sym is the spatial symmetry index of the determinant.  It can be a single
+number or a set of numbers enclosed in parentheses.  Relevant for systems
+other than \textbf{HUBBARD} and \textbf{UEG}.
+
+nDets is the number of symmetry unique determinants in the block.
+
+nTotDets is the total number of determinants in the block.
+\end{quote}
+
+\resetcurrentobjects
+
+
+\hypertarget{output-classpaths}{}\section{CLASSPATHS}
+
+CLASSPATHS is calculated when a vertex sum is performed and lists properties of the graphs by their class:
+
+\begin{Verbatim}[commandchars=@\[\]]
+Class nGs TotWeight   TotwEt TotWeightPos   TotWeightNeg
+\end{Verbatim}
+
+where:
+\begin{quote}
+
+Class is a binary string indicating the connectivity of the graph.
+\begin{description}
+\item[The connectivity matrix has 1 if there's a line in the graph]
+e.g. a 3-vertex graph.  The bits are labelled from the bottom right starting from 0:
+
+\begin{Verbatim}[commandchars=@\[\]]
+(. 2 1 )  (bits)                   (. 1 1 )
+(  . 0 )  -> 210     connections:  (  . 0 ) -> 110 (binary) -> 6 (decimal)
+(    . )                           (    . )
+\end{Verbatim}
+
+\end{description}
+
+nGs is the number of graphs that fell in this class.
+TotWeight is the total weight, $w_i$, of those graphs.
+TotEt is the total value of $w_i \tilde{E}_i$ for those graphs.
+TotWeightPos is the total weight of graphs(?) with positive weights.
+TotWeightNeg is the total weight of graphs(?) with negative weights.
+\end{quote}
+
+\resetcurrentobjects
+
+
+\hypertarget{output-classpaths2}{}\section{CLASSPATHS2}
+
+CLASSPATHS2 is calculated when a vertex sum is performed and gives a histogram of the weights for each graph type.
+
+For each graph type, a header is printed out followed by the histogram data.
+
+Header:
+
+\begin{Verbatim}[commandchars=@\[\]]
+Class nGs   TotWeightPos   TotWeightNeg
+\end{Verbatim}
+
+Body:
+
+\begin{Verbatim}[commandchars=@\[\]]
+log_10(weight)   nPos   nNeg
+\end{Verbatim}
+
+where:
+\begin{quote}
+
+Class, nGs, TotWeightPos, TotWeightNeg are the same as in CLASSPATHS.
+
+The body consists of lines from -1 to -15 listing number of +ve and -ve graphs
+with a weight in that band.  The top and bottom bands catch any overspills.
+\end{quote}
+
+\resetcurrentobjects
+
+
+\hypertarget{output-dets}{}\section{DETS}
+
+DETS contains a list of determinants when they are enumerated.  This consists of two columns:
+
+\begin{Verbatim}[commandchars=@\[\]]
+Determinant   Symmetry
+\end{Verbatim}
+
+where:
+\begin{quote}
+
+Determinant contains an ordered list of NEL numbers, separated by commas,
+surrounded by parentheses:  e.g. (    1,    2,   13,   14,).
+
+Symmetry varies with the system type and is the internal symmetry label of the
+determinant.  It is either an integer or a propogation vector which corresponds
+to an irreducible representation of an Abelian group.
+\end{quote}
+
+\resetcurrentobjects
+
+
+\hypertarget{output-energies}{}\section{ENERGIES}
+
+ENERGIES contains the list of eigenvalues in the order they are generated.  If the
+Hamiltonian is \textbf{BLOCK} ed, then these will not all be in ascending order, but
+rather ascending order within each block.
+
+\resetcurrentobjects
+
+
+\hypertarget{output-hamil}{}\section{HAMIL}
+
+HAMIL contains the non-zero elements of the Hamiltonian in three columns:
+
+\begin{Verbatim}[commandchars=@\[\]]
+i  j  Hij
+\end{Verbatim}
+
+where:
+\begin{quote}
+
+Hij $=\bra D_{\veci} | H | D_{\vecj} \ket$.
+
+i,j are indices for the $\veci,\vecj$ determinants, with i:math:\emph{le}
+j, and increasing i.
+
+$D_i$ corresponds to the i-th determinant as given in DETS.
+\end{quote}
 
 \resetcurrentobjects
 
@@ -3074,6 +3325,69 @@ Format as GenStats, but has the number of transitions accepted.
 Records the number of sequences of consecutive graphs accepted with the same weight.
 
 \end{description}
+
+\resetcurrentobjects
+
+
+\hypertarget{output-rhopii}{}\section{RHOPII}
+
+RHOPII is produced during the calculation of a vertex sum.  It contains:
+
+\begin{Verbatim}[commandchars=@\[\]]
+Index   Determinant=Di   w_i   P ln rho_ii   ln s_i   E~_i   Degeneracy
+\end{Verbatim}
+
+where:
+\begin{quote}
+
+Index begins at 0.
+
+\begin{notice}[note]
+This is not true for the test jobs which are not model systems.  What does Index mean?
+\end{notice}
+
+Determinant is formed by the list of spin-obitals enclosed in parentheses.
+
+w\_i is the calcuated value of math:\emph{w\_\{veci\}=bra D\_\{veci\} | e\textasciicircum{}\{-beta H\} | D\_\{veci\} ket}.
+
+P ln rho\_ii is formed by P, the path length, and rho\_ii is
+$\rho_{\veci\veci}=\bra D_{\veci} | e^{-(\beta/P) H} | D_{\veci} \ket$
+calculaed to the approximation specified by the input parameters.
+
+s\_i is defined from $\operatorname{ln} w_i = P \operatorname{ln} \rho_{ii} + \operatorname{ln} s_i$.
+
+E\textasciitilde{}\_i is the value of $\tilde{E}_{\veci}=\frac{\bra D_{\veci} | H e^{-\beta H} | D_{\veci} \ket}{w_i}$.
+\end{quote}
+
+\resetcurrentobjects
+
+
+\hypertarget{output-rhopiiex}{}\section{RHOPIIex}
+
+RHOPIIex is produced if a diagonalization is performed. The data is calculated
+by CalcRhoPII.  It contains:
+
+\begin{Verbatim}[commandchars=@\[\]]
+Determinant=Di   w_i   P ln rho_ii   ln s_i   E~_i   Degeneracy
+\end{Verbatim}
+
+where:
+\begin{quote}
+
+Determinant is formed by the list of spin-obitals enclosed in parentheses.
+
+w\_i is the calcuated value of $w_{\veci}=\bra D_{\veci} | e^{-\beta H} | D_{\veci} \ket$.
+
+P ln rho\_ii is formed by P, the path length, and rho\_ii is
+$\rho_{\veci\veci}=\bra D_{\veci} | e^{-(\beta/P) H} | D_{\veci} \ket$
+calculaed to the approximation specified by the input parameters.
+
+s\_i is defined from $\operatorname{ln} w_i = P \operatorname{ln} \rho_{ii} + \operatorname{ln} s_i$.
+
+E\textasciitilde{}\_i is the value of $\tilde{E}_{\veci}=\frac{\bra D_{\veci} | H e^{-\beta H} | D_{\veci} \ket}{w_i}$.
+
+Degeneracy is the number of symmetry related determinants which are not explicitly calculated.
+\end{quote}
 
 \begin{thebibliography}{ThomPhDThesis}
 \bibitem[SumPaper]{SumPaper}{

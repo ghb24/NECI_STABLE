@@ -2,7 +2,7 @@
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Examples &mdash; NECI v0.1 documentation</title>
+    <title>BLOCKS &mdash; NECI v0.1 documentation</title>
     <link rel="stylesheet" href="../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
@@ -19,9 +19,9 @@
     <link rel="index" title="Global index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
-    <link rel="up" title="Input options" href="index.html" />
-    <link rel="next" title="Output files" href="../output/index.html" />
-    <link rel="prev" title="Logging" href="logging.html" />
+    <link rel="up" title="Output files" href="index.html" />
+    <link rel="next" title="CLASSPATHS" href="classpaths.html" />
+    <link rel="prev" title="Output files" href="index.html" />
   </head>
   <body>
     <div class="related">
@@ -31,13 +31,13 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
+          <a href="classpaths.html" title="CLASSPATHS"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="index.html" title="Output files"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Output files</a> &raquo;</li>
       </ul>
     </div>
     <div class="document">
@@ -46,9 +46,23 @@
           <div class="body">
             
   
-  <div class="section" id="examples">
-<span id="input-examples"></span><h1 id="examples"><span id="input-examples"></span>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
-<p>To be added.</p>
+  <div class="section" id="blocks">
+<span id="output-blocks"></span><h1 id="blocks"><span id="output-blocks"></span>BLOCKS<a class="headerlink" href="#blocks" title="Permalink to this headline">¶</a></h1>
+<p>BLOCKS contains the list of blocks used if the <strong>BLOCK</strong> option is used to
+calculate the Hamiltonian in the form:</p>
+<pre>BlockIndex   K(1)   K(2)   K(3)   MS SYM   nDets nTotDets</pre>
+<p>where:</p>
+<blockquote>
+<p>BlockIndex starts from 1.</p>
+<p>K(1:3) are momentum values for the <strong>HUBBARD</strong> and <strong>UEG</strong> symmetries and
+are irrelevant for other systems.</p>
+<p>MS is <img src="../mathimg/math-a87389285d.png" align="absmiddle" />.</p>
+<p>Sym is the spatial symmetry index of the determinant.  It can be a single
+number or a set of numbers enclosed in parentheses.  Relevant for systems
+other than <strong>HUBBARD</strong> and <strong>UEG</strong>.</p>
+<p>nDets is the number of symmetry unique determinants in the block.</p>
+<p>nTotDets is the total number of determinants in the block.</p>
+</blockquote>
 </div>
 
 
@@ -58,12 +72,12 @@
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
             <h4>Previous topic</h4>
-            <p class="topless"><a href="logging.html" title="previous chapter">Logging</a></p>
+            <p class="topless"><a href="index.html" title="previous chapter">Output files</a></p>
             <h4>Next topic</h4>
-            <p class="topless"><a href="../output/index.html" title="next chapter">Output files</a></p>
+            <p class="topless"><a href="classpaths.html" title="next chapter">CLASSPATHS</a></p>
             <h3>This Page</h3>
             <ul class="this-page-menu">
-              <li><a href="../_sources/input/examples.txt">Show Source</a></li>
+              <li><a href="../_sources/output/blocks.txt">Show Source</a></li>
             </ul>
             <h3>Quick search</h3>
             <form class="search" action="../search.html" method="get">
@@ -82,13 +96,13 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
+          <a href="classpaths.html" title="CLASSPATHS"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="index.html" title="Output files"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Output files</a> &raquo;</li>
       </ul>
     </div>
     <div class="footer">

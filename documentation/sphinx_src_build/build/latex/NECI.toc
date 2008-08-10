@@ -6,8 +6,9 @@
 \contentsline {subsection}{\numberline {2.1.3}VASP}{2}{subsection.2.1.3}
 \contentsline {section}{\numberline {2.2}Compilation}{3}{section.2.2}
 \contentsline {subsection}{\numberline {2.2.1}CPMD and NECI}{3}{subsection.2.2.1}
-\contentsline {subsubsection}{File structure}{4}{subsubsection*.2}
-\contentsline {subsection}{\numberline {2.2.2}VASP}{4}{subsection.2.2.2}
+\contentsline {subsubsection}{.compileconf}{4}{subsubsection*.2}
+\contentsline {subsubsection}{File structure}{5}{subsubsection*.3}
+\contentsline {subsection}{\numberline {2.2.2}VASP}{5}{subsection.2.2.2}
 \contentsline {section}{\numberline {2.3}testcode}{5}{section.2.3}
 \contentsline {chapter}{\numberline {3}Run}{6}{chapter.3}
 \contentsline {section}{\numberline {3.1}NECI}{6}{section.3.1}
@@ -32,14 +33,14 @@
 \contentsline {section}{\numberline {5.5}Calc}{17}{section.5.5}
 \contentsline {subsection}{\numberline {5.5.1}General options}{17}{subsection.5.5.1}
 \contentsline {subsection}{\numberline {5.5.2}Method options}{19}{subsection.5.5.2}
-\contentsline {subsubsection}{Experimental methods}{22}{subsubsection*.3}
+\contentsline {subsubsection}{Experimental methods}{22}{subsubsection*.4}
 \contentsline {subsection}{\numberline {5.5.3}Walker Monte Carlo options}{22}{subsection.5.5.3}
 \contentsline {subsection}{\numberline {5.5.4}Return Path Monte Carlo options}{24}{subsection.5.5.4}
 \contentsline {subsection}{\numberline {5.5.5}Perturbation theory options}{24}{subsection.5.5.5}
 \contentsline {subsection}{\numberline {5.5.6}Diagonalisation options}{24}{subsection.5.5.6}
 \contentsline {subsection}{\numberline {5.5.7}Graph morphing options}{25}{subsection.5.5.7}
 \contentsline {subsection}{\numberline {5.5.8}Monte Carlo options}{26}{subsection.5.5.8}
-\contentsline {subsubsection}{Weighting schemes}{27}{subsubsection*.4}
+\contentsline {subsubsection}{Weighting schemes}{27}{subsubsection*.5}
 \contentsline {subsection}{\numberline {5.5.9}Experimental options}{28}{subsection.5.5.9}
 \contentsline {section}{\numberline {5.6}Integrals}{28}{section.5.6}
 \contentsline {subsection}{\numberline {5.6.1}General options}{29}{subsection.5.6.1}
@@ -56,4 +57,12 @@
 \contentsline {subsection}{\numberline {5.7.5}Monte Carlo options}{33}{subsection.5.7.5}
 \contentsline {section}{\numberline {5.8}Examples}{34}{section.5.8}
 \contentsline {chapter}{\numberline {6}Output files}{35}{chapter.6}
-\contentsline {section}{\numberline {6.1}MCPATHS and MCSUMMARY}{35}{section.6.1}
+\contentsline {section}{\numberline {6.1}BLOCKS}{35}{section.6.1}
+\contentsline {section}{\numberline {6.2}CLASSPATHS}{35}{section.6.2}
+\contentsline {section}{\numberline {6.3}CLASSPATHS2}{36}{section.6.3}
+\contentsline {section}{\numberline {6.4}DETS}{36}{section.6.4}
+\contentsline {section}{\numberline {6.5}ENERGIES}{36}{section.6.5}
+\contentsline {section}{\numberline {6.6}HAMIL}{36}{section.6.6}
+\contentsline {section}{\numberline {6.7}MCPATHS and MCSUMMARY}{37}{section.6.7}
+\contentsline {section}{\numberline {6.8}RHOPII}{38}{section.6.8}
+\contentsline {section}{\numberline {6.9}RHOPIIex}{38}{section.6.9}

@@ -7,10 +7,9 @@
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-          URL_ROOT:    '../',
-          VERSION:     '0.1',
-          COLLAPSE_MODINDEX: false,
-          FILE_SUFFIX: '.html'
+          URL_ROOT:   '../',
+          VERSION:    '0.1',
+          COLLAPSE_MODINDEX: false
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
@@ -55,7 +54,10 @@
 </div>
 <dl class="docutils">
 <dt><strong>LOGGING</strong></dt>
-<dd>Start the logging input block.  The logging options allow additional (potentially expensive, potentially verbose) information to be printed out during a calculation.  By default, all logging options are turned off.</dd>
+<dd>Start the logging input block.  The logging options allow additional
+(potentially expensive, potentially verbose) information to be
+printed out during a calculation.  By default, all logging options
+are turned off.</dd>
 </dl>
 <p>[Logging options&#8212;see below.]</p>
 <dl class="docutils">
@@ -70,9 +72,11 @@
 <p>Log the following to the PATHS file:</p>
 <dl class="last docutils">
 <dt><strong>LABEL</strong></dt>
-<dd><p class="first">Logs the determinants contained by each graph as each determinant is generated in the format:
+<dd><p class="first">Logs the determinants contained by each graph as each determinant
+is generated in the format:
 [<img src="../mathimg/math-c882bf4a2f.png" align="absmiddle" />]
-where each determinant given as a comma-separated list of the indices of the occupied orbitals:
+where each determinant given as a comma-separated list of the
+indices of the occupied orbitals:
 e.g. <img src="../mathimg/math-e831420124.png" align="absmiddle" /> (    1,    2,    9,   10,).</p>
 <p>If CSFs are being used, then the CSF is printed.  There is no newline after this.</p>
 <p class="last">For <strong>MULTI MC</strong> or <strong>SINGLE MC</strong>, only the non-composite graphs are printed.</p>
@@ -139,8 +143,8 @@ log the <img src="../mathimg/math-f2e3547a85.png" /> matrix, with the same forma
 eigenvectors during a Hartree&#8211;Fock calculation are printed out to SDOUT.</p>
 </dd>
 <dt><strong>MCPATHS</strong></dt>
-<dd>Log MCPATHS data to the MCPATHS file for full vertex sum and MCSUMMARY file when
-using a METHODS section.  Also log to the RHOPII file.</dd>
+<dd>Log MCPATHS data to the MCPATHS file for full vertex sum and MCSUMMARY
+file when using a METHODS section.  Also log to the RHOPII file.</dd>
 <dt><strong>PSI</strong></dt>
 <dd>Log PSI_COMP.</dd>
 <dt><strong>TIMING</strong> [iGlobalTimerLevel] (default 40)</dt>
@@ -183,10 +187,10 @@ file.</dd>
 <dt><strong>SAVEPRECALCLOGGING</strong></dt>
 <dd><p class="first">Allows different logging levels to be used in the <strong>PRECALC</strong> block
 than for the main calculation.</p>
-<p class="last">All logging options specified before <strong>SAVEPRECALCLOGGING</strong> are only used in
-the the <strong>PRECALC</strong> part of the calculation.  All logging options specified
-after  <strong>SAVEPRECALCLOGGING</strong> are only used in the the main part of the
-calculation.</p>
+<p class="last">All logging options specified before <strong>SAVEPRECALCLOGGING</strong> are only
+used in the the <strong>PRECALC</strong> part of the calculation.  All logging
+options specified after  <strong>SAVEPRECALCLOGGING</strong> are only used in the
+the main part of the calculation.</p>
 </dd>
 </dl>
 </div>
@@ -206,16 +210,15 @@ Delta <img src="../mathimg/math-dd4a3321d3.png" align="absmiddle" />, where
 <img src="../mathimg/math-549b2b7914.png" align="absmiddle" /> is usually the 1-vertex graph:</p>
 <dl class="last docutils">
 <dt><strong>EVERY</strong></dt>
-<dd><dl class="first last docutils">
-<dt>write a VMC file with the following info, with a new line each time the current graph changes:</dt>
-<dd>tot # virt steps, # steps in this graph, #verts, Class, Weight, Delta, &lt;sign(W)&gt;, &lt;Delta sign(W)&gt;, ~standard deviation &lt;Delta sign&gt;/&lt;sign&gt;,pgen</dd>
-</dl>
+<dd><p class="first">write a VMC file with the following info, with a new line each
+time the current graph changes:</p>
+<blockquote class="last">
+tot # virt steps, # steps in this graph, #verts, Class, Weight, Delta, &lt;sign(W)&gt;, &lt;Delta sign(W)&gt;, ~standard deviation &lt;Delta sign&gt;/&lt;sign&gt;,pgen</blockquote>
 </dd>
 <dt>n:</dt>
-<dd><dl class="first last docutils">
-<dt>write a VERTEXMC file with the following info:</dt>
-<dd>0, #graphs, &lt;sign(W)&gt;, stdev(sign(W)), &lt;Delta&gt;, &lt;sign Delta&gt;/&lt;sign&gt;, &lt;Delta^2&gt;, acc ratio, trees ratio, nontree+ ratio, non-tree- ratio, &lt;Delta sign(W)&gt;, E~ reference, #sequences,w reference</dd>
-</dl>
+<dd><p class="first">write a VERTEXMC file with the following info:</p>
+<blockquote class="last">
+0, #graphs, &lt;sign(W)&gt;, stdev(sign(W)), &lt;Delta&gt;, &lt;sign Delta&gt;/&lt;sign&gt;, &lt;Delta^2&gt;, acc ratio, trees ratio, nontree+ ratio, non-tree- ratio, &lt;Delta sign(W)&gt;, E~ reference, #sequences,w reference</blockquote>
 </dd>
 </dl>
 </dd>
@@ -289,7 +292,7 @@ steps. This is slows the calculation down substantially.</p>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Aug 01, 2008.
+      Last updated on Aug 10, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
     </div>
   </body>
