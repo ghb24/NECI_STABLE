@@ -168,11 +168,13 @@ Monte Carlo options
     :math:`\tilde{E}_{\textrm{ref}}` is usually the 1-vertex graph:
 
     **EVERY**
-         write a VMC file with the following info, with a new line each
-         time the current graph changes:
+        write a VMC file with the following info, with a new line each
+        time the current graph changes:
+
              tot # virt steps, # steps in this graph, #verts, Class, Weight, Delta, <sign(W)>, <Delta sign(W)>, ~standard deviation <Delta sign>/<sign>,pgen 
     n:
         write a VERTEXMC file with the following info:
+
             0, #graphs, <sign(W)>, stdev(sign(W)), <Delta>, <sign Delta>/<sign>, <Delta^2>, acc ratio, trees ratio, nontree+ ratio, non-tree- ratio, <Delta sign(W)>, E~ reference, #sequences,w reference
 
 .. note::
