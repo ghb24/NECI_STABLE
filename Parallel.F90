@@ -179,6 +179,7 @@ Subroutine MPIHelSum(dValues, iLen, dReturn)
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
    end if
 end Subroutine
+
 End Module Parallel
 
 
@@ -199,14 +200,146 @@ Subroutine GetProcElectrons(iProcIndex,nProcessors, iMinElec, iMaxElec)
    nCur=((nProcessors+1-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
    nCur=nEl+1-(1+sqrt(1.d0+4*nCur))/2
    iMinElec=ceiling(nCur)
-   if(floor(nCur).eq.ceiling(nCur)) then
+! JSS: This causes problems when the nEl/nProc is an integer.
+! More thinking needed Alex! :-)
+!   if(floor(nCur).eq.ceiling(nCur)) then
 ! We hit smack bang on an integer for nCur, so to avoid duplicating this electron here and in the previous processor, we choose the next one.
-      iMinElec=iMinElec+1
-   endif
+!      iMinElec=iMinElec+1
+!   endif
    nCur=((nProcessors-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
    nCur=nEl+1-(1+sqrt(1.d0+4*nCur))/2
    iMaxElec=floor(nCur)
-End
+End subroutine GetProcElectrons
+
+
+
+subroutine ParMP2(nI)
+! Calculate the MP2 energy in parallel.
+! Designed for CPMD calculations.
+! Parallel used only for distribution of the wavefunctions and to
+! compute the integrals.
+! In:
+!    nI(nEl) : list of occupied spin orbitals in the reference 
+!              determinant.
+! Prints out the <D_0|H|D_0>+MP2 energy.
+
+! To do: 
+! 1. Write a custom routine to calculate the <D_0|H|D_1> elements.
+! This would then enable the excitations ij->ab,iJ->aB,Ij-Ab and IJ->AB
+! to be handled at once, removing the need to any integrals to be stored.
+! 2. Implement for standalone NECI calculations (molecular, Hubbard etc).
+
+   USE HElem
+   uSE MPI
+   Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
+   Use System, only: nEl,Beta,ARR,nBasis,ECore
+   Use Determinants, only: HElement, GetHElement3,GetH0Element3
+   IMPLICIT NONE
+   Integer nI(nEl)
+   integer iMinElec, iMaxElec
+   real*8 nCur
+   integer i
+   integer store(6),Excit(2,2)
+   integer ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
+   integer, pointer :: Ex(:)
+   integer nJ(nEl),weight
+   TYPE(HElement) dU
+   Type(HDElement) dE1,dE2
+   Type(HElement) dE,dEtot
+   logical tSign
+   
+   ! Generate both single and double excitations.  CPMD works in a Kohn--Sham
+   ! basis, and so Brillouin's theorem does not apply.
+   ExLevel=3
+   iC0=0
+
+   write(6,*) "Proc ",iProcIndex+1,"/",nProcessors
+   call GetProcElectrons(iProcIndex+1,nProcessors,iMinElec,iMaxElec)
+   ! For CPMD jobs, we actually want each processor to do the full sum, as each
+   ! integral is divided across the processors.
+   iMinElec=1
+   iMaxElec=nEl
+   write(6,*) "Electrons ", iMinElec, " TO ", iMaxElec
+
+!  The root's "energy"---sum over the eigenvalues of occ. spin orbitals and the
+!  core energy. Only used it the H0Element formulation is used (see below). 
+   dE1=GetH0Element3(nI)
+
+!  Initialize: get the contribution from the reference determinant.
+   dETot=GetHElement3(nI,nI,iC0)
+
+!  Now enumerate all 2v graphs
+!  Setup the spin excit generator
+   STORE(1)=0
+!  IC is the excitation level (relative to the reverence det).
+   CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+   Allocate(Ex(exLen))
+   EX(1)=0
+   CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+
+!  Generate the first excitation
+   CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+   i=0
+
+!NJ(1) is zero when there are no more excitations.
+   DO WHILE(NJ(1).NE.0)
+      i=i+1
+
+! Quickest attempt (and useful for debugging).
+! Not as efficient as the code below, but clearer and useful for debugging.
+!      ! MP2 theory refers to the unperturbed excited determinant
+!      ! => use GetH0Element3 rather than GetHElement3.
+!      dE2=GetH0Element3(nJ)
+!      dU=GetHElement3(nI,nJ,iC)
+!      call getMP2E(dE1,dE2,dU,dE)
+!      dETot=dETot+dE
+
+! Alternatively, calculate the energy of the excited determinant
+! in reference to that of the reference determinant (i.e. setting dE1=0).
+      Excit(1,1)=2
+      call GetExcitation(nI,nJ,nEl,Excit,tSign)
+      if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.0) then
+          ! alpha,alpha -> alpha,alpha double excitation.
+          ! count for beta,beta  -> beta,beta as well.
+          weight=2
+      else if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.0) then
+          ! alpha,beta -> alpha,beta double excitation.
+          ! count for beta,alpha -> beta,alpha as well.
+          weight=2
+      else if (mod(Excit(1,1),2).eq.0.and.Excit(1,2).eq.0) then
+          ! alpha -> alpha single excitation.
+          ! count for beta->beta as well.
+          weight=2
+      else
+          ! The current excitation has an identical contribution to another
+          ! excitation, and is summed in with that excitation.
+          ! Get next excitation.
+          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+          cycle
+      end if
+      dU=GetHElement3(nI,nJ,iC)
+      dE2=Arr(Excit(2,1),2)-Arr(Excit(1,1),2)
+      if (Excit(2,2).ne.0) then
+          ! double excitation
+          dE2=dE2+HDElement(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
+      end if
+
+      call getMP2E(HDElement(0.d0),dE2,dU,dE)
+      dETot=dETot+HElement(weight)*dE
+! END  of more efficient approach.
+
+      ! Get next excitation.
+      CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+   ENDDO 
+
+   write(6,*) 'No. of excitations=',I
+   write(6,*) 'MP2 ENERGY =',dETot
+
+   deallocate(Ex)
+
+end subroutine ParMP2
+
+
 
 ! Par2vSum
 !
@@ -214,6 +347,10 @@ End
 !
 ! A parallel version of the 2-vertex sum
 !
+! This is not quite stable yet.
+! Issues:
+!  * Some problems remain with how electrons are distributed over processors.
+!  * Doesn't work for CPMD calculations.
 ! 
 Subroutine Par2vSum(nI)
    USE HElem
@@ -226,7 +363,6 @@ Subroutine Par2vSum(nI)
    integer iMinElec, iMaxElec
    real*8 nCur
    integer i
-   integer nPr
    integer store(6)
    integer ic,exlen,iC0
    integer, pointer :: Ex(:)
@@ -235,7 +371,6 @@ Subroutine Par2vSum(nI)
    Type(HDElement) dE1,dE2
    Type(HElement) dEw,dw,dEwtot,dwtot,dTots(2),dTots2(2)
    iC0=0
-   nPr=nProcessors
    i=iProcIndex+1
    write(6,*) "Proc ",i,"/",nProcessors
    call GetProcElectrons(iProcIndex+1,nProcessors,iMinElec,iMaxElec)
@@ -256,6 +391,7 @@ Subroutine Par2vSum(nI)
 ! Now enumerate all 2v graphs
 !.. Setup the spin excit generator
    STORE(1)=0
+!  IC is the excitation level (relative to the reverence det).
    CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,0,STORE,3,iMinElec,iMaxElec)
    Allocate(Ex(exLen))
    EX(1)=0
@@ -276,66 +412,125 @@ Subroutine Par2vSum(nI)
       CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,3,iMinElec,iMaxElec)
    ENDDO 
    write(6,*) I
-   write(6,*) dEwTot,dwTot, dEwTot/dwTot
+   write(6,*) dEwTot,dwTot,dEwTot/dwTot
    dTots(1)=dwTot
    dTots(2)=dEwTot
    Call MPIHelSum(dTots,2,dTots2)
-   write(6,*) dTots2(2),dTots2(2),dTots2(2)/dTots2(1)
+   write(6,*) dTots2(2),dTots2(1),dTots2(2)/dTots2(1)
    deallocate(Ex)
 End Subroutine
 
 
-!Get the MP2 energy contribution for an excitation 1->2
 subroutine getMP2E(dE1,dE2,dU,dE)
+   ! Get the MP2 energy contribution for an excitation 1->2
+   ! In:
+   !    dE1 energy of reference determinant.
+   !    dE2 energy of excited determinant.
+   !    dU  Cross term of Hamiltonian matrix, < 1 | H | 2 >.
+   ! Out:
+   !    dE = |< 1 | H | 2 >|^2 / (dE2 - dE1)
+   !         contribution to the MP2 energy.
+   use HElem
    implicit none
-   real*8 dE1,dE2,dU,dE
-   dE=dU*dU/(dE1-dE2)
+   type(HDElement) dE1,dE2
+   type(HElement) dU,dE
+   dE=Sq(dU)/(dE1%v-dE2%v)
 end subroutine
 
 
-!Get the two-vertex contribution from a graph given its matrix elements.  Weights are divided by exp(-beta E1)
+! Get the two-vertex contribution from a graph containing the reference
+! determinant, 0, and a connected determinant, i, given its matrix elements.
+! Weights are divided by exp(-beta E1)
 
-!Get the two-vertex contribution from a graph given its matrix elements.  Weights are divided by exp(-beta E1)
+! Each two vertex graph is represented by a 2x2 (Hermitian) matrix
+!  | dE1   dU  |
+!  | dU*   dE2 |
+! The eigenvalues are [ (dE1+dE2) +- \Sqrt( (dE1+dE2) - 4dE1*dE2 + 4|dU|^2 ) ]/2.
+! where:
+!   dE1=<D_0|H|D_0>
+!   dE2=<D_i|H|D_i>
+!   dU =<D_0|H|D_i>
+! Denoting the eigenvalues as dEp and dEm, the normalised eigenvectors are:
+!   \frac{1}{\Sqrt{ dU^2 + (dE1-dEp)^2 } ( U, dEp-dE1 )
+!   \frac{1}{\Sqrt{ dU^2 + (dE1-dEm)^2 } ( U, dEm-dE1 )
+
 subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
+   ! In:
+   !    dE1    <D_0|H|D_0>
+   !    dE2    <D_i|H|D_i>
+   !    dU     <D_0|H|D_i>
+   !    dBeta  beta
+   ! Out:
+   !    dw     weight of the graph, w_i[G]
+   !    dEt    weighted contribution of the graph, w_i[G] \tilde{E}_i[G]
+   use HElem
    implicit none
-   real*8 dE1,dE2,dU,dEt,dw,dBeta
-   real*8 dEp,dEm,dD,dEx,dD2
-   real*8 dTmp
-   if(dU.eq.0) then
+   type(HDElement) dE1,dE2
+   type(HElement) dU,dEt,dw
+   real*8 dBeta
+   type(HElement) dEp,dEm,dD,dEx,dD2,dTmp
+   if(abs(dU%v).eq.0.d0) then
+      ! Determinants are not connected.
+      ! => zero contribution.
       dw=0.D0
       dEt=0.D0
       return 
    endif
-   dD=(dE1+dE2)**2-4*dE1*dE2+4*dU*dU
-   dD=sqrt(dD)/2
+
+!  Calculate eigenvalues.
+!   write (6,*) dE1,dE2,dU
+
+   dD=HElement((dE1%v+dE2%v)**2-4*(dE1%v*dE2%v)+4*abs(dU%v)**2)
+
+!   write (6,*) dD
+
+   dD=sqrt(dD%v)/2
    dEp=(dE1+dE2)/2
    dEm=dEp-dD
    dEp=dEp+dD
+
+!   write (6,*) dD,dEp,dEm
+
 !  The normalized first coefficient of an eigenvector is U/sqrt((dE1-dEpm)**2+U**2)
-   dD=1/sqrt((dE1-dEp)**2+dU**2)
-   dD2=dD*(dEp-dE1)
-   dD=dD*dU
+   dD=1/sqrt((dE1%v-dEp%v)**2+abs(dU%v)**2) ! normalisation factor
+   dD2=dD%v*(dEp%v-dE1%v)               ! second coefficient
+   dD=dD*dU                           ! first coefficient
+   
+!   write (6,*) dD,dD2
+
 !dD is the eigenvector component
-   dEx=exp(-dBeta*(dEp-dE1))
-   dw=dD*dD*dEx
-   dEt=dE1*dD*dD*dEx
-   dEt=dEt+dU*dD*dD2*dEx
+   dEx=exp(-dBeta*(dEp%v-dE1%v))
+   dw=sq(abs(dD))*dEx%v
+   dEt=dE1%v*sq(abs(dD))*dEx%v
+   dEt=dEt+dU*dD*dconjg(dD2)*dEx
+   
+!   write (6,*) dEx,dw,dEt
+
 !   write(6,*) dEp,dD,dD2,dw,dEx,dBeta
-!  This can be numerically unstable when dE1 is v close to dEm
-!   Instead we just swap dD2 and dD around
-!   dD=1/sqrt((dE1-dEm)**2+dU**2)
-!   dD2=dD*(dEm-dE1)
-!   dD=dD*dU
+!  This can be numerically unstable when dE1 is v close to dEm:
+!      dD=1/sqrt((dE1-dEm)**2+dU**2)
+!      dD2=dD*(dEm-dE1)
+!      dD=dD*dU
+!  Instead we just swap dD2 and dD around
    dTmp=dD
-   dD=dD2
-   dD2=-dTmp
-   dEx=exp(-dBeta*(dEm-dE1))
-   dw=dw+dD*dD*dEx
+   dD=dconjg(dD2)
+   dD2=-dconjg(dTmp)
+   dEx=exp(-dBeta*(dEm%v-dE1%v))
+   dw=dw+HElement(sq(abs(dD))*dEx%v)
 !   write(6,*) dEm,dD,dD2,dw,dEx
-   dEt=dEt+dE1*dD**2*dEx
-   dEt=dEt+dU*dD*dD2*dEx
-   dEt=dEt-dE1
-   dw=dw-1
+   dEt=dEt+HElement(dE1%v*sq(abs(dD))*dEx%v)
+   dEt=dEt+dU*dD*dconjg(dD2)*dEx
+
+!  Now, we already have calculated the effect of the one-vertex graph, so
+!  we need to remove the double-counting of this from the 2-vertex graph.
+!  For the one-vertex graph containing just i:
+!     w_i[i] = exp(-\beta E_i)
+!     w_i[i] \tilde{E}_i[i] = exp(-\beta E_i) E_i
+!  As we factor out exp(-\beta E_i), this becomes just:
+   dEt=dEt-HElement(dE1%v)
+   dw=dw-HElement(1)
+   write (6,*) 'wE,E',dEt,dw
+   
 end subroutine
 #else
 module Parallel
