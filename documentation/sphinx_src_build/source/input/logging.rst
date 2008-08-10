@@ -8,7 +8,10 @@ Logging
  All the logging options should say to which file they print output.  Please correct this!
 
 **LOGGING**
-  Start the logging input block.  The logging options allow additional (potentially expensive, potentially verbose) information to be printed out during a calculation.  By default, all logging options are turned off.
+  Start the logging input block.  The logging options allow additional
+  (potentially expensive, potentially verbose) information to be
+  printed out during a calculation.  By default, all logging options
+  are turned off.
 
 [Logging options---see below.]
 
@@ -24,9 +27,11 @@ General options
     Log the following to the PATHS file:
 
     **LABEL**
-       Logs the determinants contained by each graph as each determinant is generated in the format:
+       Logs the determinants contained by each graph as each determinant
+       is generated in the format:
        [:math:`(D_0),(D_1),...,D_v),`]
-       where each determinant given as a comma-separated list of the indices of the occupied orbitals:
+       where each determinant given as a comma-separated list of the
+       indices of the occupied orbitals:
        e.g. :math:`D_0 =` (    1,    2,    9,   10,).
 
        If CSFs are being used, then the CSF is printed.  There is no newline after this.
@@ -95,8 +100,8 @@ General options
    eigenvectors during a Hartree--Fock calculation are printed out to SDOUT.
 
 **MCPATHS**     
-    Log MCPATHS data to the MCPATHS file for full vertex sum and MCSUMMARY file when
-    using a METHODS section.  Also log to the RHOPII file.
+    Log MCPATHS data to the MCPATHS file for full vertex sum and MCSUMMARY
+    file when using a METHODS section.  Also log to the RHOPII file.
 
 **PSI**
     Log PSI_COMP.
@@ -141,10 +146,10 @@ PRECALC options
    Allows different logging levels to be used in the **PRECALC** block
    than for the main calculation.
 
-   All logging options specified before **SAVEPRECALCLOGGING** are only used in
-   the the **PRECALC** part of the calculation.  All logging options specified
-   after  **SAVEPRECALCLOGGING** are only used in the the main part of the
-   calculation.
+   All logging options specified before **SAVEPRECALCLOGGING** are only
+   used in the the **PRECALC** part of the calculation.  All logging
+   options specified after  **SAVEPRECALCLOGGING** are only used in the
+   the main part of the calculation.
 
 Monte Carlo options
 -------------------
@@ -163,7 +168,8 @@ Monte Carlo options
     :math:`\tilde{E}_{\textrm{ref}}` is usually the 1-vertex graph:
 
     **EVERY**
-         write a VMC file with the following info, with a new line each time the current graph changes:
+         write a VMC file with the following info, with a new line each
+         time the current graph changes:
              tot # virt steps, # steps in this graph, #verts, Class, Weight, Delta, <sign(W)>, <Delta sign(W)>, ~standard deviation <Delta sign>/<sign>,pgen 
     n:
         write a VERTEXMC file with the following info:
