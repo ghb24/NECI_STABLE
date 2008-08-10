@@ -240,7 +240,7 @@ MODULE FciMCMod
                         CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
 
                         !TESTS
-                        CALL GetSymExcitCount2(CurrentExcits(j)%ExcitData,MaxExcits)
+                        CALL GetSymExcitCount(CurrentExcits(j)%ExcitData,MaxExcits)
                         IF(ABS((1.D0/MaxExcits)-Prob).gt.1.D-07) THEN
                             WRITE(6,*) "PROBLEM WITH PGENS!"
                             WRITE(6,*) MaxExcits,1.D0/MaxExcits,Prob

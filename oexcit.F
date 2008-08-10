@@ -379,7 +379,7 @@ C         WRITE(6,"(2I,$)"),I,IC
          ENDDO
 C         WRITE(6,*) NTYPE
       END
-
+#if 0
 C.. Get a count of the number of excitations in this excitor.  
 C.. If it hasn't yet been generated, it is generated, otherwise
 C.. it is just returned
@@ -412,7 +412,7 @@ C            CALL WRITEDET(6,NI,NEL,.TRUE.)
          IC=NMEM(6)
          RETURN
       END
-
+#endif
 C.. COunt the total number of symmetric excitations - it stores
 C.. each individual type's count in the TYPES(5,*)
       SUBROUTINE COUNTSYMEXCIT2(NI,NEL,G1,NBASIS,NBASISMAX,NEX,
