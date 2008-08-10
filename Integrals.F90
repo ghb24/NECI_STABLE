@@ -615,7 +615,7 @@ MODULE Integrals
          USE HElem
          use System, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr
          use OneEInts
-         USE UMatCache, only: FreezeTransfer,GetUMatEl,UMatCacheData,UMatInd,TUMat2D
+         USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
          Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
          use UMatCache, only: GTID
          IMPLICIT NONE
@@ -874,7 +874,228 @@ MODULE Integrals
          Call DetFreezeBasis(GG)
          
          RETURN
-      END   subroutine intfreezebasis
+      end subroutine intfreezebasis
+
+
+
+      function GetUMatEl2(I,J,A,B)
+      ! A wrapper for GetUMatEl, now everything is available via modules.
+      ! In:
+      !    I,J,A,B: indices of integral
+      ! Returns <ij|ab>
+         use System, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
+         implicit none
+         TYPE(HElement) GetUMatEl2
+         integer :: I,J,A,B
+         
+         GetUMatEl2=GetUMatEl(nBasisMax,UMat,ALAT,nBasis,iSpinSkip,G1,I,J,A,B)
+
+      end function GetUMatEl2
+
+
+
+      FUNCTION GetUMatEl(NBASISMAX,UMATstore,ALAT,NHG,ISS,G1,IDI,IDJ,IDK,IDL)
+      ! Get a U matrix element <ij|u|kl> in multifarious ways, where orbitals
+      ! are spatial orbitals.  Either from a passed-in UMAT, or ALAT parameters
+      ! (Hubbard, UEG, particle in a box), or from UMatcache (CPMD, DF).
+      ! In:
+      !    nBasisMax: legacy.  Contains some information that Alex is not clear on (rant at will).
+      !    UMatstore: Store of <ij|u|kl> integrals.
+      !    ALAT: Size of cell/box for Hubbard/UEG/particle in a box.
+      !    iSS: as above in GetUMatSize.
+      !    NHG: # basis functions.`
+      !    G1: symmetry and momentum information on the basis functions.
+      !    IDI,IDJ,IDK,IDL: indices for integral.
+         use System, only: Symmetry,BasisFN,tVASP
+         use UMatCache
+         use vasp_neci_interface, only: CONSTRUCT_IJAB_one
+         IMPLICIT NONE
+         TYPE(HElement) GetUMatEl
+         INTEGER nBasisMax(5,*),I,J,K,L,NHG,ISS
+         TYPE(BasisFN) G1(NHG)
+         REAL*8 ALAT(3),GetNan
+         TYPE(HElement) UMATstore(*)
+         TYPE(HElement) UElems(0:nTypes-1)
+         complex*16 vasp_int(1,0:1)
+         INTEGER A,B,C,XXX
+         INTEGER IDI,IDJ,IDK,IDL
+         REAL*8 SUM
+         real*8, PARAMETER :: PI=3.14159265358979323846264338327950288419716939937510D0
+         INTEGER ICACHE,ICACHEI,ITYPE
+         LOGICAL LSYMSYM
+         TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
+         INTEGER ISUB,ISUB2
+         Type(Symmetry) TotSymRep
+         logical GetCachedUMatEl,calc2ints
+!   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
+!   Otherwise we just look it up in umat
+         IF(NBASISMAX(1,3).GE.0) THEN
+
+!   See if we need to calculate on the fly
+            IF(ISS.EQ.0) THEN
+
+!  JSS - store <ij|ij> and <ij|ji> in UMAT2D.
+!   Remember permutations.  
+!   <ij|ji> = <ii|jj>
+
+!.. Complex case is more difficult.
+
+!  <ii|ii> is always real and allowed
+!  <ij|ij> is always real and allowed (densities i*i and j*j)
+!  <ij|ji> is always real and allowed (codensities i*j and j*i = (i*j)*)
+!  <ii|jj> is not stored in UMAT2D, and may not be allowed by symmetry.  It can be complex.
+           IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL.AND.TUMAT2D) THEN
+!    <ii|ii>
+             GETUMATEL=UMAT2D(IDI,IDI)
+           ELSE IF (IDI.eq.IDK.and.IDJ.eq.IDL.AND.TUMAT2D) THEN
+!   <ij|ij>
+             I=MIN(IDI,IDJ)
+             J=MAX(IDI,IDJ)
+             GETUMATEL=UMAT2D(I,J)
+           ELSE IF (IDI.eq.IDL.and.IDJ.eq.IDK.AND.TUMAT2D) THEN
+!   <ij|ji>
+             I=MAX(IDI,IDJ)
+             J=MIN(IDI,IDJ)
+             GETUMATEL=UMAT2D(I,J)
+!          ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
+!   <ii|jj> = <ij|ji> Only for real systems (and not for the local exchange
+!   scheme.)
+!            I=MAX(IDI,IDK)
+!            J=MIN(IDI,IDK)
+!            GETUMATEL=UMAT2D(I,J)
+           ELSE
+!   Check to see if the umat element is in the cache
+               I=IDI
+               J=IDJ
+               K=IDK
+               L=IDL
+               SYM=TotSymRep()
+               SYM=SYMPROD(SYM,SYMCONJ(G1(I*2-1)%Sym))
+               SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
+               SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
+               SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
+!   Check the symmetry of the 4-index integrals
+              IF(.NOT.LSYMSYM(SYM)) THEN
+                  GETUMATEL=0.D0
+                  RETURN
+              ELSE
+               
+!First check whether we can reduce a set of k-points to a simpler symmetry related one
+              If(HasKPoints()) THEN
+                IF(TTRANSFINDX) THEN
+                 I=TransTable(I)
+                 J=TransTable(J)
+                 K=TransTable(K)
+                 L=TransTable(L)
+                ENDIF
+                ! As we're not looping over i,j,k,l, it's safe to return the
+                ! k-pnt related labels in the same variables.
+                call KPntSymInt(I,J,K,L,I,J,K,L)
+                IF(TTRANSFINDX) THEN
+                 I=InvTransTable(I)
+                 J=InvTransTable(J)
+                 K=InvTransTable(K)
+                 L=InvTransTable(L)
+                ENDIF
+               ENDIF
+!   This will rearrange I,J,K,L into the correct order
+!   (i,k)<=(j,l) and i<=k, j<=l.
+               IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B,ITYPE)) THEN
+!   We don't have a stored UMAT - we call to generate it.
+                  IF(tDFInts) THEN
+!   We're using density fitting
+                     Call GetDF2EInt(I,J,K,L,UElems)
+                     GetUMatEl=UElems(0)
+                  ELSE IF (tVASP) then
+                     IF(TTRANSFINDX) THEN
+                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),vasp_int(1,0))
+                        CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(L),TRANSTABLE(K),TRANSTABLE(J),vasp_int(1,1))
+                     ELSE
+                        CALL CONSTRUCT_IJAB_one(I,J,K,L,vasp_int(1,0))
+                        CALL CONSTRUCT_IJAB_one(I,L,K,J,vasp_int(1,1))
+                     END IF
+                     UElems(0)=HElement(vasp_int(1,0))
+                     UElems(1)=HElement(vasp_int(1,1))
+                     GetUMatEl=UElems(0)
+!  Bit 0 tells us which integral in the slot we need
+                     GETUMATEL=UElems(IAND(ITYPE,1))
+!  Bit 1 tells us whether we need to complex conj the integral
+                     IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
+                  ELSE
+!   Otherwise we call CPMD
+!   Only need <IJ|KL> if we're doing a 2-vertex calculation unless the integral
+!   is for a single excitation, in which case we need <IL|JK> as well.
+                     calc2ints=gen2CPMDInts.or.(IDI.eq.IDJ.or.IDI.eq.IDK.or.IDI.eq.IDL.or.IDJ.eq.IDK.or.IDJ.eq.IDL)
+                     IF(TTRANSFINDX) THEN
+                        CALL INITFINDXI(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),UElems,calc2ints)
+                     ELSE
+                        CALL INITFINDXI(I,J,K,L,UElems,calc2ints)
+!InitFindxI returns up to two integrals in UElems
+!  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).
+!  TYPE 0          TYPE 1
+
+                     ENDIF
+!  Bit 0 tells us which integral in the slot we need
+                     GETUMATEL=UElems(IAND(ITYPE,1))
+!  Bit 1 tells us whether we need to complex conj the integral
+                     IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
+                  ENDIF
+!  Because we've asked for the integral in the form to be stored, we store as iType=0
+                  IF(ICACHE.NE.0) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI,0)
+                  NMISSES=NMISSES+1
+               ELSE
+                  NHITS=NHITS+1
+              ENDIF
+             ENDIF
+           ENDIF
+
+          ELSEIF(ISS.EQ.-1) THEN
+
+!  A  non-stored hubbard integral.
+          CALL GetHubUMatEl(IDI,IDJ,IDK,IDL,UMatstore,nBasisMax,G1,GetUMatEl)
+
+          ELSE
+             IF(TSTARSTORE) THEN
+                 IF(.not.TUMAT2D) STOP 'UMAT2D should be on'
+                 IF(IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL) THEN
+!    <ii|ii>
+                     GETUMATEL=UMAT2D(IDI,IDI)
+                 ELSEIF (IDI.eq.IDK.and.IDJ.eq.IDL) THEN
+!   <ij|ij> - coulomb
+                     I=MIN(IDI,IDJ)
+                     J=MAX(IDI,IDJ)
+                     GETUMATEL=UMAT2D(I,J)
+                 ELSEIF (IDI.eq.IDL.and.IDJ.eq.IDK) THEN
+!   <ij|ji> - exchange
+                     I=MAX(IDI,IDJ)
+                     J=MIN(IDI,IDJ)
+                     GETUMATEL=UMAT2D(I,J)
+                 ELSEIF (IDI.eq.IDJ.and.IDK.eq.IDL) THEN
+                     I=MAX(IDI,IDK)
+                     J=MIN(IDI,IDK)
+                     GETUMATEL=UMAT2D(I,J)
+                 ELSE
+                     XXX=UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0)
+                     IF(XXX.ne.-1) THEN
+                         GETUMATEL=UMATstore(XXX)
+                     ELSE
+                         GETUMATEL=HElement(GETNAN())
+                     ENDIF
+                 ENDIF
+             ELSE
+                 GETUMATEL=UMATstore(UMatInd(IDI,IDJ,IDK,IDL,0,0))
+             ENDIF
+          ENDIF
+
+         ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
+            CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
+         ENDIF
+
+         RETURN
+      END FUNCTION GetUMatEl
+
+
+
       SUBROUTINE WRITESYMCLASSES(NBASIS)
         USE HElem
         use System, only: BasisFN,BasisFNSize,BasisFNSizeB

@@ -229,7 +229,8 @@ MODULE SymExcit2
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElem
-         USE UMatCache , only : GetUMatEl,GTID
+         USE UMatCache , only : GTID
+         USE Integrals, only : GetUMatEl
          use System, only: BasisFN
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NBASIS

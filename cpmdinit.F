@@ -203,9 +203,10 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          USE HElem
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
          use System, only: BasisFN
+         use Integrals, only: GetUMatEl
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
-     &                        SetupUMatCache,GetUMatEl
+     &                        SetupUMatCache
          use OneEInts, only: TMat2D,tCPMDSymTMat,TMatSym
          use OneEInts, only: TMatInd
          use MemoryManager, only: LogMemAlloc,LogMemDealloc

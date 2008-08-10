@@ -173,7 +173,7 @@ END
       END
 
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl,nBasisMax,UMat,ALat,nBasis,iss,G1)
-         use UMatCache, only : GetUMatEl
+         use Integrals, only : GetUMatEl
          USE HElem
          use System, only: BasisFN
          implicit none

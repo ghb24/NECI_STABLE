@@ -216,6 +216,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
       subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,Arr,ALAT,UMat,ECore,hEl)
          USE HElem
+         use Integrals, only: GetUMatEl
          use UMatCache
          use System, only: BasisFN
          implicit none

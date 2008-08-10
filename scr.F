@@ -3,6 +3,7 @@ C.. TMAT has sometimes been hidden in ZIA
      &	G1,NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,TOTSUM)
       USE HElem
       Use OneEInts, only: GetTMatEl
+      use Integrals, only: GetUMatEl
       USE UMatCache
       use System, only: BasisFN
       IMPLICIT NONE

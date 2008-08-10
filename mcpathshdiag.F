@@ -638,7 +638,8 @@ C            CALL PRINT_MEMORY()
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,
      &      NBASISMAX,UMAT,G1,DLWDB2)
          USE HElem
-         USE UMatCache , only : GetUMatEl,GTID
+         USE UMatCache , only : GTID
+         USE Integrals, only : GetUMatEl
          use System, only: BasisFN
          IMPLICIT NONE
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p

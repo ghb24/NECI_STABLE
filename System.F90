@@ -49,7 +49,7 @@ MODULE System
         integer nocc
         REAL*8 OMEGA
         logical tSpinPolar
-        INTEGER iSpinSkip
+        INTEGER iSpinSkip ! Often referred to as ISS.
 
 !From Calc  
         REAL*8 Beta
