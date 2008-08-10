@@ -379,40 +379,44 @@ C         WRITE(6,"(2I,$)"),I,IC
          ENDDO
 C         WRITE(6,*) NTYPE
       END
-#if 0
+
+! Legacy code
+!      
 C.. Get a count of the number of excitations in this excitor.  
 C.. If it hasn't yet been generated, it is generated, otherwise
 C.. it is just returned
-      SUBROUTINE GETSYMEXCITCOUNT(NI,NEL,G1,NBASIS,NBASISMAX,
-     &         NMEM,IC,IFRZ)
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS
-         INTEGER NLIST,nBasisMax(5,*)
-         INTEGER G1(5,NBASIS)
-         INTEGER TYPES(5,*),NTYPES
-         POINTER (IP_TYPES, TYPES)
-         INTEGER I,IC
-         INTEGER ISYM(5)
-         LOGICAL TSYM
-         LOGICAL TSETUP
-         INTEGER NMEM(*)
-         INTEGER IFRZ(0:NBASIS)
-         IF(NMEM(1).EQ.0) THEN
-C.. this is the first time we've been called with allocated memory.
-C.. NTYPES=0, so we need to find the excitation types again
-C.. The first time counts them again (inelegant, but not too
-C.. time-consuming), and the second time saves them
-            CALL IAZZERO(NMEM(1),10)
-C            WRITE(6,*) "SETUP"
-C            WRITE(6,*) NMEM(6)
-C            CALL WRITEDET(6,NI,NEL,.TRUE.)
-            CALL COUNTSYMEXCIT2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(6),
-     &      NMEM(11+(NEL+NBASIS+8)*4),NMEM(1),IFRZ)
-         ENDIF
-         IC=NMEM(6)
-         RETURN
-      END
-#endif
+!      SUBROUTINE GETSYMEXCITCOUNT(NI,NEL,G1,NBASIS,NBASISMAX,
+!     &         NMEM,IC,IFRZ)
+!         IMPLICIT NONE
+!         INTEGER NEL,NI(NEL),NBASIS
+!         INTEGER NLIST,nBasisMax(5,*)
+!         INTEGER G1(5,NBASIS)
+!         INTEGER TYPES(5,*),NTYPES
+!         POINTER (IP_TYPES, TYPES)
+!         INTEGER I,IC
+!         INTEGER ISYM(5)
+!         LOGICAL TSYM
+!         LOGICAL TSETUP
+!         INTEGER NMEM(*)
+!         INTEGER IFRZ(0:NBASIS)
+!         IF(NMEM(1).EQ.0) THEN
+!C.. this is the first time we've been called with allocated memory.
+!C.. NTYPES=0, so we need to find the excitation types again
+!C.. The first time counts them again (inelegant, but not too
+!C.. time-consuming), and the second time saves them
+!            CALL IAZZERO(NMEM(1),10)
+!C            WRITE(6,*) "SETUP"
+!C            WRITE(6,*) NMEM(6)
+!C            CALL WRITEDET(6,NI,NEL,.TRUE.)
+!            CALL COUNTSYMEXCIT2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM(6),
+!     &      NMEM(11+(NEL+NBASIS+8)*4),NMEM(1),IFRZ)
+!         ENDIF
+!         IC=NMEM(6)
+!         RETURN
+!      END
+!      
+! End legacy code
+
 C.. COunt the total number of symmetric excitations - it stores
 C.. each individual type's count in the TYPES(5,*)
       SUBROUTINE COUNTSYMEXCIT2(NI,NEL,G1,NBASIS,NBASISMAX,NEX,
