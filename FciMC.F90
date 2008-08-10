@@ -1147,6 +1147,9 @@ MODULE FciMCMod
             IF(TExcludeRandGuide.and.(.not.EXCITFUNCS(10))) THEN
                 CALL Stop_All("InitFCIMCCalc","Cannot have excitation weighting if using ExcludeRandGuide unbiasing with a guiding function")
             ENDIF
+            IF(TExcludeRandGuide.and.(PRet.lt.0.D0)) THEN
+                CALL Stop_All("InitFCIMCCalc","Cannont have PRet=0 with EXCLUDERANDGUIDE unbiasing as cannot return to HF")
+            ENDIF
         ENDIF
 
 !TotWalkers contains the number of current walkers at each step
