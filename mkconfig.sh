@@ -176,6 +176,10 @@ else
   exec 3>&1
 fi
 
+# Use a different linker and linker flags for compiling the neci libraries,
+# if one is defined in the platform file.  This is especially useful
+# as it allows us to specify relocatable options and prevent libraries
+# being linked to the final binary twice.
 if [ -z "$LDLIB" ] ; then
   LDLIB=${LD}
   LDLIBFLAGS=${LDFLAGS}
