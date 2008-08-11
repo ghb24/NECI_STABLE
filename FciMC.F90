@@ -493,8 +493,13 @@ MODULE FciMCMod
             ELSE
                 CullInfo(NoCulls,1)=TotWalkers
             ENDIF
+            IF(mod(Iter,StepsSft).eq.0) THEN
 !CullInfo(:,3) is MC Steps into shift cycle before cull
-            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+!This is just before the calculation of the shift - we want the value to be equal to StepsSft
+                CullInfo(NoCulls,3)=StepsSft
+            ELSE
+                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+            ENDIF
 
             WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
             WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
@@ -513,8 +518,13 @@ MODULE FciMCMod
             ELSE
                 CullInfo(NoCulls,1)=TotWalkers
             ENDIF
+            IF(mod(Iter,StepsSft).eq.0) THEN
 !CullInfo(:,3) is MC Steps into shift cycle before cull
-            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+!This is just before the calculation of the shift - we want the value to be equal to StepsSft
+                CullInfo(NoCulls,3)=StepsSft
+            ELSE
+                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+            ENDIF
 
             WRITE(6,*) "Doubling particle population to increase total number..."
             CALL ThermostatParticles(.false.)
@@ -1947,6 +1957,7 @@ END FUNCTION Fact
 !!CullInfo(:,1) is walkers before cull
 !            CullInfo(NoCulls,1)=TotWalkers
 !!CullInfo(:,3) is MC Steps into shift cycle before cull
+!               THIS IS DONE INCORRECTLY NOW
 !            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 !
 !            WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
@@ -1967,6 +1978,7 @@ END FUNCTION Fact
 !!CullInfo(:,1) is walkers before cull
 !            CullInfo(NoCulls,1)=TotWalkers
 !!CullInfo(:,3) is MC Steps into shift cycle before cull
+!               THIS IS DONE INCORRECTLY NOW!!
 !            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 !            
 !            WRITE(6,*) "Doubling particle population to increase total number..."
