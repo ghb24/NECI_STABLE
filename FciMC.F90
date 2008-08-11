@@ -60,6 +60,7 @@ MODULE FciMCMod
     REAL*8 :: MeanExcitLevel
     INTEGER :: MinExcitLevel
     INTEGER :: MaxExcitLevel
+    INTEGER :: NoatDoubs,NoGenHF
 
     TYPE(HElement) :: rhii,FZero
     REAL*8 :: Hii
@@ -87,12 +88,12 @@ MODULE FciMCMod
         CALL InitFCIMCCalc()
 
         WRITE(6,*) ""
-        WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers        Proj.E      SumNoatHF     +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
-        WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers         Proj.E      SumNoatHF     +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
+        WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers        Proj.E      SumNoatHF     NoatDoubs   +veWalkFrac    MeanExcit  MinExcit   MaxExcit   NoGenHF"
+        WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers         Proj.E      SumNoatHF     NoatDoubs   +veWalkFrac    MeanExcit  MinExcit   MaxExcit   NoGenHF"
 
 !TotWalkersOld is the number of walkers last time the shift was changed
-        WRITE(15,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,2G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,1.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        WRITE(6,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,2G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,1.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(15,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,I9,2G16.7,2I6,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,NoatDoubs,1.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel,NoGenHF
+        WRITE(6,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,I9,2G16.7,2I6,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,NoatDoubs,1.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel,NoGenHF
 
 !Start MC simulation...
         do Iter=1,NMCyc
@@ -196,6 +197,7 @@ MODULE FciMCMod
                         IF(Ran2(Seed).lt.PRet) THEN
 !Ensure that we try to spawn children at HF -   Modify prob of doing this to equal PRet
                             SpawnBias=.true.
+                            NoGenHF=NoGenHF+1     !Count number of times we are trying to generate HF
                             IF(TExcludeRandGuide) THEN
 !In this method of unbiasing the Guiding function, we unbias completely at this stage
                                 Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),HFDet,PRet,2,CurrentH(2,j))
@@ -285,6 +287,7 @@ MODULE FciMCMod
                                 IF(SameDet(HFDet,nJ,NEl)) THEN
 !We are at a double, and have decided to randomly attempt a return to the guiding function HF determinant, so we need to change 
 !the Pgen - it wants to be unbiased by dividing by just PGen, not PGen*(1-PRet).
+                                    NoGenHF=NoGenHF+1       !Count HF Generation
                                     TotProb=Prob
                                 ELSE
                                     TotProb=TotProb*Prob    !TotProb should initially by 1, or 1-PRet if we are at a double
@@ -777,8 +780,8 @@ MODULE FciMCMod
         ProjectionE=SumENum/(REAL(SumNoatHF,r2))
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-        WRITE(15,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,2G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,PosFrac,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-        WRITE(6,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,2G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,PosFrac,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(15,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,I9,2G16.7,2I6,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,MeanExcitLevel,MinExcitLevel,MaxExcitLevel,NoGenHF
+        WRITE(6,"(I12,G16.7,I9,G16.7,I12,G16.7,I12,I9,2G16.7,2I6,I9)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,MeanExcitLevel,MinExcitLevel,MaxExcitLevel,NoGenHF
         CALL FLUSH(15)
         CALL FLUSH(6)
 
@@ -788,6 +791,8 @@ MODULE FciMCMod
         MeanExcitLevel=0.D0
         SumWalkersCyc=0
         PosFrac=0.D0
+        NoGenHF=0
+        NoatDoubs=0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
         TotSignOld=TotSign
@@ -816,6 +821,7 @@ MODULE FciMCMod
                 TotSign=TotSign-1
             ENDIF
         ELSEIF(ExcitLevel.eq.2) THEN
+            NoatDoubs=NoatDoubs+1   !Count number at double excitations in a cycle
 !At double excit - sum in energy
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum+Hij0
@@ -1044,6 +1050,8 @@ MODULE FciMCMod
         MeanExcitLevel=0.D0
         MinExcitLevel=NEl+10
         MaxExcitLevel=0
+        NoatDoubs=0
+        NoGenHF=0
 
         IF(TResumFciMC) THEN
             IF(NDets.gt.2) THEN
