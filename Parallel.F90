@@ -298,26 +298,42 @@ subroutine ParMP2(nI)
 ! in reference to that of the reference determinant (i.e. setting dE1=0).
       Excit(1,1)=2
       call GetExcitation(nI,nJ,nEl,Excit,tSign)
-      if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.0) then
-          ! alpha,alpha -> alpha,alpha double excitation.
-          ! count for beta,beta  -> beta,beta as well.
-          weight=2
-      else if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.0) then
-          ! alpha,beta -> alpha,beta double excitation.
-          ! count for beta,alpha -> beta,alpha as well.
-          weight=2
-      else if (mod(Excit(1,1),2).eq.0.and.Excit(1,2).eq.0) then
+      if (mod(Excit(1,1),2).eq.0.and.Excit(1,2).eq.0) then
           ! alpha -> alpha single excitation.
           ! count for beta->beta as well.
           weight=2
-      else
-          ! The current excitation has an identical contribution to another
-          ! excitation, and is summed in with that excitation.
-          ! Get next excitation.
+      else if (Excit(1,2).eq.0) then
           CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
           cycle
+      else if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.0) then
+          ! alpha,alpha -> alpha,alpha double excitation.
+          ! count for beta,beta  -> beta,beta as well.
+          weight=2
+      else if (mod(Excit(1,1),2).eq.1.and.mod(Excit(1,2),2).eq.1) then
+          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+          cycle
+      else if (mod(Excit(1,1),2).eq.1.and.mod(Excit(1,2),2).eq.0) then
+          ! alpha,beta -> alpha,beta double excitation.
+          ! count for beta,alpha -> beta,alpha as well.
+          weight=2
+      else if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.1) then
+!          weight=1
+          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+          cycle
+!      else 
+!          ! The current excitation has an identical contribution to another
+!          ! excitation, and is summed in with that excitation.
+!          ! Get next excitation.
+!           weight=1
+!          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+!          cycle
       end if
       dU=GetHElement3(nI,nJ,iC)
+      if ((mod(Excit(1,1),2).eq.1.and.mod(Excit(1,2),2).eq.0).or.(mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.1)) then
+          write (6,'(a1,2i4,a8,2i4,a1)') '(',Excit(1,:),') -> (',Excit(2,:),')'
+          write (6,*) dU
+          write (6,*) 
+      end if
       dE2=Arr(Excit(2,1),2)-Arr(Excit(1,1),2)
       if (Excit(2,2).ne.0) then
           ! double excitation
