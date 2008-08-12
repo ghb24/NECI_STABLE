@@ -12,7 +12,7 @@ MODULE Calc
 
         LOGICAL TSTAR,TTROT,TMCExcitSpace,TGrowInitGraph
         LOGICAL TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
-        LOGICAL TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER
+        LOGICAL TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER,tMP2Standalone
         LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
         LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
         LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
@@ -162,6 +162,7 @@ MODULE Calc
           TVVDISALLOW=.false.
           tMCDirectSum=.FALSE.
           TMPTHEORY=.FALSE.
+          tMP2Standalone=.FALSE.
           TMODMPTHEORY=.FALSE.
           G_VMC_PI = 0.95
           G_VMC_SEED = -7
@@ -350,6 +351,14 @@ MODULE Calc
                 TMODMPTHEORY=.TRUE.
             case("MPTHEORY")
                 TMPTHEORY=.TRUE.
+                if (item.lt.nitems) then
+                    ! Something else remains on the line.
+                    call readu(w)
+                    select case(w)
+                    case("ONLY")
+                        tMP2Standalone=.true.
+                    end select
+                end if
 !                if ( I_HMAX .ne. -7.and.
 !     &               I_HMAX .ne. -19) then
 !                    call report(trim(w)//" only valid for MC " 
@@ -851,15 +860,23 @@ MODULE Calc
           integer iSeed
           iSeed=7 
 
-!          call Par2vSum(FDet)
 !          call MCDetsCalc(FDet, iSeed, nwhtay(1))
 !          stop
     
-    !C.. we need to calculate a value for RHOEPS, so we approximate that
+!C.. we need to calculate a value for RHOEPS, so we approximate that
 !C.. RHO_II~=exp(-BETA*H_II/p).  RHOEPS is a %ge of this 
 !C.. If we haven't already calced RHOEPS, do it now
           Call DoExactVertexCalc()
-          IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
+
+          IF (tMP2Standalone) then
+#ifdef PARALLEL
+              call ParMP2(FDet)
+#else
+              call stop_all('CalcDoCalc','Standalone MP2 not yet implemented in serial.')
+#endif
+! Parallal 2v sum currently for testing only.
+!          call Par2vSum(FDet)
+          ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
 !Old and obsiolecte
 !             IF(TRHOIJND) THEN
 !C.. We're calculating the RHOs for interest's sake, and writing them,
@@ -921,7 +938,7 @@ MODULE Calc
                  WRITE(6,*) "NTAY: ",NTAY(1)," TENERGY: ",TENERGY
              ENDIF
           ENDIF
-          IF(TMONTE) THEN
+          IF(TMONTE.and..not.tMP2Standalone) THEN
 !             DBRAT=0.01
 !             DBETA=DBRAT*BETA
              WRITE(6,*) "I_HMAX:",I_HMAX
