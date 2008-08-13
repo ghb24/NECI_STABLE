@@ -354,8 +354,6 @@ cat << END >&3
 # Compile neci.x
 #----------------------------------------------------------------------------
 #MAIN_OBJS=necimain.o
-clean : 
-	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(DEST)/*.o \$(DEST)/*.mod
 
 neci.x : necimain.o \$(SRC)/environment_report.F90 \$(OBJECTS)
 	 rm -f environment_report.F90
@@ -378,6 +376,9 @@ neci-vasp.a : \$(OBJECTSVASPLIB)
 	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/environment_report.f90
 	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a environment_report.o \$(OBJECTSVASPLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
+
+clean : 
+	  rm -f \$(DEST)/*.{f,f90,mod,o,c,x,a}
 
 #----------------------------------------------------------------------------
 # Generate library libcpmd.a
@@ -431,8 +432,6 @@ DOBJECTS = \$(patsubst %,\$(DEST)/%,\$(OBJECTS))
 DOBJECTSF90 = \$(patsubst %,\$(DEST)/%,\$(OBJECTSF90))
 DOBJECTSF = \$(patsubst %,\$(DEST)/%,\$(OBJECTSF))
 DOBJECTSNOCPMD = \$(patsubst %,\$(DEST)/%,\$(OBJECTSNOCPMD))
-clean : 
-	  rm -f \$(DEST)/*.f90 \$(DEST)/*.f \$(DEST)/*.o \$(DEST)/*.mod
 
 neci.x : \$(DEST)/necimain.o \$(DOBJECTS) \$(OBJ_CC)
 	 \$(FC) -o \$(DEST)/environment_report.o \$(CPPFLAGS) \$(FFLAGS) environment_report.F90
@@ -450,6 +449,9 @@ neci-vasp.a : \$(OBJECTSVASPLIB)
 	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
      rm neci2.a
+
+clean : 
+	  rm -f \$(DEST)/*.{f,f90,mod,o,c,x,a}
 
 #----------------------------------------------------------------------------
 # Explicit rules
