@@ -40,7 +40,7 @@ MODULE FciMCMod
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=400
+    INTEGER :: MemoryFac=200
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,TotSign,TotSignOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
