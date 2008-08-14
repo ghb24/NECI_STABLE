@@ -55,14 +55,17 @@
 \contentsline {subsection}{\numberline {5.7.3}GraphMorph options}{33}{subsection.5.7.3}
 \contentsline {subsection}{\numberline {5.7.4}PRECALC options}{33}{subsection.5.7.4}
 \contentsline {subsection}{\numberline {5.7.5}Monte Carlo options}{33}{subsection.5.7.5}
-\contentsline {section}{\numberline {5.8}Examples}{34}{section.5.8}
-\contentsline {chapter}{\numberline {6}Output files}{35}{chapter.6}
-\contentsline {section}{\numberline {6.1}BLOCKS}{35}{section.6.1}
-\contentsline {section}{\numberline {6.2}CLASSPATHS}{35}{section.6.2}
-\contentsline {section}{\numberline {6.3}CLASSPATHS2}{36}{section.6.3}
-\contentsline {section}{\numberline {6.4}DETS}{36}{section.6.4}
-\contentsline {section}{\numberline {6.5}ENERGIES}{36}{section.6.5}
-\contentsline {section}{\numberline {6.6}HAMIL}{36}{section.6.6}
-\contentsline {section}{\numberline {6.7}MCPATHS and MCSUMMARY}{37}{section.6.7}
-\contentsline {section}{\numberline {6.8}RHOPII}{38}{section.6.8}
-\contentsline {section}{\numberline {6.9}RHOPIIex}{38}{section.6.9}
+\contentsline {chapter}{\numberline {6}Output files}{34}{chapter.6}
+\contentsline {section}{\numberline {6.1}BLOCKS}{34}{section.6.1}
+\contentsline {section}{\numberline {6.2}CLASSPATHS}{34}{section.6.2}
+\contentsline {section}{\numberline {6.3}CLASSPATHS2}{35}{section.6.3}
+\contentsline {section}{\numberline {6.4}DETS}{35}{section.6.4}
+\contentsline {section}{\numberline {6.5}ENERGIES}{35}{section.6.5}
+\contentsline {section}{\numberline {6.6}HAMIL}{35}{section.6.6}
+\contentsline {section}{\numberline {6.7}MCPATHS and MCSUMMARY}{36}{section.6.7}
+\contentsline {section}{\numberline {6.8}RHOPII}{37}{section.6.8}
+\contentsline {section}{\numberline {6.9}RHOPIIex}{37}{section.6.9}
+\contentsline {chapter}{\numberline {7}Example Input Files}{39}{chapter.7}
+\contentsline {section}{\numberline {7.1}Standalone MP2 calculations}{39}{section.7.1}
+\contentsline {subsection}{\numberline {7.1.1}CPMD}{39}{subsection.7.1.1}
+\contentsline {subsection}{\numberline {7.1.2}Molecular systems}{40}{subsection.7.1.2}

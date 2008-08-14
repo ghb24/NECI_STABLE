@@ -621,12 +621,25 @@ Return Path Monte Carlo options
 Perturbation theory options
 ---------------------------
 
-**MPTHEORY**
+**MPTHEORY** [**ONLY**]
     In addition to doing a graph theory calculation, calculate the Moller--Plesset
     energy to the same order as the maximum vertex level from the
     reference determinant (e.g. with 2-vertex sum the MP2 energy is
     obtained, with 3-vertex the MP3 energy etc.  Note that the MP2 energy
     can be obtained in conjunction with a **VERTEX STAR** calculation.
+
+    **ONLY**
+        Run only a MP2 calculation.  This is only available when
+        compiled in parallel.  The only relevant **CALC** options are the
+        **EXCITATIONS** options: all other **CALC** keywords are ignored
+        or over-ridden.  No **LOGGING** options are currently applicable.
+
+        Whilst in principle integrals are only used once, this optimal
+        algorithm is not currently implemented.  The speed of a **CPMD**-based
+        calculation thus benefits from having a **UMatCache** of non-zero size.
+
+        .. warning::
+            It is currently assumed that the calculation is restricted.
 
     .. note::
         INPUT_DOC has this to say::

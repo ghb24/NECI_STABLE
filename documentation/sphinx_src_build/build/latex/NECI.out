@@ -17,7 +17,6 @@
 \BOOKMARK [1][-]{section.5.5}{Calc}{chapter.5}
 \BOOKMARK [1][-]{section.5.6}{Integrals}{chapter.5}
 \BOOKMARK [1][-]{section.5.7}{Logging}{chapter.5}
-\BOOKMARK [1][-]{section.5.8}{Examples}{chapter.5}
 \BOOKMARK [0][-]{chapter.6}{Output files}{}
 \BOOKMARK [1][-]{section.6.1}{BLOCKS}{chapter.6}
 \BOOKMARK [1][-]{section.6.2}{CLASSPATHS}{chapter.6}
@@ -28,3 +27,5 @@
 \BOOKMARK [1][-]{section.6.7}{MCPATHS and MCSUMMARY}{chapter.6}
 \BOOKMARK [1][-]{section.6.8}{RHOPII}{chapter.6}
 \BOOKMARK [1][-]{section.6.9}{RHOPIIex}{chapter.6}
+\BOOKMARK [0][-]{chapter.7}{Example Input Files}{}
+\BOOKMARK [1][-]{section.7.1}{Standalone MP2 calculations}{chapter.7}

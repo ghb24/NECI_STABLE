@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{August 10, 2008}
+\date{August 14, 2008}
 \release{0.1}
 \author{Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -2026,12 +2026,28 @@ Set the bias at any point to spawn at the parent determinant.
 
 \subsection{Perturbation theory options}
 \begin{description}
-\item[\textbf{MPTHEORY}]
+\item[\textbf{MPTHEORY} {[}\textbf{ONLY}{]}]
 In addition to doing a graph theory calculation, calculate the Moller--Plesset
 energy to the same order as the maximum vertex level from the
 reference determinant (e.g. with 2-vertex sum the MP2 energy is
 obtained, with 3-vertex the MP3 energy etc.  Note that the MP2 energy
 can be obtained in conjunction with a \textbf{VERTEX STAR} calculation.
+\begin{description}
+\item[\textbf{ONLY}]
+Run only a MP2 calculation.  This is only available when
+compiled in parallel.  The only relevant \textbf{CALC} options are the
+\textbf{EXCITATIONS} options: all other \textbf{CALC} keywords are ignored
+or over-ridden.  No \textbf{LOGGING} options are currently applicable.
+
+Whilst in principle integrals are only used once, this optimal
+algorithm is not currently implemented.  The speed of a \textbf{CPMD}-based
+calculation thus benefits from having a \textbf{UMatCache} of non-zero size.
+
+\begin{notice}[warning]
+It is currently assumed that the calculation is restricted.
+\end{notice}
+
+\end{description}
 
 \begin{notice}[note]
 INPUT\_DOC has this to say:
@@ -3020,13 +3036,6 @@ steps. This is slows the calculation down substantially.
 \resetcurrentobjects
 
 
-\hypertarget{input-examples}{}\section{Examples}
-
-To be added.
-
-\resetcurrentobjects
-
-
 \hypertarget{output-index}{}\chapter{Output files}
 
 \resetcurrentobjects
@@ -3388,6 +3397,79 @@ E\textasciitilde{}\_i is the value of $\tilde{E}_{\veci}=\frac{\bra D_{\veci} | 
 
 Degeneracy is the number of symmetry related determinants which are not explicitly calculated.
 \end{quote}
+
+\resetcurrentobjects
+
+
+\hypertarget{example-inputs-index}{}\chapter{Example Input Files}
+
+\resetcurrentobjects
+
+
+\hypertarget{input-examples}{}\section{Standalone MP2 calculations}
+
+The \textbf{CALC} block is simply:
+
+\begin{Verbatim}[commandchars=@\[\]]
+Calc
+    MPTheory only
+EndCalc
+\end{Verbatim}
+
+
+\subsection{CPMD}
+
+For a straight-forward \textbf{CPMD}-based calculation using, say, 200 spin-virtuals, the input file is:
+
+\begin{Verbatim}[commandchars=@\[\]]
+System CPMD
+EndSys
+
+Calc
+    MPTheory only
+EndCalc
+
+Integrals
+    UMatCache MB 750
+    Freeze 0,-200
+EndInt
+\end{Verbatim}
+
+where we have also allocatabed a maximum of 750MB to be used in caching the integrals.
+
+If we wish to ignore the single excitations of the reference (Kohn--Sham) determinant, then we can use:
+
+\begin{Verbatim}[commandchars=@\[\]]
+System CPMD
+EndSys
+
+Calc
+    MPTheory only
+    Excitations doubles
+EndCalc
+
+Integrals
+    UMatCache MB 750
+    Freeze 0,-200
+EndInt
+\end{Verbatim}
+
+
+\subsection{Molecular systems}
+
+Similarly, for molecular systems, a valid input file is of the form:
+
+\begin{Verbatim}[commandchars=@\[\]]
+System READ
+    Electrons 36
+EndSys
+
+Calc
+    MPTheory only
+EndCalc
+\end{Verbatim}
+
+More to come.
 
 \begin{thebibliography}{ThomPhDThesis}
 \bibitem[SumPaper]{SumPaper}{

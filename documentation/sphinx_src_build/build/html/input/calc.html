@@ -631,12 +631,27 @@ come back to its origin.</dd>
 <div class="section" id="perturbation-theory-options">
 <h2 id="perturbation-theory-options">Perturbation theory options<a class="headerlink" href="#perturbation-theory-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
-<dt><strong>MPTHEORY</strong></dt>
+<dt><strong>MPTHEORY</strong> [<strong>ONLY</strong>]</dt>
 <dd><p class="first">In addition to doing a graph theory calculation, calculate the Moller&#8211;Plesset
 energy to the same order as the maximum vertex level from the
 reference determinant (e.g. with 2-vertex sum the MP2 energy is
 obtained, with 3-vertex the MP3 energy etc.  Note that the MP2 energy
 can be obtained in conjunction with a <strong>VERTEX STAR</strong> calculation.</p>
+<dl class="docutils">
+<dt><strong>ONLY</strong></dt>
+<dd><p class="first">Run only a MP2 calculation.  This is only available when
+compiled in parallel.  The only relevant <strong>CALC</strong> options are the
+<strong>EXCITATIONS</strong> options: all other <strong>CALC</strong> keywords are ignored
+or over-ridden.  No <strong>LOGGING</strong> options are currently applicable.</p>
+<p>Whilst in principle integrals are only used once, this optimal
+algorithm is not currently implemented.  The speed of a <strong>CPMD</strong>-based
+calculation thus benefits from having a <strong>UMatCache</strong> of non-zero size.</p>
+<div class="last admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">It is currently assumed that the calculation is restricted.</p>
+</div>
+</dd>
+</dl>
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
 <p>INPUT_DOC has this to say:</p>
@@ -1082,7 +1097,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Aug 10, 2008.
+      Last updated on Aug 14, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
     </div>
   </body>

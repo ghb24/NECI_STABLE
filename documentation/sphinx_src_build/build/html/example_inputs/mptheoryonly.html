@@ -2,7 +2,7 @@
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Examples &mdash; NECI v0.1 documentation</title>
+    <title>Standalone MP2 calculations &mdash; NECI v0.1 documentation</title>
     <link rel="stylesheet" href="../_static/default.css" type="text/css" />
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
@@ -19,9 +19,8 @@
     <link rel="index" title="Global index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
-    <link rel="up" title="Input options" href="index.html" />
-    <link rel="next" title="Output files" href="../output/index.html" />
-    <link rel="prev" title="Logging" href="logging.html" />
+    <link rel="up" title="Example Input Files" href="index.html" />
+    <link rel="prev" title="Example Input Files" href="index.html" />
   </head>
   <body>
     <div class="related">
@@ -31,13 +30,10 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="index.html" title="Example Input Files"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Example Input Files</a> &raquo;</li>
       </ul>
     </div>
     <div class="document">
@@ -46,9 +42,52 @@
           <div class="body">
             
   
-  <div class="section" id="examples">
-<span id="input-examples"></span><h1 id="examples"><span id="input-examples"></span>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h1>
-<p>To be added.</p>
+  <div class="section" id="standalone-mp2-calculations">
+<span id="input-examples"></span><h1 id="standalone-mp2-calculations"><span id="input-examples"></span>Standalone MP2 calculations<a class="headerlink" href="#standalone-mp2-calculations" title="Permalink to this headline">¶</a></h1>
+<p>The <strong>CALC</strong> block is simply:</p>
+<pre>Calc
+    MPTheory only
+EndCalc</pre>
+<div class="section" id="cpmd">
+<h2 id="cpmd">CPMD<a class="headerlink" href="#cpmd" title="Permalink to this headline">¶</a></h2>
+<p>For a straight-forward <strong>CPMD</strong>-based calculation using, say, 200 spin-virtuals, the input file is:</p>
+<pre>System CPMD
+EndSys
+
+Calc
+    MPTheory only
+EndCalc
+
+Integrals
+    UMatCache MB 750
+    Freeze 0,-200
+EndInt</pre>
+<p>where we have also allocatabed a maximum of 750MB to be used in caching the integrals.</p>
+<p>If we wish to ignore the single excitations of the reference (Kohn&#8211;Sham) determinant, then we can use:</p>
+<pre>System CPMD
+EndSys
+
+Calc
+    MPTheory only
+    Excitations doubles
+EndCalc
+
+Integrals
+    UMatCache MB 750
+    Freeze 0,-200
+EndInt</pre>
+</div>
+<div class="section" id="molecular-systems">
+<h2 id="molecular-systems">Molecular systems<a class="headerlink" href="#molecular-systems" title="Permalink to this headline">¶</a></h2>
+<p>Similarly, for molecular systems, a valid input file is of the form:</p>
+<pre>System READ
+    Electrons 36
+EndSys
+
+Calc
+    MPTheory only
+EndCalc</pre>
+</div>
 </div>
 
 
@@ -57,13 +96,20 @@
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+            <h3>Table Of Contents</h3>
+            <ul>
+<li><a class="reference external" href="">Standalone MP2 calculations</a><ul>
+<li><a class="reference external" href="#cpmd">CPMD</a></li>
+<li><a class="reference external" href="#molecular-systems">Molecular systems</a></li>
+</ul>
+</li>
+</ul>
+
             <h4>Previous topic</h4>
-            <p class="topless"><a href="logging.html" title="previous chapter">Logging</a></p>
-            <h4>Next topic</h4>
-            <p class="topless"><a href="../output/index.html" title="next chapter">Output files</a></p>
+            <p class="topless"><a href="index.html" title="previous chapter">Example Input Files</a></p>
             <h3>This Page</h3>
             <ul class="this-page-menu">
-              <li><a href="../_sources/input/examples.txt">Show Source</a></li>
+              <li><a href="../_sources/example_inputs/mptheoryonly.txt">Show Source</a></li>
             </ul>
             <h3>Quick search</h3>
             <form class="search" action="../search.html" method="get">
@@ -82,18 +128,15 @@
           <a href="../genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="../output/index.html" title="Output files"
-             accesskey="N">next</a> |</li>
-        <li class="right" >
-          <a href="logging.html" title="Logging"
+          <a href="index.html" title="Example Input Files"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
-          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Example Input Files</a> &raquo;</li>
       </ul>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Aug 10, 2008.
+      Last updated on Aug 14, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
     </div>
   </body>

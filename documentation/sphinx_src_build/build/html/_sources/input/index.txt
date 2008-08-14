@@ -15,4 +15,3 @@ Input options
    calc.rst
    integrals.rst
    logging.rst
-   examples.rst
