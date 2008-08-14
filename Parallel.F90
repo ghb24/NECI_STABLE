@@ -232,7 +232,7 @@ subroutine ParMP2(nI)
    USE HElem
    uSE MPI
    Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
-   Use System, only: nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb
+   Use System, only: nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb,tCPMD
    use Calc, only: NWHTAY
    Use Determinants, only: HElement, GetHElement3,GetH0Element3
    use MemoryManager, only: LogMemAlloc,LogMemDealloc
@@ -247,12 +247,14 @@ subroutine ParMP2(nI)
    integer :: nJ(nEl),weight
    TYPE(HElement) dU
    Type(HDElement) :: dE1,dE2
-   Type(HElement) :: dE,dEtot
+   Type(HElement) :: dE,dEtot,dE0
+   ! MPIHelSum requires arrays as input/output.
+   Type(HElement) :: dEarr(1),dEres(1)
    logical :: tSign
    integer :: isub,ierr,tag_Ex
    character(*), parameter :: this_routine='ParMP2'
 
-   call TiSet('    ParMP2',isub)
+   call TiSet('ParMP2    ',isub)
    
    select case(IAND(nWHTay(1,1),24))
    case(0)
@@ -273,11 +275,15 @@ subroutine ParMP2(nI)
    iC0=0
 
    write(6,*) "Proc ",iProcIndex+1,"/",nProcessors
-   call GetProcElectrons(iProcIndex+1,nProcessors,iMinElec,iMaxElec)
-   ! For CPMD jobs, we actually want each processor to do the full sum, as each
-   ! integral is divided across the processors.
-   iMinElec=1
-   iMaxElec=nEl
+   if (tCPMD) then
+       ! For CPMD jobs, we actually want each processor to do the full sum, as each
+       ! integral is divided across the processors.
+       iMinElec=1
+       iMaxElec=nEl
+   else
+       ! For other calculations, the sum is split over processors.
+       call GetProcElectrons(iProcIndex+1,nProcessors,iMinElec,iMaxElec)
+   end if
    write(6,*) "Electrons ", iMinElec, " TO ", iMaxElec
 
 !  The root's "energy"---sum over the eigenvalues of occ. spin orbitals and the
@@ -285,7 +291,7 @@ subroutine ParMP2(nI)
    dE1=GetH0Element3(nI)
 
 !  Initialize: get the contribution from the reference determinant.
-   dETot=GetHElement3(nI,nI,iC0)
+   dE0=GetHElement3(nI,nI,iC0)
 
 !  Now enumerate all 2v graphs
 !  Setup the spin excit generator
@@ -376,6 +382,7 @@ subroutine ParMP2(nI)
       end if
 
       call getMP2E(HDElement(0.d0),dE2,dU,dE)
+      write (6,'(2i3,a2,2i3,6f12.7)') Excit(1,:),'->',Excit(2,:),dU,dE2,dE
       dETot=dETot+HElement(weight)*dE
 ! END  of more efficient approach.
 
@@ -385,12 +392,20 @@ subroutine ParMP2(nI)
 
    write(6,*) 'No. of excitations=',I
    write(6,*) 'No. of spin-unique excitations=',J
+   if (tCPMD) then
+       dETot=dETot+dE0
+   else
+       write (6,'(a28,i3,a1,2f15.8)') 'Contribution from processor',iProcIndex+1,':',dEtot
+       dEarr(1)=dETot
+       call MPIHElSum(dEArr,1,dEres)
+       dETot=dEres(1)+dE0
+   end if
    write(6,*) 'MP2 ENERGY =',dETot
 
    deallocate(Ex)
    call LogMemDealloc(this_routine,tag_Ex)
 
-   call TiHalt('    ParMP2',isub)
+   call TiHalt('ParMP2    ',isub)
 
 end subroutine ParMP2
 
