@@ -9,6 +9,7 @@ MODULE FciMCMod
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    USE Logging , only : iWritePopsEvery,TPopsFile
     USE HElem
     IMPLICIT NONE
     SAVE
@@ -106,8 +107,16 @@ MODULE FciMCMod
                 CALL UpdateDiagSft()
             ENDIF
 
+            IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
+!This will write out the configuration of walkers
+                CALL WriteToPopsFile()
+            ENDIF
+
 !End of MC cycle
         enddo
+
+!Write out popsfile
+        IF(TPopsFile) CALL WriteToPopsFile
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
@@ -1201,13 +1210,32 @@ MODULE FciMCMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalc
+
+    SUBROUTINE WriteToPopsFile()
+        INTEGER :: j,k
+
+        WRITE(6,*) "Writing to POPSFILE..."
+        OPEN(17,FILE='POPSFILE',Status='unknown')
+        WRITE(17,*) TotWalkers, "   TOTWALKERS"
+        WRITE(17,*) DiagSft, "   DIAGSHIFT"
+        WRITE(17,*) Iter, "   PREVIOUS CYCLES"
+        do j=1,TotWalkers
+            do k=1,NEl
+                WRITE(17,"(I5)",advance='no') CurrentDets(k,j)
+            enddo
+            WRITE(17,*) CurrentSign(j)
+        enddo
+        CLOSE(17)
+
+        RETURN
+
+    END SUBROUTINE WriteToPopsFile
     
     SUBROUTINE ReadFromPopsFile()
         INTEGER :: PreviousCycles,ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
         REAL*8 :: FracPart,Ran2
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsFile'
-
 
         OPEN(17,FILE='POPSFILE',Status='old')
 !Read in initial data
@@ -1229,7 +1257,7 @@ MODULE FciMCMod
             READ(17,*) WalkVecDets(1:NEl,l),WalkVecSign(l)
         enddo
 
-        WRITE(6,*) InitWalkers," read in from POPSFILE..."
+        WRITE(6,*) InitWalkers," particles read in from POPSFILE..."
 
         IF(ScaleWalkers.ne.1.D0) THEN
 
@@ -1292,6 +1320,9 @@ MODULE FciMCMod
             CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+            
+            WRITE(6,*) "Total number of initial walkers is now: ",InitWalkers
+            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is now: ", DiagSft
         
         ENDIF
 

@@ -5,7 +5,7 @@
         Save
 
         INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
-        INTEGER HFLOGLEVEL
+        INTEGER HFLOGLEVEL,iWritePopsEvery
         INTEGER PreVarLogging,WavevectorPrint
         LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
 
@@ -17,9 +17,10 @@
         CHARACTER (LEN=100) w
          INTEGER iLoggingDef 
       !Logging defaults
+      iWritePopsEvery=100000
       TCalcWavevector=.false.
       WavevectorPrint=100
-      TPopsFile=.false.
+      TPopsFile=.true.
       TDistrib=.false.
       ILOGGINGDef=0
       iGlobalTimerLevel=40
@@ -46,7 +47,9 @@
               TDistrib=.true.
           case("POPSFILE")
 !This is so that the determinants at the end of the MC run are written out, to enable them to be read back in using READPOPS in the Calc section, if you want to restart the simulation at a later date.
+!iWritePopsEvery will write the configuration of particles out each time the iteration passes that many.
               TPopsFile=.true.
+              call readi(iWritePopsEvery)
           case("WAVEVECTORPRINT")
 !This is for FCIMC - if on, it will calculate the exact eigenvector & values initially, and then print out the running wavevector every WavevectorPrint MC steps. However, this is slower.
               TCalcWavevector=.true.
