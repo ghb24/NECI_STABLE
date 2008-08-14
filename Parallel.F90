@@ -232,25 +232,44 @@ subroutine ParMP2(nI)
    USE HElem
    uSE MPI
    Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
-   Use System, only: nEl,Beta,ARR,nBasis,ECore
+   Use System, only: nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb
+   use Calc, only: NWHTAY
    Use Determinants, only: HElement, GetHElement3,GetH0Element3
+   use MemoryManager, only: LogMemAlloc,LogMemDealloc
    IMPLICIT NONE
-   Integer nI(nEl)
-   integer iMinElec, iMaxElec
-   real*8 nCur
-   integer i
-   integer store(6),Excit(2,2)
-   integer ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
+   integer :: nI(nEl)
+   integer :: iMinElec, iMaxElec
+   real*8 :: nCur
+   integer :: i,j
+   integer :: store(6),Excit(2,2)
+   integer :: ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
    integer, pointer :: Ex(:)
-   integer nJ(nEl),weight
+   integer :: nJ(nEl),weight
    TYPE(HElement) dU
-   Type(HDElement) dE1,dE2
-   Type(HElement) dE,dEtot
-   logical tSign
+   Type(HDElement) :: dE1,dE2
+   Type(HElement) :: dE,dEtot
+   logical :: tSign
+   integer :: isub,ierr,tag_Ex
+   character(*), parameter :: this_routine='ParMP2'
+
+   call TiSet('    ParMP2',isub)
    
-   ! Generate both single and double excitations.  CPMD works in a Kohn--Sham
-   ! basis, and so Brillouin's theorem does not apply.
-   ExLevel=3
+   select case(IAND(nWHTay(1,1),24))
+   case(0)
+       ! Generate both single and double excitations.  CPMD works in a Kohn--Sham
+       ! basis, and so Brillouin's theorem does not apply.
+       write (6,*) 'ParMP2: using single and double excitation.'
+       ExLevel=3
+   case(8)
+       write (6,*) 'ParMP2: using only single excitations.'
+       ExLevel=1
+   case(16)
+       write (6,*) 'ParMP2: using only double excitations.'
+       ExLevel=2
+   case(24)
+       call stop_all('ParMP2','Invalid combination of flags in nWHTay.  Invalid EXCITAIONS specification?')
+   end select
+
    iC0=0
 
    write(6,*) "Proc ",iProcIndex+1,"/",nProcessors
@@ -273,13 +292,15 @@ subroutine ParMP2(nI)
    STORE(1)=0
 !  IC is the excitation level (relative to the reverence det).
    CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
-   Allocate(Ex(exLen))
+   Allocate(Ex(exLen),stat=ierr)
+   call LogMemAlloc('Ex',Exlen,4,this_routine,tag_Ex,ierr)
    EX(1)=0
    CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
 
 !  Generate the first excitation
    CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
    i=0
+   j=0
 
 !NJ(1) is zero when there are no more excitations.
    DO WHILE(NJ(1).NE.0)
@@ -287,8 +308,9 @@ subroutine ParMP2(nI)
 
 ! Quickest attempt (and useful for debugging).
 ! Not as efficient as the code below, but clearer and useful for debugging.
-!      ! MP2 theory refers to the unperturbed excited determinant
-!      ! => use GetH0Element3 rather than GetHElement3.
+! Also, this should be used for unrestricted calculations.
+      ! MP2 theory refers to the unperturbed excited determinant
+      ! => use GetH0Element3 rather than GetHElement3.
 !      dE2=GetH0Element3(nJ)
 !      dU=GetHElement3(nI,nJ,iC)
 !      call getMP2E(dE1,dE2,dU,dE)
@@ -298,43 +320,56 @@ subroutine ParMP2(nI)
 ! in reference to that of the reference determinant (i.e. setting dE1=0).
       Excit(1,1)=2
       call GetExcitation(nI,nJ,nEl,Excit,tSign)
-      if (mod(Excit(1,1),2).eq.0.and.Excit(1,2).eq.0) then
-          ! alpha -> alpha single excitation.
-          ! count for beta->beta as well.
-          weight=2
-      else if (Excit(1,2).eq.0) then
-          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
-          cycle
-      else if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.0) then
-          ! alpha,alpha -> alpha,alpha double excitation.
-          ! count for beta,beta  -> beta,beta as well.
-          weight=2
-      else if (mod(Excit(1,1),2).eq.1.and.mod(Excit(1,2),2).eq.1) then
-          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
-          cycle
-      else if (mod(Excit(1,1),2).eq.1.and.mod(Excit(1,2),2).eq.0) then
-          ! alpha,beta -> alpha,beta double excitation.
-          ! count for beta,alpha -> beta,alpha as well.
-          weight=2
-      else if (mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.1) then
-!          weight=1
-          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
-          cycle
-!      else 
-!          ! The current excitation has an identical contribution to another
-!          ! excitation, and is summed in with that excitation.
-!          ! Get next excitation.
-!           weight=1
-!          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
-!          cycle
+
+      ! Assuming a restricted calculation.
+      weight=0
+      if (Excit(1,2).eq.0) then
+          ! Single excitation
+          if (G1(Excit(1,1))%Ms.eq.-1) then
+              ! alpha -> alpha single excitation.
+              ! count for beta->beta as well.
+              weight=2
+          end if
+      else
+          ! Double excitation.
+          if (G1(Excit(1,1))%Ms.eq.-1.and.G1(Excit(1,2))%Ms.eq.-1) then
+              ! alpha,alpha -> alpha,alpha double excitation.
+              ! count for beta,beta  -> beta,beta as well.
+              weight=2
+          !else if (G1(Excit(1,1))%Ms.eq.1.and.G1(Excit(1,2))%Ms.eq.1) then
+          !    weight=0
+          else if (G1(Excit(1,1))%Ms.eq.-1.and.G1(Excit(1,2))%Ms.eq.1) then
+              ! alpha,beta -> alpha,beta double excitation.
+              ! We consider just these, and bring in the beta,alpha -> beta,alpha
+              ! excitations via spin symmetry.
+              if (AreSameSpatialOrb(Excit(1,1),Excit(1,2))) then
+                  ! Excitations from the spin orbitals of the same spatial
+                  ! orbital are unique.
+                  ! e.g (1a,1b) -> (2a,2b)
+                  ! e.g (1a,1b) -> (2a,3b)
+                  weight=1
+              else
+                  ! Excitations from different spatial orbitals.  Use spin
+                  ! symmetry:
+                  ! (1a,2b) -> (3a,3b) has an identical contribution to the MP2
+                  ! as (1b,2a) -> (3a,3b).
+                  ! Similarly (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a).
+                  ! Count twice for excitations from beta,alpha spin-orbitals.
+                  weight=2
+              end if
+          end if
       end if
+
+      if (weight.eq.0) then
+          ! Have counted current excitation elsewhere.
+          ! Generate next excitation.
+          CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+          cycle
+      end if
+
+      j=j+1
       dU=GetHElement3(nI,nJ,iC)
-      if ((mod(Excit(1,1),2).eq.1.and.mod(Excit(1,2),2).eq.0).or.(mod(Excit(1,1),2).eq.0.and.mod(Excit(1,2),2).eq.1)) then
-          write (6,'(a1,2i4,a8,2i4,a1)') '(',Excit(1,:),') -> (',Excit(2,:),')'
-          write (6,*) dU
-          write (6,*) 
-      end if
-      dE2=Arr(Excit(2,1),2)-Arr(Excit(1,1),2)
+      dE2=HDElement(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
       if (Excit(2,2).ne.0) then
           ! double excitation
           dE2=dE2+HDElement(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
@@ -349,9 +384,13 @@ subroutine ParMP2(nI)
    ENDDO 
 
    write(6,*) 'No. of excitations=',I
+   write(6,*) 'No. of spin-unique excitations=',J
    write(6,*) 'MP2 ENERGY =',dETot
 
    deallocate(Ex)
+   call LogMemDealloc(this_routine,tag_Ex)
+
+   call TiHalt('    ParMP2',isub)
 
 end subroutine ParMP2
 
