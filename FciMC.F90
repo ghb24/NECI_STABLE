@@ -784,7 +784,7 @@ MODULE FciMCMod
         MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,r2)))
         PosFrac=PosFrac/real(SumWalkersCyc,r2)
         ProjectionE=SumENum/(REAL(SumNoatHF,r2))
-        AccRat=(REAL(Acceptances,r2))/(REAL(SumNoatHF,r2))
+        AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
         WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
