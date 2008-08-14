@@ -1089,9 +1089,6 @@ MODULE FciMCMod
         ENDIF
         WRITE(6,*) ""
         WRITE(6,*) "Performing FCIMC...."
-        WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
-        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
-        WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
@@ -1101,11 +1098,22 @@ MODULE FciMCMod
             CALL Stop_All("InitFCIMC","StartMP1 feature no longer operational")
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
 
+        ELSEIF(TReadPops) THEN
+!We are reading in an initial distribution of walkers
+
+            WRITE(6,*) "Reading in initial particle configuration from POPSFILE..." 
+            CALL ReadFromPopsFile()
+
         ELSE
+
 !initialise the particle positions - start at HF with positive sign
 
 !Set the maximum number of walkers allowed
             MaxWalkers=MemoryFac*InitWalkers
+        
+            WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
+            WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
 
 !Allocate memory to hold walkers
             ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
@@ -1193,6 +1201,162 @@ MODULE FciMCMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalc
+    
+    SUBROUTINE ReadFromPopsFile()
+        INTEGER :: PreviousCycles,ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
+        REAL*8 :: FracPart,Ran2
+        TYPE(HElement) :: HElemTemp
+        CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsFile'
+
+
+        OPEN(17,FILE='POPSFILE',Status='old')
+!Read in initial data
+        READ(17,*) InitWalkers
+        READ(17,*) DiagSft
+        READ(17,*) PreviousCycles
+
+        WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+
+        MaxWalkers=MemoryFac*InitWalkers
+!Allocate memory to hold walkers at least temporarily
+        ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
+        CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+        ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+
+        do l=1,InitWalkers
+            READ(17,*) WalkVecDets(1:NEl,l),WalkVecSign(l)
+        enddo
+
+        WRITE(6,*) InitWalkers," read in from POPSFILE..."
+
+        IF(ScaleWalkers.ne.1.D0) THEN
+
+            WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
+            MaxWalkers=MemoryFac*(nint(InitWalkers*ScaleWalkers))
+            
+!Allocate more memory for WalkVec2
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+
+            IntegerPart=INT(ScaleWalkers)
+            FracPart=ScaleWalkers-REAL(IntegerPart)
+
+            VecSlot=1
+            do l=1,InitWalkers
+                do k=1,IntegerPart
+                    WalkVec2Dets(1:NEl,VecSlot)=WalkVecDets(1:NEl,l)
+                    WalkVec2Sign(VecSlot)=WalkVecSign(l)
+                    VecSlot=VecSlot+1
+                enddo
+                IF(Ran2(Seed).lt.FracPart) THEN
+!Create extra stochastically created particle
+                    WalkVec2Dets(1:NEl,VecSlot)=WalkVecDets(1:NEl,l)
+                    WalkVec2Sign(VecSlot)=WalkVecSign(l)
+                    VecSlot=VecSlot+1
+                ENDIF
+            enddo
+
+            WRITE(6,*) "Total number of initial walkers is now: ",VecSlot-1
+            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is now: ", DiagSft
+            InitWalkers=nint(InitWalkers*ScaleWalkers)
+
+!Deallocate the arrays used to hold the original walkers, and reallocate with right size
+            DEALLOCATE(WalkVecDets)
+            CALL LogMemDealloc(this_routine,WalkVecDetsTag)
+            DEALLOCATE(WalkVecSign)
+            CALL LogMemDealloc(this_routine,WalkVecSignTag)
+            ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+            ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+
+!Transfer initial data accross to WalkVecDets
+            do l=1,InitWalkers
+                WalkVecDets(1:NEl,l)=WalkVec2Dets(1:NEl,l)
+                WalkVecSign(l)=WalkVec2Sign(l)
+            enddo
+
+!Zero the second arrays
+            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+
+        ELSE
+!If not scaling, second array has not been allocated, allocate it now
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+        
+        ENDIF
+
+        WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
+
+!Now need to allocate other arrays
+        ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
+        ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
+        ALLOCATE(WalkVecH(2,MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecH',MaxWalkers*2,8,this_routine,WalkVecHTag,ierr)
+        CALL AZZERO(WalkVecH,2*MaxWalkers)
+        ALLOCATE(WalkVec2H(2,MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2H',MaxWalkers*2,8,this_routine,WalkVec2HTag,ierr)
+        CALL AZZERO(WalkVec2H,2*MaxWalkers)
+
+!Allocate pointers to the correct walker arrays
+        CurrentDets=>WalkVecDets
+        CurrentSign=>WalkVecSign
+        CurrentIC=>WalkVecIC
+        CurrentH=>WalkVecH
+        NewDets=>WalkVec2Dets
+        NewSign=>WalkVec2Sign
+        NewIC=>WalkVec2IC
+        NewH=>WalkVec2H
+            
+        ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
+        ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
+
+!Allocate pointers to the correct excitation arrays
+        CurrentExcits=>WalkVecExcits
+        NewExcits=>WalkVec2Excits
+            
+!Initialise data for new walkers
+        do j=1,InitWalkers
+            CurrentIC(j)=iGetExcitLevel_2(HFDet,CurrentDets(:,j),NEl,NEl)
+            IF(CurrentIC(j).eq.2) THEN
+!Only need it for double excitations, since these are the only ones which contribute to energy
+                HElemTemp=GetHElement2(HFDet,CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,CurrentIC(j),ECore)
+                CurrentH(2,j)=REAL(HElemTemp%v,r2)
+            ELSEIF(CurrentIC(j).eq.0) THEN
+!We know we are at HF - HDiag=0, and can use HF excitgen
+                CALL CopyExitGen(HFExcit,CurrentExcits(j))
+                CurrentH(1,j)=0.D0
+                CurrentH(2,j)=0.D0
+                
+            ELSE
+                CurrentExcits(j)%ExitGenForDet=.false.
+                HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                CurrentH(1,j)=(REAL(HElemTemp%v,r2))-Hii
+                CurrentH(2,j)=0.D0
+            ENDIF
+
+        enddo
+            
+        WRITE(6,*) "Initial allocation of excitation generators successful..."
+        CALL FLUSH(6)
+        CLOSE(17)
+        
+        RETURN
+
+    END SUBROUTINE ReadFromPopsFile
+
 
 
 ! Based on SORTI, SORTPARTS sorts arrays of integers, representing the determinant the walkers are on
