@@ -796,6 +796,30 @@ MODULE System
     Subroutine SysCleanup()
         CALL ENDSYM()
     End Subroutine SysCleanup
+
+    
+
+    logical function AreSameSpatialOrb(i,j)
+       ! Test whether spin orbitals i and j are from the same spatial orbital.
+       ! Returns true if i and j are the *same* spin orbital or are the alpha
+       ! and beta spin orbitals of the same spatial orbital.
+       integer :: i,j
+       integer :: a,b
+       AreSameSpatialOrb=.false.
+       if (i.eq.j) then
+           AreSameSpatialOrb=.true.
+       else
+           a=min(i,j)
+           b=max(i,j)
+           if (G1(a)%Ms.eq.-1.and.b-a.eq.1) then
+               ! a is the alpha and b is the beta of the same spatial orbital.
+               AreSameSpatialOrb=.true.
+           end if
+       end if
+    end function AreSameSpatialOrb
+    
+    
+
 END MODULE System
 
 
