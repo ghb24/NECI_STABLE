@@ -126,13 +126,16 @@ MODULE ReadInput
         call checkinput()
         RETURN
     END SUBROUTINE ReadInputMain
+
+
+
       subroutine checkinput()
       USE System , only : NEL,TSTARSTORE,TUseBrillouin, Beta
       USE PRECALCREAD , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       USE Calc , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
-     &  TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar
+     & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone
       Use Determinants, only : SpecDet
       USE Integrals , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING
@@ -229,7 +232,7 @@ MODULE ReadInput
       WRITE (6,"(A,Z4)") 'ILOGGING after input routine', ILOGGING
 
       !Ensure beta is set.
-      if (beta.lt.1.d-6) call report("No beta value provided.",.true.)
+      if (beta.lt.1.d-6.and..not.tMP2Standalone) call report("No beta value provided.",.true.)
       
       !Make sure there aren't more precalc levels than true vertex levels - problems otherwise
       IF(preIV_MAX.gt.I_VMAX) THEN
