@@ -1236,7 +1236,12 @@ MODULE FciMCMod
         REAL*8 :: FracPart,Ran2
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsFile'
+        LOGICAL :: exists
 
+        INQUIRE(FILE='POPSFILE',EXIST=exists)
+        IF(.not.exists) THEN
+            CALL Stop_All("ReadFromPopsFile","POPSFILE not present - cannot read in particle configuration")
+        ENDIF
         OPEN(17,FILE='POPSFILE',Status='old')
 !Read in initial data
         READ(17,*) InitWalkers

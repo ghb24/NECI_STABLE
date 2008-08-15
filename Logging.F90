@@ -49,7 +49,7 @@
 !This is so that the determinants at the end of the MC run are written out, to enable them to be read back in using READPOPS in the Calc section, if you want to restart the simulation at a later date.
 !iWritePopsEvery will write the configuration of particles out each time the iteration passes that many.
               TPopsFile=.true.
-              call readi(iWritePopsEvery)
+              IF(item.lt.nitems) call readi(iWritePopsEvery)
           case("WAVEVECTORPRINT")
 !This is for FCIMC - if on, it will calculate the exact eigenvector & values initially, and then print out the running wavevector every WavevectorPrint MC steps. However, this is slower.
               TCalcWavevector=.true.
