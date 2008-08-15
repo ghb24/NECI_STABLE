@@ -232,8 +232,11 @@ subroutine ParMP2(nI)
    USE HElem
    uSE MPI
    Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
-   Use System, only: nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb,tCPMD
+   Use System, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb,tCPMD
    use Calc, only: NWHTAY
+   use Integrals, only: GetUMatEl2
+   use UMatCache, only: GTID
+   use OneEInts, only: GetTMatEl
    Use Determinants, only: HElement, GetHElement3,GetH0Element3
    use MemoryManager, only: LogMemAlloc,LogMemDealloc
    IMPLICIT NONE
@@ -241,15 +244,16 @@ subroutine ParMP2(nI)
    integer :: iMinElec, iMaxElec
    real*8 :: nCur
    integer :: i,j
+   integer :: IA,JA,AA,BA
    integer :: store(6),Excit(2,2)
    integer :: ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
    integer, pointer :: Ex(:)
    integer :: nJ(nEl),weight
-   TYPE(HElement) dU
+   TYPE(HElement) dU(2)
    Type(HDElement) :: dE1,dE2
-   Type(HElement) :: dE,dEtot,dE0
+   Type(HElement) :: dE,dEtot(2),dE0
    ! MPIHelSum requires arrays as input/output.
-   Type(HElement) :: dEarr(1),dEres(1)
+   Type(HElement) :: dEarr(2),dEres(2)
    logical :: tSign
    integer :: isub,ierr,tag_Ex
    character(*), parameter :: this_routine='ParMP2'
@@ -310,6 +314,7 @@ subroutine ParMP2(nI)
 
 !NJ(1) is zero when there are no more excitations.
    DO WHILE(NJ(1).NE.0)
+
       i=i+1
 
 ! Quickest attempt (and useful for debugging).
@@ -342,8 +347,6 @@ subroutine ParMP2(nI)
               ! alpha,alpha -> alpha,alpha double excitation.
               ! count for beta,beta  -> beta,beta as well.
               weight=2
-          !else if (G1(Excit(1,1))%Ms.eq.1.and.G1(Excit(1,2))%Ms.eq.1) then
-          !    weight=0
           else if (G1(Excit(1,1))%Ms.eq.-1.and.G1(Excit(1,2))%Ms.eq.1) then
               ! alpha,beta -> alpha,beta double excitation.
               ! We consider just these, and bring in the beta,alpha -> beta,alpha
@@ -362,6 +365,8 @@ subroutine ParMP2(nI)
                   ! Similarly (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a).
                   ! Count twice for excitations from beta,alpha spin-orbitals.
                   weight=2
+!                  write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),GetHElement3(nI,nJ,iC)
+
               end if
           end if
       end if
@@ -374,33 +379,68 @@ subroutine ParMP2(nI)
       end if
 
       j=j+1
-      dU=GetHElement3(nI,nJ,iC)
       dE2=HDElement(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
       if (Excit(2,2).ne.0) then
-          ! double excitation
+
+          ! Double excitation
           dE2=dE2+HDElement(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
+
+          call GTID(nBasisMax,Excit(1,1),IA)
+          call GTID(nBasisMax,Excit(1,2),JA)
+          call GTID(nBasisMax,Excit(2,1),AA)
+          call GTID(nBasisMax,Excit(2,2),BA)
+          if (G1(Excit(1,1))%Ms.eq.G1(Excit(1,2))%Ms) then
+              dU(2)=GetUMatEl2(IA,JA,AA,BA)
+              dU(1)=dU(2)-GetUMatEl2(IA,JA,BA,AA)
+!               write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),dU(2)
+          else if (G1(Excit(1,1))%Ms.eq.G1(Excit(2,1))%Ms) then
+              dU(1)=GetUMatEl2(IA,JA,AA,BA)
+          else
+              dU(1)=-GetUMatEl2(IA,JA,BA,AA)
+          end if
+          if (tSign) dU(1)=-dU(1)
+      else
+
+          ! Single excitation.
+          ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
+          call GTID(nBasisMax,Excit(1,1),IA)
+          call GTID(nBasisMax,Excit(2,1),AA)
+          dU(1)=0.d0
+          do JA=1,nEl/2
+              dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+          end do
+          dU(1)=dU(1)+GetTMATEl(Excit(1,1),Excit(2,1))
+          if (tSign) dU(1)=-dU(1)
+
       end if
 
-      call getMP2E(HDElement(0.d0),dE2,dU,dE)
-      write (6,'(2i3,a2,2i3,6f12.7)') Excit(1,:),'->',Excit(2,:),dU,dE2,dE
-      dETot=dETot+HElement(weight)*dE
+      call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
+!      write (6,'(2i3,a2,2i3,6f12.7)') Excit(1,:),'->',Excit(2,:),dU,dE2,dE
+
+      if (Excit(1,2).eq.0) then
+          ! Singles contribution.
+          dETot(1)=dETot(1)+HElement(weight)*dE
+      else
+          ! Doubles contribution.
+          dETot(2)=dETot(2)+HElement(weight)*dE
+      end if
 ! END  of more efficient approach.
 
       ! Get next excitation.
       CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
+
    ENDDO 
 
    write(6,*) 'No. of excitations=',I
    write(6,*) 'No. of spin-unique excitations=',J
-   if (tCPMD) then
-       dETot=dETot+dE0
-   else
+   if (.not.tCPMD) then
        write (6,'(a28,i3,a1,2f15.8)') 'Contribution from processor',iProcIndex+1,':',dEtot
-       dEarr(1)=dETot
-       call MPIHElSum(dEArr,1,dEres)
-       dETot=dEres(1)+dE0
+       dEarr=dETot
+       call MPIHElSum(dEArr,2,dEres)
    end if
-   write(6,*) 'MP2 ENERGY =',dETot
+   if (iand(ExLevel,1).eq.1) write(6,*) 'MP2 SINGLES=',dETot(1)+dE0
+   if (iand(ExLevel,2).eq.2) write(6,*) 'MP2 DOUBLES=',dETot(2)+dE0
+   write(6,*) 'MP2 ENERGY =',dETot(1)+dETot(2)+dE0
 
    deallocate(Ex)
    call LogMemDealloc(this_routine,tag_Ex)
