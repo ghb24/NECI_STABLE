@@ -138,7 +138,13 @@ MODULE System
         
       call readu(w)
       select case(w)
-      case("STARSTOREREAD")
+
+! The following systems are retained for backward compatibility:
+! StarStoreRead, StarBinRead, DFRead, BinRead.  For these "systems", 
+! the system should be given as Read and the appropriate option given
+! in the main System section.
+! At some point, these four options will be removed.
+      case("STARSTOREREAD")      ! Instead, specify StarStore within the system block.
           TSTARSTORE = .true.
           TREADINT = .true.
           call readu(w)
@@ -146,7 +152,7 @@ MODULE System
           case("ORDER")
               THFORDER = .true.
           end select
-      case("STARBINREAD")
+      case("STARBINREAD")        ! Instead, specify StarStore Binary within the system block.
           TSTARSTORE=.true.
           TBIN=.true.
           TREADINT=.true.
@@ -155,7 +161,7 @@ MODULE System
           case("ORDER")
               THFORDER=.true.
           end select
-      case("DFREAD")
+      case("DFREAD")             ! Instead, specify DensityFitted within the system block.
           TREADINT = .true.
           TDFREAD = .true.
           call readu(w)
@@ -163,7 +169,7 @@ MODULE System
           case("ORDER")
               THFORDER = .true.
           end select
-      case("BINREAD")
+      case("BINREAD")            ! Instead, specify Binary within the system block.
           TREADINT=.true.
           TBIN=.true.
           call readu(w)
@@ -171,6 +177,7 @@ MODULE System
           case("ORDER")
               THFORDER=.true.
           end select
+
       case("READ","GENERIC")
           TREADINT = .true.
           call readu(w)
@@ -204,6 +211,24 @@ MODULE System
         end if
         call readu(w)
         select case(w)
+
+        ! Options for molecular (READ) systems: control how the integral file 
+        ! is read in.
+        case("STARSTORE")
+            tStarStore=.true.
+            if (item.lt.nitems) then
+                call readu(w)
+                select case(w)
+                case("BINARY")
+                    tBin=.true.
+                end select
+            end if
+        case("BINARY")
+            tBin=.true.
+        case("DENSITYFITTED")
+            tDFRead=.true.
+
+        ! General options.
         case("ELECTRONS","NEL")
             call geti(NEL)
         case("SPIN-RESTRICT")
@@ -230,21 +255,6 @@ MODULE System
 ! the last number is the symmetry specification - and is placed in position 5
             IPARITY(5)=IPARITY(4)
             IPARITY(4)=0
-        case("CELL")
-            call geti(NMAXX)
-            call geti(NMAXY)
-            call geti(NMAXZ)
-        case("MESH")
-            call geti(NMSH)
-        case("BOXSIZE")
-            call getf(BOX)
-            if(item.lt.nitems) then
-               call getf(BOA)
-               call getf(COA)
-            else
-               BOA=1.D0
-               COA=1.D0
-            endif
         case("USEBRILLOUINTHEOREM")
           TUSEBRILLOUIN=.TRUE. 
         case("RS")
@@ -282,6 +292,27 @@ MODULE System
 !               call geti(COULDAMPORB)
 !               call getf(FCOULDAMPBETA)
 !            end select
+        case("ENERGY-CUTOFF")
+          call getf(OrbECutoff)
+        case("STORE-AS-EXCITATIONS")
+           tStoreAsExcitations=.true.  
+
+        ! Options for model systems (electrons in a box/Hubbard).   
+        case("CELL")
+            call geti(NMAXX)
+            call geti(NMAXY)
+            call geti(NMAXZ)
+        case("MESH")
+            call geti(NMSH)
+        case("BOXSIZE")
+            call getf(BOX)
+            if(item.lt.nitems) then
+               call getf(BOA)
+               call getf(COA)
+            else
+               BOA=1.D0
+               COA=1.D0
+            endif
         case("U")
             call getf(UHUB)
         case("B")
@@ -302,10 +333,7 @@ MODULE System
             if ( ISTATE /= 1 ) then
                 call report("Require ISTATE to be left set as 1",.true.)
             end if
-        case("ENERGY-CUTOFF")
-          call getf(OrbECutoff)
-        case("STORE-AS-EXCITATIONS")
-           tStoreAsExcitations=.true.  
+
         case("ENDSYS") 
             exit system
         case default
