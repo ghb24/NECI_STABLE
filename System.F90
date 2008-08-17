@@ -1,368 +1,361 @@
 #include "macros.h"
 MODULE System
-        USE input
-        
-        IMPLICIT NONE
-        save
 
-        LOGICAL TSTARBIN,TREADINT,THFORDER,TDFREAD,TPBC,TUEG,TCPMD,THUB
-        LOGICAL TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT
-        LOGICAL TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP
-        INTEGER LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB
-        INTEGER iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY
-        REAL*8 BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB
-        REAL*8 ALPHA,FCOULDAMPBETA,FCOULDAMPMU
+    USE input
+    
+    IMPLICIT NONE
+    save
+
+    LOGICAL TSTARBIN,TREADINT,THFORDER,TDFREAD,TPBC,TUEG,TCPMD,THUB
+    LOGICAL TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT
+    LOGICAL TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP
+    INTEGER LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB
+    INTEGER iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY
+    REAL*8 BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB
+    REAL*8 ALPHA,FCOULDAMPBETA,FCOULDAMPMU
 ! Defaults stored in this module
-        LOGICAL :: defaults,Feb08
+    LOGICAL :: defaults,Feb08
 
 ! Used to be stored in Integrals
-        INTEGER ORBORDER(8,2)
+    INTEGER ORBORDER(8,2)
 
 ! From NECICB
-        integer lmsBasis
+    integer lmsBasis
 
-        TYPE Symmetry
-           SEQUENCE
-           INTEGER*8 S
-        END TYPE
-     
-        integer, PARAMETER :: SymmetrySize=2
-        integer, PARAMETER :: SymmetrySizeB=SymmetrySize*8
-        TYPE BasisFN
-           SEQUENCE
-           INTEGER k(3)
-           INTEGER Ms
-           TYPE(Symmetry) sym
-        END TYPE
+    TYPE Symmetry
+       SEQUENCE
+       INTEGER*8 S
+    END TYPE
+    
+    integer, PARAMETER :: SymmetrySize=2
+    integer, PARAMETER :: SymmetrySizeB=SymmetrySize*8
+    TYPE BasisFN
+       SEQUENCE
+       INTEGER k(3)
+       INTEGER Ms
+       TYPE(Symmetry) sym
+    END TYPE
   
-        integer, PARAMETER :: BasisFNSize=SymmetrySize+4
-        integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
+    integer, PARAMETER :: BasisFNSize=SymmetrySize+4
+    integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8
 
 
-        TYPE(BASISFN) SymRestrict
-        INTEGER nBasisMax(5,7)
-        REAL*8 ALAT(5)
-        REAL*8 ECore
-        INTEGER nBasis
-        integer nMax
-        integer nnr
-        integer nocc
-        REAL*8 OMEGA
-        logical tSpinPolar
-        INTEGER iSpinSkip ! Often referred to as ISS.
+    TYPE(BASISFN) SymRestrict
+    INTEGER nBasisMax(5,7)
+    REAL*8 ALAT(5)
+    REAL*8 ECore
+    INTEGER nBasis
+    integer nMax
+    integer nnr
+    integer nocc
+    REAL*8 OMEGA
+    logical tSpinPolar
+    INTEGER iSpinSkip ! Often referred to as ISS.
 
 !From Calc  
-        REAL*8 Beta
+    REAL*8 Beta
         
 !Renewed for compile
 
-        REAL*8, pointer         :: Arr(:,:)        !List of orbital energies.  (:,1) is ordered, (:,2) is the energy of orbital.
-                                                   !Reallocated with the correct (new) size during freezing.
-        INTEGER tagArr
-        INTEGER, pointer        :: BRR(:)          !Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital
-        INTEGER tagBrr
-        Type(BasisFN), pointer  :: G1(:)           !Info about the basis functions
-        INTEGER tagG1
-        
-        INTEGER LMS2
+! List of orbital energies.  (:,1) is ordered  by symmetry, (:,2) is the energy of orbital.
+! Reallocated with the correct (new) size during freezing.
+    REAL*8, pointer :: Arr(:,:) 
+    INTEGER tagArr
+
+! Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital
+    INTEGER, pointer :: BRR(:) 
+    INTEGER tagBrr
+
+    Type(BasisFN), pointer :: G1(:)  ! Info about the basis functions.
+    INTEGER tagG1
+    
+    INTEGER LMS2
 
 !  Set if we turn symmetry off
 
-       LOGICAL lNoSymmetry
+    LOGICAL lNoSymmetry
         
-        contains
+    contains
 
-        SUBROUTINE SysReadInput()
-        IMPLICIT NONE
-        LOGICAL eof
-        CHARACTER (LEN=100) w
-        INTEGER I
-        
-!       SYSTEM defaults - leave these as the default defaults
-!       Any further addition of defaults should change these after.
-          TSTARSTORE=.false.
-          TSTARBIN=.false.
-          TREADINT=.false.
-          THFORDER=.false.
-          TDFREAD=.false.
-          TPBC=.false.
-          TUEG=.false.
-          TCPMD=.false.
-          tVASP=.false.
-          THUB=.false.
-          TUEG=.false.
-          LMS=0
-          TSPN=.false.
-          TCSF=.false.
-          STOT=0
-          TPARITY = .false.
-          IParity(:)=0
-          NMAXX = 0
-          NMAXY = 0
-          NMAXZ = 0
-          NMSH=32
-          BOX=1.d0
-          BOA=1.d0
-          COA=1.d0
-          TUSEBRILLOUIN=.false. 
-          FUEGRS=0.D0
-          iPeriodicDampingType=0
-          fRc=0.D0
-          TEXCH=.true.
-          FCOUL=1.D0
-          UHUB = 4
-          BHUB = -1
-          TREAL = .false.
-          TTILT = .false.
-          TALPHA = .false.
-          ISTATE = 1
-          OrbECutoff=1e20
-          tStoreAsExcitations=.false.
-          TBIN=.false.
+    SUBROUTINE SysReadInput()
+      IMPLICIT NONE
+      LOGICAL eof
+      CHARACTER (LEN=100) w
+      INTEGER I
+      
+!     SYSTEM defaults - leave these as the default defaults
+!     Any further addition of defaults should change these after via
+!     specifying a new set of DEFAULTS.
+      TSTARSTORE=.false.
+      TSTARBIN=.false.
+      TREADINT=.false.
+      THFORDER=.false.
+      TDFREAD=.false.
+      TPBC=.false.
+      TUEG=.false.
+      TCPMD=.false.
+      tVASP=.false.
+      THUB=.false.
+      TUEG=.false.
+      LMS=0
+      TSPN=.false.
+      TCSF=.false.
+      STOT=0
+      TPARITY = .false.
+      IParity(:)=0
+      NMAXX = 0
+      NMAXY = 0
+      NMAXZ = 0
+      NMSH=32
+      BOX=1.d0
+      BOA=1.d0
+      COA=1.d0
+      TUSEBRILLOUIN=.false. 
+      FUEGRS=0.D0
+      iPeriodicDampingType=0
+      fRc=0.D0
+      TEXCH=.true.
+      FCOUL=1.D0
+      UHUB = 4
+      BHUB = -1
+      TREAL = .false.
+      TTILT = .false.
+      TALPHA = .false.
+      ISTATE = 1
+      OrbECutoff=1e20
+      tStoreAsExcitations=.false.
+      TBIN=.false.
 
-          lNoSymmetry=.false.
+      lNoSymmetry=.false.
 
 !Feb08 defaults:
-          IF(Feb08) THEN
-              !...add defaults...
-          ENDIF
+      IF(Feb08) THEN
+          !...add defaults...
+      ENDIF
 
 ! Coulomb damping function currently removed.
 !      FCOULDAMPBETA=-1.D0
 !      COULDAMPORB=0
-          
-        call readu(w)
-        select case(w)
-        case("STARSTOREREAD")
-            TSTARSTORE = .true.
-            TREADINT = .true.
-            call readu(w)
-            select case(w)
-            case("ORDER")
-                THFORDER = .true.
-            end select
-        case("STARBINREAD")
-            TSTARSTORE=.true.
-            TBIN=.true.
-            TREADINT=.true.
-            call readu(w)
-            select case(w)
-            case("ORDER")
-                THFORDER=.true.
-            end select
-        case("DFREAD")
-            TREADINT = .true.
-            TDFREAD = .true.
-            call readu(w)
-            select case(w)
-            case("ORDER")
-                THFORDER = .true.
-            end select
-        case("BINREAD")
-            TREADINT=.true.
-            TBIN=.true.
-            call readu(w)
-            select case(w)
-            case("ORDER")
-                THFORDER=.true.
-            end select
-        case("READ","GENERIC")
-            TREADINT = .true.
-            call readu(w)
-            select case(w)
-            case("ORDER")
-                THFORDER = .true.
-            end select
-        case("HUBBARD")
-            THUB = .true.
-            TPBC=.true.
-        case("UEG")
-            TUEG = .true.
-        case("VASP")
-            tVASP= .true.
-        case("CPMD")
-            TCPMD = .true.
-            call readu(w)
-            select case(w)
-            case("ORDER")
-                THFORDER = .true.
-            end select
-        case("BOX")
-        case default
-            call report ("System type "//trim(w)                        &
-     &               //" not valid",.true.)
-        end select
         
-
-        system: do
-          call read_line(eof)
-          if (eof) then
-              call report("Incomplete input file",.true.)
-          end if
+      call readu(w)
+      select case(w)
+      case("STARSTOREREAD")
+          TSTARSTORE = .true.
+          TREADINT = .true.
           call readu(w)
           select case(w)
-          case("ELECTRONS","NEL")
-              call geti(NEL)
-          case("SPIN-RESTRICT")
-              if(item.lt.nitems) then
-                 call geti(LMS)
-              else
-                 LMS=0
-              endif
-              TSPN = .true.
-          case("CSF")
-              if(item.lt.nitems) then
-                 call geti(STOT)
-              else
-                 STOT=0
-              endif
-              TCSF = .true.
-          case("NOSYMMETRY")
-              lNoSymmetry=.true.
-          case("SYM")
-              TPARITY = .true.
-              do I = 1,4
-                call geti(IPARITY(I))
-              end do
-! the last number is the symmetry specification - and is placed in position 5
-              IPARITY(5)=IPARITY(4)
-              IPARITY(4)=0
-          case("CELL")
-              call geti(NMAXX)
-              call geti(NMAXY)
-              call geti(NMAXZ)
-          case("MESH")
-              call geti(NMSH)
-          case("BOXSIZE")
-              call getf(BOX)
-              if(item.lt.nitems) then
-                 call getf(BOA)
-                 call getf(COA)
-              else
-                 BOA=1.D0
-                 COA=1.D0
-              endif
-          case("USEBRILLOUINTHEOREM")
-            TUSEBRILLOUIN=.TRUE. 
-          case("RS")
-              call getf(FUEGRS)
-          case("EXCHANGE-CUTOFF")
-              iPeriodicDampingType=2
-              if(item.lt.nitems) then
-                 call getf(fRc)
-              endif
-          case("EXCHANGE-ATTENUATE")
-              iPeriodicDampingType=1
-              if(item.lt.nitems) then
-                 call getf(fRc)
-              endif
-          case("EXCHANGE")
-              call readu(w)
-              select case(w)
-                 case("ON")
-                    TEXCH=.TRUE.
-                 case("OFF")
-                    TEXCH=.FALSE.
-                 case default
-                    call report ("EXCHANGE "//trim(w)                   &
-     &                 //" not valid",.true.)
-              end select
-          case("COULOMB")
-              call getf(FCOUL)
-          case("COULOMB-DAMPING")
-                  call report("Coulomb damping feature removed"         &
-     &            ,.true.)
-              
-!                  call readu(w)
-!                  select case(w)
-!                  case("ENERGY")
-!                     call getf(FCOULDAMPMU)
-!                     call getf(FCOULDAMPBETA)
-!                  case("ORBITAL")
-!                     call geti(COULDAMPORB)
-!                     call getf(FCOULDAMPBETA)
-!                  end select
-          case("U")
-              call getf(UHUB)
-          case("B")
-              call getf(BHUB)
-          case("REAL")
-              TREAL = .true.
-          case("APERIODIC")
-              TPBC = .false.
-          case("TILT")
-              TTILT = .true.
-              call geti(ITILTX)
-              call geti(ITILTY)
-          case("ALPHA")
-              TALPHA = .true.
-              call getf(ALPHA)
-          case("STATE")
-              call geti(ISTATE)
-              if ( ISTATE /= 1 ) then
-                  call report("Require ISTATE to be left set as"        &
-     &            //" 1",.true.)
-              end if
-          case("ENERGY-CUTOFF")
-              call getf(OrbECutoff)
-          case("STORE-AS-EXCITATIONS")
-             tStoreAsExcitations=.true.  
-
-          case("ENDSYS") 
-              exit system
-          case default
-              call report("Keyword "                                    &
-     &          //trim(w)//" not recognized in SYSTEM block",.true.)
+          case("ORDER")
+              THFORDER = .true.
           end select
-        end do system
-        if(NEL.eq.0)                                                    &
-     &     call report("Number of electrons cannot be zero.",.true.)
-        if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then
-           if(NMAXX.EQ.0)                                               &
-     &        call report("Must specify CELL "                          &
-     &        //"- the number of basis functions in each dim.",         &
-     &        .true.)
-           if(.NOT.THUB.AND.BOX.EQ.0.D0)                                &
-     &        call report("Must specify BOX size.",.true.)
-           if(TTILT.AND..NOT.THUB)                                      &
-     &        call report("TILT can only be specified with "            &
-     &     //"HUBBARD.",.true.)
-        endif
+      case("STARBINREAD")
+          TSTARSTORE=.true.
+          TBIN=.true.
+          TREADINT=.true.
+          call readu(w)
+          select case(w)
+          case("ORDER")
+              THFORDER=.true.
+          end select
+      case("DFREAD")
+          TREADINT = .true.
+          TDFREAD = .true.
+          call readu(w)
+          select case(w)
+          case("ORDER")
+              THFORDER = .true.
+          end select
+      case("BINREAD")
+          TREADINT=.true.
+          TBIN=.true.
+          call readu(w)
+          select case(w)
+          case("ORDER")
+              THFORDER=.true.
+          end select
+      case("READ","GENERIC")
+          TREADINT = .true.
+          call readu(w)
+          select case(w)
+          case("ORDER")
+              THFORDER = .true.
+          end select
+      case("HUBBARD")
+          THUB = .true.
+          TPBC=.true.
+      case("UEG")
+          TUEG = .true.
+      case("VASP")
+          tVASP= .true.
+      case("CPMD")
+          TCPMD = .true.
+          call readu(w)
+          select case(w)
+          case("ORDER")
+              THFORDER = .true.
+          end select
+      case("BOX")
+      case default
+          call report("System type "//trim(w)//" not valid",.true.)
+      end select
+      
+      system: do
+        call read_line(eof)
+        if (eof) then
+            call report("Incomplete input file",.true.)
+        end if
+        call readu(w)
+        select case(w)
+        case("ELECTRONS","NEL")
+            call geti(NEL)
+        case("SPIN-RESTRICT")
+            if(item.lt.nitems) then
+               call geti(LMS)
+            else
+               LMS=0
+            endif
+            TSPN = .true.
+        case("CSF")
+            if(item.lt.nitems) then
+               call geti(STOT)
+            else
+               STOT=0
+            endif
+            TCSF = .true.
+        case("NOSYMMETRY")
+            lNoSymmetry=.true.
+        case("SYM")
+            TPARITY = .true.
+            do I = 1,4
+              call geti(IPARITY(I))
+            end do
+! the last number is the symmetry specification - and is placed in position 5
+            IPARITY(5)=IPARITY(4)
+            IPARITY(4)=0
+        case("CELL")
+            call geti(NMAXX)
+            call geti(NMAXY)
+            call geti(NMAXZ)
+        case("MESH")
+            call geti(NMSH)
+        case("BOXSIZE")
+            call getf(BOX)
+            if(item.lt.nitems) then
+               call getf(BOA)
+               call getf(COA)
+            else
+               BOA=1.D0
+               COA=1.D0
+            endif
+        case("USEBRILLOUINTHEOREM")
+          TUSEBRILLOUIN=.TRUE. 
+        case("RS")
+            call getf(FUEGRS)
+        case("EXCHANGE-CUTOFF")
+            iPeriodicDampingType=2
+            if(item.lt.nitems) then
+               call getf(fRc)
+            endif
+        case("EXCHANGE-ATTENUATE")
+            iPeriodicDampingType=1
+            if(item.lt.nitems) then
+               call getf(fRc)
+            endif
+        case("EXCHANGE")
+            call readu(w)
+            select case(w)
+               case("ON")
+                  TEXCH=.TRUE.
+               case("OFF")
+                  TEXCH=.FALSE.
+               case default
+                  call report("EXCHANGE "//trim(w)//" not valid",.true.)
+            end select
+        case("COULOMB")
+            call getf(FCOUL)
+        case("COULOMB-DAMPING")
+            call report("Coulomb damping feature removed",.true.)
+!            call readu(w)
+!            select case(w)
+!            case("ENERGY")
+!               call getf(FCOULDAMPMU)
+!               call getf(FCOULDAMPBETA)
+!            case("ORBITAL")
+!               call geti(COULDAMPORB)
+!               call getf(FCOULDAMPBETA)
+!            end select
+        case("U")
+            call getf(UHUB)
+        case("B")
+            call getf(BHUB)
+        case("REAL")
+            TREAL = .true.
+        case("APERIODIC")
+            TPBC = .false.
+        case("TILT")
+            TTILT = .true.
+            call geti(ITILTX)
+            call geti(ITILTY)
+        case("ALPHA")
+            TALPHA = .true.
+            call getf(ALPHA)
+        case("STATE")
+            call geti(ISTATE)
+            if ( ISTATE /= 1 ) then
+                call report("Require ISTATE to be left set as 1",.true.)
+            end if
+        case("ENERGY-CUTOFF")
+          call getf(OrbECutoff)
+        case("STORE-AS-EXCITATIONS")
+           tStoreAsExcitations=.true.  
+        case("ENDSYS") 
+            exit system
+        case default
+            call report("Keyword "                                    &
+   &          //trim(w)//" not recognized in SYSTEM block",.true.)
+        end select
+      end do system
 
-        END SUBROUTINE SysReadInput
+      if(NEL.eq.0)                                                    &
+   &     call report("Number of electrons cannot be zero.",.true.)
+      if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then
+         if(NMAXX.EQ.0)                                               &
+   &        call report("Must specify CELL "                          &
+   &        //"- the number of basis functions in each dim.",         &
+   &        .true.)
+         if(.NOT.THUB.AND.BOX.EQ.0.D0)                                &
+   &        call report("Must specify BOX size.",.true.)
+         if(TTILT.AND..NOT.THUB)                                      &
+   &        call report("TILT can only be specified with HUBBARD.",.true.)
+      endif
 
-
-
-
-
-
+    END SUBROUTINE SysReadInput
 
 
         
-        Subroutine SysInit
-            Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-            implicit none
-            character(25), parameter :: this_routine='SysInit'
-            integer ierr
+    Subroutine SysInit
+      Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+      implicit none
+      character(25), parameter :: this_routine='SysInit'
+      integer ierr
 
-           CHARACTER CPAR(3)*1,CPARITY*3
+      CHARACTER CPAR(3)*1,CPARITY*3
 ! For init of mom
-        TYPE(BasisFN) G
-        INCLUDE 'csf.inc'
-        INCLUDE 'cons.inc'
+      TYPE(BasisFN) G
+      INCLUDE 'csf.inc'
+      INCLUDE 'cons.inc'
         
 !  For the UEG
-        REAL*8 FKF,Rs
+      REAL*8 FKF,Rs
         
 ! General variables
-        INTEGER i,j,k,l,iG
-        INTEGER len
-        INTEGER iSub
-        REAL*8 SUM
+      INTEGER i,j,k,l,iG
+      INTEGER len
+      INTEGER iSub
+      REAL*8 SUM
 ! Called functions
-        type(Symmetry) TotSymRep
-        TYPE(BasisFN) FrzSym
-        logical kallowed
+      type(Symmetry) TotSymRep
+      TYPE(BasisFN) FrzSym
+      logical kallowed
 
 !      write (6,*)
 !      call TimeTag()
@@ -790,32 +783,34 @@ MODULE System
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
       IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
-         CALL TiHALT('SysInit   ',ISUB)
-        End Subroutine SysInit
+      CALL TiHALT('SysInit   ',ISUB)
+    End Subroutine SysInit
+
+
 
     Subroutine SysCleanup()
-        CALL ENDSYM()
+      CALL ENDSYM()
     End Subroutine SysCleanup
 
     
 
     logical function AreSameSpatialOrb(i,j)
-       ! Test whether spin orbitals i and j are from the same spatial orbital.
-       ! Returns true if i and j are the *same* spin orbital or are the alpha
-       ! and beta spin orbitals of the same spatial orbital.
-       integer :: i,j
-       integer :: a,b
-       AreSameSpatialOrb=.false.
-       if (i.eq.j) then
-           AreSameSpatialOrb=.true.
-       else
-           a=min(i,j)
-           b=max(i,j)
-           if (G1(a)%Ms.eq.-1.and.b-a.eq.1) then
-               ! a is the alpha and b is the beta of the same spatial orbital.
-               AreSameSpatialOrb=.true.
-           end if
-       end if
+      ! Test whether spin orbitals i and j are from the same spatial orbital.
+      ! Returns true if i and j are the *same* spin orbital or are the alpha
+      ! and beta spin orbitals of the same spatial orbital.
+      integer :: i,j
+      integer :: a,b
+      AreSameSpatialOrb=.false.
+      if (i.eq.j) then
+          AreSameSpatialOrb=.true.
+      else
+          a=min(i,j)
+          b=max(i,j)
+          if (G1(a)%Ms.eq.-1.and.b-a.eq.1) then
+              ! a is the alpha and b is the beta of the same spatial orbital.
+              AreSameSpatialOrb=.true.
+          end if
+      end if
     end function AreSameSpatialOrb
     
     
@@ -823,176 +818,180 @@ MODULE System
 END MODULE System
 
 
-!Write out the current basis to unit nUnit
+
 SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
-    use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-    use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-    IMPLICIT NONE
-    INTEGER NUNIT,NHG,BRR(NHG),I
-    TYPE(BASISFN) G1(NHG)
-    REAL*8 ARR(NHG,2)
-    DO I=1,NHG
-        WRITE(NUNIT,'(6I7,$)') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
-        CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
-        WRITE(NUNIT,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-    ENDDO
-    RETURN
-END
+  ! Write out the current basis to unit nUnit
+  use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+  use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+  IMPLICIT NONE
+  INTEGER NUNIT,NHG,BRR(NHG),I
+  TYPE(BASISFN) G1(NHG)
+  REAL*8 ARR(NHG,2)
+  DO I=1,NHG
+      WRITE(NUNIT,'(6I7,$)') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+      CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
+      WRITE(NUNIT,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
+  ENDDO
+  RETURN
+END SUBROUTINE WRITEBASIS
+
+
 
 SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
-   use System, only: BasisFN
-   implicit none
-   INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
-   INTEGER BRR2(NBASIS)
-   TYPE(BASISFN) G1(NBASIS)
-   REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
-   INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K,ISPIN
-   REAL*8 OEN
-   IDONE=0
-   ITOT=0
+  use System, only: BasisFN
+  implicit none
+  INTEGER NBASIS,BRR(NBASIS),ORBORDER(8,2),nBasisMax(5,*)
+  INTEGER BRR2(NBASIS)
+  TYPE(BASISFN) G1(NBASIS)
+  REAL*8 ARR(NBASIS,2),ARR2(NBASIS,2)
+  INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,K,ISPIN
+  REAL*8 OEN
+  IDONE=0
+  ITOT=0
 !.. copy the default ordered energies.
-   CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
-   CALL DCOPY(NBASIS,ARR(1,1),1,ARR2(1,2),1)
-   WRITE(6,"(A,8I4)") "Ordering Basis (Closed): ", (ORBORDER(I,1),I=1,8)
-   WRITE(6,"(A,8I4)") "Ordering Basis (Open  ): ", (ORBORDER(I,2),I=1,8)
-   IF(NBASISMAX(3,3).EQ.1) THEN
+  CALL DCOPY(NBASIS,ARR(1,1),1,ARR(1,2),1)
+  CALL DCOPY(NBASIS,ARR(1,1),1,ARR2(1,2),1)
+  WRITE(6,"(A,8I4)") "Ordering Basis (Closed): ", (ORBORDER(I,1),I=1,8)
+  WRITE(6,"(A,8I4)") "Ordering Basis (Open  ): ", (ORBORDER(I,2),I=1,8)
+  IF(NBASISMAX(3,3).EQ.1) THEN
 !.. we use the symmetries of the spatial orbitals
-      DO ITYPE=1,2
-         IBFN=1
-         DO I=1,8
-            DO J=1,ORBORDER(I,ITYPE)
-               DO WHILE(IBFN.LE.NBASIS.AND.(G1(IBFN)%SYM%s.LT.I-1.OR.BRR(IBFN).EQ.0))
-                  IBFN=IBFN+1
-               ENDDO
-               IF(IBFN.GT.NBASIS) THEN
-                  STOP "Cannot find enough basis fns of correct symmetry"
-               ENDIF
-               IDONE=IDONE+1 
-               BRR2(IDONE)=IBFN
-               BRR(IBFN)=0
-               ARR2(IDONE,1)=ARR(IBFN,1)
-               IBFN=IBFN+1
-            ENDDO
-         ENDDO
+     DO ITYPE=1,2
+        IBFN=1
+        DO I=1,8
+           DO J=1,ORBORDER(I,ITYPE)
+              DO WHILE(IBFN.LE.NBASIS.AND.(G1(IBFN)%SYM%s.LT.I-1.OR.BRR(IBFN).EQ.0))
+                 IBFN=IBFN+1
+              ENDDO
+              IF(IBFN.GT.NBASIS) THEN
+                 STOP "Cannot find enough basis fns of correct symmetry"
+              ENDIF
+              IDONE=IDONE+1 
+              BRR2(IDONE)=IBFN
+              BRR(IBFN)=0
+              ARR2(IDONE,1)=ARR(IBFN,1)
+              IBFN=IBFN+1
+           ENDDO
+        ENDDO
 ! Beta sort
-         CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+1,1),BRR2(ITOT+1),2)
+        CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+1,1),BRR2(ITOT+1),2)
 ! Alpha sort
-         CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+2,1),BRR2(ITOT+2),2)
-         ITOT=IDONE
-      ENDDO
-      DO I=1,NBASIS
-         IF(BRR(I).NE.0) THEN
-            ITOT=ITOT+1
-            BRR2(ITOT)=BRR(I)
-            ARR2(ITOT,1)=ARR(I,1)
-         ENDIF
-      ENDDO
-      CALL ICOPY(NBASIS,BRR2,1,BRR,1)
-      CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
-   ENDIF
+        CALL SORT2SKIP(IDONE-ITOT,ARR2(ITOT+2,1),BRR2(ITOT+2),2)
+        ITOT=IDONE
+     ENDDO
+     DO I=1,NBASIS
+        IF(BRR(I).NE.0) THEN
+           ITOT=ITOT+1
+           BRR2(ITOT)=BRR(I)
+           ARR2(ITOT,1)=ARR(I,1)
+        ENDIF
+     ENDDO
+     CALL ICOPY(NBASIS,BRR2,1,BRR,1)
+     CALL DCOPY(NBASIS,ARR2,1,ARR,1) 
+  ENDIF
 ! beta sort
-   CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+1,1),BRR(IDONE+1),2)
+  CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+1,1),BRR(IDONE+1),2)
 ! alpha sort
-   CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+2,1),BRR(IDONE+2),2)
+  CALL SORT2SKIP(NBASIS-IDONE,ARR(IDONE+2,1),BRR(IDONE+2),2)
 !.. We need to now go through each set of degenerate orbitals, and make
 !.. the correct ones are paired together in BRR otherwise bad things
 !.. happen in FREEZEBASIS
 !.. We do this by ensuring that within a degenerate set, the BRR are in
 !.. ascending order
 !         IF(NBASISMAX(3,3).EQ.1) G1(3,BRR(1))=J
-   DO ISPIN=0,1
-      OEN=ARR(1+ISPIN,1)
-      J=1+ISPIN
-      ITOT=2
-      DO I=3+ISPIN,NBASIS,2
-         IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
+  DO ISPIN=0,1
+     OEN=ARR(1+ISPIN,1)
+     J=1+ISPIN
+     ITOT=2
+     DO I=3+ISPIN,NBASIS,2
+        IF(ABS(ARR(I,1)-OEN).GT.1.D-4) THEN
 !.. We don't have degenerate orbitals
 !.. First deal with the last set of degenerate orbitals
 !.. We sort them into order of BRR
-            CALL SORT2SKIP_(ITOT,BRR(I-ITOT), ARR(I-ITOT,1),2)
+           CALL SORT2SKIP_(ITOT,BRR(I-ITOT), ARR(I-ITOT,1),2)
 !.. now setup the new degenerate set.
-            J=J+2
-            ITOT=2
-         ELSE
-            ITOT=ITOT+2
-         ENDIF
-         OEN=ARR(I,1)
-         IF(NBASISMAX(3,3).EQ.1) THEN
+           J=J+2
+           ITOT=2
+        ELSE
+           ITOT=ITOT+2
+        ENDIF
+        OEN=ARR(I,1)
+        IF(NBASISMAX(3,3).EQ.1) THEN
 !.. If we've got a generic spatial sym or hf we mark degeneracies
 !               G(3,BRR(I))=J
-         ENDIF
-      ENDDO
-      CALL SORT2SKIP_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1),2)
-   ENDDO
-END subroutine
+        ENDIF
+     ENDDO
+     CALL SORT2SKIP_(ITOT,BRR(I-ITOT),ARR(I-ITOT,1),2)
+  ENDDO
+END subroutine ORDERBASIS
 
-! See if a given G vector is within a (possibly tilted) unit cell.
-!  Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
-      LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
-         IMPLICIT NONE
-         INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
-         INTEGER KX,KY
-         REAL*8 MX,MY,XX,YY
-         LOGICAL TALLOW
-         TALLOW=.TRUE.
-         IF(NBASISMAX(3,3).EQ.1) THEN
+
+
+LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
+  ! See if a given G vector is within a (possibly tilted) unit cell.
+  ! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+  IMPLICIT NONE
+  INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
+  INTEGER KX,KY
+  REAL*8 MX,MY,XX,YY
+  LOGICAL TALLOW
+  TALLOW=.TRUE.
+  IF(NBASISMAX(3,3).EQ.1) THEN
 !.. spatial symmetries
-            IF(G(1).NE.0) TALLOW=.FALSE.
-         ELSEIF(NBASISMAX(3,3).EQ.0) THEN
+      IF(G(1).NE.0) TALLOW=.FALSE.
+  ELSEIF(NBASISMAX(3,3).EQ.0) THEN
 !.. Hubbard
-            IF(NBASISMAX(1,3).EQ.1) THEN
+      IF(NBASISMAX(1,3).EQ.1) THEN
 !.. Tilted hubbard
-               NMAXX=NBASISMAX(1,5)
-!            NMAXY=
-               AX=NBASISMAX(1,4)
-               AY=NBASISMAX(2,4)
+          NMAXX=NBASISMAX(1,5)
+!         NMAXY=
+          AX=NBASISMAX(1,4)
+          AY=NBASISMAX(2,4)
 !.. (XX,YY) is the position of the bottom right corner of the unit cell
-               XX=((AX+AY)/2.D0)*NMAXX
-               YY=((AY-AX)/2.D0)*NMAXX
-               MX=XX*AX+YY*AY
-               MY=XX*AY-YY*AX
-               I=G(1)
-               J=G(2)
-               KX=I*AX+J*AY
-               KY=I*AY-J*AX
-               IF(KX.GT.MX) TALLOW=.FALSE.
-               IF(KY.GT.MY) TALLOW=.FALSE.
-               IF(KX.LE.-MX) TALLOW=.FALSE.
-               IF(KY.LE.-MY) TALLOW=.FALSE.
-            ELSEIF(NBASISMAX(1,3).GE.4.OR.NBASISMAX(1,3).EQ.2) THEN
+          XX=((AX+AY)/2.D0)*NMAXX
+          YY=((AY-AX)/2.D0)*NMAXX
+          MX=XX*AX+YY*AY
+          MY=XX*AY-YY*AX
+          I=G(1)
+          J=G(2)
+          KX=I*AX+J*AY
+          KY=I*AY-J*AX
+          IF(KX.GT.MX) TALLOW=.FALSE.
+          IF(KY.GT.MY) TALLOW=.FALSE.
+          IF(KX.LE.-MX) TALLOW=.FALSE.
+          IF(KY.LE.-MY) TALLOW=.FALSE.
+      ELSEIF(NBASISMAX(1,3).GE.4.OR.NBASISMAX(1,3).EQ.2) THEN
 !.. Real space Hubbard
-               IF(G(1).EQ.0.AND.G(2).EQ.0.AND.G(3).EQ.0) THEN
-                  TALLOW=.TRUE.
-               ELSE
-                  TALLOW=.FALSE.
-               ENDIF
-!            ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+          IF(G(1).EQ.0.AND.G(2).EQ.0.AND.G(3).EQ.0) THEN
+             TALLOW=.TRUE.
+          ELSE
+              TALLOW=.FALSE.
+          ENDIF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
 !.. mom space non-pbc non-tilt hub - parity sym
-!               IF(  (G(1).EQ.0.OR.G(1).EQ.1)
-!     &         .AND.(G(2).EQ.0.OR.G(2).EQ.1)
-!     &         .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
-!                  TALLOW=.TRUE.
-!               ELSE
-!                  TALLOW=.FALSE.
-!               ENDIF
-!            ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+!          IF(  (G(1).EQ.0.OR.G(1).EQ.1)
+!     &       .AND.(G(2).EQ.0.OR.G(2).EQ.1)
+!     &       .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
+!              TALLOW=.TRUE.
+!          ELSE
+!              TALLOW=.FALSE.
+!          ENDIF
+!      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
 !.. non-pbc hubbard
-!               TALLOW=.TRUE.
-!               IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
-!     &            TALLOW=.FALSE.
-!               IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
-!     &            TALLOW=.FALSE.
-!               IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
-!     &            TALLOW=.FALSE.
-            ELSE
+!          TALLOW=.TRUE.
+!          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
+!     &       TALLOW=.FALSE.
+!          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
+!     &       TALLOW=.FALSE.
+      ELSE
 !.. Normal Hubbard
-               TALLOW=.TRUE.
-               IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1)) TALLOW=.FALSE.
-               IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1)) TALLOW=.FALSE.
-               IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1)) TALLOW=.FALSE.
-            ENDIF
-         ENDIF         
-         KALLOWED=TALLOW
-         RETURN
-      END
-
+          TALLOW=.TRUE.
+          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1)) TALLOW=.FALSE.
+          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1)) TALLOW=.FALSE.
+          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1)) TALLOW=.FALSE.
+      ENDIF
+  ENDIF         
+  KALLOWED=TALLOW
+  RETURN
+END FUNCTION KALLOWED
