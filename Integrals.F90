@@ -1,7 +1,6 @@
 #include "macros.h"
 MODULE Integrals
-            Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        USE input
+        Use MemoryManager, only: LogMemAlloc, LogMemDealloc
         USE HElem
         USE System , only : NEL,defaults,Feb08,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
         use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
@@ -29,10 +28,10 @@ MODULE Integrals
 !  From NECI.F
         TYPE(HElement), pointer :: UMAT(:)      
         INTEGER tagUMat
-         COMPLEX*16,pointer :: FCK(:)
-         INTEGER tagFCK
+        COMPLEX*16,pointer :: FCK(:)
+        INTEGER tagFCK
         INTEGER NMAX
-         REAL*8 CST
+        REAL*8 CST
 
 ! from Calc      
         real*8 ChemPot
@@ -41,6 +40,7 @@ MODULE Integrals
         contains
 
         SUBROUTINE IntReadInput()
+        USE input
         IMPLICIT NONE
         LOGICAL eof
         CHARACTER (LEN=100) w

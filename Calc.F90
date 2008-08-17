@@ -1,6 +1,5 @@
 
 MODULE Calc
-        USE input
         
         USE System , only : NEL,Feb08,defaults
         USE Integrals , only : NFROZEN
@@ -50,6 +49,7 @@ MODULE Calc
         contains
 
         SUBROUTINE CalcReadInput()
+          USE input
           Use Determinants, only : iActiveBasis, SpecDet, tSpecDet
           Use System, only : Beta
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV

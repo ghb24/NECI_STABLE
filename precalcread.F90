@@ -1,6 +1,5 @@
 
       MODULE PRECALCREAD
-        USE input
         USE System , only : defaults,Feb08
         IMPLICIT NONE
 
@@ -45,6 +44,7 @@
         contains
 
         SUBROUTINE PrecalcReadInput()
+        USE input
         IMPLICIT NONE
         LOGICAL eof
         INTEGER zz,z,k

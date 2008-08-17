@@ -1,8 +1,6 @@
 #include "macros.h"
 MODULE System
 
-    USE input
-    
     IMPLICIT NONE
     save
 
@@ -78,6 +76,7 @@ MODULE System
     contains
 
     SUBROUTINE SysReadInput()
+      USE input
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
