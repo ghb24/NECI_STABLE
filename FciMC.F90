@@ -92,7 +92,7 @@ MODULE FciMCMod
     SUBROUTINE FciMC(Weight,Energyxw)
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j
-        LOGICAL :: exists
+        LOGICAL :: exists,TestSoftExit
         CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
         TYPE(HElement) :: Hamii
 
@@ -112,7 +112,7 @@ MODULE FciMCMod
             CALL PerformFCIMCyc()
 
 !Test that the file SOFTEXIT is still present. If not, then exit cleanly.
-            INQUIRE(FILE='SOFTEXIT',EXIST=exists)
+            exists=TestSoftExit()
             IF(.not.exists) EXIT
 
             IF(mod(Iter,StepsSft).eq.0) THEN

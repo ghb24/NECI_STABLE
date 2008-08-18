@@ -396,6 +396,13 @@ MODULE System
 !      TRHOIJND=.false.
       CALL TISET('SysInit   ',ISUB)
 
+!ghb24 18/8/08
+!Write a file called SOFTEXIT. This will be removed at the end. If at any point
+!in the calculation TestSoftExit is called, it will search for the file. If it has been
+!removed during the course of the calculation, then a clean exit can begin.
+      OPEN(22,FILE='SOFTEXIT',STATUS='unknown')
+      WRITE(22,*) ""
+      CLOSE(22)
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters
@@ -816,6 +823,11 @@ MODULE System
 
 
     Subroutine SysCleanup()
+      
+!Remove the SOFTEXIT file - if its still there
+      OPEN(22,FILE='SOFTEXIT',STATUS='unknown')
+      CLOSE(UNIT=22,STATUS='DELETE')
+
       CALL ENDSYM()
     End Subroutine SysCleanup
 
@@ -844,6 +856,17 @@ MODULE System
 
 END MODULE System
 
+!This function will test if the file SOFTEXIT still exists.
+!Return True means that the file is still there and the calculation should 
+!proceed as normal. False means that you should start to exit cleanly.
+LOGICAL FUNCTION TestSoftExit()
+  LOGICAL :: exists
+
+!Test that the file SOFTEXIT is still present. If not, then exit cleanly.
+  INQUIRE(FILE='SOFTEXIT',EXIST=exists)
+  TestSoftExit=exists
+
+END FUNCTION TestSoftExit
 
 
 SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
