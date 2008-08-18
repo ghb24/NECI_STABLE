@@ -253,7 +253,7 @@ MODULE SymExcit2
             CALL GTID(NBASISMAX,L,IDL)
             W=GetUMatEl(NBASISMAX,UMAT,Alat,NBASIS,ISS,G1,IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
-                WEIGHT=(SQRT(SQ(W)))**(G_VMC_EXCITWEIGHT(CUR_VERT))
+                WEIGHT=1.D0+(SQRT(SQ(W)))**(G_VMC_EXCITWEIGHT(CUR_VERT))
             ELSE
                 WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
             ENDIF
