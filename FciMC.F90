@@ -5,6 +5,7 @@ MODULE FciMCMod
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
+    USE Calc , only : TProjEMP2
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -63,6 +64,7 @@ MODULE FciMCMod
     INTEGER :: MaxExcitLevel
     INTEGER :: NoatDoubs,Annihilated,Acceptances
     REAL*8 :: AccRat
+    INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
 
     TYPE(HElement) :: rhii,FZero
     REAL*8 :: Hii
@@ -79,6 +81,12 @@ MODULE FciMCMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
 
+    REAL*8 , ALLOCATABLE :: MP2ExcitComps(:,:,:,:)  !This stores the MP2 wavefunction for each ij->ab pair
+    INTEGER :: MP2ExcitCompsTag=0
+
+    INTEGER , ALLOCATABLE :: INVBRRSpinOrb(:)                 !This in the inverse of BRR in the Spin-orbital basis
+    INTEGER :: INVBRRSpinOrbTag=0
+
     contains
 
     SUBROUTINE FciMC(Weight,Energyxw)
@@ -94,8 +102,8 @@ MODULE FciMCMod
         WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E     SumNoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
 
 !TotWalkersOld is the number of walkers last time the shift was changed
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 
 !Start MC simulation...
         do Iter=1,NMCyc
@@ -163,6 +171,12 @@ MODULE FciMCMod
         enddo
         DEALLOCATE(WalkVecExcits)
         DEALLOCATE(WalkVec2Excits)
+        IF(Allocated(MP2ExcitComps)) THEN
+            DEALLOCATE(MP2ExcitComps)
+            CALL LogMemDealloc(this_routine,MP2ExcitCompsTag)
+            DEALLOCATE(INVBRRSpinOrb)
+            CALL LogMemDealloc(this_routine,INVBRRSpinOrbTag)
+        ENDIF
         
         CLOSE(15)
 
@@ -796,8 +810,8 @@ MODULE FciMCMod
         AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         CALL FLUSH(15)
         CALL FLUSH(6)
 
@@ -1071,6 +1085,7 @@ MODULE FciMCMod
         Acceptances=0
         Annihilated=0
         AccRat=0.D0
+        PreviousCycles=0
 
         IF(TResumFciMC) THEN
             IF(NDets.gt.2) THEN
@@ -1207,9 +1222,140 @@ MODULE FciMCMod
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
 
+!Routine to initialise the blocking analysis
+        CALL InitBlocking()
+
+        IF(TProjEMP2) THEN
+!This will perform an MP2 calculation, so that the projection to it can be used to calculate the energy
+            CALL InitMP2Calc()
+        ENDIF
+
         RETURN
 
     END SUBROUTINE InitFCIMCCalc
+
+    SUBROUTINE InitMP2Calc()
+        INTEGER :: ierr,i,j,nJ(NEl),IC,nStore(6),ExcitForm(2,2),iExcit
+        INTEGER :: A,B,t,MaxComptDet(NEl)
+        REAL*8 :: Denom,MaxCompt,MP2Energy
+        LOGICAL :: tSign
+        TYPE(HElement) :: Hij
+        CHARACTER(Len=*) , PARAMETER :: this_routine='InitMP2Calc'
+        
+!Need to calculate all the components of the MP2 wavefunction, and store them in MP2ExcitComps
+        WRITE(6,*) "nBasis is:",nBasis
+!MP2 ExcitComps stores the eigenvector for ij->ab, with each dimension representing an index
+!i > j and a > b. An indexing scheme and a 1D array could be used.
+!The HF component is 1, since we are working with an unnormalised eigenvector.
+        ALLOCATE(MP2ExcitComps(NEl,NEl,nBasis-NEl,nBasis-NEl),stat=ierr)
+        CALL LogMemAlloc("MP2ExcitComps",NEl*NEl*(nBasis-NEl)**2,8,this_routine,MP2ExcitCompsTag,ierr)
+        CALL AZZERO(MP2ExcitComps,NEl*NEl*(nBasis-NEl)**2)
+
+!To store in excitation form - need to be able to order orbitals purely in terms of energy, so setup INVBRR
+!This is different to the INVBRR in UMatCache, since it works with spin-orbitals
+        ALLOCATE(INVBRRSpinOrb(nBasis),stat=ierr)
+        CALL LogMemAlloc("InvBrrSpinOrb",nBasis,4,this_routine,InvBrrSpinOrbTag,ierr)
+        CALL IAZZERO(INVBRRSpinOrb,nBasis)
+        t=0
+        do i=1,nBasis
+            t=t+1
+            INVBRRSpinOrb(BRR(i))=t
+        enddo
+
+        WRITE(6,*) "INVBRRSpinOrb is: ",INVBRRSpinOrb(:)
+
+        MP2Energy=Hii  !From HF Determinant which has a wavevector component of 1
+        MaxCompt=1.D0
+        MaxComptDet(:)=HFDet(:)
+
+        do while(.true.)
+!Generate double excitations
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.false.,HFExcit,nJ,iExcit,0,nStore,2)
+            IF(nJ(1).eq.0) EXIT
+            ExcitForm(1,1)=2    !signify that we are only dealing with double excitations
+            IF(iExcit.ne.2) CALL Stop_All("InitMP2Calc","Excitations other than double being generated")
+            CALL GetExcitation(HFDet,nJ,NEl,ExcitForm,tSign)
+!The i,j orbitals are ExcitForm(1,1) and (1,2). a/b are (2,1) and (2,2)
+!Find the ordering of the orbitals in terms of energy
+            I=INVBRRSpinOrb(ExcitForm(1,1))
+            J=INVBRRSpinOrb(ExcitForm(1,2))
+            A=INVBRRSpinOrb(ExcitForm(2,1))
+            B=INVBRRSpinOrb(ExcitForm(2,2))
+
+!Ensure i > j and a > b.
+            IF(I.lt.J) THEN
+                t=I
+                I=J
+                J=t
+            ELSEIF(I.eq.J) THEN
+                CALL Stop_All("InitMP2Comp","Cannot have I.eq.J")
+            ENDIF
+            IF(A.lt.B) THEN
+                t=A
+                A=B
+                B=t
+            ELSEIF(A.eq.B) THEN
+                CALL Stop_All("InitMP2Comp","Cannot have A.eq.B")
+            ENDIF
+            IF(I.ge.B) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
+            IF((I.gt.NEl).or.(J.gt.NEl)) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
+            IF((A.gt.nBasis).or.(B.gt.nBasis)) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
+            IF((A.le.NEl).or.(B.le.NEl)) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
+            
+            A=A-NEl     !Virtual orbital indexing cannot be > NEl, so remove to save space.
+            B=B-NEl
+
+!Now put component of MP2 wavefunction into MP2ExcitComps(I,J,A,B)
+            Denom=Arr(ExcitForm(2,1),2)-Arr(ExcitForm(1,1),2)+Arr(ExcitForm(2,2),2)-Arr(ExcitForm(1,2),2)
+            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
+
+            MP2ExcitComps(I,J,A,B)=-REAL(Hij%v,r2)/Denom    !Store MP2 Wavefunction
+            IF((ABS(MP2ExcitComps(I,J,A,B))).gt.MaxCompt) THEN 
+!Find the maximum component of the MP2 wavefunction
+                MaxCompt=ABS(MP2ExcitComps(I,J,A,B))
+                MaxComptDet(:)=nJ(:)
+            ENDIF
+            MP2Energy=MP2Energy-(REAL(Hij%v,r2)**2)/Denom   !Calculate MP2 Energy
+
+        enddo
+
+!Reset the HF Excitation generator
+        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit,0)
+
+        WRITE(6,*) "MP2 components calculated. Maximum MP2 wavevector component is determinant: "
+        CALL WRITEDET(6,MaxComptDet,NEl,.TRUE.)
+        WRITE(6,*) "MP2 ENERGY = ",MP2Energy
+
+        RETURN
+
+    END SUBROUTINE InitMP2Calc
+
+    SUBROUTINE InitBlocking()
+        INTEGER :: TotSamples,TotBlocks,i
+
+!First, we want to find the theoretical maximum number of different block sizes there could be in the simulation.
+!This is the total number of shiftchange samples theoretically possible if the simulation goes to completion.
+        TotSamples=INT(real(NMCyc)/real(StepsSft)) 
+
+!I'm sure theres a more elegant way to do this, but this will calculate the maximum number of different block sizes possible
+!This is calculated by seeing if the run will give at least two complete blocks of data.
+        TotBlocks=0
+        do i=0,100
+            IF((TotSamples/(2**i)).ge.2) THEN
+                TotBlocks=TotBlocks+1
+            ELSE
+                EXIT
+            ENDIF
+        enddo
+
+        WRITE(6,*) "Total number of different sizes blocks allowed in the calculation is: ",TotBlocks
+
+!We will have Totblocks different block sizes, of length: 1,2,4,8,...,2**TotBlocks.
+!Allocate memory to hold the stats for these different block lengths.
+
+
+        RETURN
+    END SUBROUTINE InitBlocking
 
     SUBROUTINE WriteToPopsFile()
         INTEGER :: j,k
@@ -1232,7 +1378,7 @@ MODULE FciMCMod
     END SUBROUTINE WriteToPopsFile
     
     SUBROUTINE ReadFromPopsFile()
-        INTEGER :: PreviousCycles,ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
+        INTEGER :: ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
         REAL*8 :: FracPart,Ran2
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsFile'

@@ -22,7 +22,7 @@ MODULE Calc
         LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
         LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
         LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
-        LOGICAL THFRetBias,TExcludeRandGuide
+        LOGICAL THFRetBias,TExcludeRandGuide,TProjEMP2
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -75,6 +75,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TProjEMP2=.false.
           TExcludeRandGuide=.false.
           THFRetBias=.false.
           TSignShift=.false.
@@ -704,6 +705,9 @@ MODULE Calc
             case("EXCLUDERANDGUIDE")
 !This is an alternative method to unbias for the HFRetBias. It invloves disallowing random excitations back to the guiding function (HF Determinant)
                 TExcludeRandGuide=.true.
+            case("PROJECTE-MP2")
+!This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
+                TProjEMP2=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
