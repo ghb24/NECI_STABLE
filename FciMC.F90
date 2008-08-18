@@ -92,6 +92,7 @@ MODULE FciMCMod
     SUBROUTINE FciMC(Weight,Energyxw)
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j
+        LOGICAL :: exists
         CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
         TYPE(HElement) :: Hamii
 
@@ -110,6 +111,10 @@ MODULE FciMCMod
 
             CALL PerformFCIMCyc()
 
+!Test that the file SOFTEXIT is still present. If not, then exit cleanly.
+            INQUIRE(FILE='SOFTEXIT',EXIST=exists)
+            IF(.not.exists) EXIT
+
             IF(mod(Iter,StepsSft).eq.0) THEN
 !This will find the new shift (and other parameters), and print out the needed values.
                 CALL UpdateDiagSft()
@@ -124,65 +129,21 @@ MODULE FciMCMod
         enddo
 
 !Write out popsfile
-        IF(TPopsFile) CALL WriteToPopsFile
+        Iter=Iter-1
+        IF(TPopsFile) CALL WriteToPopsFile()
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
 
 !Deallocate memory
-        DEALLOCATE(WalkVecDets)
-        CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-        DEALLOCATE(WalkVec2Dets)
-        CALL LogMemDealloc(this_routine,WalkVec2DetsTag)
-        DEALLOCATE(WalkVecSign)
-        CALL LogMemDealloc(this_routine,WalkVecSignTag)
-        DEALLOCATE(WalkVec2Sign)
-        CALL LogMemDealloc(this_routine,WalkVec2SignTag)
-        DEALLOCATE(WalkVecIC)
-        CALL LogMemDealloc(this_routine,WalkVecICTag)
-        DEALLOCATE(WalkVec2IC)
-        CALL LogMemDealloc(this_routine,WalkVec2ICTag)
-        DEALLOCATE(WalkVecH)
-        CALL LogMemDealloc(this_routine,WalkVecHTag)
-        DEALLOCATE(WalkVec2H)
-        CALL LogMemDealloc(this_routine,WalkVec2HTag)
+        CALL DeallocFCIMCMem()
 
-        IF(TResumFCIMC) THEN
-            DEALLOCATE(GraphRhoMat)
-            CALL LogMemDealloc(this_routine,GraphRhoMatTag)
-            DEALLOCATE(GraphVec)
-            CALL LogMemDealloc(this_routine,GraphVecTag)
-            DEALLOCATE(GraphKii)
-            CALL LogMemDealloc(this_routine,GraphKiiTag)
-            DEALLOCATE(DetsinGraph)
-            CALL LogMemDealloc(this_routine,DetsinGraphTag)
-        ENDIF
-
-        DEALLOCATE(HFDet)
-        CALL LogMemDealloc(this_routine,HFDetTag)
-        DEALLOCATE(HFExcit%ExcitData)
-        do i=1,MaxWalkers
-            IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
-                DEALLOCATE(WalkVecExcits(i)%ExcitData)
-            ENDIF
-            IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
-                DEALLOCATE(WalkVec2Excits(i)%ExcitData)
-            ENDIF
-        enddo
-        DEALLOCATE(WalkVecExcits)
-        DEALLOCATE(WalkVec2Excits)
-        IF(Allocated(MP2ExcitComps)) THEN
-            DEALLOCATE(MP2ExcitComps)
-            CALL LogMemDealloc(this_routine,MP2ExcitCompsTag)
-            DEALLOCATE(INVBRRSpinOrb)
-            CALL LogMemDealloc(this_routine,INVBRRSpinOrbTag)
-        ENDIF
-        
         CLOSE(15)
 
         RETURN
 
     END SUBROUTINE FciMC
+
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCyc()
@@ -1053,7 +1014,13 @@ MODULE FciMCMod
         IF(HElementSize.gt.1) THEN
             CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
         ENDIF
+
+!Setup a SOFTEXIT file. If this is ever removed, then the simulation will stop cleanly.
+        OPEN(16,file='SOFTEXIT',status='unknown')
+        WRITE(16,*) ""
+        CLOSE(16)
         
+!Open a file to store output
         OPEN(15,file='FCIMCStats',status='unknown')
 
 !Store information specifically for the HF determinant
@@ -1364,7 +1331,7 @@ MODULE FciMCMod
         OPEN(17,FILE='POPSFILE',Status='unknown')
         WRITE(17,*) TotWalkers, "   TOTWALKERS"
         WRITE(17,*) DiagSft, "   DIAGSHIFT"
-        WRITE(17,*) Iter, "   PREVIOUS CYCLES"
+        WRITE(17,*) Iter+PreviousCycles, "   PREVIOUS CYCLES"
         do j=1,TotWalkers
             do k=1,NEl
                 WRITE(17,"(I5)",advance='no') CurrentDets(k,j)
@@ -1803,6 +1770,62 @@ MODULE FciMCMod
         RETURN
 
     END FUNCTION AttemptDie
+
+!Deallocate memory needed for the simulation
+    SUBROUTINE DeallocFCIMCMem()
+        INTEGER :: i
+        CHARACTER(len=*), PARAMETER :: this_routine='DeallocFCIMCMem'
+        
+        DEALLOCATE(WalkVecDets)
+        CALL LogMemDealloc(this_routine,WalkVecDetsTag)
+        DEALLOCATE(WalkVec2Dets)
+        CALL LogMemDealloc(this_routine,WalkVec2DetsTag)
+        DEALLOCATE(WalkVecSign)
+        CALL LogMemDealloc(this_routine,WalkVecSignTag)
+        DEALLOCATE(WalkVec2Sign)
+        CALL LogMemDealloc(this_routine,WalkVec2SignTag)
+        DEALLOCATE(WalkVecIC)
+        CALL LogMemDealloc(this_routine,WalkVecICTag)
+        DEALLOCATE(WalkVec2IC)
+        CALL LogMemDealloc(this_routine,WalkVec2ICTag)
+        DEALLOCATE(WalkVecH)
+        CALL LogMemDealloc(this_routine,WalkVecHTag)
+        DEALLOCATE(WalkVec2H)
+        CALL LogMemDealloc(this_routine,WalkVec2HTag)
+
+        IF(TResumFCIMC) THEN
+            DEALLOCATE(GraphRhoMat)
+            CALL LogMemDealloc(this_routine,GraphRhoMatTag)
+            DEALLOCATE(GraphVec)
+            CALL LogMemDealloc(this_routine,GraphVecTag)
+            DEALLOCATE(GraphKii)
+            CALL LogMemDealloc(this_routine,GraphKiiTag)
+            DEALLOCATE(DetsinGraph)
+            CALL LogMemDealloc(this_routine,DetsinGraphTag)
+        ENDIF
+
+        DEALLOCATE(HFDet)
+        CALL LogMemDealloc(this_routine,HFDetTag)
+        DEALLOCATE(HFExcit%ExcitData)
+        do i=1,MaxWalkers
+            IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
+                DEALLOCATE(WalkVecExcits(i)%ExcitData)
+            ENDIF
+            IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
+                DEALLOCATE(WalkVec2Excits(i)%ExcitData)
+            ENDIF
+        enddo
+        DEALLOCATE(WalkVecExcits)
+        DEALLOCATE(WalkVec2Excits)
+        IF(Allocated(MP2ExcitComps)) THEN
+            DEALLOCATE(MP2ExcitComps)
+            CALL LogMemDealloc(this_routine,MP2ExcitCompsTag)
+            DEALLOCATE(INVBRRSpinOrb)
+            CALL LogMemDealloc(this_routine,INVBRRSpinOrbTag)
+        ENDIF
+
+    END SUBROUTINE DeallocFCIMCMem
+        
 
 END MODULE FciMCMod
 
