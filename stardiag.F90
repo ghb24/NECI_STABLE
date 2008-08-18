@@ -72,6 +72,8 @@
          TYPE(HDElement) MP2E(2:2)        
          LOGICAL tStarSingles,tCountExcits
          INTEGER nIExcitFormat(nEl)
+!         REAL*8 , ALLOCATABLE :: SortedHij(:)
+!         REAL*8 , Norm
          
 !This needs to be removed, as it'll eventually be an input parameter
 
@@ -250,6 +252,18 @@
          LT=iMaxExcit
          iExcit=i
          Deallocate(nExcit)
+
+!Quick test to see range of Hij values
+!         ALLOCATE(SortedHij(iExcit))
+!         do l=1,iExcit
+!            SortedHij(l)=ABS(REAL(ExcitInfo(l,2)%v,KIND(0.D0)))
+!            Norm=Norm+SortedHij(l)**5
+!         enddo
+!         CALL SORT(iExcit,SortedHij)
+!         do l=1,iExcit
+!            WRITE(19,*) l,SortedHij(l),(SortedHij(l)**5)/Norm
+!         enddo
+            
 
 !.. we now have a list length NLCUR of dets in the star.
 !.. Call a routine to generate the value of the star

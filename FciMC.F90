@@ -1148,6 +1148,7 @@ MODULE FciMCMod
             WRITE(6,*) "Initial memory allocation sucessful..."
 
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
             ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
 
