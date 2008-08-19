@@ -232,13 +232,14 @@ subroutine ParMP2(nI)
    USE HElem
    uSE MPI
    Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
-   Use System, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb,tCPMD
+   Use System, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb,tCPMD,Symmetry
    use Calc, only: NWHTAY
    use Integrals, only: GetUMatEl2
    use UMatCache, only: GTID
    use OneEInts, only: GetTMatEl
    Use Determinants, only: HElement, GetHElement3,GetH0Element3
    use MemoryManager, only: LogMemAlloc,LogMemDealloc
+   use SymData, only: SymLabels
    IMPLICIT NONE
    integer :: nI(nEl)
    integer :: iMinElec, iMaxElec
@@ -254,6 +255,9 @@ subroutine ParMP2(nI)
    Type(HElement) :: dE,dEtot(2),dE0
    ! MPIHelSum requires arrays as input/output.
    Type(HElement) :: dEarr(2),dEres(2)
+   type(Symmetry) :: iSym1,iSym2
+   type(Symmetry) :: iSym1Conj,iSym2Conj
+   type(Symmetry) :: SymConj
    logical :: tSign
    integer :: isub,ierr,tag_Ex
    character(*), parameter :: this_routine='ParMP2'
@@ -364,22 +368,28 @@ subroutine ParMP2(nI)
                   ! as (1b,2a) -> (3a,3b).
                   ! Similarly (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a).
                   ! Count twice for excitations from beta,alpha spin-orbitals.
-                  weight=2
-!                  write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),GetHElement3(nI,nJ,iC)
+                  if (AreSameSpatialOrb(Excit(2,1),Excit(2,2))) then
+                      weight=2
+                      !write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),GetHElement3(nI,nJ,iC)
+                  end if
 
               end if
           end if
       end if
 
+      write (6,'(2i4,a2,2i4)') Excit(1,:),'->',Excit(2,:)
+      call flush(6)
       if (weight.eq.0) then
           ! Have counted current excitation elsewhere.
           ! Generate next excitation.
+          write (6,*) 'skipping excitation'
           CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
           cycle
       end if
 
       j=j+1
       dE2=HDElement(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
+      dU=HElement(0.d0)
       if (Excit(2,2).ne.0) then
 
           ! Double excitation
@@ -391,13 +401,13 @@ subroutine ParMP2(nI)
           call GTID(nBasisMax,Excit(2,2),BA)
           if (G1(Excit(1,1))%Ms.eq.G1(Excit(1,2))%Ms) then
               dU(2)=GetUMatEl2(IA,JA,AA,BA)
-              dU(1)=dU(2)-GetUMatEl2(IA,JA,BA,AA)
-!               write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),dU(2)
+              dU(1)=-GetUMatEl2(IA,JA,BA,AA)
           else if (G1(Excit(1,1))%Ms.eq.G1(Excit(2,1))%Ms) then
               dU(1)=GetUMatEl2(IA,JA,AA,BA)
           else
               dU(1)=-GetUMatEl2(IA,JA,BA,AA)
           end if
+          !write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),dU(2)
           if (tSign) dU(1)=-dU(1)
       else
 
@@ -405,24 +415,40 @@ subroutine ParMP2(nI)
           ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
           call GTID(nBasisMax,Excit(1,1),IA)
           call GTID(nBasisMax,Excit(2,1),AA)
-          dU(1)=0.d0
           do JA=1,nEl/2
-              dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+              if (JA.eq.IA) then
+                  dU(1)=dU(1)+GetUMatEl2(IA,JA,AA,JA)
+              else
+                  dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+              end if
           end do
           dU(1)=dU(1)+GetTMATEl(Excit(1,1),Excit(2,1))
           if (tSign) dU(1)=-dU(1)
 
       end if
 
-      call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
 !      write (6,'(2i3,a2,2i3,6f12.7)') Excit(1,:),'->',Excit(2,:),dU,dE2,dE
 
       if (Excit(1,2).eq.0) then
+          call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
           ! Singles contribution.
           dETot(1)=dETot(1)+HElement(weight)*dE
       else
+          if (dU(2).agt.0.d0) then
+              write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),dU(1)
+              call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
+              dETot(2)=dETot(2)+HElement(weight)*dE
+              write (6,'(2i4,a2,2i4,2f17.8)') Excit(1,:),'->',Excit(2,:),dU(2)
+              call getMP2E(HDElement(0.d0),dE2,dU(2),dE)
+              dETot(2)=dETot(2)+HElement(weight)*dE
+!              write (6,*) 'dE',dETot(2)
+          end if
+          dU(1)=dU(1)-dU(2)
           ! Doubles contribution.
+          call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
           dETot(2)=dETot(2)+HElement(weight)*dE
+          !write (6,'(2i4,a2,2i4)') Excit(1,:),'->',Excit(2,:)
+          !write (6,*) 'dE',dETot(2)
       end if
 ! END  of more efficient approach.
 
