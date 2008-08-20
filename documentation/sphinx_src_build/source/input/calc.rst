@@ -1010,7 +1010,7 @@ by preferentially selecting for certin types of excitation.
 **UFORM-POWER**
     New power form for the U-matrix element weighting using the
     appropriate **EXCITWEIGHT** element, which is believed to be
-    better. This uses the form :math:`W=U^{\text{EXCITWEIGHT}}`, rather than the
+    better. This uses the form :math:`W=1+|U|^{\text{EXCITWEIGHT}}`, rather than the
     exponential form.
 
 
