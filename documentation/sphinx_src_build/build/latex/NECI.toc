@@ -1,3 +1,4 @@
+\select@language {english}
 \contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}
 \contentsline {chapter}{\numberline {2}Installation}{2}{chapter.2}
 \contentsline {section}{\numberline {2.1}Download}{2}{section.2.1}
