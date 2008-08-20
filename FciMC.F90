@@ -6,7 +6,7 @@ MODULE FciMCMod
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
     USE Calc , only : TProjEMP2
-    USE Determinants , only : FDet,GetHElement2
+    USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
@@ -66,8 +66,13 @@ MODULE FciMCMod
     REAL*8 :: AccRat
     INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
 
+!These values are used to calculate the energy when TProjEMP2 is set
+    REAL*8 :: SumOverlapMP2     !This is the overlap of the walker distribution with the MP2 wavefunction, summed over all iterations
+    REAL*8 :: SumHOverlapMP2    !This is the overlap of the excitations of the walkers with MP2, summed over all iterations
+    REAL*8 :: ProjectionMP2     !This is the energy calculated by <Psi_MP1|H|Psi>/<Psi_MP1|Psi>
+
     TYPE(HElement) :: rhii,FZero
-    REAL*8 :: Hii
+    REAL*8 :: Hii,Fii
     
     REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
     INTEGER :: GraphRhoMatTag=0
@@ -81,12 +86,6 @@ MODULE FciMCMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
 
-    REAL*8 , ALLOCATABLE :: MP2ExcitComps(:,:,:,:)  !This stores the MP2 wavefunction for each ij->ab pair
-    INTEGER :: MP2ExcitCompsTag=0
-
-    INTEGER , ALLOCATABLE :: INVBRRSpinOrb(:)                 !This in the inverse of BRR in the Spin-orbital basis
-    INTEGER :: INVBRRSpinOrbTag=0
-
     contains
 
     SUBROUTINE FciMC(Weight,Energyxw)
@@ -99,12 +98,12 @@ MODULE FciMCMod
         CALL InitFCIMCCalc()
 
         WRITE(6,*) ""
-        WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E     SumNoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
-        WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E     SumNoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
+        WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2    SumNoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
+        WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2    SumNoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
 
 !TotWalkersOld is the number of walkers last time the shift was changed
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 
 !Start MC simulation...
         do Iter=1,NMCyc
@@ -161,10 +160,9 @@ MODULE FciMCMod
 
         do j=1,TotWalkers
 !j runs through all current walkers
-!            WRITE(6,*) Iter,j
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentH(2,j),CurrentSign(j))
+            CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentH(2,j),CurrentSign(j),j)
 
             IF(TResumFCIMC) THEN
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
@@ -769,10 +767,12 @@ MODULE FciMCMod
         PosFrac=PosFrac/real(SumWalkersCyc,r2)
         ProjectionE=SumENum/(REAL(SumNoatHF,r2))
         AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))
+        ProjectionMP2=((SumHOverlapMP2/SumOverlapMP2)-Hii)/2.D0
 
-!Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+!Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+!        WRITE(6,*) SumHOverlapMP2,SumOverlapMP2
         CALL FLUSH(15)
         CALL FLUSH(6)
 
@@ -795,8 +795,8 @@ MODULE FciMCMod
 
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,Hij0,WSign)
-        INTEGER :: DetCurr(NEl),ExcitLevel
+    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,Hij0,WSign,j)
+        INTEGER :: DetCurr(NEl),ExcitLevel,j
         LOGICAL :: WSign
         REAL*8 :: Hij0      !This is the hamiltonian matrix element between DetCurr and HF
 
@@ -832,9 +832,177 @@ MODULE FciMCMod
             ENDIF
         ENDIF
 
+        IF(TProjEMP2.and.(Iter.gt.NEquilSteps)) THEN
+!Calculate the overlap of the wavefunction with the MP2 wavefunction in order to calculate the energy.
+            CALL AddProjMP2Energy(DetCurr,ExcitLevel,Hij0,WSign,j)
+        ENDIF
+
         RETURN
 
     END SUBROUTINE SumEContrib
+
+!This routine will add the energy contribution from the overlap of the walker with the MP2 wavefunction
+!We want to calculate the energy as: sum_n <Psi_MP2 | H | Psi>/ sum_n <Psi_MP2 | Psi> where n is all iterations
+    SUBROUTINE AddProjMP2Energy(DetCurr,ExcitLevel,Hij0,WSign,j)
+        INTEGER :: DetCurr(NEl),ExcitLevel,j,OrbI,OrbJ,OrbA,OrbB,t
+        INTEGER :: ExcitForm(2,2),nJ(NEl),nStore(6),iExcit,nJ_IC
+        INTEGER :: iGetExcitLevel_2
+        REAL*8 :: Hij0,MP1Compt,Hij,Hjj
+        LOGICAL :: WSign,tSign
+        TYPE(HElement) :: Hijtemp,TempFjj,Hij2temp
+
+!First calculate the overlap of the wavefunction with the MP2 wavefunction - only doubles/HF will contribute
+        IF(ExcitLevel.eq.2) THEN
+
+            TempFjj=GetH0Element3(DetCurr)
+            MP1Compt=-Hij0/(Fii-(REAL(TempFjj%v,r2)))
+            IF(WSign) THEN
+                SumOverlapMP2=SumOverlapMP2+MP1Compt
+            ELSE
+                SumOverlapMP2=SumOverlapMP2-MP1Compt
+            ENDIF
+            
+!!We need to find the ijab orbitals of the double excitation
+!            ExcitForm(1,1)=ExcitLevel
+!            
+!            CALL GetExcitation(HFDet,DetCurr,NEl,ExcitForm,tSign)
+!!The i,j orbitals are ExcitForm(1,1) and (1,2). a/b are (2,1) and (2,2)
+!!Find the ordering of the orbitals in terms of energy
+!            OrbI=INVBRRSpinOrb(ExcitForm(1,1))
+!            OrbJ=INVBRRSpinOrb(ExcitForm(1,2))
+!            OrbA=INVBRRSpinOrb(ExcitForm(2,1))
+!            OrbB=INVBRRSpinOrb(ExcitForm(2,2))
+!
+!!Ensure i > j and a > b.
+!            IF(OrbI.lt.OrbJ) THEN
+!                t=OrbI
+!                OrbI=OrbJ
+!                OrbJ=t
+!            ELSEIF(OrbI.eq.OrbJ) THEN
+!                CALL Stop_All("AddProjMP2Energy","Cannot have I.eq.J")
+!            ENDIF
+!            IF(OrbA.lt.OrbB) THEN
+!                t=OrbA
+!                OrbA=OrbB
+!                OrbB=t
+!            ELSEIF(OrbA.eq.OrbB) THEN
+!                CALL Stop_All("AddProjMP2Energy","Cannot have A.eq.B")
+!            ENDIF
+!            IF(OrbI.ge.OrbB) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!            IF((OrbI.gt.NEl).or.(OrbJ.gt.NEl)) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!            IF((OrbA.gt.nBasis).or.(OrbB.gt.nBasis)) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!            IF((OrbA.le.NEl).or.(OrbB.le.NEl)) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!            
+!            OrbA=OrbA-NEl     !Virtual orbital indexing cannot be > NEl, so remove to save space.
+!            OrbB=OrbB-NEl
+!            
+!            SumOverlapMP2=SumOverlapMP2+MP2ExcitComps(OrbI,OrbJ,OrbA,OrbB)    !Add component of MP1 Wavefunction
+
+            IF(WSign) THEN
+                Hjj=CurrentH(1,j)
+            ELSE
+                Hjj=-CurrentH(1,j)
+            ENDIF
+            SumHOverlapMP2=SumHOverlapMP2+(MP1Compt*Hjj)
+
+        ELSEIF(ExcitLevel.eq.0) THEN
+!HF MP2 wavefunction component is simply 1 since wavefunction is unnormalised.
+
+            IF(WSign) THEN
+                SumOverlapMP2=SumOverlapMP2+1.D0
+                SumHOverlapMP2=SumHOverlapMP2+Hii
+            ELSE
+                SumOverlapMP2=SumOverlapMP2-1.D0
+                SumHOverlapMP2=SumHOverlapMP2-Hii
+            ENDIF
+
+        ENDIF
+
+!Now, for the more difficult task of finding the overlap of H|Psi> with the MP1 wavefunction
+        IF(ExcitLevel.le.4) THEN
+!Any walker which is at a quadruple or less excitation level will have excitations which overlap with MP1.
+!Setup excit generators for this determinant if needed
+            
+            CALL SetupExitgen(DetCurr,CurrentExcits(j))
+            CALL ResetExit2(DetCurr,NEl,G1,nBasis,nBasisMax,CurrentExcits(j)%ExcitData,0) !Reset excitgen
+            
+            do while(.true.)
+!Run through all excitations - nStore has nothing in it (hopefully not needed)
+                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.false.,CurrentExcits(j)%ExcitData,nJ,iExcit,0,nStore,3)
+                IF(nJ(1).eq.0) exit
+                nJ_IC=iGetExcitLevel_2(HFDet,nJ,NEl,2)  !Find out if excitation is a double
+
+                IF(nJ_IC.eq.2) THEN
+!Excitation is less than or equal to a double - find connection to original walker
+                    Hijtemp=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+                    IF(WSign) THEN
+                        Hij=REAL(Hijtemp%v,r2)
+                    ELSE
+                        Hij=-REAL(Hijtemp%v,r2)
+                    ENDIF
+!Find MP1 excitation compt
+                    TempFjj=GetH0Element3(nJ)
+                    Hij2temp=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,nJ_IC,ECore)
+                    MP1Compt=-(REAL(Hij2temp%v,r2))/(Fii-(REAL(TempFjj%v,r2)))
+                    SumHOverlapMP2=SumHOverlapMP2+(MP1Compt*Hij)
+
+!...and then find overlap of this excitation with the MP1 wavefunction
+!                    ExcitForm(1,1)=nJ_IC
+!                    CALL GetExcitation(HFDet,nJ,NEl,ExcitForm,tSign)
+!!The i,j orbitals are ExcitForm(1,1) and (1,2). a/b are (2,1) and (2,2)
+!!Find the ordering of the orbitals in terms of energy
+!                    OrbI=INVBRRSpinOrb(ExcitForm(1,1))
+!                    OrbJ=INVBRRSpinOrb(ExcitForm(1,2))
+!                    OrbA=INVBRRSpinOrb(ExcitForm(2,1))
+!                    OrbB=INVBRRSpinOrb(ExcitForm(2,2))
+!
+!!Ensure i > j and a > b.
+!                    IF(OrbI.lt.OrbJ) THEN
+!                        t=OrbI
+!                        OrbI=OrbJ
+!                        OrbJ=t
+!                    ELSEIF(OrbI.eq.OrbJ) THEN
+!                        CALL Stop_All("AddProjMP2Energy","Cannot have I.eq.J")
+!                    ENDIF
+!                    IF(OrbA.lt.OrbB) THEN
+!                        t=OrbA
+!                        OrbA=OrbB
+!                        OrbB=t
+!                    ELSEIF(OrbA.eq.OrbB) THEN
+!                        CALL Stop_All("AddProjMP2Energy","Cannot have A.eq.B")
+!                    ENDIF
+!                    IF(OrbI.ge.OrbB) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!                    IF((OrbI.gt.NEl).or.(OrbJ.gt.NEl)) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!                    IF((OrbA.gt.nBasis).or.(OrbB.gt.nBasis)) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!                    IF((OrbA.le.NEl).or.(OrbB.le.NEl)) CALL Stop_All("AddProjMP2Energy","Indexing scheme incorrect")
+!                    
+!                    OrbA=OrbA-NEl     !Virtual orbital indexing cannot be > NEl, so remove to save space.
+!                    OrbB=OrbB-NEl
+!                    
+!!Add <MP1|H|Psi>
+!                    SumHOverlapMP2=SumHOverlapMP2+(MP2ExcitComps(OrbI,OrbJ,OrbA,OrbB)*(real(Hijtemp%v,r2)))
+
+                ELSEIF(nJ_IC.eq.0) THEN
+!Excitation is the HF determinant - find connection to it
+
+                    Hijtemp=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+                    IF(WSign) THEN
+                        Hij=REAL(Hijtemp%v,r2)
+                    ELSE
+                        Hij=-REAL(Hijtemp%v,r2)
+                    ENDIF
+
+                    SumHOverlapMP2=SumHOverlapMP2+Hij
+
+                ENDIF
+
+            enddo
+
+            CALL ResetExit2(DetCurr,NEl,G1,nBasis,nBasisMax,CurrentExcits(j)%ExcitData,0) !Reset excitgen
+
+        ENDIF
+
+    END SUBROUTINE AddProjMP2Energy
 
 
 !This routine acts as a thermostat for the simulation - killing random particles if the population becomes too large, or 
@@ -1007,7 +1175,7 @@ MODULE FciMCMod
     SUBROUTINE InitFCIMCCalc()
         USE Calc, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error
+        INTEGER :: DetLT,VecSlot,error,HFConn
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
@@ -1015,11 +1183,6 @@ MODULE FciMCMod
             CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
         ENDIF
 
-!Setup a SOFTEXIT file. If this is ever removed, then the simulation will stop cleanly.
-        OPEN(16,file='SOFTEXIT',status='unknown')
-        WRITE(16,*) ""
-        CLOSE(16)
-        
 !Open a file to store output
         OPEN(15,file='FCIMCStats',status='unknown')
 
@@ -1032,19 +1195,28 @@ MODULE FciMCMod
 
 !Setup excitation generator for the HF determinant
         CALL SetupExitgen(HFDet,HFExcit)
+        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+
+        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed
 
 !Calculate Hii
-        TempHii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
-        Hii=REAL(TempHii%v,r2)
+        TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        Hii=REAL(TempHii%v,r2)          !Diagonal Hamiltonian element for the HF determinant
+
+        TempHii=GetH0Element3(HFDet)
+        Fii=REAL(TempHii%v,r2)          !Fock-energy of the HF determinant
 
 !Initialise variables for calculation on each node
         ProjectionE=0.D0
+        ProjectionMP2=0.D0
         PosFrac=0.D0
         SumENum=0.D0
         SumNoatHF=0
+        SumOverlapMP2=0.D0
+        SumHOverlapMP2=0.D0
         MeanExcitLevel=0.D0
         MinExcitLevel=NEl+10
         MaxExcitLevel=0
@@ -1186,6 +1358,7 @@ MODULE FciMCMod
 !TotSign is the sum of the walkers x sign
         TotSign=InitWalkers
         TotSignOld=InitWalkers
+        ProjectionE=SumENum/(REAL(SumNoatHF,r2))
 
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
@@ -1204,83 +1377,89 @@ MODULE FciMCMod
 
     SUBROUTINE InitMP2Calc()
         INTEGER :: ierr,i,j,nJ(NEl),IC,nStore(6),ExcitForm(2,2),iExcit
-        INTEGER :: A,B,t,MaxComptDet(NEl)
-        REAL*8 :: Denom,MaxCompt,MP2Energy
+        INTEGER :: A,B,t,MaxComptDet(NEl),Compts
+        REAL*8 :: Denom,MaxCompt,MP2Energy,MP1Comp
         LOGICAL :: tSign
         TYPE(HElement) :: Hij
         CHARACTER(Len=*) , PARAMETER :: this_routine='InitMP2Calc'
         
+!The MP1 wavefunction components are no longer precalculated, but rather calculated on the fly now.
 !Need to calculate all the components of the MP2 wavefunction, and store them in MP2ExcitComps
-        WRITE(6,*) "nBasis is:",nBasis
 !MP2 ExcitComps stores the eigenvector for ij->ab, with each dimension representing an index
 !i > j and a > b. An indexing scheme and a 1D array could be used.
 !The HF component is 1, since we are working with an unnormalised eigenvector.
-        ALLOCATE(MP2ExcitComps(NEl,NEl,nBasis-NEl,nBasis-NEl),stat=ierr)
-        CALL LogMemAlloc("MP2ExcitComps",NEl*NEl*(nBasis-NEl)**2,8,this_routine,MP2ExcitCompsTag,ierr)
-        CALL AZZERO(MP2ExcitComps,NEl*NEl*(nBasis-NEl)**2)
+!        ALLOCATE(MP2ExcitComps(NEl,NEl,nBasis-NEl,nBasis-NEl),stat=ierr)
+!        CALL LogMemAlloc("MP2ExcitComps",NEl*NEl*(nBasis-NEl)**2,8,this_routine,MP2ExcitCompsTag,ierr)
+!        CALL AZZERO(MP2ExcitComps,NEl*NEl*(nBasis-NEl)**2)
+!
+!!To store in excitation form - need to be able to order orbitals purely in terms of energy, so setup INVBRR
+!!This is different to the INVBRR in UMatCache, since it works with spin-orbitals
+!        ALLOCATE(INVBRRSpinOrb(nBasis),stat=ierr)
+!        CALL LogMemAlloc("InvBrrSpinOrb",nBasis,4,this_routine,InvBrrSpinOrbTag,ierr)
+!        CALL IAZZERO(INVBRRSpinOrb,nBasis)
+!        t=0
+!        do i=1,nBasis
+!            t=t+1
+!            INVBRRSpinOrb(BRR(i))=t
+!        enddo
 
-!To store in excitation form - need to be able to order orbitals purely in terms of energy, so setup INVBRR
-!This is different to the INVBRR in UMatCache, since it works with spin-orbitals
-        ALLOCATE(INVBRRSpinOrb(nBasis),stat=ierr)
-        CALL LogMemAlloc("InvBrrSpinOrb",nBasis,4,this_routine,InvBrrSpinOrbTag,ierr)
-        CALL IAZZERO(INVBRRSpinOrb,nBasis)
-        t=0
-        do i=1,nBasis
-            t=t+1
-            INVBRRSpinOrb(BRR(i))=t
-        enddo
-
-        WRITE(6,*) "INVBRRSpinOrb is: ",INVBRRSpinOrb(:)
+!        WRITE(6,*) "INVBRRSpinOrb is: ",INVBRRSpinOrb(:)
 
         MP2Energy=Hii  !From HF Determinant which has a wavevector component of 1
         MaxCompt=1.D0
         MaxComptDet(:)=HFDet(:)
+        Compts=0
+
+!Reset the HF Excitation generator
+        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
 
         do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.false.,HFExcit,nJ,iExcit,0,nStore,2)
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
             IF(nJ(1).eq.0) EXIT
-            ExcitForm(1,1)=2    !signify that we are only dealing with double excitations
+            Compts=Compts+1     !Calculate total number of MP1 excitations
+!            ExcitForm(1,1)=2    !signify that we are only dealing with double excitations
             IF(iExcit.ne.2) CALL Stop_All("InitMP2Calc","Excitations other than double being generated")
-            CALL GetExcitation(HFDet,nJ,NEl,ExcitForm,tSign)
-!The i,j orbitals are ExcitForm(1,1) and (1,2). a/b are (2,1) and (2,2)
-!Find the ordering of the orbitals in terms of energy
-            I=INVBRRSpinOrb(ExcitForm(1,1))
-            J=INVBRRSpinOrb(ExcitForm(1,2))
-            A=INVBRRSpinOrb(ExcitForm(2,1))
-            B=INVBRRSpinOrb(ExcitForm(2,2))
-
-!Ensure i > j and a > b.
-            IF(I.lt.J) THEN
-                t=I
-                I=J
-                J=t
-            ELSEIF(I.eq.J) THEN
-                CALL Stop_All("InitMP2Comp","Cannot have I.eq.J")
-            ENDIF
-            IF(A.lt.B) THEN
-                t=A
-                A=B
-                B=t
-            ELSEIF(A.eq.B) THEN
-                CALL Stop_All("InitMP2Comp","Cannot have A.eq.B")
-            ENDIF
-            IF(I.ge.B) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
-            IF((I.gt.NEl).or.(J.gt.NEl)) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
-            IF((A.gt.nBasis).or.(B.gt.nBasis)) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
-            IF((A.le.NEl).or.(B.le.NEl)) CALL Stop_All("InitMP2Comp","Indexing scheme incorrect")
-            
-            A=A-NEl     !Virtual orbital indexing cannot be > NEl, so remove to save space.
-            B=B-NEl
+!            CALL GetExcitation(HFDet,nJ,NEl,ExcitForm,tSign)
+!!The i,j orbitals are ExcitForm(1,1) and (1,2). a/b are (2,1) and (2,2)
+!!Find the ordering of the orbitals in terms of energy
+!            I=INVBRRSpinOrb(ExcitForm(1,1))
+!            J=INVBRRSpinOrb(ExcitForm(1,2))
+!            A=INVBRRSpinOrb(ExcitForm(2,1))
+!            B=INVBRRSpinOrb(ExcitForm(2,2))
+!
+!!Ensure i > j and a > b.
+!            IF(I.lt.J) THEN
+!                t=I
+!                I=J
+!                J=t
+!            ELSEIF(I.eq.J) THEN
+!                CALL Stop_All("InitMP2Calc","Cannot have I.eq.J")
+!            ENDIF
+!            IF(A.lt.B) THEN
+!                t=A
+!                A=B
+!                B=t
+!            ELSEIF(A.eq.B) THEN
+!                CALL Stop_All("InitMP2Calc","Cannot have A.eq.B")
+!            ENDIF
+!            IF(I.ge.B) CALL Stop_All("InitMP2Calc","Indexing scheme incorrect")
+!            IF((I.gt.NEl).or.(J.gt.NEl)) CALL Stop_All("InitMP2Calc","Indexing scheme incorrect")
+!            IF((A.gt.nBasis).or.(B.gt.nBasis)) CALL Stop_All("InitMP2Calc","Indexing scheme incorrect")
+!            IF((A.le.NEl).or.(B.le.NEl)) CALL Stop_All("InitMP2Calc","Indexing scheme incorrect")
+!            
+!            A=A-NEl     !Virtual orbital indexing cannot be > NEl, so remove to save space.
+!            B=B-NEl
 
 !Now put component of MP2 wavefunction into MP2ExcitComps(I,J,A,B)
             Denom=Arr(ExcitForm(2,1),2)-Arr(ExcitForm(1,1),2)+Arr(ExcitForm(2,2),2)-Arr(ExcitForm(1,2),2)
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
 
-            MP2ExcitComps(I,J,A,B)=-REAL(Hij%v,r2)/Denom    !Store MP2 Wavefunction
-            IF((ABS(MP2ExcitComps(I,J,A,B))).gt.MaxCompt) THEN 
+!            MP2ExcitComps(I,J,A,B)=-REAL(Hij%v,r2)/Denom    !Store MP2 Wavefunction
+            MP1Comp=-REAL(Hij%v,r2)/Denom
+            IF((ABS(MP1Comp)).gt.MaxCompt) THEN 
 !Find the maximum component of the MP2 wavefunction
-                MaxCompt=ABS(MP2ExcitComps(I,J,A,B))
+                MaxCompt=ABS(MP1Comp)
                 MaxComptDet(:)=nJ(:)
             ENDIF
             MP2Energy=MP2Energy-(REAL(Hij%v,r2)**2)/Denom   !Calculate MP2 Energy
@@ -1288,11 +1467,12 @@ MODULE FciMCMod
         enddo
 
 !Reset the HF Excitation generator
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit,0)
+        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
 
-        WRITE(6,*) "MP2 components calculated. Maximum MP2 wavevector component is determinant: "
+        WRITE(6,"(I7,A)") Compts," MP2 components calculated. Maximum MP2 wavevector component is determinant: "
         CALL WRITEDET(6,MaxComptDet,NEl,.TRUE.)
         WRITE(6,*) "MP2 ENERGY = ",MP2Energy
+        CALL FLUSH(6)
 
         RETURN
 
@@ -1316,7 +1496,7 @@ MODULE FciMCMod
             ENDIF
         enddo
 
-        WRITE(6,*) "Total number of different sizes blocks allowed in the calculation is: ",TotBlocks
+        WRITE(6,"(A,I6)") "Total number of different sizes blocks possible is: ",TotBlocks
 
 !We will have Totblocks different block sizes, of length: 1,2,4,8,...,2**TotBlocks.
 !Allocate memory to hold the stats for these different block lengths.
@@ -1332,6 +1512,8 @@ MODULE FciMCMod
         OPEN(17,FILE='POPSFILE',Status='unknown')
         WRITE(17,*) TotWalkers, "   TOTWALKERS"
         WRITE(17,*) DiagSft, "   DIAGSHIFT"
+        WRITE(17,*) SumNoatHF, "   SUMNOATHF"
+        WRITE(17,*) SumENum,"   SUMENUM ( \sum<D0|H|Psi> )"
         WRITE(17,*) Iter+PreviousCycles, "   PREVIOUS CYCLES"
         do j=1,TotWalkers
             do k=1,NEl
@@ -1360,9 +1542,15 @@ MODULE FciMCMod
 !Read in initial data
         READ(17,*) InitWalkers
         READ(17,*) DiagSft
+        READ(17,*) SumNoatHF
+        READ(17,*) SumENum
         READ(17,*) PreviousCycles
 
         WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+        IF(NEquilSteps.gt.0) THEN
+            WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
+            NEquilSteps=0
+        ENDIF
 
         MaxWalkers=MemoryFac*InitWalkers
 !Allocate memory to hold walkers at least temporarily
@@ -1641,7 +1829,6 @@ MODULE FciMCMod
             ExcitGen%ExcitData(1)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
 
-
 !Check generation probabilities
 !            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
 !            Exitlevel=iGetExcitLevel(nI,HFDet,NEl)
@@ -1818,12 +2005,6 @@ MODULE FciMCMod
         enddo
         DEALLOCATE(WalkVecExcits)
         DEALLOCATE(WalkVec2Excits)
-        IF(Allocated(MP2ExcitComps)) THEN
-            DEALLOCATE(MP2ExcitComps)
-            CALL LogMemDealloc(this_routine,MP2ExcitCompsTag)
-            DEALLOCATE(INVBRRSpinOrb)
-            CALL LogMemDealloc(this_routine,INVBRRSpinOrbTag)
-        ENDIF
 
     END SUBROUTINE DeallocFCIMCMem
         
