@@ -489,8 +489,8 @@ subroutine ParMP2(nI)
                   ! to take into account (if applicable) excitations such as
                   ! (1a,2a)->(3a,4a), (1b,2b)->(3b,4b), (1a,2b)->(3a,4b),
                   ! (1b,2a)->(3b,4a), (1a,2b)->(3b,4a) and (1b,2a)->(3a,4b).
-                  dU(2)=GetUMatEl2(IA,JA,AA,BA)
-                  dU(1)=-GetUMatEl2(IA,JA,BA,AA)
+                  dU(2)=GetUMatEl2(IA,JA,AA,BA)  ! This logic is correct due to 
+                  dU(1)=-GetUMatEl2(IA,JA,BA,AA) ! the use of tSign!  Not v. clear though!.
               else if (G1(Excit(1,1))%Ms.eq.G1(Excit(2,1))%Ms) then
                   ! e.g. (1a,1b) -> (3a,4b)
                   dU(1)=GetUMatEl2(IA,JA,AA,BA)
