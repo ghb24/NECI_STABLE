@@ -259,7 +259,12 @@ MODULE Integrals
                   call geti(NSLOTSINIT)
                case("MB")
                   call geti(NMEMINIT)
-                  nSlotsInit=1
+                  if (nMemInit.eq.0) then
+                      ! Not using the cache...
+                      nSlotsInit=0
+                  else
+                      nSlotsInit=1
+                  end if
                case("READ")
                    tReadInCache=.true.
                case("DUMP")
