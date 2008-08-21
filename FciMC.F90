@@ -166,9 +166,13 @@ MODULE FciMCMod
             CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentH(2,j),CurrentSign(j),j)
 
             IF(TResumFCIMC) THEN
-!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
+!Setup excit generators for this determinant
                 CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
                 CALL ResumGraph(CurrentDets(:,j),CurrentSign(j),VecSlot,CurrentExcits(j),j)
+
+            ELSEIF(TFixParticleSign) THEN
+
+                CALL FixParticleSignIter(j,VecSlot)
 
             ELSE
                 IF(THFRetBias) THEN
@@ -286,14 +290,14 @@ MODULE FciMCMod
                         ENDIF !Choice of unbiasing methods
 
 !Calculate number of children to spawn
-                        Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,TotProb,IC,-1.D0)
+                        Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,TotProb,IC)
 
                         IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
                             IF(Child.gt.0) THEN
-                                WSign=.true.    !-ve child created
+                                WSign=.true.    !+ve child created
                             ELSE
-                                WSign=.false.   !+ve child created
+                                WSign=.false.   !-ve child created
                             ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
                             ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
@@ -332,14 +336,14 @@ MODULE FciMCMod
                     CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
 
 !Calculate number of children to spawn
-                    Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,-1.D0)
+                    Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
 
                     IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
                         IF(Child.gt.0) THEN
-                            WSign=.true.    !-ve child created
+                            WSign=.true.    !+ve child created
                         ELSE
-                            WSign=.false.   !+ve child created
+                            WSign=.false.   !-ve child created
                         ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
                         ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
@@ -412,7 +416,7 @@ MODULE FciMCMod
 
                 ENDIF   !To kill if
 
-            ENDIF   !Resum if
+            ENDIF   !Resum/FixParticleSign if
 
 !Finish cycling over walkers
         enddo
@@ -532,6 +536,128 @@ MODULE FciMCMod
         RETURN
 
     END SUBROUTINE PerformFCIMCyc
+
+!This impliments a fixed sign approximation, whereby connections in the system which would flip the sign of the 
+!particle are resummed into the diagonal matrix element contributing to the on-site death rate. 
+!For a real-space analogue, see: D.F.B. ten Haaf, H.J.M. van Bemmel, J.M.J. van Leeuwen, W. van Saarloos, and D.M.
+!Ceperley, Phys. Rev. B 51, 13039 (1995)
+    SUBROUTINE FixParticleSignIter(Walker,VecSlot)
+        INTEGER :: Walker,VecSlot,nStore(6),nJ(NEl),IC,Child,ExcitLevel,iGetExcitLevel_2
+        INTEGER :: iDie,l
+        TYPE(HElement) :: HConn,HOffDiag,HDiagTemp
+        LOGICAL :: WSign
+        REAL*8 :: SpinFlipContrib,HConnReal,HDiag,DiagDeath
+
+!Setup excitgen
+        CALL SetupExitgen(CurrentDets(:,Walker),CurrentExcits(Walker))
+        CALL ResetExit2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,CurrentExcits(Walker)%ExcitData,0) !Reset excitgen
+
+!Run through all excits
+        do while(.true.)
+            CALL GenSymExcitIt2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,.false.,CurrentExcits(Walker)%ExcitData,nJ,IC,0,nStore,exFlag)
+            IF(nJ(1).eq.0) EXIT
+            HConn=GetHElement2(CurrentDets(:,Walker),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+            HConnReal=REAL(HConn%v,r2)
+            IF(HConnReal.lt.0.D0) THEN
+!Connection is negative, therefore attempt to create a particle there - we are running through all walkers, so Prob=1.D0
+                Child=AttemptCreate(CurrentDets(:,Walker),CurrentSign(Walker),nJ,1.D0,IC,HConnReal)
+
+                IF(Child.ne.0) THEN
+!We want to spawn a child - find its information to store
+                    IF(Child.gt.0) THEN
+                        WSign=.true.    !+ve child created
+                    ELSE
+                        WSign=.false.   !-ve child created
+                        IF(CurrentSign(Walker)) THEN
+                            CALL Stop_All("FixParticleSignIter","Particle of opposite sign created - this should not happen with FixParticleSign")
+                        ENDIF
+                    ENDIF
+!Calculate excitation level, connection to HF and diagonal ham element
+                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+                    IF(ExcitLevel.eq.2) THEN
+!Only need it for double excitations, since these are the only ones which contribute to energy
+                        HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                    ENDIF
+                    IF(ExcitLevel.eq.0) THEN
+!We know we are at HF - HDiag=0
+                        HDiag=0.D0
+                    ELSE
+                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                    ENDIF
+
+                    do l=1,abs(Child)
+!Copy across children - cannot copy excitation generators, as do not know them
+                        NewDets(:,VecSlot)=nJ(:)
+                        NewSign(VecSlot)=WSign
+                        NewExcits(VecSlot)%ExitGenForDet=.false.
+                        NewIC(VecSlot)=ExcitLevel
+                        NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
+                        NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
+                        VecSlot=VecSlot+1
+                    enddo
+                                
+                    Acceptances=Acceptances+ABS(Child)  !Sum the number of created children to use in acceptance ratio
+
+                ENDIF   !End if child created
+
+            ELSE
+!Sum in positive connections to a spin-flip term which modifies the diagonal death-rate
+                SpinFlipContrib=SpinFlipContrib+HConnReal
+
+            ENDIF
+
+        enddo   !End of searching through excits
+
+        CALL ResetExit2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,CurrentExcits(Walker)%ExcitData,0) !Reset excitgen
+
+!Add the spin-flip contribution to the death-rate
+        DiagDeath=CurrentH(1,Walker)+SpinFlipContrib
+
+!We now have to decide whether the parent particle (Walker) wants to self-destruct or not...
+        iDie=AttemptDie(CurrentDets(:,Walker),DiagDeath)
+!iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
+
+        IF(iDie.le.0) THEN
+!This indicates that the particle is spared and we may want to create more...copy them across to NewDets
+!If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
+
+            do l=1,abs(iDie)+1    !We need to copy accross one more, since we need to include the original spared particle
+                NewDets(:,VecSlot)=CurrentDets(:,Walker)
+                NewSign(VecSlot)=CurrentSign(Walker)
+!Copy excitation generator accross
+                CALL CopyExitgen(CurrentExcits(Walker),NewExcits(VecSlot))
+                NewIC(VecSlot)=CurrentIC(Walker)
+                NewH(:,VecSlot)=CurrentH(:,Walker)
+                VecSlot=VecSlot+1
+            enddo
+
+        ELSEIF(iDie.gt.0) THEN
+!This indicates that particles want to be killed. The first kill will simply be performed by not copying accross the original particle.
+!Therefore, if iDie = 1, then we can simply ignore it.
+!However, after that anti-particles will need to be created on the same determinant.
+
+            do l=1,iDie-1
+                NewDets(:,VecSlot)=CurrentDets(:,Walker)
+                IF(CurrentSign(Walker)) THEN
+!Copy accross new anti-particles
+                    NewSign(VecSlot)=.FALSE.
+                ELSE
+                    NewSign(VecSlot)=.TRUE.
+                ENDIF
+!Copy excitation generator accross
+                CALL CopyExitgen(CurrentExcits(Walker),NewExcits(VecSlot))
+                NewIC(VecSlot)=CurrentIC(Walker)
+                NewH(:,VecSlot)=CurrentH(:,Walker)
+                VecSlot=VecSlot+1
+            enddo
+
+        ENDIF   !To kill if
+
+        RETURN
+
+    END SUBROUTINE FixParticleSignIter
+
 
     SUBROUTINE ResumGraph(nI,WSign,VecSlot,nIExcitGen,VecInd)
         INTEGER :: nI(NEl),VecSlot,VecInd,ExcitLevel,iGetExcitLevel_2,Create,i,j
@@ -1863,19 +1989,21 @@ MODULE FciMCMod
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
+!You can optionally specify the connection between the determinants if it is already known.
     INTEGER FUNCTION AttemptCreate(DetCurr,WSign,nJ,Prob,IC,Hij)
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate
         LOGICAL :: WSign
-        REAL*8 :: Prob,Ran2,rat,Hij
+        REAL*8 :: Prob,Ran2,rat
+        REAL*8 , OPTIONAL :: Hij
         TYPE(HElement) :: rh
 
-        IF(Hij.lt.0.D0) THEN
-!Calculate off diagonal hamiltonian matrix element between determinants
-            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-        ELSE
+        IF(present(Hij)) THEN
 !Connection between determinants is specified in Hij argument
             rh=HElement(Hij)
+        ELSE
+!Calculate off diagonal hamiltonian matrix element between determinants
+            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
         ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
