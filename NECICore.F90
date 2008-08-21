@@ -1,4 +1,3 @@
-! This is just a svn test.
 ! NECICore is the main outline of the NECI Program.  It is called AFTER ReadInput has been called.
 
 Subroutine  NECICore(iCacheFlag, tCPMD,tVASP)
