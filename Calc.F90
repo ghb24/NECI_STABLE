@@ -29,7 +29,7 @@ MODULE Calc
         INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
         INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
         INTEGER InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
-        INTEGER RhoApp,NEquilSteps
+        INTEGER RhoApp,NEquilSteps,TFixParticleSign
         
         
         REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
@@ -75,6 +75,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TFixParticleSign=.false.
           TProjEMP2=.false.
           TExcludeRandGuide=.false.
           THFRetBias=.false.
@@ -708,6 +709,10 @@ MODULE Calc
             case("PROJECTE-MP2")
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
+            case("FIXPARTICLESIGN")
+!This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
+!on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
+                TFixParticleSign=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

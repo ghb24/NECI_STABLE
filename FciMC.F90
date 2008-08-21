@@ -5,7 +5,7 @@ MODULE FciMCMod
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    USE Calc , only : TProjEMP2
+    USE Calc , only : TProjEMP2,TFixParticleSign
     USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -65,6 +65,7 @@ MODULE FciMCMod
     INTEGER :: NoatDoubs,Annihilated,Acceptances
     REAL*8 :: AccRat
     INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
+    INTEGER :: NoatHF           !This is the number at HF for a given Iteration
 
 !These values are used to calculate the energy when TProjEMP2 is set
     REAL*8 :: SumOverlapMP2     !This is the overlap of the walker distribution with the MP2 wavefunction, summed over all iterations
@@ -459,13 +460,19 @@ MODULE FciMCMod
         ELSE
 
 !This routine now cancels down the particles with opposing sign on each determinant
-!This routine does not necessarily need to be called every Iter, but it does at the moment, since it is the only way to 
-!transfer the residual particles back onto CurrentDets
+!This routine does not necessarily need to be called every Iter
             CALL AnnihilatePairs(TotWalkersNew)
             Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
 !            WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers,Iter,TotWalkers
         ENDIF
-            
+
+        IF(NoatHF.lt.0) THEN
+!Flip the sign if we're beginning to get a negative population on the HF
+            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            CALL FlipSign()
+        ENDIF
+!Reset the number at HF per iteration
+        NoatHF=0
 
         IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 !Particle number is too large - kill them randomly
@@ -697,6 +704,17 @@ MODULE FciMCMod
 
     END SUBROUTINE ApplyRhoMat
 
+!This will flip the sign of all the particles.
+    SUBROUTINE FlipSign()
+        INTEGER :: i
+
+        do i=1,TotWalkers
+            CurrentSign(i)=.not.CurrentSign(i)
+        enddo
+        RETURN
+    END SUBROUTINE FlipSign
+
+
 !This routine looks at the change in residual particle number over a number of cycles, and adjusts the 
 !value of the diagonal shift in the hamiltonian in order to compensate for this
     SUBROUTINE UpdateDiagSft()
@@ -806,10 +824,12 @@ MODULE FciMCMod
         IF(ExcitLevel.eq.0) THEN
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
+                NoatHF=NoatHF+1
                 PosFrac=PosFrac+1.D0
                 TotSign=TotSign+1
             ELSE
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
+                NoatHF=NoatHF-1
                 TotSign=TotSign-1
             ENDIF
         ELSEIF(ExcitLevel.eq.2) THEN
