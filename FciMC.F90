@@ -5,7 +5,7 @@ MODULE FciMCMod
     USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    USE Calc , only : TProjEMP2,TFixParticleSign
+    USE Calc , only : TProjEMP2,TFixParticleSign,TStartSinglePart
     USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS
     USE Integrals , only : fck,NMax,nMsh,UMat
@@ -86,6 +86,8 @@ MODULE FciMCMod
 
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
+
+    LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
 
     contains
 
@@ -420,7 +422,6 @@ MODULE FciMCMod
 
 !Finish cycling over walkers
         enddo
-!        WRITE(76,*) Iter,Spawnreted,Doubnotret,others
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
         SumWalkersCyc=SumWalkersCyc+TotWalkers
@@ -478,58 +479,69 @@ MODULE FciMCMod
 !Reset the number at HF per iteration
         NoatHF=0
 
-        IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
+
+        IF(TSinglePartPhase) THEN
+!Do not allow culling if we are still in the single particle phase.
+            IF(TotWalkers.gt.InitWalkers) THEN
+                WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                TSinglePartPhase=.false.
+            ENDIF
+        ELSE
+!Check whether we need to cull particles
+            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 !Particle number is too large - kill them randomly
 
 !Log the fact that we have made a cull
-            NoCulls=NoCulls+1
-            IF(NoCulls.gt.10) THEN
-                WRITE(6,*) "Too Many Culls"
-                CALL FLUSH(6)
-                CALL Stop_All("FCIMC","Too Many Culls")
-            ENDIF
+                NoCulls=NoCulls+1
+                IF(NoCulls.gt.10) THEN
+                    WRITE(6,*) "Too Many Culls"
+                    CALL FLUSH(6)
+                    CALL Stop_All("FCIMC","Too Many Culls")
+                ENDIF
 
-            IF(TSignShift) THEN
+                IF(TSignShift) THEN
 !CullInfo(:,1) is walkers/residualsign before cull
-                CullInfo(NoCulls,1)=TotSign
-            ELSE
-                CullInfo(NoCulls,1)=TotWalkers
-            ENDIF
-            IF(mod(Iter,StepsSft).eq.0) THEN
+                    CullInfo(NoCulls,1)=TotSign
+                ELSE
+                    CullInfo(NoCulls,1)=TotWalkers
+                ENDIF
+                IF(mod(Iter,StepsSft).eq.0) THEN
 !CullInfo(:,3) is MC Steps into shift cycle before cull
 !This is just before the calculation of the shift - we want the value to be equal to StepsSft
-                CullInfo(NoCulls,3)=StepsSft
-            ELSE
-                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-            ENDIF
+                    CullInfo(NoCulls,3)=StepsSft
+                ELSE
+                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+                ENDIF
 
-            WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
-            WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
-            WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
-            CALL ThermostatParticles(.true.)
+                WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
+                WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
+                WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
+                CALL ThermostatParticles(.true.)
 
-        ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
+            ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
 !Particle number is too small - double every particle in its current position
 
 !Log the fact that we have made a cull
-            NoCulls=NoCulls+1
-            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
-            IF(TSignShift) THEN
+                NoCulls=NoCulls+1
+                IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
+                IF(TSignShift) THEN
 !CullInfo(:,1) is walkers/residualsign before cull
-                CullInfo(NoCulls,1)=TotSign
-            ELSE
-                CullInfo(NoCulls,1)=TotWalkers
-            ENDIF
-            IF(mod(Iter,StepsSft).eq.0) THEN
+                    CullInfo(NoCulls,1)=TotSign
+                ELSE
+                    CullInfo(NoCulls,1)=TotWalkers
+                ENDIF
+                IF(mod(Iter,StepsSft).eq.0) THEN
 !CullInfo(:,3) is MC Steps into shift cycle before cull
 !This is just before the calculation of the shift - we want the value to be equal to StepsSft
-                CullInfo(NoCulls,3)=StepsSft
-            ELSE
-                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-            ENDIF
+                    CullInfo(NoCulls,3)=StepsSft
+                ELSE
+                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+                ENDIF
 
-            WRITE(6,*) "Doubling particle population to increase total number..."
-            CALL ThermostatParticles(.false.)
+                WRITE(6,*) "Doubling particle population to increase total number..."
+                CALL ThermostatParticles(.false.)
+
+            ENDIF
 
         ENDIF
 
@@ -901,7 +913,9 @@ MODULE FciMCMod
 
         ENDIF
 
-        DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+        IF(.not.TSinglePartPhase) THEN
+            DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+        ENDIF
 !        IF((DiagSft).gt.0.D0) THEN
 !            WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
 !            STOP
@@ -1322,6 +1336,7 @@ MODULE FciMCMod
         USE Calc, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,HFConn
+        REAL*8 :: Ran2
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
 
@@ -1371,6 +1386,14 @@ MODULE FciMCMod
         Annihilated=0
         AccRat=0.D0
         PreviousCycles=0
+        IF(TStartSinglePart) THEN
+            TSinglePartPhase=.true.
+            IF(TReadPops) THEN
+                CALL Stop_All("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a single particle")
+            ENDIF
+        ELSE
+            TSinglePartPhase=.false.
+        ENDIF
 
         IF(TResumFciMC) THEN
             IF(NDets.gt.2) THEN
@@ -1420,7 +1443,11 @@ MODULE FciMCMod
 !Set the maximum number of walkers allowed
             MaxWalkers=MemoryFac*InitWalkers
         
-            WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
+            IF(TStartSinglePart) THEN
+                WRITE(6,"(A,I9)") "Initial number of particles set to 1, and shift will be held at 0.D0 until particle number gets to ",InitWalkers
+            ELSE
+                WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
+            ENDIF
             WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
 
@@ -1457,11 +1484,25 @@ MODULE FciMCMod
             NewIC=>WalkVec2IC
             NewH=>WalkVec2H
 
-            do j=1,InitWalkers
-                CurrentDets(:,j)=HFDet(:)
-                CurrentSign(j)=.true.
-                CurrentIC(j)=0
-            enddo
+            IF(TStartSinglePart) THEN
+                CurrentDets(:,1)=HFDet(:)
+                CurrentIC(1)=0
+                CurrentSign(1)=.true.
+            ELSE
+                do j=1,InitWalkers
+                    CurrentDets(:,j)=HFDet(:)
+                    CurrentIC(j)=0
+                    IF(TFixParticleSign) THEN
+                        IF(Ran2(Seed).lt.0.40) THEN
+                            CurrentSign(j)=.false.
+                        ELSE
+                            CurrentSign(j)=.true.
+                        ENDIF
+                    ELSE
+                        CurrentSign(j)=.true.
+                    ENDIF
+                enddo
+            ENDIF
 
             WRITE(6,*) "Initial memory allocation sucessful..."
 
@@ -1474,10 +1515,14 @@ MODULE FciMCMod
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
 
-            do j=1,InitWalkers
-!Copy the HF excitation generator accross to each initial particle
-                CALL CopyExitGen(HFExcit,CurrentExcits(j))
-            enddo
+            IF(TStartSinglePart) THEN
+                CALL CopyExitGen(HFExcit,CurrentExcits(1))
+            ELSE
+                do j=1,InitWalkers
+    !Copy the HF excitation generator accross to each initial particle
+                    CALL CopyExitGen(HFExcit,CurrentExcits(j))
+                enddo
+            ENDIF
 
             WRITE(6,*) "Initial allocation of excitation generators successful..."
             CALL FLUSH(6)
@@ -1498,12 +1543,19 @@ MODULE FciMCMod
             ENDIF
         ENDIF
 
+        IF(TStartSinglePart) THEN
+            TotWalkers=1
+            TotWalkersOld=1
+            TotSign=1
+            TotSignOld=1
+        ELSE
 !TotWalkers contains the number of current walkers at each step
-        TotWalkers=InitWalkers
-        TotWalkersOld=InitWalkers
+            TotWalkers=InitWalkers
+            TotSign=InitWalkers
+            TotWalkersOld=InitWalkers
+            TotSignOld=InitWalkers
+        ENDIF
 !TotSign is the sum of the walkers x sign
-        TotSign=InitWalkers
-        TotSignOld=InitWalkers
         ProjectionE=SumENum/(REAL(SumNoatHF,r2))
 
         CALL IAZZERO(CullInfo,30)

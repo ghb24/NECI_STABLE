@@ -23,6 +23,7 @@ MODULE Calc
         LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
         LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
         LOGICAL THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
+        LOGICAL TStartSinglePart
         
         INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
         INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -75,6 +76,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TStartSinglePart=.false.
           TFixParticleSign=.false.
           TProjEMP2=.false.
           TExcludeRandGuide=.false.
@@ -713,6 +715,9 @@ MODULE Calc
 !This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
 !on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
                 TFixParticleSign=.true.
+            case("STARTSINGLEPART")
+!A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
+                TStartSinglePart=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
