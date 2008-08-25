@@ -36,6 +36,17 @@ record_handler  |-----|-----|-----------|------------|
                  |----------|
                           input                                                   
 
+Tasks to improve flow of NECI
+=============================
+
+Split all data & input parameters from Calc, System, Integrals - put into a calcdata e.t.c module.
+Precalcread remove dependancies
+Calc to call lower level routines like fcimc - Calc at the top
+Direct lanczos FCI for Hubbard
+Blocks of symmetry determiants to diagonalise in Lanczos - not store full compressed matrix
+Keyword driven input parameters from which to pick jobs
+Rewrite of the method farming section of mcpaths.F - allow backward compatability
+Interface with QChem
 
 The *.F files listed according to the modules they use.
 =======================
