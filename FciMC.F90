@@ -203,7 +203,7 @@ MODULE FciMCMod
                             Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
                         ENDIF
                     ELSEIF(CurrentIC(j).eq.ICILevel) THEN
-!Walker is at the excitation cutoff level - all possible excitations could be disallowed
+!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
                         ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
                         IF(ExcitLevel.gt.ICILevel) THEN
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
@@ -1533,7 +1533,7 @@ MODULE FciMCMod
             MaxWalkers=MemoryFac*InitWalkers
         
             IF(TStartSinglePart) THEN
-                WRITE(6,"(A,I9)") "Initial number of particles set to 1, and shift will be held at 0.D0 until particle number gets to ",InitWalkers
+                WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers
             ELSE
                 WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
             ENDIF
