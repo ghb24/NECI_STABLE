@@ -55,8 +55,16 @@ MODULE System
         
 !Renewed for compile
 
-! List of orbital energies.  (:,1) is ordered into by symmetry representation, 
-! (:,2) is ordered by the energy of orbital.
+! List of orbital energies.
+! Arr(:,1)
+!   ordered by energy.  Moreover when we have a set of degenerate orbitals with
+!   different symmetry, they are ordered within that set such that orbitals with
+!   the same symmetry are next to each other, and then by Ms=-1,1.
+!   Arr(10,1) is the energy of the 10th lowest energy
+!   spin-orbital.
+! Arr(:,2)
+!     ordered by spin-orbital index.  Arr(10,1) is the energy of the 10th
+!     spin-orbital (given the index scheme in use).
 ! Reallocated with the correct (new) size during freezing.
     REAL*8, pointer :: Arr(:,:) 
     INTEGER tagArr

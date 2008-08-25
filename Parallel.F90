@@ -246,7 +246,7 @@ subroutine ParMP2(nI)
    integer :: iMinElec, iMaxElec
    real*8 :: nCur
    integer :: i,j
-   integer :: IA,JA,AA,BA
+   integer :: IA,JA,AA,BA,JJ
    integer :: store(6),Excit(2,2)
    integer :: ic,exlen,iC0,ExcitOrbs(2,2),ExLevel
    integer, pointer :: Ex(:)
@@ -262,7 +262,10 @@ subroutine ParMP2(nI)
    logical :: tSign
    integer :: isub,ierr,tag_Ex
    character(*), parameter :: this_routine='ParMP2'
+   logical :: dbg 
 
+   dbg=.false.
+   
    call TiSet('ParMP2    ',isub)
    
    select case(IAND(nWHTay(1,1),24))
@@ -325,12 +328,17 @@ subroutine ParMP2(nI)
 ! Quickest attempt (and useful for debugging).
 ! Not as efficient as the code below, but clearer and useful for debugging.
 ! Also, this should be used for unrestricted calculations.
+if (dbg) then
       ! MP2 theory refers to the unperturbed excited determinant
       ! => use GetH0Element3 rather than GetHElement3.
-!      dE2=GetH0Element3(nJ)
-!      dU=GetHElement3(nI,nJ,iC)
-!      call getMP2E(dE1,dE2,dU,dE)
-!      dETot=dETot+dE
+      Excit(1,1)=2
+      call GetExcitation(nI,nJ,nEl,Excit,tSign)
+      dE2=GetH0Element3(nJ)
+      dU(1)=GetHElement3(nI,nJ,iC)
+      call getMP2E(dE1,dE2,dU(1),dE)
+      dETot(2)=dETot(2)+dE
+
+else
 
 ! Alternatively, calculate the energy of the excited determinant
 ! in reference to that of the reference determinant (i.e. setting dE1=0).
@@ -442,6 +450,8 @@ subroutine ParMP2(nI)
               end if
           end if
       end if
+
+      weight=1
               
       if (weight.ne.0) then
 
@@ -453,7 +463,9 @@ subroutine ParMP2(nI)
               ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
               call GTID(nBasisMax,Excit(1,1),IA)
               call GTID(nBasisMax,Excit(2,1),AA)
-              do JA=1,nEl/2 ! Assuming closed shell.  But we have already assumed restricted. ;-)
+              do JJ=1,nEl,2 ! Assuming closed shell.  But we have already assumed restricted. ;-)
+                  ! Spatial orbital of the j-th element of the reference determinant.
+                  call GTID(nBasisMax,nI(JJ),JA) 
                   ! Try to be as efficient as possible with the integrals...
                   ! Want to ask for each integral only once (we don't *quite*
                   ! succeed), so that the sum is efficient even without a cache.
@@ -484,21 +496,27 @@ subroutine ParMP2(nI)
               ! Double excitation
               dE2=dE2+HDElement(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
 
-              if (G1(Excit(1,1))%Ms.eq.G1(Excit(1,2))%Ms) then
-                  ! Calculate required integrals.  They are used appropriately below
-                  ! to take into account (if applicable) excitations such as
-                  ! (1a,2a)->(3a,4a), (1b,2b)->(3b,4b), (1a,2b)->(3a,4b),
-                  ! (1b,2a)->(3b,4a), (1a,2b)->(3b,4a) and (1b,2a)->(3a,4b).
-                  dU(2)=GetUMatEl2(IA,JA,AA,BA)  ! This logic is correct due to 
-                  dU(1)=-GetUMatEl2(IA,JA,BA,AA) ! the use of tSign!  Not v. clear though!.
-              else if (G1(Excit(1,1))%Ms.eq.G1(Excit(2,1))%Ms) then
-                  ! e.g. (1a,1b) -> (3a,4b)
+!              if (G1(Excit(1,1))%Ms.eq.G1(Excit(1,2))%Ms) then
+!                  ! Calculate required integrals.  They are used appropriately below
+!                  ! to take into account (if applicable) excitations such as
+!                  ! (1a,2a)->(3a,4a), (1b,2b)->(3b,4b), (1a,2b)->(3a,4b),
+!                  ! (1b,2a)->(3b,4a), (1a,2b)->(3b,4a) and (1b,2a)->(3a,4b).
+!                  dU(2)=GetUMatEl2(IA,JA,AA,BA)  ! This logic is correct due to 
+!                  dU(1)=-GetUMatEl2(IA,JA,BA,AA) ! the use of tSign!  Not v. clear though!.
+!              else if (G1(Excit(1,1))%Ms.eq.G1(Excit(2,1))%Ms) then
+!                  ! e.g. (1a,1b) -> (3a,4b)
+!                  dU(1)=GetUMatEl2(IA,JA,AA,BA)
+!              else
+!                  ! e.g. (1a,1b) -> (3b,4a)
+!                  dU(1)=-GetUMatEl2(IA,JA,BA,AA)
+!              end if
+              if (G1(Excit(1,1))%Ms.EQ.G1(Excit(2,1))%Ms.AND.G1(Excit(1,2))%Ms.EQ.G1(Excit(2,2))%Ms) then
                   dU(1)=GetUMatEl2(IA,JA,AA,BA)
-              else
-                  ! e.g. (1a,1b) -> (3b,4a)
-                  dU(1)=-GetUMatEl2(IA,JA,BA,AA)
               end if
-              if (tSign) dU(1)=-dU(1)
+              if (G1(Excit(1,1))%Ms.EQ.G1(Excit(2,2))%Ms.AND.G1(Excit(1,2))%Ms.EQ.G1(Excit(2,1))%Ms) then
+                  dU(2)=GetUMatEl2(IA,JA,BA,AA)
+              end if
+              !if (tSign) dU(1)=-dU(1)
           end if
 
           if (Excit(1,2).eq.0) then
@@ -507,14 +525,14 @@ subroutine ParMP2(nI)
               dETot(1)=dETot(1)+HElement(weight)*dE
           else
               ! Doubles contributions.
-              if (dU(2).agt.0.d0) then
-                  ! Get e.g. (1a,2b)->(3a,4b) and (1a,2b)->(3b,4a) for "free"
-                  ! when we evaluate (1a,2a)->(3a,4a).
-                  call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
-                  dETot(2)=dETot(2)+HElement(weight)*dE
-                  call getMP2E(HDElement(0.d0),dE2,dU(2),dE)
-                  dETot(2)=dETot(2)+HElement(weight)*dE
-              end if
+              !if (dU(2).agt.0.d0) then
+              !    ! Get e.g. (1a,2b)->(3a,4b) and (1a,2b)->(3b,4a) for "free"
+              !    ! when we evaluate (1a,2a)->(3a,4a).
+              !    call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
+              !    dETot(2)=dETot(2)+HElement(weight)*dE
+              !    call getMP2E(HDElement(0.d0),dE2,dU(2),dE)
+              !    dETot(2)=dETot(2)+HElement(weight)*dE
+              !end if
               dU(1)=dU(1)-dU(2)
               call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
               dETot(2)=dETot(2)+HElement(weight)*dE
@@ -522,6 +540,9 @@ subroutine ParMP2(nI)
 
       end if
 ! END  of more efficient approach.
+      end if
+          write (6,'(2i3,a2,2i3,2f17.8)') Excit(1,:),'->',Excit(2,:),dE
+
 
       ! Get next excitation.
       CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
