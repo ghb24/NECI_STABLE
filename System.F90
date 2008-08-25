@@ -55,7 +55,8 @@ MODULE System
         
 !Renewed for compile
 
-! List of orbital energies.  (:,1) is ordered  by symmetry, (:,2) is the energy of orbital.
+! List of orbital energies.  (:,1) is ordered into by symmetry representation, 
+! (:,2) is ordered by the energy of orbital.
 ! Reallocated with the correct (new) size during freezing.
     REAL*8, pointer :: Arr(:,:) 
     INTEGER tagArr
