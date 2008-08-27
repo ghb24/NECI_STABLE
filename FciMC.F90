@@ -42,7 +42,7 @@ MODULE FciMCMod
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=200
+    INTEGER :: MemoryFac=20
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,TotSign,TotSignOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
@@ -1539,6 +1539,7 @@ MODULE FciMCMod
             ENDIF
             WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
+            WRITE(6,*) "Maximum storage capability of walkers is: ", MaxWalkers
 
 !Allocate memory to hold walkers
             ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
