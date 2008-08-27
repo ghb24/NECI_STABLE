@@ -1,6 +1,5 @@
 MODULE Logging
 
-    USE System , only : defaults,Feb08
     IMPLICIT NONE
     Save
 
@@ -13,6 +12,7 @@ MODULE Logging
 
     SUBROUTINE LogReadInput()
       USE input
+      use default_sets
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w

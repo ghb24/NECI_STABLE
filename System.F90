@@ -11,8 +11,6 @@ MODULE System
     INTEGER iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY
     REAL*8 BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB
     REAL*8 ALPHA,FCOULDAMPBETA,FCOULDAMPMU
-! Defaults stored in this module
-    LOGICAL :: defaults,Feb08
 
 ! Used to be stored in Integrals
     INTEGER ORBORDER(8,2)
@@ -86,6 +84,7 @@ MODULE System
 
     SUBROUTINE SysReadInput()
       USE input
+      use default_sets
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w

@@ -6,8 +6,7 @@ OBJ_AL  = sort2.o fctrl.o sltcnd.o \
           freem.o memory.o \
           detham.o util.o frsblk.o \
           sort_1.o lineup.o gen_coul.o sym.o\
-          gndts.o xcnrgy_dnsty.o xcener.o \
-          symexcit.o ranlux.o timer.o 
+          gndts.o symexcit.o ranlux.o timer.o 
 
 OBJ_CU  = fcoul.o rhoofr.o write_rho.o \
           xchole.o rlsxc_sc.o rlsxc1_sc.o rlsxc2_sc.o \
@@ -28,7 +27,7 @@ OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          precalcread.o Calc.o Integrals.o Logging.o nodediag.o MemoryManagement.o \
          Determinants.o DetCalc.o NECICore.o HFCalc.o GraphMorph.o StarDiagTrip.o \
          StarMC.o Parallel.o FciMC.o MCDets.o OneEInts.o ReturnPathMC.o FciMCPar.o \
-         SymData.o vasp_interface.o vasp_init.o stop_all.o CPMDData.o
+         SymData.o vasp_interface.o vasp_init.o stop_all.o CPMDData.o default_sets.o
 
 OBJ_NOCPMD = cpmdstub.o
 OBJ_NOVASP = vasp_neci_interface_stub.o

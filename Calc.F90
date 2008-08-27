@@ -1,7 +1,7 @@
 
 MODULE Calc
         
-        USE System , only : NEL,Feb08,defaults
+        use System, only: nEl
         USE Integrals , only : NFROZEN
         Use Determinants, only :nActiveSpace
         use UMatCache, only: gen2CPMDInts
@@ -51,6 +51,7 @@ MODULE Calc
 
         SUBROUTINE CalcReadInput()
           USE input
+          use default_sets
           Use Determinants, only : iActiveBasis, SpecDet, tSpecDet
           Use System, only : Beta
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV

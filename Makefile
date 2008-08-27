@@ -2,6 +2,7 @@ SHELL=/bin/bash
 
 neci:
 	cd dest; ${MAKE} neci.x
+	test -e neci.x || ln -s {dest/,}neci.x
 
 new:
 	./compile

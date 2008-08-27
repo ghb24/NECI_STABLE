@@ -2,7 +2,7 @@
 MODULE Integrals
     Use MemoryManager, only: LogMemAlloc, LogMemDealloc
     USE HElem
-    USE System , only : NEL,defaults,Feb08,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
+    USE System , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
     use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
     IMPLICIT NONE
     save
@@ -38,6 +38,7 @@ MODULE Integrals
 
     SUBROUTINE IntReadInput()
       USE input
+      use default_sets
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w

@@ -19,6 +19,7 @@ MODULE ReadInput
         USE Calc,       only : CalcReadInput
         USE Integrals,  only : IntReadInput
         Use Logging,    only : LogReadInput
+        use default_sets
 #ifdef NAGF95
     !  USe doesn't get picked up by the make scripts
         USe f90_unix_env, ONLY: getarg,iargc
@@ -83,6 +84,15 @@ MODULE ReadInput
                 exit
             end select
         End Do
+
+        select case(idDef)
+        case(0)
+            write (6,*) 'Using the default set of defaults.'
+        case(1)
+            Feb08=.true.
+            write (6,*) 'Using the Feb08 set of defaults.'
+        end select
+
 !Now return to the beginning and process the whole input file
         if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.
         Rewind(ir)

@@ -1,6 +1,5 @@
 
       MODULE PRECALCREAD
-        USE System , only : defaults,Feb08
         IMPLICIT NONE
 
 !TPREVAR is set to true when the precalc routines have yet to run.
@@ -45,6 +44,7 @@
 
         SUBROUTINE PrecalcReadInput()
         USE input
+        use default_sets
         IMPLICIT NONE
         LOGICAL eof
         INTEGER zz,z,k

@@ -7,7 +7,6 @@ frsblk.F
 irat.inc
 timer.F
 util.F
-xcener.F ! Only needed for XCENERGY_DENSITY, which is currently commented out.  Appears to have little (if anything) to do with CPMD's version. (JSS)
 
 Unrelated files?
 ================
