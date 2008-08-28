@@ -1413,6 +1413,7 @@ MODULE FciMCMod
 
     END SUBROUTINE AnnihilatePairs
 
+
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalc()
         USE Calc, only : EXCITFUNCS
