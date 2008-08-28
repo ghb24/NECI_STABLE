@@ -1579,10 +1579,12 @@ MODULE FciMCMod
                 CurrentDets(:,1)=HFDet(:)
                 CurrentIC(1)=0
                 CurrentSign(1)=.true.
+                CurrentH(:,1)=0.D0
             ELSE
                 do j=1,InitWalkers
                     CurrentDets(:,j)=HFDet(:)
                     CurrentIC(j)=0
+                    CurrentH(:,j)=0.D0
                     IF(TFixParticleSign) THEN
                         IF(Ran2(Seed).lt.0.40) THEN
                             CurrentSign(j)=.false.
