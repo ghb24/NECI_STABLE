@@ -1664,6 +1664,7 @@ MODULE FciMCMod
 
     END SUBROUTINE InitFCIMCCalc
 
+
     SUBROUTINE InitMP2Calc()
         INTEGER :: ierr,i,j,nJ(NEl),IC,nStore(6),ExcitForm(2,2),iExcit
         INTEGER :: A,B,t,MaxComptDet(NEl),Compts
