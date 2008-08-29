@@ -10,7 +10,7 @@ MODULE FciMCMod
     USE DetCalc , only : NMRKS,ICILevel
     USE Integrals , only : fck,NMax,nMsh,UMat
     USE MemoryManager , only : LogMemAlloc,LogMemDealloc
-    USE Logging , only : iWritePopsEvery,TPopsFile
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
     USE HElem
     IMPLICIT NONE
     SAVE
@@ -113,13 +113,14 @@ MODULE FciMCMod
 
             CALL PerformFCIMCyc()
 
-!Test that the file SOFTEXIT is still present. If not, then exit cleanly.
-            exists=TestSoftExit()
-            IF(.not.exists) EXIT
-
             IF(mod(Iter,StepsSft).eq.0) THEN
 !This will find the new shift (and other parameters), and print out the needed values.
                 CALL UpdateDiagSft()
+
+!Test that the file SOFTEXIT is still present. If not, then exit cleanly.
+                exists=TestSoftExit()
+                IF(.not.exists) EXIT
+
             ENDIF
 
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
@@ -1842,6 +1843,13 @@ MODULE FciMCMod
         IF(NEquilSteps.gt.0) THEN
             WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
             NEquilSteps=0
+        ENDIF
+
+        IF(TZeroProjE) THEN
+!Zero projected energy estimator.
+            WRITE(6,*) "Resetting projected energy counters to zero..."
+            SumNoatHF=0
+            SumENum=0.D0
         ENDIF
 
         MaxWalkers=MemoryFac*InitWalkers

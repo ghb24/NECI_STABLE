@@ -7,6 +7,7 @@ MODULE Logging
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
+    LOGICAL TZeroProjE
 
     contains
 
@@ -29,6 +30,7 @@ MODULE Logging
       HFLOGLEVEL=0
       PreVarLogging=0
       TDetPops=.false.
+      TZeroProjE=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -56,6 +58,10 @@ MODULE Logging
 ! passes that many.
             TPopsFile=.true.
             IF(item.lt.nitems) call readi(iWritePopsEvery)
+        case("ZEROPROJE")
+! This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
+! estimator will be restarted.
+            TZeroProjE=.true.
         case("WAVEVECTORPRINT")
 ! This is for FCIMC - if on, it will calculate the exact eigenvector and
 ! values initially, and then print out the running wavevector every
