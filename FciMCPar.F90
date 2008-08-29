@@ -20,7 +20,8 @@ MODULE FciMCParMod
     SAVE
 
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
-    INTEGER, PARAMETER :: r2=kind(0.d0)
+    INTEGER , PARAMETER :: r2=kind(0.d0)
+    INTEGER , PARAMETER :: i2=SELECTED_INT_KIND(18)
     
     TYPE ExcitGenerator
         INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
@@ -35,9 +36,9 @@ MODULE FciMCParMod
     REAL(KIND=r2) , ALLOCATABLE , TARGET :: WalkVecH(:),WalkVec2H(:)                    !Diagonal hamiltonian element
     INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
     INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
-    INTEGER(KIND=8) , ALLOCATABLE , TARGET :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
+    INTEGER(KIND=i2) , ALLOCATABLE , TARGET :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
     LOGICAL , ALLOCATABLE :: TempSign(:)                                                         !Temp array to hold sign of walkers when annihilating
-    INTEGER(KIND=8) , ALLOCATABLE :: TempHash(:)
+    INTEGER(KIND=i2) , ALLOCATABLE :: TempHash(:)
     
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
     INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0
@@ -49,13 +50,13 @@ MODULE FciMCParMod
     LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
     INTEGER , POINTER :: CurrentIC(:), NewIC(:)
     REAL*8 , POINTER :: CurrentH(:), NewH(:)
-    INTEGER(KIND=8) , POINTER :: CurrentHash(:), NewHash(:)
+    INTEGER(KIND=i2) , POINTER :: CurrentHash(:), NewHash(:)
     TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
     
     INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
     INTEGER :: HFDetTag=0
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-    INTEGER(KIND=8) :: HFHash               !This is the hash for the HF determinant
+    INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
     INTEGER :: MemoryFac=200
@@ -102,11 +103,13 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
 
+    INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
+
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         TYPE(HDElement) :: Weight,Energyxw
-        INTEGER :: i,j
+        INTEGER :: i,j,error
         CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
         TYPE(HElement) :: Hamii
 
@@ -182,6 +185,11 @@ MODULE FciMCParMod
         DEALLOCATE(WalkVecExcits)
         DEALLOCATE(WalkVec2Excits)
 
+        IF(.not.TNoAnnihil) THEN
+!Free the mpi derived type that we have created for the hashes.
+            CALL MPI_Type_free(mpilongintegertype,error)
+        ENDIF
+
         IF(iProcIndex.eq.Root) CLOSE(15)
 
 !        CALL MPIEnd(.false.)    !Finalize MPI
@@ -198,7 +206,7 @@ MODULE FciMCParMod
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,iGetExcitLevel_2,TotWalkersNew
         LOGICAL :: WSign
-        INTEGER(KIND=8) :: HashTemp
+        INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         
 !VecSlot indicates the next free position in NewDets
@@ -420,7 +428,7 @@ MODULE FciMCParMod
         INTEGER :: i,j,k,ToAnnihilateIndex,TotWalkersNew,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
         INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),MaxIndex
-        INTEGER(KIND=8) :: MinBin,RangeofBins,NextBinBound,HashCurr
+        INTEGER(KIND=i2) :: HashCurr!MinBin,RangeofBins,NextBinBound
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
 
 !First, allocate memory to hold the signs and the hashes while we annihilate
@@ -444,30 +452,32 @@ MODULE FciMCParMod
         enddo
 
 !Next, order the hash array, taking the index, CPU and sign with it...
-        CALL Sort3I1LLong(TotWalkersNew,NewHash(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
+!Order the array by mod(Hash,nProcessors). This will result in a more load-balanced system
+        CALL SortMod3I1LLong(TotWalkersNew,NewHash(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+!        CALL Sort3I1LLong(TotWalkersNew,NewHash(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
 
-        IF(nProcessors.eq.1) THEN
-            CALL STOP_All("AnnihilatePartPar","One processor annihilation not available yet...")
-        ENDIF
+!        IF(nProcessors.eq.1) THEN
+!            CALL STOP_All("AnnihilatePartPar","One processor annihilation not available yet...")
+!        ENDIF
  
 !Create the send counts and disps for the AlltoAllv. Work out equal ranges of bins for the hashes
-        Rangeofbins=HUGE(Rangeofbins)/(nProcessors/2)
-        MinBin=HUGE(MinBin)*-1
-        NextBinBound=MinBin+Rangeofbins
+!        Rangeofbins=HUGE(Rangeofbins)/(nProcessors/2)
+!        MinBin=HUGE(MinBin)*-1
+!        NextBinBound=MinBin+Rangeofbins
 
 !This could be binary searched for extra speed
         j=1
-        do i=1,nProcessors
+        do i=0,nProcessors-1    !Search through all possible values of mod(Hash,nProcessors)
 
-            do while((NewHash(j).le.NextBinBound).and.(j.le.TotWalkersNew))
+            do while((mod(NewHash(j),nProcessors).eq.i).and.(j.le.TotWalkersNew))
                 j=j+1 
             enddo
-            sendcounts(i)=j-1
-            IF(i.eq.nProcessors) THEN
-                NextBinBound=HUGE(NextBinBound)
-            ELSE
-                NextBinBound=NextBinBound+Rangeofbins
-            ENDIF
+            sendcounts(i+1)=j-1
+!            IF(i.eq.nProcessors) THEN
+!                NextBinBound=HUGE(NextBinBound)
+!            ELSE
+!                NextBinBound=NextBinBound+Rangeofbins
+!            ENDIF
 
         enddo
 
@@ -509,14 +519,14 @@ MODULE FciMCParMod
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
 !Now send the chunks of hashes to the corresponding processors
-        CALL MPI_AlltoAllv(NewHash(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,CurrentHash(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
+        CALL MPI_AlltoAllv(NewHash(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,CurrentHash(1:MaxIndex),recvcounts,recvdisps,mpilongintegertype,MPI_COMM_WORLD,error)        
 
 !The signs of the hashes, index and CPU also need to be taken with them.
         CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_LOGICAL,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
         CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
         CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 
-!The hashes now need to be sorted again
+!The hashes now need to be sorted again - this time by their number
         CALL Sort3I1LLong(MaxIndex,CurrentHash(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
 
 !Work out the index of the particles which want to be annihilated
@@ -578,6 +588,7 @@ MODULE FciMCParMod
 
 !The annihilation is complete - particles to be annihilated are stored in IndexTable and need to be sent back to their original processor
 !To know which processor that is, we need to order the particles to be annihilated in terms of their CPU, i.e. ProcessVec(1:ToAnnihilateIndex)
+!Is the list already ordered according to CPU? Is this further sort even necessary?
 
         CALL Sort2IILongL(ToAnnihilateIndex,ProcessVec(1:ToAnnihilateIndex),IndexTable(1:ToAnnihilateIndex),NewHash(1:ToAnnihilateIndex),NewSign(1:ToAnnihilateIndex))
 
@@ -611,8 +622,8 @@ MODULE FciMCParMod
         ToAnnihilateonProc=recvdisps(nProcessors)+recvcounts(nProcessors)
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
-!Perform another matrix transpose of the annihilation data using MPI_AlltoAllv, to send the data back to its correct Processor - Is data type right, or should it be a MPI_INTEGER8?
-        CALL MPI_AlltoAllv(NewHash(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,CurrentHash,recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
+!Perform another matrix transpose of the annihilation data using MPI_AlltoAllv, to send the data back to its correct Processor
+        CALL MPI_AlltoAllv(NewHash(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,CurrentHash,recvcounts,recvdisps,mpilongintegertype,MPI_COMM_WORLD,error)        
 
 !The signs of the hashes, index and CPU also need to be taken with them. (CPU does not need to be taken - every element of CPU should be equal to the rank of the processor+1)
 !Hash also does not need to be taken, but will be taken as a precaution
@@ -1675,6 +1686,14 @@ MODULE FciMCParMod
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
 
+        IF(.not.TNoAnnihil) THEN
+!Need to declare a new MPI type to deal with the long integers we use in the hashing
+    
+            CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
+            CALL MPI_Type_commit(mpilongintegertype,error)
+        
+        ENDIF
+
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -1797,11 +1816,11 @@ MODULE FciMCParMod
     
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
-        INTEGER(KIND=8) :: CreateHash
+        INTEGER(KIND=i2) :: CreateHash
 
         CreateHash=0
         do i=1,NEl
-            CreateHash=(13*CreateHash)+(7*DetCurr(i))
+            CreateHash=(13*CreateHash)+DetCurr(i)
         enddo
         RETURN
 
