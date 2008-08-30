@@ -11,9 +11,9 @@ __memorymanager__logmemalloc
 __memorymanager__logmemdealloc
 __memorymanager__leavememorymanager
 __memorymanager__lookuppointer
-__system__nel
-__system__tspn
-__system__lms
+__systemdata__nel
+__systemdata__tspn
+__systemdata__lms
 __cpmddata__bigcell
 __cpmddata__cellsizes
 __cpmddata__degentol
