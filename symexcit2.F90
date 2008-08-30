@@ -1,8 +1,8 @@
 MODULE SymExcit2
       
-      USE Calc , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,EXCITFUNCS
-      USE Calc , only : TUPOWER
-      Use Integrals, only: ChemPot
+      use CalcData , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,EXCITFUNCS
+      use CalcData , only : TUPOWER
+      use IntegralsData, only: ChemPot
       IMPLICIT NONE
 
       TYPE ExcitWeight
@@ -19,8 +19,8 @@ MODULE SymExcit2
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
       SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
          USE HElem
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER ExcitType(5)
          INTEGER nBasis,nBasisMax(5,*)
@@ -58,8 +58,8 @@ MODULE SymExcit2
       END subroutine
 !  Enumerate the excitations and weights of excitations of a given ExcitType.
       SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE HElem
          use SymData, only: SymPairProds,SymStatePairs
          INTEGER ExcitType(5)
@@ -143,7 +143,7 @@ MODULE SymExcit2
 ! I,J are from, K,L are to
       SUBROUTINE AddExcitWeight(I,J,A,B,ExWeights,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER nBasisMax(5,*),NBASIS
@@ -166,7 +166,7 @@ MODULE SymExcit2
 ! I,J are from
       SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          INTEGER I,J,A,B
          REAL*8 R,Norm
          INTEGER nBasisMax(5,*),nBasis
@@ -186,7 +186,7 @@ MODULE SymExcit2
 !          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
       SUBROUTINE ExcitFromWeighting(I,J,Weight,G1,nBasisMax,UMat,Arr,nBasis)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),nBasis
          TYPE(BasisFN) G1(nBasis)
@@ -230,22 +230,24 @@ MODULE SymExcit2
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,G1,NBASISMAX,UMAT,Arr,NBASIS)
          USE HElem
          USE UMatCache , only : GTID
-         USE Integrals, only : GetUMatEl
-         use System, only: BasisFN
+         use Integrals, only : GetUMatEl
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NBASIS
          TYPE(BasisFN) G1(NBASIS)
 !  We fake ISS
          INTEGER ISS
          INTEGER IDI,IDJ,IDK,IDL
-         INTEGER I,J,K,L,ISUB
+         INTEGER I,J,K,L
+         INTEGER,SAVE :: ISUB=0
          REAL*8 WEIGHT,W2
          TYPE(HElement) UMAT(*),W
          REAL*8 Arr(nBasis,2),Alat(3)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
          ELSE
-!            CALL TISET('UMATELWT',ISUB)
+!            call set_timer('UMATELWT',ISUB)
             ISS=NBASISMAX(2,3)
             CALL GTID(NBASISMAX,I,IDI)
             CALL GTID(NBASISMAX,J,IDJ)
@@ -257,7 +259,7 @@ MODULE SymExcit2
             ELSE
                 WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
             ENDIF
-!            CALL TIHALT('UMATELWT',ISUB)
+!            call halt_timer(ISUB)
          ENDIF
          IF(.not.EXCITFUNCS(10)) THEN
              IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN
@@ -298,8 +300,8 @@ MODULE SymExcit2
 !  WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE GenExcitProbInternal(nI,nJ,nEl,G1,nBasisMax,UMat,Arr,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,pGen)
          USE HElem
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymPairProds,SymPairProds
          IMPLICIT NONE
          INTEGER iExcit(2,2)
@@ -416,8 +418,8 @@ MODULE SymExcit2
 !WARNING - this currently only works for abelian symmetry groups
       SUBROUTINE IsConnectedDetInternal(nI,nJ,nEl,G1,nBasisMax,nBasis,OrbPairs,SymProdInd,iLUT,SymProds,ExcitTypes,iTotal,tIsConnectedDet)
          USE HElem
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L

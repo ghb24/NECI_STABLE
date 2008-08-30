@@ -3,7 +3,8 @@ C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_HUBNPBC(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA)
       USE UMatCache , only : UMatInd,GTID
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
+      use global_utilities
       IMPLICIT NONE
       TYPE(BASISFN) G1(NHG)
       INTEGER nBasisMax(5,*),ISS,NEL
@@ -16,9 +17,10 @@ C..Cube arrays
       INTEGER NHG,NMSH,NMAX
       INTEGER KA(4),KB(4),M
       INTEGER A,B,C,LL(3),KK(3)
-      INTEGER ISUB,II,ISPINSKIP
+      INTEGER II,ISPINSKIP
       REAL*8 SUMS(3),SUM
       INTEGER I,J,K,L,ID1,ID2,ID3,ID4
+      INTEGER,SAVE :: ISUB=0
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
@@ -26,7 +28,7 @@ C..
 C..This first call calculates the inner integral 
 C..The call to SCOUL calculates the outer integral 
 C ==--------------------------------------------------------------------==
-      CALL TISET('GENCOULUEG',ISUB)
+      call set_timer('GENCOULUEG',ISUB)
 C ==--------------------------------------------------------------------==
       OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
       II=0
@@ -80,7 +82,7 @@ C.. the UEG, but we don't want this for the hubbard model
       ENDIF
       WRITE(6,*) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
 C ==--------------------------------------------------------------------==
-      CALL TIHALT('GENCOULUEG',ISUB)
+      call halt_timer(ISUB)
 C ==--------------------------------------------------------------------==
       RETURN
       END
@@ -90,7 +92,8 @@ C.. but with a simpler coulomb integral
       SUBROUTINE GEN_COUL_UEG(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,THUB,UHUB,OMEGA,ALAT)
       USE UMatCache , only : UMatInd, iPeriodicDampingType,GTID
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
       INTEGER nBasisMax(5,*),ISS 
@@ -104,6 +107,7 @@ C..Cube arrays
       REAL*8 LX,LY,P,Q,R,T2
       REAL*8 ALAT(3)
       COMPLEX*16 S,CI
+      INTEGER,SAVE :: ISUB=0
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
@@ -111,7 +115,7 @@ C..
 C..This first call calculates the inner integral 
 C..The call to SCOUL calculates the outer integral 
 C ==--------------------------------------------------------------------==
-      CALL TISET('GENCOULUEG',ISUB)
+      call set_timer('GENCOULUEG',ISUB)
 C ==--------------------------------------------------------------------==
       OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
       II=0
@@ -230,7 +234,7 @@ C.. the UEG, but we don't want this for the hubbard model
       ENDIF
       WRITE(6,*) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
 C ==--------------------------------------------------------------------==
-      CALL TIHALT('GENCOULUEG',ISUB)
+      call halt_timer(ISUB)
 C ==--------------------------------------------------------------------==
       RETURN
       END
@@ -324,7 +328,7 @@ C.. we have a tilted lattice
       END
  
       SUBROUTINE GetHubUMatEl(I,J,K,L,UMAT,NBASISMAX,G1,SUM)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BASISFN) G1(*),KA,KB
          INTEGER nBasisMax(5,*)
@@ -350,7 +354,7 @@ C..Cube arrays
 
       SUBROUTINE GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,
      &      iExchangeDampingType,SUM)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ISS
          INTEGER iExchangeDampingType

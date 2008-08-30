@@ -5,8 +5,8 @@ We were bad
 
 frsblk.F
 irat.inc
-timer.F
 util.F
+mkconfig.sh
 
 Unrelated files?
 ================

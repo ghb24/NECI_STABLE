@@ -1,11 +1,11 @@
 module PreCalc
 
-    USE Calc , only : G_VMC_PI,G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,G_VMC_SEED,     &
+    use CalcData , only : G_VMC_PI,G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,G_VMC_SEED,     &
      &      CUR_VERT,EXCITFUNCS
     USE PRECALCREAD , only : PREIV_MAX,TOTALERROR,PRE_TAYREAL,MEMSAV,PRE_TAYLOG,PRE_TAY, &
      &      USEVAR,TRUECYCLES,TGRIDVAR,GRIDVARPAR,TLINEVAR,LINEVARPAR
     
-    Use Integrals, only : ChemPot
+    use IntegralsData, only : ChemPot
     REAL*8, POINTER, DIMENSION(:) :: PGENLIST
     INTEGER, POINTER, DIMENSION(:) :: NMEM
     REAL*8, POINTER, DIMENSION(:,:) :: GRAPHPARAMS
@@ -24,7 +24,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      &         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,I_VMAX)
 
      USE HElem
-     use System, only: BasisFN
+     use SystemData, only: BasisFN
      IMPLICIT NONE
      TYPE(BasisFN) G1(*)
      INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),I,L,LT,Q
@@ -663,7 +663,7 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
            DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
 
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     IMPLICIT NONE
     REAL*8 pointab(*),VARIANCEAB
 !    EXTERNAL MCPATHSPRE
@@ -725,7 +725,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
 
     USE HElem
     Use Determinants, only: GetHElement2
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     Use Logging, only: PrevarLogging
     IMPLICIT NONE
     include 'irat.inc'
@@ -1139,7 +1139,7 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
                          ECORE,KSYM,DBETA,DLWDB2,HIJS,NMEM,ISEED)
 
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     use Logging, only: PreVarLogging
     IMPLICIT NONE
     TYPE(BasisFN) G1(*)
@@ -1211,7 +1211,7 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
      &                 RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,       &
      &                 NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,INITFUNC,ENERGYLIMS,KSYM)
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),K,L,LT
@@ -1386,7 +1386,7 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
 
     
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*)
     INTEGER iter,n,np,NMAX,ITMAX,NEL,I_P,BRR(*),NMSH,NTAY(2),L,LT,NMAXI
@@ -1508,7 +1508,7 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NM
      &       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
     
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),NMSH,NMAX,NTAY(2),Q,L,LT,GIDHO
@@ -1572,7 +1572,7 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM) 
 
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),L,LT,K,D,Q
@@ -1620,7 +1620,7 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
     
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     IMPLICIT NONE
     REAL*8 ax,bx,cx,fa,fb,fc,func,GOLD,GLIMIT,MINI
     PARAMETER (GOLD=1.618034, GLIMIT=100.D0,MINI=1.D-20)
@@ -1754,7 +1754,7 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,       
         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
 
     USE HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*)
     INTEGER NEL,I_P,BRR(*),NMSH,NMAX,NTAY(2),K

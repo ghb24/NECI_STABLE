@@ -1,10 +1,12 @@
       SUBROUTINE GEN_COUL(NEL,NBASISMAX,
      &   NHG,G1,NMSH,NMAX,FCK,UMAT,ISS,ZIA)
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
       use UMatCache, only: GTID, UMatInd
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
       INTEGER nBasisMax(5,*),ISS
+      INTEGER,SAVE :: ISUB=0
       DIMENSION UMAT(*)
 C..Cube arrays
       COMPLEX*16 FCK(NMSH,NMSH,NMSH)
@@ -15,7 +17,7 @@ C..
 C..This first call calculates the inner integral 
 C..The call to SCOUL calculates the outer integral 
 C ==--------------------------------------------------------------------==
-      CALL TISET('GEN_COUL  ',ISUB)
+      call set_timer('GEN_COUL  ',ISUB)
 C ==--------------------------------------------------------------------==
       OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
       II=0
@@ -53,7 +55,7 @@ C..Symmetries
       CLOSE(10)
       WRITE(6,*) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
 C ==--------------------------------------------------------------------==
-      CALL TIHALT('GEN_COUL  ',ISUB)
+      call halt_timer(ISUB)
 C ==--------------------------------------------------------------------==
       RETURN
       END

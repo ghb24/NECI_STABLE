@@ -14,6 +14,7 @@ C.. the best vertex at each level.
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI)
+         use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -37,7 +38,9 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 OVALUE,WEIGHT,NVALUE
          LOGICAL LCANMOVE,BR
          REAL*8 RNORM,ND,STD
-         CALL TISET('MCPATHSR6 ',ISUB)
+         real*4 itime,etime,t(2)
+         integer,save :: isub=0
+         call set_timer('MCPATHSR6 ',ISUB)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
@@ -69,7 +72,7 @@ C.. I_V is the number of vertices in the path
          BR=.TRUE.
          DO WHILE (BR)
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            CALL TISET(STR,ISUB2)
+            call set_timer(STR,ISUB2)
             L=0
             LT=0
             BTABLE(0)=0
@@ -82,14 +85,14 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
      &              RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &             ECORE,ICOUNT)
             F(I_V)=NVALUE
-            CALL TIHALT(STR,ISUB2)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(STR,ISUB2),L,LT
+            call halt_timer(ISUB2)
+c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,LT
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12)")
-     &            I_V,F(I_V),TOTAL,TIGET(STR,ISUB2),ICOUNT
+     &            I_V,F(I_V),TOTAL,get_total_time(ISUB2),ICOUNT
             IF(LISNAN(F(I_V))) THEN
 C.. save all log files
-               ITIME=TIMEC()
+               ITIME=etime(t)
                CALL FLUSH(11)
                CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
@@ -105,7 +108,7 @@ C.. save all log files
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          WLSI=LOG(F(I_V-1))
-         CALL TIHALT('MCPATHSR6 ',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
 

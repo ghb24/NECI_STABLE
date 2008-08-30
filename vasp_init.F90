@@ -1,7 +1,7 @@
 subroutine VaspSystemInit(ArrLEN)
-   use MemoryManager, only: LogMemAlloc
-   use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-   use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+   use global_utilities
+   use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
    use vasp_interface
    use SymData, only: nRot,PropBitLen,tAbelian,nProp,KPntSym,tagKPntSym
    implicit none
@@ -30,20 +30,21 @@ end subroutine VaspSystemInit
 
 subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    use HElem
-   use System, only: BasisFN,nEl
+   use SystemData, only: BasisFN,nEl
    use OneEInts, only: TMatSym, TMatInd
    use vasp_interface
    use UMatCache, only: SetupUMatCache,UMat2D
-   use MemoryManager, only: LogMemAlloc
+   use global_utilities
    implicit none
    integer :: nOrbUsed
    real(q) ::  ECore
    logical :: tOrder
-   integer :: iSub,I,J,II,A,B,nStatesUsed,ierr
+   integer,save :: isub=0
+   integer :: I,J,II,A,B,nStatesUsed,ierr
    type(HElement) :: HarXC,HarXCSum
    character(*), parameter :: thisroutine='VASPInitIntegrals'
    
-   call TISET('VASPInitInts',ISUB)
+   call set_timer('VASPInitInts',ISUB)
    ! ECore=EIonIon???
    ECore=0.d0
    write (6,*) 'Core Energy: ',ECORE
@@ -77,7 +78,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    write (6,*) "Finished TMAT"
    close (10)
 
-   call TIHALT('VASPInitInts',ISUB)
+   call halt_timer(ISUB)
    
    return
 end subroutine VASPInitIntegrals
@@ -85,8 +86,8 @@ end subroutine VASPInitIntegrals
 subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    ! Largely lifted from the CPMD analogue.  Should be doing (roughly) the same
    ! thing to get going!
-   use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-   use System, only: BasisFN,BasisFNSize,BasisFNSizeB,nBASISMax
+   use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+   use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBASISMax
    use vasp_interface, only: q,nStates,nKP,KPntInd,eigv
    use SymData, only: KPntSym,nSym
    implicit none

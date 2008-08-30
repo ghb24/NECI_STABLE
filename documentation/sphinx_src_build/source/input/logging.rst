@@ -106,11 +106,18 @@ General options
 **PSI**
     Log PSI_COMP.
 
-**TIMING** [iGlobalTimerLevel] (default 40)
-   Timing information is only recorded for routines with level less than
-   or equal to iGlobalTimerLevel.  Less than 10 means general high level
-   subroutines. Greater than 50 means very low level.  Routines without
-   a level are always timed (most of them).
+**TIMING** [iGlobalTimerLevel | **LEVEL** iGlobalTimerLevel | **PRINT** nPrintTimer]
+   **LEVEL** iGlobalTimerLevel
+       Default 40.
+       Timing information is only recorded for routines with level less than
+       or equal to iGlobalTimerLevel.  Less than 10 means general high level
+       subroutines. Greater than 50 means very low level.  Routines without
+       a level are always timed (which is most of them).  The greater the value
+       of iGlobalTimerLevel, the more routines are timed.  This can affect 
+       performance in some cases.
+   **PRINT** nPrintTimer
+       Default 10.
+       Print out timing information for the nPrintTimer routines which took the longest time.
 
 **XIJ**
    Synonym for **FMCPR XIJ**.

@@ -25,6 +25,7 @@ C     ==================================================================
 C     ==--------------------------------------------------------------==
 C     ==  START THE CPU AND WALL CLOCK TIME FOR ROUTINE SNAME         ==
 C     ==--------------------------------------------------------------==
+      use timing, only: set_timer
       IMPLICIT NONE
       INCLUDE 'time.inc'
 C     Arguments
@@ -34,6 +35,7 @@ C     Variables
       INTEGER   I
       REAL*8    TIMEC,TIMEF
 C     ==--------------------------------------------------------------==
+      call set_timer(SNAME,NSTIM)
       DO I=1,NTIMER
         IF(SNAME.EQ.TNAM(I)) THEN
           NSTIM=I
@@ -66,6 +68,7 @@ C     ==================================================================
 C     ==--------------------------------------------------------------==
 C     ==  STOP THE CPU AND WALL CLOCK TIME FOR ROUTINE SNAME          ==
 C     ==--------------------------------------------------------------==
+      use timing, only: halt_timer
       IMPLICIT NONE
       INCLUDE 'time.inc'
 C     Arguments
@@ -76,6 +79,7 @@ C     Variables
       REAL*8    DCT,DWT,
      &          TIMEC,TIMEF
 C     ==--------------------------------------------------------------==
+      call halt_timer(nstim)
       IF(NSTIM.EQ.0) THEN
         DO I=1,NTIMER
           IF(SNAME.EQ.TNAM(I)) THEN
@@ -107,6 +111,7 @@ C     ==--------------------------------------------------------------==
 C     ==================================================================
       SUBROUTINE TIPRI
 C     ==--------------------------------------------------------------==
+      use timing, only: print_timer_data
       IMPLICIT NONE
       INCLUDE 'time.inc'
 C     Variables
@@ -115,6 +120,7 @@ C     Variables
 C     ==--------------------------------------------------------------==
 C     ==  PRINT TIMING INFO                                           ==
 C     ==--------------------------------------------------------------==
+      call print_timer_data()
       WRITE(*,'(/,/,1X,64(1H*))')
       WRITE(*,'(" *",62X,"*")')
       WRITE(*,'(" *",27X,A,27X,"*")') ' TIMING '

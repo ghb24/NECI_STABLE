@@ -14,10 +14,10 @@ MODULE ReadInput
 
     Subroutine ReadInputMain(cFilename,ios)
         USE input
-        USE System,     only : SysReadInput
+        use System,     only : SysReadInput
         USE PrecalcRead,only : PrecalcReadInput
-        USE Calc,       only : CalcReadInput
-        USE Integrals,  only : IntReadInput
+        use Calc,       only : CalcReadInput
+        use Integrals,  only : IntReadInput
         Use Logging,    only : LogReadInput
         use default_sets
 #ifdef NAGF95
@@ -140,14 +140,14 @@ MODULE ReadInput
 
 
       subroutine checkinput()
-      USE System , only : NEL,TSTARSTORE,TUseBrillouin, Beta
+      use SystemData , only : NEL,TSTARSTORE,TUseBrillouin, Beta
       USE PRECALCREAD , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
-      USE Calc , only : I_VMAX,NPATHS,                 &
+      use CalcData , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
      & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone
       Use Determinants, only : SpecDet
-      USE Integrals , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
+      use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING
       USE input
       IMPLICIT NONE

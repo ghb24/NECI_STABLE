@@ -1,6 +1,6 @@
       SUBROUTINE RLSXC1_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
      &	NDET,NDET1,NDET2,G1,NHG,AUXC)
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION NDET1(NEL),NDET2(NEL),AUXC(NMSH,NMSH,NMSH)
 C..Cube array

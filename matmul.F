@@ -1,12 +1,14 @@
       SUBROUTINE MY_HPSI(NDET,ICMAX,NEVAL,NROW,LAB,HAMIL,CK,CKN,
      &                      TLargest)
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION HAMIL(*),CKN(NDET,NEVAL)
       INTEGER LAB(*),NROW(NDET)
       DIMENSION CK(NDET,NEVAL)
       LOGICAL :: TLargest
+      integer,save :: isub=0
 C ==-----------------------------------------------------------------==
-      CALL TISET(' MY_HPSI  ',ISUB)
+      call set_timer(' MY_HPSI  ',ISUB)
 C ==-----------------------------------------------------------------==
 C..Run over rows
       CALL AZZERO(CKN,NDET*NEVAL)
@@ -41,7 +43,7 @@ c          CKN(J,I)=-1.D0*CKN(J,I)
 c        ENDDO
 c      ENDDO
 C ==-----------------------------------------------------------------==
-      CALL TIHALT(' MY_HPSI  ',ISUB)
+      call halt_timer(ISUB)
 C ==-----------------------------------------------------------------==
       RETURN
       END

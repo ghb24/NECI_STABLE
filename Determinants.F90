@@ -1,7 +1,7 @@
 #include "macros.h"
 MODULE Determinants
     Use HElem
-    use System, only: BasisFN
+    use SystemData, only: BasisFN
     implicit none
     save
 ! Set by Calc on input
@@ -23,12 +23,10 @@ MODULE Determinants
       INTEGER nUHFDet(5000)
       REAL*8  E0HFDet
 
-     save FDet
-      
     contains
     Subroutine DetPreFreezeInit()
-        Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        Use System, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS
+        Use global_utilities
+        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS
         integer ierr
         integer i
    
@@ -47,11 +45,11 @@ MODULE Determinants
       WRITE(6,*) "Fock operator energy:",E0HFDET
     End Subroutine DetPreFreezeInit
     Subroutine DetInit()
-        Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+        Use global_utilities
         Use HElem
-        Use System, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
-        Use System, only: G1, LMS, nBasis, STot, tCSF, Arr
-        use integrals, only: nfrozen
+        use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
+        use SystemData, only: G1, LMS, nBasis, STot, tCSF, Arr
+        use IntegralsData, only: nfrozen
       
       real*8 DNDET
       integer i,ii
@@ -92,7 +90,6 @@ MODULE Determinants
 !C      ENDIF
 !C      CALL SYMGENEXCITS(FDET,NEL,G1,NBASIS,NBASISMAX)
 !C      CALL LeaveMemoryManager
-!C      CALL TIPRI
 !C      STOP
 
 
@@ -131,8 +128,9 @@ MODULE Determinants
 
       TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
          Use HElem
-         USE System , only : TSTOREASEXCITATIONS
-         use System, only: BasisFN
+         use SystemData , only : TSTOREASEXCITATIONS
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT NONE
          INTEGER NMSH,NMAX
          COMPLEX*16 FCK(*)
@@ -145,7 +143,7 @@ MODULE Determinants
          TYPE(HElement) Sum,Sum2
          INTEGER IGETEXCITLEVEL_2
          LOGICAL ISCSF
-         INTEGER ISUB
+         INTEGER,SAVE :: ISUB=0
          IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
             CALL CSFGETHELEMENT(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,Sum2)
             GETHELEMENT2=SUM2
@@ -165,22 +163,22 @@ MODULE Determinants
 !.. if we differ by more than 2 spin orbital, then the hamiltonian element is 0         
          IF(IC.GT.2) RETURN
 !.. SLTCND has IC is # electrons the same in 2 dets
-         CALL TISETL('GETHELEM2 ',ISUB,60)
+         call set_timer('GETHELEM2 ',ISUB,60)
          CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum)
          GetHElement2=Sum
          IF(iC.EQ.0) GetHElement2%v=GetHElement2%v+ECore
 !         CALL WRITEDET(6,NI,NEL,.FALSE.)
 !         CALL WRITEDET(6,NJ,NEL,.FALSE.)
 !         WRITE(6,*) GetHElement2
-         CALL TIHALTL('GETHELEM2 ',ISUB,60)
+         call halt_timer(ISUB)
          RETURN
       END FUNCTION
 !Call GetHElement2 without needing so many arguments
       TYPE(HElement) FUNCTION GetHElement3(NI,NJ,iC)
          Use HElem
-         USE System, only : nEl,nBasisMax,G1,nBasis,Brr
-         use System, only : ECore,ALat,NMSH
-         use Integrals, only : UMat,FCK,NMAX
+         use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
+         use SystemData, only : ECore,ALat,NMSH
+         use IntegralsData, only : UMat,FCK,NMAX
          INTEGER NI(nEl),NJ(nEl),iC
          GetHElement3=GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC,ECore)
       END Function GetHElement3
@@ -195,7 +193,7 @@ MODULE Determinants
          ! In: 
          !    nI(nEl)  list of occupied spin orbitals in the determinant.
          use HElem
-         use System, only: nEl,nBasis,Arr,ECore
+         use SystemData, only: nEl,nBasis,Arr,ECore
          integer nI(nEl)
          type(HElement) hEl
          call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
@@ -218,7 +216,7 @@ END MODULE Determinants
          !     ECore    Core energy.
          !  Out:
          !     hEl      <D_i|H_0|D_i>, the unperturbed Hamiltonian matrix element.
-         USE System , only : TSTOREASEXCITATIONS
+         use SystemData , only : TSTOREASEXCITATIONS
          USE HElem
          implicit none
          integer nI(nEl),nEl,nBasis
@@ -248,8 +246,8 @@ END MODULE Determinants
 
       subroutine DetFreezeBasis(GG)
         Use Determinants, only: FDet, nUHFDet
-        Use System, only : nEl, nBasis
-        Use Integrals, only : nFrozen
+        use SystemData, only : nEl, nBasis
+        use IntegralsData, only : nFrozen
         implicit none
         integer i,j
         INTEGER GG(*)
@@ -297,7 +295,7 @@ END MODULE Determinants
 
 
       LOGICAL FUNCTION ISUHFDET(NI,NEL)
-         USE System , only : TUSEBRILLOUIN
+         use SystemData , only : TUSEBRILLOUIN
          Use Determinants, only : NUHFDET
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
@@ -321,7 +319,7 @@ END MODULE Determinants
 ! nUp is the number of orbital sets  above the Fermi level
 
       SUBROUTINE GenActiveBasis(ARR,BRR,G1,nBasis,LMS,nEl,nActiveBasis, nDown,nUp)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          REAL*8 ARR(nBasis)
          INTEGER BRR(nBasis)

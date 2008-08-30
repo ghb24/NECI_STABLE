@@ -33,8 +33,9 @@ C.,             If 1, only allow doubles.
          USE HElem 
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
-         USE Calc , only : TVARCALC,TMPTHEORY,TMODMPTHEORY, lNoTriples
-         use System, only: BasisFN
+         use CalcData , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
+         use CalcData , only : lNoTriples
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX
@@ -639,8 +640,8 @@ C            CALL PRINT_MEMORY()
      &      NBASISMAX,UMAT,G1,DLWDB2)
          USE HElem
          USE UMatCache , only : GTID
-         USE Integrals, only : GetUMatEl
-         use System, only: BasisFN
+         use Integrals, only : GetUMatEl
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T,p
          REAL*8 ARR(nBasis,2),EnergyTo,EnergyFrom,Percendoub

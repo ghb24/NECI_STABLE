@@ -192,7 +192,7 @@ End Module Parallel
 !
 !  Choose min and max electrons such that ordered pairs are distributed evenly across processors
 Subroutine GetProcElectrons(iProcIndex,nProcessors, iMinElec, iMaxElec)
-   Use System, only: nEl
+   use SystemData, only: nEl
    implicit none
    integer iProcIndex,nProcessors, iMinElec,iMaxElec
    real*8 nCur
@@ -232,13 +232,14 @@ subroutine ParMP2(nI)
    USE HElem
    uSE MPI
    Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
-   Use System, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,AreSameSpatialOrb,tCPMD,Symmetry
-   use Calc, only: NWHTAY
+   use System, only: AreSameSpatialOrb
+   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry
+   use CalcData, only: NWHTAY
    use Integrals, only: GetUMatEl2
    use UMatCache, only: GTID
    use OneEInts, only: GetTMatEl
    Use Determinants, only: HElement, GetHElement3,GetH0Element3
-   use MemoryManager, only: LogMemAlloc,LogMemDealloc
+   use global_utilities
    use SymData, only: SymLabels
    use CPMDData, only: KPntInd
    IMPLICIT NONE
@@ -260,13 +261,14 @@ subroutine ParMP2(nI)
    type(Symmetry) :: iSym1Conj,iSym2Conj
    type(Symmetry) :: SymConj
    logical :: tSign
-   integer :: isub,ierr,tag_Ex
+   integer :: ierr,tag_Ex
+   integer,save :: isub=0
    character(*), parameter :: this_routine='ParMP2'
    logical :: dbg 
 
    dbg=.false.
    
-   call TiSet('ParMP2    ',isub)
+   call set_timer('ParMP2    ',isub)
    
    select case(IAND(nWHTay(1,1),24))
    case(0)
@@ -563,7 +565,7 @@ else
    deallocate(Ex)
    call LogMemDealloc(this_routine,tag_Ex)
 
-   call TiHalt('ParMP2    ',isub)
+   call halt_timer(isub)
 
 end subroutine ParMP2
 
@@ -584,7 +586,7 @@ Subroutine Par2vSum(nI)
    USE HElem
    uSE MPI
    Use Parallel, only : iProcIndex, nProcessors,MPIHElSum
-   Use System, only: nEl,Beta
+   use SystemData, only: nEl,Beta
    Use Determinants, only: HElement, GetHElement3
    IMPLICIT NONE
    Integer nI(nEl)

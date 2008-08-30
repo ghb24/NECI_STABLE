@@ -1,7 +1,7 @@
 #include "macros.h"
 MODULE DetCalc
         Use HElem
-        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
     IMPLICIT NONE
      save
 
@@ -36,12 +36,12 @@ MODULE DetCalc
     
 CONTAINS
     Subroutine DetCalcInit
-            Use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
+        Use global_utilities
         Use Determinants, only:  FDet, specdet, tSpecDet
-        Use System, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
-        Use System, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        Use System, only : tParity, tSpn
+        use SystemData, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
+        use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+        use SystemData, only : tParity, tSpn
         Type(BasisFn) ISym
 
         integer i,ii
@@ -240,13 +240,13 @@ CONTAINS
     End Subroutine DetCalcInit
     
     Subroutine DoDetCalc
-            Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+            Use global_utilities
       Use HElem
-      Use System, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      Use System, only : nBasis, nBasisMax, nEl
-      Use Integrals, only: FCK,NMSH,NMAX, UMat
+      use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh
+      use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging
-      Use System, only  : tCSF
+      use SystemData, only  : tCSF
       POINTER (IP_TKE,TKE)
       REAL*8 TKE(*)
       REAL*8 A(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
@@ -562,8 +562,8 @@ CONTAINS
 
         End Subroutine DoDetCalc
     Subroutine CalcRhoOfR()
-        Use System, only: Alat, G1, nBasis, Omega, nEl
-        Use Integrals, only: nMax, nMsh
+        use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
+        use IntegralsData, only: nMax
         REAL*8 DLINE(*)
         POINTER (IP_DLINE, DLINE)
         REAL*8 PSIR(*)
@@ -614,7 +614,7 @@ CONTAINS
         ENDIF
     End Subroutine CalcRhoOfR
     Subroutine CalcFoDM()
-        use System, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
+        use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
         REAL*8 SUMA
         POINTER (IP_SUMA, SUMA)
         INTEGER ISTATE
@@ -632,11 +632,13 @@ END MODULE DetCalc
      &   NTAY,RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,   &
      &   DETINV,TSPECDET,SPECDET)
          use HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
+         use global_utilities
          implicit none
          include 'irat.inc'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
-         INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING,ISUB
+         INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING
+         integer, save :: isub=0
          TYPE(HElement) UMat(*)
          TYPE(HDElement) DLWDB, DLWDB2, DLWDB3, DLWDB4
          TYPE(BasisFN) g1(*),ALAT(*)
@@ -660,7 +662,7 @@ END MODULE DetCalc
          DLWDB2=0.D0
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
-         CALL TISET('CLCRHOPII2',ISUB)
+         call set_timer('CLCRHOPII2',ISUB)
          ILMAX=NDET
 !.. we don't need lists for I_HMAX=8
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
@@ -766,7 +768,7 @@ END MODULE DetCalc
          CALL FREEM(IP_RIJLIST)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_ICE)
-         CALL TIHALT('CLCRHOPII2',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END    
 
@@ -863,7 +865,7 @@ END MODULE DetCalc
       SUBROUTINE CFF_CHCK(NDET,NEVAL,NM,NBASISMAX,NEL,G1,CG,ALAT,TKE,NHG,ILOGGING)
       USE HElem
       USE OneEInts, only : GetTMATEl
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
       IMPLICIT NONE
       TYPE(HElement) CG(NDET,NEVAL)
       INTEGER NM(NEL,*),NDET,NEL,NEVAL

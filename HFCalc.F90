@@ -5,15 +5,15 @@ MODULE HFCalc
    save
    contains
       subroutine HFDoCalc()
-      Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-      Use System, only: BasisFN
-      Use Integrals, only: tHFBasis, tHFCalc, iHFMethod, tReadHF, nHFIt, HFMix, HFCDelta, HFEDelta
-      Use Integrals, only: HFRand, tStarStore, tRHF, ntFrozen, tReadTUMat
-      Use System, only : tCPMD,  tHFOrder,nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
-      Use System, only : tHub, lmsbasis
+      Use global_utilities
+      use SystemData, only: tStarStore, BasisFN
+      use IntegralsData, only: tHFBasis, tHFCalc, iHFMethod, tReadHF, nHFIt, HFMix, HFCDelta, HFEDelta
+      use IntegralsData, only: HFRand, tRHF, ntFrozen, tReadTUMat
+      use SystemData, only : tCPMD,  tHFOrder,nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
+      use SystemData, only : tHub, lmsbasis
       Use Logging, only: iLogging
       Use Determinants, only: FDet, nUHFDet
-      Use Integrals, only: UMat, tagUMat
+      use IntegralsData, only: UMat, tagUMat
       Use UMatCache, only: GetUMatSize
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
       character(25), parameter :: this_routine='HFDoCalc'

@@ -1,7 +1,7 @@
 
 MODULE UMatCache
       USE HElem
-      USE System , only : TSTARSTORE
+      use SystemData , only : TSTARSTORE
 
       IMPLICIT NONE
 
@@ -54,8 +54,8 @@ MODULE UMatCache
 
 !NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker than passing it in each time.
 !Freezetransfer is a temporary measure to tell UMATIND when the freezing of orbitals is occuring.
-      INTEGER,SAVE :: NOCC
-      LOGICAL,SAVE :: FREEZETRANSFER
+      INTEGER :: NOCC
+      LOGICAL :: FREEZETRANSFER
 
 ! For the UEG, we damp the exchange interactions.
 !    0 means none
@@ -328,7 +328,7 @@ MODULE UMatCache
       SUBROUTINE SETUPUMATCACHE(NSTATE,TSMALL)
          ! nState: # states.
          ! TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals.
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER NSTATE
          LOGICAL TSMALL
@@ -383,8 +383,8 @@ MODULE UMatCache
          !    G1: symmetry and momentum information on the basis functions.
          ! Out:
          !    HarInt(i,j)=<i|v_har|j>, where v_har is the Hartree potential.
-         use System, only: BasisFN
-         use MemoryManager, only: LogMemAlloc
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER ierr
@@ -406,7 +406,7 @@ MODULE UMatCache
       SUBROUTINE SETUPUMAT2D_DF()
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for 
          ! density fitting calculations.
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER ierr
          character(len=*),parameter :: thisroutine='SETUPUMAT2D_DF'
@@ -433,7 +433,7 @@ MODULE UMatCache
          ! Currently only called in cpmdinit to re-order states by the
          ! one-particle energies (option is rarely used).
          ! Copy to UMatCache's translation table.
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER TRANS(NSTATES),ierr
          character(*), parameter :: thisroutine='SetupUMatTrans'
@@ -452,7 +452,7 @@ MODULE UMatCache
          !    nNew: # of new states.
          !    OldNew: convert index in the old (pre-freezing) indexing scheme to
          !            the new (post-freezing) indexing scheme.
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER nNew,nOld,I
          INTEGER OldNew(*),ierr
@@ -483,7 +483,7 @@ MODULE UMatCache
 
       
       SUBROUTINE DESTROYUMATCACHE
-         use MemoryManager, only: LogMemDealloc
+         use global_utilities
          IMPLICIT NONE
          character(len=*), parameter :: thisroutine='DESTROYUMATCACHE'
          CALL WriteUMatCacheStats()
@@ -740,7 +740,7 @@ MODULE UMatCache
 
 
       SUBROUTINE FreezeUMAT2D(OldBasis,NewBasis,OrbTrans,iSS)
-         use MemoryManager, only: LogMemAlloc,LogMemDealloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER NewBasis,OldBasis,iSS,ierr,OrbTrans(OldBasis),i,j
          TYPE(HElement),POINTER :: NUMat2D(:,:)
@@ -770,7 +770,7 @@ MODULE UMatCache
 
 
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
-         use MemoryManager, only: LogMemAlloc,LogMemDealloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          TYPE(HElement),Pointer :: NUMat2D(:,:) !(nNew/2,nNew/2)
@@ -914,7 +914,7 @@ MODULE UMatCache
       ! Print out the cache contents so they can be read back in for a future
       ! calculation.  Need to print out the full set of indices, as the number of
       ! states may change with the next calculation.
-      use System, only: Symmetry,BasisFN
+      use SystemData, only: Symmetry,BasisFN
       implicit none
       integer  NHG
       type(BasisFN) G1(NHG)

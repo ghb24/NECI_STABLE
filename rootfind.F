@@ -68,7 +68,7 @@ C.. A and B are sorted in ascending order of A
 
       SUBROUTINE FINDROOTSTAR(N,A,B,ROOTS,NROOTS)
          USE HElem
-         USE Integrals , only : NRCONV,RFCONV,NRSTEPSMAX
+         use IntegralsData , only : NRCONV,RFCONV,NRSTEPSMAX
          IMPLICIT NONE
          INTEGER N,I,J,NROOTS,NMIN,K,JTOT
          TYPE(HElement) A(0:N),B(0:N)

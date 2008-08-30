@@ -1,6 +1,6 @@
       SUBROUTINE FODMAT(NEL,NHG,NDET,NEVAL,ISTATE,
      &	NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       POINTER (IP_FODM,FODM),(IP_Z,Z),(IP_W,W),(IP_CDETK,CDETK),

@@ -26,7 +26,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &               WLRI,WLSI,DBETA,DLWDB)
          Use Determinants, only: GetHElement2
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
@@ -39,11 +39,13 @@ C.. DLWDB = d ln (wi) / d Beta.
 #endif
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
-         USE Calc , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
+         use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,
-     &          calcp_logweight,TStarTrips,TFCIMC,TReturnPathMC
+     &          calcp_logweight,TFCIMC,TReturnPathMC
+         use Calc, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
+         use global_utilities
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -51,13 +53,13 @@ C.. DLWDB = d ln (wi) / d Beta.
          INTEGER NI(NEL)
          COMPLEX*16 FCK(*)
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,ISUB,I,I_V,ISUB2
-         INTEGER L,LT,ITIME,K,J
-         REAL*8 BETA,ECORE,TIMEC
+         INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
+         INTEGER L,LT,K,J
+         real*4 otime,itime,etime,tarr(2)
+         REAL*8 BETA,ECORE
          TYPE(HDElement) WLRI,WLSI,FMCPR3
          TYPE(HElement) UMat(*),RH
          REAL*8 NTOTAL
-         REAL*8 TIGET
 
          TYPE(HDElement) F(2:I_VMAX)
          CHARACTER*40 STR
@@ -66,7 +68,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          TYPE(HDElement) FLNSUM,FLNRII
          REAL*8 ALAT(3),RHOEPS
          INTEGER  nBasisMax(5,*)
-         INTEGER LSTE(*),ILMAX,ISUBPRE
+         INTEGER LSTE(*),ILMAX
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(*)
          TYPE(HElement) RIJLIST(*)
@@ -89,12 +91,15 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 FSQ(2:I_VMAX),STD
          INTEGER NMEM(*),NMEMLEN,INODE2(NEL)
          POINTER (IP_NMEM,NMEM)
-         REAL*8 NTIME,OTIME,VARSUM
+         REAL*8 NTIME,VARSUM
          INTEGER IFRZ(0:NBASIS,I_VMAX),I_V1,I_V2,T
          REAL*8 OSI,ODLWDB,OPROB
          TYPE(HDElement) MP2E(2:I_VMAX)
          LOGICAL TLOGP
-         CALL TISET('MCPATHSR10',ISUB)
+         integer,save :: isub=0
+         integer,save :: isub2=0
+         integer,save :: isubpre=0
+         call set_timer('MCPATHSR10',ISUB)
          WRITE(6,*) "Running Multi-level graph calculation."
 C.. This will store the MP2 energy
          DO I=2,I_VMAX
@@ -154,13 +159,13 @@ C     &            HIJS(0))
                 STOP
             ENDIF
             
-            CALL TISET('PRECALC ',ISUBPRE)
+            call set_timer('PRECALC ',ISUBPRE)
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
-            CALL TIHALT('PRECALC ',ISUBPRE)
+            call halt_timer(ISUBPRE)
          end if
 
 C.. I_V is the number of vertices in the path
@@ -171,8 +176,8 @@ CI_P
 c            WRITE(6,"I2") I_V
             CUR_VERT=I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            CALL TISET(STR,ISUB2)
-            OTIME=TIMEC()*0.001D0
+            call set_timer(STR,ISUB2)
+            OTIME=etime(tarr)
             L=0
             LT=0
             BTABLE(0)=-1
@@ -388,8 +393,8 @@ C.. setup spin excitation generator
                ENDIF
             ENDIF
 
-            CALL TIHALT(STR,ISUB2)
-            NTIME=TIMEC()*0.001D0
+            call halt_timer(ISUB2)
+            NTIME=etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
 !            WRITE(6,*) "MCP",I_V,TOTAL,DLWDB
@@ -400,7 +405,7 @@ C.. setup spin excitation generator
             ENDIF
             IF(LISNAN(TOTAL)) THEN
 C.. save all log files
-               ITIME=TIMEC()
+               ITIME=etime(tarr)
                CALL FLUSH(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
@@ -450,7 +455,7 @@ C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
             DLWDB=DLWDB/TOTAL
          endif
-         CALL TIHALT('MCPATHSR10',ISUB)
+         call halt_timer(ISUB)
          CALL MEMORY_CHECK()
          RETURN
       END
@@ -469,7 +474,7 @@ C.. MCPATHSR3 has the same method at each vertex level
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI,DBETA,DLWDB)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          Use Determinants, only: GetHElement2
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
@@ -483,8 +488,10 @@ C.. MCPATHSR3 has the same method at each vertex level
 #endif
          USE ReturnPathMCMod , only : ReturnPathMC
          USE PRECALCREAD , only : TPREVAR
-         USE Calc , only : TMPTHEORY,TDIAGNODES,TGraphMorph,TStarTrips
-         use Calc, only : calcp_logweight,TFCIMC,TReturnPathMC
+         use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
+         use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
+         use Calc, only: TStarTrips
+         use global_utilities
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER I_VMAX,NEL,NBASIS
@@ -493,10 +500,11 @@ C.. MCPATHSR3 has the same method at each vertex level
          COMPLEX*16 FCK(*)
          TYPE(HElement) UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
-         INTEGER NTAY(2),NWHTAY,ILOGGING,ISUB,I,I_V,ISUB2
+         INTEGER NTAY(2),NWHTAY,ILOGGING,I,I_V
+         integer, save :: isub=0,isub2=0
          INTEGER L,LT,ITIME,K
-         REAL*8 BETA,ECORE,TIMEC
-         REAL*8 TIGET
+         REAL*8 BETA,ECORE
+         real*4 etime,tarr(2)
          TYPE(HDElement) WLRI,WLSI,FMCPR3
          TYPE(HDElement) F(2:I_VMAX)
          CHARACTER*40 STR
@@ -595,8 +603,8 @@ C.. Pick graphs which may not contain distinct vertices
      &               TSYM)
             RETURN
          ENDIF
-         CALL TISET('MCPATHSR3 ',ISUB)
-         OTIME=TIMEC()*0.001D0
+         call set_timer('MCPATHSR3 ',ISUB)
+         OTIME=etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
@@ -631,7 +639,7 @@ C.. I_V is the number of vertices in the path
 CI_P
 c            WRITE(6,"I2") I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            CALL TISET(STR,ISUB2)
+            call set_timer(STR,ISUB2)
             L=0
             LT=0
             BTABLE(0)=-1
@@ -712,11 +720,11 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
                ENDIF
             ENDIF
-            CALL TIHALT(STR,ISUB2)
-            NTIME=TIMEC()*0.001D0
+            call halt_timer(ISUB2)
+            NTIME=etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
-c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,LT
             IF(TLOG) THEN
                WRITE(11,"(I12,3G25.16,2I12,G25.16,$)")
      &            I_V,F(I_V),TOTAL,NTIME-OTIME,L,LT,DLWDB2
@@ -730,7 +738,7 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
             ENDIF
             IF(LISNAN(TOTAL)) THEN
 C.. save all log files
-               ITIME=TIMEC()
+               ITIME=etime(tarr)
                CALL FLUSH(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
@@ -768,7 +776,7 @@ C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
                 ENDDO
              ENDIF
          ENDIF
-         CALL TIHALT('MCPATHSR3 ',ISUB)
+         call halt_timer(ISUB)
          CALL MEMORY_CHECK()
          RETURN
       END
@@ -783,10 +791,10 @@ C.. using the appropriate weightings (Z-sums) from CALCPATH7.(26/01/04).
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS,
      &   MP2E,NTOTAL)  RESULT (FMCPR3RES)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          Use Determinants, only: GetHElement2
          USE Logging , only : G_VMC_LOGCOUNT
-         USE Calc , only : TMPTHEORY
+         use CalcData , only : TMPTHEORY
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          TYPE(HDElement) FMCPR3RES
@@ -1104,9 +1112,9 @@ C.,             If 1, only allow doubles.
      &   ILOGGING,TSYM,ECORE,DBETA,DLWDB,HIJS,L,LT,IFRZ,FSCALE,MP2E,
      &   NTOTAL,EREF,VARSUM,WREF) RESULT (FMCPR3BRES)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          Use Determinants, only: GetHElement2
-         USE Calc , only : TVARCALC,TMPTHEORY
+         use CalcData , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
          USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
          IMPLICIT NONE
@@ -1948,7 +1956,7 @@ C.. and also includes the removal of subgraphs
      &   NLIST,LSTP,BTABLE,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB,HIJS
      &   ) RESULT (FMCPR3NVSTARRES)
          
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          type(BasisFN) ISYM
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
@@ -2296,17 +2304,19 @@ C            CALL ICOPY(NEL,IPATH(1,0),1,IPATH2(1,I_V-1),1)
 C.. Use an iterative Order(N) root-finding method to diagonalize the
 C.. star matrix read in from STARDATA
       SUBROUTINE READSTARDIAG(NROOTS1,I_P,RII,HII,SI,DLWDB)
+         use global_utilities
          IMPLICIT NONE
          INTEGER NROOTS,I_P,NROOTS1
          REAL*8 SI,DLWDB,RII,HII
          REAL*8 ROOTS(0:*),HIJS(0:*),RIJS(0:*),RIIS(0:*)
          POINTER (IP_ROOTS,ROOTS),(IP_HIJS,HIJS),(IP_RIJS,RIJS)
          POINTER (IP_RIIS,RIIS),(IP_NR,NR)
-         INTEGER NR(0:*),ISUB
+         INTEGER NR(0:*)
+         integer,save :: ISUB=0
          INTEGER I,J,N,II,OII
          REAL*8 NORM,A,B
          NROOTS=NROOTS1
-         CALL TISET('RDSTARDIAG',ISUB)
+         call set_timer('RDSTARDIAG',ISUB)
          CALL MEMORY(IP_RIIS,NROOTS+1,'RIIS')
          CALL MEMORY(IP_ROOTS,NROOTS+1,'ROOTS')
          CALL MEMORY(IP_HIJS,NROOTS+1,'HIJS')
@@ -2427,7 +2437,7 @@ C         DLWDB=DLWDB-LIST(1,2)
          CALL FREEM(IP_HIJS)
          CALL FREEM(IP_RIJS)
          CALL FREEM(IP_NR)
-         CALL TIHALT("RDSTARDIAG",ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
 

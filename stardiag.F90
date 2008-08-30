@@ -35,11 +35,11 @@
 !   Based on a combined FMCPR3STAR and FMCPR3STAR2, this instead generates excitations on the fly.
    FUNCTION fMCPR3StarNewExcit(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay, &
                RhoEps, L, LT,nWHTay, iLogging, tSym, ECore,dBeta,dLWdB,MP2E)
-         USE Calc , only : TMPTHEORY,StarProd,TStarStars,TLanczos,TMCStar
-         USE System , only : TSTOREASEXCITATIONS,BasisFN
-         USE Integrals , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
+         use CalcData , only : TMPTHEORY,StarProd,TStarStars,TLanczos,TMCStar
+         use SystemData , only : TSTOREASEXCITATIONS,BasisFN
+         use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          Use Determinants, only: GetHElement2
-         use MemoryManager, only: LogMemAlloc,LogMemDealloc
+         use global_utilities
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
@@ -391,10 +391,10 @@
 !To limit the excitations to ones which are all but double excitations, i.e. no
 !crosslinking, TNoDoubs must be set.
         SUBROUTINE CalcExcitStar(iMaxExcit,iExcit,nI,rhii,Beta,i_p,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps) 
-            USE Integrals , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
+            use IntegralsData , only : TQuadValMax,TQuadVecMax,TJustQuads,TNoDoubs
             Use Determinants, only: GetHElement2
-            use System, only: BasisFN
-            use MemoryManager, only: LogMemAlloc,LogMemDealloc
+            use SystemData, only: BasisFN
+            use global_utilities
             IMPLICIT NONE
             TYPE(BasisFN) G1(*)
             TYPE(HElement) :: rhii,UMat(*),rh,rhij,Hij
@@ -402,7 +402,8 @@
             REAL*8 :: Beta,ALat(3),ECore,RhoEps
             INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
-            INTEGER :: iSub,i,j,iExcit,nI(nEl),i_P,nEl,nBasisMax(5,*),nBasis,Brr(nBasis),nMsh
+            INTEGER :: i,j,iExcit,nI(nEl),i_P,nEl,nBasisMax(5,*),nBasis,Brr(nBasis),nMsh
+            integer,save :: isub=0
             INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,Info,temp,IGETEXCITLEVEL
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
@@ -416,7 +417,7 @@
                 WRITE(6,*) "Excited stars are only allowed to contain excitations which are quadruple excitations of the HF determinant"
             ENDIF
             
-            CALL TISET('CalcExcitStar',iSub)
+            call set_timer('CalcExcitStar',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
             
 !Allow only double excitations
@@ -644,7 +645,7 @@
 
             ExcitInfo => ExcitInfo2
 
-            CALL TIHALT('CalcExcitStar',iSub)
+            call halt_timer(iSub)
 
             RETURN
 
@@ -889,10 +890,11 @@
         
 !GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
-            USE Integrals , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
-            use MemoryManager, only: LogMemAlloc,LogMemDealloc
+            use IntegralsData , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
+            use global_utilities
             IMPLICIT NONE
-            INTEGER :: iSub,NextVertex,i,j,iErr,iMaxExcit,iExcit
+            INTEGER :: NextVertex,i,j,iErr,iMaxExcit,iExcit
+            integer,save :: isub=0
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
             TYPE(HElement), ALLOCATABLE :: NewOffDiagRhos(:)
             REAL*8 :: RhoValue,RhoEps,OffRhoValue
@@ -900,7 +902,7 @@
             LOGICAL :: FoundRoot
             character(*), parameter :: this_routine='GetStarStars'
 
-            CALL TISET('GetStarStars',iSub)
+            call set_timer('GetStarStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GetStarStars'
 
             WRITE(6,*) "Explicitly diagonalising approximate excited stars from HF star template"
@@ -1005,17 +1007,18 @@
 
             ExcitInfo => ExcitInfo2
 
-            CALL TIHALT('GetStarStars',iSub)
+            call halt_timer(iSub)
 
             RETURN
 
         END SUBROUTINE GetStarStars
 
         SUBROUTINE GetLinRootChangeStars(iMaxExcit,iExcit,RhoEps,nWHTay)
-            USE Calc , only : LinePoints
-            use MemoryManager, only: LogMemAlloc,LogMemDealloc
+            use CalcData , only : LinePoints
+            use global_utilities
             IMPLICIT NONE
-            INTEGER :: i,j,iMaxExcit,iExcit,iSub,nWHTay,HalfiExcit,ierr,lowerrhojj
+            INTEGER :: i,j,iMaxExcit,iExcit,nWHTay,HalfiExcit,ierr,lowerrhojj
+            integer,save :: isub=0
             REAL*8 :: RhoEps,LineRhoValues(LinePoints),RhoValue,Vals(LinePoints),meanx,RhoGap,EigenMax
             REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq,Vector,PreVec,lowrhojj
             LOGICAL :: ReachMax
@@ -1023,7 +1026,7 @@
             TYPE(HElement) :: tmp(3)
             character(*), parameter :: this_routine='GetLinRootChangeStars'
 
-            CALL TISET('GetLinRootChangeStars',iSub)
+            call set_timer('GetLinRootChangeStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
             WRITE(6,*) "Stars where only root changes to be included, using a linear approximation of eigenvalues"
             
@@ -1240,7 +1243,7 @@
 
             ExcitInfo => ExcitInfo2
 
-            CALL TIHALT('GetLinRootChangeStars',iSub)
+            call halt_timer(iSub)
 
             RETURN
         END SUBROUTINE GetLinRootChangeStars
@@ -1270,11 +1273,12 @@
 !contributions from excited stars using this linear approximation is the hope.
 
         SUBROUTINE GetLinStarStars(iMaxExcit,iExcit,RhoEps)
-            USE Calc , only : LinePoints
-            USE Integrals , only : TQuadValMax,TQuadVecMax
-            use MemoryManager, only: LogMemAlloc,LogMemDealloc
+            use CalcData , only : LinePoints
+            use IntegralsData , only : TQuadValMax,TQuadVecMax
+            use global_utilities
             IMPLICIT NONE
-            INTEGER :: i,j,iErr,isub,CSE,NextVertex,iMaxExcit
+            INTEGER :: i,j,iErr,CSE,NextVertex,iMaxExcit
+            integer,save :: isub=0
             INTEGER :: iExcit,TotExcits,HalfiExcit
             TYPE(HDElement) :: tmp(3)
             LOGICAL :: TVal
@@ -1298,7 +1302,7 @@
             REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
             character(*), parameter :: this_routine='GetLinStarStars'
 
-            CALL TISET('GetLinStarStars',iSub)
+            call set_timer('GetLinStarStars',iSub)
             IF(HElementSize.ne.1) STOP 'Only real orbitals allowed'
             WRITE(6,*) "Stars of double excitations to be included in calculation using a linear approximation of eigenvalues"
             WRITE(6,*) iExcit*(iExcit+1)," possible extra excitations"
@@ -1689,7 +1693,7 @@
 !            WRITE(6,*) ExcitInfo2(:,2)
 !            WRITE(6,*) ""
            
-            CALL TIHALT('GetLinStarStars',iSub)
+            call halt_timer(iSub)
 
             RETURN
         END SUBROUTINE GetLinStarStars
@@ -1754,8 +1758,8 @@
 
 
          SUBROUTINE GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
-            USE Integrals , only : TCalcRealProd,TCalcRhoProd,TSumProd
-            use System, only: BasisFN
+            use IntegralsData , only : TCalcRealProd,TCalcRhoProd,TSumProd
+            use SystemData, only: BasisFN
             IMPLICIT NONE
             INTEGER :: iExcit,ProdNum,Uniqprod,ProdOrbs(8),i_P,nEl,nBasisMax(*),Brr(nBasis),nBasis,nMsh,nMax,nTay(2),ierr,i,ni(nEl),nj(nEl),nk(nEl),nl(nEl)
             COMPLEX*16 fck(*)
@@ -1922,7 +1926,7 @@
                         
 
       SUBROUTINE CountProdExcits(ProdNum,setup,iExcit,UniqProd)
-        USE Integrals , only : TSumProd
+        use IntegralsData , only : TSumProd
         IMPLICIT NONE
         INTEGER ProdNum!,ProdPositions(2,length),EXCITSTORE(4,iMaxExcit),
         INTEGER iExcit,I,J
@@ -2060,7 +2064,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
            RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElem     
          Use Determinants, only: GetHElement2
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(HDElement) FMCPR3Star2
          TYPE(BasisFN) G1(*)
@@ -2132,6 +2136,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE STARDIAGREALPROD(NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,EXCITSTORE,ProdPositions,OnDiagProdRho,OffDiagProdRho)
          !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
          USE HElem
+         use global_utilities
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER NLIST,ILMAX,ProdNum,TOTVERT
@@ -2139,14 +2144,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 RIJMAT(*),WLIST(*)
          REAL*8 OnDiagProdRho(ProdNum),OffDiagProdRho(2,ProdNum)
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
-         INTEGER ISUB,EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
+         INTEGER EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
+         integer,save :: isub=0
          INTEGER WORKL,INFO,ierr,ProdPositions(2,ProdNum)
          REAL*8 SI,DLWDB,DBETA,WORK(*)
          INTEGER I,J
          
          IF(HElementSize.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
 
-         CALL TISET('STARDIAGRP',ISUB)
+         call set_timer('STARDIAGRP',ISUB)
          !Is there a need to sort the matrix? If there is, we have problems!
          !CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
          
@@ -2214,7 +2220,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          DLWDB=DLWDB-LIST(1,2)
          CALL FREEM(IP_WLIST)
          CALL FREEM(IP_RIJMAT)
-         CALL TIHALT("STARDIAGRP",ISUB)
+         call halt_timer(ISUB)
 
          RETURN
       END SUBROUTINE
@@ -2223,6 +2229,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          
       SUBROUTINE STARDIAGSC(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElem
+         use global_utilities
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
@@ -2231,7 +2238,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8, DIMENSION(:,:), POINTER :: AOFFDB
          REAL*8, DIMENSION(:), POINTER :: AONDB
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
-         INTEGER ISUB,IND,TOTVERT
+         INTEGER IND,TOTVERT
+         integer,save :: isub=0
          INTEGER WORKL,INFO,PRODVERT,ierr
          REAL*8 SI,DLWDB,DBETA,WORK(*)
          INTEGER I,J
@@ -2239,7 +2247,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          IF(HElementSize.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
 
-         CALL TISET('STARDIAGSC',ISUB)
+         call set_timer('STARDIAGSC',ISUB)
 
          CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
          
@@ -2340,7 +2348,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          DLWDB=DLWDB-LIST(1,2)
          CALL FREEM(IP_WLIST)
          CALL FREEM(IP_RIJMAT)
-         CALL TIHALT("STARDIAGSC",ISUB)
+         call halt_timer(ISUB)
          
          RETURN
       END
@@ -2349,13 +2357,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
       SUBROUTINE StarDiagMC(nEl,NList,List,ILMax,SI,DLWDB,Hii,MaxDiag)
          USE HElem
-         USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-         USE Calc , only : TReadPops,ScaleWalkers,TBinCancel
+         use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+         use CalcData , only : TReadPops,ScaleWalkers,TBinCancel
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint
-         USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+         USE global_utilities
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
-         INTEGER :: i,j,nEl,NList,ILMax,iSub,Info,ierr,WorkL,toprint,PreviousNMCyc
+         INTEGER :: i,j,nEl,NList,ILMax,Info,ierr,WorkL,toprint,PreviousNMCyc
+         integer,save :: isub=0
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,WalkOnExcit,l,TotWalkersDet
          INTEGER :: HMatTag=0,WListTag=0,WorkTag=0,WalkVecTag=0,WalkVec2Tag=0
@@ -2372,7 +2381,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          END TYPE Walker
          TYPE(Walker) , POINTER :: WalkVec(:),WalkVec2(:)
          
-         CALL TISET('StarDiagMC',iSub)
+         call set_timer('StarDiagMC',iSub)
 
          IF(HElementSize.GT.1) THEN
              CALL Stop_All("StarDiagMC","StarDiagMC cannot function with complex orbitals.")
@@ -2946,7 +2955,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IF(TCalcWavevector) CLOSE(14)
          CLOSE(15)
 
-         CALL TIHALT('StarDiagMC',iSub)
+         call halt_timer(iSub)
 
          RETURN
 
@@ -2956,10 +2965,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       SUBROUTINE StarDiagLanc(nEl,NList,List,ILMax,i_P,SI,DBeta,DLWDB)
          USE HElem
          USE DetCalc , only : B2L,nBlk,nKry,NEval
-         USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+         USE global_utilities
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagLanc'
-         INTEGER :: nEl,i_P,NList,ILMax,iSub,i,j,LenMat,ICMax
+         INTEGER :: nEl,i_P,NList,ILMax,i,j,LenMat,ICMax
+         integer,save :: isub=0
          REAL*8 :: List(ILMax,0:2)
          REAL*8 :: SI,DLWDB,DBeta
          LOGICAL :: TSeeded
@@ -2976,7 +2986,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
              CALL Stop_All("StarDiagLanc","StarDiagLanc cannot function with complex orbitals.")
          ENDIF
 
-         CALL TISET('StarDiagLanc',iSub)
+         call set_timer('StarDiagLanc',iSub)
 
          LenMat=(NList*2)-1
          ICMax=NList
@@ -3137,7 +3147,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          DLWDB=DLWDB-LIST(1,2)
 
 
-         CALL TIHALT("StarDiagLanc",iSub)
+         call halt_timer(iSub)
          RETURN
 
       END SUBROUTINE StarDiagLanc
@@ -3145,14 +3155,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       
       SUBROUTINE STARDIAG(LSTE,NEL,NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
          USE HElem
-         USE Integrals , only : TCalcRealProd
+         use IntegralsData , only : TCalcRealProd
+         use global_utilities
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
          REAL*8 LIST(ILMAX,0:2)
          REAL*8 RIJMAT(*),WLIST(*)
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
-         INTEGER ISUB
+         INTEGER,SAVE :: ISUB=0
          INTEGER WORKL,INFO
          REAL*8 SI,DLWDB,DBETA,OD,WORK(*)
          INTEGER I,J
@@ -3162,7 +3173,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
              CALL Stop_All("StarDiag","STARDIAG cannot function with complex orbitals.")
          END IF
 
-         CALL TISET('STARDIAG  ',ISUB)
+         call set_timer('STARDIAG  ',ISUB)
          CALL MEMORY(IP_RIJMAT,NLIST*NLIST,"RIJMAT")
          CALL MEMORY(IP_WLIST,NLIST,"WLIST")
          WORKL=3*NLIST
@@ -3259,7 +3270,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          DLWDB=DLWDB-LIST(1,2)
          CALL FREEM(IP_WLIST)
          CALL FREEM(IP_RIJMAT)
-         CALL TIHALT("STARDIAG  ",ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
 
@@ -3272,14 +3283,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
       SUBROUTINE STARDIAG2(LSTE,NEL,NLIST,LIST,ILMAX,BETA,I_P,SI,DBETA,DLWDB,NROOTS,iLogging)
-         USE Calc , only : STARCONV
-         USE Integrals , only : TQUADRHO,TEXPRHO
+         use CalcData , only : STARCONV
+         use IntegralsData , only : TQUADRHO,TEXPRHO
          USE HElem
+         use global_utilities
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
          TYPE(HElement) LIST(0:ILMAX-1,0:2)
-         INTEGER ISUB
+         INTEGER,SAVE :: ISUB=0
          REAL*8 SI,DLWDB,DBETA,NORM,E0,BETA,osi
          TYPE(HElement) DLWDB2,RR
          INTEGER I,J,NROOTS
@@ -3289,7 +3301,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          LOGICAL lWarned
          REAL*8 NORMCHECK,NORMROOTS
 
-         CALL TISET('STARDIAG2 ',ISUB)
+         call set_timer('STARDIAG2 ',ISUB)
 !.. we need to sort A and B (and the list of hamil values) into ascending A order
 !         WRITE(6,*) (LIST(I,2),I=1,NLIST)
 !         WRITE(6,*) (LIST(I,1),I=1,NLIST)
@@ -3435,7 +3447,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          ENDIF
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(0,2)%v
-         CALL TIHALT("STARDIAG2 ",ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
 !Comment on numerical stability  AJWT 30/10/07
@@ -3468,7 +3480,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
          USE HElem      
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh

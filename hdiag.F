@@ -2,7 +2,8 @@
        SUBROUTINE HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,
      &                     NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT NONE
          INTEGER NDET,LENHAMIL
          INTEGER NROW(NDET),LAB(*)
@@ -10,10 +11,11 @@
 !         TYPE(HElement) CopyCK(NDET,NDET)
          REAL*8 W(NDET)
          INTEGER I,J,IND,INDZ,INFO,LDA,NBS
-         INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS),ISUB
+         INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS)
+         integer,save :: ISUB=0
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
          REAL*8 GSEN
-         CALL TISET('HDIAG     ',ISUB)
+         call set_timer('HDIAG     ',ISUB)
          GSEN=1.D100
          DO I=1,NDET
             DO J=1,NDET
@@ -68,7 +70,7 @@ C.. Diagonalize
 
 C.. CK now contains the eigenvectors, and W the eigenvalues
          WRITE(6,"(A,F19.11,I4)") "GROUND E=",GSEN
-         CALL TIHALT('HDIAG     ',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
 
@@ -228,7 +230,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
      &            NEL,NMRKS,NBASISMAX,NBASIS,G1,NMSH,BRR,
      &            FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,
      &            BETA,I_P,ILOGGING,IFDET,ARR,BLOCKSYM)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT NONE
          INTEGER NDET,NEL,NBLOCKS,NBLOCKSTARTS(NBLOCKS),NMRKS(NEL,NDET)
          INTEGER nBasisMax(5,*),NBASIS
@@ -243,9 +246,10 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          REAL*8 CK(*),W(*),WORK(*),EXEN,GSEN,FLRI,FLSI,GSEN2
          POINTER (IP_CK,CK),(IP_W,W),(IP_WORK,WORK)
          REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
-         INTEGER GELOWEST,ISUB,IDEG
+         INTEGER GELOWEST,IDEG
+         integer,save :: ISUB=0
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
-         CALL TISET('HDIAG_NH  ',ISUB)
+         call set_timer('HDIAG_NH  ',ISUB)
 C.. Find the largest block
          NBLKMAX=0
          DO I=1,NBLOCKS
@@ -353,6 +357,6 @@ C        WRITE(6,*) "NORM: ",DNORM
          CALL FREEM(IP_WORK)
          CALL FREEM(IP_CK)
          CALL FREEM(IP_W)
-         CALL TIHALT('HDIAG_NH  ',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END 

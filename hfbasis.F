@@ -56,7 +56,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          REAL*8 UMAT(*)
          REAL*8 UMAT2(*),ARR(NBASIS)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
-         INTEGER I,J,K,L,A,B,C,D,ISUB
+         INTEGER I,J,K,L,A,B,C,D
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS)
          LOGICAL LSPN
          NHG=NBASIS
@@ -76,7 +76,7 @@ C..Symmetries not needed by UMatInd
       END
 
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
-         use System, only: Symmetry,BasisFN
+         use SystemData, only: Symmetry,BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -118,17 +118,19 @@ C.. Generic spatial symmetry
       SUBROUTINE CALCHFUMAT(UMAT,UMAT2,NBASIS,NBASISMAX,G1,HFBASIS,ISS,
      &            HFE,ARR,BRR,NORBUSED)
          USE UMatCache , only : UMatInd,GTID
+         use global_utilities
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
          REAL*8 UMAT(*)
          REAL*8 UMAT2(*),ARR(NBASIS)
          REAL*8 UMATT((((NBASIS/ISS)*(NBASIS/ISS-1))/2)**2)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
-         INTEGER I,J,K,L,A,B,C,D,ISUB
+         INTEGER I,J,K,L,A,B,C,D
+         integer,save :: ISUB=0
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
          LOGICAL LSPN
          NHG=NBASIS
-         CALL TISET('CALCHFUMAT',ISUB)
+         call set_timer('CALCHFUMAT',ISUB)
          WRITE(6,*) 'CALCULATING HF UMAT'
        STOP "HF UMAT calc broken through U/TMAT reindexing. Please fix"
 C ==--------------------------------------------------------------------==
@@ -218,11 +220,11 @@ C..Symmetries not needed by UMatInd
          ENDDO
          CLOSE(10)
          WRITE(6,*) ' !!! FINISHED CALCULATING HF UMAT !!! '
-         CALL TIHALT('CALCHFUMAT',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
       SUBROUTINE READHFBASIS(HFBASIS,HFE,G1,NBASIS)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,NQNS(5),NN
          TYPE(BasisFN) G1(nBasis)
@@ -481,9 +483,9 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          RETURN
       END
       SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS,ISS,G1)
-         USE Integrals, only: GetUMatEl
+         use Integrals, only: GetUMatEl
          USE Logging, only: HFLogLevel
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          Use HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS,NELS(NSPINS)
@@ -523,11 +525,11 @@ C.. vector
      &                  TRHF,ISS,G1)
          USE OneEInts, only: GetTMATEl
          USE UMatCache, only: GTID
-         USE Integrals, only: GetUMatEl
+         use Integrals, only: GetUMatEl
          USE Logging, only: HFLogLevel
          USE HElem
-         use System, only: BasisFN
-         Use Integrals, only: DMatEpsilon
+         use SystemData, only: BasisFN
+         use IntegralsData, only: DMatEpsilon
          IMPLICIT NONE
          INTEGER NSBASIS,NSPINS,nBasisMax(5,*)
          Type(HElement) FMAT(NSBASIS,NSBASIS,NSPINS)
@@ -655,7 +657,7 @@ C.. subtract out the double counting term, and add in the core energy
       END
       SUBROUTINE WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,
      &         TRANSP)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NBASIS,NSBASIS,NSPINS,I,J,K
          TYPE(BasisFN) G1(nBasis)
@@ -698,7 +700,7 @@ C.. vector unless transposed
 C.. Generate initial density matrix, as well as a guess at the HF DET
       SUBROUTINE GENHFGUESS(FMAT,NSPINS,NSBASIS,R1,R2,WORK,BRR,G1,TRANS,
      &            LMS,FRAND,NELS,HFDET)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          Use HElem
          IMPLICIT NONE
          INTEGER NSPINS,NSBASIS
@@ -764,7 +766,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
       END
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER BRR(*)
          TYPE(BasisFN) G1(*)

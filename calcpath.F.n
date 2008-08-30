@@ -11,7 +11,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          REAL*8 RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),TOTAL,RHOCUML,RH
          REAL*8 RHOII2(0:I_HMAX)
          REAL*8 DLWDB
-         CALL TISET('CALCPATHS ',ISUB)
+         call set_timer('CALCPATHS ',ISUB)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
          IF(I_HMAX.EQ.-1.OR.(I_HMAX.LE.-3.AND.I_HMAX.GE.-7)) THEN
 C.. we use a diagonalization version rather than contour etc.
@@ -41,7 +41,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
      &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
      &               ILOGGING)
          ENDIF
-         CALL TIHALT('CALCPATHS ',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END 
 
@@ -59,7 +59,7 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          REAL*8 HIJS(1:I_V)
          INTEGER ICLASS,ILG,ISGN
          REAL*8 WEIGHT
-         CALL TISET('CALCPATHS ',ISUB)
+         call set_timer('CALCPATHS ',ISUB)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
          IF(I_HMAX.EQ.-1.OR.(I_HMAX.LE.-3.AND.I_HMAX.GE.-7)) THEN
 C.. we use a diagonalization version rather than contour etc.
@@ -93,7 +93,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
             CALL CLASSPATHS(CALCPATHS/WEIGHT,DLWDB/WEIGHT,WEIGHT,RHOIJ,
      &            I_V)
          ENDIF
-         CALL TIHALT('CALCPATHS ',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V)

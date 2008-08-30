@@ -14,14 +14,14 @@
 
 MODULE GraphMorph
     
-    USE System , only : NEl
+    use SystemData , only : NEl
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
-    USE Calc , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
-    USE Calc , only : TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn,THdiag
-    USE Calc , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits,TGrowInitGraph,GrowGraphsExpo
+    use CalcData , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
+    use CalcData , only : TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn,THdiag
+    use CalcData , only : TSinglesExcitSpace,TMCExcitSpace,NoMCExcits,TGrowInitGraph,GrowGraphsExpo
     USE Logging , only : TDistrib
-    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    USE global_utilities
     USE HElem
     IMPLICIT NONE
     SAVE
@@ -96,9 +96,9 @@ MODULE GraphMorph
     contains
 
     SUBROUTINE MorphGraph(Weight,Energyxw)
-        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,G_VMC_Seed
-        USE Integrals, only : fck,nMax,nMsh,UMat,nTay
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,G_VMC_Seed
+        use IntegralsData, only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
@@ -307,9 +307,9 @@ MODULE GraphMorph
 
 !This routine constructs an initial graph in a non-stocastic manner by adding determinants from increasing excitation levels
     SUBROUTINE ConstructExcitsInitGraph()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,RhoEps
-        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        use SystemData , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,RhoEps
+        use IntegralsData , only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: nStore(6),exFlag,nExcitMemLen,iMaxExcit,nJ(NEl)
@@ -318,10 +318,11 @@ MODULE GraphMorph
         TYPE(HElement) :: rh
         INTEGER :: iExcit,excitcount,i,j,k,IC,ICRoot,Numberadded
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructExcitsInitGraph'
-        INTEGER :: ierr,iSubInitExcit,Root,RootDet(NEl),iGetExcitLevel,NoNotAtt_Same,NoNotAtt_NoConn
+        INTEGER :: ierr,Root,RootDet(NEl),iGetExcitLevel,NoNotAtt_Same,NoNotAtt_NoConn
+        integer, save :: iSubInitExcit=0
         LOGICAL :: SameDet,Connection
 
-        CALL TISET('InitExcitGraph',iSubInitExcit)
+        call set_timer('InitExcitGraph',iSubInitExcit)
 
 !Allow single and double excitations
         exFlag=3
@@ -559,26 +560,27 @@ MODULE GraphMorph
         MeanExcit=MeanExcit/(NDets-1)
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructExcitsInitGraph'
-        CALL TIHALT('InitExcitGraph',iSubInitExcit)
+        call halt_timer(iSubInitExcit)
 
     END SUBROUTINE ConstructExcitsInitGraph
 
 
 !This routine constructs the complete connected star graph as the initial graph to begin morphing from
     SUBROUTINE ConstructInitialStarGraph()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,RhoEps
-        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        use SystemData , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,RhoEps
+        use IntegralsData , only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
-        INTEGER :: ierr,iSubInitStar,nStore(6),exFlag,nExcitMemLen,iMaxExcit,nJ(NEl)
+        INTEGER :: ierr,nStore(6),exFlag,nExcitMemLen,iMaxExcit,nJ(NEl)
+        integer,save :: iSubInitStar=0
         INTEGER , ALLOCATABLE :: nExcit(:)
         INTEGER :: nExcitTag=0
         TYPE(HElement) :: rh
         INTEGER :: iExcit,excitcount,i,j
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialStarGraph'
         
-        CALL TISET('InitStarGraph',iSubInitStar)
+        call set_timer('InitStarGraph',iSubInitStar)
         
         CALL IAZZERO(nStore,6)
 !Having exFlag=2 means that only double excitations are generated
@@ -714,19 +716,20 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,nExcitTag)
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialStarGraph'
-        CALL TIHALT('InitStarGraph',iSubInitStar)
+        call halt_timer(iSubInitStar)
 
     END SUBROUTINE ConstructInitialStarGraph
 
     SUBROUTINE ConstructInitialGraph()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,RhoEps,G_VMC_Pi,G_VMC_Seed
-        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        use SystemData , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,RhoEps,G_VMC_Pi,G_VMC_Seed
+        use IntegralsData , only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         LOGICAL :: Attached,connected
         INTEGER :: ierr,nStore(6),nExcitMemLen,iMaxExcit,nJ(NEl),nExcitTag,iExcit
-        INTEGER :: iPathTag,XijTag,RhoiiTag,RhoijTag,HijsTag,iSubInit,i,j,diff,k
+        INTEGER :: iPathTag,XijTag,RhoiiTag,RhoijTag,HijsTag,i,j,diff,k
+        integer,save :: iSubInit
         INTEGER :: iGetExcitLevel,IC,MatFlag
         INTEGER , ALLOCATABLE :: iPath(:,:)
         REAL*8 , ALLOCATABLE :: Xij(:,:)
@@ -742,7 +745,7 @@ MODULE GraphMorph
         REAL*8 :: PGen,OldImport
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
         
-        CALL TISET('ConsInitGraph',iSubInit)
+        call set_timer('ConsInitGraph',iSubInit)
 
         IF(THDiag) THEN
             MatFlag=-19
@@ -1013,7 +1016,7 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,nExcitTag)
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialGraph'
-        CALL TIHALT('ConsInitGraph',iSubInit)
+        call halt_timer(iSubInit)
 
     END SUBROUTINE ConstructInitialGraph
 
@@ -1022,12 +1025,13 @@ MODULE GraphMorph
 !this means that only a few of the excitations would need to be reproduced. However, bookkeeping
 !may well be a nightmare
     SUBROUTINE MoveDetsGraph()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,RhoEps
-        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        use SystemData , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,RhoEps
+        use IntegralsData , only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
-        INTEGER :: iSubMove,i,j,k,l,Success,Failure,iGetExcitLevel,IC,Excitation,IC1,IC2
+        INTEGER :: i,j,k,l,Success,Failure,iGetExcitLevel,IC,Excitation,IC1,IC2
+        integer, save :: iSubMove=0 
         INTEGER , ALLOCATABLE :: MoveDetsFromPaths(:,:)
         INTEGER :: MoveDetsFromPathsTag=0
         INTEGER :: AttemptDet(NEl),IndexofDetsFrom(NoMoveDets),ierr,Tries,NoVerts
@@ -1036,7 +1040,7 @@ MODULE GraphMorph
         REAL*8 :: r,Ran2
         CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
 
-        CALL TISET('MoveDets',iSubMove)
+        call set_timer('MoveDets',iSubMove)
 
 !Allocate space for the determinants to be moved, and to move to
         ALLOCATE(MoveDetsFromPaths(NoMoveDets,NEl),stat=ierr)
@@ -1334,15 +1338,15 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,ExcitsDetsTag)
         
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in MoveDetsGraph'
-        CALL TIHALT('MoveDets',iSubMove)
+        call halt_timer(iSubMove)
 
     END SUBROUTINE MoveDetsGraph
 
 !This routine stocastically picks NDets new determinants stochastically from the vector obtained.
     SUBROUTINE PickNewDets()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,RhoEps
-        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        use SystemData , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,RhoEps
+        use IntegralsData , only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: ierr,i,j,k,NoVerts,AttemptDet(NEl),GrowGraphTag,IC,dist,Rej_SameDet
@@ -1698,9 +1702,10 @@ MODULE GraphMorph
         IMPLICIT NONE
         TYPE(HElement) :: Norm1,Norm2
         REAL*8 :: RootofNum
-        INTEGER :: iSubNorm,i
+        INTEGER :: i
+        integer, save :: iSubNorm=0 
         
-        CALL TISET('NormVecSep',iSubNorm)
+        call set_timer('NormVecSep',iSubNorm)
         
 !Setup a normalised Inverse vector of determinants in the graph, so they can be chosen stochastically
 !Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue, then
@@ -1742,7 +1747,7 @@ MODULE GraphMorph
 
         PStay=NoMoveDets/NDets
 
-        CALL TIHALT('NormVecSep',iSubNorm)
+        call halt_timer(iSubNorm)
 
     END SUBROUTINE NormaliseVectorSep
 
@@ -1897,21 +1902,21 @@ MODULE GraphMorph
 !This subroutine will go through all determinants, find all excitations, and then calculate the rho element to
 !the determinant in the graph to which it is connected.
     SUBROUTINE FindConnections()
-        USE System, only: G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P
-        USE Integrals, only: fck,nMax,nMsh,UMat,nTay
+        use SystemData, only: G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P
+        use IntegralsData, only: fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HElement) :: rh
         REAL*8 :: Prob
-        INTEGER , SAVE :: iSubConns
+        INTEGER , SAVE :: iSubConns=0
         INTEGER :: attempts,NoExcitsCurr,Noatt
         INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
         INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel,IC,exFlag
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='FindConnections'
 
-        CALL TISET('FindConns',iSubConns)
+        call set_timer('FindConns',iSubConns)
         
         IF(TSinglesExcitSpace) THEN
 !Only single excitations of the determinants in the graph are created
@@ -2078,7 +2083,7 @@ MODULE GraphMorph
         IF(ExcitCurr.ne.TotExcits) STOP 'Incorrect counting in FondConnections'
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in FindConnections'
-        CALL TIHALT('FindConns',iSubConns)
+        call halt_timer(iSubConns)
 
     END SUBROUTINE FindConnections
 
@@ -2086,7 +2091,7 @@ MODULE GraphMorph
 !This could improve on space if all excitations were explicitly calculated, though would take longer.
     SUBROUTINE CountExcits()
 
-        USE System, only : G1,nBasis,nBasisMax
+        use SystemData, only : G1,nBasis,nBasisMax
         IMPLICIT NONE
         INTEGER :: ierr,i,j,nStore(6),DetCurr(NEl),nJ(NEl),iMaxExcit,nExcitMemLen
         INTEGER :: nExcitTag,exFlag
@@ -2181,12 +2186,13 @@ MODULE GraphMorph
         INTEGER :: LabTag,ATag,MatTag,NRowTag,VTag,WTTag
         INTEGER :: AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag
         INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
-        INTEGER :: iSubLanc,ierr,LenMat,i,j,ICMax,RowElems
+        INTEGER :: ierr,LenMat,i,j,ICMax,RowElems
+        integer, save :: iSubLanc=0 
         REAL*8 :: SumVec,LancVar
         INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr
         LOGICAL :: TSeeded
 
-        CALL TISET('DiagGraphLanc',iSubLanc)
+        call set_timer('DiagGraphLanc',iSubLanc)
         
 !Zero memory tags
         LabTag=0
@@ -2506,7 +2512,7 @@ MODULE GraphMorph
 !        WRITE(6,*) LabTag,ATag,MatTag,NRowTag,VTag,WTTag,AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag,Work2Tag,V2Tag,WTag,CKTag,CKNTag
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphLanc'
-        CALL TIHALT('DiagGraphLanc',iSubLanc)
+        call halt_timer(iSubLanc)
 
     END SUBROUTINE DiagGraphLanc
 
@@ -2580,13 +2586,13 @@ MODULE GraphMorph
 !This is a routine to find the energy of the graph by diagonalisation, and return as well its eigenvalues and largest eigenvector. Deallocate the RhoMatrix when done.
     SUBROUTINE DiagGraphMorph()
         IMPLICIT NONE
-        INTEGER, SAVE :: iSubDiag
+        INTEGER, SAVE :: iSubDiag=0
         INTEGER :: Info,ierr,i
         REAL*8 , ALLOCATABLE :: Work(:),Eigenvalues(:)
         INTEGER :: WorkTag,EigenvaluesTag,j
         CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphMorph'
 
-        CALL TISET('DiagGraphMorph',iSubDiag)
+        call set_timer('DiagGraphMorph',iSubDiag)
 
         WorkTag=0
         EigenvaluesTag=0
@@ -2695,7 +2701,7 @@ MODULE GraphMorph
         ENDIF
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphMorph'
-        CALL TIHALT('DiagGraphMorph',iSubDiag)
+        call halt_timer(iSubDiag)
 
     END SUBROUTINE DiagGraphMorph
 

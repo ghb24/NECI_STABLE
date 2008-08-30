@@ -15,7 +15,7 @@ contains
 
    subroutine NECIReceiveVASPData(vasp_nbands,vasp_nkpts,vasp_kpnts,vasp_kpmsh,vasp_xi,vasp_kpntind,vasp_eigv,vasp_umat2D,vasp_nEl)
       use HElem
-      use System, only: nEl
+      use SystemData, only: nEl
       use UMatCache, only: SetupUMatCache,UMat2D,tagUMat2D,tUMat2D
       implicit none
       integer :: vasp_nbands,vasp_nkpts,vasp_kpntind(vasp_nbands*vasp_nkpts),vasp_kpmsh(3)

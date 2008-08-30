@@ -3,7 +3,7 @@
      &	NHG,NDET1,NDET2,GBS,IC,NMSH,FCK,
      &	NMAX,ALAT,UMat,SUM)
       USE HElem
-      USE System , only : FCOUL,TEXCH
+      use SystemData , only : FCOUL,TEXCH
       IMPLICIT NONE
 C..
 C.. 
@@ -25,8 +25,8 @@ C..Cube Arrays
       INTEGER IC,NMAX
       INTEGER IFLAG,IPTOT
       REAL*8 COULCOUPLE
-      INTEGER ISUB
-!      CALL TISET('SLTCND    ',ISUB)
+      INTEGER,SAVE :: ISUB=0
+!      call set_timer('SLTCND    ',ISUB)
       ISPINSKIP=NBASISMAX(2,3)
 C..
 C..Routine to read in UMAT
@@ -69,12 +69,12 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
         RETURN
       ENDIF
 !      SUM=SUM*DFLOAT(IPTOT)
-!      CALL TIHALT('SLTCND    ',ISUB)
+!      call halt_timer(ISUB)
       RETURN
       END
 
       REAL*8 FUNCTION COULDAMP(I,NHG)
-         USE System , only : FCOULDAMPBETA,FCOULDAMPMU
+         use SystemData , only : FCOULDAMPBETA,FCOULDAMPMU
          IMPLICIT NONE
          INTEGER I,NHG,J
          REAL*8 DERFC

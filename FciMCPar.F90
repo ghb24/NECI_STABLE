@@ -5,15 +5,15 @@
 !All variables refer to values per processor
 
 MODULE FciMCParMod
-    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
-    USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    USE Calc , only : TStartMP1,NEquilSteps
-    USE Calc , only : GrowMaxFactor,CullFactor
-    USE Calc , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
+    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+    use CalcData , only : TStartMP1,NEquilSteps
+    use CalcData , only : GrowMaxFactor,CullFactor
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
-    USE Integrals , only : fck,NMax,nMsh,UMat
-    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    use IntegralsData , only : fck,NMax,UMat
+    USE global_utilities
     USE HElem
     USE Parallel
     IMPLICIT NONE
@@ -1311,9 +1311,9 @@ MODULE FciMCParMod
 
 !This routine calculates the MP1 eigenvector, and uses it as a guide for setting the initial walker configuration
 !    SUBROUTINE StartWavevectorPar(WaveType)
-!        USE Calc , only : i_P
-!        USE System , only : Beta
-!        USE Integrals , only : nTay
+!        use CalcData , only : i_P
+!        use SystemData , only : Beta
+!        use IntegralsData , only : nTay
 !        IMPLICIT NONE
 !        INTEGER :: ierr,i,j,WaveType,EigenvectorTag=0,k,VecSlot,NoDoublesWalk
 !        CHARACTER(len=*), PARAMETER :: this_routine='StartWavevectorPar'
@@ -1478,7 +1478,7 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        USE Calc, only : EXCITFUNCS
+        use CalcData, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error
         TYPE(HElement) :: rh,TempHii
@@ -1893,15 +1893,15 @@ END MODULE FciMCParMod
 
 MODULE FciMCParMod
 !Dummy module so we can use it in serial - contains all global variables
-    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
-    USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    USE Calc , only : TStartMP1
-    USE Calc , only : GrowMaxFactor,CullFactor
-    USE Calc , only : RhoApp,TResumFCIMC
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr,nMsh
+    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+    use CalcData , only : TStartMP1
+    use CalcData , only : GrowMaxFactor,CullFactor
+    use CalcData , only : RhoApp,TResumFCIMC
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
-    USE Integrals , only : fck,NMax,nMsh,UMat
-    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    use IntegralsData , only : fck,NMax,UMat
+    USE global_utilities
     USE HElem
     USE Parallel
     IMPLICIT NONE

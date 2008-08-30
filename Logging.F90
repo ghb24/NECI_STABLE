@@ -3,7 +3,7 @@ MODULE Logging
     IMPLICIT NONE
     Save
 
-    INTEGER ILOGGING,iGlobalTimerLevel,G_VMC_LOGCOUNT
+    INTEGER ILOGGING,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
@@ -27,6 +27,7 @@ MODULE Logging
       TDistrib=.false.
       ILOGGINGDef=0
       iGlobalTimerLevel=40
+      nPrintTimer=10
       HFLOGLEVEL=0
       PreVarLogging=0
       TDetPops=.false.
@@ -119,7 +120,18 @@ MODULE Logging
         case("PSI")
             ILOGGING = IOR(ILOGGING,2**8)
         case("TIMING")
-            call readi(iGlobalTimerLevel)
+            do while(item.lt.nitems)
+                call readu(w)
+                select case(w)
+                case("LEVEL")
+                    call readi(iGlobalTimerLevel)
+                case("PRINT")
+                    call readi(nPrintTimer)
+                case default
+                    call reread(-1)
+                    call readi(iGlobalTimerLevel)
+                end select
+            end do
         case("VERTEX")
             do while(item.lt.nitems)
                call readu(w)

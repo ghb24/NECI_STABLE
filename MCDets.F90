@@ -76,9 +76,9 @@ contains
 
 subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iStep,dInitShift,GrowMaxFactor,CullFactor)
    Use HElem
-   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Use global_utilities
    Use Determinants, only: GetHElement3
-   Use System, only: BasisFN,nEl
+   use SystemData, only: BasisFN,nEl
    IMPLICIT NONE
    character(25), parameter :: this_routine='MCDets'
    integer nI(nEl)   !The root determinant
@@ -530,7 +530,7 @@ end subroutine
 
 !Allocate arrays within a particle list, and clear then
 subroutine AllocParticleList(PL,nMaxParticles, nEl)
-   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Use global_utilities
    implicit none
    Type(ParticleList) PL
    integer nMaxParticles
@@ -547,7 +547,7 @@ subroutine AllocParticleList(PL,nMaxParticles, nEl)
 end subroutine AllocParticleList
 
 subroutine DeallocParticleList(PL)
-   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Use global_utilities
    implicit none
    Type(ParticleList) PL
    integer ierr
@@ -857,7 +857,7 @@ subroutine DumpParticleList(iunit,PL)
 end subroutine DumpParticleList
    
 subroutine AllocateExGen(exGen,nI,nEl,this_routine)
-   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Use global_utilities
    Type(ExcitGen), pointer :: exGen
    integer nEl 
    integer nI(nEl),nJ(nEl)
@@ -885,7 +885,7 @@ subroutine AllocateExGen(exGen,nI,nEl,this_routine)
 end subroutine AllocateExGen
    
 subroutine DeallocateExGen(exGen,this_routine)
-   Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+   Use global_utilities
    Type(ExcitGen) exGen
    integer ierr
    character(*) this_routine

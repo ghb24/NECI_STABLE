@@ -1,10 +1,10 @@
       SUBROUTINE SCR1(NEL,NBASISMAX,NDET1,NDET2,G1,
      &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM)
       USE HElem
-      USE Integrals, only : GetUMatEl
+      use Integrals, only : GetUMatEl
       USE UMatCache, only : GTID
       use OneEInts, only: GetTMatEl
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
       TYPE(BasisFN) G1(*)
@@ -20,9 +20,9 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 
       INTEGER IQ,I,J,K,ID1,ID2
       TYPE(HElement) SUM2,SUM3
-      INTEGER ISUB
+      INTEGER,SAVE :: ISUB=0
       LOGICAL LCOUL,TEXCH
-!      CALL TISET('      SCR1',ISUB) 
+!      call set_timer('      SCR1',ISUB) 
 C.. NB in HF we need to include TMAT element
 
 
@@ -60,6 +60,6 @@ C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
       SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
       IF(TSIGN) SUM=-SUM
-!      CALL TIHALT('      SCR1',ISUB) 
+!      call halt_timer(ISUB) 
       RETURN
       END

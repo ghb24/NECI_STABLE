@@ -1,6 +1,6 @@
       SUBROUTINE CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: KPntSym,tAbelian,nSym,SymClasses,
      &                      SymLabelChars
          use CPMDData, only: EigenValues,Project,BigCell,Trans_Label
@@ -96,8 +96,8 @@ C.. show it's a generic spatial basis
       END
 C.. Called to retrieve number of basis functions from CPMD
       SUBROUTINE CPMDSYSTEMINIT(LEN)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nRot
          use CPMDData, only:tSpaceGp,nSpGpOp,nRotOp,nKPTrans,tKP,nStates
          IMPLICIT NONE
@@ -124,9 +124,9 @@ C.. group
       END
 
       SUBROUTINE EXTRACTSYMLABELS
-         use MemoryManager, only: LogMemAlloc
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use global_utilities
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymLabels,SymLabelChars,nRot,SymClasses
          use SymData, only: SymLabels,SymLabelChars,SymClasses
          use SymData, only: IRREPCHARS
@@ -202,18 +202,19 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
      &      ECORE,TORDER,ARR,BRR,iCacheFlag)
          USE HElem
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          use Integrals, only: GetUMatEl
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache
          use OneEInts, only: TMat2D,tCPMDSymTMat,TMatSym
          use OneEInts, only: TMatInd
-         use MemoryManager, only: LogMemAlloc,LogMemDealloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER NHG,NTFROZEN
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
-         INTEGER I,J,K,NSTATESUSED,ISUB,NORBUSED,II,JJ
+         INTEGER I,J,K,NSTATESUSED,NORBUSED,II,JJ
+         integer, save :: isub=0
          REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
          TYPE(HElement) U,TOT,sum1
          INTEGER ISS,NBASISMAX(*)
@@ -236,7 +237,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          complex*16,allocatable :: work(:)
          integer :: tagHarInt=0
          character(*), parameter :: this_routine='CPMDINIT2INDINT'
-         CALL TISET('CPMDINIT2I',ISUB)
+         call set_timer('CPMDINIT2I',ISUB)
 
          ECORE=EIONION
          WRITE(6,*) "Core Energy:", ECORE 
@@ -385,5 +386,5 @@ C.. Set the UMAT cache to cache normally again
             deallocate(PIInt)
             call LogMemDealloc(this_routine,tagPIInt)
          endif
-         CALL TIHALT('CPMDINIT2I',ISUB)
+         call halt_timer(ISUB)
       END   

@@ -246,7 +246,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END
       SUBROUTINE ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          USE HElem
-         use System, only: BasisFN,BasisFNSize,Symmetry
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry
          USE OneEInts, only : TMATind,TMAT2D,TMATSYM,TSTARSTORE
          implicit none
          integer nBasis,Brr(nBasis),i,j
@@ -287,7 +287,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          enddo
       END
       SUBROUTINE InitDaltonBasis(nBasisMax,Arr,Brr,G1,nBasis)
-         use System, only: Symmetry,BasisFN,BasisFNSize
+         use SystemData, only: Symmetry,BasisFN,BasisFNSize
          implicit none
          integer nBasis,Brr(nBasis),i,j,nBasisMax(5,*)
          real*8 Arr(nBasis,2),val,ECore
@@ -369,14 +369,15 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       SUBROUTINE DFCalcInvFitInts(dPower)
          USE HElem
          use UMatCache
+         use global_utilities
          implicit none
          Real*8,Pointer :: M(:,:) !(nAuxBasis,nAuxBasis)
          Real*8 Eigenvalues(nAuxBasis),r,dPower
          Real*8 Work(3*nAuxBasis)
          integer Workl,info
-         Integer iSub
+         Integer,save :: iSub=0
          Integer i,j,ierr,k,iMinEigv
-         CALL TISET('DFInvFitIn',ISUB)
+         call set_timer('DFInvFitIn',ISUB)
          Allocate(M(nAuxBasis,nAuxBasis),STAT=ierr)
          call MemAlloc(ierr,M,nAuxBasis*nAuxBasis,"M-DFInvFitInts")
          call azzero(M,nAuxBasis*nAuxBasis)
@@ -415,5 +416,5 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          enddo
          call MemDealloc(M)         
          Deallocate(M)
-         CALL TIHALT('DFInvFitIn',ISUB)
+         call halt_timer(ISUB)
       END

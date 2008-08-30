@@ -204,7 +204,7 @@
       
       subroutine inpgetprecalc(preIH)
          use input
-         USE System , only : TUSEBRILLOUIN
+         use SystemData , only : TUSEBRILLOUIN
          implicit none
          integer preIH
          CHARACTER(LEN=16) w

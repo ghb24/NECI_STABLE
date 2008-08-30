@@ -1,6 +1,7 @@
       SUBROUTINE WIRHODIAG(NI,BETA,I_P,NEL,
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
+         use global_utilities
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
@@ -16,12 +17,13 @@
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
          INTEGER LSTE(NEL,0:*)
          POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
-         INTEGER ISUB,ILMAX
+         INTEGER,SAVE :: ISUB=0
+         INTEGER ILMAX
          INTEGER WORKL,WORK(*),INFO
          REAL*8 WLRI,WLSI,SI
          LOGICAL LCHKSYMD
          INCLUDE 'irat.inc'
-         CALL TISET('WIRHODIAG ',ISUB)
+         call set_timer('WIRHODIAG ',ISUB)
          HDMAX=5000.D0
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
 
@@ -123,13 +125,14 @@ C         ENDDO
          CALL FREEM(IP_RIJMAT)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_RJJLIST)
-         CALL TIHALT("WIRHODIAG ",ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
  
          SUBROUTINE WIRD_SUBSET(NI,BETA,I_P,NEL,
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      RHOEPS,ILOGGING,TSYM,ECORE)
+         use global_utilities
          IMPLICIT NONE
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
@@ -147,7 +150,8 @@ C         ENDDO
          POINTER (IP_LSTP,LSTP)
          INTEGER LSTE(NEL,0:*),LSTP(0:*)
          POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
-         INTEGER ISUB,ILMAX
+         INTEGER,SAVE :: ISUB=0
+         INTEGER ILMAX
          INTEGER WORKL,WORK(*),INFO
          REAL*8 WLRI,WLSI,SI,SN,SNO,SNC,SNN
          INTEGER IPLEN,NCOUNT
@@ -156,7 +160,7 @@ C         ENDDO
          INTEGER BINOMIAL
          LOGICAL LSUB
          INCLUDE 'irat.inc'
-         CALL TISET('WIRHODIAG ',ISUB)
+         call set_timer('WIRHODIAG ',ISUB)
          HDMAX=5000.D0
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
 
@@ -339,7 +343,7 @@ C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
          CALL FREEM(IP_RIJMAT)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_RJJLIST)
-         CALL TIHALT("WIRHODIAG ",ISUB)
+         call halt_timer(ISUB)
 C         CLOSE(36)
          RETURN
       END
@@ -380,8 +384,10 @@ C         CLOSE(36)
       END
 
       REAL*8 FUNCTION RHODIAG_CP(RHOIJ,I_P,I_V)
+         use global_utilities
          IMPLICIT NONE
-         INTEGER I_P,I_V,ISUB
+         INTEGER I_P,I_V
+         INTEGER,SAVE :: ISUB=0
          REAL*8 RHOIJ(0:I_V,0:I_V)
          REAL*8 RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
@@ -390,7 +396,7 @@ C         CLOSE(36)
          REAL*8 RII
          RII=RHOIJ(0,0)
 C.. Diagonalize
-         CALL TISET('RHODIAG_CP',ISUB)
+         call set_timer('RHODIAG_CP',ISUB)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          DO I=1,I_V
             DO J=I,I_V
@@ -432,7 +438,7 @@ C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
 C         ENDDO
          
-         CALL TIHALT("RHODIAG_CP",ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
 
@@ -445,8 +451,10 @@ C.. See 1/7/04
       RECURSIVE FUNCTION HDIAG_CPP(HIJ,
      &       I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS) result (HDIAG_CPPRES)
          USE HElem
+         use global_utilities
          IMPLICIT NONE
-         INTEGER I_P,I_V,ISUB
+         INTEGER I_P,I_V
+         INTEGER,SAVE :: ISUB=0
          TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
          TYPE(HElement) NWORK(4*I_V)
@@ -471,7 +479,7 @@ C.. do we subtract out lower vertices here or later?
          RII=EXP(R)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         CALL TISETL('HDIAG_CPP ',ISUB,55)
+         call set_timer('HDIAG_CPP ',ISUB,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          DLWDB=0.D0
          II=0
@@ -562,7 +570,7 @@ C/RII
          S=DLWT
          DLWDB=DLWDB+S
          HDIAG_CPPRES=SI+SI2
-         CALL TIHALTL("HDIAG_CPP ",ISUB,55)
+         call halt_timer(ISUB)
          RETURN
       END
 C.. See 1/7/04
@@ -570,8 +578,10 @@ C.. See 1/7/04
      &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight) 
      &      RESULT (RHODIAG_CPPRES)
          USE HElem
+         use global_utilities
          IMPLICIT NONE
-         INTEGER I_P,I_V,ISUB
+         INTEGER I_P,I_V
+         INTEGER,SAVE :: ISUB=0
          TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
@@ -597,7 +607,7 @@ C.. do we subtract out lower vertices here or later?
          RII=RHOIJ(1,1)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         CALL TISETL('RHODIAG_C2',ISUB,55)
+         call set_timer('RHODIAG_C2',ISUB,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          IF(DBETA.NE.0.D0) DLWDB=0.D0
          II=0
@@ -740,15 +750,17 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
             RHODIAG_CPPRES=SI+SI2
          ENDIF
 
-         CALL TIHALTL("RHODIAG_C2",ISUB,55)
+         call halt_timer(ISUB)
          RETURN
       END
 !  As rhodiag_cpp, but only deal with this vertex level, and subtract out the two-vertex star contribtion from this vertex level.
       FUNCTION RHODIAG_CPPS2VS(RHOIJ,
      &            I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS)
          USE HElem
+         use global_utilities
          IMPLICIT NONE
-         INTEGER I_P,I_V,ISUB
+         INTEGER I_P,I_V
+         INTEGER,SAVE :: ISUB=0
          TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
@@ -770,7 +782,7 @@ C.. do we subtract out lower vertices here or later?
          RII=RHOIJ(1,1)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         CALL TISETL('RHODIAG_C2',ISUB,55)
+         call set_timer('RHODIAG_C2',ISUB,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          DO J=1,I_V
             RIJMAT(1,J)=RHOIJ(1,J)
@@ -843,15 +855,17 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
             DLWDB=S
          ENDIF
          RHODIAG_CPPS2VS=SI-SI2
-         CALL TIHALTL("RHODIAG_C2",ISUB,55)
+         call halt_timer(ISUB)
          RETURN
       END
 ! As HDIAG_CPP, but return the subtraction out of the 2-vertex star part.
       FUNCTION HDIAG_CPPS2VS(HIJ,
      &            I_P,I_V,IMISS,TSUB,BETA,DLWDB,HIJS)
          USE HElem
+         use global_utilities
          IMPLICIT NONE
-         INTEGER I_P,I_V,ISUB
+         INTEGER I_P,I_V
+         INTEGER,SAVE :: ISUB=0
          TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
          TYPE(HElement) NWORK(4*I_V)
@@ -877,7 +891,7 @@ C.. do we subtract out lower vertices here or later?
          RII=EXP(R)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         CALL TISETL('HDIAG_CPP ',ISUB,55)
+         call set_timer('HDIAG_CPP ',ISUB,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          II=0
          DO I=1,I_V
@@ -951,6 +965,6 @@ C/RII
 !Subtraction mode
          DLWDB=DLWDB-S
          HDIAG_CPPS2VS=SI-SI2
-         CALL TIHALTL("HDIAG_CPP ",ISUB,55)
+         call halt_timer(ISUB)
          RETURN
       END

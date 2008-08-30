@@ -330,9 +330,9 @@ C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
       SUBROUTINE GETTRUMATEL(A,B,C,D,UMAT,NBASISMAX,NHG,BTRANS,NSBASIS,
      &            NSPINS,ISS,SUM)
          USE HElem
-         USE Integrals, Only : GetUMatEl
+         use Integrals, Only : GetUMatEl
          USE UMatCache , Only : GTID
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) G1(1)
          INTEGER A,B,C,D

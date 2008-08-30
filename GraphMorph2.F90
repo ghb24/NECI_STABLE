@@ -4,11 +4,11 @@
 
 MODULE GraphMorph2
 
-    USE System , only : NEl
+    use SystemData , only : NEl
     USE Determinants , only : FDet
 !Iters is the number of interations of morphing the graph, DetsMax is the maximum size of the CI vector
-    USE Calc , only : Iters,DetsMax,DeltaH,TStoch,SampDets
-    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    use CalcData , only : Iters,DetsMax,DeltaH,TStoch,SampDets
+    USE global_utilities
     USE HElem
 
     IMPLICIT NONE
@@ -49,9 +49,9 @@ MODULE GraphMorph2
     contains
 
     SUBROUTINE MorphGraph2(Weight,Energyxw)
-        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
-        USE Calc , only : G_VMC_Seed
-        USE Integrals, only : fck,nMax,nMsh,UMat
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
+        use CalcData , only : G_VMC_Seed
+        use IntegralsData, only : fck,nMax,nMsh,UMat
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
@@ -130,9 +130,9 @@ MODULE GraphMorph2
 !graph to see if it is already included. If it isn't, and there is space for more determinants in the vector, then it is
 !added. If not, then it is added to the ExcitVect array, for the possibility to be included at a later date.
     SUBROUTINE CalcHDet(i)
-        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
-        USE Calc , only : G_VMC_Seed
-        USE Integrals, only : fck,nMax,nMsh,UMat
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
+        use CalcData , only : G_VMC_Seed
+        use IntegralsData, only : fck,nMax,nMsh,UMat
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: i
@@ -276,8 +276,8 @@ MODULE GraphMorph2
 
 !This simply calculates the energy of a CI vector
     SUBROUTINE CalcCIVectE()
-        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
-        USE Integrals, only : fck,nMax,nMsh,UMat
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
+        use IntegralsData, only : fck,nMax,nMsh,UMat
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HElement) :: Hij

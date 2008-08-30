@@ -241,7 +241,7 @@ C.. test if NCI is a CSF
 
       SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,BRR,NBASISMAX,
      &  G1,ISYM,NI)
-         use System, only: BasisFN,BasisFNSize
+         use SystemData, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,1),NDET,G1(*)
@@ -409,7 +409,7 @@ C.. IEXLEV from NDCH
       SUBROUTINE GNCSFS(NEL,NBASIS,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  IPARITY,NDET,IFDET,TCHKEX,NDCH,ICLIST,TORDER,IEXLEV)
-         use System, only: BasisFN,BasisFNSize
+         use SystemData, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER NEL,NBASIS,BRR(NBASIS),NBASISMAX(*)
          INTEGER NMRKS(NEL,*),NDET,G1(*)
@@ -817,7 +817,8 @@ C.. Get the Hamiltonian Element between two CSFs
      &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,ECORE,SUM)
          USE HElem
          Use Determinants, only: GetHelement2
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(*),NMSH,NMAX
@@ -834,7 +835,8 @@ C.. Get the Hamiltonian Element between two CSFs
          INTEGER DOLISTD1(*),DOLISTD2(*)
          INTEGER NOPEN1,NOPEN2,NDETS1,NDETS2
          INTEGER SO1(NEL),SO2(NEL)
-         INTEGER I,J,ISUB
+         INTEGER I,J
+         integer, save :: isub=0
          REAL*8 COEFF1,COEFF2
          REAL*8 COEFFLIST2(*)
          POINTER (IP_COEFFLIST2,COEFFLIST2)
@@ -846,7 +848,7 @@ C.. If the Ms or S values differ, we return 0.
             RETURN
          ENDIF
 C.. The SORDERS for dets 1 and 2
-         CALL TISET('CSFGETHELE',ISUB)
+         call set_timer('CSFGETHELE',ISUB)
 
          NOPEN1=0
          NOPEN2=0
@@ -910,7 +912,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
          CALL FREEM(IP_LISTD2)
          CALL FREEM(IP_DOLISTD2)
          CALL FREEM(IP_COEFFLIST2)
-         CALL TIHALT('CSFGETHELE',ISUB)
+         call halt_timer(ISUB)
                
       END
 

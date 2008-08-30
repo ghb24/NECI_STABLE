@@ -4,7 +4,7 @@
 ! 4. memory {,de}allocation
 module SymData
 
-    use System, only: BasisFn,Symmetry,SymmetrySize
+    use SystemData, only: BasisFn,Symmetry,SymmetrySize
 
     implicit none
 

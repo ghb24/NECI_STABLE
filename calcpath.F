@@ -2,6 +2,7 @@
       FUNCTION CALCPATHS(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,NWHTAY,NEL,I_VMAX,ILOGGING)
          USE HElem
+         use global_utilities
          IMPLICIT NONE
          TYPE(HDElement) CALCPATHS
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX
@@ -17,12 +18,13 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
          TYPE(HElement) RHOIJ(0:I_V,0:I_V),RH
          TYPE(HDElement) TOTAL,RHOCUML,RHOII(0:I_V),RHOII2(0:I_HMAX)
          TYPE(HDElement) DLWDB
-         INTEGER ILOGGING,ISUB
+         INTEGER ILOGGING
+         INTEGER,SAVE :: ISUB=0
          TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, CalcPaths_R
          INTEGER I_HIND
 
-         CALL TISETL('CALCPATHS ',ISUB,50)
+         call set_timer('CALCPATHS ',ISUB,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
 C.. REMEMBER TO MODIFY CALCPATHS_N too!
          IF(I_HMAX.EQ.-1.OR.(I_HMAX.LE.-3.AND.I_HMAX.GE.-8)) THEN
@@ -53,14 +55,15 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
      &               NWHTAY,I_HIND,NEL,IPATH2,IP2,1.D0,RHOII2,I_VMAX,
      &               ILOGGING)
          ENDIF
-         CALL TIHALTL('CALCPATHS ',ISUB,50)
+         call halt_timer(ISUB)
          RETURN
       END 
 
       FUNCTION CALCPATHS_N(IPATH,RHOII,RHOIJ,I_V,
      &      I_HMAX,I_P,WEIGHT,NEL,I_VMAX,ILOGGING,DBETA,DLWDB,HIJS,ICLS)
          USE HElem
-         USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT
+         use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT
+         use global_utilities
          IMPLICIT NONE
          TYPE(HDElement) CalcPaths_N
          INTEGER NEL,I_V,I_P,NWHTAY,I_HMAX,I_VMAX,ICLS
@@ -87,12 +90,13 @@ C.. RHOII2 is constructed to contain the RHOII for each point in the path
 !DBETA(2) is GRAPHEPSILON
          REAL*8 DBETA(2)
          TYPE(HDElement) DLWDB
-         INTEGER ILOGGING,ISUB
+         INTEGER ILOGGING
+         INTEGER,SAVE :: ISUB=0
          TYPE(HDElement) RhoDiag_CPP, CalcPaths_2, CalcPaths_3,
      &      CalcPaths_4, CalcPaths_R,HDiag_CPP
          TYPE(HDElement) RhoDiag_CPPS2VS,HDiag_CPPS2VS
          INTEGER I_HIND
-         CALL TISETL('CALCPATHS ',ISUB,50)
+         call set_timer('CALCPATHS ',ISUB,50)
 C.. If we're using the contour integral trick to sum all possible graphs with the given vertices
          IF(I_HMAX.EQ.-1.OR.(I_HMAX.LE.-3.AND.I_HMAX.GE.-8).OR.
      &      I_HMAX.LE.-12) THEN
@@ -156,7 +160,7 @@ C            IF(I_V.EQ.3) CALCPATHS=CP3CI2(RHOII,RHOIJ,I_P)
      &            DREAL(DLWDB)/WEIGHT,WEIGHT,RHOIJ,
      &            I_V,ICLS)
          ENDIF
-         CALL TIHALTL('CALCPATHS ',ISUB,50)
+         call halt_timer(ISUB)
          RETURN
       END
       SUBROUTINE CLASSPATHS(RHOC,HC,WEIGHT,RHOIJ,I_V,ICLASS)

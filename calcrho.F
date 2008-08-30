@@ -181,12 +181,14 @@ C.. NDET = total number of determinants K will range over
 C.. RH = output RH_IJ
 
       SUBROUTINE CALCRHO(I,J,BETA,P,HAMIL,LAB,NROW,NDET,NTAY,RH)
+      use global_utilities
       REAL*8 RH
       REAL*8 HAMIL(*)
       INTEGER LAB(*)
       INTEGER NROW(NDET)
       INTEGER IRI,IRJ,INI,INJ,P
-      CALL TISET('CALCRHO   ',ISUB)
+      integer, save :: isub=0
+      call set_timer('CALCRHO   ',ISUB)
       B=BETA/P
       RH=0
 C.. Deal with the delta_IJ
@@ -200,7 +202,7 @@ C.. Now the 2nd order term
 C.. And now the 3rd order term
       IF(NTAY.GE.3)
      &   RH=RH-B*B*B*RHO3ORDER(I,J,HAMIL,LAB,NROW,NDET)/6
-      CALL TIHALT('CALCRHO   ',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END
 
@@ -328,13 +330,15 @@ C.. For the given (I,J) pairs extracted from  RHOIJLAB,RHOIJROWS
 C.. calculate approx RHOIJ, and store
       SUBROUTINE CALCSTOREAPRHOIJ(NDET,BETA,I_P,HAMIL,LAB,NROW,
      &      RHOIJROWS,RHOIJ,RHOIJLAB,TTROT,NTAY)
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       REAL*8 RH
       REAL*8 RHOIJ(*)
       INTEGER RHOIJLAB(*)
       INTEGER RHOIJROWS(NDET+1)
       LOGICAL TTROT
-      CALL TISET('CSARHOIJ  ',ISUB)
+      integer, save :: isub=0
+      call set_timer('CSARHOIJ  ',ISUB)
 
       NMAX=RHOIJROWS(NDET+1)-1
       I=1
@@ -350,7 +354,7 @@ C.. calculate approx RHOIJ, and store
          ENDIF
          RHOIJ(N)=RH
       ENDDO
-      CALL TIHALT('CSARHOIJ  ',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END
 
@@ -358,6 +362,7 @@ C.. For the given (I,J) pairs extracted from  RHOIJLAB,RHOIJROWS
 C.. calculate exact RHOIJ, and store
       SUBROUTINE CALCSTOREEXRHOIJ(NDET,BETA,I_P,NEVAL,CK,W,ECORE
      &      RHOIJROWS,RHOIJ,RHOIJLAB)
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       REAL*8 RH
       REAL*8 RHOIJ(*)
@@ -365,7 +370,8 @@ C.. calculate exact RHOIJ, and store
       INTEGER RHOIJROWS(NDET+1)
       DIMENSION CK(NDET,NEVAL)
       DIMENSION W(NEVAL)
-      CALL TISET('CSERHOIJ  ',ISUB)
+      integer, save :: isub=0
+      call set_timer('CSERHOIJ  ',ISUB)
 
       NMAX=RHOIJROWS(NDET+1)-1
       I=1
@@ -378,7 +384,7 @@ C.. calculate exact RHOIJ, and store
          ENDDO
          RHOIJ(N)=RH
       ENDDO
-      CALL TIHALT('CSERHOIJ  ',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END
 
@@ -388,12 +394,14 @@ C.. RHOEPSILON is now calculated here (21/11/03) - previously it was
 C.. just specified.  Now RHOEPSILON=RHOEPS*RHIIMAX
       SUBROUTINE CALCRHOIJ(NDET,NEVAL,CK,W,BETA,I_P,RHOMIN,RHOMAX,
      &            NRHOS,RHOEPS,ECORE)
+         use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION CK(NDET,NEVAL)
          DIMENSION W(NEVAL)
+         integer, save :: isub2=0
                                                                        
 C.. Calculate rho_IJ for I<=J, and put in bins
-         CALL TISET('RHOS      ',ISUB2)
+         call set_timer('RHOS      ',ISUB2)
          RHOMAX=tiny(1.d0)
          RHOMIN=huge(1.d0)
          OPEN(10,FILE='RHOS',STATUS='UNKNOWN')
@@ -421,16 +429,17 @@ C.. Calculate rho_IJ for I<=J, and put in bins
                                                                       
          WRITE(6,*) "Number of RHOs calculated:",NDET*NDET
          WRITE(6,*) "Number of non-zero RHO:",NRHOS
-         CALL TIHALT('RHOS      ',ISUB2)
+         call halt_timer(ISUB2)
          RETURN
       END
                                                                       
       SUBROUTINE CALCAPPROXRHOIJ(BETA,I_P,HAMIL,LAB,NROW,NDET,
      &              RHOMIN,RHOMAX,NRHOS,RHOEPS,TTROT,NTAY)
                                                         
+         use global_utilities
          LOGICAL TTROT          
 C.. Calculate rho_IJ for I<=J, and put in bins
-         CALL TISET('RHOS      ',ISUB2)
+         call set_timer('RHOS      ',ISUB2)
                                                                      
 C.. First work out RHOEPSILON:
          RHOEPSILON=RHOEPS
@@ -460,7 +469,7 @@ C.. First work out RHOEPSILON:
          CLOSE(10)
          WRITE(6,*) "Number of RHOs calculated:",NDET*NDET
          WRITE(6,*) "Number of non-zero RHO:",NRHOS
-         CALL TIHALT('RHOS      ',ISUB2)
+         call halt_timer(ISUB2)
          RETURN
       END
                                                                       
@@ -501,12 +510,14 @@ C.. see if we need to move to a new row.
                                                                         
 
       SUBROUTINE CALCRHOTROT(I,J,BETA,P,HAMIL,LAB,NROW,NDET,NTAY,RH)
+      use global_utilities
       REAL*8 UEXP
       REAL*8 HAMIL(*)
       INTEGER LAB(*)
       INTEGER NROW(NDET)
       INTEGER IRI,IRJ,INI,INJ,P
-      CALL TISET('CALCRHOTRO',ISUB)
+      integer, save :: isub=0
+      call set_timer('CALCRHOTRO',ISUB)
 
       B=BETA/P
       UEXP=0
@@ -528,7 +539,7 @@ C.. And now the 3rd order term
       RH=EXP(-B*( GETHELEMENT(I,I,HAMIL,LAB,NROW,NDET)+
      &            GETHELEMENT(J,J,HAMIL,LAB,NROW,NDET))/2)
      &   *UEXP
-      CALL TIHALT('CALCRHOTRO',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END
 

@@ -16,15 +16,18 @@ C.. NMAX has ARR hidden in it.
          USE HElem
          Use Determinants, only: GetHElement2
          USE MCStat
-         USE Calc , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
+         use CalcData , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
          USE Logging , only : G_VMC_LOGCOUNT
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT NONE
          TYPE(MCStats) MCSt
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY,NWHTAY
-         INTEGER ILOGGING,ISUB,I,J,K,I_VMIN
+         INTEGER ILOGGING,I,J,K,I_VMIN
+         integer, save :: isub=0
+         integer, save :: isub2=0
          CHARACTER*20 STR,STR2
          TYPE(HDElement) TOTAL,RHOII(0:I_VMAX)
          TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX),RH
@@ -44,7 +47,7 @@ CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER NLIST(0:I_VMAX-1),LSTP(0:I_VMAX-1),BTABLE(0:I_VMAX)
          LOGICAL TLOG,TSYM,LISNAN
-         INTEGER ICOUNT,ISEED,I_V,ISUB2,L,LT
+         INTEGER ICOUNT,ISEED,I_V,L,LT
          REAL*8 FNCR,GETNLOOPS,DBETA
          INTEGER KSYM(5),IEXCITS,ITIME
          TYPE(HDElement) FMCPR4
@@ -71,14 +74,13 @@ C.. do some blocking analysis
          INTEGER STORE(6)
          TYPE(HDElement) DLWDBCORE,WCORE
          INTEGER IOV,IGV,IACC
-         INTEGER TIGET
          LOGICAL TSEQ,TBLOCKING
          REAL*8 PREJ,PGR
-         REAL*8 TIMEC,OTIME,NTIME
+         REAL*4 etime,OTIME,NTIME,tarr(2)
          INTEGER*8 LP
-         OTIME=TIMEC()*0.001
+         OTIME=etime(tarr)
          TST=0
-         CALL TISET('MCPATHSR4 ',ISUB)
+         call set_timer('MCPATHSR4 ',ISUB)
          TLOG=BTEST(ILOGGING,1)
          TBLOCKING=BTEST(ILOGGING,13)
          IF(TLOG.AND.I_VMIN.EQ.0) THEN
@@ -194,7 +196,7 @@ C.. Count the excitations (and generate a random one which we throw)
          DO I_V=I_VM1,I_VM2
             CUR_VERT=I_V
             WRITE(STR,"(A,I4)") "FMCPR_",I_VMIN
-            CALL TISET(STR,ISUB2)
+            call set_timer(STR,ISUB2)
             L=0
             LT=0
             BTABLE(0)=0
@@ -569,31 +571,33 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                   ENDIF
                ENDDO   ! end loop over mc cycles  nwhtay
             ENDIF
-            CALL TIHALT(STR,ISUB2)
+            call halt_timer(ISUB2)
 !            F(I_V)=F(I_V)/NWHTAY
 !            FSQ(I_V)=FSQ(I_V)/NWHTAY
 !            DLWDB=DLWDB+DLWDB3/NWHTAY
 !            STD=SQRT(ABS(DREAL(FSQ(I_V)-F(I_V)*F(I_V))))
 !            TOTAL=TOTAL+F(I_V)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,LT
 !            IF(TLOG)
 !     &         WRITE(11,"(I12,2G25.16,G19.7,I12,2G19.7)") I_V,F(I_V),
-!     &            TOTAL,TIGET(ISUB2),L,STD,DLWDB3/NWHTAY
+!     &            TOTAL,get_total_time(ISUB2),L,STD,DLWDB3/NWHTAY
 C ,F(I_V),FSQ(I_V)
-            NTIME=TIMEC()*0.001
+            NTIME=etime(tarr)
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
               IF(I_VM1.EQ.I_VM2) THEN
 !.. just give the additional components for this vertex level
-             CALL WriteLongStats2(MCSt,11,WCORE,DLWDBCORE,NTIME-OTIME)
-               ELSE
+                CALL WriteLongStats2(MCSt,11,WCORE,DLWDBCORE,
+     &                                            dble(NTIME-OTIME))
+              ELSE
 !.. rejig the sums so the result is Sum w Delta / Sum w
-              CALL WriteLongStats(MCSt,11,WCORE,DLWDBCORE,NTIME-OTIME)
-               ENDIF
+                CALL WriteLongStats(MCSt,11,WCORE,DLWDBCORE,
+     &                                            dble(NTIME-OTIME))
+              ENDIF
             ENDIF
             CALL FLUSH(11)
 !            IF(LISNAN(F(I_V))) THEN
 C.. save all log files
-!               ITIME=TIMEC()
+!               ITIME=etime(tarr)
 !               CALL FLUSH(11)
 caa            CALL FLUSH(10)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
@@ -685,7 +689,7 @@ C.. setup spin excitation generator
             DLWDB=DLWDB
             WLSI=TOTAL-WCORE
          ENDIF
-         CALL TIHALT('MCPATHSR4 ',ISUB)
+         call halt_timer(ISUB)
          CALL Delete(MCSt)
          RETURN
       END
@@ -1181,7 +1185,7 @@ C..
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM)
-         USE Calc , only : G_VMC_PI
+         use CalcData , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
@@ -1417,7 +1421,7 @@ C.. Generate a path probability for the modified path generation
 C.. algorithm in FMCPR4D
 
       REAL*8 FUNCTION GETPATHPROB2(XIJ,I_V)
-         USE Calc , only : G_VMC_PI
+         use CalcData , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_V
          REAL*8 XIJ(I_V,I_V)
@@ -1488,7 +1492,7 @@ C.. elements
       END
 
       RECURSIVE SUBROUTINE GETPP2_R(IPATH,XIJ,M,I_VMAX,I_V,RET,TMP,INV)
-         USE Calc , only : G_VMC_PI
+         use CalcData , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER I_VMAX,I_V,IPATH(I_VMAX)
          REAL*8 XIJ(I_VMAX,I_VMAX),M(I_VMAX,I_VMAX)
@@ -1597,7 +1601,7 @@ C.. Invert the matrix, and pass the multiplicative factor on.
 
       SUBROUTINE GENRANDOMEXCITSYM(NI,NEL,NBASIS,G1,IEXLEVEL,ISEED,
      &            NBASISMAX,KSYM,NJ)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,IEXLEVEL,ISEED,NJ(NEL)
          INTEGER I,J,K,IEX,IEXL2
@@ -1643,7 +1647,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
 
       SUBROUTINE GETEXCITCOUNTSYM(INODE,NEL,NBASIS,G1,NBASISMAX,
      &            KSYM,BRR,ICOUNT)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,INODE(NEL),NBASIS,G1(*),nBasisMax(5,*)
          INTEGER ICOUNT,BRR(NBASIS)
@@ -1657,7 +1661,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
 
       SUBROUTINE GENRANDOMSPINEXCIT(NI,NEL,G1,NBASIS,NBASISMAX,NEXCITS,
      &      ISEED,NJ)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,NEXCITS,ISEED,NJ(NEL)
          INTEGER I,J,K,IEXL2,NB2,NA,NB,NEX1,NEX2
@@ -1738,7 +1742,7 @@ C         CALL FLUSH(57)
       END
       
       SUBROUTINE FINDELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL
          TYPE(BasisFN) G1(*)
@@ -1754,7 +1758,7 @@ C         CALL FLUSH(57)
          RETURN
       END
       SUBROUTINE FINDNEWELECSPIN(NI,NEL,NSPIN,G1,ISEED,NBASIS,IEX,IEX1)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NSPIN,IEX,ISEED,IEL,IEX1,NBASIS
          TYPE(BasisFN) G1(*)
@@ -1791,7 +1795,7 @@ C.. weight.
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          USE HElem
          USE PRECALCREAD , only : TPREVAR
-         USE Calc , only : TMPTHEORY,TMCDIRECTSUM
+         use CalcData , only : TMPTHEORY,TMCDIRECTSUM
          IMPLICIT NONE
          TYPE(HDElement) FMCPR4D2
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V,I_VMAX
@@ -2015,10 +2019,10 @@ C.. Unbias the sum
      &   NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,NMEMNI,I_HMAX,
      &   PVERTMEMS2)
          Use Determinants, only: GetHElement2
-         USE Calc , only : G_VMC_PI
+         use CalcData , only : G_VMC_PI
          USE PRECALCREAD , only : TPREVAR
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          REAL*8 BETA,ALAT(*),ECORE
@@ -2307,7 +2311,7 @@ C.. a wrongly biased MC
      &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,TSYM,
      &   ECORE,ISEED,KSYM,DBETA,DLWDB,HIJS,NMEM,OETILDE,OPROB,
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,IACC)
-         USE Calc , only : G_VMC_PI
+         use CalcData , only : G_VMC_PI
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX

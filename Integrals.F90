@@ -1,44 +1,17 @@
 #include "macros.h"
 MODULE Integrals
-    Use MemoryManager, only: LogMemAlloc, LogMemDealloc
-    USE HElem
-    USE System , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
-    use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
+
+    use IntegralsData
+
     IMPLICIT NONE
-    save
-
-    LOGICAL TQUADRHO,TEXPRHO,THFBASIS,THFCALC,TCALCREALPROD
-    LOGICAL TRHF,TReadTUMat,TReadHF,TQuadValMax,TQuadVecMax
-    LOGICAL TSUMPROD,TCALCRHOPROD,TDISCONODES,TCalcExcitStar
-    LOGICAL TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange
-    LOGICAL TRmRootExcitStarsRootChange,TLinRootChange
-    
-    INTEGER NTAY(2),nHFit,NFROZEN,NTFROZEN
-    INTEGER NRSTEPSMAX,IHFMETHOD
-    
-    REAL*8 NRCONV,RFCONV,OrbOrder2(8)
-    REAL*8 HFMix,HFEDelta,HFCDelta
-    REAL*8 HFRand
-    REAL*8 DMatEpsilon !  The cutoff for density matrix elements
-    Logical tPostFreezeHF ! Do we do HF after freezing
-
-!  From NECI.F
-    TYPE(HElement), pointer :: UMAT(:)      
-    INTEGER tagUMat
-    COMPLEX*16,pointer :: FCK(:)
-    INTEGER tagFCK
-    INTEGER NMAX
-    REAL*8 CST
-
-! from Calc      
-    real*8 ChemPot
-    Logical tNeedsVirts  ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
     contains
 
     SUBROUTINE IntReadInput()
       USE input
       use default_sets
+      use SystemData , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
+      use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
@@ -309,15 +282,17 @@ MODULE Integrals
 
     Subroutine IntInit(iCacheFlag)
 !who knows what for
-      Use MemoryManager, only: LogMemAlloc, LogMemDealloc
+      Use global_utilities
+      use HElem
       Use OneEInts, only: SetupTMat
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: InitStarStoreUMat
-      Use System, only : nBasisMax, Alpha,BHub, BRR,nmsh
-      Use System, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
-      Use System, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER
-      Use System, only: thub,tpbc,treadint,ttilt,TUEG,tVASP
-      Use System, only: uhub, arr,alat,treal
+      use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
+      use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
+      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER
+      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
+      use SystemData, only: uhub, arr,alat,treal
+      INCLUDE 'cons.inc'
       INTEGER iCacheFlag
       COMPLEX*16 ZIA(*)
       POINTER (IP_ZIA,ZIA)
@@ -327,7 +302,6 @@ MODULE Integrals
       INTEGER i
       INTEGER TmatInt,UMatInt
       integer iErr
-      INCLUDE 'cons.inc'
       character(25), parameter :: this_routine='IntInit'
 
       FREEZETRANSFER=.false.
@@ -520,10 +494,12 @@ MODULE Integrals
 
         
     Subroutine IntFreeze
-      Use System, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
-      Use System, only: G1,iSpinSkip
-      use System, only: nBasis,nEl,arr,nbasismax
+      use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
+      use SystemData, only: G1,iSpinSkip
+      use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
+      use HElem, only: HElement,HElementSize,HElementSizeB
+      use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
       TYPE(HElement), pointer :: UMAT2(:)
@@ -602,7 +578,7 @@ MODULE Integrals
 
 
     Subroutine IntCleanup(iCacheFlag)
-      Use System, only: G1, nBasis
+      use SystemData, only: G1, nBasis
       Use UMatCache, only: iDumpCacheFlag,tReadInCache,nStates, nStatesDump, DumpUMatCache, DestroyUMatCache, WriteUMatCacheStats
       INTEGER iCacheFlag
       if ((btest(iDumpCacheFlag,0).and.(nStatesDump.lt.nStates.or..not.tReadInCache)).or.btest(iDumpCacheFlag,1)) then
@@ -621,11 +597,13 @@ MODULE Integrals
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
        USE HElem
-       use System, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr
+       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use UMatCache, only: GTID
+       use global_utilities
+
        IMPLICIT NONE
        INTEGER NHG,NBASIS,nBasisMax(5,*),ISS
        TYPE(BASISFN) G1(NHG)
@@ -890,7 +868,7 @@ MODULE Integrals
        ! In:
        !    I,J,A,B: indices of integral
        ! Returns <ij|ab>
-       use System, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
+       use SystemData, only: ALAT,G1,iSpinSkip,nBasis,nBasisMax
        implicit none
        TYPE(HElement) GetUMatEl2
        integer :: I,J,A,B
@@ -913,7 +891,7 @@ MODULE Integrals
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-      use System, only: Symmetry,BasisFN,tVASP
+      use SystemData, only: Symmetry,BasisFN,tVASP
       use UMatCache
       use vasp_neci_interface, only: CONSTRUCT_IJAB_one
       IMPLICIT NONE
@@ -931,7 +909,6 @@ MODULE Integrals
       INTEGER ICACHE,ICACHEI,ITYPE
       LOGICAL LSYMSYM
       TYPE(Symmetry) SYM,SYMPROD,SYMCONJ
-      INTEGER ISUB,ISUB2
       Type(Symmetry) TotSymRep
       logical GetCachedUMatEl,calc2ints
 !   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
@@ -1105,8 +1082,8 @@ MODULE Integrals
 
     SUBROUTINE WRITESYMCLASSES(NBASIS)
       USE HElem
-      use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-      use System, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       USE UMatCache
       use SymData, only: SymClasses,SymLabelCounts,nSymLabels
       IMPLICIT NONE
@@ -1138,7 +1115,7 @@ END MODULE Integrals
 
 SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   USE HElem
-  use System, only: BasisFN
+  use SystemData, only: BasisFN
   USE OneEInts, only : SetupTMAT,TMAT2D,TSTARSTORE
   IMPLICIT NONE
   INTEGER NBASIS

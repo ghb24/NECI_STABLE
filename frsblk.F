@@ -41,9 +41,8 @@ C ==----------------------------------------------------------------==
      &     PRINTOUT,TLargest)
 C ==----------------------------------------------------------------==
 C..Uncomment to test to see if routine is working
-C      CALL TIPRI
 C..Exact eigenstates
-C      T1 = TIMEC()
+C      T1 = etime()
 C      CALL DSYEV('V','U',M,H,M,WH,WORK2,3*M,INFO)
 C      WRITE(6,'(//14X,''Exact'',15X,''Lanczos'',10X,''Residual'')')
 C      DO I=1,N
@@ -51,7 +50,7 @@ C        AUX=ABS(DDOT(M,V0(1,I),1,H(1,M-I+1),1))
 C        AUX=1.D0-AUX
 C        WRITE(6,'(6X,I3,2E19.11,2X,E10.3)') I,WH(M-I+1),W(I),AUX
 C      ENDDO
-C      T2 = TIMEC()
+C      T2 = etime()
 C      T3=(T2-T1)
 C      WRITE(6,'(//5X,''TIME FOR EXACT DIAGONALISATION'',F10.2)')
 C     &	   T3/1000.D0
@@ -67,6 +66,7 @@ C ====================================================================
       SUBROUTINE FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
      &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
      &     PRINTOUT,TLargest)
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       LOGICAL :: PRINTOUT,TLargest
       DIMENSION V0(M,N),VS(M,N),A(N,N),W(N) 
@@ -75,11 +75,13 @@ C ====================================================================
       DIMENSION T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
       DIMENSION SCR(LSCR),ISCR(LISCR)
       DIMENSION INDEX(N),NROW(M),LAB(M,ICMAX) 
+      INTEGER,SAVE :: ISUB=0
+      real*4 t1,t2,t3,etime,tarr(2)
 C..temp
       DIMENSION H(*)
 C..temp
 C ==-----------------------------------------------------------------==
-      CALL TISET('    FRSBLK',ISUB)
+      call set_timer('    FRSBLK',ISUB)
       NK=NBLOCK*NKRY
 C..scratch space for divide-and-conquer banded matrix routine
 C      K=INT(LOG(DFLOAT(NK)))+1
@@ -95,7 +97,7 @@ C        WRITE(6,*) 'LSCR2:',LSCR2
         WRITE(6,*) 'LSCR:',LSCR
         STOP ' LSCR TOO SMALL '  
       ENDIF
-      T1 = TIMEC() 
+      T1 = etime(tarr) 
 C ====================================================================
       CALL IAZZERO(INDEX,N)
       NHPSI=0
@@ -204,26 +206,28 @@ C.. End of Lanczos diagonalisation
       IF(PRINTOUT) THEN
           WRITE(6,'(//''    NCONV:'',I5)') NCONV
       ENDIF
-      T2 = TIMEC() 
+      T2 = etime(tarr) 
       T3=(T2-T1)
       IF(PRINTOUT) THEN
           WRITE(6,'(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)')
      &     T3/1000.D0
       ENDIF
-      CALL TIHALT('    FRSBLK',ISUB)
+      call halt_timer(ISUB)
 C     ================================================================  
       RETURN
       END 
 C ======================================================================
       SUBROUTINE MGS(M,N,A,LDA,R,LDR)
 C     ==--------------------------------------------------------------==
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION A(LDA,*),R(LDR,*)
+      INTEGER,SAVE :: ISUB=0
 C     ==================================================================
-      CALL TISET('       MGS:',ISUB)
+      call set_timer('       MGS:',ISUB)
       CALL RGS(M,N,A,M,R,N,I,1)
       CALL DTRTRI('U','N',N,R,N,INFO)
-      CALL TIHALT('       MGS:',ISUB)
+      call halt_timer(ISUB)
       RETURN 
       END 
 C =======================================================================
@@ -338,13 +342,15 @@ C ======================================================================
       SUBROUTINE KRYREF(M,N,NKRY,NCONV,V0,W,V,AM,BM,T,LDT,WT,
      &	   LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C     ==================================================================
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
       DIMENSION T(LDT,*),WT(LDWT),H(*),W(N),SCR(LSCR),ISCR(LISCR)
       DIMENSION LAB(M,*),NROW(M)
       LOGICAL :: TLargest
+      INTEGER,SAVE :: ISUB=0
 C     ==================================================================
-      CALL TISET('    KRYREF',ISUB)
+      call set_timer('    KRYREF',ISUB)
       DO I=3,NKRY
 C..V_I = V_I - V_(I-1) A_(I-1) 
         CALL RSDBLK('N',M,N,V(1,1,I-1),AM(1,1,I-1),V(1,1,I))
@@ -401,7 +407,7 @@ C..full diag.
       ENDIF
 C..
 C ===================================================================
-      CALL TIHALT('    KRYREF',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END
 C ==================================================================
@@ -411,13 +417,15 @@ C ==------------------------------------------------------------------==
 C == Returns A_1,A_2,B_2 and V in a form suitable for krylov          ==
 C == refinement                                                       ==
 C ==------------------------------------------------------------------==
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION VCONV(M,*),V0(M,N),VS(M,N),V(M,N,NKRY+1),
      &     AM(N,N,NKRY+1),BM(N,N,NKRY),SCR(LSCR),W(N),H(*)
       DIMENSION LAB(M,*),NROW(M)
       LOGICAL :: TLargest
+      INTEGER,SAVE :: ISEUB=0
 C ==------------------------------------------------------------------==
-      CALL TISET('    PRPKRV',ISEUB)
+      call set_timer('    PRPKRV',ISEUB)
 C ==------------------------------------------------------------------==
       CALL DCOPY(M*N,V0,1,V(1,1,1),1)
       CALL DCOPY(M*N,VS,1,V(1,1,2),1)
@@ -444,21 +452,22 @@ C..V_3=V_3-V_1 B_2^T
 C..Ovlap 
       CALL OVLAP(M,N,AM(1,1,2),V(1,1,2),V(1,1,3))
 C ==------------------------------------------------------------------==
-      CALL TIHALT('    PRPKRV',ISEUB)
+      call halt_timer(ISEUB)
       RETURN
       END
 C     ==================================================================
       SUBROUTINE MY_GSORTHO(M,C0,N0,CP,NP,SMAT)
 C     ==--------------------------------------------------------------==
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
 C     Arguments
       INTEGER    N0,NP
       REAL*8     C0(M,*),CP(M,*)
       REAL*8     SMAT(NP,*)             !MAX(N0,NP)
 C     Variables
-      INTEGER    ISUB
+      INTEGER,SAVE :: ISUB=0
 C     ==--------------------------------------------------------------==
-      CALL TISET('MY_GSORTHO',ISUB)
+      call set_timer('MY_GSORTHO',ISUB)
       IF(NP.LT.1) RETURN
       IF(N0.GT.0) THEN
 C..SMAT=CP.C0 
@@ -468,7 +477,7 @@ C..CP -> CP-C0*SMAT
      *             1.D0,CP,M)
       ENDIF
       CALL MGS(M,NP,CP,M,SMAT,NP)
-      CALL TIHALT('MY_GSORTHO',ISUB)
+      call halt_timer(ISUB)
 C     ==--------------------------------------------------------------==
       RETURN
       END
@@ -495,29 +504,35 @@ C..
       END 
 C =======================================================================
       SUBROUTINE HPSI(M,N,H,V0,VS)
+      use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION H(M,M),V0(M,N),VS(M,N)
-      CALL TISET('      HPSI',ISUB)
+      INTEGER,SAVE :: ISUB=0
+      call set_timer('      HPSI',ISUB)
       CALL DGEMM('N','N',M,N,M,1.D0,H,M,V0,M,0.D0,VS,M)
-      CALL TIHALT('      HPSI',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END 
 C =======================================================================
       SUBROUTINE OVLAP(M,N,A,V0,VS)
+      use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION A(N,N),V0(M,N),VS(M,N)
-      CALL TISET('     OVLAP',ISUB)
+      INTEGER,SAVE :: ISUB=0
+      call set_timer('     OVLAP',ISUB)
       CALL DGEMM('T','N',N,N,M,1.D0,V0,M,VS,M,0.D0,A,N)
-      CALL TIHALT('     OVLAP',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END 
 C =======================================================================
       SUBROUTINE RSDBLK(CHAR,M,N,V1,A,V2)
+      use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       CHARACTER*1 CHAR 
       DIMENSION A(N,N),V1(M,N),V2(M,N)
+      INTEGER,SAVE :: ISUB=0
 C..V_I = V_I - V_(I-1) A_(I-1)
-      CALL TISET('    RSDBLK',ISUB)
+      call set_timer('    RSDBLK',ISUB)
       IF(CHAR.EQ.'N') THEN 
         CALL DGEMM('N','N',M,N,N,-1.D0,V1,M,A,N,1.D0,V2,M)
       ELSEIF(CHAR.EQ.'T') THEN 
@@ -525,17 +540,19 @@ C..V_I = V_I - V_(I-1) A_(I-1)
       ELSE
         STOP ' CHAR ILLEGAL IN RSDBLK ' 
       ENDIF
-      CALL TIHALT('    RSDBLK',ISUB)
+      call halt_timer(ISUB)
       RETURN
       END
 C =======================================================================
       SUBROUTINE ROTATE(M,N,V0,A,SCR,LSCR)
+      use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION A(N,N),V0(M,N),SCR(LSCR)
-      CALL TISET('    ROTATE',ISUB)
+      INTEGER,SAVE :: ISUB=0
+      call set_timer('    ROTATE',ISUB)
       CALL DGEMM('N','N',M,N,N,1.D0,V0,M,A,N,0.D0,SCR,M)
       CALL DCOPY(M*N,SCR,1,V0,1)
-      CALL TIHALT('    ROTATE',ISUB)
+      call halt_timer(ISUB)
       RETURN 
       END 
 
@@ -550,9 +567,11 @@ C =======================================================================
 C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric matrix T           ==
 C ==------------------------------------------------------------------==
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION T(M,M,*),WT(*),SCR(LSCR),ISCR(LISCR),IFAIL(*)
-      CALL TISET('    JACOBI',ISUB)
+      INTEGER,SAVE :: ISUB=0
+      call set_timer('    JACOBI',ISUB)
       IF(M.EQ.N) THEN 
         CALL DSYEV('V','U',N,T,N,WT,SCR,LSCR,INFO)
       ELSE
@@ -564,7 +583,7 @@ C ==------------------------------------------------------------------==
         CALL DCOPY(M*N,T(1,1,2),1,T(1,1,1),1)
       ENDIF
       CALL REORDER(M,N,WT,T)
-      CALL TIHALT('    JACOBI',ISUB)
+      call halt_timer(ISUB)
       RETURN 
       END 
 C     ==================================================================
@@ -572,10 +591,12 @@ C     ==================================================================
 C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric banded matrix T    ==
 C ==------------------------------------------------------------------==
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
+      INTEGER,SAVE :: ISUB=0
       DIMENSION T(IN,IN,*),WT(IN),SCR(LSCR),ISCR(LISCR),IFAIL(*)
 C     ==================================================================
-      CALL TISET('     BANDM',ISUB)
+      call set_timer('     BANDM',ISUB)
 C..Put T is form suitable for banded matrix diagonalisation 
       CALL PUTTAB(IN,N,T,SCR,LSCR)
       IF(LSCR.LT.7*IN) THEN
@@ -596,15 +617,17 @@ C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
       ENDIF
       CALL DCOPY(IN*IN,T(1,1,3),1,T(1,1,1),1)
       CALL REORDER(IN,N,WT,T)
-      CALL TIHALT('     BANDM',ISUB)
+      call halt_timer(ISUB)
       RETURN 
       END
 C =====================================================================
       SUBROUTINE PRJCNV(M,NP,N0,V0,W,V,SMAT)
+      use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION V(M,NP),V0(M,*),SMAT(N0,*),W(*) 
+      INTEGER,SAVE :: ISUB=0
       IF(N0.EQ.0) RETURN
-      CALL TISET('    PRJCNV',ISUB)
+      call set_timer('    PRJCNV',ISUB)
 C..SMAT=V0^T.V 
       CALL DGEMM('T','N',N0,NP,M,1.D0,V0,M,V,M,0.D0,SMAT,N0)
 Cdeb      DO J=1,N0
@@ -612,7 +635,7 @@ Cdeb        CALL DSCAL(NP,W(J),SMAT(J,1),N0)
 Cdeb      ENDDO
 C..   V -> V-V0*SMAT
       CALL DGEMM('N','N',M,NP,N0,-1.D0,V0,M,SMAT,N0,1.D0,V,M)
-      CALL TIHALT('    PRJCNV',ISUB)
+      call halt_timer(ISUB)
       RETURN 
       END 
 C     =================================================================
@@ -620,21 +643,22 @@ C     =================================================================
 C     ==--------------------------------------------------------------==
 C     ==  GRAM-SCHMIDT ORTHOGONALIZATION                              ==
 C     ==--------------------------------------------------------------==
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
 C     Arguments
       INTEGER    N,ISCR,LSCR(ISCR)
       REAL*8     SMAT(N,N)
       REAL*8     CP(LDCP,N)
 C     VARIABLES
-      INTEGER    ISUB
+      INTEGER,SAVE :: ISUB=0
 C     ==--------------------------------------------------------------==
       IF(N.LE.0) RETURN
-      CALL TISET('       RGS',ISUB)
+      call set_timer('       RGS',ISUB)
       CALL AZZERO(SMAT,N*N)
       CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
       CALL UINV('U',SMAT,N,N,LSCR,1)
       CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)
-      CALL TIHALT('       RGS',ISUB)
+      call halt_timer(ISUB)
 C     ==--------------------------------------------------------------==
       RETURN
       END

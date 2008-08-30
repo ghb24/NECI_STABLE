@@ -1,15 +1,15 @@
 MODULE FciMCMod
-    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
-    USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
-    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
-    USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
-    USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    USE Calc , only : TProjEMP2,TFixParticleSign,TStartSinglePart
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
+    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+    use CalcData , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
+    use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
+    use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
+    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart
     USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS,ICILevel
-    USE Integrals , only : fck,NMax,nMsh,UMat
-    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    use IntegralsData , only : fck,NMax,UMat
+    USE global_utilities
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
     USE HElem
     IMPLICIT NONE
@@ -1417,7 +1417,7 @@ MODULE FciMCMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalc()
-        USE Calc, only : EXCITFUNCS
+        use CalcData, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,HFConn
         REAL*8 :: Ran2
@@ -2351,17 +2351,17 @@ END FUNCTION Fact
 !It is not deleted as may want salvaging later, but it is now easier to rewrite a seperate more efficient code!
 
 !MODULE FciMCMod
-!    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
-!    USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-!    USE Calc , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
-!    USE Calc , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
-!    USE Calc , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
-!    USE Calc , only : NDets,RhoApp,TResumFCIMC,NEquilSteps
+!    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr
+!    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+!    use CalcData , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
+!    use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
+!    use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
+!    use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps
 !    USE Determinants , only : FDet,GetHElement2
 !    USE DetCalc , only : NMRKS
-!    USE Integrals , only : fck,NMax,nMsh,UMat
+!    use IntegralsData , only : fck,NMax,nMsh,UMat
 !    USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint,TDetPops
-!    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+!    USE global_utilities
 !    USE HElem
 !    IMPLICIT NONE
 !    SAVE
@@ -2443,7 +2443,8 @@ END FUNCTION Fact
 !        Use MCDets, only : MCDetsCalc
 !        IMPLICIT NONE
 !        TYPE(HDElement) :: Weight,Energyxw
-!        INTEGER :: i,j,iSub,WalkOnDet,DetLT,DetCurr(NEl),ExpectedDets
+!        INTEGER :: i,j,WalkOnDet,DetLT,DetCurr(NEl),ExpectedDets
+!        integer, save :: isub=0
 !        CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
 !        TYPE(HElement) :: Hamii
 !
@@ -2454,7 +2455,7 @@ END FUNCTION Fact
 !            Energyxw=1.d0
 !            return
 !        endif
-!        CALL TISET('FCIMC',iSub)
+!        call set_timer('FCIMC',iSub)
 !
 !        IF(TDiffuse) THEN
 !            IF((.NOT.TMCExcitSpace).or.(NoMCExcits.ne.1)) THEN
@@ -2717,7 +2718,7 @@ END FUNCTION Fact
 !
 !        CLOSE(15)
 !
-!        CALL TIHALT('FCIMC',iSub)
+!        call halt_timer(iSub)
 !
 !        RETURN
 !
@@ -3155,7 +3156,8 @@ END FUNCTION Fact
 !    SUBROUTINE PerformFCIMCyc()
 !        IMPLICIT NONE
 !        INTEGER :: VecSlot,i,j,k,l,DetCurr(NEl),iMaxExcit,nExcitMemLen,nStore(6)
-!        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,iSubCyc,TotWalkersNew,iCount
+!        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,TotWalkersNew,iCount
+!        integer, save :: isubcyc=0
 !        REAL*8 :: Prob,rat,Kik
 !        INTEGER , ALLOCATABLE :: nExcit(:)
 !        INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
@@ -3164,7 +3166,7 @@ END FUNCTION Fact
 !        INTEGER :: CreateAtI,CreateAtJ,tocopy
 !        CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
 !        
-!        CALL TISET('MCyc',iSubCyc)
+!        call set_timer('MCyc',iSubCyc)
 !        
 !!VecSlot indicates the next free position in NewDets
 !        VecSlot=1
@@ -3426,7 +3428,7 @@ END FUNCTION Fact
 !
 !        ENDIF
 !
-!        CALL TIHALT('MCyc',iSubCyc)
+!        call halt_timer(iSubCyc)
 !
 !        RETURN
 !
@@ -3436,9 +3438,9 @@ END FUNCTION Fact
 !!then the walkers at that determinant must be of the same sign, or they are killed.
 !!Particles indicates the number of particles to look through, and iArray is 1 if the WalkVecDets array is active, and 2 if the WalkVec2Dets array is active.
 !    SUBROUTINE TestWavevectorNodes(Particles,iArray)
-!        USE Calc , only : i_P
-!        USE System , only : Beta
-!        USE Integrals , only : nTay
+!        use CalcData , only : i_P
+!        use SystemData , only : Beta
+!        use IntegralsData , only : nTay
 !        IMPLICIT NONE
 !        INTEGER :: ParticlesOrig,VecSlot,IC,iGetExcitLevel,j,k,NoatHF,Particles,iArray,NoPositive,NoNegative
 !        INTEGER , POINTER :: ActiveVecDets(:,:)
@@ -3782,9 +3784,9 @@ END FUNCTION Fact
 !
 !!This routine calculates the MP1 eigenvector, and uses it as a guide for setting the initial walker configuration
 !    SUBROUTINE StartWavevector(WaveType)
-!        USE Calc , only : i_P
-!        USE System , only : Beta
-!        USE Integrals , only : nTay
+!        use CalcData , only : i_P
+!        use SystemData , only : Beta
+!        use IntegralsData , only : nTay
 !        IMPLICIT NONE
 !        INTEGER :: ierr,i,j,WaveType,EigenvectorTag=0,k,VecSlot,NoDoublesWalk
 !        CHARACTER(len=*), PARAMETER :: this_routine='StartWavevector'
@@ -4242,9 +4244,9 @@ END FUNCTION Fact
 !
 !!This routine calculates the normalisation for the MP1 wavefunction. This is needed if a nodal structure is being applied, and can also calculate the number of determinants which are being constrained.
 !    SUBROUTINE CalcNodalSurface()
-!        USE Calc , only : i_P
-!        USE System , only : Beta
-!        USE Integrals , only : nTay
+!        use CalcData , only : i_P
+!        use SystemData , only : Beta
+!        use IntegralsData , only : nTay
 !        IMPLICIT NONE
 !        INTEGER :: ierr,i,j,k,Doubs,FixedSign
 !        REAL*8 :: EigenComp

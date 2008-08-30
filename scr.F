@@ -5,7 +5,7 @@ C.. TMAT has sometimes been hidden in ZIA
       Use OneEInts, only: GetTMatEl
       use Integrals, only: GetUMatEl
       USE UMatCache
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
       IMPLICIT NONE
       TYPE(BasisFn) G1(*)
       INTEGER ISS
@@ -23,10 +23,10 @@ C..Cube array
       TYPE(HElement) TOTSUM,SUM1,SUM2,SUM3,SUM4,SUM5
       REAL*8 COULCOUPLE
       INTEGER IDS,I,J,IG1I,INDET
-      INTEGER ISUB
+      INTEGER,SAVE :: ISUB=0
       REAL*8 COULDAMP
 c      PARAMETER PI=3.14159265358979323846264338327950288419716939937510D0
-!      CALL TISET('      SCR0',ISUB) 
+!      call set_timer('      SCR0',ISUB) 
 C      PI=ACOS(-1.D0)
 C..This is the Slater-Condon rule when the two determinants are the *SAME*
       SUM1=0.D0
@@ -74,7 +74,7 @@ C..
 C      IF(SUM2.NE.0.D0) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
 C     &   NEL,1,G1)
       TOTSUM=SUM1+SUM2*HElement(COULCOUPLE)
-!      CALL TIHALT('      SCR0',ISUB) 
+!      call halt_timer(ISUB) 
       RETURN
       END
 C=============================================================

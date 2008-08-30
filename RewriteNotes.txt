@@ -39,8 +39,6 @@ record_handler  |-----|-----|-----------|------------|
 Tasks to improve flow of NECI
 =============================
 
-Split all data & input parameters from Calc, System, Integrals - put into a calcdata etc module
-Precalcread remove dependancies and star
 Calc to call lower level routines like fcimc - Calc at the top
 Rewrite of the method farming section of mcpaths.F - allow backward compatability
 CalcRho_PII routines rewritten to cope with new method farming routine

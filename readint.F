@@ -61,7 +61,7 @@ C.. SHow that there's no momentum conservation
          RETURN
       END
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
-         use System, only: BasisFN,BasisFNSize
+         use SystemData, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
@@ -178,8 +178,8 @@ C.. set momentum to 0
       END
       SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          USE HElem
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
@@ -269,8 +269,8 @@ C.. If we've changed the eigenvalues, we write out the basis again
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          USE HElem
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE

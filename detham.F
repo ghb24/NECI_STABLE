@@ -1,10 +1,11 @@
       SUBROUTINE DETHAM(NDET,NEL,NMRKS,NBASISMAX,
      &	NHG,HAMIL,G1,LAB,NROW,TCOUNT,NMSH,FCK,
      &	NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
+      use global_utilities
       USE HElem
       Use Determinants, only: GetHElement2
-      USE System , only : BasisFN
-      USE Calc , only : TStar
+      use SystemData , only : BasisFN
+      use CalcData , only : TStar
       IMPLICIT NONE
 C      IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(HElement) HAMIL(*)
@@ -19,13 +20,14 @@ C..Cube Arrays
       INTEGER nBasisMax(5,*),NHG,BRR(*)
       TYPE(HElement) UMat(*)
 C..
-      INTEGER ICMAX,ISUB,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
+      INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IC,I,J,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
       TYPE(HElement) SUM
+      integer,save :: isub=0
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
-      CALL TISET('    DETHAM',ISUB)
+      call set_timer('    DETHAM',ISUB)
 C ==-------------------------------------------------------------------==
 C..Global counter
       GC=0
@@ -110,13 +112,13 @@ C          WRITE(6,*) I,(HAMIL(J,I),J=1,ICMAX)
 C        ENDDO
 C      ENDIF
 C ==-------------------------------------------------------------------==
-      CALL TIHALT('    DETHAM',ISUB)
+      call halt_timer(ISUB)
 C ==-------------------------------------------------------------------==
       RETURN
       END
 C ==---------------------------------------------------------------==
       SUBROUTINE CHK_MS(ND1,ND2,NBASISMAX,NEL,IFLG,G1)
-      use System, only: BasisFN
+      use SystemData, only: BasisFN
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
       DIMENSION ND1(NEL),ND2(NEL)

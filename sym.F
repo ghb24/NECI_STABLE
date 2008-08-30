@@ -17,8 +17,8 @@ C.. product in the symmetry table, and OR that with the product.
 ! kpntrep.F in CPMD source.
 
          FUNCTION SYMPROD(ISYM1,ISYM2)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymTable,nProp,tAbelian
          IMPLICIT NONE
          TYPE(Symmetry) ISYM1, ISYM2
@@ -65,8 +65,8 @@ C.. product in the symmetry table, and OR that with the product.
       END
 
       FUNCTION SymConj(s2)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian,nProp,SymConjTab
          IMPLICIT NONE
          TYPE(Symmetry) s,SymConj,s2
@@ -99,8 +99,8 @@ C.. product in the symmetry table, and OR that with the product.
       END
 
       SUBROUTINE WRITESYMTABLE(IUNIT)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymTable,nSym
          IMPLICIT NONE
          INTEGER IUNIT,I,J
@@ -117,8 +117,8 @@ C.. product in the symmetry table, and OR that with the product.
       END
 
       LOGICAL FUNCTION LSYMSYM(SYM)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian
          implicit none
          Type(Symmetry) SYM
@@ -138,12 +138,12 @@ C.. symmetry products are merely exclusive ors of the molpro irrep numbers
 C.. We set each of the MOLPRO irreps to a bit in our symmetry specifier.
 C.. A1 corresponds to bit 0 (i.e. irrep 1)
       SUBROUTINE GENMOLPSYMTABLE(NSYMMAX,G1,NBASIS,ARR,BRR)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nProp,PropBitLen,SymClasses,nSymLabels
          use SymData, only: tAbelian,SymLabels
          use SymData, only: tagSymLabels,tagSymClasses
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER NSYMMAX,nSymGen
          INTEGER I,J
@@ -206,10 +206,10 @@ C.. NBASIS is the new number of orbs
 C.. GG(I) is the new index of the (old) orb I
 
       SUBROUTINE FREEZESYMLABELS(NHG,NBASIS,GG,FRZ)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only:SymReps,SymClasses,SymClasses2,tagSymClasses2
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER NHG,NBASIS,GG(NHG)
          INTEGER I
@@ -266,10 +266,10 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
       END
 
       SUBROUTINE GENMOLPSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tagSymReps
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER NSYMMAX
          INTEGER I,J
@@ -298,9 +298,9 @@ C.. we have a new rep
 
 C.. delete a symmetry table if one existed.
       SUBROUTINE ENDSYM()
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use MemoryManager, only: LogMemDealloc
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use global_utilities
          use SymData, only: SymTable,SymConjTab,SymReps,SymClasses
          use SymData, only: SymClasses2,SymLabels,SymLabelChars
          use SymData, only: IRREPChars,SymStatePairs,SymLabelList
@@ -361,14 +361,14 @@ C.. delete a symmetry table if one existed.
 
 C.. Precompute a list of the symmetry product of all pairs of symmetry labels
       SUBROUTINE GENSymStatePairs(NSTATES,FRZ)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymLabelCounts,SymLabelList,SymClasses
          use SymData, only: SymClasses2,SymPairProds,SymPairProdSize
          use SymData, only: SymStatePairs,nSymPairProds,nSymLabels
          use SymData, only: tagSymPairProds,tagSymLabelList
          use SymData, only: tagSymLabelCounts,tagSymStatePairs
-         use MemoryManager, only: LogMemAlloc,LogMemDealloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
          INTEGER TEMPLIST(NSTATES)
@@ -461,8 +461,8 @@ C.. Now sort the SymPairProds into order
       END
 
       SUBROUTINE GENALLSymStatePairs(NSTATES,TSTORE,FRZ)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymLabels,SymClasses,SymClasses2
          use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
          IMPLICIT NONE
@@ -504,8 +504,8 @@ C.. incrememnt the counter in the pairlist
       END
 
       SUBROUTINE FindSymProd(Prod,SymPairProds,nSymPairProds,iProd)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymPairProd
          implicit none
          TYPE(SymPairProd) SymPairProds(nSymPairProds)
@@ -534,8 +534,8 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
 
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
@@ -597,8 +597,8 @@ C.. round the momentum
 
 C.. Given a set of characters of states, generate all relevant irreps which span the set of characters.
       SUBROUTINE GENIRREPS(TKP,IMPROPER_OP,NROTOP)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: IRREPCHARS,nRot,SymLabelChars,nSym,tAbelian
          use SymData, only: SymLabels,nSymLabels
          IMPLICIT NONE
@@ -845,8 +845,8 @@ C.. write in terms of I.
 C.. Decompose rep CHARS into irreps in IRREPCHARS.  Bit 0 in IDECOMP corresponds to the first irrep etc.
 C.. CHARS at the end contains the remainder after the decomposition.
       SUBROUTINE DECOMPOSEREP(CHARSIN,IDECOMP)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nRot,nSym,tAbelian,IRREPCHARS
          IMPLICIT NONE
          TYPE(Symmetry) IDECOMP
@@ -916,7 +916,7 @@ C.. This is used internally in the symmetry routine and destroys CHARS.  For gen
 C,, use DECOMPOSEREP
       LOGICAL FUNCTION GETIRREPDECOMP(CHARS,IRREPCHARS,NIRREPS,NROT,
      &         IDECOMP,CNORM,TAbelian)
-         use System, only: Symmetry
+         use SystemData, only: Symmetry
          IMPLICIT NONE
          INTEGER NIRREPS, NROT
          TYPE(Symmetry) IDECOMP
@@ -978,11 +978,11 @@ C.. We've found an (ir)rep which is wholly in CHARS
 
 
       SUBROUTINE GENSYMTABLE
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: IRREPCHARS,SymConjTab,tAbelian,nSym,SymTable
          use SymData, only: nRot,tagSymTable,tagSymConjTab
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER I,J,K
          LOGICAL GETIRREPDECOMP
@@ -1042,10 +1042,10 @@ C               WRITE(6,"(2I3,B12)") I,J,IDECOMP
       END
 
       SUBROUTINE GENSYMREPS(G1,NBASIS,ARR,BRR,DEGENTOL)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymReps,tAbelian,tagSymReps
-         use MemoryManager, only: LogMemAlloc
+         use global_utilities
          IMPLICIT NONE
          INTEGER I,J
          TYPE(BasisFN) G1(nBasis)
@@ -1083,7 +1083,7 @@ C.. Other irreps contributing to the symmetry have bits set in
 C.. SYM.
 C.. e.g. if irreps are a1,a2,b1,b2
       LOGICAL FUNCTION LCHKSYM(ISYM,JSYM)
-         use System, only: BasisFN,Symmetry
+         use SystemData, only: BasisFN,Symmetry
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,JSYM
          INTEGER I,IS,JS
@@ -1101,7 +1101,7 @@ C.. symmetric irrep, we set sym to .FALSE.
       END
       
       LOGICAL FUNCTION LCHKSYMD(NI,NJ,NEL,G1,NBASISMAX)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,JSYM,G1(*)
          INTEGER NEL,NI(NEL),NJ(NEL),nBasisMax(5,*)
@@ -1139,7 +1139,7 @@ C 1 Generic spatial
 
 C.. This only works for momentum variables - 1-4
       SUBROUTINE ADDELECSYM(IEL,G1,NBASISMAX,ISYM)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BASISFN) ISYM,G1(*)
          INTEGER IELEC,nBasisMax(5,*)
@@ -1169,7 +1169,7 @@ C.. (it is +/-CSF_NSBASIS)
       END 
       
       SUBROUTINE ROUNDSYM(ISYM,NBASISMAX)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) ISYM
          INTEGER nBasisMax(5,*)
@@ -1286,7 +1286,7 @@ C.. T1= highest integer less than R1
       END
 
       LOGICAL FUNCTION SYMLT(A,B)
-         use System, only: Symmetry
+         use SystemData, only: Symmetry
          IMPLICIT NONE
          TYPE(Symmetry) A,B
          IF(A%s.GE.0) THEN
@@ -1305,14 +1305,14 @@ C.. T1= highest integer less than R1
          RETURN
       END
       LOGICAL FUNCTION SYMNE(A,B)
-         use System, only: Symmetry
+         use SystemData, only: Symmetry
          IMPLICIT NONE
          TYPE(Symmetry) A,B
          SYMNE=A%s.NE.B%s
          RETURN
       END
       LOGICAL FUNCTION SYMEQ(A,B)
-         use System, only: Symmetry
+         use SystemData, only: Symmetry
          IMPLICIT NONE
          TYPE(Symmetry) A,B
          SYMEQ=A%s.EQ.B%s
@@ -1320,7 +1320,7 @@ C.. T1= highest integer less than R1
 !Need to cope with 'unsigned integers'
       END
       LOGICAL FUNCTION SYMGT(A,B)
-         use System, only: Symmetry
+         use SystemData, only: Symmetry
          IMPLICIT NONE
          TYPE(Symmetry) A,B
          IF(A%s.GE.0) THEN
@@ -1341,7 +1341,7 @@ C.. T1= highest integer less than R1
 C.. A binary search to find VAL in TAB.  TAB is sorted
 
       SUBROUTINE BINARYSEARCHSYM(VAL,TAB,ROWLEN,LEN,LOC)
-         use System, only: Symmetry
+         use SystemData, only: Symmetry
          IMPLICIT NONE
          TYPE(Symmetry) VAL
          INTEGER LOC,LEN,ROWLEN
@@ -1387,8 +1387,8 @@ C.. Failure
       END
       SUBROUTINE GENNEXTSYM(NEL,NBASISMAX,TSPN,LMS,
      &      TPARITY,IPARITY,TSETUP,TDONE,IMAX,ISYM)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian
          IMPLICIT NONE
          INTEGER NEL,nBasisMax(5,*)
@@ -1499,7 +1499,7 @@ C.. lower ones.
          TDONE=.NOT.TMORE
       END
       SUBROUTINE DOSYMLIMDEGEN(IMAX,NBASISMAX)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) IMax(2)
          INTEGER nBasisMax(5,*),I
@@ -1512,7 +1512,7 @@ C.. always a spin symmetry
          IF(IMAX(1)%Ms.NE.IMAX(2)%Ms) IMAX(1)%Ms=0
       END
       SUBROUTINE GETSYMDEGEN(ISYM,NBASISMAX,IDEGEN)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) ISym,ISym2
          INTEGER nBasisMax(5,*),IDEGEN,I,J
@@ -1541,8 +1541,8 @@ C.. Spin
 
 C.. Initialize symmetry to take into account the core electrons
       SUBROUTINE SETUPSYM(NBASISMAX,ISYM)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: FrozenSym
          IMPLICIT NONE
          INTEGER nBasisMax(5,*)
@@ -1552,7 +1552,7 @@ C.. Initialize symmetry to take into account the core electrons
       END
 
       SUBROUTINE WRITEALLSYM(IUNIT,SYM,LTERM)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER IUNIT
          TYPE(BASISFN) SYM
@@ -1562,8 +1562,8 @@ C.. Initialize symmetry to take into account the core electrons
          CALL WRITESYM(IUNIT,SYM%SYM,LTERM)
       END
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSym,tAbelian
          IMPLICIT NONE
          INTEGER IUNIT
@@ -1592,8 +1592,8 @@ C.. Initialize symmetry to take into account the core electrons
          IF(LTERM) WRITE(IUNIT,*)
       END
       SUBROUTINE SetupFreezeAllSym(Sym)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: FrozenSym
          IMPLICIT NONE
          TYPE(BasisFN) Sym
@@ -1601,8 +1601,8 @@ C.. Set to be totally symmetric
          FrozenSym=Sym
       END
       SUBROUTINE SetupFreezeSym(Sym)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: FrozenSym
          IMPLICIT NONE
          TYPE(BasisFN) Sym
@@ -1615,12 +1615,12 @@ C.. Set to be totally symmetric
       ! JSS: use Abelian symmetry formulation (allows us to go beyond 64
       ! symmetry operations, and hence deal with larger k-point meshes).
       SUBROUTINE GenKPtIrreps(nTranslat,nKps,KpntInd,nStates)
-      use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-      use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: SymLabels,SymLabelChars,nRot,nSymLabels,KPntSym
       use SymData, only: SymClasses,tagSymLabelChars,tagSymLabels
       use SymData, only: tagSymClasses
-      use MemoryManager, only: LogMemAlloc
+      use global_utilities
       IMPLICIT NONE
       INTEGER nTranslat,nKps,KpntInd(nStates)
       INTEGER I,J,nStates
@@ -1688,8 +1688,8 @@ C.. Set to be totally symmetric
       ! kpntrep.F in CPMD source.
       ! Decompose the symmetry label back into the appropriate
       ! numbers...
-      use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-      use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: PropBitLen
       implicit none
       integer*8 Isym
@@ -1703,8 +1703,8 @@ C.. Set to be totally symmetric
       end subroutine DecomposeAbelianSym
 
       integer*8 function ComposeAbelianSym(AbelSym)
-          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
           use SymData, only: PropBitLen
           implicit none
           integer  AbelSym(3)
@@ -1722,8 +1722,8 @@ C.. Set to be totally symmetric
           ! changes according to whether we're using Abelian/k-point
           ! symmetry or the standard symmetry.  It's just a matter of
           ! convenience, rather than some deep theoretical insight!
-          use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-          use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
           use SymData, only: tAbelian
           implicit none
           Type(Symmetry) TotSymRep 
@@ -1736,8 +1736,8 @@ C.. Set to be totally symmetric
 
       ! nBasisMax might well be needed in the future in these functions.
       integer*8 function MinSymRep(nBasisMax)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian
          implicit none
          integer nBasisMax(5,*)
@@ -1748,8 +1748,8 @@ C.. Set to be totally symmetric
          endif
       end function MinSymRep
       integer*8 function MaxSymRep(nBasisMax)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian,nProp
          implicit none
          integer nBasisMax(5,*)
@@ -1763,8 +1763,8 @@ C.. Set to be totally symmetric
          endif
       end function MaxSymRep
       subroutine IncrSym(Sym)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: tAbelian,nProp
          implicit none
          type(Symmetry) Sym
@@ -1787,12 +1787,12 @@ C.. Set to be totally symmetric
       end subroutine IncrSym
 
       SUBROUTINE GETSYMTMATSIZE(Nirrep,nBasis,iSS,iSize)
-        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use SymData, only: SymLabelCounts,SymLabelCountsCum
         use SymData, only: SymLabelIntsCum
         use SymData, only: tagSymLabelIntsCum,tagSymLabelCountsCum
-        use MemoryManager, only: LogMemAlloc
+        use global_utilities
         implicit none
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t
         integer*8 iSize
@@ -1830,8 +1830,8 @@ C.. Set to be totally symmetric
       SUBROUTINE WRITESYMCLASSES(NBASIS)
         USE HElem
         USE UMatCache
-        use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-        use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use SymData, only: nSymLabels,SymClasses,SymLabelCounts
         IMPLICIT NONE
         INTEGER I,NBASIS

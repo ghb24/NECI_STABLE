@@ -8,16 +8,18 @@
 !.. 
 SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
-         Use Determinants, only: GetHElement2, nUHFDet, E0HFDet
+      Use Determinants, only: GetHElement2, nUHFDet, E0HFDet
       USE HElem
-      USE System , only : TSTOREASEXCITATIONS,BasisFN
+      use SystemData , only : TSTOREASEXCITATIONS,BasisFN
+      use global_utilities
       IMPLICIT NONE
       TYPE(HElement) UMat(*),RH
       INTEGER I_P,I_HMAX,NTAY(2),NTRUNC,NEL,NBASIS,nBasisMax(5,*)
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       REAL*8 BETA,ECORE
       LOGICAL LSAME      
-      INTEGER NMSH,ISUB,I,BRR(NBASIS),J,IGETEXCITLEVEL
+      INTEGER NMSH,I,BRR(NBASIS),J,IGETEXCITLEVEL
+      integer, save :: isub=0
       TYPE(BasisFN) G1(*)
       COMPLEX*16 FCK(*)
       REAL*8 ALAT(3)  
@@ -37,7 +39,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
           CALL CALCRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,ALAT,NBASIS,I_P,ECORE,RH)
          RETURN
       ENDIF
-      CALL TISET('CALCRHO2  ',ISUB)
+      call set_timer('CALCRHO2  ',ISUB)
       IC=IC2
       B=BETA/I_P
       UEXP=0.D0
@@ -148,7 +150,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !      CALL WRITEDET(6,NI,NEL,.FALSE.)
 !      CALL WRITEDET(6,NJ,NEL,.FALSE.)
 !      WRITE(6,*) RH
-      CALL TIHALT('CALCRHO2  ',ISUB)
+      call halt_timer(ISUB)
       RETURN
      END
 !.. RHO2ORDERND2(I,J,HAMIL,LAB,NROW,NDET
@@ -161,7 +163,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !.. selection of dets we want.
          Use Determinants, only: GetHElement2
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          TYPE(HElement) Rho2OrderND2
@@ -218,7 +220,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          USE HElem
          use Integrals, only: GetUMatEl
          use UMatCache
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          implicit none
          integer nHFDet(nEl),nJ(nEl),nEl,nBasis
          type(BasisFN) G1(*)

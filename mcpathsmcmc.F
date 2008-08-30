@@ -12,6 +12,7 @@ C.. This is an approach based on Markov Chains
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,
      &               WLRI,WLSI)
+         use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -36,7 +37,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          LOGICAL LCANMOVE
          EXTERNAL FMCPR4WFUNC,FMCPR4VFUNC,FMCPR4UFUNC
          REAL*8 RNORM,ND,STD
-         CALL TISET('MCPATHSR5 ',ISUB)
+         real*4 itime,etime,tarr(2)
+         integer, save :: isub=0
+         integer, save :: isub2=0
+         call set_timer('MCPATHSR5 ',ISUB)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
@@ -66,7 +70,7 @@ c         WRITE(6,*) 0,TOTAL,TOTAL,0
 C.. I_V is the number of vertices in the path
          DO I_V=2,I_VMAX
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            CALL TISET(STR,ISUB2)
+            call set_timer(STR,ISUB2)
             L=0
             LT=0
             BTABLE(0)=0
@@ -119,16 +123,16 @@ C            WRITE(6,*) F(I_V),F(I_V)*RNORM*ND,RNORM,ND,RNORM*ND
             ELSE
                F(I_V)=0.D0
             ENDIF
-            CALL TIHALT(STR,ISUB2)
+            call halt_timer(ISUB2)
             TOTAL=TOTAL+F(I_V)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,TIGET(ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,LT
             STD=SQRT(ABS(FSQ(I_V)-F(I_V)*F(I_V)))
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12,F19.7)")
-     &            I_V,F(I_V),TOTAL,TIGET(ISUB2),L,STD
+     &            I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,STD
             IF(LISNAN(F(I_V))) THEN
 C.. save all log files
-               ITIME=TIMEC()
+               ITIME=etime(tarr)
                CALL FLUSH(11)
                CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
@@ -142,7 +146,7 @@ C.. save all log files
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          WLSI=LOG(TOTAL)
-         CALL TIHALT('MCPATHSR5 ',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END
 

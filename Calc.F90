@@ -1,63 +1,21 @@
-
 MODULE Calc
         
-        use System, only: nEl
-        USE Integrals , only : NFROZEN
-        Use Determinants, only :nActiveSpace
-        use UMatCache, only: gen2CPMDInts
-        
+        use CalcData
+
         IMPLICIT NONE
-        save
 
-        LOGICAL TSTAR,TTROT,TMCExcitSpace,TGrowInitGraph
-        LOGICAL TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
-        LOGICAL TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER,tMP2Standalone
-        LOGICAL EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
-        LOGICAL TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
-        LOGICAL TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
-        LOGICAL TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-        LOGICAL TInitStar,TNoSameExcit,TLanczos,TStarTrips
-        LOGICAL TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-        LOGICAL THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
-        LOGICAL TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
-        LOGICAL TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
-        LOGICAL TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
-        LOGICAL THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
-        LOGICAL TStartSinglePart
-        
-        INTEGER NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
-        INTEGER NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
-        INTEGER IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
-        INTEGER CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
-        INTEGER InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
-        INTEGER RhoApp,NEquilSteps
-        
-        
-        REAL*8 g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
-        REAL*8 G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
-        REAL*8 BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
-        REAL*8 GrowGraphsExpo,DeltaH,DiagSft,Tau,SftDamp,ScaleWalkers
-        REAL*8 GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
-
-
-
-!// additional from NECI.F
-        INTEGER, Allocatable :: MCDet(:)
-        REAL*8 RHOEPS ! calculated from RHOEPSILON
-
-!// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
-        LOGICAL lNoTriples
         contains
 
         SUBROUTINE CalcReadInput()
           USE input
           use default_sets
-          Use Determinants, only : iActiveBasis, SpecDet, tSpecDet
-          Use System, only : Beta
+          Use Determinants, only : iActiveBasis, SpecDet, tSpecDet, nActiveSpace
+          use SystemData, only : Beta,nEl
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead
-          Use Integrals, only: tNeedsVirts
+          use IntegralsData, only: tNeedsVirts,NFROZEN
+          use UMatCache, only: gen2CPMDInts
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -742,10 +700,10 @@ MODULE Calc
 
 
         Subroutine CalcInit()
-          Use System, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF
-          Use System, only: tUEG
-          Use Integrals, only: FCK, CST, nMax, nMsh, UMat
-          Use Integrals, only: HFEDelta, HFMix, NHFIt, tHFCalc
+          use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
+          use SystemData, only: tUEG
+          use IntegralsData, only: FCK, CST, nMax, UMat
+          use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
           Use DetCalc, only: DetInv, nDet, tRead
           
@@ -856,13 +814,13 @@ MODULE Calc
     
     
         Subroutine CalcDoCalc()
-          Use System, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis, nBasisMax
-          Use System, only: SymRestrict, tCSF, tParity, tSpn, ALat, Beta
-          use System, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
+          use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
+          use SystemData, only: SymRestrict, tCSF, tParity, tSpn, ALat, Beta
+          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
           Use DetCalc, only : CK, DetInv, nDet, nEval, tEnergy, tRead, nmrks, w
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
-          Use Integrals, only: FCK, NMAX, NMSH, UMat, FCK
-          Use Integrals, only: HFEDelta, HFMix,nTay
+          use IntegralsData, only: FCK, NMAX, UMat, FCK
+          use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
 !          Use MCDets, only: MCDetsCalc
 !Calls
@@ -989,9 +947,9 @@ MODULE Calc
         End Subroutine
 
         Subroutine DoExactVertexCalc()
-          Use System, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax, Arr
-          use System, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
-          Use Integrals, only: fck, nMax, nMsh, UMat,nTay
+          use SystemData, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax,nMsh, Arr,nEl
+          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB
+          use IntegralsData, only: fck, nMax, UMat,nTay
           Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
           Use Determinants, only: specdet, tSpecDet
           Use Logging, only: iLogging
@@ -1104,9 +1062,9 @@ MODULE Calc
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use input
          use UMatCache , only : TSTARSTORE
-         USE Calc , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         USE Calc, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion
-         USE Calc , only : TRhoElems,TReturnPathMC, TResumFCIMC
+         use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
+         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion
+         use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -1295,8 +1253,8 @@ MODULE Calc
      &            RHOEPS,NWHTAY,NPATHS,ILOGGING,ECORE,TNPDERIV,DBETA,DETINV,TSPN,LMS,TPARITY,SymRestrict,     &
      &            TSPECDET,SPECDET,nActiveBasis)
          USE HElem
-         use MemoryManager, only: LogMemAlloc,LogMemDealloc
-         use System, only: BasisFN,BasisFNSize
+         use global_utilities
+         use SystemData, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          include 'irat.inc'
          POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)
@@ -1312,7 +1270,7 @@ MODULE Calc
          INTEGER Work(GNDWorkSize+2*NEL)
          TYPE(BASISFN) G1(NBASIS)
          INTEGER BRR(NBASIS),NMSH,NMAX(*),NTAY,ILOGGING
-         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS,ISUB
+         INTEGER III,NWHTAY,I,IMAX,ILMAX,LMS
          TYPE(BasisFN) ISYM,SymRestrict
          LOGICAL TSPN,TPARITY,TSYM
          REAL*8 DBETA,ECORE
@@ -1325,6 +1283,7 @@ MODULE Calc
          INTEGER SPECDET(NEL)
          TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
          INTEGER nActiveBasis(2)
+         integer, save :: ISUB=0
          character(len=*), parameter :: thisroutine='CALCRHOPII3'
          TLOG=BTEST(ILOGGING,1)
          HElP=HDElement(I_P)
@@ -1334,7 +1293,7 @@ MODULE Calc
          NORM=0.D0
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
-         CALL TISET('CLCRHOPII3',ISUB)
+         call set_timer(thisroutine,ISUB)
          WRITE(6,*) "Entering CALCRHOPII3..."
 !         ILMAX=NDET
 !.. We don't need to store lists for I_HMAX=-8
@@ -1448,7 +1407,7 @@ MODULE Calc
          call LogMemDealloc(thisroutine,tagRIJList)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_ICE)
-         CALL TIHALT('CLCRHOPII3',ISUB)
+         call halt_timer(ISUB)
          RETURN
       END SUBROUTINE CALCRHOPII3  
 
@@ -1458,7 +1417,7 @@ MODULE Calc
       REAL*8 FUNCTION GETRHOEPS(RHOEPSILON,BETA,NEL,NBASISMAX,G1,NHG, BRR,NMSH,FCK,NMAX,ALAT,UMAT,I_P,ECORE)
          Use Determinants, only: GetHElement2
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),I,nBasisMax(5,*),I_P
          INTEGER BRR(*),NMSH,NMAX,NHG
@@ -1482,7 +1441,7 @@ MODULE Calc
 ! Calculate the kinetic energy of the UEG (this differs from CALCT by including the constant CST
       REAL*8 FUNCTION CALCT2(NI,NEL,G1,ALAT,NBASIS,CST)
          USE HElem
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS,I,J
          TYPE(BasisFN) G1(*)

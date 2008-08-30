@@ -10,9 +10,9 @@
 
 MODULE MCStarMod
     USE HElem
-    USE MemoryManager , only : LogMemAlloc,LogMemDealloc 
-    USE System , only : NEl
-    USE Calc , only : DeltaH
+    USE global_utilities
+    use SystemData , only : NEl
+    use CalcData , only : DeltaH
     USE Determinants , only : FDet
     IMPLICIT NONE
     SAVE
@@ -40,9 +40,9 @@ MODULE MCStarMod
     contains
 
     SUBROUTINE MCStar(Weight,Energyxw)
-        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,G_VMC_Seed
-        USE Integrals, only : fck,nMax,nMsh,UMat,nTay
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,G_VMC_Seed
+        use IntegralsData, only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
@@ -92,9 +92,9 @@ MODULE MCStarMod
 
 !This routine finds all Hij and H_jj elements for all double excitations in the star graph, and fills ExcitInfo with this
     SUBROUTINE FindStarExcits()
-        USE System , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,RhoEps,dBeta
-        USE Integrals , only : fck,nMax,nMsh,UMat,nTay
+        use SystemData , only : G1,Alat,Beta,Brr,ECore,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,RhoEps,dBeta
+        use IntegralsData , only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         USE Logging , only : iLogging
         IMPLICIT NONE
@@ -103,12 +103,13 @@ MODULE MCStarMod
         INTEGER :: nExcitTag=0
         TYPE(HElement) :: rh
         REAL*8 :: StarWeight,DLWDB
-        INTEGER :: iExcit,i,j,k,iSubFindStar,nRoots
+        INTEGER :: iExcit,i,j,k,nRoots
+        integer, save :: iSubFindStar=0
         CHARACTER(len=*), PARAMETER :: this_routine='FindStarExcits'
         INTEGER :: ierr,ExcitCount
         LOGICAL :: TCountExcits 
 
-        CALL TISET('FindStarExcits',iSubFindStar)
+        call set_timer('FindStarExcits',iSubFindStar)
 
 !HFReNorm is equal to the increase in total probability when the propagation step is from the HF determinant
 !This is simply equal to the increase electron probability on each determinant, i.e. 1 (rhii/rhii) + sum_j (|rhij|/rhii)^x
@@ -177,7 +178,7 @@ MODULE MCStarMod
         WRITE(6,*) "Energy of Star Graph calculated to be: ", DLWDB/StarWeight
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in FindStarExcits'
-        CALL TIHALT('FindStarExcits',iSubFindStar)
+        call halt_timer(iSubFindStar)
 
     END SUBROUTINE FindStarExcits
 
@@ -242,7 +243,7 @@ MODULE MCStarMod
 !of the vector by the star matrix. If TStoch=.true., then Iters defines the number of determinants to pick from the 
 !vector to propagate.
     SUBROUTINE SingleHApp(TStoch)
-        USE Calc , only : Iters
+        use CalcData , only : Iters
         IMPLICIT NONE
         LOGICAL :: TStoch
         INTEGER :: i,j,Iterations
@@ -394,7 +395,7 @@ MODULE MCStarMod
 !In this routine, the hamiltonian is continually applied to the hamiltonian, and the energy updated.
 !This should converge to the ground state, though it is not strictly the power method.
     SUBROUTINE PowerMethDiag()
-        USE Calc , only : Iters
+        use CalcData , only : Iters
         IMPLICIT NONE
         TYPE(HElement) :: Delta,VectorChange(0:NoExcits)
         TYPE(HElement) :: TempWeight,TempEnergyxw,Norm
@@ -445,18 +446,19 @@ MODULE MCStarMod
 !and the root component is increased by Hii. If an excitation is chosen, then the root increases by Hij, and the
 !excitation chosen is increased by Hjj.
     SUBROUTINE PropagateLocalWavevector()
-        USE Calc , only : Iters,HApp,TStoch
+        use CalcData , only : Iters,HApp,TStoch
 !HApp is the number of determinants (i) which will be chosen to have H locally acted upon them, before the wavevector is updated
 !TStoch tells us whether to choose the determinants to apply H to locally should be picked stochastically, or just run through them all
         IMPLICIT NONE
-        INTEGER :: Iterations,iSubProp,i,j,ierr,Apps,ChangeVectTag=0,TimesUpdatedTag=0
+        INTEGER :: Iterations,i,j,ierr,Apps,ChangeVectTag=0,TimesUpdatedTag=0
+        integer, save :: iSubProp=0
         REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
         CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
         TYPE(HElement) :: Delta,ProbAll
         TYPE(HElement) , ALLOCATABLE :: ChangeVect(:)
         INTEGER , ALLOCATABLE :: TimesUpdated(:)
         
-        CALL TISET('PropLocalWaveVec',iSubProp)
+        call set_timer('PropLocalWaveVec',iSubProp)
         ALLOCATE(ChangeVect(0:NoExcits),Stat=ierr)
         CALL LogMemAlloc('ChangeVect',NoExcits+1,8*HElementSize,this_routine,ChangeVectTag)
         ALLOCATE(TimesUpdated(0:NoExcits),Stat=ierr)
@@ -557,7 +559,7 @@ MODULE MCStarMod
         DEALLOCATE(ChangeVect)
         CALL LogMemDealloc(this_routine,ChangeVectTag)
         
-        CALL TIHALT('PropLocalWaveVec',iSubProp)
+        call halt_timer(iSubProp)
 
     END SUBROUTINE PropagateLocalWavevector
 
@@ -618,14 +620,15 @@ END MODULE MCStarMod
 !!are also increased accordingly. If an excitation is chosen, then the root increases by rij/rhii, and the
 !!excitation chosen is increased by rhjj/rhii. Again the results affect normalisation.
 !    SUBROUTINE PropagateLocalWavevector()
-!        USE Calc , only : Iters
+!        use CalcData , only : Iters
 !        IMPLICIT NONE
-!        INTEGER :: Iterations,iSubProp,i,j
+!        INTEGER :: Iterations,i,j
+!        INTEGER,SAVE :: iSubProp=0
 !        REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
 !        CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
 !        TYPE(HElement) :: Delta,Norm,TestVect(0:NoExcits)
 !        
-!        CALL TISET('PropLocalWaveVec',iSubProp)
+!        call set_timer('PropLocalWaveVec',iSubProp)
 !        CALL AZZERO(TestVect,(NoExcits+1)*HElementSize)
 !        Delta=HElement(DeltaH)
 !        Prob=1.D0/(NoExcits+1)
@@ -789,6 +792,6 @@ END MODULE MCStarMod
 !
 !        enddo
 !        
-!        CALL TIHALT('PropLocalWaveVec',iSubProp)
+!        call halt_timer(iSubProp)
 !
 !    END SUBROUTINE PropagateLocalWavevector

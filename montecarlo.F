@@ -18,7 +18,8 @@
      &         RHOIJ2,BETA,DBETA,RHOIJLAB,NRHOMAXWIDTH,I_HMAX,IMCSTEPS,
      &         G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,NWHTAY,
      &         ILOGGING)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
+         use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET,NRHO
          INTEGER RHOIJLAB(*),RHOIJROWS(NDET+1)
@@ -38,9 +39,10 @@ C         INTEGER NI(4,NEL), NJ(4,NEL)
          REAL*8 DLWDBS(*),WLRIS(*),WLSIS(*)
          LOGICAL LISNAN
          REAL*8 RAN2
+         integer, save :: isub=0
 
 C.. NI, NJ are the quantum numbers of 
-         CALL TISET('DMC       ',ISUB)
+         call set_timer('DMC       ',ISUB)
 C.. Randomize the seed:
          ISEED=-70001
 CINT(SECNDS(0.0))
@@ -168,7 +170,7 @@ C               WI=WJ
          ENDDO
          CLOSE(17)
          DMONTECARLO=TOT/IMCSTEPS
-         CALL TIHALT('DMC       ',ISUB)
+         call halt_timer(ISUB)
       END
 
 
@@ -202,7 +204,7 @@ C.. change the spin
 
 C.. NJ is a list of Quantum numbers of basis fns for each electron
       INTEGER FUNCTION IFINDDET(NJ,NEL,G1,NMRKS,NBASIS,NDET)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NJ(4,NEL),NMRKS(NEL,NDET)
          TYPE(BasisFN) G1(*)
@@ -247,6 +249,7 @@ C.. We couldn't find it
      &         NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,
      &         ECORE,BETAEQ)
 
+         use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
          include 'irat.inc'
          INTEGER IPATH(I_P+1)
@@ -272,9 +275,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
          INTEGER NCH
          REAL*8 DLWDBC
          REAL*8 RAN2
+         integer, save :: isub=0
          SUMSQ=0.D0
 C.. NI, NJ are the quantum numbers of 
-         CALL TISET('DMC2      ',ISUB)
+         call set_timer('DMC2      ',ISUB)
 C.. Randomize the seed:
          ISEED=-70001
 CINT(SECNDS(0.0))
@@ -564,11 +568,11 @@ C.. if there's space, we store
          CALL FREEM(IP_WLRIS)
          CALL FREEM(IP_WLSIS)
 
-         CALL TIHALT('DMC2      ',ISUB)
+         call halt_timer(ISUB)
       END
 
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NI(NEL),NJ(NEL),NQN(5)
          TYPE(BasisFN) G1(NBASIS)
@@ -680,7 +684,7 @@ C.. if we've more electrons to change, we go round again
          RETURN
       END
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NBASIS
          TYPE(BasisFN) G1(NBASIS),NQNS
@@ -791,6 +795,7 @@ C            WRITE(6,*) "Store ",NODE
      &         IMCSTEPS,
      &         G1,NMRKS,NEL,NBASISMAX,NBASIS,BRR,IEQSTEPS,
      &         ILOGGING)
+         use global_utilities
          IMPLICIT REAL*8 (A-H,O-Z)
          INTEGER NDET
          INTEGER ISEED
@@ -802,9 +807,10 @@ C            WRITE(6,*) "Store ",NODE
          REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET)
          LOGICAL LISNAN
          REAL*8 RAN2
+         integer, save :: isub=0
 
 C.. NI, NJ are the quantum numbers of 
-         CALL TISET('DMC       ',ISUB)
+         call set_timer('DMC       ',ISUB)
 C.. Randomize the seed:
          ISEED=-70001
 CINT(SECNDS(0.0))
@@ -894,7 +900,7 @@ c            IF(MOD(IT,100).EQ.0) WRITE(6,*) IT
          CLOSE(17)
          DMONTECARLOEXWI=TOT/IMCSTEPS
          WRITE(6,*) "MC STDEV=",SQRT(SUMSQ/IMCSTEPS-DMONTECARLOEXWI**2)
-         CALL TIHALT('DMC       ',ISUB)
+         call halt_timer(ISUB)
       END
 
       SUBROUTINE PBC(NQN, NBASISMAX)
@@ -961,7 +967,7 @@ C.. non-PBC non-tilted - leave things as they are
          RETURN
       END
       INTEGER FUNCTION IGETENEIGHBOUR(IEL,NBASIS,BRR,ISGN,G1,IDIST)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
          TYPE(BasisFN) G1(NBASIS)
@@ -984,7 +990,7 @@ C.. make sure we have an orbital of the correct spin
 C.. Find a neighbour in a different degenerate manifold.
 C.. THIS IS NOT ERGODIC
       INTEGER FUNCTION IGETENEIGHBOURDEG(IEL,NBASIS,BRR,ISGN,G1,ISEED)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
          TYPE(BasisFN) G1(NBASIS)
@@ -1031,7 +1037,7 @@ C.. CHeck spin
          RETURN
       END
       INTEGER FUNCTION IGETSNEIGHBOUR(IEL,NBASIS,BRR,ISGN,G1)
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER IEL,NBASIS,BRR(NBASIS),ISGN
          TYPE(BasisFN) G1(NBASIS)

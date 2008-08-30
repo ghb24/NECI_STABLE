@@ -1,7 +1,7 @@
     MODULE StarDiagTripMod
       USE HElem
-      USE MemoryManager , only : LogMemAlloc,LogMemDealloc
-      USE System , only : NEl
+      USE global_utilities
+      use SystemData , only : NEl
       USE Determinants , only : FDet
 
 
@@ -42,9 +42,9 @@
 ! eigenvector components reattached to the HF determinant. Should scale as N^3 M^3.
 ! Currently, only PolyMax works with the routine (lowest energy state), and there is a forced counting of matrix elements.
     SUBROUTINE StarDiagTrips(Energyxw,Weight)
-        USE System, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,Arr
-        USE Calc , only : i_P,NWHTay,RhoEps,dBeta,TFullDiag
-        USE Integrals, only : fck,nMax,nMsh,UMat,nTay
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
+        use CalcData , only : i_P,NWHTay,RhoEps,dBeta,TFullDiag
+        use IntegralsData, only : fck,nMax,UMat,nTay
         USE Determinants , only : GetHElement2
         USE Logging , only : iLogging
         USE StarDiagMod , only : GetValsnVecs
@@ -57,14 +57,15 @@
         TYPE(HElement) :: rh,rhjj,rhij,Norm,OffDiagNorm,Hij,rhjk
         INTEGER , ALLOCATABLE :: nExcit(:),nExcit2(:)
         INTEGER :: nExcitTag,ierr,exFlagHF,exFlagDoub,iMaxExcit,ExcitCount
-        INTEGER :: Meth,iSubTrips,nStore(6),nExcitMemLen,nJ(NEl),iExcit,nStore2(6)
+        INTEGER :: Meth,nStore(6),nExcitMemLen,nJ(NEl),iExcit,nStore2(6)
+        integer,save :: iSubTrips=0
         INTEGER :: iMaxExcit2,nExcitMemLen2,nK(NEl),ExcitCountDoubs,nExcitTag2
         INTEGER :: i,j,k,nRoots,Vert,IC,iGetExcitLevel,DoubIndex,TotElem,Info
         LOGICAL :: TCountExcits,iExcit2
 
         IF(HElementSize.gt.1) STOP 'Only Real orbitals allowed in StarDiagTrips so far'
     
-        CALL TISET('StarDiagTrips',iSubTrips)
+        call set_timer('StarDiagTrips',iSubTrips)
         nExcitTag=0
         nExcitTag2=0
 
@@ -470,7 +471,7 @@
             STOP "Error in allocation/deallocation"
         ENDIF
 
-        CALL TIHALT('StarDiagTrips',iSubTrips)
+        call halt_timer(iSubTrips)
         
         RETURN
 

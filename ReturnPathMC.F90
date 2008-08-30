@@ -1,15 +1,15 @@
 MODULE ReturnPathMCMod
-    USE System , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr,Beta
-    USE Calc , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    USE Calc , only : GrowMaxFactor,CullFactor,i_P
-    USE Calc , only : PRet  !This is the probability of generating the return determinant to spawn to
-    USE Calc , only : CLMax   !This is the maximum allowed chain length
-    USE Calc , only : TRhoElems     !This tells us to use rho elements rather than H-elements
-    USE Calc , only : NEquilSteps
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,Arr,nMsh,Beta
+    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+    use CalcData , only : GrowMaxFactor,CullFactor,i_P
+    use CalcData , only : PRet  !This is the probability of generating the return determinant to spawn to
+    use CalcData , only : CLMax   !This is the maximum allowed chain length
+    use CalcData , only : TRhoElems     !This tells us to use rho elements rather than H-elements
+    use CalcData , only : NEquilSteps
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS
-    USE Integrals , only : fck,NMax,nMsh,UMat,nTay
-    USE MemoryManager , only : LogMemAlloc,LogMemDealloc
+    use IntegralsData , only : fck,NMax,UMat,nTay
+    USE global_utilities
     USE HElem
     IMPLICIT NONE
     SAVE

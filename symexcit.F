@@ -7,8 +7,8 @@
 C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,ILEVEL,iMinElec1,iMaxElec1)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -48,11 +48,12 @@ C.. global symprods table multiply by [] to give the symmetric rep.
 
       SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClass,SymClasses,SymLabelCounts
          use SymData, only: SymStatePairs,SymLabels,SymPairProds
          use SymData, only: nSymPairProds,nSymLabels
+         use global_utilities
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
@@ -92,7 +93,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          LOGICAL LSYMSYM,SYMEQ
          INTEGER ISPN
          INTEGER ILUT(0:NBASIS/32)
-         INTEGER ISUB
+         INTEGER,SAVE :: ISUB=0
          INTEGER ILEVEL
          Type(Symmetry) TotSymRep
 
@@ -100,7 +101,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
 
          INTEGER iMinElec1,iMaxElec1
          
-         CALL TISETL('SYMSUEXCIT',ISUB,65)
+         call set_timer('SYMSUEXCIT',ISUB,65)
 
 C.. List the symmetry classes in NI.
 C.. For each orb, just see if its class is in the list, and if not add it
@@ -585,16 +586,17 @@ C.. Store all the pointers we need
          STORE(6)=NEXCITTYPES
          ENDIF
 C..      ENDIF(.NOT.TCOUNT)
-         CALL TIHALTL('SYMSUEXCIT',ISUB,65)
+         call halt_timer(ISUB)
       END
 
 
 !  Must be called after SYMSETUPEXCITS.  Needs INTEGER*8 STORE and frees memory therein
       SUBROUTINE SYMGENEXCITS(NI,NEL,G1,NBASIS,NBASISMAX,STORE,LSTE,
      &   ICLIST,ICOUNT)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize
+         use global_utilities
          IMPLICIT NONE
          INTEGER NBASIS,NEL,NI(NEL),G1(nBasis),NBASISMAX(*)
          INTEGER*8 STORE(6)
@@ -610,9 +612,10 @@ C..      ENDIF(.NOT.TCOUNT)
          POINTER (IP_EXCITTYPES,EXCITTYPES)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER ISUB,I
+         INTEGER,SAVE :: ISUB=0
+         INTEGER I
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
-         CALL TISETL('SYMGNEXCIT',ISUB,65)
+         call set_timer('SYMGNEXCIT',ISUB,65)
 
          IP_DSTORE=STORE(1)
          IP_EXCITTYPES=STORE(2)
@@ -630,14 +633,14 @@ C..      ENDIF(.NOT.TCOUNT)
          CALL FREEM(IP_SYMPRODIND)
          CALL FREEM(IP_DSTORE)
 
-         CALL TIHALTL('SYMGNEXCIT',ISUB,65)
+         call halt_timer(ISUB)
  
       END
       SUBROUTINE SYMGENALLEXCITS(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
      &               SYMPRODIND,ILUT,ORBPAIRS,G1,NBASISMAX,
      &               LSTE,ICLIST,ICOUNT)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymLabelCounts,SymStatePairs,SymClass
          use SymData, only: SymLabelList,SymPairProds
          IMPLICIT NONE
@@ -894,8 +897,8 @@ C.. to actually generate the excitations
 
       SUBROUTINE GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
@@ -913,9 +916,9 @@ C.. to actually generate the excitations
 
 !GenSymExcitIt3Par and GenSymExcitIt3 are versions GenSymExcitIt2 which do not require information taken from System and Integrals modules to be specified on the command line
       SUBROUTINE GENSYMEXCITIT3(NI,TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use System, only: nEl,G1, nBasis,nBasisMax
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: nEl,G1, nBasis,nBasisMax
          IMPLICIT NONE 
          INCLUDE 'irat.inc'
          INTEGER NI(NEL)
@@ -942,9 +945,9 @@ C.. to actually generate the excitations
 
       SUBROUTINE GENSYMEXCITIT3Par(NI,
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use System, only: nEl,G1, nBasis,nBasisMax
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: nEl,G1, nBasis,nBasisMax
          IMPLICIT NONE 
          INCLUDE 'irat.inc'
          INTEGER NI(NEL)
@@ -973,8 +976,8 @@ C.. to actually generate the excitations
 C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 specifiers used for parallelization
       SUBROUTINE GENSYMEXCITIT2Par(NI,NEL,G1,NBASIS,NBASISMAX,
      &         TSETUP,NMEM,NJ,IC,IFRZ,STORE,ILEVEL,iMinElec1,iMaxElec1)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -1115,9 +1118,9 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
      &               I,J,K,L,ICC,LS,
      &               NK,IC,iMinElec1,iMaxElec1)
-      USE System , only : TSTOREASEXCITATIONS
-      use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-      use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SystemData , only : TSTOREASEXCITATIONS
+      use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: SymLabelCounts,SymStatePairs,SymClass
       use SymData, only: SymLabelList,SymPairProds
       IMPLICIT NONE
@@ -1475,11 +1478,11 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
 !  IC is the excitation level, and iCount the total number of allowed excitations
       SUBROUTINE GenRandSymExcitIt3(NI,NMEM,NJ,ISEED,IC,IFRZ,PGEN,
      &      ICOUNT)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use System, only: nEl,G1, nBasis,nBasisMax
-         use System, only: Arr,nMax
-         use Integrals, only: UMat
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: nEl,G1, nBasis,nBasisMax
+         use SystemData, only: Arr,nMax
+         use IntegralsData, only: UMat
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -1524,8 +1527,8 @@ C.. ICOUNT returned is the total number of possible excitations.  To get the exc
 C..   use GenRandSymExcitIt3
       SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         NMEM,NJ,ISEED,ICOUNT,IFRZ,UMAT,ARR,PGEN)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INCLUDE 'irat.inc'
@@ -1574,8 +1577,8 @@ C.. Actually generate a det
      &               NK,IC,G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)      
       USE HElem
       USE symexcit2
-      use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-      use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+      use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+      use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
       INTEGER NBASIS
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
@@ -1792,8 +1795,8 @@ C.. Actually generate a det
       END 
       LOGICAL FUNCTION IsConnectedDet(nI,nJ,nEl,nIExcitor,G1,nBasisMax,
      &      nBasis)
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize 
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
@@ -1820,8 +1823,8 @@ C.. Actually generate a det
      &      tIsConnected)
          USE HElem
          USE symexcit2
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,*)
          INTEGER ExcitTypes(5,*)
@@ -1842,8 +1845,8 @@ C.. Actually generate a det
       SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,UMat,Arr,
      &      nBasis,pGen)
          USE HElem
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nIExcitor(*),nBasis,nBasisMax(*)
@@ -1888,8 +1891,8 @@ C.. Actually generate a det
      &      pGen)
          USE HElem
          USE symexcit2
-         use System, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use System, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(5,*)
          INTEGER ExcitTypes(5,*)
@@ -1911,7 +1914,7 @@ C.. Actually generate a det
          USE symexcit2
          USE HElem
          USE PRECALCREAD , only : PRE_TAY,TPREVAR
-         use System, only: BasisFN
+         use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER iUnit
          INTEGER iV,nEl       ! Vertices and number of electrons
