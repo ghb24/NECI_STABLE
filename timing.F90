@@ -242,7 +242,7 @@ contains
               id=maxloc(sum_times)
               it=id(1)
               sum_times(it)=0.d0 ! Don't find this object again.
-              write (io,'(X,a25,i9,3f10.2)') trim(timers(it)%timer_name),timers(it)%ncalls,timers(it)%sum_time_cpu,timers(it)%sum_time_system,timers(it)%sum_time_cpu+timers(it)%sum_time_system
+              write (io,'(X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,timers(it)%sum_time_cpu,timers(it)%sum_time_system,timers(it)%sum_time_cpu+timers(it)%sum_time_system
               total_cpu=total_cpu+timers(it)%sum_time_cpu
               total_system=total_system+timers(it)%sum_time_system
           end do
