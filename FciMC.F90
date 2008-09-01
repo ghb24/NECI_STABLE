@@ -1,7 +1,7 @@
 MODULE FciMCMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TReadPops,ScaleWalkers,TMCExcitSpace,NoMCExcits,TStartMP1
+    use CalcData , only : TReadPops,ScaleWalkers,TStartMP1
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
@@ -101,12 +101,12 @@ MODULE FciMCMod
         CALL InitFCIMCCalc()
 
         WRITE(6,*) ""
-        WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2    SumNoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
-        WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2    SumNoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
+        WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
+        WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
 
 !TotWalkersOld is the number of walkers last time the shift was changed
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 
 !Start MC simulation...
         do Iter=1,NMCyc
@@ -161,6 +161,9 @@ MODULE FciMCMod
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
         TotSign=0
+!Reset the number at HF & doubs per iteration
+        NoatHF=0
+        NoatDoubs=0
 
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -357,8 +360,6 @@ MODULE FciMCMod
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
             CALL FlipSign()
         ENDIF
-!Reset the number at HF per iteration
-        NoatHF=0
 
 
         IF(TSinglePartPhase) THEN
@@ -1011,8 +1012,8 @@ MODULE FciMCMod
         ProjectionMP2=((SumHOverlapMP2/SumOverlapMP2)-Hii)/2.D0
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,I11,I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,SumNoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
 !        WRITE(6,*) SumHOverlapMP2,SumOverlapMP2
         CALL FLUSH(15)
         CALL FLUSH(6)
@@ -1023,7 +1024,6 @@ MODULE FciMCMod
         MeanExcitLevel=0.D0
         SumWalkersCyc=0
         PosFrac=0.D0
-        NoatDoubs=0
         Annihilated=0
         Acceptances=0
 !Reset TotWalkersOld so that it is the number of walkers now
@@ -1458,6 +1458,7 @@ MODULE FciMCMod
         PosFrac=0.D0
         SumENum=0.D0
         SumNoatHF=0
+        NoatHF=0
         SumOverlapMP2=0.D0
         SumHOverlapMP2=0.D0
         MeanExcitLevel=0.D0
@@ -1475,6 +1476,10 @@ MODULE FciMCMod
             ENDIF
         ELSE
             TSinglePartPhase=.false.
+        ENDIF
+
+        IF(TNoAnnihil) THEN
+            WRITE(6,*) "No Annihilation to occur. Results are likely not to converge to right value. Proceed with caution."
         ENDIF
 
         IF(TResumFciMC) THEN

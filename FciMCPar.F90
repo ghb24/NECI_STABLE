@@ -6,24 +6,19 @@
 
 !!!!! TO DO !!!!
 ! Package up variables into one array to communicated to avoid latency overheads
-! Explicity allow/disallow all the serial FCIMC options
-! Write out when culling
 ! Test different hashes
 ! Option for calculating non-essential information
 ! Other optimisation (Annihilation - do we want to be allocating?)
-! Sort OUTPUT
-! Annihilation warning if TNoAnnihil
-! OUTPUT only noathf, not sum
 
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TStartMP1,NEquilSteps
-    use CalcData , only : GrowMaxFactor,CullFactor
+    use CalcData , only : TStartMP1,NEquilSteps,TReadPops
+    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil
     USE Determinants , only : FDet,GetHElement2
-    USE DetCalc , only : NMRKS
+    USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE global_utilities
     USE HElem
@@ -70,7 +65,7 @@ MODULE FciMCParMod
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=20
+    INTEGER :: MemoryFac=50
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
@@ -91,11 +86,15 @@ MODULE FciMCParMod
     INTEGER :: MinExcitLevel
     INTEGER :: MaxExcitLevel
     INTEGER :: Annihilated      !This is the number annihilated on one processor
+    INTEGER :: NoatHF           !This is the instantaneous number of particles at the HF determinant
+    INTEGER :: NoatDoubs
+    INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
+    REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
     INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc,AllTotSign,AllTotSignOld
-    INTEGER :: AllAnnihilated
+    INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
     REAL*8 :: AllSumNoatHF,AllSumENum,AllPosFrac
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
@@ -115,6 +114,8 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
 
+    LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
+
     INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
     contains
@@ -130,11 +131,11 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers       Annihilated    Proj.E      SumNoatHF        +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
-            WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers      Annihilated    Proj.E      SumNoatHF        +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
+            WRITE(6,*) "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil    Proj.E        NoatHF NoatDoubs  +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
+            WRITE(15,*) "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil    Proj.E        NoatHF NoatDoubs   +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
         ENDIF
         
 
@@ -223,6 +224,9 @@ MODULE FciMCParMod
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
+!Reset number at HF and doubles
+        NoatHF=0
+        NoatDoubs=0
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -294,6 +298,8 @@ MODULE FciMCParMod
                         ENDIF
                         VecSlot=VecSlot+1
                     enddo
+
+                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
                 
                 ENDIF   !End if child created
 
@@ -356,6 +362,10 @@ MODULE FciMCParMod
         rat=(TotWalkersNew+0.D0)/(MaxWalkers+0.D0)
         IF(rat.gt.0.9) THEN
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
+            CALL FLUSH(6)
+        ENDIF
+        IF(TotWalkersNew.eq.0) THEN
+            CALL Stop_All("PerformFciMCycPar","All walkers have died on a node")
         ENDIF
         
         IF(TNoAnnihil) THEN
@@ -393,47 +403,74 @@ MODULE FciMCParMod
             Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
 
         ENDIF
+        
+!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
+        AllNoatHF=0
+!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
+        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
+        IF(AllNoatHF.lt.0) THEN
+!Flip the sign if we're beginning to get a negative population on the HF
+            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            CALL FlipSign()
+        ENDIF
 
-        IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
+        IF(TSinglePartPhase) THEN
+!Do not allow culling if we are still in the single particle phase.
+            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF(TotWalkers.gt.InitWalkers) THEN
+                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                    TSinglePartPhase=.false.
+                ENDIF
+            ENDIF
+!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration
+            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
+            IF(ierr.ne.MPI_SUCCESS) THEN
+                WRITE(6,*) "Problem in broadcasting new TSinglePartPhase"
+                CALL Stop_All("PerformFciMCycPar","Problem in broadcasting new TSinglePartPhase")
+            ENDIF
+        ELSE
+
+            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 !Particle number is too large - kill them randomly
 
 !Log the fact that we have made a cull
-            NoCulls=NoCulls+1
-            IF(NoCulls.gt.10) THEN
-                WRITE(6,*) "Too Many Culls"
-                CALL FLUSH(6)
-                call Stop_All("PerformFCIMCyc","Too Many Culls")
-            ENDIF
+                NoCulls=NoCulls+1
+                IF(NoCulls.gt.10) THEN
+                    WRITE(6,*) "Too Many Culls"
+                    CALL FLUSH(6)
+                    call Stop_All("PerformFCIMCyc","Too Many Culls")
+                ENDIF
 !CullInfo(:,1) is walkers before cull
-            CullInfo(NoCulls,1)=TotWalkers
+                CullInfo(NoCulls,1)=TotWalkers
 !CullInfo(:,3) is MC Steps into shift cycle before cull
-            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 
-!            WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number..."
-!            WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number..."
-!            WRITE(6,"(A,F8.2)") "Population will reduce by a factor of ",CullFactor
-            CALL ThermostatParticlesPar(.true.)
+                WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
+                WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
+                WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
+                CALL ThermostatParticlesPar(.true.)
 
-        ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
+            ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
 !Particle number is too small - double every particle in its current position
 
 !Log the fact that we have made a cull
-            NoCulls=NoCulls+1
-            IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
+                NoCulls=NoCulls+1
+                IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !CullInfo(:,1) is walkers before cull
-            CullInfo(NoCulls,1)=TotWalkers
+                CullInfo(NoCulls,1)=TotWalkers
 !CullInfo(:,3) is MC Steps into shift cycle before cull
-            CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-            
-!            WRITE(6,*) "Doubling particle population to increase total number..."
-            CALL ThermostatParticlesPar(.false.)
+                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+                
+                WRITE(6,*) "Doubling particle population on this node to increase total number..."
+                CALL ThermostatParticlesPar(.false.)
 
+            ENDIF
+        
         ENDIF
 
         RETURN
 
     END SUBROUTINE PerformFCIMCycPar
-
 
         
     SUBROUTINE AnnihilatePartPar(TotWalkersNew)
@@ -445,6 +482,9 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
 
         DebugIter=0
+        IF(Iter.eq.DebugIter) THEN
+            WRITE(6,*) "Printing out annihilation debug info for Iteration: ",Iter,DebugIter
+        ENDIF
 
 !First, allocate memory to hold the signs and the hashes while we annihilate
         ALLOCATE(TempSign(TotWalkersNew),stat=ierr)
@@ -574,12 +614,13 @@ MODULE FciMCParMod
         ENDIF
 
 !Insert a load-balance check here...maybe find the s.d. of the sendcounts array - maybe just check the range first.
-!        IF(TotWalkersNew.gt.5000) THEN
-            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/2)) THEN
+        IF(TotWalkersNew.gt.200) THEN
+            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
                 WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
                 WRITE(6,*) "Sendcounts is: ",sendcounts(:)
+                CALL FLUSH(6)
             ENDIF
-!        ENDIF
+        ENDIF
         
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -783,6 +824,7 @@ MODULE FciMCParMod
         CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
 
         IF(Iter.eq.DebugIter) THEN
+            WRITE(6,*) "Number of hashes originally on processor which need to be removed=",ToAnnihilateonProc
             WRITE(6,*) "To annihilate from processor: "
             do i=1,ToAnnihilateonProc
                 WRITE(6,*) Index2Table(i),HashArray(i),CurrentSign(i)
@@ -840,6 +882,7 @@ MODULE FciMCParMod
 
         ELSE
 !No particles annihilated
+            VecSlot=1
             do i=1,TotWalkersNew
                 CALL ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
                 CurrentIC(VecSlot)=NewIC(i)
@@ -861,6 +904,8 @@ MODULE FciMCParMod
         ENDIF
 
         IF((TotWalkersNew-TotWalkers).ne.ToAnnihilateonProc) THEN
+            WRITE(6,*) TotWalkers,TotWalkersNew,ToAnnihilateonProc,Iter
+            CALL FLUSH(6)
             CALL Stop_All("AnnihilatePartPar","Problem with numbers when annihilating")
         ENDIF
 
@@ -886,11 +931,14 @@ MODULE FciMCParMod
         IF(ExcitLevel.eq.0) THEN
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
+                NoatHF=NoatHF+1
                 PosFrac=PosFrac+1.D0
             ELSE
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
+                NoatHF=NoatHF-1
             ENDIF
         ELSEIF(ExcitLevel.eq.2) THEN
+            NoatDoubs=NoatDoubs+1
 !At double excit - find and sum in energy
             HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
             IF(WSign) THEN
@@ -1259,8 +1307,10 @@ MODULE FciMCParMod
             AllGrowRate=AllGrowRate/(real(AllSumWalkersCyc,r2))
         ENDIF
 
-!Find total Annihilated
+!Find total Annihilated,Total at HF and Total at doubles
         CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(NoatDoubs,AllNoatDoubs,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
@@ -1308,7 +1358,7 @@ MODULE FciMCParMod
 
 !We now want to find how the shift should change for the entire ensemble of processors
         IF(iProcIndex.eq.Root) THEN
-            DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+            IF(.not.TSinglePartPhase) DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
             ProjectionE=AllSumENum/AllSumNoatHF
         ENDIF
 !We wan to now broadcast this new shift to all processors
@@ -1318,14 +1368,17 @@ MODULE FciMCParMod
             CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
         ENDIF
 
+        AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
+
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
+                    ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
+                    ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             CALL FLUSH(15)
-!            CALL FLUSH(6)
+            CALL FLUSH(6)
         ENDIF
-        CALL FLUSH(6)
 
 !Now need to reinitialise all variables on all processers
         MinExcitLevel=NEl+10
@@ -1334,6 +1387,7 @@ MODULE FciMCParMod
         SumWalkersCyc=0
         PosFrac=0.D0
         Annihilated=0
+        Acceptances=0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
 
@@ -1347,6 +1401,8 @@ MODULE FciMCParMod
         AllPosFrac=0.D0
         AllSumWalkersCyc=0
         AllAnnihilated=0
+        AllNoatHF=0
+        AllNoatDoubs=0
 
         RETURN
     END SUBROUTINE CalcNewShift
@@ -1640,7 +1696,7 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use CalcData, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error
+        INTEGER :: DetLT,VecSlot,error,HFConn
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
 
@@ -1664,6 +1720,7 @@ MODULE FciMCParMod
 
 !Setup excitation generator for the HF determinant
         CALL SetupExitgenPar(HFDet,HFExcit)
+        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed-iProcIndex
@@ -1677,23 +1734,32 @@ MODULE FciMCParMod
         PosFrac=0.D0
         SumENum=0.D0
         SumNoatHF=0
+        NoatHF=0
+        NoatDoubs=0
         MeanExcitLevel=0.D0
         MinExcitLevel=NEl+10
         MaxExcitLevel=0
         Annihilated=0
+        Acceptances=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
+        AllNoatHF=0
+        AllNoatDoubs=0
         AllSumNoatHF=0.D0
         AllGrowRate=0.D0
         AllMeanExcitLevel=0.D0
         AllSumWalkersCyc=0
         AllPosFrac=0.D0
 
-!Initialise global variables for calculation on the root node
-        IF(iProcIndex.eq.root) THEN
-            AllTotWalkers=InitWalkers*nProcessors
-            AllTotWalkersOld=InitWalkers*nProcessors
+        IF(TNoAnnihil) THEN
+            WRITE(6,*) "No Annihilation to occur. Results are likely not to converge on right value. Proceed with caution. "
+        ENDIF
+        IF(ICILEVEL.ne.0) THEN
+            CALL Stop_All("InitFCIMCCalcPar","Truncated FCIMC not yet available in parallel.")
+        ENDIF
+        IF(TReadPops) THEN
+            CALL Stop_All("InitFCIMCCalcPar","POPFILE read facility not yet available in parallel.")
         ENDIF
 
         IF(TResumFciMC) THEN
@@ -1727,7 +1793,12 @@ MODULE FciMCParMod
         ENDIF
         WRITE(6,*) ""
         WRITE(6,*) "Performing FCIMC...."
-        WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
+        IF(TStartSinglePart) THEN
+            WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
+        ELSE
+            WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
+        ENDIF
+        WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
         WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
         
@@ -1740,6 +1811,14 @@ MODULE FciMCParMod
 
         ELSE
 !initialise the particle positions - start at HF with positive sign
+            IF(TStartSinglePart) THEN
+                TSinglePartPhase=.true.
+                IF(TReadPops) THEN
+                    CALL Stop_All("InitFciMCCalcPar","Cannot read in POPSFILE as well as starting with a single particle")
+                ENDIF
+            ELSE
+                TSinglePartPhase=.false.
+            ENDIF
 
 !Set the maximum number of walkers allowed
             MaxWalkers=MemoryFac*InitWalkers
@@ -1805,15 +1884,26 @@ MODULE FciMCParMod
             NewIC=>WalkVec2IC
             NewH=>WalkVec2H
 
-            do j=1,InitWalkers
-                CurrentDets(:,j)=HFDet(:)
-                CurrentSign(j)=.true.
-                CurrentIC(j)=0
-                CurrentH(j)=0.D0
+            IF(TStartSinglePart) THEN
+                CurrentDets(:,1)=HFDet(:)
+                CurrentIC(1)=0
+                CurrentSign(1)=.true.
+                CurrentH(1)=0.D0
                 IF(.not.TNoAnnihil) THEN
-                    HashArray(j)=HFHash
+                    HashArray(1)=HFHash
                 ENDIF
-            enddo
+            ELSE
+
+                do j=1,InitWalkers
+                    CurrentDets(:,j)=HFDet(:)
+                    CurrentSign(j)=.true.
+                    CurrentIC(j)=0
+                    CurrentH(j)=0.D0
+                    IF(.not.TNoAnnihil) THEN
+                        HashArray(j)=HFHash
+                    ENDIF
+                enddo
+            ENDIF
 
             WRITE(6,*) "Initial memory allocation sucessful..."
             CALL FLUSH(6)
@@ -1832,19 +1922,39 @@ MODULE FciMCParMod
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
 
-            do j=1,InitWalkers
+            IF(TStartSinglePart) THEN
+                CALL CopyExitGenPar(HFExcit,CurrentExcits(1))
+            ELSE
+                do j=1,InitWalkers
 !Copy the HF excitation generator accross to each initial particle
-                CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
-            enddo
+                    CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
+                enddo
+            ENDIF
 
             WRITE(6,*) "Initial allocation of excitation generators successful..."
             CALL FLUSH(6)
 
         ENDIF
 
+        IF(TStartSinglePart) THEN
+            TotWalkers=1
+            TotWalkersOld=1
+!Initialise global variables for calculation on the root node
+            IF(iProcIndex.eq.root) THEN
+                AllTotWalkers=nProcessors
+                AllTotWalkersOld=nProcessors
+            ENDIF
+        ELSE
 !TotWalkers contains the number of current walkers at each step
-        TotWalkers=InitWalkers
-        TotWalkersOld=InitWalkers
+            TotWalkers=InitWalkers
+            TotWalkersOld=InitWalkers
+!Initialise global variables for calculation on the root node
+            IF(iProcIndex.eq.root) THEN
+                AllTotWalkers=InitWalkers*nProcessors
+                AllTotWalkersOld=InitWalkers*nProcessors
+            ENDIF
+
+        ENDIF
 
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
@@ -1863,6 +1973,17 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalcPar
+
+!This routine flips the sign of all particles on the node
+    SUBROUTINE FlipSign()
+        INTEGER :: i
+
+        do i=1,TotWalkers
+            CurrentSign(i)=.not.CurrentSign(i)
+        enddo
+        RETURN
+    
+    END SUBROUTINE FlipSign
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
