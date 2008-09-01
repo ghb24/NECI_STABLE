@@ -4,9 +4,9 @@
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
-     LFLAGS='-L/Users/athom/QC_EXT_LIBS/MAC_GX/fftw/lib -lfftw -framework vecLib'
-     LDFLAGS='-Mnostdlib -Mnostartup' 
-     PreprocSep=""
+     LFLAGS='-L/sw/lib/ -lfftw3 -framework vecLib'
+     LDFLAGS='-nostdlib -r' 
+     GLOBALS='GLOBALS-gfortran'
      if [ $debug ]; then
        FC='gfortran -c -g '
        CC='cc -g -sb -C -errtags'
@@ -15,7 +15,7 @@
        CCD='cc -g -sb -C -errtags'
        LDD='gfortran -g'
      else
-       FC='gfortran -c -O4 -fast'
+       FC='gfortran -c -O4'
        CC='cc -O'
        LD='gfortran -O4'
        FCD='gfortran -c -g'

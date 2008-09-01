@@ -442,13 +442,13 @@ neci-cpmd.a : \$(OBJECTSCPMDLIB)
 	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/environment_report.F90
 	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-cpmd.a
-     rm neci2.a
+	 rm neci2.a
 
 neci-vasp.a : \$(OBJECTSVASPLIB)
 	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/environment_report.F90
 	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
 	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
-     rm neci2.a
+	 rm neci2.a
 
 clean : 
 	  rm -f \$(DEST)/*.{f,f90,mod,o,c,x,a}

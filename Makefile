@@ -1,6 +1,6 @@
 SHELL=/bin/bash
 
-neci:
+neci: dest/Makefile
 	cd dest; ${MAKE} neci.x
 	test -e neci.x || ln -s {dest/,}neci.x
 
@@ -44,7 +44,7 @@ clean:
 	cd dest; ${MAKE} clean
 	cd kdest; ${MAKE} clean
 
-mkfiles:
+dest/Makefile mkfiles:
 	./compile -m
 
 dbgmkfiles:
