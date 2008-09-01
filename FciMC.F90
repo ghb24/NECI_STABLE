@@ -1419,7 +1419,7 @@ MODULE FciMCMod
     SUBROUTINE InitFCIMCCalc()
         use CalcData, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,HFConn
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc
         REAL*8 :: Ran2
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
@@ -1571,6 +1571,8 @@ MODULE FciMCMod
             CALL LogMemAlloc('WalkVec2H',MaxWalkers*2,8,this_routine,WalkVec2HTag,ierr)
             CALL AZZERO(WalkVec2H,2*MaxWalkers)
 
+            MemoryAlloc=((2*NEl)+12)*4*MaxWalkers
+
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
             CurrentSign=>WalkVecSign
@@ -1603,7 +1605,9 @@ MODULE FciMCMod
                 enddo
             ENDIF
 
+            WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
             WRITE(6,*) "Initial memory allocation sucessful..."
+            CALL FLUSH(6)
 
             ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
@@ -1622,7 +1626,9 @@ MODULE FciMCMod
                     CALL CopyExitGen(HFExcit,CurrentExcits(j))
                 enddo
             ENDIF
+            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
 
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
             WRITE(6,*) "Initial allocation of excitation generators successful..."
             CALL FLUSH(6)
 

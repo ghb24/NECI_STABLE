@@ -65,7 +65,7 @@ MODULE FciMCParMod
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=50
+    INTEGER :: MemoryFac=30
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
@@ -1696,7 +1696,7 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use CalcData, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,HFConn
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
 
@@ -1852,6 +1852,8 @@ MODULE FciMCParMod
             ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
             CALL AZZERO(WalkVec2H,MaxWalkers)
+            
+            MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
 
             IF(.not.TNoAnnihil) THEN
                 ALLOCATE(HashArray(MaxWalkers),stat=ierr)
@@ -1872,6 +1874,8 @@ MODULE FciMCParMod
                 ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
                 CALL IAZZERO(Process2Vec,MaxWalkers)
+
+                MemoryAlloc=MemoryAlloc+32*MaxWalkers
             ENDIF
 
 !Allocate pointers to the correct walker arrays
@@ -1905,6 +1909,7 @@ MODULE FciMCParMod
                 enddo
             ENDIF
 
+            WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial memory allocation sucessful..."
             CALL FLUSH(6)
 
@@ -1930,8 +1935,11 @@ MODULE FciMCParMod
                     CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
                 enddo
             ENDIF
+            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
 
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
+            WRITE(6,*) "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
             CALL FLUSH(6)
 
         ENDIF
