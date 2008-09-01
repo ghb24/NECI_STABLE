@@ -4,6 +4,18 @@
 !Excitation generators are now stored along with the particles (but in a separate array)
 !All variables refer to values per processor
 
+!!!!! TO DO !!!!
+! Package up variables into one array to communicated to avoid latency overheads
+! Explicity allow/disallow all the serial FCIMC options
+! Write out when culling
+! Test different hashes
+! Option for calculating non-essential information
+! Other optimisation (Annihilation - do we want to be allocating?)
+! Sort OUTPUT
+! Annihilation warning if TNoAnnihil
+! OUTPUT only noathf, not sum
+
+
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
@@ -58,7 +70,7 @@ MODULE FciMCParMod
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
 !MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=200
+    INTEGER :: MemoryFac=20
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3
@@ -83,6 +95,7 @@ MODULE FciMCParMod
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
     INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc,AllTotSign,AllTotSignOld
+    INTEGER :: AllAnnihilated
     REAL*8 :: AllSumNoatHF,AllSumENum,AllPosFrac
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
@@ -117,11 +130,11 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers        Proj.E      +veWalkFrac    SumNoatHF   MeanExcitLevel  MinExcit   MaxExcit"
-            WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers         Proj.E      +veWalkFrac    SumNoatHF   MeanExcitLevel  MinExcit   MaxExcit"
+            WRITE(6,*) "       Step     Shift    WalkerChange  GrowRate   TotWalkers       Annihilated    Proj.E      SumNoatHF        +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
+            WRITE(15,*) "#       Step     Shift    WalkerChange  GrowRate   TotWalkers      Annihilated    Proj.E      SumNoatHF        +veWalkFrac    MeanExcitLevel  MinExcit   MaxExcit"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllSumNoatHF,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,1.D0,AllSumNoatHF,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,1.D0,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
         ENDIF
         
 
@@ -505,15 +518,16 @@ MODULE FciMCParMod
 !Oops, we have calculated them cumulativly - undo this
         maxsendcounts=sendcounts(1)
         minsendcounts=sendcounts(1)     !Find max & min sendcounts, so that load-balancing can be checked
+!        WRITE(6,*) maxsendcounts,minsendcounts
         do i=2,nProcessors
             do j=1,i-1
                 sendcounts(i)=sendcounts(i)-sendcounts(j)
-                IF(sendcounts(i).gt.maxsendcounts) THEN
-                    maxsendcounts=sendcounts(i)
-                ELSEIF(sendcounts(i).lt.minsendcounts) THEN
-                    minsendcounts=sendcounts(i)
-                ENDIF
             enddo
+            IF(sendcounts(i).gt.maxsendcounts) THEN
+                maxsendcounts=sendcounts(i)
+            ELSEIF(sendcounts(i).lt.minsendcounts) THEN
+                minsendcounts=sendcounts(i)
+            ENDIF
         enddo
         
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -560,12 +574,12 @@ MODULE FciMCParMod
         ENDIF
 
 !Insert a load-balance check here...maybe find the s.d. of the sendcounts array - maybe just check the range first.
-        IF(TotWalkersNew.gt.5000) THEN
+!        IF(TotWalkersNew.gt.5000) THEN
             IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/2)) THEN
-                WRITE(6,*) "**WARNING** Parallel annihilation not optimally balanced on this node."
+                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
                 WRITE(6,*) "Sendcounts is: ",sendcounts(:)
             ENDIF
-        ENDIF
+!        ENDIF
         
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -1245,6 +1259,9 @@ MODULE FciMCParMod
             AllGrowRate=AllGrowRate/(real(AllSumWalkersCyc,r2))
         ENDIF
 
+!Find total Annihilated
+        CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
         MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,r2)))
@@ -1303,11 +1320,12 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllSumNoatHF,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,2G16.7,F13.2,G16.7,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,ProjectionE,AllPosFrac,AllSumNoatHF,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,2G16.7,F13.5,G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllSumNoatHF,AllPosFrac,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             CALL FLUSH(15)
 !            CALL FLUSH(6)
         ENDIF
+        CALL FLUSH(6)
 
 !Now need to reinitialise all variables on all processers
         MinExcitLevel=NEl+10
@@ -1315,6 +1333,7 @@ MODULE FciMCParMod
         MeanExcitLevel=0.D0
         SumWalkersCyc=0
         PosFrac=0.D0
+        Annihilated=0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
 
@@ -1327,6 +1346,7 @@ MODULE FciMCParMod
         AllMeanExcitLevel=0.D0
         AllPosFrac=0.D0
         AllSumWalkersCyc=0
+        AllAnnihilated=0
 
         RETURN
     END SUBROUTINE CalcNewShift
@@ -1963,8 +1983,13 @@ MODULE FciMCParMod
 
         CreateHash=0
         do i=1,NEl
-            CreateHash=(13*CreateHash)+DetCurr(i)
+            CreateHash=13*CreateHash+i*DetCurr(i)
+!            CreateHash=(1099511628211*CreateHash)!+i*DetCurr(i)
+            
+!            CreateHash=mod(1099511628211*CreateHash,2**64)
+!            CreateHash=XOR(CreateHash,DetCurr(i))
         enddo
+!        WRITE(6,*) CreateHash
         RETURN
 
     END FUNCTION CreateHash
