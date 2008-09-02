@@ -16,7 +16,7 @@ MODULE FciMCParMod
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -63,9 +63,6 @@ MODULE FciMCParMod
     INTEGER :: HFDetTag=0
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
-
-!MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=30
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3

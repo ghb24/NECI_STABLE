@@ -5,7 +5,7 @@ MODULE FciMCMod
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart
+    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFac
     USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -40,9 +40,6 @@ MODULE FciMCMod
     INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
     INTEGER :: HFDetTag=0
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
-
-!MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-    INTEGER :: MemoryFac=20
 
     INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,TotSign,TotSignOld,PreviousNMCyc,Iter,NoComps
     INTEGER :: exFlag=3

@@ -35,6 +35,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          MemoryFac=50
           TStartSinglePart=.false.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -677,6 +678,9 @@ MODULE Calc
             case("STARTSINGLEPART")
 !A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
                 TStartSinglePart=.true.
+            case("MEMORYFAC")
+!An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
+                CALL Geti(MemoryFac)
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
