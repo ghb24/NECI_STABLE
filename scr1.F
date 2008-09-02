@@ -5,6 +5,7 @@
       USE UMatCache, only : GTID
       use OneEInts, only: GetTMatEl
       use SystemData, only: BasisFN
+!      use global_utilities
       IMPLICIT NONE
       INTEGER NDET1(NEL),NDET2(NEL)
       TYPE(BasisFN) G1(*)
@@ -20,9 +21,10 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 
       INTEGER IQ,I,J,K,ID1,ID2
       TYPE(HElement) SUM2,SUM3
-      INTEGER,SAVE :: ISUB=0
       LOGICAL LCOUL,TEXCH
-!      call set_timer('      SCR1',ISUB) 
+!      type(timer), save :: proc_timer
+!      proc_timer%timer_name='      SCR1'
+!      call set_timer(proc_timer) 
 C.. NB in HF we need to include TMAT element
 
 
@@ -60,6 +62,6 @@ C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
       SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
       IF(TSIGN) SUM=-SUM
-!      call halt_timer(ISUB) 
+!      call halt_timer(proc_timer) 
       RETURN
       END

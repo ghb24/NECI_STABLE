@@ -6,7 +6,7 @@
       IMPLICIT REAL*8 (A-H,O-Z)
       TYPE(BASISFN) G1(NHG)
       INTEGER nBasisMax(5,*),ISS
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
       DIMENSION UMAT(*)
 C..Cube arrays
       COMPLEX*16 FCK(NMSH,NMSH,NMSH)
@@ -17,7 +17,8 @@ C..
 C..This first call calculates the inner integral 
 C..The call to SCOUL calculates the outer integral 
 C ==--------------------------------------------------------------------==
-      call set_timer('GEN_COUL  ',ISUB)
+      proc_timer%timer_name='GEN_COUL  '
+      call set_timer(proc_timer)
 C ==--------------------------------------------------------------------==
       OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
       II=0
@@ -55,7 +56,7 @@ C..Symmetries
       CLOSE(10)
       WRITE(6,*) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
 C ==--------------------------------------------------------------------==
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C ==--------------------------------------------------------------------==
       RETURN
       END

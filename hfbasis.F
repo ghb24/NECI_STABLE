@@ -126,11 +126,12 @@ C.. Generic spatial symmetry
          REAL*8 UMATT((((NBASIS/ISS)*(NBASIS/ISS-1))/2)**2)
          REAL*8 HFBASIS(NBASIS,NBASIS),SUM,OS,HFE(NBASIS)
          INTEGER I,J,K,L,A,B,C,D
-         integer,save :: ISUB=0
+         type(timer), save :: proc_timer
          INTEGER ID1,ID2,ID3,ID4,NHG,ISSM,BRR(NBASIS),NORBUSED
          LOGICAL LSPN
          NHG=NBASIS
-         call set_timer('CALCHFUMAT',ISUB)
+         proc_timer%timer_name='CALCHFUMAT'
+         call set_timer(proc_timer)
          WRITE(6,*) 'CALCULATING HF UMAT'
        STOP "HF UMAT calc broken through U/TMAT reindexing. Please fix"
 C ==--------------------------------------------------------------------==
@@ -220,7 +221,7 @@ C..Symmetries not needed by UMatInd
          ENDDO
          CLOSE(10)
          WRITE(6,*) ' !!! FINISHED CALCULATING HF UMAT !!! '
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
       SUBROUTINE READHFBASIS(HFBASIS,HFE,G1,NBASIS)

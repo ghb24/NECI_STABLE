@@ -104,12 +104,13 @@ MODULE MCStarMod
         TYPE(HElement) :: rh
         REAL*8 :: StarWeight,DLWDB
         INTEGER :: iExcit,i,j,k,nRoots
-        integer, save :: iSubFindStar=0
+        type(timer), save :: proc_timerFindStar
         CHARACTER(len=*), PARAMETER :: this_routine='FindStarExcits'
         INTEGER :: ierr,ExcitCount
         LOGICAL :: TCountExcits 
 
-        call set_timer('FindStarExcits',iSubFindStar)
+        proc_timerFindStar%timer_name='FindStarExcits'
+        call set_timer(proc_timerFindStar)
 
 !HFReNorm is equal to the increase in total probability when the propagation step is from the HF determinant
 !This is simply equal to the increase electron probability on each determinant, i.e. 1 (rhii/rhii) + sum_j (|rhij|/rhii)^x
@@ -178,7 +179,7 @@ MODULE MCStarMod
         WRITE(6,*) "Energy of Star Graph calculated to be: ", DLWDB/StarWeight
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in FindStarExcits'
-        call halt_timer(iSubFindStar)
+        call halt_timer(proc_timerFindStar)
 
     END SUBROUTINE FindStarExcits
 
@@ -451,14 +452,15 @@ MODULE MCStarMod
 !TStoch tells us whether to choose the determinants to apply H to locally should be picked stochastically, or just run through them all
         IMPLICIT NONE
         INTEGER :: Iterations,i,j,ierr,Apps,ChangeVectTag=0,TimesUpdatedTag=0
-        integer, save :: iSubProp=0
+        type(timer), save :: proc_timerProp
         REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
         CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
         TYPE(HElement) :: Delta,ProbAll
         TYPE(HElement) , ALLOCATABLE :: ChangeVect(:)
         INTEGER , ALLOCATABLE :: TimesUpdated(:)
         
-        call set_timer('PropLocalWaveVec',iSubProp)
+        proc_timerProp%timer_name='PropLocalWaveVec'
+        call set_timer(proc_timerProp)
         ALLOCATE(ChangeVect(0:NoExcits),Stat=ierr)
         CALL LogMemAlloc('ChangeVect',NoExcits+1,8*HElementSize,this_routine,ChangeVectTag)
         ALLOCATE(TimesUpdated(0:NoExcits),Stat=ierr)
@@ -559,7 +561,7 @@ MODULE MCStarMod
         DEALLOCATE(ChangeVect)
         CALL LogMemDealloc(this_routine,ChangeVectTag)
         
-        call halt_timer(iSubProp)
+        call halt_timer(proc_timerProp)
 
     END SUBROUTINE PropagateLocalWavevector
 
@@ -623,12 +625,13 @@ END MODULE MCStarMod
 !        use CalcData , only : Iters
 !        IMPLICIT NONE
 !        INTEGER :: Iterations,i,j
-!        INTEGER,SAVE :: iSubProp=0
+!        type(timer), save :: proc_timerProp
 !        REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
 !        CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
 !        TYPE(HElement) :: Delta,Norm,TestVect(0:NoExcits)
 !        
-!        call set_timer('PropLocalWaveVec',iSubProp)
+!        proc_timerProp%timer_name='PropLocalWaveVec'
+!        call set_timer(proc_timerProp)
 !        CALL AZZERO(TestVect,(NoExcits+1)*HElementSize)
 !        Delta=HElement(DeltaH)
 !        Prob=1.D0/(NoExcits+1)
@@ -792,6 +795,6 @@ END MODULE MCStarMod
 !
 !        enddo
 !        
-!        call halt_timer(iSubProp)
+!        call halt_timer(proc_timerProp)
 !
 !    END SUBROUTINE PropagateLocalWavevector

@@ -187,8 +187,9 @@ C.. RH = output RH_IJ
       INTEGER LAB(*)
       INTEGER NROW(NDET)
       INTEGER IRI,IRJ,INI,INJ,P
-      integer, save :: isub=0
-      call set_timer('CALCRHO   ',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='CALCRHO   '
+      call set_timer(proc_timer)
       B=BETA/P
       RH=0
 C.. Deal with the delta_IJ
@@ -202,7 +203,7 @@ C.. Now the 2nd order term
 C.. And now the 3rd order term
       IF(NTAY.GE.3)
      &   RH=RH-B*B*B*RHO3ORDER(I,J,HAMIL,LAB,NROW,NDET)/6
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END
 
@@ -337,8 +338,9 @@ C.. calculate approx RHOIJ, and store
       INTEGER RHOIJLAB(*)
       INTEGER RHOIJROWS(NDET+1)
       LOGICAL TTROT
-      integer, save :: isub=0
-      call set_timer('CSARHOIJ  ',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='CSARHOIJ  '
+      call set_timer(proc_timer)
 
       NMAX=RHOIJROWS(NDET+1)-1
       I=1
@@ -354,7 +356,7 @@ C.. calculate approx RHOIJ, and store
          ENDIF
          RHOIJ(N)=RH
       ENDDO
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END
 
@@ -370,8 +372,9 @@ C.. calculate exact RHOIJ, and store
       INTEGER RHOIJROWS(NDET+1)
       DIMENSION CK(NDET,NEVAL)
       DIMENSION W(NEVAL)
-      integer, save :: isub=0
-      call set_timer('CSERHOIJ  ',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='CSERHOIJ  '
+      call set_timer(proc_timer)
 
       NMAX=RHOIJROWS(NDET+1)-1
       I=1
@@ -384,7 +387,7 @@ C.. calculate exact RHOIJ, and store
          ENDDO
          RHOIJ(N)=RH
       ENDDO
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END
 
@@ -398,10 +401,11 @@ C.. just specified.  Now RHOEPSILON=RHOEPS*RHIIMAX
          IMPLICIT REAL*8 (A-H,O-Z)
          DIMENSION CK(NDET,NEVAL)
          DIMENSION W(NEVAL)
-         integer, save :: isub2=0
+         type(timer), save :: proc_timer2
                                                                        
 C.. Calculate rho_IJ for I<=J, and put in bins
-         call set_timer('RHOS      ',ISUB2)
+         proc_timer2%timer_name='RHOS      '
+         call set_timer(proc_timer2)
          RHOMAX=tiny(1.d0)
          RHOMIN=huge(1.d0)
          OPEN(10,FILE='RHOS',STATUS='UNKNOWN')
@@ -429,7 +433,7 @@ C.. Calculate rho_IJ for I<=J, and put in bins
                                                                       
          WRITE(6,*) "Number of RHOs calculated:",NDET*NDET
          WRITE(6,*) "Number of non-zero RHO:",NRHOS
-         call halt_timer(ISUB2)
+         call halt_timer(proc_timer2)
          RETURN
       END
                                                                       
@@ -438,8 +442,10 @@ C.. Calculate rho_IJ for I<=J, and put in bins
                                                         
          use global_utilities
          LOGICAL TTROT          
+         type(timer), save :: proc_timer2
 C.. Calculate rho_IJ for I<=J, and put in bins
-         call set_timer('RHOS      ',ISUB2)
+         proc_timer2%timer_name='RHOS      '
+         call set_timer(proc_timer2)
                                                                      
 C.. First work out RHOEPSILON:
          RHOEPSILON=RHOEPS
@@ -469,7 +475,7 @@ C.. First work out RHOEPSILON:
          CLOSE(10)
          WRITE(6,*) "Number of RHOs calculated:",NDET*NDET
          WRITE(6,*) "Number of non-zero RHO:",NRHOS
-         call halt_timer(ISUB2)
+         call halt_timer(proc_timer2)
          RETURN
       END
                                                                       
@@ -516,8 +522,9 @@ C.. see if we need to move to a new row.
       INTEGER LAB(*)
       INTEGER NROW(NDET)
       INTEGER IRI,IRJ,INI,INJ,P
-      integer, save :: isub=0
-      call set_timer('CALCRHOTRO',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='CALCRHOTRO'
+      call set_timer(proc_timer)
 
       B=BETA/P
       UEXP=0
@@ -539,7 +546,7 @@ C.. And now the 3rd order term
       RH=EXP(-B*( GETHELEMENT(I,I,HAMIL,LAB,NROW,NDET)+
      &            GETHELEMENT(J,J,HAMIL,LAB,NROW,NDET))/2)
      &   *UEXP
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END
 

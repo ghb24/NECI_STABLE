@@ -12,10 +12,11 @@
          REAL*8 W(NDET)
          INTEGER I,J,IND,INDZ,INFO,LDA,NBS
          INTEGER NBLOCKS,NBLOCKSTARTS(NBLOCKS)
-         integer,save :: ISUB=0
+         type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
          REAL*8 GSEN
-         call set_timer('HDIAG     ',ISUB)
+         proc_timer%timer_name='HDIAG     '
+         call set_timer(proc_timer)
          GSEN=1.D100
          DO I=1,NDET
             DO J=1,NDET
@@ -70,7 +71,7 @@ C.. Diagonalize
 
 C.. CK now contains the eigenvectors, and W the eigenvalues
          WRITE(6,"(A,F19.11,I4)") "GROUND E=",GSEN
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 
@@ -247,9 +248,10 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          POINTER (IP_CK,CK),(IP_W,W),(IP_WORK,WORK)
          REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
          INTEGER GELOWEST,IDEG
-         integer,save :: ISUB=0
+         type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
-         call set_timer('HDIAG_NH  ',ISUB)
+         proc_timer%timer_name='HDIAG_NH  '
+         call set_timer(proc_timer)
 C.. Find the largest block
          NBLKMAX=0
          DO I=1,NBLOCKS
@@ -357,6 +359,6 @@ C        WRITE(6,*) "NORM: ",DNORM
          CALL FREEM(IP_WORK)
          CALL FREEM(IP_CK)
          CALL FREEM(IP_W)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END 

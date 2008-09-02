@@ -19,7 +19,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
       REAL*8 BETA,ECORE
       LOGICAL LSAME      
       INTEGER NMSH,I,BRR(NBASIS),J,IGETEXCITLEVEL
-      integer, save :: isub=0
+      type(timer), save :: proc_timer
       TYPE(BasisFN) G1(*)
       COMPLEX*16 FCK(*)
       REAL*8 ALAT(3)  
@@ -39,7 +39,8 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
           CALL CALCRHOEXND(NI,NJ,NEL,BETA,NMSH,FCK,UMAT,ALAT,NBASIS,I_P,ECORE,RH)
          RETURN
       ENDIF
-      call set_timer('CALCRHO2  ',ISUB)
+      proc_timer%timer_name='CALCRHO2  '
+      call set_timer(proc_timer)
       IC=IC2
       B=BETA/I_P
       UEXP=0.D0
@@ -150,7 +151,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
 !      CALL WRITEDET(6,NI,NEL,.FALSE.)
 !      CALL WRITEDET(6,NJ,NEL,.FALSE.)
 !      WRITE(6,*) RH
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
      END
 !.. RHO2ORDERND2(I,J,HAMIL,LAB,NROW,NDET

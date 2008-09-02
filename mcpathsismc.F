@@ -26,8 +26,8 @@ C.. NMAX has ARR hidden in it.
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL),I_P,I_HMAX,NMSH,NMAX,NTAY,NWHTAY
          INTEGER ILOGGING,I,J,K,I_VMIN
-         integer, save :: isub=0
-         integer, save :: isub2=0
+         type(timer), save :: proc_timer
+         type(timer), save :: proc_timer2
          CHARACTER*20 STR,STR2
          TYPE(HDElement) TOTAL,RHOII(0:I_VMAX)
          TYPE(HElement) RHOIJ(0:I_VMAX,0:I_VMAX),RH
@@ -80,7 +80,8 @@ C.. do some blocking analysis
          INTEGER*8 LP
          OTIME=etime(tarr)
          TST=0
-         call set_timer('MCPATHSR4 ',ISUB)
+         proc_timer%timer_name='MCPATHSR4 '
+         call set_timer(proc_timer)
          TLOG=BTEST(ILOGGING,1)
          TBLOCKING=BTEST(ILOGGING,13)
          IF(TLOG.AND.I_VMIN.EQ.0) THEN
@@ -196,7 +197,8 @@ C.. Count the excitations (and generate a random one which we throw)
          DO I_V=I_VM1,I_VM2
             CUR_VERT=I_V
             WRITE(STR,"(A,I4)") "FMCPR_",I_VMIN
-            call set_timer(STR,ISUB2)
+            proc_timer2%timer_name=STR
+            call set_timer(proc_timer2)
             L=0
             LT=0
             BTABLE(0)=0
@@ -571,16 +573,16 @@ C.. FF for ETILDE, ODLWDB for OETILDE,
                   ENDIF
                ENDDO   ! end loop over mc cycles  nwhtay
             ENDIF
-            call halt_timer(ISUB2)
+            call halt_timer(proc_timer2)
 !            F(I_V)=F(I_V)/NWHTAY
 !            FSQ(I_V)=FSQ(I_V)/NWHTAY
 !            DLWDB=DLWDB+DLWDB3/NWHTAY
 !            STD=SQRT(ABS(DREAL(FSQ(I_V)-F(I_V)*F(I_V))))
 !            TOTAL=TOTAL+F(I_V)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
 !            IF(TLOG)
 !     &         WRITE(11,"(I12,2G25.16,G19.7,I12,2G19.7)") I_V,F(I_V),
-!     &            TOTAL,get_total_time(ISUB2),L,STD,DLWDB3/NWHTAY
+!     &            TOTAL,get_total_time(proc_timer2),L,STD,DLWDB3/NWHTAY
 C ,F(I_V),FSQ(I_V)
             NTIME=etime(tarr)
             IF(TLOG.AND.(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12)) THEN
@@ -689,7 +691,7 @@ C.. setup spin excitation generator
             DLWDB=DLWDB
             WLSI=TOTAL-WCORE
          ENDIF
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          CALL Delete(MCSt)
          RETURN
       END

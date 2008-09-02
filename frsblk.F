@@ -75,13 +75,14 @@ C ====================================================================
       DIMENSION T(3*NBLOCK*NKRY*NBLOCK*NKRY),WT(NBLOCK*NKRY)
       DIMENSION SCR(LSCR),ISCR(LISCR)
       DIMENSION INDEX(N),NROW(M),LAB(M,ICMAX) 
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
       real*4 t1,t2,t3,etime,tarr(2)
 C..temp
       DIMENSION H(*)
 C..temp
 C ==-----------------------------------------------------------------==
-      call set_timer('    FRSBLK',ISUB)
+      proc_timer%timer_name='    FRSBLK'
+      call set_timer(proc_timer)
       NK=NBLOCK*NKRY
 C..scratch space for divide-and-conquer banded matrix routine
 C      K=INT(LOG(DFLOAT(NK)))+1
@@ -212,7 +213,7 @@ C.. End of Lanczos diagonalisation
           WRITE(6,'(//5X,''TIME FOR LANCZOS DIAGONALISATION'',F10.2)')
      &     T3/1000.D0
       ENDIF
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C     ================================================================  
       RETURN
       END 
@@ -222,12 +223,13 @@ C     ==--------------------------------------------------------------==
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION A(LDA,*),R(LDR,*)
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
 C     ==================================================================
-      call set_timer('       MGS:',ISUB)
+      proc_timer%timer_name='       MGS:'
+      call set_timer(proc_timer)
       CALL RGS(M,N,A,M,R,N,I,1)
       CALL DTRTRI('U','N',N,R,N,INFO)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN 
       END 
 C =======================================================================
@@ -348,9 +350,10 @@ C     ==================================================================
       DIMENSION T(LDT,*),WT(LDWT),H(*),W(N),SCR(LSCR),ISCR(LISCR)
       DIMENSION LAB(M,*),NROW(M)
       LOGICAL :: TLargest
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
 C     ==================================================================
-      call set_timer('    KRYREF',ISUB)
+      proc_timer%timer_name='    KRYREF'
+      call set_timer(proc_timer)
       DO I=3,NKRY
 C..V_I = V_I - V_(I-1) A_(I-1) 
         CALL RSDBLK('N',M,N,V(1,1,I-1),AM(1,1,I-1),V(1,1,I))
@@ -407,7 +410,7 @@ C..full diag.
       ENDIF
 C..
 C ===================================================================
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END
 C ==================================================================
@@ -423,9 +426,10 @@ C ==------------------------------------------------------------------==
      &     AM(N,N,NKRY+1),BM(N,N,NKRY),SCR(LSCR),W(N),H(*)
       DIMENSION LAB(M,*),NROW(M)
       LOGICAL :: TLargest
-      INTEGER,SAVE :: ISEUB=0
+      type(timer), save :: proc_timer
 C ==------------------------------------------------------------------==
-      call set_timer('    PRPKRV',ISEUB)
+      proc_timer%timer_name='    PRPKRV'
+      call set_timer(proc_timer)
 C ==------------------------------------------------------------------==
       CALL DCOPY(M*N,V0,1,V(1,1,1),1)
       CALL DCOPY(M*N,VS,1,V(1,1,2),1)
@@ -452,7 +456,7 @@ C..V_3=V_3-V_1 B_2^T
 C..Ovlap 
       CALL OVLAP(M,N,AM(1,1,2),V(1,1,2),V(1,1,3))
 C ==------------------------------------------------------------------==
-      call halt_timer(ISEUB)
+      call halt_timer(proc_timer)
       RETURN
       END
 C     ==================================================================
@@ -465,9 +469,10 @@ C     Arguments
       REAL*8     C0(M,*),CP(M,*)
       REAL*8     SMAT(NP,*)             !MAX(N0,NP)
 C     Variables
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
-      call set_timer('MY_GSORTHO',ISUB)
+      proc_timer%timer_name='MY_GSORTHO'
+      call set_timer(proc_timer)
       IF(NP.LT.1) RETURN
       IF(N0.GT.0) THEN
 C..SMAT=CP.C0 
@@ -477,7 +482,7 @@ C..CP -> CP-C0*SMAT
      *             1.D0,CP,M)
       ENDIF
       CALL MGS(M,NP,CP,M,SMAT,NP)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END
@@ -507,10 +512,11 @@ C =======================================================================
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION H(M,M),V0(M,N),VS(M,N)
-      INTEGER,SAVE :: ISUB=0
-      call set_timer('      HPSI',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='      HPSI'
+      call set_timer(proc_timer)
       CALL DGEMM('N','N',M,N,M,1.D0,H,M,V0,M,0.D0,VS,M)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END 
 C =======================================================================
@@ -518,10 +524,11 @@ C =======================================================================
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION A(N,N),V0(M,N),VS(M,N)
-      INTEGER,SAVE :: ISUB=0
-      call set_timer('     OVLAP',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='     OVLAP'
+      call set_timer(proc_timer)
       CALL DGEMM('T','N',N,N,M,1.D0,V0,M,VS,M,0.D0,A,N)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END 
 C =======================================================================
@@ -530,9 +537,10 @@ C =======================================================================
       IMPLICIT REAL*8(A-H,O-Z)
       CHARACTER*1 CHAR 
       DIMENSION A(N,N),V1(M,N),V2(M,N)
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
 C..V_I = V_I - V_(I-1) A_(I-1)
-      call set_timer('    RSDBLK',ISUB)
+      proc_timer%timer_name='    RSDBLK'
+      call set_timer(proc_timer)
       IF(CHAR.EQ.'N') THEN 
         CALL DGEMM('N','N',M,N,N,-1.D0,V1,M,A,N,1.D0,V2,M)
       ELSEIF(CHAR.EQ.'T') THEN 
@@ -540,7 +548,7 @@ C..V_I = V_I - V_(I-1) A_(I-1)
       ELSE
         STOP ' CHAR ILLEGAL IN RSDBLK ' 
       ENDIF
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN
       END
 C =======================================================================
@@ -548,11 +556,12 @@ C =======================================================================
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION A(N,N),V0(M,N),SCR(LSCR)
-      INTEGER,SAVE :: ISUB=0
-      call set_timer('    ROTATE',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='    ROTATE'
+      call set_timer(proc_timer)
       CALL DGEMM('N','N',M,N,N,1.D0,V0,M,A,N,0.D0,SCR,M)
       CALL DCOPY(M*N,SCR,1,V0,1)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN 
       END 
 
@@ -570,8 +579,9 @@ C ==------------------------------------------------------------------==
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION T(M,M,*),WT(*),SCR(LSCR),ISCR(LISCR),IFAIL(*)
-      INTEGER,SAVE :: ISUB=0
-      call set_timer('    JACOBI',ISUB)
+      type(timer), save :: proc_timer
+      proc_timer%timer_name='    JACOBI'
+      call set_timer(proc_timer)
       IF(M.EQ.N) THEN 
         CALL DSYEV('V','U',N,T,N,WT,SCR,LSCR,INFO)
       ELSE
@@ -583,7 +593,7 @@ C ==------------------------------------------------------------------==
         CALL DCOPY(M*N,T(1,1,2),1,T(1,1,1),1)
       ENDIF
       CALL REORDER(M,N,WT,T)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN 
       END 
 C     ==================================================================
@@ -593,10 +603,11 @@ C Returns the n largest eigenvalues of MxM symtric banded matrix T    ==
 C ==------------------------------------------------------------------==
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
       DIMENSION T(IN,IN,*),WT(IN),SCR(LSCR),ISCR(LISCR),IFAIL(*)
 C     ==================================================================
-      call set_timer('     BANDM',ISUB)
+      proc_timer%timer_name='     BANDM'
+      call set_timer(proc_timer)
 C..Put T is form suitable for banded matrix diagonalisation 
       CALL PUTTAB(IN,N,T,SCR,LSCR)
       IF(LSCR.LT.7*IN) THEN
@@ -617,7 +628,7 @@ C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
       ENDIF
       CALL DCOPY(IN*IN,T(1,1,3),1,T(1,1,1),1)
       CALL REORDER(IN,N,WT,T)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN 
       END
 C =====================================================================
@@ -625,9 +636,10 @@ C =====================================================================
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION V(M,NP),V0(M,*),SMAT(N0,*),W(*) 
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
       IF(N0.EQ.0) RETURN
-      call set_timer('    PRJCNV',ISUB)
+      proc_timer%timer_name='    PRJCNV'
+      call set_timer(proc_timer)
 C..SMAT=V0^T.V 
       CALL DGEMM('T','N',N0,NP,M,1.D0,V0,M,V,M,0.D0,SMAT,N0)
 Cdeb      DO J=1,N0
@@ -635,7 +647,7 @@ Cdeb        CALL DSCAL(NP,W(J),SMAT(J,1),N0)
 Cdeb      ENDDO
 C..   V -> V-V0*SMAT
       CALL DGEMM('N','N',M,NP,N0,-1.D0,V0,M,SMAT,N0,1.D0,V,M)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
       RETURN 
       END 
 C     =================================================================
@@ -650,15 +662,16 @@ C     Arguments
       REAL*8     SMAT(N,N)
       REAL*8     CP(LDCP,N)
 C     VARIABLES
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
       IF(N.LE.0) RETURN
-      call set_timer('       RGS',ISUB)
+      proc_timer%timer_name='       RGS'
+      call set_timer(proc_timer)
       CALL AZZERO(SMAT,N*N)
       CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
       CALL UINV('U',SMAT,N,N,LSCR,1)
       CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END

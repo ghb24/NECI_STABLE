@@ -214,7 +214,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          INTEGER NHG,NTFROZEN
          TYPE(HElement) CPMD1EINT(NSTATES,NSTATES)
          INTEGER I,J,K,NSTATESUSED,NORBUSED,II,JJ
-         integer, save :: isub=0
+         type(timer), save :: proc_timer
          REAL*8 F,ALAT(3)  !ALAT just dummy for GetUMatEl.
          TYPE(HElement) U,TOT,sum1
          INTEGER ISS,NBASISMAX(*)
@@ -237,7 +237,8 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          complex*16,allocatable :: work(:)
          integer :: tagHarInt=0
          character(*), parameter :: this_routine='CPMDINIT2INDINT'
-         call set_timer('CPMDINIT2I',ISUB)
+         proc_timer%timer_name='CPMDINIT2I'
+         call set_timer(proc_timer)
 
          ECORE=EIONION
          WRITE(6,*) "Core Energy:", ECORE 
@@ -386,5 +387,5 @@ C.. Set the UMAT cache to cache normally again
             deallocate(PIInt)
             call LogMemDealloc(this_routine,tagPIInt)
          endif
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
       END   

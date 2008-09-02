@@ -8,6 +8,7 @@ C..that are NOT common to both.
       use Integrals, Only : GetUMatEl
       USE UMatCache , Only : GTID
       use SystemData, only: BasisFN
+!      use global_utilities
       IMPLICIT NONE
       INTEGER NDET1(NEL)
       INTEGER NDET2(NEL)
@@ -24,8 +25,9 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       LOGICAL TSIGN,TEXCH
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
 
-      INTEGER,SAVE :: ISUB=0
-!      call set_timer('      SCR2',ISUB)
+!      type(timer), save :: proc_timer
+!      proc_timer%timer_name='      SCR2'
+!      call set_timer(proc_timer)
       EX(1,1)=2
       CALL GETEXCITATION(NDET1,NDET2,NEL,EX,TSIGN)
       CALL GTID(NBASISMAX,EX(1,1),ID1)
@@ -51,7 +53,7 @@ C..
 C     &      COULDAMP(ND1(1),NHG)*COULDAMP(ND1(2),NHG)*
 C     &      COULDAMP(ND2(1),NHG)*COULDAMP(ND2(2),NHG)
 
-!      call halt_timer(ISUB)
+!      call halt_timer(proc_timer)
       RETURN
       END 
 C ==----------------------------------------------------------------==
@@ -67,6 +69,7 @@ C..that are NOT common to both.
       use Integrals, Only : GetUMatEl
       USE UMatCache , Only : GTID
       use SystemData, only: BasisFN
+!      use global_utilities
       IMPLICIT NONE
       INTEGER nJ(7)
       TYPE(BasisFN) G1(*)
@@ -79,8 +82,9 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
       LOGICAL TSIGN,TEXCH
       INTEGER I,IQ,J,K,ID1,ID2,ID3,ID4
 
-      INTEGER,SAVE :: ISUB=0
-!      call set_timer('      SCR2',ISUB)
+!      type(timer), save :: proc_timer
+!      proc_timer%timer_name='      SCR2'
+!      call set_timer(proc_timer)
       EX(1,1)=nJ(4)
       EX(1,2)=nJ(5)
       EX(2,1)=nJ(6)
@@ -111,6 +115,6 @@ C..
 C     &      COULDAMP(ND1(1),NHG)*COULDAMP(ND1(2),NHG)*
 C     &      COULDAMP(ND2(1),NHG)*COULDAMP(ND2(2),NHG)
 
-!      call halt_timer(ISUB)
+!      call halt_timer(proc_timer)
       RETURN
       END 

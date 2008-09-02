@@ -638,7 +638,7 @@ END MODULE DetCalc
          include 'irat.inc'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
          INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING
-         integer, save :: isub=0
+         type(timer), save :: proc_timer
          TYPE(HElement) UMat(*)
          TYPE(HDElement) DLWDB, DLWDB2, DLWDB3, DLWDB4
          TYPE(BasisFN) g1(*),ALAT(*)
@@ -662,7 +662,8 @@ END MODULE DetCalc
          DLWDB2=0.D0
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
-         call set_timer('CLCRHOPII2',ISUB)
+         proc_timer%timer_name='CLCRHOPII2'
+         call set_timer(proc_timer)
          ILMAX=NDET
 !.. we don't need lists for I_HMAX=8
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
@@ -768,7 +769,7 @@ END MODULE DetCalc
          CALL FREEM(IP_RIJLIST)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_ICE)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END    
 

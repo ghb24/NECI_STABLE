@@ -20,7 +20,7 @@ C..Cube arrays
       INTEGER II,ISPINSKIP
       REAL*8 SUMS(3),SUM
       INTEGER I,J,K,L,ID1,ID2,ID3,ID4
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
@@ -28,7 +28,8 @@ C..
 C..This first call calculates the inner integral 
 C..The call to SCOUL calculates the outer integral 
 C ==--------------------------------------------------------------------==
-      call set_timer('GENCOULUEG',ISUB)
+      proc_timer%timer_name='GENCOULUEG'
+      call set_timer(proc_timer)
 C ==--------------------------------------------------------------------==
       OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
       II=0
@@ -82,7 +83,7 @@ C.. the UEG, but we don't want this for the hubbard model
       ENDIF
       WRITE(6,*) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
 C ==--------------------------------------------------------------------==
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C ==--------------------------------------------------------------------==
       RETURN
       END
@@ -107,7 +108,7 @@ C..Cube arrays
       REAL*8 LX,LY,P,Q,R,T2
       REAL*8 ALAT(3)
       COMPLEX*16 S,CI
-      INTEGER,SAVE :: ISUB=0
+      type(timer), save :: proc_timer
       INCLUDE 'cons.inc'
 C..This routine generates *ALL* possible combinations of Coulomb integrals
 C..stored in the form (u1 u2 | U | u1' u2') = UMAT(n1 n2 n3 n4)
@@ -115,7 +116,8 @@ C..
 C..This first call calculates the inner integral 
 C..The call to SCOUL calculates the outer integral 
 C ==--------------------------------------------------------------------==
-      call set_timer('GENCOULUEG',ISUB)
+      proc_timer%timer_name='GENCOULUEG'
+      call set_timer(proc_timer)
 C ==--------------------------------------------------------------------==
       OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
       II=0
@@ -234,7 +236,7 @@ C.. the UEG, but we don't want this for the hubbard model
       ENDIF
       WRITE(6,*) ' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
 C ==--------------------------------------------------------------------==
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C ==--------------------------------------------------------------------==
       RETURN
       END

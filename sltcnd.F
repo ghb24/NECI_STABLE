@@ -4,6 +4,7 @@
      &	NMAX,ALAT,UMat,SUM)
       USE HElem
       use SystemData , only : FCOUL,TEXCH
+!      use global_utilities
       IMPLICIT NONE
 C..
 C.. 
@@ -25,8 +26,9 @@ C..Cube Arrays
       INTEGER IC,NMAX
       INTEGER IFLAG,IPTOT
       REAL*8 COULCOUPLE
-      INTEGER,SAVE :: ISUB=0
-!      call set_timer('SLTCND    ',ISUB)
+!      type(timer), save :: proc_timer
+!      proc_timer%timer_name='SLTCND    '
+!      call set_timer(proc_timer)
       ISPINSKIP=NBASISMAX(2,3)
 C..
 C..Routine to read in UMAT
@@ -69,7 +71,7 @@ C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
         RETURN
       ENDIF
 !      SUM=SUM*DFLOAT(IPTOT)
-!      call halt_timer(ISUB)
+!      call halt_timer(proc_timer)
       RETURN
       END
 

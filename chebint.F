@@ -1,3 +1,7 @@
+! JSS 02 Sept 08:
+! This file has not been touch since the initial import into svn in 2006.  It is not currently used anywhere.
+! I don't know where it came from.  Candidate for removal?
+
 C.. Chebyshev Integration using code from Chris Nex
 C.. 
 
@@ -39,6 +43,7 @@ c      WRITE(6,*) ' ESM,MM,E ' , ESM,MM,E
       M=2*M
       RM=2.0*RM
       GOTO (4,6),IC
+
 4     IC=2
       GOTO 2
 6     IF(E-ERR)8,8,7

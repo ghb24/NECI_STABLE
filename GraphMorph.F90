@@ -319,10 +319,11 @@ MODULE GraphMorph
         INTEGER :: iExcit,excitcount,i,j,k,IC,ICRoot,Numberadded
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructExcitsInitGraph'
         INTEGER :: ierr,Root,RootDet(NEl),iGetExcitLevel,NoNotAtt_Same,NoNotAtt_NoConn
-        integer, save :: iSubInitExcit=0
+        type(timer), save :: proc_timerInitExcit
         LOGICAL :: SameDet,Connection
 
-        call set_timer('InitExcitGraph',iSubInitExcit)
+        proc_timerInitExcit%timer_name='InitExcitGraph'
+        call set_timer(proc_timerInitExcit)
 
 !Allow single and double excitations
         exFlag=3
@@ -560,7 +561,7 @@ MODULE GraphMorph
         MeanExcit=MeanExcit/(NDets-1)
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructExcitsInitGraph'
-        call halt_timer(iSubInitExcit)
+        call halt_timer(proc_timerInitExcit)
 
     END SUBROUTINE ConstructExcitsInitGraph
 
@@ -573,14 +574,15 @@ MODULE GraphMorph
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: ierr,nStore(6),exFlag,nExcitMemLen,iMaxExcit,nJ(NEl)
-        integer,save :: iSubInitStar=0
+        type(timer), save :: proc_timerInitStar
         INTEGER , ALLOCATABLE :: nExcit(:)
         INTEGER :: nExcitTag=0
         TYPE(HElement) :: rh
         INTEGER :: iExcit,excitcount,i,j
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialStarGraph'
         
-        call set_timer('InitStarGraph',iSubInitStar)
+        proc_timerInitStar%timer_name='InitStarGraph'
+        call set_timer(proc_timerInitStar)
         
         CALL IAZZERO(nStore,6)
 !Having exFlag=2 means that only double excitations are generated
@@ -716,7 +718,7 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,nExcitTag)
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialStarGraph'
-        call halt_timer(iSubInitStar)
+        call halt_timer(proc_timerInitStar)
 
     END SUBROUTINE ConstructInitialStarGraph
 
@@ -729,7 +731,7 @@ MODULE GraphMorph
         LOGICAL :: Attached,connected
         INTEGER :: ierr,nStore(6),nExcitMemLen,iMaxExcit,nJ(NEl),nExcitTag,iExcit
         INTEGER :: iPathTag,XijTag,RhoiiTag,RhoijTag,HijsTag,i,j,diff,k
-        integer,save :: iSubInit
+        type(timer), save :: proc_timerInit
         INTEGER :: iGetExcitLevel,IC,MatFlag
         INTEGER , ALLOCATABLE :: iPath(:,:)
         REAL*8 , ALLOCATABLE :: Xij(:,:)
@@ -745,7 +747,8 @@ MODULE GraphMorph
         REAL*8 :: PGen,OldImport
         CHARACTER(len=*), PARAMETER :: this_routine='ConstructInitialGraph'
         
-        call set_timer('ConsInitGraph',iSubInit)
+        proc_timerInit%timer_name='ConsInitGraph'
+        call set_timer(proc_timerInit)
 
         IF(THDiag) THEN
             MatFlag=-19
@@ -1016,7 +1019,7 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,nExcitTag)
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in ConstructInitialGraph'
-        call halt_timer(iSubInit)
+        call halt_timer(proc_timerInit)
 
     END SUBROUTINE ConstructInitialGraph
 
@@ -1031,7 +1034,7 @@ MODULE GraphMorph
         USE Determinants , only : GetHElement2
         IMPLICIT NONE
         INTEGER :: i,j,k,l,Success,Failure,iGetExcitLevel,IC,Excitation,IC1,IC2
-        integer, save :: iSubMove=0 
+        type(timer), save :: proc_timerMove 
         INTEGER , ALLOCATABLE :: MoveDetsFromPaths(:,:)
         INTEGER :: MoveDetsFromPathsTag=0
         INTEGER :: AttemptDet(NEl),IndexofDetsFrom(NoMoveDets),ierr,Tries,NoVerts
@@ -1040,7 +1043,8 @@ MODULE GraphMorph
         REAL*8 :: r,Ran2
         CHARACTER(len=*), PARAMETER :: this_routine='MoveDets'
 
-        call set_timer('MoveDets',iSubMove)
+        proc_timerMove%timer_name='MoveDets'
+        call set_timer(proc_timerMove)
 
 !Allocate space for the determinants to be moved, and to move to
         ALLOCATE(MoveDetsFromPaths(NoMoveDets,NEl),stat=ierr)
@@ -1338,7 +1342,7 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,ExcitsDetsTag)
         
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in MoveDetsGraph'
-        call halt_timer(iSubMove)
+        call halt_timer(proc_timerMove)
 
     END SUBROUTINE MoveDetsGraph
 
@@ -1703,9 +1707,10 @@ MODULE GraphMorph
         TYPE(HElement) :: Norm1,Norm2
         REAL*8 :: RootofNum
         INTEGER :: i
-        integer, save :: iSubNorm=0 
+        type(timer), save :: proc_timerNorm 
         
-        call set_timer('NormVecSep',iSubNorm)
+        proc_timerNorm%timer_name='NormVecSep'
+        call set_timer(proc_timerNorm)
         
 !Setup a normalised Inverse vector of determinants in the graph, so they can be chosen stochastically
 !Since we no longer need the largest eigenvector, we can multiply its elements by its eigenvalue, then
@@ -1747,7 +1752,7 @@ MODULE GraphMorph
 
         PStay=NoMoveDets/NDets
 
-        call halt_timer(iSubNorm)
+        call halt_timer(proc_timerNorm)
 
     END SUBROUTINE NormaliseVectorSep
 
@@ -1909,14 +1914,15 @@ MODULE GraphMorph
         IMPLICIT NONE
         TYPE(HElement) :: rh
         REAL*8 :: Prob
-        INTEGER , SAVE :: iSubConns=0
+        type(timer), save :: proc_timerConns
         INTEGER :: attempts,NoExcitsCurr,Noatt
         INTEGER :: ierr,i,j,DetCurr(NEl),nJ(NEl),nStore(6),iMaxExcit,nExcitMemLen
         INTEGER :: nExcitTag,iExcit,ExcitCurr,dist,iGetExcitLevel,IC,exFlag
         INTEGER , ALLOCATABLE :: nExcit(:)
         CHARACTER(len=*), PARAMETER :: this_routine='FindConnections'
 
-        call set_timer('FindConns',iSubConns)
+        proc_timerConns%timer_name='FindConns'
+        call set_timer(proc_timerConns)
         
         IF(TSinglesExcitSpace) THEN
 !Only single excitations of the determinants in the graph are created
@@ -2083,7 +2089,7 @@ MODULE GraphMorph
         IF(ExcitCurr.ne.TotExcits) STOP 'Incorrect counting in FondConnections'
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in FindConnections'
-        call halt_timer(iSubConns)
+        call halt_timer(proc_timerConns)
 
     END SUBROUTINE FindConnections
 
@@ -2187,12 +2193,13 @@ MODULE GraphMorph
         INTEGER :: AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag
         INTEGER :: Work2Tag,V2Tag,WTag,CKTag,CKNTag
         INTEGER :: ierr,LenMat,i,j,ICMax,RowElems
-        integer, save :: iSubLanc=0 
+        type(timer), save :: proc_timerLanc 
         REAL*8 :: SumVec,LancVar
         INTEGER :: NCycle,NBlock,NKry1,LScr,LIScr
         LOGICAL :: TSeeded
 
-        call set_timer('DiagGraphLanc',iSubLanc)
+        proc_timerLanc%timer_name='DiagGraphLanc'
+        call set_timer(proc_timerLanc)
         
 !Zero memory tags
         LabTag=0
@@ -2512,7 +2519,7 @@ MODULE GraphMorph
 !        WRITE(6,*) LabTag,ATag,MatTag,NRowTag,VTag,WTTag,AMTag,BMTag,TTag,SCRTag,ISCRTag,IndexTag,WHTag,Work2Tag,V2Tag,WTag,CKTag,CKNTag
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphLanc'
-        call halt_timer(iSubLanc)
+        call halt_timer(proc_timerLanc)
 
     END SUBROUTINE DiagGraphLanc
 
@@ -2586,13 +2593,14 @@ MODULE GraphMorph
 !This is a routine to find the energy of the graph by diagonalisation, and return as well its eigenvalues and largest eigenvector. Deallocate the RhoMatrix when done.
     SUBROUTINE DiagGraphMorph()
         IMPLICIT NONE
-        INTEGER, SAVE :: iSubDiag=0
+        type(timer), save :: proc_timerDiag
         INTEGER :: Info,ierr,i
         REAL*8 , ALLOCATABLE :: Work(:),Eigenvalues(:)
         INTEGER :: WorkTag,EigenvaluesTag,j
         CHARACTER(len=*), PARAMETER :: this_routine='DiagGraphMorph'
 
-        call set_timer('DiagGraphMorph',iSubDiag)
+        proc_timerDiag%timer_name='DiagGraphMorph'
+        call set_timer(proc_timerDiag)
 
         WorkTag=0
         EigenvaluesTag=0
@@ -2701,7 +2709,7 @@ MODULE GraphMorph
         ENDIF
 
         IF(ierr.ne.0) STOP 'Problem in allocation somewhere in DiagGraphMorph'
-        call halt_timer(iSubDiag)
+        call halt_timer(proc_timerDiag)
 
     END SUBROUTINE DiagGraphMorph
 

@@ -836,7 +836,7 @@ C.. Get the Hamiltonian Element between two CSFs
          INTEGER NOPEN1,NOPEN2,NDETS1,NDETS2
          INTEGER SO1(NEL),SO2(NEL)
          INTEGER I,J
-         integer, save :: isub=0
+         type(timer), save :: proc_timer
          REAL*8 COEFF1,COEFF2
          REAL*8 COEFFLIST2(*)
          POINTER (IP_COEFFLIST2,COEFFLIST2)
@@ -848,7 +848,8 @@ C.. If the Ms or S values differ, we return 0.
             RETURN
          ENDIF
 C.. The SORDERS for dets 1 and 2
-         call set_timer('CSFGETHELE',ISUB)
+         proc_timer%timer_name='CSFGETHELE'
+         call set_timer(proc_timer)
 
          NOPEN1=0
          NOPEN2=0
@@ -912,7 +913,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
          CALL FREEM(IP_LISTD2)
          CALL FREEM(IP_DOLISTD2)
          CALL FREEM(IP_COEFFLIST2)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
                
       END
 

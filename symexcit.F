@@ -93,7 +93,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          LOGICAL LSYMSYM,SYMEQ
          INTEGER ISPN
          INTEGER ILUT(0:NBASIS/32)
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          INTEGER ILEVEL
          Type(Symmetry) TotSymRep
 
@@ -101,7 +101,8 @@ C.. global symprods table multiply by [] to give the symmetric rep.
 
          INTEGER iMinElec1,iMaxElec1
          
-         call set_timer('SYMSUEXCIT',ISUB,65)
+         proc_timer%timer_name='SYMSUEXCIT'
+         call set_timer(proc_timer,65)
 
 C.. List the symmetry classes in NI.
 C.. For each orb, just see if its class is in the list, and if not add it
@@ -586,7 +587,7 @@ C.. Store all the pointers we need
          STORE(6)=NEXCITTYPES
          ENDIF
 C..      ENDIF(.NOT.TCOUNT)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
       END
 
 
@@ -612,10 +613,11 @@ C..      ENDIF(.NOT.TCOUNT)
          POINTER (IP_EXCITTYPES,EXCITTYPES)
          POINTER (IP_DSTORE,DSTORE)
          INTEGER DSTORE(*)
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          INTEGER I
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
-         call set_timer('SYMGNEXCIT',ISUB,65)
+         proc_timer%timer_name='SYMGNEXCIT'
+         call set_timer(proc_timer,65)
 
          IP_DSTORE=STORE(1)
          IP_EXCITTYPES=STORE(2)
@@ -633,7 +635,7 @@ C..      ENDIF(.NOT.TCOUNT)
          CALL FREEM(IP_SYMPRODIND)
          CALL FREEM(IP_DSTORE)
 
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
  
       END
       SUBROUTINE SYMGENALLEXCITS(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,

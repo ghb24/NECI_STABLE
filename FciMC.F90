@@ -2452,7 +2452,7 @@ END FUNCTION Fact
 !        IMPLICIT NONE
 !        TYPE(HDElement) :: Weight,Energyxw
 !        INTEGER :: i,j,WalkOnDet,DetLT,DetCurr(NEl),ExpectedDets
-!        integer, save :: isub=0
+!        type(timer), save :: proc_timer
 !        CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
 !        TYPE(HElement) :: Hamii
 !
@@ -2463,7 +2463,8 @@ END FUNCTION Fact
 !            Energyxw=1.d0
 !            return
 !        endif
-!        call set_timer('FCIMC',iSub)
+!        proc_timer%timer_name='FCIMC'
+!        call set_timer(proc_timer)
 !
 !        IF(TDiffuse) THEN
 !            IF((.NOT.TMCExcitSpace).or.(NoMCExcits.ne.1)) THEN
@@ -2726,7 +2727,7 @@ END FUNCTION Fact
 !
 !        CLOSE(15)
 !
-!        call halt_timer(iSub)
+!        call halt_timer(proc_timer)
 !
 !        RETURN
 !
@@ -3165,7 +3166,7 @@ END FUNCTION Fact
 !        IMPLICIT NONE
 !        INTEGER :: VecSlot,i,j,k,l,DetCurr(NEl),iMaxExcit,nExcitMemLen,nStore(6)
 !        INTEGER :: nJ(NEl),ierr,nExcitTag=0,IC,Child,TotWalkersNew,iCount
-!        integer, save :: isubcyc=0
+!        type(timer), save :: proc_timercyc
 !        REAL*8 :: Prob,rat,Kik
 !        INTEGER , ALLOCATABLE :: nExcit(:)
 !        INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
@@ -3174,7 +3175,8 @@ END FUNCTION Fact
 !        INTEGER :: CreateAtI,CreateAtJ,tocopy
 !        CHARACTER(len=*), PARAMETER :: this_routine='PerformFCIMCyc'
 !        
-!        call set_timer('MCyc',iSubCyc)
+!        proc_timerCyc%timer_name='MCyc'
+!        call set_timer(proc_timerCyc)
 !        
 !!VecSlot indicates the next free position in NewDets
 !        VecSlot=1
@@ -3436,7 +3438,7 @@ END FUNCTION Fact
 !
 !        ENDIF
 !
-!        call halt_timer(iSubCyc)
+!        call halt_timer(proc_timerCyc)
 !
 !        RETURN
 !

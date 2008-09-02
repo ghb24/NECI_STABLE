@@ -24,10 +24,11 @@ C..
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
       TYPE(HElement) SUM
-      integer,save :: isub=0
+      type(timer), save :: proc_timer
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
-      call set_timer('    DETHAM',ISUB)
+      proc_timer%timer_name='    DETHAM'
+      call set_timer(proc_timer)
 C ==-------------------------------------------------------------------==
 C..Global counter
       GC=0
@@ -112,7 +113,7 @@ C          WRITE(6,*) I,(HAMIL(J,I),J=1,ICMAX)
 C        ENDDO
 C      ENDIF
 C ==-------------------------------------------------------------------==
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C ==-------------------------------------------------------------------==
       RETURN
       END

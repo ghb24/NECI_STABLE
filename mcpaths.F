@@ -96,10 +96,11 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          REAL*8 OSI,ODLWDB,OPROB
          TYPE(HDElement) MP2E(2:I_VMAX)
          LOGICAL TLOGP
-         integer,save :: isub=0
-         integer,save :: isub2=0
-         integer,save :: isubpre=0
-         call set_timer('MCPATHSR10',ISUB)
+         type(timer), save :: proc_timer
+         type(timer), save :: proc_timer2
+         type(timer), save :: proc_timerpre
+         proc_timer%timer_name='MCPATHSR10'
+         call set_timer(proc_timer)
          WRITE(6,*) "Running Multi-level graph calculation."
 C.. This will store the MP2 energy
          DO I=2,I_VMAX
@@ -159,13 +160,14 @@ C     &            HIJS(0))
                 STOP
             ENDIF
             
-            call set_timer('PRECALC ',ISUBPRE)
+            proc_timerPRE%timer_name='PRECALC '
+            call set_timer(proc_timerPRE)
             CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
      &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
-            call halt_timer(ISUBPRE)
+            call halt_timer(proc_timerPRE)
          end if
 
 C.. I_V is the number of vertices in the path
@@ -176,7 +178,8 @@ CI_P
 c            WRITE(6,"I2") I_V
             CUR_VERT=I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            call set_timer(STR,ISUB2)
+            proc_timer2%timer_name=STR
+            call set_timer(proc_timer2)
             OTIME=etime(tarr)
             L=0
             LT=0
@@ -393,7 +396,7 @@ C.. setup spin excitation generator
                ENDIF
             ENDIF
 
-            call halt_timer(ISUB2)
+            call halt_timer(proc_timer2)
             NTIME=etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
@@ -455,7 +458,7 @@ C.. <D|exp(-b H)|D>=exp(P WLRI + WLSI)
 C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
             DLWDB=DLWDB/TOTAL
          endif
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          CALL MEMORY_CHECK()
          RETURN
       END
@@ -501,7 +504,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          TYPE(HElement) UMat(*), RH
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY,ILOGGING,I,I_V
-         integer, save :: isub=0,isub2=0
+         type(timer), save :: proc_timer,proc_timer2
          INTEGER L,LT,ITIME,K
          REAL*8 BETA,ECORE
          real*4 etime,tarr(2)
@@ -603,7 +606,8 @@ C.. Pick graphs which may not contain distinct vertices
      &               TSYM)
             RETURN
          ENDIF
-         call set_timer('MCPATHSR3 ',ISUB)
+         proc_timer%timer_name='MCPATHSR3 '
+         call set_timer(proc_timer)
          OTIME=etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
@@ -639,7 +643,8 @@ C.. I_V is the number of vertices in the path
 CI_P
 c            WRITE(6,"I2") I_V
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            call set_timer(STR,ISUB2)
+            proc_timer2%timer_name=STR
+            call set_timer(proc_timer2)
             L=0
             LT=0
             BTABLE(0)=-1
@@ -720,11 +725,11 @@ C.. forcing them to be disconnected. - this uses new excitation generators
      &            NWHTAY,ILOGGING,TSYM,ECORE,DBETA,DLWDB2,MP2E)
                ENDIF
             ENDIF
-            call halt_timer(ISUB2)
+            call halt_timer(proc_timer2)
             NTIME=etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
-c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             IF(TLOG) THEN
                WRITE(11,"(I12,3G25.16,2I12,G25.16,$)")
      &            I_V,F(I_V),TOTAL,NTIME-OTIME,L,LT,DLWDB2
@@ -776,7 +781,7 @@ C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
                 ENDDO
              ENDIF
          ENDIF
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          CALL MEMORY_CHECK()
          RETURN
       END
@@ -2312,11 +2317,12 @@ C.. star matrix read in from STARDATA
          POINTER (IP_ROOTS,ROOTS),(IP_HIJS,HIJS),(IP_RIJS,RIJS)
          POINTER (IP_RIIS,RIIS),(IP_NR,NR)
          INTEGER NR(0:*)
-         integer,save :: ISUB=0
+         type(timer), save :: proc_timer
          INTEGER I,J,N,II,OII
          REAL*8 NORM,A,B
          NROOTS=NROOTS1
-         call set_timer('RDSTARDIAG',ISUB)
+         proc_timer%timer_name='RDSTARDIAG'
+         call set_timer(proc_timer)
          CALL MEMORY(IP_RIIS,NROOTS+1,'RIIS')
          CALL MEMORY(IP_ROOTS,NROOTS+1,'ROOTS')
          CALL MEMORY(IP_HIJS,NROOTS+1,'HIJS')
@@ -2437,7 +2443,7 @@ C         DLWDB=DLWDB-LIST(1,2)
          CALL FREEM(IP_HIJS)
          CALL FREEM(IP_RIJS)
          CALL FREEM(IP_NR)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 

@@ -39,10 +39,11 @@ C         INTEGER NI(4,NEL), NJ(4,NEL)
          REAL*8 DLWDBS(*),WLRIS(*),WLSIS(*)
          LOGICAL LISNAN
          REAL*8 RAN2
-         integer, save :: isub=0
+         type(timer), save :: proc_timer
 
 C.. NI, NJ are the quantum numbers of 
-         call set_timer('DMC       ',ISUB)
+         proc_timer%timer_name='DMC       '
+         call set_timer(proc_timer)
 C.. Randomize the seed:
          ISEED=-70001
 CINT(SECNDS(0.0))
@@ -170,7 +171,7 @@ C               WI=WJ
          ENDDO
          CLOSE(17)
          DMONTECARLO=TOT/IMCSTEPS
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
       END
 
 
@@ -275,10 +276,11 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
          INTEGER NCH
          REAL*8 DLWDBC
          REAL*8 RAN2
-         integer, save :: isub=0
+         type(timer), save :: proc_timer
          SUMSQ=0.D0
 C.. NI, NJ are the quantum numbers of 
-         call set_timer('DMC2      ',ISUB)
+         proc_timer%timer_name='DMC2      '
+         call set_timer(proc_timer)
 C.. Randomize the seed:
          ISEED=-70001
 CINT(SECNDS(0.0))
@@ -568,7 +570,7 @@ C.. if there's space, we store
          CALL FREEM(IP_WLRIS)
          CALL FREEM(IP_WLSIS)
 
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
       END
 
       SUBROUTINE GENNEWDET2(NI,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,NCH,BRR)
@@ -807,10 +809,11 @@ C            WRITE(6,*) "Store ",NODE
          REAL*8 DLWDBS(NDET),WLRIS(NDET),WLSIS(NDET)
          LOGICAL LISNAN
          REAL*8 RAN2
-         integer, save :: isub=0
+         type(timer), save :: proc_timer
 
 C.. NI, NJ are the quantum numbers of 
-         call set_timer('DMC       ',ISUB)
+         proc_timer%timer_name='DMC       '
+         call set_timer(proc_timer)
 C.. Randomize the seed:
          ISEED=-70001
 CINT(SECNDS(0.0))
@@ -900,7 +903,7 @@ c            IF(MOD(IT,100).EQ.0) WRITE(6,*) IT
          CLOSE(17)
          DMONTECARLOEXWI=TOT/IMCSTEPS
          WRITE(6,*) "MC STDEV=",SQRT(SUMSQ/IMCSTEPS-DMONTECARLOEXWI**2)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
       END
 
       SUBROUTINE PBC(NQN, NBASISMAX)

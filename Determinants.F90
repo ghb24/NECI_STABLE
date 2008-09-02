@@ -143,7 +143,7 @@ MODULE Determinants
          TYPE(HElement) Sum,Sum2
          INTEGER IGETEXCITLEVEL_2
          LOGICAL ISCSF
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
             CALL CSFGETHELEMENT(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,Sum2)
             GETHELEMENT2=SUM2
@@ -163,14 +163,15 @@ MODULE Determinants
 !.. if we differ by more than 2 spin orbital, then the hamiltonian element is 0         
          IF(IC.GT.2) RETURN
 !.. SLTCND has IC is # electrons the same in 2 dets
-         call set_timer('GETHELEM2 ',ISUB,60)
+         proc_timer%timer_name='GETHELEM2 '
+         call set_timer(proc_timer,60)
          CALL SltCnd(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum)
          GetHElement2=Sum
          IF(iC.EQ.0) GetHElement2%v=GetHElement2%v+ECore
 !         CALL WRITEDET(6,NI,NEL,.FALSE.)
 !         CALL WRITEDET(6,NJ,NEL,.FALSE.)
 !         WRITE(6,*) GetHElement2
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END FUNCTION
 !Call GetHElement2 without needing so many arguments

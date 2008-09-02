@@ -240,14 +240,15 @@ MODULE SymExcit2
          INTEGER ISS
          INTEGER IDI,IDJ,IDK,IDL
          INTEGER I,J,K,L
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          REAL*8 WEIGHT,W2
          TYPE(HElement) UMAT(*),W
          REAL*8 Arr(nBasis,2),Alat(3)
          IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
             WEIGHT=1.D0
          ELSE
-!            call set_timer('UMATELWT',ISUB)
+!            proc_timer%timer_name='UMATELWT'
+!            call set_timer(proc_timer)
             ISS=NBASISMAX(2,3)
             CALL GTID(NBASISMAX,I,IDI)
             CALL GTID(NBASISMAX,J,IDJ)
@@ -259,7 +260,7 @@ MODULE SymExcit2
             ELSE
                 WEIGHT=EXP(SQRT(SQ(W))*G_VMC_EXCITWEIGHT(CUR_VERT))
             ENDIF
-!            call halt_timer(ISUB)
+!            call halt_timer(proc_timer)
          ENDIF
          IF(.not.EXCITFUNCS(10)) THEN
              IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN

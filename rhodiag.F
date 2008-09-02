@@ -17,13 +17,14 @@
          POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
          INTEGER LSTE(NEL,0:*)
          POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          INTEGER ILMAX
          INTEGER WORKL,WORK(*),INFO
          REAL*8 WLRI,WLSI,SI
          LOGICAL LCHKSYMD
          INCLUDE 'irat.inc'
-         call set_timer('WIRHODIAG ',ISUB)
+         proc_timer%timer_name='WIRHODIAG '
+         call set_timer(proc_timer)
          HDMAX=5000.D0
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
 
@@ -125,7 +126,7 @@ C         ENDDO
          CALL FREEM(IP_RIJMAT)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_RJJLIST)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
  
@@ -150,7 +151,7 @@ C         ENDDO
          POINTER (IP_LSTP,LSTP)
          INTEGER LSTE(NEL,0:*),LSTP(0:*)
          POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          INTEGER ILMAX
          INTEGER WORKL,WORK(*),INFO
          REAL*8 WLRI,WLSI,SI,SN,SNO,SNC,SNN
@@ -160,7 +161,8 @@ C         ENDDO
          INTEGER BINOMIAL
          LOGICAL LSUB
          INCLUDE 'irat.inc'
-         call set_timer('WIRHODIAG ',ISUB)
+         proc_timer%timer_name='WIRHODIAG '
+         call set_timer(proc_timer)
          HDMAX=5000.D0
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
 
@@ -343,7 +345,7 @@ C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
          CALL FREEM(IP_RIJMAT)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_RJJLIST)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
 C         CLOSE(36)
          RETURN
       END
@@ -387,7 +389,7 @@ C         CLOSE(36)
          use global_utilities
          IMPLICIT NONE
          INTEGER I_P,I_V
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          REAL*8 RHOIJ(0:I_V,0:I_V)
          REAL*8 RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
@@ -396,7 +398,8 @@ C         CLOSE(36)
          REAL*8 RII
          RII=RHOIJ(0,0)
 C.. Diagonalize
-         call set_timer('RHODIAG_CP',ISUB)
+         proc_timer%timer_name='RHODIAG_CP'
+         call set_timer(proc_timer)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          DO I=1,I_V
             DO J=I,I_V
@@ -438,7 +441,7 @@ C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
 C         ENDDO
          
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 
@@ -454,7 +457,7 @@ C.. See 1/7/04
          use global_utilities
          IMPLICIT NONE
          INTEGER I_P,I_V
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
          TYPE(HElement) NWORK(4*I_V)
@@ -479,7 +482,8 @@ C.. do we subtract out lower vertices here or later?
          RII=EXP(R)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         call set_timer('HDIAG_CPP ',ISUB,55)
+         proc_timer%timer_name='HDIAG_CPP '
+         call set_timer(proc_timer,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          DLWDB=0.D0
          II=0
@@ -570,7 +574,7 @@ C/RII
          S=DLWT
          DLWDB=DLWDB+S
          HDIAG_CPPRES=SI+SI2
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 C.. See 1/7/04
@@ -581,7 +585,7 @@ C.. See 1/7/04
          use global_utilities
          IMPLICIT NONE
          INTEGER I_P,I_V
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
@@ -607,7 +611,8 @@ C.. do we subtract out lower vertices here or later?
          RII=RHOIJ(1,1)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         call set_timer('RHODIAG_C2',ISUB,55)
+         proc_timer%timer_name='RHODIAG_C2'
+         call set_timer(proc_timer,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          IF(DBETA.NE.0.D0) DLWDB=0.D0
          II=0
@@ -750,7 +755,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
             RHODIAG_CPPRES=SI+SI2
          ENDIF
 
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 !  As rhodiag_cpp, but only deal with this vertex level, and subtract out the two-vertex star contribtion from this vertex level.
@@ -760,7 +765,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          use global_utilities
          IMPLICIT NONE
          INTEGER I_P,I_V
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          TYPE(HElement) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          TYPE(HElement) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          REAL*8 WORK(3*I_V),R
@@ -782,7 +787,8 @@ C.. do we subtract out lower vertices here or later?
          RII=RHOIJ(1,1)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         call set_timer('RHODIAG_C2',ISUB,55)
+         proc_timer%timer_name='RHODIAG_C2'
+         call set_timer(proc_timer,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          DO J=1,I_V
             RIJMAT(1,J)=RHOIJ(1,J)
@@ -855,7 +861,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
             DLWDB=S
          ENDIF
          RHODIAG_CPPS2VS=SI-SI2
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 ! As HDIAG_CPP, but return the subtraction out of the 2-vertex star part.
@@ -865,7 +871,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          use global_utilities
          IMPLICIT NONE
          INTEGER I_P,I_V
-         INTEGER,SAVE :: ISUB=0
+         type(timer), save :: proc_timer
          TYPE(HElement) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
          REAL*8 WLIST(I_V),WORK(3*I_V)         
          TYPE(HElement) NWORK(4*I_V)
@@ -891,7 +897,8 @@ C.. do we subtract out lower vertices here or later?
          RII=EXP(R)
 C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
-         call set_timer('HDIAG_CPP ',ISUB,55)
+         proc_timer%timer_name='HDIAG_CPP '
+         call set_timer(proc_timer,55)
          CALL AZZERO(RIJMAT(1,1),I_V*I_V)
          II=0
          DO I=1,I_V
@@ -965,6 +972,6 @@ C/RII
 !Subtraction mode
          DLWDB=DLWDB-S
          HDIAG_CPPS2VS=SI-SI2
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END

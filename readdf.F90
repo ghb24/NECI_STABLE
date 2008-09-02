@@ -375,9 +375,10 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          Real*8 Eigenvalues(nAuxBasis),r,dPower
          Real*8 Work(3*nAuxBasis)
          integer Workl,info
-         Integer,save :: iSub=0
+         type(timer), save :: proc_timer
          Integer i,j,ierr,k,iMinEigv
-         call set_timer('DFInvFitIn',ISUB)
+         proc_timer%timer_name='DFInvFitIn'
+         call set_timer(proc_timer)
          Allocate(M(nAuxBasis,nAuxBasis),STAT=ierr)
          call MemAlloc(ierr,M,nAuxBasis*nAuxBasis,"M-DFInvFitInts")
          call azzero(M,nAuxBasis*nAuxBasis)
@@ -416,5 +417,5 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          enddo
          call MemDealloc(M)         
          Deallocate(M)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
       END

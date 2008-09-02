@@ -38,9 +38,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          EXTERNAL FMCPR4WFUNC,FMCPR4VFUNC,FMCPR4UFUNC
          REAL*8 RNORM,ND,STD
          real*4 itime,etime,tarr(2)
-         integer, save :: isub=0
-         integer, save :: isub2=0
-         call set_timer('MCPATHSR5 ',ISUB)
+         type(timer), save :: proc_timer
+         type(timer), save :: proc_timer2
+         proc_timer%timer_name='MCPATHSR5 '
+         call set_timer(proc_timer)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD")
@@ -70,7 +71,8 @@ c         WRITE(6,*) 0,TOTAL,TOTAL,0
 C.. I_V is the number of vertices in the path
          DO I_V=2,I_VMAX
             WRITE(STR,"(A,I5)") "FMCPR",I_V
-            call set_timer(STR,ISUB2)
+            proc_timer2%timer_name=STR
+            call set_timer(proc_timer2)
             L=0
             LT=0
             BTABLE(0)=0
@@ -123,13 +125,13 @@ C            WRITE(6,*) F(I_V),F(I_V)*RNORM*ND,RNORM,ND,RNORM*ND
             ELSE
                F(I_V)=0.D0
             ENDIF
-            call halt_timer(ISUB2)
+            call halt_timer(proc_timer2)
             TOTAL=TOTAL+F(I_V)
-c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,LT
+c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             STD=SQRT(ABS(FSQ(I_V)-F(I_V)*F(I_V)))
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12,F19.7)")
-     &            I_V,F(I_V),TOTAL,get_total_time(ISUB2),L,STD
+     &            I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,STD
             IF(LISNAN(F(I_V))) THEN
 C.. save all log files
                ITIME=etime(tarr)
@@ -146,7 +148,7 @@ C.. save all log files
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          WLSI=LOG(TOTAL)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 

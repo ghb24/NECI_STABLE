@@ -1287,7 +1287,7 @@ MODULE Calc
          INTEGER SPECDET(NEL)
          TYPE(HDElement) DLWDB2,DLWDB3,DLWDB4,TOT2
          INTEGER nActiveBasis(2)
-         integer, save :: ISUB=0
+         type(timer), save :: proc_timer
          character(len=*), parameter :: thisroutine='CALCRHOPII3'
          TLOG=BTEST(ILOGGING,1)
          HElP=HDElement(I_P)
@@ -1297,7 +1297,8 @@ MODULE Calc
          NORM=0.D0
          IMAX=I_HMAX
          IF(I_VMAX.GT.IMAX) IMAX=I_VMAX
-         call set_timer(thisroutine,ISUB)
+         proc_timer%timer_name=thisroutine
+         call set_timer(proc_timer)
          WRITE(6,*) "Entering CALCRHOPII3..."
 !         ILMAX=NDET
 !.. We don't need to store lists for I_HMAX=-8
@@ -1411,7 +1412,7 @@ MODULE Calc
          call LogMemDealloc(thisroutine,tagRIJList)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_ICE)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END SUBROUTINE CALCRHOPII3  
 

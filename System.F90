@@ -310,7 +310,7 @@ MODULE System
 ! General variables
       INTEGER i,j,k,l,iG
       INTEGER len
-      INTEGER,SAVE :: iSub=0
+      type(timer), save :: proc_timer
       REAL*8 SUM
 ! Called functions
       type(Symmetry) TotSymRep
@@ -327,7 +327,8 @@ MODULE System
 ! //AJWT TBR
 !      IFDET=0
 !      TRHOIJND=.false.
-      call set_timer('SysInit   ',ISUB)
+      proc_timer%timer_name='SysInit   '
+      call set_timer(proc_timer)
 
 !ghb24 18/8/08
 !Write a file called SOFTEXIT. This will be removed at the end. If at any point
@@ -750,7 +751,7 @@ MODULE System
 !      WRITE(6,*) ' ETRIAL : ',ETRIAL
       IF(FCOUL.NE.1.D0)  WRITE(6,*) "WARNING: FCOUL is not 1.D0. FCOUL=",FCOUL
       IF(FCOULDAMPBETA.GT.0) WRITE(6,*) "FCOUL Damping.  Beta ",FCOULDAMPBETA," Mu ",FCOULDAMPMU
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
     End Subroutine SysInit
 
 

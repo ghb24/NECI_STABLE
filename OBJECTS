@@ -15,7 +15,7 @@ OBJ_CU  = fcoul.o rhoofr.o write_rho.o \
           hfbasis.o scrtransf.o csf.o
 
 OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
-          chebint.o sorti.o calcpathnci.o factorpoly.o rhodiag.o \
+          sorti.o calcpathnci.o factorpoly.o rhodiag.o \
           hdiag.o gndts_blk.o mcpathsismc.o mcpathsmcmc.o \
           mcpathsch.o readint.o hubbard.o excit.o mcpathsold.o \
           rootfind.o cpmdinit.o mcpathshdiag.o \
@@ -27,7 +27,7 @@ OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          precalcread.o Calc.o Integrals.o Logging.o nodediag.o MemoryManagement.o \
          Determinants.o DetCalc.o NECICore.o HFCalc.o GraphMorph.o StarDiagTrip.o \
          StarMC.o Parallel.o FciMC.o MCDets.o OneEInts.o ReturnPathMC.o FciMCPar.o \
-         SymData.o vasp_interface.o vasp_init.o stop_all.o CPMDData.o default_sets.o \
+         SymData.o vasp_interface.o vasp_init.o error_handling.o CPMDData.o default_sets.o \
          SystemData.o CalcData.o IntegralsData.o timing.o global_utilities.o \
          sortiLong.o
 

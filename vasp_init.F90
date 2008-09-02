@@ -39,12 +39,13 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    integer :: nOrbUsed
    real(q) ::  ECore
    logical :: tOrder
-   integer,save :: isub=0
+   type(timer), save :: proc_timer
    integer :: I,J,II,A,B,nStatesUsed,ierr
    type(HElement) :: HarXC,HarXCSum
    character(*), parameter :: thisroutine='VASPInitIntegrals'
    
-   call set_timer('VASPInitInts',ISUB)
+   proc_timer%timer_name='VASPInitInts'
+   call set_timer(proc_timer)
    ! ECore=EIonIon???
    ECore=0.d0
    write (6,*) 'Core Energy: ',ECORE
@@ -78,7 +79,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    write (6,*) "Finished TMAT"
    close (10)
 
-   call halt_timer(ISUB)
+   call halt_timer(proc_timer)
    
    return
 end subroutine VASPInitIntegrals

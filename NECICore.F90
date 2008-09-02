@@ -17,7 +17,7 @@ Subroutine  NECICore(iCacheFlag, tCPMD,tVASP)
     Implicit none
 !Set by CPMD to determine whether cache is saved
     Integer iCacheFlag
-    INTEGER,SAVE :: iSub=0
+    type(timer), save :: proc_timer
     Logical tCPMD,tVASP
     integer ios
     character(255) Filename
@@ -35,7 +35,8 @@ Subroutine  NECICore(iCacheFlag, tCPMD,tVASP)
         call InitMemoryManager()
     end if
     write (6,*) 'tVASP',tVASP
-    call set_timer('NECICUBE  ',ISUB)
+    proc_timer%timer_name='NECICUBE  '
+    call set_timer(proc_timer)
     if(.not.tCPMD.and..not.tVASP) THEN
         call ReadInputMain(Filename,ios)
         If (ios.ne.0) stop 'Error in Read'
@@ -85,7 +86,7 @@ Subroutine  NECICore(iCacheFlag, tCPMD,tVASP)
     CALL MEMORY_CHECK
 
 ! ==-------------------------------------------------------------------==
-    call halt_timer(ISUB)
+    call halt_timer(proc_timer)
 ! ==-------------------------------------------------------------------==
 
     if (.not.tCPMD) call LeaveMemoryManager

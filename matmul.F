@@ -6,9 +6,10 @@
       INTEGER LAB(*),NROW(NDET)
       DIMENSION CK(NDET,NEVAL)
       LOGICAL :: TLargest
-      integer,save :: isub=0
+      type(timer), save :: proc_timer
 C ==-----------------------------------------------------------------==
-      call set_timer(' MY_HPSI  ',ISUB)
+      proc_timer%timer_name=' MY_HPSI  '
+      call set_timer(proc_timer)
 C ==-----------------------------------------------------------------==
 C..Run over rows
       CALL AZZERO(CKN,NDET*NEVAL)
@@ -43,7 +44,7 @@ c          CKN(J,I)=-1.D0*CKN(J,I)
 c        ENDDO
 c      ENDDO
 C ==-----------------------------------------------------------------==
-      call halt_timer(ISUB)
+      call halt_timer(proc_timer)
 C ==-----------------------------------------------------------------==
       RETURN
       END

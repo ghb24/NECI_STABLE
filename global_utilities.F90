@@ -12,6 +12,6 @@ module global_utilities
 !=    use global_utilities
 
 use MemoryManager, only: LogMemAlloc,LogMemDealloc
-use timing, only: set_timer,halt_timer,get_total_time
+use timing, only: set_timer,halt_timer,get_total_time, timer
 
 end module global_utilities

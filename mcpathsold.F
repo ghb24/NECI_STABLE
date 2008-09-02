@@ -18,8 +18,9 @@ C.. which do not necessarily have distinct nodes
          INTEGER LSTE(NEL,ILMAX,0:I_HMAX-1)
          INTEGER ICE(ILMAX,0:I_HMAX-1),NLIST
          LOGICAL TLOG
-         integer, save :: isub=0,isub2=0
-         call set_timer('MCPATHSR2 ',ISUB)
+         type(timer), save :: proc_timer,proc_timer2
+         proc_timer%timer_name='MCPATHSR2 '
+         call set_timer(proc_timer)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG)
      &      OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
@@ -42,26 +43,27 @@ c         WRITE(6,*) 0,TOTAL,TOTAL,0
 CI_P
 c            WRITE(6,"I2") I_H
             WRITE(STR,"(A,I5)") "FMCPR",I_H
-            call set_timer(STR,ISUB2)
+            proc_timer2%timer_name=STR
+            call set_timer(proc_timer2)
             L=0
             LT=0
             F(I_H)=FMCPR2(NI,BETA,I_P,IPATH,I_H,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &            0,1.D0,RHOII,LSTE,ICE,NWHTAY,L,LT,ILOGGING,TSYM,
      &            ECORE,ILMAX)
-            call halt_timer(ISUB2)
+            call halt_timer(proc_timer2)
             TOTAL=TOTAL+F(I_H)
-c            WRITE(6,*) I_H,F(I_H),TOTAL,get_total_time(ISUB2),L,LT
+c            WRITE(6,*) I_H,F(I_H),TOTAL,get_total_time(proc_timer2),L,LT
             IF(TLOG)
      &            WRITE(11,"(I12,2G25.16,F19.7,2I12)")
-     &               I_H,F(I_H),TOTAL,get_total_time(ISUB2),L,LT
+     &               I_H,F(I_H),TOTAL,get_total_time(proc_timer2),L,LT
          ENDDO
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          WLSI=LOG(TOTAL)
 C         CALL FREEM(IP_LSTE)
 C         CALL FREEM(IP_ICE)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 C.. A function to loop recursively over each node set choosing a different
@@ -218,8 +220,9 @@ C..  FLNSUM =ln(1+RHOII^-2 Sum_J (RHOIJ^2 w2(RHOJJ,RHOII,P)) + ...)
          REAL*8 TOTAL
          REAL*8 FLNSUM,FLNRII
          LOGICAL TLOG
-         integer, save :: isub=0,isub2=0
-         call set_timer('MCPATHSR  ',ISUB)
+         type(timer), save :: proc_timer,proc_timer2
+         proc_timer%timer_name='MCPATHSR  '
+         call set_timer(proc_timer)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) OPEN(11,FILE="MCPATHS",STATUS="UNKNOWN")
          IF(BTEST(ILOGGING,2)) OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
@@ -237,24 +240,25 @@ c         WRITE(6,*) 0,TOTAL,TOTAL,0
 CI_P
 c            WRITE(6,"I2") I_H
             WRITE(STR,"(A,I5)") "FMCPR",I_H
-            call set_timer(STR,ISUB2)
+            proc_timer2%timer_name=STR
+            call set_timer(proc_timer2)
             L=0
             LT=0
             F(I_H)=FMCPR(I_I,I_P,NDET,RHOIJROWS,RHOIJ,RHOIJLAB,
      &          NRHOMAXWIDTH,IPATH,ISEED,I_H,NWHTAY,0,1.D0,RHOII,L,LT,
      &          ILOGGING)
-            call halt_timer(ISUB2)
+            call halt_timer(proc_timer2)
             TOTAL=TOTAL+F(I_H)
-c            WRITE(6,*) I_H,F(I_H),TOTAL,get_total_time(ISUB2),L,LT
+c            WRITE(6,*) I_H,F(I_H),TOTAL,get_total_time(proc_timer2),L,LT
 c     &                  ,(L+0.D0)/LT
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,2I12)")
-     &         I_H,F(I_H),TOTAL,get_total_time(ISUB2),L,LT
+     &         I_H,F(I_H),TOTAL,get_total_time(proc_timer2),L,LT
          ENDDO
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,3)) CLOSE(10)
          FLNSUM=LOG(TOTAL)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 
@@ -363,8 +367,9 @@ C.. (Requires whole rho matrix)
          INTEGER INTERSECT(NRHOMAXWIDTH)
          REAL*8 PROB(NRHOMAXWIDTH)
          REAL*8 RAN2
-         integer, save :: isub=0
-         call set_timer('MCPATHS   ',ISUB)
+         type(timer), save :: proc_timer
+         proc_timer%timer_name='MCPATHS   '
+         call set_timer(proc_timer)
 C.. Randomize the seed:
          ISEED=INT(SECNDS(0.0))
          IF(MOD(ISEED,2).EQ.0) ISEED=ISEED-1
@@ -462,7 +467,7 @@ C.. Let's print out the whole path
             
          ENDDO       
          CLOSE(10)
-         call halt_timer(ISUB)
+         call halt_timer(proc_timer)
          RETURN
       END
 

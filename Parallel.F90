@@ -262,13 +262,14 @@ subroutine ParMP2(nI)
    type(Symmetry) :: SymConj
    logical :: tSign
    integer :: ierr,tag_Ex
-   integer,save :: isub=0
+   type(timer), save :: proc_timer
    character(*), parameter :: this_routine='ParMP2'
    logical :: dbg 
 
    dbg=.false.
    
-   call set_timer('ParMP2    ',isub)
+   proc_timer%timer_name='ParMP2    '
+   call set_timer(proc_timer)
    
    select case(IAND(nWHTay(1,1),24))
    case(0)
@@ -565,7 +566,7 @@ else
    deallocate(Ex)
    call LogMemDealloc(this_routine,tag_Ex)
 
-   call halt_timer(isub)
+   call halt_timer(proc_timer)
 
 end subroutine ParMP2
 

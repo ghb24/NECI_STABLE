@@ -58,14 +58,15 @@
         INTEGER , ALLOCATABLE :: nExcit(:),nExcit2(:)
         INTEGER :: nExcitTag,ierr,exFlagHF,exFlagDoub,iMaxExcit,ExcitCount
         INTEGER :: Meth,nStore(6),nExcitMemLen,nJ(NEl),iExcit,nStore2(6)
-        integer,save :: iSubTrips=0
+        type(timer), save :: proc_timerTrips
         INTEGER :: iMaxExcit2,nExcitMemLen2,nK(NEl),ExcitCountDoubs,nExcitTag2
         INTEGER :: i,j,k,nRoots,Vert,IC,iGetExcitLevel,DoubIndex,TotElem,Info
         LOGICAL :: TCountExcits,iExcit2
 
         IF(HElementSize.gt.1) STOP 'Only Real orbitals allowed in StarDiagTrips so far'
     
-        call set_timer('StarDiagTrips',iSubTrips)
+        proc_timerTrips%timer_name='StarDiagTrips'
+        call set_timer(proc_timerTrips)
         nExcitTag=0
         nExcitTag2=0
 
@@ -471,7 +472,7 @@
             STOP "Error in allocation/deallocation"
         ENDIF
 
-        call halt_timer(iSubTrips)
+        call halt_timer(proc_timerTrips)
         
         RETURN
 
