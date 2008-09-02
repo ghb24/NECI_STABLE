@@ -160,8 +160,8 @@ C     &            HIJS(0))
             ENDIF
             
             call set_timer('PRECALC ',ISUBPRE)
-            CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,
-     &       G1,NBASIS,BRR,NMSH,FCK,ALAT,UMAT,
+            CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
+     &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
