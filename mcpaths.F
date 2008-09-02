@@ -47,7 +47,7 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE PRECALCREAD , only : PREIV_MAX,TPREVAR
          use global_utilities
          IMPLICIT NONE
-         TYPE(BasisFN) G1(*)
+         TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
          INTEGER IPATH(NEL,0:I_VMAX)
          INTEGER NI(NEL)
@@ -85,7 +85,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
 #endif
          TYPE(HDElement) FMCPR3B,FMCPR4B,FMCPR4C,FMCPR4D,FMCPR4D2
          TYPE(HDElement) FMCPR3STAR,FMCPR3NVSTAR,FMCPR3B2
-         INTEGER KSYM(5),I_CHMAX,CNWHTAY
+         INTEGER I_CHMAX,CNWHTAY
          INTEGER ISEED,ICOUNT
          TYPE(HDElement) FF,DLWDB3,TEMPTOT
          REAL*8 FSQ(2:I_VMAX),STD
@@ -160,8 +160,8 @@ C     &            HIJS(0))
             ENDIF
             
             call set_timer('PRECALC ',ISUBPRE)
-            CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
-     &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+            CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,
+     &       G1,NBASIS,BRR,NMSH,FCK,ALAT,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
