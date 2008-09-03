@@ -40,7 +40,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,&
          RETURN
       ENDIF
       proc_timer%timer_name='CALCRHO2  '
-      call set_timer(proc_timer)
+      call set_timer(proc_timer,60)
       IC=IC2
       B=BETA/I_P
       UEXP=0.D0
