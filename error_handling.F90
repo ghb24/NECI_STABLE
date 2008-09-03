@@ -10,7 +10,7 @@ subroutine stop_all(sub_name,error_msg)
 use Parallel, only: iProcIndex,MPIStopAll
 #endif
 implicit none
-character(*) :: sub_name,error_msg
+character(*), intent(in) :: sub_name,error_msg
 
 ! It seems that giving STOP a string is far more portable.
 ! MPI_Abort requires an integer though.
@@ -43,10 +43,34 @@ subroutine warning(sub_name,error_msg)
 !=    error_msg: error message.
 
 implicit none
-character(*) :: sub_name,error_msg
+character(*), intent(in) :: sub_name,error_msg
 
 write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
 write (6,'(a/)') adjustl(error_msg)
 
 return
 end subroutine warning
+
+
+
+subroutine quiet_stop(msg)
+!= Exit without making any noise.  Useful for when there's no error, but you
+!= still want to exit midway through a calculation (e.g. for testing purposes,
+!= or for use with the SOFTEXIT functionality).
+!= In:
+!=    msg (optional) : Print msg before exiting if msg is present.
+
+implicit none
+character(*), intent(in), optional :: msg
+
+if (present(msg)) then
+    write (6,'(X,a)') adjustl(msg)
+end if
+
+#ifdef PARALLEL
+call MPIStopAll(error_str)
+#else
+stop
+#endif
+
+end subroutine quiet_stop
