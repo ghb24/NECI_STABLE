@@ -158,7 +158,7 @@ latex_paper_size = 'openany,a4'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, document class [howto/manual],toctree_only).
 latex_documents = [
-  ('index', 'NECI.tex', 'NECI Documentation', 'Alavi Group', 'manual',True)
+  ('index', 'NECI.tex', 'NECI Documentation', 'James Spencer, with contributions from the Alavi Group', 'manual',True)
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

@@ -7,9 +7,9 @@ Contents:
    :maxdepth: 2
 
    introduction.rst
+   theory/index.rst
    installation.rst
    run.rst
-   theory/index.rst
    input/index.rst
    output/index.rst
    example_inputs/index.rst
