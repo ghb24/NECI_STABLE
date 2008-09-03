@@ -129,7 +129,18 @@ FCIMC options
     Print out the determinants at the end of the MC run. A calculation
     can then be restarted at a later date by reading the determinants
     back in using **READPOPS** in the **CALC** section.
-    at a later date.
+    at a later date. Walker number can also be scaled up by using **SCALEWALKERS**
+
+**ZEROPROJE**
+    This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
+    estimator will be restarted.
+
+**WAVEVECTORPRINT**
+    This is for Star FCIMC only - if on, it will calculate the exact eigenvector and
+    values initially, and then print out the running wavevector every
+    WavevectorPrint MC steps. However, this is slower.
+
+
 
 GraphMorph options
 ------------------

@@ -419,7 +419,7 @@ Method options
 Experimental methods
 ^^^^^^^^^^^^^^^^^^^^
 
-**VERTEX** **FCIMC** [**MCDIFFUSION**]
+**VERTEX** **FCIMC** [**MCDIFFUSION**] [**RESUMFCIMC**]
     Perform Monte Carlo calculations over pure determinant space, which
     is sampled using a series of 'particles' (or 'walkers').
 
@@ -431,6 +431,11 @@ Experimental methods
 
     **FCIMC** and **MCDETS** calculations share many of the same options
     (see Walker Monte Carlo options, below).
+
+    **RESUMFCIMC** creates graphs out of connected determinants, and applies
+    the H-matrix successively in order to achieve a local spawning algorithm.
+    This reduces to the original spawning algorithm when **GRAPHSIZE** is 2 and
+    **HAPP** is 1. Uses many of the same options as **FCIMC**.
 
 **VERTEX** **GRAPHMORPH** [**HDIAG**]
     Set up an initial graph and systematically improve it, by applying the
@@ -520,7 +525,7 @@ The following options are applicable for both the **FCIMC** and **MCDETS** metho
    Set the total number of timesteps to take.
 
 **SHIFTDAMP**  [SftDamp]
-   Damping factor (OF WHAT?!).  <1 means more damping.
+   Damping factor of the change in shift when it is updated.  <1 means more damping.
 
 **STEPSSHIFT** [StepsSft]
    Default 100.
@@ -530,29 +535,22 @@ The following options are applicable for both the **FCIMC** and **MCDETS** metho
 **TAU** [TIMESTEP] 
    Default 0.0.
 
-   Set the number of evoution timesteps before
-   the EShift is updated.  Must be set such that
-   :math:`\operatorname{max}(H_{jj},|H_{ij}|))*\tau<1` .
-
-   .. note::
-      Brilliantly, there's a comment in the code which states (contradictorily)::
-
-         For FCIMC, this can be considered the timestep of the simulation.
-         If not set, it will default to the value which will allow the
-         fastest destruction of walkers.
+   For FCIMC, this can be considered the timestep of the simulation. It is a constant which 
+   will increase/decrease the rate of spawning/death for a given iteration.
 
 The following options are only available in **FCIMC** calculations:
 
 **READPOPS**
     Read the initial walker configuration from the file POPSFILE.
     **DIAGSHIFT** and **INITWALKERS** given in the input will be
-    overwritten with the values read in form POPSFILE.
+    overwritten with the values read in form POPSFILE. Only currently available in serial.
 
 **SCALEWALKERS** [fScaleWalkers]
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
 
 **STARTMP1**
-    Set the initial configuration of walkers to be proportional to the MP1 wavefunction.
+    Set the initial configuration of walkers to be proportional to the MP1 wavefunction. This is no longer
+    available, but the code is still there to reintroduce it.
 
 **GROWMAXFACTOR** [GrowMaxFactor]
     Default 9000.
@@ -565,35 +563,91 @@ The following options are only available in **FCIMC** calculations:
 
     Set the factor by which the total number of particles is reduced once it reaches the GrowMaxFactor limit
 
+**EQUILSTEPS** [NEquilSteps]
+    Default 0
+    This indicates the number of cycles which have to
+    pass before the energy of the system from the doubles
+    population is counted
+
+**RHOAPP** [RhoApp]
+    This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before particles are assigned to the nodes
+
+**SIGNSHIFT**
+    This is for FCIMC and involves calculating the change in shift depending on the absolute value of the sum of the signs of the walkers.
+    This should hopefully mean that annihilation is implicitly taken into account. Results were not too good.
+
+**HFRETBIAS** [PRet]
+    This is a simple guiding function for FCIMC - if we are at a double excitation, then we return to the HF determinant with a probability PRet.
+    This is unbiased by the acceptance probability of returning to HF.
+    This is not available in the parallel version.
+
+**EXCLUDERANDGUIDE**
+    This is an alternative method to unbias for the HFRetBias. It invloves disallowing random excitations back to the guiding function (HF Determinant)
+    This is not available in the parallel version.
+
+**PROJECTE-MP2**
+    This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
+    DEVELOPMENTAL and possibly not bug-free
+    This is not available in the parallel version.
+
+**FIXPARTICLESIGN**
+    This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
+    on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
+    Results were not good.
+    This is not available in the parallel version.
+
+**STARTSINGLEPART**
+    This will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
+
+**MEMORYFAC** [MemoryFac]
+    Default 50
+
+    MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
+
+**GRAPHSIZE** [NDets]
+
+    In ResumFCIMC, this is the number of connected determinants to form the graph which you take as your sumsystem for the resummed spawning.
+    Must have an associated RhoApp
+
+**HAPP** [HApp]
+    Default 1
+
+    In ResumFCIMC, this indicates the number of local applications of the hamiltonian to random determinants before the walkers are assigned according to the resultant vector.
+
 **NOBIRTH**
-    Force the off-diagonal :math:`rho` (?) matrix elements to become zero,
+    Force the off-diagonal :math:`\H` matrix elements to become zero,
     and hence obtain an exponential decay of the initial populations
     on the determinants, at a rate which can be exactly calculated and
-    compared against.
+    compared against. This is no longer functional, but commented out in the code.
 
 **MCDIFFUSE** [Lambda]
     Default 0.0.
 
     Set the amount of diffusion compared to spawning in the **FCIMC** algorithm.
+    This is no longer functional and commented out in the code.
 
 **FLIPTAU** [FlipTauCyc]
     Default: off.
 
     Cause time to be reversed every FlipTauCyc cycles in the **FCIMC**
     algorithm. This might help with undersampling problems.
+    This is no longer functional and commented out in the code.
 
 **NON-PARTCONSDIFF**
     Use a seperate partitioning of the diffusion matrices, in which
     the antidiffusion matrix (+ve connections) create a net increase of
     two particles.
+    This is no longer functional and commented out in the code.
 
 **FULLUNBIASDIFF**
     Fully unbias for the diffusion process by summing over all connections.
+    This is no longer functional and commented out in the code.
 
 **NODALCUTOFF** [NodalCuttoff]
     Constrain a determinant to be of the same sign as the MP1
     wavefunction at that determinant, if the normalised component of
     the MP1 wavefunction is greater than the NodalCutoff value.
+    This is no longer functional and commented out in the code.
 
 **NOANNIHIL**
     Remove the annihilation of particles on the same
