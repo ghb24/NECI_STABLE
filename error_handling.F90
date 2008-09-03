@@ -59,6 +59,9 @@ subroutine quiet_stop(msg)
 != or for use with the SOFTEXIT functionality).
 != In:
 !=    msg (optional) : Print msg before exiting if msg is present.
+#ifdef PARALLEL
+use Parallel, only: MPIStopAll
+#endif
 
 implicit none
 character(*), intent(in), optional :: msg
@@ -68,7 +71,7 @@ if (present(msg)) then
 end if
 
 #ifdef PARALLEL
-call MPIStopAll(error_str)
+call MPIStopAll(msg)
 #else
 stop
 #endif

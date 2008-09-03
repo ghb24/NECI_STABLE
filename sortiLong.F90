@@ -185,7 +185,7 @@
       GO TO 10
       END
 
-!Based on SortI, this will sort a list of INTEGER(KIND=SELECTED_INT_KIND(18)) not according to its value, but according to the value of mod(RA,NProc)
+!Based on SortI, this will sort a list of INTEGER(KIND=SELECTED_INT_KIND(18)) not according to its value, but according to the value of abs(mod(RA,NProc))
 !It will then order the next two integer arrays and logical array according to the first.
       SUBROUTINE SORTMod3I1LLong(N,RA,RB,RC,RD,NProc)
       IMPLICIT NONE
@@ -229,9 +229,9 @@
         J=L+L
 20      IF(J.LE.IR)THEN
           IF(J.LT.IR)THEN
-            IF((mod(RA(J),NProc)).LT.(mod(RA(J+1),NProc))) J=J+1
+            IF((abs(mod(RA(J),NProc))).LT.(abs(mod(RA(J+1),NProc)))) J=J+1
           ENDIF
-          IF((mod(RRA,NProc)).LT.(mod(RA(J),NProc)))THEN
+          IF((abs(mod(RRA,NProc))).LT.(abs(mod(RA(J),NProc))))THEN
             RA(I)=RA(J)
             RB(I)=RB(J)
             RC(I)=RC(J)

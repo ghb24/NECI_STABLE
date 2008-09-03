@@ -14,9 +14,9 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TStartMP1,NEquilSteps
-    use CalcData , only : GrowMaxFactor,CullFactor
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil
+    use CalcData , only : TStartMP1,NEquilSteps,TReadPops
+    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -37,7 +37,6 @@ MODULE FciMCParMod
     END TYPE
     
     TYPE(ExcitGenerator) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
-<<<<<<< .working
     INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)                !Contains determinant list
     LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)                    !Contains sign list
     INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)                        !Contains excit level list
@@ -48,18 +47,6 @@ MODULE FciMCParMod
     LOGICAL , ALLOCATABLE :: TempSign(:)                                                         !Temp array to hold sign of walkers when annihilating
     INTEGER(KIND=i2) , ALLOCATABLE :: TempHash(:)
     
-=======
-    INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)                !Contains determinant list
-    LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)                    !Contains sign list
-    INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)                        !Contains excit level list
-    REAL(KIND=r2) , ALLOCATABLE , TARGET :: WalkVecH(:),WalkVec2H(:)                    !Diagonal hamiltonian element
-    INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
-    INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
-    INTEGER(KIND=i2) , ALLOCATABLE , TARGET :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
-    LOGICAL , ALLOCATABLE :: TempSign(:)                                                         !Temp array to hold sign of walkers when annihilating
-    INTEGER(KIND=i2) , ALLOCATABLE :: TempHash(:)
-    
->>>>>>> .merge-right.r11081
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
     INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0
     INTEGER :: HashArrayTag=0,Hash2ArrayTag=0,IndexTableTag=0,Index2TableTag=0,ProcessVecTag=0,Process2VecTag=0
@@ -69,12 +56,7 @@ MODULE FciMCParMod
     INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
     LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
     INTEGER , POINTER :: CurrentIC(:), NewIC(:)
-<<<<<<< .working
     REAL*8 , POINTER :: CurrentH(:), NewH(:)
-=======
-    REAL*8 , POINTER :: CurrentH(:), NewH(:)
-    INTEGER(KIND=i2) , POINTER :: CurrentHash(:), NewHash(:)
->>>>>>> .merge-right.r11081
     TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
     
     INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
@@ -100,24 +82,16 @@ MODULE FciMCParMod
     REAL*8 :: MeanExcitLevel    
     INTEGER :: MinExcitLevel
     INTEGER :: MaxExcitLevel
-<<<<<<< .working
     INTEGER :: Annihilated      !This is the number annihilated on one processor
     INTEGER :: NoatHF           !This is the instantaneous number of particles at the HF determinant
     INTEGER :: NoatDoubs
     INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
     REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
-=======
-    INTEGER :: Annihilated      !This is the number annihilated on one processor
->>>>>>> .merge-right.r11081
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
-<<<<<<< .working
     INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc,AllTotSign,AllTotSignOld
     INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
-=======
-    INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc,AllTotSign,AllTotSignOld
->>>>>>> .merge-right.r11081
     REAL*8 :: AllSumNoatHF,AllSumENum,AllPosFrac
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
@@ -137,15 +111,10 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
 
-<<<<<<< .working
     LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
 
     INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
-=======
-    INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
-
->>>>>>> .merge-right.r11081
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
@@ -319,19 +288,11 @@ MODULE FciMCParMod
                         NewSign(VecSlot)=WSign
                         NewExcits(VecSlot)%ExitGenForDet=.false.
                         NewIC(VecSlot)=ExcitLevel
-<<<<<<< .working
                         NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
 !                        NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
                         IF(.not.TNoAnnihil) THEN
-                            Hash2Array(VecSlot)=HashTemp
+                            Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
                         ENDIF
-=======
-                        NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
-!                        NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
-                        IF(.not.TNoAnnihil) THEN
-                            NewHash(VecSlot)=HashTemp
-                        ENDIF
->>>>>>> .merge-right.r11081
                         VecSlot=VecSlot+1
                     enddo
 
@@ -353,17 +314,10 @@ MODULE FciMCParMod
 !Copy excitation generator accross
                         CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
-<<<<<<< .working
                         NewH(VecSlot)=CurrentH(j)
                         IF(.not.TNoAnnihil) THEN
                             Hash2Array(VecSlot)=HashArray(j)
                         ENDIF
-=======
-                        NewH(VecSlot)=CurrentH(j)
-                        IF(.not.TNoAnnihil) THEN
-                            NewHash(VecSlot)=CurrentHash(j)
-                        ENDIF
->>>>>>> .merge-right.r11081
                         VecSlot=VecSlot+1
                     enddo
 
@@ -383,17 +337,10 @@ MODULE FciMCParMod
 !Copy excitation generator accross
                         CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
-<<<<<<< .working
                         NewH(VecSlot)=CurrentH(j)
                         IF(.not.TNoAnnihil) THEN
                             Hash2Array(VecSlot)=HashArray(j)
                         ENDIF
-=======
-                        NewH(VecSlot)=CurrentH(j)
-                        IF(.not.TNoAnnihil) THEN
-                            NewHash(VecSlot)=CurrentHash(j)
-                        ENDIF
->>>>>>> .merge-right.r11081
                         VecSlot=VecSlot+1
                     enddo
             
@@ -522,8 +469,8 @@ MODULE FciMCParMod
 
     END SUBROUTINE PerformFCIMCycPar
 
-<<<<<<< .working
-        
+!A routine to annihilate particles in parallel. This involves separating hashes by abs(mod(hash,nProc)) to each node and annihilating there,       
+!before sending back the annihilated particles to be removed from their original processors.
     SUBROUTINE AnnihilatePartPar(TotWalkersNew)
         INTEGER :: i,j,k,ToAnnihilateIndex,TotWalkersNew,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
@@ -565,7 +512,7 @@ MODULE FciMCParMod
         ENDIF
 
 !Next, order the hash array, taking the index, CPU and sign with it...
-!Order the array by mod(Hash,nProcessors). This will result in a more load-balanced system
+!Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
         CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
 !        CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
         
@@ -573,7 +520,7 @@ MODULE FciMCParMod
             WRITE(6,*) "***************"
             WRITE(6,*) TotWalkersNew
             do i=1,TotWalkersNew
-                WRITE(6,*) Hash2Array(i),mod(Hash2Array(i),nProcessors),IndexTable(i),ProcessVec(i),NewSign(i)
+                WRITE(6,*) Hash2Array(i),abs(mod(Hash2Array(i),nProcessors)),IndexTable(i),ProcessVec(i),NewSign(i)
             enddo
         ENDIF
         
@@ -588,9 +535,9 @@ MODULE FciMCParMod
 
 !Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
         j=1
-        do i=0,nProcessors-1    !Search through all possible values of mod(Hash,nProcessors)
+        do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
 
-            do while((mod(Hash2Array(j),nProcessors).eq.i).and.(j.le.TotWalkersNew))
+            do while((abs(mod(Hash2Array(j),nProcessors)).eq.i).and.(j.le.TotWalkersNew))
                 j=j+1 
             enddo
             sendcounts(i+1)=j-1
@@ -603,6 +550,9 @@ MODULE FciMCParMod
         enddo
         
         IF(sendcounts(nProcessors).ne.TotWalkersNew) THEN
+            WRITE(6,*) "SENDCOUNTS is: ",sendcounts(:)
+            WRITE(6,*) "TOTWALKERSNEW is: ",TotWalkersNew
+            CALL FLUSH(6)
             CALL Stop_All("AnnihilatePartPar","Incorrect calculation of sendcounts")
         ENDIF
 
@@ -702,7 +652,7 @@ MODULE FciMCParMod
         IF(Iter.eq.DebugIter) THEN
             WRITE(6,*) "AFTER DIVISION:   - No. on processor is: ",MaxIndex
             do i=1,MaxIndex
-                WRITE(6,*) HashArray(i),mod(HashArray(i),nProcessors),Index2Table(i),Process2Vec(i),CurrentSign(i)
+                WRITE(6,*) HashArray(i),abs(mod(HashArray(i),nProcessors)),Index2Table(i),Process2Vec(i),CurrentSign(i)
             enddo
             CALL FLUSH(6)
         ENDIF
@@ -713,7 +663,7 @@ MODULE FciMCParMod
         IF(Iter.eq.DebugIter) THEN
             WRITE(6,*) "AFTER DIVISION & ORDERING:   - No. on processor is: ",MaxIndex
             do i=1,MaxIndex
-                WRITE(6,*) HashArray(i),mod(HashArray(i),nProcessors),Index2Table(i),Process2Vec(i),CurrentSign(i)
+                WRITE(6,*) HashArray(i),abs(mod(HashArray(i),nProcessors)),Index2Table(i),Process2Vec(i),CurrentSign(i)
             enddo
             CALL FLUSH(6)
         ENDIF
@@ -970,306 +920,6 @@ MODULE FciMCParMod
     END SUBROUTINE AnnihilatePartPar
 
 
-=======
-
-        
-    SUBROUTINE AnnihilatePartPar(TotWalkersNew)
-        INTEGER :: i,j,k,ToAnnihilateIndex,TotWalkersNew,ierr,error,sendcounts(nProcessors)
-        INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
-        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),MaxIndex
-        INTEGER(KIND=i2) :: HashCurr!MinBin,RangeofBins,NextBinBound
-        CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
-
-!First, allocate memory to hold the signs and the hashes while we annihilate
-        ALLOCATE(TempSign(TotWalkersNew),stat=ierr)
-!Comment out the memallocs later
-        CALL LogMemAlloc('TempSign',TotWalkersNew,4,this_routine,TempSignTag,ierr)
-        ALLOCATE(TempHash(TotWalkersNew),stat=ierr)
-        CALL LogMemAlloc('TempHash',TotWalkersNew,8,this_routine,TempHashTag,ierr)
-        
-!Temporary arrays, storing the signs and Hashes need ot be kept, as both these arrays are going to be mixed
-        do i=1,TotWalkersNew
-!I can probably use icopy/dcopy here instead
-            TempSign(i)=NewSign(i)
-            TempHash(i)=NewHash(i)
-        enddo
-    
-!Create the arrays for index and process
-        do i=1,TotWalkersNew
-            IndexTable(i)=i
-            ProcessVec(i)=iProcIndex
-        enddo
-
-!Next, order the hash array, taking the index, CPU and sign with it...
-!Order the array by mod(Hash,nProcessors). This will result in a more load-balanced system
-        CALL SortMod3I1LLong(TotWalkersNew,NewHash(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
-!        CALL Sort3I1LLong(TotWalkersNew,NewHash(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
-
-!        IF(nProcessors.eq.1) THEN
-!            CALL STOP_All("AnnihilatePartPar","One processor annihilation not available yet...")
-!        ENDIF
- 
-!Create the send counts and disps for the AlltoAllv. Work out equal ranges of bins for the hashes
-!        Rangeofbins=HUGE(Rangeofbins)/(nProcessors/2)
-!        MinBin=HUGE(MinBin)*-1
-!        NextBinBound=MinBin+Rangeofbins
-
-!This could be binary searched for extra speed
-        j=1
-        do i=0,nProcessors-1    !Search through all possible values of mod(Hash,nProcessors)
-
-            do while((mod(NewHash(j),nProcessors).eq.i).and.(j.le.TotWalkersNew))
-                j=j+1 
-            enddo
-            sendcounts(i+1)=j-1
-!            IF(i.eq.nProcessors) THEN
-!                NextBinBound=HUGE(NextBinBound)
-!            ELSE
-!                NextBinBound=NextBinBound+Rangeofbins
-!            ENDIF
-
-        enddo
-
-        IF(sendcounts(nProcessors).ne.TotWalkersNew) THEN
-            CALL Stop_All("AnnihilatePartPar","Incorrect calculation of sendcounts")
-        ENDIF
-
-!Oops, we have calculated them cumulativly - undo this
-        do i=2,nProcessors
-            do j=1,i-1
-                sendcounts(i)=sendcounts(i)-sendcounts(j)
-            enddo
-        enddo
-
-!The disps however do want to be cumulative
-        disps(1)=0      !Starting element is always the first element
-        do i=2,nProcessors
-            disps(i)=disps(i-1)+sendcounts(i-1)
-        enddo
-
-!We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-        CALL IAZZERO(recvcounts,nProcessors)
-!Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-
-!We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
-        recvdisps(1)=0
-        do i=2,nProcessors
-            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
-        enddo
-
-        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        IF(MaxIndex.gt.(0.95*MaxWalkers)) THEN
-            CALL Stop_All("AnnihilatePartPar","Maximum index is close to maximum length of array")
-        ENDIF
-        
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-!Now send the chunks of hashes to the corresponding processors
-        CALL MPI_AlltoAllv(NewHash(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,CurrentHash(1:MaxIndex),recvcounts,recvdisps,mpilongintegertype,MPI_COMM_WORLD,error)        
-
-!The signs of the hashes, index and CPU also need to be taken with them.
-        CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_LOGICAL,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-
-!The hashes now need to be sorted again - this time by their number
-        CALL Sort3I1LLong(MaxIndex,CurrentHash(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
-
-!Work out the index of the particles which want to be annihilated
-        j=1
-        ToAnnihilateIndex=1
-        do while(j.le.MaxIndex)
-            HashCurr=CurrentHash(j)
-            TotWalkersDet=1
-            InitialBlockIndex=j
-            FinalBlockIndex=j
-            j=j+1
-            do while((CurrentHash(j).eq.HashCurr).and.(j.le.MaxIndex))
-!First loop counts walkers in the block
-                IF(CurrentSign(j)) THEN
-                    TotWalkersDet=TotWalkersDet+1
-                ELSE
-                    TotWalkersDet=TotWalkersDet-1
-                ENDIF
-                FinalBlockIndex=FinalBlockIndex+1
-                j=j+1
-            enddo
-
-            do k=InitialBlockIndex,FinalBlockIndex
-!Second run through the block of same determinants marks walkers for annihilation
-                IF(TotWalkersDet.eq.0) THEN
-!All walkers in block want to be annihilated
-                    IndexTable(ToAnnihilateIndex)=Index2Table(k)
-                    ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
-                    NewHash(ToAnnihilateIndex)=CurrentHash(k)     !This is not strictly needed - remove after checking
-                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
-                    ToAnnihilateIndex=ToAnnihilateIndex+1
-                ELSEIF((TotWalkersDet.lt.0).and.(CurrentSign(k))) THEN
-!Annihilate if block has a net negative walker count, and current walker is positive
-                    IndexTable(ToAnnihilateIndex)=Index2Table(k)
-                    ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
-                    NewHash(ToAnnihilateIndex)=CurrentHash(k)     !This is not strictly needed - remove after checking
-                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
-                    ToAnnihilateIndex=ToAnnihilateIndex+1
-                ELSEIF((TotWalkersDet.gt.0).and.(.not.CurrentSign(k))) THEN
-!Annihilate if block has a net positive walker count, and current walker is negative
-                    IndexTable(ToAnnihilateIndex)=Index2Table(k)
-                    ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
-                    NewHash(ToAnnihilateIndex)=CurrentHash(k)     !This is not strictly needed - remove after checking
-                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
-                    ToAnnihilateIndex=ToAnnihilateIndex+1
-                ELSE
-!If net walkers is positive, and we have a positive walkers, then remove one from the net positive walkers and continue through the block
-                    IF(CurrentSign(k)) THEN
-                        TotWalkersDet=TotWalkersDet-1
-                    ELSE
-                        TotWalkersDet=TotWalkersDet+1
-                    ENDIF
-                ENDIF
-            enddo
-
-        enddo
-
-        ToAnnihilateIndex=ToAnnihilateIndex-1   !ToAnnihilateIndex now tells us the total number of particles to annihilate from the list on this processor
-
-!The annihilation is complete - particles to be annihilated are stored in IndexTable and need to be sent back to their original processor
-!To know which processor that is, we need to order the particles to be annihilated in terms of their CPU, i.e. ProcessVec(1:ToAnnihilateIndex)
-!Is the list already ordered according to CPU? Is this further sort even necessary?
-
-        CALL Sort2IILongL(ToAnnihilateIndex,ProcessVec(1:ToAnnihilateIndex),IndexTable(1:ToAnnihilateIndex),NewHash(1:ToAnnihilateIndex),NewSign(1:ToAnnihilateIndex))
-
-!We now need to regenerate sendcounts and disps
-        CALL IAZZERO(sendcounts,nProcessors)
-        do i=1,ToAnnihilateIndex
-            IF(ProcessVec(i).gt.(nProcessors-1)) THEN
-                CALL Stop_All("AnnihilatePartPar","Annihilation error")
-            ENDIF
-            sendcounts(ProcessVec(i)+1)=sendcounts(ProcessVec(i)+1)+1
-        enddo
-!The disps however do want to be cumulative
-        disps(1)=0      !Starting element is always the first element
-        do i=2,nProcessors
-            disps(i)=disps(i-1)+sendcounts(i-1)
-        enddo
-
-!We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-        CALL IAZZERO(recvcounts,nProcessors)
-!Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
-
-!We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
-        recvdisps(1)=0
-        do i=2,nProcessors
-            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
-        enddo
-
-        ToAnnihilateonProc=recvdisps(nProcessors)+recvcounts(nProcessors)
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-!Perform another matrix transpose of the annihilation data using MPI_AlltoAllv, to send the data back to its correct Processor
-        CALL MPI_AlltoAllv(NewHash(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,CurrentHash,recvcounts,recvdisps,mpilongintegertype,MPI_COMM_WORLD,error)        
-
-!The signs of the hashes, index and CPU also need to be taken with them. (CPU does not need to be taken - every element of CPU should be equal to the rank of the processor+1)
-!Hash also does not need to be taken, but will be taken as a precaution
-        CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_LOGICAL,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-
-!TEST
-        do i=1,ToAnnihilateonProc
-            IF(Process2Vec(i).ne.(iProcIndex+1)) THEN
-                CALL Stop_All("AnnihilatePartPar","AlltoAllv performed incorrectly")
-            ENDIF
-        enddo
-
-!Index2Table now is a list, of length "ToAnnihilateonProc", of walkers which should NOT be transferred to the next array. 
-!Order the list according to this index (Hash and sign does not need to be sorted, but will for debugging purposes)
-
-        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),CurrentHash(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
-
-!TEST - do the hashes and signs match the ones that are returned?
-        do i=1,ToAnnihilateonProc
-            IF(TempHash(Index2Table(i)).ne.(CurrentHash(i))) THEN
-                CALL Stop_All("AnnihilatePartPar","Incorrect Hash returned")
-            ENDIF
-            IF(TempSign(Index2Table(i))) THEN
-                IF(.not.CurrentSign(i)) THEN
-                    CALL Stop_All("AnnihilatePartPar","Incorrect Sign returned")
-                ENDIF
-            ELSE
-                IF(CurrentSign(i)) THEN
-                    CALL Stop_All("AnnihilatePartPar","Incorrect Sign returned")
-                ENDIF
-            ENDIF
-        enddo
-        
-
-        IF(ToAnnihilateonProc.ne.0) THEN
-!Copy across the data, apart from ones which have an index given by the indicies in Index2Table(1:ToAnnihilateonProc)
-            VecSlot=1       !VecSlot is the index in the final array of TotWalkers
-            i=1             !i is the index in the original array of TotWalkersNew
-            do j=1,ToAnnihilateonProc
-!Loop over all particles to be annihilated
-                do while(i.lt.Index2Table(j))
-!Copy accross all particles less than this number
-                    CALL ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
-                    CurrentIC(VecSlot)=NewIC(i)
-                    CurrentH(VecSlot)=NewH(i)
-                    CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
-                    CurrentHash(VecSlot)=TempHash(i)
-                    CurrentSign(VecSlot)=TempSign(i)
-                    i=i+1
-                    VecSlot=VecSlot+1
-                enddo
-                i=i+1
-            enddo
-
-!Now need to copy accross the residual - from Index2Table(ToAnnihilateonProc) to TotWalkersNew
-            do i=Index2Table(ToAnnihilateonProc),TotWalkersNew
-                CALL ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
-                CurrentIC(VecSlot)=NewIC(i)
-                CurrentH(VecSlot)=NewH(i)
-                CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
-                CurrentHash(VecSlot)=TempHash(i)
-                CurrentSign(VecSlot)=TempSign(i)
-                VecSlot=VecSlot+1
-            enddo
-
-        ELSE
-!No particles annihilated
-            do i=1,TotWalkersNew
-                CALL ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
-                CurrentIC(VecSlot)=NewIC(i)
-                CurrentH(VecSlot)=NewH(i)
-                CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
-                CurrentHash(VecSlot)=TempHash(i)
-                CurrentSign(VecSlot)=TempSign(i)
-                VecSlot=VecSlot+1
-            enddo
-        ENDIF
-                
-        TotWalkers=VecSlot-1
-
-        IF((TotWalkersNew-TotWalkers).ne.ToAnnihilateonProc) THEN
-            CALL Stop_All("AnnihilatePartPar","Problem with numbers when annihilating")
-        ENDIF
-
-        DEALLOCATE(TempSign)
-        CALL LogMemDealloc(this_routine,TempSignTag)
-        DEALLOCATE(TempHash)
-        CALL LogMemDealloc(this_routine,TempHashTag)
-        
-        RETURN
-
-    END SUBROUTINE AnnihilatePartPar
-
-
->>>>>>> .merge-right.r11081
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign)
         INTEGER :: DetCurr(NEl),ExcitLevel
@@ -1289,14 +939,9 @@ MODULE FciMCParMod
                 NoatHF=NoatHF-1
             ENDIF
         ELSEIF(ExcitLevel.eq.2) THEN
-<<<<<<< .working
             NoatDoubs=NoatDoubs+1
 !At double excit - find and sum in energy
             HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-=======
-!At double excit - find and sum in energy
-            HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
->>>>>>> .merge-right.r11081
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum+REAL(HOffDiag%v,r2)
                 PosFrac=PosFrac+1.D0
@@ -2095,12 +1740,8 @@ MODULE FciMCParMod
         MeanExcitLevel=0.D0
         MinExcitLevel=NEl+10
         MaxExcitLevel=0
-<<<<<<< .working
         Annihilated=0
         Acceptances=0
-=======
-        Annihilated=0
->>>>>>> .merge-right.r11081
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -2206,7 +1847,6 @@ MODULE FciMCParMod
             CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
             ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
-<<<<<<< .working
             ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
             CALL AZZERO(WalkVecH,MaxWalkers)
@@ -2215,16 +1855,7 @@ MODULE FciMCParMod
             CALL AZZERO(WalkVec2H,MaxWalkers)
             
             MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
-=======
-            ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
-            CALL AZZERO(WalkVecH,MaxWalkers)
-            ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
-            CALL AZZERO(WalkVec2H,MaxWalkers)
->>>>>>> .merge-right.r11081
 
-<<<<<<< .working
             IF(.not.TNoAnnihil) THEN
                 ALLOCATE(HashArray(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
@@ -2248,29 +1879,6 @@ MODULE FciMCParMod
                 MemoryAlloc=MemoryAlloc+32*MaxWalkers
             ENDIF
 
-=======
-            IF(.not.TNoAnnihil) THEN
-                ALLOCATE(HashArray(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
-                HashArray(:)=0
-                ALLOCATE(Hash2Array(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('Hash2Array',MaxWalkers,8,this_routine,Hash2ArrayTag,ierr)
-                Hash2Array(:)=0
-                ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
-                CALL IAZZERO(IndexTable,MaxWalkers)
-                ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
-                CALL IAZZERO(Index2Table,MaxWalkers)
-                ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
-                CALL IAZZERO(ProcessVec,MaxWalkers)
-                ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
-                CALL IAZZERO(Process2Vec,MaxWalkers)
-            ENDIF
-
->>>>>>> .merge-right.r11081
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
             CurrentSign=>WalkVecSign
@@ -2281,7 +1889,6 @@ MODULE FciMCParMod
             NewIC=>WalkVec2IC
             NewH=>WalkVec2H
 
-<<<<<<< .working
             IF(TStartSinglePart) THEN
                 CurrentDets(:,1)=HFDet(:)
                 CurrentIC(1)=0
@@ -2291,22 +1898,6 @@ MODULE FciMCParMod
                     HashArray(1)=HFHash
                 ENDIF
             ELSE
-=======
-            IF(.not.TNoAnnihil) THEN
-                CurrentHash=>HashArray
-                NewHash=>Hash2Array
-            ENDIF
-
-            do j=1,InitWalkers
-                CurrentDets(:,j)=HFDet(:)
-                CurrentSign(j)=.true.
-                CurrentIC(j)=0
-                CurrentH(j)=0.D0
-                IF(TNoAnnihil) THEN
-                    CurrentHash(j)=HFHash
-                ENDIF
-            enddo
->>>>>>> .merge-right.r11081
 
                 do j=1,InitWalkers
                     CurrentDets(:,j)=HFDet(:)
@@ -2520,11 +2111,10 @@ MODULE FciMCParMod
         INTEGER :: DetCurr(NEl),i
         INTEGER(KIND=i2) :: CreateHash
 
-<<<<<<< .working
         CreateHash=0
         do i=1,NEl
-            CreateHash=13*CreateHash+i*DetCurr(i)
-!            CreateHash=(1099511628211*CreateHash)!+i*DetCurr(i)
+!            CreateHash=13*CreateHash+i*DetCurr(i)
+            CreateHash=(1099511628211*CreateHash)+i*DetCurr(i)
             
 !            CreateHash=mod(1099511628211*CreateHash,2**64)
 !            CreateHash=XOR(CreateHash,DetCurr(i))
@@ -2534,16 +2124,6 @@ MODULE FciMCParMod
 
     END FUNCTION CreateHash
 
-=======
-        CreateHash=0
-        do i=1,NEl
-            CreateHash=(13*CreateHash)+DetCurr(i)
-        enddo
-        RETURN
-
-    END FUNCTION CreateHash
-
->>>>>>> .merge-right.r11081
 !This routine copies an excitation generator from origExcit to NewExit, if the original claims that it is for the correct determinant
     SUBROUTINE CopyExitgenPar(OrigExit,NewExit)
         TYPE(ExcitGenerator) :: OrigExit,NewExit
