@@ -59,3 +59,23 @@ There are many other appropriate options that can be specified in the
 CPMD input file rather than the NECI input file.  Please see the CPMD
 manula and the local CPMD documentation detailing addtions the Alavi
 group has made.
+
+Soft exits
+----------
+
+NECI creates a file at the start of the calculation called SOFTEXIT.  If it is
+removed at any point during a calculation, then the code will exit cleanly and
+quietly, with no error messages, the next time SOFTEXIT is checked to see if it
+still exists, allowing a calculation to be halted prematurely yet still perform
+any necessary post-processing of the calculation and print out, for example,
+the memory and timing information.  This functionality is especially suited to
+iterative and cyclic processes and is not available for all types of
+calculation.
+
+Currently, SOFTEXIT applies only to the following calculation
+type(s):
+
+* **FciMC** 
+  If SOFTEXIT has been removed, then the current
+  iteration is completed, all post-processing of the calculation up to the
+  current iteration is performed.
