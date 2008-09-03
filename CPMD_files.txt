@@ -1,23 +1,30 @@
-The following files are based on CPMD and need to be stripped from the codebase.  These are just the files in NECI and CPMD which have a common name.  There may be functions in common too. AJWT
+The following files are based on CPMD and need to be stripped from the
+codebase.  These are just the files in NECI and CPMD which have a common name.
 
 We were bad
 ===========
 
 frsblk.F
+    I know Ali claims it's different from CPMD's version, but do a diff and decide for yourself...
 irat.inc
+    We should be able to replace this pretty easily.  Thoughts as to best approach?
 util.F
+    Someone needs to spend some time with coffee, terminal and figure it out.
 mkconfig.sh
+    We should write our own.  What functionality do we want to keep/have in addition?
 
-Unrelated files?
-================
+Unrelated files
+===============
 
-rhoofr.F ! Appears to be completely unrelated to CPMD's rhoofr.F.
+rhoofr.F
+    Appears to be completely unrelated to CPMD's rhoofr.F.
 
 Memory routines
 ===============
 
-These are ready to be removed as and when we remove all crap pointers.
-(Or we could just write a wrapper for LogMem{A,Dea}lloc.)
+These are ready to be removed as and when we remove all crap Cray pointers, or
+we could just write a wrapper for LogMem{A,Dea}lloc.  JSS would much rather switch
+entirely to allocatable arrays though.
 
 freem.F
 memc.inc
@@ -26,11 +33,14 @@ memory.F
 Additional routines
 ===================
 
-DSCAL     (from blas though!)
-GAMMLN
 SORT      (from Numerical Recipes though) 
 SORT2     (from Numerical Recipes though)
 SORT2I    (from Numerical Recipes though)
-ZCOPY     (from blas though!)
+   Numerical recipes worries me: it might create some licencing problems in the near future.  Can someone check?  I've read something on this in the past, but can't remember the exact details.
 
-So really we only need to worry about GAMMLN in addition to the above files.
+GAMMLN
+   Only used in generating factorials, which in turn is only used in two places.  Should be trivial to remove.
+
+DSCAL     (from blas though!)
+ZCOPY     (from blas though!)
+   JSS: should remove the blas_tuned_NECSX file from the source anyway?
