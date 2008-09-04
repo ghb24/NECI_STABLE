@@ -182,6 +182,7 @@ MODULE SymExcit2
          ExWeights(iCount)%Weight=R
          Norm=Norm+R
       END subroutine
+
 !        A sub called to generate an unnormalised weight for an ij->?? excitation
 !          We return a function of the energies of the orbitals, exp(-(ei+ej)/a)
       SUBROUTINE ExcitFromWeighting(I,J,Weight,G1,nBasisMax,UMat,Arr,nBasis)
@@ -202,6 +203,20 @@ MODULE SymExcit2
          ELSEIF(EXCITFUNCS(1)) THEN
             Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitWeights(1,CUR_VERT))
          !Polynomial weighting with a cut-off at the chemical potential
+         ELSEIF(EXCITFUNCS(6)) THEN
+!Step-function weighting
+!First deal with electron I
+            IF(Arr(I,2).lt.CHEMPOT) THEN
+                Weight=g_VMC_ExcitWeights(1,CUR_VERT)
+            ELSE
+                Weight=1.D0
+            ENDIF
+!Then J...
+            IF(Arr(J,2).lt.CHEMPOT) THEN
+                Weight=Weight+g_VMC_ExcitWeights(1,CUR_VERT)
+            ELSE
+                Weight=Weight+1.D0
+            ENDIF
          ELSEIF(EXCITFUNCS(4)) THEN
             IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) Weight=1.D0
             IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
@@ -267,24 +282,35 @@ MODULE SymExcit2
                 W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
                 IF(ABS(W2).LT.1.D-2) W2=1.D-2
                 Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
-             ENDIF
-             IF(EXCITFUNCS(1)) Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2,CUR_VERT))
+             ELSEIF(EXCITFUNCS(1)) THEN
+                Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2,CUR_VERT))
+             ELSEIF(EXCITFUNCS(6)) THEN
+!Step-function weighting using chemical potential cut-off
+                 IF(Arr(K,2).gt.CHEMPOT) THEN
+                     W2=g_VMC_ExcitWeights(2,CUR_VERT)
+                 ELSE
+                     W2=1.D0
+                 ENDIF
+                 IF(Arr(L,2).gt.CHEMPOT) THEN
+                     W2=W2+g_VMC_ExcitWeights(2,CUR_VERT)
+                 ELSE
+                     W2=W2+1.D0
+                 ENDIF
+                 Weight=Weight*W2
 !chempotweighting - using a chemical potential cut-off
-             IF(EXCITFUNCS(4)) THEN
+             ELSEIF(EXCITFUNCS(4)) THEN
                  IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
                  IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
                  ENDIF
-             ENDIF
 !CHEMPOT-TWOFROM
-             IF(EXCITFUNCS(5)) THEN
+             ELSEIF(EXCITFUNCS(5)) THEN
                  IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
                  IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
                      Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
                  ENDIF
-             ENDIF
 !PolyExcitWeighting
-             IF(EXCITFUNCS(2)) THEN
+             ELSEIF(EXCITFUNCS(2)) THEN
                  IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2,CUR_VERT)) Weight=Weight
                  IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2,CUR_VERT)) THEN
                      Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))

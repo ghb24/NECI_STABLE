@@ -147,7 +147,7 @@ MODULE ReadInput
 
       subroutine checkinput()
       use SystemData , only : NEL,TSTARSTORE,TUseBrillouin, Beta
-      USE PRECALCREAD , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
+      USE PrecalcData , only : PREIV_MAX,USEVAR,PRE_TAYLOG,             &
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       use CalcData , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &

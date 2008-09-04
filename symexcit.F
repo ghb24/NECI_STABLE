@@ -1915,7 +1915,7 @@ C.. Actually generate a det
      &            nBasisMax,UMat,Arr,nBasis,pGenGraph,EXCITGEN)
          USE symexcit2
          USE HElem
-         USE PRECALCREAD , only : PRE_TAY,TPREVAR
+         USE PrecalcData , only : PRE_TAY,TPREVAR
          use SystemData, only: BasisFN
          IMPLICIT NONE
          INTEGER iUnit

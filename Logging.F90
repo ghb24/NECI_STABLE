@@ -56,6 +56,7 @@ MODULE Logging
         call readu(w)
         select case(w)
         case("DETPOPS")
+!This option no longer works...
             TDetPops=.true.
         case("DISTRIBS")
             TDistrib=.true.

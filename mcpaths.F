@@ -30,7 +30,6 @@ C.. DLWDB = d ln (wi) / d Beta.
          USE PreCalc ,  only: GETVARS
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
-         USE MCStarMod , only : MCStar
          USE StarDiagTripMod , only : StarDiagTrips
 #ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
@@ -44,7 +43,7 @@ C.. DLWDB = d ln (wi) / d Beta.
      &          calcp_logweight,TFCIMC,TReturnPathMC
          use Calc, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PRECALCREAD , only : PREIV_MAX,TPREVAR
+         USE PrecalcData , only : PREIV_MAX,TPREVAR
          use global_utilities
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
@@ -162,8 +161,8 @@ C     &            HIJS(0))
             
             proc_timerPRE%timer_name='PRECALC '
             call set_timer(proc_timerPRE)
-            CALL GETVARS(NI,BETA,I_P,IPATH,2,NEL,NBASISMAX,
-     &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+            CALL GETVARS(NI,BETA,I_P,IPATH,2,
+     &       G1,NMSH,FCK,NMAX,UMAT,
      &       NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,
      &       HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,
      &       I_VMAX)
@@ -482,7 +481,6 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
          USE NODEDIAG , only : fMCPR3StarNodes
          USE GraphMorph , only : MorphGraph
-         USE MCStarMod , only : MCStar
          USE StarDiagTripMod , only : StarDiagTrips
 #ifdef PARALLEL
          USE FciMCParMod , only : FciMCPar
@@ -490,7 +488,7 @@ C.. MCPATHSR3 has the same method at each vertex level
          USE FciMCMod , only : FciMC
 #endif
          USE ReturnPathMCMod , only : ReturnPathMC
-         USE PRECALCREAD , only : TPREVAR
+         USE PrecalcData , only : TPREVAR
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
          use Calc, only: TStarTrips
@@ -1121,7 +1119,7 @@ C.,             If 1, only allow doubles.
          Use Determinants, only: GetHElement2
          use CalcData , only : TVARCALC,TMPTHEORY
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
+         USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX

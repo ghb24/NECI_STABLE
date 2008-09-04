@@ -1067,6 +1067,18 @@ by preferentially selecting for certin types of excitation.
     better. This uses the form :math:`W=1+|U|^{\text{EXCITWEIGHT}}`, rather than the
     exponential form.
 
+**STEPEXCITWEIGHTING** [g_VMC_ExcitWeights(1) g_VMC_ExcitWeights(2) G_VMC_EXCITWEIGHT]
+    This excitation weighting involves a step function between the HF virtual and occupied electon manifold (i.e. step is at the chemical potential)
+    When choosing an electron to move, the weighting to selecting it is increased by 1 if the electron has energy above the chemical potential
+    and by g_VMC_ExcitWeights(1,1) if above. This occurs for both electrons. When choosing where to excite to, the situation is reversed, and the probability of selecting it is
+    increased by 1 if the electron is in the occupied manifold and g_VMC_ExcitWeights(2,1) if in the occupied manifold. Bear in mind that the parameters
+    are NOT probabilities. If we are at a higher excitation level w.r.t. HF, then more electrons will be in the virtual manifold, which will alter the normalisation, and 
+    mean that when selecting electrons to excite, there will be an increasingly small probability of selecting them from the occupied manifold. The opposite is true when
+    choosing where to put them.
+    
+    U-weighting is the third parameter as before.
+
+
 
 Experimental options
 --------------------

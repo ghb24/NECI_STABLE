@@ -32,7 +32,7 @@ C.,             If 1, only allow doubles.
          Use Determinants, only: GetHElement2
          USE HElem 
          USE Logging , only : G_VMC_LOGCOUNT
-         USE PRECALCREAD , only : TPREVAR,PREWEIGHTEPS
+         USE PrecalcData , only : TPREVAR,PREWEIGHTEPS
          use CalcData , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
          use CalcData , only : lNoTriples
          use SystemData, only: BasisFN

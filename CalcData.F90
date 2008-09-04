@@ -13,7 +13,7 @@ LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
 LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-LOGICAL :: THDiag,TMCStar,TStoch,TReadPops,TBinCancel,TFCIMC,TMCDets
+LOGICAL :: THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets
 LOGICAL :: TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
 LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
 LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
@@ -31,7 +31,7 @@ INTEGER :: RhoApp,NEquilSteps,MemoryFac
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
-REAL*8 :: GrowGraphsExpo,DeltaH,DiagSft,Tau,SftDamp,ScaleWalkers
+REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
 
 

@@ -2,33 +2,23 @@ module PreCalc
 
     use CalcData , only : G_VMC_PI,G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,G_VMC_SEED,     &
      &      CUR_VERT,EXCITFUNCS
-    USE PRECALCREAD , only : PREIV_MAX,TOTALERROR,PRE_TAYREAL,MEMSAV,PRE_TAYLOG,PRE_TAY, &
-     &      USEVAR,TRUECYCLES,TGRIDVAR,GRIDVARPAR,TLINEVAR,LINEVARPAR
     
     use IntegralsData, only : ChemPot
-    REAL*8, POINTER, DIMENSION(:) :: PGENLIST
-    INTEGER, POINTER, DIMENSION(:) :: NMEM
-    REAL*8, POINTER, DIMENSION(:,:) :: GRAPHPARAMS
-    INTEGER, POINTER, DIMENSION(:,:,:) :: GRAPHS
-#if defined(POINTER8)
-    INTEGER*8, POINTER, DIMENSION(:,:) :: PVERTMEMS
-#else
-    INTEGER, POINTER, DIMENSION(:,:) :: PVERTMEMS
-#endif
-    SAVE PGENLIST,NMEM,GRAPHPARAMS,GRAPHS,PVERTMEMS
+    use SystemData , only : nBasisMax,Arr,Alat,nBasis,NEl,Brr
+    use PrecalcData
    
     contains
 
-SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,              &
-     &         FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
+SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,G1,NMSH,              &
+     &         FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
      &         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,TLOGP,KSYM,NWHTAY,I_VMAX)
 
      USE HElem
      use SystemData, only: BasisFN
      IMPLICIT NONE
      TYPE(BasisFN) G1(*),KSYM
-     INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),I,L,LT,Q
-     INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX),NBASIS
+     INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),I,L,LT,Q
+     INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),NMAX
      INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,n,gg,zz
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
@@ -37,7 +27,7 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 #endif
      INTEGER iters,r,s,rr,UNITNO,vv,kk,cc,I_VMAX,NWHTAY(3,I_VMAX)
      COMPLEX*16 FCK(*)
-     REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM
+     REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM
      REAL*8 bestvals(6,PREIV_MAX)!,originalvals(6)
      REAL*8 ax,bx,cx,minvar,xmin,originalc,originalimport
      REAL*8 ZEROVAR,p(2),pl(2),ph(2),xi(2,2)
@@ -55,19 +45,19 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
      CHARACTER(len=12) :: abstr
 !     REAL*8 MCPATHSPRE
 !     EXTERNAL MCPATHSPRE
-     
+
      DEALLOC=.FALSE.
      LOWNEL=.FALSE.
      
      IF (EXCITFUNCS(2).or.EXCITFUNCS(3)) THEN
-        ENERGYLIMS(1)=ORBENERGY(NMAX,1)
-        ENERGYLIMS(2)=ORBENERGY(NMAX,NBASIS)
+        ENERGYLIMS(1)=Arr(1,1)
+        ENERGYLIMS(2)=Arr(NBASIS,1)
      ENDIF
      
      IF(NEL.LE.2) LOWNEL=.TRUE.
      
 !     do b=1,nbasis
-!        energy=ORBENERGY(NMAX,b)
+!        energy=Arr(b,1)
 !        WRITE(6,*) "ENERGIES ARE", b, energy
 !     enddo
 !     CALL FLUSH(6)
@@ -100,8 +90,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
          IF (PRE_TAY(3,Q).eq.0) THEN
               
              GIDHO=6
-             VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,   &
-     &                  FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,  &
+             VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,G1,NMSH,   &
+     &                  FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,  &
      &                  DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,&
      &                  KSYM)
              
@@ -141,8 +131,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             n=4                 !Dimensions
             GIDHO=7
             
-            CALL POWELL(polypboth,polyxiboth,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,    & 
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                     &
+            CALL POWELL(polypboth,polyxiboth,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,    & 
+     &              G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                     &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM,LOWNEL)             
             
             bestvals(1:4,Q)=polypboth(:)
@@ -186,8 +176,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             n=3                 !Dimensions
             GIDHO=4
 
-            CALL POWELL(polyp,polyxi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,              &
+            CALL POWELL(polyp,polyxi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,     &
+     &              G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,              &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,  &
      &              KSYM,LOWNEL)
             
@@ -229,8 +219,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             n=3
             GIDHO=9
 
-            CALL POWELL(polyp,polyxi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                    &
+            CALL POWELL(polyp,polyxi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,     &
+     &              G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                    &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,        &
      &              KSYM,LOWNEL)
         
@@ -273,8 +263,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
            n=2
            GIDHO=8
            
-            CALL POWELL(p,xi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,          &
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,           &
+            CALL POWELL(p,xi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,          &
+     &              G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,           &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,&
      &              KSYM,LOWNEL)
         
@@ -306,8 +296,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             GIDHO=8
             UNITNO=100+Q
             OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
-            CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
-                         FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+            CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,G1,NMSH,                     &
+                         FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
                   DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
             CLOSE(UNITNO)
         ENDIF
@@ -333,8 +323,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             n=2                 !Dimensions
             GIDHO=1             !To tell brentalgo that we are looking at a & b parameters
 
-            CALL POWELL(p,xi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,          &
-     &              G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,           &
+            CALL POWELL(p,xi,n,n,pre_TAYREAL(2,Q),iters,fret,NI,BETA,I_P,IPATH,Q,          &
+     &              G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,           &
      &              TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,&
      &              KSYM,LOWNEL)
 
@@ -367,8 +357,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             GIDHO=1
             UNITNO=100+Q
             OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
-            CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
-                         FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+            CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,G1,NMSH,                     &
+                         FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
                   DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
             CLOSE(UNITNO)
         ENDIF
@@ -387,8 +377,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 ENDIF
        
             !Reset 'FIRST(K)' in MCPATHSPRE     
-                xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
-     &                  FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+                xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,G1,NMSH,        &
+     &                  FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
      &                  DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
      
                 !Initial bracketing guess
@@ -400,16 +390,16 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 originalimport=G_VMC_PI
             
                 !Ensuring correct bracketing
-                CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,      &
-                        FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                          &
+                CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,G1,NMSH,      &
+                        FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                          &
                         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
             
                 IF (TLOGP) THEN
                     WRITE(31,"(A,F16.12,A,F16.12)") "From mnbrak routine, minimum is between ", ax, " and ", bx
                 ENDIF
 
-                CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,     &
-                           G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                  &
+                CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,     &
+                           G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,                  &
                            TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,   &
                            KSYM)
 
@@ -432,8 +422,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 GIDHO=2
                 UNITNO=150+Q
                 OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
-                CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
-                             FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+                CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,G1,NMSH,                     &
+                             FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
                 CLOSE(UNITNO)
             ENDIF
@@ -448,8 +438,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             ENDIF
             
             !Reset 'FIRST(K)' in MCPATHSPRE     
-        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
-     &          FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,G1,NMSH,        &
+     &          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
             
             !Initial bracketing guess
@@ -458,15 +448,15 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
             
             GIDHO=5
 
-            CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,  &
-                    FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
+            CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,G1,NMSH,  &
+                    FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
                     DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
             IF (TLOGP) THEN
                 WRITE(31,"(A,F16.12,A,F16.12)") "From mnbrak routine, minimum is between ", ax, " and ", cx
             ENDIF
 
-            CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,      &
-     &                  G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                          &
+            CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,      &
+     &                  G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,                          &
      &                  RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
      &                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
             
@@ -495,8 +485,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 ENDIF
            
                 !Reset 'FIRST(K)' in MCPATHSPRE     
-            xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
-     &              FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+            xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,G1,NMSH,        &
+     &              FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
      &              DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,155,ENERGYLIMS,KSYM)
         
                 !Initial bracketing
@@ -505,8 +495,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
 !               cx=90
 
                 GIDHO=3
-                VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
-     &              FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
+                VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,G1,NMSH,           &
+     &              FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
      &              DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
                 ZEROVAR=VARSUM
             
@@ -516,16 +506,16 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 ENDIF
             
                 !To ensure correct bracketing
-                CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,  &
-                        FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
+                CALL mnbrak(ax,bx,cx,fa,fb,fc,MCPATHSPRE,NI,BETA,I_P,IPATH,Q,G1,NMSH,  &
+                        FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                      &
                         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
             
                 IF (TLOGP) THEN
                     WRITE(31,"(A,F16.12,A,F13.9)") "From mnbrak routine, minimum is between ", ax, " and ", cx
                 ENDIF
                     
-                CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,      &
-     &                                 G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,                          &
+                CALL BRENTALGO(minvar,ax,bx,cx,MCPATHSPRE,pre_TAYREAL(2,Q),xmin,NI,BETA,I_P,IPATH,Q,      &
+     &                                 G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,                          &
      &                                 RHOII,RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
      &                                  NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fb,ENERGYLIMS,KSYM)
            
@@ -562,8 +552,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
                 GIDHO=3
                 UNITNO=151+Q
                 OPEN(UNITNO,FILE=abstr,STATUS="UNKNOWN")
-                CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                     &
-                             FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
+                CALL MAKEGRID(NI,BETA,I_P,IPATH,Q,G1,NMSH,                     &
+                             FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,         &
                              DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
                 CLOSE(UNITNO)
             ENDIF
@@ -647,8 +637,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
         IF((pre_TAY(1,rr).eq.-7).or.(pre_TAY(1,rr).eq.-19)) DEALLOC=.true.
     ENDDO
     IF(DEALLOC) THEN
-        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
-     &          FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
+        xxx=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,Q,G1,NMSH,        &
+     &          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,       &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,154,ENERGYLIMS,KSYM)
     ENDIF
     
@@ -658,8 +648,8 @@ SUBROUTINE GETVARS(NI,BETA,I_P,IPATH,I,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        
     RETURN
 END SUBROUTINE GETVARS
 
-FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,        &
-           FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,            &
+FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,G1,NMSH,        &
+           FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,            &
            DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
 
     USE HElem
@@ -669,9 +659,9 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
 !    EXTERNAL MCPATHSPRE
 !    REAL*8 MCPATHSPRE
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),L,LT,K,D
-    INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX),GIDHO
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS
+    INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K,D
+    INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),GIDHO
+    INTEGER IPATH(NEL,0:PREIV_MAX),NMAX
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
@@ -679,7 +669,7 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
 #endif
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,G
-    REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,ENERGYLIMS(2)
+    REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,ENERGYLIMS(2)
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
@@ -707,8 +697,8 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
         VARIANCEAB=HUGE(VARIANCEAB)
     ELSE
     
-    VARIANCEAB=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,     &
-                    FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,   &
+    VARIANCEAB=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,G1,NMSH,     &
+                    FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,   &
                     DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,&
                     KSYM)
 
@@ -718,30 +708,30 @@ FUNCTION VARIANCEAB(pointab,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH
 END FUNCTION VARIANCEAB
            
 
-FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,         &
-              FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
+FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
+              FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
               DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
 
     USE HElem
-    Use Determinants, only: GetHElement2
+    Use Determinants, only: GetHElement3
     use SystemData, only: BasisFN
     Use Logging, only: PrevarLogging
     IMPLICIT NONE
     include 'irat.inc'
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),L,LT,K
-    INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX),I,CNWHTAY
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS,GIDHO
+    INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K
+    INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),I,CNWHTAY
+    INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
      INTEGER LOCTAB(3,PREIV_MAX)
 #endif
     INTEGER sss,ierr,ierr2,ierr3,STORE(6),NMEMLEN,INODE2(NEL)
-    INTEGER IEXCITS,J,EXCITGEN(0:PREIV_MAX),ierr4,b,dd,bb,aa,DEALLOCYC(2)
+    INTEGER IEXCITS,J,EXCITGEN(0:PREIV_MAX),ierr4,b,dd,bb,aa,DEALLOCYC(2),NMAX
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,FIRST(2:8)
-    REAL*8 NTOTAL,BETA,ECORE,ALAT(3),RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
+    REAL*8 NTOTAL,BETA,ECORE,RHOEPS,DBETA,VARSUM,point,MCPATHSPRE
     REAL*8 PROB,SumX,SumY,SumXsq,SumYsq,SumXY,ORIGIMPORT
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) DLWDB,TOTAL,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
@@ -837,7 +827,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             EREF=DLWSAV(K-1)/TOTSAV(K-1)
             
             F(K)=FMCPR3B(NI,BETA,I_P,IPATH,K,NEL,                                &
-     &          NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,       &
+     &          NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMax,ALAT,UMAT,NTAY,       &
      &          RHOEPS,0,RHOII,RHOIJ,CNWHTAY,METH,LOCTAB,                        &
      &          PreVarLogging,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                   &
      &          MP2E,NTOTAL,EREF,VARSUM,TOTAL2)
@@ -849,7 +839,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             EREF=DLWSAV(K-1)/TOTSAV(K-1)
 
             F(K)=FMCPR3B2(NI,BETA,I_P,IPATH,K,NEL,                               &
-               NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
+               NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMax,ALAT,UMAT,NTAY,        &
                RHOEPS,0,RHOIJ,0,METH,LOCTAB,                                     &
                PreVarLogging,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,                    &
                MP2E,NTOTAL2,PREIV_MAX,EREF,VARSUM,TOTAL2)
@@ -865,6 +855,9 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
             VarX=0.D0
             VarY=0.D0
             Covar=0.D0
+
+!            WRITE(6,*) "ENTERING MCPATHSPRE..."
+            CALL FLUSH(6)
         
             !Will only need to run everytime a new vertex MC level is used
             !Deallocate the arrays if already been used by previous vertex level
@@ -918,11 +911,10 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                 ENDIF
 
                 CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
-                CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
+                CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,Arr,ALAT,UMAT,RH,NTAY,0,ECORE)
                 RHOII(0)=RH
                 RHOIJ(0,0)=RHOII(0)
-                HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,                   &
-     &          G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
+                HIJS(0)=GETHELEMENT3(NI,NI,0)
 ! These variables have been passed in and represent the precalculated values for 1..I_VMIN-1 vertices
 !Do these variable want to stay the same no matter what vertex level MC we are on?
                 CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
@@ -935,7 +927,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                 CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,.TRUE.,NMEM,INODE2,I,0,STORE,3)
 !    Count the excitations (and generate a random one which we throw)
                 ISEED=G_VMC_SEED
-                CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM,INODE2,ISEED,IEXCITS,0,UMAT,NMAX,PGR)
+                CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,NMEM,INODE2,ISEED,IEXCITS,0,UMAT,Arr,PGR)
             
             ENDIF
                 
@@ -983,7 +975,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                         INWI=0.D0
                         !DLWDB2 is just the energy, OETILDE is energy*weight
                         FF=FMCPR4D2(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                            &
-                                              NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
+                                              NMax,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
                                              PreVarLOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
                                               I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,K,EXCITGEN(0:K))
 !                        WRITE(60,*) IPATH(:,0),IPATH(:,1),IPATH(:,2),OPROB
@@ -1017,7 +1009,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                             g_VMC_ExcitWeights(:,K)=ORIGEXCITWEIGHTS(:)
                         ENDIF
                         CALL CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
-                                  NBASISMAX,UMat,NMAX,NBASIS,PROB,EXCITGEN(0:K))
+                                  NBASISMAX,UMat,Arr,NBASIS,PROB,EXCITGEN(0:K))
                    
                         SumX=SumX+((OWEIGHT%v*DLWDB2%v)/OPROB)
                         SumY=SumY+((OWEIGHT%v+(WCORE%v*PROB))/OPROB)
@@ -1034,7 +1026,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                             g_VMC_ExcitWeights(:,K)=0.D0
                         ENDIF
                     CALL FMCPR4D2GENGRAPH(NI,NEL,BETA,I_P,IPATH,K,XIJ,          &
-                       NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMat,    &
+                       NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMax,ALAT,UMat,    &
                        NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,0,154,          &
                        EXCITGEN)
 !                        DO tt=1,K-1
@@ -1068,7 +1060,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
                     IPATH(:,0:K)=GRAPHS(:,0:K,bb)
                     EXCITGEN(0:K)=PVERTMEMS(:,bb)
                     CALL  CalcWriteGraphPGen(J,IPATH,K,NEl,LOCTAB,G1,               &
-                               NBASISMAX,UMat,NMAX,NBASIS,PROB,EXCITGEN(0:K))
+                               NBASISMAX,UMat,Arr,NBASIS,PROB,EXCITGEN(0:K))
                     
                     PGENLIST(bb)=PROB
             !
@@ -1133,8 +1125,8 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH, 
 END FUNCTION MCPATHSPRE
 
 !Now not called as didn't seem to like having an allocatable array passed to it - wanted to have pointer passed to it
-SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,    &
-                         NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,TSYM,           &
+SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,I_V,G1,    &
+                         NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,TSYM,           &
                          ECORE,KSYM,DBETA,DLWDB2,HIJS,NMEM,ISEED)
 
     USE HElem
@@ -1142,11 +1134,11 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
     use Logging, only: PreVarLogging
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),NI(NEL)
-    INTEGER nBasisMax(5,*),NBASIS,IPATH(NEL,0:PREIV_MAX),I_V
-    INTEGER IACC,b
+    INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),NI(NEL)
+    INTEGER IPATH(NEL,0:PREIV_MAX),I_V
+    INTEGER IACC,b,NMAX
     COMPLEX*16 FCK(*)
-    REAL*8 BETA,ECORE,ALAT(3),RHOEPS,DBETA,OPROB
+    REAL*8 BETA,ECORE,RHOEPS,DBETA,OPROB
     LOGICAL TSYM
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
@@ -1185,7 +1177,7 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
         EXCITGEN=0
         INWI=0.D0
         FF=FMCPR4D2(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,                          &
-                              NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
+                              NMax,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,CYCLES,METH,                   &
                               PrevarLOGGING,TSYM,ECORE,ISEED,KSYM,DBETA,DLWDB2,HIJS,NMEM,OETILDE,OPROB,I_OVCUR,&
                               I_OCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_V,EXCITGEN)
 
@@ -1205,17 +1197,17 @@ SUBROUTINE GETGRAPHS(METH,CYCLES,GRAPHS,GRAPHPARAMS,PVERTMEMS,NI,BETA,I_P,IPATH,
     RETURN
     END SUBROUTINE GETGRAPHS 
 
-SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,    &
-     &                 G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,   &
+SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,    &
+     &                 G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,   &
      &                 RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,       &
      &                 NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,INITFUNC,ENERGYLIMS,KSYM)
     USE HElem
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),K,L,LT
-    INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX)
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS,GIDHO
+    INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),K,L,LT
+    INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
+    INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
@@ -1223,7 +1215,7 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
 #endif
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
-    REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM,fun,INITFUNC
+    REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM,fun,INITFUNC
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
@@ -1248,8 +1240,8 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
     IF (TLOGP) write(31,*) "BRENT ALGO STARTING"
     IF (INITFUNC.eq.0.D0) THEN
         IF (TLOGP) WRITE(31,*) "INITFUNC EQUAL 0.D0 - redo initial point"
-        VARSUM=fun(x,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                &
-              FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
+        VARSUM=fun(x,NI,BETA,I_P,IPATH,K,G1,NMSH,                &
+              FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
               DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
     ELSE
         VARSUM=INITFUNC
@@ -1315,8 +1307,8 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
             u=x+sign(tol1,d)
         endif
            
-        VARSUM=fun(u,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                    &
-                  FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
+        VARSUM=fun(u,NI,BETA,I_P,IPATH,K,G1,NMSH,                    &
+                  FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,          &
                   DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
              IF (TLOGP.and.(GIDHO.eq.7)) THEN
                  WRITE(31,"(I3,A,I3,5G25.16)")  K, " brent", iter, g_VMC_ExcitWeights(1,K),g_VMC_ExcitWeights(2,K), g_VMC_ExcitWeights(3,K), g_VMC_ExcitWeights(4,K), VARSUM
@@ -1377,8 +1369,8 @@ SUBROUTINE BRENTALGO(brent,ax,bx,cx,fun,tol,xmin,NI,BETA,I_P,IPATH,K,NEL,NBASISM
     return
 END SUBROUTINE BRENTALGO
 
-SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,                   &
-     &        G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,        &
+SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,                   &
+     &        G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,        &
      &        TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,&
      &        KSYM,LOWNEL)
 
@@ -1387,9 +1379,9 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER iter,n,np,NMAX,ITMAX,NEL,I_P,BRR(*),NMSH,NTAY(2),L,LT,NMAXI
-    INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX),Q
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS,GIDHO
+    INTEGER iter,n,np,ITMAX,I_P,NMSH,NTAY(2),L,LT,NMAXI
+    INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),Q
+    INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
@@ -1397,7 +1389,7 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
 #endif
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP,LOWNEL
-    REAL*8 fret,ftol,p(np),xi(np,np),BETA,ECORE,NTOTAL,ALAT(3),RHOEPS
+    REAL*8 fret,ftol,p(np),xi(np,np),BETA,ECORE,NTOTAL,RHOEPS
     REAL*8 DBETA,VARSUM,ENERGYLIMS(2)
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
@@ -1414,8 +1406,8 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
 !       Parameters:  Maximum expected value of n, and maximum allowed iterations.
     INTEGER i,ibig,j
     REAL*8 del,fp,fptt,t,pt(NMAXI),ptt(NMAXI),xit(NMAXI)
-    fret=varianceab(p,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,      &
-           FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+    fret=varianceab(p,NI,BETA,I_P,IPATH,Q,G1,NMSH,      &
+           FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
            DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
            KSYM)
     IF (TLOGP.and.(GIDHO.eq.7)) THEN
@@ -1444,8 +1436,8 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
         enddo
         fptt=fret
         
-        call linmin(p,xit,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          &
-     &    FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                    &
+        call linmin(p,xit,n,fret,NI,BETA,I_P,IPATH,Q,G1,NMSH,          &
+     &    FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                    &
      &    DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)   !Minimise along it...
         IF (TLOGP.and.((GIDHO.eq.1).or.(GIDHO.eq.8))) THEN
             WRITE(31,"(2I3,3G25.16)") Q, iter, p(1), p(2), fret
@@ -1473,15 +1465,15 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
         pt(j)=p(j)
     enddo
         
-    fptt=varianceab(ptt,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
-           FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,           &
+    fptt=varianceab(ptt,NI,BETA,I_P,IPATH,Q,G1,NMSH,           &
+           FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,           &
            DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
     !Function value at extrapolated point
     if (fptt.ge.fp) goto 1      !One reason not to use new direction
     t=2.D0*(fp-2.D0*fret+fptt)*(fp-fret-del)**2-del*(fp-fptt)**2
     if (t.ge.0.D0) goto 1       !Other reason not to use new direction
-    CALL linmin(p,xit,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          &
-     &    FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                &
+    CALL linmin(p,xit,n,fret,NI,BETA,I_P,IPATH,Q,G1,NMSH,          &
+     &    FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                &
      &    DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM) !Move to the minimum of the new direction,
     IF (TLOGP.and.((GIDHO.eq.1).or.(GIDHO.eq.8))) THEN
         WRITE(31,"(2I3,3G25.16)") Q, iter, p(1), p(2), fret
@@ -1500,17 +1492,17 @@ SUBROUTINE POWELL(p,xi,n,np,ftol,iter,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,   
     goto 1                      !Back for another iteration
 END SUBROUTINE POWELL
 
-SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,         &
-     &       FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,             &
+SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,G1,NMSH,         &
+     &       FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,             &
      &       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
     
     USE HElem
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),NMSH,NMAX,NTAY(2),Q,L,LT,GIDHO
-    INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX)
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS
+    INTEGER I_P,NMSH,NTAY(2),Q,L,LT,GIDHO
+    INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
+    INTEGER IPATH(NEL,0:PREIV_MAX),NMAX
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
@@ -1518,7 +1510,7 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NM
 #endif
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
-    REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,VARSUM,ENERGYLIMS(2)
+    REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,VARSUM,ENERGYLIMS(2)
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
@@ -1548,12 +1540,12 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NM
         xx=5.D-01
     END SELECT
     
-    call mnbrak(ax,xx,bx,fa,fx,fb,f1dim,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,   &
-     &          FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,              &
+    call mnbrak(ax,xx,bx,fa,fx,fb,f1dim,NI,BETA,I_P,IPATH,Q,G1,NMSH,   &
+     &          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,              &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
 
-    call BRENTALGO(fret,ax,xx,bx,f1dim,TOL,xmin,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,      &
-     &       G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,              &
+    call BRENTALGO(fret,ax,xx,bx,f1dim,TOL,xmin,NI,BETA,I_P,IPATH,Q,      &
+     &       G1,NMSH,FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,              &
      &       RHOIJ,LOCTAB,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,                  &
      &       NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,fx,ENERGYLIMS,KSYM)
      do j=1,n                !Construct the vector results to return
@@ -1563,17 +1555,17 @@ SUBROUTINE linmin(p,xi,n,fret,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NM
     return
     END SUBROUTINE linmin
 
-FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                  &
-     &          FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
+FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
+     &          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM) 
 
     USE HElem
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),L,LT,K,D,Q
-    INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX)
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS,GIDHO
+    INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,K,D,Q
+    INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
+    INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
@@ -1581,7 +1573,7 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          
 #endif
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,LISNAN
-    REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA
+    REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
     TYPE(HElement) HIJS(0:PREIV_MAX)
@@ -1604,14 +1596,14 @@ FUNCTION f1dim(x,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,          
 !            CALL FLUSH(6)
 !        ENDIF
     enddo
-    f1dim=varianceab(xt,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
-              FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
+    f1dim=varianceab(xt,NI,BETA,I_P,IPATH,Q,G1,NMSH,           &
+              FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
               DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
     return
 END FUNCTION f1dim
    
-SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,   &
-               FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                &
+SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,G1,NMSH,   &
+               FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,TLOGP,ENERGYLIMS,KSYM)
     
     USE HElem
@@ -1620,9 +1612,9 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
     REAL*8 ax,bx,cx,fa,fb,fc,func,GOLD,GLIMIT,MINI
     PARAMETER (GOLD=1.618034, GLIMIT=100.D0,MINI=1.D-20)
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),METH,CYCLES,NMSH,NMAX,NTAY(2),L,LT,Q
-    INTEGER NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX),GIDHO
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS,t
+    INTEGER I_P,METH,CYCLES,NMSH,NTAY(2),L,LT,Q
+    INTEGER NI(NEL),IFRZ(0:NBASIS,PREIV_MAX),GIDHO,NMAX
+    INTEGER IPATH(NEL,0:PREIV_MAX),t
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
@@ -1630,7 +1622,7 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
 #endif
     COMPLEX*16 FCK(*)
     LOGICAL TSYM,TLOGP
-    REAL*8 BETA,ECORE,NTOTAL,ALAT(3),RHOEPS,DBETA,savedax,savedbx
+    REAL*8 BETA,ECORE,NTOTAL,RHOEPS,DBETA,savedax,savedbx
     REAL*8 ENERGYLIMS(2)
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) TOTAL,DLWDB,DLWDB2,EREF,FMCPR3B,FMCPR3B2,F(2:PREIV_MAX)
@@ -1644,12 +1636,12 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
 !    WRITE(31,*) "MNBRAK ALGO STARTING"
 2   savedax=ax
     savedbx=bx
-    fa= func(ax,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                  &
-               FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
+    fa= func(ax,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
+               FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,   &
                KSYM)
-    fb= func(bx,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,                  &
-               FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
+    fb= func(bx,NI,BETA,I_P,IPATH,Q,G1,NMSH,                  &
+               FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,      &
                DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,   &
                KSYM)
     IF(fb.gt.fa) THEN      !Switch roles of a & b so that we can go downhill in direction from a to b
@@ -1661,8 +1653,8 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
          fa=dum
     ENDIF
     cx=bx+GOLD*(bx-ax)     !First guess for c
-    fc=func(cx,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,            &
-          FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+    fc=func(cx,NI,BETA,I_P,IPATH,Q,G1,NMSH,            &
+          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
           KSYM)
 1      IF (fb.ge.fc) THEN      !"do while": keep returning here until we bracket.
@@ -1681,8 +1673,8 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
             u=bx-((bx-cx)*qu-(bx-ax)*r)/(2.D0*sign(max(abs(qu-r),MINI),qu-r))
             ulim=bx+GLIMIT*(cx-bx)   !We won't go father than this.  Test various possibilities:
             IF((bx-u)*(u-cx).gt.0.D0) THEN  !Parabolic u is between b and c: try it
-                fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
-                      FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+                fu=func(u,NI,BETA,I_P,IPATH,Q,G1,NMSH,             &
+                      FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
      
@@ -1698,14 +1690,14 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
                     return
                 ENDIF
                 u=cx+GOLD*(cx-bx)       !Parabolic fit was no use. Use default magnification
-                fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
-                      FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+                fu=func(u,NI,BETA,I_P,IPATH,Q,G1,NMSH,             &
+                      FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
             ELSEIF((cx-u)*(u-ulim).gt.0.D0) THEN    !Parabolic fit is between c and its allowed limit
                 
-                fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
-                      FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+                fu=func(u,NI,BETA,I_P,IPATH,Q,G1,NMSH,             &
+                      FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
                 IF(fu.lt.fc) THEN
@@ -1714,21 +1706,21 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
                     u=cx+GOLD*(cx-bx)
                     fb=fc
                     fc=fu
-                    fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
-                          FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+                    fu=func(u,NI,BETA,I_P,IPATH,Q,G1,NMSH,             &
+                          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                           DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                           KSYM)
                 ENDIF
             ELSEIF((u-ulim)*(ulim-cx).ge.0.D0) THEN     !Limit parabolic u to maximum allowed value
                 u=ulim
-                fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
-                      FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+                fu=func(u,NI,BETA,I_P,IPATH,Q,G1,NMSH,             &
+                      FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
             ELSE        !Reject parabolic u, use default magnification
                 u=cx+GOLD*(cx-bx)
-                fu=func(u,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,             &
-                      FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
+                fu=func(u,NI,BETA,I_P,IPATH,Q,G1,NMSH,             &
+                      FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,    &
                       DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS, &
                       KSYM)
             ENDIF
@@ -1743,17 +1735,17 @@ SUBROUTINE mnbrak(ax,bx,cx,fa,fb,fc,func,NI,BETA,I_P,IPATH,Q,NEL,NBASISMAX,G1,NB
     RETURN
 END SUBROUTINE mnbrak
 
-SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,         &
-        FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
+SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,G1,NMSH,         &
+        FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,        &
         DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM,UNITNO)
 
     USE HElem
     use SystemData, only: BasisFN
     IMPLICIT NONE
     TYPE(BasisFN) G1(*),KSYM
-    INTEGER NEL,I_P,BRR(*),NMSH,NMAX,NTAY(2),K
-    INTEGER L,LT,NI(NEL),nBasisMax(5,*),IFRZ(0:NBASIS,PREIV_MAX)
-    INTEGER IPATH(NEL,0:PREIV_MAX),NBASIS,GIDHO
+    INTEGER I_P,NMSH,NTAY(2),K
+    INTEGER L,LT,NI(NEL),IFRZ(0:NBASIS,PREIV_MAX)
+    INTEGER IPATH(NEL,0:PREIV_MAX),GIDHO,NMAX
 #if defined(POINTER8)
      INTEGER*8 LOCTAB(3,PREIV_MAX)
 #else
@@ -1762,7 +1754,7 @@ SUBROUTINE MAKEGRID(NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,       
     INTEGER IEXCITS,UNITNO
     COMPLEX*16 FCK(*)
     LOGICAL TSYM
-    REAL*8 NTOTAL,BETA,ECORE,ALAT(3),RHOEPS,DBETA,VARSUM,A,B
+    REAL*8 NTOTAL,BETA,ECORE,RHOEPS,DBETA,VARSUM,A,B
     TYPE(HElement) UMat(*),RHOIJ(0:PREIV_MAX,0:PREIV_MAX)
     TYPE(HDElement) DLWDB,TOTAL,DLWDB2,EREF
     TYPE(HElement) HIJS(0:PREIV_MAX)
@@ -1780,8 +1772,8 @@ IF(TLINEVAR(K)) THEN
 
     DO A=LINEVARPAR(K,1),LINEVARPAR(K,2),LINEVARPAR(K,3)
         
-        VARSUM=MCPATHSPRE(A,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,              &
-     &      FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
+        VARSUM=MCPATHSPRE(A,NI,BETA,I_P,IPATH,K,G1,NMSH,              &
+     &      FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
      &      DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
         WRITE(UNITNO,"(F9.3,G25.16)") A,VARSUM
         CALL FLUSH(UNITNO)
@@ -1801,8 +1793,8 @@ ELSE
             p=(/ A,B /)     !Initial a and b values
             g_VMC_ExcitWeights(1:2,K)=p(:)
         
-            VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,           &
-     &          FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
+            VARSUM=MCPATHSPRE(0.D0,NI,BETA,I_P,IPATH,K,G1,NMSH,           &
+     &          FCK,NMAX,UMAT,NTAY,RHOEPS,RHOII,RHOIJ,LOCTAB,TSYM,ECORE,                 &
      &          DBETA,DLWDB2,HIJS,L,LT,IFRZ,MP2E,NTOTAL,DLWDB,TOTAL,GIDHO,ENERGYLIMS,KSYM)
             WRITE(UNITNO,"(2F9.3,G25.16)") A,B,VARSUM
             CALL FLUSH(UNITNO)

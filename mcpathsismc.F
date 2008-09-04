@@ -1800,7 +1800,7 @@ C.. weight.
      &   I_OVCUR,IOCLS,ITREE,OWEIGHT,PFAC,IACC,INWI,I_VMAX,EXCITGEN)
          USE HElem
          USE SystemData , only : BasisFN
-         USE PRECALCREAD , only : TPREVAR
+         USE PrecalcData , only : TPREVAR
          use CalcData , only : TMPTHEORY,TMCDIRECTSUM
          IMPLICIT NONE
          TYPE(BasisFN) KSYM
@@ -2026,7 +2026,7 @@ C.. Unbias the sum
      &   PVERTMEMS2)
          Use Determinants, only: GetHElement2
          use CalcData , only : G_VMC_PI
-         USE PRECALCREAD , only : TPREVAR
+         USE PrecalcData , only : TPREVAR
          USE HElem
          use SystemData, only: BasisFN
          IMPLICIT NONE

@@ -71,9 +71,7 @@ MODULE Calc
           InitWalkers=3000
           NMCyc=2000
           DiagSft=0.D0
-          TStoch=.true.
           HApp=1
-          DeltaH=1.D-04
           TMCStar=.false.
           THDiag=.false.
           GrowGraphsExpo=2.D0
@@ -377,7 +375,7 @@ MODULE Calc
                 call readf(g_VMC_ExcitWeights(1,1))
                 call readf(g_VMC_ExcitWeights(2,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
-                DO l=1,5
+                DO l=1,6
                   IF(EXCITFUNCS(l)) THEN
                       call report(trim(w)//" only valid if another weighting scheme not specified",.true.)
                   ENDIF
@@ -388,7 +386,7 @@ MODULE Calc
                 call readf(g_VMC_ExcitWeights(2,1))
                 call readf(g_VMC_ExcitWeights(3,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
-                DO l=1,5
+                DO l=1,6
                   IF(EXCITFUNCS(l)) THEN
                       call report(trim(w)//" only valid if "          &
      &             //" another weighting scheme not specified",.true.)
@@ -400,7 +398,7 @@ MODULE Calc
                 call readf(g_VMC_ExcitWeights(2,1))
                 call readf(g_VMC_ExcitWeights(3,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
-                DO l=1,5
+                DO l=1,6
                   IF(EXCITFUNCS(l)) THEN
                       call report(trim(w)//" only valid if "          &
      &             //" another weighting scheme not specified",.true.)
@@ -413,7 +411,7 @@ MODULE Calc
                 call readf(g_VMC_ExcitWeights(3,1))
                 call readf(g_VMC_ExcitWeights(4,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
-                DO l=1,5
+                DO l=1,6
                   IF(EXCITFUNCS(l)) THEN
                       call report(trim(w)//" only valid if "          &
      &             //" another weighting scheme not specified",.true.)
@@ -425,13 +423,28 @@ MODULE Calc
                 call readf(g_VMC_ExcitWeights(2,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
                 IF(item.lt.nitems) call readf(g_VMC_ExcitWeights(3,1))
-                DO l=1,5
+                DO l=1,6
                   IF(EXCITFUNCS(l)) THEN
                       call report(trim(w)//" only valid if "          &
      &             //" another weighting scheme not specified",.true.)
                   ENDIF
                 ENDDO
                 EXCITFUNCS(1)=.true.
+            case("STEPEXCITWEIGHTING")
+!This excitation weighting involves a step function between the virtual and occupied electon manifold (i.e. step is at the chemical potential)
+!When choosing an electron to move, the probability of selecting it is 1 if the electron is in the virtual manifold
+!and (g_VMC_ExcitWeights(1,1) if in the virtual manifold. When choosing where to excite to, the situation is reversed, and the probability of selecting it is
+!1 if the electron is in the occupied manifold and g_VMC_ExcitWeights(2,1) if in the occupied manifold. U-weighting is the third parameter as before.
+                call readf(g_VMC_ExcitWeights(1,1))
+                call readf(g_VMC_ExcitWeights(2,1))
+                call readf(G_VMC_EXCITWEIGHT(1))
+                DO l=1,6
+                    IF(EXCITFUNCS(l)) THEN
+                      call report(trim(w)//" only valid if "          &
+     &             //" another weighting scheme not specified",.true.)
+                  ENDIF
+                ENDDO
+                EXCITFUNCS(6)=.true.
             case("PATHS")
                 call readu(w)
                 select case(w)
@@ -576,16 +589,11 @@ MODULE Calc
             case("GROWGRAPHSEXPO")
 !In GraphMorph, this is the exponent to which the components of the excitation vector and eigenvector will be raised to turn them into probabilities.
                 call getf(GrowGraphsExpo)
-            case("DELTAH")
-                call getf(DELTAH)
             case("HAPP")
 !For graph MC, this indicates the number of local applications of the hamiltonian to random determinants before the trial eigenvector is updated
                 call geti(HApp)
-            case("NON-STOCH")
-!For graph MC, this indicates whether the determinants to apply the hamiltonian to locally are picked stochastically, or whether to run through all of them 
-                TStoch=.false.
             case("MAXEXCIT")
-!This imposes a maximum excitation level to the space that GraphMorph can explore.
+!This imposes a maximum excitation level to the space that GraphMorph can explore. Note: FCIMC uses EXCIT to indicate a maximum excit level.
                 TMaxExcit=.true.
                 call geti(iMaxExcitLevel)
             case("INITWALKERS")
@@ -598,7 +606,7 @@ MODULE Calc
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
                 call getf(DiagSft)
             case("TAU")
-!For FCIMC, this can be considered the timestep of the simulation. If not set, it will default to the value which will allow the fastest destruction of walkers.
+!For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate of spawning/death for a given iteration.
                 call getf(Tau)
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
@@ -622,12 +630,6 @@ MODULE Calc
             case("GROWMAXFACTOR")
 !For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
                 call getf(GrowMaxFactor)
-                IF(GrowMaxFactor.gt.175.D0) THEN
-                    WRITE(6,*) "**************************"
-                    WRITE(6,*) "******   WARNING   *******"
-                    WRITE(6,*) "**************************"
-                    WRITE(6,*) "GrowMaxFactor > 175 - Memory problems possible since MemoryFac is only 200"
-                ENDIF
             case("CULLFACTOR")
 !For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
                 call getf(CullFactor)
