@@ -3,7 +3,7 @@ MODULE Logging
     IMPLICIT NONE
     Save
 
-    INTEGER ILOGGING,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
+    INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
@@ -11,15 +11,12 @@ MODULE Logging
 
     contains
 
-    SUBROUTINE LogReadInput()
-      USE input
-      use default_sets
-      IMPLICIT NONE
-      LOGICAL eof
-      CHARACTER (LEN=100) w
-      INTEGER iLoggingDef 
+    subroutine SetLogDefaults()
+      != Set defaults for Logging data items.
 
-      ! Logging defaults
+      use default_sets
+      implicit none
+
       iWritePopsEvery=100000
       TCalcWavevector=.false.
       WavevectorPrint=100
@@ -39,7 +36,18 @@ MODULE Logging
           ILOGGINGDef=2
       ENDIF
 
+    end subroutine SetLogDefaults
+
+
+
+    SUBROUTINE LogReadInput()
+      USE input
+      IMPLICIT NONE
+      LOGICAL eof
+      CHARACTER (LEN=100) w
+
       ILogging=iLoggingDef
+
       logging: do
         call read_line(eof)
         if (eof) then

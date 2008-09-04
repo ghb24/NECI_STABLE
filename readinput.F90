@@ -14,11 +14,11 @@ MODULE ReadInput
 
     Subroutine ReadInputMain(cFilename,ios)
         USE input
-        use System,     only : SysReadInput
+        use System,     only : SysReadInput,SetSysDefaults
         USE PrecalcRead,only : PrecalcReadInput
-        use Calc,       only : CalcReadInput
-        use Integrals,  only : IntReadInput
-        Use Logging,    only : LogReadInput
+        use Calc,       only : CalcReadInput,SetCalcDefaults
+        use Integrals,  only : IntReadInput,SetIntDefaults
+        Use Logging,    only : LogReadInput,SetLogDefaults
         use default_sets
 #ifdef NAGF95
     !  USe doesn't get picked up by the make scripts
@@ -92,6 +92,12 @@ MODULE ReadInput
             Feb08=.true.
             write (6,*) 'Using the Feb08 set of defaults.'
         end select
+
+        ! Set up defaults.
+        call SetSysDefaults
+        call SetCalcDefaults
+        call SetIntDefaults
+        call SetLogDefaults
 
 !Now return to the beginning and process the whole input file
         if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.

@@ -7,14 +7,12 @@ MODULE System
 
     contains
 
-    SUBROUTINE SysReadInput()
-      USE input
+    subroutine SetSysDefaults()
+      != Set defaults for Calc data items.
+
       use default_sets
-      IMPLICIT NONE
-      LOGICAL eof
-      CHARACTER (LEN=100) w
-      INTEGER I
-      
+      implicit none
+
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
@@ -69,6 +67,17 @@ MODULE System
 !      FCOULDAMPBETA=-1.D0
 !      COULDAMPORB=0
         
+    end subroutine SetSysDefaults
+
+    SUBROUTINE SysReadInput()
+      USE input
+      IMPLICIT NONE
+      LOGICAL eof
+      CHARACTER (LEN=100) w
+      INTEGER I
+      
+      ! The system block is specified with at least one keyword on the same
+      ! line, giving the system type being used.
       call readu(w)
       select case(w)
 
@@ -137,6 +146,7 @@ MODULE System
           call report("System type "//trim(w)//" not valid",.true.)
       end select
       
+      ! Now parse the rest of the system block.
       system: do
         call read_line(eof)
         if (eof) then

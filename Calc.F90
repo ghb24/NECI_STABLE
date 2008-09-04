@@ -6,20 +6,17 @@ MODULE Calc
 
         contains
 
-        SUBROUTINE CalcReadInput()
-          USE input
-          use default_sets
+        subroutine SetCalcDefaults()
+          != Set defaults for Calc data items.
+
           Use Determinants, only : iActiveBasis, SpecDet, tSpecDet, nActiveSpace
-          use SystemData, only : Beta,nEl
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead
-          use IntegralsData, only: tNeedsVirts,NFROZEN
-          use UMatCache, only: gen2CPMDInts
-          IMPLICIT NONE
-          LOGICAL eof
-          CHARACTER (LEN=100) w
-          INTEGER :: l,i,ierr
+          use IntegralsData, only: tNeedsVirts
+          use SystemData, only : Beta,nEl
+          use default_sets
+          implicit none
 
 !       Values for old parameters.
 !       These have no input options to change the defaults, but are used in the code.
@@ -171,13 +168,29 @@ MODULE Calc
 
           lNoTriples=.false.
 
-!Feb 08 defaults
+!Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.D-08
           ENDIF
-         
-
       
+        end subroutine SetCalcDefaults
+
+
+
+        SUBROUTINE CalcReadInput()
+          USE input
+          Use Determinants, only : iActiveBasis, SpecDet, tSpecDet, nActiveSpace
+          use SystemData, only : Beta,nEl
+          Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
+          Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
+          Use DetCalc, only: tEnergy, tRead
+          use IntegralsData, only: tNeedsVirts,NFROZEN
+          use UMatCache, only: gen2CPMDInts
+          IMPLICIT NONE
+          LOGICAL eof
+          CHARACTER (LEN=100) w
+          INTEGER :: l,i,ierr
+
           calc: do
             call read_line(eof)
             if (eof) then

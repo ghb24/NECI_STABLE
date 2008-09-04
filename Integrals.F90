@@ -7,17 +7,14 @@ MODULE Integrals
 
     contains
 
-    SUBROUTINE IntReadInput()
-      USE input
-      use default_sets
-      use SystemData , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
+    subroutine SetIntDefaults()
+      != Set defaults for Calc data items.
+
+      use SystemData , only : OrbOrder
       use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
-      IMPLICIT NONE
-      LOGICAL eof
-      CHARACTER (LEN=100) w
-      INTEGER :: i
-           
-! Integral defaults
+      use default_sets
+      implicit none
+
       TLinRootChange=.false.
       TRmRootExcitStarsRootChange=.false.
       TExcitStarsRootChange=.false.
@@ -62,7 +59,17 @@ MODULE Integrals
          NTAY(2)=3
       ENDIF
       
-      
+    end subroutine SetIntDefaults
+
+    SUBROUTINE IntReadInput()
+      USE input
+      use SystemData , only : NEL,TUSEBRILLOUIN,tStarStore,OrbOrder,NMSH,BasisFN
+      use UMatCache, only: tReadInCache,nSlotsInit,nMemInit,iDumpCacheFlag,iDFMethod
+      IMPLICIT NONE
+      LOGICAL eof
+      CHARACTER (LEN=100) w
+      INTEGER :: i
+           
       integral: do
         call read_line(eof)
         if (eof) then
