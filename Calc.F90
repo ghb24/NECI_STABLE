@@ -826,6 +826,7 @@ MODULE Calc
           use IntegralsData, only: FCK, NMAX, UMat, FCK
           use IntegralsData, only: HFEDelta, HFMix,nTay
           Use Logging, only: iLogging
+          use Parallel_Calc
 !          Use MCDets, only: MCDetsCalc
 !Calls
           REAL*8 DMonteCarlo2
@@ -846,11 +847,7 @@ MODULE Calc
           Call DoExactVertexCalc()
 
           IF (tMP2Standalone) then
-#ifdef PARALLEL
               call ParMP2(FDet)
-#else
-              call stop_all('CalcDoCalc','Standalone MP2 not yet implemented in serial.')
-#endif
 ! Parallal 2v sum currently for testing only.
 !          call Par2vSum(FDet)
           ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
