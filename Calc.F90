@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TRegenExcitgens=.false.
           MemoryFac=50
           TStartSinglePart=.false.
           TFixParticleSign=.false.
@@ -696,6 +697,9 @@ MODULE Calc
             case("MEMORYFAC")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
                 CALL Geti(MemoryFac)
+            case("REGENEXCITGENS")
+!An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
+                TRegenExcitGens=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

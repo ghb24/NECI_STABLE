@@ -5,7 +5,7 @@ MODULE FciMCMod
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFac
+    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFac,TRegenExcitgens
     USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -169,8 +169,12 @@ MODULE FciMCMod
 
             IF(TResumFCIMC) THEN
 !Setup excit generators for this determinant
-                CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
-                CALL ResumGraph(CurrentDets(:,j),CurrentSign(j),VecSlot,CurrentExcits(j),j)
+                IF(.not.TRegenExcitgens) THEN
+                    CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
+                    CALL ResumGraph(CurrentDets(:,j),CurrentSign(j),VecSlot,j,CurrentExcits(j))
+                ELSE
+                    CALL ResumGraph(CurrentDets(:,j),CurrentSign(j),VecSlot,j)
+                ENDIF
 
             ELSEIF(TFixParticleSign) THEN
 
@@ -183,8 +187,12 @@ MODULE FciMCMod
 
             ELSE    !Not using HFRetBias - normal spawn
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
-                CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
-                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                IF(.not.TRegenExcitgens) THEN
+                    CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
+                    CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                ELSE
+                    CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount)
+                ENDIF
 
                 IF(ICILevel.ne.0) THEN
 !We are performing run in a truncated space
@@ -247,7 +255,7 @@ MODULE FciMCMod
 !Copy across children - cannot copy excitation generators, as do not know them
                         NewDets(:,VecSlot)=nJ(:)
                         NewSign(VecSlot)=WSign
-                        NewExcits(VecSlot)%ExitGenForDet=.false.
+                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                         NewIC(VecSlot)=ExcitLevel
                         NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
                         NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
@@ -270,7 +278,7 @@ MODULE FciMCMod
                         NewDets(:,VecSlot)=CurrentDets(:,j)
                         NewSign(VecSlot)=CurrentSign(j)
 !Copy excitation generator accross
-                        CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
+                        IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(:,VecSlot)=CurrentH(:,j)
                         VecSlot=VecSlot+1
@@ -290,7 +298,7 @@ MODULE FciMCMod
                             NewSign(VecSlot)=.TRUE.
                         ENDIF
 !Copy excitation generator accross
-                        CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
+                        IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(:,VecSlot)=CurrentH(:,j)
                         VecSlot=VecSlot+1
@@ -426,6 +434,7 @@ MODULE FciMCMod
         RETURN
 
     END SUBROUTINE PerformFCIMCyc
+
                 
     
     SUBROUTINE HFRetBiasIter(j,VecSlot)
@@ -462,7 +471,7 @@ MODULE FciMCMod
 !Copy across children to HF - can also copy across known excitation generator
                         NewDets(:,VecSlot)=HFDet(:)
                         NewSign(VecSlot)=WSign
-                        CALL CopyExitgen(HFExcit,NewExcits(VecSlot))
+                        IF(.not.TRegenExcitgens) CALL CopyExitgen(HFExcit,NewExcits(VecSlot))
                         NewIC(VecSlot)=0
                         NewH(1,VecSlot)=0.D0
                         NewH(2,VecSlot)=0.D0
@@ -485,18 +494,22 @@ MODULE FciMCMod
 !We are either at a double but have decided not to try to spawn back to HF, or we are not at a double
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry).
-            CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
-            CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+            IF(.not.TRegenExcitgens) THEN
+                CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
+                CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+            ELSE
+                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount)
+            ENDIF
 
             !TESTS
-            CALL GetSymExcitCount(CurrentExcits(j)%ExcitData,MaxExcits)
-            IF(ABS((1.D0/MaxExcits)-Prob).gt.1.D-07) THEN
-                WRITE(6,*) "PROBLEM WITH PGENS!"
-                WRITE(6,*) MaxExcits,1.D0/MaxExcits,Prob
-                CALL Stop_All("PerformFCIMCyc","Problem with PGens")
-            ENDIF
-            IF((CurrentIC(j).eq.2).and.(TotProb.ne.(1.D0-PRet))) WRITE(6,*) "PROBLEM HERE!!"
-            IF((CurrentIC(j).ne.2).and.(TotProb.ne.1.D0)) WRITE(6,*) "PROBLEM HERE!"
+!            CALL GetSymExcitCount(CurrentExcits(j)%ExcitData,MaxExcits)
+!            IF(ABS((1.D0/MaxExcits)-Prob).gt.1.D-07) THEN
+!                WRITE(6,*) "PROBLEM WITH PGENS!"
+!                WRITE(6,*) MaxExcits,1.D0/MaxExcits,Prob
+!                CALL Stop_All("PerformFCIMCyc","Problem with PGens")
+!            ENDIF
+!            IF((CurrentIC(j).eq.2).and.(TotProb.ne.(1.D0-PRet))) WRITE(6,*) "PROBLEM HERE!!"
+!            IF((CurrentIC(j).ne.2).and.(TotProb.ne.1.D0)) WRITE(6,*) "PROBLEM HERE!"
 
 
             IF(TExcludeRandGuide) THEN
@@ -512,7 +525,11 @@ MODULE FciMCMod
                     do while(TGenGuideDet)
 !Generate another randomly connected determinant in order to not generate a guiding determinant
 
-                        CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                        IF(.not.TRegenExcitgens) THEN
+                            CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                        ELSE
+                            CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount)
+                        ENDIF
                         IF(.not.(SameDet(HFDet,nJ,NEl))) TGenGuideDet=.false.
                             
                     enddo   !Have now definitely generated a non-HF determinant
@@ -575,7 +592,7 @@ MODULE FciMCMod
 !Copy across children - cannot copy excitation generators, as do not know them
                     NewDets(:,VecSlot)=nJ(:)
                     NewSign(VecSlot)=WSign
-                    NewExcits(VecSlot)%ExitGenForDet=.false.
+                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                     NewIC(VecSlot)=ExcitLevel
                     NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
                     NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
@@ -599,7 +616,7 @@ MODULE FciMCMod
                 NewDets(:,VecSlot)=CurrentDets(:,j)
                 NewSign(VecSlot)=CurrentSign(j)
 !Copy excitation generator accross
-                CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
                 NewIC(VecSlot)=CurrentIC(j)
                 NewH(:,VecSlot)=CurrentH(:,j)
                 VecSlot=VecSlot+1
@@ -619,7 +636,7 @@ MODULE FciMCMod
                     NewSign(VecSlot)=.TRUE.
                 ENDIF
 !Copy excitation generator accross
-                CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
                 NewIC(VecSlot)=CurrentIC(j)
                 NewH(:,VecSlot)=CurrentH(:,j)
                 VecSlot=VecSlot+1
@@ -637,16 +654,25 @@ MODULE FciMCMod
         INTEGER :: Walker,VecSlot,nStore(6),nJ(NEl),IC,Child,ExcitLevel,iGetExcitLevel_2
         INTEGER :: iDie,l
         TYPE(HElement) :: HConn,HOffDiag,HDiagTemp
+        TYPE(ExcitGenerator) :: TempExcitgen
         LOGICAL :: WSign
         REAL*8 :: SpinFlipContrib,HConnReal,HDiag,DiagDeath
 
 !Setup excitgen
-        CALL SetupExitgen(CurrentDets(:,Walker),CurrentExcits(Walker))
-        CALL ResetExit2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,CurrentExcits(Walker)%ExcitData,0) !Reset excitgen
+        IF(.not.TRegenExcitgens) THEN
+            CALL SetupExitgen(CurrentDets(:,Walker),CurrentExcits(Walker))
+            CALL ResetExit2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,CurrentExcits(Walker)%ExcitData,0) !Reset excitgen
+        ELSE
+            CALL SetupExitgen(CurrentDets(:,Walker),TempExcitgen)
+        ENDIF
 
 !Run through all excits
         do while(.true.)
-            CALL GenSymExcitIt2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,.false.,CurrentExcits(Walker)%ExcitData,nJ,IC,0,nStore,exFlag)
+            IF(TRegenExcitgens) THEN
+                CALL GenSymExcitIt2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,.false.,TempExcitgen%ExcitData,nJ,IC,0,nStore,exFlag)
+            ELSE
+                CALL GenSymExcitIt2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,.false.,CurrentExcits(Walker)%ExcitData,nJ,IC,0,nStore,exFlag)
+            ENDIF
             IF(nJ(1).eq.0) EXIT
             HConn=GetHElement2(CurrentDets(:,Walker),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
             HConnReal=REAL(HConn%v,r2)
@@ -682,7 +708,7 @@ MODULE FciMCMod
 !Copy across children - cannot copy excitation generators, as do not know them
                         NewDets(:,VecSlot)=nJ(:)
                         NewSign(VecSlot)=WSign
-                        NewExcits(VecSlot)%ExitGenForDet=.false.
+                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                         NewIC(VecSlot)=ExcitLevel
                         NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
                         NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
@@ -701,7 +727,7 @@ MODULE FciMCMod
 
         enddo   !End of searching through excits
 
-        CALL ResetExit2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,CurrentExcits(Walker)%ExcitData,0) !Reset excitgen
+        IF(.not.TRegenExcitgens) CALL ResetExit2(CurrentDets(:,Walker),NEl,G1,nBasis,nBasisMax,CurrentExcits(Walker)%ExcitData,0) !Reset excitgen
 
 !Add the spin-flip contribution to the death-rate
         DiagDeath=CurrentH(1,Walker)+SpinFlipContrib
@@ -718,7 +744,7 @@ MODULE FciMCMod
                 NewDets(:,VecSlot)=CurrentDets(:,Walker)
                 NewSign(VecSlot)=CurrentSign(Walker)
 !Copy excitation generator accross
-                CALL CopyExitgen(CurrentExcits(Walker),NewExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(Walker),NewExcits(VecSlot))
                 NewIC(VecSlot)=CurrentIC(Walker)
                 NewH(:,VecSlot)=CurrentH(:,Walker)
                 VecSlot=VecSlot+1
@@ -738,7 +764,7 @@ MODULE FciMCMod
                     NewSign(VecSlot)=.TRUE.
                 ENDIF
 !Copy excitation generator accross
-                CALL CopyExitgen(CurrentExcits(Walker),NewExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(Walker),NewExcits(VecSlot))
                 NewIC(VecSlot)=CurrentIC(Walker)
                 NewH(:,VecSlot)=CurrentH(:,Walker)
                 VecSlot=VecSlot+1
@@ -750,15 +776,26 @@ MODULE FciMCMod
 
     END SUBROUTINE FixParticleSignIter
 
-
-    SUBROUTINE ResumGraph(nI,WSign,VecSlot,nIExcitGen,VecInd)
+!This routine creates, and allocates particles, according to a resummed graph.
+    SUBROUTINE ResumGraph(nI,WSign,VecSlot,VecInd,nIExcitGen)
         INTEGER :: nI(NEl),VecSlot,VecInd,ExcitLevel,iGetExcitLevel_2,Create,i,j
-        TYPE(ExcitGenerator) :: nIExcitGen
+        TYPE(ExcitGenerator) , OPTIONAL :: nIExcitGen
         TYPE(HElement) :: HOffDiag
         LOGICAL :: WSign,ChildSign
         REAL*8 :: Prob,rat,Ran2
 
-        CALL CreateGraph(nI,nIExcitGen,Prob,VecInd)      !Create graph with NDets distinct determinants
+        IF(TRegenExcitgens) THEN
+            IF(present(nIExcitGen)) THEN
+                CALL Stop_All("ResumGraph","nIExcitGen present, but regenerating ExGens")
+            ENDIF
+            CALL CreateGraph(nI,Prob,VecInd)
+        ELSE
+            IF(.not.present(nIExcitGen)) THEN
+                CALL Stop_All("ResumGraph","nIExcitGen not present, but not regenerating ExGens")
+            ENDIF
+            CALL CreateGraph(nI,Prob,VecInd,nIExcitGen)      !Create graph with NDets distinct determinants
+        ENDIF
+        
         CALL ApplyRhoMat()   !Apply the rho matrix successive times
 
 !First find how many to create at the root determinant
@@ -776,7 +813,7 @@ MODULE FciMCMod
             ENDIF
             NewIC(VecSlot)=CurrentIC(VecInd)
             NewH(:,VecSlot)=CurrentH(:,VecInd)
-            CALL CopyExitgen(CurrentExcits(VecInd),NewExcits(VecSlot))
+            IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(VecInd),NewExcits(VecSlot))
             VecSlot=VecSlot+1
         enddo
 
@@ -812,7 +849,7 @@ MODULE FciMCMod
                     NewIC(VecSlot)=ExcitLevel
                     NewH(1,VecSlot)=GraphKii(i)       !Diagonal H El previously stored
                     NewH(2,VecSlot)=REAL(HOffDiag%v,r2)
-                    NewExcits(VecSlot)%ExitGenForDet=.false.
+                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
                     VecSlot=VecSlot+1
                 enddo
 
@@ -824,9 +861,9 @@ MODULE FciMCMod
 
     END SUBROUTINE ResumGraph
 
-    SUBROUTINE CreateGraph(nI,nIExcitGen,Prob,VecInd)
+    SUBROUTINE CreateGraph(nI,Prob,VecInd,nIExcitGen)
         INTEGER :: nI(NEl),VecInd,nJ(NEl),iCount,IC,i,j,Attempts
-        TYPE(ExcitGenerator) :: nIExcitGen
+        TYPE(ExcitGenerator) , OPTIONAL :: nIExcitGen
         REAL*8 :: Prob,Kii,ExcitProb
         LOGICAL :: SameDet,CompiPath
         TYPE(HElement) :: Hamij,Hamii
@@ -842,7 +879,11 @@ MODULE FciMCMod
         i=2
         do while(i.lt.NDets)    !Loop until all determinants found
 
-            CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+            IF(TRegenExcitgens) THEN
+                CALL GetPartRandExcit(nI,nJ,Seed,IC,0,Prob,iCount)
+            ELSE
+                CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+            ENDIF
 
             SameDet=.false.
             do j=2,(i-1)
@@ -1088,6 +1129,7 @@ MODULE FciMCMod
         INTEGER :: iGetExcitLevel_2
         REAL*8 :: Hij0,MP1Compt,Hij,Hjj
         LOGICAL :: WSign,tSign
+        TYPE(ExcitGenerator) :: TempExcitgen
         TYPE(HElement) :: Hijtemp,TempFjj,Hij2temp
 
 !First calculate the overlap of the wavefunction with the MP2 wavefunction - only doubles/HF will contribute
@@ -1162,12 +1204,20 @@ MODULE FciMCMod
 !Any walker which is at a quadruple or less excitation level will have excitations which overlap with MP1.
 !Setup excit generators for this determinant if needed
             
-            CALL SetupExitgen(DetCurr,CurrentExcits(j))
-            CALL ResetExit2(DetCurr,NEl,G1,nBasis,nBasisMax,CurrentExcits(j)%ExcitData,0) !Reset excitgen
+            IF(TRegenExcitgens) THEN
+                CALL SetupExitgen(DetCurr,TempExcitgen)
+            ELSE
+                CALL SetupExitgen(DetCurr,CurrentExcits(j))
+                CALL ResetExit2(DetCurr,NEl,G1,nBasis,nBasisMax,CurrentExcits(j)%ExcitData,0) !Reset excitgen
+            ENDIF
             
             do while(.true.)
 !Run through all excitations - nStore has nothing in it (hopefully not needed)
-                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.false.,CurrentExcits(j)%ExcitData,nJ,iExcit,0,nStore,3)
+                IF(TRegenExcitgens) THEN
+                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.false.,TempExcitgen%ExcitData,nJ,iExcit,0,nStore,3)
+                ELSE
+                    CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.false.,CurrentExcits(j)%ExcitData,nJ,iExcit,0,nStore,3)
+                ENDIF
                 IF(nJ(1).eq.0) exit
                 nJ_IC=iGetExcitLevel_2(HFDet,nJ,NEl,2)  !Find out if excitation is a double
 
@@ -1237,7 +1287,7 @@ MODULE FciMCMod
 
             enddo
 
-            CALL ResetExit2(DetCurr,NEl,G1,nBasis,nBasisMax,CurrentExcits(j)%ExcitData,0) !Reset excitgen
+            IF(.not.TRegenExcitgens) CALL ResetExit2(DetCurr,NEl,G1,nBasis,nBasisMax,CurrentExcits(j)%ExcitData,0) !Reset excitgen
 
         ENDIF
 
@@ -1276,8 +1326,10 @@ MODULE FciMCMod
                 CurrentSign(Chosen)=CurrentSign(TotWalkers)
                 CurrentH(:,Chosen)=CurrentH(:,TotWalkers)
                 CurrentIC(Chosen)=CurrentIC(TotWalkers)
-                CALL CopyExitgen(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
-                CurrentExcits(TotWalkers)%ExitGenForDet=.false.
+                IF(.not.TRegenExcitgens) THEN
+                    CALL CopyExitgen(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
+                    CurrentExcits(TotWalkers)%ExitGenForDet=.false.
+                ENDIF
 
                 TotWalkers=TotWalkers-1
                 Culled=Culled+1
@@ -1314,7 +1366,7 @@ MODULE FciMCMod
                 CurrentSign(VecSlot)=CurrentSign(i)
                 CurrentH(:,VecSlot)=CurrentH(:,i)
                 CurrentIC(VecSlot)=CurrentIC(i)
-                CALL CopyExitgen(CurrentExcits(i),CurrentExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(i),CurrentExcits(VecSlot))
 
                 VecSlot=VecSlot+1
 
@@ -1359,7 +1411,7 @@ MODULE FciMCMod
         CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
         TempIC=NewIC(j)
         TempH(:)=NewH(:,j)
-        CALL CopyExitGen(NewExcits(j),TempExcit)
+        IF(.not.TRegenExcitgens) CALL CopyExitGen(NewExcits(j),TempExcit)
         
         VecSlot=1
 
@@ -1383,7 +1435,7 @@ MODULE FciMCMod
                     CurrentSign(VecSlot)=.true.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(:,VecSlot)=TempH(:)
-                    CALL CopyExitgen(TempExcit,CurrentExcits(VecSlot))
+                    IF(.not.TRegenExcitgens) CALL CopyExitgen(TempExcit,CurrentExcits(VecSlot))
                     VecSlot=VecSlot+1
                 enddo
             ELSE
@@ -1393,7 +1445,7 @@ MODULE FciMCMod
                     CurrentSign(VecSlot)=.false.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(:,VecSlot)=TempH(:)
-                    CALL CopyExitgen(TempExcit,CurrentExcits(VecSlot))
+                    IF(.not.TRegenExcitgens) CALL CopyExitgen(TempExcit,CurrentExcits(VecSlot))
                     VecSlot=VecSlot+1
                 enddo
             ENDIF
@@ -1401,7 +1453,7 @@ MODULE FciMCMod
             CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
             TempIC=NewIC(j)
             TempH(:)=NewH(:,j)
-            CALL CopyExitGen(NewExcits(j),TempExcit)
+            IF(.not.TRegenExcitgens) CALL CopyExitGen(NewExcits(j),TempExcit)
         enddo
 !The new number of residual cancelled walkers is given by one less that VecSlot again.
         TotWalkers=VecSlot-1
@@ -1605,28 +1657,34 @@ MODULE FciMCMod
             WRITE(6,*) "Initial memory allocation sucessful..."
             CALL FLUSH(6)
 
-            ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
-            ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
-
+            IF(.not.TRegenExcitgens) THEN
+                ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
+                ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
 !Allocate pointers to the correct excitation arrays
-            CurrentExcits=>WalkVecExcits
-            NewExcits=>WalkVec2Excits
-
-            IF(TStartSinglePart) THEN
-                CALL CopyExitGen(HFExcit,CurrentExcits(1))
-            ELSE
-                do j=1,InitWalkers
-    !Copy the HF excitation generator accross to each initial particle
-                    CALL CopyExitGen(HFExcit,CurrentExcits(j))
-                enddo
+                CurrentExcits=>WalkVecExcits
+                NewExcits=>WalkVec2Excits
             ENDIF
-            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
 
-            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
-            WRITE(6,*) "Initial allocation of excitation generators successful..."
-            CALL FLUSH(6)
+
+            IF(.not.TRegenExcitgens) THEN
+                IF(TStartSinglePart) THEN
+                    CALL CopyExitGen(HFExcit,CurrentExcits(1))
+                ELSE
+                    do j=1,InitWalkers
+    !Copy the HF excitation generator accross to each initial particle
+                        CALL CopyExitGen(HFExcit,CurrentExcits(j))
+                    enddo
+                ENDIF
+                MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+                WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
+                WRITE(6,*) "Initial allocation of excitation generators successful..."
+                CALL FLUSH(6)
+            ELSE
+                WRITE(6,*) "Excitation generators not being stored..."
+            ENDIF
+
 
         ENDIF
 
@@ -1964,13 +2022,15 @@ MODULE FciMCMod
         NewIC=>WalkVec2IC
         NewH=>WalkVec2H
             
-        ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
-        ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
+        IF(.not.TRegenExcitgens) THEN
+            ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
+            ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("InitFCIMCCalc","Error in allocating walker excitation generators")
 
-!Allocate pointers to the correct excitation arrays
-        CurrentExcits=>WalkVecExcits
-        NewExcits=>WalkVec2Excits
+    !Allocate pointers to the correct excitation arrays
+            CurrentExcits=>WalkVecExcits
+            NewExcits=>WalkVec2Excits
+        ENDIF
             
 !Initialise data for new walkers
         do j=1,InitWalkers
@@ -1981,12 +2041,12 @@ MODULE FciMCMod
                 CurrentH(2,j)=REAL(HElemTemp%v,r2)
             ELSEIF(CurrentIC(j).eq.0) THEN
 !We know we are at HF - HDiag=0, and can use HF excitgen
-                CALL CopyExitGen(HFExcit,CurrentExcits(j))
+                IF(.not.TRegenExcitgens) CALL CopyExitGen(HFExcit,CurrentExcits(j))
                 CurrentH(1,j)=0.D0
                 CurrentH(2,j)=0.D0
                 
             ELSE
-                CurrentExcits(j)%ExitGenForDet=.false.
+                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
                 HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                 CurrentH(1,j)=(REAL(HElemTemp%v,r2))-Hii
                 CurrentH(2,j)=0.D0
@@ -1994,8 +2054,10 @@ MODULE FciMCMod
 
         enddo
             
-        WRITE(6,*) "Initial allocation of excitation generators successful..."
-        CALL FLUSH(6)
+        IF(.not.TRegenExcitgens) THEN
+            WRITE(6,*) "Initial allocation of excitation generators successful..."
+            CALL FLUSH(6)
+        ENDIF
         CLOSE(17)
         
         RETURN
@@ -2029,26 +2091,26 @@ MODULE FciMCMod
             HTemp(:)=NewH(:,L)
             ICTemp=NewIC(L)
             WSignTemp=NewSign(L)
-            CALL CopyExitgen(NewExcits(L),ExcitTemp)
+            IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(L),ExcitTemp)
         ELSE
             CALL ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
             HTemp(:)=NewH(:,IR)
             ICTemp=NewIC(IR)
             WSignTemp=NewSign(IR)
-            CALL CopyExitgen(NewExcits(IR),ExcitTemp)
+            IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(IR),ExcitTemp)
 
             CALL ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
             NewH(:,IR)=NewH(:,1)
             NewIC(IR)=NewIC(1)
             NewSign(IR)=NewSign(1)
-            CALL CopyExitgen(NewExcits(1),NewExcits(IR))
+            IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(1),NewExcits(IR))
             IR=IR-1
             IF(IR.EQ.1)THEN
                 CALL ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
                 NewH(:,1)=HTemp(:)
                 NewIC(1)=ICTemp
                 NewSign(1)=WSignTemp
-                CALL CopyExitgen(ExcitTemp,NewExcits(1))
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(ExcitTemp,NewExcits(1))
                 RETURN
             ENDIF
         ENDIF
@@ -2063,7 +2125,7 @@ MODULE FciMCMod
                 NewH(:,I)=NewH(:,J)
                 NewIC(I)=NewIC(J)
                 NewSign(I)=NewSign(J)
-                CALL CopyExitgen(NewExcits(J),NewExcits(I))
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(J),NewExcits(I))
                 I=J
                 J=J+J
             ELSE
@@ -2075,7 +2137,7 @@ MODULE FciMCMod
         NewH(:,I)=HTemp(:)
         NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
-        CALL CopyExitgen(ExcitTemp,NewExcits(I))
+        IF(.not.TRegenExcitgens) CALL CopyExitgen(ExcitTemp,NewExcits(I))
         GO TO 10
     END SUBROUTINE SortParts
 
@@ -2137,7 +2199,7 @@ MODULE FciMCMod
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
 
 !Check generation probabilities
-!            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+!            CALL GenRandSymExcitIt3(nI,ExcitGen%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
 !            Exitlevel=iGetExcitLevel(nI,HFDet,NEl)
 !            IF(ABS((1.D0/iMaxExcit)-Prob).gt.1.D-07) WRITE(6,"I5,I5,I9,2G20.10") ExitLevel,IC,iMaxExcit,1.D0/iMaxExcit,Prob
             
@@ -2147,6 +2209,33 @@ MODULE FciMCMod
         ENDIF
 
     END SUBROUTINE SetupExitgen
+
+    
+!This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
+    SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Frz,Prob,iCount)
+        INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
+        REAL*8 :: Prob
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+
+!Need to generate excitation generator to find excitation.
+!Setup excit generators for this determinant 
+        iMaxExcit=0
+        CALL IAZZERO(nStore,6)
+        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+
+!Now generate random excitation
+        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
+
+!Deallocate when finished
+        DEALLOCATE(ExcitGenTemp)
+
+        RETURN
+
+    END SUBROUTINE GetPartRandExcit
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
@@ -2304,16 +2393,18 @@ MODULE FciMCMod
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)
         DEALLOCATE(HFExcit%ExcitData)
-        do i=1,MaxWalkers
-            IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
-                DEALLOCATE(WalkVecExcits(i)%ExcitData)
-            ENDIF
-            IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
-                DEALLOCATE(WalkVec2Excits(i)%ExcitData)
-            ENDIF
-        enddo
-        DEALLOCATE(WalkVecExcits)
-        DEALLOCATE(WalkVec2Excits)
+        IF(.not.TRegenExcitgens) THEN
+            do i=1,MaxWalkers
+                IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
+                    DEALLOCATE(WalkVecExcits(i)%ExcitData)
+                ENDIF
+                IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
+                    DEALLOCATE(WalkVec2Excits(i)%ExcitData)
+                ENDIF
+            enddo
+            DEALLOCATE(WalkVecExcits)
+            DEALLOCATE(WalkVec2Excits)
+        ENDIF
 
     END SUBROUTINE DeallocFCIMCMem
         

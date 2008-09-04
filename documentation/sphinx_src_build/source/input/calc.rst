@@ -653,6 +653,11 @@ The following options are only available in **FCIMC** calculations:
     Remove the annihilation of particles on the same
     determinant step.
 
+**REGENEXCITGENS**
+    This option will regenerate the excitation generator for each particle, every time a 
+    new random excitation is wanted. This is MUCH slower for the same number of particles
+    (10x?). However, this frees up a lot more memory to store more particles.
+
 The following option are only available in **MCSTAR** calculations:
 
 **BINCANCEL** 

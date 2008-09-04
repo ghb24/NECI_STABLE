@@ -18,7 +18,7 @@ LOGICAL :: TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
 LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
 LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
 LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
-LOGICAL :: TStartSinglePart
+LOGICAL :: TStartSinglePart,TRegenExcitgens
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
