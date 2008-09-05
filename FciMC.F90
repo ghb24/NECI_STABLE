@@ -191,7 +191,7 @@ MODULE FciMCMod
                     CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
                     CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
                 ELSE
-                    CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount)
+                    CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
                 ENDIF
 
                 IF(ICILevel.ne.0) THEN
@@ -231,6 +231,13 @@ MODULE FciMCMod
                 ENDIF
 
                 IF(Child.ne.0) THEN
+                    IF(Child.gt.15) THEN
+                        WRITE(6,*) "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
+                        WRITE(6,*) "BEWARE OF MEMORY PROBLEMS"
+                        WRITE(6,*) "DETERMINANT CREATED IS: ",nJ
+                        WRITE(6,*) "PROB IS: ",Prob
+                        CALL FLUSH(6)
+                    ENDIF
 !We want to spawn a child - find its information to store
                     IF(Child.gt.0) THEN
                         WSign=.true.    !+ve child created
@@ -498,7 +505,7 @@ MODULE FciMCMod
                 CALL SetupExitgen(CurrentDets(:,j),CurrentExcits(j))
                 CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
             ELSE
-                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount)
+                CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
             ENDIF
 
             !TESTS
@@ -528,7 +535,7 @@ MODULE FciMCMod
                         IF(.not.TRegenExcitgens) THEN
                             CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
                         ELSE
-                            CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount)
+                            CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
                         ENDIF
                         IF(.not.(SameDet(HFDet,nJ,NEl))) TGenGuideDet=.false.
                             
@@ -880,7 +887,7 @@ MODULE FciMCMod
         do while(i.lt.NDets)    !Loop until all determinants found
 
             IF(TRegenExcitgens) THEN
-                CALL GetPartRandExcit(nI,nJ,Seed,IC,0,Prob,iCount)
+                CALL GetPartRandExcit(nI,nJ,Seed,IC,0,Prob,iCount,CurrentIC(VecInd))
             ELSE
                 CALL GenRandSymExcitIt3(nI,nIExcitGen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
             ENDIF
@@ -2212,11 +2219,16 @@ MODULE FciMCMod
 
     
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
-    SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Frz,Prob,iCount)
+    SUBROUTINE GetPartRandExcit(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,Excitlevel)
         INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
+        INTEGER :: Excitlevel
         REAL*8 :: Prob
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
+        IF(Excitlevel.eq.0) THEN
+            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
+            RETURN
+        ENDIF
 !Need to generate excitation generator to find excitation.
 !Setup excit generators for this determinant 
         iMaxExcit=0
