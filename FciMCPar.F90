@@ -228,10 +228,10 @@ MODULE FciMCParMod
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
-                    IF(Child.gt.15) THEN
+                    IF(Child.gt.25) THEN
                         WRITE(6,*) "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
                         WRITE(6,*) "BEWARE OF MEMORY PROBLEMS"
-                        WRITE(6,*) "DETERMINANT CREATED IS: ",nJ
+!                        WRITE(6,*) "DETERMINANT CREATED IS: ",nJ
                         WRITE(6,*) "PROB IS: ",Prob
                         CALL FLUSH(6)
                     ENDIF
