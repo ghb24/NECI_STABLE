@@ -586,7 +586,7 @@ The following options are only available in **FCIMC** calculations:
     This is not available in the parallel version.
 
 **PROJECTE-MP2**
-    This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
+    This will find the energy by projection of the configuration of walkers onto the MP1 wavefunction.
     DEVELOPMENTAL and possibly not bug-free
     This is not available in the parallel version.
 
@@ -1073,13 +1073,15 @@ by preferentially selecting for certin types of excitation.
     exponential form.
 
 **STEPEXCITWEIGHTING** [g_VMC_ExcitWeights(1) g_VMC_ExcitWeights(2) G_VMC_EXCITWEIGHT]
-    This excitation weighting involves a step function between the HF virtual and occupied electon manifold (i.e. step is at the chemical potential)
-    When choosing an electron to move, the weighting to selecting it is increased by 1 if the electron has energy above the chemical potential
-    and by g_VMC_ExcitWeights(1,1) if above. This occurs for both electrons. When choosing where to excite to, the situation is reversed, and the probability of selecting it is
-    increased by 1 if the electron is in the occupied manifold and g_VMC_ExcitWeights(2,1) if in the occupied manifold. Bear in mind that the parameters
-    are NOT probabilities. If we are at a higher excitation level w.r.t. HF, then more electrons will be in the virtual manifold, which will alter the normalisation, and 
-    mean that when selecting electrons to excite, there will be an increasingly small probability of selecting them from the occupied manifold. The opposite is true when
-    choosing where to put them.
+    This excitation weighting consists of a step function between the HF virtual and occupied electon manifold (i.e. step is at the chemical potential)
+    When choosing an electron to move, the weight for selecting the electron is increased by 1 if the electron oribital has energy above the chemical potential
+    and by g_VMC_ExcitWeights(1,1) if below. This occurs for both electrons. When choosing where to excite to, the situation is reversed, and the weight of selecting the
+    unoccupied orbital is increased by 1 if the orbital is a hole in the occupied manifold and g_VMC_ExcitWeights(2,1) if a virtual orbital in the occupied manifold. 
+    Bear in mind that the parameters are NOT probabilities. If we are at a higher excitation level w.r.t. HF, then more electrons will be in the virtual manifold, 
+    which will alter the normalisation, and mean that when selecting electrons to excite, there will be an increasingly small probability of selecting them from the 
+    occupied manifold. The opposite is true when choosing where to put them.
+
+    Simply put, if the parameters are both < 1, then the biasing will preferentially generate excitations which reduce the excitation level.
     
     U-weighting is the third parameter as before.
 
