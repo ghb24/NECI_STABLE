@@ -10,6 +10,11 @@ module global_utilities
 != we can just USE global_utilities without too much namespace pollution::
 !=
 !=    use global_utilities
+!=
+!= Note that global_utilities doesn't contain all the functionality of all 
+!= the utility modules, but rather access to the most common routines 
+!= required (e.g. it doesn't include initialisation and termination routines,
+!= which are typically only required once).
 
 use MemoryManager, only: LogMemAlloc,LogMemDealloc
 use timing, only: set_timer,halt_timer,get_total_time, timer
