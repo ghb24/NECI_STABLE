@@ -304,6 +304,7 @@ MODULE System
         
     Subroutine SysInit
       Use global_utilities
+      use SymData, only: tAbelian
       implicit none
       character(25), parameter :: this_routine='SysInit'
       integer ierr
@@ -596,6 +597,7 @@ MODULE System
          NBASISMAX(1,3)=0
 !C.. particle in box
          NBASISMAX(3,3)=-2
+         tAbelian=.true.
       ENDIF
       ENDIF
 !C..         (.NOT.TREADINT)
