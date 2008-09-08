@@ -309,6 +309,7 @@ C.. delete a symmetry table if one existed.
          use SymData, only: tagSymClasses2,tagSymLabels,tagSymLabelChars
          use SymData, only: tagIRREPChars,tagSymStatePairs,tagSymClasses
          use SymData, only: tagSymLabelCounts,tagSymLabelList
+         use SymData, only: SymPairProds,tagSymPairProds
          IMPLICIT NONE
          character(*), parameter :: this_routine='EndSym'
          if (allocated(SymTable)) then
@@ -334,7 +335,7 @@ C.. delete a symmetry table if one existed.
          end if
          nullify(SymClasses2)
          if (allocated(SymLabels)) then
-             !deallocate(SymLabels)
+             deallocate(SymLabels)
              call LogMemDealloc(this_routine,tagSymLabels)
          end if
          if (allocated(SymLabelChars)) then
@@ -356,6 +357,10 @@ C.. delete a symmetry table if one existed.
          if (allocated(SymLabelCounts)) then
              deallocate(SymLabelCounts)
              call LogMemDealloc(this_routine,tagSymLabelCounts)
+         end if
+         if (allocated(SymPairProds)) then
+             deallocate(SymPairProds)
+             call LogMemDealloc(this_routine,tagSymPairProds)
          end if
       END
 

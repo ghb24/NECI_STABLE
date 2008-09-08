@@ -729,14 +729,17 @@ MODULE Calc
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
           Use DetCalc, only: DetInv, nDet, tRead
+          use global_utilities
           
           REAL*8 CalcT, CalcT2, GetRhoEps
           
           
           INTEGER I, IC
           INTEGER nList
+          character(*), parameter :: this_routine='CalcInit'
 
           Allocate(MCDet(nEl))
+          call LogMemAlloc('MCDet',nEl,4,this_routine,tagMCDet)
 
           IF(NPATHS.EQ.-1) THEN
              WRITE(6,*) 'NPATHS=-1.  SETTING NPATHS to NDET'
@@ -1071,8 +1074,13 @@ MODULE Calc
         End Subroutine DoExactVertexCalc
 
         Subroutine CalcCleanup()
-        ! Currently does nothing.  Present for consistency with other Init
-        ! routines.
+           != Clean up (e.g. via deallocation) mess from Calc routines.
+           use global_utilities
+           character(*), parameter :: this_routine='CalcCleanup'
+
+           deallocate(MCDet)
+           call LogMemDealloc(this_routine,tagMCDet)
+
         End Subroutine CalcCleanup
 
       END MODULE Calc
