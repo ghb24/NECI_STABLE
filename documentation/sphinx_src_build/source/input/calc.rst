@@ -549,8 +549,8 @@ The following options are only available in **FCIMC** calculations:
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
 
 **STARTMP1**
-    Set the initial configuration of walkers to be proportional to the MP1 wavefunction. This is no longer
-    available, but the code is still there to reintroduce it.
+    Set the initial configuration of walkers to be proportional to the MP1 wavefunction. The shift will also
+    now be set to the MP2 correlation energy.
 
 **GROWMAXFACTOR** [GrowMaxFactor]
     Default 9000.
