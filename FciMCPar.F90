@@ -96,8 +96,8 @@ MODULE FciMCParMod
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
 
-    TYPE(HElement) :: rhii,FZero
-    REAL*8 :: Hii
+    TYPE(HElement) :: rhii
+    REAL*8 :: Hii,Fii
 
     REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
     INTEGER :: GraphRhoMatTag=0
@@ -1535,176 +1535,10 @@ MODULE FciMCParMod
     END SUBROUTINE UpdateDiagSftPar
 
 
-!This routine calculates the MP1 eigenvector, and uses it as a guide for setting the initial walker configuration
-!    SUBROUTINE StartWavevectorPar(WaveType)
-!        use CalcData , only : i_P
-!        use SystemData , only : Beta
-!        use IntegralsData , only : nTay
-!        IMPLICIT NONE
-!        INTEGER :: ierr,i,j,WaveType,EigenvectorTag=0,k,VecSlot,NoDoublesWalk
-!        CHARACTER(len=*), PARAMETER :: this_routine='StartWavevectorPar'
-!        REAL*8 :: TypeChange,SumComp,GrowFactor
-!        INTEGER :: nStore(6),nExcitMemLen,nJ(NEl),iMaxExcit,nExcitTag=0,iExcit,WalkersOnDet
-!        INTEGER , ALLOCATABLE :: nExcit(:)
-!        REAL*8 , ALLOCATABLE :: Eigenvector(:)
-!        TYPE(HElement) :: rhij,rhjj,Hamij,Fj,MP2E
-!
-!        IF((WaveType.eq.1).or.(WaveType.eq.2)) THEN
-!!If WaveType=1, we want to calculate the MP1 wavevector as our initial configuration, and WaveType=2 is the star wavevector
-!        
-!            IF(WaveType.eq.1) THEN
-!!For MP1 wavefunction, we want TypeChange=1.D0, but star will require the star correlation energy
-!                TypeChange=1.D0
-!            ELSEIF(WaveType.eq.2) THEN
-!!Star energy not yet proparly coded & tested
-!                STOP 'Star initial wavefunction not yet working'
-!!                StarWeight=fMCPR3StarNewExcit(FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,nTay,RhoEps,iExcit,iMaxExcit,nWHTay,iLogging,TSym,ECore,DBeta,DLWDB,MP2E)
-!!                TypeChange=DLWDB
-!            ENDIF
-!        
-!            MP2E=0.D0
-!
-!!First, generate all excitations, and store their determianants, and rho matrix elements 
-!            nStore(1)=0
-!            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
-!            ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
-!            CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-!            nExcit(1)=0
-!            CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
-!
-!            ALLOCATE(Eigenvector(iMaxExcit+1),stat=ierr)
-!            CALL LogMemAlloc('Eigenvector',iMaxExcit+1,8,this_routine,EigenvectorTag,ierr)
-!            CALL AZZERO(Eigenvector,iMaxExcit+1)
-!
-!!Also need to store the determinants which each component of the eigenvector refers to...
-!            ALLOCATE(ExcitStore(NEl,iMaxExcit+1),stat=ierr)
-!            CALL LogMemAlloc('ExcitStore',(iMaxExcit+1)*NEl,4,this_routine,ExcitStoreTag,ierr)
-!            CALL IAZZERO(ExcitStore,(iMaxExcit+1)*NEl)
-!            
-!!            CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
-!            CALL GetH0Element(FDet,NEl,Arr,nBasis,ECore,FZero)
-!
-!            i=1
-!            do j=1,NEl
-!                ExcitStore(j,i)=FDet(j)
-!            enddo
-!            Eigenvector(i)=1.D0
-!            SumComp=1.D0
-!            
-!            do while (.true.)
-!                CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
-!                IF(nJ(1).eq.0) EXIT
-!                i=i+1
-!!                CALL CalcRho2(FDet,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhij,nTay,iExcit,ECore)
-!!                CALL CalcRho2(nJ,nJ,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjj,nTay,0,ECore)
-!
-!!We want the value of rho_jj/rho_ii
-!!                rhjj=rhjj/rhii
-!                Hamij=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
-!                CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fj)
-!
-!                do j=1,NEl
-!                    ExcitStore(j,i)=nJ(j)
-!                enddo
-!!                Eigenvector(i)=(rhij%v)/((rhjj%v)-TypeChange)
-!                MP2E=MP2E%v-((Hamij%v)**2)/((Fj%v)-(FZero%v))
-!                Eigenvector(i)=(Hamij%v)/(Fj%v-FZero%v)
-!                SumComp=SumComp+Eigenvector(i)
-!            enddo
-!
-!            NoComps=i
-!
-!            WRITE(6,*) "Number of components found for new starting wavevector: ",NoComps
-!
-!            DEALLOCATE(nExcit)
-!            CALL LogMemDealloc(this_routine,nExcitTag)
-!
-!            DiagSft=real(MP2E%v,KIND(0.D0))
-!
-!        ENDIF
-!
-!        GrowFactor=(InitWalkers+0.D0)/SumComp
-!
-!        WRITE(6,*) "Growth factor of initial wavevector is: ",GrowFactor
-!
-!!Find actual number of new initial walkers
-!        NoDoublesWalk=0
-!        InitWalkers=0
-!        do i=1,NoComps
-!            WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
-!            InitWalkers=InitWalkers+WalkersOnDet
-!            IF(i.ne.1) THEN
-!                NoDoublesWalk=NoDoublesWalk+WalkersOnDet
-!            ENDIF
-!        enddo
-!
-!        WRITE(6,*) "New number of initial walkers is: ",InitWalkers
-!        WRITE(6,*) "Number of walkers on double excitations: ",NoDoublesWalk
-!
-!!Set the maximum number of walkers allowed
-!        MaxWalkers=MemoryFac*InitWalkers
-!
-!!Allocate memory to hold walkers
-!        ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
-!        CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-!        ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
-!        CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-!        ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
-!        CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
-!        ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
-!        CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
-!    
-!        CurrentDets=>WalkVecDets
-!        CurrentSign=>WalkVecSign
-!        NewDets=>WalkVec2Dets
-!        NewSign=>WalkVec2Sign
-!
-!        VecSlot=1
-!!Cycle over components
-!        do i=1,NoComps
-!!Cycle over number of initial walkers wanted in each component
-!            IF(Eigenvector(i).gt.0.D0) THEN
-!!Walkers in this determinant are positive
-!                WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
-!                do j=1,WalkersOnDet
-!                    do k=1,NEl
-!                        CurrentDets(k,VecSlot)=ExcitStore(k,i)
-!                    enddo
-!                    CurrentSign(VecSlot)=.true.
-!                    VecSlot=VecSlot+1
-!                enddo
-!
-!            ELSE
-!                WalkersOnDet=abs(nint(Eigenvector(i)*GrowFactor))
-!                do j=1,WalkersOnDet
-!                    do k=1,NEl
-!                        CurrentDets(k,VecSlot)=ExcitStore(k,i)
-!                    enddo
-!                    CurrentSign(VecSlot)=.false.
-!                    VecSlot=VecSlot+1
-!                enddo
-!            ENDIF
-!
-!        enddo
-!
-!        IF((VecSlot-1).ne.InitWalkers) THEN
-!            WRITE(6,*) "Problem in assigning particles proportionally to given wavevector..."
-!            STOP "Problem in assigning particles proportionally to given wavevector..."
-!        ENDIF
-!
-!        DEALLOCATE(Eigenvector)
-!        CALL LogMemDealloc(this_routine,EigenvectorTag)
-!        DEALLOCATE(ExcitStore)
-!        CALL LogMemDealloc(this_routine,ExcitStoreTag)
-!
-!        RETURN
-!
-!    END SUBROUTINE StartWavevectorPar
-
-
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         use CalcData, only : EXCITFUNCS
+        use Determinants , only : GetH0Element3
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc
         TYPE(HElement) :: rh,TempHii
@@ -1736,8 +1570,10 @@ MODULE FciMCParMod
         Seed=G_VMC_Seed-iProcIndex
 
 !Calculate Hii
-        TempHii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
         Hii=REAL(TempHii%v,r2)
+        TempHii=GetH0Element3(HFDet)
+        Fii=REAL(TempHii%v,r2)
 
 !Initialise variables for calculation on each node
         ProjectionE=0.D0
@@ -1806,29 +1642,28 @@ MODULE FciMCParMod
         IF(TStartSinglePart) THEN
             WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
         ELSE
-            WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
+            WRITE(6,*) "Initial number of walkers per processor chosen to be: ", InitWalkers
         ENDIF
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
         WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
+        IF(TStartSinglePart) THEN
+            TSinglePartPhase=.true.
+            IF(TReadPops) THEN
+                CALL Stop_All("InitFciMCCalcPar","Cannot read in POPSFILE as well as starting with a single particle")
+            ENDIF
+        ELSE
+            TSinglePartPhase=.false.
+        ENDIF
         
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
-            call Stop_All("InitFCIMCCalcPar","This feature not ready yet")
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
-!            CALL StartWavevectorPar(1)
+            CALL InitWalkersMP1Par()
 
         ELSE
 !initialise the particle positions - start at HF with positive sign
-            IF(TStartSinglePart) THEN
-                TSinglePartPhase=.true.
-                IF(TReadPops) THEN
-                    CALL Stop_All("InitFciMCCalcPar","Cannot read in POPSFILE as well as starting with a single particle")
-                ENDIF
-            ELSE
-                TSinglePartPhase=.false.
-            ENDIF
 
 !Set the maximum number of walkers allowed
             MaxWalkers=MemoryFac*InitWalkers
@@ -1987,6 +1822,240 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalcPar
+            
+!This will set up the initial walker distribution proportially to the MP1 wavevector.
+    SUBROUTINE InitWalkersMP1Par()
+        INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF
+        REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r
+        TYPE(HElement) :: Hij,Hjj,Fjj
+        INTEGER , ALLOCATABLE :: MP1Dets(:,:)
+        LOGICAL , ALLOCATABLE :: MP1Sign(:)
+        REAL*8 , ALLOCATABLE :: MP1Comps(:)
+        INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF
+        CHARACTER(len=*), PARAMETER :: this_routine='InitWalkersMP1Par'
+        
+    
+!Set the maximum number of walkers allowed
+        MaxWalkers=MemoryFac*InitWalkers
+        WRITE(6,*) "Memory allocated for a maximum particle number per node of: ",MaxWalkers
+
+!Put a barrier here so all processes synchronise
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!Allocate memory to hold walkers
+        ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
+        CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+        ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+        CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+        ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+        ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+
+        ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
+        ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
+        ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
+        CALL AZZERO(WalkVecH,MaxWalkers)
+        ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
+        CALL AZZERO(WalkVec2H,MaxWalkers)
+        
+        MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
+
+        IF(.not.TNoAnnihil) THEN
+            ALLOCATE(HashArray(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
+            HashArray(:)=0
+            ALLOCATE(Hash2Array(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('Hash2Array',MaxWalkers,8,this_routine,Hash2ArrayTag,ierr)
+            Hash2Array(:)=0
+            ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
+            CALL IAZZERO(IndexTable,MaxWalkers)
+            ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
+            CALL IAZZERO(Index2Table,MaxWalkers)
+            ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
+            CALL IAZZERO(ProcessVec,MaxWalkers)
+            ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
+            CALL IAZZERO(Process2Vec,MaxWalkers)
+
+            MemoryAlloc=MemoryAlloc+32*MaxWalkers
+        ENDIF
+
+!Allocate pointers to the correct walker arrays
+        CurrentDets=>WalkVecDets
+        CurrentSign=>WalkVecSign
+        CurrentIC=>WalkVecIC
+        CurrentH=>WalkVecH
+        NewDets=>WalkVec2Dets
+        NewSign=>WalkVec2Sign
+        NewIC=>WalkVec2IC
+        NewH=>WalkVec2H
+
+!Now calculate MP1 components - allocate memory for doubles
+        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+        HFConn=HFConn+1     !Add on one for the HF Det itself
+
+        ALLOCATE(MP1Comps(HFConn),stat=ierr)    !This will store the cumulative absolute values of the mp1 wavevector components
+        CALL LogMemAlloc('MP1Comps',HFConn,8,this_routine,MP1CompsTag,ierr)
+        CALL AZZERO(MP1Comps,HFConn)
+        ALLOCATE(MP1Dets(NEl,HFConn),stat=ierr)
+        CALL LogMemAlloc('MP1Dets',HFConn*NEl,4,this_routine,MP1DetsTag,ierr)
+        CALL IAZZERO(MP1Dets,NEl*HFConn)
+        ALLOCATE(MP1Sign(HFConn),stat=ierr)
+        CALL LogMemAlloc('MP1Sign',HFConn,4,this_routine,MP1SignTag,ierr)
+        
+!HF Compt. of MP1 is 1
+        CALL ICOPY(NEl,HFDet,1,MP1Dets(1:NEl,1),1)
+        MP1Comps(1)=1.D0
+        MP1Sign(1)=.true.
+
+        SumMP1Compts=1.D0   !Initialise the sum of the MP1 wavevector components
+        VecSlot=2           !This is the next free slot in the MP1 arrays
+        MP2Energy=0.D0      !Calculate the MP2 energy as we go, since the shift will be set to this
+
+        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+
+        do while(.true.)
+!Generate double excitations
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            IF(nJ(1).eq.0) EXIT
+            IF(iExcit.ne.2) THEN
+                CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
+            ENDIF
+
+            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+
+            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+            IF(Compt.lt.0.D0) THEN
+                MP1Sign(VecSlot)=.false.
+            ELSE
+                MP1Sign(VecSlot)=.true.
+            ENDIF
+            CALL ICOPY(NEl,nJ,1,MP1Dets(1:NEl,VecSlot),1)
+            MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
+            SumMP1Compts=SumMP1Compts+abs(Compt)
+            MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
+
+            VecSlot=VecSlot+1
+
+        enddo
+        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+
+        WRITE(6,"(A,F15.7,A)") "Sum of absolute components of MP1 wavefunction is ",SumMP1Compts," with the HF being 1."
+
+        VecSlot=VecSlot-1
+
+!Total components is VecSlot
+        IF(MP1Comps(VecSlot).ne.SumMP1Compts) THEN
+            CALL Stop_All("InitWalkersMP1","Error in calculating sum of MP1 components")
+        ENDIF
+
+        DiagSft=MP2Energy
+        MP2Energy=MP2Energy+Hii
+        WRITE(6,"(A,F16.7,A,F16.7)") "MP2 energy is ",MP2Energy," which the initial shift has been set to: ",DiagSft
+
+        WalkersonHF=0       !Find the number of walkers we are assigning to HF
+
+        do j=1,InitWalkers
+
+            i=1
+
+            r=Ran2(Seed)*SumMP1Compts       !Choose the double that this walker wants to be put...
+            do while(r.gt.MP1Comps(i))
+
+                i=i+1
+
+                IF(i.gt.VecSlot) THEN
+                    CALL Stop_All("InitWalkersMP1","Assigning walkers stochastically has been performed incorrectly")
+                ENDIF
+
+            enddo
+
+            IF(i.eq.1) THEN
+!If we are at HF, then we do not need to calculate the information for the walker        
+                WalkersonHF=WalkersonHF+1
+                CALL ICOPY(NEl,HFDet,1,CurrentDets(1:NEl,j),1)
+                CurrentIC(j)=0
+                CurrentSign(j)=.true.
+                CurrentH(j)=0.D0
+                IF(.not.TNoAnnihil) THEN
+                    HashArray(j)=HFHash
+                ENDIF
+            ELSE
+!We are at a double excitation - we need to calculate most of this information...
+                CALL ICOPY(NEl,MP1Dets(1:NEl,i),1,CurrentDets(1:NEl,j),1)
+                CurrentIC(j)=2
+                CurrentSign(j)=MP1Sign(i)
+                Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
+                CurrentH(j)=real(Hjj%v,r2)
+                IF(.not.TNoAnnihil) THEN
+                    HashArray(j)=CreateHash(MP1Dets(1:NEl,i))
+                ENDIF
+                
+            ENDIF
+
+        enddo
+        
+        CALL MPI_Reduce(WalkersonHF,SumWalkersonHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+        IF(iProcIndex.eq.Root) THEN
+            WRITE(6,"(A,I12,A,I12,A)") "Out of ",InitWalkers*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
+        ENDIF
+
+!Deallocate MP1 data
+        DEALLOCATE(MP1Comps)
+        CALL LogMemDealloc(this_routine,MP1CompsTag)
+        DEALLOCATE(MP1Dets)
+        CALL LogMemDealloc(this_routine,MP1DetsTag)
+        DEALLOCATE(MP1Sign)
+        CALL LogMemDealloc(this_routine,MP1SignTag)
+
+        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+        WRITE(6,*) "Initial memory allocation sucessful..."
+        CALL FLUSH(6)
+
+!Put a barrier here so all processes synchronise
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        IF(.not.TRegenExcitgens) THEN
+            ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
+            ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
+
+!Allocate pointers to the correct excitation arrays
+            CurrentExcits=>WalkVecExcits
+            NewExcits=>WalkVec2Excits
+
+            do j=1,InitWalkers
+!Copy the HF excitation generator accross to each initial particle
+                IF(CurrentIC(j).eq.0) THEN
+!We are at HF - we can save the excitgen
+                    CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
+                ELSE
+                    CurrentExcits(j)%ExitgenForDet=.false.
+                ENDIF
+            enddo
+            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,*) "Initial allocation of excitation generators successful..."
+        ELSE
+            WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
+        ENDIF
+        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
+        CALL FLUSH(6)
+
+        RETURN
+
+    END SUBROUTINE InitWalkersMP1Par
 
 !This routine flips the sign of all particles on the node
     SUBROUTINE FlipSign()
@@ -2368,7 +2437,7 @@ MODULE FciMCParMod
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
 
-    TYPE(HElement) :: rhii,FZero
+    TYPE(HElement) :: rhii
     REAL*8 :: Hii
 
     REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC

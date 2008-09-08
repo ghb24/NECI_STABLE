@@ -1740,8 +1740,8 @@ MODULE FciMCMod
 !This routine allocates memory for the initial walkers, and then assigns them stochastically, proportional to the MP1 wavefunction
     SUBROUTINE InitWalkersMP1()
         INTEGER :: HFConn,ierr,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF
-        REAL*8 :: SumMP1Compts,MP2Energy,Fjj,Compt,Ran2,r
-        TYPE(HElement) :: Hij,Hjj
+        REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r
+        TYPE(HElement) :: Hij,Hjj,Fjj
         INTEGER , ALLOCATABLE :: MP1Dets(:,:)
         REAL*8 , ALLOCATABLE :: MP1Comps(:),MP1Hij(:)
         LOGICAL , ALLOCATABLE :: MP1Sign(:)
@@ -1829,7 +1829,7 @@ MODULE FciMCMod
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
 
-            Compt=real(Hij%v,r2)/(Fii-Fjj)
+            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
             MP1Hij(VecSlot)=real(Hij%v,r2)
             IF(Compt.lt.0.D0) THEN
                 MP1Sign(VecSlot)=.false.
@@ -1842,7 +1842,7 @@ MODULE FciMCMod
             CALL ICOPY(NEl,nJ,1,MP1Dets(1:NEl,VecSlot),1)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
             SumMP1Compts=SumMP1Compts+abs(Compt)
-            MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-Fjj)
+            MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
 
             VecSlot=VecSlot+1
 
