@@ -39,7 +39,7 @@ General options
        e.g. 6.002 would mean 6 closed and 2 open
        which would have orborder(I,1)=6, orborder(I,2)=4
        but say 5.002 would be meaningless as the integral part must be a
-       multiple of 2
+       multiple of 2.
 
 Density fitting options
 -----------------------

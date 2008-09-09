@@ -49,10 +49,10 @@ PreCalc Options
 
     For example::
 
-         **VERTEX** **HDIAG** **SUM**
+         VERTEX HDIAG SUM
          XXX
          XXX
-         **VERTEX** **HDIAG** **MC**
+         VERTEX HDIAG MC
          XXX
 
     where XXX are the vertex options (see below).

@@ -14,6 +14,7 @@
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/interface.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="contents" title="Global table of contents" href="../contents.html" />
     <link rel="index" title="Global index" href="../genindex.html" />
@@ -46,8 +47,8 @@
           <div class="body">
             
   
-  <div class="section" id="calc">
-<span id="input-calc"></span><h1 id="calc"><span id="input-calc"></span>Calc<a class="headerlink" href="#calc" title="Permalink to this headline">¶</a></h1>
+  <div class="section">
+<h1 id="calc"><span id="input-calc"></span>Calc<a class="headerlink" href="#calc" title="Permalink to this headline">¶</a></h1>
 <dl class="docutils">
 <dt><strong>CALC</strong></dt>
 <dd>Start calculation block.  This chooses what calculation to do.</dd>
@@ -57,7 +58,7 @@
 <dt><strong>ENDCALC</strong></dt>
 <dd>End the calculation input block.</dd>
 </dl>
-<div class="section" id="general-options">
+<div class="section">
 <h2 id="general-options">General options<a class="headerlink" href="#general-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>ALLPATHS</strong></dt>
@@ -210,7 +211,7 @@ determinant to be handled separately.</p>
 </dd>
 </dl>
 </div>
-<div class="section" id="method-options">
+<div class="section">
 <h2 id="method-options">Method options<a class="headerlink" href="#method-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>VERTEX SUM</strong> [<strong>OLD</strong> <strong>NEW</strong> <strong>HDIAG</strong>] [<strong>SUB2VSTAR</strong>] [<strong>LOGWEIGHT</strong>]</dt>
@@ -329,7 +330,7 @@ Only really useful in a <strong>METHODS</strong> section.</dd>
 <dt><strong>VERTEX</strong> <strong>STAR</strong> [<strong>ADDSINGLES</strong> <strong>COUNTEXCITS</strong>] [star method] [<strong>OLD</strong> <strong>NEW</strong> [<strong>H0</strong>] ]</dt>
 <dd><p class="first">Construct a single and double excitation star from all determinants
 connected to the root (ignoring connections between those dets).
-See <a class="citation-reference" href="#starpaper" id="id1">[StarPaper]</a> for more details.</p>
+See <a class="citation-reference" href="#starpaper" id="id1" name="id1">[StarPaper]</a> for more details.</p>
 <dl class="docutils">
 <dt><strong>ADDSINGLES</strong></dt>
 <dd><p class="first">Extend the star graph approach.</p>
@@ -443,18 +444,22 @@ the complete star. Currently only available with &#8216;<strong>NEW</strong>&#82
 </blockquote>
 </dd>
 </dl>
-<div class="section" id="experimental-methods">
+<div class="section">
 <h3 id="experimental-methods">Experimental methods<a class="headerlink" href="#experimental-methods" title="Permalink to this headline">¶</a></h3>
 <dl class="docutils">
-<dt><strong>VERTEX</strong> <strong>FCIMC</strong> [<strong>MCDIFFUSION</strong>]</dt>
+<dt><strong>VERTEX</strong> <strong>FCIMC</strong> [<strong>MCDIFFUSION</strong>] [<strong>RESUMFCIMC</strong>]</dt>
 <dd><p class="first">Perform Monte Carlo calculations over pure determinant space, which
 is sampled using a series of &#8216;particles&#8217; (or &#8216;walkers&#8217;).</p>
 <p>The walkers are not necessarily unique and must be sorted at every
 iteration.  Each walker has its own excitation generator.</p>
 <p><strong>MCDIFFUSION</strong> is a completely particle-conserving diffusion
 algorithm and is much more experimental.</p>
-<p class="last"><strong>FCIMC</strong> and <strong>MCDETS</strong> calculations share many of the same options
+<p><strong>FCIMC</strong> and <strong>MCDETS</strong> calculations share many of the same options
 (see Walker Monte Carlo options, below).</p>
+<p class="last"><strong>RESUMFCIMC</strong> creates graphs out of connected determinants, and applies
+the H-matrix successively in order to achieve a local spawning algorithm.
+This reduces to the original spawning algorithm when <strong>GRAPHSIZE</strong> is 2 and
+<strong>HAPP</strong> is 1. Uses many of the same options as <strong>FCIMC</strong>.</p>
 </dd>
 <dt><strong>VERTEX</strong> <strong>GRAPHMORPH</strong> [<strong>HDIAG</strong>]</dt>
 <dd><p class="first">Set up an initial graph and systematically improve it, by applying the
@@ -484,14 +489,15 @@ information about a determinant is not duplicated.</p>
 </dd>
 <dt><strong>VERTEX</strong> <strong>RETURNPATHMC</strong></dt>
 <dd><p class="first">Use a spawning algorithm which is constrained in three ways:</p>
-<blockquote>
-<p>#.  a particle can only be spawned where it will increase its
+<ol class="arabic simple">
+<li>a particle can only be spawned where it will increase its
 excitation level with respect to the reference determinant or
-back to where it was spawned from.
-#. they will spawn back to where their parents were spawned from
-with probability PRet, which is specified using <strong>RETURNBIAS</strong>.
-# length of spawning chain must be less than the maximum length
-given by <strong>MAXCHAINLENGTH</strong>.</p>
+back to where it was spawned from.</li>
+<li>they will spawn back to where their parents were spawned from
+with probability PRet, which is specified using <strong>RETURNBIAS</strong>.</li>
+<li>length of spawning chain must be less than the maximum length
+given by <strong>MAXCHAINLENGTH</strong>.</li>
+</ol>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">How can a particle be restricted to spawning to spawning at most
@@ -499,7 +505,6 @@ back to where it was spawned from <em>and</em> have a probability of
 spawning back to where its parent was spawed from?
 Documentation <em>must</em> be clearer.</p>
 </div>
-</blockquote>
 <p>This attempts to circumvent any sign problem in the double
 excitations and the HF, and hopefully this will result in a more stable
 MC algorithm. It remains to be seen if this approach is useful.  Should
@@ -516,7 +521,7 @@ not work for them.</p>
 </dl>
 </div>
 </div>
-<div class="section" id="walker-monte-carlo-options">
+<div class="section">
 <h2 id="walker-monte-carlo-options">Walker Monte Carlo options<a class="headerlink" href="#walker-monte-carlo-options" title="Permalink to this headline">¶</a></h2>
 <p>The following options are applicable for both the <strong>FCIMC</strong> and <strong>MCDETS</strong> methods:</p>
 <div class="admonition note">
@@ -542,23 +547,15 @@ Default 3000.</blockquote>
 <dt><strong>NMCYC</strong> [NMCYC]</dt>
 <dd>Set the total number of timesteps to take.</dd>
 <dt><strong>SHIFTDAMP</strong>  [SftDamp]</dt>
-<dd>Damping factor (OF WHAT?!).  &lt;1 means more damping.</dd>
+<dd>Damping factor of the change in shift when it is updated.  &lt;1 means more damping.</dd>
 <dt><strong>STEPSSHIFT</strong> [StepsSft]</dt>
 <dd><p class="first">Default 100.</p>
 <p class="last">Set the number of steps taken before the diagonal shift is updated.</p>
 </dd>
 <dt><strong>TAU</strong> [TIMESTEP]</dt>
 <dd><p class="first">Default 0.0.</p>
-<p>Set the number of evoution timesteps before
-the EShift is updated.  Must be set such that
-<img src="../mathimg/math-7a497a81dc.png" align="absmiddle" /> .</p>
-<div class="last admonition note">
-<p class="first admonition-title">Note</p>
-<p>Brilliantly, there&#8217;s a comment in the code which states (contradictorily):</p>
-<pre>For FCIMC, this can be considered the timestep of the simulation.
-If not set, it will default to the value which will allow the
-fastest destruction of walkers.</pre>
-</div>
+<p class="last">For FCIMC, this can be considered the timestep of the simulation. It is a constant which
+will increase/decrease the rate of spawning/death for a given iteration.</p>
 </dd>
 </dl>
 <p>The following options are only available in <strong>FCIMC</strong> calculations:</p>
@@ -566,11 +563,12 @@ fastest destruction of walkers.</pre>
 <dt><strong>READPOPS</strong></dt>
 <dd>Read the initial walker configuration from the file POPSFILE.
 <strong>DIAGSHIFT</strong> and <strong>INITWALKERS</strong> given in the input will be
-overwritten with the values read in form POPSFILE.</dd>
+overwritten with the values read in form POPSFILE. Only currently available in serial.</dd>
 <dt><strong>SCALEWALKERS</strong> [fScaleWalkers]</dt>
 <dd>Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.</dd>
 <dt><strong>STARTMP1</strong></dt>
-<dd>Set the initial configuration of walkers to be proportional to the MP1 wavefunction.</dd>
+<dd>Set the initial configuration of walkers to be proportional to the MP1 wavefunction. The shift will also
+now be set to the MP2 correlation energy.</dd>
 <dt><strong>GROWMAXFACTOR</strong> [GrowMaxFactor]</dt>
 <dd><p class="first">Default 9000.</p>
 <p class="last">Set the factor by which the initial number of particles are allowed to grow before
@@ -580,33 +578,115 @@ they are culled.</p>
 <dd><p class="first">Default 5.</p>
 <p class="last">Set the factor by which the total number of particles is reduced once it reaches the GrowMaxFactor limit</p>
 </dd>
+<dt><strong>EQUILSTEPS</strong> [NEquilSteps]</dt>
+<dd>Default 0
+This indicates the number of cycles which have to
+pass before the energy of the system from the doubles
+population is counted</dd>
+<dt><strong>RHOAPP</strong> [RhoApp]</dt>
+<dd>This is for resummed FCIMC, it indicates the number of propagation steps
+around each subgraph before particles are assigned to the nodes</dd>
+<dt><strong>SIGNSHIFT</strong></dt>
+<dd><p class="first">This is for FCIMC and involves calculating the change in shift depending on
+the absolute value of the sum of the signs of the walkers.  This should
+hopefully mean that annihilation is implicitly taken into account. Results
+were not too good.</p>
+<div class="last admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">details?  Why &#8220;not good&#8221;?</p>
+</div>
+</dd>
+<dt><strong>HFRETBIAS</strong> [PRet]</dt>
+<dd><p class="first">This is a simple guiding function for FCIMC - if we are at a double
+excitation, then we return to the HF determinant with a probability PRet.
+This is unbiased by the acceptance probability of returning to HF.</p>
+<p class="last">This is not available in the parallel version.</p>
+</dd>
+<dt><strong>EXCLUDERANDGUIDE</strong></dt>
+<dd><p class="first">This is an alternative method to unbias for the HFRetBias. It invloves
+disallowing random excitations back to the guiding function (HF
+Determinant).</p>
+<p class="last">This is not available in the parallel version.</p>
+</dd>
+<dt><strong>PROJECTE-MP2</strong></dt>
+<dd><p class="first">This will find the energy by projection of the configuration of walkers
+onto the MP1 wavefunction.  DEVELOPMENTAL and possibly not bug-free.</p>
+<p class="last">This is not available in the parallel version.</p>
+</dd>
+<dt><strong>FIXPARTICLESIGN</strong></dt>
+<dd><p class="first">This uses a modified hamiltonian, whereby all the positive off-diagonal
+hamiltonian matrix elements are zero. Instead, their diagonals are modified
+to change the on-site death rate. Particles now have a fixed (positive)
+sign which cannot be changed and so no annihilation occurs.  Results were
+not good.</p>
+<p>This is not available in the parallel version.</p>
+<div class="last admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">details?  Why &#8220;not good&#8221;?</p>
+</div>
+</dd>
+<dt><strong>STARTSINGLEPART</strong></dt>
+<dd>This will start the simulation with a single positive particle at the HF,
+and fix the shift at its initial value, until the number of particles gets
+to the INITPARTICLES value.</dd>
+<dt><strong>MEMORYFAC</strong> [MemoryFac]</dt>
+<dd><p class="first">Default 50.</p>
+<p class="last">MemoryFac is the factor by which space will be made available for extra
+walkers compared to InitWalkers.</p>
+</dd>
+<dt><strong>GRAPHSIZE</strong> [NDets]</dt>
+<dd>In ResumFCIMC, this is the number of connected determinants to form the
+graph which you take as your sumsystem for the resummed spawning.  Must
+have an associated RhoApp.</dd>
+<dt><strong>HAPP</strong> [HApp]</dt>
+<dd><p class="first">Default 1.</p>
+<p class="last">In ResumFCIMC, this indicates the number of local applications of the
+hamiltonian to random determinants before the walkers are assigned
+according to the resultant vector.</p>
+</dd>
 <dt><strong>NOBIRTH</strong></dt>
-<dd>Force the off-diagonal <img src="../mathimg/math-7b83fdec7c.png" /> (?) matrix elements to become zero,
+<dd><p class="first">Force the off-diagonal <img src="../mathimg/math-2449c17196.png" /> matrix elements to become zero,
 and hence obtain an exponential decay of the initial populations
 on the determinants, at a rate which can be exactly calculated and
-compared against.</dd>
+compared against.</p>
+<p class="last">This is no longer functional, but commented out in the
+code.</p>
+</dd>
 <dt><strong>MCDIFFUSE</strong> [Lambda]</dt>
 <dd><p class="first">Default 0.0.</p>
-<p class="last">Set the amount of diffusion compared to spawning in the <strong>FCIMC</strong> algorithm.</p>
+<p>Set the amount of diffusion compared to spawning in the <strong>FCIMC</strong>
+algorithm.</p>
+<p class="last">This is no longer functional and commented out in the code.</p>
 </dd>
 <dt><strong>FLIPTAU</strong> [FlipTauCyc]</dt>
 <dd><p class="first">Default: off.</p>
-<p class="last">Cause time to be reversed every FlipTauCyc cycles in the <strong>FCIMC</strong>
+<p>Cause time to be reversed every FlipTauCyc cycles in the <strong>FCIMC</strong>
 algorithm. This might help with undersampling problems.</p>
+<p class="last">This is no longer functional and commented out in the code.</p>
 </dd>
 <dt><strong>NON-PARTCONSDIFF</strong></dt>
-<dd>Use a seperate partitioning of the diffusion matrices, in which
+<dd><p class="first">Use a seperate partitioning of the diffusion matrices, in which
 the antidiffusion matrix (+ve connections) create a net increase of
-two particles.</dd>
+two particles.</p>
+<p class="last">This is no longer functional and commented out in the code.</p>
+</dd>
 <dt><strong>FULLUNBIASDIFF</strong></dt>
-<dd>Fully unbias for the diffusion process by summing over all connections.</dd>
+<dd><p class="first">Fully unbias for the diffusion process by summing over all connections.</p>
+<p class="last">This is no longer functional and commented out in the code.</p>
+</dd>
 <dt><strong>NODALCUTOFF</strong> [NodalCuttoff]</dt>
-<dd>Constrain a determinant to be of the same sign as the MP1
+<dd><p class="first">Constrain a determinant to be of the same sign as the MP1
 wavefunction at that determinant, if the normalised component of
-the MP1 wavefunction is greater than the NodalCutoff value.</dd>
+the MP1 wavefunction is greater than the NodalCutoff value.</p>
+<p class="last">This is no longer functional and commented out in the code.</p>
+</dd>
 <dt><strong>NOANNIHIL</strong></dt>
 <dd>Remove the annihilation of particles on the same
 determinant step.</dd>
+<dt><strong>REGENEXCITGENS</strong></dt>
+<dd>This option will regenerate the excitation generator for each particle, every time a
+new random excitation is wanted. This is MUCH slower for the same number of particles
+(10x?). However, this frees up a lot more memory to store more particles.</dd>
 </dl>
 <p>The following option are only available in <strong>MCSTAR</strong> calculations:</p>
 <dl class="docutils">
@@ -618,7 +698,7 @@ much slower.  See also the <strong>WAVEVECTORPRINT</strong> and <strong>POPSFILE
 options in the <strong>LOGGING</strong> block.</dd>
 </dl>
 </div>
-<div class="section" id="return-path-monte-carlo-options">
+<div class="section">
 <h2 id="return-path-monte-carlo-options">Return Path Monte Carlo options<a class="headerlink" href="#return-path-monte-carlo-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>MAXCHAINLENGTH</strong> [CLMAX]</dt>
@@ -628,7 +708,7 @@ come back to its origin.</dd>
 <dd>Set the bias at any point to spawn at the parent determinant.</dd>
 </dl>
 </div>
-<div class="section" id="perturbation-theory-options">
+<div class="section">
 <h2 id="perturbation-theory-options">Perturbation theory options<a class="headerlink" href="#perturbation-theory-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>MPTHEORY</strong> [<strong>ONLY</strong>]</dt>
@@ -679,7 +759,7 @@ terms in the denominator.  Only works for <strong>VERTEX SUM NEW</strong> and
 <strong>VERTEX SUM HDIAG</strong> and only at the 2-vertex level.</dd>
 </dl>
 </div>
-<div class="section" id="diagonalisation-options">
+<div class="section">
 <h2 id="diagonalisation-options">Diagonalisation options<a class="headerlink" href="#diagonalisation-options" title="Permalink to this headline">¶</a></h2>
 <p>Options for performing a full diagonalisation in the space of the full
 basis of spin orbitals.</p>
@@ -740,7 +820,7 @@ particularly helful...</p>
 <dd>Set the number of steps used in the Lanzcos diagonalisation.</dd>
 </dl>
 </div>
-<div class="section" id="graph-morphing-options">
+<div class="section">
 <h2 id="graph-morphing-options">Graph morphing options<a class="headerlink" href="#graph-morphing-options" title="Permalink to this headline">¶</a></h2>
 <p>A new approach developed by George Booth.  Take an initial starting graph
 and over many iterations allow the determinants contained within the
@@ -801,15 +881,15 @@ to just single excitations of the determinants in the current graph.
 This should reduce the scaling of the algorithm.</dd>
 </dl>
 </div>
-<div class="section" id="monte-carlo-options">
+<div class="section">
 <h2 id="monte-carlo-options">Monte Carlo options<a class="headerlink" href="#monte-carlo-options" title="Permalink to this headline">¶</a></h2>
 <p>Options for performing a Monte Carlo calculation on a vertex sum (as
 specified in the <strong>METHODS</strong> section).</p>
 <p>The Monte Carlo routines have only ever been tested for molucular and
 model systems and probably are not currently functional for <strong>CPMD</strong>
 or <strong>VASP</strong> based calculations.</p>
-<p>See the reports by Ramin Ghorashi (<a class="citation-reference" href="#rgptiii" id="id2">[RGPtIII]</a>) and George Booth
-(<a class="citation-reference" href="#ghbcpgs" id="id3">[GHBCPGS]</a>).</p>
+<p>See the reports by Ramin Ghorashi (<a class="citation-reference" href="#rgptiii" id="id2" name="id2">[RGPtIII]</a>) and George Booth
+(<a class="citation-reference" href="#ghbcpgs" id="id3" name="id3">[GHBCPGS]</a>).</p>
 <dl class="docutils">
 <dt><strong>CALCVAR</strong></dt>
 <dd><p class="first">Only available for performing full vertex sums using the <strong>HDIAG</strong>
@@ -905,7 +985,7 @@ graphs each with generation probabilities below PGENEPSILON.</p>
 <dd>Disallow V-vertex to V&#8217;-vertex transitions in stochastic time Monte
 Carlo: i.e. allow only transitions to graphs of the same size.</dd>
 </dl>
-<div class="section" id="weighting-schemes">
+<div class="section">
 <h3 id="weighting-schemes">Weighting schemes<a class="headerlink" href="#weighting-schemes" title="Permalink to this headline">¶</a></h3>
 <p>By default the vertex sum Monte Carlo algorithm selects excitations
 with no bias.  The variance of a Monte Carlo calculation can be reduced
@@ -984,10 +1064,21 @@ level increases.</blockquote>
 appropriate <strong>EXCITWEIGHT</strong> element, which is believed to be
 better. This uses the form <img src="../mathimg/math-b7fbbef1f4.png" />, rather than the
 exponential form.</dd>
+<dt><strong>STEPEXCITWEIGHTING</strong> [g_VMC_ExcitWeights(1) g_VMC_ExcitWeights(2) G_VMC_EXCITWEIGHT]</dt>
+<dd><p class="first">This excitation weighting consists of a step function between the HF virtual and occupied electon manifold (i.e. step is at the chemical potential)
+When choosing an electron to move, the weight for selecting the electron is increased by 1 if the electron oribital has energy above the chemical potential
+and by g_VMC_ExcitWeights(1,1) if below. This occurs for both electrons. When choosing where to excite to, the situation is reversed, and the weight of selecting the
+unoccupied orbital is increased by 1 if the orbital is a hole in the occupied manifold and g_VMC_ExcitWeights(2,1) if a virtual orbital in the occupied manifold.
+Bear in mind that the parameters are NOT probabilities. If we are at a higher excitation level w.r.t. HF, then more electrons will be in the virtual manifold,
+which will alter the normalisation, and mean that when selecting electrons to excite, there will be an increasingly small probability of selecting them from the
+occupied manifold. The opposite is true when choosing where to put them.</p>
+<p>Simply put, if the parameters are both &lt; 1, then the biasing will preferentially generate excitations which reduce the excitation level.</p>
+<p class="last">U-weighting is the third parameter as before.</p>
+</dd>
 </dl>
 </div>
 </div>
-<div class="section" id="experimental-options">
+<div class="section">
 <h2 id="experimental-options">Experimental options<a class="headerlink" href="#experimental-options" title="Permalink to this headline">¶</a></h2>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
@@ -1015,19 +1106,19 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
 <table class="docutils citation" frame="void" id="starpaper" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id1">[StarPaper]</a></td><td>Electron correlation from path resummations: the double-excitation star, Alex J. W. Thom, George H. Booth, and Ali Alavi, Phys. Chem. Chem. Phys., 10, 652-657 (2008).</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id1" name="starpaper">[StarPaper]</a></td><td>Electron correlation from path resummations: the double-excitation star, Alex J. W. Thom, George H. Booth, and Ali Alavi, Phys. Chem. Chem. Phys., 10, 652-657 (2008).</td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="ghbcpgs" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id3">[GHBCPGS]</a></td><td>CPGS report, George Booth.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id3" name="ghbcpgs">[GHBCPGS]</a></td><td>CPGS report, George Booth.</td></tr>
 </tbody>
 </table>
 <table class="docutils citation" frame="void" id="rgptiii" rules="none">
 <colgroup><col class="label" /><col /></colgroup>
 <tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id2">[RGPtIII]</a></td><td>Part III report, Ramin Ghorashi.</td></tr>
+<tr><td class="label"><a class="fn-backref" href="#id2" name="rgptiii">[RGPtIII]</a></td><td>Part III report, Ramin Ghorashi.</td></tr>
 </tbody>
 </table>
 </div>
@@ -1039,24 +1130,24 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-            <h3><a href="../index.html">Table Of Contents</a></h3>
+            <h3>Table Of Contents</h3>
             <ul>
-<li><a class="reference external" href="">Calc</a><ul>
-<li><a class="reference external" href="#general-options">General options</a></li>
-<li><a class="reference external" href="#method-options">Method options</a><ul>
-<li><a class="reference external" href="#experimental-methods">Experimental methods</a></li>
+<li><a class="reference" href="">Calc</a><ul>
+<li><a class="reference" href="#general-options">General options</a></li>
+<li><a class="reference" href="#method-options">Method options</a><ul>
+<li><a class="reference" href="#experimental-methods">Experimental methods</a></li>
 </ul>
 </li>
-<li><a class="reference external" href="#walker-monte-carlo-options">Walker Monte Carlo options</a></li>
-<li><a class="reference external" href="#return-path-monte-carlo-options">Return Path Monte Carlo options</a></li>
-<li><a class="reference external" href="#perturbation-theory-options">Perturbation theory options</a></li>
-<li><a class="reference external" href="#diagonalisation-options">Diagonalisation options</a></li>
-<li><a class="reference external" href="#graph-morphing-options">Graph morphing options</a></li>
-<li><a class="reference external" href="#monte-carlo-options">Monte Carlo options</a><ul>
-<li><a class="reference external" href="#weighting-schemes">Weighting schemes</a></li>
+<li><a class="reference" href="#walker-monte-carlo-options">Walker Monte Carlo options</a></li>
+<li><a class="reference" href="#return-path-monte-carlo-options">Return Path Monte Carlo options</a></li>
+<li><a class="reference" href="#perturbation-theory-options">Perturbation theory options</a></li>
+<li><a class="reference" href="#diagonalisation-options">Diagonalisation options</a></li>
+<li><a class="reference" href="#graph-morphing-options">Graph morphing options</a></li>
+<li><a class="reference" href="#monte-carlo-options">Monte Carlo options</a><ul>
+<li><a class="reference" href="#weighting-schemes">Weighting schemes</a></li>
 </ul>
 </li>
-<li><a class="reference external" href="#experimental-options">Experimental options</a></li>
+<li><a class="reference" href="#experimental-options">Experimental options</a></li>
 </ul>
 </li>
 </ul>
@@ -1069,7 +1160,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
             <ul class="this-page-menu">
               <li><a href="../_sources/input/calc.txt">Show Source</a></li>
             </ul>
-          <h3>Quick search</h3>
+            <h3>Quick search</h3>
             <form class="search" action="../search.html" method="get">
               <input type="text" name="q" size="18" /> <input type="submit" value="Go" />
               <input type="hidden" name="check_keywords" value="yes" />
@@ -1097,8 +1188,8 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Aug 20, 2008.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
+      Last updated on Sep 09, 2008.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
     </div>
   </body>
 </html>

@@ -1,14 +1,15 @@
 \BOOKMARK [0][-]{chapter.1}{Introduction}{}
-\BOOKMARK [0][-]{chapter.2}{Installation}{}
-\BOOKMARK [1][-]{section.2.1}{Download}{chapter.2}
-\BOOKMARK [1][-]{section.2.2}{Compilation}{chapter.2}
-\BOOKMARK [1][-]{section.2.3}{testcode}{chapter.2}
-\BOOKMARK [0][-]{chapter.3}{Run}{}
-\BOOKMARK [1][-]{section.3.1}{NECI}{chapter.3}
-\BOOKMARK [1][-]{section.3.2}{CPMD-NECI}{chapter.3}
-\BOOKMARK [0][-]{chapter.4}{Theoretical review}{}
-\BOOKMARK [1][-]{section.4.1}{Introduction}{chapter.4}
-\BOOKMARK [1][-]{section.4.2}{Graph evaluation}{chapter.4}
+\BOOKMARK [0][-]{chapter.2}{Theoretical review}{}
+\BOOKMARK [1][-]{section.2.1}{Introduction}{chapter.2}
+\BOOKMARK [1][-]{section.2.2}{Graph evaluation}{chapter.2}
+\BOOKMARK [0][-]{chapter.3}{Installation}{}
+\BOOKMARK [1][-]{section.3.1}{Download}{chapter.3}
+\BOOKMARK [1][-]{section.3.2}{Compilation}{chapter.3}
+\BOOKMARK [1][-]{section.3.3}{testcode}{chapter.3}
+\BOOKMARK [0][-]{chapter.4}{Run}{}
+\BOOKMARK [1][-]{section.4.1}{NECI}{chapter.4}
+\BOOKMARK [1][-]{section.4.2}{CPMD-NECI}{chapter.4}
+\BOOKMARK [1][-]{section.4.3}{Soft exits}{chapter.4}
 \BOOKMARK [0][-]{chapter.5}{Input options}{}
 \BOOKMARK [1][-]{section.5.1}{Overview}{chapter.5}
 \BOOKMARK [1][-]{section.5.2}{Non-block level options}{chapter.5}

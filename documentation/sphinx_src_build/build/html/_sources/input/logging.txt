@@ -106,11 +106,18 @@ General options
 **PSI**
     Log PSI_COMP.
 
-**TIMING** [iGlobalTimerLevel] (default 40)
-   Timing information is only recorded for routines with level less than
-   or equal to iGlobalTimerLevel.  Less than 10 means general high level
-   subroutines. Greater than 50 means very low level.  Routines without
-   a level are always timed (most of them).
+**TIMING** [iGlobalTimerLevel | **LEVEL** iGlobalTimerLevel | **PRINT** nPrintTimer]
+   **LEVEL** iGlobalTimerLevel
+       Default 40.
+       Timing information is only recorded for routines with level less than
+       or equal to iGlobalTimerLevel.  Less than 10 means general high level
+       subroutines. Greater than 50 means very low level.  Routines without
+       a level are always timed (which is most of them).  The greater the value
+       of iGlobalTimerLevel, the more routines are timed.  This can affect 
+       performance in some cases.
+   **PRINT** nPrintTimer
+       Default 10.
+       Print out timing information for the nPrintTimer routines which took the longest time.
 
 **XIJ**
    Synonym for **FMCPR XIJ**.
@@ -122,7 +129,18 @@ FCIMC options
     Print out the determinants at the end of the MC run. A calculation
     can then be restarted at a later date by reading the determinants
     back in using **READPOPS** in the **CALC** section.
-    at a later date.
+    at a later date. Walker number can also be scaled up by using **SCALEWALKERS**
+
+**ZEROPROJE**
+    This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
+    estimator will be restarted.
+
+**WAVEVECTORPRINT**
+    This is for Star FCIMC only - if on, it will calculate the exact eigenvector and
+    values initially, and then print out the running wavevector every
+    WavevectorPrint MC steps. However, this is slower.
+
+
 
 GraphMorph options
 ------------------
