@@ -467,19 +467,19 @@ Experimental methods
 **VERTEX** **RETURNPATHMC**
     Use a spawning algorithm which is constrained in three ways: 
 
-        #.  a particle can only be spawned where it will increase its
-        excitation level with respect to the reference determinant or
-        back to where it was spawned from.
-        #. they will spawn back to where their parents were spawned from
-        with probability PRet, which is specified using **RETURNBIAS**.
-        # length of spawning chain must be less than the maximum length
-        given by **MAXCHAINLENGTH**.
+    #. a particle can only be spawned where it will increase its
+       excitation level with respect to the reference determinant or
+       back to where it was spawned from.
+    #. they will spawn back to where their parents were spawned from
+       with probability PRet, which is specified using **RETURNBIAS**.
+    #. length of spawning chain must be less than the maximum length
+       given by **MAXCHAINLENGTH**.
 
-        .. note::
-          How can a particle be restricted to spawning to spawning at most
-          back to where it was spawned from *and* have a probability of
-          spawning back to where its parent was spawed from?
-          Documentation *must* be clearer.
+    .. note::
+        How can a particle be restricted to spawning to spawning at most
+        back to where it was spawned from *and* have a probability of
+        spawning back to where its parent was spawed from?
+        Documentation *must* be clearer.
 
     This attempts to circumvent any sign problem in the double
     excitations and the HF, and hopefully this will result in a more stable
@@ -570,60 +570,86 @@ The following options are only available in **FCIMC** calculations:
     population is counted
 
 **RHOAPP** [RhoApp]
-    This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before particles are assigned to the nodes
+    This is for resummed FCIMC, it indicates the number of propagation steps
+    around each subgraph before particles are assigned to the nodes
 
 **SIGNSHIFT**
-    This is for FCIMC and involves calculating the change in shift depending on the absolute value of the sum of the signs of the walkers.
-    This should hopefully mean that annihilation is implicitly taken into account. Results were not too good.
+    This is for FCIMC and involves calculating the change in shift depending on
+    the absolute value of the sum of the signs of the walkers.  This should
+    hopefully mean that annihilation is implicitly taken into account. Results
+    were not too good.
+
+    .. note:: details?  Why "not good"?
 
 **HFRETBIAS** [PRet]
-    This is a simple guiding function for FCIMC - if we are at a double excitation, then we return to the HF determinant with a probability PRet.
+    This is a simple guiding function for FCIMC - if we are at a double
+    excitation, then we return to the HF determinant with a probability PRet.
     This is unbiased by the acceptance probability of returning to HF.
+
     This is not available in the parallel version.
 
 **EXCLUDERANDGUIDE**
-    This is an alternative method to unbias for the HFRetBias. It invloves disallowing random excitations back to the guiding function (HF Determinant)
+    This is an alternative method to unbias for the HFRetBias. It invloves
+    disallowing random excitations back to the guiding function (HF
+    Determinant).
+
     This is not available in the parallel version.
 
 **PROJECTE-MP2**
-    This will find the energy by projection of the configuration of walkers onto the MP1 wavefunction.
-    DEVELOPMENTAL and possibly not bug-free
+    This will find the energy by projection of the configuration of walkers
+    onto the MP1 wavefunction.  DEVELOPMENTAL and possibly not bug-free.
+
     This is not available in the parallel version.
 
 **FIXPARTICLESIGN**
-    This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
-    on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
-    Results were not good.
+    This uses a modified hamiltonian, whereby all the positive off-diagonal
+    hamiltonian matrix elements are zero. Instead, their diagonals are modified
+    to change the on-site death rate. Particles now have a fixed (positive)
+    sign which cannot be changed and so no annihilation occurs.  Results were
+    not good.
+  
     This is not available in the parallel version.
 
+    .. note:: details?  Why "not good"?
+
 **STARTSINGLEPART**
-    This will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
+    This will start the simulation with a single positive particle at the HF,
+    and fix the shift at its initial value, until the number of particles gets
+    to the INITPARTICLES value.
 
 **MEMORYFAC** [MemoryFac]
-    Default 50
+    Default 50.
 
-    MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
+    MemoryFac is the factor by which space will be made available for extra
+    walkers compared to InitWalkers.
 
 **GRAPHSIZE** [NDets]
-
-    In ResumFCIMC, this is the number of connected determinants to form the graph which you take as your sumsystem for the resummed spawning.
-    Must have an associated RhoApp
+    In ResumFCIMC, this is the number of connected determinants to form the
+    graph which you take as your sumsystem for the resummed spawning.  Must
+    have an associated RhoApp.
 
 **HAPP** [HApp]
-    Default 1
+    Default 1.
 
-    In ResumFCIMC, this indicates the number of local applications of the hamiltonian to random determinants before the walkers are assigned according to the resultant vector.
+    In ResumFCIMC, this indicates the number of local applications of the
+    hamiltonian to random determinants before the walkers are assigned
+    according to the resultant vector.
 
 **NOBIRTH**
-    Force the off-diagonal :math:`\H` matrix elements to become zero,
+    Force the off-diagonal :math:`H` matrix elements to become zero,
     and hence obtain an exponential decay of the initial populations
     on the determinants, at a rate which can be exactly calculated and
-    compared against. This is no longer functional, but commented out in the code.
+    compared against. 
+    
+    This is no longer functional, but commented out in the
+    code.
 
 **MCDIFFUSE** [Lambda]
     Default 0.0.
 
-    Set the amount of diffusion compared to spawning in the **FCIMC** algorithm.
+    Set the amount of diffusion compared to spawning in the **FCIMC**
+    algorithm.
+  
     This is no longer functional and commented out in the code.
 
 **FLIPTAU** [FlipTauCyc]
@@ -631,22 +657,26 @@ The following options are only available in **FCIMC** calculations:
 
     Cause time to be reversed every FlipTauCyc cycles in the **FCIMC**
     algorithm. This might help with undersampling problems.
+
     This is no longer functional and commented out in the code.
 
 **NON-PARTCONSDIFF**
     Use a seperate partitioning of the diffusion matrices, in which
     the antidiffusion matrix (+ve connections) create a net increase of
     two particles.
+
     This is no longer functional and commented out in the code.
 
 **FULLUNBIASDIFF**
     Fully unbias for the diffusion process by summing over all connections.
+
     This is no longer functional and commented out in the code.
 
 **NODALCUTOFF** [NodalCuttoff]
     Constrain a determinant to be of the same sign as the MP1
     wavefunction at that determinant, if the normalised component of
     the MP1 wavefunction is greater than the NodalCutoff value.
+
     This is no longer functional and commented out in the code.
 
 **NOANNIHIL**
