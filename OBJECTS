@@ -24,7 +24,7 @@ OBJ_MC  = calcrho.o mcpaths.o montecarlo.o calcpath.o zsum.o \
 OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          RhoElement.o MCStat.o symexcit2.o MPEnergy.o precalc.o UMatCache.o \
          df_precision.o df_parameters.o stardiag.o readinput.o System.o \
-         precalcread.o Calc.o Integrals.o Logging.o nodediag.o MemoryManagement.o \
+         Calc.o Integrals.o Logging.o nodediag.o MemoryManagement.o \
          Determinants.o DetCalc.o NECICore.o HFCalc.o GraphMorph.o StarDiagTrip.o \
          Parallel.o FciMC.o MCDets.o OneEInts.o ReturnPathMC.o FciMCPar.o \
          SymData.o vasp_interface.o vasp_init.o error_handling.o CPMDData.o default_sets.o \

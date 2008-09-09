@@ -112,6 +112,21 @@ C               IC=IC+1
          IGETEXCITLEVEL_=IC 
          RETURN
       END
+
+      INTEGER FUNCTION iGetExcitLevelwrtHF(nI,NEl)
+        USE IntegralsData , only : ChemPot
+        USE SystemData , only : Arr
+        INTEGER i,j,NEl,nI(NEl)
+        
+        IC=NEl
+        do i=1,NEl
+            IF(Arr(nI(i),2).lt.ChemPot) IC=IC-1
+        enddo
+        IGetExcitLevelwrtHF=IC
+
+        RETURN
+
+      END FUNCTION iGetExcitLevelwrtHF
       
       SUBROUTINE  CALCRHOIIMAX(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,

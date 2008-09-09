@@ -15,7 +15,7 @@ MODULE ReadInput
     Subroutine ReadInputMain(cFilename,ios)
         USE input
         use System,     only : SysReadInput,SetSysDefaults
-        USE PrecalcRead,only : PrecalcReadInput
+        USE Precalc,    only : PrecalcReadInput,SetPrecalcDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use Integrals,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
@@ -95,6 +95,7 @@ MODULE ReadInput
 
         ! Set up defaults.
         call SetSysDefaults
+        call SetPrecalcDefaults
         call SetCalcDefaults
         call SetIntDefaults
         call SetLogDefaults

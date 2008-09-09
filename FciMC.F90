@@ -91,7 +91,6 @@ MODULE FciMCMod
     SUBROUTINE FciMC(Weight,Energyxw)
         use soft_exit, only: test_SOFTEXIT
         TYPE(HDElement) :: Weight,Energyxw
-        INTEGER :: i,j
         CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
         TYPE(HElement) :: Hamii
 
