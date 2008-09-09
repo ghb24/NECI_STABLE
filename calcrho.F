@@ -113,6 +113,12 @@ C               IC=IC+1
          RETURN
       END
 
+
+! This function only finds the excitation level
+! w.r.t. HF, by comparing the orbital energy to the chemical potential of
+! the system. This can be made quicker by using an inverse BRR, which
+! would only involve integer comparisons, but this is not exactly large
+! speed increases...
       INTEGER FUNCTION iGetExcitLevelwrtHF(nI,NEl)
         USE IntegralsData , only : ChemPot
         USE SystemData , only : Arr
