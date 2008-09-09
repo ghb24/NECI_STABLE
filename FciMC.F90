@@ -1898,6 +1898,7 @@ MODULE FciMCMod
         enddo
 
         WRITE(6,"(A,I9,A,I9,A)") "Out of ",InitWalkers," initial walkers allocated, ",WalkersonHF," of them are situated on the HF determinant."
+        NoatHF=WalkersonHF
 
 !Deallocate MP1 data
         DEALLOCATE(MP1Comps)

@@ -1652,6 +1652,9 @@ MODULE FciMCParMod
             IF(TReadPops) THEN
                 CALL Stop_All("InitFciMCCalcPar","Cannot read in POPSFILE as well as starting with a single particle")
             ENDIF
+            IF(TStartMP1) THEN
+                CALL Stop_All("InitFciMCCalcPar","Cannot start with a single particle, and as the MP1 wavefunction")
+            ENDIF
         ELSE
             TSinglePartPhase=.false.
         ENDIF
@@ -2010,6 +2013,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             WRITE(6,"(A,I12,A,I12,A)") "Out of ",InitWalkers*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
         ENDIF
+        AllNoatHF=SumWalkersonHF
 
 !Deallocate MP1 data
         DEALLOCATE(MP1Comps)
