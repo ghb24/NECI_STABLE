@@ -115,6 +115,11 @@ MODULE FciMCParMod
 
     INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
+    LOGICAL :: TBalanceNodes=.false.            !This is true when the nodes need to be balanced
+
+    LOGICAL :: TDebug                           !Debugging flag
+    INTEGER :: MaxIndex
+
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
@@ -122,6 +127,8 @@ MODULE FciMCParMod
         INTEGER :: i,j,error
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
         TYPE(HElement) :: Hamii
+
+        TDebug=.true.   !Set debugging flag
 
         CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
@@ -141,6 +148,8 @@ MODULE FciMCParMod
 
 !Start MC simulation...
         do Iter=1,NMCyc
+
+            IF(TBalanceNodes) CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced.
             
             CALL PerformFCIMCycPar()
 
@@ -159,13 +168,15 @@ MODULE FciMCParMod
         CALL DeallocFCIMCMemPar()
 
         IF(iProcIndex.eq.Root) CLOSE(15)
+        IF(TDebug) CLOSE(11)
 
 !        CALL MPIEnd(.false.)    !Finalize MPI
 
         RETURN
 
     END SUBROUTINE FciMCPar
-
+            
+    
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
         INTEGER :: VecSlot,i,j,k,l
@@ -177,6 +188,11 @@ MODULE FciMCParMod
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
+
+        IF(TDebug) THEN
+            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex
+            CALL FLUSH(11)
+        ENDIF
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -459,7 +475,7 @@ MODULE FciMCParMod
     SUBROUTINE AnnihilatePartPar(TotWalkersNew)
         INTEGER :: i,j,k,ToAnnihilateIndex,TotWalkersNew,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
-        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),MaxIndex
+        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER :: Minsendcounts,Maxsendcounts,DebugIter
         INTEGER(KIND=i2) :: HashCurr!MinBin,RangeofBins,NextBinBound
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
@@ -1295,9 +1311,9 @@ MODULE FciMCParMod
 !Every StepsSft steps, update the diagonal shift value (the running value for the correlation energy)
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
-        INTEGER :: error,rc
+        INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
         INTEGER :: inpair(2),outpair(2)
-        REAL*8 :: TempSumNoatHF
+        REAL*8 :: TempSumNoatHF,MeanWalkers
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
         CALL UpdateDiagSftPar()
@@ -1308,6 +1324,28 @@ MODULE FciMCParMod
 !We need to collate the information from the different processors
         CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
+        MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
+        MaxAllowedWalkers=NINT((MeanWalkers/20.D0)+MeanWalkers)
+
+!Find the range of walkers on different nodes to see if we need to even up the distribution over nodes
+        inpair(1)=TotWalkers
+        inpair(2)=iProcIndex
+        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MAXLOC,root,MPI_COMM_WORLD,error)
+        MaxWalkersProc=outpair(1)
+!        WRITE(6,*) "***",MaxWalkersProc,MaxAllowedWalkers,MeanWalkers
+!        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MINLOC,root,MPI_COMM_WORLD,error)
+!        MinWalkersProc=outpair(1)
+
+        IF(iProcIndex.eq.root) THEN
+!            RangeWalkers=MaxWalkersProc-MinWalkersProc
+!            IF(RangeWalkers.gt.300) THEN
+            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.5000)) THEN
+                TBalanceNodes=.true.
+            ENDIF
+        ENDIF
+!We need to tell all nodes whether to balance the nodes or not...
+        CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
+        
         CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
         
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
@@ -1543,8 +1581,16 @@ MODULE FciMCParMod
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
+        CHARACTER(len=12) :: abstr
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
+        IF(TDebug) THEN
+!This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
+            abstr=''
+            write(abstr,'(I2)') iProcIndex
+            abstr='LOCALPOPS-'//adjustl(abstr)
+            OPEN(11,FILE=abstr,STATUS='UNKNOWN')
+        ENDIF
 
         IF(HElementSize.gt.1) THEN
             CALL Stop_All("FCIMCPar","FciMCPar cannot function with complex orbitals.")
@@ -2014,6 +2060,7 @@ MODULE FciMCParMod
             WRITE(6,"(A,I12,A,I12,A)") "Out of ",InitWalkers*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
         ENDIF
         AllNoatHF=SumWalkersonHF
+        AllNoatDoubs=(InitWalkers*nProcessors)-SumWalkersonHF
 
 !Deallocate MP1 data
         DEALLOCATE(MP1Comps)
@@ -2295,6 +2342,154 @@ MODULE FciMCParMod
 
     END SUBROUTINE GetPartRandExcitPar
     
+
+!This routine will move walkers between the processors, in order to balance the number of walkers on each node.
+!This could be made slightly faster by using an MPI_Reduce, rather than searching for the min and max by hand...
+    SUBROUTINE BalanceWalkersonProcs()
+        INTEGER :: i,ProcWalkers(0:nProcessors-1),error!,ProcWalkersTEST(0:nProcessors-1)
+        INTEGER :: MinWalkers(2),MaxWalkers(2)      !First index gives the number, second the rank of the processor
+        REAL*8 :: MeanWalkers
+        INTEGER :: WalktoTransfer(4)                !This gives information about how many walkers to transfer from and to
+        INTEGER :: Transfers        !This is the number of transfers of walkers necessary
+        INTEGER :: IndexFrom,IndexTo,j,Stat(MPI_STATUS_SIZE),Tag
+
+        Tag=123         !Set tag for sends
+
+        IF(iProcIndex.eq.root) THEN
+            WRITE(6,*) "Moving walkers between nodes in order to balance the load..."
+        ENDIF
+        
+!First, it is necessary to find the number of walkers on each processor and gather the info to the root.
+        CALL MPI_Gather(TotWalkers,1,MPI_INTEGER,ProcWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        Transfers=0
+        WalktoTransfer(4)=100           !Set to large number to get ball rolling...
+
+        do while(WalktoTransfer(4).gt.1)    !This is the range of walkers accross the processors. Continue reducing it until it is 1.
+                
+!            CALL MPI_Gather(TotWalkers,1,MPI_INTEGER,ProcWalkersTEST,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+
+!            do j=1,TotWalkers+3
+!                WRITE(6,"(8I4)") CurrentDets(:,j)
+!                CALL FLUSH(6)
+!            enddo
+
+            IF(iProcIndex.eq.root) THEN
+!Let the root processor go through and decide which walkers to move from where...
+!Initialise variables with the root processors own values
+!                WRITE(6,*) "PROCWALKERS: ",ProcWalkers
+!                WRITE(6,*) "PROCWALKERSTEST: ",ProcWalkersTest
+                MaxWalkers(1)=ProcWalkers(0)   !This should be the same as the totwalkers on the root node.
+                MaxWalkers(2)=0                !This indicates that currently the maximum number of walkers resides on the root node
+                MinWalkers(1)=ProcWalkers(0)
+                MinWalkers(2)=0
+                MeanWalkers=REAL(ProcWalkers(0),r2)
+                do i=1,nProcessors-1
+!Find the minimum, maximum and mean of the walkers accross the nodes, and their node
+                    IF(ProcWalkers(i).gt.MaxWalkers(1)) THEN
+                        MaxWalkers(1)=ProcWalkers(i)
+                        MaxWalkers(2)=i
+                    ELSEIF(ProcWalkers(i).lt.MinWalkers(1)) THEN
+                        MinWalkers(1)=ProcWalkers(i)
+                        MinWalkers(2)=i
+                    ENDIF
+                    MeanWalkers=MeanWalkers+REAL(ProcWalkers(i),r2)
+                enddo
+                WalktoTransfer(4)=MaxWalkers(1)-MinWalkers(1)
+                IF(Transfers.eq.0) THEN
+                    WRITE(6,*) "Initial range of walkers is: ",WalktoTransfer(4)
+                ELSE
+                    WRITE(6,*) "After ",Transfers," walker transfers, range of walkers is: ",WalktoTransfer(4)
+                    IF(Transfers.gt.(nProcessors**2)) THEN
+                        CALL Stop_All("BalanceWalkersonProcs","Too many transfers required to balance nodes - Problem here...")
+                    ENDIF
+!                    CALL FLUSH(6)
+                ENDIF
+!                WRITE(6,*) "TOTAL WALKERS = ",MeanWalkers
+                MeanWalkers=MeanWalkers/REAL(nProcessors,r2)
+!                WRITE(6,*) "MEAN WALKERS = ", MeanWalkers
+
+! Now it is necessary to decide what walkers go where...want to transfer from maxwalkers to minwalkers
+! i.e. want to transfer walkers from MaxWalkers(2) to MinWalkers(2). The number to transfer is given by 
+! min[ abs(maxwalkers(1)-MeanWalkers), abs(minwalkers(1)-MeanWalkers) ]
+! Then we want to update ProcWalkers on the root and recalculate Max,Min,Mean and range.
+! Broadcast range, since this is the termination criterion
+! Repeat this until the range .le. 1
+! WalktoTransfer(1) is the number of walkers to transfer
+! WalktoTransfer(2) is the rank of the processor to transfer them from
+! WalktoTransfer(3) is the rank of the processor to transfer them to
+! WalktoTransfer(4) is the range of the different walkers on the processors - this will determine when to stop
+
+                IF(WalktoTransfer(4).le.1) THEN
+!This is the termination criteria, and will not transfer any walkers in this iteration.
+                    WalktoTransfer(1)=0
+                    WalktoTransfer(2)=-1
+                    WalktoTransfer(3)=-1
+                ELSE
+                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MeanWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MeanWalkers)))
+                    WalktoTransfer(2)=MaxWalkers(2)
+                    WalktoTransfer(3)=MinWalkers(2)
+                ENDIF
+
+            ENDIF
+
+!The information about what to transfer now needs to be broadcast to all processors
+            CALL MPI_BCast(WalktoTransfer,4,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+
+!            WRITE(6,*) "WALKTOTRANSFER: ",WalktoTransfer(:)
+!            CALL FLUSH(6)
+
+            IF(WalkToTransfer(2).eq.iProcIndex) THEN
+!This processor wants to transfer walkers to WalkToTransfer(3).
+                IndexFrom=TotWalkers-(WalktoTransfer(1)-1)          !We want to transfer the last WalktoTransfer(1) walkers
+                
+                CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*NEl,MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+!It seems like too much like hard work to send the excitation generators accross, just let them be regenerated on the other side...
+                IF(.not.TNoAnnihil) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                
+                TotWalkers=TotWalkers-WalktoTransfer(1)         !Update TotWalkers on this node to reflect that we have lost some
+            
+            ELSEIF(WalkToTransfer(3).eq.iProcIndex) THEN
+!This processor wants to receive walkers from WalktoTransfer(2)
+                IndexFrom=TotWalkers+1
+                IndexTo=TotWalkers+WalktoTransfer(1)
+
+                CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*NEl,MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                IF(.not.TNoAnnihil) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+!Also need to indicate that the excitation generators are no longer useful...
+                do j=IndexFrom,IndexTo
+                    CurrentExcits(j)%ExitgenForDet=.false.
+                enddo
+
+                TotWalkers=TotWalkers+WalktoTransfer(1)         !Update to show the new number of walkers
+
+            ENDIF
+            
+            IF(WalktoTransfer(1).gt.0) THEN
+                IF(iProcIndex.eq.root) THEN
+!Update the number of transfers and the new ProcWalkers array...
+                    Transfers=Transfers+1
+                    ProcWalkers(WalktoTransfer(2))=ProcWalkers(WalktoTransfer(2))-WalktoTransfer(1)
+                    ProcWalkers(WalktoTransfer(3))=ProcWalkers(WalktoTransfer(3))+WalktoTransfer(1)
+                ENDIF
+            ENDIF
+
+        enddo       !loop over transfers
+
+        IF(iProcIndex.eq.root) THEN
+            WRITE(6,*) "Transfer of walkers finished. Number of transfers needed: ",Transfers
+        ENDIF
+
+        TBalanceNodes=.false.
+
+        RETURN
+
+    END SUBROUTINE BalanceWalkersonProcs
     
     SUBROUTINE DeallocFCIMCMemPar()
         INTEGER :: i,error,length,temp
