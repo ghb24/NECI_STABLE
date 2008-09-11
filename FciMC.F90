@@ -1828,8 +1828,8 @@ MODULE FciMCMod
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
 
-            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            MP1Hij(VecSlot)=real(Hij%v,r2)
+            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))     !Calculate MP1 components
+            MP1Hij(VecSlot)=real(Hij%v,r2)                  !Store Hij to give to particles
             IF(Compt.lt.0.D0) THEN
                 MP1Sign(VecSlot)=.false.
                 IF(MP1Hij(VecSlot).lt.0.D0) THEN
@@ -1899,6 +1899,7 @@ MODULE FciMCMod
 
         WRITE(6,"(A,I9,A,I9,A)") "Out of ",InitWalkers," initial walkers allocated, ",WalkersonHF," of them are situated on the HF determinant."
         NoatHF=WalkersonHF
+        NoatDoubs=InitWalkers-WalkersonHF
 
 !Deallocate MP1 data
         DEALLOCATE(MP1Comps)
