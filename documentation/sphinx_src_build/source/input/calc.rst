@@ -623,6 +623,15 @@ The following options are only available in **FCIMC** calculations:
     MemoryFac is the factor by which space will be made available for extra
     walkers compared to InitWalkers.
 
+**FIXHFDOUBSSHIFT** [DoubsShift]
+    Default 0.D0
+
+    An FCIMC Serial option. With this, the shift is fixed at a value given here, 
+    but only for the HF and doubles. This will almost definitly give the wrong 
+    answers for both the energy and the shift, but may be of use in equilibration 
+    steps to maintain particle density at low excitations, before writing out the 
+    data and letting the shift change.
+
 **GRAPHSIZE** [NDets]
     In ResumFCIMC, this is the number of connected determinants to form the
     graph which you take as your sumsystem for the resummed spawning.  Must

@@ -18,7 +18,7 @@ LOGICAL :: TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
 LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
 LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
 LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
-LOGICAL :: TStartSinglePart,TRegenExcitgens
+LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -33,6 +33,7 @@ REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
 REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
+REAL*8 :: DoubsShift
 
 
 

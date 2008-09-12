@@ -1,7 +1,7 @@
 MODULE FciMCMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TReadPops,ScaleWalkers,TStartMP1
+    use CalcData , only : TReadPops,ScaleWalkers,TStartMP1,TFixShiftDoubs,DoubsShift
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
@@ -273,7 +273,7 @@ MODULE FciMCMod
                 ENDIF   !End if child created
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-                iDie=AttemptDie(CurrentDets(:,j),CurrentH(1,j))
+                iDie=AttemptDie(CurrentDets(:,j),CurrentH(1,j),CurrentIC(j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
                 IF(iDie.le.0) THEN
@@ -611,7 +611,7 @@ MODULE FciMCMod
 
         ENDIF   !End if we are trying to create a child which isn't a returning spawn
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-        iDie=AttemptDie(CurrentDets(:,j),CurrentH(1,j))
+        iDie=AttemptDie(CurrentDets(:,j),CurrentH(1,j),CurrentIC(j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
         IF(iDie.le.0) THEN
@@ -739,7 +739,7 @@ MODULE FciMCMod
         DiagDeath=CurrentH(1,Walker)+SpinFlipContrib
 
 !We now have to decide whether the parent particle (Walker) wants to self-destruct or not...
-        iDie=AttemptDie(CurrentDets(:,Walker),DiagDeath)
+        iDie=AttemptDie(CurrentDets(:,Walker),DiagDeath,CurrentIC(Walker))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
         IF(iDie.le.0) THEN
@@ -1535,8 +1535,15 @@ MODULE FciMCMod
         IF(TNoAnnihil) THEN
             WRITE(6,*) "No Annihilation to occur. Results are likely not to converge to right value. Proceed with caution."
         ENDIF
+        IF(TFixShiftDoubs) THEN
+            WRITE(6,*) "The HF and double excitations have their shift fixed at ",DoubsShift
+            WRITE(6,*) "With this option, results are going to be incorrect, but can be used to equilibrate calculations"
+        ENDIF
 
         IF(TResumFciMC) THEN
+            IF(TFixShiftDoubs) THEN
+                CALL Stop_All("InitFCIMCCalc","Cannot fix the shift of the HF + Doubles in ResumFCIMC currently")
+            ENDIF
             IF(NDets.gt.2) THEN
                 IF(.not.EXCITFUNCS(10)) THEN
                     WRITE(6,*) "Cannot have an excitation bias with multiple determinant graphs...exiting."
@@ -2557,9 +2564,9 @@ MODULE FciMCMod
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
 !The function allows multiple births(if +ve shift) or deaths from the same particle.
 !The returned number is the number of deaths if positive, and the number of births if negative.
-    INTEGER FUNCTION AttemptDie(DetCurr,Kii)
+    INTEGER FUNCTION AttemptDie(DetCurr,Kii,IC)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill
+        INTEGER :: DetCurr(NEl),iKill,IC
 !        TYPE(HElement) :: rh,rhij
         REAL*8 :: Ran2,rat,Kii
 
@@ -2569,7 +2576,17 @@ MODULE FciMCMod
 !        rh=rh-Hii
 
 !Subtract the current value of the shift and multiply by tau
-        rat=Tau*(Kii-DiagSft)
+        IF(TFixShiftDoubs) THEN
+!With this option, we can fix the shift for the HF and doubles at a constant value - this will then not give right answers, but 
+!may help equilibrate...
+            IF((IC.eq.2).or.(IC.eq.0)) THEN
+                rat=Tau*(Kii-DoubsShift)
+            ELSE
+                rat=Tau*(Kii-DiagSft)
+            ENDIF
+        ELSE
+            rat=Tau*(Kii-DiagSft)
+        ENDIF
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
