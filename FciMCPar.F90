@@ -191,7 +191,7 @@ MODULE FciMCParMod
 
         IF(TDebug) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex
-            CALL FLUSH(11)
+!            CALL FLUSH(11)
         ENDIF
         
 !VecSlot indicates the next free position in NewDets
@@ -1325,7 +1325,7 @@ MODULE FciMCParMod
         CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
-        MaxAllowedWalkers=NINT((MeanWalkers/20.D0)+MeanWalkers)
+        MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
 
 !Find the range of walkers on different nodes to see if we need to even up the distribution over nodes
         inpair(1)=TotWalkers
@@ -2348,7 +2348,7 @@ MODULE FciMCParMod
     SUBROUTINE BalanceWalkersonProcs()
         INTEGER :: i,ProcWalkers(0:nProcessors-1),error!,ProcWalkersTEST(0:nProcessors-1)
         INTEGER :: MinWalkers(2),MaxWalkers(2)      !First index gives the number, second the rank of the processor
-        REAL*8 :: MeanWalkers
+        REAL*8 :: MeanWalkers,MidWalkers
         INTEGER :: WalktoTransfer(4)                !This gives information about how many walkers to transfer from and to
         INTEGER :: Transfers        !This is the number of transfers of walkers necessary
         INTEGER :: IndexFrom,IndexTo,j,Stat(MPI_STATUS_SIZE),Tag
@@ -2407,10 +2407,11 @@ MODULE FciMCParMod
 !                WRITE(6,*) "TOTAL WALKERS = ",MeanWalkers
                 MeanWalkers=MeanWalkers/REAL(nProcessors,r2)
 !                WRITE(6,*) "MEAN WALKERS = ", MeanWalkers
+                MidWalkers=REAL((MaxWalkers(1)+MinWalkers(1)),r2)/2.D0  !THis is the mean of the two processors to exchange walkers
 
 ! Now it is necessary to decide what walkers go where...want to transfer from maxwalkers to minwalkers
 ! i.e. want to transfer walkers from MaxWalkers(2) to MinWalkers(2). The number to transfer is given by 
-! min[ abs(maxwalkers(1)-MeanWalkers), abs(minwalkers(1)-MeanWalkers) ]
+! min[ abs(maxwalkers(1)-MidWalkers), abs(minwalkers(1)-MidWalkers) ]
 ! Then we want to update ProcWalkers on the root and recalculate Max,Min,Mean and range.
 ! Broadcast range, since this is the termination criterion
 ! Repeat this until the range .le. 1
@@ -2425,7 +2426,8 @@ MODULE FciMCParMod
                     WalktoTransfer(2)=-1
                     WalktoTransfer(3)=-1
                 ELSE
-                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MeanWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MeanWalkers)))
+!                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MeanWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MeanWalkers)))
+                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MidWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MidWalkers)))
                     WalktoTransfer(2)=MaxWalkers(2)
                     WalktoTransfer(3)=MinWalkers(2)
                 ENDIF
