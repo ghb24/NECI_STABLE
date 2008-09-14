@@ -35,7 +35,7 @@ MODULE Calc
           TFixShiftDoubs=.false.
           DoubsShift=0.D0
           TRegenExcitgens=.false.
-          MemoryFac=50
+          MemoryFac=30
           TStartSinglePart=.false.
           TFixParticleSign=.false.
           TProjEMP2=.false.

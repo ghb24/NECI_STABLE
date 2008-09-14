@@ -1684,7 +1684,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
         WRITE(6,*) ""
-        WRITE(6,*) "Performing FCIMC...."
+        WRITE(6,*) "Performing Parallel FCIMC...."
         IF(TStartSinglePart) THEN
             WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
         ELSE

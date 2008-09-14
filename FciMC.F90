@@ -1473,7 +1473,8 @@ MODULE FciMCMod
     SUBROUTINE InitFCIMCCalc()
         use CalcData, only : EXCITFUNCS
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc
+        INTEGER :: DetLT,VecSlot,error,HFConn
+        INTEGER*8 :: MemoryAlloc
         REAL*8 :: Ran2
         TYPE(HElement) :: rh,TempHii
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMC'
@@ -1568,7 +1569,7 @@ MODULE FciMCMod
             WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
         ENDIF
         WRITE(6,*) ""
-        WRITE(6,*) "Performing FCIMC...."
+        WRITE(6,*) "Performing FCIMC..."
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
 
         IF(ICILevel.ne.0) THEN
@@ -1688,7 +1689,7 @@ MODULE FciMCMod
                         CALL CopyExitGen(HFExcit,CurrentExcits(j))
                     enddo
                 ENDIF
-                MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+                MemoryAlloc=((INT(HFExcit%nExcitMemLen,8))+2)*4*INT(MaxWalkers,8)
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
                 CALL FLUSH(6)
@@ -1751,7 +1752,8 @@ MODULE FciMCMod
         INTEGER , ALLOCATABLE :: MP1Dets(:,:)
         REAL*8 , ALLOCATABLE :: MP1Comps(:),MP1Hij(:)
         LOGICAL , ALLOCATABLE :: MP1Sign(:)
-        INTEGER :: MP1DetsTag,MP1CompsTag,MP1HijTag,MP1SignTag,MemoryAlloc
+        INTEGER :: MP1DetsTag,MP1CompsTag,MP1HijTag,MP1SignTag
+        INTEGER*8 :: MemoryAlloc
         CHARACTER(Len=*) , PARAMETER :: this_routine='InitWalkersMP1'
 
 !initialise the particle positions according to a discretized MP1 wavefunction
@@ -1930,7 +1932,7 @@ MODULE FciMCMod
 !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
-            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+            MemoryAlloc=((INT(HFExcit%nExcitMemLen,8))+2)*4*INT(MaxWalkers,8)
         ENDIF
 
 
@@ -2110,7 +2112,8 @@ MODULE FciMCMod
     END SUBROUTINE WriteToPopsFile
     
     SUBROUTINE ReadFromPopsFile()
-        INTEGER :: ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2,MemoryAlloc
+        INTEGER :: ierr,l,j,k,VecSlot,IntegerPart,iGetExcitLevel_2
+        INTEGER*8 :: MemoryAlloc
         REAL*8 :: FracPart,Ran2
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsFile'
@@ -2285,7 +2288,7 @@ MODULE FciMCMod
         enddo
             
         IF(.not.TRegenExcitgens) THEN
-            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+            MemoryAlloc=((INT(HFExcit%nExcitMemLen,8))+2)*4*INT(MaxWalkers,8)
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb" 
             WRITE(6,*) "Initial allocation of excitation generators successful..."
             CALL FLUSH(6)

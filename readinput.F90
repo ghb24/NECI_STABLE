@@ -152,7 +152,8 @@ MODULE ReadInput
      &  TGRIDVAR,TLINEVAR,TOTALERROR,TRUECYCLES
       use CalcData , only : I_VMAX,NPATHS,                 &
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
-     & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone
+     & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone, &
+     & GrowMaxFactor,MemoryFac
       Use Determinants, only : SpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING
@@ -160,6 +161,10 @@ MODULE ReadInput
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
+
+      IF(GrowMaxFactor.gt.MemoryFac) THEN
+          CALL report("GrowMaxFactor is larger than MemoryFac - there will not be enough memory allocated if the walker number grows large. Think about increasing MemoryFac or reducing GrowMaxFactor.",.true.)
+      ENDIF
 
 !If we are using TNoSameExcit, then we have to start with the star - the other random graph algorithm cannot remove same excitation links yet.
       IF(TNoSameExcit.and..not.TInitStar) THEN
