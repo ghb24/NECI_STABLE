@@ -93,6 +93,7 @@ MODULE FciMCMod
         TYPE(HDElement) :: Weight,Energyxw
         CHARACTER(len=*), PARAMETER :: this_routine='FCIMC'
         TYPE(HElement) :: Hamii
+        LOGICAL :: TIncrement
 
         CALL InitFCIMCCalc()
 
@@ -105,6 +106,7 @@ MODULE FciMCMod
         WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 
 !Start MC simulation...
+        TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         do Iter=1,NMCyc
 
             CALL PerformFCIMCyc()
@@ -114,7 +116,10 @@ MODULE FciMCMod
                 CALL UpdateDiagSft()
 
 !Test that the file SOFTEXIT is still present. If not, then exit cleanly.
-                IF(.not.test_SOFTEXIT()) EXIT
+                IF(.not.test_SOFTEXIT()) THEN
+                    TIncrement=.false.     !This is so that when the popsfile is written out before exit, it counteracts the subtraction by one.
+                    EXIT
+                ENDIF
 
             ENDIF
 
@@ -127,7 +132,7 @@ MODULE FciMCMod
         enddo
 
 !Write out popsfile
-        Iter=Iter-1
+        IF(TIncrement) Iter=Iter-1         !Subtract one, since Iter is a loop variable, and therefore incremented on exit of the loop
         IF(TPopsFile) CALL WriteToPopsFile()
 
         Weight=HDElement(0.D0)
@@ -1602,6 +1607,9 @@ MODULE FciMCMod
                 WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers
             ELSE
                 WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
+            ENDIF
+            IF(TFixShiftDoubs) THEN
+                WRITE(6,*) "Fixing the shift of the HF + Double excitations to ", DoubsShift
             ENDIF
             WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft

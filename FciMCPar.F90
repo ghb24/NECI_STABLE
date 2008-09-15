@@ -20,6 +20,7 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
+    USE Logging , only : iWritePopsEvery,TPopsFile
     USE global_utilities
     USE HElem
     USE Parallel
