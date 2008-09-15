@@ -60,7 +60,7 @@ MODULE Calc
           Lambda=0.D0
           TDiffuse=.false.
           TNoBirth=.false.
-          GrowMaxFactor=175.D0
+          GrowMaxFactor=20.D0
           CullFactor=2.D0
           TStartMP1=.false.
           TFCIMC=.false.
