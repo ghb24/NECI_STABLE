@@ -2045,7 +2045,7 @@ MODULE FciMCParMod
                 CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
                 Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
-                CurrentH(j)=real(Hjj%v,r2)
+                CurrentH(j)=real(Hjj%v,r2)-Hii
                 IF(.not.TNoAnnihil) THEN
                     HashArray(j)=CreateHash(MP1Dets(1:NEl,i))
                 ENDIF

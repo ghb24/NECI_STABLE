@@ -248,8 +248,7 @@ MODULE FciMCMod
                     IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                         HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                    ENDIF
-                    IF(ExcitLevel.eq.0) THEN
+                    ELSEIF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
                     ELSE
@@ -1901,7 +1900,7 @@ MODULE FciMCMod
                 CurrentSign(j)=MP1Sign(i)
                 CurrentH(2,j)=MP1Hij(i)     !This is the off-diagonal element to HF det
                 Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
-                CurrentH(1,j)=real(Hjj%v,r2)
+                CurrentH(1,j)=real(Hjj%v,r2)-Hii
             ENDIF
 
         enddo
