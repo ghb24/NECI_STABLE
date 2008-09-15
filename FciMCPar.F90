@@ -129,7 +129,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
         TYPE(HElement) :: Hamii
 
-        TDebug=.true.   !Set debugging flag
+        TDebug=.false.   !Set debugging flag
 
         CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
