@@ -1152,7 +1152,7 @@ MODULE FciMCMod
                 ELSEIF(Bin.gt.NoHistBins) THEN
                     WRITE(6,*) "Trying to histogram to for a determinant higher in energy than MaxHistE. Think about increasing this to recover all data.",Bin
                 ELSE
-                    EHistBins(Bin,ExcitLevel)=EHistBins(Bin,ExcitLevel)+1
+                    EHistBins(ExcitLevel,Bin)=EHistBins(ExcitLevel,Bin)+1
                 ENDIF
             ENDIF
         ENDIF
@@ -1791,15 +1791,15 @@ MODULE FciMCMod
         
         IF(TWriteDetE) THEN
 !If this logging option is on, then we want to write out the energies of the determinants
-            NoHistBins=200
+            NoHistBins=150
             MaxHistE=30.D0
             WRITE(6,"(A,I6,A,F10.2)") "Histogramming determinant energies by excitation level in ",NoHistBins," bins, with a maximum energy of ",MaxHistE
 
-            ALLOCATE(EHistBins(NoHistBins,NEl),stat=ierr)
+            ALLOCATE(EHistBins(NEl,NoHistBins),stat=ierr)
             CALL LogMemAlloc('EHistBins',NoHistBins*NEl,8,this_routine,EHistBinsTag)
 !            CALL IAZZERO(EHistBins,NoHistBins*NEl)
-            do i=1,NEl
-                do j=1,NoHistBins
+            do i=1,NoHistBins
+                do j=1,NEl
                     EHistBins(j,i)=0
                 enddo
             enddo
@@ -1817,25 +1817,33 @@ MODULE FciMCMod
         INTEGER :: i,j
         CHARACTER(Len=12) :: Filename
         REAL*8 :: LowEnergyofbin,HighEnergyofbin,MeanEnergyofbin
+!        CHARACTER(len=16) :: FormatSpec
 
-        do i=1,NEl
-!Run over all excitation levels
+!        FormatSpec=''
+!        write(FormatSpec,'(I2)') NEl
+!        FormatSpec="'(F20.10,"//adjustl(FormatSpec)
+!        FormatSpec=trim(FormatSpec) // "I15)'"
+!        FormatSpec=trim(FormatSpec)
+!        FormatSpec=adjustl(FormatSpec)
+!        WRITE(6,*) FormatSpec
+!        CALL FLUSH(6)
 
-            Filename=''
-            write(Filename,'(I2)') i
-            Filename='HISTEXCIT-'//adjustl(Filename)
-            OPEN(19,file=Filename,Status='unknown')
+        OPEN(19,file='HISTEXCITS',Status='unknown')
 
-            do j=1,NoHistBins
-                LowEnergyofbin=(j-1)*MaxHistE/real(NoHistBins,r2)
-                HighEnergyofbin=j*MaxHistE/real(NoHistBins,r2)
-                MeanEnergyofbin=(LowEnergyofbin+HighEnergyofbin)/2.D0
-                WRITE(19,*) MeanEnergyofbin,EHistBins(j,i)
+        WRITE(19,*) "# Determinant_energy_bin     Number from each excitation level..."
+        
+        do j=1,NoHistBins
+            LowEnergyofbin=(j-1)*MaxHistE/real(NoHistBins,r2)
+            HighEnergyofbin=j*MaxHistE/real(NoHistBins,r2)
+            MeanEnergyofbin=(LowEnergyofbin+HighEnergyofbin)/2.D0
+            WRITE(19,'(F20.10,I15)',advance='no') MeanEnergyofbin,EHistBins(1,j)
+            do i=2,NEl-1
+                WRITE(19,'(I15)',advance='no') EHistBins(i,j)
             enddo
-
-            CLOSE(19)
-
+            WRITE(19,'(I15)') EHistBins(NEl,j)
         enddo
+
+        CLOSE(19)
 
         RETURN
 
