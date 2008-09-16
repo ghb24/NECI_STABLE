@@ -140,6 +140,11 @@ FCIMC options
     values initially, and then print out the running wavevector every
     WavevectorPrint MC steps. However, this is slower.
 
+**WRITEDETE**
+    This is an FCIMC option and will write out the energies of determinants which have
+    had particles spawned at them and their excitation level. This is diagnostic 
+    information.
+
 
 
 GraphMorph options

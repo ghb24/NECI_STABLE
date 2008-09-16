@@ -10,7 +10,7 @@ MODULE FciMCMod
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE global_utilities
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE!,TWriteDetE
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,TWriteDetE
     USE HElem
     IMPLICIT NONE
     SAVE
@@ -143,6 +143,7 @@ MODULE FciMCMod
         CALL DeallocFCIMCMem()
 
         CLOSE(15)
+        IF(TWriteDetE) CLOSE(19)
 
         RETURN
 
@@ -262,6 +263,11 @@ MODULE FciMCMod
                     ELSE
                         HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                         HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                    ENDIF
+
+                    IF(TWriteDetE) THEN
+!Write out the energies of all accepted determinants
+                        WRITE(19,*) ExcitLevel,HDiag
                     ENDIF
 
                     do l=1,abs(Child)
@@ -1498,6 +1504,10 @@ MODULE FciMCMod
 
 !Open a file to store output
         OPEN(15,file='FCIMCStats',status='unknown')
+        IF(TWriteDetE) THEN
+!If this logging option is on, then we want to write out the energies of the determinants
+            OPEN(19,file='DetEnergies',Status='unknown')
+        ENDIF
 
 !Store information specifically for the HF determinant
         ALLOCATE(HFDet(NEl),stat=ierr)

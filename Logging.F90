@@ -7,7 +7,7 @@ MODULE Logging
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
-    LOGICAL TZeroProjE
+    LOGICAL TZeroProjE,TWriteDetE
 
     contains
 
@@ -29,6 +29,7 @@ MODULE Logging
       PreVarLogging=0
       TDetPops=.false.
       TZeroProjE=.false.
+      TWriteDetE=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -68,6 +69,9 @@ MODULE Logging
 ! passes that many.
             TPopsFile=.true.
             IF(item.lt.nitems) call readi(iWritePopsEvery)
+        case("WRITEDETE")
+!This logging option will write out the energies of all determinants which have been spawned at in the simulation
+            TWriteDetE=.true.
         case("ZEROPROJE")
 ! This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
 ! estimator will be restarted.
