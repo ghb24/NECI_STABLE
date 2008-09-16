@@ -253,6 +253,8 @@ MODULE FciMCMod
                     IF(ExcitLevel.eq.2) THEN
 !Only need it for double excitations, since these are the only ones which contribute to energy
                         HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ELSEIF(ExcitLevel.eq.0) THEN
 !We know we are at HF - HDiag=0
                         HDiag=0.D0
@@ -1532,6 +1534,9 @@ MODULE FciMCMod
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
                 CALL Stop_All("InitFciMCCalc","Cannot read in POPSFILE as well as starting with a single particle")
+            ENDIF
+            IF(TStartMP1) THEN
+                CALL Stop_All("InitFciMCCalc","Cannot start with a single particle and be at the MP1 wavefunction")
             ENDIF
         ELSE
             TSinglePartPhase=.false.
