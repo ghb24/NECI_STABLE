@@ -116,11 +116,11 @@ MODULE FciMCParMod
 
     INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
-    LOGICAL :: TBalanceNodes=.false.            !This is true when the nodes need to be balanced
+    LOGICAL :: TBalanceNodes                    !This is true when the nodes need to be balanced
 
     LOGICAL :: TDebug                           !Debugging flag
     INTEGER :: MaxIndex
-
+        
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
@@ -1622,6 +1622,8 @@ MODULE FciMCParMod
         TempHii=GetH0Element3(HFDet)
         Fii=REAL(TempHii%v,r2)
 
+        TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
+
 !Initialise variables for calculation on each node
         ProjectionE=0.D0
         PosFrac=0.D0
@@ -1653,6 +1655,10 @@ MODULE FciMCParMod
         ENDIF
         IF(TReadPops) THEN
             CALL Stop_All("InitFCIMCCalcPar","POPFILE read facility not yet available in parallel.")
+!List of things that readpops can't work with...
+            IF(TStartSinglePart.or.TStartMP1) THEN
+                CALL Stop_All("InitFCIMCCalcPar","ReadPOPS cannot work with StartSinglePart or StartMP1")
+            ENDIF
         ENDIF
 
         IF(TResumFciMC) THEN
@@ -1711,6 +1717,12 @@ MODULE FciMCParMod
 
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
             CALL InitWalkersMP1Par()
+
+        ELSEIF(TReadPops) THEN
+!Read in particles from multiple POPSFILES for each processor
+            WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
+
+            CALL ReadFromPopsFilePar()
 
         ELSE
 !initialise the particle positions - start at HF with positive sign
@@ -1872,7 +1884,80 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalcPar
-            
+
+    SUBROUTINE ReadFromPopsfilePar()
+        LOGICAL :: exists
+        INTEGER :: PreviousCycles
+
+        PreviousCycles=0    !Zero previous cycles
+        SumENum=0.D0
+        SumNoatHF=0
+        DiagSft=0.D0
+
+        IF(iProcIndex.eq.root) THEN
+            INQUIRE(FILE='POPSFILE',EXIST=exists)
+            IF(exists) THEN
+
+                OPEN(17,FILE='POPSFILE',Status='old')
+!Read in initial data on processors which have a popsfile
+                READ(17,*) AllTotWalkers
+                READ(17,*) DiagSft
+                READ(17,*) AllSumNoatHF
+                READ(17,*) AllSumENum
+                READ(17,*) PreviousCycles
+
+!Need to calculate the number of walkers each node will receive...
+
+            ELSE
+                CALL Stop_All("ReadFromPopsfilePar","No POPSFILE found")
+            ENDIF
+
+        ENDIF
+
+!!All previousCycles should be the same on nodes which have a popsfile - otherwise error. Check this.
+!        CALL MPI_Gather(PreviousCycles,1,MPI_INTEGER,PrevCyc,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+!        CALL MPI_Gather(DiagSft,1,MPI_DOUBLE_PRECISION,ShiftAll,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+!        IF(iProcIndex.eq.root) THEN
+!            IF(PreviousCycles.eq.0) THEN
+!!Find a processor with a non-zero value for PreviousCycles (i.e. has got a POPSFILE)
+!                i=2
+!                do while(PreviousCycles.eq.0)
+!                    IF(i.gt.nProcessors) THEN
+!                        CALL Stop_All("ReadFromPopsfilePar","Cannoy find non-zero number for previous cycles")
+!                    ENDIF
+!                    PreviousCycles=PrevCyc(i)
+!                    DiagSft=ShiftAll(i)
+!                    i=i+1
+!                enddo
+!            ENDIF
+!
+!!Check that all Previous Cycles counts and DiagSft are the same at all nodes, or zero
+!            do i=2,nProcessors
+!                IF((PrevCyc(i).ne.PreviousCycles).and.(PrevCyc(i).ne.0)) THEN
+!                    CALL Stop_All("ReadFromPopsFilePar","Previous cycles are not the same in all POPSFILES that are present")
+!                ENDIF
+!                IF((ShiftAll(i).ne.DiagSft).and.(ShiftAll(i).ne.0.D0)) THEN
+!                    CALL Stop_All("ReadFromPopsFilePar","Shift is not the same in all POPSFILES that are present")
+!                ENDIF
+!            enddo
+!
+!        ENDIF
+!
+!!Broadcast the previous cycles & Shift to all processors (i.e. include the ones which may not have a popsfile.
+!        CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+!        CALL MPI_BCast(PreviousCycles,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+!
+!!Now read in walkers
+!
+!!Balance walkers to all processors after reading in and before scaling
+!
+!            WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+!
+!            
+!        ENDIF
+
+    END SUBROUTINE ReadFromPopsfilePar
+
 !This will set up the initial walker distribution proportially to the MP1 wavevector.
     SUBROUTINE InitWalkersMP1Par()
         INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF

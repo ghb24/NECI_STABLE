@@ -10,7 +10,7 @@ MODULE FciMCMod
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE global_utilities
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE!,TWriteDetE
     USE HElem
     IMPLICIT NONE
     SAVE
@@ -63,6 +63,7 @@ MODULE FciMCMod
     REAL*8 :: AccRat
     INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
     INTEGER :: NoatHF           !This is the number at HF for a given Iteration
+    REAL*8 :: SumConnections
 
 !These values are used to calculate the energy when TProjEMP2 is set
     REAL*8 :: SumOverlapMP2     !This is the overlap of the walker distribution with the MP2 wavefunction, summed over all iterations
@@ -98,12 +99,12 @@ MODULE FciMCMod
         CALL InitFCIMCCalc()
 
         WRITE(6,*) ""
-        WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
-        WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     MeanExcit  MinExcit MaxEx"
+        WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
+        WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
 
 !TotWalkersOld is the number of walkers last time the shift was changed
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
 
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
@@ -991,6 +992,7 @@ MODULE FciMCMod
     SUBROUTINE UpdateDiagSft()
         IMPLICIT NONE
         INTEGER :: j,k,GrowthSteps
+        REAL*8 :: AvConnection
 
         IF(NoCulls.eq.0) THEN
             IF(TSignShift) THEN
@@ -1059,10 +1061,13 @@ MODULE FciMCMod
         ProjectionE=SumENum/(REAL(SumNoatHF,r2))
         AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))
         ProjectionMP2=((SumHOverlapMP2/SumOverlapMP2)-Hii)/2.D0
+        AvConnection=SumConnections/REAL(SumWalkersCyc,r2)
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,3G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,  &
+     &         ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,   &
+     &         ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
 !        WRITE(6,*) SumHOverlapMP2,SumOverlapMP2
         CALL FLUSH(15)
         CALL FLUSH(6)
@@ -1075,6 +1080,8 @@ MODULE FciMCMod
         PosFrac=0.D0
         Annihilated=0
         Acceptances=0
+        SumConnections=0.D0
+
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
         TotSignOld=TotSign
@@ -1530,6 +1537,8 @@ MODULE FciMCMod
         Annihilated=0
         AccRat=0.D0
         PreviousCycles=0
+        SumConnections=0.D0
+
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
@@ -1587,6 +1596,8 @@ MODULE FciMCMod
             ELSE
                 WRITE(6,*) "Excitation levels w.r.t. HF restricted to level: ",ICILevel
             ENDIF
+            WRITE(6,*) "!!!  WARNING !!!"
+            WRITE(6,*) "!!! Average connecting hamiltonian matrix element data will not be correct for truncated spaces !!!"
         ENDIF
 
         IF(TStartMP1) THEN
@@ -2510,6 +2521,8 @@ MODULE FciMCMod
 !Calculate off diagonal hamiltonian matrix element between determinants
             rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
         ENDIF
+
+        SumConnections=SumConnections+REAL(rh%v,r2)     !Sum the connections (success and failure) to find average connection strength
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
         rat=Tau*abs(rh%v)/Prob
