@@ -141,8 +141,9 @@ FCIMC options
     WavevectorPrint MC steps. However, this is slower.
 
 **WRITEDETE**
-    This is an FCIMC option and will write out the energies of determinants which have
-    had particles spawned at them and their excitation level. This is diagnostic 
+    This is an FCIMC option and will write out a histogram of the energies of determinants which have
+    had particles spawned at them and their excitation level. The histogram logs the total
+    amount of time spent at a determinant and its energy for each energy range. This is diagnostic 
     information.
 
 

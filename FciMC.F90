@@ -87,6 +87,11 @@ MODULE FciMCMod
 
     LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
 
+    INTEGER*8 , ALLOCATABLE :: EHistBins(:,:)   !This is to histogram the determinant energies..
+    INTEGER :: EHistBinsTag=0
+    INTEGER :: NoHistBins                       !This is the number of bins in the histogram
+    REAL*8 :: MaxHistE                          !This is the maximum determinant energy to histogram to
+
     contains
 
     SUBROUTINE FciMC(Weight,Energyxw)
@@ -143,7 +148,6 @@ MODULE FciMCMod
         CALL DeallocFCIMCMem()
 
         CLOSE(15)
-        IF(TWriteDetE) CLOSE(19)
 
         RETURN
 
@@ -263,11 +267,6 @@ MODULE FciMCMod
                     ELSE
                         HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                         HDiag=(REAL(HDiagTemp%v,r2))-Hii
-                    ENDIF
-
-                    IF(TWriteDetE) THEN
-!Write out the energies of all accepted determinants
-                        WRITE(19,*) ExcitLevel,HDiag
                     ENDIF
 
                     do l=1,abs(Child)
@@ -1092,6 +1091,11 @@ MODULE FciMCMod
         TotWalkersOld=TotWalkers
         TotSignOld=TotSign
 
+        IF(TWriteDetE) THEN
+!Write out the histograms of the energy of the determinants for each excitation level
+            CALL WriteEnergyHist()
+        ENDIF
+
         RETURN
 
     END SUBROUTINE UpdateDiagSft
@@ -1099,9 +1103,10 @@ MODULE FciMCMod
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,Hij0,WSign,j)
-        INTEGER :: DetCurr(NEl),ExcitLevel,j
+        INTEGER :: DetCurr(NEl),ExcitLevel,j,Bin
         LOGICAL :: WSign
         REAL*8 :: Hij0      !This is the hamiltonian matrix element between DetCurr and HF
+        REAL*8 :: DetE
 
         MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
         IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
@@ -1134,6 +1139,21 @@ MODULE FciMCMod
                 TotSign=TotSign+1
             ELSE
                 TotSign=TotSign-1
+            ENDIF
+        ENDIF
+
+        IF(TWriteDetE) THEN
+!We are histogramming the energy of the determinants for each excitation level...
+            IF(ExcitLevel.ne.0) THEN
+                DetE=CurrentH(1,j)
+                Bin=CEILING(DetE*NoHistBins/MaxHistE)       !This will find the right bin
+                IF(Bin.le.0) THEN
+                    CALL Stop_All("SumEContrib","Trying to access a zero or negative bin number")
+                ELSEIF(Bin.gt.NoHistBins) THEN
+                    WRITE(6,*) "Trying to histogram to for a determinant higher in energy than MaxHistE. Think about increasing this to recover all data.",Bin
+                ELSE
+                    EHistBins(Bin,ExcitLevel)=EHistBins(Bin,ExcitLevel)+1
+                ENDIF
             ENDIF
         ENDIF
 
@@ -1504,10 +1524,6 @@ MODULE FciMCMod
 
 !Open a file to store output
         OPEN(15,file='FCIMCStats',status='unknown')
-        IF(TWriteDetE) THEN
-!If this logging option is on, then we want to write out the energies of the determinants
-            OPEN(19,file='DetEnergies',Status='unknown')
-        ENDIF
 
 !Store information specifically for the HF determinant
         ALLOCATE(HFDet(NEl),stat=ierr)
@@ -1772,10 +1788,58 @@ MODULE FciMCMod
 !This will perform an MP2 calculation, so that the projection to it can be used to calculate the energy
             CALL InitMP2Calc()
         ENDIF
+        
+        IF(TWriteDetE) THEN
+!If this logging option is on, then we want to write out the energies of the determinants
+            NoHistBins=200
+            MaxHistE=30.D0
+            WRITE(6,"(A,I6,A,F10.2)") "Histogramming determinant energies by excitation level in ",NoHistBins," bins, with a maximum energy of ",MaxHistE
+
+            ALLOCATE(EHistBins(NoHistBins,NEl),stat=ierr)
+            CALL LogMemAlloc('EHistBins',NoHistBins*NEl,8,this_routine,EHistBinsTag)
+!            CALL IAZZERO(EHistBins,NoHistBins*NEl)
+            do i=1,NEl
+                do j=1,NoHistBins
+                    EHistBins(j,i)=0
+                enddo
+            enddo
+                    
+            
+        ENDIF
+
 
         RETURN
 
     END SUBROUTINE InitFCIMCCalc
+
+!This routine writes out the histogram of the determinants energies
+    SUBROUTINE WriteEnergyHist()
+        INTEGER :: i,j
+        CHARACTER(Len=12) :: Filename
+        REAL*8 :: LowEnergyofbin,HighEnergyofbin,MeanEnergyofbin
+
+        do i=1,NEl
+!Run over all excitation levels
+
+            Filename=''
+            write(Filename,'(I2)') i
+            Filename='HISTEXCIT-'//adjustl(Filename)
+            OPEN(19,file=Filename,Status='unknown')
+
+            do j=1,NoHistBins
+                LowEnergyofbin=(j-1)*MaxHistE/real(NoHistBins,r2)
+                HighEnergyofbin=j*MaxHistE/real(NoHistBins,r2)
+                MeanEnergyofbin=(LowEnergyofbin+HighEnergyofbin)/2.D0
+                WRITE(19,*) MeanEnergyofbin,EHistBins(j,i)
+            enddo
+
+            CLOSE(19)
+
+        enddo
+
+        RETURN
+
+    END SUBROUTINE WriteEnergyHist
             
 !This routine allocates memory for the initial walkers, and then assigns them stochastically, proportional to the MP1 wavefunction
     SUBROUTINE InitWalkersMP1()
@@ -2692,6 +2756,10 @@ MODULE FciMCMod
             enddo
             DEALLOCATE(WalkVecExcits)
             DEALLOCATE(WalkVec2Excits)
+        ENDIF
+        IF(TWriteDetE) THEN
+            DEALLOCATE(EHistBins)
+            CALL LogMemDealloc(this_routine,EHistBinsTag)
         ENDIF
 
     END SUBROUTINE DeallocFCIMCMem
