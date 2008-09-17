@@ -140,11 +140,12 @@ FCIMC options
     values initially, and then print out the running wavevector every
     WavevectorPrint MC steps. However, this is slower.
 
-**WRITEDETE**
+**WRITEDETE** [NoHistBins] [MaxHistE]
     This is an FCIMC option and will write out a histogram of the energies of determinants which have
     had particles spawned at them and their excitation level. The histogram logs the total
     amount of time spent at a determinant and its energy for each energy range. This is diagnostic 
-    information.
+    information. The first variable to input is the number of histogram bins which will be calculated,
+    and the second is the maximum determinant energy of the histogram.
 
 
 

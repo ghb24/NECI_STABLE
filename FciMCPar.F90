@@ -132,8 +132,8 @@ MODULE FciMCParMod
 
         TDebug=.false.   !Set debugging flag
 
-        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
-!        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
+!        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
+        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
 
         CALL InitFCIMCCalcPar()
 
@@ -143,8 +143,10 @@ MODULE FciMCParMod
             WRITE(6,*) "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil    Proj.E        NoatHF NoatDoubs  +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
             WRITE(15,*) "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil    Proj.E        NoatHF NoatDoubs   +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+     &          AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+     &          AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
         ENDIF
         
 
@@ -158,10 +160,19 @@ MODULE FciMCParMod
             IF(mod(Iter,StepsSft).eq.0) THEN
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
                 CALL CalcNewShift()
+
+                IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
+!This will write out the POPSFILE
+                    CALL WriteToPopsFilePar()
+                ENDIF
+
             ENDIF
             
 !End of MC cycle
         enddo
+
+        Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop
+        IF(TPopsFile) CALL WriteToPopsFilePar()
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
@@ -448,6 +459,7 @@ MODULE FciMCParMod
                 WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
                 WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
                 WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
+!                CALL FLUSH(6)
                 CALL ThermostatParticlesPar(.true.)
 
             ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
@@ -1422,9 +1434,9 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
                     ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
                     ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             CALL FLUSH(15)
             CALL FLUSH(6)
@@ -1649,6 +1661,14 @@ MODULE FciMCParMod
         AllSumWalkersCyc=0
         AllPosFrac=0.D0
 
+!Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
+        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
+        CALL MPI_Type_commit(mpilongintegertype,error)
+        
+        IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
+            CALL Stop_All("InitFCIMCCalc","POPSFILE writeout needs to be a multiple of the update cycle length.")
+        ENDIF
+
         IF(TNoAnnihil) THEN
             WRITE(6,*) "No Annihilation to occur. Results are likely not to converge on right value. Proceed with caution. "
         ENDIF
@@ -1656,7 +1676,6 @@ MODULE FciMCParMod
             CALL Stop_All("InitFCIMCCalcPar","Truncated FCIMC not yet available in parallel.")
         ENDIF
         IF(TReadPops) THEN
-            CALL Stop_All("InitFCIMCCalcPar","POPFILE read facility not yet available in parallel.")
 !List of things that readpops can't work with...
             IF(TStartSinglePart.or.TStartMP1) THEN
                 CALL Stop_All("InitFCIMCCalcPar","ReadPOPS cannot work with StartSinglePart or StartMP1")
@@ -1701,7 +1720,9 @@ MODULE FciMCParMod
         ENDIF
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
         WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
-        WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
+        IF(.not.TReadPops) THEN
+            WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
+        ENDIF
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.
             IF(TReadPops) THEN
@@ -1872,13 +1893,6 @@ MODULE FciMCParMod
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
 
-        IF(.not.TNoAnnihil) THEN
-!Need to declare a new MPI type to deal with the long integers we use in the hashing
-    
-            CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
-            CALL MPI_Type_commit(mpilongintegertype,error)
-        
-        ENDIF
 
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -1887,14 +1901,97 @@ MODULE FciMCParMod
 
     END SUBROUTINE InitFCIMCCalcPar
 
+!This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
+!When arriving at this routine, CurrentXXX are arrays with the data, and NewXXX will be used by the root processor to temporarily store the information
+    SUBROUTINE WriteToPopsfilePar()
+        REAL*8 :: TempSumNoatHF
+        INTEGER :: error,WalkersonNodes(0:nProcessors-1)
+        INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !sync
+
+!First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
+        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
+!Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
+        TempSumNoatHF=real(SumNoatHF,r2)
+        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
+        CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
+
+!We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
+        CALL MPI_Gather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+
+        Tag=125
+
+        IF(iProcIndex.eq.root) THEN
+!First, check that we are going to receive the correct number of particles...
+            Total=0
+            do i=0,nProcessors-1
+                Total=Total+WalkersonNodes(i)
+            enddo
+            IF(Total.ne.AllTotWalkers) THEN
+                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
+            ENDIF
+
+!Write header information
+            WRITE(6,*) "Writing to POPSFILE..."
+            OPEN(17,FILE='POPSFILE',Status='unknown')
+            WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
+            WRITE(17,*) DiagSft,"   DIAG SHIFT"
+            WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
+            WRITE(17,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
+            WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
+            do j=1,TotWalkers
+!First write out walkers on head node
+                do k=1,NEl
+                    WRITE(17,"(I5)",advance='no') CurrentDets(k,j)
+                enddo
+                WRITE(17,*) CurrentSign(j)
+            enddo
+
+!Now we need to receive the data from each other processor sequentially
+            do i=1,nProcessors-1
+!Run through all other processors...receive the data...
+                CALL MPI_Recv(NewDets(:,1:WalkersonNodes(i)),WalkersonNodes(i)*NEl,MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(NewSign(1:WalkersonNodes(i)),WalkersonNodes(i),MPI_LOGICAL,i,Tag,MPI_COMM_WORLD,Stat,error)
+                
+!Then write it out...
+                do j=1,WalkersonNodes(i)
+                    do k=1,NEl
+                        WRITE(17,"(I5)",advance='no') NewDets(k,j)
+                    enddo
+                    WRITE(17,*) NewSign(j)
+                enddo
+
+            enddo
+
+            CLOSE(17)
+
+        ELSE
+!All other processors need to send their data to root...
+            CALL MPI_Send(CurrentDets(:,1:TotWalkers),TotWalkers*NEl,MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
+            CALL MPI_Send(CurrentSign(1:TotWalkers),TotWalkers,MPI_LOGICAL,root,Tag,MPI_COMM_WORLD,error)
+        ENDIF
+
+!Reset the values of the global variables
+        AllSumNoatHF=0.D0
+        AllSumENum=0.D0
+        AllTotWalkers=0
+
+        RETURN
+
+    END SUBROUTINE WriteToPopsfilePar
+
+
+!This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
         LOGICAL :: exists
-        INTEGER :: AvWalkers,WalkerstoReceive(nProcessors),NodeSumNoatHF(nProcessors)
+        INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
+        INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         INTEGER :: TempInitWalkers,error,i,j,total,ierr,iGetExcitLevel_2,MemoryAlloc,Tag
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
-
+        
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
         SumNoatHF=0
@@ -1909,10 +2006,11 @@ MODULE FciMCParMod
 !Read in initial data on processors which have a popsfile
                 READ(17,*) AllTotWalkers
                 READ(17,*) DiagSft
-                READ(17,*) AllSumNoatHF
+                READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
                 READ(17,*) AllSumENum
                 READ(17,*) PreviousCycles
 
+                AllSumNoatHF=REAL(TempAllSumNoatHF,r2)
                 WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
                 IF(NEquilSteps.gt.0) THEN
                     WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
@@ -1946,9 +2044,13 @@ MODULE FciMCParMod
                 SumENum=AllSumENum/REAL(nProcessors,r2)     !Divide up the SumENum over all processors
                 AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,r2)) !This is the average Sumnoathf
                 do i=1,nProcessors-1
-                    NodeSumNoatHF(i)=AvSumNoatHF
+                    NodeSumNoatHF(i)=INT(AvSumNoatHF,i2)
                 enddo
-                NodeSumNoatHF(nProcessors)=AllSumNoatHF-(AvSumNoatHF*(nProcessors-1))
+                NodeSumNoatHF(nProcessors)=NINT(AllSumNoatHF,i2)-INT((AvSumNoatHF*(nProcessors-1)),i2)
+                    
+!Reset the global variables
+                AllSumENum=0.D0
+                AllSumNoatHF=0.D0
 
             ELSE
                 CALL Stop_All("ReadFromPopsfilePar","No POPSFILE found")
@@ -1964,9 +2066,9 @@ MODULE FciMCParMod
         CALL MPI_BCast(InitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
         CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
-        CALL MPI_Scatter(NodeSumNoatHF,1,MPI_INTEGER,SumNoatHF,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-        CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-
+        CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        CALL MPI_Scatter(NodeSumNoatHF,1,mpilongintegertype,SumNoatHF,1,mpilongintegertype,root,MPI_COMM_WORLD,error)
+        
 !Now we want to allocate memory on all nodes.
         MaxWalkers=MemoryFac*InitWalkers    !All nodes have the same amount of memory allocated
 !Allocate memory to hold walkers at least temporarily
@@ -2000,6 +2102,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.i) THEN
 !All other processors want to pick up their data from root
                 CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*NEl,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_LOGICAL,0,Tag,MPI_COMM_WORLD,Stat,error)
             ENDIF
         enddo
 
@@ -2024,9 +2127,8 @@ MODULE FciMCParMod
 
         ENDIF
             
-        WRITE(6,*) "Total number of initial walkers is now: ",TotWalkers
+        WRITE(6,*) "Total number of initial walkers is now: ",AllTotWalkers
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
-        WRITE(6,*) "Damping parameter for Diag Shift set to: ",SftDamp
 
 !Need to now allocate other arrays
         ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)

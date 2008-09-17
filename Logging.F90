@@ -5,7 +5,8 @@ MODULE Logging
 
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery
-    INTEGER PreVarLogging,WavevectorPrint
+    INTEGER PreVarLogging,WavevectorPrint,NoHistBins
+    REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
     LOGICAL TZeroProjE,TWriteDetE
 
@@ -17,6 +18,8 @@ MODULE Logging
       use default_sets
       implicit none
 
+      MaxHistE=50.D0
+      NoHistBins=200
       iWritePopsEvery=100000
       TCalcWavevector=.false.
       WavevectorPrint=100
@@ -71,7 +74,10 @@ MODULE Logging
             IF(item.lt.nitems) call readi(iWritePopsEvery)
         case("WRITEDETE")
 !This logging option will write out the energies of all determinants which have been spawned at in the simulation
+! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.
             TWriteDetE=.true.
+            IF(item.lt.nitems) call readi(NoHistBins)
+            IF(item.lt.nitems) call readf(MaxHistE)
         case("ZEROPROJE")
 ! This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
 ! estimator will be restarted.
