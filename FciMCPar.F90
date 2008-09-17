@@ -15,12 +15,12 @@ MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens
-    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart
+    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
-    USE Logging , only : iWritePopsEvery,TPopsFile
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
     USE global_utilities
     USE HElem
     USE Parallel
@@ -88,6 +88,7 @@ MODULE FciMCParMod
     INTEGER :: NoatDoubs
     INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
     REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
+    INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
@@ -1636,6 +1637,7 @@ MODULE FciMCParMod
         MaxExcitLevel=0
         Annihilated=0
         Acceptances=0
+        PreviousCycles=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -1844,28 +1846,28 @@ MODULE FciMCParMod
             ENDIF
             WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
             CALL FLUSH(6)
+        
+            IF(TStartSinglePart) THEN
+                TotWalkers=1
+                TotWalkersOld=1
+    !Initialise global variables for calculation on the root node
+                IF(iProcIndex.eq.root) THEN
+                    AllTotWalkers=nProcessors
+                    AllTotWalkersOld=nProcessors
+                ENDIF
+            ELSE
+    !TotWalkers contains the number of current walkers at each step
+                TotWalkers=InitWalkers
+                TotWalkersOld=InitWalkers
+    !Initialise global variables for calculation on the root node
+                IF(iProcIndex.eq.root) THEN
+                    AllTotWalkers=InitWalkers*nProcessors
+                    AllTotWalkersOld=InitWalkers*nProcessors
+                ENDIF
 
-        ENDIF
-
-        IF(TStartSinglePart) THEN
-            TotWalkers=1
-            TotWalkersOld=1
-!Initialise global variables for calculation on the root node
-            IF(iProcIndex.eq.root) THEN
-                AllTotWalkers=nProcessors
-                AllTotWalkersOld=nProcessors
             ENDIF
-        ELSE
-!TotWalkers contains the number of current walkers at each step
-            TotWalkers=InitWalkers
-            TotWalkersOld=InitWalkers
-!Initialise global variables for calculation on the root node
-            IF(iProcIndex.eq.root) THEN
-                AllTotWalkers=InitWalkers*nProcessors
-                AllTotWalkersOld=InitWalkers*nProcessors
-            ENDIF
 
-        ENDIF
+        ENDIF   !End if initial walkers method
 
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
@@ -1887,12 +1889,17 @@ MODULE FciMCParMod
 
     SUBROUTINE ReadFromPopsfilePar()
         LOGICAL :: exists
-        INTEGER :: PreviousCycles
+        INTEGER :: AvWalkers,WalkerstoReceive(nProcessors),NodeSumNoatHF(nProcessors)
+        INTEGER :: TempInitWalkers,error,i,j,total,ierr,iGetExcitLevel_2,MemoryAlloc,Tag
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF
+        TYPE(HElement) :: HElemTemp
+        CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
 
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
         SumNoatHF=0
         DiagSft=0.D0
+        Tag=124             !Set Tag
 
         IF(iProcIndex.eq.root) THEN
             INQUIRE(FILE='POPSFILE',EXIST=exists)
@@ -1906,7 +1913,42 @@ MODULE FciMCParMod
                 READ(17,*) AllSumENum
                 READ(17,*) PreviousCycles
 
+                WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+                IF(NEquilSteps.gt.0) THEN
+                    WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
+                    NEquilSteps=0
+                ENDIF
+                IF(TZeroProjE) THEN
+!Reset energy estimator
+                    WRITE(6,*) "Resetting projected energy counters to zero..."
+                    AllSumENum=0.D0
+                    AllSumNoatHF=0.D0
+                ENDIF
+
 !Need to calculate the number of walkers each node will receive...
+                AvWalkers=NINT(real(AllTotWalkers,r2)/real(nProcessors,r2))
+!Divide up the walkers to receive for each node
+                do i=1,nProcessors-1
+                    WalkerstoReceive(i)=AvWalkers
+                enddo
+                WalkerstoReceive(nProcessors)=AllTotWalkers-(AvWalkers*(nProcessors-1))
+
+!Quick check to ensure we have all walkers accounted for
+                total=0
+                do i=1,nProcessors
+                    total=total+WalkerstoReceive(i)
+                enddo
+                IF(total.ne.AllTotWalkers) THEN
+                    CALL Stop_All("ReadFromPopsfilePar","All Walkers not accounted for when reading in from POPSFILE")
+                ENDIF
+                
+                InitWalkers=AvWalkers
+                SumENum=AllSumENum/REAL(nProcessors,r2)     !Divide up the SumENum over all processors
+                AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,r2)) !This is the average Sumnoathf
+                do i=1,nProcessors-1
+                    NodeSumNoatHF(i)=AvSumNoatHF
+                enddo
+                NodeSumNoatHF(nProcessors)=AllSumNoatHF-(AvSumNoatHF*(nProcessors-1))
 
             ELSE
                 CALL Stop_All("ReadFromPopsfilePar","No POPSFILE found")
@@ -1914,47 +1956,173 @@ MODULE FciMCParMod
 
         ENDIF
 
-!!All previousCycles should be the same on nodes which have a popsfile - otherwise error. Check this.
-!        CALL MPI_Gather(PreviousCycles,1,MPI_INTEGER,PrevCyc,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-!        CALL MPI_Gather(DiagSft,1,MPI_DOUBLE_PRECISION,ShiftAll,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
-!        IF(iProcIndex.eq.root) THEN
-!            IF(PreviousCycles.eq.0) THEN
-!!Find a processor with a non-zero value for PreviousCycles (i.e. has got a POPSFILE)
-!                i=2
-!                do while(PreviousCycles.eq.0)
-!                    IF(i.gt.nProcessors) THEN
-!                        CALL Stop_All("ReadFromPopsfilePar","Cannoy find non-zero number for previous cycles")
-!                    ENDIF
-!                    PreviousCycles=PrevCyc(i)
-!                    DiagSft=ShiftAll(i)
-!                    i=i+1
-!                enddo
-!            ENDIF
-!
-!!Check that all Previous Cycles counts and DiagSft are the same at all nodes, or zero
-!            do i=2,nProcessors
-!                IF((PrevCyc(i).ne.PreviousCycles).and.(PrevCyc(i).ne.0)) THEN
-!                    CALL Stop_All("ReadFromPopsFilePar","Previous cycles are not the same in all POPSFILES that are present")
-!                ENDIF
-!                IF((ShiftAll(i).ne.DiagSft).and.(ShiftAll(i).ne.0.D0)) THEN
-!                    CALL Stop_All("ReadFromPopsFilePar","Shift is not the same in all POPSFILES that are present")
-!                ENDIF
-!            enddo
-!
-!        ENDIF
-!
-!!Broadcast the previous cycles & Shift to all processors (i.e. include the ones which may not have a popsfile.
-!        CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
-!        CALL MPI_BCast(PreviousCycles,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-!
-!!Now read in walkers
-!
-!!Balance walkers to all processors after reading in and before scaling
-!
-!            WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
-!
-!            
-!        ENDIF
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !Sync
+
+!Now we need to scatter the WalkerstoReceive to each node, and allocate the desired memory to each node...
+!Broadcast info which needs to go to all processors
+        CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+        CALL MPI_BCast(InitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
+!Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
+        CALL MPI_Scatter(NodeSumNoatHF,1,MPI_INTEGER,SumNoatHF,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+
+!Now we want to allocate memory on all nodes.
+        MaxWalkers=MemoryFac*InitWalkers    !All nodes have the same amount of memory allocated
+!Allocate memory to hold walkers at least temporarily
+        ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
+        CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+        ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecSign',MaxWalkers*NEl,4,this_routine,WalkVecSignTag,ierr)
+
+        IF(iProcIndex.eq.root) THEN
+!Root process reads all walkers in and then sends them to the correct processor
+            do i=nProcessors,1,-1
+!Read in data for processor i
+                do j=1,WalkerstoReceive(i)
+                    READ(17,*) WalkVecDets(1:NEl,j),WalkVecSign(j)
+                enddo
+
+                IF(i.ne.1) THEN
+!Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor
+                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*NEl,MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
+                    CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_LOGICAL,i-1,Tag,MPI_COMM_WORLD,error)
+                ENDIF
+
+            enddo
+
+            CLOSE(17)
+        
+        ENDIF
+
+        do i=1,nProcessors-1
+            IF(iProcIndex.eq.i) THEN
+!All other processors want to pick up their data from root
+                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*NEl,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+            ENDIF
+        enddo
+
+        IF(iProcIndex.eq.root) WRITE(6,*) AllTotWalkers," configurations read in from POPSFILE and distributed."
+
+        IF(ScaleWalkers.ne.1) THEN
+
+            CALL Stop_All("ReadFromPopsfile","Scaling facility not yet working in parallel")
+
+        ELSE
+!We are not scaling the number of walkers...
+
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+
+            TotWalkers=TempInitWalkers      !Set the total number of walkers
+            TotWalkersOld=TempInitWalkers
+            IF(iProcIndex.eq.root) AllTotWalkersOld=AllTotWalkers
+
+        ENDIF
+            
+        WRITE(6,*) "Total number of initial walkers is now: ",TotWalkers
+        WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
+        WRITE(6,*) "Damping parameter for Diag Shift set to: ",SftDamp
+
+!Need to now allocate other arrays
+        ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
+        CALL IAZZERO(WalkVecIC,MaxWalkers)
+        ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
+        CALL IAZZERO(WalkVec2IC,MaxWalkers)
+        ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
+        CALL AZZERO(WalkVecH,MaxWalkers)
+        ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
+        CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
+        CALL AZZERO(WalkVec2H,MaxWalkers)
+
+        MemoryAlloc=(8+(2*NEl))*MaxWalkers*4    !Memory allocated in bytes
+
+        IF(.not.TNoAnnihil) THEN
+            ALLOCATE(HashArray(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
+            HashArray(:)=0
+            ALLOCATE(Hash2Array(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('Hash2Array',MaxWalkers,8,this_routine,Hash2ArrayTag,ierr)
+            Hash2Array(:)=0
+            ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
+            CALL IAZZERO(IndexTable,MaxWalkers)
+            ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
+            CALL IAZZERO(Index2Table,MaxWalkers)
+            ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
+            CALL IAZZERO(ProcessVec,MaxWalkers)
+            ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
+            CALL IAZZERO(Process2Vec,MaxWalkers)
+
+            MemoryAlloc=MemoryAlloc+32*MaxWalkers
+        ENDIF
+
+        WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
+        WRITE(6,*) "Initial memory allocation successful..."
+        CALL FLUSH(6)
+
+!Allocate pointers to the correct walker arrays...
+        CurrentDets=>WalkVecDets
+        CurrentSign=>WalkVecSign
+        CurrentIC=>WalkVecIC
+        CurrentH=>WalkVecH
+        NewDets=>WalkVec2Dets
+        NewSign=>WalkVec2Sign
+        NewIC=>WalkVec2IC
+        NewH=>WalkVec2H
+
+        IF(.not.TRegenExcitgens) THEN
+            ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
+            ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("ReadFromPopsfilePar","Error in allocating walker excitation generators")
+
+!Allocate pointers to the correct excitation arrays
+            CurrentExcits=>WalkVecExcits
+            NewExcits=>WalkVec2Excits
+
+            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+            WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,*) "Initial allocation of excitation generators successful..."
+
+        ELSE
+            WRITE(6,*) "Excitgens will be regenerated when they are needed..."
+        ENDIF
+
+        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
+        CALL FLUSH(6)
+
+!Now find out the data needed for the particles which have been read in...
+        do j=1,TotWalkers
+            CurrentIC(j)=iGetExcitLevel_2(HFDet,CurrentDets(:,j),NEl,NEl)
+            IF(CurrentIC(j).eq.0) THEN
+                CurrentH(j)=0.D0
+                IF(.not.TRegenExcitgens) CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
+                IF(.not.TNoAnnihil) THEN
+                    HashArray(j)=HFHash
+                ENDIF
+            ELSE
+                HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
+                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
+                IF(.not.TNoAnnihil) THEN
+                    HashArray(j)=CreateHash(CurrentDets(:,j))
+                ENDIF
+                
+            ENDIF
+
+        enddo
+
+        RETURN
 
     END SUBROUTINE ReadFromPopsfilePar
 
@@ -2189,6 +2357,15 @@ MODULE FciMCParMod
         ENDIF
         WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
         CALL FLUSH(6)
+        
+!TotWalkers contains the number of current walkers at each step
+        TotWalkers=InitWalkers
+        TotWalkersOld=InitWalkers
+!Initialise global variables for calculation on the root node
+        IF(iProcIndex.eq.root) THEN
+            AllTotWalkers=InitWalkers*nProcessors
+            AllTotWalkersOld=InitWalkers*nProcessors
+        ENDIF
 
         RETURN
 

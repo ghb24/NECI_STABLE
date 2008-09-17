@@ -1791,8 +1791,8 @@ MODULE FciMCMod
         
         IF(TWriteDetE) THEN
 !If this logging option is on, then we want to write out the energies of the determinants
-            NoHistBins=150
-            MaxHistE=30.D0
+            NoHistBins=250
+            MaxHistE=50.D0
             WRITE(6,"(A,I6,A,F10.2)") "Histogramming determinant energies by excitation level in ",NoHistBins," bins, with a maximum energy of ",MaxHistE
 
             ALLOCATE(EHistBins(NEl,NoHistBins),stat=ierr)
@@ -2377,6 +2377,9 @@ MODULE FciMCMod
 !Only need it for double excitations, since these are the only ones which contribute to energy
                 HElemTemp=GetHElement2(HFDet,CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,CurrentIC(j),ECore)
                 CurrentH(2,j)=REAL(HElemTemp%v,r2)
+                HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                CurrentH(1,j)=REAL(HElemTemp%v,r2)-Hii
+                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
             ELSEIF(CurrentIC(j).eq.0) THEN
 !We know we are at HF - HDiag=0, and can use HF excitgen
                 IF(.not.TRegenExcitgens) CALL CopyExitGen(HFExcit,CurrentExcits(j))
