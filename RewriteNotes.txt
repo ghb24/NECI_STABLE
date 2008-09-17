@@ -1,6 +1,7 @@
 Rough tree diagram of the current dependency network of NECI.
 It's rather a mess, and .F files are listed below which would be at points C,D,I,S which I would like to turn into modules.
 
+(See the dependency graphs produced by JSS for more detailed/up-to-date information.)
 
                     FciMCPar   FciMC           GraphMorph{,2}  NECICore  ReturnPathMC
                      | |         |-------|        | StarDiagTrip | StarMC  |  stardiag
@@ -51,6 +52,7 @@ Other
 Direct lanczos FCI for Hubbard
 Blocks of symmetry determiants to diagonalise in Lanczos - not store full compressed matrix - allow possibilty of CSFs - gndts_blk.F
 Interface with QChem
+Python interface?
 
 
 The *.F files listed according to the modules they use.
