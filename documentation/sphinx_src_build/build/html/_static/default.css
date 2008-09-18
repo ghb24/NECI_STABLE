@@ -101,6 +101,10 @@ div.sphinxsidebar h3 {
     padding: 0;
 }
 
+div.sphinxsidebar h3 a {
+    color: white;
+}
+
 div.sphinxsidebar h4 {
     font-family: 'Trebuchet MS', sans-serif;
     color: white;
@@ -812,6 +816,18 @@ form.comment textarea {
     background-color: #fda;
     padding: 5px;
     border: 3px solid red;
+}
+
+div.math {
+    text-align: center;
+}
+
+span.eqno {
+    float: right;
+}
+
+img.logo {
+    border: 0;
 }
 
 /* :::: PRINT :::: */

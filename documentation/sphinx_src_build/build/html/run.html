@@ -19,7 +19,7 @@
     <link rel="index" title="Global index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="top" title="NECI v0.1 documentation" href="index.html" />
-    <link rel="next" title="Theoretical review" href="theory/index.html" />
+    <link rel="next" title="Input options" href="input/index.html" />
     <link rel="prev" title="Installation" href="installation.html" />
   </head>
   <body>
@@ -30,7 +30,7 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="theory/index.html" title="Theoretical review"
+          <a href="input/index.html" title="Input options"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="installation.html" title="Installation"
@@ -86,6 +86,25 @@ CPMD input file rather than the NECI input file.  Please see the CPMD
 manula and the local CPMD documentation detailing addtions the Alavi
 group has made.</p>
 </div>
+<div class="section" id="soft-exits">
+<h2 id="soft-exits">Soft exits<a class="headerlink" href="#soft-exits" title="Permalink to this headline">¶</a></h2>
+<p>NECI creates a file at the start of the calculation called SOFTEXIT.  If it is
+removed at any point during a calculation, then the code will exit cleanly and
+quietly, with no error messages, the next time SOFTEXIT is checked to see if it
+still exists, allowing a calculation to be halted prematurely yet still perform
+any necessary post-processing of the calculation and print out, for example,
+the memory and timing information.  This functionality is especially suited to
+iterative and cyclic processes and is not available for all types of
+calculation.</p>
+<p>Currently, SOFTEXIT applies only to the following calculation
+type(s):</p>
+<ul class="simple">
+<li><strong>FciMC</strong>
+If SOFTEXIT has been removed, then the current
+iteration is completed, all post-processing of the calculation up to the
+current iteration is performed.</li>
+</ul>
+</div>
 </div>
 
 
@@ -99,6 +118,7 @@ group has made.</p>
 <li><a class="reference external" href="">Run</a><ul>
 <li><a class="reference external" href="#neci">NECI</a></li>
 <li><a class="reference external" href="#cpmd-neci">CPMD-NECI</a></li>
+<li><a class="reference external" href="#soft-exits">Soft exits</a></li>
 </ul>
 </li>
 </ul>
@@ -106,7 +126,7 @@ group has made.</p>
             <h4>Previous topic</h4>
             <p class="topless"><a href="installation.html" title="previous chapter">Installation</a></p>
             <h4>Next topic</h4>
-            <p class="topless"><a href="theory/index.html" title="next chapter">Theoretical review</a></p>
+            <p class="topless"><a href="input/index.html" title="next chapter">Input options</a></p>
             <h3>This Page</h3>
             <ul class="this-page-menu">
               <li><a href="_sources/run.txt">Show Source</a></li>
@@ -128,7 +148,7 @@ group has made.</p>
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="theory/index.html" title="Theoretical review"
+          <a href="input/index.html" title="Input options"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="installation.html" title="Installation"
@@ -138,7 +158,7 @@ group has made.</p>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Aug 20, 2008.
+      Last updated on Sep 18, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

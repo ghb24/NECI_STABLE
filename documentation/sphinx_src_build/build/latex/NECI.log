@@ -1,14 +1,18 @@
-This is pdfTeXk, Version 3.141592-1.40.3 (Web2C 7.5.6) (format=pdflatex 2008.4.24)  9 SEP 2008 06:31
+This is pdfTeX, Version 3.141592-1.40.3 (Web2C 7.5.6) (format=pdflatex 2008.8.5)  18 SEP 2008 04:36
 entering extended mode
- %&-line parsing enabled.
 **NECI.tex
 (./NECI.tex
 LaTeX2e <2005/12/01>
 Babel <v3.8h> and hyphenation patterns for english, usenglishmax, dumylang, noh
-yphenation, loaded.
+yphenation, basque, bulgarian, coptic, welsh, czech, slovak, german, ngerman, d
+anish, esperanto, spanish, catalan, galician, estonian, finnish, french, greek,
+ monogreek, ancientgreek, croatian, hungarian, interlingua, ibycus, indonesian,
+ icelandic, italian, latin, mongolian, dutch, norsk, polish, portuguese, romani
+an, russian, slovenian, uppersorbian, serbian, swedish, turkish, ukenglish, ukr
+ainian, loaded.
 (./manual.cls
 Document Class: manual 2008/05/01 Document class (Sphinx manual)
-(/usr/share/texmf-texlive/tex/latex/fancybox/fancybox.sty
+(/usr/share/texmf/tex/latex/fancybox/fancybox.sty
 Package: fancybox 2000/09/19 1.3
 
 Style option: `fancybox' v1.3 <2000/09/19> (tvz)
@@ -21,9 +25,9 @@ Style option: `fancybox' v1.3 <2000/09/19> (tvz)
 \EndVerbatimTokens=\toks17
 \Verbatim@Outfile=\write3
 \Verbatim@Infile=\read1
-) (/usr/share/texmf-texlive/tex/latex/base/report.cls
+) (/usr/share/texmf/tex/latex/base/report.cls
 Document Class: report 2005/09/16 v1.4f Standard LaTeX document class
-(/usr/share/texmf-texlive/tex/latex/base/size10.clo
+(/usr/share/texmf/tex/latex/base/size10.clo
 File: size10.clo 2005/09/16 v1.4f Standard LaTeX file (size option)
 )
 \c@part=\count79
@@ -39,7 +43,7 @@ File: size10.clo 2005/09/16 v1.4f Standard LaTeX file (size option)
 \belowcaptionskip=\skip42
 \bibindent=\dimen103
 )
-(/usr/share/texmf-texlive/tex/latex/fancyhdr/fancyhdr.sty
+(/usr/share/texmf/tex/latex/fancyhdr/fancyhdr.sty
 \fancy@headwidth=\skip43
 \f@ncyO@elh=\skip44
 \f@ncyO@erh=\skip45
@@ -63,7 +67,7 @@ Package: fncychap 1997/04/06 v1.11 LaTeX package (Revised chapters)
 )
 (./sphinx.sty
 Package: sphinx 2008/05/01 LaTeX package (Sphinx markup)
- (/usr/share/texmf-texlive/tex/latex/base/textcomp.sty
+ (/usr/share/texmf/tex/latex/base/textcomp.sty
 Package: textcomp 2005/09/27 v1.99g Standard LaTeX package
 Package textcomp Info: Sub-encoding information:
 (textcomp)               5 = only ISO-Adobe without \textcurrency
@@ -78,7 +82,7 @@ Package textcomp Info: Sub-encoding information:
 (textcomp)             See the documentation for details.
 Package textcomp Info: Setting ? sub-encoding to TS1/1 on input line 71.
 
-(/usr/share/texmf-texlive/tex/latex/base/ts1enc.def
+(/usr/share/texmf/tex/latex/base/ts1enc.def
 File: ts1enc.def 2001/06/05 v3.0e (jk/car/fm) Standard LaTeX file
 )
 LaTeX Info: Redefining \oldstylenums on input line 266.
@@ -130,14 +134,14 @@ Package textcomp Info: Setting pplj sub-encoding to TS1/3 on input line 324.
 Package textcomp Info: Setting ptmx sub-encoding to TS1/4 on input line 325.
 Package textcomp Info: Setting ptmj sub-encoding to TS1/4 on input line 326.
 )
-(/usr/share/texmf-texlive/tex/latex/psnfss/times.sty
+(/usr/share/texmf/tex/latex/psnfss/times.sty
 Package: times 2005/04/12 PSNFSS-v9.2a (SPQR) 
 )
-(/usr/share/texmf-texlive/tex/latex/fancyvrb/fancyvrb.sty
+(/usr/share/texmf/tex/latex/fancyvrb/fancyvrb.sty
 Package: fancyvrb 1998/07/17
 
 Style option: `fancyvrb' v2.6, with DG/SPQR fixes <1998/07/17> (tvz)
-(/usr/share/texmf-texlive/tex/latex/graphics/keyval.sty
+(/usr/share/texmf/tex/latex/graphics/keyval.sty
 Package: keyval 1999/03/16 v1.13 key=value parser (DPC)
 \KV@toks@=\toks18
 )
@@ -149,7 +153,7 @@ Package: keyval 1999/03/16 v1.13 key=value parser (DPC)
 \FV@OutFile=\write4
 
 No file fancyvrb.cfg.
-) (/usr/share/texmf-texlive/tex/latex/titlesec/titlesec.sty
+) (/usr/share/texmf/tex/latex/titlesec/titlesec.sty
 Package: titlesec 2005/01/22 v2.6 Sectioning titles
 \ttl@box=\box29
 \beforetitleunit=\skip59
@@ -162,7 +166,7 @@ Package: titlesec 2005/01/22 v2.6 Sectioning titles
 ) (./tabulary.sty
 Package: tabulary 2007/10/02 v0.9 tabulary package (DPC)
 
-(/usr/share/texmf-texlive/tex/latex/tools/array.sty
+(/usr/share/texmf/tex/latex/tools/array.sty
 Package: array 2005/08/23 v2.4b Tabular extension package (FMi)
 \col@sep=\dimen109
 \extrarowheight=\dimen110
@@ -176,24 +180,24 @@ Package: array 2005/08/23 v2.4b Tabular extension package (FMi)
 \tymax=\dimen113
 \TY@tablewidth=\dimen114
 )
-(/usr/share/texmf-texlive/tex/latex/amsmath/amsmath.sty
+(/usr/share/texmf/tex/latex/amsmath/amsmath.sty
 Package: amsmath 2000/07/18 v2.13 AMS math features
 \@mathmargin=\skip63
 
 For additional information on amsmath, use the `?' option.
-(/usr/share/texmf-texlive/tex/latex/amsmath/amstext.sty
+(/usr/share/texmf/tex/latex/amsmath/amstext.sty
 Package: amstext 2000/06/29 v2.01
 
-(/usr/share/texmf-texlive/tex/latex/amsmath/amsgen.sty
+(/usr/share/texmf/tex/latex/amsmath/amsgen.sty
 File: amsgen.sty 1999/11/30 v2.0
 \@emptytoks=\toks20
 \ex@=\dimen115
 ))
-(/usr/share/texmf-texlive/tex/latex/amsmath/amsbsy.sty
+(/usr/share/texmf/tex/latex/amsmath/amsbsy.sty
 Package: amsbsy 1999/11/29 v1.2d
 \pmbraise@=\dimen116
 )
-(/usr/share/texmf-texlive/tex/latex/amsmath/amsopn.sty
+(/usr/share/texmf/tex/latex/amsmath/amsopn.sty
 Package: amsopn 1999/12/14 v2.01 operator names
 )
 \inf@bad=\count94
@@ -234,31 +238,31 @@ LaTeX Font Info:    Redeclaring font encoding OMS on input line 568.
 LaTeX Info: Redefining \[ on input line 2666.
 LaTeX Info: Redefining \] on input line 2667.
 )
-(/usr/share/texmf-texlive/tex/latex/graphics/color.sty
+(/usr/share/texmf/tex/latex/graphics/color.sty
 Package: color 2005/11/14 v1.0j Standard LaTeX Color (DPC)
 
-(/etc/texmf/tex/latex/config/color.cfg
+(/usr/share/texmf/tex/latex/config/color.cfg
 File: color.cfg 2007/01/18 v1.5 color configuration of teTeX/TeXLive
 )
 Package color Info: Driver file: pdftex.def on input line 130.
 
-(/usr/share/texmf-texlive/tex/latex/pdftex-def/pdftex.def
+(/usr/share/texmf/tex/latex/pdftex-def/pdftex.def
 File: pdftex.def 2007/01/08 v0.04d Graphics/color for pdfTeX
 \Gread@gobject=\count106
 ))
-(/usr/share/texmf-texlive/tex/latex/hyperref/hyperref.sty
+(/usr/share/texmf/tex/latex/hyperref/hyperref.sty
 Package: hyperref 2007/02/07 v6.75r Hypertext links for LaTeX
 \@linkdim=\dimen124
 \Hy@linkcounter=\count107
 \Hy@pagecounter=\count108
 
-(/usr/share/texmf-texlive/tex/latex/hyperref/pd1enc.def
+(/usr/share/texmf/tex/latex/hyperref/pd1enc.def
 File: pd1enc.def 2007/02/07 v6.75r Hyperref: PDFDocEncoding definition (HO)
 )
-(/etc/texmf/tex/latex/config/hyperref.cfg
+(/usr/share/texmf/tex/latex/config/hyperref.cfg
 File: hyperref.cfg 2002/06/06 v1.2 hyperref configuration of TeXLive
 )
-(/usr/share/texmf-texlive/tex/latex/oberdiek/kvoptions.sty
+(/usr/share/texmf/tex/latex/oberdiek/kvoptions.sty
 Package: kvoptions 2006/08/22 v2.4 Connects package keyval with LaTeX options (
 HO)
 )
@@ -272,7 +276,7 @@ Package hyperref Info: Backreferencing OFF on input line 2308.
 
 Implicit mode ON; LaTeX internals redefined
 Package hyperref Info: Bookmarks ON on input line 2444.
-(/usr/share/texmf-texlive/tex/latex/ltxmisc/url.sty
+(/usr/share/texmf/tex/latex/ltxmisc/url.sty
 \Urlmuskip=\muskip11
 Package: url 2005/06/27  ver 3.2  Verb mode for urls, etc.
 )
@@ -292,25 +296,25 @@ Package hyperref Info: Link coloring ON on input line 3120.
 \c@Hfootnote=\count112
 )
 *hyperref using default driver hpdftex*
-(/usr/share/texmf-texlive/tex/latex/hyperref/hpdftex.def
+(/usr/share/texmf/tex/latex/hyperref/hpdftex.def
 File: hpdftex.def 2007/02/07 v6.75r Hyperref driver for pdfTeX
 \Fld@listcount=\count113
 )
-(/usr/share/texmf-texlive/tex/latex/ltxmisc/framed.sty
+(/usr/share/texmf/tex/latex/ltxmisc/framed.sty
 Package: framed 2003/07/21 v 0.8a: framed or shaded text with page breaks
 \FrameRule=\dimen127
 \FrameSep=\dimen128
 )
-(/usr/share/texmf-texlive/tex/latex/graphics/graphicx.sty
+(/usr/share/texmf/tex/latex/graphics/graphicx.sty
 Package: graphicx 1999/02/16 v1.0f Enhanced LaTeX Graphics (DPC,SPQR)
 
-(/usr/share/texmf-texlive/tex/latex/graphics/graphics.sty
+(/usr/share/texmf/tex/latex/graphics/graphics.sty
 Package: graphics 2006/02/20 v1.0o Standard LaTeX Graphics (DPC,SPQR)
 
-(/usr/share/texmf-texlive/tex/latex/graphics/trig.sty
+(/usr/share/texmf/tex/latex/graphics/trig.sty
 Package: trig 1999/03/16 v1.09 sin cos tan (DPC)
 )
-(/etc/texmf/tex/latex/config/graphics.cfg
+(/usr/share/texmf/tex/latex/config/graphics.cfg
 File: graphics.cfg 2007/01/18 v1.5 graphics configuration of teTeX/TeXLive
 )
 Package graphics Info: Driver file: pdftex.def on input line 90.
@@ -318,7 +322,7 @@ Package graphics Info: Driver file: pdftex.def on input line 90.
 \Gin@req@height=\dimen129
 \Gin@req@width=\dimen130
 )
-(/usr/share/texmf-texlive/tex/plain/misc/pdfcolor.tex)
+(/usr/share/texmf/tex/plain/misc/pdfcolor.tex)
 \distancetoright=\skip66
 \leftsidespace=\skip67
 \py@argswidth=\skip68
@@ -327,22 +331,22 @@ Package graphics Info: Driver file: pdftex.def on input line 90.
 \image@box=\box32
 \image@width=\dimen131
 )
-(/usr/share/texmf-texlive/tex/latex/base/makeidx.sty
+(/usr/share/texmf/tex/latex/base/makeidx.sty
 Package: makeidx 2000/03/29 v1.0m Standard LaTeX package
 ))
-(/usr/share/texmf-texlive/tex/latex/base/inputenc.sty
+(/usr/share/texmf/tex/latex/base/inputenc.sty
 Package: inputenc 2006/05/05 v1.1b Input encoding file
 \inpenc@prehook=\toks27
 \inpenc@posthook=\toks28
 
-(/usr/share/texmf-texlive/tex/latex/base/utf8.def
+(/usr/share/texmf/tex/latex/base/utf8.def
 File: utf8.def 2006/03/30 v1.1i UTF-8 support for inputenc
 Now handling font encoding OML ...
 ... no UTF-8 mapping file for font encoding OML
 Now handling font encoding T1 ...
 ... processing UTF-8 mapping file for font encodingT1
 
-(/usr/share/texmf-texlive/tex/latex/base/t1enc.dfu
+(/usr/share/texmf/tex/latex/base/t1enc.dfu
 File: t1enc.dfu 2006/03/30 v1.1i UTF-8 support for inputenc
    defining Unicode char U+00A1 (decimal 161)
    defining Unicode char U+00A3 (decimal 163)
@@ -492,7 +496,7 @@ File: t1enc.dfu 2006/03/30 v1.1i UTF-8 support for inputenc
 Now handling font encoding OT1 ...
 ... processing UTF-8 mapping file for font encodingOT1
 
-(/usr/share/texmf-texlive/tex/latex/base/ot1enc.dfu
+(/usr/share/texmf/tex/latex/base/ot1enc.dfu
 File: ot1enc.dfu 2006/03/30 v1.1i UTF-8 support for inputenc
    defining Unicode char U+00A1 (decimal 161)
    defining Unicode char U+00A3 (decimal 163)
@@ -523,7 +527,7 @@ File: ot1enc.dfu 2006/03/30 v1.1i UTF-8 support for inputenc
 Now handling font encoding OMS ...
 ... processing UTF-8 mapping file for font encodingOMS
 
-(/usr/share/texmf-texlive/tex/latex/base/omsenc.dfu
+(/usr/share/texmf/tex/latex/base/omsenc.dfu
 File: omsenc.dfu 2006/03/30 v1.1i UTF-8 support for inputenc
    defining Unicode char U+00A7 (decimal 167)
    defining Unicode char U+00B6 (decimal 182)
@@ -539,7 +543,7 @@ Now handling font encoding U ...
 Now handling font encoding TS1 ...
 ... processing UTF-8 mapping file for font encodingTS1
 
-(/usr/share/texmf-texlive/tex/latex/base/ts1enc.dfu
+(/usr/share/texmf/tex/latex/base/ts1enc.dfu
 File: ts1enc.dfu 2006/03/30 v1.1i UTF-8 support for inputenc
    defining Unicode char U+00A2 (decimal 162)
    defining Unicode char U+00A3 (decimal 163)
@@ -624,10 +628,10 @@ Now handling font encoding PD1 ...
    defining Unicode char U+2122 (decimal 8482)
    defining Unicode char U+2423 (decimal 9251)
 ))
-(/usr/share/texmf-texlive/tex/latex/base/fontenc.sty
+(/usr/share/texmf/tex/latex/base/fontenc.sty
 Package: fontenc 2005/09/27 v1.99g Standard LaTeX package
 
-(/usr/share/texmf-texlive/tex/latex/base/t1enc.def
+(/usr/share/texmf/tex/latex/base/t1enc.def
 File: t1enc.def 2005/09/27 v1.99g Standard LaTeX file
 LaTeX Font Info:    Redeclaring font encoding T1 on input line 43.
 ))
@@ -657,7 +661,7 @@ LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 83.
 LaTeX Font Info:    ... okay on input line 83.
 LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 83.
 LaTeX Font Info:    Try loading font information for TS1+cmr on input line 83.
- (/usr/share/texmf-texlive/tex/latex/base/ts1cmr.fd
+ (/usr/share/texmf/tex/latex/base/ts1cmr.fd
 File: ts1cmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
 )
 LaTeX Font Info:    ... okay on input line 83.
@@ -665,28 +669,28 @@ LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 83.
 LaTeX Font Info:    ... okay on input line 83.
 LaTeX Font Info:    Try loading font information for T1+ptm on input line 83.
 
-(/usr/share/texmf-texlive/tex/latex/psnfss/t1ptm.fd
+(/usr/share/texmf/tex/latex/psnfss/t1ptm.fd
 File: t1ptm.fd 2001/06/04 font definitions for T1/ptm.
 )
 Package hyperref Info: Link coloring ON on input line 83.
 
-(/usr/share/texmf-texlive/tex/latex/hyperref/nameref.sty
+(/usr/share/texmf/tex/latex/hyperref/nameref.sty
 Package: nameref 2006/12/27 v2.28 Cross-referencing by name of section
 
-(/usr/share/texmf-texlive/tex/latex/oberdiek/refcount.sty
+(/usr/share/texmf/tex/latex/oberdiek/refcount.sty
 Package: refcount 2006/02/20 v3.0 Data extraction from references (HO)
 )
 \c@section@level=\count114
 )
 LaTeX Info: Redefining \ref on input line 83.
 LaTeX Info: Redefining \pageref on input line 83.
- (./NECI.out)
-(./NECI.out)
+ (./NECI.out) (./NECI.out)
 \@outlinefile=\write6
 \openout6 = `NECI.out'.
 
 LaTeX Font Info:    Try loading font information for T1+phv on input line 84.
- (/usr/share/texmf-texlive/tex/latex/psnfss/t1phv.fd
+
+(/usr/share/texmf/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2001/06/04 scalable font definitions for T1/phv.
 )
 LaTeX Font Info:    Font shape `T1/phv/bx/n' in size <24.88> not available
@@ -737,12 +741,12 @@ LaTeX Font Info:    Font shape `T1/phv/bx/n' in size <12> not available
 Chapter 3.
 LaTeX Font Info:    Try loading font information for TS1+ptm on input line 240.
 
-(/usr/share/texmf-texlive/tex/latex/psnfss/ts1ptm.fd
+(/usr/share/texmf/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
 LaTeX Font Info:    Try loading font information for T1+pcr on input line 267.
 
-(/usr/share/texmf-texlive/tex/latex/psnfss/t1pcr.fd
+(/usr/share/texmf/tex/latex/psnfss/t1pcr.fd
 File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
 ) [5
 
@@ -785,54 +789,54 @@ Underfull \hbox (badness 10000) in paragraph at lines 1700--1703
  []
 
 [22] [23] [24] [25]
-Underfull \hbox (badness 10000) in paragraph at lines 2138--2139
+Underfull \hbox (badness 10000) in paragraph at lines 2182--2183
 
  []
 
 [26] [27] [28]
-Overfull \hbox (109.69804pt too wide) in paragraph at lines 2459--2460
-[]
- []
-
-
-Overfull \hbox (153.38806pt too wide) in paragraph at lines 2479--2481
-[]
- []
-
-
-Overfull \hbox (304.23747pt too wide) in paragraph at lines 2496--2504
+Overfull \hbox (109.69804pt too wide) in paragraph at lines 2503--2504
 []
  []
 
 [29]
-Overfull \hbox (60.20851pt too wide) in paragraph at lines 2510--2513
+Overfull \hbox (153.38806pt too wide) in paragraph at lines 2523--2525
 []
  []
 
 
-Overfull \hbox (158.41797pt too wide) in paragraph at lines 2516--2523
+Overfull \hbox (304.23747pt too wide) in paragraph at lines 2540--2548
 []
  []
 
 
-Overfull \hbox (14.88817pt too wide) in paragraph at lines 2536--2543
+Overfull \hbox (60.20851pt too wide) in paragraph at lines 2554--2557
+[]
+ []
+
+
+Overfull \hbox (158.41797pt too wide) in paragraph at lines 2560--2567
+[]
+ []
+
+
+Overfull \hbox (14.88817pt too wide) in paragraph at lines 2580--2587
 []
  []
 
 [30] [31] [32] [33]
-Underfull \hbox (badness 10000) in paragraph at lines 2961--2962
+Underfull \hbox (badness 10000) in paragraph at lines 3005--3006
 []\T1/ptm/m/n/10 [A(
  []
 
 
-Overfull \hbox (52.70607pt too wide) in paragraph at lines 2978--2979
+Overfull \hbox (52.70607pt too wide) in paragraph at lines 3022--3023
 []\T1/ptm/m/n/10 ($\OML/cmm/m/it/10 ^^Z[]; ^^Z[]; []  ; ^^Z[]; \OMS/cmsy/m/n/10
  j\OML/cmm/m/it/10 ^^Z[]; ^^Z[]; []  ; ^^Z[]; \OMS/cmsy/m/n/10 j [] j\OML/cmm/m
 /it/10 ^^Z[]; ^^Z[]; []  ; ^^Z[]; \OMS/cmsy/m/n/10 j$\T1/ptm/m/n/10 ), 
  []
 
 [34]
-Overfull \hbox (23.86696pt too wide) in paragraph at lines 3040--3047
+Overfull \hbox (23.86696pt too wide) in paragraph at lines 3084--3091
 []
  []
 
@@ -845,7 +849,7 @@ Chapter 7.
 [42
 
 ] [43]
-Underfull \hbox (badness 10000) in paragraph at lines 3607--3609
+Underfull \hbox (badness 10000) in paragraph at lines 3663--3665
 []\T1/ptm/m/n/10 DALTON, a molec-u-lar elec-tronic struc-ture pro-gram, Re-leas
 e 2.0 (2005), see
  []
@@ -856,39 +860,37 @@ pdfTeX warning (ext4): destination with the same identifier (name{cite.StarPape
 r}) has been already used, duplicate ignored
 <to be read again> 
                    \endgroup \set@typeset@protect 
-l.3639 \end{document}
+l.3695 \end{document}
                      ] (./NECI.aux)
 
 LaTeX Warning: There were multiply-defined labels.
 
  ) 
 Here is how much of TeX's memory you used:
- 5947 strings out of 95086
- 76388 string characters out of 1183255
- 142267 words of memory out of 1500000
- 8828 multiletter control sequences out of 10000+50000
+ 5946 strings out of 94086
+ 75619 string characters out of 1167507
+ 143263 words of memory out of 3500000
+ 8934 multiletter control sequences out of 10000+50000
  57453 words of font info for 57 fonts, out of 1200000 for 2000
- 29 hyphenation exceptions out of 8191
- 41i,17n,45p,901b,497s stack positions out of 5000i,500n,6000p,200000b,5000s
-{/usr/share/texmf-texlive/fonts/enc/dvips/base/8r.enc}</usr/share/texmf-texli
-ve/fonts/type1/bluesky/cm/cmbx10.pfb></usr/share/texmf-texlive/fonts/type1/blue
-sky/cm/cmbx5.pfb></usr/share/texmf-texlive/fonts/type1/bluesky/cm/cmbx7.pfb></u
-sr/share/texmf-texlive/fonts/type1/bluesky/cm/cmex10.pfb></usr/share/texmf-texl
-ive/fonts/type1/bluesky/cm/cmmi10.pfb></usr/share/texmf-texlive/fonts/type1/blu
-esky/cm/cmmi5.pfb></usr/share/texmf-texlive/fonts/type1/bluesky/cm/cmmi7.pfb></
-usr/share/texmf-texlive/fonts/type1/bluesky/cm/cmr10.pfb></usr/share/texmf-texl
-ive/fonts/type1/bluesky/cm/cmr5.pfb></usr/share/texmf-texlive/fonts/type1/blues
-ky/cm/cmr7.pfb></usr/share/texmf-texlive/fonts/type1/bluesky/cm/cmsy10.pfb></us
-r/share/texmf-texlive/fonts/type1/bluesky/cm/cmsy5.pfb></usr/share/texmf-texliv
-e/fonts/type1/bluesky/cm/cmsy7.pfb></usr/share/texmf-texlive/fonts/type1/urw/co
-urier/ucrr8a.pfb></usr/share/texmf-texlive/fonts/type1/urw/helvetic/uhvb8a.pfb>
-</usr/share/texmf-texlive/fonts/type1/urw/helvetic/uhvbo8a.pfb></usr/share/texm
-f-texlive/fonts/type1/urw/times/utmb8a.pfb></usr/share/texmf-texlive/fonts/type
-1/urw/times/utmr8a.pfb></usr/share/texmf-texlive/fonts/type1/urw/times/utmri8a.
-pfb>
-Output written on NECI.pdf (46 pages, 321440 bytes).
+ 646 hyphenation exceptions out of 8191
+ 41i,17n,45p,905b,497s stack positions out of 5000i,500n,6000p,200000b,5000s
+{/usr/share/texmf/fonts/enc/dvips/base/8r.enc}</usr/share/texmf/fonts/type1/b
+luesky/cm/cmbx10.pfb></usr/share/texmf/fonts/type1/bluesky/cm/cmbx5.pfb></usr/s
+hare/texmf/fonts/type1/bluesky/cm/cmbx7.pfb></usr/share/texmf/fonts/type1/blues
+ky/cm/cmex10.pfb></usr/share/texmf/fonts/type1/bluesky/cm/cmmi10.pfb></usr/shar
+e/texmf/fonts/type1/bluesky/cm/cmmi5.pfb></usr/share/texmf/fonts/type1/bluesky/
+cm/cmmi7.pfb></usr/share/texmf/fonts/type1/bluesky/cm/cmr10.pfb></usr/share/tex
+mf/fonts/type1/bluesky/cm/cmr5.pfb></usr/share/texmf/fonts/type1/bluesky/cm/cmr
+7.pfb></usr/share/texmf/fonts/type1/bluesky/cm/cmsy10.pfb></usr/share/texmf/fon
+ts/type1/bluesky/cm/cmsy5.pfb></usr/share/texmf/fonts/type1/bluesky/cm/cmsy7.pf
+b></usr/share/texmf/fonts/type1/urw/courier/ucrr8a.pfb></usr/share/texmf/fonts/
+type1/urw/helvetic/uhvb8a.pfb></usr/share/texmf/fonts/type1/urw/helvetic/uhvbo8
+a.pfb></usr/share/texmf/fonts/type1/urw/times/utmb8a.pfb></usr/share/texmf/font
+s/type1/urw/times/utmr8a.pfb></usr/share/texmf/fonts/type1/urw/times/utmri8a.pf
+b>
+Output written on NECI.pdf (46 pages, 322314 bytes).
 PDF statistics:
- 600 PDF objects out of 1000 (max. 8388607)
- 181 named destinations out of 1000 (max. 131072)
+ 603 PDF objects out of 1000 (max. 8388607)
+ 184 named destinations out of 1000 (max. 131072)
  273 words of extra memory for PDF output out of 10000 (max. 10000000)
 

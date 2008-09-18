@@ -14,7 +14,6 @@
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/interface.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="contents" title="Global table of contents" href="../contents.html" />
     <link rel="index" title="Global index" href="../genindex.html" />
@@ -47,8 +46,8 @@
           <div class="body">
             
   
-  <div class="section">
-<h1 id="integrals"><span id="input-integrals"></span>Integrals<a class="headerlink" href="#integrals" title="Permalink to this headline">¶</a></h1>
+  <div class="section" id="integrals">
+<span id="input-integrals"></span><h1 id="integrals"><span id="input-integrals"></span>Integrals<a class="headerlink" href="#integrals" title="Permalink to this headline">¶</a></h1>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
 <p class="last">INSPECT and ORDER options currently make no sense.</p>
@@ -62,7 +61,7 @@
 <dt><strong>ENDINT</strong></dt>
 <dd>End of integral block.</dd>
 </dl>
-<div class="section">
+<div class="section" id="general-options">
 <h2 id="general-options">General options<a class="headerlink" href="#general-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>FREEZE</strong> [NFROZEN NTFROZEN]</dt>
@@ -89,7 +88,7 @@ multiple of 2.</li>
 </dd>
 </dl>
 </div>
-<div class="section">
+<div class="section" id="density-fitting-options">
 <h2 id="density-fitting-options">Density fitting options<a class="headerlink" href="#density-fitting-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>DFMETHOD</strong> [method]</dt>
@@ -114,7 +113,7 @@ DFOVERLAP2NDORD.</p>
 matrix elements are ignored, and conequently speeds up calculations.</dd>
 </dl>
 </div>
-<div class="section">
+<div class="section" id="hartree-fock-options">
 <h2 id="hartree-fock-options">Hartree&#8211;Fock options<a class="headerlink" href="#hartree-fock-options" title="Permalink to this headline">¶</a></h2>
 <p>The Hartree&#8211;Fock options have only been tested for molecular and model systems.
 They allow the Hartree-Fock orbitals (in the space of the original basis) to be used
@@ -165,7 +164,7 @@ Use to perturb away from an initially converged Hartree&#8211;Fock solution.</p>
 <dd>Use unrestricted Hartree-Fock theory.</dd>
 </dl>
 </div>
-<div class="section">
+<div class="section" id="partioning-options">
 <h2 id="partioning-options">Partioning options<a class="headerlink" href="#partioning-options" title="Permalink to this headline">¶</a></h2>
 <p>If the weight and energy contribution from a graph are evaulated from
 diagonalising the <img src="../mathimg/math-f2e3547a85.png" /> matrices, then various schemes are
@@ -203,7 +202,7 @@ elements between the determinants.</p>
 applying a Trotter approximation).</dd>
 </dl>
 </div>
-<div class="section">
+<div class="section" id="vasp-and-cpmd-options">
 <h2 id="vasp-and-cpmd-options">VASP and CPMD options<a class="headerlink" href="#vasp-and-cpmd-options" title="Permalink to this headline">¶</a></h2>
 <p>There are too many 2-electron integrals to store for periodic systems
 (<strong>CPMD</strong> or <strong>VASP</strong> based calculations).  Instead, as many integrals as
@@ -234,7 +233,7 @@ slots is then set accordingly.</dd>
 <dd>Disable all UMAT caching (idential to <strong>UMATCACHE</strong> -1).</dd>
 </dl>
 </div>
-<div class="section">
+<div class="section" id="experimental-options">
 <h2 id="experimental-options">Experimental options<a class="headerlink" href="#experimental-options" title="Permalink to this headline">¶</a></h2>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>
@@ -324,15 +323,15 @@ the root is removed as an excited determinant in each excited star.</dd>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-            <h3>Table Of Contents</h3>
+            <h3><a href="../index.html">Table Of Contents</a></h3>
             <ul>
-<li><a class="reference" href="">Integrals</a><ul>
-<li><a class="reference" href="#general-options">General options</a></li>
-<li><a class="reference" href="#density-fitting-options">Density fitting options</a></li>
-<li><a class="reference" href="#hartree-fock-options">Hartree&#8211;Fock options</a></li>
-<li><a class="reference" href="#partioning-options">Partioning options</a></li>
-<li><a class="reference" href="#vasp-and-cpmd-options">VASP and CPMD options</a></li>
-<li><a class="reference" href="#experimental-options">Experimental options</a></li>
+<li><a class="reference external" href="">Integrals</a><ul>
+<li><a class="reference external" href="#general-options">General options</a></li>
+<li><a class="reference external" href="#density-fitting-options">Density fitting options</a></li>
+<li><a class="reference external" href="#hartree-fock-options">Hartree&#8211;Fock options</a></li>
+<li><a class="reference external" href="#partioning-options">Partioning options</a></li>
+<li><a class="reference external" href="#vasp-and-cpmd-options">VASP and CPMD options</a></li>
+<li><a class="reference external" href="#experimental-options">Experimental options</a></li>
 </ul>
 </li>
 </ul>
@@ -345,7 +344,7 @@ the root is removed as an excited determinant in each excited star.</dd>
             <ul class="this-page-menu">
               <li><a href="../_sources/input/integrals.txt">Show Source</a></li>
             </ul>
-            <h3>Quick search</h3>
+          <h3>Quick search</h3>
             <form class="search" action="../search.html" method="get">
               <input type="text" name="q" size="18" /> <input type="submit" value="Go" />
               <input type="hidden" name="check_keywords" value="yes" />
@@ -373,8 +372,8 @@ the root is removed as an excited determinant in each excited star.</dd>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 09, 2008.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+      Last updated on Sep 18, 2008.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>
 </html>

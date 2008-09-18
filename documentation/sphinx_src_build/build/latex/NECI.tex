@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{September 09, 2008}
+\date{September 18, 2008}
 \release{0.1}
 \author{James Spencer, with contributions from the Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -114,14 +114,14 @@ Finally, NECI can also be compiled as a library for integration into existing co
 The energy of a system can be evaluated using a standard statisical mechanics result:
 \begin{align}\begin{split}E = \frac{\operatorname{Tr}[H e^{-\beta H}]}{\operatorname{Tr}[e^{-\beta H}]}\end{split}\end{align}
 We choose to work in a Slater Determinant space, which is, by construction, anti-symmetric.  In this space the energy expression becomes:
-\begin{align}\begin{split}E &= \frac{\sum_{\veci} \bra D_{\veci} | H e^{-\beta H} | D_{\veci} \ket}{\sum_{veci} \bra D_{\veci} | e^{-\beta H} | D_{\veci} \ket} \\  &= \frac{\sum_{\veci} w_{\veci} \tilde{E}_{\veci}}{\sum_{\veci} w_{\veci}}\end{split}\end{align}
+\begin{align}\begin{split}E &= \frac{\sum_{\veci} \bra D_{\veci} | H e^{-\beta H} | D_{\veci} \ket}{\sum_{veci} \bra D_{\veci} | e^{-\beta H} | D_{\veci} \ket} \\    &= \frac{\sum_{\veci} w_{\veci} \tilde{E}_{\veci}}{\sum_{\veci} w_{\veci}}\end{split}\end{align}
 A given term in the numerator is simply the differential of the
 corresponding term in the denominator.  There is a cleaner and more
 efficient way of evaluating the numerator than differentiation, but we
 will first turn our attention to the denominator.
 
 We can expand each term into a closed path of $P$ steps through the discrete Slater Determinant space:
-\begin{align}\begin{split}w^P_{\veci,\veci_1,\veci_2,\cdots,\veci_p,\veci} &= \sum_{\veci_1} \sum_{\veci_1} \cdots \sum_{\veci_P} \bra D_{\veci_1} | e^{\beta H/P} | D_{\veci_2}  \ket \bra D_{\veci_2} | e^{\beta H/P} | D_{\veci_3}  \ket \cdots \bra D_{\veci_P} | e^{\beta H/P} | D_{\veci_1}  \ket \\& =  \sum_{\veci_1} \sum_{\veci_1} \cdots \sum_{\veci_P} \rho_{\veci_1\veci_2} \rho_{\veci_2\veci_3} \cdots \rho_{\veci_P\veci_1},\end{split}\end{align}
+\begin{align}\begin{split}w^P_{\veci,\veci_1,\veci_2,\cdots,\veci_p,\veci} &= \sum_{\veci_1} \sum_{\veci_1} \cdots \sum_{\veci_P} \bra D_{\veci_1} | e^{\beta H/P} | D_{\veci_2}  \ket \bra D_{\veci_2} | e^{\beta H/P} | D_{\veci_3}  \ket \cdots \bra D_{\veci_P} | e^{\beta H/P} | D_{\veci_1}  \ket \\  & =  \sum_{\veci_1} \sum_{\veci_1} \cdots \sum_{\veci_P} \rho_{\veci_1\veci_2} \rho_{\veci_2\veci_3} \cdots \rho_{\veci_P\veci_1},\end{split}\end{align}
 where the $\rho$ matrix consists of elements
 $\rho_{\veci\vecj}=\bra D_{\veci} | e^{\beta H/P} | D_{\vecj} \ket$.
 
@@ -205,11 +205,11 @@ determinants spanned by the graph, or more formally:
 We can obtain the eigenvectors and -values, $\{v_k\}$ and
 $\{\lambda_k\}$ of $\rho[G]$ via matrix diagonalisation, and can
 then use them to evaluate the weight of the graph:
-\begin{align}\begin{split}w_{\veci}[G] & = \bra D_{\veci} | e^{-\beta H[G]} | D_{\veci} \ket \\             & = \sum_{kl} \bra D_{\veci} | v_k \ket \bra v_k |  e^{-\beta H[G]} | v_l \ket \bra v_l | D_{\veci} \ket \\             & = \sum_{kl} \bra D_{\veci} | v_k \ket \bra v_k | \lambda_l^P | v_l \ket \bra v_l | D_{\veci} \ket \\             & = \sum_{kl} \bra D_{\veci} | v_k \ket \lambda_l^P \delta_{kl} \bra v_l | D_{\veci} \ket \\             & = \sum_k \lambda_k^P \bra D_{\veci} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
+\begin{align}\begin{split}w_{\veci}[G] & = \bra D_{\veci} | e^{-\beta H[G]} | D_{\veci} \ket \\               & = \sum_{kl} \bra D_{\veci} | v_k \ket \bra v_k |  e^{-\beta H[G]} | v_l \ket \bra v_l | D_{\veci} \ket \\               & = \sum_{kl} \bra D_{\veci} | v_k \ket \bra v_k | \lambda_l^P | v_l \ket \bra v_l | D_{\veci} \ket \\              & = \sum_{kl} \bra D_{\veci} | v_k \ket \lambda_l^P \delta_{kl} \bra v_l | D_{\veci} \ket \\               & = \sum_k \lambda_k^P \bra D_{\veci} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
 where we have applied the identity operator, $\sum_k |v_k \ket \bra v_k |$ twice and used:
 \begin{align}\begin{split}e^{-\beta H[G]} | v_l \ket = \rho[G]^{P-1} \lambda_l | v_l \ket.\end{split}\end{align}
 In a similar fashion, the energy contribution, $w_{\veci}\tilde{E}_{\veci}$ can be evaluated:
-\begin{align}\begin{split}w_{\veci}\tilde{E}_{\veci} & = \bra D_{\veci} | H e^{-\beta H[G]} | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | e^{-\beta H[G]} | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \sum_{kl} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket \bra v_k |  e^{-\beta H[G]} | v_l \ket \bra v_l | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \sum_{kl}  \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket \lambda_l^P \delta_{kl} \bra v_l | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \sum_{k} \bra D_{\veci} | H | D_{\vecj} \ket \lambda_k^P \bra D_{\vecj} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
+\begin{align}\begin{split}w_{\veci}\tilde{E}_{\veci} & = \bra D_{\veci} | H e^{-\beta H[G]} | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | e^{-\beta H[G]} | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \sum_{kl} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket \bra v_k |  e^{-\beta H[G]} | v_l \ket \bra v_l | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \sum_{kl}  \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket \lambda_l^P \delta_{kl} \bra v_l | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \sum_{k} \bra D_{\veci} | H | D_{\vecj} \ket \lambda_k^P \bra D_{\vecj} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
 The $\rho$ matrix elements can be evaluated using a Taylor expansion
 with or without a Trotter approximation to improve the accuracy of the expansion.
 
@@ -224,12 +224,12 @@ of the $rho$ matrix in the space of the graph, we consider the Hamiltonian to be
 acting in the space of the graph:
 \begin{align}\begin{split}H[G] = \sum_{\veci\vecj \in G} |D_\veci \ket H_{\veci\vecj}\bra D_\vecj|\end{split}\end{align}
 We can evaluate use this to evaluate the weight of the graph:
-\begin{align}\begin{split}w_{\veci}[G] & = \bra D_{\veci} | e^{-\beta H[G]} | D_{\veci} \ket \\             & = \sum_{kl} \bra D_{\veci} | v_k \ket \bra v_k | 1 - \beta H[G] + \frac{\beta^2 H[G]^2}{2!} - \frac{\beta^3 H[G]^3}{3!} + \cdots | v_l \ket \bra v_l | D_{\veci} \ket \\             & = \sum_{kl} \bra D_{\veci} | v_k \ket (1 - \beta\lambda_l + \frac{\beta^2\lambda_l^2}{2!} - \frac{\beta^3\lambda_l^3}{3!} + \cdots) \delta_{kl} \bra v_l | D_{\veci} \ket \\             & =  \sum_k e^{-\beta\lambda_k} \bra D_{\veci} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
+\begin{align}\begin{split}w_{\veci}[G] & = \bra D_{\veci} | e^{-\beta H[G]} | D_{\veci} \ket \\              & = \sum_{kl} \bra D_{\veci} | v_k \ket \bra v_k | 1 - \beta H[G] + \frac{\beta^2 H[G]^2}{2!} - \frac{\beta^3 H[G]^3}{3!} + \cdots | v_l \ket \bra v_l | D_{\veci} \ket \\              & = \sum_{kl} \bra D_{\veci} | v_k \ket (1 - \beta\lambda_l + \frac{\beta^2\lambda_l^2}{2!} - \frac{\beta^3\lambda_l^3}{3!} + \cdots) \delta_{kl} \bra v_l | D_{\veci} \ket \\              & =  \sum_k e^{-\beta\lambda_k} \bra D_{\veci} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
 where now $\{v_k\}$ and $\{\lambda_k\}$ are eigenvectors and
 -values of the Hamiltonian matrix in the space of the graph.
 
 Similarly, we can obtain the energy contribution of the graph:
-\begin{align}\begin{split}w_{\veci}\tilde{E}_{\veci} & = \bra D_{\veci} | H e^{-\beta H[G]} | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | e^{-\beta H[G]} | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \sum_{kl} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket \bra v_k | 1 - \beta H[G] + \frac{\beta^2 H[G]^2}{2!} - \frac{\beta^3 H[G]^3}{3!} + \cdots  | v_l \ket \bra v_l | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \sum_{kl}  \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket e^{-\beta\lambda_l} \delta_{kl} \bra v_l | D_{\veci} \ket \\                           & = \sum_{\vecj \in G} \sum_{k} \bra D_{\veci} | H | D_{\vecj} \ket e^{-\beta\lambda_k} \bra D_{\vecj} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
+\begin{align}\begin{split}w_{\veci}\tilde{E}_{\veci} & = \bra D_{\veci} | H e^{-\beta H[G]} | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | e^{-\beta H[G]} | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \sum_{kl} \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket \bra v_k | 1 - \beta H[G] + \frac{\beta^2 H[G]^2}{2!} - \frac{\beta^3 H[G]^3}{3!} + \cdots  | v_l \ket \bra v_l | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \sum_{kl}  \bra D_{\veci} | H | D_{\vecj} \ket \bra D_{\vecj} | v_k \ket e^{-\beta\lambda_l} \delta_{kl} \bra v_l | D_{\veci} \ket \\                            & = \sum_{\vecj \in G} \sum_{k} \bra D_{\veci} | H | D_{\vecj} \ket e^{-\beta\lambda_k} \bra D_{\vecj} | v_k \ket \bra v_k | D_{\veci} \ket\end{split}\end{align}
 \resetcurrentobjects
 
 
@@ -1188,10 +1188,10 @@ now works with the full sum.
 For example:
 
 \begin{Verbatim}[commandchars=@\[\]]
-**VERTEX** **HDIAG** **SUM**
+VERTEX HDIAG SUM
 XXX
 XXX
-**VERTEX** **HDIAG** **MC**
+VERTEX HDIAG MC
 XXX
 \end{Verbatim}
 
@@ -1879,15 +1879,21 @@ information about a determinant is not duplicated.
 
 \item[\textbf{VERTEX} \textbf{RETURNPATHMC}]
 Use a spawning algorithm which is constrained in three ways:
-\begin{quote}
-
-\#.  a particle can only be spawned where it will increase its
+\begin{enumerate}
+\item {} 
+a particle can only be spawned where it will increase its
 excitation level with respect to the reference determinant or
 back to where it was spawned from.
-\#. they will spawn back to where their parents were spawned from
+
+\item {} 
+they will spawn back to where their parents were spawned from
 with probability PRet, which is specified using \textbf{RETURNBIAS}.
-\# length of spawning chain must be less than the maximum length
+
+\item {} 
+length of spawning chain must be less than the maximum length
 given by \textbf{MAXCHAINLENGTH}.
+
+\end{enumerate}
 
 \begin{notice}[note]
 How can a particle be restricted to spawning to spawning at most
@@ -1895,7 +1901,6 @@ back to where it was spawned from \emph{and} have a probability of
 spawning back to where its parent was spawed from?
 Documentation \emph{must} be clearer.
 \end{notice}
-\end{quote}
 
 This attempts to circumvent any sign problem in the double
 excitations and the HF, and hopefully this will result in a more stable
@@ -1996,64 +2001,99 @@ pass before the energy of the system from the doubles
 population is counted
 
 \item[\textbf{RHOAPP} {[}RhoApp{]}]
-This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before particles are assigned to the nodes
+This is for resummed FCIMC, it indicates the number of propagation steps
+around each subgraph before particles are assigned to the nodes
 
 \item[\textbf{SIGNSHIFT}]
-This is for FCIMC and involves calculating the change in shift depending on the absolute value of the sum of the signs of the walkers.
-This should hopefully mean that annihilation is implicitly taken into account. Results were not too good.
+This is for FCIMC and involves calculating the change in shift depending on
+the absolute value of the sum of the signs of the walkers.  This should
+hopefully mean that annihilation is implicitly taken into account. Results
+were not too good.
+
+\begin{notice}[note]
+details?  Why ``not good''?
+\end{notice}
 
 \item[\textbf{HFRETBIAS} {[}PRet{]}]
-This is a simple guiding function for FCIMC - if we are at a double excitation, then we return to the HF determinant with a probability PRet.
+This is a simple guiding function for FCIMC - if we are at a double
+excitation, then we return to the HF determinant with a probability PRet.
 This is unbiased by the acceptance probability of returning to HF.
+
 This is not available in the parallel version.
 
 \item[\textbf{EXCLUDERANDGUIDE}]
-This is an alternative method to unbias for the HFRetBias. It invloves disallowing random excitations back to the guiding function (HF Determinant)
+This is an alternative method to unbias for the HFRetBias. It invloves
+disallowing random excitations back to the guiding function (HF
+Determinant).
+
 This is not available in the parallel version.
 
 \item[\textbf{PROJECTE-MP2}]
-This will find the energy by projection of the configuration of walkers onto the MP1 wavefunction.
-DEVELOPMENTAL and possibly not bug-free
+This will find the energy by projection of the configuration of walkers
+onto the MP1 wavefunction.  DEVELOPMENTAL and possibly not bug-free.
+
 This is not available in the parallel version.
 
 \item[\textbf{FIXPARTICLESIGN}]
-This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
-on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
-Results were not good.
+This uses a modified hamiltonian, whereby all the positive off-diagonal
+hamiltonian matrix elements are zero. Instead, their diagonals are modified
+to change the on-site death rate. Particles now have a fixed (positive)
+sign which cannot be changed and so no annihilation occurs.  Results were
+not good.
+
 This is not available in the parallel version.
 
+\begin{notice}[note]
+details?  Why ``not good''?
+\end{notice}
+
 \item[\textbf{STARTSINGLEPART}]
-This will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
+This will start the simulation with a single positive particle at the HF,
+and fix the shift at its initial value, until the number of particles gets
+to the INITPARTICLES value.
 
 \item[\textbf{MEMORYFAC} {[}MemoryFac{]}]
-Default 50
+Default 50.
 
-MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
+MemoryFac is the factor by which space will be made available for extra
+walkers compared to InitWalkers.
 
-\end{description}
+\item[\textbf{FIXHFDOUBSSHIFT} {[}DoubsShift{]}]
+Default 0.D0
 
-\textbf{GRAPHSIZE} {[}NDets{]}
-\begin{quote}
+An FCIMC Serial option. With this, the shift is fixed at a value given here,
+but only for the HF and doubles. This will almost definitly give the wrong
+answers for both the energy and the shift, but may be of use in equilibration
+steps to maintain particle density at low excitations, before writing out the
+data and letting the shift change.
 
-In ResumFCIMC, this is the number of connected determinants to form the graph which you take as your sumsystem for the resummed spawning.
-Must have an associated RhoApp
-\end{quote}
-\begin{description}
+\item[\textbf{GRAPHSIZE} {[}NDets{]}]
+In ResumFCIMC, this is the number of connected determinants to form the
+graph which you take as your sumsystem for the resummed spawning.  Must
+have an associated RhoApp.
+
 \item[\textbf{HAPP} {[}HApp{]}]
-Default 1
+Default 1.
 
-In ResumFCIMC, this indicates the number of local applications of the hamiltonian to random determinants before the walkers are assigned according to the resultant vector.
+In ResumFCIMC, this indicates the number of local applications of the
+hamiltonian to random determinants before the walkers are assigned
+according to the resultant vector.
 
 \item[\textbf{NOBIRTH}]
 Force the off-diagonal $H$ matrix elements to become zero,
 and hence obtain an exponential decay of the initial populations
 on the determinants, at a rate which can be exactly calculated and
-compared against. This is no longer functional, but commented out in the code.
+compared against.
+
+This is no longer functional, but commented out in the
+code.
 
 \item[\textbf{MCDIFFUSE} {[}Lambda{]}]
 Default 0.0.
 
-Set the amount of diffusion compared to spawning in the \textbf{FCIMC} algorithm.
+Set the amount of diffusion compared to spawning in the \textbf{FCIMC}
+algorithm.
+
 This is no longer functional and commented out in the code.
 
 \item[\textbf{FLIPTAU} {[}FlipTauCyc{]}]
@@ -2061,22 +2101,26 @@ Default: off.
 
 Cause time to be reversed every FlipTauCyc cycles in the \textbf{FCIMC}
 algorithm. This might help with undersampling problems.
+
 This is no longer functional and commented out in the code.
 
 \item[\textbf{NON-PARTCONSDIFF}]
 Use a seperate partitioning of the diffusion matrices, in which
 the antidiffusion matrix (+ve connections) create a net increase of
 two particles.
+
 This is no longer functional and commented out in the code.
 
 \item[\textbf{FULLUNBIASDIFF}]
 Fully unbias for the diffusion process by summing over all connections.
+
 This is no longer functional and commented out in the code.
 
 \item[\textbf{NODALCUTOFF} {[}NodalCuttoff{]}]
 Constrain a determinant to be of the same sign as the MP1
 wavefunction at that determinant, if the normalised component of
 the MP1 wavefunction is greater than the NodalCutoff value.
+
 This is no longer functional and commented out in the code.
 
 \item[\textbf{NOANNIHIL}]
@@ -2626,7 +2670,7 @@ and the fractional*1000 is the number of open orbitals.
 e.g. 6.002 would mean 6 closed and 2 open
 which would have orborder(I,1)=6, orborder(I,2)=4
 but say 5.002 would be meaningless as the integral part must be a
-multiple of 2
+multiple of 2.
 
 \end{enumerate}
 
@@ -3059,11 +3103,16 @@ Synonym for \textbf{FMCPR XIJ}.
 
 \subsection{FCIMC options}
 \begin{description}
-\item[\textbf{POPSFILE}]
-Print out the determinants at the end of the MC run. A calculation
-can then be restarted at a later date by reading the determinants
-back in using \textbf{READPOPS} in the \textbf{CALC} section.
-at a later date. Walker number can also be scaled up by using \textbf{SCALEWALKERS}
+\item[\textbf{POPSFILE} {[}iWritePopsEvery{]}]
+Default: off.  Default iWritePopsEvery (optional argument) 100000.
+Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
+iWritePopsEvery must be a multiple of \textbf{STEPSSHIFT}, the number of
+cycles between updates to the diagonal shift performed in the
+\textbf{FCIMC} calculation.
+
+A calculation can then be restarted at a later date by reading the
+determinants back in using \textbf{READPOPS} in the \textbf{CALC} section.
+at a later date. Walker number can also be scaled up by using \textbf{SCALEWALKERS}.
 
 \item[\textbf{ZEROPROJE}]
 This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy
@@ -3073,6 +3122,13 @@ estimator will be restarted.
 This is for Star FCIMC only - if on, it will calculate the exact eigenvector and
 values initially, and then print out the running wavevector every
 WavevectorPrint MC steps. However, this is slower.
+
+\item[\textbf{WRITEDETE} {[}NoHistBins{]} {[}MaxHistE{]}]
+This is an FCIMC option and will write out a histogram of the energies of determinants which have
+had particles spawned at them and their excitation level. The histogram logs the total
+amount of time spent at a determinant and its energy for each energy range. This is diagnostic
+information. The first variable to input is the number of histogram bins which will be calculated,
+and the second is the maximum determinant energy of the histogram.
 
 \end{description}
 
