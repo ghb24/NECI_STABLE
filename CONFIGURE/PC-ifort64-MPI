@@ -18,7 +18,7 @@
        LDD='mpif90 -g'
      else
        FC='mpif90 -c -O3' 
-       CC='gcc -O2 -Wall -m64'
+       CC='gcc -O'
        LD='mpif90 -O3 -Bstatic'
        FCD='mpif90 -c -g'
        CCD='gcc -g -sb -C -errtags'

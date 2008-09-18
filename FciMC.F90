@@ -64,6 +64,8 @@ MODULE FciMCMod
     INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
     INTEGER :: NoatHF           !This is the number at HF for a given Iteration
     REAL*8 :: SumConnections
+    INTEGER :: NoDied           !This is the number of particles which have died (on-site death) in the last update cycle
+    INTEGER :: NoBorn           !This is the number of particles which have been born in the last update cycle
 
 !These values are used to calculate the energy when TProjEMP2 is set
     REAL*8 :: SumOverlapMP2     !This is the overlap of the walker distribution with the MP2 wavefunction, summed over all iterations
@@ -102,12 +104,23 @@ MODULE FciMCMod
         CALL InitFCIMCCalc()
 
         WRITE(6,*) ""
-        WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
-        WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
 
 !TotWalkersOld is the number of walkers last time the shift was changed
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        IF(TProjEMP2) THEN
+            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
+            WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
+            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
+     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        ELSE
+            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx     MinEx MaxEx"
+            WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx     MinEx MaxEx"
+            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
+     &          ProjectionE,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
+     &          ProjectionE,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        ENDIF
 
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
@@ -239,6 +252,7 @@ MODULE FciMCMod
                 ENDIF
 
                 IF(Child.ne.0) THEN
+                    NoBorn=NoBorn+abs(Child)     !Increase the counter for the number of children born
                     IF(Child.gt.25) THEN
                         WRITE(6,*) "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
                         WRITE(6,*) "BEWARE OF MEMORY PROBLEMS"
@@ -289,6 +303,8 @@ MODULE FciMCMod
                 IF(iDie.le.0) THEN
 !This indicates that the particle is spared and we may want to create more...copy them across to NewDets
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
+
+                    NoDied=NoDied+iDie      !Increase the counter to indicated  number of particles that have died
 
                     do l=1,abs(iDie)+1    !We need to copy accross one more, since we need to include the original spared particle
                         NewDets(:,VecSlot)=CurrentDets(:,j)
@@ -1067,10 +1083,17 @@ MODULE FciMCMod
         AvConnection=SumConnections/REAL(SumWalkersCyc,r2)
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
-        WRITE(15,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,  &
+        IF(TProjEMP2) THEN
+            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
      &         ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
-        WRITE(6,"(I12,G15.6,I7,G15.6,I10,I6,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,ProjectionE,   &
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
      &         ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        ELSE
+            WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
+     &         NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
+     &         NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        ENDIF
 !        WRITE(6,*) SumHOverlapMP2,SumOverlapMP2
         CALL FLUSH(15)
         CALL FLUSH(6)
@@ -1084,6 +1107,8 @@ MODULE FciMCMod
         Annihilated=0
         Acceptances=0
         SumConnections=0.D0
+        NoDied=0
+        NoBorn=0
 
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
@@ -1566,6 +1591,8 @@ MODULE FciMCMod
         AccRat=0.D0
         PreviousCycles=0
         SumConnections=0.D0
+        NoDied=0
+        NoBorn=0
 
         IF(TStartSinglePart) THEN
             TSinglePartPhase=.true.

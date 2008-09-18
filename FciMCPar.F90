@@ -89,12 +89,14 @@ MODULE FciMCParMod
     INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
     REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
     INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
+    INTEGER :: NoBorn,NoDied
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
     INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc,AllTotSign,AllTotSignOld
     INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
     REAL*8 :: AllSumNoatHF,AllSumENum,AllPosFrac
+    INTEGER :: AllNoBorn,AllNoDied
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
 
@@ -142,13 +144,13 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil    Proj.E        NoatHF NoatDoubs  +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
-            WRITE(15,*) "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil    Proj.E        NoatHF NoatDoubs   +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
+            WRITE(6,*) "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil NoDied NoBorn    Proj.E          NoatHF NoatDoubs  +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
+            WRITE(15,*) "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil NoDied NoBorn    Proj.E          NoatHF NoatDoubs   +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
-     &          AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
-     &          AllTotWalkers,AllAnnihilated,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+     &          AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+     &          AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
         ENDIF
         
 
@@ -259,6 +261,9 @@ MODULE FciMCParMod
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
+
+                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+
                     IF(Child.gt.25) THEN
                         WRITE(6,*) "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
                         WRITE(6,*) "BEWARE OF MEMORY PROBLEMS"
@@ -313,6 +318,8 @@ MODULE FciMCParMod
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
                 iDie=AttemptDiePar(CurrentDets(:,j),CurrentH(j),CurrentIC(j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
+
+                NoDied=NoDied+iDie          !Update death counter
 
                 IF(iDie.le.0) THEN
 !This indicates that the particle is spared and we may want to create more...copy them across to NewDets
@@ -1375,6 +1382,8 @@ MODULE FciMCParMod
         CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(NoatDoubs,AllNoatDoubs,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
@@ -1436,10 +1445,10 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
-                    ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
-                    ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
+                    AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
+                    AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             CALL FLUSH(15)
             CALL FLUSH(6)
         ENDIF
@@ -1452,6 +1461,8 @@ MODULE FciMCParMod
         PosFrac=0.D0
         Annihilated=0
         Acceptances=0
+        NoBorn=0
+        NoDied=0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
 
@@ -1467,6 +1478,8 @@ MODULE FciMCParMod
         AllAnnihilated=0
         AllNoatHF=0
         AllNoatDoubs=0
+        AllNoBorn=0
+        AllNoDied=0
 
         RETURN
     END SUBROUTINE CalcNewShift
@@ -1652,6 +1665,8 @@ MODULE FciMCParMod
         Annihilated=0
         Acceptances=0
         PreviousCycles=0
+        NoBorn=0
+        NoDied=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -1662,6 +1677,8 @@ MODULE FciMCParMod
         AllMeanExcitLevel=0.D0
         AllSumWalkersCyc=0
         AllPosFrac=0.D0
+        AllNoBorn=0
+        AllNoDied=0
 
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
         CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
