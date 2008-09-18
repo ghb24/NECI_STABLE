@@ -1545,7 +1545,7 @@ MODULE FciMCMod
         Fii=REAL(TempHii%v,r2)          !Fock-energy of the HF determinant
 
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
-            CALL Stop_All("InitFCIMCCalc","POPSFILE writeout needs to be a multiple of the update cycle length.")
+            CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
         ENDIF
 
 !Initialise variables for calculation on each node

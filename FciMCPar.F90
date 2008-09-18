@@ -1666,7 +1666,7 @@ MODULE FciMCParMod
         CALL MPI_Type_commit(mpilongintegertype,error)
         
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
-            CALL Stop_All("InitFCIMCCalc","POPSFILE writeout needs to be a multiple of the update cycle length.")
+            CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
         ENDIF
 
         IF(TNoAnnihil) THEN
