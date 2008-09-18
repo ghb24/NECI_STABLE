@@ -125,11 +125,16 @@ General options
 FCIMC options
 -------------
 
-**POPSFILE**
-    Print out the determinants at the end of the MC run. A calculation
-    can then be restarted at a later date by reading the determinants
-    back in using **READPOPS** in the **CALC** section.
-    at a later date. Walker number can also be scaled up by using **SCALEWALKERS**
+**POPSFILE** [iWritePopsEvery]
+    Default: off.  Default iWritePopsEvery (optional argument) 100000.
+    Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
+    iWritePopsEvery must be a multiple of **STEPSSHIFT**, the number of 
+    cycles between updates to the diagonal shift performed in the 
+    **FCIMC** calculation.
+
+    A calculation can then be restarted at a later date by reading the
+    determinants back in using **READPOPS** in the **CALC** section.
+    at a later date. Walker number can also be scaled up by using **SCALEWALKERS**.
 
 **ZEROPROJE**
     This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
