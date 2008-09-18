@@ -543,7 +543,7 @@ The following options are only available in **FCIMC** calculations:
 **READPOPS**
     Read the initial walker configuration from the file POPSFILE.
     **DIAGSHIFT** and **INITWALKERS** given in the input will be
-    overwritten with the values read in form POPSFILE. Only currently available in serial.
+    overwritten with the values read in form POPSFILE.
 
 **SCALEWALKERS** [fScaleWalkers]
     Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
@@ -606,11 +606,10 @@ The following options are only available in **FCIMC** calculations:
     hamiltonian matrix elements are zero. Instead, their diagonals are modified
     to change the on-site death rate. Particles now have a fixed (positive)
     sign which cannot be changed and so no annihilation occurs.  Results were
-    not good.
+    not good - this was intended for real-space MC, where large regions of connected
+    space were all of the same sign. This is not the case here.
   
     This is not available in the parallel version.
-
-    .. note:: details?  Why "not good"?
 
 **STARTSINGLEPART**
     This will start the simulation with a single positive particle at the HF,

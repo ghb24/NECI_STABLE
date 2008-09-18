@@ -14,7 +14,7 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens
+    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftDoubs,DoubsShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac
     USE Determinants , only : FDet,GetHElement2
@@ -309,7 +309,7 @@ MODULE FciMCParMod
                 ENDIF   !End if child created
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-                iDie=AttemptDiePar(CurrentDets(:,j),CurrentH(j))
+                iDie=AttemptDiePar(CurrentDets(:,j),CurrentH(j),CurrentIC(j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
                 IF(iDie.le.0) THEN
@@ -1702,6 +1702,8 @@ MODULE FciMCParMod
             ELSEIF(NDets.lt.2) THEN
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
                 CALL Stop_All("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
+            ELSEIF(TFixShiftDoubs) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Fixing the shift of the HF + doubles cannot be used within ResumFCIMC")
             ENDIF
             IF(iProcIndex.eq.root) THEN
                 WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
@@ -1733,6 +1735,12 @@ MODULE FciMCParMod
             ENDIF
         ELSE
             TSinglePartPhase=.false.
+        ENDIF
+        IF(TFixShiftDoubs) THEN
+            IF(iProcIndex.eq.root) THEN
+                WRITE(6,*) "The HF and double excitations will have their shift fixed at ",DoubsShift
+                WRITE(6,*) "With this option, results are going to be non-exact, but can be used to equilibrate calculations"
+            ENDIF
         ENDIF
         
         IF(TStartMP1) THEN
@@ -2564,9 +2572,9 @@ MODULE FciMCParMod
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
 !The function allows multiple births(if +ve shift) or deaths from the same particle.
 !The returned number is the number of deaths if positive, and the number of births if negative.
-    INTEGER FUNCTION AttemptDiePar(DetCurr,Kii)
+    INTEGER FUNCTION AttemptDiePar(DetCurr,Kii,IC)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill
+        INTEGER :: DetCurr(NEl),iKill,IC
 !        TYPE(HElement) :: rh,rhij
         REAL*8 :: Ran2,rat,Kii
 
@@ -2576,7 +2584,15 @@ MODULE FciMCParMod
 !        rh=rh-Hii
 
 !Subtract the current value of the shift and multiply by tau
-        rat=Tau*(Kii-DiagSft)
+        IF(TFixShiftDoubs) THEN
+            IF((IC.eq.0).or.(IC.eq.2)) THEN
+                rat=Tau*(Kii-DoubsShift)
+            ELSE
+                rat=Tau*(Kii-DiagSft)
+            ENDIF
+        ELSE
+            rat=Tau*(Kii-DiagSft)
+        ENDIF
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
