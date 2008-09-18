@@ -132,8 +132,10 @@ MODULE FciMCParMod
 
         TDebug=.false.   !Set debugging flag
 
+!OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
+!Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
-        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
+!        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
 
         CALL InitFCIMCCalcPar()
 

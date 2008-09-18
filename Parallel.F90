@@ -131,7 +131,9 @@ Subroutine MPIStopAll(error_str)
    ! ierror: error status (of abort: was abort successful?)
    ! Currently neither are analysed.
    call MPI_ABORT(MPI_COMM_WORLD, error_code, ierror)
-   stop error_str
+   WRITE(6,*) error_str
+   CALL FLUSH(6)
+   stop
 #endif
 end subroutine MPIStopAll
 
