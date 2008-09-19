@@ -5,7 +5,7 @@ MODULE FciMCMod
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFac,TRegenExcitgens
+    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFac,TRegenExcitgens,TUnbiasPGeninProjE
     USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -28,13 +28,15 @@ MODULE FciMCMod
     LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)        !Contains sign list
     INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)            !Contains excit level list
     REAL*8 , ALLOCATABLE , TARGET :: WalkVecH(:,:),WalkVec2H(:,:)       !First element is diagonal hamiltonian element - second is the connection to HF determinant
+    REAL*8 , ALLOCATABLE , TARGET :: WalkVecPGen(:), WalkVec2PGen(:)        !This stores the generation probabilities of the walkers when TUnbiasPGeninProjE is on
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
-    INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0
+    INTEGER :: WalkVecICTag=0,WalkVec2ICTag=0,WalkVecHTag=0,WalkVec2HTag=0,WalkVecPgenTag=0,WalkVec2PGenTag=0
 !Pointers to point at the correct arrays for use
     INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
     LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
     INTEGER , POINTER :: CurrentIC(:), NewIC(:)
     REAL*8 , POINTER :: CurrentH(:,:), NewH(:,:)
+    REAL*8 , POINTER :: CurrentPGen(:), NewPGen(:)
     TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
 
     INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
@@ -53,7 +55,7 @@ MODULE FciMCMod
 
 !The following variables are calculated at the end of each update cycle, are combined to the root processor
     REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
-    INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+    REAL*8:: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
     REAL*8 :: PosFrac           !This is the fraction of positive particles on each node
     INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
     REAL*8 :: MeanExcitLevel
@@ -289,6 +291,7 @@ MODULE FciMCMod
                         NewIC(VecSlot)=ExcitLevel
                         NewH(1,VecSlot)=HDiag      !Diagonal H-element-Hii
                         NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
+                        IF(TUnbiasPGeninProjE) NewPGen(VecSlot)=Prob
                         VecSlot=VecSlot+1
                     enddo
                             
@@ -313,6 +316,7 @@ MODULE FciMCMod
                         IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(:,VecSlot)=CurrentH(:,j)
+                        IF(TUnbiasPGeninProjE) NewPGen(VecSlot)=CurrentPGen(j)
                         VecSlot=VecSlot+1
                     enddo
 
@@ -333,6 +337,7 @@ MODULE FciMCMod
                         IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(:,VecSlot)=CurrentH(:,j)
+                        IF(TUnbiasPGeninProjE) NewPGen(VecSlot)=CurrentPGen(j)
                         VecSlot=VecSlot+1
                     enddo
 
@@ -369,6 +374,10 @@ MODULE FciMCMod
                 NewIC=>WalkVecIC
                 NewH=>WalkVecH
                 NewExcits=>WalkVecExcits
+                IF(TUnbiasPGeninProjE) THEN
+                    NewPGen=>WalkVecPGen
+                    CurrentPGen=>WalkVec2PGen
+                ENDIF
             ELSE
                 CurrentDets=>WalkVecDets
                 CurrentSign=>WalkVecSign
@@ -380,6 +389,10 @@ MODULE FciMCMod
                 NewIC=>WalkVec2IC
                 NewH=>WalkVec2H
                 NewExcits=>WalkVec2Excits
+                IF(TUnbiasPGeninProjE) THEN
+                    NewPGen=>WalkVec2PGen
+                    CurrentPGen=>WalkVecPGen
+                ENDIF
             ENDIF
 
         ELSE
@@ -1077,7 +1090,7 @@ MODULE FciMCMod
 
         MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,r2)))
         PosFrac=PosFrac/real(SumWalkersCyc,r2)
-        ProjectionE=SumENum/(REAL(SumNoatHF,r2))
+        ProjectionE=SumENum/SumNoatHF
         AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))
         ProjectionMP2=((SumHOverlapMP2/SumOverlapMP2)-Hii)/2.D0
         AvConnection=SumConnections/REAL(SumWalkersCyc,r2)
@@ -1136,12 +1149,24 @@ MODULE FciMCMod
         IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
         IF(ExcitLevel.eq.0) THEN
             IF(WSign) THEN
-                IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
+                IF(Iter.gt.NEquilSteps) THEN
+                    IF(TUnbiasPGeninProjE) THEN
+                        SumNoatHF=SumNoatHF+(1.D0/CurrentPGen(j))
+                    ELSE
+                        SumNoatHF=SumNoatHF+1.D0
+                    ENDIF
+                ENDIF
                 NoatHF=NoatHF+1
                 PosFrac=PosFrac+1.D0
                 TotSign=TotSign+1
             ELSE
-                IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
+                IF(Iter.gt.NEquilSteps) THEN
+                    IF(TUnbiasPGeninProjE) THEN
+                        SumNoatHF=SumNoatHF-(1.D0/CurrentPGen(j))
+                    ELSE
+                        SumNoatHF=SumNoatHF-1.D0
+                    ENDIF
+                ENDIF
                 NoatHF=NoatHF-1
                 TotSign=TotSign-1
             ENDIF
@@ -1149,11 +1174,23 @@ MODULE FciMCMod
             NoatDoubs=NoatDoubs+1   !Count number at double excitations in a cycle
 !At double excit - sum in energy
             IF(WSign) THEN
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum+Hij0
+                IF(Iter.gt.NEquilSteps) THEN
+                    IF(TUnbiasPGeninProjE) THEN
+                        SumENum=SumENum+(Hij0/CurrentPGen(j))   
+                    ELSE
+                        SumENum=SumENum+Hij0
+                    ENDIF
+                ENDIF
                 PosFrac=PosFrac+1.D0
                 TotSign=TotSign+1
             ELSE
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum-Hij0
+                IF(Iter.gt.NEquilSteps) THEN
+                    IF(TUnbiasPGeninProjE) THEN
+                        SumENum=SumENum-(Hij0/CurrentPGen(j))
+                    ELSE
+                        SumENum=SumENum-Hij0
+                    ENDIF
+                ENDIF
                 TotSign=TotSign-1
             ENDIF
         ELSE
@@ -1394,6 +1431,7 @@ MODULE FciMCMod
                 CurrentSign(Chosen)=CurrentSign(TotWalkers)
                 CurrentH(:,Chosen)=CurrentH(:,TotWalkers)
                 CurrentIC(Chosen)=CurrentIC(TotWalkers)
+                IF(TUnbiasPGeninProjE) CurrentPGen(Chosen)=CurrentPGen(TotWalkers)
                 IF(.not.TRegenExcitgens) THEN
                     CALL CopyExitgen(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
                     CurrentExcits(TotWalkers)%ExitGenForDet=.false.
@@ -1434,6 +1472,7 @@ MODULE FciMCMod
                 CurrentSign(VecSlot)=CurrentSign(i)
                 CurrentH(:,VecSlot)=CurrentH(:,i)
                 CurrentIC(VecSlot)=CurrentIC(i)
+                IF(TUnbiasPGeninProjE) CurrentPGen(VecSlot)=CurrentPGen(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgen(CurrentExcits(i),CurrentExcits(VecSlot))
 
                 VecSlot=VecSlot+1
@@ -1464,7 +1503,7 @@ MODULE FciMCMod
 !This routine cancels out particles of opposing sign on the same determinant.
     SUBROUTINE AnnihilatePairs(TotWalkersNew)
         TYPE(ExcitGenerator) :: TempExcit
-        REAL*8 :: TempH(2)
+        REAL*8 :: TempH(2),TempPGen
         INTEGER :: TempIC
         INTEGER :: TotWalkersNew,j,k,l,DetCurr(NEl),VecSlot,TotWalkersDet
         INTEGER :: DetLT
@@ -1479,6 +1518,7 @@ MODULE FciMCMod
         CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
         TempIC=NewIC(j)
         TempH(:)=NewH(:,j)
+        IF(TUnbiasPGeninProjE) TempPGen=NewPGen(j)
         IF(.not.TRegenExcitgens) CALL CopyExitGen(NewExcits(j),TempExcit)
         
         VecSlot=1
@@ -1503,6 +1543,7 @@ MODULE FciMCMod
                     CurrentSign(VecSlot)=.true.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(:,VecSlot)=TempH(:)
+                    IF(TUnbiasPGeninProjE) CurrentPGen(VecSlot)=TempPGen
                     IF(.not.TRegenExcitgens) CALL CopyExitgen(TempExcit,CurrentExcits(VecSlot))
                     VecSlot=VecSlot+1
                 enddo
@@ -1513,6 +1554,7 @@ MODULE FciMCMod
                     CurrentSign(VecSlot)=.false.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(:,VecSlot)=TempH(:)
+                    IF(TUnbiasPGeninProjE) CurrentPGen(VecSlot)=TempPGen
                     IF(.not.TRegenExcitgens) CALL CopyExitgen(TempExcit,CurrentExcits(VecSlot))
                     VecSlot=VecSlot+1
                 enddo
@@ -1521,6 +1563,7 @@ MODULE FciMCMod
             CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
             TempIC=NewIC(j)
             TempH(:)=NewH(:,j)
+            IF(TUnbiasPGeninProjE) TempPGen=NewPGen(j)
             IF(.not.TRegenExcitgens) CALL CopyExitGen(NewExcits(j),TempExcit)
         enddo
 !The new number of residual cancelled walkers is given by one less that VecSlot again.
@@ -1578,7 +1621,7 @@ MODULE FciMCMod
         ProjectionMP2=0.D0
         PosFrac=0.D0
         SumENum=0.D0
-        SumNoatHF=0
+        SumNoatHF=0.D0
         NoatHF=0
         SumOverlapMP2=0.D0
         SumHOverlapMP2=0.D0
@@ -1615,6 +1658,7 @@ MODULE FciMCMod
         ENDIF
 
         IF(TResumFciMC) THEN
+            CALL Stop_All("InitFCIMCCalc","Resummed FCIMC is not currently working...")
             IF(TFixShiftDoubs) THEN
                 CALL Stop_All("InitFCIMCCalc","Cannot fix the shift of the HF + Doubles in ResumFCIMC currently")
             ENDIF
@@ -1646,6 +1690,9 @@ MODULE FciMCMod
         WRITE(6,*) "Maximum connectivity of HF determinant is: ",HFConn
 
         IF(ICILevel.ne.0) THEN
+            IF(TUnbiasPGeninProjE) THEN
+                CALL Stop_All("InitFCIMCCalc","UnbiasPGeninProjE does not currently work in truncated spaces")
+            ENDIF
             IF(TResumFCIMC.or.TFixParticleSign.or.THFRetBias) THEN
                 CALL Stop_All("InitFCIMCCalc","ResumFCIMC, FixParticleSign and HFRetBias FCIMC methods do not currently work in a truncated space.")
             ELSE
@@ -1654,15 +1701,23 @@ MODULE FciMCMod
             WRITE(6,*) "!!!  WARNING !!!"
             WRITE(6,*) "!!! Average connecting hamiltonian matrix element data will not be correct for truncated spaces !!!"
         ENDIF
+        IF(TUnbiasPGeninProjE) THEN
+            WRITE(6,*) "Acceptance probability will not be unbiased for generation probability. Instead, walker contributions to the projected energy will be the unbiasing stage..."
+            WRITE(6,*) "WARNING - THIS IS AN EXPERIMENTAL OPTION!"
+        ENDIF
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
+
+            IF(TUnbiasPGeninProjE) CALL Stop_All("InitFciMCCalc","Cannot use option UnbiasPGeninProjE with StartMP1")
 
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
             CALL InitWalkersMP1()
 
         ELSEIF(TReadPops) THEN
 !We are reading in an initial distribution of walkers
+            
+            IF(TUnbiasPGeninProjE) CALL Stop_All("InitFciMCCalc","Cannot use option UnbiasPGeninProjE with READPOPS")
 
             WRITE(6,*) "Reading in initial particle configuration from POPSFILE..." 
             CALL ReadFromPopsFile()
@@ -1709,7 +1764,22 @@ MODULE FciMCMod
             CALL LogMemAlloc('WalkVec2H',MaxWalkers*2,8,this_routine,WalkVec2HTag,ierr)
             CALL AZZERO(WalkVec2H,2*MaxWalkers)
 
-            MemoryAlloc=((2*NEl)+12)*4*MaxWalkers
+            IF(TUnbiasPGeninProjE) THEN
+                ALLOCATE(WalkVecPGen(MaxWalkers),stat=ierr)
+                CALL LogMemAlloc('WalkVecPGen',MaxWalkers,8,this_routine,WalkVecPGenTag,ierr)
+                CALL AZZERO(WalkVecPgen,MaxWalkers)
+                ALLOCATE(WalkVec2PGen(MaxWalkers),stat=ierr)
+                CALL LogMemAlloc('WalkVec2PGen',MaxWalkers,8,this_routine,WalkVec2PGenTag,ierr)
+                CALL AZZERO(WalkVec2PGen,MaxWalkers)
+                MemoryAlloc=((2*NEl)+16)*4*MaxWalkers
+
+                CurrentPGen=>WalkVecPGen
+                NewPGen=>WalkVec2PGen
+            
+            ELSE
+                MemoryAlloc=((2*NEl)+12)*4*MaxWalkers
+            ENDIF
+
 
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
@@ -1726,6 +1796,9 @@ MODULE FciMCMod
                 CurrentIC(1)=0
                 CurrentSign(1)=.true.
                 CurrentH(:,1)=0.D0
+                IF(TUnbiasPGeninProjE) THEN
+                    CurrentPGen(1)=1.D0
+                ENDIF
             ELSE
                 do j=1,InitWalkers
                     CurrentDets(:,j)=HFDet(:)
@@ -1739,6 +1812,10 @@ MODULE FciMCMod
                         ENDIF
                     ELSE
                         CurrentSign(j)=.true.
+                    ENDIF
+                    
+                    IF(TUnbiasPGeninProjE) THEN
+                        CurrentPGen(j)=1.D0
                     ENDIF
                 enddo
             ENDIF
@@ -1805,7 +1882,7 @@ MODULE FciMCMod
             TotSignOld=InitWalkers
         ENDIF
 !TotSign is the sum of the walkers x sign
-        ProjectionE=SumENum/(REAL(SumNoatHF,r2))
+        ProjectionE=SumENum/SumNoatHF
 
         CALL IAZZERO(CullInfo,30)
         NoCulls=0
@@ -2272,7 +2349,7 @@ MODULE FciMCMod
         IF(TZeroProjE) THEN
 !Zero projected energy estimator.
             WRITE(6,*) "Resetting projected energy counters to zero..."
-            SumNoatHF=0
+            SumNoatHF=0.D0
             SumENum=0.D0
         ENDIF
 
@@ -2446,7 +2523,7 @@ MODULE FciMCMod
 ! Vectors of NewXXX will be sorted correspondingly
     SUBROUTINE SortParts(N,Dets,NElecs)
         TYPE(ExcitGenerator) :: ExcitTemp
-        REAL*8 :: HTemp(2)
+        REAL*8 :: HTemp(2),PGenTemp
         INTEGER :: ICTemp
         INTEGER :: TempDet(NElecs)     !This stores a single element of the vector temporarily     
         LOGICAL :: WSignTemp
@@ -2465,17 +2542,20 @@ MODULE FciMCMod
             ICTemp=NewIC(L)
             WSignTemp=NewSign(L)
             IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(L),ExcitTemp)
+            IF(TUnbiasPGeninProjE) PGenTemp=NewPGen(L)
         ELSE
             CALL ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
             HTemp(:)=NewH(:,IR)
             ICTemp=NewIC(IR)
             WSignTemp=NewSign(IR)
+            IF(TUnbiasPGeninProjE) PGenTemp=NewPGen(IR)
             IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(IR),ExcitTemp)
 
             CALL ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
             NewH(:,IR)=NewH(:,1)
             NewIC(IR)=NewIC(1)
             NewSign(IR)=NewSign(1)
+            IF(TUnbiasPGeninProjE) NewPGen(IR)=NewPGen(1)
             IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(1),NewExcits(IR))
             IR=IR-1
             IF(IR.EQ.1)THEN
@@ -2483,6 +2563,7 @@ MODULE FciMCMod
                 NewH(:,1)=HTemp(:)
                 NewIC(1)=ICTemp
                 NewSign(1)=WSignTemp
+                IF(TUnbiasPGeninProjE) NewPGen(1)=PGenTemp
                 IF(.not.TRegenExcitgens) CALL CopyExitgen(ExcitTemp,NewExcits(1))
                 RETURN
             ENDIF
@@ -2498,6 +2579,7 @@ MODULE FciMCMod
                 NewH(:,I)=NewH(:,J)
                 NewIC(I)=NewIC(J)
                 NewSign(I)=NewSign(J)
+                IF(TUnbiasPGeninProjE) NewPGen(I)=NewPGen(J)
                 IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(J),NewExcits(I))
                 I=J
                 J=J+J
@@ -2510,6 +2592,7 @@ MODULE FciMCMod
         NewH(:,I)=HTemp(:)
         NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
+        NewPGen(I)=PGenTemp
         IF(.not.TRegenExcitgens) CALL CopyExitgen(ExcitTemp,NewExcits(I))
         GO TO 10
     END SUBROUTINE SortParts
@@ -2637,7 +2720,13 @@ MODULE FciMCMod
         SumConnections=SumConnections+REAL(rh%v,r2)     !Sum the connections (success and failure) to find average connection strength
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        rat=Tau*abs(rh%v)/Prob
+        IF(TUnbiasPGeninProjE) THEN
+!In this scheme, we do not unbias the acceptance probabilities due to the probability of generating the excitation.
+!Instead, we unbias for this at the energy estimator, which has its contribution from this particle divided by PGen.
+            rat=Tau*abs(REAL(rh%v,r2))
+        ELSE
+            rat=Tau*abs(REAL(rh%v,r2))/Prob
+        ENDIF
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)

@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TUnbiasPGeninProjE=.false.
           TFixShiftDoubs=.false.
           DoubsShift=0.D0
           TRegenExcitgens=.false.
@@ -703,10 +704,13 @@ MODULE Calc
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
             case("FIXHFDOUBSSHIFT")
-!An FCIMC Serial option. With this, the shift is fixed at a value given here, but only for the HF and doubles. This will almost definitly give the wrong answers for both the energy
+!An FCIMC option. With this, the shift is fixed at a value given here, but only for the HF and doubles. This will almost definitly give the wrong answers for both the energy
 !and the shift, but may be of use in equilibration steps to maintain particle density at low excitations, before writing out the data and letting the shift change.
                 TFixShiftDoubs=.true.
                 CALL Getf(DoubsShift)
+            case("UNBIASPGENINPROJE")
+!A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
+                TUnbiasPGeninProjE=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

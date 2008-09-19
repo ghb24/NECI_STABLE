@@ -625,11 +625,19 @@ The following options are only available in **FCIMC** calculations:
 **FIXHFDOUBSSHIFT** [DoubsShift]
     Default 0.D0
 
-    An FCIMC Serial option. With this, the shift is fixed at a value given here, 
+    An FCIMC option. With this, the shift is fixed at a value given here, 
     but only for the HF and doubles. This will almost definitly give the wrong 
     answers for both the energy and the shift, but may be of use in equilibration 
     steps to maintain particle density at low excitations, before writing out the 
     data and letting the shift change.
+
+**UNBIASPGENINPROJE**
+    Default false
+    
+    An FCIMC serial option. Here, the acceptance probabilities are not unbiased for
+    the probability of generating the excitation. Instead, the unbiasing occurs when the 
+    walker contributes to the energy estimator. This should reduce the variance for the 
+    energy estimator.
 
 **GRAPHSIZE** [NDets]
     In ResumFCIMC, this is the number of connected determinants to form the
