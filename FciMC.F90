@@ -299,12 +299,12 @@ MODULE FciMCMod
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
                 iDie=AttemptDie(CurrentDets(:,j),CurrentH(1,j),CurrentIC(j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
+                    
+                NoDied=NoDied+iDie      !Increase the counter to indicated  number of particles that have died
 
                 IF(iDie.le.0) THEN
 !This indicates that the particle is spared and we may want to create more...copy them across to NewDets
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
-
-                    NoDied=NoDied+iDie      !Increase the counter to indicated  number of particles that have died
 
                     do l=1,abs(iDie)+1    !We need to copy accross one more, since we need to include the original spared particle
                         NewDets(:,VecSlot)=CurrentDets(:,j)
