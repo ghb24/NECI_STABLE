@@ -171,7 +171,7 @@ MODULE FciMCMod
     SUBROUTINE PerformFCIMCyc()
         INTEGER :: VecSlot,i,j,k,l
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,TotWalkersNew
-        REAL*8 :: Prob,rat,HDiag,Ran2,TotProb
+        REAL*8 :: Prob,rat,HDiag,Ran2,TotProb,UniformPGen
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,iGetExcitLevel_2,MaxExcits
         LOGICAL :: WSign,SpawnBias,SameDet,TGenGuideDet
@@ -248,9 +248,20 @@ MODULE FciMCMod
                     ENDIF
 
                 ELSE
-
 !Calculate number of children to spawn
-                    Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                    IF(TUnbiasPGeninProjE) THEN
+!In this scheme, we do not unbias the acceptance probabilities due to the probability of generating the excitation.
+!Instead, we unbias for this at the energy estimator, which has its contribution from this particle divided by PGen.
+!However, we need to take into account that the determinants have different connectivity (mainly due to symmetry reasons)
+!Therefore we need to accept, dividing the probability by the uniform probability of selecting a determinant (1/conn)
+!This is then unbiased at the energy estimator again, so the PGen is divided by it...
+                        UniformPGen=1.D0/REAL(iCount,r2)
+                        Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,UniformPGen,IC)
+                        Prob=Prob/UniformPGen
+                    ELSE
+                        Child=AttemptCreate(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                    ENDIF
+
                 ENDIF
 
                 IF(Child.ne.0) THEN
@@ -2720,13 +2731,7 @@ MODULE FciMCMod
         SumConnections=SumConnections+REAL(rh%v,r2)     !Sum the connections (success and failure) to find average connection strength
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
-        IF(TUnbiasPGeninProjE) THEN
-!In this scheme, we do not unbias the acceptance probabilities due to the probability of generating the excitation.
-!Instead, we unbias for this at the energy estimator, which has its contribution from this particle divided by PGen.
-            rat=Tau*abs(REAL(rh%v,r2))
-        ELSE
-            rat=Tau*abs(REAL(rh%v,r2))/Prob
-        ENDIF
+        rat=Tau*abs(REAL(rh%v,r2))/Prob
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
