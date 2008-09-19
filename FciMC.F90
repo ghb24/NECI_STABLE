@@ -357,7 +357,7 @@ MODULE FciMCMod
         IF(rat.gt.0.9) THEN
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
         ENDIF
-
+        
         IF(TNoAnnihil) THEN
 
             TotWalkers=TotWalkersNew    !Since there is no further cancellation of walkers
@@ -2592,7 +2592,7 @@ MODULE FciMCMod
         NewH(:,I)=HTemp(:)
         NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
-        NewPGen(I)=PGenTemp
+        IF(TUnbiasPGeninProjE) NewPGen(I)=PGenTemp
         IF(.not.TRegenExcitgens) CALL CopyExitgen(ExcitTemp,NewExcits(I))
         GO TO 10
     END SUBROUTINE SortParts
