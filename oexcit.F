@@ -5,8 +5,6 @@
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER NLIST,nBasisMax(5,*)
          INTEGER G1(*)
-         INTEGER TYPES(5,*),NTYPES
-         POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
          INTEGER NMEM(*),UNT
          INTEGER IFRZ(0:NBASIS)
@@ -67,8 +65,6 @@ C..Debugging junk
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER NLIST,nBasisMax(5,*),NJ(NEL)
          INTEGER G1(*)
-         INTEGER TYPES(5,*),NTYPES
-         POINTER (IP_TYPES, TYPES)
          INTEGER I,IC
          INTEGER NMEM(*)
          INTEGER IFRZ(0:NBASIS)
