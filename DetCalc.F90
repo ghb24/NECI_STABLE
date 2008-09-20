@@ -240,7 +240,7 @@ CONTAINS
     End Subroutine DetCalcInit
     
     Subroutine DoDetCalc
-            Use global_utilities
+      Use global_utilities
       Use HElem
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh
@@ -249,20 +249,17 @@ CONTAINS
       use SystemData, only  : tCSF
 !*      POINTER (IP_TKE,TKE)
 !*      REAL*8 TKE(*)
-!*      REAL*8 A(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
+!*      REAL*8 A(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*),V2(*),WORK(*),WORK2(*),WH(*)
 !*      POINTER (IP_A,A),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T),(IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR)
-!
-!*        POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
-        POINTER (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
-        REAL*8 WH(*),WORK(*),WORK2(*),V2(*)
-!*        INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
+!*      POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
+!*      INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
 
-      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)!,WH(),WORK(),WORK2(),V2()
+      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),WORK(:)
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:)
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
-      INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0
-      integer ierr
+      INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,WorkTag=0
+      integer :: ierr
       character(25), parameter :: this_routine = 'DoDetCalc'
       REAL*8 EXEN,GSEN,FLRI,FLSI
 
@@ -426,11 +423,17 @@ CONTAINS
             CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
             CALL IAZZERO(INDEX,NEVAL)
 !C..
-            CALL MEMORY(IP_WH,NDET,'WH')
+!*            CALL MEMORY(IP_WH,NDET,'WH')
+            ALLOCATE(WH(NDET),stat=ierr)
+            CALL LogMemAlloc('WH',NDET,8,this_routine,WHTag,ierr)
             CALL AZZERO(WH,NDET)
-            CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
+!*            CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
+            ALLOCATE(WORK2(3*NDET),stat=ierr)
+            CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
             CALL AZZERO(WORK2,3*NDET)
-            CALL MEMORY(IP_V2,NDET*NEVAL,'V2')
+!*            CALL MEMORY(IP_V2,NDET*NEVAL,'V2')
+            ALLOCATE(V2(NDET,NEVAL),stat=ierr)
+            CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             CALL AZZERO(V2,NDET*NEVAL)
 !C..Lanczos iterative diagonalising routine
             CALL FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
@@ -446,8 +449,12 @@ CONTAINS
             ENDIF
             WRITE(6,*) "NBLK=0.  Doing exact diagonalization."
             IF(TCALCHMAT) THEN
-               CALL MEMORY(IP_WORK,4*NDET*HElementSize,'WORK')
-               CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
+               ALLOCATE(WORK(4*NDET),stat=ierr)
+               CALL LogMemAlloc('WORK',4*NDET,8,this_routine,WorkTag,ierr)
+               ALLOCATE(WORK2(3*NDET),stat=ierr)
+               CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
+!*               CALL MEMORY(IP_WORK,4*NDET*HElementSize,'WORK')
+!*               CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
                CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
             ELSE
 !I_P we've replaced by 0
