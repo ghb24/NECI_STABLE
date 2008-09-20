@@ -541,30 +541,42 @@ CONTAINS
 
         End Subroutine DoDetCalc
     Subroutine CalcRhoOfR()
+        Use global_utilities
         use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
         use IntegralsData, only: nMax
-        REAL*8 DLINE(*)
-        POINTER (IP_DLINE, DLINE)
-        REAL*8 PSIR(*)
-        POINTER (IP_PSIR, PSIR)
-        REAL*8 RHO(*)
-        POINTER (IP_RHO, RHO)
-        REAL*8 SITAB(*)
-        POINTER (IP_SITAB,SITAB)
+!*        REAL*8 DLINE(*)
+!*        POINTER (IP_DLINE, DLINE)
+!*        REAL*8 PSIR(*)
+!*        POINTER (IP_PSIR, PSIR)
+!*        REAL*8 RHO(*)
+!*        POINTER (IP_RHO, RHO)
+!*        REAL*8 SITAB(*)
+!*        POINTER (IP_SITAB,SITAB)
         REAL*8 SCRTCH(*)
         POINTER (IP_SCRTCH, SCRTCH)
-        REAL*8 XCHOLE(*)
-        POINTER (IP_XCHOLE,XCHOLE)
-        INTEGER iXD, iYD, iZD
+!*        REAL*8 XCHOLE(*)
+!*        POINTER (IP_XCHOLE,XCHOLE)
+
+        REAL*8 , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
+        INTEGER :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
+
+        character(25), parameter :: this_routine = 'CalcRhoOfR'
+        INTEGER iXD, iYD, iZD,ierr
         REAL*8 SPAC, Rs
 !C..Generate memory for RHO and SITAB
-        CALL MEMORY(IP_RHO,NMSH*NMSH*NMSH,'RHO')
-        CALL MEMORY(IP_SITAB,NMSH*NMAX,'SITAB')
+!*        CALL MEMORY(IP_RHO,NMSH*NMSH*NMSH,'RHO')
+!*        CALL MEMORY(IP_SITAB,NMSH*NMAX,'SITAB')
         CALL MEMORY(IP_SCRTCH,NMSH*NMSH*NMSH,'SCRTCH')
+        ALLOCATE(RHO(NMSH,NMSH,NMSH),stat=ierr)
+        CALL LogMemAlloc('RHO',NMSH**3,8,this_routine,RHOTag,ierr)
+        ALLOCATE(SITAB(NMSH,NMAX),stat=ierr)
+        CALL LogMemAlloc('SITAB',NMSH*NMAX,8,this_routine,SITABTag,ierr)
 !C..Calculate RHOOFR
         CALL RHOOFR(nBasis,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,NEL,NDET,NEVAL,RS,ALAT,OMEGA,SCRTCH)
 !C..
-        CALL MEMORY(IP_DLINE,NMSH,'DLINE')
+!*        CALL MEMORY(IP_DLINE,NMSH,'DLINE')
+        ALLOCATE(DLINE(NMSH),stat=ierr)
+        CALL LogMemAlloc('DLINE',NMSH,8,this_routine,DLINETag,ierr)
         CALL AZZERO(DLINE,NMSH)
 !C..Calculate RHOOFR in certain directions
 !C..001
@@ -578,8 +590,12 @@ CONTAINS
         CALL WRITE_LINE(8,'RHOAV010',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
         IF(TCORR) THEN
 !C..Now generate memory for XCHOLE
-          CALL MEMORY(IP_XCHOLE,NMSH*NMSH*NMSH,'XCHOLE')
-          CALL MEMORY(IP_PSIR,2*NMSH+1,'PSIR')
+!*          CALL MEMORY(IP_XCHOLE,NMSH*NMSH*NMSH,'XCHOLE')
+!*          CALL MEMORY(IP_PSIR,2*NMSH+1,'PSIR')
+          ALLOCATE(XCHOLE(NMSH,NMSH,NMSH),stat=ierr)
+          CALL LogMemAlloc('XCHOLE',NMSH**3,8,this_routine,XCHOLETag,ierr)
+          ALLOCATE(PSIR(-NMSH:NMSH),stat=ierr)
+          CALL LogMemAlloc('PSIR',2*NMSH+1,8,this_routine,PSIRTag,ierr)
           CALL AZZERO(PSIR,2*NMSH+1)
 !C..
           IXD=1
@@ -593,13 +609,19 @@ CONTAINS
         ENDIF
     End Subroutine CalcRhoOfR
     Subroutine CalcFoDM()
+        Use global_utilities
         use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
-        REAL*8 SUMA
-        POINTER (IP_SUMA, SUMA)
-        INTEGER ISTATE
+!*        REAL*8 SUMA
+!*        POINTER (IP_SUMA, SUMA)
+        REAL*8 , ALLOCATABLE :: SUMA(:,:,:)
+        INTEGER :: SUMATag=0
+        INTEGER ISTATE,ierr
+        character(25), parameter :: this_routine = 'CalcFoDM'
         ISTATE=0
         WRITE(6,*) ' ISTATE : ' , ISTATE 
-        CALL MEMORY(IP_SUMA,NMAXX*NMAXY*NMAXZ,'SUMA')
+!*        CALL MEMORY(IP_SUMA,NMAXX*NMAXY*NMAXZ,'SUMA')
+        ALLOCATE(SUMA(NMAXX,NMAXY,NMAXZ),stat=ierr)
+        CALL LogMemAlloc('SUMA',NMAXX*NMAXY*NMAXZ,8,this_routine,SUMATag,ierr)
         CALL AZZERO(SUMA,NMAXX*NMAXY*NMAXZ)
         CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
     End Subroutine CalcFoDM
