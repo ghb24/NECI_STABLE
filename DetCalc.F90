@@ -247,15 +247,23 @@ CONTAINS
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging
       use SystemData, only  : tCSF
-      POINTER (IP_TKE,TKE)
-      REAL*8 TKE(*)
-      REAL*8 A(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
-      POINTER (IP_A,A),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T),(IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR)
-
-        POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
+!*      POINTER (IP_TKE,TKE)
+!*      REAL*8 TKE(*)
+!*      REAL*8 A(*),V(*),AM(*),BM(*),T(*)
+      REAL*8 WT(*),SCR(*)
+!*      POINTER (IP_A,A),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T)
+      POINTER (IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR)
+!
+!*        POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
+        POINTER (IP_INDEX,INDEX),(IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
         REAL*8 WH(*),WORK(*),WORK2(*),V2(*)
-        INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
+        INTEGER INDEX(*),ISCR(*)
+!*        INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
 
+      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:)!,WT(),SCR(),WH(),WORK(),WORK2(),V2()
+      INTEGER , ALLOCATABLE :: LAB(:),NROW(:)!,INDEX(),ISCR()
+
+      integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
       integer ierr
       character(25), parameter :: this_routine = 'DoDetCalc'
       REAL*8 EXEN,GSEN,FLRI,FLSI
@@ -296,7 +304,9 @@ CONTAINS
       IF(TCALCHMAT) THEN
          WRITE(6,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first 
-         CALL MEMORY(IP_NROW,NDET,'NROW')
+         ALLOCATE(NROW(NDET),stat=ierr)
+         CALL LogMemAlloc('NROW',NDET,4,this_routine,NROWTag,ierr)
+!*         CALL MEMORY(IP_NROW,NDET,'NROW')
          CALL IAZZERO(NROW,NDET)
          ICMAX=1
 !Falsify tMC
@@ -310,7 +320,10 @@ CONTAINS
          LogAlloc(ierr, 'HAMIL', LenHamil, HElementSizeB, tagHamil)
          CALL AZZERO(HAMIL,LENHAMIL*HElementSize)
 !C..
-         CALL MEMORY(IP_LAB,LENHAMIL/IRAT+1,'LAB')
+         ALLOCATE(LAB(LENHAMIL),stat=ierr)
+         CALL LogMemAlloc('LAB',LenHamil,4,this_routine,LabTag,ierr)
+
+!*         CALL MEMORY(IP_LAB,LENHAMIL/IRAT+1,'LAB')
          CALL IAZZERO(LAB,LENHAMIL)
 !C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.FALSE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
@@ -353,67 +366,6 @@ CONTAINS
       ENDIF
 !C.. We've now finished calculating H if we were going to.
 !C.. IF ENERGY CALC (for which we need to have calced H)
-!      i=1
-!        do j=1,10
-!            k=1
-!                do l=1,10
-!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
-!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
-!                    
-!                    write(12,*) i,j,k,l,z
-!                enddo
-!        enddo
-!      i=6
-!        do j=1,10
-!            k=6
-!                do l=1,10
-!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
-!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
-!                    write(12,*) i,j,k,l,z
-!                enddo
-!        enddo
-!      i=1
-!        do j=1,10
-!            k=6
-!                do l=1,10
-!                   Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
-!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
-!                    write(12,*) i,j,k,l,z
-!                enddo
-!        enddo
-!      i=6
-!        do j=1,10
-!            k=1
-!                do l=1,10
-!                    Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
-!     &                  ALAT,NBASIS,2,G1,i,k,j,l))
-!                    write(12,*) i,j,k,l,z
-!                enddo
-!        enddo
-!      CALL FLUSH(12)
-!      do i=1,10
-!        do j=1,10
-!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
-!     &                ALAT,NBASIS,2,G1,i,j,i,j))
-!            write(12,*) i,i,j,j,z
-!        enddo
-!      enddo
-!      write(12,*) "************************"
-!      do i=1,10
-!        do j=1,10
-!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
-!     &                ALAT,NBASIS,2,G1,i,j,j,i))
-!                 write(12,*) i,j,j,i,z
-!        enddo
-!      enddo
-!      do i=1,10
-!        do j=1,10
-!            Z=DREAL(GETUMATEL(NBASISMAX,UMAT,
-!     &                ALAT,NBASIS,2,G1,i,i,j,j))
-!            write(12,*) i,j,i,j,z
-!        enddo
-!      enddo
-!      CALL FLUSH(12)
 ! 
       IF(TENERGY) THEN
          IF(NBLK.NE.0) THEN
@@ -431,21 +383,32 @@ CONTAINS
             WRITE(*,'(7X," *",62X,"*")')
             WRITE(*,'(7X,1X,64(1H*))')
 !C..Set up memory for FRSBLKH
-            CALL MEMORY(IP_A,NEVAL*NEVAL,'A')
+
+!*            CALL MEMORY(IP_A,NEVAL*NEVAL,'A')
+            ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
+            CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
             CALL AZZERO(A,NEVAL*NEVAL)
 !C..
 !C,, W is now allocated with CK
 !C..
-            CALL MEMORY(IP_V,NDET*NBLOCK*NKRY1,'V')
+!*            CALL MEMORY(IP_V,NDET*NBLOCK*NKRY1,'V')
+            ALLOCATE(V(NDET*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('V',NDET*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
             CALL AZZERO(V,NDET*NBLOCK*NKRY1)
 !C..   
-            CALL MEMORY(IP_AM,NBLOCK*NBLOCK*NKRY1,'AM')
+!*            CALL MEMORY(IP_AM,NBLOCK*NBLOCK*NKRY1,'AM')
+            ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
             CALL AZZERO(AM,NBLOCK*NBLOCK*NKRY1)
 !C..
-            CALL MEMORY(IP_BM,NBLOCK*NBLOCK*NKRY,'BM')
+!*            CALL MEMORY(IP_BM,NBLOCK*NBLOCK*NKRY,'BM')
+            ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
             CALL AZZERO(BM,NBLOCK*NBLOCK*NKRY)
 !C..
-            CALL MEMORY(IP_T,3*NBLOCK*NKRY*NBLOCK*NKRY,'T')
+!*            CALL MEMORY(IP_T,3*NBLOCK*NKRY*NBLOCK*NKRY,'T')
+            ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
             CALL AZZERO(T,3*NBLOCK*NKRY*NBLOCK*NKRY)
 !C..
             CALL MEMORY(IP_WT,NBLOCK*NKRY,'WT')
@@ -494,8 +457,12 @@ CONTAINS
 !  Since we no longer use HAMIL or LAB, we deallocate
       LogDealloc(tagHamil)
       Deallocate(Hamil)
-      CALL FREEM(IP_LAB)
-         CALL MEMORY(IP_TKE,NEVAL,'TKE')
+      DEALLOCATE(LAB)
+      CALL LogMemDealloc(this_routine,LabTag)
+!*      CALL FREEM(IP_LAB)
+      ALLOCATE(TKE(NEVAL),stat=ierr)
+      CALL LogMemAlloc('TKE',NEVAL,8,this_routine,TKETag,ierr)
+!*      CALL MEMORY(IP_TKE,NEVAL,'TKE')
 !C.. END ENERGY CALC
       ENDIF
       IF(TENERGY) THEN
