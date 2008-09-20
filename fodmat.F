@@ -1,34 +1,34 @@
       SUBROUTINE FODMAT(NEL,NHG,NDET,NEVAL,ISTATE,
      &	NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
       use SystemData, only: BasisFN
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
-C..
-      POINTER (IP_FODM,FODM),(IP_Z,Z),(IP_W,W),(IP_CDETK,CDETK),
-     &	(IP_DMAT,DMAT),(IP_INDX,INDX)
-C..Diagonalisation vectors 
-      POINTER (IP_WORK,WORK),(IP_IWORK,IWORK),(IP_IFAIL,IFAIL)
-      SAVE IP_FODM,IP_Z,IP_W,IP_WORK,IP_IWORK,IP_IFAIL,IP_CDETK,
-     &	IP_DMAT,IP_INDX
 #ifdef POINTER8
 	INTEGER*8 LOC
 #else
       INTEGER LOC
 #endif
-      DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*),CDETK(NHG,*)
-      DIMENSION FODM(NHG,*),Z(NHG,*),W(*),IFAIL(*)
+      REAL*8, ALLOCATABLE :: FODM(:,:),Z(:,:),W(:)
+C..Diagonalisation vectors
+      REAL*8, ALLOCATABLE :: WORK(:)
+      REAL*8, ALLOCATABLE :: IWORK(:),IFAIL(:)
+      integer, save :: tagFODM=0,tagZ=0,tagW=0
+      integer, save :: tagWORK=0
+      integer, save :: tagIWORK=0,tagIFAIL=0
+
+      DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION N1E(NHG),N2E(NHG)
       DIMENSION SUMA(NMAXX,NMAXY,NMAXZ)
-C..Diagonalisation vectors
-      DIMENSION WORK(*),IWORK(*)
-      COMPLEX*16 DMAT(NHG,*),CDET
+      COMPLEX*16 CDET
       TYPE(BASISFN) G1(NHG)
-      INTEGER INDX(*)
+      character(*),parameter :: this_routine='FODMAT'
 C..
       WRITE(6,'(1X,A)') '*** NATURAL ORBITAL EVALUATION ***'
       WRITE(6,'(2X,A)') 'FILE ./NATURAL BEING UPDATED'
       EPS=1.D-8 
 C..
-      CALL MEMORY(IP_FODM,NHG*NHG,'FODM')
+      allocate(FODM(NHG,NHG))
+      call LogMemAlloc('FODM',NHG**2,8,this_routine,tagFODM)
       CALL AZZERO(FODM,NHG*NHG)
 C..
       CALL IAZZERO(N1E,NHG)
@@ -91,16 +91,21 @@ C      OPEN(10,FILE='FODM',STATUS='UNKNOWN')
 C      CALL WRITE_MATRIX('   FODM: ',NHG,NHG,FODM)
 C      CLOSE(10)
 C..Now diagonalise FODM
-      CALL MEMORY(IP_WORK,8*NHG ,'WORK') 
+      allocate(WORK(8*NHG))
+      call LogMemAlloc('WORK',8*NHG,8,this_routine,tagWORK)
+      allocate(IWORK(5*NHG))
+      call LogMemAlloc('IWORK',5*NHG,4,this_routine,tagIWORK)
+      allocate(IFAIL(NHG))
+      call LogMemAlloc('IFAIL',NHG,4,this_routine,tagIFAIL)
+      allocate(Z(NHG,NHG))
+      call LogMemAlloc('Z',NHG**2,8,this_routine,tagZ)
+      allocate(W(NHG))
+      call LogMemAlloc('W',NHG,8,this_routine,tagW)
       CALL AZZERO(WORK,8*NHG)
-      CALL MEMORY(IP_IWORK,5*NHG,'IWORK')
       CALL IAZZERO(IWORK,5*NHG)
-      CALL MEMORY(IP_IFAIL,NHG,'IFAIL')
       CALL IAZZERO(IFAIL,NHG)
 C..Natural orbitals and occupation numbers
-      CALL MEMORY(IP_Z,NHG*NHG,'Z')
       CALL AZZERO(Z,NHG*NHG)
-      CALL MEMORY(IP_W,NHG,'W')
       CALL AZZERO(W,NHG)
 C..
       ABSTOL=1.D-15
