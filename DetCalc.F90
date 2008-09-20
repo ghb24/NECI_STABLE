@@ -249,21 +249,19 @@ CONTAINS
       use SystemData, only  : tCSF
 !*      POINTER (IP_TKE,TKE)
 !*      REAL*8 TKE(*)
-!*      REAL*8 A(*),V(*),AM(*),BM(*),T(*)
-      REAL*8 WT(*),SCR(*)
-!*      POINTER (IP_A,A),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T)
-      POINTER (IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR)
+!*      REAL*8 A(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*)
+!*      POINTER (IP_A,A),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T),(IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR)
 !
 !*        POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
-        POINTER (IP_INDEX,INDEX),(IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
+        POINTER (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
         REAL*8 WH(*),WORK(*),WORK2(*),V2(*)
-        INTEGER INDEX(*),ISCR(*)
 !*        INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
 
-      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:)!,WT(),SCR(),WH(),WORK(),WORK2(),V2()
-      INTEGER , ALLOCATABLE :: LAB(:),NROW(:)!,INDEX(),ISCR()
+      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:)!,WH(),WORK(),WORK2(),V2()
+      INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:)
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
+      INTEGER :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0
       integer ierr
       character(25), parameter :: this_routine = 'DoDetCalc'
       REAL*8 EXEN,GSEN,FLRI,FLSI
@@ -280,7 +278,6 @@ CONTAINS
         real*8 GetHElement, calct, calcmcen, calcdlwdb
 ! Doesn't seem to have been inited
 
-      
       WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
       WRITE(6,*) ' NBLK : ' , NBLK 
       WRITE(6,*) ' NKRY : ' , NKRY
@@ -411,14 +408,22 @@ CONTAINS
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
             CALL AZZERO(T,3*NBLOCK*NKRY*NBLOCK*NKRY)
 !C..
-            CALL MEMORY(IP_WT,NBLOCK*NKRY,'WT')
+!*            CALL MEMORY(IP_WT,NBLOCK*NKRY,'WT')
+            ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
             CALL AZZERO(WT,NBLOCK*NKRY)
 !C..
-            CALL MEMORY(IP_SCR,LSCR,'SCR')
+!*            CALL MEMORY(IP_SCR,LSCR,'SCR')
+            ALLOCATE(SCR(LScr),stat=ierr)
+            CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
             CALL AZZERO(SCR,LSCR)
-            CALL MEMORY(IP_ISCR,LISCR,'ISCR')
+!*            CALL MEMORY(IP_ISCR,LISCR,'ISCR')
+            ALLOCATE(ISCR(LIScr),stat=ierr)
+            CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
             CALL IAZZERO(ISCR,LISCR)
-            CALL MEMORY(IP_INDEX,NEVAL,'INDEX')
+!*            CALL MEMORY(IP_INDEX,NEVAL,'INDEX')
+            ALLOCATE(INDEX(NEVAL),stat=ierr)
+            CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
             CALL IAZZERO(INDEX,NEVAL)
 !C..
             CALL MEMORY(IP_WH,NDET,'WH')
