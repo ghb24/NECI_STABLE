@@ -55,6 +55,8 @@ MODULE PrecalcData
         INTEGER, POINTER, DIMENSION(:,:) :: PVERTMEMS
 #endif
 
+        integer, save :: tagGRAPHS=0,tagPGENLIST=0,tagNMEM=0,tagGRAPHPARAMS=0,tagPVERTMEMS=0
+
 END MODULE PrecalcData
 
 

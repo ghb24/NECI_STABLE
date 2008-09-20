@@ -39,6 +39,7 @@ logical tCPMDSymTMat
 ! Memory book-keeping tags
 integer :: tagTMat2D=0
 integer :: tagTMat2D2=0
+integer :: tagTMATSYM=0,tagTMATSYM2=0
 
 contains
 
@@ -389,7 +390,7 @@ contains
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
             
             Allocate(TMATSYM(-1:iSize),STAT=ierr)
-            Call MemAlloc(ierr,TMATSYM,HElementSize*(iSize+2),'TMATSYM')
+            Call LogMemAlloc('TMATSym',iSize+2,HElementSize*8,thisroutine,tagTMATSYM,ierr)
             Call AZZERO(TMATSYM,HElementSize*(iSize+2))
 
         ELSE
@@ -494,7 +495,7 @@ contains
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
             
             Allocate(TMATSYM2(-1:iSize),STAT=ierr)
-            CALL MemAlloc(ierr,TMATSYM2,HElementSize*(iSize+2),'TMATSYM2')
+            CALL LogMemAlloc('TMatSym2',iSize+2,HElementSize*8,thisroutine,tagTMATSYM2,ierr)
             CALL AZZERO(TMATSYM2,HElementSize*(iSize+2))
 
         ELSE
@@ -523,13 +524,13 @@ contains
         IF(TSTARSTORE) THEN
             IF(NEWTMAT) THEN
                 IF(ASSOCIATED(TMATSYM2)) THEN
-                    CALL MemDealloc(TMATSYM2)
+                    CALL LogMemDealloc(thisroutine,tagTMatSym2)
                     Deallocate(TMATSYM2)
                     NULLIFY(TMATSYM2)
                 ENDIF
             ELSE
                 IF(ASSOCIATED(TMATSYM)) THEN
-                    CALL MemDealloc(TMATSYM)
+                    CALL LogMemDealloc(thisroutine,tagTMatSym)
                     Deallocate(TMATSYM)
                     NULLIFY(TMATSYM)
                 ENDIF
@@ -604,7 +605,7 @@ contains
              TMATSYM => TMATSYM2
              NULLIFY(TMATSYM2)
              !Swap the INVBRR and deallocate old one
-             CALL MemDealloc(INVBRR)
+             CALL LogMemDealloc(this_routine,tagINVBRR)
              Deallocate(INVBRR)
              INVBRR => INVBRR2
              NULLIFY(INVBRR2)

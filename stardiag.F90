@@ -29,6 +29,9 @@
 !Used with TSumProd, rhiiadd is the value to resum back into the root to account for quadruple excitations
          TYPE(HElement) :: rhiiadd
 
+         integer, save :: tagOnDiagProdRho=0,tagOffDiagProdRho=0,tagEXCITSTORE=0,tagOffrho=0,tagtemprhos=0
+         integer, save :: tagProdPositions=0
+
          contains
 !  A function to generate all possible excitations of a determinant and link them together in a star
 !    The rho_jj, rho_ij and H_ij values are stored for each connected determinant.
@@ -150,7 +153,7 @@
 !If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
          IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
-             CALL MemAlloc(iErr,EXCITSTORE,(iMaxExcit*2),"EXCITSTORE")
+             CALL LogMemAlloc("EXCITSTORE",(iMaxExcit*2),4,this_routine,tagEXCITSTORE,iErr)
              CALL IAZZERO(ExcitStore,iMaxExcit*4)
          ENDIF
 
@@ -368,17 +371,17 @@
              Deallocate(ExcitInfo2)
          ENDIF
          IF(ALLOCATED(EXCITSTORE)) THEN
-            call MemDealloc(EXCITSTORE)
+            call LogMemDealloc(this_routine,tagEXCITSTORE)
             DEALLOCATE(EXCITSTORE)
          ENDIF
          IF(ALLOCATED(ProdPositions)) THEN
-            call MemDealloc(ProdPositions)
+            call LogMemDealloc(this_routine,tagProdPositions)
             DEALLOCATE(ProdPositions)
          ENDIF
          IF(ALLOCATED(OnDiagProdRho)) THEN
-            call MemDealloc(OnDiagProdRho)
+            call LogMemDealloc(this_routine,tagOnDiagProdRho)
             DEALLOCATE(OnDiagProdRho)
-            call MemDealloc(OffDiagProdRho)
+            call LogMemDealloc(this_routine,tagOffDiagProdRho)
             DEALLOCATE(OffDiagProdRho)
          ENDIF
             
@@ -408,6 +411,8 @@
             INTEGER, ALLOCATABLE :: nExcit2(:)
             REAL*8, ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             REAL*8, ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
+            integer,save :: tagWORK=0,tagExcitStarVals=0,tagExcitStarVecs=0,tagExcitStarMat=0
+            integer,save :: tagnExcit2=0,tagExcitStarInfo=0
             LOGICAL :: HFFound
             character(*), parameter :: this_routine='CalcExcitStar'
             
@@ -531,7 +536,7 @@
                 
 !Allocate Memory for excited star.
                 ALLOCATE(ExcitStarInfo(0:NoExcitsInStar(i),0:1),stat=iErr)
-                CALL MemAlloc(iErr,ExcitStarInfo,(NoExcitsInStar(i)+1)*2,"ExcitStarInfo")
+                CALL LogMemAlloc("ExcitStarInfo",(NoExcitsInStar(i)+1)*2,8,this_routine,tagExcitStarInfo,iErr)
                 CALL AZZERO(ExcitStarInfo,(NoExcitsInStar(i)+1)*2)
                 
                 ExcitStarInfo(0,0)=DREAL(rh/rhii)
@@ -584,7 +589,7 @@
 
 !Now need to prepare to diagonalise excited star
                 ALLOCATE(ExcitStarMat(j+1,j+1),stat=iErr)
-                CALL MemAlloc(iErr,ExcitStarMat,(j+1)*(j+1),"ExcitStarMat")
+                CALL LogMemAlloc("ExcitStarMat",(j+1)*(j+1),8,this_routine,tagExcitStarMat,iErr)
                 CALL AZZERO(ExcitStarMat,(j+1)*(j+1))
 
                 do j=1,(NoExcitsInStar(i)+1)
@@ -592,19 +597,19 @@
                     ExcitStarMat(1,j)=ExcitStarInfo(j-1,1)
                 enddo
 
-                CALL MemDealloc(ExcitStarInfo)
+                CALL LogMemDealloc(this_routine,tagExcitStarInfo)
                 DEALLOCATE(ExcitStarInfo)
 
                 ALLOCATE(WORK(3*(NoExcitsInStar(i)+1)),stat=iErr)
-                CALL MemAlloc(iErr,WORK,3*(NoExcitsInStar(i)+1),"WORK")
+                CALL LogMemAlloc("WORK",3*(NoExcitsInStar(i)+1),8,this_routine,tagWORK,iErr)
                 CALL AZZERO(WORK,3*(NoExcitsInStar(i)+1))
 
                 ALLOCATE(ExcitStarVals(NoExcitsInStar(i)+1),stat=iErr)
-                CALL MemAlloc(iErr,ExcitStarVals,NoExcitsInStar(i)+1,"ExcitStarVals")
+                CALL LogMemAlloc("ExcitStarVals",NoExcitsInStar(i)+1,8,this_routine,tagExcitStarVals,iErr)
                 CALL AZZERO(ExcitStarVals,NoExcitsInStar(i)+1)
 
                 ALLOCATE(ExcitStarVecs(NoExcitsInStar(i)+1),stat=iErr)
-                CALL MemAlloc(iErr,ExcitStarVals,NoExcitsInStar(i)+1,"ExcitStarVecs")
+                CALL LogMemAlloc("ExcitStarVecs",NoExcitsInStar(i)+1,8,this_routine,tagExcitStarVals,iErr)
                 CALL AZZERO(ExcitStarVecs,NoExcitsInStar(i)+1)
 
                 CALL DSYEV('V','U',NoExcitsInStar(i)+1,ExcitStarMat,NoExcitsInStar(i)+1,ExcitStarVals,WORK,3*(NoExcitsInStar(i)+1),INFO)
@@ -617,9 +622,9 @@
                     ExcitStarVecs(j)=ABS(ExcitStarMat(1,j))
                 enddo
 
-                CALL MemDealloc(ExcitStarMat)
+                CALL LogMemDealloc(this_routine,tagExcitStarMat)
                 DEALLOCATE(ExcitStarMat)
-                CALL MemDealloc(WORK)
+                CALL LogMemDealloc(this_routine,tagWORK)
                 DEALLOCATE(WORK)
                 
 !Now it is necessary to reattach the eigenvectors back to the original star matrix...
@@ -654,6 +659,7 @@
        
 !A testing routine which writes out eigenvectors and values from various modified star matrices
         SUBROUTINE GraphRootChange(iMaxExcit,iExcit,RhoEps)
+            use global_utilities
             IMPLICIT NONE
             INTEGER :: iMaxExcit,iExcit,HalfiExcit,i,j,calcs,lowtoprint,toprint,k
             INTEGER :: NoDegens,iErr
@@ -663,6 +669,8 @@
             REAL*8, ALLOCATABLE :: Vals(:),Vecs(:),DiagRhos(:),Diffs(:,:)
             TYPE(HElement) :: tmp(3)
             TYPE(HElement), ALLOCATABLE :: TESTER(:)
+            integer, save :: tagDegenPos=0
+            character(*), parameter :: this_routine='GraphRootChange'
 
 !            OPEN(47,FILE='Differences',STATUS='UNKNOWN')
             OPEN(48,FILE='FirstElemVecs',STATUS='UNKNOWN')
@@ -712,7 +720,7 @@
             ENDIF
 
             ALLOCATE(DegenPos(NoDegens),stat=iErr)
-            CALL MemAlloc(iErr,DegenPos,NoDegens/2,"DegenPos")
+            CALL LogMemAlloc("DegenPos",NoDegens/2,4,this_routine,tagDegenPos,iErr)
             CALL IAZZERO(DegenPos,NoDegens)
 !DegenPos shows the degeneracy structure of the excited determinants
 !Each degenerate block extends from DegenPos(i-1)+1 --> DegenPos(i)
@@ -880,7 +888,7 @@
 !            WRITE(26,"(A,I3,A)") "'' u 1:(abs($2)) w lp t 'Val",iExcit+1,"'"
 !            CLOSE(26)
 
-            CALL MemDealloc(DegenPos)
+            CALL LogMemDealloc(this_routine,tagDegenPos)
             DEALLOCATE(DegenPos)
             DEALLOCATE(Vals)
             DEALLOCATE(Vecs)
@@ -898,6 +906,7 @@
             type(timer), save :: proc_timer
             REAL*8, ALLOCATABLE :: NewDiagRhos(:),Vals(:),Vecs(:)
             TYPE(HElement), ALLOCATABLE :: NewOffDiagRhos(:)
+            integer, save :: tagVals=0,tagVecs=0,tagNewDiagRhos=0,tagNewOffDiagRhos=0
             REAL*8 :: RhoValue,RhoEps,OffRhoValue
             TYPE(HElement) :: Rhoia
             LOGICAL :: FoundRoot
@@ -913,9 +922,9 @@
             ENDIF
 
             ALLOCATE(NewDiagRhos(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,NewDiagRhos,iExcit+1,"NewDiagRhos")
+            CALL LogMemAlloc("NewDiagRhos",iExcit+1,8,this_routine,tagNewDiagRhos,iErr)
             ALLOCATE(NewOffDiagRhos(iExcit),stat=iErr)
-            CALL MemAlloc(iErr,NewOffDiagRhos,iExcit*HElementSize,"NewOffDiagRhos")
+            CALL LogMemAlloc("NewOffDiagRhos",iExcit,8*HElementSize,this_routine,tagNewOffDiagRhos,iErr)
             CALL AZZERO(NewOffDiagRhos,iExcit*HElementSize)
             ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
             call LogMemAlloc('ExcitInfo2',(iExcit*(iExcit+1)+1)*3,8*HElementSize,this_routine,tagExcitInfo2,iErr)
@@ -928,9 +937,9 @@
             NextVertex=1
             
             ALLOCATE(Vals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,Vals,(iExcit+1)*iExcit,"Vals")
+            CALL LogMemAlloc("Vals",(iExcit+1)*iExcit,8,this_routine,tagVals,iErr)
             ALLOCATE(Vecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,Vecs,(iExcit+1)*iExcit,"Vecs")
+            CALL LogMemAlloc("Vecs",(iExcit+1)*iExcit,8,this_routine,tagVecs,iErr)
 
 !Run through all excitations of original star
             do i=1,iExcit
@@ -993,11 +1002,11 @@
                 
             enddo
 
-            CALL MemDealloc(NewDiagRhos)
+            CALL LogMemDealloc(this_routine,tagNewDiagRhos)
             DEALLOCATE(NewDiagRhos)
-            CALL MemDealloc(Vals)
+            CALL LogMemDealloc(this_routine,tagVals)
             DEALLOCATE(Vals)
-            CALL MemDealloc(Vecs)
+            CALL LogMemDealloc(this_routine,tagVecs)
             DEALLOCATE(Vecs)
 
             WRITE(6,"(I10,A)") NextVertex-1-iExcit, " extra vertices added to original star from excited stars"
@@ -1025,6 +1034,7 @@
             REAL*8 :: MeanVal,Sxx,Sxy,Syy,GradVal,IncptVal,ExpctVal,Rsq,Vector,PreVec,lowrhojj
             LOGICAL :: ReachMax
             REAL*8, ALLOCATABLE :: AllVals(:),AllVecs(:),DiagRhos(:)
+            integer, save :: tagAllVals=0,tagAllVecs=0,tagDiagRhos=0
             TYPE(HElement) :: tmp(3)
             character(*), parameter :: this_routine='GetLinRootChangeStars'
 
@@ -1068,11 +1078,11 @@
 !Calculate the number of eigenvectors which contribute to the excited star with the smallest root...
 !First calculate the contribution from largest eigenvector...
             ALLOCATE(AllVals(iExcit+1),stat=ierr)
-            CALL MemAlloc(iErr,AllVals,iExcit+1,"AllVals")
+            CALL LogMemAlloc("AllVals",iExcit+1,8,this_routine,tagAllVals,iErr)
             ALLOCATE(AllVecs(iExcit+1),stat=ierr)
-            CALL MemAlloc(iErr,AllVecs,iExcit+1,"AllVecs")
+            CALL LogMemAlloc("AllVecs",iExcit+1,8,this_routine,tagAllVecs,iErr)
             ALLOCATE(DiagRhos(iExcit+1),stat=ierr)
-            CALL MemAlloc(iErr,DiagRhos,iExcit+1,"DiagRhos")
+            CALL LogMemAlloc("DiagRhos",iExcit+1,8,this_routine,tagDiagRhos,iErr)
             do j=2,iExcit+1
                 DiagRhos(j)=DREAL(ExcitInfo(j-1,0))
             enddo
@@ -1112,11 +1122,11 @@
 !            ENDIF
             IF(.NOT.BTEST(NWHTAY,0)) THEN
                 ALLOCATE(AllVals(iExcit+1),stat=ierr)
-                CALL MemAlloc(iErr,AllVals,iExcit+1,"AllVals")
+                CALL LogMemAlloc("AllVals",iExcit+1,8,this_routine,tagAllVals,iErr)
                 ALLOCATE(AllVecs(iExcit+1),stat=ierr)
-                CALL MemAlloc(iErr,AllVecs,iExcit+1,"AllVecs")
+                CALL LogMemAlloc("AllVecs",iExcit+1,8,this_routine,tagAllVecs,iErr)
                 ALLOCATE(DiagRhos(iExcit+1),stat=ierr)
-                CALL MemAlloc(iErr,DiagRhos,iExcit+1,"DiagRhos")
+                CALL LogMemAlloc("DiagRhos",iExcit+1,8,this_routine,tagDiagRhos,iErr)
             ENDIF
 !Cycle through all possible roots
             do i=1,LinePoints
@@ -1155,11 +1165,11 @@
                     ENDIF
 
                     IF(i.eq.Linepoints) THEN
-                        CALL MemDealloc(AllVals)
+                        CALL LogMemDealloc(this_routine,tagAllVals)
                         DEALLOCATE(AllVals)
-                        CALL MemDealloc(AllVecs)
+                        CALL LogMemDealloc(this_routine,tagAllVecs)
                         DEALLOCATE(AllVecs)
-                        CALL MemDealloc(DiagRhos)
+                        CALL LogMemDealloc(this_routine,tagDiagRhos)
                         DEALLOCATE(DiagRhos)
                     ENDIF
 
@@ -1303,6 +1313,12 @@
 !These arrays hold various data for calculating the gradient, and R^2 value for the linear approximation for each eigenvalue & vector.
             REAL*8, ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:),IncptVecs(:),SxyVals(:),SxyVecs(:)
             REAL*8, ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
+            integer, save :: tagLineRhoValues=0
+            integer, save :: tagVecsDODMS=0
+            integer, save :: tagValsDODMS=0
+            integer, save :: tagRsqVals=0,tagRsqVecs=0,tagExpctVals=0,tagExpctVecs=0,tagIncptVals=0,tagIncptVecs=0,tagSxyVals=0,tagSxyVecs=0
+            integer, save :: tagSyyVecs=0,tagSyyVals=0,tagMeanVals=0,tagMeanVecs=0,tagGradVals=0,tagGradVecs=0
+            integer, save :: tagNewDiagRhos=0
             character(*), parameter :: this_routine='GetLinStarStars'
 
             proc_timer%timer_name='GetLinStarStars'
@@ -1357,11 +1373,11 @@
 
 !The values for the calculated eigenvectors (first elements) and eigenvalues for the 'LinePoints' points are put into ValsDODMS and VecsDODMS respectivly.
             ALLOCATE(ValsDODMS(LinePoints,(iExcit+1)),stat=ierr)
-            CALL MemAlloc(iErr,ValsDODMS,(iExcit+1)*LinePoints,"ValsDODMS")
+            CALL LogMemAlloc("ValsDODMS",(iExcit+1)*LinePoints,8,this_routine,tagValsDODMS,iErr)
             ALLOCATE(VecsDODMS(Linepoints,(iExcit+1)),stat=ierr)
-            CALL MemAlloc(iErr,VecsDODMS,(iExcit+1)*LinePoints,"VecsDODMS")
+            CALL LogMemAlloc("VecsDODMS",(iExcit+1)*LinePoints,8,this_routine,tagVecsDODMS,iErr)
             ALLOCATE(NewDiagRhos(iExcit+1),stat=ierr)
-            CALL MemAlloc(iErr,NewDiagRhos,iExcit+1,"NewDiagRhos")
+            CALL LogMemAlloc("NewDiagRhos",iExcit+1,8,this_routine,tagNewDiagRhos,iErr)
 
 !Cycle through all the diagonal multiplicative factors to look at to find gradients
             do i=1,LinePoints
@@ -1388,7 +1404,7 @@
                 
             enddo
 
-            CALL MemDealloc(NewDiagRhos)
+            CALL LogMemDealloc(this_routine,tagNewDiagRhos)
             DEALLOCATE(NewDiagRhos)
 
 !Store the eigenvalues and first element of the eigenvectors of the original star matrix for later use.
@@ -1410,10 +1426,10 @@
 
 !Need to calculate the average for each eigenvalue & vector
             ALLOCATE(MeanVecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,MeanVecs,iExcit+1,"MeanVecs")
+            CALL LogMemAlloc("MeanVecs",iExcit+1,8,this_routine,tagMeanVecs,iErr)
             CALL AZZERO(MeanVecs,iExcit+1)
             ALLOCATE(MeanVals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,MeanVals,iExcit+1,"MeanVals")
+            CALL LogMemAlloc("MeanVals",iExcit+1,8,this_routine,tagMeanVals,iErr)
             CALL AZZERO(MeanVals,iExcit+1)
 
             do i=1,iExcit+1
@@ -1437,16 +1453,16 @@
 !Sxy = \sum{(x_i - X)(y_i - Y) where X and Y are the means of x and y respectivly
 
             ALLOCATE(SxyVals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,SxyVals,iExcit+1,"SxyVals")
+            CALL LogMemAlloc("SxyVals",iExcit+1,8,this_routine,tagSxyVals,iErr)
             CALL AZZERO(SxyVals,iExcit+1)
             ALLOCATE(SxyVecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,SxyVecs,iExcit+1,"SxyVecs")
+            CALL LogMemAlloc("SxyVecs",iExcit+1,8,this_routine,tagSxyVecs,iErr)
             CALL AZZERO(SxyVecs,iExcit+1)
             ALLOCATE(SyyVals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,SyyVals,iExcit+1,"SyyVals")
+            CALL LogMemAlloc("SyyVals",iExcit+1,8,this_routine,tagSyyVals,iErr)
             CALL AZZERO(SyyVals,iExcit+1)
             ALLOCATE(SyyVecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,SyyVecs,iExcit+1,"SyyVecs")
+            CALL LogMemAlloc("SyyVecs",iExcit+1,8,this_routine,tagSyyVecs,iErr)
             CALL AZZERO(SyyVecs,iExcit+1)
 
             do i=1,iExcit+1
@@ -1464,16 +1480,16 @@
 !y-intercepts also calculated for use when calculating R^2 value.
 
             ALLOCATE(GradVals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,GradVals,iExcit+1,"GradVals")
+            CALL LogMemAlloc("GradVals",iExcit+1,8,this_routine,tagGradVals,iErr)
             CALL AZZERO(GradVals,iExcit+1)
             ALLOCATE(GradVecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,GradVecs,iExcit+1,"GradVecs")
+            CALL LogMemAlloc("GradVecs",iExcit+1,8,this_routine,tagGradVecs,iErr)
             CALL AZZERO(GradVecs,iExcit+1)
             ALLOCATE(IncptVals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,IncptVals,iExcit+1,"IncptVals")
+            CALL LogMemAlloc("IncptVals",iExcit+1,8,this_routine,tagIncptVals,iErr)
             CALL AZZERO(IncptVals,iExcit+1)
             ALLOCATE(IncptVecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,IncptVecs,iExcit+1,"IncptVecs")
+            CALL LogMemAlloc("IncptVecs",iExcit+1,8,this_routine,tagIncptVecs,iErr)
             CALL AZZERO(IncptVecs,iExcit+1)
 
             do i=1,iExcit+1
@@ -1488,10 +1504,10 @@
 !To calculate the R^2 value for the linear regression, also need to calculate \sum{(y_i - Y)^2} - the expected y value from the gradient calculation at each point
 
             ALLOCATE(ExpctVals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,ExpctVals,iExcit+1,"ExpctVals")
+            CALL LogMemAlloc("ExpctVals",iExcit+1,8,this_routine,tagExpctVals,iErr)
             CALL AZZERO(ExpctVals,iExcit+1)
             ALLOCATE(ExpctVecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,ExpctVecs,iExcit+1,"ExpctVecs")
+            CALL LogMemAlloc("ExpctVecs",iExcit+1,8,this_routine,tagExpctVecs,iErr)
             CALL AZZERO(ExpctVecs,iExcit+1)
 
             do i=1,iExcit+1
@@ -1506,10 +1522,10 @@
             !Now, calculate R^2 value at for each eigenvalue/vector. This has been quite a time-consuming operation as need to calculate Syy..,Incpt..,Expct.. however,does not increase scaling.
 
             ALLOCATE(RsqVals(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,RsqVals,iExcit+1,"RsqVals")
+            CALL LogMemAlloc("RsqVals",iExcit+1,8,this_routine,tagRsqVals,iErr)
             CALL AZZERO(RsqVals,iExcit+1)
             ALLOCATE(RsqVecs(iExcit+1),stat=iErr)
-            CALL MemAlloc(iErr,RsqVecs,iExcit+1,"RsqVecs")
+            CALL LogMemAlloc("RsqVecs",iExcit+1,8,this_routine,tagRsqVecs,iErr)
             CALL AZZERO(RsqVecs,iExcit+1)
 
             do i=1,iExcit+1
@@ -1527,33 +1543,33 @@
             enddo
 
 !Deallocate all memory apart from gradients, which are still needed.
-            CALL MemDealloc(RsqVals)
+            CALL LogMemDealloc(this_routine,tagRsqVals)
             DEALLOCATE(RsqVals)
-            CALL MemDealloc(RsqVecs)
+            CALL LogMemDealloc(this_routine,tagRsqVecs)
             DEALLOCATE(RsqVecs)
-            CALL MemDealloc(ExpctVals)
+            CALL LogMemDealloc(this_routine,tagExpctVals)
             DEALLOCATE(ExpctVals)
-            CALL MemDealloc(ExpctVecs)
+            CALL LogMemDealloc(this_routine,tagExpctVecs)
             DEALLOCATE(ExpctVecs)
-            CALL MemDealloc(IncptVals)
+            CALL LogMemDealloc(this_routine,tagIncptVals)
             DEALLOCATE(IncptVals)
-            CALL MemDealloc(IncptVecs)
+            CALL LogMemDealloc(this_routine,tagIncptVecs)
             DEALLOCATE(IncptVecs)
-            CALL MemDealloc(SxyVals)
+            CALL LogMemDealloc(this_routine,tagSxyVals)
             DEALLOCATE(SxyVals)
-            CALL MemDealloc(SxyVecs)
+            CALL LogMemDealloc(this_routine,tagSxyVecs)
             DEALLOCATE(SxyVecs)
-            CALL MemDealloc(SyyVals)
+            CALL LogMemDealloc(this_routine,tagSyyVals)
             DEALLOCATE(SyyVals)
-            CALL MemDealloc(SyyVecs)
+            CALL LogMemDealloc(this_routine,tagSyyVecs)
             DEALLOCATE(SyyVecs)
-            CALL MemDealloc(MeanVecs)
+            CALL LogMemDealloc(this_routine,tagMeanVecs)
             DEALLOCATE(MeanVecs)
-            CALL MemDealloc(MeanVals)
+            CALL LogMemDealloc(this_routine,tagMeanVals)
             DEALLOCATE(MeanVals)
-            CALL MemDealloc(ValsDODMS)
+            CALL LogMemDealloc(this_routine,tagValsDODMS)
             DEALLOCATE(ValsDODMS)
-            CALL MemDealloc(VecsDODMS)
+            CALL LogMemDealloc(this_routine,tagVecsDODMS)
             DEALLOCATE(VecsDODMS)
             DEALLOCATE(LineRhoValues)
 
@@ -1597,7 +1613,7 @@
 !            TotExcits=iExcit+CSE
             TotExcits=CSE
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
-            CALL MemAlloc(iErr,ExcitInfo2,(TotExcits+1)*3*HElementSize,"ExcitInfo2")
+            CALL LogMemAlloc("ExcitInfo2",(TotExcits+1)*3*HElementSize,8,this_routine,tagExcitInfo2,iErr)
             call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
             CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
 
@@ -1704,17 +1720,20 @@
                 
 !This subroutine simply forms a star matrix, diagonalises it, and returns the eigenvalues and first elements of the eigenvectors.
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
+            use global_utilities
             IMPLICIT NONE
             INTEGER :: Dimen,i,INFO,iErr,j
             REAL*8 :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             TYPE(HElement) :: OffDiagRhos(2:Dimen)
             REAL*8, ALLOCATABLE :: StarMat(:,:),WLIST(:),WORK(:)
+            integer, save :: tagStarMat=0,tagWLIST=0,tagWORK=0
+            character(*), parameter :: this_routine='GetValsnVecs'
 
 !Construct matrix - remember that the first element of OffDiagRhos now is the first offdiagonal element for the excitation, not root.
 !For ease, this diagonalisation is to be done initially with DSYEV, though it is possible to reduce the scaling to N^2 rather than N^3
 
                 ALLOCATE(StarMat(Dimen,Dimen),stat=iErr)
-                CALL MemAlloc(iErr,StarMat,Dimen*Dimen,"StarMat")
+                CALL LogMemAlloc("StarMat",Dimen*Dimen,8,this_routine,tagStarMat,iErr)
                 CALL AZZERO(StarMat,Dimen*Dimen)
                 CALL AZZERO(Vals,Dimen)
                 CALL AZZERO(Vecs,Dimen)
@@ -1727,7 +1746,7 @@
                 StarMat(1,1)=DiagRhos(1)
 
                 ALLOCATE(WORK(3*Dimen),stat=iErr)
-                CALL MemAlloc(iErr,WORK,Dimen*3,"WORK")
+                CALL LogMemAlloc("WORK",Dimen*3,8,this_routine,tagWORK,iErr)
                 CALL AZZERO(WORK,Dimen*3)
 
 !                do i=1,
@@ -1752,9 +1771,9 @@
                     Vecs(i)=ABS(StarMat(1,i))
                 enddo
 
-                CALL MemDealloc(StarMat)
+                CALL LogMemDealloc(this_routine,tagStarMat)
                 Deallocate(StarMat)
-                CALL MemDealloc(WORK)
+                CALL LogMemDealloc(this_routine,tagWORK)
                 Deallocate(Work)
 
             RETURN
@@ -1762,6 +1781,7 @@
 
 
          SUBROUTINE GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
+            use global_utilities
             use IntegralsData , only : TCalcRealProd,TCalcRhoProd,TSumProd
             use SystemData, only: BasisFN
             IMPLICIT NONE
@@ -1770,6 +1790,7 @@
             TYPE(HElement) UMat(*),rh,rhii
             TYPE(BasisFN) G1(*)
             REAL*8 :: Beta,ALat(3),ECore
+            character(*), parameter :: this_routine='GetStarProds'
 
 !TCalcRealProd explicitly calculates 'real' quadruple product excitations i.e. neither of the two 'from' or 'to' orbitals are the same in the two excitations from which the product excitation is composed.
 !Once found, these can be used in different ways - either they can be explicitly added to the original star graph, or they try to be resummed in to the original graph (TSumProd). 
@@ -1778,7 +1799,7 @@
 
                 rhiiadd=0.D0
                 ALLOCATE(Offrho(iExcit),stat=iErr)
-                CALL MemAlloc(iErr,Offrho,iExcit*HElementSize,"OffRho")
+                CALL LogMemAlloc("OffRho",iExcit,8*HElementSize,this_routine,tagOffrho,iErr)
 
 !   Temporarily fill Offrho with the original off-diagonal rho elements, which can be used in countprodexcits, since the rhoelements in EXCITINFO are modified in the routine.
                 DO I=1,iExcit
@@ -1788,7 +1809,7 @@
                 !This routine finds all real quadruple excitations which are products of double excitations, add resums values from these.
                 CALL CountProdExcits(ProdNum,.FALSE.,iExcit,UniqProd)
                 WRITE(6,*) ProdNum, "product excitations found, and summed in..."
-                Call MemDealloc(Offrho)
+                Call LogMemDealloc(this_routine,tagOffrho)
                 DEALLOCATE(Offrho)
                 
                 IF(ProdNum.gt.0) THEN
@@ -1815,15 +1836,15 @@
                 CALL CountProdExcits(ProdNum,.FALSE.,iExcit,UniqProd)
                 WRITE(6,*) ProdNum, "product excitations found - allocating memory..."
                 ALLOCATE(ProdPositions(2,ProdNum),stat=iErr)
-                CALL MemAlloc(iErr,ProdPositions,ProdNum,"EXCITSTORE")
+                CALL LogMemAlloc("EXCITSTORE",ProdNum,4,this_routine,tagProdPositions,iErr)
 !Prodpositions stores the position of the two excitations in EXCITSTORE which give rise to a real product excitation
                 CALL CountProdExcits(ProdNum,.TRUE.,iExcit,UniqProd)
              
 !Allocate memory for on diagonal rho elements of product excitations, and 2 x offdiagonal elements
                 ALLOCATE(OnDiagProdRho(ProdNum),stat=ierr)
-                CALL MemAlloc(ierr,OnDiagProdRho,ProdNum,"OnDiagProdRho")
+                CALL LogMemAlloc("OnDiagProdRho",ProdNum,8,this_routine,tagOnDiagProdRho,ierr)
                 ALLOCATE(OffDiagProdRho(2,ProdNum),stat=ierr)
-                CALL MemAlloc(ierr,OffDiagProdRho,2*ProdNum,"OffDiagProdRho")
+                CALL LogMemAlloc("OffDiagProdRho",2*ProdNum,8,this_routine,tagOffDiagProdRho,ierr)
 
                 DO I=1,ProdNum
 !Approximate on-diag elements as product of consituent excits (exact for FPLD)(remember, they are divided by rhoii^2)
@@ -1870,7 +1891,7 @@
 !
 !        !Space allocated to store the excitations of the unique products, so we can search through them to ensure they are not being duplicated
 !        ALLOCATE(UNIQPRODS(8,(iExcit*(iExcit-1)/2)),stat=ierr)
-!        CALL MemAlloc(ierr,UNIQPRODS,iExcit*(iExcit-1)*2,"UNIQPRODSALL")
+!        CALL LogMemAlloc("UNIQPRODSALL",iExcit*(iExcit-1)*2,8,this_routine,tagUNIQPRODS,ierr)
 !        
 !        countprods=0
 !        nouniqprod=0
@@ -1921,7 +1942,7 @@
 !                ENDIF
 !            ENDDO
 !        ENDDO
-!        CALL MemDealloc(UNIQPRODS)
+!        CALL LogMemDealloc(this_routine,tagUNIQPRODS)
 !        DEALLOCATE(UNIQPRODS)
 !        
 !        ProdNum=countprods
@@ -2022,7 +2043,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          INTEGER NORDER,NMIN
          TYPE(HDElement) FMCPR3STAR2
-         character(*), parameter :: t_r='FMCPR3STAR'
+         character(*), parameter :: this_routine='FMCPR3STAR'
          include 'irat.inc'
   
          IF(HElementSize.NE.1) STOP 'FMCPR3STAR cannot work with complex orbitals.' 
@@ -2046,11 +2067,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !.. Allocate memory for the lists
          ILMAX=NLENLIST
          allocate(NLIST(0:NLENLIST,3),stat=err)
-         call LogMemAlloc('NLIST',(NLENLIST+1)*3,8,t_r,tagNLIST)
+         call LogMemAlloc('NLIST',(NLENLIST+1)*3,8,this_routine,tagNLIST)
          allocate(NLSTE(NEL,0:NLENLIST),stat=err)
-         call LogMemAlloc('NLSTE',(NLENLIST+1)*NEL,4,t_r,tagNLSTE)
+         call LogMemAlloc('NLSTE',(NLENLIST+1)*NEL,4,this_routine,tagNLSTE)
          allocate(NICE(0:NLENLIST),stat=err)
-         call LogMemAlloc('NICE',(NLENLIST+1),4,t_r,tagNICE)
+         call LogMemAlloc('NICE',(NLENLIST+1),4,this_routine,tagNICE)
 
          CALL ICOPY(NEL,NI,1,NLSTE(1,0),1)
          NICE(0)=0
@@ -2061,9 +2082,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
            RHOEPS,NLSTE,NICE,NLIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,NLENLIST,DBETA,DLWDB)
 
          deallocate(NLIST,NICE,NLSTE)
-         call LogMemDealloc(t_r,tagNLIST)
-         call LogMemDealloc(t_r,tagNLSTE)
-         call LogMemDealloc(t_r,tagNICE)
+         call LogMemDealloc(this_routine,tagNLIST)
+         call LogMemDealloc(this_routine,tagNLSTE)
+         call LogMemDealloc(this_routine,tagNICE)
          RETURN
       END
 
@@ -2159,7 +2180,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER WORKL,INFO,ierr,ProdPositions(2,ProdNum)
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
-         character(*),parameter :: t_r='STARDIAGREALPROD'
+         character(*),parameter :: this_routine='STARDIAGREALPROD'
          
          IF(HElementSize.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
 
@@ -2170,7 +2191,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          
          TOTVERT=NLIST+ProdNum
          allocate(RIJMAT(TOTVERT**2),stat=err)
-         call LogMemAlloc('RIJMAT',TOTVERT**2,8,t_r,tagRIJMAT,err)
+         call LogMemAlloc('RIJMAT',TOTVERT**2,8,this_routine,tagRIJMAT,err)
          CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
         
          !Fill RIJMAT
@@ -2205,10 +2226,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !         ENDDO
         
          allocate(WLIST(TOTVERT),stat=err)
-         call LogMemAlloc('WLIST',TOTVERT,8,t_r,tagWLIST,err)
+         call LogMemAlloc('WLIST',TOTVERT,8,this_routine,tagWLIST,err)
          WORKL=3*TOTVERT
          allocate(WORK(WORKL),stat=err)
-         call LogMemAlloc('WORK',WORKL,8,t_r,tagWORK,err)
+         call LogMemAlloc('WORK',WORKL,8,this_routine,tagWORK,err)
         
 !.. Diagonalize
          CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
@@ -2217,7 +2238,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             STOP
          ENDIF
          deallocate(WORK)
-         call LogMemDealloc(t_r,tagWORK)
+         call LogMemDealloc(this_routine,tagWORK)
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(TOTVERT)
 
@@ -2235,8 +2256,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)
          deallocate(WLIST,RIJMAT)
-         call LogMemDealloc(t_r,tagWLIST)
-         call LogMemDealloc(t_r,tagRIJMAT)
+         call LogMemDealloc(this_routine,tagWLIST)
+         call LogMemDealloc(this_routine,tagRIJMAT)
          call halt_timer(proc_timer)
 
          RETURN
@@ -2255,13 +2276,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
          REAL*8, DIMENSION(:,:), POINTER :: AOFFDB
          REAL*8, DIMENSION(:), POINTER :: AONDB
+         integer, save :: tagAOFFDB,tagAONDB
          INTEGER IND,TOTVERT
          type(timer), save :: proc_timer
          INTEGER WORKL,INFO,PRODVERT,ierr
          REAL*8 SI,DLWDB,DBETA
          INTEGER I,J,err
          TYPE(HElement) RR
-         character(*),parameter :: t_r='STARDIAGSC'
+         character(*),parameter :: this_routine='STARDIAGSC'
 
          IF(HElementSize.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
 
@@ -2274,10 +2296,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          TOTVERT=PRODVERT+NLIST
          
          ALLOCATE(AOFFDB(PRODVERT,NLIST-1),STAT=ierr)
-         CALL MemAlloc(ierr,AOFFDB,(NLIST-1)*PRODVERT,'AOFFDB')
+         CALL LogMemAlloc('AOFFDB',(NLIST-1)*PRODVERT,8,this_routine,tagAOFFDB,ierr)
          CALL AZZERO(AOFFDB,(NLIST-1)*PRODVERT)
          ALLOCATE(AONDB(PRODVERT),STAT=ierr)
-         CALL MemAlloc(ierr,AONDB,PRODVERT,'AONDB')
+         CALL LogMemAlloc('AONDB',PRODVERT,8,this_routine,tagAONDB,ierr)
          CALL AZZERO(AONDB,PRODVERT)
 
          IND=0
@@ -2307,7 +2329,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !        WRITE(68,*) "*****************"
         
         allocate(RIJMAT(TOTVERT**2),stat=err)
-        call LogMemAlloc('RIJMAT',TOTVERT**2,8,t_r,tagRIJMAT,err)
+        call LogMemAlloc('RIJMAT',TOTVERT**2,8,this_routine,tagRIJMAT,err)
         CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
         
         DO I=1,TOTVERT
@@ -2324,10 +2346,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             ENDIF
         ENDDO
 
-        CALL MemDealloc(AONDB)
+        CALL LogMemDealloc(this_routine,tagAONDB)
         Deallocate(AONDB)
         NULLIFY(AONDB)
-        CALL MemDealloc(AOFFDB)
+        CALL LogMemDealloc(this_routine,tagAOFFDB)
         Deallocate(AOFFDB)
         NULLIFY(AOFFDB)
 
@@ -2339,10 +2361,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !        ENDDO
 
         allocate(WLIST(TOTVERT),stat=err)
-        call LogMemAlloc('WLIST',TOTVERT,8,t_r,tagWLIST,err)
+        call LogMemAlloc('WLIST',TOTVERT,8,this_routine,tagWLIST,err)
         WORKL=3*TOTVERT
         allocate(WORK(WORKL),stat=err)
-        call LogMemAlloc('WORK',WORKL,8,t_r,tagWORK,err)
+        call LogMemAlloc('WORK',WORKL,8,this_routine,tagWORK,err)
         
 !.. Diagonalize
          CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
@@ -2351,7 +2373,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             STOP
          ENDIF
          deallocate(WORK)
-         call LogMemDealloc(t_r,tagWORK)
+         call LogMemDealloc(this_routine,tagWORK)
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(TOTVERT)
 
@@ -2370,8 +2392,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)
          deallocate(WLIST,RIJMAT)
-         call LogMemDealloc(t_r,tagRIJMAT)
-         call LogMemDealloc(t_r,tagWLIST)
+         call LogMemDealloc(this_routine,tagRIJMAT)
+         call LogMemDealloc(this_routine,tagWLIST)
          call halt_timer(proc_timer)
          
          RETURN
@@ -3194,7 +3216,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          REAL*8 SI,DLWDB,DBETA,OD
          INTEGER I,J,err
          TYPE(HElement) RR
-         character(*),parameter :: t_r='STARDIAG'
+         character(*),parameter :: this_routine='STARDIAG'
          
          IF(HElementSize.GT.1) THEN
              CALL Stop_All("StarDiag","STARDIAG cannot function with complex orbitals.")
@@ -3203,12 +3225,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          proc_timer%timer_name='STARDIAG  '
          call set_timer(proc_timer)
          allocate(RIJMAT(NLIST**2),stat=err)
-         call LogMemAlloc('RIJMAT',NLIST**2,8,t_r,tagRIJMAT,err)
+         call LogMemAlloc('RIJMAT',NLIST**2,8,this_routine,tagRIJMAT,err)
          allocate(WLIST(NLIST),stat=err)
-         call LogMemAlloc('WLIST',NLIST,8,t_r,tagWLIST,err)
+         call LogMemAlloc('WLIST',NLIST,8,this_routine,tagWLIST,err)
          WORKL=3*NLIST
          allocate(WORK(WORKL),stat=err)
-         call LogMemAlloc('WORK',WORKL,8,t_r,tagWORK,err)
+         call LogMemAlloc('WORK',WORKL,8,this_routine,tagWORK,err)
 
          CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
 
@@ -3249,7 +3271,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             STOP
          ENDIF
          deallocate(WORK)
-         call LogMemDealloc(t_r,tagWORK)
+         call LogMemDealloc(this_routine,tagWORK)
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(NLIST)
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
@@ -3301,8 +3323,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)
          deallocate(WLIST,RIJMAT)
-         call LogMemDealloc(t_r,tagWLIST)
-         call LogMemDealloc(t_r,tagRIJMAT)
+         call LogMemDealloc(this_routine,tagWLIST)
+         call LogMemDealloc(this_routine,tagRIJMAT)
          call halt_timer(proc_timer)
          RETURN
       END

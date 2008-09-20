@@ -154,13 +154,15 @@ MODULE ReadInput
      &  G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,EXCITFUNCS,TMCDIRECTSUM,   &
      & TDIAGNODES,TSTARSTARS,TBiasing,TMoveDets,TNoSameExcit,TInitStar,tMP2Standalone, &
      & GrowMaxFactor,MemoryFac
-      Use Determinants, only : SpecDet
+      Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING
       USE input
+      use global_utilities
       IMPLICIT NONE
       INTEGER :: vv,kk,cc,ierr
       LOGICAL :: CHECK
+      character(*), parameter :: t_r='checkinput'
 
       IF(GrowMaxFactor.gt.MemoryFac) THEN
           CALL report("GrowMaxFactor is larger than MemoryFac - there will not be enough memory allocated if the walker number grows large. Think about increasing MemoryFac or reducing GrowMaxFactor.",.true.)
@@ -243,7 +245,7 @@ MODULE ReadInput
 !.. We still need a specdet space even if we don't have a specdet.
       IF(.NOT.ASSOCIATED(SPECDET)) THEN
           ALLOCATE(SPECDET(NEL-NFROZEN),STAT=ierr)
-          CALL MemAlloc(ierr,SPECDET,NEL-NFROZEN,'SPECDET')
+          CALL LogMemAlloc('SPECDET',NEL-NFROZEN,4,t_r,tagSPECDET,ierr)
       ENDIF
 !      IF(IP_SPECDET.EQ.0) call MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
 

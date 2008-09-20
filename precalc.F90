@@ -930,6 +930,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     Use Determinants, only: GetHElement3
     use SystemData, only: BasisFN
     Use Logging, only: PrevarLogging
+    use global_utilities
     IMPLICIT NONE
     include 'irat.inc'
     TYPE(BasisFN) G1(*),KSYM
@@ -966,6 +967,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
     INTEGER I_OCLS,ITREE,ILOGGING,I_OVCUR,IACC
     REAL*8 ORIGEXCITWEIGHTS(6),ORIGEXCITWEIGHT
     REAL*8 XIJ(0:PREIV_MAX-1,0:PREIV_MAX-1)
+    character(*),parameter :: t_r='MCPATHSPRE'
    
     SELECT CASE (GIDHO)
     !Importance
@@ -987,15 +989,15 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
         G_VMC_EXCITWEIGHT(K)=point
     CASE(154)
         IF(ASSOCIATED(GRAPHPARAMS)) THEN
-            CALL MemDealloc(GRAPHPARAMS)
+            CALL LogMemDealloc(t_r,tagGRAPHPARAMS)
             DEALLOCATE(GRAPHPARAMS)
         ENDIF
         IF(ASSOCIATED(GRAPHS)) THEN
-            CALL MemDealloc(GRAPHS)
+            CALL LogMemDealloc(t_r,tagGRAPHS)
             DEALLOCATE(GRAPHS)
         ENDIF
         IF(ASSOCIATED(NMEM)) THEN
-            CALL MemDealloc(NMEM)
+            CALL LogMemDealloc(t_r,tagNMEM)
             DEALLOCATE(NMEM)
         ENDIF
         IF(ASSOCIATED(PVERTMEMS)) THEN
@@ -1005,7 +1007,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
 !     &              NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,0,154,         &
 !     &              PVERTMEMS(:,t))
 !            ENDDO
-            CALL MemDealloc(PVERTMEMS)
+            CALL LogMemDealloc(t_r,tagPVERTMEMS)
             DO t=1,DEALLOCYC(2)
                 DO tt=1,(DEALLOCYC(1)-1)
                     CALL FREEM(PVERTMEMS(tt,t))
@@ -1014,7 +1016,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
             DEALLOCATE(PVERTMEMS)
         ENDIF
         IF(ASSOCIATED(PGENLIST)) THEN
-            CALL MemDealloc(PGENLIST)
+            CALL LogMemDealloc(t_r,tagPGENLIST)
             DEALLOCATE(PGENLIST)
         ENDIF
         RETURN
@@ -1093,34 +1095,34 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                 ENDIF
                 
                 IF (ASSOCIATED(PVERTMEMS)) THEN
-                    CALL MemDealloc(PVERTMEMS)
+                    CALL LogMemDealloc(t_r,tagPVERTMEMS)
                     DEALLOCATE(PVERTMEMS)
                 ENDIF
                 IF (ASSOCIATED(GRAPHS)) THEN
-                    CALL MemDealloc(GRAPHS)
+                    CALL LogMemDealloc(t_r,tagGRAPHS)
                     DEALLOCATE(GRAPHS)
                 ENDIF
                 IF (ASSOCIATED(PGENLIST)) THEN
-                    CALL MemDealloc(PGENLIST)
+                    CALL LogMemDealloc(t_r,tagPGENLIST)
                     DEALLOCATE(PGENLIST)
                 ENDIF
                 IF (ASSOCIATED(GRAPHPARAMS)) THEN
-                    CALL MemDealloc(GRAPHPARAMS)
+                    CALL LogMemDealloc(t_r,tagGRAPHPARAMS)
                     DEALLOCATE(GRAPHPARAMS)
                 ENDIF
                 IF (ASSOCIATED(NMEM)) THEN
-                    CALL MemDealloc(NMEM)
+                    CALL LogMemDealloc(t_r,tagNMEM)
                     DEALLOCATE(NMEM)
                 ENDIF
                 IF(MEMSAV(K)) THEN
                     ALLOCATE(PVERTMEMS(0:K,CYCLES),STAT=ierr4)
-                    CALL MemAlloc(ierr4,PVERTMEMS,(K+1)*CYCLES/IRAT,'PRECALC_PVERTMEMS')
+                    CALL LogMemAlloc('PRECALC_PVERTMEMS',(K+1)*CYCLES,4,t_r,tagPVERTMEMS,ierr4)
                     ALLOCATE(GRAPHS(NEL,0:K,CYCLES),STAT=ierr)
-                    CALL MemAlloc(ierr,GRAPHS,NEL*(K+1)*CYCLES/IRAT,'PRECALC_GRAPHS')
+                    CALL LogMemAlloc('PRECALC_GRAPHS',NEL*(K+1)*CYCLES/IRAT,4,t_r,tagGRAPHS,ierr)
                     ALLOCATE(GRAPHPARAMS(3,CYCLES),STAT=ierr2)
-                    CALL MemAlloc(ierr2,GRAPHPARAMS,3*CYCLES,'PRECALC_GRAPHPARAMS')
+                    CALL LogMemAlloc('PRECALC_GRAPHPARAMS',3*CYCLES,8,t_r,tagGRAPHPARAMS,ierr2)
                     ALLOCATE(PGENLIST(CYCLES),STAT=ierr2)
-                    CALL MemAlloc(ierr2,PGENLIST,CYCLES,'PRECALC_GRAPHPARAMS')
+                    CALL LogMemAlloc('PRECALC_GRAPHPARAMS',CYCLES,8,t_r,tagPGENLIST,ierr2)
                     DEALLOCYC=(/ K,CYCLES /)
                 ENDIF
 
@@ -1136,7 +1138,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                 STORE(1)=0
                 CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,.TRUE.,NMEMLEN,INODE2,I,0,STORE,3)
                 ALLOCATE(NMEM(NMEMLEN),STAT=ierr3)
-                CALL MemAlloc(ierr3,NMEM,NMEMLEN,'PRECALC_NMEM')
+                CALL LogMemAlloc('PRECALC_NMEM',NMEMLEN,8,t_r,tagNMEM,ierr3)
                 NMEM(1)=0
                 CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,.TRUE.,NMEM,INODE2,I,0,STORE,3)
 !    Count the excitations (and generate a random one which we throw)

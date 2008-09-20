@@ -37,6 +37,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       SUBROUTINE ReadDF2EIntegrals(nBasis,nOrbUsed)
          use precision
          use record_handler
+         use global_utilities
          USE HElem
          use UMatCache
          implicit none
@@ -45,6 +46,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          character(*), parameter :: S_file='SAV_S____a'
          character(*), parameter :: nolabel='        '
          character(3) file_status
+         character(*), parameter :: t_r='ReadDF2EIntegrals'
          integer info,i,j,k
          real*8 r
          integer nBasis,nOrbUsed,ierr
@@ -62,11 +64,11 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 
          tDFInts=.TRUE.
          Allocate(DFCoeffs(nAuxBasis,nBasisPairs),STAT=ierr)
-         call MemAlloc(ierr,DFCoeffs,nBasisPairs*nAuxBasis,"DFCoeffs")
+         call LogMemAlloc("DFCoeffs",nBasisPairs*nAuxBasis,8,t_r,tagDFCoeffs,ierr)
          Allocate(DFInts(nAuxBasis,nBasisPairs),STAT=ierr)
-         call MemAlloc(ierr,DFInts,nBasisPairs*nAuxBasis,"DFInts")
+         call LogMemAlloc("DFInts",nBasisPairs*nAuxBasis,8,t_r,tagDFInts,ierr)
          Allocate(DFFitInts(nAuxBasis,nAuxBasis),STAT=ierr)
-         call MemAlloc(ierr,DFFitInts,nAuxBasis*nAuxBasis,"DFFitInts")
+         call LogMemAlloc("DFFitInts",nAuxBasis*nAuxBasis,8,t_r,tagDFFitInts,ierr)
          do i=1,nBasisPairs
             call read_record(C_file,i,nolabel,DFCoeffs(:,i),info)
             call read_record(I_file,i,nolabel,DFInts(:,i),info)
@@ -96,7 +98,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
 
          if(iDFMethod.gt.2) then
             Allocate(DFInvFitInts(nAuxBasis,nAuxBasis),STAT=ierr)
-            call MemAlloc(ierr,DFInvFitInts,nAuxBasis*nAuxBasis,"DFInvFitInts")
+            call LogMemAlloc("DFInvFitInts",nAuxBasis*nAuxBasis,8,t_r,tagDFInvFitInts,ierr)
          endif
          select case(iDFMethod)
          case(3)
@@ -375,12 +377,14 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          Real*8 Eigenvalues(nAuxBasis),r,dPower
          Real*8 Work(3*nAuxBasis)
          integer Workl,info
+         integer, save :: tagM=0
          type(timer), save :: proc_timer
+         character(*), parameter :: t_r='DFCalcInvFitInts'
          Integer i,j,ierr,k,iMinEigv
          proc_timer%timer_name='DFInvFitIn'
          call set_timer(proc_timer)
          Allocate(M(nAuxBasis,nAuxBasis),STAT=ierr)
-         call MemAlloc(ierr,M,nAuxBasis*nAuxBasis,"M-DFInvFitInts")
+         call LogMemAlloc("M-DFInvFitInts",nAuxBasis*nAuxBasis,8,t_r,tagM,ierr)
          call azzero(M,nAuxBasis*nAuxBasis)
          do i=1,nAuxBasis
             do j=1,i
@@ -415,7 +419,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
                DFInvFitInts(j,i)=r
             enddo
          enddo
-         call MemDealloc(M)         
+         call LogMemDealloc(t_r,tagM)
          Deallocate(M)
          call halt_timer(proc_timer)
       END

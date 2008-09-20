@@ -147,7 +147,6 @@ MODULE Calc
           MDK(:) = 0
           DETINV = 0
           TSPECDET = .false.
-!          IP_SPECDET=0
           TTROT=.true.
           BETA=0.D0
           BETAP=1.D-4
@@ -181,16 +180,18 @@ MODULE Calc
 
         SUBROUTINE CalcReadInput()
           USE input
-          Use Determinants, only : iActiveBasis, SpecDet, tSpecDet, nActiveSpace
+          Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
           use SystemData, only : Beta,nEl
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
+          use global_utilities
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
+          CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
           INTEGER :: l,i,ierr
 
           calc: do
@@ -521,8 +522,7 @@ MODULE Calc
             case("INSPECT")
                 TSPECDET = .true.
                 ALLOCATE(SPECDET(NEL-NFROZEN),STAT=ierr)
-                CALL MemAlloc(ierr,SPECDET,NEL-NFROZEN,'SPECDET')
-!                call MEMORY(IP_SPECDET,NEL-NFROZEN,'SPECDET')
+                CALL LogMemAlloc('SPECDET',NEL-NFROZEN,4,t_r,tagSPECDET,ierr)
                 SPECDET(1)=0
                 if(item.lt.nitems) then
 !Cannot specify frozen core orbitals if want to specify a determinant?

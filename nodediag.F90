@@ -30,12 +30,16 @@
       TYPE(HElement) :: rhii
       REAL*8 :: totlinks
       INTEGER :: crosslinks
+
+! Memory tags
+      integer, save :: tagEXCITINFO=0,tagEXCITSTORE=0,tagABCOUNTER=0,tagijorbs=0
       
       contains
 
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,L,LT,nWHTay,iLogging,tSym,ECore,dBeta,dLWdb)
       use Determinants, only: GetHElement2
       use SystemData, only: BasisFN
+      use global_utilities
       TYPE(BasisFN) G1(*)
       INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),Brr(nBasis),nBasis,nMsh
       INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging,iMaxExcit,nExcitMemLen
@@ -50,6 +54,7 @@
       TYPE(HDElement) fMCPR3StarNodes
       TYPE(HElement) HIJS(0:2)
       LOGICAL tSym,COMPIPATH
+      character(*), parameter :: t_r='fMCPR3StarNodes'
 
       IF(HElementSize.GT.1) STOP "NODEDIAG cannot function with complex orbitals currently"
 
@@ -62,12 +67,12 @@
       WRITE(6,*) "Total maximum dets in each node: ",noab
       WRITE(6,*) "Total maximum nodes: ",noij
       ALLOCATE(EXCITSTORE(2,noab,noij),stat=ierr)
-      CALL MemAlloc(iErr,EXCITSTORE,noij*noab,"EXCITSTORE")
+      CALL LogMemAlloc("EXCITSTORE",noij*noab,8,t_r,tagEXCITSTORE,iErr)
       CALL IAZZERO(EXCITSTORE,2*noij*noab)
       
 !Allocate space for counting of ab excitations connected to each ij.
       ALLOCATE(ABCOUNTER(noij),stat=ierr)
-      CALL MemAlloc(iErr,ABCOUNTER,noij/2,"ABCOUNTER")
+      CALL LogMemAlloc("ABCOUNTER",noij/2,8,t_r,tagABCOUNTER,iErr)
       CALL IAZZERO(ABCOUNTER,noij)
 
 !Create inversebrr for indexing purposes. Brr gives the orbitals in order of energy. If we create an inverse of this array, then we can order the occupied orbitals in ascending order, and so create an indexing scheme for the {i,j} pairs, which need to be stored.
@@ -75,7 +80,7 @@
 
 !Array to detail the ij orbs being excited from in each node
       ALLOCATE(ijorbs(2,noij),stat=ierr)
-      CALL MemAlloc(iErr,ijorbs,noij,"IJORBS")
+      CALL LogMemAlloc("IJORBS",noij,8,t_r,tagijorbs,iErr)
       CALL IAZZERO(IJORBS,noij*2)
       
 !Fill array with ij orbs in each node
@@ -133,7 +138,7 @@
 
 !Allocate Memory for ExcitInfo
       ALLOCATE(EXCITINFO(0:totexcits,0:2),stat=ierr)
-      CALL MemAlloc(iErr,EXCITINFO,3*(totexcits+1),"EXCITINFO")
+      CALL LogMemAlloc("EXCITINFO",3*(totexcits+1),8,t_r,tagEXCITINFO,iErr)
       CALL AZZERO(EXCITINFO,3*(totexcits+1))
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
@@ -163,13 +168,13 @@
 !Explicitly diagonalise resultant matrix - large scaling.
       CALL StarDiag(0,nEl,ExcitInfoElems+1,EXCITINFO,Totexcits+1,i_P,fmcpr3starnodes,dBeta,dLWdB)
 
-      CALL MemDealloc(EXCITINFO)
+      CALL LogMemDealloc(t_r,tagExcitInfo)
       DEALLOCATE(EXCITINFO)
-      CALL MemDealloc(EXCITSTORE)
+      CALL LogMemDealloc(t_r,tagEXCITSTORE)
       DEALLOCATE(EXCITSTORE)
-      CALL MemDealloc(ABCOUNTER)
+      CALL LogMemDealloc(t_r,tagABCOUNTER)
       DEALLOCATE(ABCOUNTER)
-      CALL MemDealloc(ijorbs)
+      CALL LogMemDealloc(t_r,tagijorbs)
       DEALLOCATE(ijorbs)
       DEALLOCATE(nExcit)
       
@@ -185,6 +190,7 @@
         use IntegralsData , only : TDISCONODES
         Use Determinants, only: GetHElement2
         use SystemData, only: BasisFN
+        use global_utilities
         IMPLICIT NONE
         Type(BasisFN) G1(*)
         COMPLEX*16 fck(*)
@@ -196,20 +202,22 @@
         REAL*8, ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
         INTEGER, ALLOCATABLE :: FULLPATHS(:,:)
         REAL*8, ALLOCATABLE :: WORK(:)
+        integer, save :: tagNODERHOMAT=0,tagWLIST=0,tagFULLPATHS=0,tagWORK=0
+        character(*),parameter :: t_r='CONSTRUCTNODE'
 
 !iExcit should be the order of the excitation - parsed to HElement2
         iExcit=2
 
 !Array to temporarily store full paths of excitations in node - needed for the calcrho2 routine to calculate rho elements.
         ALLOCATE(FULLPATHS(nEl,novirt),stat=ierr)
-        CALL MemAlloc(iErr,FULLPATHS,novirt*nEl,"FULLPATHS")
+        CALL LogMemAlloc("FULLPATHS",novirt*nEl,8,t_r,tagFULLPATHS,iErr)
         CALL IAZZERO(FULLPATHS,novirt*nel)
 
         ijpair(:)=ijorbs(:,node)
             
 !Array to store rho elements of node - this is the matrix to be diagonalised.
         ALLOCATE(NODERHOMAT(novirt*novirt),stat=ierr)
-        CALL MemAlloc(iErr,NODERHOMAT,novirt*novirt,"NODERHOMAT")
+        CALL LogMemAlloc("NODERHOMAT",novirt*novirt,8,t_r,tagNODERHOMAT,iErr)
         CALL AZZERO(NODERHOMAT,novirt*novirt)
 
 !First deal with diagonal elements
@@ -283,10 +291,10 @@
 
 !Allocate Memory for diagonalisation
         ALLOCATE(WLIST(novirt),stat=ierr)
-        CALL MemAlloc(ierr,WLIST,novirt,"WLIST")
+        CALL LogMemAlloc("WLIST",novirt,8,t_r,tagWLIST,ierr)
         WORKMEM=3*novirt
         ALLOCATE(WORK(WORKMEM),stat=ierr)
-        CALL MemAlloc(ierr,WORK,3*novirt,"WORK")
+        CALL LogMemAlloc("WORK",3*novirt,8,t_r,tagWORK,ierr)
 
 !Diagonalise
        CALL DSYEV('V','L',novirt,NODERHOMAT,novirt,WLIST,WORK,WORKMEM,INFO)
@@ -294,7 +302,7 @@
             WRITE(6,*) 'DYSEV error: ',INFO
             STOP
         ENDIF
-        CALL MemDealloc(WORK)
+        CALL LogMemDealloc(t_r,tagWORK)
         DEALLOCATE(WORK)
 
 !Debugging - write out eigenvectors
@@ -331,11 +339,11 @@
             ENDIF
         ENDDO
 
-        CALL MemDealloc(WLIST)
+        CALL LogMemDealloc(t_r,tagWLIST)
         DEALLOCATE(WLIST)
-        CALL MemDealloc(NODERHOMAT)
+        CALL LogMemDealloc(t_r,tagNODERHOMAT)
         DEALLOCATE(NODERHOMAT)
-        CALL MemDealloc(FULLPATHS)
+        CALL LogMemDealloc(t_r,tagFULLPATHS)
         DEALLOCATE(FULLPATHS)
 
         RETURN

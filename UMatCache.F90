@@ -114,6 +114,12 @@ MODULE UMatCache
       integer :: tagUMat2D=0
       integer :: tagTransTable=0
       integer :: tagInvTransTable=0
+      integer :: tagDFCoeffs=0
+      integer :: tagDFInts=0
+      integer :: tagDFFitInts=0
+      integer :: tagDFInvFitInts=0
+      integer :: tagInvBRR=0
+      integer :: tagInvBRR2=0
 
       Contains
 
@@ -136,11 +142,13 @@ MODULE UMatCache
       !    nBasis: size of bais
       ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
       ! orbital corresponds to the i-th orbital in the original basis.
+        use global_utilities
         IMPLICIT NONE
         INTEGER BRR2(NBASIS),NBASIS,ierr,I,t
+        character(*), parameter :: t_r='CreateInvBRR2'
 
         ALLOCATE(INVBRR2(NBASIS/2),STAT=ierr)
-        CALL MemAlloc(ierr,INVBRR2,NBASIS/2,'INVBRR2')
+        CALL LogMemAlloc('INVBRR2',NBASIS/2,4,t_r,tagINVBRR2,ierr)
         CALL IAZZERO(INVBRR2,NBASIS/2)
         t=0
         DO I=2,NBASIS,2
@@ -158,15 +166,17 @@ MODULE UMatCache
       !    nBasis: size of bais
       ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
       ! orbital corresponds to the i-th orbital in the original basis.
+        use global_utilities
         IMPLICIT NONE
         INTEGER BRR(NBASIS),NBASIS,ierr,I,t
+        character(*), parameter :: t_r='CreateInvBRR'
 
         IF(ASSOCIATED(INVBRR)) THEN
-            CALL MemDealloc(INVBRR)
+            CALL LogMemDealloc(t_r,tagINVBRR)
             DEALLOCATE(INVBRR)
         ENDIF
         ALLOCATE(INVBRR(NBASIS/2),STAT=ierr)
-        CALL MemAlloc(ierr,INVBRR,NBASIS/2,'INVBRR')
+        CALL LogMemAlloc('INVBRR',NBASIS/2,4,t_r,tagINVBRR,ierr)
         CALL IAZZERO(INVBRR,NBASIS/2)
         t=0
         DO I=2,NBASIS,2

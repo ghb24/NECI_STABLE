@@ -7,6 +7,7 @@ MODULE Determinants
 ! Set by Calc on input
       INTEGER nActiveSpace(2)
         INTEGER, DIMENSION(:), POINTER :: SPECDET
+        INTEGER :: tagSPECDET=0
         Logical TSPECDET
 
       INTEGER, pointer :: FDet(:)
