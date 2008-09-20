@@ -407,7 +407,7 @@ MODULE SymExcit2
 !  Now enumerate all the FROMs, and their weightings
          nFromPairs=SymProdInd(2,iSpn,iFrom)
          allocate(ews(nFromPairs))
-         call LogMemAlloc('ExcitWGEPI',nFromPairs,ExcitWeightSize,thisroutine,tagEWS)
+         call LogMemAlloc('ExcitWGEPI',nFromPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
          Norm=0.D0
          CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
@@ -427,7 +427,7 @@ MODULE SymExcit2
 !.. Now work out the index of the (a,b) pair within the prod
          nToPairs=ExcitTypes(5,iExcitType)/SymProdInd(2,iSpn,iFrom)
          allocate(ews(nToPairs))
-         call LogMemAlloc('ExcitWGEPI',nToPairs,ExcitWeightSize,thisroutine,tagEWS)
+         call LogMemAlloc('ExcitWGEPI',nToPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
          Norm=0.D0
          CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)

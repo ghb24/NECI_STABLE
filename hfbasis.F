@@ -300,25 +300,25 @@ C         IF(TRHF) STOP 'RHF not supported'
          NSBASIS=NBASIS/NSPINS
 C         IF(TRHF) NSPINS=1
          allocate(FMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('FMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+         call LogMemAlloc('FMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
      &                                             this_routine,tagFMAT)
          allocate(OFMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('OFMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+         call LogMemAlloc('OFMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
      &                                            this_routine,tagOFMAT)
          allocate(DMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('DMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+         call LogMemAlloc('DMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
      &                                             this_routine,tagDMAT)
          allocate(ODMAT(NSBASIS*NSBASIS*NSPINS))
-         call LogMemAlloc('ODMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+         call LogMemAlloc('ODMAT',NSBASIS*NSBASIS*NSPINS,HElementSize*8,
      &                                            this_routine,tagODMAT)
          allocate(WORK(NSBASIS*3))
-         call LogMemAlloc('WORK',NSBASIS*3,HElementSize,
+         call LogMemAlloc('WORK',NSBASIS*3,HElementSize*8,
      &                                             this_routine,tagWORK)
          allocate(R1(NSBASIS*NSBASIS))
-         call LogMemAlloc('R1',NSBASIS*NSBASIS,HElementSize,
+         call LogMemAlloc('R1',NSBASIS*NSBASIS,HElementSize*8,
      &                                             this_routine,tagR1)
          allocate(R2(NSBASIS*NSBASIS))
-         call LogMemAlloc('R2',NSBASIS*NSBASIS,HElementSize,
+         call LogMemAlloc('R2',NSBASIS*NSBASIS,HElementSize*8,
      &                                             this_routine,tagR2)
          allocate(HFES(NSBASIS*NSPINS))
          call LogMemAlloc('HFES',NSBASIS*NSPINS,8,this_routine,tagHFES)

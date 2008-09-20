@@ -34,11 +34,11 @@ MODULE HFCalc
             ! many of the following routines assume them to be real arrays.
             ! These need to be changed for use with complex code.
             allocate(HFBasis(nBasis*nBasis))
-            call LogMemAlloc('HFBASIS',nBasis*nBasis,HElementSize,this_routine,tagHFBasis)
+            call LogMemAlloc('HFBASIS',nBasis*nBasis,HElementSize*8,this_routine,tagHFBasis)
             CALL AZZERO(HFBASIS,nBasis*nBasis*HElementSize)
 !C.. Allocate an array to store the HF Energies
             allocate(HFE(nBasis))
-            call LogMemAlloc('HFE',nBasis,HElementSize,this_routine,tagHFE)
+            call LogMemAlloc('HFE',nBasis,HElementSize*8,this_routine,tagHFE)
             CALL AZZERO(HFE,nBasis*HElementSize)
             IF(THFORDER.AND..NOT.THFBASIS) THEN
 !C.. If we're not using HF, but just calculating the HF order
