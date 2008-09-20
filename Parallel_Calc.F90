@@ -119,6 +119,7 @@ subroutine ParMP2(nI)
    CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
    i=0
    j=0
+   dETot=HElement(0.d0)
 
    DO WHILE(NJ(1).NE.0)
 ! NJ(1) is zero when there are no more excitations.
