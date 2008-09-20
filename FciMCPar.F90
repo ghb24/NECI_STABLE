@@ -144,12 +144,12 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,*) "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil NoDied NoBorn    Proj.E          NoatHF NoatDoubs  +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
-            WRITE(15,*) "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil NoDied NoBorn    Proj.E          NoatHF NoatDoubs   +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
+            WRITE(6,*) "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil  NoDied  NoBorn    Proj.E          NoatHF NoatDoubs  +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
+            WRITE(15,*) "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil  NoDied  NoBorn    Proj.E          NoatHF NoatDoubs   +veWalkFrac       AccRat   MeanEx     MinEx MaxEx"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
      &          AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
      &          AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,1.D0,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
         ENDIF
         
@@ -1445,9 +1445,9 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
+            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
                     AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I8,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
+            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
                     AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllPosFrac,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             CALL FLUSH(15)
             CALL FLUSH(6)
