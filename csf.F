@@ -829,17 +829,17 @@ C.. Get the Hamiltonian Element between two CSFs
          TYPE(HElement) SUM,SUM2,HEL
          REAL*8 ECORE
          
-         POINTER (IP_LISTD1,LISTD1),(IP_DOLISTD1,DOLISTD1)
-         POINTER (IP_LISTD2,LISTD2),(IP_DOLISTD2,DOLISTD2)
-         INTEGER LISTD1(NEL,*),LISTD2(NEL,*)
-         INTEGER DOLISTD1(*),DOLISTD2(*)
+         INTEGER,ALLOCATABLE :: LISTD1(:,:),LISTD2(:,:)
+         INTEGER,ALLOCATABLE :: DOLISTD1(:),DOLISTD2(:)
          INTEGER NOPEN1,NOPEN2,NDETS1,NDETS2
          INTEGER SO1(NEL),SO2(NEL)
          INTEGER I,J
          type(timer), save :: proc_timer
          REAL*8 COEFF1,COEFF2
-         REAL*8 COEFFLIST2(*)
-         POINTER (IP_COEFFLIST2,COEFFLIST2)
+         REAL*8,allocatable :: COEFFLIST2(:)
+         integer,save :: tagLISTD1=0,tagLISTD2=0,tagDOLISTD1=0
+         integer,save :: tagDOLISTD2=0,tagCOEFFLIST2=0
+         character(*), parameter :: this_routine='CSFGETHELEMENT'
          
          LOGICAL CSFCHKSPINSYM
          IF(.NOT.CSFCHKSPINSYM(NCI,NCJ,NEL)) THEN
@@ -848,7 +848,7 @@ C.. If the Ms or S values differ, we return 0.
             RETURN
          ENDIF
 C.. The SORDERS for dets 1 and 2
-         proc_timer%timer_name='CSFGETHELE'
+         proc_timer%timer_name=this_routine
          call set_timer(proc_timer)
 
          NOPEN1=0
@@ -863,11 +863,19 @@ C.. The SORDERS for dets 1 and 2
          CALL CSFGENOPENDETS(NCJ,NEL,LISTD2,DOLISTD2,SO2,NOPEN2,NDETS2)
 
 C.. NOPEN has number of open electrons, and NDETS has #open dets
-         CALL MEMORY(IP_LISTD1,NDETS1*NEL,'LISTD1')
-         CALL MEMORY(IP_DOLISTD1,NDETS1*NOPEN1,'DOLISTD1')
-         CALL MEMORY(IP_LISTD2,NDETS2*NEL,'LISTD2')
-         CALL MEMORY(IP_DOLISTD2,NDETS2*NOPEN2,'DOLISTD2')
-         CALL MEMORY(IP_COEFFLIST2,NDETS2,'COEFFLIST2')
+         allocate(LISTD1(NEL,NDETS1))
+         call LogMemAlloc('LISTD1',NEL*NDETS1,4,this_routine,tagLISTD1)
+         allocate(DOLISTD1(NDETS1*NOPEN1))
+         call LogMemAlloc('DOLISTD1',NDETS1*NOPEN1,4,this_routine,
+     &                                                      tagDOLISTD1)
+         allocate(LISTD2(NEL,NDETS2))
+         call LogMemAlloc('LISTD2',NEL*NDETS2,4,this_routine,tagLISTD2)
+         allocate(DOLISTD2(NDETS2*NOPEN2))
+         call LogMemAlloc('DOLISTD2',NDETS2*NOPEN2,4,this_routine,
+     &                                                      tagDOLISTD2)
+         allocate(COEFFLIST2(NDETS2))
+         call LogMemAlloc('COEFFLIST2',NDETS2,8,this_routine,
+     &                                                    tagCOEFFLIST2)
          CALL CSFGENOPENDETS(NCI,NEL,LISTD1,DOLISTD1,SO1,1,NDETS1)
          CALL CSFGENOPENDETS(NCJ,NEL,LISTD2,DOLISTD2,SO2,1,NDETS2)
 
@@ -908,11 +916,12 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
             ENDDO
             SUM=SUM+SUM2*HElement(COEFF1)
          ENDDO
-         CALL FREEM(IP_LISTD1)
-         CALL FREEM(IP_DOLISTD1)
-         CALL FREEM(IP_LISTD2)
-         CALL FREEM(IP_DOLISTD2)
-         CALL FREEM(IP_COEFFLIST2)
+         deallocate(LISTD1,DOLISTD1,LISTD2,DOLISTD2,COEFFLIST2)
+         call LogMemDealloc(this_routine,tagLISTD1)
+         call LogMemDealloc(this_routine,tagDOLISTD1)
+         call LogMemDealloc(this_routine,tagLISTD2)
+         call LogMemDealloc(this_routine,tagDOLISTD2)
+         call LogMemDealloc(this_routine,tagCOEFFLIST2)
          call halt_timer(proc_timer)
                
       END
