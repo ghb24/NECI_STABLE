@@ -172,6 +172,13 @@ C.. Population analysis
         ENDDO
         WRITE(6,'(I3,F9.3)') I,SUM
       ENDDO       
+      deallocate(FODM,Z,W,WORK,IWORK,IFAIL)
+      call LogMemDealloc(this_routine,tagZ)
+      call LogMemDealloc(this_routine,tagW)
+      call LogMemDealloc(this_routine,tagFODM)
+      call LogMemDealloc(this_routine,tagWORK)
+      call LogMemDealloc(this_routine,tagIWORK)
+      call LogMemDealloc(this_routine,tagIFAIL)
 C..Now we calculate the overlap of the single det. composed of the 
 C..natural orbitals with the many-body wavefunction
 C..<Phi_k|Psi>
