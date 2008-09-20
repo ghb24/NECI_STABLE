@@ -1831,7 +1831,6 @@ C.. weight.
          REAL*8 PEXCIT(I_V),R
          INTEGER NEXNODE
          INTEGER NMEM(*)
-         INTEGER CUREX(*),NEWEX(*),NEWEXLEN
 #if defined(POINTER8)
          INTEGER*8 PVERTMEMS(0:I_V)
          INTEGER*8 EXCITGEN(0:I_V)
@@ -1839,7 +1838,6 @@ C.. weight.
          INTEGER PVERTMEMS(0:I_V)
          INTEGER EXCITGEN(0:I_V)
 #endif
-         POINTER (IP_CUREX,CUREX),(IP_NEWEX,NEWEX)
          INTEGER ICLS
          TYPE(HDElement) ORHOII(0:I_OVCUR)
          TYPE(HElement) ORHOIJ(0:I_OVCUR,0:I_OVCUR)
