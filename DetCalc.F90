@@ -540,6 +540,8 @@ CONTAINS
 
 
         End Subroutine DoDetCalc
+
+!Routines to plot the real-space density of solutions to the electron in a box problem
     Subroutine CalcRhoOfR()
         Use global_utilities
         use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
@@ -552,8 +554,9 @@ CONTAINS
 !*        POINTER (IP_RHO, RHO)
 !*        REAL*8 SITAB(*)
 !*        POINTER (IP_SITAB,SITAB)
-        REAL*8 SCRTCH(*)
-        POINTER (IP_SCRTCH, SCRTCH)
+!= This variable used to be an allocatable array of size NMSH*NMSH*NMSH, but seemed to be only used as a real - ghb24 21/09/08
+        REAL*8 SCRTCH
+!*        POINTER (IP_SCRTCH, SCRTCH)
 !*        REAL*8 XCHOLE(*)
 !*        POINTER (IP_XCHOLE,XCHOLE)
 
@@ -566,7 +569,7 @@ CONTAINS
 !C..Generate memory for RHO and SITAB
 !*        CALL MEMORY(IP_RHO,NMSH*NMSH*NMSH,'RHO')
 !*        CALL MEMORY(IP_SITAB,NMSH*NMAX,'SITAB')
-        CALL MEMORY(IP_SCRTCH,NMSH*NMSH*NMSH,'SCRTCH')
+!*        CALL MEMORY(IP_SCRTCH,NMSH*NMSH*NMSH,'SCRTCH')
         ALLOCATE(RHO(NMSH,NMSH,NMSH),stat=ierr)
         CALL LogMemAlloc('RHO',NMSH**3,8,this_routine,RHOTag,ierr)
         ALLOCATE(SITAB(NMSH,NMAX),stat=ierr)
