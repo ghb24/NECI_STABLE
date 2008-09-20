@@ -3,6 +3,7 @@
      &      RHOEPS,ILOGGING,TSYM,ECORE,WLRI,WLSI)
          use global_utilities
          IMPLICIT NONE
+         INCLUDE 'irat.inc'
          REAL*8 BETA,FCK(*),ALAT(3),UMAT(*),RHOEPS,ECORE
          INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX,ILOGGING
 
@@ -13,17 +14,17 @@
          REAL*8 RH,RHII
          REAL*8 HDMAX,RHRATMAX
          INTEGER ILFREE,I,J
-         REAL*8 RIJMAT(*),WLIST(*),RJJLIST(0:*)
-         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
-         INTEGER LSTE(NEL,0:*)
-         POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
-         type(timer), save :: proc_timer
-         INTEGER ILMAX
-         INTEGER WORKL,WORK(*),INFO
+         REAL*8, ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:),WORK(:)
+         INTEGER, ALLOCATABLE :: LSTE(:,:)
+         INTEGER ILMAX,err
+         INTEGER WORKL,INFO
          REAL*8 WLRI,WLSI,SI
          LOGICAL LCHKSYMD
-         INCLUDE 'irat.inc'
-         proc_timer%timer_name='WIRHODIAG '
+         INTEGER,SAVE :: tagRIJMAT=0,tagWLIST=0,tagRJJLIST=0,tagWORK=0 
+         INTEGER,SAVE :: tagLSTE=0
+         type(timer), save :: proc_timer
+         character(*),parameter :: thisroutine='WIRHODIAG'
+         proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
          HDMAX=5000.D0
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
@@ -33,8 +34,10 @@ C.. Get how much mem we need
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
 C.. account for LSTE(0)
          NLMAX=NLIST+1
-         CALL MEMORY(IP_LSTE,NLMAX*NEL/IRAT+1,"LSTE")
-         CALL MEMORY(IP_RJJLIST,NLMAX,"RJJLIST")
+         allocate(LSTE(NEL,0:NLIST),stat=err)
+         CALL LogMemAlloc('LSTE',NLMAX*NEL,4,thisroutine,tagLSTE,err)
+         allocate(RJJLIST(0:NLIST),stat=err)
+         CALL LogMemAlloc('RJJLIST',NLMAX,8,thisroutine,tagRJJLIST,err)
 
          CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
@@ -78,11 +81,13 @@ C                     WRITE(35,*) 0
          ENDDO
          NLIST=ILFREE
 C         WRITE(6,*) NLIST," dets in energy range."
-         CALL MEMORY(IP_RIJMAT,NLIST*NLIST,"RIJMAT")
-         CALL MEMORY(IP_WLIST,NLIST,"WLIST")
+         allocate(RIJMAT(nLIST**2),stat=err)
+         CALL LogMemAlloc('RIJMAT',NLIST**2,8,thisroutine,tagRIJMAT,err)
+         allocate(WLIST(NLIST),stat=err)
+         CALL LogMemAlloc('WLIST',NLIST,8,thisroutine,tagWLIST,err)
          WORKL=3*NLIST
-         CALL MEMORY(IP_WORK,WORKL,"WORK")
-         
+         allocate(WORK(WORKL),stat=err)
+         CALL LogMemAlloc('WORK',WORKL,8,thisroutine,tagWORK,err)
 
 C.. Now we fill the RIJ array
          DO I=0,NLIST-1
@@ -101,7 +106,8 @@ C.. Diagonalize
             WRITE(6,*) 'DYSEV error: ',INFO
             STOP
          ENDIF
-         CALL FREEM(IP_WORK)
+         deallocate(WORK)
+         call LogMemDealloc(thisroutine,tagWORK)
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
          SI=0.D0
 C.. divide through by highest eigenvalue to stop things blowing up
@@ -122,10 +128,11 @@ C            ENDDO
 C         ENDDO
          WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
          WRITE(35,"(I5,3G25.16)") NLIST+1,WLRI,WLSI,EXP(I_P*WLRI+WLSI)
-         CALL FREEM(IP_WLIST)
-         CALL FREEM(IP_RIJMAT)
-         CALL FREEM(IP_LSTE)
-         CALL FREEM(IP_RJJLIST)
+         deallocate(WLIST,RIJMAT,LSTE,RJJLIST)
+         call LogMemDealloc(thisroutine,tagWLIST)
+         call LogMemDealloc(thisroutine,tagRIJMAT)
+         call LogMemDealloc(thisroutine,tagLSTE)
+         call LogMemDealloc(thisroutine,tagRJJLIST)
          call halt_timer(proc_timer)
          RETURN
       END
@@ -146,22 +153,22 @@ C         ENDDO
          REAL*8 RH,RHII
          REAL*8 HDMAX,RHRATMAX
          INTEGER ILFREE,I,J
-         REAL*8 RIJMAT(*),WLIST(*),RJJLIST(0:*)
-         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
-         POINTER (IP_LSTP,LSTP)
-         INTEGER LSTE(NEL,0:*),LSTP(0:*)
-         POINTER (IP_LSTE,LSTE),(IP_RJJLIST,RJJLIST)
+         REAL*8, ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:)
+         REAL*8, ALLOCATABLE :: VARRAY(:)
+         INTEGER, ALLOCATABLE :: LSTE(:,:),LSTP(:),WORK(:)
+         INTEGER, SAVE :: tagRIJMAT,tagWLIST,tagRJJLIST
+         INTEGER, SAVE :: tagVARRAY
+         INTEGER, SAVE :: tagLSTE,tagLSTP,tagWORK
          type(timer), save :: proc_timer
-         INTEGER ILMAX
-         INTEGER WORKL,WORK(*),INFO
+         INTEGER ILMAX,err
+         INTEGER WORKL,INFO
          REAL*8 WLRI,WLSI,SI,SN,SNO,SNC,SNN
          INTEGER IPLEN,NCOUNT
-         REAL*8 VARRAY(0:*)
-         POINTER (IP_VARRAY,VARRAY)
          INTEGER BINOMIAL
          LOGICAL LSUB
+         character(*),parameter :: thisroutine='WIRHODIAG'
          INCLUDE 'irat.inc'
-         proc_timer%timer_name='WIRHODIAG '
+         proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
          HDMAX=5000.D0
          RHRATMAX=EXP(-BETA*HDMAX/I_P)
@@ -169,16 +176,24 @@ C         ENDDO
 C.. Get how much mem we need
          NLIST=0
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
+
 C.. account for LSTE(0)
          NLMAX=NLIST+1
-         CALL MEMORY(IP_LSTE,NLMAX*NEL/IRAT+1,"LSTE")
-         CALL MEMORY(IP_RJJLIST,NLMAX,"RJJLIST")
-         CALL MEMORY(IP_LSTP,NLMAX/IRAT+1,"LSTP")
-         CALL MEMORY(IP_RIJMAT,NLMAX*NLMAX,"RIJMAT")
-         CALL MEMORY(IP_WLIST,NLMAX,"WLIST")
+         allocate(LSTE(NEL,0:NLIST),stat=err)
+         CALL LogMemAlloc('LSTE',NLMAX*NEL,4,thisroutine,tagLSTE,err)
+         allocate(RJJLIST(0:NLIST),stat=err)
+         CALL LogMemAlloc('RJJLIST',NLMAX,8,thisroutine,tagRJJLIST,err)
+         allocate(RIJMAT(nLMAX**2),stat=err)
+         CALL LogMemAlloc('RIJMAT',NLMAX**2,8,thisroutine,tagRIJMAT,err)
+         allocate(WLIST(NLIST),stat=err)
+         CALL LogMemAlloc('WLIST',NLIST,8,thisroutine,tagWLIST,err)
          WORKL=3*NLMAX
-         CALL MEMORY(IP_WORK,WORKL,"WORK")
-         CALL MEMORY(IP_VARRAY,NLMAX,"VARRAY")
+         allocate(WORK(WORKL),stat=err)
+         CALL LogMemAlloc('WORK',WORKL,4,thisroutine,tagWORK,err)
+         allocate(LSTP(0:nList),stat=err)
+         CALL LogMemAlloc('LSTP',NLMAX,4,thisroutine,tagLSTP,err)
+         allocate(VARRAY(0:nList),stat=err)
+         CALL LogMemAlloc('VARRAY',NLMAX,8,thisroutine,tagVARRAY,err)
 
          CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
@@ -340,11 +355,12 @@ C            WRITE(37,*) SN
             IF(NLMAX.GT.10) CALL FLUSH(37)
 C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.D0, SNN
          ENDDO
-         CALL FREEM(IP_WORK)
-         CALL FREEM(IP_WLIST)
-         CALL FREEM(IP_RIJMAT)
-         CALL FREEM(IP_LSTE)
-         CALL FREEM(IP_RJJLIST)
+         deallocate(WLIST,RIJMAT,LSTE,RJJLIST,WORK)
+         call LogMemDealloc(thisroutine,tagWORK)
+         call LogMemDealloc(thisroutine,tagWLIST)
+         call LogMemDealloc(thisroutine,tagRIJMAT)
+         call LogMemDealloc(thisroutine,tagLSTE)
+         call LogMemDealloc(thisroutine,tagRJJLIST)
          call halt_timer(proc_timer)
 C         CLOSE(36)
          RETURN
