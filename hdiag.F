@@ -244,13 +244,15 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          REAL*8  CALCDLWDB,CALCMCEN,ARR(NBASIS)
          
          INTEGER I,NBLKMAX,NBLK,J,K,NBS,III,IFDET,L
-         REAL*8 CK(*),W(*),WORK(*),EXEN,GSEN,FLRI,FLSI,GSEN2
-         POINTER (IP_CK,CK),(IP_W,W),(IP_WORK,WORK)
+         REAL*8 EXEN,GSEN,FLRI,FLSI,GSEN2
+         REAL*8, ALLOCATABLE :: CK(:),W(:),WORK(:)
+         integer, save :: tagCK=0,tagW=0,tagWORK=0
          REAL*8 ELOWEST,GOFE(NBASIS),EBIAS
          INTEGER GELOWEST,IDEG
          type(timer), save :: proc_timer
          TYPE(BasisFN) BLOCKSYM(NBLOCKS)
-         proc_timer%timer_name='HDIAG_NH  '
+         character(*),parameter :: this_routine='HDIAG_NH'
+         proc_timer%timer_name=this_routine
          call set_timer(proc_timer)
 C.. Find the largest block
          NBLKMAX=0
@@ -260,9 +262,12 @@ C.. Find the largest block
          ENDDO
          WRITE(6,*) "Maximum Block Size:",NBLKMAX
 C.. Now allocate memory
-         CALL MEMORY(IP_CK,NBLKMAX*NBLKMAX,"CK")
-         CALL MEMORY(IP_W,NBLKMAX,"W")
-         CALL MEMORY(IP_WORK,3*NBLKMAX,"WORK")
+         allocate(CK(NBLKMAX*NBLKMAX))
+         call LogMemAlloc('CK',NBLKMAX*NBLKMAX,8,this_routine,tagCK)
+         allocate(W(NBLKMAX))
+         call LogMemAlloc('W',NBLKMAX,8,this_routine,tagW)
+         allocate(WORK(3*NBLKMAX))
+         call LogMemAlloc('WORK',3*NBLKMAX,8,this_routine,tagWORK)
 C.. Go through the blocks forming the hamil matrix
          EXEN=0.D0
          DNORM=0.D0
@@ -356,9 +361,10 @@ C        WRITE(6,*) "NORM: ",DNORM
      &         ARR(J),GOFE(BRR(J))/DNORM
          ENDDO
          CLOSE(16)
-         CALL FREEM(IP_WORK)
-         CALL FREEM(IP_CK)
-         CALL FREEM(IP_W)
+         deallocate(WORK,CK,W)
+         call LogMemDealloc(this_routine,tagWORK)
+         call LogMemDealloc(this_routine,tagW)
+         call LogMemDealloc(this_routine,tagCK)
          call halt_timer(proc_timer)
          RETURN
       END 
