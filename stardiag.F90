@@ -1985,6 +1985,7 @@
 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
                      RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          USE HElem      
+         use global_utilities
          IMPLICIT NONE
          INTEGER I_V,NEL,I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*),NMSH,NMAX
          INTEGER NTAY,NWHTAY,ILOGGING,LT
@@ -1996,14 +1997,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER LSTE(NEL,0:ILMAX)
          INTEGER ICE(0:ILMAX)
          REAL*8 LIST(0:ILMAX,0:2)
-!.. New lists are generated here
-         INTEGER NLSTE(NEL,0:*)
-         REAL*8  NLIST(0:*)
-         INTEGER NICE(0:*)
          TYPE(HDElement) FMCPR3Star
-         POINTER (IP_NLIST,NLIST)
-         POINTER (IP_NLSTE,NLSTE)
-         POINTER (IP_NICE,NICE)
+
+!.. New lists are generated here
+         INTEGER,ALLOCATABLE :: NLSTE(:,:)
+         REAL*8,ALLOCATABLE ::  NLIST(:,:)
+         INTEGER,ALLOCATABLE :: NICE(:)
+         INTEGER,SAVE :: tagNLSTE=0,tagNLIST=0,tagNICE=0
+         INTEGER :: err
 
 !.. This will contain all the info needed to work out the value of the
 !.. star
@@ -2021,6 +2022,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          INTEGER NORDER,NMIN
          TYPE(HDElement) FMCPR3STAR2
+         character(*), parameter :: t_r='FMCPR3STAR'
          include 'irat.inc'
   
          IF(HElementSize.NE.1) STOP 'FMCPR3STAR cannot work with complex orbitals.' 
@@ -2043,9 +2045,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL GENEXCIT(NI,NORDER,NBASIS,NEL,LSTE,ICE,NLENLIST,NMIN,G1,TSYM,NBASISMAX,.TRUE.)
 !.. Allocate memory for the lists
          ILMAX=NLENLIST
-         CALL MEMORY(IP_NLIST,(NLENLIST+1)*3,'NLIST')
-         CALL MEMORY(IP_NLSTE,((NLENLIST+1)*NEL)/IRAT+1,'NLSTE')
-         CALL MEMORY(IP_NICE,(NLENLIST+1)/IRAT+1,'NICE')
+         allocate(NLIST(0:NLENLIST,3),stat=err)
+         call LogMemAlloc('NLIST',(NLENLIST+1)*3,8,t_r,tagNLIST)
+         allocate(NLSTE(NEL,0:NLENLIST),stat=err)
+         call LogMemAlloc('NLSTE',(NLENLIST+1)*NEL,4,t_r,tagNLSTE)
+         allocate(NICE(0:NLENLIST),stat=err)
+         call LogMemAlloc('NICE',(NLENLIST+1),4,t_r,tagNICE)
 
          CALL ICOPY(NEL,NI,1,NLSTE(1,0),1)
          NICE(0)=0
@@ -2055,9 +2060,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          FMCPR3STAR=FMCPR3STAR2(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
            RHOEPS,NLSTE,NICE,NLIST,L,LT,NWHTAY,ILOGGING,TSYM,ECORE,NLENLIST,DBETA,DLWDB)
 
-         CALL FREEM(IP_NLIST)
-         CALL FREEM(IP_NLSTE)
-         CALL FREEM(IP_NICE)
+         deallocate(NLIST,NICE,NLSTE)
+         call LogMemDealloc(t_r,tagNLIST)
+         call LogMemDealloc(t_r,tagNLSTE)
+         call LogMemDealloc(t_r,tagNICE)
          RETURN
       END
 
@@ -2144,15 +2150,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER NLIST,ILMAX,ProdNum,TOTVERT
-         REAL*8 LIST(ILMAX,0:2)
-         REAL*8 RIJMAT(*),WLIST(*)
          REAL*8 OnDiagProdRho(ProdNum),OffDiagProdRho(2,ProdNum)
-         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
+         REAL*8,ALLOCATABLE :: LIST(:,:) !(ILMAX,0:2)
+         REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
+         INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
          INTEGER EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
          type(timer), save :: proc_timer
          INTEGER WORKL,INFO,ierr,ProdPositions(2,ProdNum)
-         REAL*8 SI,DLWDB,DBETA,WORK(*)
-         INTEGER I,J
+         REAL*8 SI,DLWDB,DBETA
+         INTEGER I,J,err
+         character(*),parameter :: t_r='STARDIAGREALPROD'
          
          IF(HElementSize.GT.1) STOP "STARDIAGREALPROD cannot function with complex orbitals."
 
@@ -2162,7 +2169,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          !CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
          
          TOTVERT=NLIST+ProdNum
-         CALL MEMORY(IP_RIJMAT,TOTVERT*TOTVERT,"RIJMAT")
+         allocate(RIJMAT(TOTVERT**2),stat=err)
+         call LogMemAlloc('RIJMAT',TOTVERT**2,8,t_r,tagRIJMAT,err)
          CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
         
          !Fill RIJMAT
@@ -2196,9 +2204,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !             WRITE(68,*) ""
 !         ENDDO
         
-         CALL MEMORY(IP_WLIST,TOTVERT,"WLIST")
+         allocate(WLIST(TOTVERT),stat=err)
+         call LogMemAlloc('WLIST',TOTVERT,8,t_r,tagWLIST,err)
          WORKL=3*TOTVERT
-         CALL MEMORY(IP_WORK,WORKL,"WORK")
+         allocate(WORK(WORKL),stat=err)
+         call LogMemAlloc('WORK',WORKL,8,t_r,tagWORK,err)
         
 !.. Diagonalize
          CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
@@ -2206,7 +2216,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             WRITE(6,*) 'DYSEV error: ',INFO
             STOP
          ENDIF
-         CALL FREEM(IP_WORK)
+         deallocate(WORK)
+         call LogMemDealloc(t_r,tagWORK)
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(TOTVERT)
 
@@ -2223,8 +2234,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WRITE(6,*) "Final SI= ", SI
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)
-         CALL FREEM(IP_WLIST)
-         CALL FREEM(IP_RIJMAT)
+         deallocate(WLIST,RIJMAT)
+         call LogMemDealloc(t_r,tagWLIST)
+         call LogMemDealloc(t_r,tagRIJMAT)
          call halt_timer(proc_timer)
 
          RETURN
@@ -2238,17 +2250,18 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         REAL*8 LIST(ILMAX,0:2)
-         REAL*8 RIJMAT(*),WLIST(*)
+         REAL*8,ALLOCATABLE :: LIST(:,:) !(ILMAX,0:2)
+         REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
+         INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
          REAL*8, DIMENSION(:,:), POINTER :: AOFFDB
          REAL*8, DIMENSION(:), POINTER :: AONDB
-         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
          INTEGER IND,TOTVERT
          type(timer), save :: proc_timer
          INTEGER WORKL,INFO,PRODVERT,ierr
-         REAL*8 SI,DLWDB,DBETA,WORK(*)
-         INTEGER I,J
+         REAL*8 SI,DLWDB,DBETA
+         INTEGER I,J,err
          TYPE(HElement) RR
+         character(*),parameter :: t_r='STARDIAGSC'
 
          IF(HElementSize.GT.1) STOP "STARDIAGSC cannot function with complex orbitals."
 
@@ -2293,7 +2306,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !        ENDDO
 !        WRITE(68,*) "*****************"
         
-        CALL MEMORY(IP_RIJMAT,TOTVERT*TOTVERT,"RIJMAT")
+        allocate(RIJMAT(TOTVERT**2),stat=err)
+        call LogMemAlloc('RIJMAT',TOTVERT**2,8,t_r,tagRIJMAT,err)
         CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
         
         DO I=1,TOTVERT
@@ -2324,9 +2338,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !            WRITE(68,*) ""
 !        ENDDO
 
-        CALL MEMORY(IP_WLIST,TOTVERT,"WLIST")
+        allocate(WLIST(TOTVERT),stat=err)
+        call LogMemAlloc('WLIST',TOTVERT,8,t_r,tagWLIST,err)
         WORKL=3*TOTVERT
-        CALL MEMORY(IP_WORK,WORKL,"WORK")
+        allocate(WORK(WORKL),stat=err)
+        call LogMemAlloc('WORK',WORKL,8,t_r,tagWORK,err)
         
 !.. Diagonalize
          CALL DSYEV('V','L',TOTVERT,RIJMAT,TOTVERT,WLIST,WORK,WORKL,INFO)
@@ -2334,7 +2350,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             WRITE(6,*) 'DYSEV error: ',INFO
             STOP
          ENDIF
-         CALL FREEM(IP_WORK)
+         deallocate(WORK)
+         call LogMemDealloc(t_r,tagWORK)
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(TOTVERT)
 
@@ -2352,8 +2369,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WRITE(6,*) "Final SI= ", SI
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)
-         CALL FREEM(IP_WLIST)
-         CALL FREEM(IP_RIJMAT)
+         deallocate(WLIST,RIJMAT)
+         call LogMemDealloc(t_r,tagRIJMAT)
+         call LogMemDealloc(t_r,tagWLIST)
          call halt_timer(proc_timer)
          
          RETURN
@@ -3168,14 +3186,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         REAL*8 LIST(ILMAX,0:2)
-         REAL*8 RIJMAT(*),WLIST(*)
-         POINTER (IP_RIJMAT,RIJMAT),(IP_WLIST,WLIST),(IP_WORK,WORK)
+         REAL*8,ALLOCATABLE :: LIST(:,:) !(ILMAX,0:2)
+         REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
+         INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
          INTEGER WORKL,INFO
-         REAL*8 SI,DLWDB,DBETA,OD,WORK(*)
-         INTEGER I,J
+         REAL*8 SI,DLWDB,DBETA,OD
+         INTEGER I,J,err
          TYPE(HElement) RR
+         character(*),parameter :: t_r='STARDIAG'
          
          IF(HElementSize.GT.1) THEN
              CALL Stop_All("StarDiag","STARDIAG cannot function with complex orbitals.")
@@ -3183,10 +3202,13 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          proc_timer%timer_name='STARDIAG  '
          call set_timer(proc_timer)
-         CALL MEMORY(IP_RIJMAT,NLIST*NLIST,"RIJMAT")
-         CALL MEMORY(IP_WLIST,NLIST,"WLIST")
+         allocate(RIJMAT(NLIST**2),stat=err)
+         call LogMemAlloc('RIJMAT',NLIST**2,8,t_r,tagRIJMAT,err)
+         allocate(WLIST(NLIST),stat=err)
+         call LogMemAlloc('WLIST',NLIST,8,t_r,tagWLIST,err)
          WORKL=3*NLIST
-         CALL MEMORY(IP_WORK,WORKL,"WORK")
+         allocate(WORK(WORKL),stat=err)
+         call LogMemAlloc('WORK',WORKL,8,t_r,tagWORK,err)
 
          CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
 
@@ -3226,7 +3248,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             WRITE(6,*) 'DYSEV error: ',INFO
             STOP
          ENDIF
-         CALL FREEM(IP_WORK)
+         deallocate(WORK)
+         call LogMemDealloc(t_r,tagWORK)
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(NLIST)
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
@@ -3277,8 +3300,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          WRITE(6,*) "Final SI=",SI
          SI=SI-1.D0
          DLWDB=DLWDB-LIST(1,2)
-         CALL FREEM(IP_WLIST)
-         CALL FREEM(IP_RIJMAT)
+         deallocate(WLIST,RIJMAT)
+         call LogMemDealloc(t_r,tagWLIST)
+         call LogMemDealloc(t_r,tagRIJMAT)
          call halt_timer(proc_timer)
          RETURN
       END
