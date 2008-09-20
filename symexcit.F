@@ -924,8 +924,6 @@ C.. to actually generate the excitations
          IMPLICIT NONE 
          INCLUDE 'irat.inc'
          INTEGER NI(NEL)
-         POINTER (IP_DSTORE,DSTORE)
-         INTEGER DSTORE(*)
 !  STORE contains lengths of various components of the excitation generator
          INTEGER STORE(6)
 !  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
@@ -953,8 +951,6 @@ C.. to actually generate the excitations
          IMPLICIT NONE 
          INCLUDE 'irat.inc'
          INTEGER NI(NEL)
-         POINTER (IP_DSTORE,DSTORE)
-         INTEGER DSTORE(*)
 !  STORE contains lengths of various components of the excitation generator
          INTEGER STORE(6)
 !  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
