@@ -266,6 +266,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
      &      UMAT,HFE,HFBASIS,NHFIT,NEL,MS,HFMIX,EDELTA,CDELTA,TRHF,
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          Use HElem
+         use global_utilities
          IMPLICIT NONE
          INTEGER NBASIS,G1(*),ISS,nBasisMax(5,*)
          REAL*8 UMAT(*)
@@ -274,16 +275,13 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER BRR(NBASIS)
          Type(HElement) HFBASIS(NBASIS,NBASIS)
          REAL*8 HFE(NBASIS)
-         Type(HElement) FMAT(*),OFMAT(*)
-         POINTER (IP_FMAT,FMAT),(IP_OFMAT,OFMAT)
-         Type(HElement) DMAT(*),ODMAT(*)
-         POINTER (IP_DMAT,DMAT),(IP_ODMAT,ODMAT)
-         Type(HElement) WORK(*)
-         POINTER (IP_WORK,WORK)
-         REAL*8 HFES(*)
-         POINTER (IP_HFES,HFES)
-         Type(HElement) R1(*),R2(*)
-         POINTER (IP_R1,R1),(IP_R2,R2)
+         Type(HElement),allocatable :: FMAT(:),OFMAT(:)
+         Type(HElement),allocatable :: DMAT(:),ODMAT(:)
+         Type(HElement),allocatable :: WORK(:)
+         REAL*8,allocatable :: HFES(:)
+         Type(HElement),allocatable :: R1(:),R2(:)
+         integer, save :: tagR1=0,tagR2=0,tagHFES=0,tagFMAT=0,tagOFMat=0
+         integer, save :: tagWork=0,tagDMAT=0,tagODMat=0
          INTEGER NHFIT,NEL,NSTART(NEL)
          INTEGER I,J,K,L,ISPN,ISPS,IS1,IS2
          REAL*8 TOT,HFMIX,EDELTA,CDELTA
@@ -294,20 +292,36 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          REAL*8 FRAND
          INTEGER HFDET(NEL)
          INTEGER ILOGGING
+         character(*),parameter :: this_routine='CALCHFBASIS'
 C.. Allocate mem etc.
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C         IF(TRHF) STOP 'RHF not supported'
          NSPINS=1+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
          NSBASIS=NBASIS/NSPINS
 C         IF(TRHF) NSPINS=1
-         CALL MEMORY(IP_FMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"FMAT")
-       CALL MEMORY(IP_OFMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"OFMAT")
-         CALL MEMORY(IP_DMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"DMAT")
-       CALL MEMORY(IP_ODMAT,NSBASIS*NSBASIS*NSPINS*HElementSize,"ODMAT")
-         CALL MEMORY(IP_WORK,NSBASIS*3*HElementSize,"WORK")
-         CALL MEMORY(IP_HFES,NSBASIS*NSPINS,"HFES")
-         CALL MEMORY(IP_R1,NSBASIS*NSBASIS*HElementSize,"R1")
-         CALL MEMORY(IP_R2,NSBASIS*NSBASIS*HElementSize,"R2")
+         allocate(FMAT(NSBASIS*NSBASIS*NSPINS))
+         call LogMemAlloc('FMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+     &                                             this_routine,tagFMAT)
+         allocate(OFMAT(NSBASIS*NSBASIS*NSPINS))
+         call LogMemAlloc('OFMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+     &                                            this_routine,tagOFMAT)
+         allocate(DMAT(NSBASIS*NSBASIS*NSPINS))
+         call LogMemAlloc('DMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+     &                                             this_routine,tagDMAT)
+         allocate(ODMAT(NSBASIS*NSBASIS*NSPINS))
+         call LogMemAlloc('ODMAT',NSBASIS*NSBASIS*NSPINS,HElementSize,
+     &                                            this_routine,tagODMAT)
+         allocate(WORK(NSBASIS*3))
+         call LogMemAlloc('WORK',NSBASIS*3,HElementSize,
+     &                                             this_routine,tagWORK)
+         allocate(R1(NSBASIS*NSBASIS))
+         call LogMemAlloc('R1',NSBASIS*NSBASIS,HElementSize,
+     &                                             this_routine,tagR1)
+         allocate(R2(NSBASIS*NSBASIS))
+         call LogMemAlloc('R2',NSBASIS*NSBASIS,HElementSize,
+     &                                             this_routine,tagR2)
+         allocate(HFES(NSBASIS*NSPINS))
+         call LogMemAlloc('HFES',NSBASIS*NSPINS,8,this_routine,tagHFES)
 C.. Generate initial HFBASIS vectors as the energy ordered single
 C.. particle basis fns, separated into up and down blocks
          CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS*HElementSize)
@@ -324,14 +338,15 @@ C.. particle basis fns, separated into up and down blocks
      &      IHFMETHOD,TREADHF,FRAND,HFDET,ILOGGING)
          ENDIF
 
-         CALL FREEM(IP_FMAT)
-         CALL FREEM(IP_OFMAT)
-         CALL FREEM(IP_DMAT)
-         CALL FREEM(IP_ODMAT)
-         CALL FREEM(IP_WORK)
-         CALL FREEM(IP_R1)
-         CALL FREEM(IP_R2)
-         CALL FREEM(IP_HFES)
+         deallocate(FMAT,OFMAT,DMAT,ODMAT,WORK,R1,R2,HFES)
+         call LogMemDealloc(this_routine,tagFMAT)
+         call LogMemDealloc(this_routine,tagOFMAT)
+         call LogMemDealloc(this_routine,tagDMAT)
+         call LogMemDealloc(this_routine,tagODMAT)
+         call LogMemDealloc(this_routine,tagWORK)
+         call LogMemDealloc(this_routine,tagR1)
+         call LogMemDealloc(this_routine,tagR2)
+         call LogMemDealloc(this_routine,tagHFES)
          
          RETURN
       END
