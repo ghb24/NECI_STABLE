@@ -17,25 +17,29 @@ MODULE HFCalc
       Use UMatCache, only: GetUMatSize
       Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
       character(25), parameter :: this_routine='HFDoCalc'
-      REAL*8 HFBASIS(*),HFE(*)
+      Type(HElement),ALLOCATABLE :: HFBASIS(:),HFE(:)
       Type(HElement),pointer :: UMat2(:)
       Type(HElement),pointer :: TMat2D2(:,:)
-      POINTER (IP_HFBASIS,HFBASIS),(IP_HFE,HFE)
       integer i, ierr
       integer nOrbUsed
       integer UMatInt, TMatInt
-      integer tagUMat2, tagTMat2
+      integer,save :: tagUMat2=0, tagTMat2=0,tagHFE=0,tagHFBasis=0
          
 !C.. If we are using an HF basis instead of our primitive basis, we need
 !C.. to load in the coeffs of the HF eigenfunctions in terms of the
 !C.. primitive basis.
 !C.. We load the coeffs from a file HFBASIS
          IF(THFBASIS.OR.THFCALC.OR.(THFORDER.AND..NOT.TCPMD)) THEN
-            CALL MEMORY(IP_HFBASIS,nBasis*nBasis*HElementSize,'HFBASIS')
+            ! NOTE: while HFBasis and HFE are declared to be HElement arrays,
+            ! many of the following routines assume them to be real arrays.
+            ! These need to be changed for use with complex code.
+            allocate(HFBasis(nBasis*nBasis))
+            call LogMemAlloc('HFBASIS',nBasis*nBasis,HElementSize,this_routine,tagHFBasis)
             CALL AZZERO(HFBASIS,nBasis*nBasis*HElementSize)
 !C.. Allocate an array to store the HF Energies
-            CALL MEMORY(IP_HFE,nBasis,'HFE')
-            CALL AZZERO(HFE,nBasis)
+            allocate(HFE(nBasis))
+            call LogMemAlloc('HFE',nBasis,HElementSize,this_routine,tagHFE)
+            CALL AZZERO(HFE,nBasis*HElementSize)
             IF(THFORDER.AND..NOT.THFBASIS) THEN
 !C.. If we're not using HF, but just calculating the HF order
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
@@ -67,8 +71,6 @@ MODULE HFCalc
             !THIS ROUTINE NO LONGER WORKS WITH NEW TMAT/UMAT MODULARISATION
             IF(THFBASIS) THEN
                WRITE(6,*) "Allocating TMAT2"
-!               CALL MEMORY(IP_TMAT2,nBasis**2,'TMAT2')
-!               CALL AZZERO(TMAT2,nBasis**2)
                IF(TSTARSTORE) STOP 'TSTARSTORE WITH HFBASIS?!'
                CALL SetupTMAT2(nBasis,2,TMATINT)
                NORBUSED=NBASIS-NTFROZEN
@@ -80,9 +82,6 @@ MODULE HFCalc
                 CALL DestroyTMAT(.false.)
                 TMAT2D => TMAT2D2
                 NULLIFY(TMAT2D2)
-!               CALL FREEM(IP_TMAT)
-!               IP_TMAT=IP_TMAT2
-!               IP_TMAT2=NULL
 !C.. Allocate the new matrix
                CALL GetUMatSize(nBasis,nEl,1,UMATINT)
                Allocate(UMat2(UMatInt), stat=ierr)
@@ -119,8 +118,9 @@ MODULE HFCalc
                ENDIF
             ENDIF
 !C.. Now deallocate the HF arrays
-            CALL FREEM(IP_HFBASIS)
-            CALL FREEM(IP_HFE)
+            deallocate(HFE,HFBasis)
+            call LogMemDealloc(this_routine,tagHFE)
+            call LogMemDealloc(this_routine,tagHFBasis)
             CALL FLUSH(6)
          ENDIF
       End Subroutine HFDoCalc
