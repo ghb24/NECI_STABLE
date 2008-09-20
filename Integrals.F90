@@ -301,11 +301,10 @@ MODULE Integrals
       use SystemData, only: uhub, arr,alat,treal
       INCLUDE 'cons.inc'
       INTEGER iCacheFlag
-      COMPLEX*16 ZIA(*)
-      POINTER (IP_ZIA,ZIA)
-      INTEGER tagZIA
-      COMPLEX*16 COEFF(*)
-      POINTER (IP_COEFF,COEFF)
+      COMPLEX*16,ALLOCATABLE :: ZIA(:)
+      INTEGER,SAVE :: tagZIA=0
+      COMPLEX*16,ALLOCATABLE :: COEFF(:)
+      INTEGER,SAVE :: tagCOEFF=0
       INTEGER i
       INTEGER TmatInt,UMatInt
       integer iErr
@@ -341,8 +340,6 @@ MODULE Integrals
          WRITE(6,*) " *** INITIALIZING CPMD 2-index integrals ***"
          Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
-         !CALL MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
-         !CALL AZZERO(TMAT,HElementSize*nBasis*nBasis)
          CALL GENSymStatePairs(nBasis/2,.false.)
          CALL SetupTMAT(nBasis,2,TMATINT)
          CALL CPMDINIT2INDINT(nBasis,I,NBASISMAX,ISPINSKIP,G1,NEL,ECORE,THFORDER,ARR,BRR,iCacheFlag)
@@ -355,8 +352,6 @@ MODULE Integrals
       ELSEIF(TREADINT.AND.TDFREAD) THEN
          Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
-         !CALL MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
-         !CALL AZZERO(TMAT,HElementSize*nBasis*nBasis)
          CALL SetupTMAT(nBasis,2,TMATINT)
          Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          Call ReadDF2EIntegrals(nBasis,I)
@@ -368,8 +363,6 @@ MODULE Integrals
          !CALL WRITESYMORBS(nBasis,G1)
          !NBASISMAX(5,2)+1 is the number of irreps
          CALL SetupTMAT(nBasis,2,TMATINT)
-         !CALL MEMORY(IP_TMAT,HElementSize*TMATINT,'TMAT')
-         !CALL AZZERO(TMAT,HElementSize*TMATINT)
          CALL CREATEINVBRR(BRR,nBasis)
          Call InitStarStoreUMat(nEl/2, nBasis/2)
          CALL GetUMatSize(nBasis,nEl,2,UMATINT)
@@ -399,8 +392,6 @@ MODULE Integrals
          Call AZZERO(UMat,HElementSize*UMatInt)
     !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
-    !     CALL MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
-    !     CALL AZZERO(TMAT,HElementSize*nBasis*nBasis)
          IF(TBIN) THEN
             CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          ELSE
@@ -449,10 +440,11 @@ MODULE Integrals
     !!C..Need to initialise the Fourier arrays
                Allocate(Fck(nMsh**3),stat=ierr)
                LogAlloc(ierr,'FCK',NMSH**3,16,tagFCK)
-               CALL MEMORY(IP_COEFF,2*(3*NMSH+48),'COEFF')
-               CALL MEMORY(IP_ZIA,2*(NMSH+1)*NMAX*NMAX,'ZIA')
-               WRITE(6,*) NMSH,NMAX
+               allocate(COEFF(2*(3*NMSH+48)))
+               LogAlloc(ierr,'COEFF',2*(NMSH+1)*NMAX*NMAX,16,tagCOEFF)
+               allocate(ZIA(2*(NMSH+1)*NMAX*NMAX))
                LogAlloc(ierr,'ZIA',2*(NMSH+1)*NMAX*NMAX,16,tagZIA)
+               WRITE(6,*) NMSH,NMAX
     !!C..
                CALL MEMORY_CHECK()
                IF(NMAXZ.EQ.0) THEN
@@ -470,8 +462,8 @@ MODULE Integrals
                LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                Call AZZERO(UMat,HElementSize*UMatInt)
                CALL GEN_COUL(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,ZIA)
+               deallocate(ZIA)
                LogDealloc(tagZIA)
-               Call FreeM(IP_ZIA)
                LogDealloc(tagFCK)
                Deallocate(FCK)
             ENDIF
