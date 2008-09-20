@@ -33,16 +33,16 @@ C         INTEGER NI(4,NEL), NJ(4,NEL)
          INTEGER BRR(NBASIS)
          TYPE(BasisFN) G1(NBASIS)
          INTEGER NMRKS(NEL,NDET),nBasisMax(5,*)
-         POINTER (IP_LSTI,LSTI),(IP_DLWDBS,DLWDBS),(IP_WLRIS,WLRIS)
-         POINTER (IP_WLSIS,WLSIS)
-         INTEGER LSTI(3,*)
-         REAL*8 DLWDBS(*),WLRIS(*),WLSIS(*)
+         INTEGER,ALLOCATABLE :: LSTI(:,:) ! (3,*)
+         REAL*8,ALLOCATABLE :: DLWDBS(:),WLRIS(:),WLSIS(:)
+         integer, save :: tagLSTI=0,tagDLWDBS=0,tagWLRIS=0,tagWLSIS=0
          LOGICAL LISNAN
          REAL*8 RAN2
          type(timer), save :: proc_timer
+         character(*), parameter :: thisroutine='DMONTECARLO'
 
 C.. NI, NJ are the quantum numbers of 
-         proc_timer%timer_name='DMC       '
+         proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
 C.. Randomize the seed:
          ISEED=-70001
@@ -52,10 +52,14 @@ C.. THe seed must be odd
 C.. Allocate some memory
          LISTMAX=IMCSTEPS+1
          NFIRST=1
-         CALL MEMORY(IP_LSTI,3*LISTMAX,"LSTI")
-         CALL MEMORY(IP_DLWDBS,LISTMAX,"DLWDBS")
-         CALL MEMORY(IP_WLRIS,LISTMAX,"WLRIS")
-         CALL MEMORY(IP_WLSIS,LISTMAX,"WLSIS")
+         allocate(LSTI(3,LISTMAX))
+         allocate(DLWDBS(LISTMAX))
+         allocate(WLRIS(LISTMAX))
+         allocate(WLSIS(LISTMAX))
+         CALL LogMemAlloc('LSTI',3*LISTMAX,4,thisroutine,tagLSTI)
+         CALL LogMemAlloc('DLWDBS',LISTMAX,8,thisroutine,tagDLWDBS)
+         CALL LogMemAlloc('WLRIS',LISTMAX,8,thisroutine,tagWLRIS)
+         CALL LogMemAlloc('WLSIS',LISTMAX,8,thisroutine,tagWLSIS)
          LSTI(3,NFIRST)=0
          LSTI(2,NFIRST)=1
 
@@ -172,7 +176,17 @@ C               WI=WJ
          CLOSE(17)
          DMONTECARLO=TOT/IMCSTEPS
          call halt_timer(proc_timer)
-      END
+         deallocate(LSTI)
+         deallocate(DLWDBS)
+         deallocate(WLRIS)
+         deallocate(WLSIS)
+         CALL LogMemDealloc(thisroutine,tagLSTI)
+         CALL LogMemDealloc(thisroutine,tagDLWDBS)
+         CALL LogMemDealloc(thisroutine,tagWLRIS)
+         CALL LogMemDealloc(thisroutine,tagWLSIS)
+         LSTI(3,NFIRST)=0
+         LSTI(2,NFIRST)=1
+      END FUNCTION DMONTECARLO
 
 
       SUBROUTINE GENNEWDET(NI,NJ,NEL,NBASISMAX,ISEED)
@@ -260,16 +274,19 @@ C.. We couldn't find it
          INTEGER BRR(NBASIS),RHOEPS
          INTEGER G1(*),nBasisMax(5,*)
          CHARACTER*50 STR
-         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)
-         INTEGER LSTE(*)
+
+         INTEGER, ALLOCATABLE :: LSTE(:)
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
-         INTEGER ICE(*)
-         REAL*8 RIJLIST(*)
+         INTEGER, ALLOCATABLE :: ICE(:)
+         REAL*8, ALLOCATABLE :: RIJLIST(:)
 C0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
-         POINTER (IP_LSTDET,LSTDET),(IP_DLWDBS,DLWDBS),(IP_WLRIS,WLRIS)
-         POINTER (IP_WLSIS,WLSIS),(IP_RIJLIST,RIJLIST)
-         INTEGER LSTDET(NEL+2,*),I_HMAX,I_VMAX
-         REAL*8 DLWDBS(*),WLRIS(*),WLSIS(*)
+         INTEGER,ALLOCATABLE :: LSTDET(:,:)
+         REAL*8,ALLOCATABLE :: DLWDBS(:),WLRIS(:),WLSIS(:)
+
+         integer, save :: tagLSTE=0,tagICE=0,tagRIJLIST=0,tagLSTDET=0
+         integer, save :: tagDLWDBS=0,tagWLRIS=0,tagWLSIS=0
+
+         INTEGER I_HMAX,I_VMAX
          LOGICAL LISNAN
          REAL*8 SUMSQ,BETAEQ,BETAC,DBETAC
          INTEGER IEQ1,IEQ2
@@ -277,9 +294,10 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
          REAL*8 DLWDBC
          REAL*8 RAN2
          type(timer), save :: proc_timer
+         character(*), parameter :: thisroutine='DMONTECARLO2'
          SUMSQ=0.D0
 C.. NI, NJ are the quantum numbers of 
-         proc_timer%timer_name='DMC2      '
+         proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
 C.. Randomize the seed:
          ISEED=-70001
@@ -291,23 +309,33 @@ C.. We don't need to store these lists for I_HMAX=-8
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7).OR.I_HMAX.LE.-12) ILMAX=1
 C.. Allocate some memory
          IF(I_VMAX.GT.0) THEN
-            CALL MEMORY(IP_LSTE,NEL*(ILMAX+1)*I_VMAX/IRAT,
-     &         "LSTE")
-            CALL MEMORY(IP_ICE,(ILMAX+1)*I_VMAX/IRAT,"ICE")
-            CALL MEMORY(IP_RIJLIST,(ILMAX+1)*I_VMAX*2,
-     &            "RIJLIST")
+            allocate(LSTE(NEL*(ILMAX+1)*I_VMAX))
+            CALL LogMemAlloc('LSTE',size(LSTE),4/IRAT,thisroutine,
+     &                                                          tagLSTE)
+            allocate(ICE((ILMAX+1)*I_VMAX))
+            CALL LogMemAlloc('ICE',size(ICE),4/IRAT,thisroutine,tagICE)
+            allocate(RIJLIST((ILMAX+1)*I_VMAX*2))
+            CALL LogMemAlloc('RIJLIST',size(RIJLIST),8,thisroutine,
+     &                                                       tagRIJLIST)
          ELSE
-            CALL MEMORY(IP_LSTE,NEL*(ILMAX+1)*I_HMAX/IRAT,
-     &         "LSTE")
-            CALL MEMORY(IP_ICE,(ILMAX+1)*I_HMAX/IRAT,"ICE")
+            allocate(LSTE(NEL*(ILMAX+1)*I_HMAX))
+            CALL LogMemAlloc('LSTE',size(LSTE),4/IRAT,thisroutine,
+     &                                                          tagLSTE)
+            allocate(ICE((ILMAX+1)*I_HMAX))
+            CALL LogMemAlloc('ICE',size(ICE),4/IRAT,thisroutine,tagICE)
          ENDIF
          LISTMAX=IMCSTEPS+1
          IF(LISTMAX.GT.10000) LISTMAX=10000
          NFIRST=1
-         CALL MEMORY(IP_LSTDET,(NEL+2)*LISTMAX,"LSTDET")
+         allocate(LSTDET(NEL+2,LISTMAX))
+         call LogMemAlloc('LSTDET',size(LSTDET),4,thisroutine,tagLSTDET)
+         allocate(DLWDBS(LISTMAX))
+         call LogMemAlloc('DLWDBS',LISTMAX,8,thisroutine,tagDLWDBS)
          CALL MEMORY(IP_DLWDBS,LISTMAX,"DLWDBS")
-         CALL MEMORY(IP_WLRIS,LISTMAX,"WLRIS")
-         CALL MEMORY(IP_WLSIS,LISTMAX,"WLSIS")
+         allocate(WLRIS(LISTMAX))
+         call LogMemAlloc('WLRIS',LISTMAX,8,thisroutine,tagWLRIS)
+         allocate(WLSIS(LISTMAX))
+         call LogMemAlloc('WLSIS',LISTMAX,8,thisroutine,tagWLSIS)
          LSTDET(NEL+2,1)=0
          LSTDET(NEL+1,1)=1
 
@@ -562,13 +590,17 @@ C.. if there's space, we store
          DMONTECARLO2=TOT/IMCSTEPS
          WRITE(6,*) "MC STDEV=",
      &      SQRT(ABS(SUMSQ/IMCSTEPS-DMONTECARLO2**2))
-         IF(I_VMAX.GT.0) CALL FREEM(IP_RIJLIST) 
-         CALL FREEM(IP_LSTE)
-         CALL FREEM(IP_ICE)
-         CALL FREEM(IP_LSTDET)
-         CALL FREEM(IP_DLWDBS)
-         CALL FREEM(IP_WLRIS)
-         CALL FREEM(IP_WLSIS)
+         IF(I_VMAX.GT.0) then
+             deallocate(RIJLIST)
+             call LogMemDealloc(thisroutine,tagRIJLIST)
+         end if
+         deallocate(LSTE,ICE,LSTDET,DLWDBS,WLRIS,WLSIS)
+         call LogMemDealloc(thisroutine,tagLSTE)
+         call LogMemDealloc(thisroutine,tagICE)
+         call LogMemDealloc(thisroutine,tagLSTDET)
+         call LogMemDealloc(thisroutine,tagDLWDBS)
+         call LogMemDealloc(thisroutine,tagWLRIS)
+         call LogMemDealloc(thisroutine,tagWLSIS)
 
          call halt_timer(proc_timer)
       END
