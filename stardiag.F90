@@ -2019,10 +2019,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER ICE(0:ILMAX)
          REAL*8 LIST(0:ILMAX,0:2)
          TYPE(HDElement) FMCPR3Star
-
 !.. New lists are generated here
          INTEGER,ALLOCATABLE :: NLSTE(:,:)
-         REAL*8,ALLOCATABLE ::  NLIST(:,:)
+         REAL*8,ALLOCATABLE ::  NLIST(:)
          INTEGER,ALLOCATABLE :: NICE(:)
          INTEGER,SAVE :: tagNLSTE=0,tagNLIST=0,tagNICE=0
          INTEGER :: err
@@ -2066,7 +2065,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL GENEXCIT(NI,NORDER,NBASIS,NEL,LSTE,ICE,NLENLIST,NMIN,G1,TSYM,NBASISMAX,.TRUE.)
 !.. Allocate memory for the lists
          ILMAX=NLENLIST
-         allocate(NLIST(0:NLENLIST,3),stat=err)
+         allocate(NLIST(0:NLENLIST*3),stat=err)
          call LogMemAlloc('NLIST',(NLENLIST+1)*3,8,this_routine,tagNLIST)
          allocate(NLSTE(NEL,0:NLENLIST),stat=err)
          call LogMemAlloc('NLSTE',(NLENLIST+1)*NEL,4,this_routine,tagNLSTE)
@@ -2172,9 +2171,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          INTEGER NEL,I_P
          INTEGER NLIST,ILMAX,ProdNum,TOTVERT
          REAL*8 OnDiagProdRho(ProdNum),OffDiagProdRho(2,ProdNum)
-         REAL*8,ALLOCATABLE :: LIST(:,:) !(ILMAX,0:2)
+         REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
          INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
+
          INTEGER EXCITSTORE(4,ILMAX-1)!contains all excitations (occ,occ,vir,vir)
          type(timer), save :: proc_timer
          INTEGER WORKL,INFO,ierr,ProdPositions(2,ProdNum)
@@ -2271,9 +2271,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         REAL*8,ALLOCATABLE :: LIST(:,:) !(ILMAX,0:2)
+         REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
-         INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
+         INTEGER, SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          REAL*8, DIMENSION(:,:), POINTER :: AOFFDB
          REAL*8, DIMENSION(:), POINTER :: AONDB
          integer, save :: tagAOFFDB,tagAONDB
@@ -3208,7 +3208,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          IMPLICIT NONE
          INTEGER NEL,I_P
          INTEGER LSTE(NEL,NLIST),NLIST,ILMAX
-         REAL*8,ALLOCATABLE :: LIST(:,:) !(ILMAX,0:2)
+         REAL*8 LIST(ILMAX,0:2)
          REAL*8,ALLOCATABLE ::  RIJMAT(:),WLIST(:),WORK(:)
          INTEGER, SAVE :: tagLIST=0,tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
