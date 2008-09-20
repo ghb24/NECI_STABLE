@@ -330,6 +330,7 @@ MODULE SymExcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSymPairProds,SymPairProds
+         use global_utilities
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L
@@ -342,8 +343,8 @@ MODULE SymExcit2
          LOGICAL SYMEQ
          INTEGER nBasisMax(5,*)
          TYPE(HElement) UMat(*)
-         TYPE(ExcitWeight) ews(*)
-         POINTER(IP_ews,ews)
+         TYPE(ExcitWeight), allocatable :: ews(:)
+         integer, save :: tagews=0
          INTEGER iLUT(*)
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,0:*)
@@ -354,6 +355,7 @@ MODULE SymExcit2
          REAL*8 pGen
          REAL*8 Arr(nBasis,2)
          LOGICAL IsUHFDet
+         character, parameter :: thisroutine='GenExcitProbInternal'
          iExcit(1,1)=2
          CALL GETEXCITATION(nI,nJ,nEl,iExcit,L)
 !EXCIT(1,*) are the ij... in NI, and EXCIT(2,*) the ab... in NJ
@@ -404,7 +406,8 @@ MODULE SymExcit2
 !.. We've worked out what class the IFROM was.  Now work out which member of the class it is
 !  Now enumerate all the FROMs, and their weightings
          nFromPairs=SymProdInd(2,iSpn,iFrom)
-         CALL MEMORY(IP_ews,ExcitWeightSize*nFromPairs,'ExcitWGEPI')
+         allocate(ews(nFromPairs))
+         call LogMemAlloc('ExcitWGEPI',nFromPairs,ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
          Norm=0.D0
          CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
@@ -416,13 +419,15 @@ MODULE SymExcit2
             ENDIF
          ENDDO
          iFromIndex=I
-         CALL FREEM(IP_ews)
+         deallocate(ews)
+         call LogMemDealloc(thisroutine,tagEWS)
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
 
 !.. Now work out the index of the (a,b) pair within the prod
          nToPairs=ExcitTypes(5,iExcitType)/SymProdInd(2,iSpn,iFrom)
-         CALL MEMORY(IP_ews,ExcitWeightSize*nToPairs,'ExcitWGEPI')
+         allocate(ews(nToPairs))
+         call LogMemAlloc('ExcitWGEPI',nToPairs,ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
          Norm=0.D0
          CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
@@ -438,7 +443,8 @@ MODULE SymExcit2
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcitType)
 !           times prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
-         CALL FREEM(IP_ews)
+         deallocate(ews)
+         call LogMemDealloc(thisroutine,tagEWS)
       END subroutine
 
 !We wish to calculate whether NJ is an excitation of NI.
@@ -458,8 +464,8 @@ MODULE SymExcit2
          TYPE(Symmetry) SymProds(0:*)
          LOGICAL SYMEQ
          INTEGER nBasisMax(5,*)
-         TYPE(ExcitWeight) ews(*)
-         POINTER(IP_ews,ews)
+         TYPE(ExcitWeight), allocatable :: ews(:)
+         integer, save :: tagews=0
          INTEGER iLUT(*)
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,0:*)
