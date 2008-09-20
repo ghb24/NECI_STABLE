@@ -1,14 +1,15 @@
       SUBROUTINE RHOOFR(NHG,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,
      &	NEL,NDET,NEVAL,RS,ALAT,OMEGA)
+      use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
 C..
-      POINTER (IP_CFS,CFS)
-      SAVE IP_CFS
+      real*8, allocatable, save :: CFS(:) ! NDET
+      integer, save :: tagCFS=0
 C..
       INTEGER G1(*)
       DIMENSION CK(NDET,NEVAL),NMRKS(NEL,*)
       DIMENSION RHO(NMSH,NMSH,NMSH),AUX(NMSH,NMSH,NMSH)
-      DIMENSION SITAB(NMSH,NMAX),CFS(*),ALAT(3)
+      DIMENSION SITAB(NMSH,NMAX),ALAT(3)
       DATA EPS/1.D-8/
       DATA IFIRST/0/
       SAVE IFIRST
@@ -19,7 +20,8 @@ C..
         CALL GEN_SITAB(NMAX,NMSH,SITAB)
       ENDIF
 C..
-      CALL MEMORY(IP_CFS,NDET,'CFS')
+      allocate(CFS(NDET))
+      call LogMemAlloc('CFS',NDET,8,'RHOOFR',tagCFS)
       CALL AZZERO(CFS,NDET)
       CALL DCOPY(NDET,CK(1,1),1,CFS,1)
 C..
