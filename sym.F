@@ -150,8 +150,6 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
          TYPE(BasisFN) G1(*)
          INTEGER NBASIS,BRR(NBASIS)
          REAL*8 ARR(NBASIS)
-         TYPE(Symmetry) SYMT2(NSYMMAX,NSYMMAX)
-         POINTER (IP_SYMT2,SYMT2)
          character(*), parameter :: this_routine='GenMolPSymTable'
         
          TAbelian=.true.
@@ -162,18 +160,6 @@ C.. A1 corresponds to bit 0 (i.e. irrep 1)
 
          nprop=1
          nprop(1:nSymGen)=2
-!         NSYM=NSYMMAX
-C.. Setup the symmetry product table
-!         CALL MEMORY(IP_SYMTABLE,NSYM*NSYM*SymmetrySize,'SYMTABLE')
-!         IP_SYMT2=IP_SYMTABLE
-!         CALL MEMORY(IP_SymConjTab,NSYM,'SymConjTab')
-!         CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
-!         DO I=0,NSYM-1
-!            SymConjTab(I+1)=I+1
-!            DO J=0,NSYM-1
-!               SYMT2(I+1,J+1)%s=IBSET(0,IEOR(I,J))
-!            ENDDO
-!         ENDDO
 C.. Now generate a list of sym labels.
          NSYMLABELS=NSYMMAX
          allocate(SymLabels(nSymLabels))
