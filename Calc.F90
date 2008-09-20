@@ -1296,13 +1296,12 @@ MODULE Calc
          use SystemData, only: BasisFN,BasisFNSize
          IMPLICIT NONE
          include 'irat.inc'
-         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)
          INTEGER I_HMAX,NEL,NBASIS,I_VMAX
-         INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
+         INTEGER,ALLOCATABLE :: LSTE(:) !(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
+         INTEGER,ALLOCATABLE :: ICE(:)  !(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)??!!
          TYPE(HElement)  UMAT(*)
          TYPE(HElement),allocatable  :: RIJLIST(:)
-         integer :: tagRIJList=0
+         integer,save :: tagRIJList=0,tagLSTE=0,tagICE=0
          REAL*8 BETA,FCK(*),ALAT(*),RHOEPS
          INTEGER NPATHS,NI(NEL),I_P,nBasisMax(5,*)
          INCLUDE 'gndwork.inc'
@@ -1339,8 +1338,10 @@ MODULE Calc
 !.. We don't need to store lists for I_HMAX=-8
          ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7).OR.I_HMAX.LE.-12) ILMAX=1
-         CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
-         CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
+         allocate(LSTE((1+ILMAX)*NEL*IMAX))
+         call LogMemAlloc('LSTE',size(LSTE),4/IRAT,thisroutine,tagLSTE)
+         allocate(ICE((1+ILMAX)*IMAX))
+         call LogMemAlloc('ICE',size(ICE),4/IRAT,thisroutine,tagICE)
          allocate(RIJList((1+ILMAX)*IMAX*2))
          call LogMemAlloc('RIJList',(1+ILMAX)*IMAX*2,8,thisroutine, tagRIJList)
 !:         CALL PRINT_MEMORY()
@@ -1443,10 +1444,10 @@ MODULE Calc
             WRITE(6,*) "Total ",III," determinants summed."
          ENDIF
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
-         deallocate(RIJList)
+         deallocate(RIJList,LSTE,ICE)
          call LogMemDealloc(thisroutine,tagRIJList)
-         CALL FREEM(IP_LSTE)
-         CALL FREEM(IP_ICE)
+         call LogMemDealloc(thisroutine,tagLSTE)
+         call LogMemDealloc(thisroutine,tagICE)
          call halt_timer(proc_timer)
          RETURN
       END SUBROUTINE CALCRHOPII3  
