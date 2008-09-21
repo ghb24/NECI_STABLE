@@ -53,7 +53,7 @@ subroutine ParMP2(nI)
    Type(HDElement) :: dE1,dE2
    Type(HElement) :: dE,dEtot(2),dE0
    ! MPIHelSum requires arrays as input/output.
-   Type(HElement) :: dEarr(2),dEres(2)
+   Type(HElement) :: dEarr(2)
    type(Symmetry) :: iSym1,iSym2
    type(Symmetry) :: iSym1Conj,iSym2Conj
    type(Symmetry) :: SymConj
@@ -126,224 +126,216 @@ subroutine ParMP2(nI)
 
       i=i+1
 
-! Quickest attempt (and useful for debugging).
-! Not as efficient as the code below, but clearer and useful for debugging.
-! Also, this should be used for unrestricted calculations.
-if (dbg) then
-      ! MP2 theory refers to the unperturbed excited determinant
-      ! => use GetH0Element3 rather than GetHElement3.
-      Excit(1,1)=2
-      call GetExcitation(nI,nJ,nEl,Excit,tSign)
-      dE2=GetH0Element3(nJ)
-      dU(1)=GetHElement3(nI,nJ,iC)
-      call getMP2E(dE1,dE2,dU(1),dE)
-      dETot(2)=dETot(2)+dE
+      if (dbg) then
+         ! Quickest attempt (and useful for debugging).
+         ! Not as efficient as the code below, but clearer and useful for debugging.
+         ! Also, this should be used for unrestricted calculations.
 
-else
+         ! MP2 theory refers to the unperturbed excited determinant
+         ! => use GetH0Element3 rather than GetHElement3.
+         Excit(1,1)=2
+         call GetExcitation(nI,nJ,nEl,Excit,tSign)
+         dE2=GetH0Element3(nJ)
+         dU(1)=GetHElement3(nI,nJ,iC)
+         call getMP2E(dE1,dE2,dU(1),dE)
+         dETot(2)=dETot(2)+dE
 
-! Alternatively, calculate the energy of the excited determinant
-! in reference to that of the reference determinant (i.e. setting dE1=0).
-      Excit(1,1)=2
-      call GetExcitation(nI,nJ,nEl,Excit,tSign)
-
-      ! Assuming a restricted calculation.
-
-      ! Multiply the contribuition of the current excitation by weight.
-      ! This allows equivalent excitations to be treated by explicitly
-      ! calculating only one of them.
-      ! If weight remains zero, we don't explicitly calculate the contribution
-      ! of the current excitation.
-      weight=0
-      
-      if (Excit(1,2).eq.0) then
-          ! Single excitation
-          if (G1(Excit(1,1))%Ms.eq.-1) then
-              ! alpha -> alpha single excitation.
-              ! count for beta->beta as well.
-              weight=2
-          end if
       else
-          ! Double excitation.
-          if (G1(Excit(1,1))%Ms.eq.-1.and.G1(Excit(1,2))%Ms.eq.-1) then
-              ! alpha,alpha -> alpha,alpha double excitation.
-              ! count for beta,beta -> beta,beta as well.
-              weight=2
-          else if (G1(Excit(1,1))%Ms.eq.-1.and.G1(Excit(1,2))%Ms.eq.1) then
-              ! alpha,beta -> alpha,beta double excitation.
-              ! We consider just these, and bring in the beta,alpha -> beta,alpha
-              ! excitations via spin symmetry.
-              if (AreSameSpatialOrb(Excit(1,1),Excit(1,2))) then
-                  ! Excitations from the spin orbitals of the same spatial
-                  ! orbital.
-                  if (AreSameSpatialOrb(Excit(2,1),Excit(2,2))) then
-                      ! e.g (1a,1b) -> (2a,2b)
-                      ! Unique (occurs only once).
-                      weight=1
-                  else if (G1(Excit(2,1))%Ms.eq.-1) then
-                      ! e.g (1a,1b) -> (2a,3b)
-                      ! Count also for the identical contribution for (1a,1b) -> (2b,3a).
-                      weight=2
-                  end if
-              else
-                  ! Excitations from different spatial orbitals.  Use spin
-                  ! symmetry:
-                  ! (1a,2b) -> (3a,3b) has an identical contribution to the MP2
-                  ! as (1b,2a) -> (3a,3b).
-                  ! Similarly (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a).
-                  !
-                  ! In a restricted calculation, the integrals needed for
-                  ! (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a) are also
-                  ! used for (1a,2a) -> (3a,4a), so we include these
-                  ! the contributions from (1a,2b) -> (3a,4b) and 
-                  ! (1b,2a) -> (3b,4a) when we evaluate the (1a,2a) -> (3a,4a)
-                  ! excitation.
-                  !
-                  ! This leaves only excitations to the same spatial orbital.
-                  ! Count also for (1b,2a) -> (3a,3b).
-                  if (AreSameSpatialOrb(Excit(2,1),Excit(2,2))) weight=2
-              end if
-          end if
+         ! Efficient (but more complicated) approach.
+         ! Reformulate sum to avoid needing integrals more than once.
+         ! This doesn't quite succeed: there are approximately N integrals (#
+         ! electrons) which are needed twice in the single excitations if you
+         ! take k-point symmetry into account.  It is impossible to avoid this
+         ! without storing integrals.
+
+         ! Alternatively, calculate the energy of the excited determinant
+         ! in reference to that of the reference determinant (i.e. setting dE1=0).
+         Excit(1,1)=2
+         call GetExcitation(nI,nJ,nEl,Excit,tSign)
+
+         ! Assuming a restricted calculation.
+
+         ! Multiply the contribuition of the current excitation by weight.
+         ! This allows equivalent excitations to be treated by explicitly
+         ! calculating only one of them.
+         ! If weight remains zero, we don't explicitly calculate the contribution
+         ! of the current excitation.
+         weight=0
+         
+         if (Excit(1,2).eq.0) then
+             ! Single excitation
+             if (G1(Excit(1,1))%Ms.eq.-1) then
+                 ! alpha -> alpha single excitation.
+                 ! count for beta->beta as well.
+                 weight=2
+             end if
+         else
+             ! Double excitation.
+             if (G1(Excit(1,1))%Ms.eq.-1.and.G1(Excit(1,2))%Ms.eq.-1) then
+                 ! alpha,alpha -> alpha,alpha double excitation.
+                 ! count for beta,beta -> beta,beta as well.
+                 weight=2
+             else if (G1(Excit(1,1))%Ms.eq.-1.and.G1(Excit(1,2))%Ms.eq.1) then
+                 ! alpha,beta -> alpha,beta double excitation.
+                 ! We consider just these, and bring in the beta,alpha -> beta,alpha
+                 ! excitations via spin symmetry.
+                 if (AreSameSpatialOrb(Excit(1,1),Excit(1,2))) then
+                     ! Excitations from the spin orbitals of the same spatial
+                     ! orbital.
+                     if (AreSameSpatialOrb(Excit(2,1),Excit(2,2))) then
+                         ! e.g (1a,1b) -> (2a,2b)
+                         ! Unique (occurs only once).
+                         weight=1
+                     else if (G1(Excit(2,1))%Ms.eq.-1) then
+                         ! e.g (1a,1b) -> (2a,3b)
+                         ! Count also for the identical contribution for (1a,1b) -> (2b,3a).
+                         weight=2
+                     end if
+                 else
+                     ! Excitations from different spatial orbitals.  Use spin
+                     ! symmetry:
+                     ! (1a,2b) -> (3a,3b) has an identical contribution to the MP2
+                     ! as (1b,2a) -> (3a,3b).
+                     ! Similarly (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a).
+                     !
+                     ! In a restricted calculation, the integrals needed for
+                     ! (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a) are also
+                     ! used for (1a,2a) -> (3a,4a), so we include these
+                     ! the contributions from (1a,2b) -> (3a,4b) and 
+                     ! (1b,2a) -> (3b,4a) when we evaluate the (1a,2a) -> (3a,4a)
+                     ! excitation.
+                     !
+                     ! This leaves only excitations to the same spatial orbital.
+                     ! Count also for (1b,2a) -> (3a,3b).
+                     if (AreSameSpatialOrb(Excit(2,1),Excit(2,2))) weight=2
+                 end if
+             end if
+         end if
+
+         call GTID(nBasisMax,Excit(1,1),IA)
+         call GTID(nBasisMax,Excit(2,1),AA)
+         if (Excit(1,2).ne.0) then
+             call GTID(nBasisMax,Excit(1,2),JA)
+             call GTID(nBasisMax,Excit(2,2),BA)
+         end if
+
+         if (tCPMD) then
+             ! Further reduce the number of symmetry-unique excitations by using
+             ! k-point symmetry.
+             iSym1=SymLabels(KPntInd(IA))
+             iSym1Conj=SymConj(iSym1)
+             if (Excit(1,2).eq.0) then
+                 ! Single excitation, i,k_i -> a,k_i.  k_i==k_a.
+                 ! If the k_i > -k_i (comparing indices, rather than the k-point),
+                 ! then count the current excitation also for  i,-k_i -> a,-k_i,
+                 ! which has the same contribution to the MP2 energy.
+                 ! If k_i=-k_i (i.e. self-inverse) then weight is unchanged.
+                 if (iSym1%s.gt.iSym1Conj%s) then
+                     weight=weight*2
+                 else if (iSym1%s.lt.iSym1Conj%s) then
+                     weight=0
+                 end if
+             else
+                 ! Double excitation.
+                 iSym2=SymLabels(KPntInd(JA))
+                 iSym2Conj=SymConj(iSym2)
+                 if (iSym1%s.eq.iSym2Conj%s.and.Arr(Excit(1,1),2).eq.Arr(Excit(1,2),2)) then
+                     ! Excitation from, e.g. 1,k1 1,-k1.  Unique: leave weight
+                     ! unchanged.
+                 else if (iSym1%s.gt.iSym1Conj%s) then
+                     ! Count excitation also for the -k equivalent excitation.
+                     weight=weight*2
+                 else if (iSym1%s.lt.iSym1Conj%s) then
+                     ! Counted for above.
+                     weight=0
+                 else if (iSym2%s.gt.iSym2Conj%s) then
+                     ! Excitation from (i,k_i j,k_j), where k_i=-k_i.
+                     ! If k_j > -k_j, then count also for (i,k_i j,-k_j).
+                     weight=weight*2
+                 else if (iSym2%s.lt.iSym2Conj%s) then
+                     ! Counted for above.
+                     weight=0
+                 end if
+             end if
+         end if
+                 
+         if (weight.ne.0) then
+
+            j=j+1
+            dE2=HDElement(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
+            dU=HElement(0.d0)
+            if (Excit(2,2).eq.0) then
+                ! Single excitation.
+                ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
+                call GTID(nBasisMax,Excit(1,1),IA)
+                call GTID(nBasisMax,Excit(2,1),AA)
+                do JJ=1,nEl,2 ! Assuming closed shell.  But we have already assumed restricted. ;-)
+                    ! Spatial orbital of the j-th element of the reference determinant.
+                    call GTID(nBasisMax,nI(JJ),JA) 
+                    ! Try to be as efficient as possible with the integrals...
+                    ! Want to ask for each integral only once (we don't *quite*
+                    ! succeed), so that the sum is efficient even without a cache.
+                    ! \sum_j 2<ij|aj> - <ij|ja>
+                    if (JA.eq.IA) then
+                        dU(1)=dU(1)+GetUMatEl2(IA,JA,AA,JA)
+                    else if (tCPMD) then
+                        ! Take advantage of k-point symmetry.
+                        iSym2=SymLabels(KPntInd(JA))
+                        iSym2Conj=SymConj(iSym2)
+                        if (iSym2%s.eq.iSym1%s.or.iSym2Conj%s.eq.iSym1%s) then
+                            dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+                        else if (iSym2%s.gt.iSym2Conj%s) then
+                            ! <i j,k_j | a j,k_j> = <i j,-k_j | a j,-k_j>
+                            ! Count it here to reduce integrals to be evaluated.
+                            dU(1)=dU(1)+HElement(4)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+                        else if (iSym2%s.lt.iSym2Conj%s) then
+                            ! Already added <ij|ji>.
+                            dU(1)=dU(1)-GetUMatEl2(IA,JA,JA,AA)
+                        end if
+                    else
+                        dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
+                    end if
+                end do
+                dU(1)=dU(1)+GetTMATEl(Excit(1,1),Excit(2,1))
+            else
+                ! Double excitation
+                dE2=dE2+HDElement(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
+                ! Obtain the <ij|ab> and <ij|ba> integrals as required.  These
+                ! are combined evaulated below for the various contributions to
+                ! the MP2 energy.
+                if (G1(Excit(1,1))%Ms.EQ.G1(Excit(2,1))%Ms.AND.G1(Excit(1,2))%Ms.EQ.G1(Excit(2,2))%Ms) then
+                    dU(1)=GetUMatEl2(IA,JA,AA,BA)
+                end if
+                if (G1(Excit(1,1))%Ms.EQ.G1(Excit(2,2))%Ms.AND.G1(Excit(1,2))%Ms.EQ.G1(Excit(2,1))%Ms) then
+                    dU(2)=GetUMatEl2(IA,JA,BA,AA)
+                end if
+            end if
+
+            if (Excit(1,2).eq.0) then
+                ! Singles contribution.
+                call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
+                dETot(1)=dETot(1)+HElement(weight)*dE
+            else
+                ! Doubles contributions.
+                if (dU(2).agt.0.d0) then
+                    ! Get e.g. (1a,2b)->(3a,4b) and (1a,2b)->(3b,4a) for "free"
+                    ! when we evaluate (1a,2a)->(3a,4a).
+                    call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
+                    dETot(2)=dETot(2)+HElement(weight)*dE
+                    call getMP2E(HDElement(0.d0),dE2,dU(2),dE)
+                    dETot(2)=dETot(2)+HElement(weight)*dE
+                end if
+                dU(1)=dU(1)-dU(2)
+                call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
+                dETot(2)=dETot(2)+HElement(weight)*dE
+            end if
+
+         ! END of more efficient approach.
+         end if
+
       end if
 
-      call GTID(nBasisMax,Excit(1,1),IA)
-      call GTID(nBasisMax,Excit(2,1),AA)
-      if (Excit(1,2).ne.0) then
-          call GTID(nBasisMax,Excit(1,2),JA)
-          call GTID(nBasisMax,Excit(2,2),BA)
-      end if
-
-      if (tCPMD) then
-          ! Further reduce the number of symmetry-unique excitations by using
-          ! k-point symmetry.
-          iSym1=SymLabels(KPntInd(IA))
-          iSym1Conj=SymConj(iSym1)
-          if (Excit(1,2).eq.0) then
-              ! Single excitation, i,k_i -> a,k_i.  k_i==k_a.
-              ! If the k_i > -k_i (comparing indices, rather than the k-point),
-              ! then count the current excitation also for  i,-k_i -> a,-k_i,
-              ! which has the same contribution to the MP2 energy.
-              ! If k_i=-k_i (i.e. self-inverse) then weight is unchanged.
-              if (iSym1%s.gt.iSym1Conj%s) then
-                  weight=weight*2
-              else if (iSym1%s.lt.iSym1Conj%s) then
-                  weight=0
-              end if
-          else
-              ! Double excitation.
-              iSym2=SymLabels(KPntInd(JA))
-              iSym2Conj=SymConj(iSym2)
-              if (iSym1%s.eq.iSym2Conj%s.and.Arr(Excit(1,1),2).eq.Arr(Excit(1,2),2)) then
-                  ! Excitation from, e.g. 1,k1 1,-k1.  Unique: leave weight
-                  ! unchanged.
-              else if (iSym1%s.gt.iSym1Conj%s) then
-                  ! Count excitation also for the -k equivalent excitation.
-                  weight=weight*2
-              else if (iSym1%s.lt.iSym1Conj%s) then
-                  ! Counted for above.
-                  weight=0
-              else if (iSym2%s.gt.iSym2Conj%s) then
-                  ! Excitation from (i,k_i j,k_j), where k_i=-k_i.
-                  ! If k_j > -k_j, then count also for (i,k_i j,-k_j).
-                  weight=weight*2
-              else if (iSym2%s.lt.iSym2Conj%s) then
-                  ! Counted for above.
-                  weight=0
-              end if
-          end if
-      end if
-
-      weight=1
-              
-      if (weight.ne.0) then
-
-          j=j+1
-          dE2=HDElement(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
-          dU=HElement(0.d0)
-          if (Excit(2,2).eq.0) then
-              ! Single excitation.
-              ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
-              call GTID(nBasisMax,Excit(1,1),IA)
-              call GTID(nBasisMax,Excit(2,1),AA)
-              do JJ=1,nEl,2 ! Assuming closed shell.  But we have already assumed restricted. ;-)
-                  ! Spatial orbital of the j-th element of the reference determinant.
-                  call GTID(nBasisMax,nI(JJ),JA) 
-                  ! Try to be as efficient as possible with the integrals...
-                  ! Want to ask for each integral only once (we don't *quite*
-                  ! succeed), so that the sum is efficient even without a cache.
-                  ! \sum_j 2<ij|aj> - <ij|ja>
-                  if (JA.eq.IA) then
-                      dU(1)=dU(1)+GetUMatEl2(IA,JA,AA,JA)
-                  else if (tCPMD) then
-                      ! Take advantage of k-point symmetry.
-                      iSym2=SymLabels(KPntInd(JA))
-                      iSym2Conj=SymConj(iSym2)
-                      if (iSym2%s.eq.iSym1%s.or.iSym2Conj%s.eq.iSym1%s) then
-                          dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
-                      else if (iSym2%s.gt.iSym2Conj%s) then
-                          ! <i j,k_j | a j,k_j> = <i j,-k_j | a j,-k_j>
-                          ! Count it here to reduce integrals to be evaluated.
-                          dU(1)=dU(1)+HElement(4)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
-                      else if (iSym2%s.lt.iSym2Conj%s) then
-                          ! Already added <ij|ji>.
-                          dU(1)=dU(1)-GetUMatEl2(IA,JA,JA,AA)
-                      end if
-                  else
-                      dU(1)=dU(1)+HElement(2)*GetUMatEl2(IA,JA,AA,JA)-GetUMatEl2(IA,JA,JA,AA)
-                  end if
-              end do
-              dU(1)=dU(1)+GetTMATEl(Excit(1,1),Excit(2,1))
-              if (tSign) dU(1)=-dU(1)
-          else
-              ! Double excitation
-              dE2=dE2+HDElement(Arr(Excit(2,2),2)-Arr(Excit(1,2),2))
-
-!              if (G1(Excit(1,1))%Ms.eq.G1(Excit(1,2))%Ms) then
-!                  ! Calculate required integrals.  They are used appropriately below
-!                  ! to take into account (if applicable) excitations such as
-!                  ! (1a,2a)->(3a,4a), (1b,2b)->(3b,4b), (1a,2b)->(3a,4b),
-!                  ! (1b,2a)->(3b,4a), (1a,2b)->(3b,4a) and (1b,2a)->(3a,4b).
-!                  dU(2)=GetUMatEl2(IA,JA,AA,BA)  ! This logic is correct due to 
-!                  dU(1)=-GetUMatEl2(IA,JA,BA,AA) ! the use of tSign!  Not v. clear though!.
-!              else if (G1(Excit(1,1))%Ms.eq.G1(Excit(2,1))%Ms) then
-!                  ! e.g. (1a,1b) -> (3a,4b)
-!                  dU(1)=GetUMatEl2(IA,JA,AA,BA)
-!              else
-!                  ! e.g. (1a,1b) -> (3b,4a)
-!                  dU(1)=-GetUMatEl2(IA,JA,BA,AA)
-!              end if
-              if (G1(Excit(1,1))%Ms.EQ.G1(Excit(2,1))%Ms.AND.G1(Excit(1,2))%Ms.EQ.G1(Excit(2,2))%Ms) then
-                  dU(1)=GetUMatEl2(IA,JA,AA,BA)
-              end if
-              if (G1(Excit(1,1))%Ms.EQ.G1(Excit(2,2))%Ms.AND.G1(Excit(1,2))%Ms.EQ.G1(Excit(2,1))%Ms) then
-                  dU(2)=GetUMatEl2(IA,JA,BA,AA)
-              end if
-              !if (tSign) dU(1)=-dU(1)
-          end if
-
-          if (Excit(1,2).eq.0) then
-              ! Singles contribution.
-              call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
-              dETot(1)=dETot(1)+HElement(weight)*dE
-          else
-              ! Doubles contributions.
-              !if (dU(2).agt.0.d0) then
-              !    ! Get e.g. (1a,2b)->(3a,4b) and (1a,2b)->(3b,4a) for "free"
-              !    ! when we evaluate (1a,2a)->(3a,4a).
-              !    call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
-              !    dETot(2)=dETot(2)+HElement(weight)*dE
-              !    call getMP2E(HDElement(0.d0),dE2,dU(2),dE)
-              !    dETot(2)=dETot(2)+HElement(weight)*dE
-              !end if
-              dU(1)=dU(1)-dU(2)
-              call getMP2E(HDElement(0.d0),dE2,dU(1),dE)
-              dETot(2)=dETot(2)+HElement(weight)*dE
-          end if
-
-      end if
-! END of more efficient approach.
-      end if
-      write (6,'(2i3,a2,2i3,2f17.8)') Excit(1,:),'->',Excit(2,:),dE
-
+      !write (6,'(2i3,a2,2i3,2f17.8)') Excit(1,:),'->',Excit(2,:),dE
 
       ! Get next excitation.
       CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,0,STORE,ExLevel,iMinElec,iMaxElec)
@@ -355,7 +347,7 @@ else
    if (.not.tCPMD) then
        write (6,'(a28,i3,a1,2f15.8)') 'Contribution from processor',iProcIndex+1,':',dEtot
        dEarr=dETot
-       call MPIHElSum(dEArr,2,dEres)
+       call MPIHElSum(dEArr,2,dETot)
    end if
    if (iand(ExLevel,1).eq.1) write(6,*) 'MP2 SINGLES=',dETot(1)+dE0
    if (iand(ExLevel,2).eq.2) write(6,*) 'MP2 DOUBLES=',dETot(2)+dE0
