@@ -18,18 +18,19 @@ MODULE DetCalc
 
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
-      POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS)
+!*      POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS)
       TYPE(BasisFN), pointer :: BLOCKSYM(:)
       INTEGER tagBlockSym
-      INTEGER NBLOCKSTARTS(*)
+!*      INTEGER NBLOCKSTARTS(*)
+      INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:)
       INTEGER NBLOCKS
       Type(HElement), pointer :: HAMIL(:)
-      INTEGER tagHamil
+      INTEGER :: tagHamil=0
       INTEGER, pointer :: NMRKS(:,:)      !NEL-NFROZEN
-      INTEGER tagNMRKS
+      INTEGER :: tagNMRKS=0
       INTEGER iFDEt
       TYPE(HElement), pointer :: CK(:), CKN(:)
-      INTEGER tagCK, tagCKN
+      INTEGER :: tagCK=0, tagCKN=0,tagNBLOCKSTARTS=0
       REAL*8, pointer :: W(:)
       INTEGER tagW
       INTEGER LenHamil
@@ -133,8 +134,10 @@ CONTAINS
          Allocate(NMrks(nEl,II),stat=ierr)
          LogAlloc(ierr,'NMRKS',NEL*II,4,tagNMRKS)
          CALL IAZZERO(NMRKS,(NEL)*II)
-         CALL MEMORY(IP_NBLOCKSTARTS,(NBLOCKS+1)/IRAT+1,"NBLOCKSTARTS")
-         CALL IAZZERO(NBLOCKSTARTS,NBLOCKS)
+!         CALL MEMORY(IP_NBLOCKSTARTS,(NBLOCKS+1)/IRAT+1,"NBLOCKSTARTS")
+         allocate(NBLOCKSTARTS(NBLOCKS+1),stat=ierr)
+         call LogMemAlloc('NBLOCKSTARTS',NBLOCKS+1,4,this_routine,tagNBLOCKSTARTS,ierr)
+         CALL IAZZERO(NBLOCKSTARTS,NBLOCKS+1)
          Allocate(BlockSym(NBLOCKS+1),stat=ierr)
          LogAlloc(ierr, 'BLOCKSYM', NBLOCKS+1,BasisFNSizeB, tagBlockSym)
 
@@ -650,14 +653,15 @@ END MODULE DetCalc
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),RHOEPS
 
-         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)!,(IP_RIJLIST,RIJLIST)
+!*         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)!,(IP_RIJLIST,RIJLIST)
          
-         INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
+!*         INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
+!*         INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
+         INTEGER, ALLOCATABLE :: LSTE(:),ICE(:)
 !*         REAL*8 RIJLIST(*)
          REAL*8 , ALLOCATABLE :: RIJLIST(:,:)
-         INTEGER :: RIJLISTTag=0,ierr
-         INTEGER NMRKS(NEL,NDET),NPATHS
+         INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
+         INTEGER NMRKS(NEL,NDET),NPATHS,ierr
          INTEGER III,NWHTAY,I,IMAX,ILMAX
          REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
          REAL*8 TOT, NORM,WLRI0,WLSI0,WINORM
@@ -677,9 +681,13 @@ END MODULE DetCalc
 !.. we don't need lists for I_HMAX=8
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
-         CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
-         CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
+!*         CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
+!*         CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
 !*         CALL MEMORY(IP_RIJLIST,(1+ILMAX)*IMAX*2,"RIJLIST")
+         ALLOCATE(LSTE((1+ILMAX)*NEL*IMAX),stat=ierr)
+         call LogMemAlloc('LSTE',size(LSTE),4,this_routine,LSTEtag,ierr)
+         ALLOCATE(ICE((ILMAX+1)*IMAX),stat=ierr)
+         call LogMemAlloc('ICE',size(ICE),4,this_routine,ICEtag,ierr)
          ALLOCATE(RIJLIST(0:ILMAX,IMAX*2),stat=ierr)
          CALL LogMemAlloc('RIJLIST',(1+ILMAX)*IMAX*2,8,this_routine,RIJLISTTag,ierr)
          IF(I_VMAX.NE.0) THEN
@@ -778,10 +786,12 @@ END MODULE DetCalc
          CLOSE(15)
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
 !*         CALL FREEM(IP_RIJLIST)
-         DEALLOCATE(RIJLIST)
+         DEALLOCATE(RIJLIST,ICE,LSTE)
          CALL LogMemDealloc(this_routine,RIJLISTTag)
-         CALL FREEM(IP_LSTE)
-         CALL FREEM(IP_ICE)
+         CALL LogMemDealloc(this_routine,ICETag)
+         CALL LogMemDealloc(this_routine,LSTETag)
+!*         CALL FREEM(IP_LSTE)
+!*         CALL FREEM(IP_ICE)
          call halt_timer(proc_timer)
          RETURN
       END    
