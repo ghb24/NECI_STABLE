@@ -36,15 +36,37 @@ C.. If we're just counting, we don't need to keep DSTORE
       END
 
 
-C.. ILEVEL is 1 for singles, 2 for just doubles, and 3 for both.
-C.. A a new symmetry excitation generation algorithm.
-C.. Algorithm: First list all the different symmetry classes in NI.
-C.. For each pair of symmetry classes, determine its symmetry product.
-C.. Classify and store each possible pair of orbitals under its symmetry product, [].
-C.. With each of the symmetry products [], calculate []' such that []x[]'
-C.. contains the totally symmetric rep.
-C.. We do this by checking whether any of the []' in the 
-C.. global symprods table multiply by [] to give the symmetric rep.
+!=  ILEVEL is 1 for singles, 2 for just doubles, and 3 for both.
+!=  A a new symmetry excitation generation algorithm.
+!=  Algorithm: First list all the different symmetry classes in NI.
+!=  For each pair of symmetry classes, determine its symmetry product.
+!=  Classify and store each possible pair of orbitals under its symmetry product, [].
+!=  With each of the symmetry products [], calculate []' such that []x[]'
+!=  contains the totally symmetric rep.
+!=  We do this by checking whether any of the []' in the 
+!=  global symprods table multiply by [] to give the symmetric rep.
+
+!= Excitation Generator Scaling   Timing                    Memory
+!= 
+!= Create Class List              O(N)                      4 N
+!=   Gives NCL =O(NSYM)
+!= Create Class Remainder info    O(NCL)                    
+!= Create Class Sym Product info  O(NCL^2)                  4 NPR 
+!=   Gives NPR ~= NCL^2
+!= Save list of occ orbital pairs O(N^2) /NPROC             2 O(N^2)
+!=   This is sorted according
+!=    to the symmetry product
+!= Count number of allowed virt
+!=    pairs of each sym prod      O(NPR M^2 / NCL^2)        O(NCL^2)
+!=    Also counts num of doubles
+!= Calculate the number of
+!=    single excitations          O(NCL^3)
+!= 
+!= --- Exit here for init
+!= 
+!= Store singles classes          O(NCL^3)                  O(NCL^2)
+!= Store doubles classes          O(NPR NSYM)               O(NPR^2)
+
 
       SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
@@ -93,7 +115,7 @@ C.. global symprods table multiply by [] to give the symmetric rep.
          LOGICAL LSYMSYM,SYMEQ
          INTEGER ISPN
          INTEGER ILUT(0:NBASIS/32)
-         type(timer), save :: proc_timer
+         INTEGER,SAVE :: ISUB=0
          INTEGER ILEVEL
          Type(Symmetry) TotSymRep
 
@@ -101,12 +123,21 @@ C.. global symprods table multiply by [] to give the symmetric rep.
 
          INTEGER iMinElec1,iMaxElec1
          
-         proc_timer%timer_name='SYMSUEXCIT'
-         call set_timer(proc_timer,65)
+         call set_timer('SYMSUEXCIT',ISUB,65)
 
 C.. List the symmetry classes in NI.
 C.. For each orb, just see if its class is in the list, and if not add it
 C.. Each state's symmetry falls into a class SymClasses(ISTATE).
+
+C.. We divide the occupied electrons into classes.  A class correpsonds to a unique value of SymClasses(iState) for state (i.e. spatial orbital) iState.
+C.. The CLASSCOUNT arrays contain the number of electrons of each class.
+C.. We keep three lists:   CLASSCOUNT  which takes into account all electrons.  
+C..                     THISCLASSCOUNT which takes into account electrons allocated to this processor
+C..  and                PREVCLASSCOUNT which takes into account electrons allocated to the previous processor.
+C.. These both have the format (Spn,iCl), where Spin=1,2 corresponding to alpha and beta and
+C..                                             iCl is the index of the Class.
+C.. CLASSES(iCl)%SymLab is the symmetry label (i.e. entry in SymClasses) of this class (NB not a symmetry itself)
+
          NCL=0
          DO I=1,NEL
             TNEW=.TRUE.
@@ -147,7 +178,12 @@ C.. ISPN=1 is beta, ISPN=2 is alpha
                ENDIF
             ENDIF
          ENDDO
-C.. Now calculate the resultant symmetry from removing one of each of the classes
+C.. Now calculate the resultant symmetry from removing one of each of the classes (for singles)
+C.. i.e. if we remove j, what's the symmetry of SYMCONJ(<ikl... |) (X) SYM( |ikl...>)
+C..   NB to cope with non-abelians, this actually takes the prod sym of the classes of each orb, 
+C..   rather than the orb itself, so may end up classifying a single as allowed when it's not.
+C.. we'll use this in the future to determina the allowed j->a
+C.. This is stored in CLASSES(iCl)%SymRem
          DO I=1,NCL
             PR=TotSymRep()
             DO J=1,NCL
@@ -163,6 +199,12 @@ C.. Now calculate the resultant symmetry from removing one of each of the classe
 !     &            CLASSES(I)%SymRem,I
          ENDDO
 !            WRITE(6,*) NCL," Symmetry Classes"
+
+C.. Now determine all possible symmetry products of pairs of orbs, and classify them.
+C.. SYMPRODS(iPr) is the a symmetry product.
+C.. SymProdCount(iType,iPr) is the number of prods of a given type.  iType=0 (beta/beta), 1 (alpha/beta), 2 (alpha/alpha)
+C.. NPairs totals all SymProdCounts.
+
 C.. For each pair of symmetry classes, determine its symmetry product.
 C.. We list them and then sort them
          CALL IAZZERO(SYMPRODCOUNT,(NEL*NEL+1)*3)
@@ -186,6 +228,7 @@ C.. SymLabels(ISYMLABEL)
                   K=NPR
                   SYMPRODS(NPR)=PR
                ENDIF
+C.. 1 corresponds to beta beta, 2 to alpha/beta and beta/alpha, and 3 to alpha, alpha
 C.. 1 corresponds to beta beta, 2 to alpha/beta and beta/alpha, and 3 to alpha, alpha
 !  The number of pairs is somewhat more complex when we split electron 1 between processors
 !  For systems where we require the upper-triangle (excluding diagonal) we have
@@ -235,6 +278,8 @@ C         DO I=1,NPR
 C            WRITE(6,"(Z4,3I4)") SYMPRODS(I),SYMPRODCOUNT(1,I),
 C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
 C         ENDDO
+
+C.  We sort the array of Symmetry products (and its associated SymProdCount info), into ascending order of product, for easy searching later.
          CALL SORTSYMIARR(NPR,SymProds(1:),SymmetrySize,
      &                                             SymProdCount(:,1:),3)
 !         WRITE(6,*) NPR," Symmetry Products"
@@ -248,6 +293,7 @@ C            WRITE(6,*) SYMPRODS(I),SYMPRODCOUNT(1,I),
 C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
          ENDDO
 
+C..  SymProdCount(iType,iPr) is the number of pairs of orbs up to and including this (iType, iPr) set.
 
 C.. Allocate enough memory to store the index
          IF(STORE(5).EQ.0) THEN
@@ -332,7 +378,7 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
 C.. With each of the symmetry products, calculate []' such that []x[]'
 C.. contains the totally symmetric rep.
 C.. We do this by checking whether any of the []' in the 
-C.. global symprods table multiply by [] to give the sym rep.
+C.. global symprods table multiplied by [] give the sym rep.
 
 
 C.. SYMPAIRPRODS(1:NSYMPAIRPRODS) is a global list of all SYMPRODs available, the number of pairs of
@@ -1995,8 +2041,6 @@ C.. Count the excitations (and generate a random one which we throw)
                     ELSE
                         CALL GenExcitProb(iGraph(1,i),iGraph(1,j),nEl,
      &                      NEWEX,G1,nBasisMax,UMat,Arr,nBasis,pGen)
-                        XIJ(i,j)=pGen
-                    ENDIF
                 ENDDO
                 CALL FREEM(IP_NEWEX)
             ENDDO
