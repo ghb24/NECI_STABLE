@@ -640,6 +640,7 @@ END MODULE DetCalc
          use global_utilities
          implicit none
          include 'irat.inc'
+         character(25), parameter :: this_routine = 'CalcRhoPII2'
          INTEGER NEL,I_P,I_HMAX,I_VMAX,NDET,nBasisMax(5,*),nBasis
          INTEGER BRR(*),NMSH,NMAX(*),NTAY,ILOGGING
          type(timer), save :: proc_timer
@@ -648,10 +649,14 @@ END MODULE DetCalc
          TYPE(BasisFN) g1(*),ALAT(*)
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),RHOEPS
-         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE),(IP_RIJLIST,RIJLIST)
+
+         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)!,(IP_RIJLIST,RIJLIST)
+         
          INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-         REAL*8 RIJLIST(*)
+!*         REAL*8 RIJLIST(*)
+         REAL*8 , ALLOCATABLE :: RIJLIST(:,:)
+         INTEGER :: RIJLISTTag=0,ierr
          INTEGER NMRKS(NEL,NDET),NPATHS
          INTEGER III,NWHTAY,I,IMAX,ILMAX
          REAL*8 WLRI,WLSI,ECORE,DBETA,WLRI1,WLRI2,WLSI1,WLSI2,WI
@@ -674,7 +679,9 @@ END MODULE DetCalc
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
          CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
          CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
-        CALL MEMORY(IP_RIJLIST,(1+ILMAX)*IMAX*2,"RIJLIST")
+!*         CALL MEMORY(IP_RIJLIST,(1+ILMAX)*IMAX*2,"RIJLIST")
+         ALLOCATE(RIJLIST(0:ILMAX,IMAX*2),stat=ierr)
+         CALL LogMemAlloc('RIJLIST',(1+ILMAX)*IMAX*2,8,this_routine,RIJLISTTag,ierr)
          IF(I_VMAX.NE.0) THEN
             WRITE(6,*) "Using Vertex approximation.  I_VMAX=",I_VMAX
             IF(I_HMAX.EQ.0) WRITE(6,*) "I_HMAX=0.  Summing all I_HMAX up to P using contour"
@@ -770,7 +777,9 @@ END MODULE DetCalc
           ENDDO
          CLOSE(15)
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
-         CALL FREEM(IP_RIJLIST)
+!*         CALL FREEM(IP_RIJLIST)
+         DEALLOCATE(RIJLIST)
+         CALL LogMemDealloc(this_routine,RIJLISTTag)
          CALL FREEM(IP_LSTE)
          CALL FREEM(IP_ICE)
          call halt_timer(proc_timer)
