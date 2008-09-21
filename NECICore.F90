@@ -72,7 +72,6 @@ subroutine NECICodeInit(tCPMD,tVASP)
 
     ! Utility modules
     use MemoryManager, only: InitMemoryManager
-    use soft_exit, only: init_soft_exit
     use timing, only: init_timing
 #ifdef PARALLEL
     use Parallel, only: MPIInit
@@ -90,7 +89,6 @@ subroutine NECICodeInit(tCPMD,tVASP)
     if (.not.TCPMD) then
         call InitMemoryManager()
     end if
-    call init_soft_exit()
     call environment_report(tCPMD)
 
 end subroutine NECICodeInit
@@ -107,7 +105,6 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 
     ! Utility modules
     use MemoryManager, only: LeaveMemoryManager
-    use soft_exit, only: end_soft_exit
     use timing, only: end_timing,print_timing_report
 #ifdef PARALLEL
     use Parallel, only: MPIEnd
@@ -122,7 +119,6 @@ subroutine NECICodeEnd(tCPMD,tVASP)
 
     CALL MEMORY_CHECK
 
-    call end_soft_exit()
     if (.not.tCPMD) call LeaveMemoryManager()
     call end_timing()
     call print_timing_report()

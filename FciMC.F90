@@ -134,8 +134,8 @@ MODULE FciMCMod
 !This will find the new shift (and other parameters), and print out the needed values.
                 CALL UpdateDiagSft()
 
-!Test that the file SOFTEXIT is still present. If not, then exit cleanly.
-                IF(.not.test_SOFTEXIT()) THEN
+!Test that the file SOFTEXIT is present. If it is, then exit cleanly.
+                IF(test_SOFTEXIT()) THEN
                     TIncrement=.false.     !This is so that when the popsfile is written out before exit, it counteracts the subtraction by one.
                     EXIT
                 ENDIF
