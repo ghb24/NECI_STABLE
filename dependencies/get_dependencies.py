@@ -2,7 +2,7 @@
 
 import re,sys
 
-utilities_modules='bookkeeper_pointers common_routines default_sets global_utilities input Logging memory_manager MemoryManager mpi parameters precision record_handler record_handler_arrays record_handler_pointers run_data timing'.split()
+utilities_modules='bookkeeper_pointers common_routines default_sets global_utilities helem input Logging memory_manager MemoryManager mpi parameters precision record_handler record_handler_arrays record_handler_pointers run_data timing'.split()
 data_modules='CalcData CPMDData IntegralsData SymData SystemData'.split() 
 
 is_utility_object=re.compile('\\b%s\\b' % ('\\b|\\b'.join(utilities_modules)),re.I)
