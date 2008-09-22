@@ -730,7 +730,15 @@ Perturbation theory options
     In addition to doing a graph theory calculation, calculate the Moller--Plesset
     energy to the same order as the maximum vertex level from the
     reference determinant (e.g. with 2-vertex sum the MP2 energy is
-    obtained, with 3-vertex the MP3 energy etc.  Note that the MP2 energy
+    obtained, with 3-vertex the MP3 energy etc.  Within the **VERTEX SUM**
+    hierarchy, this will only work with **VERTEX SUM HDIAG**.
+    In the **VERTEX MC** hierarchy, do a Moller--Plesset calculation 
+    instead of a path-integral one.  Requires **HDIAG**, and **BIAS**=0.D0.
+    Can be used without a **METHODS** section.  If a **METHODS** section is
+    needed to specify different numbers of cycles at each level, then
+    **MCDIRECTSUM** must also be set, either in the main block of the **CALC**,
+    or by using **VERTEX MCDIRECT** instead of **VERTEX MC**.
+    Note that the MP2 energy
     can be obtained in conjunction with a **VERTEX STAR** calculation.
 
     **ONLY**
@@ -749,11 +757,6 @@ Perturbation theory options
     .. note::
         INPUT_DOC has this to say::
 
-            Instead of a normal path-integral expansion **MC**, do a 
-            Moller--Plesset.  Requires **HDIAG**, and **BIAS**=0.D0.  Can be
-            used without a **METHODS** section.  If a **METHODS** section is
-            needed to specify different numbers of cycles at each level, then
-            **MCDIRECTSUM** must also be set.
 
         I am sure this is out of date...
 
@@ -768,7 +771,7 @@ Perturbation theory options
     for **VERTEX SUM NEW** and **VERTEX SUM HDIAG** and only at the
     2-vertex level.
 
-**MPMODTHEORY**
+**MODMPTHEORY**
     Perform a hybrid of Epstein--Nesbet and Moller--Plesset theory,
     which includes only the :math:`\bra ij||ij ket +\bra ab||ab ket`
     terms in the denominator.  Only works for **VERTEX SUM NEW** and
