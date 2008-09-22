@@ -208,7 +208,7 @@ MODULE FciMCParMod
 
         IF(TDebug) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex
-!            CALL FLUSH(11)
+            CALL FLUSH(11)
         ENDIF
         
 !VecSlot indicates the next free position in NewDets
@@ -595,8 +595,6 @@ MODULE FciMCParMod
             ENDIF
         enddo
         
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
 !The disps however do want to be cumulative - this is the array indexing the start of the data block
         disps(1)=0      !Starting element is always the first element
         do i=2,nProcessors
@@ -647,8 +645,6 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
         
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
 !Now send the chunks of hashes to the corresponding processors
         CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,mpilongintegertype,MPI_COMM_WORLD,error)        
         IF(error.ne.MPI_SUCCESS) THEN
@@ -808,8 +804,6 @@ MODULE FciMCParMod
             WRITE(6,*) "ToAnnihilateOnProc: ",ToAnnihilateonProc
             CALL FLUSH(6)
         ENDIF
-
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
 !Perform another matrix transpose of the annihilation data using MPI_AlltoAllv, to send the data back to its correct Processor
         CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray,recvcounts,recvdisps,mpilongintegertype,MPI_COMM_WORLD,error)        
@@ -1362,7 +1356,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !            RangeWalkers=MaxWalkersProc-MinWalkersProc
 !            IF(RangeWalkers.gt.300) THEN
-            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.5000)) THEN
+            IF((MaxWalkersProc.gt.MaxAllowedWalkers)) THEN!.and.(AllTotWalkers.gt.5000)) THEN
                 TBalanceNodes=.true.
             ENDIF
         ENDIF
@@ -1510,8 +1504,10 @@ MODULE FciMCParMod
                 CurrentSign(Chosen)=CurrentSign(TotWalkers)
                 CurrentH(Chosen)=CurrentH(TotWalkers)
                 CurrentIC(Chosen)=CurrentIC(TotWalkers)
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
-                CurrentExcits(TotWalkers)%ExitGenForDet=.false.
+                IF(.not.TRegenExcitgens) THEN
+                    CALL CopyExitgenPar(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
+                    CurrentExcits(TotWalkers)%ExitGenForDet=.false.
+                ENDIF
 
                 TotWalkers=TotWalkers-1
                 Culled=Culled+1
@@ -2603,7 +2599,7 @@ MODULE FciMCParMod
 !        rh=rh-Hii
 
 !Subtract the current value of the shift and multiply by tau
-        IF(TFixShiftDoubs) THEN
+        IF(TFixShiftDoubs.and.(.not.TSinglePartPhase)) THEN
             IF((IC.eq.0).or.(IC.eq.2)) THEN
                 rat=Tau*(Kii-DoubsShift)
             ELSE
@@ -2746,7 +2742,7 @@ MODULE FciMCParMod
 !This routine will move walkers between the processors, in order to balance the number of walkers on each node.
 !This could be made slightly faster by using an MPI_Reduce, rather than searching for the min and max by hand...
     SUBROUTINE BalanceWalkersonProcs()
-        INTEGER :: i,ProcWalkers(0:nProcessors-1),error!,ProcWalkersTEST(0:nProcessors-1)
+        INTEGER :: i,ProcWalkers(0:nProcessors-1),error
         INTEGER :: MinWalkers(2),MaxWalkers(2)      !First index gives the number, second the rank of the processor
         REAL*8 :: MeanWalkers,MidWalkers
         INTEGER :: WalktoTransfer(4)                !This gives information about how many walkers to transfer from and to
@@ -2754,6 +2750,7 @@ MODULE FciMCParMod
         INTEGER :: IndexFrom,IndexTo,j,Stat(MPI_STATUS_SIZE),Tag
 
         Tag=123         !Set tag for sends
+!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.root) THEN
             WRITE(6,*) "Moving walkers between nodes in order to balance the load..."
@@ -2766,8 +2763,6 @@ MODULE FciMCParMod
 
         do while(WalktoTransfer(4).gt.1)    !This is the range of walkers accross the processors. Continue reducing it until it is 1.
                 
-!            CALL MPI_Gather(TotWalkers,1,MPI_INTEGER,ProcWalkersTEST,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-
 !            do j=1,TotWalkers+3
 !                WRITE(6,"(8I4)") CurrentDets(:,j)
 !                CALL FLUSH(6)
@@ -2777,7 +2772,7 @@ MODULE FciMCParMod
 !Let the root processor go through and decide which walkers to move from where...
 !Initialise variables with the root processors own values
 !                WRITE(6,*) "PROCWALKERS: ",ProcWalkers
-!                WRITE(6,*) "PROCWALKERSTEST: ",ProcWalkersTest
+!                CALL FLUSH(6)
                 MaxWalkers(1)=ProcWalkers(0)   !This should be the same as the totwalkers on the root node.
                 MaxWalkers(2)=0                !This indicates that currently the maximum number of walkers resides on the root node
                 MinWalkers(1)=ProcWalkers(0)
@@ -2805,6 +2800,7 @@ MODULE FciMCParMod
 !                    CALL FLUSH(6)
                 ENDIF
 !                WRITE(6,*) "TOTAL WALKERS = ",MeanWalkers
+!                CALL FLUSH(6)
                 MeanWalkers=MeanWalkers/REAL(nProcessors,r2)
 !                WRITE(6,*) "MEAN WALKERS = ", MeanWalkers
                 MidWalkers=REAL((MaxWalkers(1)+MinWalkers(1)),r2)/2.D0  !THis is the mean of the two processors to exchange walkers
@@ -2828,6 +2824,8 @@ MODULE FciMCParMod
                 ELSE
 !                    WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MeanWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MeanWalkers)))
                     WalktoTransfer(1)=MIN(NINT(ABS(REAL(MaxWalkers(1),r2)-MidWalkers)),NINT(ABS(REAL(MinWalkers(1),r2)-MidWalkers)))
+!                    WRITE(6,*) MaxWalkers(:),MinWalkers(:),MidWalkers
+!                    CALL FLUSH(6)
                     WalktoTransfer(2)=MaxWalkers(2)
                     WalktoTransfer(3)=MinWalkers(2)
                 ENDIF
@@ -2835,6 +2833,7 @@ MODULE FciMCParMod
             ENDIF
 
 !The information about what to transfer now needs to be broadcast to all processors
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
             CALL MPI_BCast(WalktoTransfer,4,MPI_INTEGER,root,MPI_COMM_WORLD,error)
 
 !            WRITE(6,*) "WALKTOTRANSFER: ",WalktoTransfer(:)
@@ -2843,6 +2842,8 @@ MODULE FciMCParMod
             IF(WalkToTransfer(2).eq.iProcIndex) THEN
 !This processor wants to transfer walkers to WalkToTransfer(3).
                 IndexFrom=TotWalkers-(WalktoTransfer(1)-1)          !We want to transfer the last WalktoTransfer(1) walkers
+!                WRITE(6,*) "TRANSFER: ",Transfers,WalkToTransfer(:),IndexFrom,TotWalkers
+!                CALL FLUSH(6)
                 
                 CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*NEl,MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
@@ -2857,6 +2858,8 @@ MODULE FciMCParMod
 !This processor wants to receive walkers from WalktoTransfer(2)
                 IndexFrom=TotWalkers+1
                 IndexTo=TotWalkers+WalktoTransfer(1)
+!                WRITE(6,*) "RECEIVING: ",Transfers,WalkToTransfer(:),IndexFrom,IndexTo
+!                CALL FLUSH(6)
 
                 CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*NEl,MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
@@ -2864,9 +2867,11 @@ MODULE FciMCParMod
                 CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 IF(.not.TNoAnnihil) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !Also need to indicate that the excitation generators are no longer useful...
-                do j=IndexFrom,IndexTo
-                    CurrentExcits(j)%ExitgenForDet=.false.
-                enddo
+                IF(.not.TRegenExcitgens) THEN
+                    do j=IndexFrom,IndexTo
+                        CurrentExcits(j)%ExitgenForDet=.false.
+                    enddo
+                ENDIF
 
                 TotWalkers=TotWalkers+WalktoTransfer(1)         !Update to show the new number of walkers
 
