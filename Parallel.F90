@@ -53,11 +53,14 @@ Subroutine MPIInit(tExternal)
    !=   tExternal True if using VASP/CPMD's MPI interface, so we don't have to initialise our own.
    Use Determinants, only: FDet
    implicit none
-   logical tExternal
+   logical, intent(in) :: tExternal
    integer numtasks, rank, ierr, rc
    integer a,b,g
    character*20 NodeFile
+   logical :: Local_IO,flag
 #if PARALLEL
+   integer(Kind=MPI_ADDRESS_KIND) :: res
+
    if(tExternal) then
      write(6,*) 'Using CPMD MPI configuration'
    else 
@@ -71,9 +74,23 @@ Subroutine MPIInit(tExternal)
    endif
    call MPI_COMM_RANK(MPI_COMM_WORLD, iProcIndex, ierr)
    call MPI_COMM_SIZE(MPI_COMM_WORLD, nProcessors, ierr)
+
    if(tExternal) then
       write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
    else
+!Test if I/O is allowed on all processors - get res, the attribute attached to the communicator concerning I/O
+!This does not seem to work...
+!      CALL MPI_Comm_get_attr(MPI_COMM_SELF,MPI_IO,res,flag,ierr)
+!flag will say if can do I/O
+!      Local_IO=(ierr.eq.MPI_SUCCESS.and.flag.and.res.ne.MPI_PROC_NULL)
+!      IF(.not.Local_IO) THEN
+!          WRITE(6,*) ierr,Local_IO,flag,res
+!          CALL Stop_All('MPIInit',"IO not possible on this processor")
+!      ELSE
+!          WRITE(6,*) "IO possible on this processor"
+!          CALL FLUSH(6)
+!      ENDIF
+
       if(iProcIndex.eq.0) then
          write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' as head node.'
       else
@@ -94,7 +111,10 @@ Subroutine MPIInit(tExternal)
       call MPIISum(a,1,g)
       WRITE(6,*) "Sum: ",g
    endif
+
 #endif
+
+    RETURN
    
 end Subroutine MPIInit
 
@@ -147,11 +167,15 @@ Subroutine MPIISum(iValues, iLen, iReturn)
    !=     iLen           Length of the arrays.
    !=  Out:
    !=     iReturn(iLen)  Array of integers to get the results.
+   != The arrays however are declared as scalar values. This is so that we can pass scalar
+   != quantities without it getting annoyed with associating a scalar with a vector when we
+   != just want to sum single numbers. Since we are parsing by reference, it should mean that
+   != arrays are ok too.
    integer iValues, iReturn, iLen
    integer g, ierr,rc
 #if PARALLEL
    g=MPI_COMM_WORLD
-   call MPI_ALLREDUCE(iValues,iReturn,iLen*4,MPI_INTEGER,MPI_SUM,g,ierr)
+   call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,MPI_SUM,g,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       print *,'Error starting MPI program. Terminating.'
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
@@ -170,12 +194,16 @@ Subroutine MPIDSum(dValues, iLen, dReturn)
    !=     iLen           Length of the arrays.
    !=  Out:
    !=     dReturn(iLen)  Array of real*8s to get the results.
+   != The arrays however are declared as scalar values. This is so that we can pass scalar
+   != quantities without it getting annoyed with associating a scalar with a vector when we
+   != just want to sum single numbers. Since we are parsing by reference, it should mean that
+   != arrays are ok too.
    real*8 dValues, dReturn
    integer iLen
    integer g, ierr,rc
 #ifdef PARALLEL
    g=MPI_COMM_WORLD
-   call MPI_ALLREDUCE(dValues,dReturn,iLen*8,MPI_DOUBLE_PRECISION,MPI_SUM,g,ierr)
+   call MPI_ALLREDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,MPI_SUM,g,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       print *,'Error starting MPI program. Terminating.'
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
@@ -188,7 +216,11 @@ end Subroutine MPIDSum
 
 
 Subroutine MPIDSumRoot(dValues,iLen,dReturn,Root)
-    !=  Same as above, but only updates the value on the root processor.
+   !=  Same as above, but only updates the value on the root processor.
+   != The arrays however are declared as scalar values. This is so that we can pass scalar
+   != quantities without it getting annoyed with associating a scalar with a vector when we
+   != just want to sum single numbers. Since we are parsing by reference, it should mean that
+   != arrays are ok too.
     REAL*8 :: dValues,dReturn
     INTEGER :: iLen
     INTEGER :: g,ierr,rc,Root
@@ -201,7 +233,6 @@ Subroutine MPIDSumRoot(dValues,iLen,dReturn,Root)
     endif
 #else
     dReturn=dValues
-    Root=dValues
 #endif
 end subroutine MPIDSumRoot
 
@@ -220,7 +251,7 @@ Subroutine MPIHElSum(dValues, iLen, dReturn)
    integer g, ierr,rc
 #ifdef PARALLEL
    g=MPI_COMM_WORLD
-   call MPI_ALLREDUCE(dValues,dReturn,iLen*8*HElementSize,MPI_DOUBLE_PRECISION,MPI_SUM,g,ierr)
+   call MPI_ALLREDUCE(dValues,dReturn,iLen*HElementSize,MPI_DOUBLE_PRECISION,MPI_SUM,g,ierr)
    if (ierr .ne. MPI_SUCCESS) then
       print *,'Error starting MPI program. Terminating.'
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)

@@ -39,7 +39,7 @@ MODULE ReadInput
         Character(len=100)  w,x         !strings for input storage
         Logical             tEof        !set when read_line runs out of lines
         Integer             idDef       !What default set do we use
-
+        
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
         ir=1                            !default to file descriptor 1 which we'll open below
@@ -50,7 +50,7 @@ MODULE ReadInput
     ! We have some arguments we can process instead
             Call GetArg(1,cInp)      !Read argument 1 into inp
             Write(6,*) "Reading from file: ", Trim(cInp)
-            Open(1,File=cInp,Status='OLD',err=99,iostat=ios)
+            Open(1,File=cInp,Status='OLD',FORM="FORMATTED",err=99,iostat=ios)
         Else
             ir=5                    !file descriptor 5 is stdin
             Write(6,*) "Reading from STDIN"
