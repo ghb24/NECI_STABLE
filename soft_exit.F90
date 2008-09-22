@@ -63,7 +63,7 @@ contains
         use SystemData, only: tCPMD,tVASP
         implicit none
 
-        if (test_SOFTEXIT) then
+        if (test_SOFTEXIT()) then
             call NECICalcEnd(0)
             call NECICodeEnd(tCPMD,tVASP)
             call quiet_stop()
