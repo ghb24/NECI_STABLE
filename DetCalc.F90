@@ -257,7 +257,8 @@ CONTAINS
 !*      POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
 !*      INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
 
-      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),WORK(:)
+      REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:)
+      TYPE(HElement), ALLOCATABLE :: WORK(:)
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:)
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
@@ -453,7 +454,7 @@ CONTAINS
             WRITE(6,*) "NBLK=0.  Doing exact diagonalization."
             IF(TCALCHMAT) THEN
                ALLOCATE(WORK(4*NDET),stat=ierr)
-               CALL LogMemAlloc('WORK',4*NDET,8,this_routine,WorkTag,ierr)
+               CALL LogMemAlloc('WORK',4*NDET,8*HElementSize,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
 !*               CALL MEMORY(IP_WORK,4*NDET*HElementSize,'WORK')
