@@ -14,7 +14,7 @@ These are further split up into dependencies involving utilty or data modules (w
 The resultant *.dot files are in the output_dir directory, as specified in the
 configuration section.  Graphs can be produced using a suitable parser.
 
-For more information on the dot langauge, see www.graphviz.info.
+For more information on the dot langauge, see http://www.graphviz.org.
 '''
 
 import re,sys
