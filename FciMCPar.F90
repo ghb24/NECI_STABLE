@@ -123,6 +123,8 @@ MODULE FciMCParMod
 
     LOGICAL :: TDebug                           !Debugging flag
     INTEGER :: MaxIndex
+
+    TYPE(timer), save :: Walker_Time,Annihil_Time
         
     contains
 
@@ -138,6 +140,8 @@ MODULE FciMCParMod
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
+        Walker_Time%timer_name='WalkerTime'
+        Annihil_Time%timer_name='AnnihilTime'
 
         CALL InitFCIMCCalcPar()
 
@@ -210,6 +214,8 @@ MODULE FciMCParMod
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex
             CALL FLUSH(11)
         ENDIF
+
+!        CALL set_timer(Walker_Time)
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -378,6 +384,9 @@ MODULE FciMCParMod
             CALL Stop_All("PerformFciMCycPar","All walkers have died on a node")
         ENDIF
         
+!        CALL halt_timer(Walker_Time)
+!        CALL set_timer(Annihil_Time)
+        
         IF(TNoAnnihil) THEN
 !However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
             IF(associated(CurrentDets,target=WalkVecDets)) THEN
@@ -413,6 +422,8 @@ MODULE FciMCParMod
             Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
 
         ENDIF
+        
+!        CALL halt_timer(Annihil_Time)
         
 !Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
         AllNoatHF=0
