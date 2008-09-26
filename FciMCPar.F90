@@ -16,7 +16,7 @@ MODULE FciMCParMod
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftDoubs,DoubsShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -299,7 +299,7 @@ MODULE FciMCParMod
                         HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ENDIF
 
-                    IF(.not.TNoAnnihil) THEN
+                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                         HashTemp=CreateHash(nJ)
                     ENDIF
 
@@ -311,7 +311,7 @@ MODULE FciMCParMod
                         NewIC(VecSlot)=ExcitLevel
                         NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
 !                        NewH(2,VecSlot)=REAL(HOffDiag%v,r2)       !Off-diagonal H-element
-                        IF(.not.TNoAnnihil) THEN
+                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                             Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
                         ENDIF
                         VecSlot=VecSlot+1
@@ -338,7 +338,7 @@ MODULE FciMCParMod
                         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(VecSlot)=CurrentH(j)
-                        IF(.not.TNoAnnihil) Hash2Array(VecSlot)=HashArray(j)
+                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
                     enddo
 
@@ -359,7 +359,7 @@ MODULE FciMCParMod
                         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot))
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(VecSlot)=CurrentH(j)
-                        IF(.not.TNoAnnihil) Hash2Array(VecSlot)=HashArray(j)
+                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
                     enddo
             
@@ -414,6 +414,13 @@ MODULE FciMCParMod
             ENDIF
 
             TotWalkers=TotWalkersNew
+
+        ELSEIF(TAnnihilonProc) THEN
+!In this routine, the particles are just annihilated on their own processors. This means that all simulations are independent and not influenced by each other.
+!This means that there is no communication between processors and so should be much faster as the system size increases.
+
+            CALL AnnihilateonProc(TotWalkersNew)
+            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
 
         ELSE
 !This routine now cancels down the particles with opposing sign on each determinant
@@ -503,6 +510,156 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE PerformFCIMCycPar
+
+
+!A routine to annihilate particles separatly on each node. This should mean less annihilation occurs, but it is effect running nProcessors separate simulations.
+!If there are enough particles, then this should be sufficient. Less memory is required, since no hashes need to be stored. Also, no communication is needed,
+!so the routine should scale better as the number of walkers grows.
+    SUBROUTINE AnnihilateonProc(TotWalkersNew)
+        TYPE(ExcitGenerator) :: TempExcit
+        REAL*8 :: TempH
+        INTEGER :: TempIC
+        INTEGER :: TotWalkersNew,j,k,l,DetCurr(NEl),VecSlot,TotWalkersDet
+        INTEGER :: DetLT
+
+!First, it is necessary to sort the list of determinants
+        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NEl)
+
+!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
+        j=1
+!j is the counter over all uncancelled walkers - it indicates when we have reached the end of the list of total walkers
+!DetCurr is the current determinant
+        CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+        TempIC=NewIC(j)
+        TempH=NewH(j)
+        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit)
+        
+        VecSlot=1
+
+        do while(j.le.TotWalkersNew)
+!Loop over all walkers
+            TotWalkersDet=0
+            do while ((DetLT(NewDets(:,j),DetCurr,NEl).eq.0).and.(j.le.TotWalkersNew))
+!Loop over all walkers on DetCurr and count residual number after cancelling
+                IF(NewSign(j)) THEN
+                    TotWalkersDet=TotWalkersDet+1
+                ELSE
+                    TotWalkersDet=TotWalkersDet-1
+                ENDIF
+                j=j+1
+            enddo
+!Transfer residual population into VecSlot, along with residual sign
+            IF(TotWalkersDet.gt.0) THEN
+!Positive sign particles want to populate this determinant
+                do l=1,abs(TotWalkersDet)
+                    CALL ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CurrentSign(VecSlot)=.true.
+                    CurrentIC(VecSlot)=TempIC
+                    CurrentH(VecSlot)=TempH
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot))
+                    VecSlot=VecSlot+1
+                enddo
+            ELSE
+!Negative sign particles want to populate this determinant
+                do l=1,abs(TotWalkersDet)
+                    CALL ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CurrentSign(VecSlot)=.false.
+                    CurrentIC(VecSlot)=TempIC
+                    CurrentH(VecSlot)=TempH
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot))
+                    VecSlot=VecSlot+1
+                enddo
+            ENDIF
+!Now update the current determinant
+            CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+            TempIC=NewIC(j)
+            TempH=NewH(j)
+            IF(.not.TRegenExcitgens) CALL CopyExitGenPar(NewExcits(j),TempExcit)
+        enddo
+!The new number of residual cancelled walkers is given by one less that VecSlot again.
+        TotWalkers=VecSlot-1
+
+        RETURN
+
+    END SUBROUTINE AnnihilateonProc
+
+!This routine sorts the particles before annihilation. It is identical to the routine in the serial version, but the data which is taken is different.
+! Based on SORTI, SORTPARTS sorts arrays of integers, representing the determinant the walkers are on
+! It then takes all the corresponding info with it
+! Dets is the array (length N) of integers to sort
+! NElecs is the length (in numbers of integers) of each element of Dets
+! Vectors of NewXXX will be sorted correspondingly
+    SUBROUTINE SortPartsPar(N,Dets,NElecs)
+        TYPE(ExcitGenerator) :: ExcitTemp
+        REAL*8 :: HTemp
+        INTEGER :: ICTemp
+        INTEGER :: TempDet(NElecs)     !This stores a single element of the vector temporarily     
+        LOGICAL :: WSignTemp
+        INTEGER N,I,L,IR,J,NElecs
+        INTEGER Dets(NElecs,N)
+        INTEGER DETLT
+
+        IF(N.LE.1) RETURN
+        L=N/2+1 
+        IR=N
+10      CONTINUE
+        IF(L.GT.1)THEN
+            L=L-1
+            CALL ICOPY(NElecs,Dets(1,L),1,TempDet,1)          !Copy Lth element to temp
+            HTemp=NewH(L)
+            ICTemp=NewIC(L)
+            WSignTemp=NewSign(L)
+            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp)
+        ELSE
+            CALL ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
+            HTemp=NewH(IR)
+            ICTemp=NewIC(IR)
+            WSignTemp=NewSign(IR)
+            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp)
+
+            CALL ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
+            NewH(IR)=NewH(1)
+            NewIC(IR)=NewIC(1)
+            NewSign(IR)=NewSign(1)
+            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR))
+            IR=IR-1
+            IF(IR.EQ.1)THEN
+                CALL ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
+                NewH(1)=HTemp
+                NewIC(1)=ICTemp
+                NewSign(1)=WSignTemp
+                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(1))
+                RETURN
+            ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J.LE.IR)THEN
+            IF(J.LT.IR)THEN
+                IF((DETLT(Dets(1,J),Dets(1,J+1),NElecs)).eq.-1) J=J+1
+            ENDIF
+            IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
+                CALL ICOPY(NElecs,Dets(1,J),1,Dets(1,I),1)      !Copy Jth element to Ith element
+                NewH(I)=NewH(J)
+                NewIC(I)=NewIC(J)
+                NewSign(I)=NewSign(J)
+                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(J),NewExcits(I))
+                I=J
+                J=J+J
+            ELSE
+                J=IR+1
+            ENDIF
+            GO TO 20
+        ENDIF
+        CALL ICOPY(NElecs,TempDet,1,Dets(1,I),1)                !Copy from temp element to Ith element
+        NewH(I)=HTemp
+        NewIC(I)=ICTemp
+        NewSign(I)=WSignTemp
+        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(I))
+        GO TO 10
+
+    END SUBROUTINE SortPartsPar
+
 
 !A routine to annihilate particles in parallel. This involves separating hashes by abs(mod(hash,nProc)) to each node and annihilating there,       
 !before sending back the annihilated particles to be removed from their original processors.
@@ -1698,6 +1855,9 @@ MODULE FciMCParMod
 
         IF(TNoAnnihil) THEN
             WRITE(6,*) "No Annihilation to occur. Results are likely not to converge on right value. Proceed with caution. "
+        ELSEIF(TAnnihilonproc) THEN
+            WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
+            WRITE(6,*) "This is equivalent to running seperate calculations."
         ENDIF
         IF(ICILEVEL.ne.0) THEN
             CALL Stop_All("InitFCIMCCalcPar","Truncated FCIMC not yet available in parallel.")
@@ -1816,7 +1976,7 @@ MODULE FciMCParMod
             
             MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
 
-            IF(.not.TNoAnnihil) THEN
+            IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                 ALLOCATE(HashArray(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
                 HashArray(:)=0
@@ -1854,7 +2014,7 @@ MODULE FciMCParMod
                 CurrentIC(1)=0
                 CurrentSign(1)=.true.
                 CurrentH(1)=0.D0
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(1)=HFHash
                 ENDIF
             ELSE
@@ -1864,7 +2024,7 @@ MODULE FciMCParMod
                     CurrentSign(j)=.true.
                     CurrentIC(j)=0
                     CurrentH(j)=0.D0
-                    IF(.not.TNoAnnihil) THEN
+                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                         HashArray(j)=HFHash
                     ENDIF
                 enddo
@@ -2181,7 +2341,7 @@ MODULE FciMCParMod
 
         MemoryAlloc=(8+(2*NEl))*MaxWalkers*4    !Memory allocated in bytes
 
-        IF(.not.TNoAnnihil) THEN
+        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
             ALLOCATE(HashArray(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
             HashArray(:)=0
@@ -2244,14 +2404,14 @@ MODULE FciMCParMod
             IF(CurrentIC(j).eq.0) THEN
                 CurrentH(j)=0.D0
                 IF(.not.TRegenExcitgens) CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=HFHash
                 ENDIF
             ELSE
                 HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                 CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=CreateHash(CurrentDets(:,j))
                 ENDIF
                 
@@ -2306,7 +2466,7 @@ MODULE FciMCParMod
         
         MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
 
-        IF(.not.TNoAnnihil) THEN
+        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
             ALLOCATE(HashArray(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
             HashArray(:)=0
@@ -2427,7 +2587,7 @@ MODULE FciMCParMod
                 CurrentIC(j)=0
                 CurrentSign(j)=.true.
                 CurrentH(j)=0.D0
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=HFHash
                 ENDIF
             ELSE
@@ -2437,7 +2597,7 @@ MODULE FciMCParMod
                 CurrentSign(j)=MP1Sign(i)
                 Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
                 CurrentH(j)=real(Hjj%v,r2)-Hii
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=CreateHash(MP1Dets(1:NEl,i))
                 ENDIF
                 
@@ -2862,7 +3022,7 @@ MODULE FciMCParMod
                 CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !It seems like too much like hard work to send the excitation generators accross, just let them be regenerated on the other side...
-                IF(.not.TNoAnnihil) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 
                 TotWalkers=TotWalkers-WalktoTransfer(1)         !Update TotWalkers on this node to reflect that we have lost some
             
@@ -2877,7 +3037,7 @@ MODULE FciMCParMod
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
-                IF(.not.TNoAnnihil) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !Also need to indicate that the excitation generators are no longer useful...
                 IF(.not.TRegenExcitgens) THEN
                     do j=IndexFrom,IndexTo
@@ -2960,7 +3120,7 @@ MODULE FciMCParMod
         ENDIF
 
 !There seems to be some problems freeing the derived mpi type.
-!        IF(.not.TNoAnnihil) THEN
+!        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
 !Free the mpi derived type that we have created for the hashes.
 !            CALL MPI_Type_free(mpilongintegertype,error)
 !            IF(error.ne.MPI_SUCCESS) THEN

@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TAnnihilonproc=.false.
           TUnbiasPGeninProjE=.false.
           TFixShiftDoubs=.false.
           DoubsShift=0.D0
@@ -711,6 +712,9 @@ MODULE Calc
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
                 TUnbiasPGeninProjE=.true.
+            case("ANNIHILATEONPROCS")
+!A parallel FCIMC option. With this, walkers will only be annihilated with other walkers on the same processor. 
+                TAnnihilonproc=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

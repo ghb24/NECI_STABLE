@@ -622,6 +622,15 @@ The following options are only available in **FCIMC** calculations:
     MemoryFac is the factor by which space will be made available for extra
     walkers compared to InitWalkers.
 
+**ANNIHILATEONPROCS**
+    Default false
+
+    A Parallel FCIMC option. With this, particles are annihilated separately on each node.
+    This should mean less annihilation occurs, but it is effectivly running nProcessor
+    separate simulations. If there are enough particles, then this should be sufficient.
+    Less memory is required, since no hashes need to be stored. Also, no communication is
+    needed, so the routine should scale better as the number of walkers grows.
+
 **FIXHFDOUBSSHIFT** [DoubsShift]
     Default 0.D0
 
