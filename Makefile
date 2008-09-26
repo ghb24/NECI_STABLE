@@ -1,3 +1,4 @@
+# THIS IS A TEST.
 SHELL=/bin/bash
 
 neci: dest/Makefile
