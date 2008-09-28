@@ -817,30 +817,30 @@
 !                ENDIF
                         
 !Just write out non-degenerate eigenvectors
-                WRITE(48,"(F11.7,$)") r
-                WRITE(48,"(F13.9,$)") Vecs(iExcit+1)
+                WRITE(48,"(F11.7)",advance='no') r
+                WRITE(48,"(F13.9)",advance='no') Vecs(iExcit+1)
                 do i=2,toprint
-                    WRITE(48,"(F13.9,$)") Vecs(iExcit+1-DegenPos(i-1))
+                    WRITE(48,"(F13.9)",advance='no') Vecs(iExcit+1-DegenPos(i-1))
                 enddo
                 WRITE(48,*) ""
-                WRITE(49,"(F11.7,$)") r
-                WRITE(49,"(F13.9,$)") Vals(iExcit+1)
+                WRITE(49,"(F11.7)",advance='no') r
+                WRITE(49,"(F13.9)",advance='no') Vals(iExcit+1)
                 do i=2,toprint
-                    WRITE(49,"(F13.9,$)") Vals(iExcit+1-DegenPos(i-1))
+                    WRITE(49,"(F13.9)",advance='no') Vals(iExcit+1-DegenPos(i-1))
                 enddo
                 WRITE(49,*) ""
                 CALL FLUSH(48)
                 CALL FLUSH(49)
 
 !To write out all possible eigenvalues/vectors
-!                WRITE(48,"(F11.7,$)") r
+!                WRITE(48,"(F11.7)",advance='no') r
 !                do i=1,iExcit+1
-!                    WRITE(48,"(F13.9,$)") Vecs(i)
+!                    WRITE(48,"(F13.9)",advance='no') Vecs(i)
 !                enddo
 !                WRITE(48,*) ""
-!                WRITE(49,"(F11.7,$)") r
+!                WRITE(49,"(F11.7)",advance='no') r
 !                do i=1,iExcit+1
-!                    WRITE(49,"(F13.9,$)") Vals(i)
+!                    WRITE(49,"(F13.9)",advance='no') Vals(i)
 !                enddo
 !                WRITE(49,*) ""
 !                CALL FLUSH(48)
@@ -856,15 +856,15 @@
 !Write out gnuscript for only non-degenerate eigenvectors
             OPEN(26,FILE='PlotDegen.gpi',STATUS='UNKNOWN')
             WRITE(26,*) "set key left"
-            WRITE(26,"(A,$)") "plot 'FirstElemVecs' u 1:(abs($2)) w lp t 'Vec 1', "
+            WRITE(26,"(A)",advance='no') "plot 'FirstElemVecs' u 1:(abs($2)) w lp t 'Vec 1', "
             do i=2,toprint-1
-                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i+1,")) w lp t 'Vec",DegenPos(i-1)+1,"', "
+                WRITE(26,"(A,I3,A,I3,A)",advance='no') "'' u 1:(abs($",i+1,")) w lp t 'Vec",DegenPos(i-1)+1,"', "
             enddo
             WRITE(26,"(A,I3,A,I3,A)") "'' u 1:(abs($",toprint+1,")) w lp t 'Vec",DegenPos(toprint-1)+1,"'"
             WRITE(26,*) "pause -1"
-            WRITE(26,"(A,$)") "plot 'Vals' u 1:(abs($2)) w lp t 'Val 1', "
+            WRITE(26,"(A)",advance='no') "plot 'Vals' u 1:(abs($2)) w lp t 'Val 1', "
             do i=2,toprint-1
-                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i+1,")) w lp t 'Val",DegenPos(i-1)+1,"',"
+                WRITE(26,"(A,I3,A,I3,A)",advance='no') "'' u 1:(abs($",i+1,")) w lp t 'Val",DegenPos(i-1)+1,"',"
             enddo
             WRITE(26,"(A,I3,A,I3,A)") "'' u 1:(abs($",toprint+1,")) w lp t 'Val",DegenPos(toprint-1)+1,"'"
 !            WRITE(26,*) "pause -1"
@@ -875,15 +875,15 @@
 !Write out gnuscript for all eigenvectors
 !            OPEN(26,FILE='Plotall.gpi',STATUS='UNKNOWN')
 !            WRITE(26,*) "set key left"
-!            WRITE(26,"(A,I3,A,$)") "plot 'FirstElemVecs' u 1:(abs($",iExcit+2,")) w lp t 'Vector 1',"
+!            WRITE(26,"(A,I3,A)",advance='no') "plot 'FirstElemVecs' u 1:(abs($",iExcit+2,")) w lp t 'Vector 1',"
 !            do i=iExcit+1,3,-1
-!                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i,")) w lp t 'Vec",iExcit+3-i,"', "
+!                WRITE(26,"(A,I3,A,I3,A)",advance='no') "'' u 1:(abs($",i,")) w lp t 'Vec",iExcit+3-i,"', "
 !            enddo
 !            WRITE(26,"(A,I3,A)") "'' u 1:(abs($2)) w lp t 'Vec",iExcit+1,"'"
 !            WRITE(26,*) "pause -1"
-!            WRITE(26,"(A,I3,A,$)") "plot 'Vals' u 1:(abs($",iExcit+2,")) w lp t 'Val 1',"
+!            WRITE(26,"(A,I3,A)",advance='no') "plot 'Vals' u 1:(abs($",iExcit+2,")) w lp t 'Val 1',"
 !            do i=iExcit+1,3,-1
-!                WRITE(26,"(A,I3,A,I3,A,$)") "'' u 1:(abs($",i,")) w lp t 'Val",iExcit+3-i,"', "
+!                WRITE(26,"(A,I3,A,I3,A)",advance='no') "'' u 1:(abs($",i,")) w lp t 'Val",iExcit+3-i,"', "
 !            enddo
 !            WRITE(26,"(A,I3,A)") "'' u 1:(abs($2)) w lp t 'Val",iExcit+1,"'"
 !            CLOSE(26)
@@ -3471,7 +3471,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                NORMCHECK=NORMCHECK+1/NORM
 !               WRITE(6,*) I,RPN,1/NORM
                IF(iEigv.le.2) then
-!!!                  write(6,"(A,I,A,2G,$)") "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
+!!!                  write(6,"(A,I,A,2G)",advance='no') "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
 !                  write(6,*) "***",E0
                endif
                IF(DBETA.NE.0.D0) THEN

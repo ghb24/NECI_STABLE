@@ -36,7 +36,7 @@ MODULE Determinants
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
          CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
 !      ENDIF
-      WRITE(6,"(A,$)") "Fermi det (D0):"
+      WRITE(6,"(A)",advance='no') "Fermi det (D0):"
       CALL WRITEDET(6,FDET,NEL,.TRUE.)
       CALL ICOPY(NEL,FDET,1,NUHFDET,1)
       E0HFDET=ECORE
@@ -291,7 +291,7 @@ END MODULE Determinants
                STOP "After Freezing, UHFDET has wrong number of electrons"
             ENDIF
          ENDIF
-         WRITE(6,"(A,$)") "Post-Freeze Fermi det (D0):"
+         WRITE(6,"(A)",advance='no') "Post-Freeze Fermi det (D0):"
          CALL WRITEDET(6,FDET,NEL-NFROZEN,.TRUE.)
       end subroutine
 
@@ -395,26 +395,26 @@ END MODULE Determinants
          INTEGER IEL
          CHARACTER*2 SUFF
          INCLUDE 'csf.inc'
-         WRITE(NUNIT,"(A,$)") "("
+         WRITE(NUNIT,"(A)",advance='no') "("
          DO I=1,NEL
             IEL=NI(I)
             IF(IEL.GE.CSF_NBSTART) THEN
-               WRITE(NUNIT,"(I3,$)"),(IEL-CSF_NBSTART)/4+1
+               WRITE(NUNIT,"(I3)",advance='no'),(IEL-CSF_NBSTART)/4+1
                IEL=IAND(IEL-CSF_NBSTART,3)
                IF(IEL.EQ.0) THEN
-                  WRITE(NUNIT,"(A,$)") "-B,"
+                  WRITE(NUNIT,"(A)",advance='no') "-B,"
                ELSEIF(IEL.EQ.1) THEN
-                  WRITE(NUNIT,"(A,$)") "-A,"
+                  WRITE(NUNIT,"(A)",advance='no') "-A,"
                ELSEIF(IEL.EQ.2) THEN
-                  WRITE(NUNIT,"(A,$)") "+B,"
+                  WRITE(NUNIT,"(A)",advance='no') "+B,"
                ELSE
-                  WRITE(NUNIT,"(A,$)") "+A,"
+                  WRITE(NUNIT,"(A)",advance='no') "+A,"
                ENDIF
             ELSE
-               WRITE(NUNIT,"(I5,A,$)") IEL,","
+               WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
             ENDIF
          ENDDO
-         WRITE(NUNIT,"(A,$)") ")"
+         WRITE(NUNIT,"(A)",advance='no') ")"
          IF(LTERM) WRITE(NUNIT,*)
          RETURN
       END

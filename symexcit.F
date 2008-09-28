@@ -362,10 +362,10 @@ C.. Find the product in the sorted symprod list
                IF(K.EQ.0) THEN
                   WRITE(6,*) "Occupied Symmetry Products"
                   DO L=0,NPR
-                     WRITE(6,"(I4,$)") L
+                     WRITE(6,"(I4)",advance='no') L
                      CALL WRITESYM(6,SYMPRODS(L),.TRUE.)
                   ENDDO
-                  WRITE(6,"(A,$)") "Illegal Symmetry"
+                  WRITE(6,"(A)",advance='no') "Illegal Symmetry"
                   CALL WRITESYM(6,PR,.TRUE.)
                   STOP 'Illegal Symmetry Found'
                ENDIF
@@ -1086,10 +1086,10 @@ C.. Find the product in the sorted symprod list
                IF(K.EQ.0) THEN
                   WRITE(6,*) "Occupied Symmetry Products"
                   DO L=0,NPR
-                     WRITE(6,"(I4,$)") L
+                     WRITE(6,"(I4)",advance='no') L
                      CALL WRITESYM(6,SYMPRODS(L),.TRUE.)
                   ENDDO
-                  WRITE(6,"(A,$)") "Illegal Symmetry"
+                  WRITE(6,"(A)",advance='no') "Illegal Symmetry"
                   CALL WRITESYM(6,PR,.TRUE.)
                   STOP 'Illegal Symmetry Found'
                ENDIF
@@ -1872,7 +1872,7 @@ C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
             ENDIF
          ELSE
 C.. Actually generate a det
-C            WRITE(6,"(A,Z10,8I4,$)") "GET",LOC(NMEM(1)),
+C            WRITE(6,"(A,Z10,8I4)",advance='no') "GET",LOC(NMEM(1)),
 C     &         (NMEM(I),I=7,14)
             IP_DSTORE=LOC(NMEM(NMEM(1)))
 !!      SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
@@ -1885,7 +1885,7 @@ C     &         (NMEM(I),I=7,14)
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NJ,IC,iMinElec1,
      &         iMaxElec1)
 C            CALL WRITEDET(6,NI,NEL,.FALSE.)
-C            WRITE(6,"(A,$)"), "->"
+C            WRITE(6,"(A)",advance='no'), "->"
 C            IF(NJ(1).NE.0) THEN
 C               CALL WRITEDET(6,NJ,NEL,.TRUE.)
 C            ELSE 
@@ -2128,7 +2128,8 @@ C.. Now check for an excitation
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
+     &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
+     &                                        "[",NK(J),"->",ICC(1),","
                            NK(J)=ICC(1)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
@@ -2165,7 +2166,8 @@ C.. If neither virtuals are in NI, then allow
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
+     &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
+     &                                        "[",NK(J),"->",ICC(1),","
                            NK(J)=ICC(1)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
@@ -2204,7 +2206,8 @@ C.. us the same excitation as previously), then allow
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
+     &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
+     &                                        "[",NK(J),"->",ICC(2),","
                            NK(J)=ICC(2)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
@@ -2242,7 +2245,8 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
+     &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
+     &                                        "[",NK(J),"->",ICC(2),","
                            NK(J)=ICC(2)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
@@ -2824,38 +2828,39 @@ C.. Count the excitations (and generate a random one which we throw)
             POST=IPOST
             LEN=ILEN
             LEAD=ILEAD
-            WRITE(IUNIT,"(Z8.8,$)") ADDR
+            WRITE(IUNIT,"(Z8.8)",advance='no') ADDR
             DO J=0,LINELEN-1
-               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A2,$)') "  "
+               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A2)',advance='no') "  "
                IF(LEAD.EQ.0) THEN
                   IF(LEN.EQ.0) THEN
-                     WRITE(IUNIT,"(A3,$)") "   "
+                     WRITE(IUNIT,"(A3)",advance='no') "   "
                   ELSE
-                     WRITE(IUNIT,"(Z3.2,$)"),MEM(I*LINELEN+J+1)
+                     WRITE(IUNIT,"(Z3.2)",advance='no')
+     &                                              ,MEM(I*LINELEN+J+1)
                      LEN=LEN-1
                   ENDIF
                ELSE
-                  WRITE(IUNIT,"(A3,$)") "   "
+                  WRITE(IUNIT,"(A3)",advance='no') "   "
                   LEAD=LEAD-1
                ENDIF 
             ENDDO
-            WRITE(IUNIT,"(A3,$)"),"   "
+            WRITE(IUNIT,"(A3)",advance='no'),"   "
             DO J=0,LINELEN-1
-               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A1,$)') " "
+               IF(J.EQ.LINELEN/2) WRITE(IUNIT,'(A1)',advance='no') " "
                IF(ILEAD.EQ.0) THEN
                   IF(ILEN.NE.0) THEN
                      CH=MEM(I*LINELEN+J+1)
                      IF(CH.GE.32) THEN
-                        WRITE(IUNIT,"(A1,$)"),CHAR(CH)
+                        WRITE(IUNIT,"(A1)",advance='no'),CHAR(CH)
                      ELSE
-                        WRITE(IUNIT,"(A1,$)"),"."
+                        WRITE(IUNIT,"(A1)",advance='no'),"."
                      ENDIF
                      ILEN=ILEN-1
                   ELSE
-                     WRITE(IUNIT,"(A1,$)")," "
+                     WRITE(IUNIT,"(A1)",advance='no')," "
                   ENDIF
                ELSE
-                  WRITE(IUNIT,"(A1,$)")," "
+                  WRITE(IUNIT,"(A1)",advance='no')," "
                   ILEAD=ILEAD-1
                ENDIF
             ENDDO

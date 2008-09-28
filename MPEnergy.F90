@@ -74,7 +74,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
       MPEs(iOrder)=MPEs(iOrder)+E
       IF(TLOG.AND. ABS(E%v) .GT. 1.D-9) THEN
          IF(iOrder.EQ.2) CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-         WRITE(13,"(G25.16,$)") E
+         WRITE(13,"(G25.16)",advance='no') E
          tLogged=.TRUE.
       ENDIF
    ENDDO
@@ -165,7 +165,7 @@ END
          CONTR=SQ(HIJS(1))/DENOM
          IF(TLOG.AND.CONTR.GT.1.D-9) THEN
             CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
-            WRITE(13,"(G25.16,$)") -CONTR
+            WRITE(13,"(G25.16)",advance='no') -CONTR
             WRITE(13,*) HIJS(1),DENOM
          ENDIF
          MP2E=MP2E-CONTR

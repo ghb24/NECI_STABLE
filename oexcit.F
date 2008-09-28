@@ -38,22 +38,22 @@ C..Debugging junk
         WRITE(UNT,"(9Z5,I4)")(TYPES(I,NTYPE),I=1,5),SPNS(1,1),SPNS(2,1),
      &      SPNS(1,2),SPNS(2,2),NTYPE
          DO J=1,2
-         WRITE(UNT,"(A,$)") "FULL"
+         WRITE(UNT,"(A)",advance='no') "FULL"
          DO I=-3,NFULL(J,1,0)
-            WRITE(UNT,"(I3,$)") NFULL(J,1,I)
+            WRITE(UNT,"(I3)",advance='no') NFULL(J,1,I)
          ENDDO
-         WRITE(UNT,"(A,$)") ':'
+         WRITE(UNT,"(A)",advance='no') ':'
          DO I=-3,NFULL(J,2,0)
-            WRITE(UNT,"(I3,$)") NFULL(J,2,I)
+            WRITE(UNT,"(I3)",advance='no') NFULL(J,2,I)
          ENDDO
          WRITE(UNT,*)
-         WRITE(UNT,"(A,$)") "FREE"
+         WRITE(UNT,"(A)",advance='no') "FREE"
          DO I=-3,NFREE(J,1,0)
-            WRITE(UNT,"(I3,$)") NFREE(J,1,I)
+            WRITE(UNT,"(I3)",advance='no') NFREE(J,1,I)
          ENDDO
-         WRITE(UNT,"(A,$)") ':'
+         WRITE(UNT,"(A)",advance='no') ':'
          DO I=-3,NFREE(J,2,0)
-            WRITE(UNT,"(I3,$)") NFREE(J,2,I)
+            WRITE(UNT,"(I3)",advance='no') NFREE(J,2,I)
          ENDDO
          WRITE(UNT,*)
          ENDDO
@@ -368,7 +368,7 @@ C         CALL WRITEDET(60,NI,NEL,.TRUE.)
 C.. Pick a random excit type such that all excitations have equal prob
          I=RAN2(ISEED)*IC
          NTYPE=0
-C         WRITE(6,"(2I,$)"),I,IC
+C         WRITE(6,"(2I)",advance='no'),I,IC
          DO WHILE(I.GE.0)
             NTYPE=NTYPE+1
             I=I-TYPES(5,NTYPE)
@@ -522,22 +522,22 @@ C.. Debugging printout
 C         WRITE(6,"(9Z5,I)") (TYPES(I,NTYPE),I=1,5),SPNS(1,1),SPNS(2,1),
 C     &      SPNS(1,2),SPNS(2,2),NTYPE
 C         DO J=1,2
-C         WRITE(6,"(A,$)") "FULL"
+C         WRITE(6,"(A)",advance='no') "FULL"
 C         DO I=-3,NFULL(J,1,0)
-C            WRITE(6,"(I3,$)") NFULL(J,1,I)
+C            WRITE(6,"(I3)",advance='no') NFULL(J,1,I)
 C         ENDDO
-C         WRITE(6,"(A,$)") ':'
+C         WRITE(6,"(A)",advance='no') ':'
 C         DO I=-3,NFULL(J,2,0)
-C            WRITE(6,"(I3,$)") NFULL(J,2,I)
+C            WRITE(6,"(I3)",advance='no') NFULL(J,2,I)
 C         ENDDO
 C         WRITE(6,*)
-C         WRITE(6,"(A,$)") "FREE"
+C         WRITE(6,"(A)",advance='no') "FREE"
 C         DO I=-3,NFREE(J,1,0)
-C            WRITE(6,"(I3,$)") NFREE(J,1,I)
+C            WRITE(6,"(I3)",advance='no') NFREE(J,1,I)
 C         ENDDO
-C         WRITE(6,"(A,$)") ':'
+C         WRITE(6,"(A)",advance='no') ':'
 C         DO I=-3,NFREE(J,2,0)
-C            WRITE(6,"(I3,$)") NFREE(J,2,I)
+C            WRITE(6,"(I3)",advance='no') NFREE(J,2,I)
 C         ENDDO
 C         WRITE(6,*)
 C         ENDDO
@@ -806,7 +806,7 @@ C.. in NFULL and NFREE
          INTEGER IC,G1(*),NBASISMAX(*),I
          LOGICAL ISVALIDDET
          CALL ICOPY(NEL,NI,1,NJ,1)
-C         WRITE(56,"(I4,A,I4,$)") 
+C         WRITE(56,"(I4,A,I4)",advance='no') 
 C     &                  NJ(NFULL(1,SPNS(1,1),NFULL(1,SPNS(1,1),-2)))
 C     &            ,'->',NFREE(1,SPNS(1,2),NFREE(1,SPNS(1,2),-2))
          NJ(NFULL(1,SPNS(1,1),NFULL(1,SPNS(1,1),-2)))
@@ -814,7 +814,7 @@ C     &            ,'->',NFREE(1,SPNS(1,2),NFREE(1,SPNS(1,2),-2))
          IF(SPNS(2,1).NE.0) THEN
             NJ(NFULL(2,SPNS(2,1),NFULL(2,SPNS(2,1),-1)))
      &                  =NFREE(2,SPNS(2,2),NFREE(2,SPNS(2,2),-1))
-C         WRITE(56,"(I4,A,I4,$)") 
+C         WRITE(56,"(I4,A,I4)",advance='no') 
 C     &                  NJ(NFULL(2,SPNS(2,1),NFULL(2,SPNS(2,1),-1)))
 C     &            ,'->',NFREE(2,SPNS(2,2),NFREE(2,SPNS(2,2),-1))
             IC=2

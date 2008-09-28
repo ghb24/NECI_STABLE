@@ -411,7 +411,7 @@ C.. save all log files
                CALL FLUSH(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
-               WRITE(6,"(A,$)") "  nan det="
+               WRITE(6,"(A)",advance='no') "  nan det="
                CALL WRITEDET(6,NI,NEL,.TRUE.)
             ENDIF
             CALL WRITECLASSPATHS()
@@ -729,11 +729,11 @@ C.. forcing them to be disconnected. - this uses new excitation generators
             DLWDB=DLWDB+DLWDB2
 c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             IF(TLOG) THEN
-               WRITE(11,"(I12,3G25.16,2I12,G25.16,$)")
+               WRITE(11,"(I12,3G25.16,2I12,G25.16)",advance='no')
      &            I_V,F(I_V),TOTAL,NTIME-OTIME,L,LT,DLWDB2
                IF(I_HMAX.EQ.-20) THEN
                   DO I=2,I_VMAX
-                     WRITE(11,"(G25.16,$)") MP2E(I)
+                     WRITE(11,"(G25.16)",advance='no') MP2E(I)
                   ENDDO
                ENDIF
                WRITE(11,*)
@@ -745,7 +745,7 @@ C.. save all log files
                CALL FLUSH(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
-               WRITE(6,"(A,$)") "  nan det="
+               WRITE(6,"(A)",advance='no') "  nan det="
                CALL WRITEDET(6,NI,NEL,.TRUE.)
             ENDIF
             CALL WRITECLASSPATHS()
@@ -1022,7 +1022,7 @@ C.  removed them from the list of nodes connected to (e.g.) this level
 C.. for processing later (i.e. now).
 C.. Calculate RHO_IJ - the connection between the new node and this node
 C.. LSTE(1:NEL,I,IVLEVEL) is the node we're attempting to connect to
-!               WRITE(6,"(A,$)") "MCPR"
+!               WRITE(6,"(A)",advance='no') "MCPR"
 !               CALL WRITEDET(6,LSTE(1,I,IVLEVEL),NEL,.FALSE.)
                RH=RIJLIST(I,IVLEVEL)
 !               WRITE(6,*) RH
@@ -1203,7 +1203,7 @@ C.. Force freexing
           
          
 C            DO I=0,NBASIS
-C               WRITE(10,"(I2,$)"),IFRZ2(I)
+C               WRITE(10,"(I2)",advance='no'),IFRZ2(I)
 C            ENDDO
 C         WRITE(10,*) "V_",I_VIND
 C.. LOCTAB(1,1) is the address of the generator used to create node 1 in
@@ -1236,7 +1236,7 @@ C.. the paths for it
             RHOII(I_V)=RHOII(0)
 C            DO J=1,I_VIND+1
 C            DO I=0,NBASIS
-C               WRITE(10,"(I2,$)"),IFRZ(I,J)
+C               WRITE(10,"(I2)",advance='no'),IFRZ(I,J)
 C            ENDDO
 C            WRITE(10,*) LOCTAB(3,J)
 C            ENDDO
@@ -1631,12 +1631,12 @@ C            CALL PRINT_MEMORY()
          LOGICAL LTERM
          INTEGER J,K
          
-         WRITE(NUNIT,"(A,$)") "["
+         WRITE(NUNIT,"(A)",advance='no') "["
          DO J=0,I_V-1
             CALL WRITEDET(NUNIT,IPATH(1,J),NEL,.FALSE.)
-            WRITE(NUNIT,"(A,$)") ","
+            WRITE(NUNIT,"(A)",advance='no') ","
          ENDDO
-         WRITE(NUNIT,"(A,$)") "] "
+         WRITE(NUNIT,"(A)",advance='no') "] "
          IF(LTERM) WRITE(NUNIT,*)
          RETURN
       END
@@ -1647,7 +1647,7 @@ C            CALL PRINT_MEMORY()
          LOGICAL LTERM,T
          INTEGER J,K,EX(2,2)
 C.. First determine the excitation
-         WRITE(NUNIT,"(A,$)") "["
+         WRITE(NUNIT,"(A)",advance='no') "["
          DO J=1,I_V-1
             DO K=0,I_V-2
                EX(1,1)=2
@@ -1657,14 +1657,15 @@ C               WRITE(6,*) J,K
                IF(EX(1,1).GE.0) EXIT
             ENDDO
             IF(EX(1,2).EQ.0) THEN
-               WRITE(NUNIT,"(Z1,A,I5,A,I5,A$)"),K,
+               WRITE(NUNIT,"(Z1,A,I5,A,I5,A)",advance='no'),K,
      &         "(",EX(1,1),")->(",EX(2,1),"),"
             ELSE
-               WRITE(NUNIT,"(Z1,A,I5,A,I5,A,I5,A,I5,A$)"),K,
+               WRITE(NUNIT,"(Z1,A,I5,A,I5,A,I5,A,I5,A)",advance='no')
+     &                                                              ,K,
      &         "(",EX(1,1),",",EX(1,2),")->(",EX(2,1),",",EX(2,2),"),"
             ENDIF
          ENDDO
-         WRITE(NUNIT,"(A,$)") "]"
+         WRITE(NUNIT,"(A)",advance='no') "]"
          IF(LTERM) WRITE(NUNIT,*)
          CALL FLUSH(NUNIT)
          RETURN
@@ -1677,18 +1678,18 @@ C               WRITE(6,*) J,K
          LOGICAL LTERM
          TYPE(HElement) RHOIJ(0:I_V,0:I_V)
          INTEGER J,K
-         WRITE(NUNIT,"(A,$)") "("
+         WRITE(NUNIT,"(A)",advance='no') "("
          DO J=0,I_V-1
             DO K=0,I_V-1
 #ifdef __CMPLX
-               WRITE(NUNIT,"(2E25.16,A,$)") RHOIJ(J,K),","
+               WRITE(NUNIT,"(2E25.16,A)",advance='no') RHOIJ(J,K),","
 #else
-               WRITE(NUNIT,"(E25.16,A,$)") RHOIJ(J,K),","
+               WRITE(NUNIT,"(E25.16,A)",advance='no') RHOIJ(J,K),","
 #endif
             ENDDO
-            WRITE(NUNIT,"(A,$)") "|"
+            WRITE(NUNIT,"(A)",advance='no') "|"
          ENDDO
-         WRITE(NUNIT,"(A,$)") ")"
+         WRITE(NUNIT,"(A)",advance='no') ")"
          IF(LTERM) WRITE(NUNIT,*)
          RETURN
       END

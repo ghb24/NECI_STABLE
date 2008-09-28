@@ -315,22 +315,24 @@ C.. do the Z-sum
      &                        I_P,NWHTAY)
                            TOTAL=TOTAL+T2
          IF(BTEST(ILOGGING,4)) THEN
-            WRITE(10,"(A,$)") "{"
+            WRITE(10,"(A)",advance='no') "{"
             DO J=0,I_HIND
-               WRITE(10,"(A,$)") "("
+               WRITE(10,"(A)",advance='no') "("
                DO K=1,NEL
-                  WRITE(10,"(I3,A,$)") IPATH2(K,J),","
+                  WRITE(10,"(I3,A)",advance='no') IPATH2(K,J),","
                ENDDO
-               WRITE(10,"(A,$)") "),"
+               WRITE(10,"(A)",advance='no') "),"
             ENDDO
-            WRITE(10,"(A,$)") "}"
+            WRITE(10,"(A)",advance='no') "}"
             IF(BTEST(ILOGGING,5)) THEN
-               WRITE(10,"(A,$)") "("
-               WRITE(10,"(E25.16,A,$)") 1.D0,","
+               WRITE(10,"(A)",advance='no') "("
+               WRITE(10,"(E25.16,A)",advance='no') 1.D0,","
                DO J=1,I_HIND-1
-                  WRITE(10,"(E25.16,A,$)") RHOIJ(IP2(J),IP2(J-1)),","
+                  WRITE(10,"(E25.16,A)",advance='no')
+     &                                       RHOIJ(IP2(J),IP2(J-1)),","
                ENDDO
-               WRITE(10,"(E25.16,$)") RHOIJ(IP2(0),IP2(I_HIND-1))
+               WRITE(10,"(E25.16)",advance='no')
+     &                                      RHOIJ(IP2(0),IP2(I_HIND-1))
                WRITE(10,*) ")"
             ENDIF
             WRITE(10,*) T2
@@ -520,12 +522,12 @@ C.. ZZ2 and ZZ3 are complex
             ZA=CP3TFC(ZZ2,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
      &               /((ZZ2-Z1)*(ZZ2-ZZ3))
             ZZ=ZA
-C            WRITE(31,"((G25.16e3, G25.16e3),$)") ZA
+C            WRITE(31,"((G25.16e3, G25.16e3))",advance='no') ZA
          
             ZA=CP3TFC(ZZ3,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
      &               /((ZZ3-Z1)*(ZZ3-ZZ2))
             ZZ=ZZ+ZA
-C            WRITE(31,"((G25.16e3, G25.16e3),$)") ZA
+C            WRITE(31,"((G25.16e3, G25.16e3))",advance='no') ZA
             Z2=DBLE(ZZ2)
             Z3=DIMAG(ZZ2)
             CP3_SOLVE=
@@ -545,7 +547,7 @@ C               WRITE(10,*) Z1,Z2,Z3
                RA=CP3TF(Z2,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
      &               /((Z2-Z1)*(Z2-Z3))
                CP3_SOLVE=RA
-C               WRITE(31,"(G25.16e3,$)") RA
+C               WRITE(31,"(G25.16e3)",advance='no') RA
                RA=DCP3TF(Z1,Z2,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
 C               WRITE(31,"(G25.16e3)") RA
                CP3_SOLVE=CP3_SOLVE+RA
@@ -553,11 +555,11 @@ C               WRITE(31,"(G25.16e3)") RA
                RA=CP3TF(Z1,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
      &               /((Z1-Z2)*(Z1-Z3))
                CP3_SOLVE=RA
-C               WRITE(31,"(G25.16e3,$)") RA
+C               WRITE(31,"(G25.16e3)",advance='no') RA
                RA=CP3TF(Z2,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
      &               /((Z2-Z1)*(Z2-Z3))
                CP3_SOLVE=CP3_SOLVE+RA
-C               WRITE(31,"(G25.16e3,$)") RA
+C               WRITE(31,"(G25.16e3)",advance='no') RA
                RA=CP3TF(Z3,P,RII,RJJ,RKK,RIJK,RIJ,RIK)
      &               /((Z3-Z1)*(Z3-Z2))
                CP3_SOLVE=CP3_SOLVE+RA
@@ -935,11 +937,11 @@ C         WRITE(10,*) CALCPATHS_3
  
 C         OPEN(30,FILE="CIPATH3",STATUS="UNKNOWN")
 
-C         WRITE(30,"(3G25.16e3,$)") POLYDEN(3),POLYDEN(2),POLYDEN(1)
-C         WRITE(30,"(G25.16e3,$)") POLYNUM(1)/POLYNUM(2)
+C         WRITE(30,"(3G25.16e3)",advance='no') POLYDEN(3),POLYDEN(2),POLYDEN(1)
+C         WRITE(30,"(G25.16e3)",advance='no') POLYNUM(1)/POLYNUM(2)
          CALL FACTORPOLY(POLYDEN(1),3,ZROOTS)
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZROOTS(1)
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZROOTS(2)
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZROOTS(1)
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZROOTS(2)
 C         WRITE(30,"((G25.16e3, G25.16e3))") ZROOTS(3)
 C         WRITE(30,"(4G25.16e3)") RIS(1),RIS(2),RIS(3),RIS(4)
          CALL ZSUM3(POLYNUM,POLYDEN,CP3CIZSFUN2,1000,I_P,3,ZROOTS,
@@ -985,10 +987,10 @@ C         CLOSE(30)
          
 C         OPEN(30,FILE="CIPATH2",STATUS="UNKNOWN")
 
-C         WRITE(30,"(3G25.16e3,$)") POLY(2),POLY(1),POLY(0)
+C         WRITE(30,"(3G25.16e3)",advance='no') POLY(2),POLY(1),POLY(0)
          CALL FACTORPOLY(POLY,3,ZROOTS)
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZROOTS(1)
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZROOTS(2)
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZROOTS(1)
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZROOTS(2)
 C         WRITE(30,"((G25.16e3, G25.16e3))") ZROOTS(3)
 C         WRITE(30,"(4G25.16e3)") RIS(1),RIS(2),RIS(3),RIS(4)
 C         ZROOTS(1)=0.5D0
@@ -1041,28 +1043,28 @@ C         CLOSE(30)
          REAL*8 XIS(3,4), RIS(4)
          COMPLEX*16 Z,ZRET,ZT,ZS,ZZT,ZMZ0
          REAL*8 R,THETA,P
-C         WRITE(30,"((G25.16e3, G25.16e3),2G25.16e3,$)") Z,R,THETA
+C         WRITE(30,"((G25.16e3, G25.16e3),2G25.16e3)",advance='no') Z,R,THETA
 C.. AIJK
          CALL ZPRIM1(XIS(1,1),3,Z,ZS)
          ZZT=2*ZS*RIS(1)
          ZT=ZZT
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZZT
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZZT
 C..AIJ
          CALL ZPRIM1(XIS(1,2),2,Z,ZS)
          ZZT=ZS*RIS(2)
          ZT=ZT+ZZT
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZZT
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZZT
 C..AIK
          CALL ZPRIM1(XIS(1,3),2,Z,ZS)
          ZZT=ZS*RIS(3)
          ZT=ZT+ZZT
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZZT
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZZT
          ZRET=ZT
 C.. AJK
          CALL ZPRIM1(XIS(1,4),2,Z,ZS)
          ZZT=ZS*RIS(4)
          ZT=ZT+ZZT
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZZT
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZZT
          ZRET=ZRET/(1-ZT)
          CALL ZPRIM2(P,Z,R,THETA,ZMZ0,ZRET)
 C         ZRET=Z*(R*EXP((0.D0,1.D0)*THETA))*(0.D0,1.D0)/(Z-0.5D0)
@@ -1075,15 +1077,15 @@ C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
          COMPLEX*16 POLYDEN(0:*)
          COMPLEX*16 Z,ZRET,ZT,ZS,ZZT,ZMZ0
          REAL*8 R,THETA,P
-C        WRITE(30,"((G25.16e3, G25.16e3),2G25.16e3,$)") Z,R,THETA
+C        WRITE(30,"((G25.16e3, G25.16e3),2G25.16e3)",advance='no') Z,R,THETA
 
          CALL POLYVALUE(POLYNUM(1),NINT(POLYNUM(0)),Z,ZRET)
 C.. This is the auxiliary taylor expanded poly around z0
          CALL POLYVALUEC(POLYDEN(1),NINT(DBLE(POLYDEN(0))),ZMZ0,ZT)
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZRET
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZT
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZRET
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZT
          ZRET=ZRET/ZT
-C         WRITE(30,"((G25.16e3, G25.16e3),$)") ZRET
+C         WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZRET
          CALL ZPRIM2(P,Z,R,THETA,ZMZ0,ZRET)
 C         ZRET=Z*(R*EXP((0.D0,1.D0)*THETA))*(0.D0,1.D0)/(Z-0.5D0)
 C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
@@ -1151,17 +1153,17 @@ C          WRITE(30,"((G25.16e3, G25.16e3))") ZRET
  
          IF(TLOG) THEN
             OPEN(30,FILE="CIPATH4",STATUS="UNKNOWN")
-            WRITE(30,"(4G25.16e3,$)") (POLYDEN(I),I=4,1,-1)
-            WRITE(30,"(4G25.16e3,$)") (POLYNUM(I),I=4,1,-1)
-            WRITE(30,"((G25.16e3, G25.16e3),$)") ZROOTS(1)
-            WRITE(30,"((G25.16e3, G25.16e3),$)") ZROOTS(2)
-            WRITE(30,"((G25.16e3, G25.16e3),$)") ZROOTS(3)
+            WRITE(30,"(4G25.16e3)",advance='no') (POLYDEN(I),I=4,1,-1)
+            WRITE(30,"(4G25.16e3)",advance='no') (POLYNUM(I),I=4,1,-1)
+            WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZROOTS(1)
+            WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZROOTS(2)
+            WRITE(30,"((G25.16e3, G25.16e3))",advance='no') ZROOTS(3)
             WRITE(30,"((G25.16e3, G25.16e3))") ZROOTS(4)
          ENDIF
          CALL ZSUM3(POLYNUM,POLYDEN,CP3CIZSFUN2,2000,I_P,4,ZROOTS,
      &            .TRUE.,SUMR,SUMI)
          CALCPATHS_4=SUMR
-         IF(TLOG) WRITE(30,"(2G25.16e3,$)") SUMR,SUMI 
+         IF(TLOG) WRITE(30,"(2G25.16e3)",advance='no') SUMR,SUMI 
 C.. Now subtract out the 3 and 2 combinations
 C.. ijkl=ijkl'-ijk-ijl-ikl-ij-ik-il
 C..     =ijkl'-ijk'-ijl'-ikl'+ij'+ik'+il'
@@ -1174,7 +1176,7 @@ C.. (primed include smaller subgraphs)
      &               RII,RJJ,RKK,
      &               RIJ,RIK,RIJK)
          ENDIF
-         IF(TLOG) WRITE(30,"(G25.16e3,$)") T 
+         IF(TLOG) WRITE(30,"(G25.16e3)",advance='no') T 
          IF(RIJ.EQ.0.D0.AND.RIL.EQ.0.D0) THEN
             T2=0.D0
          ELSE
@@ -1184,7 +1186,7 @@ C.. (primed include smaller subgraphs)
      &               RIJ,RIL,RIJL)
          ENDIF
          T=T+T2
-         IF(TLOG) WRITE(30,"(G25.16e3,$)") T2 
+         IF(TLOG) WRITE(30,"(G25.16e3)",advance='no') T2 
          IF(RIK.EQ.0.D0.AND.RIL.EQ.0.D0) THEN
             T2=0.D0
          ELSE
@@ -1194,19 +1196,19 @@ C.. (primed include smaller subgraphs)
      &               RIK,RIL,RIKL)
          ENDIF
          T=T+T2
-         IF(TLOG) WRITE(30,"(G25.16e3,$)") T2 
+         IF(TLOG) WRITE(30,"(G25.16e3)",advance='no') T2 
          T2=CP2(RHOII(0),RHOII(1),RHOIJ(0,1),I_P)
          T=T-T2
-         IF(TLOG) WRITE(30,"(G25.16e3,$)") T2 
+         IF(TLOG) WRITE(30,"(G25.16e3)",advance='no') T2 
          T2=CP2(RHOII(0),RHOII(2),RHOIJ(0,2),I_P)
          T=T-T2
-         IF(TLOG) WRITE(30,"(G25.16e3,$)") T2 
+         IF(TLOG) WRITE(30,"(G25.16e3)",advance='no') T2 
          T2=CP2(RHOII(0),RHOII(3),RHOIJ(0,3),I_P)
          T=T-T2
-         IF(TLOG) WRITE(30,"(G25.16e3,$)") T2 
+         IF(TLOG) WRITE(30,"(G25.16e3)",advance='no') T2 
 
          CALCPATHS_4=CALCPATHS_4-T
-         IF(TLOG) WRITE(30,"(G25.16e3,$)") CALCPATHS_4
+         IF(TLOG) WRITE(30,"(G25.16e3)",advance='no') CALCPATHS_4
          IF(TLOG) CLOSE(30)
          RETURN
       END

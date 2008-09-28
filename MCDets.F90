@@ -368,7 +368,7 @@ subroutine PropagateParticles(PL,iPL,nPL,dTau,EShift,ICmean,ICmin,ICMax,nI,nEl,i
    do while (iParticle.gt.0)  !i.e. while we're at a valid particle
 ! Each Particle has iWeight of subparticles at the same det
 !         write(6,*) iParticle,P%d%exGen%tagExData
-!         write(56,'(I,$)')  P%d%iWeight
+!         write(56,'(I)',advance='no')  P%d%iWeight
 
       IC=iGetExcitLevel(Ni,P%Ni,NEl)
       ICmean=ICmean+IC*(P%d%iWeight)
@@ -848,7 +848,7 @@ subroutine DumpParticleList(iunit,PL)
    Allocate(P%nI(PL%nEl))
    call GetNextParticle(PL,iParticle,P)
    do while (iParticle.ne.0)
-      write(iUnit,"(I,$)") iParticle
+      write(iUnit,"(I)",advance='no') iParticle
       call WriteDet(iUnit,P%nI,PL%nEl,.false.)
       write(iUnit,"(7I)") P%d%iWeight,P%d%iSgn,P%d%iParent, P%d%iBefore,P%d%iAfter,P%d%ExGen%tagExData,P%d%ExGen%iRefCount
       call GetNextParticle(PL,iParticle,P)

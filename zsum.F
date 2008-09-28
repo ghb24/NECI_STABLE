@@ -220,7 +220,7 @@ C.. do the contour integral
                IF(TAUXPOLY) THEN
                   CALL CREATEAUXPOLY(ZSD2(1),IPOLES,
      &                     ZPOLES(I),ZAUXPOLY(1))
-C                  WRITE(30,"(8G25.16e3,$)") (ZAUXPOLY(J),J=5,1,-1)
+C                  WRITE(30,"(8G25.16e3)",advance='no') (ZAUXPOLY(J),J=5,1,-1)
 C                  WRITE(30,*)
                    ZAUXPOLY(0)=ZSD2(0)
                   CALL ZSUM2(ZSD1,ZAUXPOLY,ZSFUN,ZPOLES(I),I_P,I_POINTS,
@@ -229,7 +229,7 @@ C                  WRITE(30,*)
                   CALL ZSUM2(ZSD1,ZSD2,ZSFUN,ZPOLES(I),I_P,I_POINTS,
      &               DM,S,SI)
                ENDIF
-C               WRITE(31,"(A2,5G25.16e3,A2,$)") "(",ZPOLES(I),DM,S,SI,")"
+C               WRITE(31,"(A2,5G25.16e3,A2)",advance='no') "(",ZPOLES(I),DM,S,SI,")"
                SUM=SUM+S
                SUMI=SUMI+SI
             ENDIF

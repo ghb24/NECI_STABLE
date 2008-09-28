@@ -140,19 +140,20 @@ C.. Bingo
                CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_H),1) 
                RHOII(I_H)=RHOII(0)
                IF(TLOG1) THEN
-                  WRITE(10,"(A,$)") "["
+                  WRITE(10,"(A)",advance='no') "["
                   DO J=0,I_H
-                     WRITE(10,"(A,$)")
+                     WRITE(10,"(A)",advance='no')
                      DO K=1,NEL
-                        WRITE(10,"(I3,A,$)") IPATH(K,J),","
+                        WRITE(10,"(I3,A)",advance='no') IPATH(K,J),","
                      ENDDO
-                     WRITE(10,"(A,$)") "),"
+                     WRITE(10,"(A)",advance='no') "),"
                   ENDDO
                   WRITE(10,*) "]"
                   IF(TLOG2) THEN
-                     WRITE(10,"(A,$)") "("
+                     WRITE(10,"(A)",advance='no') "("
                      DO J=1,I_H-1
-                        WRITE(10,"(E25.16,A,$)") RHOII(J)/RHOII(0),","
+                        WRITE(10,"(E25.16,A)",advance='no')
+     &                                            RHOII(J)/RHOII(0),","
                      ENDDO
                      WRITE(10,*) ")"
                   ENDIF
@@ -309,15 +310,16 @@ C.. Bingo
                   RHOII(I_H)=RHOII(0)
  
                  IF(TLOG1) THEN
-                     WRITE(10,"(A,$)") "["
+                     WRITE(10,"(A)",advance='no') "["
                      DO J=0,I_H
-                        WRITE(10,"(I3,A,$)") IPATH(J),","
+                        WRITE(10,"(I3,A)",advance='no') IPATH(J),","
                      ENDDO
                      WRITE(10,*) "]"
                      IF(TLOG2) THEN
-                        WRITE(10,"(A,$)") "("
+                        WRITE(10,"(A)",advance='no') "("
                         DO J=1,I_H-1
-                          WRITE(10,"(E25.16,A,$)") RHOII(J)/RHOII(0),","
+                          WRITE(10,"(E25.16,A)",advance='no')
+     &                                            RHOII(J)/RHOII(0),","
                         ENDDO
                         WRITE(10,*) ")"
                      ENDIF
@@ -457,10 +459,11 @@ C.. Now count the number of self-loops, and output the data
                IF(IPATH(J).EQ.IPATH(J-1)) ISELF=ISELF+1
             ENDDO
             RTOT=RTOT+RH
-           WRITE(6,"(I3,E25.16,2I3,A,$)") ISELF,RH,INIT,INTPOS," int.  "
+           WRITE(6,"(I3,E25.16,2I3,A)",advance='no')
+     &                                   ISELF,RH,INIT,INTPOS," int.  "
 C.. Let's print out the whole path
             DO J=1,I_P+1
-               WRITE(6,"(I4,A,$)") IPATH(J),"," 
+               WRITE(6,"(I4,A)",advance='no') IPATH(J),"," 
             ENDDO
             WRITE(6,*) W
             WRITE(10,"(I12,2E25.16)") ISELF,RH,RTOT
@@ -483,11 +486,11 @@ C.. Let's print out the whole path
          OPEN(12,FILE=STR,STATUS="UNKNOWN")
          WRITE(12,*) "WARNING: nan found at time",ITIME
          WRITE(12,*) "Beta=",BETA
-         WRITE(12,"(A,$)") "  nan det=("
+         WRITE(12,"(A)",advance='no') "  nan det=("
          DO K=1,NEL
-            WRITE(12,"(I3,A,$)") NI(K),","
+            WRITE(12,"(I3,A)",advance='no') NI(K),","
          ENDDO
-         WRITE(12,"(A,$)") "),"
+         WRITE(12,"(A)",advance='no') "),"
          CLOSE(12)
          RETURN
 
@@ -497,15 +500,15 @@ C      SUBROUTINE WRITE_PATH(IUNIT,IPATH,NEL,I_V)
 C         IMPLICIT NONE
 C         INTEGER NEL,I_V,IPATH(NEL,0:I_V)
 C         INTEGER K,J,IUNIT
-C         WRITE(IUNIT,"(A,$)") "["
+C         WRITE(IUNIT,"(A)",advance='no') "["
 C         DO J=0,I_V
-C            WRITE(IUNIT,"(A,$)") "("
+C            WRITE(IUNIT,"(A)",advance='no') "("
 C            DO K=1,NEL
-C               WRITE(IUNIT,"(I3,A,$)") IPATH(K,J),","
+C               WRITE(IUNIT,"(I3,A)",advance='no') IPATH(K,J),","
 C            ENDDO
-C            WRITE(IUNIT,"(A,$)") "),"
+C            WRITE(IUNIT,"(A)",advance='no') "),"
 C         ENDDO
-C         WRITE(IUNIT,"(A,$)") "] "
+C         WRITE(IUNIT,"(A)",advance='no') "] "
 C         RETURN
 C      END
       
@@ -514,15 +517,15 @@ C         IMPLICIT NONE
 C         INTEGER NEL,I_V,IPATH(NEL,0:I_V)
 C         INTEGER K,J,IUNIT
 C         LOGICAL LTERM
-C         WRITE(IUNIT,"(A,$)") "["
+C         WRITE(IUNIT,"(A)",advance='no') "["
 C         DO J=0,I_V
-C            WRITE(IUNIT,"(A,$)") "("
+C            WRITE(IUNIT,"(A)",advance='no') "("
 C            DO K=1,NEL
-C               WRITE(IUNIT,"(I3,A,$)") IPATH(K,J),","
+C               WRITE(IUNIT,"(I3,A)",advance='no') IPATH(K,J),","
 C            ENDDO
-C            WRITE(IUNIT,"(A,$)") "),"
+C            WRITE(IUNIT,"(A)",advance='no') "),"
 C         ENDDO
-C         WRITE(IUNIT,"(A,$)") "] "
+C         WRITE(IUNIT,"(A)",advance='no') "] "
 C         IF(LTERM) WRITE(IUNIT,*)
 C         RETURN
 C      END
@@ -530,12 +533,12 @@ C      SUBROUTINE WRITE_RHOMATRIX(IUNIT,RHOIJ,NEL,I_V)
 C         IMPLICIT NONE
 C         INTEGER NEL,I_V,J,K,IUNIT
 C         REAL*8 RHOIJ(0:I_V,0:I_V)      
-C         WRITE(IUNIT,"(A,$)") "("
+C         WRITE(IUNIT,"(A)",advance='no') "("
 C         DO J=0,I_V-1
 C            DO K=0,I_V-1
-C               WRITE(IUNIT,"(E25.16,A,$)") RHOIJ(J,K),","
+C               WRITE(IUNIT,"(E25.16,A)",advance='no') RHOIJ(J,K),","
 C            ENDDO
-C            WRITE(IUNIT,"(A,$)") "|"
+C            WRITE(IUNIT,"(A)",advance='no') "|"
 C         ENDDO
 C         WRITE(IUNIT,*) ")"
 C         RETURN
@@ -545,12 +548,12 @@ C      END
          IMPLICIT NONE
          INTEGER I_V,J,K,IUNIT
          REAL*8 RHOIJ(0:I_V-1,0:I_V-1)      
-         WRITE(IUNIT,"(A,$)") "{"
+         WRITE(IUNIT,"(A)",advance='no') "{"
          DO J=0,I_V-1
             DO K=0,I_V-1
-               WRITE(IUNIT,"(E25.16,A,$)") RHOIJ(J,K),","
+               WRITE(IUNIT,"(E25.16,A)",advance='no') RHOIJ(J,K),","
             ENDDO
-            WRITE(IUNIT,"(A,$)") "|"
+            WRITE(IUNIT,"(A)",advance='no') "|"
          ENDDO
          WRITE(IUNIT,*) "}"
          RETURN

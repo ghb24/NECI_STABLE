@@ -221,17 +221,17 @@ contains
         IF(associated(SYMLABELINTSCUM)) THEN
             write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5,$)") SYMLABELCOUNTS(2,I)
+                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
                 CALL FLUSH(12)
             ENDDO
             WRITE(12,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5,$)") SYMLABELCOUNTSCUM(I)
+                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTSCUM(I)
                 CALL FLUSH(12)
             ENDDO
             WRITE(12,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5,$)") SYMLABELINTSCUM(I)
+                WRITE(12,"(I5)",advance='no') SYMLABELINTSCUM(I)
                 CALL FLUSH(12)
             ENDDO
             WRITE(12,*) ""
@@ -240,17 +240,17 @@ contains
         IF(associated(SYMLABELINTSCUM2)) THEN
             write(12,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5,$)") SYMLABELCOUNTS(2,I)
+                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
                 CALL FLUSH(12)
             ENDDO
             WRITE(12,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5,$)") SYMLABELCOUNTSCUM2(I)
+                WRITE(12,"(I5)",advance='no') SYMLABELCOUNTSCUM2(I)
                 CALL FLUSH(12)
             ENDDO
             WRITE(12,*) ""
             DO I=1,NSYMLABELS
-                WRITE(12,"(I5,$)") SYMLABELINTSCUM2(I)
+                WRITE(12,"(I5)",advance='no') SYMLABELINTSCUM2(I)
                 CALL FLUSH(12)
             ENDDO
             WRITE(12,*) ""

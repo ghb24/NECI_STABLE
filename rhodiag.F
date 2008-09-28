@@ -49,11 +49,12 @@ C.. account for LSTE(0)
          CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
      &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &         RH,NTAY,0,ECORE)
-         WRITE(35,"(A,$)") "("
+         WRITE(35,"(A)",advance='no') "("
          DO K=1,NEL
-            WRITE(35,"(I3,A,$)") NI(K),","
+            WRITE(35,"(I3,A)",advance='no') NI(K),","
          ENDDO
-         WRITE(35,"(A,G25.16,I4,$)") ")", -(I_P/BETA)*LOG(RH),NLIST
+         WRITE(35,"(A,G25.16,I4)",advance='no')
+     &                                   ")", -(I_P/BETA)*LOG(RH),NLIST
          RJJLIST(0)=RH
          WLRI=LOG(RH)
          RHII=RH
@@ -66,7 +67,7 @@ C.. account for LSTE(0)
                   CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
      &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &               RH,NTAY,0,ECORE)
-C                  WRITE(35,"(G25.16,$)") -(I_P/BETA)*LOG(RH)
+C                  WRITE(35,"(G25.16)",advance='no') -(I_P/BETA)*LOG(RH)
                   IF(RH/RHII.GT.RHRATMAX) THEN
                      IF(ILFREE.LT.I)
      &                  CALL ICOPY(NEL,LSTE(1,I),1,LSTE(1,ILFREE),1)
@@ -118,10 +119,10 @@ C            WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
          ENDDO
 C         DO I=0,NLIST-1
 C            DO J=0,NLIST-1
-C               WRITE(34,"(2I5,$)") I,J
-C               WRITE(34,"(A,$)") "  ("
+C               WRITE(34,"(2I5)",advance='no') I,J
+C               WRITE(34,"(A)",advance='no') "  ("
 C               DO K=1,NEL
-C                  WRITE(34,"(I3,A,$)") LSTE(K,J),","
+C                  WRITE(34,"(I3,A)",advance='no') LSTE(K,J),","
 C               ENDDO
 C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
@@ -207,15 +208,15 @@ C.. account for LSTE(0)
 C         LSUB=.TRUE.
 C         OPEN(36,FILE="/dev/null",STATUS="UNKNOWN")
          IF(LSUB) THEN
-            WRITE(36,"(A,$)") "("
+            WRITE(36,"(A)",advance='no') "("
             DO K=1,NEL
-               WRITE(36,"(I3,A,$)") NI(K),","
+               WRITE(36,"(I3,A)",advance='no') NI(K),","
             ENDDO
             WRITE(36,"(A,G25.16,I5)") ")", -(I_P/BETA)*LOG(RH),NLIST
          ENDIF
-         WRITE(37,"(A,$)") "("
+         WRITE(37,"(A)",advance='no') "("
          DO K=1,NEL
-            WRITE(37,"(I3,A,$)") NI(K),","
+            WRITE(37,"(I3,A)",advance='no') NI(K),","
          ENDDO
          WRITE(37,"(A,I5)") ")",NLIST
          RJJLIST(0)=RH
@@ -224,11 +225,11 @@ C         OPEN(36,FILE="/dev/null",STATUS="UNKNOWN")
 C.. List all the dets
          IF(LSUB) THEN
             DO I=1,NLIST
-               WRITE(36,"(A,$)") "("
+               WRITE(36,"(A)",advance='no') "("
                DO K=1,NEL
-                  WRITE(36,"(I3,A,$)") LSTE(K,I),","
+                  WRITE(36,"(I3,A)",advance='no') LSTE(K,I),","
                ENDDO
-               WRITE(36,"(A,$)") ") | "
+               WRITE(36,"(A)",advance='no') ") | "
             ENDDO
             WRITE(36,*)
          ENDIF
@@ -239,7 +240,8 @@ C.. List all the dets
      &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &               RH,NTAY,0,ECORE)
             IF(LSUB)
-     &         WRITE(36,"(I5,G25.16,A,$)") I,-(I_P/BETA)*LOG(RH)
+     &         WRITE(36,"(I5,G25.16,A)",advance='no')
+     &                                            I,-(I_P/BETA)*LOG(RH)
      &                  ," | "
          ENDDO
          IF(LSUB) WRITE(36,*)
@@ -264,8 +266,8 @@ C            ENDIF
                DO I=1,NLIST-1
                   ID=LSTP(I)
                   IF(LSUB) THEN
-                      WRITE(36,"(I5,A,$)") ID,","
-                      WRITE(38,"(I5,A,$)") ID,","
+                      WRITE(36,"(I5,A)",advance='no') ID,","
+                      WRITE(38,"(I5,A)",advance='no') ID,","
                   ENDIF
                   CALL CALCRHO2(LSTE(1,ID),LSTE(1,ID),BETA,I_P,NEL,
      &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -273,7 +275,7 @@ C            ENDIF
                   RJJLIST(ILFREE)=RH
                   ILFREE=ILFREE+1
                ENDDO
-               IF(LSUB) WRITE(36,"(A,$)") " | "
+               IF(LSUB) WRITE(36,"(A)",advance='no') " | "
 C.. Now we fill the RIJ array
                DO I=0,NLIST-1
                   RIJMAT(I*NLIST+I+1)=RJJLIST(I)
@@ -295,7 +297,7 @@ C.. Now we fill the RIJ array
                         ELSE
                            RH=RIJMAT(I*NLIST+J+1)
                         ENDIF
-                        WRITE(38,"(G20.10,$)") RH
+                        WRITE(38,"(G20.10)",advance='no') RH
                      ENDDO
                      WRITE(38,*)
                   ENDDO
@@ -318,9 +320,10 @@ C            WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
                ENDDO
                IF(LSUB) THEN
                   DO I=0,NLIST-1
-                     WRITE(38,"(G20.10,$)") WLIST(I+1)
+                     WRITE(38,"(G20.10)",advance='no') WLIST(I+1)
                      DO J=0,NLIST-1
-                        WRITE(38,"(G20.10,$)") RIJMAT(I*NLIST+J+1)
+                        WRITE(38,"(G20.10)",advance='no')
+     &                                              RIJMAT(I*NLIST+J+1)
                      ENDDO
                      WRITE(38,*)
                   ENDDO
@@ -329,10 +332,10 @@ C            WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
                ENDIF
 C         DO I=0,NLIST-1
 C            DO J=0,NLIST-1
-C               WRITE(34,"(2I5,$)") I,J
-C               WRITE(34,"(A,$)") "  ("
+C               WRITE(34,"(2I5)",advance='no') I,J
+C               WRITE(34,"(A)",advance='no') "  ("
 C               DO K=1,NEL
-C                  WRITE(34,"(I3,A,$)") LSTE(K,J),","
+C                  WRITE(34,"(I3,A)",advance='no') LSTE(K,J),","
 C               ENDDO
 C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
@@ -448,10 +451,10 @@ C           WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
          RHODIAG_CP=SI
 C         DO I=0,NLIST-1
 C            DO J=0,NLIST-1
-C               WRITE(34,"(2I5,$)") I,J
-C               WRITE(34,"(A,$)") "  ("
+C               WRITE(34,"(2I5)",advance='no') I,J
+C               WRITE(34,"(A)",advance='no') "  ("
 C               DO K=1,NEL
-C                  WRITE(34,"(I3,A,$)") LSTE(K,J),","
+C                  WRITE(34,"(I3,A)",advance='no') LSTE(K,J),","
 C               ENDDO
 C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO

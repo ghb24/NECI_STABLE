@@ -398,7 +398,7 @@ MODULE System
          WRITE(6,*) ' *** GENERIC SYSTEM USING KOHN-SHAM ORBITALS *** '
          CALL CPMDSYSTEMINIT(LEN)   
          IF(TPARITY) THEN
-            WRITE(6,"(A,$)") ' SYMMETRIES : '
+            WRITE(6,"(A)",advance='no') ' SYMMETRIES : '
             CALL WRITEALLSYM(5,SymRestrict)
          ENDIF
          IF(THFORDER) WRITE(6,*)      "Ordering according to 1-electron energies."
@@ -800,7 +800,7 @@ SUBROUTINE WRITEBASIS(NUNIT,G1,NHG,ARR,BRR)
   TYPE(BASISFN) G1(NHG)
   REAL*8 ARR(NHG,2)
   DO I=1,NHG
-      WRITE(NUNIT,'(6I7,$)') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
+      WRITE(NUNIT,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
       CALL WRITESYM(NUNIT,G1(BRR(I))%SYM,.FALSE.)
       WRITE(NUNIT,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
   ENDDO

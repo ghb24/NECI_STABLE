@@ -604,11 +604,11 @@ C.. save all log files
 caa            CALL FLUSH(10)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
 !               WRITE(6,*) "WARNING: nan found at time",ITIME
-!               WRITE(6,"(A,$)") "  nan det=("
+!               WRITE(6,"(A)",advance='no') "  nan det=("
 !               DO K=1,NEL
-!                  WRITE(6,"(I3,A,$)") NI(K),","
+!                  WRITE(6,"(I3,A)",advance='no') NI(K),","
 !               ENDDO
-!               WRITE(6,"(A,$)") "),"
+!               WRITE(6,"(A)",advance='no') "),"
 !            ENDIF
          ENDDO
 ! Finish off any sequences
@@ -832,7 +832,7 @@ C.. add that node to the path, and recurse
             ELSE
                IEXL2=2
             ENDIF
-C            WRITE(41,"(I,$)") IEXL2
+C            WRITE(41,"(I)",advance='no') IEXL2
          ENDIF
          CALL ICOPY(NEL,NI,1,NJ,1)
          DO IEX=1,IEXL2
@@ -915,7 +915,7 @@ C.. In this case that is the number of symmetric adjacent nodes
          DO WHILE(I_VNEXT.LT.I_V)
 C.. pick a random excitation of where we are (INODE) of the appropriate
 C.. symmetry.  We don't worry about weighting this at the moment
-C            WRITE(57,"(A1,$)") "N"
+C            WRITE(57,"(A1)",advance='no') "N"
             CALL GENRANDOMSPINEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,IC,
      &      ISEED,INODE2)
 C            CALL WRITEDET(35,INODE2,NEL,.FALSE.)
@@ -1705,21 +1705,21 @@ C         WRITE(56,*) NEX1A,NEX1B,NEX2A,NEX2B,NEXAB
          R=RAN2(ISEED)
          IEX=R*NEXCITS
          IF(IEX.LT.NEX1A) THEN
-C            WRITE(57,"(A2,$)") "A1"
+C            WRITE(57,"(A2)",advance='no') "A1"
             NEX1=1
          ELSEIF(IEX.LT.NEX1B) THEN
-C            WRITE(57,"(A2,$)") "B1"
+C            WRITE(57,"(A2)",advance='no') "B1"
             NEX1=-1
          ELSEIF(IEX.LT.NEX2A) THEN
-C            WRITE(57,"(A2,$)") "A2"
+C            WRITE(57,"(A2)",advance='no') "A2"
             NEX1=1
             NEX2=1
          ELSEIF(IEX.LT.NEX2B) THEN
-C            WRITE(57,"(A2,$)") "B2"
+C            WRITE(57,"(A2)",advance='no') "B2"
             NEX1=-1
             NEX2=-1
          ELSE
-C            WRITE(57,"(A2,$)") "AB"
+C            WRITE(57,"(A2)",advance='no') "AB"
             NEX1=1
             NEX2=-1
          ENDIF
@@ -1927,7 +1927,7 @@ C.. acc(A->B)/acc(B->A) = p(B) gen(B->A) / (p(A) gen(A->B))
 C..                     = p(B) gen(A) / (p(A) gen(B))
 
             PR=(OPROB/RHX)*ABS(DREAL(WEIGHT/OWEIGHT))
-!            WRITE(40,"(5G,$)") OPROB,RH,DREAL(WEIGHT), DREAL(OWEIGHT),PR
+!            WRITE(40,"(5G)",advance='no') OPROB,RH,DREAL(WEIGHT), DREAL(OWEIGHT),PR
             IF(RHX.EQ.0.D0.OR..NOT.(OWEIGHT.AGT.0.D0)) PR=0.D0
             IF(.not.TPREVAR) THEN
                 IF(LISNAN(WEIGHT)) THEN
@@ -1946,7 +1946,7 @@ C..                     = p(B) gen(A) / (p(A) gen(B))
                 IACC=1
             ENDIF
 !            CALL WRITEPATHEX(40,OIPATH,I_OVCUR,NEL,.FALSE.)
-!            WRITE(40,"(A,$)"),"--->"
+!            WRITE(40,"(A)",advance='no'),"--->"
 !            CALL WRITEPATHEX(40,IPATH,I_V,NEL,.FALSE.)
 !            WRITE(40,*) IACC
          ENDIF
@@ -2886,7 +2886,7 @@ C.. Pacc(G'|G)=min(1,|w'(G')| Psel(k'|G') w(k)/ (|w(G)| Psel(k|G) w(k')))
         ENDIF
          IF(BTEST(ILOGGING,10)) THEN
             CALL WRITEPATH(24,IPATH,I_V,NEL,.FALSE.)
-            WRITE(24,"(A,$)") "->"
+            WRITE(24,"(A)",advance='no') "->"
             CALL WRITEPATH(24,NIPATH,I_V,NEL,.FALSE.)
             WRITE(24,*) IACC
             WRITE(24,"(7E25.16)") PR,WEIGHT,
@@ -2913,7 +2913,7 @@ C.. Free the old excitor
 C.. Now create a new excitor for this new det.
             CALL GENRANDSYMEXCITIT(IPATH(1,IVERTMOVE),NEL,G1,NBASIS,
      &               NBASISMAX,.TRUE.,CUREXLEN,0,ISEED,IC,0)
-C            WRITE(24,"(2I,$)") IP_CUREX,CUREXLEN
+C            WRITE(24,"(2I)",advance='no') IP_CUREX,CUREXLEN
             CALL MEMORY(IP_CUREX,CUREXLEN,'CUREX')
 C            WRITE(24,"(I)") IP_CUREX
             CUREX(1)=0
@@ -3113,7 +3113,7 @@ C.. fake a ipath2
          IF(IACC.EQ.1.AND.R.GE.PR) IACC=0
          IF(BTEST(ILOGGING,10)) THEN
             CALL WRITEPATH(24,IPATH,I_V,NEL,.FALSE.)
-            WRITE(24,"(A,$)") "->"
+            WRITE(24,"(A)",advance='no') "->"
             CALL WRITEPATH(24,IPATH2,I_V+1,NEL,.FALSE.)
             WRITE(24,*) IACC 
             WRITE(24,"(5E25.16)") PR,WEIGHT,
@@ -3279,7 +3279,7 @@ C.. a new matrix without the removed det, and generate its weight.
          IF(R.LT.PR) IACC=1
          IF(BTEST(ILOGGING,10)) THEN
             CALL WRITEPATH(24,IPATH,I_V,NEL,.FALSE.)
-            WRITE(24,"(A,$)") "->"
+            WRITE(24,"(A)",advance='no') "->"
             CALL WRITEPATH(24,IPATH2,I_V-1,NEL,.FALSE.)
             WRITE(24,*) IACC 
             WRITE(24,"(5E25.16)") PR,WEIGHT,WTJ,OWEIGHT,WTL

@@ -685,7 +685,7 @@ C            IF(R2.EQ.0.D0) RETURN
                R_R2RES=-R1/CCHI
 C            ENDIF
          ENDIF
-         WRITE(10,"(A,2E25.16,I2,A,$)") "RR(",RHO,CHI,NL,")"
+         WRITE(10,"(A,2E25.16,I2,A)",advance='no') "RR(",RHO,CHI,NL,")"
          WRITE(10,*) R_R2RES
          RETURN
       END
@@ -728,7 +728,7 @@ C            IF(R2.EQ.0.D0) RETURN
                R_RRES=R1/(1-CX)
 C            ENDIF
          ENDIF
-         WRITE(10,"(A,2F19.7,I2,A,$)") "RR(",R,X,NL,")"
+         WRITE(10,"(A,2F19.7,I2,A)",advance='no') "RR(",R,X,NL,")"
          WRITE(10,*) R_RRES
          RETURN
       END

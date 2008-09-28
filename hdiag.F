@@ -298,7 +298,7 @@ C.. Diagonalize
 C.. Now work out exact wi etc.
             CALL GETSYMDEGEN(BLOCKSYM(I+1),NBASISMAX,IDEG)
             DO III=1,NBLK
-               WRITE(15,"(2I4,I7,$)") I+1,III,NBS+III-1
+               WRITE(15,"(2I4,I7)",advance='no') I+1,III,NBS+III-1
 !               CALL WRITEDET(15,NMRKS(1,NBS+III-1),NEL,.FALSE.)
                WRITE(15,"(F19.11,I5)") W(III),IDEG
 
@@ -319,9 +319,10 @@ C                  WRITE(15,*) CK((III-1)*NBLK+J)
 C               ENDDO
                CALL CALCRHOPII(III,NBLK,NBLK,CK,W,BETA,I_P,ILOGGING,
      &               ECORE,FLRI,FLSI,TWARN)
-               WRITE(14,"(I12,A,$)") NBS+III-1,"("
+               WRITE(14,"(I12,A)",advance='no') NBS+III-1,"("
                DO L=1,NEL
-                  WRITE(14,"(I3,A,$)") NMRKS(L,NBS+III-1),","
+                  WRITE(14,"(I3,A)",advance='no')
+     &                                           NMRKS(L,NBS+III-1),","
                ENDDO
                GSEN=CALCDLWDB(III,NBLK,NBLK,CK,W,BETA,ECORE)
                WRITE(14,"(A,4G25.16,I5)") ") ",

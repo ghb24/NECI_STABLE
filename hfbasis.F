@@ -748,7 +748,7 @@ C.. vector unless transposed
                ISPN=NSPINS+1-IS
             ENDIF
             IREAL=1
-            WRITE(6,"(A,I2,A,$)") "Spin ",IS,":"
+            WRITE(6,"(A,I2,A)",advance='no') "Spin ",IS,":"
             
             DO I=1,NSBASIS
                DO WHILE(G1(BRR(IREAL))%Ms.NE.(-3+2*ISPN))
@@ -761,7 +761,7 @@ C.. vector unless transposed
                   FMAT(NELR,I,ISPN)=HElement(1.D0)
                ENDIF
                IF(I.LE.NELS(IS)) THEN
-                  WRITE(6,"(I4,A,$)"),BRR(IREAL),","
+                  WRITE(6,"(I4,A)",advance='no'),BRR(IREAL),","
                   NEL=NEL+1
                   HFDET(NEL)=BRR(IREAL)
                ENDIF
@@ -810,7 +810,7 @@ C.. vector unless transposed
                ENDDO
                NELR=(BRR(IREAL)-1)/2+1
                IF(I.LE.NELS(IS)) THEN
-!                  WRITE(6,"(I4,A,$)"),BRR(IREAL),","
+!                  WRITE(6,"(I4,A)",advance='no'),BRR(IREAL),","
                   NEL=NEL+1
                   FDET(NEL)=BRR(IREAL)
                ENDIF
@@ -1190,7 +1190,7 @@ C.. Use the Density Matrix to generate the Fock matrix (in DEDCIJ)
          CALL DIAGFMAT(NSPINS,NSBASIS,NELS,DEDCIJ,DMAT,HFES,WORK,
      &         ECORE,ECUR2)
 
-            WRITE(6,"(I6,$)") IHFIT
+            WRITE(6,"(I6)",advance='no') IHFIT
             WRITE(6,*) ECUR,RMSD,ECUR2
 C.. DEDCIJ now contains HF orbitals, and ECUR the Fock Energy
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the

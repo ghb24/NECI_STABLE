@@ -49,9 +49,9 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
 C.. go to end of file
             Call ENDSeek(11)
 !            I=FSEEK(11,0,2)
-            WRITE(11,"(A,$)") "("
+            WRITE(11,"(A)",advance='no') "("
             DO K=1,NEL
-               WRITE(11,"(I3,A,$)") NI(K),","
+               WRITE(11,"(I3,A)",advance='no') NI(K),","
             ENDDO
             WRITE(11,"(A)") ")"
          ENDIF
@@ -99,11 +99,11 @@ C.. save all log files
                CALL FLUSH(11)
                CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
-               WRITE(6,"(A,$)") "  nan det=("
+               WRITE(6,"(A)",advance='no') "  nan det=("
                DO K=1,NEL
-                  WRITE(6,"(I3,A,$)") NI(K),","
+                  WRITE(6,"(I3,A)",advance='no') NI(K),","
                ENDDO
-               WRITE(6,"(A,$)") "),"
+               WRITE(6,"(A)",advance='no') "),"
             ENDIF
             IF(ICOUNT.GT.0) I_V=I_V+1
             IF(I_V.GT.I_VMAX.OR.ICOUNT.EQ.0) BR=.FALSE.

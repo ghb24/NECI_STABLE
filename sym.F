@@ -795,37 +795,42 @@ C.. First do a check for the format
          INTEGER I,J
          CHARACTER*6 STR
          LOGICAL LCOMP,LREAL
-            WRITE(IUNIT,"(A6,A,$)"), STR,":   "
+            WRITE(IUNIT,"(A6,A)",advance='no'), STR,":   "
             DO J=1,NROT
                IF(LCOMP) THEN
                   IF(LREAL) THEN
-                     WRITE(IUNIT,"(A,2G16.9,A,$)") "(",
+                     WRITE(IUNIT,"(A,2G16.9,A)",advance='no') "(",
      &                  NINT(REAL(CHARS(J))*1000)/1000.D0,
      &                  NINT(DIMAG(CHARS(J))*1000)/1000.D0
      &                  ,")"
                   ELSE
-                     WRITE(IUNIT,"(A,2F6.3,A,$)") "(",CHARS(J),")"
+                     WRITE(IUNIT,"(A,2F6.3,A)",advance='no')
+     &                                                 "(",CHARS(J),")"
                   ENDIF
                ELSE
                   IF(ABS(DIMAG(CHARS(J))).GT.1.D-2) THEN
 C.. write in terms of I.
                      IF(LREAL) THEN
-                        WRITE(IUNIT,"(G14.9,A,$)") CHARS(J)," "
+                        WRITE(IUNIT,"(G14.9,A)",advance='no')
+     &                                                     CHARS(J)," "
                      ELSE                        
                         IF(ABS(DIMAG(CHARS(J))+1.D0).LT.1.D-2) THEN
-                           WRITE(IUNIT,"(A,$)") " -I "
+                           WRITE(IUNIT,"(A)",advance='no') " -I "
                         ELSEIF(ABS(DIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
-                           WRITE(IUNIT,"(A,$)") "  I "
+                           WRITE(IUNIT,"(A)",advance='no') "  I "
                         ELSE 
-                         WRITE(IUNIT,"(I2,A,$)") NINT(DIMAG(CHARS(J))),
+                         WRITE(IUNIT,"(I2,A)",advance='no')
+     &                                           NINT(DIMAG(CHARS(J))),
      &                     "I "
                         ENDIF
                      ENDIF
                   ELSE
                      IF(LREAL) THEN
-                        WRITE(IUNIT,"(G21.9,$)") REAL(CHARS(J)), "    "
+                        WRITE(IUNIT,"(G21.9)",advance='no')
+     &                                           REAL(CHARS(J)), "    "
                      ELSE
-                        WRITE(IUNIT,"(I3,$)") NINT(REAL(CHARS(J)))
+                        WRITE(IUNIT,"(I3)",advance='no')
+     &                                             NINT(REAL(CHARS(J)))
                      ENDIF
                   ENDIF
                ENDIF
@@ -1345,7 +1350,7 @@ C.. A binary search to find VAL in TAB.  TAB is sorted
          ILAST=J
          DO WHILE(J-I.GE.1)
             N=(I+J)/2
-C            WRITE(6,"(3I4,$)") I,J,N
+C            WRITE(6,"(3I4)",advance='no') I,J,N
 C            CALL WRITESYM(6,TAB(1,I),.FALSE.)
 C            CALL WRITESYM(6,TAB(1,J),.FALSE.)
 C            CALL WRITESYM(6,TAB(1,N),.TRUE.)
@@ -1549,7 +1554,8 @@ C.. Initialize symmetry to take into account the core electrons
          TYPE(BASISFN) SYM
          LOGICAL LTERM
          INTEGER J
-         WRITE(IUNIT,"(4I5,$)") SYM%K(1),SYM%K(2),SYM%K(3),SYM%MS
+         WRITE(IUNIT,"(4I5)",advance='no')
+     &                                SYM%K(1),SYM%K(2),SYM%K(3),SYM%MS
          CALL WRITESYM(IUNIT,SYM%SYM,LTERM)
       END
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
@@ -1564,21 +1570,22 @@ C.. Initialize symmetry to take into account the core electrons
          INTEGER J
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM,Abel)
-            WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",$)') Abel(1:3)
+            WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")")',advance='no')
+     &                                                        Abel(1:3)
          ELSEIF(NSYM.LE.16) THEN
-            WRITE(IUNIT,"(Z5,$)") SYM
+            WRITE(IUNIT,"(Z5)",advance='no') SYM
          ELSEIF(NSYM.LE.24) THEN
-            WRITE(IUNIT,"(Z7,$)") SYM
+            WRITE(IUNIT,"(Z7)",advance='no') SYM
          ELSEIF(NSYM.LE.32) THEN
-            WRITE(IUNIT,"(Z9,$)") SYM
+            WRITE(IUNIT,"(Z9)",advance='no') SYM
          ELSEIF(NSYM.LE.40) THEN
-            WRITE(IUNIT,"(Z11,$)") SYM
+            WRITE(IUNIT,"(Z11)",advance='no') SYM
          ELSEIF(NSYM.LE.48) THEN
-            WRITE(IUNIT,"(Z13,$)") SYM
+            WRITE(IUNIT,"(Z13)",advance='no') SYM
          ELSEIF(NSYM.LE.56) THEN
-            WRITE(IUNIT,"(Z15,$)") SYM
+            WRITE(IUNIT,"(Z15)",advance='no') SYM
          ELSE
-            WRITE(IUNIT,"(Z17,$)") SYM
+            WRITE(IUNIT,"(Z17)",advance='no') SYM
          ENDIF
          IF(LTERM) WRITE(IUNIT,*)
       END
@@ -1638,17 +1645,17 @@ C.. Set to be totally symmetric
       write(6,'(a11," |",a13,"|",a10)')' K-vector',' Label ','Conjugate'
       write (6,'(39("-"))')
       do i=1,nSymLabels
-        write (6,'("(",3i3,")"," | ",$)')
+        write (6,'("(",3i3,")"," | ")',advance='no')
 !,z8," | ",z8)') 
      &                   KpntSym(:,I)
          call writesym(6,SymLabels(I),.false.)
-         write(6,'(A,$)') " | "
+         write(6,'(A)',advance='no') " | "
          call writesym(6,SymConj(SymLabels(I)),.true.)
       end do
 !      write (6,'(/,a)') 'Symmetry Multiplication Table'
 !      do i=1,nSymLabels
 !        do j=1,nSymLabels
-!          write (6,'(z12,$)') SymProd(SymLabels(I),SymLabels(J))
+!          write (6,'(z12)',advance='no') SymProd(SymLabels(I),SymLabels(J))
 !        end do
 !        write (6,*) 
 !      end do

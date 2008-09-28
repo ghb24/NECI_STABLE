@@ -117,7 +117,7 @@ C.. Force freexing
          CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1) 
          
 C            DO I=0,NBASIS
-C               WRITE(10,"(I2,$)"),IFRZ2(I)
+C               WRITE(10,"(I2)",advance='no'),IFRZ2(I)
 C            ENDDO
 C         WRITE(10,*) "V_",I_VIND
 C.. LOCTAB(1,1) is the address of the generator used to create node 1 in

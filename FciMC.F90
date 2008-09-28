@@ -4282,7 +4282,7 @@ END FUNCTION Fact
 !                
 !                do j=1,SizeOfSpace
 !                    rh=GetHElement2(FDet,NMRKS(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-!                    WRITE(67,"(F10.5,$)") rh%v
+!                    WRITE(67,"(F10.5)",advance='no') rh%v
 !                enddo
 !                WRITE(67,*) ""
 !                WRITE(67,*) ""

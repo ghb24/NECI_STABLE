@@ -109,7 +109,7 @@ C.. constraints, so we keep on generating them until we find a good one
 C.. Calculate RHO_JJ
             IND=IFINDRII(IJ,LSTI,1,NFIRST)
             NIND=0
-            WRITE(17,"(2I7,$)") IT,IT-IEQSTEPS
+            WRITE(17,"(2I7)",advance='no') IT,IT-IEQSTEPS
             IF(IND.EQ.0) THEN
                CALL MCPATHSR(IJ,I_P,NDET,RHOIJROWS,RHOIJ,RHOIJLAB,
      &               NRHOMAXWIDTH,I_HMAX,NWHTAY,ILOGGING,WLRJ,WLSJ)
@@ -120,8 +120,10 @@ C.. Calculate RHO_JJ
                WLRJ=WLRIS(IND)
                WLSJ=WLSIS(IND)
             ENDIF
-           WRITE(17,"(2E25.16,$)") EXP(WLRI*I_P+WLSI),EXP(WLRJ*I_P+WLSJ)
-            WRITE(17,"(A,I3,A,I3,A,$)") "  (",II,"),(",IJ,")->"
+           WRITE(17,"(2E25.16)",advance='no')
+     &                            EXP(WLRI*I_P+WLSI),EXP(WLRJ*I_P+WLSJ)
+            WRITE(17,"(A,I3,A,I3,A)",advance='no')
+     &                                          "  (",II,"),(",IJ,")->"
 C..  At this stage we have decomposed ln W_I = p ln RHO_II + ln S_I
 C..  Although S_I should be >0, our approximation to it may be 0 or <0,
 C..  which leads to ln S_I (=WLSI) = -NaN.
@@ -467,7 +469,7 @@ C.. constraints, so we keep on generating them until we find a good one
 C.. Calculate RHO_JJ
             IND=IFINDRII(NJ,LSTDET,NEL,NFIRST)
             NIND=0
-            WRITE(17,"(2I7,$)") IT,IT-IEQSTEPS
+            WRITE(17,"(2I7)",advance='no') IT,IT-IEQSTEPS
             IF(IND.EQ.0) THEN
                IF (NTAY.LT.0) THEN
 C..     NTAY<0 => Exact new method
@@ -498,10 +500,11 @@ C..     BETA->NHG
                WLRJ=WLRIS(IND)
                WLSJ=WLSIS(IND)               
             ENDIF
-           WRITE(17,"(2E25.16,$)") EXP(WLRI*I_P+WLSI),EXP(WLRJ*I_P+WLSJ)
-            WRITE(STR,"(A,I3,A,I3,A)") "(A,",NEL,"I3,A,",NEL,"I3,A,$)"
-           WRITE(17,STR) "  (",(NI(N),N=1,NEL),"),(",(NJ(N),N=1,NEL),
-     &         ")->"
+           WRITE(17,"(2E25.16)",advance='no') 
+     &                            EXP(WLRI*I_P+WLSI),EXP(WLRJ*I_P+WLSJ)
+            WRITE(STR,"(A,I3,A,I3,A)") "(A,",NEL,"I3,A,",NEL,"I3,A)"
+           WRITE(17,STR,advance='no') "  (",(NI(N),N=1,NEL),") 
+     &         (",(NJ(N),N=1,NEL),")->"
 C..  At this stage we have decomposed ln W_I = p ln RHO_II + ln S_I
 C..  Although S_I should be >0, our approximation to it may be 0 or <0,
 C..  which leads to ln S_I (=WLSI) = -NaN.
@@ -887,11 +890,13 @@ C.. constraints, so we keep on generating them until we find a good one
 
 C.. Calculate RHO_JJ
             IND=IJ
-            WRITE(17,"(2I7,$)") IT,IT-IEQSTEPS
+            WRITE(17,"(2I7)",advance='no') IT,IT-IEQSTEPS
             WLRJ=WLRIS(IND)
             WLSJ=WLSIS(IND)
-           WRITE(17,"(2E25.16,$)") EXP(WLRI*I_P+WLSI),EXP(WLRJ*I_P+WLSJ)
-            WRITE(17,"(A,I3,A,I3,A,$)") "  (",II,"),(",IJ,")->"
+           WRITE(17,"(2E25.16)",advance='no')
+     &                            EXP(WLRI*I_P+WLSI),EXP(WLRJ*I_P+WLSJ)
+            WRITE(17,"(A,I3,A,I3,A)",advance='no')
+     &                                          "  (",II,"),(",IJ,")->"
 C..  At this stage we have decomposed ln W_I = p ln RHO_II + ln S_I
 C..  Although S_I should be >0, our approximation to it may be 0 or <0,
 C..  which leads to ln S_I (=WLSI) = -NaN.

@@ -834,7 +834,7 @@ MODULE Calc
              ENDDO
           ENDIF
           IF(TMONTE) THEN
-             WRITE(6,"(A,$)") 'MC Start Det: '
+             WRITE(6,"(A)",advance='no') 'MC Start Det: '
              CALL WRITEDET(6,MCDET,NEL,.TRUE.)
           ENDIF
 !C.. we need to calculate a value for RHOEPS, so we approximate that
@@ -1404,9 +1404,9 @@ MODULE Calc
             CALL MCPATHSR3(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,DBETA,DLWDB2)
             IF(TLOG) THEN
-               WRITE(15,"(I12,$)") III
+               WRITE(15,"(I12)",advance='no') III
                CALL WRITEDET(15,NI,NEL,.FALSE.)
-               WRITE(15,"(3G25.16,$)") EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
+               WRITE(15,"(3G25.16)",advance='no') EXP(WLSI+HElP*WLRI),WLRI*HElP,WLSI
             ENDIF
             IF(TFIRST) THEN
                TFIRST=.FALSE.

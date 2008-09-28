@@ -45,7 +45,7 @@ C.. we've found an occupied block
                CALL GETSYMDEGEN(ISYM,NBASISMAX,IDEG)
                NDETTOT=NDETTOT+(II-OII)*IDEG
                IF(TCOUNT) THEN
-                  WRITE(14,"(I5,$)") I
+                  WRITE(14,"(I5)",advance='no') I
                   CALL WRITEALLSYM(14,ISYM,.FALSE.)
                   WRITE(14,"(2I10)")
      &               II-OII,

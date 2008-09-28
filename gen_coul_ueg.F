@@ -144,14 +144,14 @@ C     &		G1(1,K),G1(1,L),NMSH,FCK,NMAX,SUM)
                  CALL ROUNDSYM(KA,NBASISMAX)
                  CALL ROUNDSYM(KB,NBASISMAX)
 C                 IF(I.EQ.1.AND.J.EQ.1.AND.K.LE.L)
-C     &          WRITE(40,"(6I3,$)") (G1(II,K),II=1,2),(G1(II,L),II=1,2),
+C     &          WRITE(40,"(6I3)",advance='no') (G1(II,K),II=1,2),(G1(II,L),II=1,2),
 C     &                  (KA(II),II=1,2)
                  IF(LCHKSYM(KA,KB)) THEN
 C                 IF(CHKMOMEQ(KA,KB,NBASISMAX,3)) THEN
 C..Omega for the Hubbard model is the number of sites in the lattice
 C,(G1(II,K),II=1,2),
 C     &                  (G1(II,L),II=1,2),(KB(II),II=1,2)
-C                    WRITE(40,"(A10,$)") "Y"
+C                    WRITE(40,"(A10)",advance='no') "Y"
                     SUM=UHUB/OMEGA
                  ELSE
                     SUM=0.D0
@@ -174,7 +174,7 @@ C.. Check the Coulomb matrix elements by summing manually
                   S=S+EXP(CI*(P*C/LX+Q*D/LY)
      &            *2*PI)*UHUB/(OMEGA**2)
                  ENDDO
-                 WRITE(41,"(2I3,$)") C,D
+                 WRITE(41,"(2I3)",advance='no') C,D
                  IF(ABS(REAL(S)-SUM).GT.1.D-7) THEN
                     WRITE(41,*) SUM,S
                  ELSE

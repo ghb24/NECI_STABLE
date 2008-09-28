@@ -945,7 +945,7 @@ C..  refer to as long as they are always ordered)
             S=S+SCUR-0.5D0
             M=M+MCUR-0.5D0
             CALL GETCLEBSCHGORDON(S,M,SCUR,MCUR,CG)
-!            WRITE(6,"(F6.3,A,$)") CG,"*"
+!            WRITE(6,"(F6.3,A)",advance='no') CG,"*"
             COEFF=COEFF*CG
             IF(COEFF.EQ.0.D0) EXIT
          ENDDO

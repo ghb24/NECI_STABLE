@@ -338,18 +338,18 @@ CONTAINS
                   JR=JR+1
                   J=J+NROW(JR)
                ENDDO
-               WRITE(8,"(2I12,$)") JR,LAB(I)
+               WRITE(8,"(2I12)",advance='no') JR,LAB(I)
                IF(HElementSize.EQ.1) THEN
                   WRITE(8,*) HAMIL(I)
                ELSE
                   WRITE(8,*) HAMIL(I),ABS(HAMIL(I))
                ENDIF
 !C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
-!C               WRITE(14,"(A,$)"),"|"
+!C               WRITE(14,"(A)",advance='no'),"|"
 !C               CALL WRITEDET(14,NMRKS(1,LAB(I)),NEL,.FALSE.)
 !C              WRITE(14,"(F27.20)") HAMIL(I)
 !C               CALL WRITEDET(14,NMRKS(1,LAB(I)),NEL,.FALSE.)
-!C               WRITE(14,"(A,$)"),"|"
+!C               WRITE(14,"(A)",advance='no'),"|"
 !C               CALL WRITEDET(14,NMRKS(1,JR),NEL,.FALSE.)
 !C               WRITE(14,"(F27.20)") HAMIL(I)
 
@@ -523,7 +523,7 @@ CONTAINS
          OPEN(15,FILE='ENERGIES',STATUS='UNKNOWN')
          DO IN=1,NEVAL
             WRITE(6,'(I5,2X,3(F19.11,2x))') IN,TKE(IN),W(IN)-TKE(IN),W(IN)
-!            WRITE(15,"(I7,$)") IN
+!            WRITE(15,"(I7)",advance='no') IN
 !            CALL WRITEDET(15,NMRKS(1,IN),NEL,.FALSE.)
             WRITE(15,"(F19.11)") W(IN)
          ENDDO
@@ -731,13 +731,13 @@ END MODULE DetCalc
                CALL MCPATHSR3(SPECDET,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
      &         RHOEPS,LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX, WLRI,WLSI,DBETA,DLWDB2)
             ENDIF
-            WRITE(15,"(I12,$)") III
+            WRITE(15,"(I12)",advance='no') III
             IF(TSPECDET) THEN
                CALL WRITEDET(15,SPECDET,NEL,.FALSE.)
             ELSE
                CALL WRITEDET(15,NMRKS(1,III),NEL,.FALSE.)
             ENDIF
-            WRITE(15,"(A,3G25.16,$)") " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
+            WRITE(15,"(A,3G25.16)",advance='no') " ",EXP(WLSI+I_P*WLRI),WLRI*I_P,WLSI
             IF(III.EQ.1) THEN
                WLRI0=WLRI
                WLSI0=WLSI
@@ -937,7 +937,7 @@ END MODULE DetCalc
         DO I=1,NDET
          IF(CG(I,J).AGT.1.D-15) THEN
             DO IEL=1,NEL
-               WRITE(10,"(I3,I3,2I3,2X,$)") (G1(NM(1,IEL))%K(L),L=1,5)
+               WRITE(10,"(I3,I3,2I3,2X)",advance='no') (G1(NM(1,IEL))%K(L),L=1,5)
             ENDDO
             IF(HElementSize.EQ.1) THEN
                WRITE(10,"(F19.9,1X,I7)") CG(I,J),I
