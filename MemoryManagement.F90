@@ -389,7 +389,8 @@ contains
     if (CachingMemLog) then
         ! Large objects might be residing in the MemLog, but not deallocated
         ! (and so haven't been moved to the large object store).
-        AllMemEl(:)=(/ MemLog(:),LargeObjLog(:) /)
+        AllMemEl(1:MaxLen)=MemLog
+        AllMemEl(MaxLen+1:MaxLen+nLargeObjects)=MemLog
     else
         ! Everything really ought to be held in just the MemLog: if not, then
         ! this is a "feature".
