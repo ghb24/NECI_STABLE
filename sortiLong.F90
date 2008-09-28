@@ -191,12 +191,13 @@
       IMPLICIT NONE
       INTEGER N,I,L,IR,J,NProc
       INTEGER(KIND=SELECTED_INT_KIND(18)) :: RA(N)
-      INTEGER(KIND=SELECTED_INT_KIND(18)) :: RRA
+      INTEGER(KIND=SELECTED_INT_KIND(18)) :: RRA,nProcLong
       LOGICAL :: RD(N)
       LOGICAL :: RRD
       INTEGER RB(N)
       INTEGER RC(N)
       INTEGER RRB,RRC
+      nProcLong=int(nProc,8)
       IF(N.LE.1) RETURN
       L=N/2+1
       IR=N
@@ -229,9 +230,9 @@
         J=L+L
 20      IF(J.LE.IR)THEN
           IF(J.LT.IR)THEN
-            IF((abs(mod(RA(J),NProc))).LT.(abs(mod(RA(J+1),NProc)))) J=J+1
+            IF((abs(mod(RA(J),nProcLong))).LT.(abs(mod(RA(J+1),nProcLong)))) J=J+1
           ENDIF
-          IF((abs(mod(RRA,NProc))).LT.(abs(mod(RA(J),NProc))))THEN
+          IF((abs(mod(RRA,nProcLong))).LT.(abs(mod(RA(J),nProcLong))))THEN
             RA(I)=RA(J)
             RB(I)=RB(J)
             RC(I)=RC(J)
