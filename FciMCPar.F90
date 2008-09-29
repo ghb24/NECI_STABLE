@@ -215,7 +215,7 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
-!        CALL set_timer(Walker_Time)
+        CALL set_timer(Walker_Time,30)
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -384,8 +384,8 @@ MODULE FciMCParMod
             CALL Stop_All("PerformFciMCycPar","All walkers have died on a node")
         ENDIF
         
-!        CALL halt_timer(Walker_Time)
-!        CALL set_timer(Annihil_Time)
+        CALL halt_timer(Walker_Time)
+        CALL set_timer(Annihil_Time,30)
         
         IF(TNoAnnihil) THEN
 !However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
@@ -430,7 +430,7 @@ MODULE FciMCParMod
 
         ENDIF
         
-!        CALL halt_timer(Annihil_Time)
+        CALL halt_timer(Annihil_Time)
         
 !Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
         AllNoatHF=0
