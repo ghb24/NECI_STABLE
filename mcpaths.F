@@ -114,9 +114,8 @@ C.. This will store the MP2 energy
             TSYM=.TRUE.
          ENDIF
          IF(TLOG) THEN
-            OPEN(11,FILE="MCSUMMARY",STATUS="OLD")
+            OPEN(11,FILE="MCSUMMARY",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
-            Call EndSeek(11)
 !            I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
@@ -609,9 +608,8 @@ C.. Pick graphs which may not contain distinct vertices
          OTIME=etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD")
+            OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
-            CALL ENDSEEK(11)
 !            I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
@@ -2477,11 +2475,3 @@ C         DLWDB=DLWDB-LIST(1,2)
           ORBENERGY=ARR(orbnum)
           RETURN
       END FUNCTION ORBENERGY
-      SUBROUTINE EndSeek(unit)
-         IMPLICIT NONE
-         INTEGER unit
-         do while (.true.)
-            READ(unit,*,end=678)
-         enddo
-678      return
-      END SUBROUTINE

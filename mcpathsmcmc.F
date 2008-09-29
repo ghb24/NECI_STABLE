@@ -44,9 +44,8 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          call set_timer(proc_timer)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD")
+            OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
-             Call ENDSeek(11)
 !            I=FSEEK(11,0,2)
             WRITE(11,"(A)",advance='no') "("
             DO K=1,NEL

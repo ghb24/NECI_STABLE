@@ -85,9 +85,8 @@ C.. do some blocking analysis
          TLOG=BTEST(ILOGGING,1)
          TBLOCKING=BTEST(ILOGGING,13)
          IF(TLOG.AND.I_VMIN.EQ.0) THEN
-            OPEN(11,FILE="MCPATHS",STATUS="OLD")
+            OPEN(11,FILE="MCPATHS",STATUS="OLD",ACCESS='APPEND')
 C.. go to end of file
-            Call ENDSeek(11)
 !            I=FSEEK(11,0,2)
             CALL WRITEDET(11,NI,NEL,.TRUE.)
          ENDIF
