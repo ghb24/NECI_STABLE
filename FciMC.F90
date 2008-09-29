@@ -56,7 +56,7 @@ MODULE FciMCMod
 !The following variables are calculated at the end of each update cycle, are combined to the root processor
     REAL*8 :: GrowRate,DieRat,ProjectionE,SumENum
     REAL*8:: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
-    REAL*8 :: PosFrac           !This is the fraction of positive particles on each node
+    REAL*8 :: AvSign           !This is the average sign of the particles over all iterations
     INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
     REAL*8 :: MeanExcitLevel
     INTEGER :: MinExcitLevel
@@ -94,6 +94,9 @@ MODULE FciMCMod
     INTEGER*8 , ALLOCATABLE :: EHistBins(:,:)   !This is to histogram the determinant energies..
     INTEGER :: EHistBinsTag=0
 
+    TYPE(timer), save :: Walker_time, Annihil_time   
+
+
     contains
 
     SUBROUTINE FciMC(Weight,Energyxw)
@@ -103,25 +106,28 @@ MODULE FciMCMod
         TYPE(HElement) :: Hamii
         LOGICAL :: TIncrement
 
+        Walker_time%timer_name='Walker_time'
+        Annihil_time%timer_name='Annihil_time'
+
         CALL InitFCIMCCalc()
 
         WRITE(6,*) ""
 
 !TotWalkersOld is the number of walkers last time the shift was changed
         IF(TProjEMP2) THEN
-            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
-            WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx  MinEx MaxEx"
+            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
+            WRITE(15,*) "#       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        Proj.MP2      NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx  MinEx MaxEx"
             WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
-     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
-     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+     &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
         ELSE
-            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx     MinEx MaxEx"
-            WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  +veWalk        AccRat     AvConn         MeanEx     MinEx MaxEx"
+            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+            WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
             WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,   &
-     &          ProjectionE,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
-     &          ProjectionE,NoatHF,NoatDoubs,1.D0,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
         ENDIF
 
 !Start MC simulation...
@@ -176,6 +182,9 @@ MODULE FciMCMod
         INTEGER :: ExcitLevel,iGetExcitLevel_2,MaxExcits
         LOGICAL :: WSign,SpawnBias,SameDet,TGenGuideDet
         TYPE(HElement) :: HDiagTemp,HOffDiag
+
+!Set the timer for the walker loop - this should not be done always, as it will be time-consuming
+        CALL set_timer(Walker_time,20)
 
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -368,6 +377,9 @@ MODULE FciMCMod
         IF(rat.gt.0.9) THEN
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
         ENDIF
+
+        CALL halt_timer(Walker_time)
+        CALL set_timer(Annihil_time,20)
         
         IF(TNoAnnihil) THEN
 
@@ -414,6 +426,8 @@ MODULE FciMCMod
             Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
 !            WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers,Iter,TotWalkers
         ENDIF
+
+        CALL halt_timer(Annihil_time)
 
         IF(NoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
@@ -1100,7 +1114,7 @@ MODULE FciMCMod
 !        ENDIF
 
         MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,r2)))
-        PosFrac=PosFrac/real(SumWalkersCyc,r2)
+        AvSign=AvSign/real(SumWalkersCyc,r2)
         ProjectionE=SumENum/SumNoatHF
         AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))
         ProjectionMP2=((SumHOverlapMP2/SumOverlapMP2)-Hii)/2.D0
@@ -1109,14 +1123,14 @@ MODULE FciMCMod
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers...
         IF(TProjEMP2) THEN
             WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
-     &         ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+     &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
-     &         ProjectionMP2,NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+     &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         ELSE
             WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
-     &         NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+     &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
-     &         NoatHF,NoatDoubs,PosFrac,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+     &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         ENDIF
 !        WRITE(6,*) SumHOverlapMP2,SumOverlapMP2
         CALL FLUSH(15)
@@ -1127,7 +1141,7 @@ MODULE FciMCMod
         MaxExcitLevel=0
         MeanExcitLevel=0.D0
         SumWalkersCyc=0
-        PosFrac=0.D0
+!        AvSign=0.D0        Do not reinitialise this - find average over ALL iterations
         Annihilated=0
         Acceptances=0
         SumConnections=0.D0
@@ -1168,7 +1182,7 @@ MODULE FciMCMod
                     ENDIF
                 ENDIF
                 NoatHF=NoatHF+1
-                PosFrac=PosFrac+1.D0
+                AvSign=AvSign+1.D0
                 TotSign=TotSign+1
             ELSE
                 IF(Iter.gt.NEquilSteps) THEN
@@ -1178,6 +1192,7 @@ MODULE FciMCMod
                         SumNoatHF=SumNoatHF-1.D0
                     ENDIF
                 ENDIF
+                AvSign=AvSign-1.D0
                 NoatHF=NoatHF-1
                 TotSign=TotSign-1
             ENDIF
@@ -1192,7 +1207,7 @@ MODULE FciMCMod
                         SumENum=SumENum+Hij0
                     ENDIF
                 ENDIF
-                PosFrac=PosFrac+1.D0
+                AvSign=AvSign+1.D0
                 TotSign=TotSign+1
             ELSE
                 IF(Iter.gt.NEquilSteps) THEN
@@ -1203,13 +1218,15 @@ MODULE FciMCMod
                     ENDIF
                 ENDIF
                 TotSign=TotSign-1
+                AvSign=AvSign-1.D0
             ENDIF
         ELSE
             IF(WSign) THEN
-                PosFrac=PosFrac+1.D0
+                AvSign=AvSign+1.D0
                 TotSign=TotSign+1
             ELSE
                 TotSign=TotSign-1
+                AvSign=AvSign-1.D0
             ENDIF
         ENDIF
 
@@ -1630,7 +1647,7 @@ MODULE FciMCMod
 !Initialise variables for calculation on each node
         ProjectionE=0.D0
         ProjectionMP2=0.D0
-        PosFrac=0.D0
+        AvSign=0.D0
         SumENum=0.D0
         SumNoatHF=0.D0
         NoatHF=0
