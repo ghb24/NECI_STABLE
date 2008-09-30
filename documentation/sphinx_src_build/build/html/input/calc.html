@@ -562,7 +562,7 @@ will increase/decrease the rate of spawning/death for a given iteration.</p>
 <dt><strong>READPOPS</strong></dt>
 <dd>Read the initial walker configuration from the file POPSFILE.
 <strong>DIAGSHIFT</strong> and <strong>INITWALKERS</strong> given in the input will be
-overwritten with the values read in form POPSFILE. Only currently available in serial.</dd>
+overwritten with the values read in form POPSFILE.</dd>
 <dt><strong>SCALEWALKERS</strong> [fScaleWalkers]</dt>
 <dd>Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.</dd>
 <dt><strong>STARTMP1</strong></dt>
@@ -617,12 +617,9 @@ onto the MP1 wavefunction.  DEVELOPMENTAL and possibly not bug-free.</p>
 hamiltonian matrix elements are zero. Instead, their diagonals are modified
 to change the on-site death rate. Particles now have a fixed (positive)
 sign which cannot be changed and so no annihilation occurs.  Results were
-not good.</p>
-<p>This is not available in the parallel version.</p>
-<div class="last admonition note">
-<p class="first admonition-title">Note</p>
-<p class="last">details?  Why &#8220;not good&#8221;?</p>
-</div>
+not good - this was intended for real-space MC, where large regions of connected
+space were all of the same sign. This is not the case here.</p>
+<p class="last">This is not available in the parallel version.</p>
 </dd>
 <dt><strong>STARTSINGLEPART</strong></dt>
 <dd>This will start the simulation with a single positive particle at the HF,
@@ -633,13 +630,28 @@ to the INITPARTICLES value.</dd>
 <p class="last">MemoryFac is the factor by which space will be made available for extra
 walkers compared to InitWalkers.</p>
 </dd>
+<dt><strong>ANNIHILATEONPROCS</strong></dt>
+<dd><p class="first">Default false</p>
+<p class="last">A Parallel FCIMC option. With this, particles are annihilated separately on each node.
+This should mean less annihilation occurs, but it is effectivly running nProcessor
+separate simulations. If there are enough particles, then this should be sufficient.
+Less memory is required, since no hashes need to be stored. Also, no communication is
+needed, so the routine should scale better as the number of walkers grows.</p>
+</dd>
 <dt><strong>FIXHFDOUBSSHIFT</strong> [DoubsShift]</dt>
 <dd><p class="first">Default 0.D0</p>
-<p class="last">An FCIMC Serial option. With this, the shift is fixed at a value given here,
+<p class="last">An FCIMC option. With this, the shift is fixed at a value given here,
 but only for the HF and doubles. This will almost definitly give the wrong
 answers for both the energy and the shift, but may be of use in equilibration
 steps to maintain particle density at low excitations, before writing out the
 data and letting the shift change.</p>
+</dd>
+<dt><strong>UNBIASPGENINPROJE</strong></dt>
+<dd><p class="first">Default false</p>
+<p class="last">An FCIMC serial option. Here, the acceptance probabilities are not unbiased for
+the probability of generating the excitation. Instead, the unbiasing occurs when the
+walker contributes to the energy estimator. This should reduce the variance for the
+energy estimator.</p>
 </dd>
 <dt><strong>GRAPHSIZE</strong> [NDets]</dt>
 <dd>In ResumFCIMC, this is the number of connected determinants to form the
@@ -722,7 +734,15 @@ come back to its origin.</dd>
 <dd><p class="first">In addition to doing a graph theory calculation, calculate the Moller&#8211;Plesset
 energy to the same order as the maximum vertex level from the
 reference determinant (e.g. with 2-vertex sum the MP2 energy is
-obtained, with 3-vertex the MP3 energy etc.  Note that the MP2 energy
+obtained, with 3-vertex the MP3 energy etc.  Within the <strong>VERTEX SUM</strong>
+hierarchy, this will only work with <strong>VERTEX SUM HDIAG</strong>.
+In the <strong>VERTEX MC</strong> hierarchy, do a Moller&#8211;Plesset calculation
+instead of a path-integral one.  Requires <strong>HDIAG</strong>, and <strong>BIAS**=0.D0.
+Can be used without a **METHODS</strong> section.  If a <strong>METHODS</strong> section is
+needed to specify different numbers of cycles at each level, then
+<strong>MCDIRECTSUM</strong> must also be set, either in the main block of the <strong>CALC</strong>,
+or by using <strong>VERTEX MCDIRECT</strong> instead of <strong>VERTEX MC</strong>.
+Note that the MP2 energy
 can be obtained in conjunction with a <strong>VERTEX STAR</strong> calculation.</p>
 <dl class="docutils">
 <dt><strong>ONLY</strong></dt>
@@ -742,11 +762,9 @@ calculation thus benefits from having a <strong>UMatCache</strong> of non-zero s
 <div class="last admonition note">
 <p class="first admonition-title">Note</p>
 <p>INPUT_DOC has this to say:</p>
-<pre>Instead of a normal path-integral expansion **MC**, do a
-Moller--Plesset.  Requires **HDIAG**, and **BIAS**=0.D0.  Can be
-used without a **METHODS** section.  If a **METHODS** section is
-needed to specify different numbers of cycles at each level, then
-**MCDIRECTSUM** must also be set.</pre>
+<div class="system-message">
+<p class="system-message-title">System Message: WARNING/2 (<tt class="docutils">/home/jss43/projects/NECI/documentation/sphinx_src_build/source/input/calc.rst</tt>, line 770)</p>
+Literal block expected; none found.</div>
 <p class="last">I am sure this is out of date...</p>
 </div>
 </dd>
@@ -759,7 +777,7 @@ SUM HDIAG</strong> and only at the 2-vertex level.</dd>
 The energy denominator is <img src="../mathimg/math-62f44f9e1c.png" align="absmiddle" />.  Only works
 for <strong>VERTEX SUM NEW</strong> and <strong>VERTEX SUM HDIAG</strong> and only at the
 2-vertex level.</dd>
-<dt><strong>MPMODTHEORY</strong></dt>
+<dt><strong>MODMPTHEORY</strong></dt>
 <dd>Perform a hybrid of Epstein&#8211;Nesbet and Moller&#8211;Plesset theory,
 which includes only the <img src="../mathimg/math-a265f32e42.png" />
 terms in the denominator.  Only works for <strong>VERTEX SUM NEW</strong> and
@@ -1195,7 +1213,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 18, 2008.
+      Last updated on Sep 30, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

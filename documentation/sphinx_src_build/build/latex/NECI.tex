@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{September 18, 2008}
+\date{September 30, 2008}
 \release{0.1}
 \author{James Spencer, with contributions from the Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -581,13 +581,28 @@ group has made.
 
 \section{Soft exits}
 
-NECI creates a file at the start of the calculation called SOFTEXIT.  If it is
-removed at any point during a calculation, then the code will exit cleanly and
-quietly, with no error messages, the next time SOFTEXIT is checked to see if it
-still exists, allowing a calculation to be halted prematurely yet still perform
-any necessary post-processing of the calculation and print out, for example,
-the memory and timing information.  This functionality is especially suited to
-iterative and cyclic processes and is not available for all types of
+Soft exits allow a calculation to be halted prematurely yet still
+perform any necessary post-processing of the calculation and print out,
+for example, the memory and timing information.  NECI checks the working
+directory of the calculation for a file called SOFTEXIT, which can be
+created by the user by, for instance, using touch:
+
+Unknown directive type ``code\_block''.
+
+\begin{Verbatim}[commandchars=@\[\]]
+.. code_block:: bash
+
+   touch SOFTEXIT
+\end{Verbatim}
+
+
+On creation of SOFTEXIT, the next time SOFTEXIT is checked to see
+if it exists, the code will exit cleanly and quietly, with no error
+messages.  The SOFTEXIT file is deleted so that it does not affect
+any subsequent calculations.
+
+This functionality is especially suited to iterative and cyclic
+processes and is not available (nor suitable) for all types of
 calculation.
 
 Currently, SOFTEXIT applies only to the following calculation
@@ -595,9 +610,9 @@ type(s):
 \begin{itemize}
 \item {} 
 \textbf{FciMC}
-If SOFTEXIT has been removed, then the current
-iteration is completed, all post-processing of the calculation up to the
-current iteration is performed.
+If SOFTEXIT is created, then the current iteration is completed,
+all post-processing of the calculation up to the current iteration
+is performed.
 
 \end{itemize}
 
@@ -1974,7 +1989,7 @@ The following options are only available in \textbf{FCIMC} calculations:
 \item[\textbf{READPOPS}]
 Read the initial walker configuration from the file POPSFILE.
 \textbf{DIAGSHIFT} and \textbf{INITWALKERS} given in the input will be
-overwritten with the values read in form POPSFILE. Only currently available in serial.
+overwritten with the values read in form POPSFILE.
 
 \item[\textbf{SCALEWALKERS} {[}fScaleWalkers{]}]
 Scale the number of walkers by fScaleWalkers, after having read in data from POPSFILE.
@@ -2039,13 +2054,10 @@ This uses a modified hamiltonian, whereby all the positive off-diagonal
 hamiltonian matrix elements are zero. Instead, their diagonals are modified
 to change the on-site death rate. Particles now have a fixed (positive)
 sign which cannot be changed and so no annihilation occurs.  Results were
-not good.
+not good - this was intended for real-space MC, where large regions of connected
+space were all of the same sign. This is not the case here.
 
 This is not available in the parallel version.
-
-\begin{notice}[note]
-details?  Why ``not good''?
-\end{notice}
 
 \item[\textbf{STARTSINGLEPART}]
 This will start the simulation with a single positive particle at the HF,
@@ -2058,14 +2070,31 @@ Default 50.
 MemoryFac is the factor by which space will be made available for extra
 walkers compared to InitWalkers.
 
+\item[\textbf{ANNIHILATEONPROCS}]
+Default false
+
+A Parallel FCIMC option. With this, particles are annihilated separately on each node.
+This should mean less annihilation occurs, but it is effectivly running nProcessor
+separate simulations. If there are enough particles, then this should be sufficient.
+Less memory is required, since no hashes need to be stored. Also, no communication is
+needed, so the routine should scale better as the number of walkers grows.
+
 \item[\textbf{FIXHFDOUBSSHIFT} {[}DoubsShift{]}]
 Default 0.D0
 
-An FCIMC Serial option. With this, the shift is fixed at a value given here,
+An FCIMC option. With this, the shift is fixed at a value given here,
 but only for the HF and doubles. This will almost definitly give the wrong
 answers for both the energy and the shift, but may be of use in equilibration
 steps to maintain particle density at low excitations, before writing out the
 data and letting the shift change.
+
+\item[\textbf{UNBIASPGENINPROJE}]
+Default false
+
+An FCIMC serial option. Here, the acceptance probabilities are not unbiased for
+the probability of generating the excitation. Instead, the unbiasing occurs when the
+walker contributes to the energy estimator. This should reduce the variance for the
+energy estimator.
 
 \item[\textbf{GRAPHSIZE} {[}NDets{]}]
 In ResumFCIMC, this is the number of connected determinants to form the
@@ -2164,7 +2193,15 @@ Set the bias at any point to spawn at the parent determinant.
 In addition to doing a graph theory calculation, calculate the Moller--Plesset
 energy to the same order as the maximum vertex level from the
 reference determinant (e.g. with 2-vertex sum the MP2 energy is
-obtained, with 3-vertex the MP3 energy etc.  Note that the MP2 energy
+obtained, with 3-vertex the MP3 energy etc.  Within the \textbf{VERTEX SUM}
+hierarchy, this will only work with \textbf{VERTEX SUM HDIAG}.
+In the \textbf{VERTEX MC} hierarchy, do a Moller--Plesset calculation
+instead of a path-integral one.  Requires \textbf{HDIAG}, and \textbf{BIAS**=0.D0.
+Can be used without a **METHODS} section.  If a \textbf{METHODS} section is
+needed to specify different numbers of cycles at each level, then
+\textbf{MCDIRECTSUM} must also be set, either in the main block of the \textbf{CALC},
+or by using \textbf{VERTEX MCDIRECT} instead of \textbf{VERTEX MC}.
+Note that the MP2 energy
 can be obtained in conjunction with a \textbf{VERTEX STAR} calculation.
 \begin{description}
 \item[\textbf{ONLY}]
@@ -2186,13 +2223,8 @@ It is currently assumed that the calculation is restricted.
 \begin{notice}[note]
 INPUT\_DOC has this to say:
 
-\begin{Verbatim}[commandchars=@\[\]]
-Instead of a normal path-integral expansion **MC**, do a
-Moller--Plesset.  Requires **HDIAG**, and **BIAS**=0.D0.  Can be
-used without a **METHODS** section.  If a **METHODS** section is
-needed to specify different numbers of cycles at each level, then
-**MCDIRECTSUM** must also be set.
-\end{Verbatim}
+Literal block expected; none found.
+
 
 I am sure this is out of date...
 \end{notice}
@@ -2208,7 +2240,7 @@ The energy denominator is $E_0-E_I+|H_{0I}|^2$.  Only works
 for \textbf{VERTEX SUM NEW} and \textbf{VERTEX SUM HDIAG} and only at the
 2-vertex level.
 
-\item[\textbf{MPMODTHEORY}]
+\item[\textbf{MODMPTHEORY}]
 Perform a hybrid of Epstein--Nesbet and Moller--Plesset theory,
 which includes only the $\bra ij||ij ket +\bra ab||ab ket$
 terms in the denominator.  Only works for \textbf{VERTEX SUM NEW} and
@@ -3104,15 +3136,16 @@ Synonym for \textbf{FMCPR XIJ}.
 \subsection{FCIMC options}
 \begin{description}
 \item[\textbf{POPSFILE} {[}iWritePopsEvery{]}]
-Default: off.  Default iWritePopsEvery (optional argument) 100000.
+Default: on.  Default iWritePopsEvery (optional argument) 100000.
 Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
-iWritePopsEvery must be a multiple of \textbf{STEPSSHIFT}, the number of
+iWritePopsEvery should idealy be a multiple of \textbf{STEPSSHIFT}, the number of
 cycles between updates to the diagonal shift performed in the
-\textbf{FCIMC} calculation.
+\textbf{FCIMC} calculation, to make sure the start of the next simulation follows
+smoothly
 
 A calculation can then be restarted at a later date by reading the
 determinants back in using \textbf{READPOPS} in the \textbf{CALC} section.
-at a later date. Walker number can also be scaled up by using \textbf{SCALEWALKERS}.
+Walker number can also be scaled up/down by using \textbf{SCALEWALKERS}.
 
 \item[\textbf{ZEROPROJE}]
 This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy

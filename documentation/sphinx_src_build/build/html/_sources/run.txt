@@ -63,19 +63,29 @@ group has made.
 Soft exits
 ----------
 
-NECI creates a file at the start of the calculation called SOFTEXIT.  If it is
-removed at any point during a calculation, then the code will exit cleanly and
-quietly, with no error messages, the next time SOFTEXIT is checked to see if it
-still exists, allowing a calculation to be halted prematurely yet still perform
-any necessary post-processing of the calculation and print out, for example,
-the memory and timing information.  This functionality is especially suited to
-iterative and cyclic processes and is not available for all types of
+Soft exits allow a calculation to be halted prematurely yet still
+perform any necessary post-processing of the calculation and print out,
+for example, the memory and timing information.  NECI checks the working
+directory of the calculation for a file called SOFTEXIT, which can be
+created by the user by, for instance, using touch:
+
+.. code_block:: bash
+
+   touch SOFTEXIT
+
+On creation of SOFTEXIT, the next time SOFTEXIT is checked to see
+if it exists, the code will exit cleanly and quietly, with no error
+messages.  The SOFTEXIT file is deleted so that it does not affect 
+any subsequent calculations.
+
+This functionality is especially suited to iterative and cyclic
+processes and is not available (nor suitable) for all types of
 calculation.
 
 Currently, SOFTEXIT applies only to the following calculation
 type(s):
 
 * **FciMC** 
-  If SOFTEXIT has been removed, then the current
-  iteration is completed, all post-processing of the calculation up to the
-  current iteration is performed.
+  If SOFTEXIT is created, then the current iteration is completed,
+  all post-processing of the calculation up to the current iteration
+  is performed.

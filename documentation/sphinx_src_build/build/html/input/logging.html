@@ -170,14 +170,15 @@ Print out timing information for the nPrintTimer routines which took the longest
 <h2 id="fcimc-options">FCIMC options<a class="headerlink" href="#fcimc-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
 <dt><strong>POPSFILE</strong> [iWritePopsEvery]</dt>
-<dd><p class="first">Default: off.  Default iWritePopsEvery (optional argument) 100000.
+<dd><p class="first">Default: on.  Default iWritePopsEvery (optional argument) 100000.
 Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
-iWritePopsEvery must be a multiple of <strong>STEPSSHIFT</strong>, the number of
+iWritePopsEvery should idealy be a multiple of <strong>STEPSSHIFT</strong>, the number of
 cycles between updates to the diagonal shift performed in the
-<strong>FCIMC</strong> calculation.</p>
+<strong>FCIMC</strong> calculation, to make sure the start of the next simulation follows
+smoothly</p>
 <p class="last">A calculation can then be restarted at a later date by reading the
 determinants back in using <strong>READPOPS</strong> in the <strong>CALC</strong> section.
-at a later date. Walker number can also be scaled up by using <strong>SCALEWALKERS</strong>.</p>
+Walker number can also be scaled up/down by using <strong>SCALEWALKERS</strong>.</p>
 </dd>
 <dt><strong>ZEROPROJE</strong></dt>
 <dd>This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy
@@ -320,7 +321,7 @@ steps. This is slows the calculation down substantially.</p>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 18, 2008.
+      Last updated on Sep 30, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>
