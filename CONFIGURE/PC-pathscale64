@@ -1,0 +1,26 @@
+     compiler='pathf95 -m64-on-LINUX'
+     IRAT=2
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
+     NCPUS=2
+     #-sb is to use Workshop package
+     FFLAGS='-r8'
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -lacml'
+     LDFLAGS='-nostdlib -nostartfiles -Wl,-r' 
+     F90FLAGS=''
+     GLOBALS='GLOBALS-pathf95 -m64'
+     if [ $debug ]; then
+       FC='pathf95 -m64 -c -g'
+       CC='cc -g -sb -C -errtags'
+       LD='pathf95 -m64 -g -Bstatic'
+       FCD='pathf95 -m64 -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='pathf95 -m64 -g'
+     else
+       FC='pathf95 -m64 -c -O3' 
+       CC='cc -O'
+       LD='pathf95 -m64 -O3'
+       FCD='pathf95 -m64 -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='pathf95 -m64 -g'
+     fi
