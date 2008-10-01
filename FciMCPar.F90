@@ -1437,10 +1437,10 @@ MODULE FciMCParMod
         MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
 
 !Find the range of walkers on different nodes to see if we need to even up the distribution over nodes
-        inpair(1)=TotWalkers
-        inpair(2)=iProcIndex
-        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MAXLOC,root,MPI_COMM_WORLD,error)
-        MaxWalkersProc=outpair(1)
+!        inpair(1)=TotWalkers
+!        inpair(2)=iProcIndex
+        CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
+!        MaxWalkersProc=outpair(1)
 !        WRITE(6,*) "***",MaxWalkersProc,MaxAllowedWalkers,MeanWalkers
 !        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MINLOC,root,MPI_COMM_WORLD,error)
 !        MinWalkersProc=outpair(1)
@@ -1494,29 +1494,29 @@ MODULE FciMCParMod
         CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
 
 !To find minimum and maximum excitation levels, search for them using MPI_Reduce
-        inpair(1)=MaxExcitLevel
-        inpair(2)=iProcIndex
+!        inpair(1)=MaxExcitLevel
+!        inpair(2)=iProcIndex
 
-        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MAXLOC,Root,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in finding max excitation level"
-            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-        ENDIF
+        CALL MPI_Reduce(MaxExcitLevel,AllMaxExcitLevel,1,MPI_INTEGER,MPI_MAX,Root,MPI_COMM_WORLD,error)
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in finding max excitation level"
+!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
+!        ENDIF
 !Max Excit Level is found on processor outpair(2) and is outpair(1)
-        IF(iProcIndex.eq.Root) THEN
-            AllMaxExcitLevel=outpair(1)
-        ENDIF
+!        IF(iProcIndex.eq.Root) THEN
+!            AllMaxExcitLevel=outpair(1)
+!        ENDIF
 
-        inpair(1)=MinExcitLevel
-        inpair(2)=iProcIndex
-        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MINLOC,Root,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in finding min excitation level"
-            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-        ENDIF
-        IF(iProcIndex.eq.Root) THEN
-            AllMinExcitLevel=outpair(1)
-        ENDIF
+!        inpair(1)=MinExcitLevel
+!        inpair(2)=iProcIndex
+        CALL MPI_Reduce(MinExcitLevel,AllMinExcitLevel,1,MPI_INTEGER,MPI_MIN,Root,MPI_COMM_WORLD,error)
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in finding min excitation level"
+!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
+!        ENDIF
+!        IF(iProcIndex.eq.Root) THEN
+!            AllMinExcitLevel=outpair(1)
+!        ENDIF
 
 !We now want to find how the shift should change for the entire ensemble of processors
         IF(iProcIndex.eq.Root) THEN
