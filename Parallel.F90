@@ -294,7 +294,7 @@ Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
 #else
    ! Serial calculation: all electrons on one processor.
    iMinElec=1
-   iMaxElec=1
+   iMaxElec=nEl
 #endif
 End subroutine GetProcElectrons
 
