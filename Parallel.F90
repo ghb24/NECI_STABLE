@@ -291,9 +291,6 @@ Subroutine GetProcElectrons(iProcIndex,nProcessors, iMinElec, iMaxElec)
    if(ceiling(nCur).eq.floor(nCur)) nCur=nCur-1e-6
    iMaxElec=floor(nCur)
    if(iProcIndex.eq.nProcessors) iMaxElec=nEl
-!   if(iProcIndex.eq.nProcessors) then
-!     iMaxElec=nEl
-!   else
 #else
    ! Serial calculation: all electrons on one processor.
    iMinElec=1
