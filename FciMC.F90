@@ -1141,7 +1141,7 @@ MODULE FciMCMod
         MaxExcitLevel=0
         MeanExcitLevel=0.D0
         SumWalkersCyc=0
-!        AvSign=0.D0        Do not reinitialise this - find average over ALL iterations
+        AvSign=0.D0        !reinitialise this - average is over update cycle
         Annihilated=0
         Acceptances=0
         SumConnections=0.D0
