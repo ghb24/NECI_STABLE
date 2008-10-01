@@ -279,17 +279,21 @@ Subroutine GetProcElectrons(iProcIndex,nProcessors, iMinElec, iMaxElec)
 #ifdef PARALLEL
 !Invert X=n(n-1)/2
    nCur=((nProcessors+1-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
+
    nCur=nEl+1-(1+sqrt(1.d0+4*nCur))/2
+ !Hitting smack bang on an integer causes problems
+   if(ceiling(nCur).eq.floor(nCur)) nCur=nCur-1e-6
    iMinElec=ceiling(nCur)
-! JSS: This causes problems when the nEl/nProc is an integer.
-! More thinking needed Alex! :-)
-!   if(floor(nCur).eq.ceiling(nCur)) then
-! We hit smack bang on an integer for nCur, so to avoid duplicating this electron here and in the previous processor, we choose the next one.
-!      iMinElec=iMinElec+1
-!   endif
+   if(iProcIndex.eq.1) iMinElec=1
    nCur=((nProcessors-iProcIndex)*nEl*(nEl-1.d0)/nProcessors)
    nCur=nEl+1-(1+sqrt(1.d0+4*nCur))/2
+ !Hitting smack bang on an integer causes problems
+   if(ceiling(nCur).eq.floor(nCur)) nCur=nCur-1e-6
    iMaxElec=floor(nCur)
+   if(iProcIndex.eq.nProcessors) iMaxElec=nEl
+!   if(iProcIndex.eq.nProcessors) then
+!     iMaxElec=nEl
+!   else
 #else
    ! Serial calculation: all electrons on one processor.
    iMinElec=1
