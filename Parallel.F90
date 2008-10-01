@@ -39,7 +39,7 @@ module Parallel
 #endif
    IMPLICIT NONE
    save
-   integer iProcIndex
+   integer iProcIndex,iProcMinE,iProcMaxE
    integer nProcessors
 
 Contains
@@ -106,6 +106,7 @@ Subroutine MPIInit(tExternal)
          open(6,file=NodeFile)
          write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
       endif
+      call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
 !  Just synchronize everything briefly
       a=iProcIndex+1
       call MPIISum(a,1,g)
@@ -263,18 +264,17 @@ end Subroutine MPIHElSum
 
 
 
-Subroutine GetProcElectrons(iProcIndex,nProcessors, iMinElec, iMaxElec)
+Subroutine GetProcElectrons(iProcIndex,iMinElec,iMaxElec)
    !=  Choose min and max electrons such that ordered pairs are distributed evenly across processors
    !=
    !=  In:
    !=     iProcIndex  Index of this processor (starting at 1).
-   !=     nProcessors Total number of processors.
    !=  Out:
    !=     iMinElec    First electron to allocate to this processor.
    !=     iMaxElec    Last electron to allocate to this processor.
    use SystemData, only: nEl
    implicit none
-   integer iProcIndex,nProcessors, iMinElec,iMaxElec
+   integer iProcIndex,iMinElec,iMaxElec
    real*8 nCur
 #ifdef PARALLEL
 !Invert X=n(n-1)/2

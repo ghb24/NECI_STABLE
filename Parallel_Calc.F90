@@ -94,7 +94,7 @@ subroutine ParMP2(nI)
        iMaxElec=nEl
    else
        ! For other calculations, the sum is split over processors.
-       call GetProcElectrons(iProcIndex+1,nProcessors,iMinElec,iMaxElec)
+       call GetProcElectrons(iProcIndex+1,iMinElec,iMaxElec)
    end if
    write(6,*) "Electrons ", iMinElec, " TO ", iMaxElec
 
@@ -391,7 +391,7 @@ Subroutine Par2vSum(nI)
    iC0=0
    i=iProcIndex+1
    write(6,*) "Proc ",i,"/",nProcessors
-   call GetProcElectrons(iProcIndex+1,nProcessors,iMinElec,iMaxElec)
+   call GetProcElectrons(iProcIndex+1,iMinElec,iMaxElec)
    Write(6,*) "Electrons ", iMinElec, " TO ", iMaxElec
 
 !  The root's energy
