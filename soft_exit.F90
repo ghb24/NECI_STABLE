@@ -24,16 +24,43 @@ module soft_exit
 != Alternatively, you can call the SOFTEXIT_exit subroutine, which does exactly
 != the above.
 
-!= To do:
-!=  * Parallel version.  The file SOFTEXIT is created on all nodes.  However,
-!=    test_SOFTEXIT should be false if SOFTEXIT is removed from *any* node.
-!=    This involves MPI communication (and JSS doesn't know all the MPI routines by
-!=    heart yet).
-
 implicit none
 
 contains
 
+#if PARALLEL
+
+    logical function test_SOFTEXIT()
+       != Test if the file SOFTEXIT exists.
+       != Return True means that the file is there and you should start to exit cleanly.
+       != False means that the calculation should proceed as normal. 
+
+       use Parallel
+       implicit none
+       logical :: exists
+       logical :: AnyExist
+       integer :: error
+
+       inquire(file='SOFTEXIT',exist=exists)
+       !This collective will check the exists logical on all nodes, and perform a logical or operation,
+       !before broadcasting the result back to all nodes.
+       CALL MPI_AllReduce(exists,AnyExist,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+       test_SOFTEXIT=AnyExist
+!       if(exists) THEN
+           !At the moment, SOFTEXIT isn't removed after it is detected.
+           !This is because it is likely to be detected on multiple processors and they can't all try to close the file
+           !at the same time. Anyone have a good solution to this problem? Anyone?!
+!           open(13,file='SOFTEXIT')
+!           close(13,status='delete')
+!       endif
+       if(test_SOFTEXIT) then
+           write (6,'(X,a)') 'Request for SOFTEXIT detected on a node.'
+       endif
+
+    end function test_SOFTEXIT
+    
+#else
+    
     logical function test_SOFTEXIT()
        != Test if the file SOFTEXIT exists.
        != Return True means that the file is there and you should start to exit cleanly.
@@ -54,7 +81,9 @@ contains
        end if
 
     end function test_SOFTEXIT
-
+    
+#endif
+    
     subroutine SOFTEXIT_exit()
        != If SOFTEXIT has been created, then exit cleanly and immediately, with
        != no further calculations.

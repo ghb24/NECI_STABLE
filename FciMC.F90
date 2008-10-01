@@ -146,12 +146,13 @@ MODULE FciMCMod
                     EXIT
                 ENDIF
             
-                IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
-!This will write out the configuration of walkers
-                    CALL WriteToPopsFile()
-                ENDIF
-
             ENDIF
+                
+            IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
+!This will write out the configuration of walkers
+                CALL WriteToPopsFile()
+            ENDIF
+
 
 !End of MC cycle
         enddo

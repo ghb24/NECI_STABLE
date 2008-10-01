@@ -130,10 +130,12 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
+        use soft_exit, only : test_SOFTEXIT
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
         TYPE(HElement) :: Hamii
+        LOGICAL :: TIncrement
 
         TDebug=.false.  !Set debugging flag
 
@@ -160,6 +162,7 @@ MODULE FciMCParMod
         
 
 !Start MC simulation...
+        TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         do Iter=1,NMCyc
 
             IF(TBalanceNodes) CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced.
@@ -170,17 +173,23 @@ MODULE FciMCParMod
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
                 CALL CalcNewShift()
 
-                IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
-!This will write out the POPSFILE
-                    CALL WriteToPopsFilePar()
+!Test if the file SOFTEXIT is present. If it is, then exit cleanly.
+                IF(test_SOFTEXIT()) THEN
+                    TIncrement=.false.  !This is so that when the popsfile is written out before exit, it counteracts the subtraction by one.
+                    EXIT
                 ENDIF
 
             ENDIF
-            
+
+            IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
+!This will write out the POPSFILE
+                CALL WriteToPopsFilePar()
+            ENDIF
+
 !End of MC cycle
         enddo
 
-        Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop
+        IF(TIncrement) Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop (if done naturally)
         IF(TPopsFile) CALL WriteToPopsFilePar()
 
         Weight=HDElement(0.D0)
@@ -422,14 +431,6 @@ MODULE FciMCParMod
 !Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
         CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            CALL MPI_Error_string(error,message,length,temp)
-!            IF(temp.ne.MPI_SUCCESS) THEN
-!                WRITE(6,*) "REALLY SERIOUS PROBLEMS HERE!",temp
-!                CALL FLUSH(6)
-!            ENDIF
-!            WRITE(6,*) message(1:length)
-!        ENDIF
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
@@ -446,10 +447,10 @@ MODULE FciMCParMod
             ENDIF
 !Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration
             CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
-            IF(ierr.ne.MPI_SUCCESS) THEN
-                WRITE(6,*) "Problem in broadcasting new TSinglePartPhase"
-                CALL Stop_All("PerformFciMCycPar","Problem in broadcasting new TSinglePartPhase")
-            ENDIF
+!            IF(ierr.ne.MPI_SUCCESS) THEN
+!                WRITE(6,*) "Problem in broadcasting new TSinglePartPhase"
+!                CALL Stop_All("PerformFciMCycPar","Problem in broadcasting new TSinglePartPhase")
+!            ENDIF
         ELSE
 
             IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
