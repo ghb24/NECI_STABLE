@@ -916,7 +916,10 @@ C.. Let FMAT be the accumulator
 C.. Go up to 2nd order taylor
             DO J=1,0,-1
 C.. Set R2=I
-               CALL UNITMX(R2,N)
+               R2=0.d0
+               DO I=1,N
+                   R2(I,I)=1.d0
+               END DO
 C.. Work out R2=(a-J)/(J+1.D0) * R1 * FMAT + 1.D0*R2.  a=FMIX
                CALL DGEMM('N','N',N,N,N,(FMIX-J)/(J+1.D0),
      &            R1,N,FMAT(1,1,ISPN),N,1.D0,R2,N)
