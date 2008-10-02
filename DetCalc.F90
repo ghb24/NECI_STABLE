@@ -18,10 +18,8 @@ MODULE DetCalc
 
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
-!*      POINTER (IP_NBLOCKSTARTS,NBLOCKSTARTS)
       TYPE(BasisFN), pointer :: BLOCKSYM(:)
       INTEGER tagBlockSym
-!*      INTEGER NBLOCKSTARTS(*)
       INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:)
       INTEGER NBLOCKS
       Type(HElement), pointer :: HAMIL(:)
@@ -134,7 +132,6 @@ CONTAINS
          Allocate(NMrks(nEl,II),stat=ierr)
          LogAlloc(ierr,'NMRKS',NEL*II,4,tagNMRKS)
          NMRKS(1:NEL,1:II)=0
-!         CALL MEMORY(IP_NBLOCKSTARTS,(NBLOCKS+1)/IRAT+1,"NBLOCKSTARTS")
          allocate(NBLOCKSTARTS(NBLOCKS+1),stat=ierr)
          call LogMemAlloc('NBLOCKSTARTS',NBLOCKS+1,4,this_routine,tagNBLOCKSTARTS,ierr)
          NBLOCKSTARTS(1:NBLOCKS+1)=0
@@ -250,12 +247,6 @@ CONTAINS
       use IntegralsData, only: FCK,NMAX, UMat
       Use Logging, only: iLogging
       use SystemData, only  : tCSF
-!*      POINTER (IP_TKE,TKE)
-!*      REAL*8 TKE(*)
-!*      REAL*8 A(*),V(*),AM(*),BM(*),T(*),WT(*),SCR(*),V2(*),WORK(*),WORK2(*),WH(*)
-!*      POINTER (IP_A,A),(IP_V,V),(IP_AM,AM),(IP_BM,BM),(IP_T,T),(IP_WT,WT),(IP_SCR,SCR),(IP_ISCR,ISCR)
-!*      POINTER (IP_INDEX,INDEX),(IP_LAB,LAB), (IP_NROW,NROW), (IP_V2,V2), (IP_WORK,WORK), (IP_WH,WH), (IP_WORK2,WORK2)
-!*      INTEGER LAB(*),NROW(*),INDEX(*),ISCR(*)
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:)
       TYPE(HElement), ALLOCATABLE :: WORK(:)
@@ -304,7 +295,6 @@ CONTAINS
 !C..We need to measure HAMIL and LAB first 
          ALLOCATE(NROW(NDET),stat=ierr)
          CALL LogMemAlloc('NROW',NDET,4,this_routine,NROWTag,ierr)
-!*         CALL MEMORY(IP_NROW,NDET,'NROW')
          NROW(1:NDET)=0
          ICMAX=1
 !Falsify tMC
@@ -321,7 +311,6 @@ CONTAINS
          ALLOCATE(LAB(LENHAMIL),stat=ierr)
          CALL LogMemAlloc('LAB',LenHamil,4,this_routine,LabTag,ierr)
 
-!*         CALL MEMORY(IP_LAB,LENHAMIL/IRAT+1,'LAB')
          LAB(1:LENHAMIL)=0
 !C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.FALSE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
@@ -382,60 +371,48 @@ CONTAINS
             WRITE(*,'(7X,1X,64(1H*))')
 !C..Set up memory for FRSBLKH
 
-!*            CALL MEMORY(IP_A,NEVAL*NEVAL,'A')
             ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
             CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
             A=0.d0
 !C..
 !C,, W is now allocated with CK
 !C..
-!*            CALL MEMORY(IP_V,NDET*NBLOCK*NKRY1,'V')
             ALLOCATE(V(NDET*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',NDET*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
             V=0.d0
 !C..   
-!*            CALL MEMORY(IP_AM,NBLOCK*NBLOCK*NKRY1,'AM')
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
             AM=0.d0
 !C..
-!*            CALL MEMORY(IP_BM,NBLOCK*NBLOCK*NKRY,'BM')
             ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
             BM=0.d0
 !C..
-!*            CALL MEMORY(IP_T,3*NBLOCK*NKRY*NBLOCK*NKRY,'T')
             ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
             T=0.d0
 !C..
-!*            CALL MEMORY(IP_WT,NBLOCK*NKRY,'WT')
             ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
             WT=0.d0
 !C..
-!*            CALL MEMORY(IP_SCR,LSCR,'SCR')
             ALLOCATE(SCR(LScr),stat=ierr)
             CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
             SCR=0.d0
-!*            CALL MEMORY(IP_ISCR,LISCR,'ISCR')
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
             ISCR(1:LISCR)=0
-!*            CALL MEMORY(IP_INDEX,NEVAL,'INDEX')
             ALLOCATE(INDEX(NEVAL),stat=ierr)
             CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
             INDEX(1:NEVAL)=0
 !C..
-!*            CALL MEMORY(IP_WH,NDET,'WH')
             ALLOCATE(WH(NDET),stat=ierr)
             CALL LogMemAlloc('WH',NDET,8,this_routine,WHTag,ierr)
             WH=0.d0
-!*            CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
             ALLOCATE(WORK2(3*NDET),stat=ierr)
             CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
             WORK2=0.d0
-!*            CALL MEMORY(IP_V2,NDET*NEVAL,'V2')
             ALLOCATE(V2(NDET,NEVAL),stat=ierr)
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             V2=0.d0
@@ -457,8 +434,6 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElementSize,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-!*               CALL MEMORY(IP_WORK,4*NDET*HElementSize,'WORK')
-!*               CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
                CALL HDIAG(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,LENHAMIL,NBLOCKSTARTS,NBLOCKS,BLOCKSYM)
             ELSE
 !I_P we've replaced by 0
@@ -475,10 +450,8 @@ CONTAINS
       Deallocate(Hamil)
       DEALLOCATE(LAB)
       CALL LogMemDealloc(this_routine,LabTag)
-!*      CALL FREEM(IP_LAB)
       ALLOCATE(TKE(NEVAL),stat=ierr)
       CALL LogMemAlloc('TKE',NEVAL,8,this_routine,TKETag,ierr)
-!*      CALL MEMORY(IP_TKE,NEVAL,'TKE')
 !C.. END ENERGY CALC
       ENDIF
       IF(TENERGY) THEN
@@ -502,8 +475,6 @@ CONTAINS
 !      ENDIF
 !C..Free HAMIL AND LAB memory if we no longer need them
 !      IF(TCALCHMAT.AND..NOT.(TMONTE.AND.TMC)) THEN
-!         CALL FREEM(IP_HAMIL)
-!         CALL FREEM(IP_LAB)
 !      ENDIF
 
 !C.. IF ENERGY CALC
@@ -550,19 +521,8 @@ CONTAINS
         Use global_utilities
         use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
         use IntegralsData, only: nMax
-!*        REAL*8 DLINE(*)
-!*        POINTER (IP_DLINE, DLINE)
-!*        REAL*8 PSIR(*)
-!*        POINTER (IP_PSIR, PSIR)
-!*        REAL*8 RHO(*)
-!*        POINTER (IP_RHO, RHO)
-!*        REAL*8 SITAB(*)
-!*        POINTER (IP_SITAB,SITAB)
 != This variable used to be an allocatable array of size NMSH*NMSH*NMSH, but seemed to be only used as a real - ghb24 21/09/08
         REAL*8 SCRTCH
-!*        POINTER (IP_SCRTCH, SCRTCH)
-!*        REAL*8 XCHOLE(*)
-!*        POINTER (IP_XCHOLE,XCHOLE)
 
         REAL*8 , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
         INTEGER :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
@@ -571,9 +531,6 @@ CONTAINS
         INTEGER iXD, iYD, iZD,ierr
         REAL*8 SPAC, Rs
 !C..Generate memory for RHO and SITAB
-!*        CALL MEMORY(IP_RHO,NMSH*NMSH*NMSH,'RHO')
-!*        CALL MEMORY(IP_SITAB,NMSH*NMAX,'SITAB')
-!*        CALL MEMORY(IP_SCRTCH,NMSH*NMSH*NMSH,'SCRTCH')
         ALLOCATE(RHO(NMSH,NMSH,NMSH),stat=ierr)
         CALL LogMemAlloc('RHO',NMSH**3,8,this_routine,RHOTag,ierr)
         ALLOCATE(SITAB(NMSH,NMAX),stat=ierr)
@@ -581,7 +538,6 @@ CONTAINS
 !C..Calculate RHOOFR
         CALL NECI_RHOOFR(nBasis,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,NEL,NDET,NEVAL,RS,ALAT,OMEGA,SCRTCH)
 !C..
-!*        CALL MEMORY(IP_DLINE,NMSH,'DLINE')
         ALLOCATE(DLINE(NMSH),stat=ierr)
         CALL LogMemAlloc('DLINE',NMSH,8,this_routine,DLINETag,ierr)
         DLINE=0.d0
@@ -597,8 +553,6 @@ CONTAINS
         CALL WRITE_LINE(8,'RHOAV010',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
         IF(TCORR) THEN
 !C..Now generate memory for XCHOLE
-!*          CALL MEMORY(IP_XCHOLE,NMSH*NMSH*NMSH,'XCHOLE')
-!*          CALL MEMORY(IP_PSIR,2*NMSH+1,'PSIR')
           ALLOCATE(XCHOLE(NMSH,NMSH,NMSH),stat=ierr)
           CALL LogMemAlloc('XCHOLE',NMSH**3,8,this_routine,XCHOLETag,ierr)
           ALLOCATE(PSIR(-NMSH:NMSH),stat=ierr)
@@ -618,15 +572,12 @@ CONTAINS
     Subroutine CalcFoDM()
         Use global_utilities
         use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
-!*        REAL*8 SUMA
-!*        POINTER (IP_SUMA, SUMA)
         REAL*8 , ALLOCATABLE :: SUMA(:,:,:)
         INTEGER :: SUMATag=0
         INTEGER ISTATE,ierr
         character(25), parameter :: this_routine = 'CalcFoDM'
         ISTATE=0
         WRITE(6,*) ' ISTATE : ' , ISTATE 
-!*        CALL MEMORY(IP_SUMA,NMAXX*NMAXY*NMAXZ,'SUMA')
         ALLOCATE(SUMA(NMAXX,NMAXY,NMAXZ),stat=ierr)
         CALL LogMemAlloc('SUMA',NMAXX*NMAXY*NMAXZ,8,this_routine,SUMATag,ierr)
         SUMA=0.d0
@@ -654,12 +605,8 @@ END MODULE DetCalc
          LOGICAL TSYM
          REAL*8 BETA,FCK(*),RHOEPS
 
-!*         POINTER (IP_LSTE,LSTE),(IP_ICE,ICE)!,(IP_RIJLIST,RIJLIST)
          
-!*         INTEGER LSTE(NEL,NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
-!*         INTEGER ICE(NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          INTEGER, ALLOCATABLE :: LSTE(:),ICE(:)
-!*         REAL*8 RIJLIST(*)
          REAL*8 , ALLOCATABLE :: RIJLIST(:,:)
          INTEGER,SAVE :: RIJLISTTag=0,LSTEtag=0,ICEtag=0
          INTEGER NMRKS(NEL,NDET),NPATHS,ierr
@@ -682,9 +629,6 @@ END MODULE DetCalc
 !.. we don't need lists for I_HMAX=8
          IF((I_HMAX.GE.-10.AND.I_HMAX.LE.-7)      .OR.I_HMAX.LE.-12) ILMAX=1
 !         ILMAX=(NBASIS-NEL)**2*NEL*NEL/4
-!*         CALL MEMORY(IP_LSTE,(1+ILMAX)*NEL*IMAX/IRAT,"LSTE")
-!*         CALL MEMORY(IP_ICE,(1+ILMAX)*IMAX/IRAT,"ICE")
-!*         CALL MEMORY(IP_RIJLIST,(1+ILMAX)*IMAX*2,"RIJLIST")
          ALLOCATE(LSTE((1+ILMAX)*NEL*IMAX),stat=ierr)
          call LogMemAlloc('LSTE',size(LSTE),4,this_routine,LSTEtag,ierr)
          ALLOCATE(ICE((ILMAX+1)*IMAX),stat=ierr)
@@ -786,13 +730,10 @@ END MODULE DetCalc
           ENDDO
          CLOSE(15)
          WRITE(6,*) "Summed approx E(Beta)=",TOT/NORM
-!*         CALL FREEM(IP_RIJLIST)
          DEALLOCATE(RIJLIST,ICE,LSTE)
          CALL LogMemDealloc(this_routine,RIJLISTTag)
          CALL LogMemDealloc(this_routine,ICETag)
          CALL LogMemDealloc(this_routine,LSTETag)
-!*         CALL FREEM(IP_LSTE)
-!*         CALL FREEM(IP_ICE)
          call halt_timer(proc_timer)
          RETURN
       END    
