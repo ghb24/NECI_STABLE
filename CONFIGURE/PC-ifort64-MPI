@@ -4,8 +4,8 @@
      CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DPARALLEL"
      NCPUS=2
      #-sb is to use Workshop package
-     FFLAGS='-r8 -i_dynamic'
-     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -L ~/src/lib/lapack-3.1.1 -llapack -lblas $(QMMM_LIBS)'
+     FFLAGS='-r8'
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -llapack -lblas $(QMMM_LIBS)'
      LDFLAGS='-nostdlib -nostartfiles -Wl,-r' 
      F90FLAGS=''
      GLOBALS='GLOBALS-ifort'
