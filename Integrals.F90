@@ -446,14 +446,14 @@ MODULE Integrals
                LogAlloc(ierr,'ZIA',2*(NMSH+1)*NMAX*NMAX,16,tagZIA)
                WRITE(6,*) NMSH,NMAX
     !!C..
-               CALL MEMORY_CHECK()
+               CALL N_MEMORY_CHECK()
                IF(NMAXZ.EQ.0) THEN
     !!C..  We're doing a 2D simulation
                   CALL INITFOU2D(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
                ELSE
                   CALL INITFOU(NMSH,FCK,COEFF,NMAX,ALAT,TALPHA,ALPHA,OMEGA,ZIA)
                ENDIF
-               CALL MEMORY_CHECK()
+               CALL N_MEMORY_CHECK()
     !!C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
@@ -472,7 +472,7 @@ MODULE Integrals
             Allocate(UMat(1), stat=ierr)
             LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
          ENDIF
-         CALL MEMORY_CHECK()
+         CALL N_MEMORY_CHECK()
     !!C.. we need to generate TMAT - Now setup in individual routines
          !CALL N_MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
          !TMAT=HElement(0.d0)
@@ -537,9 +537,9 @@ MODULE Integrals
             Allocate(UMat2(1), stat=ierr)
             LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat)
          ENDIF 
-         CALL MEMORY_CHECK()
+         CALL N_MEMORY_CHECK()
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
-         CALL MEMORY_CHECK()
+         CALL N_MEMORY_CHECK()
          WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
          WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
          WRITE(6,*) "ECORE now",ECORE
@@ -560,7 +560,7 @@ MODULE Integrals
          nullify(UMat2)
          tagUMat=tagUMat2
          tagUMat2=0
-         CALL MEMORY_CHECK()
+         CALL N_MEMORY_CHECK()
          WRITE(6,*) "Active basis functions:",NHG
          CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
       ENDIF

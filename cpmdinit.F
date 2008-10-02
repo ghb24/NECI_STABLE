@@ -261,7 +261,7 @@ C.. If we're freezing we allocate a small cache first to store the <ij|kj> integ
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          ENDIF
          CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
-         CALL MEMORY_CHECK()
+         CALL N_MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(.NOT.BTEST(iCacheFlag,1)) THEN
 !Don't initialize the cache if it's already there

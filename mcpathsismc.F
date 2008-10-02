@@ -1417,7 +1417,7 @@ C.. Unbias the sum
             DLWDB=0.D0
          ENDIF
 C         WRITE(35,*)
-C         CALL MEMORY_CHECK()
+C         CALL N_MEMORY_CHECK()
          RETURN
       END
 

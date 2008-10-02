@@ -457,7 +457,7 @@ C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
             DLWDB=DLWDB/TOTAL
          endif
          call halt_timer(proc_timer)
-         CALL MEMORY_CHECK()
+         CALL N_MEMORY_CHECK()
          RETURN
       END
 C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -542,7 +542,7 @@ C.. This is where we will store the MP2 energy
             MP2E(I)=0.D0
             
          ENDDO
-C         CALL MEMORY_CHECK()
+C         CALL N_MEMORY_CHECK()
 C         CALL WRITEDET(6,NI,NEL,.TRUE.)
          CALL CLEARCLASSPATHS()
          IF(NTAY(1).LE.0) THEN
@@ -778,7 +778,7 @@ C         WRITE(6,*) DLWDB,TOTAL,EXP(WLRI), HIJS(0)
              ENDIF
          ENDIF
          call halt_timer(proc_timer)
-         CALL MEMORY_CHECK()
+         CALL N_MEMORY_CHECK()
          RETURN
       END
 

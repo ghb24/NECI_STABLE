@@ -643,7 +643,7 @@ C.. First see if all the products of chars are decomposable
                   ENDDO
                   
 !                  WRITE(6,*) NREPS,"PROD",I,J
-                  CALL MEMORY_CHECK
+                  CALL N_MEMORY_CHECK
 !                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,
      &               NSYM,NROT,IDECOMP,NORM,TAbelian)) THEN

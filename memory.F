@@ -148,7 +148,7 @@ C..Statistics and memory checks
           ENDIF
         ENDDO
       ENDIF
-      IF(MEMCHK) CALL MEMORY_CHECK
+      IF(MEMCHK) CALL N_MEMORY_CHECK
 C      WRITE(6,"(A10,Z)") TAG,IP_POINT
 C     ==--------------------------------------------------------------==
       RETURN

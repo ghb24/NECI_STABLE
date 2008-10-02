@@ -49,13 +49,13 @@ C..Statistics and memory checks
         ENDIF
       ENDDO
       WRITE(*,*) ' N_FREEM | Could not find pointer ',IP_XM
-      CALL PRINT_MEMORY
+      CALL N_PRINT_MEMORY
       CALL Stop_All('N_FREEM',' NO SUCH POINTER')
   100 CONTINUE
       LENGTH=I_LEN(II)
       ERROR=ZFIRST.NE.XM(0).OR.ZLAST.NE.XM(LENGTH+1)
-      IF(ERROR) CALL MEMORY_CHECK
-      IF(MEMCHK) CALL MEMORY_CHECK
+      IF(ERROR) CALL N_MEMORY_CHECK
+      IF(MEMCHK) CALL N_MEMORY_CHECK
       DO I=II,I_BLOCK-1
         I_AD1(I)=I_AD1(I+1)
         I_AD2(I)=I_AD2(I+1)
@@ -85,7 +85,7 @@ C     ==--------------------------------------------------------------==
       END
 
 C     ==================================================================
-      SUBROUTINE MEMORY_CHECK
+      SUBROUTINE N_MEMORY_CHECK
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
 #ifdef POINTER8
@@ -113,19 +113,19 @@ C     ==--------------------------------------------------------------==
       ENDDO
       IF(.NOT.ERROR) THEN
         IF(MEMCHK)
-     *  WRITE(6,'(A)') ' MEMORY_CHECK| ALL ARRAY BOUNDARIES ARE OK '
+     *  WRITE(6,'(A)') ' N_MEMORY_CHECK| ALL ARRAY BOUNDARIES ARE OK '
 !        IF(PARENT.AND.MEMCHK)
-!     *  WRITE(6,'(A)') ' MEMORY_CHECK| ALL ARRAY BOUNDARIES ARE OK '
+!     *  WRITE(6,'(A)') ' N_MEMORY_CHECK| ALL ARRAY BOUNDARIES ARE OK '
       ELSE
-        CALL PRINT_MEMORY
-        CALL Stop_All('MEMORY_CHECK',' CORRUPTED MEMORY')
+        CALL N_PRINT_MEMORY
+        CALL Stop_All('N_MEMORY_CHECK',' CORRUPTED MEMORY')
       ENDIF
 C     ==--------------------------------------------------------------==
       RETURN
       END
 
 C     ==================================================================
-      SUBROUTINE PRINT_MEMORY
+      SUBROUTINE N_PRINT_MEMORY
 C     ==--------------------------------------------------------------==
 #ifdef PARALLEL
          use Parallel, only: me => iProcIndex, nProc => nProcessors
