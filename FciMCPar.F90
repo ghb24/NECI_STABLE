@@ -296,7 +296,7 @@ MODULE FciMCParMod
 
                     do l=1,abs(Child)
 !Copy across children - cannot copy excitation generators, as do not know them
-                        CALL NECI_ICOPY(NEl,nJ(:),1,NewDets(:,VecSlot),1)
+                        NewDets(:,VecSlot)=nJ(:)
 !                        NewDets(:,VecSlot)=nJ(:)
                         NewSign(VecSlot)=WSign
                         IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
@@ -323,7 +323,7 @@ MODULE FciMCParMod
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
         
                     do l=1,abs(iDie)+1    !We need to copy accross one more, since we need to include the original spared particle
-                        CALL NECI_ICOPY(NEl,CurrentDets(:,j),1,NewDets(:,VecSlot),1)
+                        NewDets(:,VecSlot)=CurrentDets(:,j)
 !                        NewDets(:,VecSlot)=CurrentDets(:,j)
                         NewSign(VecSlot)=CurrentSign(j)
 !Copy excitation generator accross
@@ -340,7 +340,7 @@ MODULE FciMCParMod
 !However, after that anti-particles will need to be created on the same determinant.
 
                     do l=1,iDie-1
-                        CALL NECI_ICOPY(NEl,CurrentDets(:,j),1,NewDets(:,VecSlot),1)
+                        NewDets(:,VecSlot)=CurrentDets(:,j)
 !                        NewDets(:,VecSlot)=CurrentDets(:,j)
                         IF(CurrentSign(j)) THEN
 !Copy accross new anti-particles
@@ -514,7 +514,7 @@ MODULE FciMCParMod
         j=1
 !j is the counter over all uncancelled walkers - it indicates when we have reached the end of the list of total walkers
 !DetCurr is the current determinant
-        CALL NECI_ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+        DetCurr(:)=NewDets(:,j)
         TempIC=NewIC(j)
         TempH=NewH(j)
         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit)
@@ -537,7 +537,7 @@ MODULE FciMCParMod
             IF(TotWalkersDet.gt.0) THEN
 !Positive sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
-                    CALL NECI_ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CurrentDets(:,VecSlot)=DetCurr(:)
                     CurrentSign(VecSlot)=.true.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
@@ -547,7 +547,7 @@ MODULE FciMCParMod
             ELSE
 !Negative sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
-                    CALL NECI_ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CurrentDets(:,VecSlot)=DetCurr(:)
                     CurrentSign(VecSlot)=.false.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
@@ -556,7 +556,7 @@ MODULE FciMCParMod
                 enddo
             ENDIF
 !Now update the current determinant
-            CALL NECI_ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+            DetCurr(:)=NewDets(:,j)
             TempIC=NewIC(j)
             TempH=NewH(j)
             IF(.not.TRegenExcitgens) CALL CopyExitGenPar(NewExcits(j),TempExcit)
@@ -590,26 +590,26 @@ MODULE FciMCParMod
 10      CONTINUE
         IF(L.GT.1)THEN
             L=L-1
-            CALL NECI_ICOPY(NElecs,Dets(1,L),1,TempDet,1)          !Copy Lth element to temp
+            TempDet(:)=Dets(:,L)
             HTemp=NewH(L)
             ICTemp=NewIC(L)
             WSignTemp=NewSign(L)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp)
         ELSE
-            CALL NECI_ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
+            TempDet(:)=Dets(:,IR)      !Copy IRth elements to temp
             HTemp=NewH(IR)
             ICTemp=NewIC(IR)
             WSignTemp=NewSign(IR)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp)
 
-            CALL NECI_ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
+            Dets(:,IR)=Dets(:,1)    !Copy 1st element to IRth element
             NewH(IR)=NewH(1)
             NewIC(IR)=NewIC(1)
             NewSign(IR)=NewSign(1)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR))
             IR=IR-1
             IF(IR.EQ.1)THEN
-                CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
+                Dets(:,1)=TempDet(:)    !Copy temp element to 1st element
                 NewH(1)=HTemp
                 NewIC(1)=ICTemp
                 NewSign(1)=WSignTemp
@@ -624,7 +624,7 @@ MODULE FciMCParMod
                 IF((DETLT(Dets(1,J),Dets(1,J+1),NElecs)).eq.-1) J=J+1
             ENDIF
             IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
-                CALL NECI_ICOPY(NElecs,Dets(1,J),1,Dets(1,I),1)      !Copy Jth element to Ith element
+                Dets(:,I)=Dets(:,J)     !Copy Jth element to Ith element
                 NewH(I)=NewH(J)
                 NewIC(I)=NewIC(J)
                 NewSign(I)=NewSign(J)
@@ -636,7 +636,7 @@ MODULE FciMCParMod
             ENDIF
             GO TO 20
         ENDIF
-        CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,I),1)                !Copy from temp element to Ith element
+        Dets(:,I)=TempDet(:)
         NewH(I)=HTemp
         NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
@@ -669,11 +669,8 @@ MODULE FciMCParMod
         CALL LogMemAlloc('TempHash',TotWalkersNew,8,this_routine,TempHashTag,ierr)
         
 !Temporary arrays, storing the signs and Hashes need ot be kept, as both these arrays are going to be mixed
-        do i=1,TotWalkersNew
-!I can probably use icopy/dcopy here instead
-            TempSign(i)=NewSign(i)
-            TempHash(i)=Hash2Array(i)
-        enddo
+        TempSign(1:TotWalkersNew)=NewSign(1:TotWalkersNew)
+        TempHash(1:TotWalkersNew)=Hash2Array(1:TotWalkersNew)
     
 !Create the arrays for index and process
         do i=1,TotWalkersNew
@@ -1030,7 +1027,7 @@ MODULE FciMCParMod
                 IF(Iter.eq.DebugIter) WRITE(6,*) Index2Table(j)
                 do while(i.lt.Index2Table(j))
 !Copy accross all particles less than this number
-                    CALL NECI_ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
+                    CurrentDets(:,VecSlot)=NewDets(:,i)
                     CurrentIC(VecSlot)=NewIC(i)
                     CurrentH(VecSlot)=NewH(i)
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
@@ -1044,7 +1041,7 @@ MODULE FciMCParMod
 
 !Now need to copy accross the residual - from Index2Table(ToAnnihilateonProc) to TotWalkersNew
             do i=Index2Table(ToAnnihilateonProc)+1,TotWalkersNew
-                CALL NECI_ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
+                CurrentDets(:,VecSlot)=NewDets(:,i)
                 CurrentIC(VecSlot)=NewIC(i)
                 CurrentH(VecSlot)=NewH(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
@@ -1057,7 +1054,7 @@ MODULE FciMCParMod
 !No particles annihilated
             VecSlot=1
             do i=1,TotWalkersNew
-                CALL NECI_ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
+                CurrentDets(:,VecSlot)=NewDets(:,i)
                 CurrentIC(VecSlot)=NewIC(i)
                 CurrentH(VecSlot)=NewH(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
@@ -1189,12 +1186,12 @@ MODULE FciMCParMod
             GraphRhoMat(2,1)=GraphRhoMat(1,2)
             GraphRhoMat(2,2)=1.D0-Tau*((real(Hjj%v,r2)-Hii)-DiagSft)
                 
-            CALL ICOPY(NEl,nJ(:),1,DetsinGraph(:,2),1)
+            DetsinGraph(:,2)=nJ(:)
             GraphKii(2)=REAL(Hjj%v,r2)-Hii              !store det generated and kii element
 
         ELSE
 !Zero the matrix
-            CALL AZZERO(GraphRhoMat,NDets*NDets)
+            GraphRhoMat(1:NDets,1:NDets)=0.D0
             
             GraphRhoMat(1,1)=1.D0-Tau*(CurrentH(VecInd)-DiagSft)    !This is the first rho-matrix element
 
@@ -1235,7 +1232,7 @@ MODULE FciMCParMod
                     ENDIF
 
 !Determinant is distinct - add it
-                    CALL ICOPY(NEl,nJ(:),1,DetsinGraph(:,i),1)
+                    DetsinGraph(1:NEl,i)=nJ(1:NEl)
 !First find connection to root
                     Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
                     GraphRhoMat(1,i)=-Tau*REAL(Hij%v,r2)
@@ -1312,7 +1309,7 @@ MODULE FciMCParMod
                 
 !Now actually create the particles in NewDets and NewSign
                 do j=1,abs(Create)
-                    CALL NECI_ICOPY(NEl,DetsInGraph(:,i),1,NewDets(:,VecSlot),1)
+                    NewDets(1:NEl,VecSlot)=DetsInGraph(1:NEl,i)
                     NewSign(VecSlot)=TempSign
                     NewIC(VecSlot)=ExcitLevel
                     NewH(VecSlot)=GraphKii(i)       !Diagonal H El previously stored
@@ -1399,8 +1396,8 @@ MODULE FciMCParMod
             do i=1,RhoApp
 
                 CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
-                CALL DCOPY(NDets,TempVec,1,GraphVec,1)
-                TempVec(1:nDets)=0.d0
+                GraphVec(1:NDets)=TempVec(1:NDets)
+                TempVec(1:NDets)=0.d0
             
 !            do j=1,NDets
 !                TempVec(j)=0.D0
@@ -1668,7 +1665,7 @@ MODULE FciMCParMod
             GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
 
             NoCulls=0
-            CullInfo(1:30)=0
+            CullInfo(1:10,1:3)=0
         ELSE
             GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
             do j=2,NoCulls
@@ -1683,7 +1680,7 @@ MODULE FciMCParMod
             GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
 
             NoCulls=0
-            CullInfo(1:30)=0
+            CullInfo(1:10,1:3)=0
 
         ENDIF
         
@@ -1885,10 +1882,10 @@ MODULE FciMCParMod
 !Allocate memory to hold walkers
             ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(1:NEl*MaxWalkers)=0
+            WalkVecDets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl*MaxWalkers)=0
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
@@ -2016,7 +2013,7 @@ MODULE FciMCParMod
 
         ENDIF   !End if initial walkers method
 
-        CullInfo(1:30)=0
+        CullInfo(1:10,1:3)=0
         NoCulls=0
 
 
@@ -2444,7 +2441,7 @@ MODULE FciMCParMod
         CALL LogMemAlloc('MP1Sign',HFConn,4,this_routine,MP1SignTag,ierr)
         
 !HF Compt. of MP1 is 1
-        CALL NECI_ICOPY(NEl,HFDet,1,MP1Dets(1:NEl,1),1)
+        MP1Dets(1:NEl,1)=HFDet(1:NEl)
         MP1Comps(1)=1.D0
         MP1Sign(1)=.true.
 
@@ -2471,7 +2468,7 @@ MODULE FciMCParMod
             ELSE
                 MP1Sign(VecSlot)=.true.
             ENDIF
-            CALL NECI_ICOPY(NEl,nJ,1,MP1Dets(1:NEl,VecSlot),1)
+            MP1Dets(1:NEl,VecSlot)=nJ(:)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
             SumMP1Compts=SumMP1Compts+abs(Compt)
             MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
@@ -2514,7 +2511,7 @@ MODULE FciMCParMod
             IF(i.eq.1) THEN
 !If we are at HF, then we do not need to calculate the information for the walker        
                 WalkersonHF=WalkersonHF+1
-                CALL NECI_ICOPY(NEl,HFDet,1,CurrentDets(1:NEl,j),1)
+                CurrentDets(1:NEl,j)=HFDet(:)
                 CurrentIC(j)=0
                 CurrentSign(j)=.true.
                 CurrentH(j)=0.D0
@@ -2523,7 +2520,7 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
 !We are at a double excitation - we need to calculate most of this information...
-                CALL NECI_ICOPY(NEl,MP1Dets(1:NEl,i),1,CurrentDets(1:NEl,j),1)
+                CurrentDets(1:NEl,j)=MP1Dets(1:NEl,i)
                 CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
                 Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
