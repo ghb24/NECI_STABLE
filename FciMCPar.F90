@@ -125,6 +125,8 @@ MODULE FciMCParMod
     LOGICAL :: TDebug                           !Debugging flag
     INTEGER :: MaxIndex
 
+    LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
+
     TYPE(timer), save :: Walker_Time,Annihil_Time
         
     contains
@@ -254,7 +256,45 @@ MODULE FciMCParMod
                 ENDIF
 !Calculate number of children to spawn
 
-                Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                IF(TTruncSpace) THEN
+!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
+
+                   IF(CurrentIC(j).eq.(ICILevel-1)) THEN
+!The current walker is one below the excitation cutoff - if IC is a double, then could go over
+
+                        IF(IC.eq.2) THEN
+!Need to check excitation level of excitation
+                            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                            IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                                Child=0
+                            ELSE
+                                Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                            ENDIF
+                        ELSE
+                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                        ENDIF
+
+                    ELSEIF(CurrentIC(j).eq.ICILevel) THEN
+!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
+                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                        IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                            Child=0
+                        ELSE
+                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                        ENDIF
+                    ELSE
+!Excitation cannot be in a dissallowed excitation level - allow it as normal
+                        Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                    ENDIF 
+                
+                ELSE
+!SD Space is not truncated - allow attempted spawn as usual
+
+                    Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+
+                ENDIF
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
@@ -1419,7 +1459,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(2),outpair(2)
+        INTEGER :: inpair(7),outpair(7)
         REAL*8 :: TempSumNoatHF,MeanWalkers
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
@@ -1429,7 +1469,30 @@ MODULE FciMCParMod
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
 !We need to collate the information from the different processors
-        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!Inpair and outpair are used to package variables to save on latency time
+        inpair(1)=TotWalkers
+        inpair(2)=Annihilated
+        inpair(3)=NoatDoubs
+        inpair(4)=NoBorn
+        inpair(5)=NoDied
+        inpair(6)=SumWalkersCyc
+        outpair(:)=0
+!        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!Find total Annihilated,Total at HF and Total at doubles
+!        CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!!        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)  !This is done every iteration now
+!        CALL MPI_Reduce(NoatDoubs,AllNoatDoubs,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        AllTotWalkers=outpair(1)
+        AllAnnihilated=outpair(2)
+        AllNoatDoubs=outpair(3)
+        AllNoBorn=outpair(4)
+        AllNoDied=outpair(5)
+        AllSumWalkersCyc=outpair(6)
+
 
         MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
         MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
@@ -1453,21 +1516,12 @@ MODULE FciMCParMod
 !We need to tell all nodes whether to balance the nodes or not...
         CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
         
-        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
         GrowRate=GrowRate*SumWalkersCyc                    
         CALL MPIDSumRoot(GrowRate,1,AllGrowRate,Root)   
         IF(iProcIndex.eq.Root) THEN
             AllGrowRate=AllGrowRate/(real(AllSumWalkersCyc,r2))
         ENDIF
-
-!Find total Annihilated,Total at HF and Total at doubles
-        CALL MPI_Reduce(Annihilated,AllAnnihilated,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-!        CALL MPI_Reduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(NoatDoubs,AllNoatDoubs,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
@@ -1787,9 +1841,6 @@ MODULE FciMCParMod
             WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
             WRITE(6,*) "This is equivalent to running seperate calculations."
         ENDIF
-        IF(ICILEVEL.ne.0) THEN
-            CALL Stop_All("InitFCIMCCalcPar","Truncated FCIMC not yet available in parallel.")
-        ENDIF
         IF(TReadPops) THEN
 !List of things that readpops can't work with...
             IF(TStartSinglePart.or.TStartMP1) THEN
@@ -1857,7 +1908,13 @@ MODULE FciMCParMod
                 WRITE(6,*) "With this option, results are going to be non-exact, but can be used to equilibrate calculations"
             ENDIF
         ENDIF
-        
+        IF(ICILevel.ne.0) THEN
+!We are truncating the excitations at a certain value
+            TTruncSpace=.true.
+            WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
+            IF(TResumFciMC) CALL Stop_All("InitFciMCPar","Space cannot be truncated with ResumFCIMC")
+        ENDIF
+
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 

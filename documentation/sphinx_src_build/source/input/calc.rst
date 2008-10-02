@@ -43,6 +43,7 @@ General options
 
    Excitiation level at which to truncate determinant list.  If ICILEVEL=0
    then all determinants are enumerated.
+   This also works for FCIMC calculations.
 
 **EXCITATIONS** [**OLD** **NEW**]
    For generation of up to double excitations use the old (completely
