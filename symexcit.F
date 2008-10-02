@@ -22,7 +22,7 @@ C.. Setup for symmetry routine below.
          INTEGER ILEVEL
          INTEGER iMinElec1,iMaxElec1
          STORE(1:6)=0
-         CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
+         CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &      +SymmetrySize*(NEL*NEL+1),
      &      'DSTORE')
          STORE(1)=IP_DSTORE
@@ -32,7 +32,7 @@ C.. Setup for symmetry routine below.
      &      DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
      &      iMaxElec1)
 C.. If we're just counting, we don't need to keep DSTORE
-         IF(TCOUNT) CALL FREEM(IP_DSTORE)
+         IF(TCOUNT) CALL N_FREEM(IP_DSTORE)
       END
 
 
@@ -311,7 +311,7 @@ C..  SymProdCount(iType,iPr) is the number of pairs of orbs up to and including 
 
 C.. Allocate enough memory to store the index
          IF(STORE(5).EQ.0) THEN
-            CALL MEMORY(IP_SYMPRODIND,2*3*(NPR+1),'SYMPRODIND')   
+            CALL N_MEMORY(IP_SYMPRODIND,2*3*(NPR+1),'SYMPRODIND')   
          ELSE
 C.. we've acually got space to store it somewhere
             IP_SYMPRODIND=STORE(5)
@@ -336,7 +336,7 @@ C         ENDDO
 C.. We allocate enough memory to store all the pairs.
 C.. Each pair consists of (ORB1,ORB2) where ORB1<ORB2
          IF(STORE(4).EQ.0) THEN
-            CALL MEMORY(IP_ORBPAIRS,2*NPAIRS/IRAT+1,'ORBPAIRS')
+            CALL N_MEMORY(IP_ORBPAIRS,2*NPAIRS/IRAT+1,'ORBPAIRS')
          ELSE
             IP_ORBPAIRS=STORE(4)
          ENDIF
@@ -416,7 +416,7 @@ C.. Now look through the list of our pairs.  For each pair sym of the complete l
 C.. symmetric product with any of our pair syms, we work out how many allowed pairs there are in
 C.. the complete list, and store that value in NALLOWPPS
          IF(STORE(3).EQ.0) THEN
-            CALL MEMORY(IP_NALLOWPPS,3*NSYMPAIRPRODS/IRAT+1,'NALLOWPPS')
+          CALL N_MEMORY(IP_NALLOWPPS,3*NSYMPAIRPRODS/IRAT+1,'NALLOWPPS')
          ELSE
             IP_NALLOWPPS=STORE(3)
          ENDIF
@@ -552,9 +552,9 @@ C.. SYMPRODIND
 C.. indicate that these are lengths
             STORE(6)=0
             
-            CALL FREEM(IP_NALLOWPPS)
-            CALL FREEM(IP_ORBPAIRS)
-            CALL FREEM(IP_SYMPRODIND)
+            CALL N_FREEM(IP_NALLOWPPS)
+            CALL N_FREEM(IP_ORBPAIRS)
+            CALL N_FREEM(IP_SYMPRODIND)
          ELSE
 C.. Now allocate memory to store all the excitation types if there hasn't been one already allocated.
 C.. This will have to be manually deallocated later.
@@ -565,7 +565,8 @@ C.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
 C.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
 C.. 5  COUNT (Total number of excitations in this category)
          IF(STORE(2).EQ.0) THEN
-          CALL MEMORY(IP_EXCITTYPES,(NEXCITTYPES*5)/IRAT+1,'EXCITTYPES')
+           CALL N_MEMORY(IP_EXCITTYPES,(NEXCITTYPES*5)/IRAT+1,
+     &                                                    'EXCITTYPES')
          ELSE
             IP_EXCITTYPES=STORE(2)
          ENDIF
@@ -705,7 +706,7 @@ C..      ENDIF(.NOT.TCOUNT)
      &   SymProdCount)
 C.. Allocate enough memory to store the index
          IF(STORE(5).EQ.0) THEN
-            CALL MEMORY(IP_SYMPRODIND,2*3*(NPR+1),'SYMPRODIND')   
+            CALL N_MEMORY(IP_SYMPRODIND,2*3*(NPR+1),'SYMPRODIND')   
          ELSE
 C.. we've acually got space to store it somewhere
             IP_SYMPRODIND=STORE(5)
@@ -730,7 +731,7 @@ C         ENDDO
 C.. We allocate enough memory to store all the pairs.
 C.. Each pair consists of (ORB1,ORB2) where ORB1<ORB2
          IF(STORE(4).EQ.0) THEN
-            CALL MEMORY(IP_ORBPAIRS,2*NPAIRS/IRAT+1,'ORBPAIRS')
+            CALL N_MEMORY(IP_ORBPAIRS,2*NPAIRS/IRAT+1,'ORBPAIRS')
          ELSE
             IP_ORBPAIRS=STORE(4)
          ENDIF
@@ -752,7 +753,7 @@ C.. Now look through the list of our pairs.  For each pair sym of the complete l
 C.. symmetric product with any of our pair syms, we work out how many allowed pairs there are in
 C.. the complete list, and store that value in NALLOWPPS
          IF(STORE(3).EQ.0) THEN
-            CALL MEMORY(IP_NALLOWPPS,3*NSYMPAIRPRODS/IRAT+1,'NALLOWPPS')
+          CALL N_MEMORY(IP_NALLOWPPS,3*NSYMPAIRPRODS/IRAT+1,'NALLOWPPS')
          ELSE
             IP_NALLOWPPS=STORE(3)
          ENDIF
@@ -780,9 +781,9 @@ C.. SYMPRODIND
 C.. indicate that these are lengths
             STORE(6)=0
             
-            CALL FREEM(IP_NALLOWPPS)
-            CALL FREEM(IP_ORBPAIRS)
-            CALL FREEM(IP_SYMPRODIND)
+            CALL N_FREEM(IP_NALLOWPPS)
+            CALL N_FREEM(IP_ORBPAIRS)
+            CALL N_FREEM(IP_SYMPRODIND)
          ELSE
 C.. Now allocate memory to store all the excitation types if there hasn't been one already allocated.
 C.. This will have to be manually deallocated later.
@@ -793,7 +794,8 @@ C.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
 C.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
 C.. 5  COUNT (Total number of excitations in this category)
          IF(STORE(2).EQ.0) THEN
-          CALL MEMORY(IP_EXCITTYPES,(NEXCITTYPES*5)/IRAT+1,'EXCITTYPES')
+            CALL N_MEMORY(IP_EXCITTYPES,(NEXCITTYPES*5)/IRAT+1,
+     &                                                     'EXCITTYPES')
          ELSE
             IP_EXCITTYPES=STORE(2)
          ENDIF
@@ -1419,11 +1421,11 @@ C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
      &            SYMPRODIND,DSTORE(SymClassSize*NEL+1),ORBPAIRS,G1,
      &            NBASISMAX,LSTE,ICLIST,ICOUNT)
    
-         CALL FREEM(IP_EXCITTYPES)
-         CALL FREEM(IP_NALLOWPPS)
-         CALL FREEM(IP_ORBPAIRS)
-         CALL FREEM(IP_SYMPRODIND)
-         CALL FREEM(IP_DSTORE)
+         CALL N_FREEM(IP_EXCITTYPES)
+         CALL N_FREEM(IP_NALLOWPPS)
+         CALL N_FREEM(IP_ORBPAIRS)
+         CALL N_FREEM(IP_SYMPRODIND)
+         CALL N_FREEM(IP_DSTORE)
 
          call halt_timer(proc_timer)
  
@@ -1797,7 +1799,7 @@ C.. This is the first time we've been called for setup.
 !  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
             IF(STORE(1).EQ.0) THEN
                STORE2(1:6)=0
-               CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
+               CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
                STORE2(1)=IP_DSTORE
 C.. Just count.
@@ -1806,7 +1808,7 @@ C.. Just count.
      &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
      &           iMaxElec1)
 
-               CALL FREEM(IP_DSTORE)
+               CALL N_FREEM(IP_DSTORE)
                DO i=1,6
                   STORE(i)=STORE2(i)
                ENDDO
@@ -2516,7 +2518,7 @@ C.. Actually generate a det
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          pGen=(0.D0+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
 !  Allocate memory to store all weights and excitations in this category
-         CALL MEMORY(IP_ExcitWeight,ExcitWeightSize*
+         CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
      &      SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
          CALL EnumExcitFromWeights(EXCITTYPES(1,IEXCIT),ews,OrbPairs,
      &      SymProdInd,
@@ -2535,11 +2537,11 @@ C.. Actually generate a det
          
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
-         CALL FREEM(IP_ExcitWeight)
+         CALL N_FREEM(IP_ExcitWeight)
 
 
 !  Allocate memory to store all weights and excitations in this category
-         CALL MEMORY(IP_ExcitWeight,ExcitWeightSize*
+         CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
      &      EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
 
 !.. Now go through the list of virtual pairs, excluding those with orbitals in NI 
@@ -2585,7 +2587,7 @@ C.. Actually generate a det
          ENDDO
          CALL NECI_SORTI(NEL,NK)
          IC=2
-         CALL FREEM(IP_ExcitWeight)
+         CALL N_FREEM(IP_ExcitWeight)
          RETURN
       ENDIF
       END 
@@ -2779,7 +2781,7 @@ C            IF(j.EQ.iV-1) THEN
 C.. Setup the excit generator for the last vertex
                 CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
      &              .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
-                CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+                CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                 NEWEX(1)=0
 C.. Count the excitations (and generate a random one which we throw)
                 CALL GENSYMEXCITIT2(iGraph(1,i),NEL,G1,NBASIS,NBASISMAX,
@@ -2796,7 +2798,7 @@ C.. Count the excitations (and generate a random one which we throw)
                         XIJ(i,j)=pGen
                     ENDIF
                 ENDDO
-                CALL FREEM(IP_NEWEX)
+                CALL N_FREEM(IP_NEWEX)
             ENDDO
             pGenGraph=GETPATHPROB2(XIJ,iV)
          ENDIF

@@ -390,7 +390,7 @@ C  Add the cumulative change
                STD=SQRT(ABS(FSQ(I_V)-SQ(F(I_V))))
                IF(I_CHMAX.EQ.-7.OR.I_CHMAX.EQ.-19) THEN
 C.. setup spin excitation generator
-                  CALL FREEM(IP_NMEM)
+                  CALL N_FREEM(IP_NMEM)
                ENDIF
             ENDIF
 
@@ -1333,7 +1333,7 @@ C.. Initialiaze the excitation generators
      &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
 C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
-         CALL MEMORY(IP_NMEM,NMEMLEN/IRAT+1,'NMEM')
+         CALL N_MEMORY(IP_NMEM,NMEMLEN/IRAT+1,'NMEM')
 C         WRITE(6,"(A,Z8.8,Z,I)") "NMEM",IP_NMEM,NMEMLEN,NMEMLEN
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
@@ -1395,7 +1395,8 @@ C.. generator, as no other sub-recursion is using it yet
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. create a copy
 
-               CALL MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL)/IRAT+1,'CURGEN')
+               CALL N_MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL)/IRAT+1,
+     &                                                        'CURGEN')
                IP_OGEN=LOCTAB2(1,IVLEVEL)
                CALL NECI_ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
 !To stop optimization problem with pgi6.1-6
@@ -1564,7 +1565,7 @@ C            CALL MEMORY_CHECK()
 C            CALL PRINT_MEMORY()
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. free the copy
-               CALL FREEM(IP_CURGEN)
+               CALL N_FREEM(IP_CURGEN)
                IP_CURGEN=0
                LOCTAB2(1,IVLEVEL)=0
             ENDIF
@@ -1574,7 +1575,7 @@ C.. connected, and continue from after where this node was excited
          ENDDO
 C            CALL MEMORY_CHECK()
 C            CALL PRINT_MEMORY()
-         CALL FREEM(IP_NMEM)
+         CALL N_FREEM(IP_NMEM)
          LOCTAB(1,I_VIND+1)=0
          FMCPR3BRES=TOTAL
 
@@ -1808,8 +1809,8 @@ C.. Allocate storage space for the connections
          NCONN=SQRT(NLIST+0.D0)+1
          IF(NCONN.LT.20) NCONN=20
          NCONN=NCONN*(NLIST+1)
-         CALL MEMORY(IP_CONMAT,NCONN,"CONMAT")
-         CALL MEMORY(IP_CONLIST,NCONN,"CONLIST")
+         CALL N_MEMORY(IP_CONMAT,NCONN,"CONMAT")
+         CALL N_MEMORY(IP_CONLIST,NCONN,"CONLIST")
 
          NLCUR=0
          DO I=0,NLIST
@@ -2320,11 +2321,11 @@ C.. star matrix read in from STARDATA
          NROOTS=NROOTS1
          proc_timer%timer_name='RDSTARDIAG'
          call set_timer(proc_timer)
-         CALL MEMORY(IP_RIIS,NROOTS+1,'RIIS')
-         CALL MEMORY(IP_ROOTS,NROOTS+1,'ROOTS')
-         CALL MEMORY(IP_HIJS,NROOTS+1,'HIJS')
-         CALL MEMORY(IP_RIJS,NROOTS+1,'RIJS')
-         CALL MEMORY(IP_NR,NROOTS+1,'NR')
+         CALL N_MEMORY(IP_RIIS,NROOTS+1,'RIIS')
+         CALL N_MEMORY(IP_ROOTS,NROOTS+1,'ROOTS')
+         CALL N_MEMORY(IP_HIJS,NROOTS+1,'HIJS')
+         CALL N_MEMORY(IP_RIJS,NROOTS+1,'RIJS')
+         CALL N_MEMORY(IP_NR,NROOTS+1,'NR')
          NR(0)=1
          RIJS(0)=1.D0
 CRII
@@ -2435,11 +2436,11 @@ C               WRITE(6,*)
          ENDDO
          SI=SI-1.D0
 C         DLWDB=DLWDB-LIST(1,2)
-         CALL FREEM(IP_RIIS)
-         CALL FREEM(IP_ROOTS)
-         CALL FREEM(IP_HIJS)
-         CALL FREEM(IP_RIJS)
-         CALL FREEM(IP_NR)
+         CALL N_FREEM(IP_RIIS)
+         CALL N_FREEM(IP_ROOTS)
+         CALL N_FREEM(IP_HIJS)
+         CALL N_FREEM(IP_RIJS)
+         CALL N_FREEM(IP_NR)
          call halt_timer(proc_timer)
          RETURN
       END

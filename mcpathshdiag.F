@@ -327,7 +327,7 @@ C.. Initialiaze the excitation generators
          STORE(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
-         CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
+         CALL N_MEMORY(IP_NMEM,NMEMLEN,'NMEM')
          NMEM(1)=0
          CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &         .TRUE.,NMEM,NJ,IC,IFRZ(0,I_VIND+1),STORE,EXFLAG)
@@ -376,7 +376,7 @@ C.. generator, as no other sub-recursion is using it yet
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. create a copy
 
-               CALL MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL),'CURGEN')
+               CALL N_MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL),'CURGEN')
                IP_OGEN=LOCTAB2(1,IVLEVEL)
                CALL NECI_ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
                I_VIND=I_VIND+1
@@ -528,7 +528,7 @@ C            CALL MEMORY_CHECK()
 C            CALL PRINT_MEMORY()
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. free the copy
-               CALL FREEM(IP_CURGEN)
+               CALL N_FREEM(IP_CURGEN)
                IP_CURGEN=0
                LOCTAB2(1,IVLEVEL)=0
             ENDIF
@@ -538,7 +538,7 @@ C.. connected, and continue from after where this node was excited
          ENDDO
 C            CALL MEMORY_CHECK()
 C            CALL PRINT_MEMORY()
-         CALL FREEM(IP_NMEM)
+         CALL N_FREEM(IP_NMEM)
          LOCTAB(1,I_VIND+1)=0
          FMCPR3B2RES=TOTAL
 

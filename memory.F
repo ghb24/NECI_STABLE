@@ -1,5 +1,5 @@
 C     ==================================================================
-      SUBROUTINE MEMORY(IP_POINT,LENGTH,TAG)
+      SUBROUTINE N_MEMORY(IP_POINT,LENGTH,TAG)
 C     ==--------------------------------------------------------------==
       use MemoryManager, only: LogMemAlloc,LeaveMemoryManager
       use MemoryManager, only: LookupPointer,li
@@ -116,7 +116,7 @@ CC /AJWT
      *             FOR ',TAG
         WRITE(*,'(1X,64("*"),/)')
         CALL LeaveMemoryManager
-        CALL XSTRING(TAG,IA,IE)
+        CALL N_XSTRING(TAG,IA,IE)
         WRITE(LINE,'(A,A,A)') 'ALLOCATION FAILED (',TAG(IA:IE),')'
         IE=IE+19+1
         CALL Stop_All('MEMORY',LINE(1:IE))
@@ -157,7 +157,7 @@ C     ==================================================================
 
 !  Used to be in readsr.F
 C     ==================================================================
-      SUBROUTINE XSTRING(STRING,IA,IE)
+      SUBROUTINE N_XSTRING(STRING,IA,IE)
 C     ==--------------------------------------------------------------==
 C     == Give index of the first and last non-blank character         ==
 C     == blank characters are " " and CHAR(9) (tab)                   ==

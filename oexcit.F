@@ -244,7 +244,7 @@ C.. available within the same symmetry and Sz.  This does not enumerate them all
          NTYPES=0
          CALL GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
-         CALL MEMORY(IP_TYPES,5*NTYPES,'TYPES')
+         CALL N_MEMORY(IP_TYPES,5*NTYPES,'TYPES')
          CALL GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
          IC=0
@@ -254,7 +254,7 @@ C.. available within the same symmetry and Sz.  This does not enumerate them all
            IC=IC+TYPES(5,I)
          ENDDO
          NEX=IC
-         CALL FREEM(IP_TYPES)
+         CALL N_FREEM(IP_TYPES)
          RETURN
       END
 
@@ -343,7 +343,7 @@ C.. list LIST, and their excitation level into list ICLIST.
          NTYPES=0
          CALL GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
-         CALL MEMORY(IP_TYPES,5*NTYPES,'TYPES')
+         CALL N_MEMORY(IP_TYPES,5*NTYPES,'TYPES')
          CALL GETSYMEXTYPES(NBASISMAX,TYPES,NTYPES,NI,NEL,G1,NBASIS,
      &      IFRZ)
          IC=0
@@ -356,7 +356,7 @@ C         CALL WRITEDET(60,NI,NEL,.TRUE.)
             IF(IC.GT.NLIST) STOP 'LIST FOR EXCITATIONS NOT LONG ENOUGH'
          ENDDO
          NLIST=IC
-         CALL FREEM(IP_TYPES)
+         CALL N_FREEM(IP_TYPES)
          RETURN
       END
 

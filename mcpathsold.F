@@ -61,8 +61,8 @@ c            WRITE(6,*) I_H,F(I_H),TOTAL,get_total_time(proc_timer2),L,LT
          IF(TLOG) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
          WLSI=LOG(TOTAL)
-C         CALL FREEM(IP_LSTE)
-C         CALL FREEM(IP_ICE)
+C         CALL N_FREEM(IP_LSTE)
+C         CALL N_FREEM(IP_ICE)
          call halt_timer(proc_timer)
          RETURN
       END

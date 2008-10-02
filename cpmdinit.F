@@ -189,7 +189,7 @@ C.. Assume there will be no more than 64 irreps
          allocate(IRREPCHARS(NROT,NROT)) ! nSym==nRot
          call LogMemAlloc('IRREPCHARS',nROT**2,16,this_routine,
      &                                                    tagIRREPCHARS)
-         !CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
+         !CALL N_MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
       END
 
 C.. Calculate the h_ij elements for CPMD orbitals.

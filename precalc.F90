@@ -1010,7 +1010,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
             CALL LogMemDealloc(t_r,tagPVERTMEMS)
             DO t=1,DEALLOCYC(2)
                 DO tt=1,(DEALLOCYC(1)-1)
-                    CALL FREEM(PVERTMEMS(tt,t))
+                    CALL N_FREEM(PVERTMEMS(tt,t))
                 ENDDO
             ENDDO
             DEALLOCATE(PVERTMEMS)
@@ -1081,7 +1081,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                 IF (ASSOCIATED(PVERTMEMS)) THEN
                     DO t=1,DEALLOCYC(2)
                         DO tt=1,(DEALLOCYC(1)-1)
-                            CALL FREEM(PVERTMEMS(tt,t))
+                            CALL N_FREEM(PVERTMEMS(tt,t))
                         ENDDO
                     ENDDO
 !                    DO t=1,DEALLOCYC(2)
@@ -1246,7 +1246,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                        NTAY,RHOEPS,RHOII,RHOIJ,ECORE,ISEED,HIJS,0,154,          &
                        EXCITGEN)
 !                        DO tt=1,K-1
-!                            CALL FREEM(EXCITGEN(tt))
+!                            CALL N_FREEM(EXCITGEN(tt))
 !                        ENDDO
                         
                     ENDIF

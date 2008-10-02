@@ -333,7 +333,7 @@ C.. Allocate some memory
          call LogMemAlloc('LSTDET',size(LSTDET),4,thisroutine,tagLSTDET)
          allocate(DLWDBS(LISTMAX))
          call LogMemAlloc('DLWDBS',LISTMAX,8,thisroutine,tagDLWDBS)
-         CALL MEMORY(IP_DLWDBS,LISTMAX,"DLWDBS")
+         CALL N_MEMORY(IP_DLWDBS,LISTMAX,"DLWDBS")
          allocate(WLRIS(LISTMAX))
          call LogMemAlloc('WLRIS',LISTMAX,8,thisroutine,tagWLRIS)
          allocate(WLSIS(LISTMAX))

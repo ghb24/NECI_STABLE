@@ -1,5 +1,5 @@
 C     ==================================================================
-      SUBROUTINE FREEM(IP_POINT)
+      SUBROUTINE N_FREEM(IP_POINT)
 C     ==--------------------------------------------------------------==
       use MemoryManager, only: LogMemDealloc
       use MemoryManager, only: LookupPointer
@@ -48,9 +48,9 @@ C..Statistics and memory checks
           GOTO 100
         ENDIF
       ENDDO
-      WRITE(*,*) ' FREEM | Could not find pointer ',IP_XM
+      WRITE(*,*) ' N_FREEM | Could not find pointer ',IP_XM
       CALL PRINT_MEMORY
-      CALL Stop_All('FREEM',' NO SUCH POINTER')
+      CALL Stop_All('N_FREEM',' NO SUCH POINTER')
   100 CONTINUE
       LENGTH=I_LEN(II)
       ERROR=ZFIRST.NE.XM(0).OR.ZLAST.NE.XM(LENGTH+1)
@@ -68,8 +68,8 @@ c..free memory
 #ifdef CRAY
       CALL HPDEALLC(IP_XM,IERR,0)
       IF(IERR.NE.0) THEN
-        WRITE(*,*) ' FREEM | Error in deallocation of memory '
-        CALL Stop_All('FREEM',' ')
+        WRITE(*,*) ' N_FREEM | Error in deallocation of memory '
+        CALL Stop_All('N_FREEM',' ')
       ENDIF
 #elif __IBM
       CALL FREE(%VAL(IP_XM))

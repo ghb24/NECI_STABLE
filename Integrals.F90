@@ -474,7 +474,7 @@ MODULE Integrals
          ENDIF
          CALL MEMORY_CHECK()
     !!C.. we need to generate TMAT - Now setup in individual routines
-         !CALL MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
+         !CALL N_MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
          !TMAT=HElement(0.d0)
          IF(THUB) THEN
             CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
@@ -525,7 +525,7 @@ MODULE Integrals
 !!C.. NBASIS contains the new
          NBASIS=NBASIS-NFROZEN-NTFROZEN
 !!C.. We need to transform some integrals
-         !CALL MEMORY(IP_TMAT2,HElementSize*(NBASIS)**2,'TMAT2')
+         !CALL N_MEMORY(IP_TMAT2,HElementSize*(NBASIS)**2,'TMAT2')
          !TMAT2=HElement(0.d0)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN),iSpinSkip,UMATINT)
@@ -549,7 +549,7 @@ MODULE Integrals
 !!C.. NEL now only includes active electrons
          WRITE(6,*) "Number of active electrons:",NEL
          
-         !CALL FREEM(IP_TMAT)
+         !CALL N_FREEM(IP_TMAT)
          !IP_TMAT=IP_TMAT2
          !IP_TMAT2=NULL
 !!C.. Now we can remove the old UMATRIX, and set the pointer UMAT to point

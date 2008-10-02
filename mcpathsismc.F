@@ -168,7 +168,7 @@ C.. we're working in block space, so we work out our current symmetry.
 C.. setup spin excitation generator
 C            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
 C     &               .TRUE.,NMEMLEN,INODE2,ISEED,IEXCITS,0)
-C            CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
+C            CALL N_MEMORY(IP_NMEM,NMEMLEN,'NMEM')
 C            NMEM(1)=0
 C            CALL GENRANDSYMEXCITIT(NI,NEL,G1,NBASIS,NBASISMAX,
 C     &               .FALSE.,NMEM,INODE2,ISEED,IEXCITS,0)
@@ -176,7 +176,7 @@ C.. Setup the spin excit generator
             STORE(1)=0
             CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         .TRUE.,NMEMLEN,INODE2,I,0,STORE,3)
-            CALL MEMORY(IP_NMEM,NMEMLEN,'NMEM')
+            CALL N_MEMORY(IP_NMEM,NMEMLEN,'NMEM')
             NMEM(1)=0
             CALL GENSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
      &         .TRUE.,NMEM,INODE2,I,0,STORE,3)
@@ -629,7 +629,7 @@ caa            CALL FLUSH(10)
          EndIf
          IF(I_HMAX.EQ.-7.OR.I_HMAX.LE.-12) THEN
 C.. setup spin excitation generator
-            CALL FREEM(IP_NMEM)
+            CALL N_FREEM(IP_NMEM)
          ENDIF
          IF(TLOG.AND.I_VMIN.EQ.0) CLOSE(11)
          IF(BTEST(ILOGGING,2)) CLOSE(10)
@@ -1295,7 +1295,7 @@ C.. Setup the spin excit generator
                STORE(1)=0
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
-               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+               CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
@@ -1311,7 +1311,7 @@ C.. Count the excitations (and generate a random one which we throw)
 C.. Count the number of connections from this node (RP=0)
 C               CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
 C     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
-C               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+C               CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
 C               NEWEX(1)=0
 C               PVERTMEMS(I_VNEXT)=IP_NEWEX
 C               WRITE(6,*) I_VNEXT,IP_NEWEX
@@ -1387,7 +1387,7 @@ C.. give up trying to find something to attach, and go home
             ENDIF
          ENDDO
          DO I=1,I_V-1
-            CALL FREEM(PVERTMEMS(I))
+            CALL N_FREEM(PVERTMEMS(I))
          ENDDO
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
@@ -2074,7 +2074,7 @@ C.. Unbias the sum
          !Deallocate Excitation Generators after precalc
          IF(I_HMAX.EQ.154) THEN
              DO I=1,I_V-1
-                 CALL FREEM(PVERTMEMS2(I))
+                 CALL N_FREEM(PVERTMEMS2(I))
              ENDDO
              RETURN
 !          STOP 'I_HMAX of 154 should not be called here (mcpathsismc.F)'
@@ -2159,7 +2159,7 @@ C.. Setup the spin excit generator
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
                !allocate memory
-               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+               CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
                !Generate Excitation generator
@@ -2267,7 +2267,7 @@ C.. give up trying to find something to attach, and go home
 !Don't deallocate excitation generators if want to use the graphs later for MC precalc, deallocate later with 154 call
          IF(.NOT.TPREVAR) THEN
             DO I=1,I_V-1
-                CALL FREEM(PVERTMEMS(I))
+                CALL N_FREEM(PVERTMEMS(I))
             ENDDO
          ENDIF
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
@@ -2555,7 +2555,7 @@ C.. Setup the spin excit generator
                STORE(1)=0
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
      &            .TRUE.,NEWEXLEN,INODE2,IC,0,STORE,3)
-               CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+               CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
                NEWEX(1)=0
                PVERTMEMS(I_VNEXT)=IP_NEWEX
                CALL GENSYMEXCITIT2(INODE,NEL,G1,NBASIS,NBASISMAX,
@@ -2573,7 +2573,7 @@ C.. Count the excitations (and generate a random one which we throw)
 CC.. Create an excitation generator for this node
 C            CALL GENRANDSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,
 C     &               .TRUE.,NEWEXLEN,INODE2,ISEED,IC,0)
-C            CALL MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
+C            CALL N_MEMORY(IP_NEWEX,NEWEXLEN,'NEWEX')
 C            NEWEX(1)=0
 C            PVERTMEMS(I_VNEXT)=IP_NEWEX
 CC.. Count the number of connections to this node
@@ -2588,7 +2588,7 @@ C     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
             PGEN=PGEN*CURWEIGHT*NTENT/(WEIGHTTOT*IC)
          ENDDO
          DO I=1,I_V-1
-            CALL FREEM(PVERTMEMS(I))
+            CALL N_FREEM(PVERTMEMS(I))
          ENDDO
          TLOG=BTEST(ILOGGING,2)
          TLOG2=BTEST(ILOGGING,3)
@@ -2909,12 +2909,12 @@ C.. Accept the new
             VWEIGHTS(1,IVERTMOVE)=WT1
             VWEIGHTS(2,IVERTMOVE)=WT2
 C.. Free the old excitor
-            CALL FREEM(VEXCITS(IVERTMOVE))
+            CALL N_FREEM(VEXCITS(IVERTMOVE))
 C.. Now create a new excitor for this new det.
             CALL GENRANDSYMEXCITIT(IPATH(1,IVERTMOVE),NEL,G1,NBASIS,
      &               NBASISMAX,.TRUE.,CUREXLEN,0,ISEED,IC,0)
 C            WRITE(24,"(2I)",advance='no') IP_CUREX,CUREXLEN
-            CALL MEMORY(IP_CUREX,CUREXLEN,'CUREX')
+            CALL N_MEMORY(IP_CUREX,CUREXLEN,'CUREX')
 C            WRITE(24,"(I)") IP_CUREX
             CUREX(1)=0
             VEXCITS(IVERTMOVE)=IP_CUREX
@@ -3138,7 +3138,7 @@ C.. Now create a new excitor for this new det.
              
             CALL GENRANDSYMEXCITIT(NL,NEL,G1,NBASIS,NBASISMAX,
      &               .TRUE.,CUREXLEN,0,ISEED,IC,0)
-            CALL MEMORY(IP_CUREX,CUREXLEN,'CUREX')
+            CALL N_MEMORY(IP_CUREX,CUREXLEN,'CUREX')
             CUREX(1)=0
             VEXCITS(I_V)=IP_CUREX
             I_V=I_V+1
@@ -3296,7 +3296,7 @@ C.. Accept the new
             VWEIGHTS(1,I_V)=VWEIGHTS(1,I_V)-VWEIGHTS(1,IVERTMOVE)
             VWEIGHTS(2,I_V)=VWEIGHTS(2,I_V)-VWEIGHTS(2,IVERTMOVE)
 C.. Free the excitor
-            CALL FREEM(VEXCITS(IVERTMOVE))
+            CALL N_FREEM(VEXCITS(IVERTMOVE))
             DO I=IVERTMOVE,I_V-1
                VWEIGHTS(1,I)=VWEIGHTS(1,I+1)
                VWEIGHTS(2,I)=VWEIGHTS(2,I+1)

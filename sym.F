@@ -1667,7 +1667,7 @@ C.. Set to be totally symmetric
 !        CALL WRITEIRREPTAB(6, SYMLABELCHARS,NROT,NSYMLABELS)
 !.. Allocate memory gor irreps.
 !.. Assume there will be no more than 64 irreps
-!        CALL MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
+!        CALL N_MEMORY(IP_IRREPCHARS,NROT*64*2,"IRREPCH")
       END
 
       subroutine  DecomposeAbelianSym(ISym,AbelSym)
