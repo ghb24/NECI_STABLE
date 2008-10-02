@@ -347,7 +347,7 @@ C     ==================================================================
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
-      DIMENSION T(LDT,*),WT(LDWT),H(*),W(N),SCR(LSCR),ISCR(LISCR)
+      DIMENSION T(LDT),WT(LDWT),H(*),W(N),SCR(LSCR),ISCR(LISCR)
       DIMENSION LAB(M,*),NROW(M)
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
