@@ -99,16 +99,14 @@ MODULE Determinants
 !C.. Could be big.
 !C..Now we see how many determinants we need
 !C      IF(nBasis.GT.170) THEN
-!C..This fix is to stop floating overflow as FACTRL(nBasis.GT.170) crashes
+!C..This fix is to stop floating overflow as taking the factorial of (nBasis.GT.170) crashes
+!C  using the old FACTRL routine.
          NDET=1
          DNDET=1.D0
          DO I=0,NEL-1
             NDET=(NDET*(nBasis-I))/(I+1)
             DNDET=(DNDET*DFLOAT(nBasis-I))/DFLOAT(I+1)
          ENDDO
-!C      ELSE
-!C         NDET=FACTRL(nBasis)/(FACTRL(NEL)*FACTRL(nBasis-NEL)) 
-!C      ENDIF
         IF(NDET.ne.DNDET) THEN
          WRITE(6,*) ' NUMBER OF DETERMINANTS : ' , DNDET
          NDET=-1

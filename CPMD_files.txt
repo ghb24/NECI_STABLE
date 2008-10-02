@@ -1,8 +1,8 @@
 The following files are based on CPMD and need to be stripped from the
-codebase.  These are just the files in NECI and CPMD which have a common name.
+codebase.
 
-We were bad
-===========
+General
+=======
 
 frsblk.F
     I know Ali claims it's different from CPMD's version, but do a diff and decide for yourself...
@@ -15,8 +15,7 @@ mkconfig.sh
 Memory routines
 ===============
 
-These are ready to be removed as and when we remove all crap Cray pointers, or
-we could just write a wrapper for LogMem{A,Dea}lloc.  JSS would much rather switch
+These are ready to be removed when we remove all crap Cray pointers. JSS would much rather switch
 entirely to allocatable arrays though.
 
 freem.F
