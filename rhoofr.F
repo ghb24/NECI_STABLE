@@ -1,4 +1,4 @@
-      SUBROUTINE RHOOFR(NHG,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,
+      SUBROUTINE NECI_RHOOFR(NHG,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,
      &	NEL,NDET,NEVAL,RS,ALAT,OMEGA)
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
@@ -21,7 +21,7 @@ C..
       ENDIF
 C..
       allocate(CFS(NDET))
-      call LogMemAlloc('CFS',NDET,8,'RHOOFR',tagCFS)
+      call LogMemAlloc('CFS',NDET,8,'NECI_RHOOFR',tagCFS)
       CALL AZZERO(CFS,NDET)
       CALL DCOPY(NDET,CK(1,1),1,CFS,1)
 C..
