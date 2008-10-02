@@ -100,7 +100,7 @@ C        WRITE(6,*) 'LSCR2:',LSCR2
       ENDIF
       T1 = etime(tarr) 
 C ====================================================================
-      CALL IAZZERO(INDEX,N)
+      INDEX(1:N)=0
       NHPSI=0
       IF(PRINTOUT) THEN
           WRITE(6,10000) ICYCLE,NCONV,B2MAX,B2MIN,NHPSI
@@ -393,7 +393,7 @@ C        ENDDO
 C ==================================================================
 C..Setup T-matrix. First diagonal terms      
       I=NKRY
-      CALL AZZERO(T,I*N*I*N) 
+      T(1:(I*N)**2)=0
       CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,1),N,N,1,1)
       DO J=2,I
         CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,J),N,N,J,J)
@@ -667,7 +667,7 @@ C     ==--------------------------------------------------------------==
       IF(N.LE.0) RETURN
       proc_timer%timer_name='NECI_RGS'
       call set_timer(proc_timer)
-      CALL AZZERO(SMAT,N*N)
+      SMAT=0
       CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
       CALL NECI_UINV('U',SMAT,N,N,LSCR,1)
       CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)

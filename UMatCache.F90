@@ -149,7 +149,7 @@ MODULE UMatCache
 
         ALLOCATE(INVBRR2(NBASIS/2),STAT=ierr)
         CALL LogMemAlloc('INVBRR2',NBASIS/2,4,t_r,tagINVBRR2,ierr)
-        CALL IAZZERO(INVBRR2,NBASIS/2)
+        INVBRR2(1:NBASIS/2)=0
         t=0
         DO I=2,NBASIS,2
             t=t+1
@@ -177,7 +177,7 @@ MODULE UMatCache
         ENDIF
         ALLOCATE(INVBRR(NBASIS/2),STAT=ierr)
         CALL LogMemAlloc('INVBRR',NBASIS/2,4,t_r,tagINVBRR,ierr)
-        CALL IAZZERO(INVBRR,NBASIS/2)
+        INVBRR(1:NBASIS/2)=0
         t=0
         DO I=2,NBASIS,2
             t=t+1
@@ -375,7 +375,7 @@ MODULE UMatCache
             Allocate(UMatLabels(nSlots,nPairs), STAT=ierr)
             CALL LogMemAlloc('UMATLABELS',nSlots*nPairs,4,thisroutine,tagUMatLabels)
             UMatCacheData=HElement(0.d0)
-            CALL IAZZERO(UMATLABELS,nPairs*nSlots)
+            UMATLABELS(1:nSlots,1:nPairs)=0
             if (.not.tSmallUMat.and.tReadInCache) then
                 write (6,*) 'reading in cache'
                 call ReadInUMatCache
@@ -472,7 +472,7 @@ MODULE UMatCache
          call LogMemAlloc('TransTable',nNew/2,4,thisroutine,tagTransTable,ierr)
          Allocate(InvTransTable(nOld/2),STAT=ierr)
          call LogMemAlloc('InvTransTable',nOld/2,4,thisroutine,tagInvTransTable,ierr)
-         CALL IAZZERO(InvTransTable, nOld/2)
+         InvTransTable(1: nOld/2)=0
          tDiff=.FALSE.
          DO I=2,nOld,2
             IF(OldNew(I).NE.0) THEN
@@ -557,7 +557,7 @@ MODULE UMatCache
             IF(NSLOTS.EQ.NPAIRS) THEN ! we're storing every element, so we don't need to deal with different cacheing
                UMATCACHEFLAG=0
             ELSE
-               CALL IAZZERO(UMATLABELS,NSLOTS*NPAIRS)
+               UMATLABELS(1:NSLOTS,1:NPAIRS)=0
 !Turn on the direct caching, and clear the cache.
             ENDIF
          ENDSELECT

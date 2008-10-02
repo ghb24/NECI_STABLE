@@ -763,7 +763,7 @@ MODULE FciMCParMod
 !        ENDIF
 
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-        CALL IAZZERO(recvcounts,nProcessors)
+        recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -922,7 +922,7 @@ MODULE FciMCParMod
         ENDIF
 
 !We now need to regenerate sendcounts and disps
-        CALL IAZZERO(sendcounts,nProcessors)
+        sendcounts(1:nProcessors)=0
         do i=1,ToAnnihilateIndex
             IF(ProcessVec(i).gt.(nProcessors-1)) THEN
                 CALL Stop_All("AnnihilatePartPar","Annihilation error")
@@ -936,7 +936,7 @@ MODULE FciMCParMod
         enddo
 
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
-        CALL IAZZERO(recvcounts,nProcessors)
+        recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -1668,7 +1668,7 @@ MODULE FciMCParMod
             GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
 
             NoCulls=0
-            CALL IAZZERO(CullInfo,30)
+            CullInfo(1:30)=0
         ELSE
             GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
             do j=2,NoCulls
@@ -1683,7 +1683,7 @@ MODULE FciMCParMod
             GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
 
             NoCulls=0
-            CALL IAZZERO(CullInfo,30)
+            CullInfo(1:30)=0
 
         ENDIF
         
@@ -1885,10 +1885,10 @@ MODULE FciMCParMod
 !Allocate memory to hold walkers
             ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+            WalkVecDets(1:NEl*MaxWalkers)=0
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            WalkVec2Dets(1:NEl*MaxWalkers)=0
             ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
@@ -1916,16 +1916,16 @@ MODULE FciMCParMod
                 Hash2Array(:)=0
                 ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
-                CALL IAZZERO(IndexTable,MaxWalkers)
+                IndexTable(1:MaxWalkers)=0
                 ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
-                CALL IAZZERO(Index2Table,MaxWalkers)
+                Index2Table(1:MaxWalkers)=0
                 ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
-                CALL IAZZERO(ProcessVec,MaxWalkers)
+                ProcessVec(1:MaxWalkers)=0
                 ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
-                CALL IAZZERO(Process2Vec,MaxWalkers)
+                Process2Vec(1:MaxWalkers)=0
 
                 MemoryAlloc=MemoryAlloc+32*MaxWalkers
             ENDIF
@@ -2016,7 +2016,7 @@ MODULE FciMCParMod
 
         ENDIF   !End if initial walkers method
 
-        CALL IAZZERO(CullInfo,30)
+        CullInfo(1:30)=0
         NoCulls=0
 
 
@@ -2200,7 +2200,7 @@ MODULE FciMCParMod
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+        WalkVecDets(1:NEl,1:MaxWalkers)=0
         ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecSign',MaxWalkers*NEl,4,this_routine,WalkVecSignTag,ierr)
 
@@ -2243,7 +2243,7 @@ MODULE FciMCParMod
 
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
 
@@ -2259,10 +2259,10 @@ MODULE FciMCParMod
 !Need to now allocate other arrays
         ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
-        CALL IAZZERO(WalkVecIC,MaxWalkers)
+        WalkVecIC(1:MaxWalkers)=0
         ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
-        CALL IAZZERO(WalkVec2IC,MaxWalkers)
+        WalkVec2IC(1:MaxWalkers)=0
         ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
         WalkVecH=0.d0
@@ -2281,16 +2281,16 @@ MODULE FciMCParMod
             Hash2Array(:)=0
             ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
-            CALL IAZZERO(IndexTable,MaxWalkers)
+            IndexTable(1:MaxWalkers)=0
             ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
-            CALL IAZZERO(Index2Table,MaxWalkers)
+            Index2Table(1:MaxWalkers)=0
             ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
-            CALL IAZZERO(ProcessVec,MaxWalkers)
+            ProcessVec(1:MaxWalkers)=0
             ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
-            CALL IAZZERO(Process2Vec,MaxWalkers)
+            Process2Vec(1:MaxWalkers)=0
 
             MemoryAlloc=MemoryAlloc+32*MaxWalkers
         ENDIF
@@ -2375,10 +2375,10 @@ MODULE FciMCParMod
 !Allocate memory to hold walkers
         ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+        WalkVecDets(1:NEl,1:MaxWalkers)=0
         ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-        CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+        WalkVec2Dets(1:NEl,1:MaxWalkers)=0
         ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
         ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
@@ -2406,16 +2406,16 @@ MODULE FciMCParMod
             Hash2Array(:)=0
             ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
-            CALL IAZZERO(IndexTable,MaxWalkers)
+            IndexTable(1:MaxWalkers)=0
             ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
-            CALL IAZZERO(Index2Table,MaxWalkers)
+            Index2Table(1:MaxWalkers)=0
             ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
-            CALL IAZZERO(ProcessVec,MaxWalkers)
+            ProcessVec(1:MaxWalkers)=0
             ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
-            CALL IAZZERO(Process2Vec,MaxWalkers)
+            Process2Vec(1:MaxWalkers)=0
 
             MemoryAlloc=MemoryAlloc+32*MaxWalkers
         ENDIF
@@ -2439,7 +2439,7 @@ MODULE FciMCParMod
         MP1Comps=0.d0
         ALLOCATE(MP1Dets(NEl,HFConn),stat=ierr)
         CALL LogMemAlloc('MP1Dets',HFConn*NEl,4,this_routine,MP1DetsTag,ierr)
-        CALL IAZZERO(MP1Dets,NEl*HFConn)
+        MP1Dets(1:NEl,1:HFConn)=0
         ALLOCATE(MP1Sign(HFConn),stat=ierr)
         CALL LogMemAlloc('MP1Sign',HFConn,4,this_routine,MP1SignTag,ierr)
         
@@ -2795,7 +2795,7 @@ MODULE FciMCParMod
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             iMaxExcit=0
-            CALL IAZZERO(nStore,6)
+            nStore(1:6)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%nExcitMemLen),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
@@ -2824,7 +2824,7 @@ MODULE FciMCParMod
 !Need to generate excitation generator to find excitation.
 !Setup excit generators for this determinant 
         iMaxExcit=0
-        CALL IAZZERO(nStore,6)
+        nStore(1:6)=0
         CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
         ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")

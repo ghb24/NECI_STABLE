@@ -9,8 +9,8 @@ C..Cube array
       EXTERNAL U1
 C..Zero ND1 and ND2
       AUXC=0.d0
-      CALL IAZZERO(ND1,2)
-      CALL IAZZERO(ND2,2)
+      ND1(1:2)=0
+      ND2(1:2)=0
 C..IQ ensures that only two differences are recorded
 C..First routine compares NDET1 to NDET2
       IQ=0
@@ -43,7 +43,7 @@ C..This routine compares NDET2 to NDET1
       ENDDO
  200  CONTINUE
 C.. 
-      CALL IAZZERO(IDS,4)
+      IDS(1:4)=0
       CALL GENKRON2(G1,NHG,ND1,ND2,IDS)
       AUXC=0.d0
 C..

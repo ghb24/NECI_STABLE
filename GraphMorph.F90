@@ -332,13 +332,13 @@ MODULE GraphMorph
 !We want to record the number of each excitation level for each determinant in the graph
             ALLOCATE(Distribs(NEl,Iters+1),stat=ierr)
             CALL LogMemAlloc('Distribs',NEl*(Iters+1),4,this_routine,DistribsTag,ierr)
-            CALL IAZZERO(Distribs,NEl*(Iters+1))
+            Distribs(1:NEl,1:(Iters+1))=0
         ENDIF
 
 !Allocate space for graph determinants and rho matrix
         ALLOCATE(GraphDets(NDets,NEl),stat=ierr)
         CALL LogMemAlloc('GraphDets',NDets*NEl,4,this_routine,GraphDetsTag,ierr)
-        CALL IAZZERO(GraphDets,NDets*NEl)
+        GraphDets(1:NDets,1:NEl)=0
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag,ierr)
         GraphRhoMat=HElement(0.d0)
@@ -350,7 +350,7 @@ MODULE GraphMorph
         IF(TNoSameExcit.or.TOneExcitConn) THEN
             ALLOCATE(GraphExcitLevel(NDets),stat=ierr)
             CALL LogMemAlloc('GraphExcitLevel',NDets,4,this_routine,GraphExcitLevelTag,ierr)
-            CALL IAZZERO(GraphExcitLevel,NDets)
+            GraphExcitLevel(1:NDets)=0
         ENDIF
 
 !Put HF Determinant into first element of GraphDets
@@ -395,7 +395,7 @@ MODULE GraphMorph
             enddo
 
 !Setup excitation generator for new root
-            CALL IAZZERO(nStore,6)
+            nStore(1:6)=0
             CALL GenSymExcitIt2(RootDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
             ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
             CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
@@ -584,13 +584,13 @@ MODULE GraphMorph
         proc_timerInitStar%timer_name='InitStarGraph'
         call set_timer(proc_timerInitStar)
         
-        CALL IAZZERO(nStore,6)
+        nStore(1:6)=0
 !Having exFlag=2 means that only double excitations are generated
         exFlag=2
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
         ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
         CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-        CALL IAZZERO(nExcit,nExcitMemLen)
+        nExcit(1:nExcitMemLen)=0
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 !First run through all excitations, so we do not store more excitations than necessary
         
@@ -607,10 +607,10 @@ MODULE GraphMorph
         enddo
 
         DEALLOCATE(nExcit)
-        CALL IAZZERO(nStore,6)
+        nStore(1:6)=0
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
         ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
-        CALL IAZZERO(nExcit,nExcitMemLen)
+        nExcit(1:nExcitMemLen)=0
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
         iMaxExcit=excitcount
 !NDets is equal to the number of excitations plus 1 (for root)
@@ -622,20 +622,20 @@ MODULE GraphMorph
 !If TDistribs is true, then we are recording the change in distributions of the graphs over the iterations
             ALLOCATE(Distribs(NEl,Iters+1),stat=ierr)
             CALL LogMemAlloc('Distribs',NEl*(Iters+1),4,this_routine,DistribsTag,ierr)
-            CALL IAZZERO(Distribs,NEl*(Iters+1))
+            Distribs(1:NEl,1:(Iters+1))=0
         ENDIF
         IF(TNoSameExcit.or.TOneExcitConn) THEN
 !We want to store the excitation levels of the determinants in the graph
             ALLOCATE(GraphExcitLevel(NDets),stat=ierr)
             CALL LogMemAlloc('GraphExcitLevel',NDets,4,this_routine,GraphExcitLevelTag,ierr)
 !This will automatically set the first element (HF) to zero
-            CALL IAZZERO(GraphExcitLevel,NDets)
+            GraphExcitLevel(1:NDets)=0
         ENDIF
 
 !Allocate memory needed for calculations
         ALLOCATE(GraphDets(NDets,NEl),stat=ierr)
         CALL LogMemAlloc('GraphDets',NDets*NEl,4,this_routine,GraphDetsTag,ierr)
-        CALL IAZZERO(GraphDets,NDets*NEl)
+        GraphDets(1:NDets,1:NEl)=0
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag,ierr)
         GraphRhoMat=HElement(0.d0)
@@ -766,7 +766,7 @@ MODULE GraphMorph
 !If TDistribs is true, then we are recording the change in distributions of the graphs over the iterations
             ALLOCATE(Distribs(NEl,Iters+1),stat=ierr)
             CALL LogMemAlloc('Distribs',NEl*(Iters+1),4,this_routine,DistribsTag,ierr)
-            CALL IAZZERO(Distribs,NEl*(Iters+1))
+            Distribs(1:NEl,1:(Iters+1))=0
         ENDIF
 
 !Set Tags to zero, so we know when they are allocated/deallocated
@@ -777,18 +777,18 @@ MODULE GraphMorph
         RhoijTag=0
         HijsTag=0
 !Setup excitation generator
-        CALL IAZZERO(nStore,6)
+        nStore(1:6)=0
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
         ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
         CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-        CALL IAZZERO(nExcit,nExcitMemLen)
+        nExcit(1:nExcitMemLen)=0
         CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
         CALL GenRandSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,iExcit,0,UMat,nMax,PGen)
 
 !Allocate memory for graph
         ALLOCATE(iPath(NEl,0:NDets),stat=ierr)
         CALL LogMemAlloc('iPath',NEl*(NDets+1),4,this_routine,iPathTag,ierr)
-        CALL IAZZERO(iPath,NEl*(NDets+1))
+        iPath(1:NEl,0:NDets+1)=0
         ALLOCATE(Xij(0:NDets-1,0:NDets-1),stat=ierr)
         CALL LogMemAlloc('Xij',NDets*NDets,8,this_routine,XijTag,ierr)
         Xij=0.d0
@@ -844,14 +844,14 @@ MODULE GraphMorph
 !Resetup arguments and excitation generator for fmcpr4d2gengraph
                     DEALLOCATE(nExcit)
                     CALL LogMemDealloc(this_routine,nExcitTag)
-                    CALL IAZZERO(nStore,6)
+                    nStore(1:6)=0
                     CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
                     ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
                     CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-                    CALL IAZZERO(nExcit,nExcitMemLen)
+                    nExcit(1:nExcitMemLen)=0
                     CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
                     CALL GenRandSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,iExcit,0,UMat,nMax,PGen)
-                    CALL IAZZERO(iPath,NEl*(NDets+1))
+                    iPath(1:NEl,0:NDets)=0
                     Xij=0.d0
                     Rhoii=HDElement(0.d0)
                     Rhoij=HElement(0.d0)
@@ -896,7 +896,7 @@ MODULE GraphMorph
 !Store initial graph determinants in the GraphDets array
         ALLOCATE(GraphDets(NDets,NEl),stat=ierr)
         CALL LogMemAlloc('GraphDets',NDets*NEl,4,this_routine,GraphDetsTag,ierr)
-        CALL IAZZERO(GraphDets,NDets*NEl)
+        GraphDets(1:NDets,1:NEl)=0
         do i=1,NDets
             do j=1,NEl
                 GraphDets(i,j)=iPath(j,i-1)
@@ -1049,8 +1049,8 @@ MODULE GraphMorph
 !Allocate space for the determinants to be moved, and to move to
         ALLOCATE(MoveDetsFromPaths(NoMoveDets,NEl),stat=ierr)
         CALL LogMemAlloc('MoveDetsFromPaths',NoMoveDets*NEl,4,this_routine,MoveDetsFromPathsTag,ierr)
-        CALL IAZZERO(MoveDetsFromPaths,NoMoveDets*NEl)
-        CALL IAZZERO(IndexofDetsFrom,NoMoveDets)
+        MoveDetsFromPaths(1:NoMoveDets,1:NEl)=0
+        IndexofDetsFrom(1:NoMoveDets)=0
 
 !Prepare for the change in MeanExcits
         MeanExcit=MeanExcit*(NDets-1)
@@ -1362,7 +1362,7 @@ MODULE GraphMorph
         CHARACTER(len=*), PARAMETER :: this_routine='PickNewDets'
 
         GrowGraphTag=0
-        IF(TNoSameExcit.or.TOneExcitConn) CALL IAZZERO(GraphExcitLevel,NDets)
+        IF(TNoSameExcit.or.TOneExcitConn) GraphExcitLevel(1:NDets)=0
 
 !Allocate Rho Matrix for growing graph
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
@@ -1373,7 +1373,7 @@ MODULE GraphMorph
 !Initial determinant has to be HF determinant - ensure that this is stored in GraphDets(:,:)
         ALLOCATE(GrowGraph(NDets,NEl),stat=ierr)
         CALL LogMemAlloc('GrowGraph',NDets*NEl,4,this_routine,GrowGraphTag,ierr)
-        CALL IAZZERO(GrowGraph,NEl*NDets)
+        GrowGraph(1:NEl,1:NDets)=0
         do i=1,NEl
             GrowGraph(1,i)=FDet(i)
         enddo
@@ -1681,7 +1681,7 @@ MODULE GraphMorph
         WRITE(6,"(A,F9.4)") "Percentage of determinants found in original graph: ",Orig_Graph
 
 !Replace original list of determinants in graph with new list
-        CALL IAZZERO(GraphDets,NDets*NEl)
+        GraphDets(1:NDets,1:NEl)=0
         do i=1,NDets
             do j=1,NEl
                 IF(GrowGraph(i,j).eq.0) STOP 'Error in allocating determinants to graph'
@@ -1939,7 +1939,7 @@ MODULE GraphMorph
         ConnectionsToExcits=HElement(0.d0)
         ALLOCATE(ExcitsDets(TotExcits,NEl),stat=ierr)
         CALL LogMemAlloc('ExcitsDets',TotExcits*NEl,4,this_routine,ExcitsDetsTag,ierr)
-        CALL IAZZERO(ExcitsDets,TotExcits*NEl)
+        ExcitsDets(1:TotExcits,1:NEl)=0
 
 !Cycle over all vertices in graph
         ExcitCurr=0
@@ -1952,11 +1952,11 @@ MODULE GraphMorph
 
 !Setup excitation generators again for this determinant
             iMaxExcit=0
-            CALL IAZZERO(nStore,6)
+            nStore(1:6)=0
             CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
             ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
             CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-!            CALL IAZZERO(nExcit,nExcitMemLen)
+!            nExcit(1:nExcitMemLen)=0
             nExcit(1)=0
             CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
 
@@ -2110,7 +2110,7 @@ MODULE GraphMorph
             TotExcits=NDets*NoMCExcits
             ALLOCATE(NoExcits(NDets),stat=ierr)
             CALL LogMemAlloc('NoExcits',NDets,4,this_routine,NoExcitsTag,ierr)
-            CALL IAZZERO(NoExcits,NDets)
+            NoExcits(1:NDets)=0
 
             do i=1,NDets
                 IF(i.eq.1) THEN
@@ -2135,7 +2135,7 @@ MODULE GraphMorph
 !Allocate Memory for NoExcits array
             ALLOCATE(NoExcits(NDets),stat=ierr)
             CALL LogMemAlloc('NoExcits',NDets,4,this_routine,NoExcitsTag,ierr)
-            CALL IAZZERO(NoExcits,NDets)
+            NoExcits(1:NDets)=0
 
 !Cycle over all vertices in graph
             do i=1,NDets
@@ -2147,11 +2147,11 @@ MODULE GraphMorph
 
 !Create excitation generator
                 iMaxExcit=0
-                CALL IAZZERO(nStore,6)
+                nStore(1:6)=0
                 CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
                 ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
                 CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
-                CALL IAZZERO(nExcit,nExcitMemLen)
+                nExcit(1:nExcitMemLen)=0
                 CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
                 
 !Store number of excitations from each determinant cumulativly.
@@ -2166,7 +2166,7 @@ MODULE GraphMorph
 !Destroy excitation generator
                 DEALLOCATE(nExcit)
                 CALL LogMemDealloc(this_routine,nExcitTag)
-                CALL IAZZERO(nStore,6)
+                nStore(1:6)=0
             
             enddo
 
@@ -2259,7 +2259,7 @@ MODULE GraphMorph
 !!Lab indicates the column that the 'i'th non-zero matrix element resides in the full matrix
         ALLOCATE(Lab(LenMat),stat=ierr)
         CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag,ierr)
-        CALL IAZZERO(Lab,LenMat)
+        Lab(1:LenMat)=0
 
 !Count the number of non-zero elements in the matrix - the way the diagonaliser seems to want to...
 !Also now only top triangle
@@ -2284,12 +2284,12 @@ MODULE GraphMorph
 !!Lab now indicates the position of the non-zero element in the row specified
 !        ALLOCATE(Lab(NDets,ICMax),stat=ierr)
 !        CALL LogMemAlloc('Lab',NDets*ICMax,4,this_routine,LabTag,ierr)
-!        CALL IAZZERO(Lab,NDets*ICMax)
+!        Lab(1:NDets,1:ICMax)=0
 
 !NRow indicated the number of non-zero elements in the 'i'th row of the full matrix
         ALLOCATE(NRow(NDets),stat=ierr)
         CALL LogMemAlloc('NRow',NDets,4,this_routine,NRowTag,ierr)
-        CALL IAZZERO(NRow,NDets)
+        NRow(1:NDets)=0
 
 !This compresses the rho matrix, so that only the non-zero elements are stored, in a suitable form for the Lanczos diagonaliser.
         CALL CompressMatrix(Mat,Lab,NRow,LenMat,ICMax)
@@ -2352,10 +2352,10 @@ MODULE GraphMorph
         SCR=0.d0
         ALLOCATE(ISCR(LIScr),stat=ierr)
         CALL LogMemAlloc('ISCR',LIScr,4,this_routine,ISCRTag,ierr)
-        CALL IAZZERO(ISCR,LIScr)
+        ISCR(1:LIScr)=0
         ALLOCATE(Index(NEval),stat=ierr)
         CALL LogMemAlloc('Index',NEval,4,this_routine,IndexTag,ierr)
-        CALL IAZZERO(Index,NEval)
+        Index(1:NEval)=0
         ALLOCATE(WH(NDets),stat=ierr)
         CALL LogMemAlloc('WH',NDets,8,this_routine,WHTag,ierr)
         WH=0.d0

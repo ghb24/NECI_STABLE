@@ -42,7 +42,7 @@ CONTAINS
         Use Determinants, only:  FDet, specdet, tSpecDet
         use SystemData, only : tCSF,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-        use SystemData, only : tParity, tSpn
+        use SystemData, only : tParity, tSpn,Symmetry
         Type(BasisFn) ISym
 
         integer i,ii
@@ -133,15 +133,15 @@ CONTAINS
 !C.. NEL now only includes active electrons
          Allocate(NMrks(nEl,II),stat=ierr)
          LogAlloc(ierr,'NMRKS',NEL*II,4,tagNMRKS)
-         CALL IAZZERO(NMRKS,(NEL)*II)
+         NMRKS(1:NEL,1:II)=0
 !         CALL MEMORY(IP_NBLOCKSTARTS,(NBLOCKS+1)/IRAT+1,"NBLOCKSTARTS")
          allocate(NBLOCKSTARTS(NBLOCKS+1),stat=ierr)
          call LogMemAlloc('NBLOCKSTARTS',NBLOCKS+1,4,this_routine,tagNBLOCKSTARTS,ierr)
-         CALL IAZZERO(NBLOCKSTARTS,NBLOCKS+1)
+         NBLOCKSTARTS(1:NBLOCKS+1)=0
          Allocate(BlockSym(NBLOCKS+1),stat=ierr)
          LogAlloc(ierr, 'BLOCKSYM', NBLOCKS+1,BasisFNSizeB, tagBlockSym)
 
-         CALL IAZZERO(BLOCKSYM,NBLOCKS*BasisFNSize)
+         BLOCKSYM(1:NBLOCKS)=BasisFN((/0,0,0/),0,Symmetry(0))
 !C..
 
 
@@ -305,7 +305,7 @@ CONTAINS
          ALLOCATE(NROW(NDET),stat=ierr)
          CALL LogMemAlloc('NROW',NDET,4,this_routine,NROWTag,ierr)
 !*         CALL MEMORY(IP_NROW,NDET,'NROW')
-         CALL IAZZERO(NROW,NDET)
+         NROW(1:NDET)=0
          ICMAX=1
 !Falsify tMC
          TMC=.FALSE.
@@ -322,7 +322,7 @@ CONTAINS
          CALL LogMemAlloc('LAB',LenHamil,4,this_routine,LabTag,ierr)
 
 !*         CALL MEMORY(IP_LAB,LENHAMIL/IRAT+1,'LAB')
-         CALL IAZZERO(LAB,LENHAMIL)
+         LAB(1:LENHAMIL)=0
 !C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,NBASISMAX,nBasis,HAMIL,G1,LAB,NROW,.FALSE.,NMSH,FCK,NMAX,ALAT,UMAT,ICMAX,GC,TMC,ECORE,BRR)
 
@@ -421,11 +421,11 @@ CONTAINS
 !*            CALL MEMORY(IP_ISCR,LISCR,'ISCR')
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
-            CALL IAZZERO(ISCR,LISCR)
+            ISCR(1:LISCR)=0
 !*            CALL MEMORY(IP_INDEX,NEVAL,'INDEX')
             ALLOCATE(INDEX(NEVAL),stat=ierr)
             CALL LogMemAlloc('INDEX',NEVAL,4,this_routine,INDEXTag,ierr)
-            CALL IAZZERO(INDEX,NEVAL)
+            INDEX(1:NEVAL)=0
 !C..
 !*            CALL MEMORY(IP_WH,NDET,'WH')
             ALLOCATE(WH(NDET),stat=ierr)

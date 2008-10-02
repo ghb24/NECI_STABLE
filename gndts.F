@@ -3,7 +3,7 @@ C.. This sets up variables, and calls the recursion
       SUBROUTINE GNDTS(NEL,NHG,BRR,NBASISMAX,
      &  NMRKS,TCOUNT,G1,TSPN,LMS,TPARITY,
      &  SymRestrict,II,IFDET)
-         use SystemData, only: BasisFN,BasisFNSize
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry
          IMPLICIT NONE
          INTEGER NEL,NHG,LMS,II
          INTEGER NMRKS(NEL,*)
@@ -22,7 +22,7 @@ C.. Total number of determined determinants
          IF(TPARITY) THEN
             kJ=SymRestrict
          ELSE
-            CALL IAZZERO(kJ,BasisFNSize)
+            kJ=BasisFN((/0,0,0/),0,Symmetry(0))
          ENDIF
          IF(TSPN) THEN
             kJ%Ms=LMS

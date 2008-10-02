@@ -182,7 +182,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          RangeBins=(MaxS-MinS)/(NBins+0.D0)
 
          ALLOCATE(SHist(NDET,NBins))
-         CALL IAZZERO(SHist,NBins*NDET)
+         SHist(1:nDet,1:NBins)=0
          ALLOCATE(RangeHist(NBins+1))
          RangeHist=0.d0
 

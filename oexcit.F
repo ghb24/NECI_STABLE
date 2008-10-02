@@ -208,7 +208,7 @@ C.. this is the first time we've been called with allocated memory.
 C.. NTYPES=0, so we need to find the excitation types again
 C.. The first time counts them again (inelegant, but not too
 C.. time-consuming), and the second time saves them
-            CALL IAZZERO(NMEM(1),10)
+            NMEM(1:10)=0
 C            WRITE(6,*) "SETUP"
 C            WRITE(6,*) NMEM(6)
 C            CALL WRITEDET(6,NI,NEL,.TRUE.)
@@ -313,7 +313,7 @@ C.. time-consuming), and the second time saves them
            CALL GETSYMEXTYPES(NBASISMAX,NMEM,NMEM,NI,NEL,G1,NBASIS,IFRZ)
            CALL GETSYMEXTYPES(NBASISMAX,NMEM(11+(NEL+NBASIS+8)*4),NMEM
      &      ,NI,NEL,G1,NBASIS,IFRZ)
-           CALL IAZZERO(NMEM(2),9)
+           NMEM(2:10)=0
          ENDIF
 C.. now call a routine to enumerate the excitations
          CALL GSETE_GET(NI,NJ,IC,NEL,G1,NBASIS,NBASISMAX,
@@ -400,7 +400,7 @@ C.. it is just returned
 !C.. NTYPES=0, so we need to find the excitation types again
 !C.. The first time counts them again (inelegant, but not too
 !C.. time-consuming), and the second time saves them
-!            CALL IAZZERO(NMEM(1),10)
+!            NMEM(1:10)=0
 !C            WRITE(6,*) "SETUP"
 !C            WRITE(6,*) NMEM(6)
 !C            CALL WRITEDET(6,NI,NEL,.TRUE.)
@@ -614,8 +614,8 @@ C.. The symmetry hasn't changed, so just return
          ENDIF
          TYP=TYPES(2,NTYPE)
 
-         CALL IAZZERO(NFULL,4*(NEL+3))
-         CALL IAZZERO(NFREE,4*(NBASIS+3))
+         NFULL(:,:,:)=0
+         NFREE(:,:,:)=0
 C.. The coding for TYP(2) is:
 C.. SSSSRRRR QQQQPPPP for pq->rs (sym1,sym2->syme1,syme2)
 C.. 
@@ -993,7 +993,7 @@ C.. allowed, or doubles of any other symmetry
             JMIN=0
          ENDIF
 C.. Get all the syms
-         CALL IAZZERO(SYMES,36)
+         SYMES(:,:,:)=0
          IEL=1
          DO I=1,NBASIS  
             DO WHILE(NI(IEL).LT.I.AND.IEL.LT.NEL)

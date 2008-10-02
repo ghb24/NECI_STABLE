@@ -20,7 +20,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          nBasis=int(dsqrt(nBasisPairs*2.D0))
          nAuxBasis=lenrec
          WRITE(6,*) "DALTON/SITUS basis.", nBasis, " basis functions."
-         call iAzZero(nBasisMax,15)
+         nBasisMax(1:5,1:3)=0
          Len=2*nBasis 
 !.. Note that it's a read in basis.
          nBasisMax(3,3)=1
@@ -258,7 +258,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          open(11,file='HONEEL',status='unknown')
          i=1
          !TMat=0.d0
-         call iazZero(G1,nBasis*BasisFNSize)
+         G1(1:nBasis)=BasisFN((/0,0,0/),0,Symmetry(0))
          do while(i.ne.0)
             read(11,*) i,j,val
 !"(2I5,F)"
@@ -297,7 +297,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          Type(Symmetry) TotSymRep
          open(11,file='HONEEL',status='unknown')
          i=1
-         call iazZero(G1,nBasis*BasisFNSize)
+         G1(1:nBasis)=BasisFN((/0,0,0/),0,Symmetry(0))
          do while(i.ne.0)
             read(11,*) i,j,val
             if(j.eq.0.and.i.ne.0) then

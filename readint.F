@@ -40,7 +40,7 @@ C         NEL=NELEC
          ELSE
             LEN=2*NORB
          ENDIF
-         CALL IAZZERO(NBASISMAX,15)
+         NBASISMAX(1:5,1:3)=0
 C         NBASISMAX(1,1)=1
 C         NBASISMAX(1,2)=NORB
          NBASISMAX(1,1)=0
@@ -61,7 +61,7 @@ C.. SHow that there's no momentum conservation
          RETURN
       END
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
-         use SystemData, only: BasisFN,BasisFNSize
+         use SystemData, only: BasisFN,BasisFNSize,Symmetry
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
@@ -89,7 +89,7 @@ C.. SHow that there's no momentum conservation
          IF(UHF) ISPINS=1
         
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
-         CALL IAZZERO(G1,BasisFNSize*LEN)
+         G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
          ARR=0.d0
          IF(TBIN) THEN
             IF(UHF) STOP 'UHF Bin read not functional'

@@ -100,7 +100,7 @@ C       WRITE(6,*) ' TOTAL SIGN CHANGE:',IPTOT
 C==============================================================
       SUBROUTINE SCATTER(N,NBASIS,LIST,LE)
       DIMENSION LIST(N),LE(NBASIS)
-      CALL IAZZERO(LE,NBASIS)
+      LE(1:NBASIS)=0
       DO I=1,N
         LE(LIST(I))=1
       ENDDO

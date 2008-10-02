@@ -37,8 +37,8 @@ C..We now check to see which Slater-Condon rule to apply
       COULCOUPLE=FCOUL
       IF(IC.EQ.(NEL-2)) THEN
 C..Need to get the determinants in the form of max. coincidence
-!        CALL IAZZERO(N1E,NHG)
-!        CALL IAZZERO(N2E,NHG)
+!        N1E(1:NHG)=0
+!        N2E(1:NHG)=0
 C..Also returns the sign change IPTOT
 !        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..Differ by two 
@@ -46,8 +46,8 @@ C..Differ by two
      &         NHG,UMAT,ALAT,ISPINSKIP,COULCOUPLE,TEXCH,SUM)
       ELSEIF(IC.EQ.(NEL-1)) THEN
 C..Need to get the determinants in the form of max. coincidence
-!        CALL IAZZERO(N1E,NHG)
-!        CALL IAZZERO(N2E,NHG)
+!        N1E(1:NHG)=0
+!        N2E(1:NHG)=0
 C..Also returns the sign change IPTOT
 !        CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..Differ by one 

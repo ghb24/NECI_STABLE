@@ -242,8 +242,8 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
 
       SUBROUTINE CLEARCLASSPATHS()
          INCLUDE 'calcp.inc'
-         CALL IAZZERO(CALCP_N,1024)
-         CALL IAZZERO(CALCP_NT,1024*15*2)
+         CALCP_N=0
+         CALCP_N=0
          CALCP_SUM=0.d0
          CALCP_HSUM=0.d0
       END

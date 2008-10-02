@@ -130,8 +130,8 @@ C ==-------------------------------------------------------------------==
       INTEGER N1E(NHG),N2E(NHG)
 C..Cube arrays
       DIMENSION SITAB(NMSH,NMAX)
-      CALL IAZZERO(N1E,NHG)
-      CALL IAZZERO(N2E,NHG)
+      N1E(1:NHG)=0
+      N2E(1:NHG)=0
       CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
 C..
       IF(IC.EQ.(NEL-2)) THEN

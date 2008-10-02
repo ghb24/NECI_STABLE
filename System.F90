@@ -345,7 +345,7 @@ MODULE System
 !C..Input parameters
       WRITE(6,*) ' NUMBER OF ELECTRONS : ' , NEL
       WRITE(6,*) ' TSPN : ' , TSPN
-      CALL IAZZERO(NBASISMAX,5*7)
+      NBASISMAX(1:5,1:7)=0
       TSPINPOLAR=.FALSE.
       DO I=1,3
          SymRestrict%k(I)=IPARITY(I)
@@ -618,10 +618,10 @@ MODULE System
       ARR=0.d0
       Allocate(Brr(LEN),STAT=ierr)
       LogAlloc(ierr,'Brr',LEN,4,tagBrr)
-      CALL IAZZERO(BRR,LEN)
+      BRR(1:LEN)=0
       Allocate(G1(Len),STAT=ierr)
       LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
-      CALL IAZZERO(G1,BasisFNSize*LEN)
+      G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
       IF(TCPMD) THEN
          WRITE(6,*) ' *** INITIALIZING BASIS FNs FROM CPMD *** '
          CALL CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN) 
@@ -704,7 +704,7 @@ MODULE System
       ENDIF
 !C..        (.NOT.TREADINT)
 !C.. Set the initial symmetry to be totally symmetric
-      CALL IAZZERO(FrzSym,BasisFNSize)
+      FrzSym=BasisFN((/0,0,0/),0,Symmetry(0))
       FrzSym%Sym=TotSymRep()
       CALL SetupFreezeSym(FrzSym)
 !C..Now we sort them using SORT2 and then SORT

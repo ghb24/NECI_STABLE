@@ -154,7 +154,7 @@
          IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
              CALL LogMemAlloc("EXCITSTORE",(iMaxExcit*2),4,this_routine,tagEXCITSTORE,iErr)
-             CALL IAZZERO(ExcitStore,iMaxExcit*4)
+             ExcitStore(:,:)=0
          ENDIF
 
 !.. This will contain all the info needed to work out the value of the
@@ -430,7 +430,7 @@
             exFlag2=2
             QuadExcits=0
             j=0
-            CALL IAZZERO(NoExcitsInStar,iExcit)
+            NoExcitsInStar(1:iExcit)=0
             
 !Initially, count all excitations
             do i=1,iMaxExcit
@@ -439,10 +439,10 @@
                 j=j+1
                 CALL GetFullPath(nI,nEl,2,ExcitStore(:,i),DoublePath(:))
                 nExcitMemLen2=0
-                CALL IAZZERO(nStore2,6)
+                nStore2(1:6)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,g1,nBasis,nBasisMax,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,0,nStore2,exFlag2)
                 ALLOCATE(nExcit2(nExcitMemLen2))
-                CALL IAZZERO(nExcit2,nExcitMemLen2)
+                nExcit2(1:nExcitMemLen2)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit2,nJ,iMaxExcit2,0,nStore2,exFlag2)
 
                 lpcount: do while(.true.)
@@ -527,10 +527,10 @@
 !Reinitialise excitation generators
                 HFFound=.false.
                 nExcitMemLen2=0
-                CALL IAZZERO(nStore2,6)
+                nStore2(1:6)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,0,nStore2,exFlag2)
                 ALLOCATE(nExcit2(nExcitMemLen2))
-                CALL IAZZERO(nExcit2,nExcitMemLen2)
+                nExcit2(1:nExcitMemLen2)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit2,nJ,iMaxExcit2,0,nStore2,exFlag2)
                 CALL CalcRho2(DoublePath,DoublePath,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                 
@@ -721,7 +721,7 @@
 
             ALLOCATE(DegenPos(NoDegens),stat=iErr)
             CALL LogMemAlloc("DegenPos",NoDegens/2,4,this_routine,tagDegenPos,iErr)
-            CALL IAZZERO(DegenPos,NoDegens)
+            DegenPos(1:NoDegens)=0
 !DegenPos shows the degeneracy structure of the excited determinants
 !Each degenerate block extends from DegenPos(i-1)+1 --> DegenPos(i)
 !DegenPos only refers to the excited determinants - the root is its own separate degenerate block
@@ -3044,10 +3044,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          Mat=0.d0
          ALLOCATE(Lab(LenMat),stat=ierr)
          CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag,ierr)
-         CALL IAZZERO(Lab,LenMat)
+         Lab(1:LenMat)=0
          ALLOCATE(NRow(NList),stat=ierr)
          CALL LogMemAlloc('NRow',NList,4,this_routine,NRowTag,ierr)
-         CALL IAZZERO(NRow,NList)
+         NRow(1:NList)=0
 
 !Fill compressed rho-matrix
          IF((List(1,1).ne.List(1,0)).or.(List(1,1).ne.1.D0)) THEN
@@ -3107,10 +3107,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          SCR=0.d0
          ALLOCATE(ISCR(LIScr),stat=ierr)
          CALL LogMemAlloc('ISCR',LIScr,4,this_routine,ISCRTag,ierr)
-         CALL IAZZERO(ISCR,LIScr)
+         ISCR(1:LIScr)=0
          ALLOCATE(Index(NEval),stat=ierr)
          CALL LogMemAlloc('Index',NEval,4,this_routine,IndexTag,ierr)
-         CALL IAZZERO(Index,NEval)
+         Index(1:NEval)=0
          ALLOCATE(WH(NList),stat=ierr)
          CALL LogMemAlloc('WH',NList,8,this_routine,WHTag,ierr)
          WH=0.d0

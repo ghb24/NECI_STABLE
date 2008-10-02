@@ -54,7 +54,7 @@ C.. If there are too many excitations to fit, then we put -excitlevel in EX(1,1)
          INTEGER iMaxExcit
          LOGICAL TSIGN
          iMaxExcit=EX(1,1)
-         CALL IAZZERO(EX,2*iMaxExcit)
+         EX(1:2,1:iMaxExcit)=0
          IC1=0
          IC2=0
          I=1

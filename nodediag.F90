@@ -68,12 +68,12 @@
       WRITE(6,*) "Total maximum nodes: ",noij
       ALLOCATE(EXCITSTORE(2,noab,noij),stat=ierr)
       CALL LogMemAlloc("EXCITSTORE",noij*noab,8,t_r,tagEXCITSTORE,iErr)
-      CALL IAZZERO(EXCITSTORE,2*noij*noab)
+      EXCITSTORE(1:2,1:noij,1:noab)=0
       
 !Allocate space for counting of ab excitations connected to each ij.
       ALLOCATE(ABCOUNTER(noij),stat=ierr)
       CALL LogMemAlloc("ABCOUNTER",noij/2,8,t_r,tagABCOUNTER,iErr)
-      CALL IAZZERO(ABCOUNTER,noij)
+      ABCOUNTER(1:noij)=0
 
 !Create inversebrr for indexing purposes. Brr gives the orbitals in order of energy. If we create an inverse of this array, then we can order the occupied orbitals in ascending order, and so create an indexing scheme for the {i,j} pairs, which need to be stored.
       CALL CREATEINVSBRR(Brr,invsBrr,nBasis)
@@ -81,7 +81,7 @@
 !Array to detail the ij orbs being excited from in each node
       ALLOCATE(ijorbs(2,noij),stat=ierr)
       CALL LogMemAlloc("IJORBS",noij,8,t_r,tagijorbs,iErr)
-      CALL IAZZERO(IJORBS,noij*2)
+      IJORBS(1:2,1:noij)=0
       
 !Fill array with ij orbs in each node
       do i=1,nEl
@@ -211,7 +211,7 @@
 !Array to temporarily store full paths of excitations in node - needed for the calcrho2 routine to calculate rho elements.
         ALLOCATE(FULLPATHS(nEl,novirt),stat=ierr)
         CALL LogMemAlloc("FULLPATHS",novirt*nEl,8,t_r,tagFULLPATHS,iErr)
-        CALL IAZZERO(FULLPATHS,novirt*nel)
+        FULLPATHS=0
 
         ijpair(:)=ijorbs(:,node)
             
@@ -355,7 +355,7 @@
       SUBROUTINE CREATEINVSBRR(Brr,INVSBRR,nBasis)
       IMPLICIT NONE
       INTEGER :: nBasis,Brr(nBasis),INVSBrr(nBasis),i
-      CALL IAZZERO(INVSBRR,NBasis)
+      INVSBRR(1:NBasis)=0
       DO i=1,nbasis
           INVSBrr(Brr(i))=i
       ENDDO

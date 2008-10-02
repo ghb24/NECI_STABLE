@@ -21,7 +21,7 @@ C.. Setup for symmetry routine below.
          LOGICAL TCOUNT
          INTEGER ILEVEL
          INTEGER iMinElec1,iMaxElec1
-         CALL IAZZERO(STORE,6*2)
+         STORE(1:6)=0
          CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &      +SymmetrySize*(NEL*NEL+1),
      &      'DSTORE')
@@ -221,7 +221,7 @@ C.. NPairs totals all SymProdCounts.
 
 C.. For each pair of symmetry classes, determine its symmetry product.
 C.. We list them and then sort them
-         CALL IAZZERO(SYMPRODCOUNT,(NEL*NEL+1)*3)
+         SYMPRODCOUNT(:,:)=0
          NPR=0
          NPAIRS=0
          DO I=1,NCL
@@ -316,7 +316,7 @@ C.. Allocate enough memory to store the index
 C.. we've acually got space to store it somewhere
             IP_SYMPRODIND=STORE(5)
          ENDIF
-         CALL IAZZERO(SYMPRODIND,2*3*(NPR+1))
+         SYMPRODIND(1:2,1:3,0:NPR)=0
 
 C.. Now shift this such that SYMPRODCOUNT(ISPN,I) is the index of
 C.. the first orbital pair of SYMPROD(I) with spin ISPN in ORBPAIRS
@@ -350,7 +350,8 @@ C.. Now classify each pair of orbs under its sym prod
 C.. SYMPRODS(I) specifies a sym prod.  Orbitals for this are stored in
 C.. ORBPAIRS starting at index SYMPRODIND(1,ISPN,I)+1.
 C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
-         CALL IAZZERO(ORBPAIRS,2*NPAIRS)
+         L=SYMPRODIND(1,ISPN,I)+1
+         ORBPAIRS(1:2,L:L+nPairs)=0
          L=0
          DO I=iMinElec1,iMaxElec1
             
@@ -404,7 +405,7 @@ C.. Now go through the list of all pairs, finding out how many pairs are to be e
 C.. orbitals in this determinant.
 C.. We first create a quick lookup table to enable us to quickly check whether a given orbital is in this determinant
 C.. in order 1, not order NEL.
-         CALL IAZZERO(ILUT,NBASIS/32+1)
+         ILUT(:)=0
          DO I=1,NEL
             ILUT((NI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
          ENDDO
@@ -698,7 +699,7 @@ C..      ENDIF(.NOT.TCOUNT)
          Call SymSetupExcits_CreateClassList(nI,nEl,Classes,
      & iMinElec1, iMaxElec1, ThisClassCount, PrevClassCount,ClassCount,
      & G1, nCl)
-         CALL IAZZERO(SYMPRODCOUNT,(NEL*NEL+1)*3)
+         SYMPRODCOUNT(:,:)=0
          Call SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl,
      &   SymProds, ThisClassCount, PrevClassCount, ClassCount,Classes,
      &   SymProdCount)
@@ -709,7 +710,7 @@ C.. Allocate enough memory to store the index
 C.. we've acually got space to store it somewhere
             IP_SYMPRODIND=STORE(5)
          ENDIF
-         CALL IAZZERO(SYMPRODIND,2*3*(NPR+1))
+         SYMPRODIND(1:2,1:3,0:NPR)=0
 
 C.. Now shift this such that SYMPRODCOUNT(ISPN,I) is the index of
 C.. the first orbital pair of SYMPROD(I) with spin ISPN in ORBPAIRS
@@ -740,7 +741,7 @@ C.. Now go through the list of all pairs, finding out how many pairs are to be e
 C.. orbitals in this determinant.
 C.. We first create a quick lookup table to enable us to quickly check whether a given orbital is in this determinant
 C.. in order 1, not order NEL.
-         CALL IAZZERO(ILUT,NBASIS/32+1)
+         ILUT(1:NBASIS/32+1)=0
          DO I=1,NEL
             ILUT((NI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
          ENDDO
@@ -1074,7 +1075,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
 
          Type(Symmetry) SymProd
 
-         CALL IAZZERO(ORBPAIRS,2*NPAIRS)
+         ORBPAIRS(1:2,1:NPAIRS)=0
          L=0
          DO I=iMinElec1,iMaxElec1
             
@@ -1795,7 +1796,7 @@ C.. A modified version of GENSYMEXCITIT2.  This has min and max electron 1 speci
 C.. This is the first time we've been called for setup.
 !  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
             IF(STORE(1).EQ.0) THEN
-               CALL IAZZERO(STORE2,6*2)
+               STORE2(1:6)=0
                CALL MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
                STORE2(1)=IP_DSTORE
@@ -1839,14 +1840,14 @@ C..   STORE(5)    -  ...         SYMPRODIND
 C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ,,,        ILUT
 
-               CALL IAZZERO(NMEM,23)
+               NMEM(1:23)=0
                ICOUNT=24
 C.. Put the addresses in store
                DO I=1,5
                   STORE2(I)=LOC(NMEM(ICOUNT))
                   ICOUNT=ICOUNT+STORE(I)
                ENDDO
-               CALL IAZZERO(NMEM(6),ICOUNT-6)
+               NMEM(6:ICOUNT)=0
                STORE2(6)=0
                NMEM(11)=-1
                NMEM(7)=0
@@ -1898,7 +1899,7 @@ C            ENDIF
          IMPLICIT NONE
          INTEGER NI(NEL),NEL,NBASIS,G1(nBasis),NBASISMAX(*)
          INTEGER NMEM(*),IFRZ(*)
-!         CALL IAZZERO(NMEM,22)
+!         NMEM(1:22)=0
          NMEM(11)=-1  ! Set I=-1 (i.e. start from the first electron again)
          NMEM(7)=0  !set iExcit=0 (i.e. start from the first excit class again
       END

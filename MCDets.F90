@@ -128,7 +128,7 @@ subroutine MCDetsCalc(nI,iSeed,nCycles,dTau,dMu,nMaxParticles,nInitParticles,iSt
 !   iStep=10
 
     NoCulls=0
-    CALL IAZZERO(CullInfo,45)
+    CullInfo=0
 
     OPEN(15,file='FCIMCStats',status='unknown')     !Open same file as FCIMC.F90 for consistency
 
@@ -256,7 +256,7 @@ subroutine UpdateShift(PL,EShift,dMu,dTau,iStep,CullInfo,NoCulls,iOldCount,GrowR
        GrowRate=GrowRate+((GrowthSteps+0.D0)/(iStep+0.D0))*((PL%nSubParticles+0.D0)/(CullInfo(NoCulls,2)+0.D0))
 
        NoCulls=0
-       CALL IAZZERO(CullInfo,45)
+       CullInfo=0
 
    ENDIF
 

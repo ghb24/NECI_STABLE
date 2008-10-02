@@ -356,7 +356,7 @@ C.. calculates B=A**N where B and A are LxL matrices
          IF(LM) THEN
             CALL DCOPY(L*L,A,1,B,1)
          ELSE
-            CALL IAZZERO(B,L*L)
+            B(1:L,1:L)=0
             DO I=1,L
                B(I,I)=1.D0
             ENDDO

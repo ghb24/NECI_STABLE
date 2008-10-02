@@ -1071,7 +1071,7 @@ MODULE FciMCMod
             ENDIF
 
             NoCulls=0
-            CALL IAZZERO(CullInfo,30)
+            CullInfo=0
         ELSE
 !More than one cull in this update cycle
             IF(TSignShift) THEN
@@ -1102,7 +1102,7 @@ MODULE FciMCMod
             ENDIF
 
             NoCulls=0
-            CALL IAZZERO(CullInfo,30)
+            CullInfo=0
 
         ENDIF
 
@@ -1773,10 +1773,10 @@ MODULE FciMCMod
 !Allocate memory to hold walkers
             ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+            WalkVecDets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
@@ -1913,7 +1913,7 @@ MODULE FciMCMod
 !TotSign is the sum of the walkers x sign
         ProjectionE=SumENum/SumNoatHF
 
-        CALL IAZZERO(CullInfo,30)
+        CullInfo=0
         NoCulls=0
 
 !Routine to initialise the blocking analysis
@@ -1930,7 +1930,7 @@ MODULE FciMCMod
 
             ALLOCATE(EHistBins(NEl,NoHistBins),stat=ierr)
             CALL LogMemAlloc('EHistBins',NoHistBins*NEl,8,this_routine,EHistBinsTag)
-!            CALL IAZZERO(EHistBins,NoHistBins*NEl)
+!            EHistBins(1:nEl,1:NoHistBins)=0
             do i=1,NoHistBins
                 do j=1,NEl
                     EHistBins(j,i)=0
@@ -2006,10 +2006,10 @@ MODULE FciMCMod
 !Allocate memory to hold walkers
         ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+        WalkVecDets(1:NEl,1:MaxWalkers)=0
         ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-        CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+        WalkVec2Dets(1:NEl,1:MaxWalkers)=0
         ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
         ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
@@ -2047,7 +2047,7 @@ MODULE FciMCMod
         MP1Comps=0.d0
         ALLOCATE(MP1Dets(NEl,HFConn),stat=ierr)
         CALL LogMemAlloc('MP1Dets',HFConn*NEl,4,this_routine,MP1DetsTag,ierr)
-        CALL IAZZERO(MP1Dets,NEl*HFConn)
+        MP1Dets(1:NEl,1:HFConn)=0
         ALLOCATE(MP1Sign(HFConn),stat=ierr)
         CALL LogMemAlloc('MP1Sign',HFConn,4,this_routine,MP1SignTag,ierr)
         ALLOCATE(MP1Hij(HFConn),stat=ierr)
@@ -2218,7 +2218,7 @@ MODULE FciMCMod
 !!This is different to the INVBRR in UMatCache, since it works with spin-orbitals
 !        ALLOCATE(INVBRRSpinOrb(nBasis),stat=ierr)
 !        CALL LogMemAlloc("InvBrrSpinOrb",nBasis,4,this_routine,InvBrrSpinOrbTag,ierr)
-!        CALL IAZZERO(INVBRRSpinOrb,nBasis)
+!        INVBRRSpinOrb(1:nBasis)=0
 !        t=0
 !        do i=1,nBasis
 !            t=t+1
@@ -2386,7 +2386,7 @@ MODULE FciMCMod
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+        WalkVecDets(1:NEl,1:MaxWalkers)=0
         ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
 
@@ -2404,7 +2404,7 @@ MODULE FciMCMod
 !Allocate more memory for WalkVec2
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
 
@@ -2437,7 +2437,7 @@ MODULE FciMCMod
             CALL LogMemDealloc(this_routine,WalkVecSignTag)
             ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            CALL IAZZERO(WalkVecDets,NEl*MaxWalkers)
+            WalkVecDets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
 
@@ -2448,13 +2448,13 @@ MODULE FciMCMod
             enddo
 
 !Zero the second arrays
-            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
 
         ELSE
 !If not scaling, second array has not been allocated, allocate it now
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            CALL IAZZERO(WalkVec2Dets,NEl*MaxWalkers)
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
             
@@ -2676,7 +2676,7 @@ MODULE FciMCMod
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             iMaxExcit=0
-            CALL IAZZERO(nStore,6)
+            nStore(1:6)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%nExcitMemLen),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
@@ -2710,7 +2710,7 @@ MODULE FciMCMod
 !Need to generate excitation generator to find excitation.
 !Setup excit generators for this determinant 
         iMaxExcit=0
-        CALL IAZZERO(nStore,6)
+        nStore(1:6)=0
         CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
         ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
@@ -3135,7 +3135,7 @@ END FUNCTION Fact
 !            ALLOCATE(GraphVec(TotComps),stat=ierr)
 !            ALLOCATE(DetsinGraph(NEl,TotComps),stat=ierr)
 !            GraphRhoMat=0.d0
-!            CALL IAZZERO(DetsinGraph,NEl*TotComps)
+!            DetsinGraph(1:NEl,1:TotComps)=0
 !        ELSE
 !            GraphRhoMat=0.d0
 !        ENDIF
@@ -3269,7 +3269,7 @@ END FUNCTION Fact
 !
 !!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
 !            iMaxExcit=0
-!            CALL IAZZERO(nStore,6)
+!            nStore(1:6)=0
 !            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
 !            ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
 !            CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag,ierr)
@@ -3783,7 +3783,7 @@ END FUNCTION Fact
 !            GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
 !
 !            NoCulls=0
-!            CALL IAZZERO(CullInfo,30)
+!            CullInfo=0
 !        ELSE
 !            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
 !            do j=2,NoCulls
@@ -3798,7 +3798,7 @@ END FUNCTION Fact
 !            GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
 !
 !            NoCulls=0
-!            CALL IAZZERO(CullInfo,30)
+!            CullInfo(1:30)=0
 !
 !        ENDIF
 !        DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
@@ -3916,7 +3916,7 @@ END FUNCTION Fact
 !!Also need to store the determinants which each component of the eigenvector refers to...
 !            ALLOCATE(ExcitStore(NEl,iMaxExcit+1),stat=ierr)
 !            CALL LogMemAlloc('ExcitStore',(iMaxExcit+1)*NEl,4,this_routine,ExcitStoreTag,ierr)
-!            CALL IAZZERO(ExcitStore,(iMaxExcit+1)*NEl)
+!            ExcitStore(1:nEl,1:iMaxExcit+1)=0
 !            
 !!            CALL CalcRho2(FDet,FDet,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhii,nTay,0,ECore)
 !            CALL GetH0Element(FDet,NEl,Arr,nBasis,ECore,FZero)
@@ -4313,7 +4313,7 @@ END FUNCTION Fact
 !        TotWalkers=InitWalkers
 !        TotWalkersOld=InitWalkers
 !
-!        CALL IAZZERO(CullInfo,30)
+!        CullInfo(1:30)=0
 !        NoCulls=0
 !
 !        IF(TNodalCutoff.and.(.not.TMCDiffusion)) CALL CalcNodalSurface()
@@ -4927,7 +4927,7 @@ END FUNCTION Fact
 !
 !!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
 !        iMaxExcit=0
-!        CALL IAZZERO(ExcitGen%nStore,6)
+!        ExcitGen%nStore(1:6)=0
 !        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,ExcitGen%nStore,3)
 !        ALLOCATE(ExcitGen%ExcitData(nExcitMemLen),stat=ierr)
 !        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")

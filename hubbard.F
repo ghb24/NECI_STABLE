@@ -315,7 +315,7 @@ C.. Setup the symmetry product table
          allocate(SymConjTab(nSym))
          call LogMemAlloc('SymConjTable',nSym,4,this_routine,
      &                                                    tagSymConjTab)
-         CALL IAZZERO(SYMTABLE,NSYM*NSYM*SymmetrySize)
+         SYMTABLE(1:NSYM,1:NSYM)=Symmetry(0)
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
             CALL RoundSym(NQNS,nBasisMax)

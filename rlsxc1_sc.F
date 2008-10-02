@@ -10,8 +10,8 @@ C..Cube array
       INTEGER IDS1(NEL-1),IDS2(NEL-1)
       EXTERNAL CHK,U1
 C..
-      CALL IAZZERO(TMP1,NEL)
-      CALL IAZZERO(TMP2,NEL)
+      TMP1(1:NEL)=0
+      TMP2(1:NEL)=0
       AUXC=0.d0
 C..Compare NDET1 to NDET2
       IQ=0

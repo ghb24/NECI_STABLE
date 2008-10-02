@@ -31,8 +31,8 @@ C..
       call LogMemAlloc('FODM',NHG**2,8,this_routine,tagFODM)
       FODM=0.d0
 C..
-      CALL IAZZERO(N1E,NHG)
-      CALL IAZZERO(N2E,NHG)
+      N1E(1:NHG)=0
+      N2E(1:NHG)=0
 C..
       DO IG=1,NHG     ! n   (orbitals) 
         DO JG=IG,NHG    ! nprime (orbitals)
@@ -102,8 +102,8 @@ C..Now diagonalise FODM
       allocate(W(NHG))
       call LogMemAlloc('W',NHG,8,this_routine,tagW)
       WORK=0.d0
-      CALL IAZZERO(IWORK,5*NHG)
-      CALL IAZZERO(IFAIL,NHG)
+      IWORK(1:5*NHG)=0
+      IFAIL(1:NHG)=0
 C..Natural orbitals and occupation numbers
       Z=0.d0
       W=0.d0

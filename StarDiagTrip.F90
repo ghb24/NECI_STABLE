@@ -97,7 +97,7 @@
 !We have to provide memory to store the number of triples from each double
             ALLOCATE(Triples(iMaxExcit),stat=ierr)
             CALL LogMemAlloc('Triples',iMaxExcit,4,this_routine,TriplesTag)
-            CALL IAZZERO(Triples,iMaxExcit)
+            Triples(1:iMaxExcit)=0
 
 !Run through all possible excitations from HF...
             ExcitCount=0
@@ -275,7 +275,7 @@
 !Deallocate the excitation generators for the triples
                 DEALLOCATE(nExcit2)
                 CALL LogMemDealloc(this_routine,nExcitTag2)
-                CALL IAZZERO(nStore2,6)
+                nStore2(1:6)=0
 
 !Allocate memory to store all eigenvalues, and first elements of eigenvectors of matrix
                 ALLOCATE(Vals(i+1),stat=ierr)
@@ -341,7 +341,7 @@
         CALL LogMemDealloc(this_routine,nExcitTag)
         DEALLOCATE(Triples)
         CALL LogMemDealloc(this_routine,TriplesTag)
-        CALL IAZZERO(nStore,6)
+        nStore(1:6)=0
         
         IF(TFullDiag.and.(TotElem.ne.(ExcitCount+1))) THEN
             WRITE(6,*) "We have a counting problem"

@@ -344,8 +344,8 @@ contains
             call LogMemAlloc('SymLabelCountsCum',nIrrep,4,thisroutine,tagSymLabelCountsCum)
             allocate(StateSymMap(nBi))
             call LogMemAlloc('StateSymMap',nBi,4,thisroutine,tagStateSymMap)
-            CALL IAZZERO(SYMLABELCOUNTSCUM,Nirrep)
-            CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
+            SYMLABELCOUNTSCUM(1:Nirrep)=0
+            SYMLABELINTSCUM(1:Nirrep)=0
             do i=1,Nirrep
                 basirrep=SYMLABELCOUNTS(2,i)
                 ! Block diagonal.
@@ -453,8 +453,8 @@ contains
             call LogMemAlloc('SymLabelCountsCum2',nIrrep,4,thisroutine,tagSymLabelCountsCum2)
             allocate(StateSymMap2(nBi))
             call LogMemAlloc('StateSymMap2',nBi,4,thisroutine,tagStateSymMap2)
-            CALL IAZZERO(SYMLABELINTSCUM2,Nirrep)
-            CALL IAZZERO(SYMLABELCOUNTSCUM2,Nirrep)
+            SYMLABELINTSCUM2(1:Nirrep)=0
+            SYMLABELCOUNTSCUM2(1:Nirrep)=0
             do i=1,Nirrep
             !SYMLABELCOUNTS is now mbas only for the frozen orbitals
                 basirrep=SYMLABELCOUNTS(2,i)

@@ -359,6 +359,7 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
          use SymData, only: SymStatePairs,nSymPairProds,nSymLabels
          use SymData, only: tagSymPairProds,tagSymLabelList
          use SymData, only: tagSymLabelCounts,tagSymStatePairs
+         use SymData, only: SymPairProd
          use global_utilities
          IMPLICIT NONE
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
@@ -399,7 +400,7 @@ C.. First deal with listing single states
          ENDDO
 C.. order according to sym label, so SYMLABELLIST gets a list of states grouped under SYMLABEL
          CALL SORT2I(NSTATES,TEMPLIST,SYMLABELLIST)
-         CALL IAZZERO(SYMLABELCOUNTS,2*NSYMLABELS)
+         SYMLABELCOUNTS(:,:)=0
          SYMLABELCOUNTS(1,TEMPLIST(1))=1
          SYMLABELCOUNTS(2,TEMPLIST(1))=1
          DO I=2,NSTATES
@@ -428,8 +429,7 @@ C.. Now deal with pairs of states
          allocate(SymPairProds(nSymLabels**2))
          call LogMemAlloc('SymPairProds',nSymLabels**2,
      &                   SymPairProdSize*8,this_routine,tagSymPairProds)
-         CALL IAZZERO(SymPairProds,
-     &         SymPairProdSize*nSymLabels*nSymLabels)
+         SymPairProds=SymPairProd(Symmetry(0),0,0)
 C.. Now enumerate all pairs, and classify their product, but don't store them.
          nSymPairProds=0
          CALL GENALLSymStatePairs(NSTATES,.FALSE.,FRZ)
@@ -447,7 +447,7 @@ C.. Now sort the SymPairProds into order
          allocate(SymStatePairs(2,0:TOT-1))
          call LogMemAlloc('SymStatePairs',2*TOT,4,this_routine,
      &                                                 tagSymStatePairs)
-         CALL IAZZERO(SymStatePairs,TOT*2)
+         SymStatePairs(:,:)=0
          CALL GENALLSymStatePairs(NSTATES,.TRUE.,FRZ)
       END
 
@@ -536,7 +536,7 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
          TYPE(Symmetry) SYMPROD
          LOGICAL ISCSF,ISC
          I=1
-         CALL IAZZERO(NREPS,NEL)
+         NREPS(1:NEL)=0
          CALL SETUPSYM(NBASISMAX,ISYM)
          ISC=ISCSF(NI2,NEL)
          IF(ISC) THEN
@@ -1604,7 +1604,7 @@ C.. Set to be totally symmetric
          use SymData, only: FrozenSym
          IMPLICIT NONE
          TYPE(BasisFN) Sym
-         CALL IAZZERO(FrozenSym,BasisFNSize)
+         FrozenSym=BasisFN((/0,0,0/),0,Symmetry(0))
 C.. Set to be totally symmetric
          FrozenSym=Sym
       END
@@ -1803,8 +1803,8 @@ C.. Set to be totally symmetric
         allocate(SymLabelCountsCum(nIrrep))
         call LogMemAlloc('SymLabelCountsCum',nIrrep,4,this_routine,
      &                                             tagSymLabelCountsCum)
-        CALL IAZZERO(SYMLABELINTSCUM,Nirrep)
-        CALL IAZZERO(SYMLABELCOUNTSCUM,Nirrep)
+        SYMLABELINTSCUM(1:Nirrep)=0
+        SYMLABELCOUNTSCUM(1:Nirrep)=0
         do i=1,Nirrep
             basirrep=SYMLABELCOUNTS(2,i)
             iSize=iSize+(basirrep*(basirrep+1))/2

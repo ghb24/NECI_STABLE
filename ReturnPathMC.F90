@@ -950,7 +950,7 @@ MODULE ReturnPathMCMod
 !Initialise other variables needed
         Seed=G_VMC_Seed     !Initialise random number seed
         GrowRate=0.D0
-        CALL IAZZERO(CullInfo,45)
+        CullInfo=0
         NoCulls=0
 !Initialise variables for calculation of the running average
         ProjectionE=0.D0
@@ -982,7 +982,7 @@ MODULE ReturnPathMCMod
 
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
             iMaxExcit=0
-            CALL IAZZERO(ExcitGen%nStore,6)
+            ExcitGen%nStore(1:6)=0
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitLen,nJ,iMaxExcit,0,ExcitGen%nStore,exFlag)
             ALLOCATE(ExcitGen%ExcitData(ExcitGen%ExcitLen),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
@@ -1009,7 +1009,7 @@ MODULE ReturnPathMCMod
             GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
 
             NoCulls=0
-            CALL IAZZERO(CullInfo,45)
+            CullInfo=0
         ELSE
             GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
             do j=2,NoCulls
@@ -1024,7 +1024,7 @@ MODULE ReturnPathMCMod
             GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
 
             NoCulls=0
-            CALL IAZZERO(CullInfo,45)
+            CullInfo=0
 
         ENDIF
         DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))

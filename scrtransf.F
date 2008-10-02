@@ -52,8 +52,8 @@ C..
 C..
 C..Routine to read in UMAT
 C..Need to get the determinants in the form of max. coincidence
-      CALL IAZZERO(N1E,NHG)
-      CALL IAZZERO(N2E,NHG)
+      N1E(1:NHG)=0
+      N2E(1:NHG)=0
 C..Also returns the sign change IPTOT
       CALL LINEUP(NEL,NDET1,NDET2,NHG,N1E,N2E,IFLAG,IPTOT)
       SUM=0.D0
@@ -305,7 +305,7 @@ C..
 C      CALL GTID(NBASISMAX,ND2(1),ID4)
 C      CALL GTID(NBASISMAX,ND2(2),ID3)
 C..Check the spin combinations of N', N'-1, N and N-1 
-C      CALL IAZZERO(IDS,4)
+C      IDS(1:4)=0
 C      CALL GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
 C..N'>N'-1 and N>N-1 *See Levine for rule 3*
 C      SUM=UMAT(ID1,ID2,ID3,ID4)*DFLOAT(IDS(1)*IDS(2))-

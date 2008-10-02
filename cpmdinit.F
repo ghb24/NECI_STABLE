@@ -43,7 +43,7 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
              CALL GENSYMTABLE
          END IF
 
-         CALL IAZZERO(G1,LEN*BasisFNSize)
+         G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
          ALL1D=.TRUE.
          DO I=1,NSTATES
            if (TAbelian) then

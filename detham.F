@@ -32,7 +32,7 @@ C ==-------------------------------------------------------------------==
 C ==-------------------------------------------------------------------==
 C..Global counter
       GC=0
-      CALL IAZZERO(NROW,NDET)
+      NROW(1:NDET)=0
 C..   Now we need to match up any two determinants
       DO KI=1,NDET
          IF(KI.EQ.1) THEN
