@@ -82,7 +82,7 @@ C.. If we're on the last electron
                II=II+1
 C.. If we're generating rather than counting
                IF(.NOT.TCOUNT) THEN
-                  CALL ICOPY(NEL,NI,1,NMRKS(1:NEL,II),1)
+                  CALL NECI_ICOPY(NEL,NI,1,NMRKS(1:NEL,II),1)
                ENDIF
             ENDIF
          ELSE

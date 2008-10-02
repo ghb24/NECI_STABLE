@@ -248,7 +248,8 @@ C                  CALL WRITEDET(6,NEXCIT,NEL,.TRUE.)
 C                  WRITE(6,*) ISYM,ISYM2,LSYM
                   IF(LSYM) THEN
                      IF(.NOT.TCOUNT) THEN
-                        CALL ICOPY(NEL,NEXCIT,1,LIST(1:NEL,NLISTPOS),1)
+                        CALL NECI_ICOPY(NEL,NEXCIT,1,
+     &                                           LIST(1:NEL,NLISTPOS),1)
                         ICLIST(NLISTPOS)=NORDER-NNLEFT
                      ENDIF
                      NLISTPOS=NLISTPOS+1

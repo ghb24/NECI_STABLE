@@ -154,9 +154,9 @@ C     ==--------------------------------------------------------------==
       DATA TTT /'        OK',' CORRUPTED'/
 C     ==--------------------------------------------------------------==
 #ifdef POINTER8
-      CALL I8COPY(I_BLOCK,I_AD1,1,I_SORT,1)
+      CALL NECI_I8COPY(I_BLOCK,I_AD1,1,I_SORT,1)
 #else
-      CALL ICOPY(I_BLOCK,I_AD1,1,I_SORT,1)
+      CALL NECI_ICOPY(I_BLOCK,I_AD1,1,I_SORT,1)
 #endif
 #ifdef PARALLEL
       IFORM=INT(LOG10(REAL(NPROC)))+1
@@ -202,3 +202,21 @@ C     ==--------------------------------------------------------------==
 C     ==--------------------------------------------------------------==
       RETURN
       END
+
+      SUBROUTINE NECI_I8COPY(N,A,IA,B,IB)
+
+         IMPLICIT NONE
+!        Arguments
+         INTEGER   N,IA,IB
+         INTEGER*8 A(IA*N),B(IB*N)
+!        Variables
+         INTEGER I,IAX,IBX
+
+         DO I=1,N
+           IAX=(I-1)*IA + 1
+           IBX=(I-1)*IB + 1
+           B(IBX) = A(IAX)
+         ENDDO
+
+         RETURN
+      END SUBROUTINE NECI_I8COPY

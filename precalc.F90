@@ -1126,7 +1126,7 @@ FUNCTION MCPATHSPRE(point,NI,BETA,I_P,IPATH,K,G1,NMSH,         &
                     DEALLOCYC=(/ K,CYCLES /)
                 ENDIF
 
-                CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
+                CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
                 CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,Arr,ALAT,UMAT,RH,NTAY,0,ECORE)
                 RHOII(0)=RH
                 RHOIJ(0,0)=RHOII(0)

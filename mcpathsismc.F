@@ -99,7 +99,7 @@ C.. go to end of file
 !         IF(tMCDirectSum)
 !     &      OPEN(122,FILE="MCDIRECTSUM",STATUS="UNKNOWN")
 C.. Set the first node to I_I
-         CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
@@ -224,7 +224,7 @@ C.. and for 2 (rho_jj/rhoii)**-P
                   VWEIGHTS(2,0)=1.D0
                   VWEIGHTS(1,1)=VWEIGHTS(1,0)
                   VWEIGHTS(2,1)=VWEIGHTS(2,0)
-                  CALL ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_VCUR),1)
+                  CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_VCUR),1)
                ELSE
                   OWEIGHT=0.D0
                   ODLWDB=0.D0
@@ -735,7 +735,7 @@ C.. Pick random elements of the path and generate excitations
                   IF(ICMPDETS(INODE,IPATH(1,J),NEL).EQ.0) BR=.TRUE.
                ENDDO
             ENDDO
-            CALL ICOPY(NEL,INODE,1,IPATH(1,I),1)
+            CALL NECI_ICOPY(NEL,INODE,1,IPATH(1,I),1)
             DO J=0,I
                ICE=IGETEXCITLEVEL(INODE,IPATH(1,J),NEL)
                IF(ICE.LE.2) THEN
@@ -760,7 +760,7 @@ C.. Pick random elements of the path and generate excitations
          ENDDO
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.  We now call CALCPATHS to get the path weight
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
@@ -833,7 +833,7 @@ C.. add that node to the path, and recurse
             ENDIF
 C            WRITE(41,"(I)",advance='no') IEXL2
          ENDIF
-         CALL ICOPY(NEL,NI,1,NJ,1)
+         CALL NECI_ICOPY(NEL,NI,1,NJ,1)
          DO IEX=1,IEXL2
             BR=.TRUE.
 C.. Find an electron we haven't excited before
@@ -895,7 +895,7 @@ C.. not very efficient.
          INTEGER ICLS
          RP=0
          I_VNEXT=1
-         CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
          IC=0
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
@@ -918,12 +918,12 @@ C            WRITE(57,"(A1)",advance='no') "N"
             CALL GENRANDOMSPINEXCIT(INODE,NEL,G1,NBASIS,NBASISMAX,IC,
      &      ISEED,INODE2)
 C            CALL WRITEDET(35,INODE2,NEL,.FALSE.)
-            CALL ICOPY(NEL,INODE2,1,INODE,1)
+            CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
 C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
 C     &         NBASISMAX,KSYM,INODE2)
 C.. If the new node is not in the path, add it.
             IF(.NOT.LISINPATH(INODE2,IPATH,NEL,I_VNEXT,-1)) THEN
-               CALL ICOPY(NEL,INODE2,1,IPATH(1,I_VNEXT),1)
+               CALL NECI_ICOPY(NEL,INODE2,1,IPATH(1,I_VNEXT),1)
 C.. Count the number of connections from this node (RP=0)
 C               NLIST=0
 C               CALL GENSYMDETSSDN(INODE2,KSYM,NEL,G1,BRR,NBASIS,LSTE,
@@ -988,7 +988,7 @@ C.. give up trying to find something to attach, and go home
          TLOG3=BTEST(ILOGGING,6)
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
@@ -1058,7 +1058,7 @@ C.. parameter.
          RP=-I_P/50.D0
 C..I_P
          I_VNEXT=1
-         CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
          IC=0
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
 C.. doesn't bother calculating the RHO_JJ.
@@ -1084,7 +1084,7 @@ C.. XIJ(ICURNODE,ICURNDOE) is the norm const for the current node
             CALL GENSYMDETSSDN(IPATH(1,ICURNODE),KSYM,NEL,G1,BRR,NBASIS,
      &         INODE2,IC,NBASISMAX,BETA,I_P,NMSH,FCK,NMAX,ALAT,
      &         UMAT,NTAY,ECORE,X,RP,PP,RHOEPS)
-            CALL ICOPY(NEL,INODE2,1,INODE,1)
+            CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
 C            CALL GENRANDOMEXCITSYM(INODE,NEL,NBASIS,G1,2,ISEED,
 C     &         NBASISMAX,KSYM,INODE2)
 C.. If the new node is not in the path, add it.
@@ -1092,7 +1092,7 @@ C.. If the new node is not in the path, add it.
             ICURNODE=IISINPATH(INODE2,IPATH,NEL,I_VNEXT,-1) 
             IF(ICURNODE.EQ.-1) THEN
                ICURNODE=I_VNEXT
-               CALL ICOPY(NEL,INODE2,1,IPATH(1,I_VNEXT),1)
+               CALL NECI_ICOPY(NEL,INODE2,1,IPATH(1,I_VNEXT),1)
 C.. Count the number of connections from this node (RP=0)
                NLIST=0
                CALL GENSYMDETSSDN(INODE,KSYM,NEL,G1,BRR,NBASIS,LSTE,
@@ -1156,7 +1156,7 @@ C.. give up trying to find something to attach, and go home
          TLOG3=BTEST(ILOGGING,6)
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
@@ -1231,7 +1231,7 @@ C.. we hard code RP as P/50, although this should be an empirical
 C.. parameter.
          RP=0
          I_VNEXT=1
-         CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
          IC=0
 C.. Count the number of adjacent nodes to us in IC.
           CALL GENRANDSYMEXCITIT2(NI,NEL,G1,NBASIS,NBASISMAX,
@@ -1281,11 +1281,11 @@ C.. generate a random excitation
 
 C            CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
 C     &         NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
-            CALL ICOPY(NEL,INODE2,1,INODE,1)
+            CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
 
 C.. If the new node is not in the path, add it.
             IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
-               CALL ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)
+               CALL NECI_ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)
 
 
 
@@ -1394,7 +1394,7 @@ C.. give up trying to find something to attach, and go home
          TLOG3=BTEST(ILOGGING,6)
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(BTEST(ILOGGING,3))
@@ -1623,7 +1623,7 @@ C.. Invert the matrix, and pass the multiplicative factor on.
          IEXL2=IEXLEVEL
          BR2=.TRUE.
          DO WHILE(BR2)
-            CALL ICOPY(NEL,NI,1,NJ,1)
+            CALL NECI_ICOPY(NEL,NI,1,NJ,1)
             DO IEX=1,IEXL2
                BR=.TRUE.
 C.. Find an electron we haven't excited before
@@ -1681,7 +1681,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
 C         CALL WRITEDET(56,NI,NEL,.TRUE.)
 C         CALL FLUSH(56)
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
-            CALL ICOPY(NEL,NI,1,NJ,1)
+            CALL NECI_ICOPY(NEL,NI,1,NJ,1)
          NB2=NBASIS/2
          NB=(NEL-KSYM%Ms)/2
          NA=NEL-NB
@@ -1858,7 +1858,7 @@ C.. Take a copy of the old path and rho matrix etc.
             CALL DCOPY((I_OVCUR+1)**2,RHOIJ,1,ORHOIJ,1)
             CALL DCOPY(I_OVCUR+1,HIJS,1,OHIJS,1)
             CALL DCOPY(I_OVCUR*I_OVCUR,XIJ,1,OXIJ,1)
-            CALL ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
+            CALL NECI_ICOPY(NEL*(1+I_OVCUR),IPATH,1,OIPATH,1)
         ENDIF
          IF(.NOT.(INWI.AGT.0.D0)) THEN
 !.. Generate a new graph
@@ -1973,7 +1973,7 @@ C.. reject the new, and copy in the old
             I_V=I_OVCUR
             ICLS=IOCLS
             WEIGHT=OWEIGHT
-            CALL ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
+            CALL NECI_ICOPY(NEL*(1+I_OVCUR),OIPATH,1,IPATH,1)
          ELSE
             OETILDE=ETILDE
             OPROB=RHX
@@ -2092,7 +2092,7 @@ C.. those before it.
          !LOC(NMEMNI) is a pointer to NMEM
          PVERTMEMS(0)=LOC(NMEMNI)
          I_VNEXT=1
-         CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
          IC=0
 
 C.. Count the number of adjacent nodes to us in IC.  If RP==0, it
@@ -2142,7 +2142,7 @@ C.. generate a random excitation
      &            NBASISMAX,CUREX,INODE2,ISEED,IC,0,UMAT,NMAX,pGen)
 
 
-            CALL ICOPY(NEL,INODE2,1,INODE,1)
+            CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
 
 C.. If the new node is not in the path, add it.
             IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
@@ -2151,7 +2151,7 @@ C.. If the new node is not in the path, add it.
                STOP "INVALID DET"
             ENDIF
             IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
-               CALL ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)
+               CALL NECI_ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)
 
 C.. Setup the spin excit generator
                STORE(1)=0
@@ -2272,7 +2272,7 @@ C.. give up trying to find something to attach, and go home
          ENDIF
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
       END
 
 
@@ -2370,14 +2370,14 @@ C.. those before it.
          PVERTMEMS(0)=LOC(NMEM)
          RP=0
          I_VNEXT=1
-         CALL ICOPY(NEL,IPATH(1,0),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1,0),1,INODE,1)
          IC=0
 C.. Take a copy of the old path and rho matrix etc.
          CALL DCOPY(I_V+1,RHOII,1,ORHOII,1)
          CALL DCOPY((I_V+1)**2,RHOIJ,1,ORHOIJ,1)
          CALL DCOPY(I_V+1,HIJS,1,OHIJS,1)
          CALL DCOPY(I_V*I_V,XIJ,1,OXIJ,1)
-         CALL ICOPY(NEL*(1+I_V),IPATH,1,OIPATH,1)
+         CALL NECI_ICOPY(NEL*(1+I_V),IPATH,1,OIPATH,1)
 
 
 
@@ -2451,7 +2451,7 @@ C.. rejecting them on the basis of their weights.
             CALL DCOPY((I_V+1)**2,RHOIJ,1,NRHOIJ,1)
             CALL DCOPY(I_V+1,HIJS,1,NHIJS,1)
             CALL DCOPY(I_V*I_V,XIJ,1,NXIJ,1)
-            CALL ICOPY(NEL*(1+I_V),IPATH,1,NIPATH,1)
+            CALL NECI_ICOPY(NEL*(1+I_V),IPATH,1,NIPATH,1)
 C.. Hard code at 4 excitations.
             IEXNUM=0
             DO WHILE (IEXNUM.LT.NTENT)
@@ -2464,7 +2464,7 @@ C.. generate a random excitation
 CC.. Generate an excitation
 C               CALL GENRANDSYMEXCITIT(IPATH(1,NEXNODE-1),NEL,G1,NBASIS,
 C     &            NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
-               CALL ICOPY(NEL,INODE2,1,INODE,1)
+               CALL NECI_ICOPY(NEL,INODE2,1,INODE,1)
                IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                   WRITE(6,*) "INVALID DET"
                   CALL WRITEDET(6,INODE,NEL,.TRUE.)
@@ -2474,7 +2474,7 @@ C     &            NBASISMAX,.FALSE.,CUREX,INODE2,ISEED,IC,0)
 C.. If the new node is not in the path, add it.
                IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
                   IEXNUM=IEXNUM+1
-                  CALL ICOPY(NEL,INODE,1,NIPATH(1,I_VNEXT),1)
+                  CALL NECI_ICOPY(NEL,INODE,1,NIPATH(1,I_VNEXT),1)
 C.. Update the rho and X (probability) matrices with this new node
                   CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,
      &              NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
@@ -2532,7 +2532,7 @@ C.. Take a copy of the old path and rho matrix etc.
                      CALL DCOPY((I_V+1)**2,NRHOIJ,1,RHOIJ,1)
                      CALL DCOPY(I_V+1,NHIJS,1,HIJS,1)
                      CALL DCOPY(I_V*I_V,NXIJ,1,XIJ,1)
-                     CALL ICOPY(NEL*(1+I_V),NIPATH,1,IPATH,1)
+                     CALL NECI_ICOPY(NEL*(1+I_V),NIPATH,1,IPATH,1)
                      CURWEIGHT=WEIGHT
                      CURDLWDB=DLWDB
                   ELSE
@@ -2595,7 +2595,7 @@ C     &               .FALSE.,NEWEX,INODE2,ISEED,IC,0)
          TLOG3=BTEST(ILOGGING,6)
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
 
 C.. Now get the parameters for the new path 
 
@@ -2746,7 +2746,7 @@ C.. Single vertex graph always rejected
             ETILDE=OETILDE
             IACC=0
             PR=0.D0
-            CALL ICOPY(NEL*2,IPATH,1,NIPATH,1)
+            CALL NECI_ICOPY(NEL*2,IPATH,1,NIPATH,1)
         ELSE
 C.. First pick a vertex to move according to prob in VWEIGHTS(2)
 C.. (excluding vertex 0, the pivot)
@@ -2815,8 +2815,9 @@ C.. First copy the old one
 C.. Take a copy of the old path and rho matrix etc.
          CALL DCOPY((I_V+1)**2,RHOIJ,1,NRHOIJ,1)
          CALL DCOPY(I_V+1,HIJS,1,NHIJS,1)
-         CALL ICOPY(NEL*(1+I_V),IPATH,1,NIPATH,1)
-         CALL ICOPY(NEL,TENTDETS(1,ITENTNEW),1,NIPATH(1,IVERTMOVE),1)
+         CALL NECI_ICOPY(NEL*(1+I_V),IPATH,1,NIPATH,1)
+         CALL NECI_ICOPY(NEL,TENTDETS(1,ITENTNEW),1,
+     &                                            NIPATH(1,IVERTMOVE),1)
 C.. Fill out the parts which have changed
          ICONN=0
          IACC=1
@@ -2902,7 +2903,7 @@ C.. Accept the new
             OWEIGHT=WEIGHT
             CALL DCOPY((I_V+1)**2,NRHOIJ,1,RHOIJ,1)
             CALL DCOPY(I_V+1,NHIJS,1,HIJS,1)
-            CALL ICOPY(NEL*(1+I_V),NIPATH,1,IPATH,1)
+            CALL NECI_ICOPY(NEL*(1+I_V),NIPATH,1,IPATH,1)
             VWEIGHTS(1,I_V)=VWEIGHTS(1,I_V)-VWEIGHTS(1,IVERTMOVE)+WT1
             VWEIGHTS(2,I_V)=VWEIGHTS(2,I_V)-VWEIGHTS(2,IVERTMOVE)+WT2
             VWEIGHTS(1,IVERTMOVE)=WT1
@@ -3087,9 +3088,9 @@ C.. Finish off the rho matrix, and copy the H mat etc.
          CALL DCOPY(I_V,HIJS,1,HIJS2,1)
          HIJS2(I_V+1)=HIJS(0)
          HIJS2(0)=HIJS(0)
-         CALL ICOPY(NEL*I_V,IPATH(1,0),1,IPATH2(1,0),1)
-         CALL ICOPY(NEL,IPATH(1,0),1,IPATH2(1,I_V+1),1)
-         CALL ICOPY(NEL,NL,1,IPATH2(1,I_V),1)
+         CALL NECI_ICOPY(NEL*I_V,IPATH(1,0),1,IPATH2(1,0),1)
+         CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH2(1,I_V+1),1)
+         CALL NECI_ICOPY(NEL,NL,1,IPATH2(1,I_V),1)
 
 C.. Now work out the weight of the new det
          WT1=(RH/RHOIJ(0,0))**(I_P*PFAC)
@@ -3103,8 +3104,8 @@ C.. and the weight of the new graph
          R=RAN2(ISEED)
         ELSE
 C.. fake a ipath2
-         CALL ICOPY(NEL*(I_V+1),IPATH,1,IPATH2,1)
-         CALL ICOPY(NEL,IPATH,1,IPATH2(1,I_V+1),1)
+         CALL NECI_ICOPY(NEL*(I_V+1),IPATH,1,IPATH2,1)
+         CALL NECI_ICOPY(NEL,IPATH,1,IPATH2(1,I_V+1),1)
          PR=0.D0
          WEIGHT=0.D0
          ETILDE=0.D0
@@ -3127,7 +3128,7 @@ C.. Accept the new
             OWEIGHT=WEIGHT
             CALL DCOPY((I_V+2)**2,RHOIJ2,1,RHOIJ,1)
             CALL DCOPY(I_V+2,HIJS2,1,HIJS,1)
-            CALL ICOPY(NEL*(I_V+2),IPATH2,1,IPATH,1)
+            CALL NECI_ICOPY(NEL*(I_V+2),IPATH2,1,IPATH,1)
             VWEIGHTS(1,I_V+1)=VWEIGHTS(1,I_V)+WT1
             VWEIGHTS(2,I_V+1)=VWEIGHTS(2,I_V)+WT2
             VWEIGHTS(1,I_V)=WT1
@@ -3258,7 +3259,7 @@ C.. a new matrix without the removed det, and generate its weight.
          DO I=0,I_V
             IF(I.NE.IVERTMOVE) THEN
                HIJS2(I2)=HIJS(I)
-               CALL ICOPY(NEL,IPATH(1,I),1,IPATH2(1,I2),1)
+               CALL NECI_ICOPY(NEL,IPATH(1,I),1,IPATH2(1,I2),1)
                J2=0
                DO J=0,I_V
                   IF(J.NE.IVERTMOVE) THEN         
@@ -3291,7 +3292,7 @@ C.. Accept the new
             OWEIGHT=WEIGHT
             CALL DCOPY(I_V**2,RHOIJ2,1,RHOIJ,1)
             CALL DCOPY(I_V,HIJS2,1,HIJS,1)
-            CALL ICOPY(NEL*I_V,IPATH2,1,IPATH,1)
+            CALL NECI_ICOPY(NEL*I_V,IPATH2,1,IPATH,1)
             VWEIGHTS(1,I_V)=VWEIGHTS(1,I_V)-VWEIGHTS(1,IVERTMOVE)
             VWEIGHTS(2,I_V)=VWEIGHTS(2,I_V)-VWEIGHTS(2,IVERTMOVE)
 C.. Free the excitor

@@ -73,7 +73,7 @@ CONTAINS
             IF(TSPECDET) THEN
                WRITE(6,*) "Using SPECDET:"
                CALL WRITEDET(6,SPECDET,NEL,.TRUE.)!
-               CALL ICOPY(NEL,SPECDET,1,FDET,1)
+               CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
             ELSE
                WRITE(6,*) "Using Fermi DET:"
                CALL WRITEDET(6,FDET,NEL,.TRUE.)
@@ -149,7 +149,7 @@ CONTAINS
          NDET=II   
          IF(ICILEVEL.NE.0) THEN
 !C.. Use HAMIL to temporarily hold a list of excitation levels
-            CALL ICOPY(NEL,FDET,1,NMRKS,1)
+            CALL NECI_ICOPY(NEL,FDET,1,NMRKS,1)
             Allocate(Hamil(II), stat=ierr)
             LogAlloc(ierr, 'HAMIL', II, HElementSizeB, tagHamil)
             CALL GENEXCIT(FDET,ICILEVEL,NBASIS,NEL,NMRKS(1,2),HAMIL,NDET,1,G1,.TRUE.,NBASISMAX,.FALSE.)

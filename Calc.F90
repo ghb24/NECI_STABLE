@@ -770,14 +770,14 @@ MODULE Calc
           IF(TCSF.AND.TSPECDET) THEN
              WRITE(6,*) "TSPECDET set.  SPECDET is"
              CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
-             CALL ICOPY(NEL,SPECDET,1,FDET,1)
+             CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
              CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
              WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
              CALL WRITEDET(6,SPECDET,NEL,.TRUE.)
           ENDIF
           IF(TSPECDET.AND.SPECDET(1).EQ.0) THEN
              WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
-             CALL ICOPY(NEL,FDET,1,SPECDET,1)
+             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
           ENDIF
 
           IF(THFCALC) THEN
@@ -927,7 +927,7 @@ MODULE Calc
                       IF(.NOT.TSPECDET) THEN
                          WRITE(6,*) "SPECDET not specified. Using Fermi determinant ONLY"
                          TSPECDET=.TRUE.
-                         CALL ICOPY(NEL,FDET,1,SPECDET,1)
+                         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
                       ENDIF
                    ENDIF
 !C.. Instead of NMAX we have ARR
@@ -1393,7 +1393,7 @@ MODULE Calc
           III=III+1
           IF(TSPECDET) THEN
              TDONE=.FALSE.
-             CALL ICOPY(NEL,SPECDET,1,NI,1)
+             CALL NECI_ICOPY(NEL,SPECDET,1,NI,1)
              IDEG=1
           ELSE
              CALL GENNEXTDET(NEL,NBASIS,BRR,NBASISMAX,G1,TSPN,LMS,TPARITY,SymRestrict,ISYM,NI,.FALSE.,TDONE,WORK,nActiveBasis)

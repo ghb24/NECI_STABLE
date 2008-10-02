@@ -514,7 +514,7 @@ MODULE FciMCParMod
         j=1
 !j is the counter over all uncancelled walkers - it indicates when we have reached the end of the list of total walkers
 !DetCurr is the current determinant
-        CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+        CALL NECI_ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
         TempIC=NewIC(j)
         TempH=NewH(j)
         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit)
@@ -537,7 +537,7 @@ MODULE FciMCParMod
             IF(TotWalkersDet.gt.0) THEN
 !Positive sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
-                    CALL ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CALL NECI_ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
                     CurrentSign(VecSlot)=.true.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
@@ -547,7 +547,7 @@ MODULE FciMCParMod
             ELSE
 !Negative sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
-                    CALL ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CALL NECI_ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
                     CurrentSign(VecSlot)=.false.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
@@ -556,7 +556,7 @@ MODULE FciMCParMod
                 enddo
             ENDIF
 !Now update the current determinant
-            CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+            CALL NECI_ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
             TempIC=NewIC(j)
             TempH=NewH(j)
             IF(.not.TRegenExcitgens) CALL CopyExitGenPar(NewExcits(j),TempExcit)
@@ -590,26 +590,26 @@ MODULE FciMCParMod
 10      CONTINUE
         IF(L.GT.1)THEN
             L=L-1
-            CALL ICOPY(NElecs,Dets(1,L),1,TempDet,1)          !Copy Lth element to temp
+            CALL NECI_ICOPY(NElecs,Dets(1,L),1,TempDet,1)          !Copy Lth element to temp
             HTemp=NewH(L)
             ICTemp=NewIC(L)
             WSignTemp=NewSign(L)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp)
         ELSE
-            CALL ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
+            CALL NECI_ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
             HTemp=NewH(IR)
             ICTemp=NewIC(IR)
             WSignTemp=NewSign(IR)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp)
 
-            CALL ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
+            CALL NECI_ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
             NewH(IR)=NewH(1)
             NewIC(IR)=NewIC(1)
             NewSign(IR)=NewSign(1)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR))
             IR=IR-1
             IF(IR.EQ.1)THEN
-                CALL ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
+                CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
                 NewH(1)=HTemp
                 NewIC(1)=ICTemp
                 NewSign(1)=WSignTemp
@@ -624,7 +624,7 @@ MODULE FciMCParMod
                 IF((DETLT(Dets(1,J),Dets(1,J+1),NElecs)).eq.-1) J=J+1
             ENDIF
             IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
-                CALL ICOPY(NElecs,Dets(1,J),1,Dets(1,I),1)      !Copy Jth element to Ith element
+                CALL NECI_ICOPY(NElecs,Dets(1,J),1,Dets(1,I),1)      !Copy Jth element to Ith element
                 NewH(I)=NewH(J)
                 NewIC(I)=NewIC(J)
                 NewSign(I)=NewSign(J)
@@ -636,7 +636,7 @@ MODULE FciMCParMod
             ENDIF
             GO TO 20
         ENDIF
-        CALL ICOPY(NElecs,TempDet,1,Dets(1,I),1)                !Copy from temp element to Ith element
+        CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,I),1)                !Copy from temp element to Ith element
         NewH(I)=HTemp
         NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
@@ -1030,7 +1030,7 @@ MODULE FciMCParMod
                 IF(Iter.eq.DebugIter) WRITE(6,*) Index2Table(j)
                 do while(i.lt.Index2Table(j))
 !Copy accross all particles less than this number
-                    CALL ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
+                    CALL NECI_ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
                     CurrentIC(VecSlot)=NewIC(i)
                     CurrentH(VecSlot)=NewH(i)
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
@@ -1044,7 +1044,7 @@ MODULE FciMCParMod
 
 !Now need to copy accross the residual - from Index2Table(ToAnnihilateonProc) to TotWalkersNew
             do i=Index2Table(ToAnnihilateonProc)+1,TotWalkersNew
-                CALL ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
+                CALL NECI_ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
                 CurrentIC(VecSlot)=NewIC(i)
                 CurrentH(VecSlot)=NewH(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
@@ -1057,7 +1057,7 @@ MODULE FciMCParMod
 !No particles annihilated
             VecSlot=1
             do i=1,TotWalkersNew
-                CALL ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
+                CALL NECI_ICOPY(NEl,NewDets(:,i),1,CurrentDets(:,VecSlot),1)
                 CurrentIC(VecSlot)=NewIC(i)
                 CurrentH(VecSlot)=NewH(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
@@ -2444,7 +2444,7 @@ MODULE FciMCParMod
         CALL LogMemAlloc('MP1Sign',HFConn,4,this_routine,MP1SignTag,ierr)
         
 !HF Compt. of MP1 is 1
-        CALL ICOPY(NEl,HFDet,1,MP1Dets(1:NEl,1),1)
+        CALL NECI_ICOPY(NEl,HFDet,1,MP1Dets(1:NEl,1),1)
         MP1Comps(1)=1.D0
         MP1Sign(1)=.true.
 
@@ -2471,7 +2471,7 @@ MODULE FciMCParMod
             ELSE
                 MP1Sign(VecSlot)=.true.
             ENDIF
-            CALL ICOPY(NEl,nJ,1,MP1Dets(1:NEl,VecSlot),1)
+            CALL NECI_ICOPY(NEl,nJ,1,MP1Dets(1:NEl,VecSlot),1)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
             SumMP1Compts=SumMP1Compts+abs(Compt)
             MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
@@ -2514,7 +2514,7 @@ MODULE FciMCParMod
             IF(i.eq.1) THEN
 !If we are at HF, then we do not need to calculate the information for the walker        
                 WalkersonHF=WalkersonHF+1
-                CALL ICOPY(NEl,HFDet,1,CurrentDets(1:NEl,j),1)
+                CALL NECI_ICOPY(NEl,HFDet,1,CurrentDets(1:NEl,j),1)
                 CurrentIC(j)=0
                 CurrentSign(j)=.true.
                 CurrentH(j)=0.D0
@@ -2523,7 +2523,7 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
 !We are at a double excitation - we need to calculate most of this information...
-                CALL ICOPY(NEl,MP1Dets(1:NEl,i),1,CurrentDets(1:NEl,j),1)
+                CALL NECI_ICOPY(NEl,MP1Dets(1:NEl,i),1,CurrentDets(1:NEl,j),1)
                 CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
                 Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element

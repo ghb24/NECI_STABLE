@@ -675,7 +675,7 @@ MODULE Integrals
 !C.. GG(I) is the new position in G of the (old) orb I
              GG(I)=K
 !C.. copy the eigenvalue table to the new location
-             CALL ICOPY(BasisFNSize,G1(I),1,G2(K),1)
+             CALL NECI_ICOPY(BasisFNSize,G1(I),1,G2(K),1)
           ENDIF
        ENDDO
 !C.. Now construct the new BRR and ARR
@@ -696,7 +696,7 @@ MODULE Integrals
           !SYMCLASSES2 gives the new symmetry of the frozen set of orbitals
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.true.)
 !C.. Copy the new G1 over the old ones
-          CALL ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
+          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
           !Redo SYMLABELCOUNTS
           CALL GENSymStatePairs(NBASIS/2,.true.)
        ENDIF
@@ -841,7 +841,7 @@ MODULE Integrals
           CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
           CALL SetupFREEZEALLSYM(KSym)
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
-          CALL ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
+          CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
        ENDIF 
        FREEZETRANSFER=.false.
 !C.. Copy the new BRR and ARR over the old ones
@@ -851,7 +851,7 @@ MODULE Integrals
        allocate(arr(nBasis,2),stat=ierr)
        LogAlloc(ierr,'Arr',2*nBasis,8,tagArr)
 
-       CALL ICOPY(NBASIS,BRR2,1,BRR,1)
+       CALL NECI_ICOPY(NBASIS,BRR2,1,BRR,1)
        CALL DCOPY(NBASIS*2,ARR2,1,ARR,1)
 !C.. Now reset the total number of orbitals
        NHG=NBASIS

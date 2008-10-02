@@ -30,7 +30,7 @@ C.. Allocate some mem
 C.. We'll start with I_H=2
 C.. Set the first node to I_I
 c         OPEN(10,FILE="HPATHS",STATUS="UNKNOWN")
-         CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
@@ -92,7 +92,7 @@ C.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
          TLOG2=BTEST(ILOGGING,3)
          TOTAL=0.D0
 C.. This is the current node (set by our parent)         
-         CALL ICOPY(NEL,IPATH(1:NEL,I_HIND),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_HIND),1,INODE,1)
 C.. Find all nodes connected to this node
 C.. This is of maximum order NTAY*2
          IF(I_HIND.EQ.I_H-1) LT=LT+1
@@ -110,7 +110,7 @@ C.. give up and return
          IF(I_HIND.EQ.I_H-1) THEN
             L=L+1
 C.. otherwise just set the only possible allowed excitation to I
-            CALL ICOPY(NEL,NI,1,LSTE(1:NEL,1,I_HIND),1)
+            CALL NECI_ICOPY(NEL,NI,1,LSTE(1:NEL,1,I_HIND),1)
             I=IGETEXCITLEVEL(NI,INODE,NEL)
             ICE(1,I_HIND)=I
             NLIST=1
@@ -137,7 +137,7 @@ C.. see if it's worth going further
 C.. If we're at the last but one node, we can only connect to I_I
 C.. (this has been accounted for at the list stage
 C.. Bingo        
-               CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_H),1) 
+               CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_H),1) 
                RHOII(I_H)=RHOII(0)
                IF(TLOG1) THEN
                   WRITE(10,"(A)",advance='no') "["
@@ -178,7 +178,7 @@ C,, I_I as the ultimate node
                   ENDDO
                ENDIF
                IF(.NOT.LSAME) THEN
-                  CALL ICOPY(NEL,LSTE(1:NEL,I,I_HIND),1,
+                  CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,I_HIND),1,
      &                  IPATH(1:NEL,I_HIND+1),1)
                   TOTAL=TOTAL+
      &                  FMCPR2(NI,BETA,I_P,IPATH,I_H,NEL,NBASISMAX,

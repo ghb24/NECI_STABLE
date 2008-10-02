@@ -57,7 +57,7 @@ C.. go to end of file
          IF(BTEST(ILOGGING,2))
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
 C.. Set the first node to I_I
-         CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
@@ -139,7 +139,7 @@ C.. enumerate all excitations of this graph working out which is best
          LDONE=.FALSE.
          INDJ(1)=0
          NELEC=1
-         CALL ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_V),1)
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
          ICOUNT=0
          DO I=1,4
@@ -180,7 +180,7 @@ C.. matrix elements.  We now call CALCPATHS to get the path weight
 C.. Now calculate a new value if required
                IF(NADJ.GT.1) THEN
                   ICOUNT=ICOUNT+1
-                  CALL ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_V),1)
+                  CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH(1,I_V),1)
                   RHOII(I_V)=RHOII(0)
                   IF(TLOG) THEN
                      CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)   
@@ -189,7 +189,7 @@ C.. Now calculate a new value if required
                   VALUE=CALCPATHS(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
      &               I_P,NWHTAY,NEL,I_V,ILOGGING)
                   IF(VALUE.GT.FMCPR6) THEN
-                     CALL ICOPY(NEL,IPATH(1,I_V-1),1,NBEST,1)
+                     CALL NECI_ICOPY(NEL,IPATH(1,I_V-1),1,NBEST,1)
                      FMCPR6=VALUE
                   ENDIF
                   IF(TLOG) WRITE(10,*) VALUE 
@@ -198,7 +198,7 @@ C.. Now calculate a new value if required
          ENDDO
 C.. Restore the best one
          IF(ICOUNT.GT.0) THEN
-            CALL ICOPY(NEL,NBEST,1,IPATH(1,I_V-1),1)         
+            CALL NECI_ICOPY(NEL,NBEST,1,IPATH(1,I_V-1),1)         
             DO J=0,I_V-1
                ICE=IGETEXCITLEVEL(IPATH(1,I_V-1),IPATH(1,J),NEL)
                CALL CALCRHO2(IPATH(1,I_V-1),IPATH(1,J),BETA,I_P,NEL,

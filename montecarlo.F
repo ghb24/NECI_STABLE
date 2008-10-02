@@ -95,7 +95,7 @@ C               DO J=1,4
 C                  NJ(J,I)=NI(J,I)
 C               ENDDO
 C            ENDDO
-            CALL ICOPY(NEL,NI,1,NJ,1)
+            CALL NECI_ICOPY(NEL,NI,1,NJ,1)
 
             DO WHILE (IJ.EQ.0)
               CALL GENNEWDET2(NJ,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,1,BRR)
@@ -165,7 +165,7 @@ C               WI=WJ
                WLRI=WLRJ
                WLSI=WLSJ
                II=IJ
-               CALL ICOPY(NEL,NJ,1,NI,1)
+               CALL NECI_ICOPY(NEL,NJ,1,NI,1)
             ENDIF      
             IF(IEQS.EQ.0) THEN
                TOT=TOT+DLWDB
@@ -437,7 +437,7 @@ C.. Invalidate the cache
 
 C.. Pick a random new determinant
             IJ=0
-            CALL ICOPY(NEL,NI,1,NJ,1)
+            CALL NECI_ICOPY(NEL,NI,1,NJ,1)
 C            DO I=1,NEL
 C               NJ(I)=NI(I)
 C            ENDDO
@@ -576,7 +576,7 @@ C.. if there's space, we store
                WLSI=WLSJ
                II=IJ
                DLWDBC=DLWDB
-               CALL ICOPY(NEL,NJ,1,NI,1)
+               CALL NECI_ICOPY(NEL,NJ,1,NI,1)
             ENDIF      
             IF(IEQS.EQ.0) THEN
                TOT=TOT+DLWDBC
@@ -625,13 +625,13 @@ C.. Generic spatial basis
             RETURN
          ENDIF
 C.. Copy NI to NJ
-         CALL ICOPY(NEL,NI,1,NJ,1)
+         CALL NECI_ICOPY(NEL,NI,1,NJ,1)
          L=.TRUE.
          ND=NCH
 C.. we need to keep on doing this until we make a valid choice
          DO WHILE(L)
             IEL=INT(RAN2(ISEED)*NEL)+1
-            CALL ICOPY(4,G1(NJ(IEL)),1,NQN,1)
+            CALL NECI_ICOPY(4,G1(NJ(IEL)),1,NQN,1)
             IQN=3+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
 C.. Sometimes no spin freedom
             IQN=INT(RAN2(ISEED)*IQN)+1
@@ -680,7 +680,7 @@ C.. This does not take into account any symmetries.
          INTEGER IEL,ISGN,IT,I,IDIST
          REAL*8 RAN2
 C.. Copy NI to NJ
-         CALL ICOPY(NEL,NI,1,NJ,1)
+         CALL NECI_ICOPY(NEL,NI,1,NJ,1)
          L=.TRUE.
          ND=NCH
 C.. we need to keep on doing this until we make a valid choice
@@ -809,7 +809,7 @@ C.  so this is NAFTER)
 C.. Create a new node if we can
          IF(NCOUNT.LT.LISTMAX) THEN
             NODE=NCOUNT+1
-            CALL ICOPY(NEL,NI,1,LSTDET(1:NEL,NODE),1)
+            CALL NECI_ICOPY(NEL,NI,1,LSTDET(1:NEL,NODE),1)
             LSTDET(NEL+1,NODE)=NODE
             LSTDET(NEL+2,NODE)=NAFTER
             IF(NBEFORE.NE.0) THEN
@@ -878,7 +878,7 @@ C.. Now find which number determinant this corresponds to
          DO IT=1,IEQSTEPS+IMCSTEPS
 C.. Pick a random new determinant
             IJ=0
-            CALL ICOPY(NEL,NI,1,NJ,1)
+            CALL NECI_ICOPY(NEL,NI,1,NJ,1)
 
             DO WHILE (IJ.EQ.0)
               CALL GENNEWDET2(NJ,NJ,NEL,NBASIS,NBASISMAX,G1,ISEED,1,BRR)
@@ -926,7 +926,7 @@ C.. use up a random number to keep consistency.
                WLRI=WLRJ
                WLSI=WLSJ
                II=IJ
-               CALL ICOPY(NEL,NJ,1,NI,1)
+               CALL NECI_ICOPY(NEL,NJ,1,NI,1)
             ENDIF      
             IF(IEQS.EQ.0) THEN
                TOT=TOT+DLWDB

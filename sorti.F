@@ -154,16 +154,16 @@ C.. Based on SORTI, SORTIIARR sorts an arrays of integers and a 2D array of inte
         IF(L.GT.1)THEN
           L=L-1
           RRA=RA(L)
-          CALL ICOPY(NRB,RB(1,L),1,RRB,1)
+          CALL NECI_ICOPY(NRB,RB(1,L),1,RRB,1)
         ELSE
           RRA=RA(IR)
           RA(IR)=RA(1)
-          CALL ICOPY(NRB,RB(1,IR),1,RRB,1)
-          CALL ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
+          CALL NECI_ICOPY(NRB,RB(1,IR),1,RRB,1)
+          CALL NECI_ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
           IR=IR-1
           IF(IR.EQ.1)THEN
             RA(1)=RRA
-            CALL ICOPY(NRB,RRB,1,RB(1,1),1)
+            CALL NECI_ICOPY(NRB,RRB,1,RB(1,1),1)
             RETURN
           ENDIF
         ENDIF
@@ -175,7 +175,7 @@ C.. Based on SORTI, SORTIIARR sorts an arrays of integers and a 2D array of inte
           ENDIF
           IF(RRA.LT.RA(J))THEN
             RA(I)=RA(J)
-            CALL ICOPY(NRB,RB(1,J),1,RB(1,I),1)
+            CALL NECI_ICOPY(NRB,RB(1,J),1,RB(1,I),1)
             I=J
             J=J+J
           ELSE
@@ -184,7 +184,7 @@ C.. Based on SORTI, SORTIIARR sorts an arrays of integers and a 2D array of inte
         GO TO 20
         ENDIF
         RA(I)=RRA
-        CALL ICOPY(NRB,RRB,1,RB(1,I),1)
+        CALL NECI_ICOPY(NRB,RRB,1,RB(1,I),1)
       GO TO 10
       END
 C.. Based on SORTI, SORTSYMIARR sorts aan arrays of types whose first elements are symmetries and a 2D array of integers (ordering according to the symmetries)
@@ -207,17 +207,17 @@ C.. NRB is the length of each row in RB
 10    CONTINUE
         IF(L.GT.1)THEN
           L=L-1
-          CALL ICOPY(NRA,RA(1,L),1,RRA,1)
-          CALL ICOPY(NRB,RB(1,L),1,RRB,1)
+          CALL NECI_ICOPY(NRA,RA(1,L),1,RRA,1)
+          CALL NECI_ICOPY(NRB,RB(1,L),1,RRB,1)
         ELSE
-          CALL ICOPY(NRA,RA(1,IR),1,RRA,1)
-          CALL ICOPY(NRA,RA(1,1),1,RA(1,IR),1)
-          CALL ICOPY(NRB,RB(1,IR),1,RRB,1)
-          CALL ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
+          CALL NECI_ICOPY(NRA,RA(1,IR),1,RRA,1)
+          CALL NECI_ICOPY(NRA,RA(1,1),1,RA(1,IR),1)
+          CALL NECI_ICOPY(NRB,RB(1,IR),1,RRB,1)
+          CALL NECI_ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
           IR=IR-1
           IF(IR.EQ.1)THEN
-            CALL ICOPY(NRA,RRA,1,RA(1,1),1)
-            CALL ICOPY(NRB,RRB,1,RB(1,1),1)
+            CALL NECI_ICOPY(NRA,RRA,1,RA(1,1),1)
+            CALL NECI_ICOPY(NRB,RRB,1,RB(1,1),1)
             RETURN
           ENDIF
         ENDIF
@@ -228,8 +228,8 @@ C.. NRB is the length of each row in RB
             IF(SYMLT(RA(1,J),RA(1,J+1))) J=J+1
           ENDIF
           IF(SYMLT(RRA,RA(1,J)))THEN
-            CALL ICOPY(NRA,RA(1,J),1,RA(1,I),1)
-            CALL ICOPY(NRB,RB(1,J),1,RB(1,I),1)
+            CALL NECI_ICOPY(NRA,RA(1,J),1,RA(1,I),1)
+            CALL NECI_ICOPY(NRB,RB(1,J),1,RB(1,I),1)
             I=J
             J=J+J
           ELSE
@@ -237,8 +237,8 @@ C.. NRB is the length of each row in RB
           ENDIF
         GO TO 20
         ENDIF
-        CALL ICOPY(NRA,RRA,1,RA(1,I),1)
-        CALL ICOPY(NRB,RRB,1,RB(1,I),1)
+        CALL NECI_ICOPY(NRA,RRA,1,RA(1,I),1)
+        CALL NECI_ICOPY(NRB,RRB,1,RB(1,I),1)
       GO TO 10
       END
 C.. Based on SORTSYMIARR, SORTSYMARR sorts an arrays of types whose first elements are symmetries ordering according to the symmetries
@@ -270,17 +270,17 @@ C.. NRB is the length of each row in RB
 10    CONTINUE
         IF(L.GT.1)THEN
           L=L-1
-          CALL ICOPY(NRA,RA(1,L),1,RRA,1)
-          CALL ICOPY(NRB,RB(1,L),1,RRB,1)
+          CALL NECI_ICOPY(NRA,RA(1,L),1,RRA,1)
+          CALL NECI_ICOPY(NRB,RB(1,L),1,RRB,1)
         ELSE
-          CALL ICOPY(NRA,RA(1,IR),1,RRA,1)
-          CALL ICOPY(NRA,RA(1,1),1,RA(1,IR),1)
-          CALL ICOPY(NRB,RB(1,IR),1,RRB,1)
-          CALL ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
+          CALL NECI_ICOPY(NRA,RA(1,IR),1,RRA,1)
+          CALL NECI_ICOPY(NRA,RA(1,1),1,RA(1,IR),1)
+          CALL NECI_ICOPY(NRB,RB(1,IR),1,RRB,1)
+          CALL NECI_ICOPY(NRB,RB(1,1),1,RB(1,IR),1)
           IR=IR-1
           IF(IR.EQ.1)THEN
-            CALL ICOPY(NRA,RRA,1,RA(1,1),1)
-            CALL ICOPY(NRB,RRB,1,RB(1,1),1)
+            CALL NECI_ICOPY(NRA,RRA,1,RA(1,1),1)
+            CALL NECI_ICOPY(NRB,RRB,1,RB(1,1),1)
             RETURN
           ENDIF
         ENDIF
@@ -291,8 +291,8 @@ C.. NRB is the length of each row in RB
             IF((DETLT(RA(1,J),RA(1,J+1),NRA)).eq.-1) J=J+1
           ENDIF
           IF((DETLT(RRA,RA(1,J),NRA)).eq.-1)THEN
-            CALL ICOPY(NRA,RA(1,J),1,RA(1,I),1)
-            CALL ICOPY(NRB,RB(1,J),1,RB(1,I),1)
+            CALL NECI_ICOPY(NRA,RA(1,J),1,RA(1,I),1)
+            CALL NECI_ICOPY(NRB,RB(1,J),1,RB(1,I),1)
             I=J
             J=J+J
           ELSE
@@ -300,8 +300,8 @@ C.. NRB is the length of each row in RB
           ENDIF
         GO TO 20
         ENDIF
-        CALL ICOPY(NRA,RRA,1,RA(1,I),1)
-        CALL ICOPY(NRB,RRB,1,RB(1,I),1)
+        CALL NECI_ICOPY(NRA,RRA,1,RA(1,I),1)
+        CALL NECI_ICOPY(NRB,RRB,1,RB(1,I),1)
       GO TO 10
       END
  

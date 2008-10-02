@@ -449,7 +449,7 @@ MODULE UMatCache
          character(*), parameter :: thisroutine='SetupUMatTrans'
          Allocate(TransTable(nStates),STAT=ierr)
          call LogMemAlloc('TransTable',nStates,4,thisroutine,tagTransTable,ierr)
-         CALL ICOPY(NSTATES,TRANS,1,TransTable,1)
+         CALL NECI_ICOPY(NSTATES,TRANS,1,TransTable,1)
          TTRANSGTID=.TRUE.
       END SUBROUTINE SetUMatTrans
  

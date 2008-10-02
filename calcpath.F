@@ -277,7 +277,7 @@ C.. We need to sum over all permutations of IJK...L which are valid, up to a
 C.. length I_HMAX.  We do this crudely here.  Slight optimizations are possible
          IF(I_HIND.EQ.0) THEN
 C.. first node must be I
-            CALL ICOPY(NEL,IPATH(1:NEL,0),1,
+            CALL NECI_ICOPY(NEL,IPATH(1:NEL,0),1,
      &                     IPATH2(1:NEL,0),1)
             IP2(0)=0
             RHOII2(0)=RHOII(0)
@@ -293,7 +293,7 @@ C.. we can't have two successive nodes the same
 C.. we try all possible vertices in this position.  If one happens to be I
 C.. then we calculate the Z-sum for that, and add it into the total.  We then
 C.. recurse to the next node if we're below I_HMAX)
-                     CALL ICOPY(NEL,IPATH(1:NEL,I),1,
+                     CALL NECI_ICOPY(NEL,IPATH(1:NEL,I),1,
      &                     IPATH2(1:NEL,I_HIND),1)
                      IP2(I_HIND)=I
                      RHOII2(I_HIND)=RHOII(I)

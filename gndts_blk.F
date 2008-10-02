@@ -52,7 +52,7 @@ C.. we've found an occupied block
      &               (II-OII)*IDEG
                ELSE
                   NBLOCKSTARTS(I)=OII+1
-                  CALL ICOPY(BASISFNSIZE,ISYM,1,BLOCKSYM(I),1)
+                  CALL NECI_ICOPY(BASISFNSIZE,ISYM,1,BLOCKSYM(I),1)
                   IF(TGENFDET) THEN
                      TDETSC=CALCT(NMRKS(1:NEL,OII+1),NEL,
      &                 G1,NBASIS)
@@ -94,7 +94,7 @@ C.. Check if we've filled all the electrons
                CALL GETSYM(NJ,NEL,G1,NBASISMAX,KJ2)
                CALL ROUNDSYM(KJ2,NBASISMAX)
                IF(LCHKSYM(KJ2,KI)) THEN
-                CALL ICOPY(NEL,NJ,1,NN,1)
+                CALL NECI_ICOPY(NEL,NJ,1,NN,1)
                 CALL SORTI(NEL,NN)
                 ICE=IGETEXCITLEVEL(NI,NN,NEL)
                 IF(ICE.GT.0.AND.ICE.LE.2) THEN
@@ -102,7 +102,7 @@ C.. we've found a det with the right sym.
                   NLIST=NLIST+1
                   IF(NLIST.LE.NLMAX) THEN
 C.. if there's space, we save it
-                     CALL ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
+                     CALL NECI_ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
                   ENDIF
                 ENDIF
                ENDIF
@@ -176,7 +176,7 @@ C.. Check if we've filled all the electrons
 C                  CALL ROUNDSYM(KJ3,NBASISMAX)
 C.. we've found a det with the right sym.
                   NLIST=NLIST+1
-                  CALL ICOPY(NEL,NJ,1,NN,1)
+                  CALL NECI_ICOPY(NEL,NJ,1,NN,1)
                   CALL SORTI(NEL,NN)
 C.. Just check to see if it's our original det
                   LCMP=.TRUE.
@@ -188,7 +188,7 @@ C.. Roll back NLIST
                      NLIST=NLIST-1
                   ELSEIF(NLIST.LE.NLMAX) THEN
 C.. if there's space, we save it
-                     CALL ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
+                     CALL NECI_ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
                   ENDIF
                ENDIF
             ELSE
@@ -244,7 +244,7 @@ C.. Check if we've filled all the electrons
                IF(NELEC.EQ.NEL) THEN
                   CALL GETSYM(NJ,NEL,G1,NBASISMAX,KJ2)
                   IF(LCHKSYM(KJ2,KI)) THEN
-                   CALL ICOPY(NEL,NJ,1,NN,1)
+                   CALL NECI_ICOPY(NEL,NJ,1,NN,1)
                    CALL SORTI(NEL,NN)
                    ICE=IGETEXCITLEVEL(NI,NN,NEL)
 C.. Check the connectivity
@@ -267,12 +267,12 @@ C.. Check the connectivity
 C.. if there's space, we save it
                         IF(PP.NE.0.D0) THEN
                            IF(RN.GE.PP) THEN
-                              CALL ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
+                              CALL NECI_ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
                            ELSE
                               NLIST=NLIST-1
                            ENDIF
                         ELSE
-                           CALL ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
+                           CALL NECI_ICOPY(NEL,NN,1,LSTE(1,NLIST),1)
                         ENDIF
                      ENDIF
                    ENDIF
@@ -372,7 +372,7 @@ C.. Check if we've filled all the electrons
                IF(NELEC.EQ.NEL) THEN
                   CALL GETSYM(NJ,NEL,G1,NBASISMAX,KJ2)
                   IF(I.LE.nActiveBasis(2).AND.LCHKSYM(KI,KJ2)) THEN
-                     CALL ICOPY(NEL,NJ,1,NN,1)
+                     CALL NECI_ICOPY(NEL,NJ,1,NN,1)
                      CALL SORTI(NEL,NN)
                      LCONT=.FALSE.
                   ENDIF
@@ -410,7 +410,7 @@ C..  NEL+21 - 2*NEL+20  NINDJ
      &      TPARITY,SymRestrict,NI,TSETUP,TDONE,Work,nActiveBasis)
 CWORK(5),
 C     &      WORK(15),WORK(20),WORK(21),WORK(NEL+21))
-         CALL ICOPY(BasisFNSize,Work%ISym,1,ISym,1)
+         CALL NECI_ICOPY(BasisFNSize,Work%ISym,1,ISym,1)
          RETURN
       END
 

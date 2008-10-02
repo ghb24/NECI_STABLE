@@ -126,14 +126,14 @@ END
                CALL GETUNCSFELEC(IPATH(I,0),NI(I),S)
             ENDDO
          ELSE
-            CALL ICOPY(NEL,IPATH(1,0),1,NI,1)
+            CALL NECI_ICOPY(NEL,IPATH(1,0),1,NI,1)
          ENDIF
          IF(ISCSF(IPATH(1,1),NEL)) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(IPATH(I,1),NJ(I),S)
             ENDDO
          ELSE
-            CALL ICOPY(NEL,IPATH(1,1),1,NJ,1)
+            CALL NECI_ICOPY(NEL,IPATH(1,1),1,NJ,1)
          ENDIF
 !         CALL WRITEDET(13,NI,NEL,.FALSE.)
 !         CALL WRITEDET(13,NJ,NEL,.TRUE.)

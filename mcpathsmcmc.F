@@ -56,7 +56,7 @@ C.. go to end of file
          IF(BTEST(ILOGGING,2))
      &      OPEN(10,FILE="PATHS",STATUS="UNKNOWN")
 C.. Set the first node to I_I
-         CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(0)=RH
@@ -255,14 +255,14 @@ C.. We accept the new move.  Copy NRHOII to RHOII, NRHOIJ to RHOIJ etc.
             ADJ=NADJ
             I_VMOVE=I_NVMOVE
             WEIGHT=NWEIGHT
-            CALL ICOPY(NEL*(I_V+1),INPATH,1,IPATH,1)
-            CALL ICOPY(I_V*I_V,NIADJ,1,IADJ,1)
+            CALL NECI_ICOPY(NEL*(I_V+1),INPATH,1,IPATH,1)
+            CALL NECI_ICOPY(I_V*I_V,NIADJ,1,IADJ,1)
             CALL DCOPY((I_V+1)**2,NRHOIJ,1,RHOIJ,1)
             CALL DCOPY(I_V+1,NRHOII,1,RHOII,1)
          ENDIF        
 C.. IPATH now contains the path, and RHOII and RHOIJ the appropriate
 C.. matrix elements.  We now call CALCPATHS to get the path weight
-         CALL ICOPY(NEL,NI,1,IPATH(1,I_V),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1,I_V),1)
          IF(TLOG) THEN
             CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)   
             IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
@@ -287,9 +287,9 @@ C.. Now calculate a new value if required
 
 C.. In fact, the path does not need to be lexically ordered, so we just
 C.. copy
-         CALL ICOPY(NEL*(I_V+1),IPATH,1,INPATH,1)
-         CALL ICOPY(NEL,INODE,1,INPATH(1,I_VMOVE),1)
-         CALL ICOPY(I_V*I_V,IADJ,1,NIADJ,1)
+         CALL NECI_ICOPY(NEL*(I_V+1),IPATH,1,INPATH,1)
+         CALL NECI_ICOPY(NEL,INODE,1,INPATH(1,I_VMOVE),1)
+         CALL NECI_ICOPY(I_V*I_V,IADJ,1,NIADJ,1)
          CALL DCOPY((I_V+1)**2,RHOIJ,1,NRHOIJ,1)
          CALl DCOPY(I_V+1,RHOII,1,NRHOII,1)
          I_NVMOVE=I_VMOVE
@@ -612,7 +612,7 @@ C.. If we cannot find a det that's connected, we give up
                   IF(ICOUNT.GT.10000) BR=.FALSE.
                ENDIF
             ENDDO
-            CALL ICOPY(NEL,INODE,1,IPATH(1,I),1)
+            CALL NECI_ICOPY(NEL,INODE,1,IPATH(1,I),1)
             CALL MODIFYADJCONMAT(IPATH,I,RHOIJ,RHOII,IADJ,
      &               INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,RHOEPS,
      &               NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,ADJ,I)

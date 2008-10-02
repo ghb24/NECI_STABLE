@@ -264,7 +264,7 @@ C.. test if NCI is a CSF
          INCLUDE 'csf.inc'
          LOGICAL LCHKSYM
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
-         CALL ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
+         CALL NECI_ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
 C.. make sure Sz=0 as this is dealt with in the csfgen part
          ISYM%MS=0
          IFDET=1
@@ -455,7 +455,7 @@ C.. IEXLEV from NDCH
             ENDIF
          ENDDO
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
-         CALL ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
+         CALL NECI_ICOPY(BASISFNSIZE,IPARITY,1,ISYM,1)
 C.. ensure Ms=0 as this is dealt with later
          ISYM%MS=0
          IFDET=1
@@ -551,7 +551,7 @@ C.. we'll deal with spin in the CSF generation
                KSYM%MS=0
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM)) THEN
 C.. go and create a set of CSFs from these electrons
-                CALL ICOPY(NEL,NI,1,NJ,1)
+                CALL NECI_ICOPY(NEL,NI,1,NJ,1)
                 IF(.NOT.TORDER) CALL SORTI(NEL,NJ)
                 IF(TCHKEX) IC=IGETEXCITLEVEL(NDCH,NJ,NEL)
                 IF(.NOT.TCHKEX.OR.IC.LE.IEXLEV)
@@ -779,7 +779,7 @@ C.. We have found a good combination.  Add it
                   NDET=NDET+1
                   IF(.NOT.TCOUNT) THEN
 C.. Copy the closed orbitals
-                     CALL ICOPY(NCLOSED,NI,1,NMRKS(1,NDET),1)
+                     CALL NECI_ICOPY(NCLOSED,NI,1,NMRKS(1,NDET),1)
 C.. now put in the open orbitals
                      DO I=1,NOPEN
                         NMRKS(NCLOSED+I,NDET)=NI(NCLOSED+I)+SORDER(I)*2
@@ -1016,7 +1016,7 @@ C.. Determine the set of indices corresponding to the start det
 C.. Copy the closed shell orbitals, and then the open shell ones we've
 C.. indexed (they being beta), interleaving the alphas of those
 C.. which have not been indexed
-            CALL ICOPY(NCLOSED,ICLOSED,1,DETLIST(1,ICOUNT),1)
+            CALL NECI_ICOPY(NCLOSED,ICLOSED,1,DETLIST(1,ICOUNT),1)
             J=1
 C.. J is the next indexed orbital to choose
 C.. Also fill out the DORDERLIST
@@ -1037,7 +1037,7 @@ C.. an alpha
             CALL CSFINCCHOOSEINDICES(INDICES,NOPEN,NBETA,TDONE)
          ENDDO
          IF(ICOUNT.LT.IEN) STOP "NOT ENOUGH CSF determinants found"
-         IF(SORDER2(1).NE.0) CALL ICOPY(NOPEN,SORDER,1,SORDER2,1)
+         IF(SORDER2(1).NE.0) CALL NECI_ICOPY(NOPEN,SORDER,1,SORDER2,1)
          RETURN
       END
 

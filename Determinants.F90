@@ -38,7 +38,7 @@ MODULE Determinants
 !      ENDIF
       WRITE(6,"(A)",advance='no') "Fermi det (D0):"
       CALL WRITEDET(6,FDET,NEL,.TRUE.)
-      CALL ICOPY(NEL,FDET,1,NUHFDET,1)
+      CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
       E0HFDET=ECORE
       DO I=1,NEL
          E0HFDET=E0HFDET+ARR(NBASIS+NUHFDET(i),1)

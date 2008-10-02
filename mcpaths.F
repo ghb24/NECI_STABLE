@@ -126,7 +126,7 @@ C.. go to end of file
          IF(BTEST(ILOGGING,9))
      &      OPEN(12,FILE="VERTEXMC",STATUS="UNKNOWN")
 C.. Set the first node to I_I
-         CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
@@ -618,7 +618,7 @@ C.. go to end of file
             IF(TMPTHEORY) OPEN(13,FILE="MP2PATHS",STATUS="UNKNOWN")
          ENDIF
 C.. Set the first node to I_I
-         CALL ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,0),1)
          CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,
      &            BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          HIJS(0)=GETHELEMENT2(NI,NI,NEL,NBASISMAX,
@@ -840,11 +840,11 @@ C.. Allow both single and double excitations
  
          TOTAL=0.D0
 C.. This is the current node (set by our parent)         
-         CALL ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
 C.. Set the Zeroth node in our excitation list to be ourselves
 C.. as we'll always want to exclude ourselves from being counted again
 C.. (unused)
-         CALL ICOPY(NEL,INODE,1,LSTE(1:NEL,0,I_VIND),1)
+         CALL NECI_ICOPY(NEL,INODE,1,LSTE(1:NEL,0,I_VIND),1)
          ICE(0,I_VIND)=0
 C.. Find RHO_II for this node
          IF(INODE(1).EQ.0) THEN
@@ -862,7 +862,7 @@ C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
          IF(I_VIND.EQ.(I_V-1)) THEN
 C.. If we're at the last node we call CALCPATHS to generate all 
 C.. the paths for it
-            CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
+            CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
             RHOII(I_V)=RHOII(0)
             IF(TLOG5) THEN
                IF(.NOT.TLOG3) THEN
@@ -945,7 +945,7 @@ C.. we are not connected.
      &            RH,NTAY,ICE(I,I_VIND),ECORE)
                IF(RH.AGE.RHOEPS) THEN
                   IF(II.NE.I) 
-     &              CALL ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,
+     &              CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,
      &                    LSTE(1:NEL,II,I_VIND),1)
                   ICE(II,I_VIND)=ICE(I,I_VIND)
                   RIJLIST(II,I_VIND)=RH
@@ -998,7 +998,7 @@ C.. We must recurse over all the nodes connected to the node at IVLEVEL
          I=LSTP(IVLEVEL)
 C.. remind us which node we're doing
          IF(IVLEVEL.LT.I_VIND) THEN
-            CALL ICOPY(NEL,IPATH(1:NEL,IVLEVEL),1,INODE,1)
+            CALL NECI_ICOPY(NEL,IPATH(1:NEL,IVLEVEL),1,INODE,1)
          ENDIF
          DO WHILE (I.LE.NLIST(IVLEVEL))
 C.. Tell future recursions that we've processed this node
@@ -1060,7 +1060,7 @@ C.. it from), we need to ignore this vertex, as it will have already been
 C.. counted before.
 
 C.. Add the new node to the path, and then recurse from it
-                  CALL ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,
+                  CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,
      &                     IPATH(1:NEL,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
                   HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
@@ -1197,7 +1197,7 @@ C.. Force freexing
             ENDIF
          ENDIF
          IFRZ2(0:(NBASIS)) =0
-         CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1)
+         CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1)
           
          
 C            DO I=0,NBASIS
@@ -1217,7 +1217,7 @@ C.. the amount of memory used to store it)
          TOTAL=0.D0
          LT=LT+1
 C.. This is the current node (set by our parent)         
-         CALL ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
          CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,NBASISMAX,
      &   G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
@@ -1230,7 +1230,7 @@ C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
          IF(I_VIND.EQ.(I_V-1)) THEN
 C.. If we're at the last node we call CALCPATHS to generate all 
 C.. the paths for it
-            CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
+            CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
             RHOII(I_V)=RHOII(0)
 C            DO J=1,I_VIND+1
 C            DO I=0,NBASIS
@@ -1348,9 +1348,9 @@ C.. nodes in the direct line back to I
 C.. We do this by taking a copy of LOCTAB (excluding the generator
 C.. from this node, which we haven't put in yet)
 #if defined(POINTER8)
-         CALL ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
+         CALL NECI_ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
 #else
-         CALL ICOPY(I_VIND*3,LOCTAB,1,LOCTAB2,1)
+         CALL NECI_ICOPY(I_VIND*3,LOCTAB,1,LOCTAB2,1)
 #endif
 C.. Now start at this node, and work backwards along the path to I.
 C.. (This is equivalent to working through all previous nodes in the
@@ -1391,13 +1391,13 @@ C.. Set these just in case
 C.. If we're at I_VIND+1, then we don't need to create a new copy of the 
 C.. generator, as no other sub-recursion is using it yet
             TNEXT=.FALSE.
-            CALL ICOPY(NBASIS+1,IFRZ(0,IVLEVEL),1,IFRZ2,1)
+            CALL NECI_ICOPY(NBASIS+1,IFRZ(0,IVLEVEL),1,IFRZ2,1)
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. create a copy
 
                CALL MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL)/IRAT+1,'CURGEN')
                IP_OGEN=LOCTAB2(1,IVLEVEL)
-               CALL ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
+               CALL NECI_ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
 !To stop optimization problem with pgi6.1-6
                I_VIND=I_VIND+1
                I_VIND=I_VIND-1
@@ -1519,7 +1519,7 @@ C                        WRITE(10,*) EX(1,1),EX(1,2),EX(2,1),EX(2,2)
                         IF(EX(1,2).NE.0) ICILMAX=ICILMAX+1
                      ENDIF
 C.. We freeze the orbitals we're exciting from and to
-                     CALL ICOPY(NBASIS+1,IFRZ2,1,
+                     CALL NECI_ICOPY(NBASIS+1,IFRZ2,1,
      &                  IFRZ(0,I_VIND+1),1)
 C.. freeze full orbitals
 C.. 0) second excited full (if there is one)
@@ -1537,14 +1537,14 @@ C.. 2) both excited full (and set to subtract this contrib)
 C.. freeze the empties
                      IFRZ(EX(2,1),I_VIND+1)=1
                      IF(EX(2,2).NE.0) IFRZ(EX(2,2),I_VIND+1)=1
-                     CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
+                     CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
      &                  IFRZ(0,I_VIND+2),1)
                    ELSE
-                     CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
+                     CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
      &                  IFRZ(0,I_VIND+2),1)
                    ENDIF
 C.. Add it to the path, and recurse
-                   CALL ICOPY(NEL,NJ,1,IPATH(1,I_VIND+1),1)
+                   CALL NECI_ICOPY(NEL,NJ,1,IPATH(1,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
                    HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
      &               IPATH(1,I_VIND+1),NEL,NBASISMAX,
@@ -1794,7 +1794,7 @@ C.. LIST(J,2) = HIJ
 
          REAL*8 TH,C,S,T,TAU,ARP,ARQ
          INTEGER IPTR,JPTR
-         CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,LSTE(1,0),1)
          ICE(0)=0
          NLIST=ILMAX
          CALL GENEXCIT(NI,ABS(NTAY(1)*2),NBASIS,NEL,
@@ -1820,7 +1820,7 @@ C.. Allocate storage space for the connections
      &            RH,NTAY,ICE(I),ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
                   IF(NLCUR.NE.I) 
-     &              CALL ICOPY(NEL,LSTE(1,I),1,
+     &              CALL NECI_ICOPY(NEL,LSTE(1,I),1,
      &                    LSTE(1,NLCUR),1)
                   ICE(NLCUR)=ICE(I)
                   IF(NLCUR.EQ.0) RHII=RH
@@ -1999,11 +1999,11 @@ C.. setup
  
          TOTAL=0.D0
 C.. This is the current node (set by our parent)         
-         CALL ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
 C.. Set the Zeroth node in our excitation list to be ourselves
 C.. as we'll always want to exclude ourselves from being counted again
 C.. (unused)
-         CALL ICOPY(NEL,INODE,1,LSTE(1:NEL,0,I_VIND),1)
+         CALL NECI_ICOPY(NEL,INODE,1,LSTE(1:NEL,0,I_VIND),1)
          ICE(0,I_VIND)=0
 C.. Find RHO_II for this node
          IF(INODE(1).EQ.0) THEN
@@ -2021,7 +2021,7 @@ C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
          IF(I_VIND.GT.0) THEN
 C.. if we've got a conencted graph of more than one vertex, we send
 C.. it off to ADDDIAGSTAR which writes it to a file.
-            CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_VIND+1),1) 
+            CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_VIND+1),1) 
             RHOII(I_V)=RHOII(0)
             IF(TLOG)  CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
             IF(TLOG2) CALL WRITERHOMAT(10,RHOIJ,I_V,NEL,.TRUE.)
@@ -2081,7 +2081,7 @@ C.. we are not connected.
      &            RH,NTAY,ICE(I,I_VIND),ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
                   IF(II.NE.I) 
-     &              CALL ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,
+     &              CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,I_VIND),1,
      &                    LSTE(1:NEL,II,I_VIND),1)
                   ICE(II,I_VIND)=ICE(I,I_VIND)
                   RIJLIST(II,I_VIND)=RH
@@ -2130,7 +2130,7 @@ C.. We must recurse over all the nodes connected to the node at IVLEVEL
          I=LSTP(IVLEVEL)
 C.. remind us which node we're doing
          IF(IVLEVEL.LT.I_VIND) THEN
-            CALL ICOPY(NEL,IPATH(1:NEL,IVLEVEL),1,INODE,1)
+            CALL NECI_ICOPY(NEL,IPATH(1:NEL,IVLEVEL),1,INODE,1)
          ENDIF
          DO WHILE (I.LE.NLIST(IVLEVEL))
 C.. Tell future recursions that we've processed this node
@@ -2189,7 +2189,7 @@ C.. it from), we need to ignore this vertex, as it will have already been
 C.. counted before.
 
 C.. Add the new node to the path, and then recurse from it
-                  CALL ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,
+                  CALL NECI_ICOPY(NEL,LSTE(1:NEL,I,IVLEVEL),1,
      &                     IPATH(1:NEL,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
                   HIJS(I_VIND+1)=GETHELEMENT2(IPATH(1,0),
@@ -2294,10 +2294,10 @@ C.. Now deal with the subgraphs we have to remove
                      ENDIF
                   ENDDO
                   HIJS2(II)=HIJS(I)
-C                  CALL ICOPY(NEL,IPATH(1,I),1,IPATH2(1,II-1),1)
+C                  CALL NECI_ICOPY(NEL,IPATH(1,I),1,IPATH2(1,II-1),1)
                ENDIF
             ENDDO
-C            CALL ICOPY(NEL,IPATH(1,0),1,IPATH2(1,I_V-1),1)
+C            CALL NECI_ICOPY(NEL,IPATH(1,0),1,IPATH2(1,I_V-1),1)
             CALL ADDDIAGSTAR(IPATH2,NEL,MAT,I_V-1,I_V-1,
      &         ILOGGING,HIJS2,-N,L)
          ENDDO

@@ -1544,7 +1544,7 @@ MODULE FciMCMod
         j=1
 !j is the counter over all uncancelled walkers - it indicates when we have reached the end of the list of total walkers
 !DetCurr is the current determinant
-        CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+        CALL NECI_ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
         TempIC=NewIC(j)
         TempH(:)=NewH(:,j)
         IF(TUnbiasPGeninProjE) TempPGen=NewPGen(j)
@@ -1568,7 +1568,7 @@ MODULE FciMCMod
             IF(TotWalkersDet.gt.0) THEN
 !Positive sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
-                    CALL ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CALL NECI_ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
                     CurrentSign(VecSlot)=.true.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(:,VecSlot)=TempH(:)
@@ -1579,7 +1579,7 @@ MODULE FciMCMod
             ELSE
 !Negative sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
-                    CALL ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
+                    CALL NECI_ICOPY(NEl,DetCurr(:),1,CurrentDets(:,VecSlot),1)
                     CurrentSign(VecSlot)=.false.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(:,VecSlot)=TempH(:)
@@ -1589,7 +1589,7 @@ MODULE FciMCMod
                 enddo
             ENDIF
 !Now update the current determinant
-            CALL ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
+            CALL NECI_ICOPY(NEl,NewDets(:,j),1,DetCurr(:),1)
             TempIC=NewIC(j)
             TempH(:)=NewH(:,j)
             IF(TUnbiasPGeninProjE) TempPGen=NewPGen(j)
@@ -2054,7 +2054,7 @@ MODULE FciMCMod
         CALL LogMemAlloc('MP1Hij',HFConn,8,this_routine,MP1HijTag,ierr)
         
 !HF Compt. of MP1 is 1
-        CALL ICOPY(NEl,HFDet,1,MP1Dets(1:NEl,1),1)
+        CALL NECI_ICOPY(NEl,HFDet,1,MP1Dets(1:NEl,1),1)
         MP1Comps(1)=1.D0
         MP1Sign(1)=.true.
 
@@ -2085,7 +2085,7 @@ MODULE FciMCMod
             ELSE
                 MP1Sign(VecSlot)=.true.
             ENDIF
-            CALL ICOPY(NEl,nJ,1,MP1Dets(1:NEl,VecSlot),1)
+            CALL NECI_ICOPY(NEl,nJ,1,MP1Dets(1:NEl,VecSlot),1)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
             SumMP1Compts=SumMP1Compts+abs(Compt)
             MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
@@ -2128,13 +2128,13 @@ MODULE FciMCMod
             IF(i.eq.1) THEN
 !If we are at HF, then we do not need to calculate the information for the walker        
                 WalkersonHF=WalkersonHF+1
-                CALL ICOPY(NEl,HFDet,1,CurrentDets(1:NEl,j),1)
+                CALL NECI_ICOPY(NEl,HFDet,1,CurrentDets(1:NEl,j),1)
                 CurrentIC(j)=0
                 CurrentSign(j)=.true.
                 CurrentH(:,j)=0.D0
             ELSE
 !We are at a double excitation - we need to calculate most of this information...
-                CALL ICOPY(NEl,MP1Dets(1:NEl,i),1,CurrentDets(1:NEl,j),1)
+                CALL NECI_ICOPY(NEl,MP1Dets(1:NEl,i),1,CurrentDets(1:NEl,j),1)
                 CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
                 CurrentH(2,j)=MP1Hij(i)     !This is the off-diagonal element to HF det
@@ -2566,21 +2566,21 @@ MODULE FciMCMod
 10      CONTINUE
         IF(L.GT.1)THEN
             L=L-1
-            CALL ICOPY(NElecs,Dets(1,L),1,TempDet,1)          !Copy Lth element to temp
+            CALL NECI_ICOPY(NElecs,Dets(1,L),1,TempDet,1)          !Copy Lth element to temp
             HTemp(:)=NewH(:,L)
             ICTemp=NewIC(L)
             WSignTemp=NewSign(L)
             IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(L),ExcitTemp)
             IF(TUnbiasPGeninProjE) PGenTemp=NewPGen(L)
         ELSE
-            CALL ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
+            CALL NECI_ICOPY(NElecs,Dets(1,IR),1,TempDet,1)         !Copy IRth elements to temp
             HTemp(:)=NewH(:,IR)
             ICTemp=NewIC(IR)
             WSignTemp=NewSign(IR)
             IF(TUnbiasPGeninProjE) PGenTemp=NewPGen(IR)
             IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(IR),ExcitTemp)
 
-            CALL ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
+            CALL NECI_ICOPY(NElecs,Dets(1,1),1,Dets(1,IR),1)       !Copy 1st element to IRth element
             NewH(:,IR)=NewH(:,1)
             NewIC(IR)=NewIC(1)
             NewSign(IR)=NewSign(1)
@@ -2588,7 +2588,7 @@ MODULE FciMCMod
             IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(1),NewExcits(IR))
             IR=IR-1
             IF(IR.EQ.1)THEN
-                CALL ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
+                CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,1),1)        !Copy temp element to 1st element
                 NewH(:,1)=HTemp(:)
                 NewIC(1)=ICTemp
                 NewSign(1)=WSignTemp
@@ -2604,7 +2604,7 @@ MODULE FciMCMod
                 IF((DETLT(Dets(1,J),Dets(1,J+1),NElecs)).eq.-1) J=J+1
             ENDIF
             IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
-                CALL ICOPY(NElecs,Dets(1,J),1,Dets(1,I),1)      !Copy Jth element to Ith element
+                CALL NECI_ICOPY(NElecs,Dets(1,J),1,Dets(1,I),1)      !Copy Jth element to Ith element
                 NewH(:,I)=NewH(:,J)
                 NewIC(I)=NewIC(J)
                 NewSign(I)=NewSign(J)
@@ -2617,7 +2617,7 @@ MODULE FciMCMod
             ENDIF
             GO TO 20
         ENDIF
-        CALL ICOPY(NElecs,TempDet,1,Dets(1,I),1)                !Copy from temp element to Ith element
+        CALL NECI_ICOPY(NElecs,TempDet,1,Dets(1,I),1)                !Copy from temp element to Ith element
         NewH(:,I)=HTemp(:)
         NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
@@ -2646,7 +2646,7 @@ MODULE FciMCMod
 !                CALL Stop_All("CopyExitgen","Problem allocating memory for new excit")
 !            ENDIF
             IF(ierr.ne.0) CALL Stop_All("CopyExitgen","Problem with allocating memory for new excitation generator")
-            CALL ICOPY(OrigExit%nExcitMemLen,OrigExit%ExcitData,1,NewExit%ExcitData,1)
+            CALL NECI_ICOPY(OrigExit%nExcitMemLen,OrigExit%ExcitData,1,NewExit%ExcitData,1)
 !            NewExit%ExcitData(:)=OrigExit%ExcitData(:)
             NewExit%nExcitMemLen=OrigExit%nExcitMemLen
             NewExit%ExitGenForDet=.true.

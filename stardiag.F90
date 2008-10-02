@@ -86,7 +86,7 @@
             nIExcitFormat(1)=-1
             nIExcitFormat(2)=0
          ELSE
-            CALL ICOPY(NEL,nI,1,nIExcitFormat,1)
+            CALL NECI_ICOPY(NEL,nI,1,nIExcitFormat,1)
          ENDIF
          tStarSingles=BTEST(nWHTay,7)
          tCountExcits=BTEST(nWHTay,8)
@@ -189,8 +189,8 @@
          CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
 !         write(6,*) "rhoii is", rhii
 ! Setup MP info
-         CALL iCopy(nEl,nI,1,iPath(1,0),1)
-         CALL iCopy(nEl,nI,1,iPath(1,2),1)
+         CALL NECI_ICOPY(nEl,nI,1,iPath(1,0),1)
+         CALL NECI_ICOPY(nEl,nI,1,iPath(1,2),1)
          HIJS(0)=ExcitInfo(0,2)
          HIJS(2)=ExcitInfo(0,2)
 
@@ -243,7 +243,7 @@
 !Now do MP2
                Hijs(1)=ExcitInfo(i,2)
                IF(tMPTheory) THEN
-                  call iCopy(nEl,nJ,1,iPath(1,1),1)
+                  caLL NECI_ICOPY(nEl,nJ,1,iPath(1,1),1)
 !nMax has Arr hidden in it
                   Call AddMP2E(Hijs,nMax,nBasis,iPath,nEl,BTEST(iLogging,0),MP2E)
                ENDIF
@@ -2072,7 +2072,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          allocate(NICE(0:NLENLIST),stat=err)
          call LogMemAlloc('NICE',(NLENLIST+1),4,this_routine,tagNICE)
 
-         CALL ICOPY(NEL,NI,1,NLSTE(1,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,NLSTE(1,0),1)
          NICE(0)=0
 !.. Now generate the excitations
          CALL GENEXCIT(NI,NORDER,NBASIS,NEL,NLSTE(1,1),NICE(1),NLENLIST,NMIN,G1,TSYM,NBASISMAX,.FALSE.)
@@ -2132,7 +2132,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                CALL CALCRHO2(NI,LSTE(1,I),BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT, &
                   RH,NTAY,ICE(I),ECORE)
                IF(RH .AGT. RHOEPS) THEN
-                  IF(NLCUR.NE.I) CALL ICOPY(NEL,LSTE(1,I),1,LSTE(1,NLCUR),1)
+                  IF(NLCUR.NE.I) CALL NECI_ICOPY(NEL,LSTE(1,I),1,LSTE(1,NLCUR),1)
                   ICE(NLCUR)=ICE(I)
                   IF(NLCUR.EQ.0) RHII=RH
                   LIST(NLCUR,1)=RH/RHII
@@ -3574,7 +3574,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
             iExc=1
 !  Now generate all possible singles between nI and nJ, and put them into StarMat
 !(i,a)
-            CALL ICOPY(nEl,nI,1,nK,1)
+            CALL NECI_ICOPY(nEl,nI,1,nK,1)
       lp0:  DO i=1,nEl
                IF(nK(i).EQ.iEx(1,1)) THEN
                   nK(i)=iEx(2,1)
@@ -3592,7 +3592,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                StarMat(iExc,iExc)=rh/rhii
             ENDIF
 !(i,b)
-            CALL ICOPY(nEl,nI,1,nK,1)
+            CALL NECI_ICOPY(nEl,nI,1,nK,1)
         lp1:DO i=1,nEl
                IF(nK(i).EQ.iEx(1,1)) THEN
                   nK(i)=iEx(2,2)
@@ -3610,7 +3610,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                StarMat(iExc,iExc)=rh/rhii
             ENDIF
 !(j,a)
-            CALL ICOPY(nEl,nI,1,nK,1)
+            CALL NECI_ICOPY(nEl,nI,1,nK,1)
        lp2: DO i=1,nEl
                IF(nK(i).EQ.iEx(1,2)) THEN
                   nK(i)=iEx(2,1)
@@ -3628,7 +3628,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                StarMat(iExc,iExc)=rh/rhii
             ENDIF
 !(j,b)
-            CALL ICOPY(nEl,nI,1,nK,1)
+            CALL NECI_ICOPY(nEl,nI,1,nK,1)
    lp3:     DO i=1,nEl
                IF(nK(i).EQ.iEx(1,2)) THEN
                   nK(i)=iEx(2,2)

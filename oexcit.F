@@ -805,7 +805,7 @@ C.. in NFULL and NFREE
          LOGICAL LCHKSYM
          INTEGER IC,G1(*),NBASISMAX(*),I
          LOGICAL ISVALIDDET
-         CALL ICOPY(NEL,NI,1,NJ,1)
+         CALL NECI_ICOPY(NEL,NI,1,NJ,1)
 C         WRITE(56,"(I4,A,I4)",advance='no') 
 C     &                  NJ(NFULL(1,SPNS(1,1),NFULL(1,SPNS(1,1),-2)))
 C     &            ,'->',NFREE(1,SPNS(1,2),NFREE(1,SPNS(1,2),-2))
@@ -1116,7 +1116,7 @@ C         WRITE(6,*) "[",NSYM(1),NSYM(2),NSYME(1),NSYME(2),"]"
             NTY2=NTY2+1
 C            WRITE(6,*) "YES"
             IF(NTY2.LE.NTYPES) 
-     &         CALL ICOPY(5,TYP,1,TYPES(1,NTY2),1)
+     &         CALL NECI_ICOPY(5,TYP,1,TYPES(1,NTY2),1)
          ENDIF
       END
 

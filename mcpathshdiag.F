@@ -114,7 +114,7 @@ C.. Force freexing
             ENDIF
          ENDIF
          IFRZ2(0:(NBASIS)) =0
-         CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1) 
+         CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1) 
          
 C            DO I=0,NBASIS
 C               WRITE(10,"(I2)",advance='no'),IFRZ2(I)
@@ -133,7 +133,7 @@ C.. the amount of memory used to store it)
          TOTAL=0.D0
          LT=LT+1
 C.. This is the current node (set by our parent)         
-         CALL ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
+         CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
          RH=GETHELEMENT2(INODE,INODE,NEL,NBASISMAX,
      &           G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,0,ECORE)
          HIJ(I_VIND,I_VIND)=RH
@@ -145,7 +145,7 @@ C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
          IF(I_VIND.EQ.(I_V-1)) THEN
 C.. If we're at the last node we call CALCPATHS to generate all 
 C.. the paths for it
-            CALL ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
+            CALL NECI_ICOPY(NEL,NI,1,IPATH(1:NEL,I_V),1) 
             IF(TLOG6) THEN
                IF(.NOT.TLOG3) THEN
                   CALL WRITEPATH(10,IPATH,I_V,NEL,.FALSE.)
@@ -340,7 +340,7 @@ C.. nodes in the direct line back to I
 
 C.. We do this by taking a copy of LOCTAB (excluding the generator
 C.. from this node, which we haven't put in yet)
-         CALL ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
+         CALL NECI_ICOPY(I_VIND*3*2,LOCTAB,1,LOCTAB2,1)
 C.. Now start at this node, and work backwards along the path to I.
 C.. (This is equivalent to working through all previous nodes in the
 C.. path, as those which are not on our direct route back to I will have 
@@ -372,13 +372,13 @@ C.. Set these just in case
 C.. If we're at I_VIND+1, then we don't need to create a new copy of the 
 C.. generator, as no other sub-recursion is using it yet
             TNEXT=.FALSE.
-            CALL ICOPY(NBASIS+1,IFRZ(0,IVLEVEL),1,IFRZ2,1)
+            CALL NECI_ICOPY(NBASIS+1,IFRZ(0,IVLEVEL),1,IFRZ2,1)
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. create a copy
 
                CALL MEMORY(IP_CURGEN,LOCTAB2(2,IVLEVEL),'CURGEN')
                IP_OGEN=LOCTAB2(1,IVLEVEL)
-               CALL ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
+               CALL NECI_ICOPY(LOCTAB2(2,IVLEVEL),OGEN,1,CURGEN,1)
                I_VIND=I_VIND+1
                I_VIND=I_VIND-1
                IF(IAND(IFRZ(0,I_VIND+1),8).NE.0) THEN
@@ -484,7 +484,7 @@ C..
                         IF(EX(1,2).NE.0) ICILMAX=ICILMAX+1
                      ENDIF
 C.. We freeze the orbitals we're exciting from and to
-                     CALL ICOPY(NBASIS+1,IFRZ2,1,
+                     CALL NECI_ICOPY(NBASIS+1,IFRZ2,1,
      &                  IFRZ(0,I_VIND+1),1)
 C.. freeze full orbitals
 C.. 0) second excited full (if there is one)
@@ -502,14 +502,14 @@ C.. 2) both excited full (and set to subtract this contrib)
 C.. freeze the empties
                      IFRZ(EX(2,1),I_VIND+1)=1
                      IF(EX(2,2).NE.0) IFRZ(EX(2,2),I_VIND+1)=1
-                     CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
+                     CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
      &                  IFRZ(0,I_VIND+2),1)
                    ELSE
-                     CALL ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
+                     CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,
      &                  IFRZ(0,I_VIND+2),1)
                    ENDIF
 C.. Add it to the path, and recurse
-                   CALL ICOPY(NEL,NJ,1,IPATH(1,I_VIND+1),1)
+                   CALL NECI_ICOPY(NEL,NJ,1,IPATH(1,I_VIND+1),1)
 C.. Get the H element so we can calculate the energy
                    HIJS(I_VIND+1)=HIJ(0,I_VIND+1)
                    TOTAL=TOTAL+

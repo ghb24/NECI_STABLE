@@ -39,7 +39,7 @@ C.. account for LSTE(0)
          allocate(RJJLIST(0:NLIST),stat=err)
          CALL LogMemAlloc('RJJLIST',NLMAX,8,thisroutine,tagRJJLIST,err)
 
-         CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,LSTE(1,0),1)
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
          
          IF(NLIST.GT.NLMAX) THEN
@@ -70,7 +70,7 @@ C.. account for LSTE(0)
 C                  WRITE(35,"(G25.16)",advance='no') -(I_P/BETA)*LOG(RH)
                   IF(RH/RHII.GT.RHRATMAX) THEN
                      IF(ILFREE.LT.I)
-     &                  CALL ICOPY(NEL,LSTE(1,I),1,LSTE(1,ILFREE),1)
+     &                 CALL NECI_ICOPY(NEL,LSTE(1,I),1,LSTE(1,ILFREE),1)
                      RJJLIST(ILFREE)=RH
                      ILFREE=ILFREE+1
 C                     WRITE(35,*) 1
@@ -196,7 +196,7 @@ C.. account for LSTE(0)
          allocate(VARRAY(0:nList),stat=err)
          CALL LogMemAlloc('VARRAY',NLMAX,8,thisroutine,tagVARRAY,err)
 
-         CALL ICOPY(NEL,NI,1,LSTE(1,0),1)
+         CALL NECI_ICOPY(NEL,NI,1,LSTE(1,0),1)
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
 
          CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
