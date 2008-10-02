@@ -37,10 +37,3 @@ SORT      (from Numerical Recipes though)
 SORT2     (from Numerical Recipes though)
 SORT2I    (from Numerical Recipes though)
    Numerical recipes worries me: it might create some licencing problems in the near future.  Can someone check?  I've read something on this in the past, but can't remember the exact details.
-
-GAMMLN
-   Only used in generating factorials, which in turn is only used in two places.  Should be trivial to remove.
-
-DSCAL     (from blas though!)
-ZCOPY     (from blas though!)
-   JSS: should remove the blas_tuned_NECSX file from the source anyway?

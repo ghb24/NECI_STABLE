@@ -1,7 +1,7 @@
 #
 #  LIST OF FILES
 #
-OBJ_AL  = sort2.o fctrl.o sltcnd.o \
+OBJ_AL  = sort2.o sltcnd.o \
           scr.o scr1.o scr2.o matmul.o \
           freem.o memory.o \
           detham.o util.o frsblk.o \
