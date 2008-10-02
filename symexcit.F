@@ -1849,7 +1849,7 @@ C.. Put the addresses in store
                   STORE2(I)=LOC(NMEM(ICOUNT))
                   ICOUNT=ICOUNT+STORE(I)
                ENDDO
-               NMEM(6:ICOUNT)=0
+               NMEM(6:ICOUNT-1)=0
                STORE2(6)=0
                NMEM(11)=-1
                NMEM(7)=0
