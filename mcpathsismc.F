@@ -852,7 +852,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
             ENDDO
             NJ(I)=J
          ENDDO
-         CALL SORTI(NEL,NJ)
+         CALL NECI_SORTI(NEL,NJ)
 C         WRITE(41,*) IGETEXCITLEVEL(NI,NJ,NEL),NI(1),NI(2),NJ(1),NJ(2)
          RETURN
       END
@@ -1642,7 +1642,7 @@ C.. If the new basis fn's in our original det or our new one, we loop again
                ENDDO
                NJ(I)=J
             ENDDO
-            CALL SORTI(NEL,NJ)
+            CALL NECI_SORTI(NEL,NJ)
             BR=LCHKSYM(NI,NJ,NEL,G1,NBASISMAX)
             BR2=.NOT.BR
          ENDDO
@@ -1739,7 +1739,7 @@ C            WRITE(57,"(A2)",advance='no') "AB"
             NJ(IEX2)=IIEX2
          ENDIF
          NJ(IEX1)=IIEX1 
-         CALL SORTI(NEL,NJ)
+         CALL NECI_SORTI(NEL,NJ)
 C         CALL WRITEDET(57,NJ,NEL,.TRUE.)
 C         CALL FLUSH(57)
          RETURN

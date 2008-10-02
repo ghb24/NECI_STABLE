@@ -1504,7 +1504,7 @@ C.. We've found an orb in NI with the correct sym.  Now go through the list of p
 C.. We've found a virtual into which we can excite our occupied orb.
                            CALL NECI_ICOPY(NEL,NI,1,NK,1)
                            NK(I)=ITOSL
-                           CALL SORTI(NEL,NK)
+                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=1
                            CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1580,7 +1580,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL SORTI(NEL,NK)
+                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
                            CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1604,7 +1604,7 @@ C.. If neither virtuals are in NI, then allow
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL SORTI(NEL,NK)
+                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
                            CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1628,7 +1628,7 @@ C.. us the same excitation as previously), then allow
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL SORTI(NEL,NK)
+                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
                            CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1652,7 +1652,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL SORTI(NEL,NK)
+                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
                            CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -2065,7 +2065,7 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
                IF(tDebugPrint)
      &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
                NK(I)=ITOSL
-               CALL SORTI(NEL,NK)
+               CALL NECI_SORTI(NEL,NK)
                IC=1
             ENDIF
 C.. quit the do loop
@@ -2141,7 +2141,7 @@ C.. Now check for an excitation
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL SORTI(NEL,NK)
+                     CALL NECI_SORTI(NEL,NK)
                   ENDIF
                   IC=2
                   EXIT
@@ -2179,7 +2179,7 @@ C.. If neither virtuals are in NI, then allow
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL SORTI(NEL,NK)
+                     CALL NECI_SORTI(NEL,NK)
                    ENDIF
                    IC=2
                    EXIT
@@ -2219,7 +2219,7 @@ C.. us the same excitation as previously), then allow
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL SORTI(NEL,NK)
+                     CALL NECI_SORTI(NEL,NK)
                    ENDIF
                    IC=2
                    EXIT
@@ -2258,7 +2258,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL SORTI(NEL,NK)
+                     CALL NECI_SORTI(NEL,NK)
                    ENDIF
                    IC=2
                    EXIT
@@ -2477,7 +2477,7 @@ C.. Actually generate a det
 !.. We've found a virtual into which we can excite our occupied orb.
                      CALL NECI_ICOPY(NEL,NI,1,NK,1)
                      NK(I)=ITOSL
-                     CALL SORTI(NEL,NK)
+                     CALL NECI_SORTI(NEL,NK)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
             
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
@@ -2583,7 +2583,7 @@ C.. Actually generate a det
                NK(J)=ews(K)%B
             ENDIF
          ENDDO
-         CALL SORTI(NEL,NK)
+         CALL NECI_SORTI(NEL,NK)
          IC=2
          CALL FREEM(IP_ExcitWeight)
          RETURN

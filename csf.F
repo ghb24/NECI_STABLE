@@ -552,7 +552,7 @@ C.. we'll deal with spin in the CSF generation
                IF(.NOT.TPARITY.OR.LCHKSYM(ISYM,KSYM)) THEN
 C.. go and create a set of CSFs from these electrons
                 CALL NECI_ICOPY(NEL,NI,1,NJ,1)
-                IF(.NOT.TORDER) CALL SORTI(NEL,NJ)
+                IF(.NOT.TORDER) CALL NECI_SORTI(NEL,NJ)
                 IF(TCHKEX) IC=IGETEXCITLEVEL(NDCH,NJ,NEL)
                 IF(.NOT.TCHKEX.OR.IC.LE.IEXLEV)
      &           CALL CSFGENCSFS(NJ,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
@@ -1032,7 +1032,7 @@ C.. an alpha
                   DETLIST(NCLOSED+I,ICOUNT)=IOPEN(I)+1
                ENDIF
             ENDDO
-            CALL SORTI(NEL,DETLIST(1,ICOUNT))
+            CALL NECI_SORTI(NEL,DETLIST(1,ICOUNT))
             ICOUNT=ICOUNT+1
             CALL CSFINCCHOOSEINDICES(INDICES,NOPEN,NBETA,TDONE)
          ENDDO

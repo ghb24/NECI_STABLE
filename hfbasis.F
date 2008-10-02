@@ -777,7 +777,7 @@ C.. vector unless transposed
             CALL GRAMSCHMIDT(FMAT(1,1,ISPN),NSBASIS)
 C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          ENDDO
-         CALL SORTI(NEL,HFDET)
+         CALL NECI_SORTI(NEL,HFDET)
          CALL WRITEDET(6,HFDET,NEL,.TRUE.)
       END
 C.. Generate an initial determinant of specified spin
@@ -817,7 +817,7 @@ C.. vector unless transposed
                IREAL=IREAL+1
             ENDDO
          ENDDO
-         CALL SORTI(NEL,FDET)
+         CALL NECI_SORTI(NEL,FDET)
       END
  
       SUBROUTINE GRAMSCHMIDT(MAT,LEN)

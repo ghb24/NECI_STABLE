@@ -1473,7 +1473,7 @@ MODULE Calc
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
-         CALL SORTI(NEL,NI)
+         CALL NECI_SORTI(NEL,NI)
          BP=HElement(-BETA/I_P)
          GETRHOEPS=DSQRT(SQ(HElement(RHOEPSILON)*EXP(BP*GETHELEMENT2(NI, &
      &      NI,NEL,NBASISMAX,G1,NHG,BRR,NMSH,FCK,NMAX,ALAT,UMAT,        &

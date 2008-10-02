@@ -1,6 +1,6 @@
 C.. This would appear to be a standard quicksort from Numerical Recipes [AJWT 20040407]
 C.. Based on SORT, SORTI sorts integers rather than reals
-      SUBROUTINE SORTI(N,RA)
+      SUBROUTINE NECI_SORTI(N,RA)
       IMPLICIT REAL*8 (A-H,O-Z) 
       INTEGER N,I,L,IR,J
       INTEGER RA(N)

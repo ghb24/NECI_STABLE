@@ -112,7 +112,7 @@ MODULE HFCalc
                   DO I=1,NEL
                      NUHFDET(I)=BRR(I)
                   ENDDO
-                  CALL SORTI(NEL,NUHFDET)
+                  CALL NECI_SORTI(NEL,NUHFDET)
                ELSE
                   NBASISMAX(4,5)=2
                ENDIF

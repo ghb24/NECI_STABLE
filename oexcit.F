@@ -821,7 +821,7 @@ C     &            ,'->',NFREE(2,SPNS(2,2),NFREE(2,SPNS(2,2),-1))
          ELSE
             IC=1
          ENDIF
-         CALL SORTI(NEL,NJ)
+         CALL NECI_SORTI(NEL,NJ)
 C         IF(NJ(1).EQ.0) WRITE(6,*) "ERROR"
          IF(.NOT.ISVALIDDET(NJ,NEL)) THEN
             WRITE(6,*) "Invalid det in GSETE_NEXTDET"

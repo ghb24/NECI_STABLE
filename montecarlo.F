@@ -68,7 +68,7 @@ C.. Hard code the start position as the NEL lowest energy basis fns
             NI(I)=BRR(I)
          ENDDO
 C.. NI will not now be in order of basis fn, so we need to sort it
-         CALL SORTI(NEL,NI)
+         CALL NECI_SORTI(NEL,NI)
 C.. Now find which number determinant this corresponds to
          II=IFINDDET2(NI,NEL,G1,NMRKS,NBASIS,NDET)
          LSTI(1,NFIRST)=II
@@ -657,7 +657,7 @@ C.. make sure the new basis fn isn't already in the det.  if so, go round again
             IF(.NOT.L) THEN
                ND=ND-1
                NJ(IEL)=IT
-               CALL SORTI(NEL,NJ)
+               CALL NECI_SORTI(NEL,NJ)
 C.. if we've more electrons to change, we go round again
                IF(ND.GT.0) L=.TRUE.
             ENDIF
@@ -713,7 +713,7 @@ C.. make sure the new basis fn isn't already in the det.  if so, go round again
             IF(.NOT.L) THEN
                ND=ND-1
                NJ(IEL)=IT
-               CALL SORTI(NEL,NJ)
+               CALL NECI_SORTI(NEL,NJ)
 C.. if we've more electrons to change, we go round again
                IF(ND.GT.0) L=.TRUE.
             ENDIF
@@ -863,7 +863,7 @@ C.. Hard code the start position as the NEL lowest energy basis fns
             NI(I)=BRR(I)
          ENDDO
 C.. NI will not now be in order of basis fn, so we need to sort it
-         CALL SORTI(NEL,NI)
+         CALL NECI_SORTI(NEL,NI)
 C.. Now find which number determinant this corresponds to
          II=IFINDDET2(NI,NEL,G1,NMRKS,NBASIS,NDET)
          WLRI=WLRIS(II)

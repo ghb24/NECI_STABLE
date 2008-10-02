@@ -1909,8 +1909,8 @@
 !                        tempprodfrom(3:4)=EXCITSTORE(1:2,J)
 !                        tempprodto(1:2)=EXCITSTORE(3:4,I)
 !                        tempprodto(3:4)=EXCITSTORE(3:4,J)
-!                        CALL SORTI(4,tempprodfrom(:))
-!                        CALL SORTI(4,tempprodto(:))
+!                        CALL NECI_SORTI(4,tempprodfrom(:))
+!                        CALL NECI_SORTI(4,tempprodto(:))
 !                        !Cycle through other stored products to see if unique
 !                        DO K=1,nouniqprod
 !                            !Test if unique
@@ -3578,7 +3578,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
       lp0:  DO i=1,nEl
                IF(nK(i).EQ.iEx(1,1)) THEN
                   nK(i)=iEx(2,1)
-                  CALL SORTI(nEl,nK)
+                  CALL NECI_SORTI(nEl,nK)
                   exit lp0
                endif
             end do lp0
@@ -3596,7 +3596,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
         lp1:DO i=1,nEl
                IF(nK(i).EQ.iEx(1,1)) THEN
                   nK(i)=iEx(2,2)
-                  CALL SORTI(nEl,nK)
+                  CALL NECI_SORTI(nEl,nK)
                   exit lp1
                endif
             end do lp1
@@ -3614,7 +3614,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
        lp2: DO i=1,nEl
                IF(nK(i).EQ.iEx(1,2)) THEN
                   nK(i)=iEx(2,1)
-                  CALL SORTI(nEl,nK)
+                  CALL NECI_SORTI(nEl,nK)
                   exit lp2
                endif
             end do lp2
@@ -3632,7 +3632,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
    lp3:     DO i=1,nEl
                IF(nK(i).EQ.iEx(1,2)) THEN
                   nK(i)=iEx(2,2)
-                  CALL SORTI(nEl,nK)
+                  CALL NECI_SORTI(nEl,nK)
                   exit lp3
                endif
             end do lp3
@@ -3697,7 +3697,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
                 ENDIF
             ENDDO
         ENDDO
-        CALL SORTI(nEl,nJ)
+        CALL NECI_SORTI(nEl,nJ)
       END
       
      !Routine which takes a root determinant (nI), and a double excitation (nJ), and calculates the orbitals which have been excited.

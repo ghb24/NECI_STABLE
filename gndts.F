@@ -69,7 +69,7 @@ C.. If we're on the last electron
             DO I=1,NEL
                NI(I)=BRR(IELECS(I))
             ENDDO
-            CALL SORTI(NEL,NI)
+            CALL NECI_SORTI(NEL,NI)
             CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
             IF(.NOT.TPARITY) THEN
                DO I=1,3

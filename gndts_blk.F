@@ -95,7 +95,7 @@ C.. Check if we've filled all the electrons
                CALL ROUNDSYM(KJ2,NBASISMAX)
                IF(LCHKSYM(KJ2,KI)) THEN
                 CALL NECI_ICOPY(NEL,NJ,1,NN,1)
-                CALL SORTI(NEL,NN)
+                CALL NECI_SORTI(NEL,NN)
                 ICE=IGETEXCITLEVEL(NI,NN,NEL)
                 IF(ICE.GT.0.AND.ICE.LE.2) THEN
 C.. we've found a det with the right sym.
@@ -177,7 +177,7 @@ C                  CALL ROUNDSYM(KJ3,NBASISMAX)
 C.. we've found a det with the right sym.
                   NLIST=NLIST+1
                   CALL NECI_ICOPY(NEL,NJ,1,NN,1)
-                  CALL SORTI(NEL,NN)
+                  CALL NECI_SORTI(NEL,NN)
 C.. Just check to see if it's our original det
                   LCMP=.TRUE.
                   DO J=1,NEL
@@ -245,7 +245,7 @@ C.. Check if we've filled all the electrons
                   CALL GETSYM(NJ,NEL,G1,NBASISMAX,KJ2)
                   IF(LCHKSYM(KJ2,KI)) THEN
                    CALL NECI_ICOPY(NEL,NJ,1,NN,1)
-                   CALL SORTI(NEL,NN)
+                   CALL NECI_SORTI(NEL,NN)
                    ICE=IGETEXCITLEVEL(NI,NN,NEL)
 C.. Check the connectivity
                    IF(ICE.GT.0.AND.ICE.LE.2) THEN
@@ -373,7 +373,7 @@ C.. Check if we've filled all the electrons
                   CALL GETSYM(NJ,NEL,G1,NBASISMAX,KJ2)
                   IF(I.LE.nActiveBasis(2).AND.LCHKSYM(KI,KJ2)) THEN
                      CALL NECI_ICOPY(NEL,NJ,1,NN,1)
-                     CALL SORTI(NEL,NN)
+                     CALL NECI_SORTI(NEL,NN)
                      LCONT=.FALSE.
                   ENDIF
                ELSE

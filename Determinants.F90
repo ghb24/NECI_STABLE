@@ -266,7 +266,7 @@ END MODULE Determinants
                   J=J+1
                ENDIF
             ENDDO
-            CALL SORTI(NEL,FDET)
+            CALL NECI_SORTI(NEL,FDET)
             IF(J.NE.NEL-NFROZEN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                CALL WRITEDET(6,NEL,FDET,.TRUE.)
@@ -284,7 +284,7 @@ END MODULE Determinants
                   J=J+1
                ENDIF
             ENDDO
-            CALL SORTI(NEL,nUHFDET)
+            CALL NECI_SORTI(NEL,nUHFDET)
             IF(J.NE.NEL-NFROZEN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                CALL WRITEDET(6,NEL,nUHFDET,.TRUE.)
@@ -383,7 +383,7 @@ END MODULE Determinants
             ENDDO
             MCDET(I)=EL
          ENDDO
-         CALL SORTI(NEL,MCDET)
+         CALL NECI_SORTI(NEL,MCDET)
          RETURN
       END
 
