@@ -30,9 +30,9 @@ C..
 C..
       allocate(CFXCS(NDET))
       call LogMemAlloc('CFXCS',NDET,8,'Gen_XCHole',tagCFXCS)
-      CALL AZZERO(CFXCS,NDET)
+      CFXCS=0.d0
       CALL DCOPY(NDET,CIJKL(1,1),1,CFXCS,1)
-      CALL AZZERO(XCHOLE,NMSH*NMSH*NMSH)
+      XCHOLE=0.d0
 C..Evaluates second-order spinless density matrix
       DO KI=1,NDET
         IF(ABS(CFXCS(KI)).LT.EPS) GOTO 300
@@ -49,7 +49,7 @@ C..IC is the number of pairs which are the *SAME* in both determinants
           ENDDO
 C..If determinants differ by more than 2 spin orbitals IC < NEL-2 
           IF(IC.LT.(NEL-2)) GOTO 500
-          CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
+          AUXC=0.d0
           CALL RLSXC(NEL,NMSH,NDET,SITAB,NMAX,IOBS,JOBS,KOBS,
      &      NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,NHG,IC,AUXC)
 C..

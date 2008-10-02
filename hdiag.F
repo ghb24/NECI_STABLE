@@ -91,7 +91,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
 !Vals(1) contains ground state
 !Check that eigenvectors are correct by multiplying matrix by first eigenvector
-!         CALL AZZERO(TrialEigenvec,NDET*HElementSize)
+!         TrialEigenvec=0.d0
 !         Norm=HElement(0.D0)
 !         do i=1,NDET
 !             do j=1,NDET
@@ -107,7 +107,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 !         enddo
 
 !Create the k matrix...
-         CALL AZZERO(KMAT,NDET*HElementSize)
+         KMAT=HElement(0.d0)
          DO i=1,NDET
              KMAT(i,i)=Vals(1)
          ENDDO
@@ -140,7 +140,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
 !Run through determinants in graph
          NBins=100
-         CALL AZZERO(S,NDET*(NDET+1))
+         S=0.d0
          MinS=100.0
          MaxS=-100.0
          WRITE(11,*) "# Det   SijSum     MinS    MaxS"
@@ -184,7 +184,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          ALLOCATE(SHist(NDET,NBins))
          CALL IAZZERO(SHist,NBins*NDET)
          ALLOCATE(RangeHist(NBins+1))
-         CALL AZZERO(RangeHist,NBins+1)
+         RangeHist=0.d0
 
          RangeHist(1)=MinS
          do i=2,NBins

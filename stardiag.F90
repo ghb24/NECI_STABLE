@@ -496,7 +496,7 @@
 !Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues and vectors to ExcitInfo2(0:TotExcits,0:2)
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
             call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
+            ExcitInfo2=HElement(0.d0)
 
 !Fill original star matrix - INCORRECT - do not want to include original excitations - these are already included in the prediagonalised elements
 !            do i=0,iExcit
@@ -537,7 +537,7 @@
 !Allocate Memory for excited star.
                 ALLOCATE(ExcitStarInfo(0:NoExcitsInStar(i),0:1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarInfo",(NoExcitsInStar(i)+1)*2,8,this_routine,tagExcitStarInfo,iErr)
-                CALL AZZERO(ExcitStarInfo,(NoExcitsInStar(i)+1)*2)
+                ExcitStarInfo=0.d0
                 
                 ExcitStarInfo(0,0)=DREAL(rh/rhii)
                 ExcitStarInfo(0,1)=DREAL(rh/rhii)
@@ -590,7 +590,7 @@
 !Now need to prepare to diagonalise excited star
                 ALLOCATE(ExcitStarMat(j+1,j+1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarMat",(j+1)*(j+1),8,this_routine,tagExcitStarMat,iErr)
-                CALL AZZERO(ExcitStarMat,(j+1)*(j+1))
+                ExcitStarMat=0.d0
 
                 do j=1,(NoExcitsInStar(i)+1)
                     ExcitStarMat(j,j)=ExcitStarInfo(j-1,0)
@@ -602,15 +602,15 @@
 
                 ALLOCATE(WORK(3*(NoExcitsInStar(i)+1)),stat=iErr)
                 CALL LogMemAlloc("WORK",3*(NoExcitsInStar(i)+1),8,this_routine,tagWORK,iErr)
-                CALL AZZERO(WORK,3*(NoExcitsInStar(i)+1))
+                WORK=0.d0
 
                 ALLOCATE(ExcitStarVals(NoExcitsInStar(i)+1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarVals",NoExcitsInStar(i)+1,8,this_routine,tagExcitStarVals,iErr)
-                CALL AZZERO(ExcitStarVals,NoExcitsInStar(i)+1)
+                ExcitStarVals=0.d0
 
                 ALLOCATE(ExcitStarVecs(NoExcitsInStar(i)+1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarVecs",NoExcitsInStar(i)+1,8,this_routine,tagExcitStarVals,iErr)
-                CALL AZZERO(ExcitStarVecs,NoExcitsInStar(i)+1)
+                ExcitStarVecs=0.d0
 
                 CALL DSYEV('V','U',NoExcitsInStar(i)+1,ExcitStarMat,NoExcitsInStar(i)+1,ExcitStarVals,WORK,3*(NoExcitsInStar(i)+1),INFO)
                 IF(INFO.ne.0) THEN
@@ -749,9 +749,9 @@
             ALLOCATE(Vals(iExcit+1))
             ALLOCATE(Vecs(iExcit+1))
             ALLOCATE(DiagRhos(iExcit+1))
-            CALL AZZERO(Vals,iExcit+1)
-            CALL AZZERO(Vecs,iExcit+1)
-            CALL AZZERO(DiagRhos,iExcit+1)
+            Vals=0.d0
+            Vecs=0.d0
+            DiagRhos=0.d0
 
             calcs=100
             minimum=1.D0-((1.D0-DREAL(ExcitInfo(iExcit,0)))*2)
@@ -769,7 +769,7 @@
 
 !Diffs can be used to calculate the gradient of the eigenvector/root line quickly
 !            ALLOCATE(Diffs(toprint,4))
-!            CALL AZZERO(Diffs,toprint*4)
+!            Diffs=0.d0
 !Store value for eigenvalue/vector at largest rhovalue in 1:2 - the lowest rho value in 3:4
 
 !            ALLOCATE(TESTER(iExcit))
@@ -925,10 +925,10 @@
             CALL LogMemAlloc("NewDiagRhos",iExcit+1,8,this_routine,tagNewDiagRhos,iErr)
             ALLOCATE(NewOffDiagRhos(iExcit),stat=iErr)
             CALL LogMemAlloc("NewOffDiagRhos",iExcit,8*HElementSize,this_routine,tagNewOffDiagRhos,iErr)
-            CALL AZZERO(NewOffDiagRhos,iExcit*HElementSize)
+            NewOffDiagRhos=HElement(0.d0)
             ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
             call LogMemAlloc('ExcitInfo2',(iExcit*(iExcit+1)+1)*3,8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            CALL AZZERO(ExcitInfo2,(iExcit*(iExcit+1)+1)*3*HElementSize)
+            ExcitInfo2=HElement(0.d0)
             iMaxExcit=iExcit*(iExcit+1)
             
             ExcitInfo2(0,0)=HElement(1.D0)
@@ -950,9 +950,9 @@
                     NewOffDiagRhos(j)=ExcitInfo(j,1)
                 enddo
 
-                CALL AZZERO(NewDiagRhos,iExcit+1)
-                CALL AZZERO(Vals,iExcit+1)
-                CALL AZZERO(Vecs,iExcit+1)
+                NewDiagRhos=0.d0
+                Vals=0.d0
+                Vecs=0.d0
                 RhoValue=DREAL(ExcitInfo(i,0))
                 OffRhoValue=DREAL(ExcitInfo(i,1))
                 
@@ -1237,7 +1237,7 @@
 !Linearly change diagonal elements - rho_jj' = GradVal*(rho_jj - 1) + eigenmax
             ALLOCATE(ExcitInfo2(0:iExcit,0:2),stat=ierr)
             call LogMemAlloc('ExcitInfo2',3*(iExcit+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            CALL AZZERO(ExcitInfo2,(iExcit+1)*3*HElementSize)
+            ExcitInfo2=HElement(0.d0)
             
 !Put HF determinant into element 0
             ExcitInfo2(0,0)=HElement(1.D0)
@@ -1427,10 +1427,10 @@
 !Need to calculate the average for each eigenvalue & vector
             ALLOCATE(MeanVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("MeanVecs",iExcit+1,8,this_routine,tagMeanVecs,iErr)
-            CALL AZZERO(MeanVecs,iExcit+1)
+            MeanVecs=0.d0
             ALLOCATE(MeanVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("MeanVals",iExcit+1,8,this_routine,tagMeanVals,iErr)
-            CALL AZZERO(MeanVals,iExcit+1)
+            MeanVals=0.d0
 
             do i=1,iExcit+1
                 do j=1,LinePoints
@@ -1454,16 +1454,16 @@
 
             ALLOCATE(SxyVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SxyVals",iExcit+1,8,this_routine,tagSxyVals,iErr)
-            CALL AZZERO(SxyVals,iExcit+1)
+            SxyVals=0.d0
             ALLOCATE(SxyVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SxyVecs",iExcit+1,8,this_routine,tagSxyVecs,iErr)
-            CALL AZZERO(SxyVecs,iExcit+1)
+            SxyVecs=0.d0
             ALLOCATE(SyyVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SyyVals",iExcit+1,8,this_routine,tagSyyVals,iErr)
-            CALL AZZERO(SyyVals,iExcit+1)
+            SyyVals=0.d0
             ALLOCATE(SyyVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SyyVecs",iExcit+1,8,this_routine,tagSyyVecs,iErr)
-            CALL AZZERO(SyyVecs,iExcit+1)
+            SyyVecs=0.d0
 
             do i=1,iExcit+1
                 do j=1,LinePoints
@@ -1481,16 +1481,16 @@
 
             ALLOCATE(GradVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("GradVals",iExcit+1,8,this_routine,tagGradVals,iErr)
-            CALL AZZERO(GradVals,iExcit+1)
+            GradVals=0.d0
             ALLOCATE(GradVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("GradVecs",iExcit+1,8,this_routine,tagGradVecs,iErr)
-            CALL AZZERO(GradVecs,iExcit+1)
+            GradVecs=0.d0
             ALLOCATE(IncptVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("IncptVals",iExcit+1,8,this_routine,tagIncptVals,iErr)
-            CALL AZZERO(IncptVals,iExcit+1)
+            IncptVals=0.d0
             ALLOCATE(IncptVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("IncptVecs",iExcit+1,8,this_routine,tagIncptVecs,iErr)
-            CALL AZZERO(IncptVecs,iExcit+1)
+            IncptVecs=0.d0
 
             do i=1,iExcit+1
                 
@@ -1505,10 +1505,10 @@
 
             ALLOCATE(ExpctVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("ExpctVals",iExcit+1,8,this_routine,tagExpctVals,iErr)
-            CALL AZZERO(ExpctVals,iExcit+1)
+            ExpctVals=0.d0
             ALLOCATE(ExpctVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("ExpctVecs",iExcit+1,8,this_routine,tagExpctVecs,iErr)
-            CALL AZZERO(ExpctVecs,iExcit+1)
+            ExpctVecs=0.d0
 
             do i=1,iExcit+1
                 do j=1,LinePoints
@@ -1523,10 +1523,10 @@
 
             ALLOCATE(RsqVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("RsqVals",iExcit+1,8,this_routine,tagRsqVals,iErr)
-            CALL AZZERO(RsqVals,iExcit+1)
+            RsqVals=0.d0
             ALLOCATE(RsqVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("RsqVecs",iExcit+1,8,this_routine,tagRsqVecs,iErr)
-            CALL AZZERO(RsqVecs,iExcit+1)
+            RsqVecs=0.d0
 
             do i=1,iExcit+1
 
@@ -1615,7 +1615,7 @@
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
             CALL LogMemAlloc("ExcitInfo2",(TotExcits+1)*3*HElementSize,8,this_routine,tagExcitInfo2,iErr)
             call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElementSize,this_routine,tagExcitInfo2,iErr)
-            CALL AZZERO(ExcitInfo2,(TotExcits+1)*3*HElementSize)
+            ExcitInfo2=HElement(0.d0)
 
 !Fill original star matrix - NO!! Do not want to double count i --> j excitations.
 !Only need to include the original root, i
@@ -1734,9 +1734,9 @@
 
                 ALLOCATE(StarMat(Dimen,Dimen),stat=iErr)
                 CALL LogMemAlloc("StarMat",Dimen*Dimen,8,this_routine,tagStarMat,iErr)
-                CALL AZZERO(StarMat,Dimen*Dimen)
-                CALL AZZERO(Vals,Dimen)
-                CALL AZZERO(Vecs,Dimen)
+                StarMat=0.d0
+                Vals=0.d0
+                Vecs=0.d0
 
                 do i=2,Dimen
                     StarMat(i,i)=DiagRhos(i)
@@ -1747,7 +1747,7 @@
 
                 ALLOCATE(WORK(3*Dimen),stat=iErr)
                 CALL LogMemAlloc("WORK",Dimen*3,8,this_routine,tagWORK,iErr)
-                CALL AZZERO(WORK,Dimen*3)
+                WORK=0.d0
 
 !                do i=1,
 !                    do j=1,Dimen
@@ -2192,7 +2192,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          TOTVERT=NLIST+ProdNum
          allocate(RIJMAT(TOTVERT**2),stat=err)
          call LogMemAlloc('RIJMAT',TOTVERT**2,8,this_routine,tagRIJMAT,err)
-         CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
+         RIJMAT=0.d0
         
          !Fill RIJMAT
          DO I=1,TOTVERT
@@ -2297,10 +2297,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          
          ALLOCATE(AOFFDB(PRODVERT,NLIST-1),STAT=ierr)
          CALL LogMemAlloc('AOFFDB',(NLIST-1)*PRODVERT,8,this_routine,tagAOFFDB,ierr)
-         CALL AZZERO(AOFFDB,(NLIST-1)*PRODVERT)
+         AOFFDB=0.d0
          ALLOCATE(AONDB(PRODVERT),STAT=ierr)
          CALL LogMemAlloc('AONDB',PRODVERT,8,this_routine,tagAONDB,ierr)
-         CALL AZZERO(AONDB,PRODVERT)
+         AONDB=0.d0
 
          IND=0
          DO I=2,NLIST
@@ -2330,7 +2330,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
         
         allocate(RIJMAT(TOTVERT**2),stat=err)
         call LogMemAlloc('RIJMAT',TOTVERT**2,8,this_routine,tagRIJMAT,err)
-        CALL AZZERO(RIJMAT,TOTVERT*TOTVERT)
+        RIJMAT=0.d0
         
         DO I=1,TOTVERT
             IF(I.LE.NLIST) THEN
@@ -2484,10 +2484,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
              ALLOCATE(HMat(NList,NList),stat=ierr)
              CALL LogMemAlloc('HMat',NList**2,8,this_routine,HMatTag,ierr)
-             CALL AZZERO(HMat,NList**2)
+             HMat=0.d0
              ALLOCATE(WList(NList),stat=ierr)
              CALL LogMemAlloc('WList',NList,8,this_routine,WListTag,ierr)
-             CALL AZZERO(WList,NList)
+             WList=0.d0
              WorkL=3*NList
              ALLOCATE(Work(WorkL),stat=ierr)
              CALL LogMemAlloc('Work',WorkL,8,this_routine,WorkTag,ierr)
@@ -3041,7 +3041,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          ALLOCATE(Mat(LenMat),stat=ierr)
          CALL LogMemAlloc('Mat',LenMat,8,this_routine,MatTag,ierr)
-         CALL AZZERO(Mat,LenMat)
+         Mat=0.d0
          ALLOCATE(Lab(LenMat),stat=ierr)
          CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag,ierr)
          CALL IAZZERO(Lab,LenMat)
@@ -3086,25 +3086,25 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 !Allocate memory for diagonaliser
          ALLOCATE(A(NEval,NEval),stat=ierr)
          CALL LogMemAlloc('A',NEval*NEval,8,this_routine,ATag,ierr)
-         CALL AZZERO(A,NEval*NEval)
+         A=0.d0
          ALLOCATE(V(NList*NBlock*NKry1),stat=ierr)
          CALL LogMemAlloc('V',NList*NBlock*NKry1,8,this_routine,VTag,ierr)
-         CALL AZZERO(V,NList*NBlock*NKry1)
+         V=0.d0
          ALLOCATE(AM(NBlock*NBlock*NKry1),stat=ierr)
          CALL LogMemAlloc('AM',NBlock*NBlock*NKry1,8,this_routine,AMTag,ierr)
-         CALL AZZERO(AM,NBlock*NBlock*NKry1)
+         AM=0.d0
          ALLOCATE(BM(NBlock*NBlock*NKry),stat=ierr)
          CALL LogMemAlloc('BM',NBlock*NBlock*NKry,8,this_routine,BMTag,ierr)
-         CALL AZZERO(BM,NBlock*NBlock*NKry)
+         BM=0.d0
          ALLOCATE(T(3*NBlock*NKry*NBlock*NKry),stat=ierr)
          CALL LogMemAlloc('T',NBlock*NKry*NBlock*NKry*3,8,this_routine,TTag,ierr)
-         CALL AZZERO(T,NBlock*NKry*NBlock*NKry*3)
+         T=0.d0
          ALLOCATE(WT(NBlock*NKry),stat=ierr)
          CALL LogMemAlloc('WT',NBlock*NKry,8,this_routine,WTTag,ierr)
-         CALL AZZERO(WT,NBlock*NKry)
+         WT=0.d0
          ALLOCATE(SCR(LScr),stat=ierr)
          CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-         CALL AZZERO(SCR,LScr)
+         SCR=0.d0
          ALLOCATE(ISCR(LIScr),stat=ierr)
          CALL LogMemAlloc('ISCR',LIScr,4,this_routine,ISCRTag,ierr)
          CALL IAZZERO(ISCR,LIScr)
@@ -3113,27 +3113,27 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          CALL IAZZERO(Index,NEval)
          ALLOCATE(WH(NList),stat=ierr)
          CALL LogMemAlloc('WH',NList,8,this_routine,WHTag,ierr)
-         CALL AZZERO(WH,NList)
+         WH=0.d0
          ALLOCATE(Work2(3*NList),stat=ierr)
          CALL LogMemAlloc('Work2',3*NList,8,this_routine,Work2Tag,ierr)
-         CALL AZZERO(Work2,3*NList)
+         Work2=0.d0
          ALLOCATE(V2(NList,NEval),stat=ierr)
          CALL LogMemAlloc('V2',NList*NEval,8,this_routine,V2Tag,ierr)
-         CALL AZZERO(V2,NList*NEval)
+         V2=0.d0
  
 !W holds the eigenvalues 
          ALLOCATE(W(NEval),stat=ierr)
          CALL LogMemAlloc('W',NEval,8,this_routine,WTag,ierr)
-         CALL AZZERO(W,NEval)
+         W=0.d0
 
 !CK holds the eigenvectors
          ALLOCATE(CK(NList,NEval),stat=ierr)
          CALL LogMemAlloc('CK',NList*NEval,8,this_routine,CKTag,ierr)
 !The initial trial wavefuntion is set to zero        
-         CALL AZZERO(CK,NList*NEval)
+         CK=0.d0
          ALLOCATE(CKN(NList,NEval),stat=ierr)
          CALL LogMemAlloc('CKN',NList*NEval,8,this_routine,CKNTag,ierr)
-         CALL AZZERO(CKN,NList*NEval)
+         CKN=0.d0
 
          TSeeded=.false.
 
@@ -3234,7 +3234,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          CALL SORT3RN(NLIST-1,LIST(2,0),LIST(2,1),LIST(2,2),HElementSize)
 
-         CALL AZZERO(RIJMAT,NLIST*NLIST)
+         RIJMAT=0.d0
 !.. Now we fill the RIJ array
          DO I=0,NLIST-1
             RIJMAT(I*NLIST+I+1)=LIST(I+1,0)
@@ -3563,7 +3563,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
          TYPE(HElement) NWORK(4*5)
          INTEGER INFO
 
-         call azzero(StarMat,25*HElementSize)
+         StarMat=HElement(0.d0)
          iEx(1,1)=2
 !.. Get the orbitals which are excited in going from I to J
 !.. IEX(1,*) are in I, and IEX(2,*) are in J

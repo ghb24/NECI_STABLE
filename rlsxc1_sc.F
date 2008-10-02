@@ -12,7 +12,7 @@ C..Cube array
 C..
       CALL IAZZERO(TMP1,NEL)
       CALL IAZZERO(TMP2,NEL)
-      CALL AZZERO(AUXC,(NMSH+1)*(2*NMSH+1))
+      AUXC=0.d0
 C..Compare NDET1 to NDET2
       IQ=0
       DO I=1,NEL

@@ -29,7 +29,7 @@ C..
 C..
       allocate(FODM(NHG,NHG))
       call LogMemAlloc('FODM',NHG**2,8,this_routine,tagFODM)
-      CALL AZZERO(FODM,NHG*NHG)
+      FODM=0.d0
 C..
       CALL IAZZERO(N1E,NHG)
       CALL IAZZERO(N2E,NHG)
@@ -101,12 +101,12 @@ C..Now diagonalise FODM
       call LogMemAlloc('Z',NHG**2,8,this_routine,tagZ)
       allocate(W(NHG))
       call LogMemAlloc('W',NHG,8,this_routine,tagW)
-      CALL AZZERO(WORK,8*NHG)
+      WORK=0.d0
       CALL IAZZERO(IWORK,5*NHG)
       CALL IAZZERO(IFAIL,NHG)
 C..Natural orbitals and occupation numbers
-      CALL AZZERO(Z,NHG*NHG)
-      CALL AZZERO(W,NHG)
+      Z=0.d0
+      W=0.d0
 C..
       ABSTOL=1.D-15
       CALL DSYEVX('V','A','L',NHG,FODM,NHG,VL,VU,1,NHG,ABSTOL,M,
@@ -144,7 +144,7 @@ C      WRITE(6,'(1X,A,F19.5)') ' TOTAL SUM: ' , SUM
       CLOSE(10)
 C.. Population analysis
       WRITE(6,*) ' POPULATION ANALYSIS OF THE NATURAL ORBITALS'
-      CALL AZZERO(SUMA,NMAXX*NMAXY*NMAXZ) 
+      SUMA=0.d0
       DO I=1,NHG
         D=0.D0
         DO J=1,NHG

@@ -35,11 +35,11 @@ MODULE HFCalc
             ! These need to be changed for use with complex code.
             allocate(HFBasis(nBasis*nBasis))
             call LogMemAlloc('HFBASIS',nBasis*nBasis,HElementSize*8,this_routine,tagHFBasis)
-            CALL AZZERO(HFBASIS,nBasis*nBasis*HElementSize)
+            HFBASIS=HElement(0.d0)
 !C.. Allocate an array to store the HF Energies
             allocate(HFE(nBasis))
             call LogMemAlloc('HFE',nBasis,HElementSize*8,this_routine,tagHFE)
-            CALL AZZERO(HFE,nBasis*HElementSize)
+            HFE=HElement(0.d0)
             IF(THFORDER.AND..NOT.THFBASIS) THEN
 !C.. If we're not using HF, but just calculating the HF order
 !C.. We generate the HF energies (this has no mixing or randomisation, so should jsut
@@ -86,7 +86,7 @@ MODULE HFCalc
                CALL GetUMatSize(nBasis,nEl,1,UMATINT)
                Allocate(UMat2(UMatInt), stat=ierr)
                LogAlloc(ierr,'UMAT2', UMatInt, HElementSizeB, tagUMat2)
-               CALL AZZERO(UMAT2,HElementSize*UMATINT)
+               UMAT2=HElement(0.d0)
 !C.. We need to pass the TMAT to CALCHFUMAT as TMAT is no longer diagona
 !C.. This also modified G1, ARR, BRR
                IF(TREADTUMAT) THEN

@@ -16,17 +16,17 @@ C..
 C..
       IF(IFIRST.EQ.0) THEN
         IFIRST=1
-        CALL AZZERO(SITAB,NMSH*NMAX)
+        SITAB=0.d0
         CALL GEN_SITAB(NMAX,NMSH,SITAB)
       ENDIF
 C..
       allocate(CFS(NDET))
       call LogMemAlloc('CFS',NDET,8,'NECI_RHOOFR',tagCFS)
-      CALL AZZERO(CFS,NDET)
+      CFS=0.d0
       CALL DCOPY(NDET,CK(1,1),1,CFS,1)
 C..
-      CALL AZZERO(AUX,NMSH*NMSH*NMSH)
-      CALL AZZERO(RHO,NMSH*NMSH*NMSH)
+      AUX=0.d0
+      RHO=0.d0
 C..
       DO KI=1,NDET
         IF(ABS(CFS(KI)).LT.EPS) GOTO 300
@@ -92,12 +92,12 @@ C..
       ND1=0
       ND2=0
 C..
-      CALL AZZERO(AUXX,NEL)
-      CALL AZZERO(AUXY,NEL)
-      CALL AZZERO(AUXZ,NEL)
+      AUXX=0.d0
+      AUXY=0.d0
+      AUXZ=0.d0
 C..
       IF(IC.EQ.(NEL-1)) THEN
-        CALL AZZERO(AUX,NMSH*NMSH*NMSH)
+        AUX=0.d0
 C..The determinants differ by ONE spin orbital
         ND1=0
         ND2=0
@@ -151,11 +151,11 @@ C..
             ENDDO
           ENDDO
         ELSE
-          CALL AZZERO(AUX,NMSH*NMSH*NMSH)
+          AUX=0.d0
           RETURN
         ENDIF
       ELSEIF(IC.EQ.NEL) THEN
-        CALL AZZERO(AUX,NMSH*NMSH*NMSH)
+        AUX=0.d0
 C..Differ by none
         DO K=1,NMSH-1
           DO IK=1,NEL
@@ -181,7 +181,7 @@ C..
           ENDDO
         ENDDO
       ELSE
-        CALL AZZERO(AUX,NMSH*NMSH*NMSH)
+        AUX=0.d0
         RETURN
       ENDIF
 C..

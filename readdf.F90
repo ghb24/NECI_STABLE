@@ -257,7 +257,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          Type(Symmetry) TotSymRep
          open(11,file='HONEEL',status='unknown')
          i=1
-         !call azZero(TMat,nBasis*nBasis)
+         !TMat=0.d0
          call iazZero(G1,nBasis*BasisFNSize)
          do while(i.ne.0)
             read(11,*) i,j,val
@@ -385,7 +385,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          call set_timer(proc_timer)
          Allocate(M(nAuxBasis,nAuxBasis),STAT=ierr)
          call LogMemAlloc("M-DFInvFitInts",nAuxBasis*nAuxBasis,8,t_r,tagM,ierr)
-         call azzero(M,nAuxBasis*nAuxBasis)
+         M=0.d0
          do i=1,nAuxBasis
             do j=1,i
                M(i,j)=DFFitInts(i,j)

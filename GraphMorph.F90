@@ -341,11 +341,11 @@ MODULE GraphMorph
         CALL IAZZERO(GraphDets,NDets*NEl)
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag,ierr)
-        CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
+        GraphRhoMat=HElement(0.d0)
         IF(.NOT.THDiag) THEN
             ALLOCATE(HamElems(NDets),stat=ierr)
             CALL LogMemAlloc('HamElems',NDets,8*HElementSize,this_routine,HamElemsTag,ierr)
-            CALL AZZERO(HamElems,NDets)
+            HamElems=HElement(0.d0)
         ENDIF
         IF(TNoSameExcit.or.TOneExcitConn) THEN
             ALLOCATE(GraphExcitLevel(NDets),stat=ierr)
@@ -638,11 +638,11 @@ MODULE GraphMorph
         CALL IAZZERO(GraphDets,NDets*NEl)
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag,ierr)
-        CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
+        GraphRhoMat=HElement(0.d0)
         IF(.NOT.THDiag) THEN
             ALLOCATE(HamElems(NDets),stat=ierr)
             CALL LogMemAlloc('HamElems',NDets,8*HElementSize,this_routine,HamElemsTag,ierr)
-            CALL AZZERO(HamElems,NDets*HElementSize)
+            HamElems=HElement(0.d0)
             HamElems(1)=Hii
         ENDIF
 
@@ -791,16 +791,16 @@ MODULE GraphMorph
         CALL IAZZERO(iPath,NEl*(NDets+1))
         ALLOCATE(Xij(0:NDets-1,0:NDets-1),stat=ierr)
         CALL LogMemAlloc('Xij',NDets*NDets,8,this_routine,XijTag,ierr)
-        CALL AZZERO(Xij,NDets*NDets)
+        Xij=0.d0
         ALLOCATE(Rhoii(0:NDets),stat=ierr)
         CALL LogMemAlloc('Rhoii',NDets+1,8,this_routine,RhoiiTag,ierr)
-        CALL AZZERO(Rhoii,NDets+1)
+        Rhoii=HDElement(0.d0)
         ALLOCATE(Rhoij(0:NDets,0:NDets),stat=ierr)
         CALL LogMemAlloc('Rhoij',(NDets+1)*(NDets+1),8*HElementSize,this_routine,RhoijTag,ierr)
-        CALL AZZERO(Rhoij,(NDets+1)*(NDets+1)*HElementSize)
+        Rhoij=HElement(0.d0)
         ALLOCATE(Hijs(0:NDets),stat=ierr)
         CALL LogMemAlloc('Hijs',NDets+1,8*HElementSize,this_routine,HijsTag,ierr)
-        CALL AZZERO(Hijs,(NDets+1)*HElementSize)
+        Hijs=HElement(0.d0)
 
 !The first and last determinants of iPath want to be the FDet...
         do i=1,NEl
@@ -852,10 +852,10 @@ MODULE GraphMorph
                     CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,3)
                     CALL GenRandSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,nExcit,nJ,Seed,iExcit,0,UMat,nMax,PGen)
                     CALL IAZZERO(iPath,NEl*(NDets+1))
-                    CALL AZZERO(Xij,NDets*NDets)
-                    CALL AZZERO(Rhoii,NDets+1)
-                    CALL AZZERO(Rhoij,(NDets+1)*(NDets+1)*HElementSize)
-                    CALL AZZERO(Hijs,(NDets+1)*HElementSize)
+                    Xij=0.d0
+                    Rhoii=HDElement(0.d0)
+                    Rhoij=HElement(0.d0)
+                    Hijs=HElement(0.d0)
                     do i=1,NEl
                         iPath(i,0)=FDet(i)
                         iPath(i,NDets)=FDet(i)
@@ -913,7 +913,7 @@ MODULE GraphMorph
 !Rho matrix is stored as paths, and so do not need last column and row (should be same as first) - same with H elements
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag,ierr)
-        CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
+        GraphRhoMat=HElement(0.d0)
 
 !Trust rho matrix from Fmcpr4d2GenGraph - no need to recalculate...
         do i=1,NDets
@@ -977,7 +977,7 @@ MODULE GraphMorph
         IF(.NOT.THDiag) THEN
             ALLOCATE(HamElems(NDets),stat=ierr)
             CALL LogMemAlloc('HamElems',NDets,8*HElementSize,this_routine,HamElemsTag,ierr)
-            CALL AZZERO(HamElems,NDets*HElementSize)
+            HamElems=HElement(0.d0)
 
 !Trust the fmcpr4d2gengraph Hij values. Recalculated ones are identical
             do i=1,NDets
@@ -1367,8 +1367,8 @@ MODULE GraphMorph
 !Allocate Rho Matrix for growing graph
         ALLOCATE(GraphRhoMat(NDets,NDets),stat=ierr)
         CALL LogMemAlloc('GraphRhoMat',NDets*NDets,8*HElementSize,this_routine,GraphRhoMatTag,ierr)
-        CALL AZZERO(GraphRhoMat,NDets*NDets*HElementSize)
-        IF(.NOT.THDiag) CALL AZZERO(HamElems,NDets*HElementSize)
+        GraphRhoMat=HElement(0.d0)
+        IF(.NOT.THDiag) HamElems=HElement(0.d0)
 
 !Initial determinant has to be HF determinant - ensure that this is stored in GraphDets(:,:)
         ALLOCATE(GrowGraph(NDets,NEl),stat=ierr)
@@ -1868,7 +1868,7 @@ MODULE GraphMorph
 !array by needed element of eigenvector...?
         ALLOCATE(ExcitsVector(TotExcits),stat=ierr)
         CALL LogMemAlloc('ExcitsVector',TotExcits,8*HElementSize,this_routine,ExcitsVectorTag,ierr)
-        CALL AZZERO(ExcitsVector,TotExcits*HElementSize)
+        ExcitsVector=HElement(0.d0)
 
 !Separatly deal with first vertex in graph for clarity
         do j=1,NoExcits(1)
@@ -1936,7 +1936,7 @@ MODULE GraphMorph
 !Allocate memory to hold connections, and form of the determinants of the excitations
         ALLOCATE(ConnectionsToExcits(TotExcits),stat=ierr)
         CALL LogMemAlloc('ConnectionsToExcits',TotExcits,8*HElementSize,this_routine,ConnectionsToExcitsTag,ierr)
-        CALL AZZERO(ConnectionsToExcits,TotExcits*HElementSize)
+        ConnectionsToExcits=HElement(0.d0)
         ALLOCATE(ExcitsDets(TotExcits,NEl),stat=ierr)
         CALL LogMemAlloc('ExcitsDets',TotExcits*NEl,4,this_routine,ExcitsDetsTag,ierr)
         CALL IAZZERO(ExcitsDets,TotExcits*NEl)
@@ -2254,7 +2254,7 @@ MODULE GraphMorph
 !Allocate the rho matrix
         ALLOCATE(Mat(LenMat),stat=ierr)
         CALL LogMemAlloc('Mat',LenMat,8*HElementSize,this_routine,MatTag,ierr)
-        CALL AZZERO(Mat,LenMat*HElementSize)
+        Mat=0.d0
 !
 !!Lab indicates the column that the 'i'th non-zero matrix element resides in the full matrix
         ALLOCATE(Lab(LenMat),stat=ierr)
@@ -2279,7 +2279,7 @@ MODULE GraphMorph
 !
 !        ALLOCATE(Mat(NDets,ICMax),stat=ierr)
 !        CALL LogMemAlloc('Mat',NDets*ICMax,8,this_routine,MatTag,ierr)
-!        CALL AZZERO(Mat,NDets*ICMax)
+!        Mat=0.d0
 !
 !!Lab now indicates the position of the non-zero element in the row specified
 !        ALLOCATE(Lab(NDets,ICMax),stat=ierr)
@@ -2331,25 +2331,25 @@ MODULE GraphMorph
 !Allocate memory for diagonaliser
         ALLOCATE(A(NEval,NEval),stat=ierr)
         CALL LogMemAlloc('A',NEval*NEval,8,this_routine,ATag,ierr)
-        CALL AZZERO(A,NEval*NEval)
+        A=0.d0
         ALLOCATE(V(NDets*NBlock*NKry1),stat=ierr)
         CALL LogMemAlloc('V',NDets*NBlock*NKry1,8,this_routine,VTag,ierr)
-        CALL AZZERO(V,NDets*NBlock*NKry1)
+        V=0.d0
         ALLOCATE(AM(NBlock*NBlock*NKry1),stat=ierr)
         CALL LogMemAlloc('AM',NBlock*NBlock*NKry1,8,this_routine,AMTag,ierr)
-        CALL AZZERO(AM,NBlock*NBlock*NKry1)
+        AM=0.d0
         ALLOCATE(BM(NBlock*NBlock*NKry),stat=ierr)
         CALL LogMemAlloc('BM',NBlock*NBlock*NKry,8,this_routine,BMTag,ierr)
-        CALL AZZERO(BM,NBlock*NBlock*NKry)
+        BM=0.d0
         ALLOCATE(T(3*NBlock*NKry*NBlock*NKry),stat=ierr)
         CALL LogMemAlloc('T',NBlock*NKry*NBlock*NKry*3,8,this_routine,TTag,ierr)
-        CALL AZZERO(T,NBlock*NKry*NBlock*NKry*3)
+        T=0.d0
         ALLOCATE(WT(NBlock*NKry),stat=ierr)
         CALL LogMemAlloc('WT',NBlock*NKry,8,this_routine,WTTag,ierr)
-        CALL AZZERO(WT,NBlock*NKry)
+        WT=0.d0
         ALLOCATE(SCR(LScr),stat=ierr)
         CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-        CALL AZZERO(SCR,LScr)
+        SCR=0.d0
         ALLOCATE(ISCR(LIScr),stat=ierr)
         CALL LogMemAlloc('ISCR',LIScr,4,this_routine,ISCRTag,ierr)
         CALL IAZZERO(ISCR,LIScr)
@@ -2358,27 +2358,27 @@ MODULE GraphMorph
         CALL IAZZERO(Index,NEval)
         ALLOCATE(WH(NDets),stat=ierr)
         CALL LogMemAlloc('WH',NDets,8,this_routine,WHTag,ierr)
-        CALL AZZERO(WH,NDets)
+        WH=0.d0
         ALLOCATE(Work2(3*NDets),stat=ierr)
         CALL LogMemAlloc('Work2',3*NDets,8,this_routine,Work2Tag,ierr)
-        CALL AZZERO(Work2,3*NDets)
+        Work2=0.d0
         ALLOCATE(V2(NDets,NEval),stat=ierr)
         CALL LogMemAlloc('V2',NDets*NEval,8,this_routine,V2Tag,ierr)
-        CALL AZZERO(V2,NDets*NEval)
+        V2=0.d0
 
 !W holds the eigenvalues 
         ALLOCATE(W(NEval),stat=ierr)
         CALL LogMemAlloc('W',NEval,8,this_routine,WTag,ierr)
-        CALL AZZERO(W,NEval)
+        W=0.d0
 
 !CK holds the eigenvectors
         ALLOCATE(CK(NDets,NEval),stat=ierr)
         CALL LogMemAlloc('CK',NDets*NEval,8,this_routine,CKTag,ierr)
 !The initial trial wavefuntion is set to zero        
-        CALL AZZERO(CK,NDets*NEval)
+        CK=0.d0
         ALLOCATE(CKN(NDets,NEval),stat=ierr)
         CALL LogMemAlloc('CKN',NDets*NEval,8,this_routine,CKNTag,ierr)
-        CALL AZZERO(CKN,NDets*NEval)
+        CKN=0.d0
 
 !Lanczos iterative diagonalisation routine
         IF(THDiag) THEN
@@ -2431,14 +2431,14 @@ MODULE GraphMorph
         
         
 !        ALLOCATE(temp(NDets))
-!        CALL AZZERO(temp,NDets)
+!        temp=0.d0
 !        OPEN(24,FILE='fort.23',Status='old')
 !        do i=1,NDets
 !            READ(24,*) temp(i)
 !        enddo
 
 !Store largest eigenvector - ?first? column of CK (zero it)
-        CALL AZZERO(Eigenvector,NDets)
+        Eigenvector=HElement(0.d0)
 
 !        SumVec=0.D0
 !        LancVar=0.D0
@@ -2607,7 +2607,7 @@ MODULE GraphMorph
 
         ALLOCATE(Eigenvalues(NDets),stat=ierr)
         CALL LogMemAlloc('Eigenvalues',NDets,8,this_routine,EigenvaluesTag,ierr)
-        CALL AZZERO(Eigenvalues,NDets)
+        Eigenvalues=0.d0
 
 !Workspace needed for diagonaliser
         ALLOCATE(Work(3*NDets),stat=ierr)
@@ -2639,7 +2639,7 @@ MODULE GraphMorph
         CALL LogMemDealloc(this_routine,WorkTag)
 
 !Store largest eigenvector - last column of GraphRhoMat (zero it)
-        CALL AZZERO(Eigenvector,NDets*HElementSize)
+        Eigenvector=HElement(0.d0)
 
         do i=1,NDets
             IF(THDiag) THEN

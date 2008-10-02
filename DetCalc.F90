@@ -212,15 +212,15 @@ CONTAINS
             WRITE(6,*) "CK Size",NDET*NEVAL*HElementSize
             Allocate(CkN(nDet*nEval), stat=ierr)
             LogAlloc(ierr,'CKN',nDet*nEval, HElementSizeB, tagCKN)
-            CALL AZZERO(CKN,NDET*NEVAL*HElementSize)
+            CKN=HElement(0.d0)
 !C..
             Allocate(Ck(nDet*nEval), stat=ierr)
             LogAlloc(ierr,'CK',nDet*nEval, HElementSizeB, tagCK)
-            CALL AZZERO(CK,NDET*NEVAL*HElementSize)
+            CK=HElement(0.d0)
 !C..
             allocate(W(nEval), stat=ierr)
             LogAlloc(ierr, 'W', nEval,8,tagW)
-            CALL AZZERO(W,NEVAL)
+            W=0.d0
          ENDIF
 !         IF(TREADRHO.AND..NOT.TREAD) THEN
 !            WRITE(10,*) "TREADRHO specified, but not TREAD.  Setting TREAD=.T."
@@ -316,7 +316,7 @@ CONTAINS
          LENHAMIL=GC
          Allocate(Hamil(LenHamil), stat=ierr)
          LogAlloc(ierr, 'HAMIL', LenHamil, HElementSizeB, tagHamil)
-         CALL AZZERO(HAMIL,LENHAMIL*HElementSize)
+         HAMIL=HElement(0.d0)
 !C..
          ALLOCATE(LAB(LENHAMIL),stat=ierr)
          CALL LogMemAlloc('LAB',LenHamil,4,this_routine,LabTag,ierr)
@@ -385,39 +385,39 @@ CONTAINS
 !*            CALL MEMORY(IP_A,NEVAL*NEVAL,'A')
             ALLOCATE(A(NEVAL,NEVAL),stat=ierr)
             CALL LogMemAlloc('A',NEVAL**2,8,this_routine,ATag,ierr)
-            CALL AZZERO(A,NEVAL*NEVAL)
+            A=0.d0
 !C..
 !C,, W is now allocated with CK
 !C..
 !*            CALL MEMORY(IP_V,NDET*NBLOCK*NKRY1,'V')
             ALLOCATE(V(NDET*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('V',NDET*NBLOCK*NKRY1,8,this_routine,VTag,ierr)
-            CALL AZZERO(V,NDET*NBLOCK*NKRY1)
+            V=0.d0
 !C..   
 !*            CALL MEMORY(IP_AM,NBLOCK*NBLOCK*NKRY1,'AM')
             ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
             CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,this_routine,AMTag,ierr)
-            CALL AZZERO(AM,NBLOCK*NBLOCK*NKRY1)
+            AM=0.d0
 !C..
 !*            CALL MEMORY(IP_BM,NBLOCK*NBLOCK*NKRY,'BM')
             ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,this_routine,BMTag,ierr)
-            CALL AZZERO(BM,NBLOCK*NBLOCK*NKRY)
+            BM=0.d0
 !C..
 !*            CALL MEMORY(IP_T,3*NBLOCK*NKRY*NBLOCK*NKRY,'T')
             ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,this_routine,TTag,ierr)
-            CALL AZZERO(T,3*NBLOCK*NKRY*NBLOCK*NKRY)
+            T=0.d0
 !C..
 !*            CALL MEMORY(IP_WT,NBLOCK*NKRY,'WT')
             ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
             CALL LogMemAlloc('WT',NBLOCK*NKRY,8,this_routine,WTTag,ierr)
-            CALL AZZERO(WT,NBLOCK*NKRY)
+            WT=0.d0
 !C..
 !*            CALL MEMORY(IP_SCR,LSCR,'SCR')
             ALLOCATE(SCR(LScr),stat=ierr)
             CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-            CALL AZZERO(SCR,LSCR)
+            SCR=0.d0
 !*            CALL MEMORY(IP_ISCR,LISCR,'ISCR')
             ALLOCATE(ISCR(LIScr),stat=ierr)
             CALL LogMemAlloc('IScr',LIScr,4,this_routine,IScrTag,ierr)
@@ -430,15 +430,15 @@ CONTAINS
 !*            CALL MEMORY(IP_WH,NDET,'WH')
             ALLOCATE(WH(NDET),stat=ierr)
             CALL LogMemAlloc('WH',NDET,8,this_routine,WHTag,ierr)
-            CALL AZZERO(WH,NDET)
+            WH=0.d0
 !*            CALL MEMORY(IP_WORK2,3*NDET,'WORK2')
             ALLOCATE(WORK2(3*NDET),stat=ierr)
             CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-            CALL AZZERO(WORK2,3*NDET)
+            WORK2=0.d0
 !*            CALL MEMORY(IP_V2,NDET*NEVAL,'V2')
             ALLOCATE(V2(NDET,NEVAL),stat=ierr)
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
-            CALL AZZERO(V2,NDET*NEVAL)
+            V2=0.d0
 !C..Lanczos iterative diagonalising routine
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
      &  SCR,ISCR,INDEX,WH,WORK2,V2,NCYCLE,B2L,.true.,.false.,.false.)
@@ -584,7 +584,7 @@ CONTAINS
 !*        CALL MEMORY(IP_DLINE,NMSH,'DLINE')
         ALLOCATE(DLINE(NMSH),stat=ierr)
         CALL LogMemAlloc('DLINE',NMSH,8,this_routine,DLINETag,ierr)
-        CALL AZZERO(DLINE,NMSH)
+        DLINE=0.d0
 !C..Calculate RHOOFR in certain directions
 !C..001
         CALL PLANARAV(RHO,NMSH,DLINE,0,0,1,SPAC,ALAT)
@@ -603,7 +603,7 @@ CONTAINS
           CALL LogMemAlloc('XCHOLE',NMSH**3,8,this_routine,XCHOLETag,ierr)
           ALLOCATE(PSIR(-NMSH:NMSH),stat=ierr)
           CALL LogMemAlloc('PSIR',2*NMSH+1,8,this_routine,PSIRTag,ierr)
-          CALL AZZERO(PSIR,2*NMSH+1)
+          PSIR=0.d0
 !C..
           IXD=1
           IYD=0
@@ -629,7 +629,7 @@ CONTAINS
 !*        CALL MEMORY(IP_SUMA,NMAXX*NMAXY*NMAXZ,'SUMA')
         ALLOCATE(SUMA(NMAXX,NMAXY,NMAXZ),stat=ierr)
         CALL LogMemAlloc('SUMA',NMAXX*NMAXY*NMAXZ,8,this_routine,SUMATag,ierr)
-        CALL AZZERO(SUMA,NMAXX*NMAXY*NMAXZ)
+        SUMA=0.d0
         CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
     End Subroutine CalcFoDM
 END MODULE DetCalc

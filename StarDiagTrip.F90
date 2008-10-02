@@ -162,13 +162,13 @@
         IF(TFullDiag) THEN
             ALLOCATE(ExcitMat(ExcitCount+1,ExcitCount+1),stat=ierr)
             CALL LogMemAlloc('ExcitMat',(ExcitCount+1)**2,8,this_routine,ExcitMatTag)
-            CALL AZZERO(ExcitMat,(ExcitCount+1)**2)
+            ExcitMat=0.d0
 
             ExcitMat(1,1)=1.D0
 
             ALLOCATE(HamMat(ExcitCount+1),stat=ierr)
             CALL LogMemAlloc('HamMat',ExcitCount+1,8,this_routine,HamMatTag)
-            CALL AZZERO(HamMat,(ExcitCount+1))
+            HamMat=0.d0
             Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
             HamMat(1)=Hii%v
             
@@ -176,7 +176,7 @@
 
         ALLOCATE(ExcitInfo(0:ExcitCount,0:2),stat=ierr)
         CALL LogMemAlloc('ExcitInfo',(ExcitCount+1)*3,8*HElementSize,this_routine,ExcitInfoTag)
-        CALL AZZERO(ExcitInfo,(ExcitCount+1)*3*HElementSize)
+        ExcitInfo=HElement(0.d0)
 
 !Still divide all elements by rhii
         ExcitInfo(0,0)=HElement(1.D0)
@@ -217,7 +217,7 @@
 !Allocate memory for triples star
                 ALLOCATE(TripsInfo(0:Triples(j),0:1),stat=ierr)
                 CALL LogMemAlloc('TripsInfo',(Triples(j)+1)*2,8*HElementSize,this_routine,TripsInfoTag)
-                CALL AZZERO(TripsInfo,(Triples(j)+1)*2*HElementSize)
+                TripsInfo=HElement(0.d0)
 
 !Need to divide everything by the rhjj element. The final eigenvalues will need to be multiplied by them at the end
                 TripsInfo(0,0)=HElement(1.D0)

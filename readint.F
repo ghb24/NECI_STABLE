@@ -90,7 +90,7 @@ C.. SHow that there's no momentum conservation
         
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          CALL IAZZERO(G1,BasisFNSize*LEN)
-         CALL AZZERO(ARR,ISPINS*LEN)
+         ARR=0.d0
          IF(TBIN) THEN
             IF(UHF) STOP 'UHF Bin read not functional'
             MASK=(2**16)-1

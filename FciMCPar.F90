@@ -296,7 +296,7 @@ MODULE FciMCParMod
 
                     do l=1,abs(Child)
 !Copy across children - cannot copy excitation generators, as do not know them
-                        CALL ICOPY(NEl,nJ(:),1,NewDets(:,VecSlot),1)
+                        CALL NECI_ICOPY(NEl,nJ(:),1,NewDets(:,VecSlot),1)
 !                        NewDets(:,VecSlot)=nJ(:)
                         NewSign(VecSlot)=WSign
                         IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
@@ -323,7 +323,7 @@ MODULE FciMCParMod
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
         
                     do l=1,abs(iDie)+1    !We need to copy accross one more, since we need to include the original spared particle
-                        CALL ICOPY(NEl,CurrentDets(:,j),1,NewDets(:,VecSlot),1)
+                        CALL NECI_ICOPY(NEl,CurrentDets(:,j),1,NewDets(:,VecSlot),1)
 !                        NewDets(:,VecSlot)=CurrentDets(:,j)
                         NewSign(VecSlot)=CurrentSign(j)
 !Copy excitation generator accross
@@ -340,7 +340,7 @@ MODULE FciMCParMod
 !However, after that anti-particles will need to be created on the same determinant.
 
                     do l=1,iDie-1
-                        CALL ICOPY(NEl,CurrentDets(:,j),1,NewDets(:,VecSlot),1)
+                        CALL NECI_ICOPY(NEl,CurrentDets(:,j),1,NewDets(:,VecSlot),1)
 !                        NewDets(:,VecSlot)=CurrentDets(:,j)
                         IF(CurrentSign(j)) THEN
 !Copy accross new anti-particles
@@ -1312,7 +1312,7 @@ MODULE FciMCParMod
                 
 !Now actually create the particles in NewDets and NewSign
                 do j=1,abs(Create)
-                    CALL ICOPY(NEl,DetsInGraph(:,i),1,NewDets(:,VecSlot),1)
+                    CALL NECI_ICOPY(NEl,DetsInGraph(:,i),1,NewDets(:,VecSlot),1)
                     NewSign(VecSlot)=TempSign
                     NewIC(VecSlot)=ExcitLevel
                     NewH(VecSlot)=GraphKii(i)       !Diagonal H El previously stored
@@ -1393,14 +1393,14 @@ MODULE FciMCParMod
 !
 !        ELSE
             
-            CALL AZZERO(GraphVec,NDets)
+            GraphVec(1:NDets)=0.d0
             GraphVec(1)=1.D0        !Set the initial vector to be 1 at the root (i.e. for one walker initially)
         
             do i=1,RhoApp
 
                 CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
                 CALL DCOPY(NDets,TempVec,1,GraphVec,1)
-                CALL AZZERO(TempVec,NDets)
+                TempVec(1:nDets)=0.d0
             
 !            do j=1,NDets
 !                TempVec(j)=0.D0
@@ -1900,10 +1900,10 @@ MODULE FciMCParMod
             CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
             ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
-            CALL AZZERO(WalkVecH,MaxWalkers)
+            WalkVecH=0.d0
             ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
-            CALL AZZERO(WalkVec2H,MaxWalkers)
+            WalkVec2H=0.d0
             
             MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
 
@@ -2265,10 +2265,10 @@ MODULE FciMCParMod
         CALL IAZZERO(WalkVec2IC,MaxWalkers)
         ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
-        CALL AZZERO(WalkVecH,MaxWalkers)
+        WalkVecH=0.d0
         ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
-        CALL AZZERO(WalkVec2H,MaxWalkers)
+        WalkVec2H=0.d0
 
         MemoryAlloc=(8+(2*NEl))*MaxWalkers*4    !Memory allocated in bytes
 
@@ -2390,10 +2390,10 @@ MODULE FciMCParMod
         CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
         ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
-        CALL AZZERO(WalkVecH,MaxWalkers)
+        WalkVecH=0.d0
         ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
-        CALL AZZERO(WalkVec2H,MaxWalkers)
+        WalkVec2H=0.d0
         
         MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
 
@@ -2436,7 +2436,7 @@ MODULE FciMCParMod
 
         ALLOCATE(MP1Comps(HFConn),stat=ierr)    !This will store the cumulative absolute values of the mp1 wavevector components
         CALL LogMemAlloc('MP1Comps',HFConn,8,this_routine,MP1CompsTag,ierr)
-        CALL AZZERO(MP1Comps,HFConn)
+        MP1Comps=0.d0
         ALLOCATE(MP1Dets(NEl,HFConn),stat=ierr)
         CALL LogMemAlloc('MP1Dets',HFConn*NEl,4,this_routine,MP1DetsTag,ierr)
         CALL IAZZERO(MP1Dets,NEl*HFConn)

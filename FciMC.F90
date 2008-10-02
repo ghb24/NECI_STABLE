@@ -939,7 +939,7 @@ MODULE FciMCMod
         LOGICAL :: SameDet,CompiPath
         TYPE(HElement) :: Hamij,Hamii
 
-        CALL AZZERO(GraphRhoMat,NDets*NDets)
+        GraphRhoMat=0.d0
 
 !Do not need to put the root determinant in the first column of DetsinGraph -
 !just assume its there.
@@ -1011,14 +1011,14 @@ MODULE FciMCMod
         REAL*8 :: TempVec(NDets)
         INTEGER :: i,j,k
 
-        CALL AZZERO(GraphVec,NDets)
+        GraphVec=0.d0
         GraphVec(1)=1.D0        !Set the initial vector to be 1 at the root (i.e. for one walker initially)
 
         do i=1,RhoApp
 
             CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
             CALL DCOPY(NDets,TempVec,1,GraphVec,1)
-            CALL AZZERO(TempVec,NDets)
+            TempVec=0.d0
 
 !            do j=1,NDets
 !                TempVec(j)=0.D0
@@ -1788,18 +1788,18 @@ MODULE FciMCMod
             CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
             ALLOCATE(WalkVecH(2,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkers*2,8,this_routine,WalkVecHTag,ierr)
-            CALL AZZERO(WalkVecH,2*MaxWalkers)
+            WalkVecH=0.d0
             ALLOCATE(WalkVec2H(2,MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2H',MaxWalkers*2,8,this_routine,WalkVec2HTag,ierr)
-            CALL AZZERO(WalkVec2H,2*MaxWalkers)
+            WalkVec2H=0.d0
 
             IF(TUnbiasPGeninProjE) THEN
                 ALLOCATE(WalkVecPGen(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('WalkVecPGen',MaxWalkers,8,this_routine,WalkVecPGenTag,ierr)
-                CALL AZZERO(WalkVecPgen,MaxWalkers)
+                WalkVecPgen=0.d0
                 ALLOCATE(WalkVec2PGen(MaxWalkers),stat=ierr)
                 CALL LogMemAlloc('WalkVec2PGen',MaxWalkers,8,this_routine,WalkVec2PGenTag,ierr)
-                CALL AZZERO(WalkVec2PGen,MaxWalkers)
+                WalkVec2PGen=0.d0
                 MemoryAlloc=((2*NEl)+16)*4*MaxWalkers
 
                 CurrentPGen=>WalkVecPGen
@@ -2021,10 +2021,10 @@ MODULE FciMCMod
         CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
         ALLOCATE(WalkVecH(2,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecH',MaxWalkers*2,8,this_routine,WalkVecHTag,ierr)
-        CALL AZZERO(WalkVecH,2*MaxWalkers)
+        WalkVecH=0.d0
         ALLOCATE(WalkVec2H(2,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2H',MaxWalkers*2,8,this_routine,WalkVec2HTag,ierr)
-        CALL AZZERO(WalkVec2H,2*MaxWalkers)
+        WalkVec2H=0.d0
 
         MemoryAlloc=((2*NEl)+12)*4*MaxWalkers
 
@@ -2044,7 +2044,7 @@ MODULE FciMCMod
 
         ALLOCATE(MP1Comps(HFConn),stat=ierr)    !This will store the cumulative absolute values of the mp1 wavevector components
         CALL LogMemAlloc('MP1Comps',HFConn,8,this_routine,MP1CompsTag,ierr)
-        CALL AZZERO(MP1Comps,HFConn)
+        MP1Comps=0.d0
         ALLOCATE(MP1Dets(NEl,HFConn),stat=ierr)
         CALL LogMemAlloc('MP1Dets',HFConn*NEl,4,this_routine,MP1DetsTag,ierr)
         CALL IAZZERO(MP1Dets,NEl*HFConn)
@@ -2212,7 +2212,7 @@ MODULE FciMCMod
 !The HF component is 1, since we are working with an unnormalised eigenvector.
 !        ALLOCATE(MP2ExcitComps(NEl,NEl,nBasis-NEl,nBasis-NEl),stat=ierr)
 !        CALL LogMemAlloc("MP2ExcitComps",NEl*NEl*(nBasis-NEl)**2,8,this_routine,MP2ExcitCompsTag,ierr)
-!        CALL AZZERO(MP2ExcitComps,NEl*NEl*(nBasis-NEl)**2)
+!        MP2ExcitComps=0.d0
 !
 !!To store in excitation form - need to be able to order orbitals purely in terms of energy, so setup INVBRR
 !!This is different to the INVBRR in UMatCache, since it works with spin-orbitals
@@ -2472,10 +2472,10 @@ MODULE FciMCMod
         CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
         ALLOCATE(WalkVecH(2,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecH',MaxWalkers*2,8,this_routine,WalkVecHTag,ierr)
-        CALL AZZERO(WalkVecH,2*MaxWalkers)
+        WalkVecH=0.d0
         ALLOCATE(WalkVec2H(2,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVec2H',MaxWalkers*2,8,this_routine,WalkVec2HTag,ierr)
-        CALL AZZERO(WalkVec2H,2*MaxWalkers)
+        WalkVec2H=0.d0
             
         MemoryAlloc=((2*NEl)+12)*4*MaxWalkers
 
@@ -3086,8 +3086,8 @@ END FUNCTION Fact
 !        ENDIF
 !
 !        ALLOCATE(TempVec(Components),stat=ierr)
-!        CALL AZZERO(GraphVec,Components)
-!        CALL AZZERO(TempVec,Components)
+!        GraphVec=0.d0
+!        TempVec=0.d0
 !
 !        GraphVec(1)=1.D0    !Set the initial vector to be 1 at the root (i.e. for one walker initially)
 !
@@ -3095,7 +3095,7 @@ END FUNCTION Fact
 !
 !            CALL DGEMV('n',Components,Components,1.D0,GraphRhoMat,Components,GraphVec,1,0.D0,TempVec,1)
 !            CALL DCOPY(Components,TempVec,1,GraphVec,1)
-!            CALL AZZERO(TempVec,Components)
+!            TempVec=0.d0
 !
 !!            do j=1,Components
 !!                TempVec(j)=0.D0
@@ -3134,10 +3134,10 @@ END FUNCTION Fact
 !            ALLOCATE(GraphRhoMat(TotComps,TotComps),stat=ierr)
 !            ALLOCATE(GraphVec(TotComps),stat=ierr)
 !            ALLOCATE(DetsinGraph(NEl,TotComps),stat=ierr)
-!            CALL AZZERO(GraphRhoMat,TotComps**2)
+!            GraphRhoMat=0.d0
 !            CALL IAZZERO(DetsinGraph,NEl*TotComps)
 !        ELSE
-!            CALL AZZERO(GraphRhoMat,NDets**2)
+!            GraphRhoMat=0.d0
 !        ENDIF
 !
 !        DetsInGraph(:,1)=nI(:)
@@ -3911,7 +3911,7 @@ END FUNCTION Fact
 !
 !            ALLOCATE(Eigenvector(iMaxExcit+1),stat=ierr)
 !            CALL LogMemAlloc('Eigenvector',iMaxExcit+1,8,this_routine,EigenvectorTag,ierr)
-!            CALL AZZERO(Eigenvector,iMaxExcit+1)
+!            Eigenvector=0.d0
 !
 !!Also need to store the determinants which each component of the eigenvector refers to...
 !            ALLOCATE(ExcitStore(NEl,iMaxExcit+1),stat=ierr)
@@ -4288,10 +4288,10 @@ END FUNCTION Fact
 !
 !                ALLOCATE(PopsVec(SizeofSpace),stat=ierr)
 !                CALL LogMemAlloc('PopsVec',SizeofSpace,8,this_routine,PopsVecTag)
-!                CALL AZZERO(PopsVec,SizeofSpace)
+!                PopsVec=0.d0
 !                ALLOCATE(TransMat(SizeofSpace,SizeofSpace),stat=ierr)
 !                CALL LogMemAlloc('TransMat',SizeofSpace**2,8,this_routine,TransMatTag)
-!                CALL AZZERO(TransMat,SizeofSpace**2)
+!                TransMat=0.d0
 !
 !                IF(DetLT(NMRKS(:,1),FDet,NEl).ne.0) THEN
 !                    WRITE(6,*) "Problem with NMRKS"

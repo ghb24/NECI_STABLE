@@ -1887,7 +1887,7 @@ C.. GETPATHPROB gives us the probability of generating the path
             ICLS=0
             IF(TMPTHEORY) THEN
 ! MP Theory requires HDIAG
-               CALL AZZERO(MPEs,I_VMAX-1)
+               MPEs=HDElement(0.d0)
                CALL AddMPEnergy(RHOIJ,i_V,i_vmax,NMAX,nBasis,
      &            iPath,nEl,.false.,ECORE,MPEs)
                ETILDE=0.D0

@@ -374,7 +374,7 @@ MODULE UMatCache
             call LogMemAlloc('UMatCache',nTypes*nSlots*nPairs,8*HelementSize,thisroutine,tagUMatCacheData)
             Allocate(UMatLabels(nSlots,nPairs), STAT=ierr)
             CALL LogMemAlloc('UMATLABELS',nSlots*nPairs,4,thisroutine,tagUMatLabels)
-            CALL AZZERO(UMatCacheData,nTypes*HElementSize*nPairs*nSlots)
+            UMatCacheData=HElement(0.d0)
             CALL IAZZERO(UMATLABELS,nPairs*nSlots)
             if (.not.tSmallUMat.and.tReadInCache) then
                 write (6,*) 'reading in cache'

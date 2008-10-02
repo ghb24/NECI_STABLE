@@ -12,7 +12,7 @@ C ==-----------------------------------------------------------------==
       call set_timer(proc_timer)
 C ==-----------------------------------------------------------------==
 C..Run over rows
-      CALL AZZERO(CKN,NDET*NEVAL)
+      CKN=0.d0
       DO I=1,NDET
 C..Run over columns
          IF(I.EQ.1) THEN 

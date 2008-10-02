@@ -178,7 +178,7 @@ C.. NMAX has ARR hidden in it.
      &             iPath(1,i_V-1),NEL,NBASISMAX,UMat,ALat,nBasis,
      &               NBASISMAX(2,3),G1)
                Endif
-               CALL AZZERO(MPEs,i_VMax-1)
+               MPEs=HDElement(0.d0)
                CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,
      &            iPath,nEl,tLog,ECORE,MPEs)
                MPEn=0.D0

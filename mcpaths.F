@@ -2251,7 +2251,7 @@ C         WRITE(19,*) N
             RETURN
          ENDIF
             
-         CALL AZZERO(MAT,ILEN*ILEN)
+         MAT=0.d0
 C.. Now we fill the RIJ array
          II=0
          DO I=1,ILEN

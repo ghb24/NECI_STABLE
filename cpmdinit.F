@@ -145,7 +145,7 @@ C.. group
          allocate(SymLabelChars(nRot,nSymLabels))
          call LogMemAlloc('SymLabelChars',nSymLabels*nRot*2,16,
      &                                    this_routine,tagSymLabelChars)
-         CALL AZZERO(SYMLABELCHARS,NSYMLABELS*NROT*2)
+         SYMLABELCHARS=0.d0
          allocate(SymLabels(nSymLabels))
          call LogMemAlloc('SymLabels',nSymLabels,4,this_routine,
      &                                                     tagSymLabels)

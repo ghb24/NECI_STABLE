@@ -391,7 +391,7 @@ contains
             
             Allocate(TMATSYM(-1:iSize),STAT=ierr)
             Call LogMemAlloc('TMATSym',iSize+2,HElementSize*8,thisroutine,tagTMATSYM,ierr)
-            Call AZZERO(TMATSYM,HElementSize*(iSize+2))
+            TMATSYM=HElement(0.d0)
 
         ELSE
 
@@ -400,7 +400,7 @@ contains
             iSize=nBasis*nBasis
             Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
             call LogMemAlloc('TMAT2D',nBasis*nBasis,HElementSize*8,thisroutine,tagTMat2D)
-            Call AZZERO(TMAT2D,HElementSize*iSize)
+            TMAT2D=HElement(0.d0)
         
         ENDIF
     
@@ -496,7 +496,7 @@ contains
             
             Allocate(TMATSYM2(-1:iSize),STAT=ierr)
             CALL LogMemAlloc('TMatSym2',iSize+2,HElementSize*8,thisroutine,tagTMATSYM2,ierr)
-            CALL AZZERO(TMATSYM2,HElementSize*(iSize+2))
+            TMATSYM2=HElement(0.d0)
 
         ELSE
 
@@ -505,7 +505,7 @@ contains
             iSize=nBasisFRZ*nBasisFRZ
             Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
             call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElementSize*8,thisroutine,tagTMat2D2)
-            Call AZZERO(TMAT2D2,HElementSize*iSize)
+            TMAT2D2=HElement(0.d0)
         
         ENDIF
       END SUBROUTINE SetupTMat2

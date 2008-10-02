@@ -615,7 +615,7 @@ MODULE System
       LogAlloc(ierr,'Arr',2*LEN,8,tagArr)
 ! // TBR
 !      IP_ARRSTORE=IP_ARR
-      CALL AZZERO(ARR,2*LEN)
+      ARR=0.d0
       Allocate(Brr(LEN),STAT=ierr)
       LogAlloc(ierr,'Brr',LEN,4,tagBrr)
       CALL IAZZERO(BRR,LEN)

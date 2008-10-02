@@ -6,7 +6,7 @@
       DIMENSION SITAB(NMSH,NMAX)
       TYPE(BasisFN) G1(NHG)
 C..
-      CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
+      AUXC=0.d0
       DO KI=1,NEL-1
         DO KJ=KI+1,NEL
 C..

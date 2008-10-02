@@ -419,7 +419,7 @@ C         CLOSE(36)
 C.. Diagonalize
          proc_timer%timer_name='RHODIAG_CP'
          call set_timer(proc_timer)
-         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         RIJMAT(1:I_V,1:I_V)=0.d0
          DO I=1,I_V
             DO J=I,I_V
                RIJMAT(I,J)=RHOIJ(I-1,J-1)+0.D0
@@ -503,7 +503,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='HDIAG_CPP '
          call set_timer(proc_timer,55)
-         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
          DLWDB=0.D0
          II=0
          DO I=1,I_V+1
@@ -632,7 +632,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
-         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
          IF(DBETA.NE.0.D0) DLWDB=0.D0
          II=0
          DO I=1,I_V+1
@@ -808,7 +808,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
-         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
          DO J=1,I_V
             RIJMAT(1,J)=RHOIJ(1,J)
             RIJMAT(J,J)=RHOIJ(J,J)
@@ -918,7 +918,7 @@ C.. Diagonalize
 C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='HDIAG_CPP '
          call set_timer(proc_timer,55)
-         CALL AZZERO(RIJMAT(1,1),I_V*I_V)
+         RIJMAT(1:I_V,1:I_V)=HElement(0.d0)
          II=0
          DO I=1,I_V
             RIJMAT(I,J)=HIJ(I,J)

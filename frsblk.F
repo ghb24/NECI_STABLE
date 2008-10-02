@@ -438,10 +438,10 @@ C..Compute residual
         CALL DAXPY(M,-W(I),V(1,I,1),1,V(1,I,2),1)
       ENDDO
 C..V2 B2=R  
-      CALL AZZERO(BM,N*N*NKRY)
+      BM=0.d0
       CALL NECI_MGS(M,N,V(1,1,2),M,BM(1,1,2),N)
 C..   Setup A_1=diag(w)
-      CALL AZZERO(AM,N*N)
+      AM(:,:,1)=0.d0
       DO I=1,N 
         AM(I,I,1)=W(I)
       ENDDO
@@ -496,10 +496,10 @@ C..
         WRITE(6,*) 'N:',N
         STOP 'LSCR LT N '
       ENDIF
-      CALL AZZERO(SCR,N)
+      SCR(1:N)=0.d0
       DO J=1,N
         CALL DCOPY(N,A(1,J),1,SCR,1)
-        CALL AZZERO(A(1,J),N)
+        A(1:N,J)=0.d0
         IBEG=MAX(J-KD,1)
         DO I=IBEG,J
           A(1+KD+I-J,J)=SCR(I)

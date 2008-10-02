@@ -1636,7 +1636,7 @@ C.. Set to be totally symmetric
       allocate(SymClasses(nStates))
       call LogMemAlloc('SymClasses',nStates,4,this_routine,
      &                                                    tagSymClasses)
-      CALL AZZERO(SYMLABELCHARS,nSymLabels*nRot*2)
+      SYMLABELCHARS=0.d0
       DO I=1,nStates
         SymClasses(I)=KpntInd(I)
         SymLabels(KPntInd(I))%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))

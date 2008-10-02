@@ -139,7 +139,7 @@
 !Allocate Memory for ExcitInfo
       ALLOCATE(EXCITINFO(0:totexcits,0:2),stat=ierr)
       CALL LogMemAlloc("EXCITINFO",3*(totexcits+1),8,t_r,tagEXCITINFO,iErr)
-      CALL AZZERO(EXCITINFO,3*(totexcits+1))
+      EXCITINFO=HElement(0.d0)
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
       CALL CalcRho2(nI,nI,Beta,i_P,nEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
@@ -218,7 +218,7 @@
 !Array to store rho elements of node - this is the matrix to be diagonalised.
         ALLOCATE(NODERHOMAT(novirt*novirt),stat=ierr)
         CALL LogMemAlloc("NODERHOMAT",novirt*novirt,8,t_r,tagNODERHOMAT,iErr)
-        CALL AZZERO(NODERHOMAT,novirt*novirt)
+        NODERHOMAT=0.d0
 
 !First deal with diagonal elements
         do i=1,novirt

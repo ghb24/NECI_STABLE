@@ -368,7 +368,7 @@ MODULE Integrals
          CALL GetUMatSize(nBasis,nEl,2,UMATINT)
          Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
-         Call AZZERO(UMat,HElementSize*UMatInt)
+         UMat=HElement(0.d0)
          CALL SETUPUMAT2D_DF()
          IF(TBIN) THEN
              CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
@@ -389,7 +389,7 @@ MODULE Integrals
          WRITE(6,*) "UMatSize: ",UMATINT
          Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
-         Call AZZERO(UMat,HElementSize*UMatInt)
+         UMat=HElement(0.d0)
     !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          IF(TBIN) THEN
@@ -410,7 +410,7 @@ MODULE Integrals
                   CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
                   Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
-                  Call AZZERO(UMat,HElementSize*UMatInt)
+                  UMat=HElement(0.d0)
                   CALL CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,UMAT)
                ELSEIF(THUB.AND..NOT.TPBC) THEN
     !!C.. we pre-compute the 2-e integrals
@@ -419,7 +419,7 @@ MODULE Integrals
                   CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
                   Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
-                  Call AZZERO(UMat,HElementSize*UMatInt)
+                  UMat=HElement(0.d0)
     !!C.. Non-periodic hubbard (mom space)
                   CALL GEN_COUL_HUBNPBC(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,THUB,UHUB,OMEGA)
                ELSE
@@ -460,7 +460,7 @@ MODULE Integrals
                CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
                Allocate(UMat(UMatInt), stat=ierr)
                LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
-               Call AZZERO(UMat,HElementSize*UMatInt)
+               UMat=HElement(0.d0)
                CALL GEN_COUL(NEL,NBASISMAX,nBasis,G1,NMSH,NMAX,FCK,UMAT,ISPINSKIP,ZIA)
                deallocate(ZIA)
                LogDealloc(tagZIA)
@@ -475,7 +475,7 @@ MODULE Integrals
          CALL MEMORY_CHECK()
     !!C.. we need to generate TMAT - Now setup in individual routines
          !CALL MEMORY(IP_TMAT,HElementSize*nBasis*nBasis,'TMAT')
-         !CALL AZZERO(TMAT,HElementSize*nBasis*nBasis)
+         !TMAT=HElement(0.d0)
          IF(THUB) THEN
             CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
          ELSE
@@ -526,12 +526,12 @@ MODULE Integrals
          NBASIS=NBASIS-NFROZEN-NTFROZEN
 !!C.. We need to transform some integrals
          !CALL MEMORY(IP_TMAT2,HElementSize*(NBASIS)**2,'TMAT2')
-         !CALL AZZERO(TMAT2,HElementSize*(NBASIS)**2)
+         !TMAT2=HElement(0.d0)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
             CALL GetUMatSize(nBasis,(nEl-NFROZEN),iSpinSkip,UMATINT)
                 Allocate(UMat2(UMatInt), stat=ierr)
                 LogAlloc(ierr, 'UMat2', UMatInt,HElementSizeB, tagUMat)
-            CALL AZZERO(UMAT2,HElementSize*UMATINT)
+            UMAT2=HElement(0.d0)
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
             Allocate(UMat2(1), stat=ierr)

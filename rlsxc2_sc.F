@@ -8,7 +8,7 @@ C..Cube array
       INTEGER IDS(4)
       EXTERNAL U1
 C..Zero ND1 and ND2
-      CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
+      AUXC=0.d0
       CALL IAZZERO(ND1,2)
       CALL IAZZERO(ND2,2)
 C..IQ ensures that only two differences are recorded
@@ -45,7 +45,7 @@ C..This routine compares NDET2 to NDET1
 C.. 
       CALL IAZZERO(IDS,4)
       CALL GENKRON2(G1,NHG,ND1,ND2,IDS)
-      CALL AZZERO(AUXC,NMSH*NMSH*NMSH)
+      AUXC=0.d0
 C..
 C..electron in orbital ND1(1) at position R1Z, 0 
       U1ND11R1=U1(ND1(1),NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)

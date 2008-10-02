@@ -193,7 +193,7 @@ C.. Thus the sum A+C must be even, as must B+D
            ENDDO
           ENDDO
          ENDDO
-         CALL AZZERO(UMAT2,NBASIS**4)
+         UMAT2(1:nBasis**4)=0.d0
          WRITE(6,*) "Index 4..."
          DO A=1,NORBUSED
           DO B=1,NORBUSED
@@ -324,8 +324,8 @@ C         IF(TRHF) NSPINS=1
          call LogMemAlloc('HFES',NSBASIS*NSPINS,8,this_routine,tagHFES)
 C.. Generate initial HFBASIS vectors as the energy ordered single
 C.. particle basis fns, separated into up and down blocks
-         CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS*HElementSize)
-         CALL AZZERO(DMAT,NSBASIS*NSBASIS*NSPINS*HElementSize)
+         FMAT=HElement(0.d0)
+         DMAT=HElement(0.d0)
          IF(IHFMETHOD.EQ.0.OR.IHFMETHOD.EQ.-1) THEN
             CALL UHFSCF(NBASIS,ISS,NBASISMAX,G1,ARR,BRR,ECORE,
      &         UMAT,HFE,HFBASIS,NHFIT,NEL,MS,FMAT,DMAT,ODMAT,WORK,
@@ -482,7 +482,7 @@ C.. Now add back in some of our original F matrix
       IF(BTEST(ILOGGING,11))
      &   CALL WRITEHFPSIALL(NBASIS,FMAT,HFES,G1,NSPINS,NSBASIS,.FALSE.) 
 C.. We write out HFMAT  
-      CALL AZZERO(HFBASIS,NBASIS*NBASIS*HElementSize)
+      HFBASIS=HElement(0.d0)
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
               K=(I-1)*NSPINS+ISPN
@@ -564,7 +564,7 @@ C         ELSE
             RHFMUL=1.D0
 C         ENDIF
 C.. Construct the Fock Matrix
-         CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS*HElementSize)
+         FMAT=HElement(0.d0)
 C. <ui|F|uj>=tij+Sum_kl(Dkl <ui uk|U|uj ul>-s<ui uk|U|ul uj>) where s=1 if i,k same spin
          DO ISPN=1,NSPINS
             DO I=1,NSBASIS
@@ -738,7 +738,7 @@ C.. vector unless transposed
          ISEED=1007
          irand=1
          R=RAN2(irand)
-         CALL AZZERO(FMAT,NSBASIS*NSBASIS*NSPINS)
+         FMAT=HElement(0.d0)
          WRITE(6,*) "Generating HF Guess..."
          NEL=0
          DO IS=1,NSPINS
@@ -1055,7 +1055,7 @@ C.. Cij - i corresponds to rows and new basis functions, phi_i
 C..       j corresponds to columns and old basis functions, u_j
 C.. phi_i=sum_j=1,M cij u_j
          
-C         CALL AZZERO(VMAT,NSPINS*NSBASIS*NSBASIS)
+C         VMAT=0.d0
          IF(TREADHF) THEN
            CALL  READHFFMAT(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.)
          ELSE
@@ -1133,7 +1133,7 @@ C     &         NSBASIS,01.D0,VMAT(1,1,ISPN),NSBASIS,R1,NSBASIS)
 C.. Remove the projection of the "force" already in the direction of
 C.. the coefficients
             DO ISPN=1,NSPINS
-              CALL AZZERO(R1,NSBASIS*NSBASIS)
+              R1=0.d0
               DO I=1,NELS(ISPN)
                TOT=0.D0
                DO J=1,NSBASIS
@@ -1241,7 +1241,7 @@ C                        HFES(I,ISPN)=HFES(I,ISPN)-EN
 C.. Now re-order the orbitals
 C.. although we don't actually use this info
          DO ISPN=1,NSPINS
-            CALL AZZERO(R1,NSBASIS*NSBASIS)
+            R1=0.d0
             DO I=1,NSBASIS
 C.. If R1(2,1) is occupied, then postmultiplying C by R1 moves
 C.. column 2 in C to column 1.
@@ -1281,7 +1281,7 @@ C     &               INORDER(I,ISPN)
       IF(BTEST(ILOGGING,11))
      &   CALL WRITEHFPSIALL(NBASIS,CMAT,HFES,G1,NSPINS,NSBASIS,.TRUE.) 
 C.. We write out HFMAT  
-      CALL AZZERO(HFBASIS,NBASIS*NBASIS)
+      HFBASIS=0.d0
          DO I=1,NSBASIS
             DO ISPN=1,NSPINS
               K=(I-1)*NSPINS+ISPN
@@ -1314,7 +1314,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER I,J,K,L,M,ISPN
          INTEGER NELEX,NELNEW,IPOSO,IPOSN,ISGNCH
          REAL*8 ECUR,SCRRES,GETHELEMENT2T,TOT
-            CALL AZZERO(DEDCIJ,NSBASIS*NSBASIS*NSPINS)
+            DEDCIJ=0.d0
             DO ISPN=1,NSPINS
              DO I=1,NELS(ISPN)
 C.. First find out which new basis function index this is
@@ -1384,7 +1384,7 @@ C.. TOT now contains dE/dcij, so we store this
 C.. We calculate dE/dcij as
 C.. dE/dc_kf = 2(Sum_a c_ka <a|h|f> 
 C.. +Sum_j Sum_abc c_ja c_kb c_jc (<af|U|cb>-<af|U|bc>+<ab|U|cf>-<ab|U|fc>)) 
-         CALL AZZERO(DEDCIJ,NSBASIS*NSBASIS*NSPINS)
+         DEDCIJ=0.d0
          DO KSPN=1,NSPINS
 C.. K is an HF orbital
             DO K=1,NELS(KSPN)

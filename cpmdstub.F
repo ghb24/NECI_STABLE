@@ -27,7 +27,7 @@ C         OCC=F(ISTATE)
          IMPLICIT NONE
          REAL*8 INTS(NSTATES,NSTATES)
          REAL*8 XIS
-         CALL AZZERO(INTS,NSTATES*NSTATES)
+         INTS=0.d0
       END
 
       subroutine GetKPInd(IndA,IndB,IndC,IndD)

@@ -111,7 +111,7 @@ C ==---------------------------------------------------------------------==
       DIMENSION RHO(NMESHX,NMESHX,NMESHX)
       DIMENSION DLINE(NMESHX),ALAT(3)
 C..
-      CALL AZZERO(DLINE,NMESHX)
+      DLINE=0.d0
       IF(I.EQ.0.AND.J.EQ.0.AND.K.EQ.1) THEN
          DO IZ=1,NMESHX
             SUM=0.D0
