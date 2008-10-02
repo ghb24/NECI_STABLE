@@ -524,8 +524,6 @@ C.. Get the H element so we can calculate the energy
                   ENDDO
                ENDIF
             ENDDO
-C            CALL MEMORY_CHECK()
-C            CALL PRINT_MEMORY()
             IF(IVLEVEL.LE.I_VIND) THEN
 C.. free the copy
                CALL N_FREEM(IP_CURGEN)
@@ -536,8 +534,6 @@ C.. for the next iterator, we want to find the node to which we are
 C.. connected, and continue from after where this node was excited
             IVLEVEL=LOCTAB2(3,IVLEVEL)
          ENDDO
-C            CALL MEMORY_CHECK()
-C            CALL PRINT_MEMORY()
          CALL N_FREEM(IP_NMEM)
          LOCTAB(1,I_VIND+1)=0
          FMCPR3B2RES=TOTAL
