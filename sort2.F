@@ -1,6 +1,6 @@
 C.. This would seem to sort both ARR and BRR into ascending ARR order [AJWT20031001]
 C.. Further investigation shows it is the quicksort from Numerical Recipes, taking two arrays to be sorted, ARR, BRR according to the order of ARR [AJWT20040407]
-      SUBROUTINE SORT2(N,ARR,BRR)
+      SUBROUTINE NECI_SORT2(N,ARR,BRR)
       IMPLICIT REAL*8 (A-H,O-Z)
       INTEGER, PARAMETER :: M=7,NSTACK=50
       DIMENSION ARR(N),ISTACK(NSTACK)

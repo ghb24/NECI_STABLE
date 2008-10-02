@@ -9,8 +9,6 @@ frsblk.F
     (Routines in frsblk have been prepended with NECI_ to avoid nameclashes.)
 irat.inc
     We should be able to replace this pretty easily.  Thoughts as to best approach?
-util.F
-    Someone needs to spend some time with coffee, terminal and figure it out.
 mkconfig.sh
     We should write our own.  What functionality do we want to keep/have in addition?
 
@@ -24,11 +22,3 @@ entirely to allocatable arrays though.
 freem.F
 memc.inc
 memory.F
-
-Additional routines
-===================
-
-SORT      (from Numerical Recipes though) 
-SORT2     (from Numerical Recipes though)
-SORT2I    (from Numerical Recipes though)
-   Numerical recipes worries me: it might create some licencing problems in the near future.  Can someone check?  I've read something on this in the past, but can't remember the exact details.

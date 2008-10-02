@@ -40,7 +40,7 @@ C.. Based on SORT, SORTI sorts integers rather than reals
       END
 
 C.. Based on SORTI, SORT2I sorts two arrays of integers (ordering according to the first)
-      SUBROUTINE SORT2I(N,RA,RB)
+      SUBROUTINE NECI_SORT2I(N,RA,RB)
       IMPLICIT REAL*8 (A-H,O-Z) 
       INTEGER N,I,L,IR,J
       INTEGER RA(N)

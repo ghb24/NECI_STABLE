@@ -1235,7 +1235,7 @@ C                        HFES(I,ISPN)=HFES(I,ISPN)-EN
                INORDER(I,ISPN)=I
             ENDDO
             CALL DCOPY(NSBASIS,HFES(1,ISPN),1,EORDER(1,ISPN),1)
-            CALL SORT2(NSBASIS,EORDER(1,ISPN),INORDER(1,ISPN))
+            CALL NECI_SORT2(NSBASIS,EORDER(1,ISPN),INORDER(1,ISPN))
          ENDDO
       IF(BR) THEN
 C.. Now re-order the orbitals

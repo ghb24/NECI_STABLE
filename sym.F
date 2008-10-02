@@ -399,7 +399,7 @@ C.. First deal with listing single states
                 ENDIF
          ENDDO
 C.. order according to sym label, so SYMLABELLIST gets a list of states grouped under SYMLABEL
-         CALL SORT2I(NSTATES,TEMPLIST,SYMLABELLIST)
+         CALL NECI_SORT2I(NSTATES,TEMPLIST,SYMLABELLIST)
          SYMLABELCOUNTS(:,:)=0
          SYMLABELCOUNTS(1,TEMPLIST(1))=1
          SYMLABELCOUNTS(2,TEMPLIST(1))=1

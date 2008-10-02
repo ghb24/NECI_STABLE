@@ -340,7 +340,7 @@ C.. Now we order it if we need to
          IF(TORDER) THEN
             WRITE(6,*) "Re-ordering CPMD orbitals according ",
      &        "to one-electron energies."
-           CALL SORT2(NSTATESUSED-NLOCK,DIAGTMAT(NLOCK+1),
+           CALL NECI_SORT2(NSTATESUSED-NLOCK,DIAGTMAT(NLOCK+1),
      &         STATEORDER(NLOCK+1))
 C.. Now copy to BRR
             DO I=1,NSTATES
