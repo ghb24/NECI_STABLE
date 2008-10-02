@@ -1459,7 +1459,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(7),outpair(7)
+        INTEGER :: inpair(6),outpair(6)
         REAL*8 :: TempSumNoatHF,MeanWalkers
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
