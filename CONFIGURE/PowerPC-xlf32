@@ -7,7 +7,8 @@
      FNEWFLAGS='-qfixed'
      F90FLAGS='-qsuffix=f=f90'
      LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pc-cygwin/3.4.4/libg2c.a' 
-     LDFLAGS='-Mnostdlib -Mnostartup' 
+     AR='ar'
+     ARFLAGS='-rcs'
      if [ $debug ]; then
        FC='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g '
        CC='cc -g -sb -C -errtags'

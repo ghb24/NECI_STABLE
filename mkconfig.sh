@@ -176,18 +176,9 @@ else
   exec 3>&1
 fi
 
-# Use a different linker and linker flags for compiling the neci libraries,
-# if one is defined in the platform file.  This is especially useful
-# as it allows us to specify relocatable options and prevent libraries
-# being linked to the final binary twice.
-if [ -z "$LDLIB" ] ; then
-  LDLIB=${LD}
-  LDLIBFLAGS=${LDFLAGS}
-fi
-
 cat << END >&3
 #----------------------------------------------------------------------------
-# Makefile for neci.x (plane wave electronic calculation)
+# Makefile for neci.x (graph space electronic structure code)
 # Configuration: ${Configuration}
 # Creation of Makefile: `date '+%b %e %Y'`
 # on `uname -a`
@@ -213,12 +204,10 @@ CPP = ${CPP}
 CPPFLAGS = ${CPPFLAGS}
 FC = ${FC}
 LD = ${LD}
-AR = ${AR}
 FCD = ${FCD}
 LDD = ${LDD}
-ARD = ${ARD}
-LDLIB= ${LDLIB}
-LDLIBFLAGS= ${LDLIBFLAGS}
+AR = ${AR}
+ARFLAGS = ${ARFLAGS}
 GLOBALS= ${GLOBALS}
 #----------------------------------------------------------------------------
 END
@@ -367,28 +356,16 @@ neci-cpmd.a : \$(OBJECTSCPMDLIB)
 	 rm -f environment_report.F90
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/environment_report.F90 \$(DEST)/environment_report.f90
 	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/environment_report.f90
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a environment_report.o \$(OBJECTSCPMDLIB)
-	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-cpmd.a
+	 \$(AR) \$(ARFLAGS) \$(DEST)/neci-cpmd.a environment_report.o \$(OBJECTSCPMDLIB)
 
 neci-vasp.a : \$(OBJECTSVASPLIB)
 	 rm -f environment_report.F90
 	 \$(CPP) \$(CPPFLAGS) \$(SRC)/environment_report.F90 \$(DEST)/environment_report.f90
 	 \$(FC) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/environment_report.f90
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a environment_report.o \$(OBJECTSVASPLIB)
-	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
+	 \$(AR) \$(ARFLAGS) \$(DEST)/neci-vasp.a environment_report.o \$(OBJECTSVASPLIB)
 
 clean : 
 	  rm -f \$(DEST)/*.{f,f90,mod,o,c,x,a}
-
-#----------------------------------------------------------------------------
-# Generate library libcpmd.a
-#----------------------------------------------------------------------------
-lib : \$(OBJ_LIB)
-	 rm -f environment_report.F90
-	 \$(CPP) \$(CPPFLAGS) \$(SRC)/environment_report.F90 \$(DEST)/environment_report.F90
-	 \$(FC) \$(FFLAGS) \$(DEST)/environment_report.F90
-	 \$(AR) libcpmd.a environment_report.o \$(OBJ_LIB)
-	 \$(RANLIB) libcpmd.a
 
 #----------------------------------------------------------------------------
 # Explicit rules
@@ -440,15 +417,11 @@ neci.x : \$(DEST)/necimain.o \$(DOBJECTS) \$(OBJ_CC)
 
 neci-cpmd.a : \$(OBJECTSCPMDLIB)
 	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/environment_report.F90
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
-	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-cpmd.a
-	 rm neci2.a
+	 \$(AR) \$(ARFLAGS) \$(DEST)/neci-cpmd.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
 
 neci-vasp.a : \$(OBJECTSVASPLIB)
 	 \$(FC) \$(FFLAGS)\$(CPPFLAGS) -o \$(DEST)/environment_report.F90
-	 \$(LDLIB) \$(LDLIBFLAGS) -o \$(DEST)/neci2.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
-	 objcopy --keep-global-symbols=\$(SRC)/\$(GLOBALS) \$(DEST)/neci2.a \$(DEST)/neci-vasp.a
-	 rm neci2.a
+	 \$(AR) \$(ARFLAGS) -o \$(DEST)/neci-vasp.a \$(DEST)/environment_report.o \$(OBJECTSCPMDLIB)
 
 clean : 
 	  rm -f \$(DEST)/*.{f,f90,mod,o,c,x,a}

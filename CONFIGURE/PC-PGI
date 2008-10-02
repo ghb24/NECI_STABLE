@@ -7,7 +7,8 @@
      #-sb is to use Workshop package
      FFLAGS='-Mr8 -Msignextend -Minform=warn -Msecond_underscore'
      LFLAGS='-L /usr/local/shared/suse-10.1-1/fftw-3.1.2/lib -L /usr/local/shared/fftw3/lib -L /usr/local/fftw-3.1/lib -L /usr/local/fftw-3.0.1/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpgsse1 -lpgsse2'
-     LDFLAGS='-Mnostdlib -Mnostartup -Wl,-r' 
+     AR='ar'
+     ARFLAGS='-rcs'
      F90FLAGS='-Mfree '
      GLOBALS='GLOBALS-pgi'
      if [ $debug ]; then

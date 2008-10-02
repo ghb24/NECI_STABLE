@@ -6,7 +6,8 @@
      #-sb is to use Workshop package
      FFLAGS='-r8'
      LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -lacml'
-     LDFLAGS='-nostdlib -nostartfiles -Wl,-r' 
+     AR='ar'
+     ARFLAGS='-rcs'
      F90FLAGS=''
      GLOBALS='GLOBALS-ifort'
      if [ $debug ]; then

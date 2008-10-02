@@ -7,7 +7,8 @@
      #-sb is to use Workshop package
      FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'
      LFLAGS='-L ~/ma/lib/fftw-3.1.2/lib -lfftw3 -lacml -L/opt/vltmpi/OPENIB/mpi.pgcc.rsh/lib/shared/lib -lmpichf90 -lmpich -Wl,--unresolved-symbols=ignore-in-shared-libs'
-     LDFLAGS='-Mnostdlib -Mnostartup -Wl,-r' 
+     AR='ar'
+     ARFLAGS='-rcs'
      F90FLAGS='-Mfree '
      GLOBALS='GLOBALS-pgi'
      if [ $debug ]; then

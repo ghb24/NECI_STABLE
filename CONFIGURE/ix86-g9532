@@ -6,7 +6,8 @@ MAXMEM := 1024 # RAM available, in MB.
      #-sb is to use Workshop package
      FFLAGS=''
      LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas  $(QMMM_LIBS) -lpghpf' 
-     LDFLAGS='-Mnostdlib -Mnostartup' 
+     AR='ar'
+     ARFLAGS='-rcs'
      if [ $debug ]; then
        FC='g95 -c -g '
        CC='cc -g -sb -C -errtags'

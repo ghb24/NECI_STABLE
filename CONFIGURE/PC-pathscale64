@@ -6,7 +6,8 @@
      #-sb is to use Workshop package
      FFLAGS='-r8'
      LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -L ~/local/lib/pathscale/fftw-3.1.2/lib -lfftw3 -lacml'
-     LDFLAGS='-nostdlib -nostartfiles -Wl,-r' 
+     AR='ar'
+     ARFLAGS='-rcs'
      F90FLAGS=''
      GLOBALS='GLOBALS-pathf95 -m64'
      if [ $debug ]; then

@@ -5,7 +5,8 @@
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
      LFLAGS='-L/sw/lib/ -lfftw3 -framework vecLib'
-     LDFLAGS='-nostdlib -r' 
+     AR='ar'
+     ARFLAGS='-rcs'
      GLOBALS='GLOBALS-gfortran'
      if [ $debug ]; then
        FC='gfortran -c -g '
