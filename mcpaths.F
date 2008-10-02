@@ -1188,7 +1188,7 @@ C.. only singles
          END SELECT
          IF(I_VIND.EQ.0) THEN
 C.. 1st time in
-            IFRZ(0:(NBASIS+1),1:I_V) =0
+            IFRZ(0:NBASIS,1:I_V) =0
             IF(IAND(NWHTAY,8).NE.0) THEN
 C.. Force freexing
                IFRZ(0,1)=NWHTAY
@@ -1196,7 +1196,7 @@ C.. Force freexing
                IFRZ(0,1)=0
             ENDIF
          ENDIF
-         IFRZ2(0:(NBASIS)) =0
+         IFRZ2(0:NBASIS) =0
          CALL NECI_ICOPY(NBASIS+1,IFRZ(0,I_VIND+1),1,IFRZ2,1)
           
          
