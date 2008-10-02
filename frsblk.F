@@ -1,4 +1,4 @@
-      SUBROUTINE FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
+      SUBROUTINE NECI_FRSBLKH(M,ICMAX,N,H,LAB,V0,VS,NKRY,NKRY1,
      &	NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT,SCR,ISCR,INDEX,
      &	WH,WORK2,V2,NCYCLE,B2LIMIT,PRINTOUT,TLargest,TSeeded)
       IMPLICIT REAL*8 (A-H,O-Z) 
@@ -25,8 +25,8 @@ C..temp
       DIMENSION LAB(M,ICMAX),NROW(M)
 C ==----------------------------------------------------------------==
 C..Initialise V0 
-      CALL SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
-      CALL MGS(M,N,V0,M,A,N)
+      CALL NECI_SETUP_MATRIX(M,N,V0,.FALSE.,TSeeded)
+      CALL NECI_MGS(M,N,V0,M,A,N)
 C..Calculate top 80% of N 
       NDIAG=N-INT(N*0.2) 
 C..
@@ -36,7 +36,7 @@ C..
 20000 FORMAT(2X,'M:',I7/2X,'N:',I7/2X,'NKRY:',I7/2X,'NBLOCK:',I7/2X,
      &	'NDIAG:',I7/2X,'LSCR:',I7/2X,'B2LIMIT:',E10.2)
 C ==----------------------------------------------------------------==
-      CALL FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
+      CALL NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
      &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
      &     PRINTOUT,TLargest)
 C ==----------------------------------------------------------------==
@@ -63,9 +63,9 @@ C      ENDIF
 C ==----------------------------------------------------------------==
       END
 C ====================================================================
-      SUBROUTINE FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,INDEX,
-     &     SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,NCYCLE,
-     &     PRINTOUT,TLargest)
+      SUBROUTINE NECI_FRSBLK(M,N,NKRY,NBLOCK,V0,VS,A,V,AM,BM,T,W,WT,
+     &     INDEX,SCR,LSCR,ISCR,LISCR,NDIAG,B2LIMIT,H,ICMAX,LAB,NROW,
+     &     NCYCLE,PRINTOUT,TLargest)
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       LOGICAL :: PRINTOUT,TLargest
@@ -110,21 +110,21 @@ C ====================================================================
 C..VS=H.V0 
 C..My matrix multiplication routine implimented 8/11/02 DCT
       CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V0,VS,TLargest)
-C      CALL HPSI(M,N,H,V0,VS)
+C      CALL NECI_HSPI(M,N,H,V0,VS)
       NHPSI=NHPSI+N 
 C..   Ovlap: V0^T VS. 
-      CALL OVLAP(M,N,A,V0,VS)
+      CALL NECI_OVLAP(M,N,A,V0,VS)
 C..   AY=YE
       CALL DSYEV('V','U',N,A,N,W,SCR,LSCR,INFO)
-      CALL REORDER(N,N,W,A)
+      CALL NECI_REORDER(N,N,W,A)
 C..Rotate: V0 -> V0.Y 
-      CALL ROTATE(M,N,V0,A,SCR,M*N)
+      CALL NECI_ROTATE(M,N,V0,A,SCR,M*N)
 C..Rotate: VS -> VS.Y 
-      CALL ROTATE(M,N,VS,A,SCR,M*N)
+      CALL NECI_ROTATE(M,N,VS,A,SCR,M*N)
 C=====================================================================
       NCONV=0 
       DO ICYCLE=1,NCYCLE
-C        CALL WRITE_MATRIX('   W:   ',N,1,W)
+C        CALL NECI_WRITE_MATRIX('   W:   ',N,1,W)
 C ====================================================================
 C..Residual: H(VY) - (VY)E and test for convergence
         B2MAX=0.D0
@@ -168,14 +168,14 @@ C..Order states
 C ==------------------------------------------------------------------==
 C Preparation for refinement
 C ==------------------------------------------------------------------==
-          CALL PRPKRV(M,NBLEFF,NKRY,NCONV,V0(1,1),V0(1,I),VS(1,I),V,
-     &         AM,BM,H,W(I),SCR,LSCR,NHPSI,ICMAX,LAB,NROW,TLargest)
+          CALL NECI_PRPKRV(M,NBLEFF,NKRY,NCONV,V0(1,1),V0(1,I),VS(1,I),
+     &         V,AM,BM,H,W(I),SCR,LSCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 
 C Refinement Loop
 C ==------------------------------------------------------------------==
           NBLK=NBLEFF*NKRY
-          CALL KRYREF(M,NBLEFF,NKRY,NCONV,V0,W,V,AM,BM,T,NBLK*NBLK,WT,
-     &         NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
+          CALL NECI_KRYREF(M,NBLEFF,NKRY,NCONV,V0,W,V,AM,BM,T,NBLK*NBLK,
+     &      WT,NBLK,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C ==------------------------------------------------------------------==
 C..V=[V_1 V_2.. V_L] Y' 
           CALL DGEMM('N','N',M,NBLEFF,NBLK,1.D0,V,M,T,NBLK,0.D0,
@@ -185,21 +185,21 @@ C==  End of refinement over states                                    ==
 C==-------------------------------------------------------------------==
         ENDDO
 C..GS orthogonalisation on refined states
-        CALL MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A)
+        CALL NECI_MY_GSORTHO(M,V0,NCURR-1,V0(1,NCURR),NLEFT,A)
 C..HPSI: H V0. Enter only refined states 
         CALL MY_HPSI(M,ICMAX,NLEFT,NROW,LAB,H,
      &		V0(1,NCURR),VS(1,NCURR),TLargest)
-C        CALL HPSI(M,NLEFT,H,V0(1,NCURR),VS(1,NCURR))
+C        CALL NECI_HSPI(M,NLEFT,H,V0(1,NCURR),VS(1,NCURR))
         NHPSI=NHPSI+NLEFT 
 C..Ovlap: V0^T VS  
-        CALL OVLAP(M,N,A,V0,VS)
+        CALL NECI_OVLAP(M,N,A,V0,VS)
 C..AY=YE
         CALL DSYEV('V','U',N,A,N,W,SCR,LSCR,INFO)
-        CALL REORDER(N,N,W,A)
+        CALL NECI_REORDER(N,N,W,A)
 C..Rotate: V -> VY 
-        CALL ROTATE(M,N,V0,A,SCR,M*N)
+        CALL NECI_ROTATE(M,N,V0,A,SCR,M*N)
 C..Rotate: HV -> HVY 
-        CALL ROTATE(M,N,VS,A,SCR,M*N)
+        CALL NECI_ROTATE(M,N,VS,A,SCR,M*N)
 C ==============================================================
       ENDDO                     ! Loop over icycle 
 C.. End of Lanczos diagonalisation  
@@ -218,22 +218,22 @@ C     ================================================================
       RETURN
       END 
 C ======================================================================
-      SUBROUTINE MGS(M,N,A,LDA,R,LDR)
+      SUBROUTINE NECI_MGS(M,N,A,LDA,R,LDR)
 C     ==--------------------------------------------------------------==
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION A(LDA,*),R(LDR,*)
       type(timer), save :: proc_timer
 C     ==================================================================
-      proc_timer%timer_name='       MGS:'
+      proc_timer%timer_name='NECI_MGS'
       call set_timer(proc_timer)
-      CALL RGS(M,N,A,M,R,N,I,1)
+      CALL NECI_RGS(M,N,A,M,R,N,I,1)
       CALL DTRTRI('U','N',N,R,N,INFO)
       call halt_timer(proc_timer)
       RETURN 
       END 
 C =======================================================================
-      SUBROUTINE SETUP_MATRIX(M,N,A,TSYM,TSeeded)
+      SUBROUTINE NECI_SETUP_MATRIX(M,N,A,TSYM,TSeeded)
       IMPLICIT REAL*8 (A-H,O-Z)
 C..M = NDET
 C..N = NEVAL
@@ -269,7 +269,7 @@ C            ENDIF
       RETURN
       END
 C =======================================================================
-      SUBROUTINE WRITE_MATRIX(CHAR,M,N,A)
+      SUBROUTINE NECI_WRITE_MATRIX(CHAR,M,N,A)
       IMPLICIT REAL*8 (A-H,O-Z)
       CHARACTER(*) CHAR
       DIMENSION A(M,N)
@@ -281,7 +281,7 @@ C =======================================================================
       RETURN
       END
 C ======================================================================
-      SUBROUTINE PUTTMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
+      SUBROUTINE NECI_PUTTMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION T(M,N),A(MA,NA)
       CHARACTER*1 CHAR
@@ -305,7 +305,7 @@ C ======================================================================
       RETURN
       END
 C ======================================================================
-      SUBROUTINE GETMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
+      SUBROUTINE NECI_GETMAT(CHAR,T,M,N,A,MA,NA,IBEG,JBEG)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION T(M,N),A(MA,NA)
       CHARACTER*1 CHAR
@@ -329,7 +329,7 @@ C ======================================================================
       RETURN
       END
 C ======================================================================
-      SUBROUTINE REORDER(M,N,W,A)
+      SUBROUTINE NECI_REORDER(M,N,W,A)
       IMPLICIT REAL*8 (A-H,O-Z)
       DIMENSION W(N),A(M,N)
       DO J=1,N/2
@@ -341,7 +341,7 @@ C ======================================================================
       RETURN 
       END
 C ======================================================================
-      SUBROUTINE KRYREF(M,N,NKRY,NCONV,V0,W,V,AM,BM,T,LDT,WT,
+      SUBROUTINE NECI_KRYREF(M,N,NKRY,NCONV,V0,W,V,AM,BM,T,LDT,WT,
      &	   LDWT,H,SCR,LSCR,ISCR,LISCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C     ==================================================================
       use global_utilities
@@ -356,30 +356,30 @@ C     ==================================================================
       call set_timer(proc_timer)
       DO I=3,NKRY
 C..V_I = V_I - V_(I-1) A_(I-1) 
-        CALL RSDBLK('N',M,N,V(1,1,I-1),AM(1,1,I-1),V(1,1,I))
+        CALL NECI_RSDBLK('N',M,N,V(1,1,I-1),AM(1,1,I-1),V(1,1,I))
 C..V_I B_I = V_I
-        CALL MGS(M,N,V(1,1,I),M,BM(1,1,I),N)
+        CALL NECI_MGS(M,N,V(1,1,I),M,BM(1,1,I),N)
 C..HPSI:  H V_I
         CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,I),V(1,1,I+1),TLargest)
-C        CALL HPSI(M,N,H,V(1,1,I),V(1,1,I+1))
+C        CALL NECI_HSPI(M,N,H,V(1,1,I),V(1,1,I+1))
         NHPSI=NHPSI+N 
 C.. project out converged states
-        CALL PRJCNV(M,N,NCONV,V0,W,V(1,1,I+1),SCR)
+        CALL NECI_PRJCNV(M,N,NCONV,V0,W,V(1,1,I+1),SCR)
 C..V_(I+1) = H V_I - V_(I-1)B_I 
-        CALL RSDBLK('T',M,N,V(1,1,I-1),BM(1,1,I),V(1,1,I+1))
+        CALL NECI_RSDBLK('T',M,N,V(1,1,I-1),BM(1,1,I),V(1,1,I+1))
 C..Ovlap:  A_I=V_I^T V_(I+1)
-        CALL OVLAP(M,N,AM(1,1,I),V(1,1,I),V(1,1,I+1))
+        CALL NECI_OVLAP(M,N,AM(1,1,I),V(1,1,I),V(1,1,I+1))
 C..Setup T-matrix. First diagonal terms
 C        CALL AZZERO(T,N*NKRY*N*NKRY) 
-C        CALL PUTTMAT('N',T,I*N,I*N,AM(1,1,1),N,N,1,1)
+C        CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,1),N,N,1,1)
 C        DO J=2,I
-C          CALL PUTTMAT('N',T,I*N,I*N,AM(1,1,J),N,N,J,J)
-C          CALL PUTTMAT('T',T,I*N,I*N,BM(1,1,J),N,N,J-1,J)
-C          CALL PUTTMAT('N',T,I*N,I*N,BM(1,1,J),N,N,J,J-1)
+C          CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,J),N,N,J,J)
+C          CALL NECI_PUTTMAT('T',T,I*N,I*N,BM(1,1,J),N,N,J-1,J)
+C          CALL NECI_PUTTMAT('N',T,I*N,I*N,BM(1,1,J),N,N,J,J-1)
 C        ENDDO  
 C..TY=YE
 C        CALL DSYEV('V','U',I*N,T,I*N,WT,SCR,LSCR,INFO)
-C        CALL REORDER(I*N,WT,T)
+C        CALL NECI_REORDER(I*N,WT,T)
 C.. Compute error V_3 Y'', where Y'' is the last N rows of Y 
 C        CALL GETMAT('N',T,I*N,I*N,AM(1,1,I+1),N,N,I,1)
 C        CALL DGEMM('N','N',M,N,N,1.D0,V(1,1,I+1),M,AM(1,1,I+1),
@@ -394,19 +394,19 @@ C ==================================================================
 C..Setup T-matrix. First diagonal terms      
       I=NKRY
       CALL AZZERO(T,I*N*I*N) 
-      CALL PUTTMAT('N',T,I*N,I*N,AM(1,1,1),N,N,1,1)
+      CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,1),N,N,1,1)
       DO J=2,I
-        CALL PUTTMAT('N',T,I*N,I*N,AM(1,1,J),N,N,J,J)
-        CALL PUTTMAT('T',T,I*N,I*N,BM(1,1,J),N,N,J-1,J)
-        CALL PUTTMAT('N',T,I*N,I*N,BM(1,1,J),N,N,J,J-1)
+        CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,J),N,N,J,J)
+        CALL NECI_PUTTMAT('T',T,I*N,I*N,BM(1,1,J),N,N,J-1,J)
+        CALL NECI_PUTTMAT('N',T,I*N,I*N,BM(1,1,J),N,N,J,J-1)
       ENDDO 
       IF(N.GT.0) THEN 
 C..Full matrix diag. 
-        CALL JACOBI(I*N,N,T,WT,SCR,LSCR,ISCR,5*I*N,ISCR(5*I*N+1))
+        CALL NECI_JACOBI(I*N,N,T,WT,SCR,LSCR,ISCR,5*I*N,ISCR(5*I*N+1))
       ELSE
 C..banded matrix diagonalisation. This seems to be slower than 
 C..full diag.  
-        CALL BANDM(I*N,N,T,WT,SCR,LSCR,ISCR,5*I*N,ISCR(5*I*N+1))
+        CALL NECI_BANDM(I*N,N,T,WT,SCR,LSCR,ISCR,5*I*N,ISCR(5*I*N+1))
       ENDIF
 C..
 C ===================================================================
@@ -414,7 +414,7 @@ C ===================================================================
       RETURN
       END
 C ==================================================================
-      SUBROUTINE PRPKRV(M,N,NKRY,NCONV,VCONV,V0,VS,V,AM,BM,H,W,
+      SUBROUTINE NECI_PRPKRV(M,N,NKRY,NCONV,VCONV,V0,VS,V,AM,BM,H,W,
      &     SCR,LSCR,NHPSI,ICMAX,LAB,NROW,TLargest)
 C ==------------------------------------------------------------------==
 C == Returns A_1,A_2,B_2 and V in a form suitable for krylov          ==
@@ -428,7 +428,7 @@ C ==------------------------------------------------------------------==
       LOGICAL :: TLargest
       type(timer), save :: proc_timer
 C ==------------------------------------------------------------------==
-      proc_timer%timer_name='    PRPKRV'
+      proc_timer%timer_name='NECI_PRPKRV'
       call set_timer(proc_timer)
 C ==------------------------------------------------------------------==
       CALL DCOPY(M*N,V0,1,V(1,1,1),1)
@@ -439,7 +439,7 @@ C..Compute residual
       ENDDO
 C..V2 B2=R  
       CALL AZZERO(BM,N*N*NKRY)
-      CALL MGS(M,N,V(1,1,2),M,BM(1,1,2),N)
+      CALL NECI_MGS(M,N,V(1,1,2),M,BM(1,1,2),N)
 C..   Setup A_1=diag(w)
       CALL AZZERO(AM,N*N)
       DO I=1,N 
@@ -447,20 +447,20 @@ C..   Setup A_1=diag(w)
       ENDDO
 C..V_3=H.V2
       CALL MY_HPSI(M,ICMAX,N,NROW,LAB,H,V(1,1,2),V(1,1,3),TLargest)
-C      CALL HPSI(M,N,H,V(1,1,2),V(1,1,3))
+C      CALL NECI_HSPI(M,N,H,V(1,1,2),V(1,1,3))
       NHPSI=NHPSI+N 
 C.. project out converged states
-        CALL PRJCNV(M,N,NCONV,VCONV,W,V(1,1,3),SCR)
+        CALL NECI_PRJCNV(M,N,NCONV,VCONV,W,V(1,1,3),SCR)
 C..V_3=V_3-V_1 B_2^T
-      CALL RSDBLK('T',M,N,V(1,1,1),BM(1,1,2),V(1,1,3))
+      CALL NECI_RSDBLK('T',M,N,V(1,1,1),BM(1,1,2),V(1,1,3))
 C..Ovlap 
-      CALL OVLAP(M,N,AM(1,1,2),V(1,1,2),V(1,1,3))
+      CALL NECI_OVLAP(M,N,AM(1,1,2),V(1,1,2),V(1,1,3))
 C ==------------------------------------------------------------------==
       call halt_timer(proc_timer)
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE MY_GSORTHO(M,C0,N0,CP,NP,SMAT)
+      SUBROUTINE NECI_MY_GSORTHO(M,C0,N0,CP,NP,SMAT)
 C     ==--------------------------------------------------------------==
       use global_utilities
       IMPLICIT REAL*8 (A-H,O-Z)
@@ -481,13 +481,13 @@ C..CP -> CP-C0*SMAT
         CALL DGEMM('N','T',M,NP,N0,-1.D0,C0,M,SMAT,NP,
      *             1.D0,CP,M)
       ENDIF
-      CALL MGS(M,NP,CP,M,SMAT,NP)
+      CALL NECI_MGS(M,NP,CP,M,SMAT,NP)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END
 C =======================================================================
-      SUBROUTINE PUTTAB(N,KD,A,SCR,LSCR)
+      SUBROUTINE NECI_PUTTAB(N,KD,A,SCR,LSCR)
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION A(N,N),SCR(LSCR)
 C..
@@ -508,56 +508,56 @@ C..
       RETURN
       END 
 C =======================================================================
-      SUBROUTINE HPSI(M,N,H,V0,VS)
+      SUBROUTINE NECI_HPSI(M,N,H,V0,VS)
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION H(M,M),V0(M,N),VS(M,N)
       type(timer), save :: proc_timer
-      proc_timer%timer_name='      HPSI'
+      proc_timer%timer_name='      NECI_HSPI'
       call set_timer(proc_timer)
       CALL DGEMM('N','N',M,N,M,1.D0,H,M,V0,M,0.D0,VS,M)
       call halt_timer(proc_timer)
       RETURN
       END 
 C =======================================================================
-      SUBROUTINE OVLAP(M,N,A,V0,VS)
+      SUBROUTINE NECI_OVLAP(M,N,A,V0,VS)
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION A(N,N),V0(M,N),VS(M,N)
       type(timer), save :: proc_timer
-      proc_timer%timer_name='     OVLAP'
+      proc_timer%timer_name='NECI_OVLAP'
       call set_timer(proc_timer)
       CALL DGEMM('T','N',N,N,M,1.D0,V0,M,VS,M,0.D0,A,N)
       call halt_timer(proc_timer)
       RETURN
       END 
 C =======================================================================
-      SUBROUTINE RSDBLK(CHAR,M,N,V1,A,V2)
+      SUBROUTINE NECI_RSDBLK(CHAR,M,N,V1,A,V2)
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       CHARACTER*1 CHAR 
       DIMENSION A(N,N),V1(M,N),V2(M,N)
       type(timer), save :: proc_timer
 C..V_I = V_I - V_(I-1) A_(I-1)
-      proc_timer%timer_name='    RSDBLK'
+      proc_timer%timer_name='    NECI_RSDBLK'
       call set_timer(proc_timer)
       IF(CHAR.EQ.'N') THEN 
         CALL DGEMM('N','N',M,N,N,-1.D0,V1,M,A,N,1.D0,V2,M)
       ELSEIF(CHAR.EQ.'T') THEN 
         CALL DGEMM('N','T',M,N,N,-1.D0,V1,M,A,N,1.D0,V2,M)
       ELSE
-        STOP ' CHAR ILLEGAL IN RSDBLK ' 
+        STOP ' CHAR ILLEGAL IN NECI_RSDBLK ' 
       ENDIF
       call halt_timer(proc_timer)
       RETURN
       END
 C =======================================================================
-      SUBROUTINE ROTATE(M,N,V0,A,SCR,LSCR)
+      SUBROUTINE NECI_ROTATE(M,N,V0,A,SCR,LSCR)
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION A(N,N),V0(M,N),SCR(LSCR)
       type(timer), save :: proc_timer
-      proc_timer%timer_name='    ROTATE'
+      proc_timer%timer_name='    NECI_ROTATE'
       call set_timer(proc_timer)
       CALL DGEMM('N','N',M,N,N,1.D0,V0,M,A,N,0.D0,SCR,M)
       CALL DCOPY(M*N,SCR,1,V0,1)
@@ -572,7 +572,7 @@ C =======================================================================
 
 
 
-      SUBROUTINE JACOBI(M,N,T,WT,SCR,LSCR,ISCR,LISCR,IFAIL)
+      SUBROUTINE NECI_JACOBI(M,N,T,WT,SCR,LSCR,ISCR,LISCR,IFAIL)
 C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric matrix T           ==
 C ==------------------------------------------------------------------==
@@ -592,12 +592,12 @@ C ==------------------------------------------------------------------==
         ENDIF
         CALL DCOPY(M*N,T(1,1,2),1,T(1,1,1),1)
       ENDIF
-      CALL REORDER(M,N,WT,T)
+      CALL NECI_REORDER(M,N,WT,T)
       call halt_timer(proc_timer)
       RETURN 
       END 
 C     ==================================================================
-      SUBROUTINE BANDM(IN,N,T,WT,SCR,LSCR,ISCR,LISCR,IFAIL)
+      SUBROUTINE NECI_BANDM(IN,N,T,WT,SCR,LSCR,ISCR,LISCR,IFAIL)
 C ==------------------------------------------------------------------==
 C Returns the n largest eigenvalues of MxM symtric banded matrix T    ==
 C ==------------------------------------------------------------------==
@@ -609,7 +609,7 @@ C     ==================================================================
       proc_timer%timer_name='     BANDM'
       call set_timer(proc_timer)
 C..Put T is form suitable for banded matrix diagonalisation 
-      CALL PUTTAB(IN,N,T,SCR,LSCR)
+      CALL NECI_PUTTAB(IN,N,T,SCR,LSCR)
       IF(LSCR.LT.7*IN) THEN
         WRITE(6,*) ' 7*IN:',7*IN
         WRITE(6,*) 'LSCR:',LSCR
@@ -627,12 +627,12 @@ C        CALL DSBEV('V','U',IN,N,T,IN,WT,T(1,2),IN,SCR,INFO)
         WRITE(6,*) ' WARNING| DSBEVX RETURNED MEVAL < N',MEVAL,N
       ENDIF
       CALL DCOPY(IN*IN,T(1,1,3),1,T(1,1,1),1)
-      CALL REORDER(IN,N,WT,T)
+      CALL NECI_REORDER(IN,N,WT,T)
       call halt_timer(proc_timer)
       RETURN 
       END
 C =====================================================================
-      SUBROUTINE PRJCNV(M,NP,N0,V0,W,V,SMAT)
+      SUBROUTINE NECI_PRJCNV(M,NP,N0,V0,W,V,SMAT)
       use global_utilities
       IMPLICIT REAL*8(A-H,O-Z)
       DIMENSION V(M,NP),V0(M,*),SMAT(N0,*),W(*) 
@@ -651,7 +651,7 @@ C..   V -> V-V0*SMAT
       RETURN 
       END 
 C     =================================================================
-      SUBROUTINE RGS(M,N,CP,LDCP,SMAT,ISCR,LSCR)
+      SUBROUTINE NECI_RGS(M,N,CP,LDCP,SMAT,ISCR,LSCR)
 C     ==--------------------------------------------------------------==
 C     ==  GRAM-SCHMIDT ORTHOGONALIZATION                              ==
 C     ==--------------------------------------------------------------==
@@ -665,18 +665,18 @@ C     VARIABLES
       type(timer), save :: proc_timer
 C     ==--------------------------------------------------------------==
       IF(N.LE.0) RETURN
-      proc_timer%timer_name='       RGS'
+      proc_timer%timer_name='NECI_RGS'
       call set_timer(proc_timer)
       CALL AZZERO(SMAT,N*N)
       CALL DSYRK('U','T',N,M,1.D0,CP,M,0.D0,SMAT,N)
-      CALL UINV('U',SMAT,N,N,LSCR,1)
+      CALL NECI_UINV('U',SMAT,N,N,LSCR,1)
       CALL DTRMM('R','U','N','N',M,N,1.D0,SMAT,N,CP,M)
       call halt_timer(proc_timer)
 C     ==--------------------------------------------------------------==
       RETURN
       END
 C     ==================================================================
-      SUBROUTINE UINV(UPLO,SMAT,LDA,N,ISCR,LSCR)
+      SUBROUTINE NECI_UINV(UPLO,SMAT,LDA,N,ISCR,LSCR)
 C     ==--------------------------------------------------------------==
       IMPLICIT NONE
 C     ARGUMENTS

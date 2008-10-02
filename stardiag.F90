@@ -3137,7 +3137,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,U
 
          TSeeded=.false.
 
-         CALL FRSBLKH(NList,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded)
+         CALL NECI_FRSBLKH(NList,ICMax,NEval,Mat,Lab,CK,CKN,NKry,NKry1,NBlock,NRow,LScr,LIScr,A,W,V,AM,BM,T,WT,SCR,ISCR,Index,WH,Work2,V2,NCycle,B2L,.false.,.true.,TSeeded)
          
 !Deallocate memory required by diagonaliser (including original matrix)
          DEALLOCATE(Mat)

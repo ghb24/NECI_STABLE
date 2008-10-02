@@ -440,7 +440,7 @@ CONTAINS
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             CALL AZZERO(V2,NDET*NEVAL)
 !C..Lanczos iterative diagonalising routine
-            CALL FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
+            CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
      &  SCR,ISCR,INDEX,WH,WORK2,V2,NCYCLE,B2L,.true.,.false.,.false.)
 
 !Multiply all eigenvalues by -1.

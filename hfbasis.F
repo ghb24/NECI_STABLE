@@ -657,7 +657,7 @@ C.. vector
             IF(HFLogLevel.gt.0) 
      &      CALL WRITE_HEMATRIX("EIGVEC",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
             IF(HFLogLevel.gt.0) 
-     &      CALL WRITE_MATRIX("EIGVAL",1,NSBASIS,HFES(1,ISPN))
+     &      CALL NECI_WRITE_MATRIX("EIGVAL",1,NSBASIS,HFES(1,ISPN))
          ENDDO
 C.. now calculate the sum of the occupied Fock orbitals
          TOT2=0.D0

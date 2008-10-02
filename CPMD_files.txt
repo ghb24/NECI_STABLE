@@ -6,18 +6,13 @@ We were bad
 
 frsblk.F
     I know Ali claims it's different from CPMD's version, but do a diff and decide for yourself...
+    (Routines in frsblk have been prepended with NECI_ to avoid nameclashes.)
 irat.inc
     We should be able to replace this pretty easily.  Thoughts as to best approach?
 util.F
     Someone needs to spend some time with coffee, terminal and figure it out.
 mkconfig.sh
     We should write our own.  What functionality do we want to keep/have in addition?
-
-Unrelated files
-===============
-
-rhoofr.F
-    Appears to be completely unrelated to CPMD's rhoofr.F.
 
 Memory routines
 ===============
