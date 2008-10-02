@@ -643,7 +643,7 @@ C.. change the spin
             ELSE
                NQN(IQN)=NQN(IQN)+ISGN
             ENDIF
-            CALL PBC(NQN,NBASISMAX)
+            CALL HUB_PBC(NQN,NBASISMAX)
             IT=IFINDBASISFN(NQN,G1,NBASIS)
             IF(IT.EQ.0) THEN 
                L=.TRUE.
@@ -943,7 +943,7 @@ c            IF(MOD(IT,100).EQ.0) WRITE(6,*) IT
          call halt_timer(proc_timer)
       END
 
-      SUBROUTINE PBC(NQN, NBASISMAX)
+      SUBROUTINE HUB_PBC(NQN, NBASISMAX)
          INTEGER NQN(5), nBasisMax(5,*)
          INTEGER MPN,MMN,L,IQN,NMAXX
          LOGICAL TALLOW
