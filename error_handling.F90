@@ -21,6 +21,7 @@ write (6,'(/a7)') 'ERROR.'
 write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
 write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 write (6,'(a11)') 'EXITING...'
+CALL FLUSH(6)
 
 #ifdef PARALLEL
 write (6,'(a12,15X,i3)') 'Processor: ',iProcIndex
@@ -68,6 +69,7 @@ character(*), intent(in), optional :: msg
 
 if (present(msg)) then
     write (6,'(X,a)') adjustl(msg)
+    CALL FLUSH(6)
 end if
 
 #ifdef PARALLEL

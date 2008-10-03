@@ -189,7 +189,7 @@ SHELL = /bin/bash
 #
 #--------------- Default Configuration for $Configuration ---------------
 SVNVER := \$(shell echo -n \" && (grep '^Revision:\|^commit ' <(svn info || git svn info || git log --max-count=1 || echo 'Revision:"not under svn control"') | sed -e 's/^Revision: *\|^commit *//g' ) 2> /dev/null && echo -n \" ) 
-MAXMEM := 1024 # RAM available, in MB.
+MAXMEM := 2048 # RAM available, in MB.
 compiler = ${compiler}
 SRC  = .
 DEST = ${DEST}

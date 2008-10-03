@@ -1509,7 +1509,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !            RangeWalkers=MaxWalkersProc-MinWalkersProc
 !            IF(RangeWalkers.gt.300) THEN
-            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.500)) THEN
+            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.50)) THEN
                 TBalanceNodes=.true.
             ENDIF
         ENDIF
@@ -2167,8 +2167,9 @@ MODULE FciMCParMod
         LOGICAL :: exists
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
-        INTEGER :: TempInitWalkers,error,i,j,total,ierr,iGetExcitLevel_2,MemoryAlloc,Tag
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF
+        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,iGetExcitLevel_2,MemoryAlloc,Tag
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart
+        REAL*8 :: Ran2,FracPart
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         
@@ -2209,6 +2210,7 @@ MODULE FciMCParMod
                 do i=1,nProcessors-1
                     WalkerstoReceive(i)=AvWalkers
                 enddo
+!The last processor takes the 'remainder'
                 WalkerstoReceive(nProcessors)=AllTotWalkers-(AvWalkers*(nProcessors-1))
 
 !Quick check to ensure we have all walkers accounted for
@@ -2220,6 +2222,7 @@ MODULE FciMCParMod
                     CALL Stop_All("ReadFromPopsfilePar","All Walkers not accounted for when reading in from POPSFILE")
                 ENDIF
                 
+!InitWalkers needs to be reset for the culling criteria
                 InitWalkers=AvWalkers
                 SumENum=AllSumENum/REAL(nProcessors,r2)     !Divide up the SumENum over all processors
                 AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,r2)) !This is the average Sumnoathf
@@ -2290,7 +2293,67 @@ MODULE FciMCParMod
 
         IF(ScaleWalkers.ne.1) THEN
 
-            CALL Stop_All("ReadFromPopsfile","Scaling facility not yet working in parallel")
+            WRITE(6,*) "Rescaling walkers  by a factor of: ",ScaleWalkers
+            MaxWalkers=MemoryFac*(NINT(InitWalkers*ScaleWalkers))   !InitWalkers here is simply the average number of walkers per node, not actual
+
+!Allocate memory for walkvec2, which will temporarily hold walkers
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
+            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+
+!Scale up the integer part and fractional part seperately
+            IntegerPart=INT(ScaleWalkers)       !Round to zero
+            FracPart=ScaleWalkers-REAL(IntegerPart)
+
+            VecSlot=1
+            do l=1,TempInitWalkers
+                do k=1,IntegerPart
+                    WalkVec2Dets(1:NEl,VecSlot)=WalkVecDets(1:NEl,l)
+                    WalkVec2Sign(VecSlot)=WalkVecSign(l)
+                    VecSlot=VecSlot+1
+                enddo
+                IF(Ran2(Seed).lt.FracPart) THEN
+!Stochastically choose whether to create another particle
+                    WalkVec2Dets(1:NEl,VecSlot)=WalkVecDets(1:NEl,l)
+                    WalkVec2Sign(VecSlot)=WalkVecSign(l)
+                    VecSlot=VecSlot+1
+                ENDIF
+            enddo
+
+!Redefine new (average) number of initial particles for culling criteria
+            InitWalkers=NINT(InitWalkers*ScaleWalkers)
+!Define TotWalkers as the number of walkers on that node.
+            TotWalkers=VecSlot-1
+            TotWalkersOld=TotWalkers
+!Collate the information about the new total number of walkers
+            CALL MPI_AllReduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+            IF(iProcIndex.eq.root) THEN
+                AllTotWalkersOld=AllTotWalkers
+                WRITE(6,*) "Total number of initial walkers is now: ", AllTotWalkers
+            ENDIF
+
+
+!Deallocate the arrays used to hold the original particles, and reallocate with correct size.
+            DEALLOCATE(WalkVecDets)
+            CALL LogMemDealloc(this_routine,WalkVecDetsTag)
+            DEALLOCATE(WalkVecSign)
+            CALL LogMemDealloc(this_routine,WalkVecSignTag)
+            ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(1:NEl,1:MaxWalkers)=0
+            ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+
+!Transfer scaled particles back accross to WalkVecDets
+            do l=1,TotWalkers
+                WalkVecDets(1:NEl,l)=WalkVec2Dets(1:NEl,l)
+                WalkVecSign(l)=WalkVec2Sign(l)
+            enddo
+
+!Zero the second array for good measure
+            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
 
         ELSE
 !We are not scaling the number of walkers...
@@ -2303,11 +2366,13 @@ MODULE FciMCParMod
 
             TotWalkers=TempInitWalkers      !Set the total number of walkers
             TotWalkersOld=TempInitWalkers
-            IF(iProcIndex.eq.root) AllTotWalkersOld=AllTotWalkers
+            IF(iProcIndex.eq.root) THEN
+                AllTotWalkersOld=AllTotWalkers
+                WRITE(6,*) "Total number of initial walkers is now: ",AllTotWalkers
+            ENDIF
 
         ENDIF
             
-        WRITE(6,*) "Total number of initial walkers is now: ",AllTotWalkers
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
 
 !Need to now allocate other arrays
@@ -2951,7 +3016,7 @@ MODULE FciMCParMod
                     WRITE(6,*) "Initial range of walkers is: ",WalktoTransfer(4)
                 ELSE
 !                    WRITE(6,*) "After ",Transfers," walker transfers, range of walkers is: ",WalktoTransfer(4)
-                    IF(Transfers.gt.(nProcessors**2)) THEN
+                    IF(Transfers.gt.(10*(nProcessors**2))) THEN
                         CALL Stop_All("BalanceWalkersonProcs","Too many transfers required to balance nodes - Problem here...")
                     ENDIF
 !                    CALL FLUSH(6)
