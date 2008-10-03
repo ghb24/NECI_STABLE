@@ -2428,7 +2428,8 @@ MODULE FciMCMod
 
             WRITE(6,*) "Total number of initial walkers is now: ",VecSlot-1
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is now: ", DiagSft
-            InitWalkers=nint(InitWalkers*ScaleWalkers)
+!            InitWalkers=nint(InitWalkers*ScaleWalkers)
+            InitWalkers=VecSlot-1
 
 !Deallocate the arrays used to hold the original walkers, and reallocate with right size
             DEALLOCATE(WalkVecDets)
