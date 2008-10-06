@@ -1,7 +1,7 @@
 MODULE FciMCMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TReadPops,ScaleWalkers,TStartMP1,TFixShiftDoubs,DoubsShift
+    use CalcData , only : TReadPops,ScaleWalkers,TStartMP1,TFixShiftShell,FixShift,ShellFix
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
@@ -1681,15 +1681,15 @@ MODULE FciMCMod
         IF(TNoAnnihil) THEN
             WRITE(6,*) "No Annihilation to occur. Results are likely not to converge to right value. Proceed with caution."
         ENDIF
-        IF(TFixShiftDoubs) THEN
-            WRITE(6,*) "The HF and double excitations have their shift fixed at ",DoubsShift
+        IF(TFixShiftShell) THEN
+            WRITE(6,"(A,I5,A,F20.10)") "All excitations levels at or less than",ShellFix," have their shift fixed at ",FixShift
             WRITE(6,*) "With this option, results are going to be incorrect, but can be used to equilibrate calculations"
         ENDIF
 
         IF(TResumFciMC) THEN
             CALL Stop_All("InitFCIMCCalc","Resummed FCIMC is not currently working...")
-            IF(TFixShiftDoubs) THEN
-                CALL Stop_All("InitFCIMCCalc","Cannot fix the shift of the HF + Doubles in ResumFCIMC currently")
+            IF(TFixShiftShell) THEN
+                CALL Stop_All("InitFCIMCCalc","Cannot fix the shift in ResumFCIMC currently")
             ENDIF
             IF(NDets.gt.2) THEN
                 IF(.not.EXCITFUNCS(10)) THEN
@@ -1763,8 +1763,8 @@ MODULE FciMCMod
             ELSE
                 WRITE(6,*) "Initial number of walkers chosen to be: ", InitWalkers
             ENDIF
-            IF(TFixShiftDoubs) THEN
-                WRITE(6,*) "Fixing the shift of the HF + Double excitations to ", DoubsShift
+            IF(TFixShiftShell) THEN
+                WRITE(6,*) "Fixing the shift of all excitations .le. to ",ShellFix," to: ", FixShift
             ENDIF
             WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
             WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
@@ -2829,11 +2829,12 @@ MODULE FciMCMod
 !        rh=rh-Hii
 
 !Subtract the current value of the shift and multiply by tau
-        IF(TFixShiftDoubs) THEN
+        IF(TFixShiftShell) THEN
 !With this option, we can fix the shift for the HF and doubles at a constant value - this will then not give right answers, but 
 !may help equilibrate...
-            IF((IC.eq.2).or.(IC.eq.0)) THEN
-                rat=Tau*(Kii-DoubsShift)
+!            IF((IC.eq.2).or.(IC.eq.0)) THEN
+            IF(IC.le.ShellFix) THEN
+                rat=Tau*(Kii-FixShift)
             ELSE
                 rat=Tau*(Kii-DiagSft)
             ENDIF

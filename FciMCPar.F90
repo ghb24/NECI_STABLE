@@ -14,7 +14,7 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
-    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftDoubs,DoubsShift
+    use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc
     USE Determinants , only : FDet,GetHElement2
@@ -1868,8 +1868,8 @@ MODULE FciMCParMod
             ELSEIF(NDets.lt.2) THEN
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
                 CALL Stop_All("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
-            ELSEIF(TFixShiftDoubs) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Fixing the shift of the HF + doubles cannot be used within ResumFCIMC")
+            ELSEIF(TFixShiftShell) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Fixing the shift of the certain excitation levels cannot be used within ResumFCIMC")
             ENDIF
             IF(iProcIndex.eq.root) THEN
                 WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
@@ -1902,9 +1902,9 @@ MODULE FciMCParMod
         ELSE
             TSinglePartPhase=.false.
         ENDIF
-        IF(TFixShiftDoubs) THEN
+        IF(TFixShiftShell) THEN
             IF(iProcIndex.eq.root) THEN
-                WRITE(6,*) "The HF and double excitations will have their shift fixed at ",DoubsShift
+                WRITE(6,"(A,I5,A,F20.10)") "All excitations up to ",ShellFix," will have their shift fixed at ",FixShift
                 WRITE(6,*) "With this option, results are going to be non-exact, but can be used to equilibrate calculations"
             ENDIF
         ENDIF
@@ -2821,9 +2821,10 @@ MODULE FciMCParMod
 !        rh=rh-Hii
 
 !Subtract the current value of the shift and multiply by tau
-        IF(TFixShiftDoubs.and.(.not.TSinglePartPhase)) THEN
-            IF((IC.eq.0).or.(IC.eq.2)) THEN
-                rat=Tau*(Kii-DoubsShift)
+        IF(TFixShiftShell.and.(.not.TSinglePartPhase)) THEN
+!            IF((IC.eq.0).or.(IC.eq.2)) THEN
+            IF(IC.le.ShellFix) THEN
+                rat=Tau*(Kii-FixShift)
             ELSE
                 rat=Tau*(Kii-DiagSft)
             ENDIF

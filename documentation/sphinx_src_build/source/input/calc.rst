@@ -632,14 +632,14 @@ The following options are only available in **FCIMC** calculations:
     Less memory is required, since no hashes need to be stored. Also, no communication is
     needed, so the routine should scale better as the number of walkers grows.
 
-**FIXHFDOUBSSHIFT** [DoubsShift]
-    Default 0.D0
+**FIXSHELLSHIFT** [ShellFix] [FixShift]
+    Default 0,0.D0
 
     An FCIMC option. With this, the shift is fixed at a value given here, 
-    but only for the HF and doubles. This will almost definitly give the wrong 
-    answers for both the energy and the shift, but may be of use in equilibration 
-    steps to maintain particle density at low excitations, before writing out the 
-    data and letting the shift change.
+    but only for the excitation levels at a value of ShellFix or lower. This will 
+    almost definitly give the wrong answers for both the energy and the shift, 
+    but may be of use in equilibration steps to maintain particle density at 
+    low excitations, before writing out the data and letting the shift change.
 
 **UNBIASPGENINPROJE**
     Default false
