@@ -5,7 +5,7 @@ General
 =======
 
 frsblk.F
-    I know Ali claims it's different from CPMD's version, but do a diff and decide for yourself...
+    Ali wrote this in CPMD anyway, so it's ok...
     (Routines in frsblk have been prepended with NECI_ to avoid nameclashes.)
 irat.inc
     We should be able to replace this pretty easily.  Thoughts as to best approach?
