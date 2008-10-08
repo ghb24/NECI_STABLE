@@ -169,7 +169,8 @@ C     ==--------------------------------------------------------------==
       WRITE(6,'(A,A)') ' NAME            FIRST ADDRESS    ',
      *     '       LAST ADDRESS        LENGTH  '
       DO I=1,I_BLOCK
-        II=INDEX(I)
+        II=I
+!NDEX(I)
         IP_X1=I_AD1(II)
         IP_X2=I_AD2(II)
         IF(IP_X2.NE.0) THEN

@@ -11,6 +11,7 @@ MODULE System
       != Set defaults for Calc data items.
 
       use default_sets
+      USE SymData, only: tAbelianFastExcitGen
       implicit none
 
 !     SYSTEM defaults - leave these as the default defaults
@@ -55,6 +56,7 @@ MODULE System
       OrbECutoff=1e20
       tStoreAsExcitations=.false.
       TBIN=.false.
+      tAbelianFastExcitGen=.false.
 
       lNoSymmetry=.false.
 

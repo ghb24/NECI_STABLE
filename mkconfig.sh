@@ -209,6 +209,7 @@ LDD = ${LDD}
 AR = ${AR}
 ARFLAGS = ${ARFLAGS}
 GLOBALS= ${GLOBALS}
+OBJCOPYFLAGS = ${OBJCOPYFLAGS}
 #----------------------------------------------------------------------------
 END
 #There is Personal Configuration.

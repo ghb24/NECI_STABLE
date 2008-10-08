@@ -749,7 +749,8 @@ C..      ENDIF(.NOT.TCOUNT)
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)
          use global_utilities
          use SystemData, only: Symmetry,BasisFN
-         use SymData, only: SymClass
+         use SymData, only: SymClass,nSymPairProds
+         use SymData, only: tAbelianFastExcitGen
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
@@ -781,7 +782,7 @@ C..      ENDIF(.NOT.TCOUNT)
          POINTER(IP_NALLOWPPS,NALLOWPPS)
          INTEGER ORBPAIRS(2,*)
          POINTER (IP_ORBPAIRS,ORBPAIRS)
-         INTEGER nCl,nExcitTypes,nSymPairProds,nPr
+         INTEGER nCl,nExcitTypes,nPr
 
          LOGICAL ISUHFDET
  
@@ -850,8 +851,13 @@ C.. the complete list, and store that value in NALLOWPPS
          ELSE
             IP_NALLOWPPS=STORE(3)
          ENDIF
-         Call SymSetupExcits_CountVirtProds(nDoub, nExcitTypes,nPr,
-     &   nSymPairProds, nAllowPPS,iLUT)
+         if(tAbelianFastExcitGen) then
+            Call SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,
+     &               nPr,nSymPairProds,SymProdCount,nAllowPPS) ! Calculated not enumerated
+         else
+            Call SymSetupExcits_CountVirtProds(nDoub, nExcitTypes,nPr,
+     &         nSymPairProds, nAllowPPS,iLUT)
+         endif
          NEXCITS=0
          IF(BTEST(ILEVEL,0)) NEXCITS=NEXCITS+NSING
          IF(BTEST(ILEVEL,1)) NEXCITS=NEXCITS+NDOUB
@@ -1212,16 +1218,15 @@ C.. We do this by checking whether any of the []' in the
 C.. global symprods table multiplied by [] give the sym rep.
 
       Subroutine SymSetupExcits_CountVirtProds(nDoub, nExcitTypes,nPr,
-     &   nSymPairProds, SymProdInd, SymProds, nAllowPPS,iLUT)
+     &   SymProdInd, SymProds, nAllowPPS,iLUT)
          use SystemData, only: Symmetry,BasisFN
-         use SymData, only: SymPairProds,SymStatePairs
+         use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
          IMPLICIT NONE
          INTEGER nDoub
          INTEGER nExcitTypes
          INTEGER nPr
-         INTEGER nSymPairProds
          INTEGER nAllowPPS(3,*)
-         INTEGER iLUT(*)
+         INTEGER iLUT(0:*)
          INTEGER SYMPRODIND(2,3,0:*)
          TYPE(Symmetry) SYMPRODS(0:*)
 
@@ -1316,6 +1321,11 @@ C     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
          ENDDO       
 
 !         WRITE(6,*) "Number of double excitations: ",NDOUB
+      End Subroutine
+
+      Subroutine SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,
+     &               nPr,SymProdCount,nAllowPPS) ! Calculated not enumerated
+                   
       End Subroutine
 
       Subroutine SymSetupExcits_CountSingles(nSing,nCl,nExcitTypes,
@@ -1895,7 +1905,7 @@ C.. This is the first time we've been called for setup.
                CALL N_MEMORY(IP_DSTORE,SymClassSize*NEL+NBASIS/32+1
      &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
                STORE2(1)=IP_DSTORE
-C.. Just count.
+C.. Just count.   
                CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
@@ -2363,6 +2373,502 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          ENDIF
       ENDDO 
       END
+
+      Subroutine SymGenExcitIt2(nI,nEl,ExcitTypes,nExcitTypes,
+     &   Classes, SymProdInd, iLUT, OrbPairs, iExcit, iSpn,
+     &   iFrom, iTo, I, J, K, L, iCC, LS,
+     &   nK, iC, iMinElec1, iMaxElec1)
+         use SystemData , only : TSTOREASEXCITATIONS
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+         use SymData, only: SymLabelList,SymPairProds
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
+         
+         INTEGER I,J,K,L
+         INTEGER NK(NEL)
+         TYPE(SymClass) CLASSES(*)
+         INTEGER IEXCIT
+         INTEGER IFROM,ITO,ISPN
+         INTEGER IFROMSL,ITOSL
+         TYPE(Symmetry) SPP
+         LOGICAL L1,L2
+         INTEGER ICC(4)
+C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
+         LOGICAL LS(2,2)
+
+         INTEGER ORBPAIRS(2,*)
+         INTEGER ILUT(0:*)
+         INTEGER SYMPRODIND(2,3,0:*)
+         INTEGER IC
+         LOGICAL tDebugPrint
+         INTEGER iMinElec1, iMaxElec1
+
+         INTEGER iRet
+         tDebugPrint=.false.
+
+         DO WHILE(.TRUE.)
+! Indicate that we need to keep on cycling.  If it is changed
+!  by the later routines we stop the loop
+            iRet=0
+C.. see if we need a new EXCIT
+!         WRITE(6,*) I,iExcit,nExcitTypes
+            IF(I.LT.0) THEN
+C.. move to the next excitation
+               IEXCIT=IEXCIT+1
+               IF(IEXCIT.GT.NEXCITTYPES) THEN
+C.. We're done
+                  NK(1)=0
+                  RETURN
+               ENDIF
+               IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
+                  Call SymGenExcitIt_SetupSingle(iSpn,iFrom,iTo,
+     &      iExcit, ExcitTypes, Classes, SymProdInd,
+     &      I,J,K,L,nI,nEl,iMinElec1,iMaxElec1,tDebugPrint)
+               ELSE
+                  Call SymGenExcitIt_SetupDouble(iSpn,iFrom,iTo,
+     &      iExcit, ExcitTypes, SymProdInd,
+     &      I,J,K,L,iMinElec1,iMaxElec1,tDebugPrint)
+               ENDIF 
+            ENDIF
+            IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
+               Call SymGenExcitIt_GenSingle(iRet,iSpn,iFrom,iTo,iCC,
+     &   I,J,K,L,tDebugPrint,iExcit,iMinElec1,iMaxElec1,
+     &   nI,nK)
+            ELSE
+               Call SymGenExcitIt_GenDouble(iRet,SPP,
+     &   I,J,K,L,iTo,iCC,iLUT,LS,OrbPairs,SymProdInd,
+     &   nI,nK,nEl,iC)
+            ENDIF 
+            if(iRet.eq.1) cycle
+            if(iRet.eq.2) return
+         ENDDO 
+      End Subroutine SymGenExcitIt2
+
+      Subroutine SymGenExcitIt_SetupSingle(iSpn,iFrom,iTo,
+     &      iExcit, ExcitTypes, Classes, SymProdInd,
+     &      I,J,K,L,nI,nEl,iMinElec1,iMaxElec1,tDebugPrint)
+         use SystemData , only : TSTOREASEXCITATIONS
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+         use SymData, only: SymLabelList,SymPairProds
+         IMPLICIT NONE
+         INTEGER nEl,nI(nEl)
+         INTEGER ExcitTypes(5,*)
+         
+         INTEGER I,J,K,L
+         TYPE(SymClass) Classes(*)
+         INTEGER iExcit
+         INTEGER iFrom,iTo,iSpn
+
+         INTEGER SymProdInd(2,3,0:*)
+         LOGICAL tDebugPrint
+         INTEGER iMinElec1, iMaxElec1
+
+
+C.. a single
+         ISPN=EXCITTYPES(2,IEXCIT)-2
+         IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
+         ITO=EXCITTYPES(4,IEXCIT)
+         L=0
+         K=SYMLABELCOUNTS(2,ITO)
+!  J will run along symblabels
+         J=0
+!  I will run along the determinant
+         I=0
+!  Take into account the we may only be doing a subset of the electrons
+         DO WHILE(I.LT.NEL)
+            IF(NI(I+1).GE.iMinElec1) EXIT
+            I=I+1
+         ENDDO
+!  I now is the index of the first electron allowed in our subset
+         IF(tDebugPrint)
+     &      WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
+     &         IFROM)
+      End Subroutine SymGenExcitIt_SetupSingle
+
+      Subroutine SymGenExcitIt_SetupDouble(iSpn,iFrom,iTo,
+     &      iExcit, ExcitTypes, SymProdInd,
+     &      I,J,K,L,iMinElec1,iMaxElec1,tDebugPrint)
+         use SystemData , only : TSTOREASEXCITATIONS
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+         use SymData, only: SymLabelList,SymPairProds
+         IMPLICIT NONE
+         INTEGER ExcitTypes(5,*)
+         
+         INTEGER I,J,K,L
+         INTEGER iExcit
+         INTEGER iFrom,iTo,iSpn
+
+         INTEGER SymProdInd(2,3,0:*)
+         LOGICAL tDebugPrint
+         INTEGER iMinElec1, iMaxElec1
+
+C.. a double
+         ISPN=EXCITTYPES(2,IEXCIT)
+         IFROM=EXCITTYPES(3,IEXCIT)
+         ITO=EXCITTYPES(4,IEXCIT)
+         I=0
+         L=5
+         K=-2
+         IF(tDebugPrint)
+     &      WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
+     &            IFROM)
+      End Subroutine SymGenExcitIt_SetupDouble
+
+      Subroutine SymGenExcitIt_GenSingle(iRet,iSpn,iFrom,iTo,iCC,
+     &   I,J,K,L,tDebugPrint,iExcit,iMinElec1,iMaxElec1,iC,
+     &   nI,nK,nEl)
+         use SystemData , only : TSTOREASEXCITATIONS
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+         use SymData, only: SymLabelList,SymPairProds
+         IMPLICIT NONE
+         INTEGER nEl,nI(nEl)
+         
+         INTEGER I,J,K,L
+         INTEGER nK(nEl)
+         INTEGER iExcit
+         INTEGER iFrom,iTo,iSpn
+         INTEGER ICC(4)
+
+
+         INTEGER IFROMSL,ITOSL
+         TYPE(Symmetry) SPP
+         LOGICAL L1,L2
+C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
+         LOGICAL LS(2,2)
+
+         INTEGER iC
+         LOGICAL tDebugPrint
+         INTEGER iMinElec1, iMaxElec1
+
+         INTEGER iRet
+         
+C.. singles
+C.. We always need a new K.  K and L run in parallel
+         K=K+1
+C.. We've stored IFROMSL in ICC1
+         IFROMSL=ICC(1)
+C.. For each K, we check to see if it's valid
+         IF(K.GE.SYMLABELCOUNTS(2,ITO)) THEN
+C.. no more possible K, so we get a new I
+            K=-1
+            L=0
+C.. I and J run in parallel, and for each J, we check whether it's in 
+C.. the det.  If it is, then we carry on.
+C.. SYMLABELLIST holds a list of states grouped under symmlabel, and ordered within that symlabel
+C.. SYMLABELCOUNTS(1,J) is the index within SYMLABELLIST of the first state of symlabel J
+C.. SYMLABELCOUNTS(2,J) is the number of states with symlabel J
+!..  J runs along the symlabel looking for states of that symmetry
+!..  I runs along the determinant comparing against electrons of that symmetry.
+!..  We're looking for electrons in the det which are also in the SYMLABELLIST, and we run I and J
+!..   in parallel along each to keep the search efficient.
+!  instead of NEL, we have iMaxElec1
+            L2=I.LT.iMaxElec1
+            L1=.TRUE.
+!  This loop, dependent on L2 gets a new I
+            DO WHILE(L2)
+               I=I+1
+               L1=J.LT.SYMLABELCOUNTS(2,IFROM)
+!  This loop dependent on L1 gets a new J
+               DO WHILE(L1)
+                  IFROMSL=(SYMLABELLIST(SYMLABELCOUNTS(1,IFROM)+J)*2
+     &                     +ISPN)
+                  ICC(1)=IFROMSL
+C                     WRITE(6,*) I,NI(I),J,IFROM,IFROMSL
+!  If J points to an electron lower than the current in the det, inc J
+                  IF(IFROMSL.LT.NI(I)) J=J+1
+!  If J was a lower elec, and there are more J to get, then carry on in this loop
+                  L1=IFROMSL.LT.NI(I)
+     &                     .AND.J.LT.SYMLABELCOUNTS(2,IFROM)
+               ENDDO
+C.. see if we need a new I because NI(I)<IFROMSL which is the current electron corresponging to J.
+!  Instead of NEL we have iMaxElec1
+               L2=IFROMSL.NE.NI(I).AND.I.LT.iMaxElec1
+!  If I.EQ.NEL, then we're run out of electrons, because the next electron we get will be in pos NEL+1
+            ENDDO
+C.. If we've gone too far, signal a new excit
+!  If L1 is true then we never made it into the get new J loop because L2 was FALSE because there were no more electrons to get in the det. Alternatively we've hit the last electron in the det, and not found a correspondence in the sym excit list.  Either way we signal to give up on this set of excitations, as we cannot find a valid I.
+!  Instead of NEL we use iMaxElec1
+            IF(L1.OR.(I.EQ.iMaxElec1.AND.IFROMSL.NE.NI(I))) I=-1
+
+!  Cycle back to the beginning with our new valid I (or invalid I signalling find a new excit type), and look for a K
+            iRet=1
+            RETURN               
+         ENDIF
+C.. it's a valid K, but is it in the det already?
+C.. ITOSL is the orb it corresponds to
+         ITOSL=2*SYMLABELLIST(SYMLABELCOUNTS(1,ITO)+K)
+     &                              +ISPN
+C.. Check if it's in the det
+         L2=.TRUE.
+C            WRITE(6,*) SYMLABELCOUNTS(2,ITO),ITOSL            
+         DO WHILE (L2)
+            L=L+1
+            L2=L.LE.NEL.AND.NI(L).LT.ITOSL
+         ENDDO
+         IF(L.LE.NEL.AND.NI(L).EQ.ITOSL) THEN
+C.. We've found an L in the det which is the same as ITOSL. 
+C.. we go round again, getting another K
+            iRet=1
+            RETURN               
+         ENDIF
+         L=L-1
+C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excitation
+         IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+            NK(1)=-1
+            NK(2)=1
+            NK(3)=0
+            NK(4)=NI(I)
+            NK(5)=ITOSL
+            STOP 'tStoreAsExcitations not tested for singles.'
+         ELSE
+            CALL ICOPY(NEL,NI,1,NK,1)
+            IF(tDebugPrint)
+     &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
+            NK(I)=ITOSL
+            CALL SORTI(NEL,NK)
+            IC=1
+         ENDIF
+C.. quit the do loop
+         iRet=2
+         RETURN
+      End Subroutine SymGenExcitIt_GenSingle
+
+      Subroutine SymGenExcitIt_GenDouble(iRet,SPP,
+     &   I,J,K,L,iTo,iCC,iLUT,LS,OrbPairs,SymProdInd,
+     &   nI,nK,nEl,iC)
+         use SystemData , only : TSTOREASEXCITATIONS
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+         use SymData, only: SymLabelList,SymPairProds
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL)
+         
+         INTEGER I,J,K,L
+         INTEGER NK(NEL)
+         INTEGER IEXCIT
+         INTEGER IFROM,ITO,ISPN
+         INTEGER IFROMSL,ITOSL
+         TYPE(Symmetry) SPP
+         LOGICAL L1,L2
+         INTEGER ICC(4)
+C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
+         LOGICAL LS(2,2)
+
+         INTEGER ORBPAIRS(2,*)
+         INTEGER ILUT(0:*)
+         INTEGER SYMPRODIND(2,3,0:*)
+         INTEGER IC
+         LOGICAL tDebugPrint
+         INTEGER iMinElec1, iMaxElec1
+
+         INTEGER iRet
+         iRet=0
+C.. doubles
+         SPP=SymPairProds(ITO)%Sym
+C.. See if we need a new K.  L is the spin label, and goes from 1..4.
+         IF(L.GT.4) THEN
+            L=1
+            K=K+1
+            IF(K.LT.0.OR.
+     &           K.GE.SymPairProds(ITO)%nIndex+SymPairProds(ITO)%nPairs)
+     &            THEN
+C.. K is invalid.  Get a new I
+               K=1
+               I=I+1
+               IF(I.GT.SYMPRODIND(2,ISPN,IFROM)) THEN
+C.. I is now invalid
+                  I=-1
+                  iRet=1
+                  RETURN
+               ELSE
+C.. reset K
+                  K=SymPairProds(ITO)%nIndex
+               ENDIF
+            ENDIF
+C.. We've got a new K, so we need to reset some variables
+            ICC(1)=SymStatePairs(1,K)*2-1
+            ICC(2)=ICC(1)+1
+            ICC(3)=SymStatePairs(2,K)*2-1
+            ICC(4)=ICC(3)+1
+C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
+C                     WRITE(6,*) ISPN,ICC(1),ICC(3)
+            LS(1,1)=BTEST(ILUT((ICC(1)-1)/32),
+     &                     MOD(ICC(1)-1,32))
+            LS(1,2)=BTEST(ILUT((ICC(2)-1)/32),
+     &                     MOD(ICC(2)-1,32))
+            LS(2,1)=BTEST(ILUT((ICC(3)-1)/32),
+     &                     MOD(ICC(3)-1,32))
+            LS(2,2)=BTEST(ILUT((ICC(4)-1)/32),
+     &                     MOD(ICC(4)-1,32))
+         ENDIF
+C.. Now check for an excitation
+         IF(L.EQ.1) THEN
+            L=2
+            IF(ISPN.EQ.1.AND.ICC(1).NE.ICC(3).AND.
+     &            .NOT.(LS(1,1).OR.LS(2,1))) THEN
+               IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                  NK(1)=-1
+                  NK(2)=2
+                  NK(3)=1
+                  NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                  NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                  NK(6)=ICC(1)
+                  NK(7)=ICC(3)
+               ELSE
+                  CALL ICOPY(NEL,NI,1,NK,1)
+                  DO J=1,NEL
+                     IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
+                        NK(J)=ICC(1)
+                     ENDIF
+                     IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
+                        NK(J)=ICC(3)
+                     ENDIF
+                  ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
+                  CALL SORTI(NEL,NK)
+               ENDIF
+               IC=2
+               iRet=2
+               RETURN
+            ENDIF
+         ENDIF
+         IF(L.EQ.2) THEN
+            L=3
+            IF(ISPN.EQ.2) THEN
+C.. If neither virtuals are in NI, then allow
+               IF(.NOT.(LS(1,1).OR.LS(2,2))) THEN
+                  IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                     NK(1)=-1
+                     NK(2)=2
+                     NK(3)=1
+                     NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                     NK(6)=ICC(1)
+                     NK(7)=ICC(4)
+                  ELSE
+                     CALL ICOPY(NEL,NI,1,NK,1)
+                     DO J=1,NEL
+                        IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
+                           NK(J)=ICC(1)
+                        ENDIF
+                        IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                           IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
+                           NK(J)=ICC(4)
+                        ENDIF
+                     ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
+                     CALL SORTI(NEL,NK)
+                  ENDIF
+                  IC=2
+                  iRet=2
+                  RETURN
+               ENDIF
+            ENDIF
+         ENDIF
+         IF(L.EQ.3) THEN
+            L=4
+            IF(ISPN.EQ.2) THEN
+C.. If neither virtuals are in NI, and they're not the same(which would give
+C.. us the same excitation as previously), then allow
+              IF(.NOT.(LS(1,2).OR.LS(2,1)).AND.ICC(1).NE.ICC(3)) THEN
+                IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                  NK(1)=-1
+                  NK(2)=2
+                  NK(3)=1
+                  NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                  NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                  NK(6)=ICC(2)
+                  NK(7)=ICC(3)
+                ELSE
+                  CALL ICOPY(NEL,NI,1,NK,1)
+                  DO J=1,NEL
+                     IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
+                        NK(J)=ICC(2)
+                     ENDIF
+                     IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
+                        NK(J)=ICC(3)
+                     ENDIF
+                  ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
+                  CALL SORTI(NEL,NK)
+                ENDIF
+                IC=2
+                iRet=2
+                RETURN
+               ENDIF
+            ENDIF
+         ENDIF
+         IF(L.EQ.4) THEN
+            L=5
+            IF(ISPN.EQ.3) THEN
+C.. If both virtuals aren't the samem and neither are in NI, then allow
+              IF(ICC(1).NE.ICC(3).AND..NOT.(LS(1,2).OR.LS(2,2))) THEN
+                IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+                  NK(1)=-1
+                  NK(2)=2
+                  NK(3)=1
+                  NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
+                  NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
+                  NK(6)=ICC(2)
+                  NK(7)=ICC(4)
+                ELSE
+                  CALL ICOPY(NEL,NI,1,NK,1)
+                  DO J=1,NEL
+                     IF(NI(J).EQ.ORBPAIRS(1,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        IF(tDebugPrint)
+     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
+                        NK(J)=ICC(2)
+                     ENDIF
+                     IF(NI(J).EQ.ORBPAIRS(2,
+     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
+                        IF(tDebugPrint)
+     &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
+                        NK(J)=ICC(4)
+                     ENDIF
+                  ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
+                  CALL SORTI(NEL,NK)
+                ENDIF
+                IC=2
+                iRet=2
+                RETURN
+               ENDIF
+            ENDIF
+         ENDIF
+      End Subroutine SymGenExcitIt_GenDouble
 C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
 C.. before this.
 C.. This version is based on GenRandSymExcitIt2, but does not need values it extracts from modules

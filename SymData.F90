@@ -22,7 +22,7 @@ module SymData
                               !states.  This is the number of pairs of states which could be generated.          
                               !  This is if the states have opposite spin                                     
     ENDTYPE
-    INTEGER, PARAMETER :: SymPairProdSize=SymmetrySize+2
+    INTEGER, PARAMETER :: SymPairProdSize=SymmetrySize+4
 
     !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single symmetry of an orbital which is present in the determinant being excited from
     TYPE SymClass 
