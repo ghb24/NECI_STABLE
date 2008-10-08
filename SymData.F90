@@ -15,6 +15,12 @@ module SymData
         TYPE(Symmetry) Sym  !The symmetry of a set of pairs
         INTEGER nPairs      !The number of pairs where the direct product of the syms of the orbs in the pair is Sym
         INTEGER nIndex      !The index of the first of these pairs in the complete list of pairs (SymStatePairs)
+        INTEGER nPairsStateSS !For abelian, SymPairProds actually holds info on pairs of sym classes not individual
+                              !states.  This is the number of pairs of states which could be generated.            
+                              !  This is if the states have the same spin 
+        INTEGER nPairsStateOS !For abelian, SymPairProds actually holds info on pairs of sym classes not individual 
+                              !states.  This is the number of pairs of states which could be generated.          
+                              !  This is if the states have opposite spin                                     
     ENDTYPE
     INTEGER, PARAMETER :: SymPairProdSize=SymmetrySize+2
 
