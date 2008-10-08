@@ -436,8 +436,7 @@ C.. Now deal with pairs of states
             allocate(SymPairProds(nSymLabels**2))
             call LogMemAlloc('SymPairProds',nSymLabels**2,
      &                   SymPairProdSize*8,this_routine,tagSymPairProds)
-            CALL IAZZERO(SymPairProds,
-     &         SymPairProdSize*nSymLabels*nSymLabels)
+            SymPairProds(:)=SymPairProd(Symmetry(0),0,0,0,0)
 C.. Now enumerate all pairs, and classify their product, but don't store them.
             nSymPairProds=0
             CALL GenSymPairs(nSymLabels,0)
@@ -456,14 +455,14 @@ C.. Now sort the SymPairProds into order
             allocate(SymStatePairs(2,0:TOT-1))
             call LogMemAlloc('SymStatePairs',2*TOT,4,this_routine,
      &                                                 tagSymStatePairs)
-            CALL IAZZERO(SymStatePairs,TOT*2)
+            SymStatePairs(:,:)=0
             CALL GenSymPairs(nSymLabels,1)
          else
 !.. Non-abelian symmetry requires us to go through and work out all the possible pairs of orbs.
             allocate(SymPairProds(nSymLabels**2))
             call LogMemAlloc('SymPairProds',nSymLabels**2,
      &                   SymPairProdSize*8,this_routine,tagSymPairProds)
-         SymPairProds=SymPairProd(Symmetry(0),0,0)
+            SymPairProds=SymPairProd(Symmetry(0),0,0,0,0)
 C.. Now enumerate all pairs, and classify their product, but don't store them.
             nSymPairProds=0
             CALL GENALLSymStatePairs(NSTATES,.FALSE.,FRZ)
