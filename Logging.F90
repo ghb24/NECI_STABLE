@@ -8,7 +8,8 @@ MODULE Logging
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
-    LOGICAL TZeroProjE,TWriteDetE
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr
+    INTEGER iLagMin,iLagMax,iLagStep
 
     contains
 
@@ -18,6 +19,10 @@ MODULE Logging
       use default_sets
       implicit none
 
+      iLagMin=0
+      iLagMax=0
+      iLagStep=1
+      TAutoCorr=.false.
       MaxHistE=50.D0
       NoHistBins=200
       iWritePopsEvery=100000
@@ -59,6 +64,12 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
+        case("AUTOCORR")
+!This is a Parallel FCIMC option - it will calculate the ACF of certain determinants specified in the code and output them
+            TAutoCorr=.true.
+            call readi(iLagMin)
+            call readi(iLagMax)
+            call readi(iLagStep)
         case("DETPOPS")
 !This option no longer works...
             TDetPops=.true.

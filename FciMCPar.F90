@@ -21,6 +21,7 @@ MODULE FciMCParMod
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
+    USE Logging , only : TAutoCorr,iLagMin,iLagMax,iLagStep
     USE global_utilities
     USE HElem
     USE Parallel
@@ -128,6 +129,12 @@ MODULE FciMCParMod
     LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
 
     TYPE(timer), save :: Walker_Time,Annihil_Time
+
+!These are arrays used to store the autocorrelation function
+    INTEGER , ALLOCATABLE :: WeightatDets(:,:)                   !First index - det which is stored, second - weight on proc at that iteration
+    INTEGER , ALLOCATABLE :: AutoCorrDets(:,:)                  !(NEl,NoAutoDets)
+    INTEGER :: NoAutoDets
+    INTEGER :: WeightatDetsTag=0,AutoCorrDetsTag=0
         
     contains
 
@@ -199,6 +206,8 @@ MODULE FciMCParMod
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
+        
+        IF(TAutoCorr) CALL CalcAutoCorr()
 
         IF(iProcIndex.eq.Root) CLOSE(15)
         IF(TDebug) CLOSE(11)
@@ -208,7 +217,127 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FciMCPar
-            
+
+!This routine calculates the autocorrelation function for the determinants listed in AutoCorrDets array, with lags from iLagMin to iLagMax in steps of iLagStep
+!and writes it to a file ACF. The calculation is done in serial. It is not trivial to turn it into an efficient parallel algorithm
+    SUBROUTINE CalcAutoCorr()
+        INTEGER :: i,j,k,error
+        REAL*8 :: Means(NoAutoDets),NVar(NoAutoDets),ACF(NoAutoDets)!,AllACF(NoAutoDets)
+!        REAL*8 :: TestVar(NoAutoDets)
+        INTEGER :: SumSquares(NoAutoDets),SumWeights(NoAutoDets),ierr
+        INTEGER , ALLOCATABLE :: AllWeightatDets(:,:)
+        INTEGER :: AllWeightatDetsTag=0
+        CHARACTER(len=*), PARAMETER :: this_routine='CalcAutoCorr'
+
+        IF(iLagMax.lt.0) THEN
+            iLagMax=Iter
+        ENDIF
+        IF(iProcIndex.eq.root) THEN
+            OPEN(43,FILE='ACF',STATUS='UNKNOWN')
+        ENDIF
+
+        WRITE(6,"(A,I8,A,I8,A,I8,A)") "Calculating the ACF with lags from ",iLagMin," to ",iLagMax," in steps of ",iLagStep," and writing it to file 'ACF'"
+        WRITE(6,*) "Calculating the ACF for the following determinants:"
+        do i=1,NoAutoDets
+            do j=1,NEl
+                WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
+            enddo
+            WRITE(6,*) ""
+        enddo
+
+        ALLOCATE(AllWeightatDets(NoAutoDets,Iter),stat=ierr)
+        CALL LogMemAlloc('AllWeightatDets',NoAutoDets*Iter,4,this_routine,AllWeightatDetsTag,ierr)
+        AllWeightatDets(:,:)=0
+
+!Initially, we will calculate this ACF in serial - this will be easier as there are subtle effects in parallel.
+        CALL MPI_Reduce(WeightatDets(NoAutoDets,1:Iter),AllWeightatDets(NoAutoDets,1:Iter),NoAutoDets*Iter,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
+
+        IF(iProcIndex.eq.root) THEN
+
+!First, we need to calculate the average value for each of the determinants - this could be calculated during the simulation
+!We also want to divide the ACF components by sum_i ((s_i - av(s))^2) , which is N * Var(s) = sum(s^2) - 1/N (sum(x))^2
+            SumWeights(:)=0
+            SumSquares(:)=0
+            NVar(:)=0.D0
+            Means(:)=0.D0
+        
+            do i=1,Iter
+                do j=1,NoAutoDets
+                    SumWeights(j)=SumWeights(j)+AllWeightatDets(j,i)
+                    SumSquares(j)=SumSquares(j)+(AllWeightatDets(j,i)**2)
+                enddo
+            enddo
+
+!This then needs to be sent to all nodes
+!            CALL MPI_AllReduce(SumWeights,AllSumWeights,NoAutoDets,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+!            CALL MPI_AllReduce(SumSquares,AllSumSquares,NoAutoDets,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+
+            do j=1,NoAutoDets
+                Means(j)=REAL(SumWeights(j),r2)/REAL(Iter,r2)
+                NVar(j)=REAL(SumSquares(j),r2)-((REAL(SumWeights(j),r2)**2)/REAL(Iter,r2))
+                WRITE(6,"(A,I4)",advance='no') "Mean+Var for det: ",AutoCorrDets(1,j)
+                do k=2,NEl
+                    WRITE(6,"(I4)",advance='no') AutoCorrDets(k,j)
+                enddo
+                WRITE(6,"(A,2F20.10)") " is: ", Means(j),NVar(j)/REAL(Iter,r2)
+            enddo
+
+!Alternativly, we can calculate the variance seperatly...
+!            TestVar(:)=0.D0
+!            do i=1,Iter
+!                do j=1,NoAutoDets
+!                    TestVar(j)=TestVar(j)+((REAL(AllWeightatDets(j,i),r2)-Means(j))**2)
+!                enddo
+!            enddo
+!            CALL MPI_AllReduce(TestVar,AllTestVar,NoAutoDets,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+!            WRITE(6,*) "TESTVAR: ",TestVar/REAL(Iter,r2)
+
+!Now we need to calculate the ACF for the desired values of the lag.
+            do i=iLagMin,iLagMax,iLagStep
+!i is now the value of the lag which we are calculating
+
+                ACF(:)=0.D0
+
+                do j=1,(Iter-i)
+!j is the run over the values needed
+
+                    do k=1,NoAutoDets
+!k is the run over the desired determinants which to calculate the ACFs
+                        ACF(k)=ACF(k)+((REAL(AllWeightatDets(k,j),r2)-Means(k))*(REAL(AllWeightatDets(k,j+i),r2)-Means(k)))
+                    enddo
+
+                enddo
+
+!Now we need to collate the information from all processors
+!                CALL MPI_Reduce(ACF,AllACF,NoAutoDets,MPI_DOUBLE_PRECISION,MPI_SUM,root,MPI_COMM_WORLD,error)
+
+                do k=1,NoAutoDets
+!Effectivly 'normalise' the ACF by dividing by the variance
+                    ACF(k)=ACF(k)/NVar(k)
+                enddo
+!Write out the ACF
+                WRITE(43,"(I8,F20.10)",advance='no') i,ACF(1)
+                do k=2,NoAutoDets
+                    WRITE(43,"(F20.10)",advance='no') ACF(k)
+                enddo
+                WRITE(43,*) ""
+
+            enddo
+
+            CLOSE(43)
+
+        ENDIF
+        
+        DEALLOCATE(WeightatDets)
+        CALL LogMemDealloc(this_routine,WeightatDetsTag)
+        DEALLOCATE(AllWeightatDets)
+        CALL LogMemDealloc(this_routine,AllWeightatDetsTag)
+        DEALLOCATE(AutoCorrDets)
+        CALL LogMemDealloc(this_routine,AutoCorrDetsTag)
+
+        RETURN
+
+    END SUBROUTINE CalcAutoCorr
     
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
@@ -1131,8 +1260,8 @@ MODULE FciMCParMod
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign)
-        INTEGER :: DetCurr(NEl),ExcitLevel
-        LOGICAL :: WSign
+        INTEGER :: DetCurr(NEl),ExcitLevel,i
+        LOGICAL :: WSign,CompiPath
         TYPE(HElement) :: HOffDiag
 
         MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
@@ -1169,6 +1298,23 @@ MODULE FciMCParMod
             ELSE
                 AvSign=AvSign-1.D0
             ENDIF
+        ENDIF
+
+        IF(TAutoCorr) THEN
+            do i=1,NoAutoDets
+!Sum over all the determinants we are interested in calculating the autocorrelation function for
+            
+                IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
+!The walker is at a determinant for which we want to calculate the autocorrelation function
+                    IF(WSign) THEN
+                        WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
+                    ELSE
+                        WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                    ENDIF
+                ENDIF
+
+            enddo
+
         ENDIF
 
         RETURN
@@ -1913,6 +2059,25 @@ MODULE FciMCParMod
             TTruncSpace=.true.
             WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
             IF(TResumFciMC) CALL Stop_All("InitFciMCPar","Space cannot be truncated with ResumFCIMC")
+        ENDIF
+
+        IF(TAutoCorr) THEN
+!We want to calculate the autocorrelation function over the determinants
+            IF(iLagMin.lt.0) THEN
+                CALL Stop_All("InitFciMCPar","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
+            ELSEIF(iLagMax.gt.NMCyc) THEN
+                CALL Stop_All("InitFciMCPar","LagMax cannot be greater than the number of cycles.")
+            ENDIF
+            NoAutoDets=1    !Initially, we are just after the ACF for one determinant
+            ALLOCATE(AutoCorrDets(NEl,NoAutoDets),stat=ierr)
+            CALL LogMemAlloc('AutoCorrDets',NEl*NoAutoDets,4,this_routine,AutoCorrDetsTag,ierr)
+!Fill the autocorrdets array with the determinants that you want to work out the autocorrelation for.
+            AutoCorrDets(:,1)=HFDet(:)
+!The number of occurunces of walkers at the determiants selected needs to be stored for all iterations
+            ALLOCATE(WeightatDets(NoAutoDets,NMCyc),stat=ierr)
+            CALL LogMemAlloc('WeightatDets',NoAutoDets*NMCyc,4,this_routine,WeightatDetsTag,ierr)
+            WeightatDets(:,:)=0
+            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
         ENDIF
 
         IF(TStartMP1) THEN
