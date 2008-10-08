@@ -104,6 +104,14 @@ General options
     If off, we are effectively reduced to a using Hartree multi-electron
     wavefunctions rather than Slater determinants.
 
+**FAST-EXCITGEN**
+    Default off.  Temporary flag [ AJWT 2008/09/22 ]
+    Used to indicate that if an Abelian symmetry group is present
+     the excitation generators should use optimized routines
+     to take this into account.  Not all (i.e. no) excitation generator functions
+     currently work with this.  USE WITH CARE
+
+
 **NEL** [NEL]
     Synonym for **ELECTRONS**.
 

@@ -71,6 +71,7 @@ MODULE System
 
     SUBROUTINE SysReadInput()
       USE input
+      USE SymData, only: tAbelianFastExcitGen
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
@@ -276,7 +277,13 @@ MODULE System
             if ( ISTATE /= 1 ) then
                 call report("Require ISTATE to be left set as 1",.true.)
             end if
-
+        case("FAST-EXCITGEN")
+            tAbelianFastExcitGen=.true.
+    ! tAbelianFastExcitGen is a temporary flag. 
+    !  It is used to indicate that if an Abelian symmetry group is presents
+    !   the excitation generators should use optimized routines
+    !   to take this into account.  Not all excitation generator functions
+    !   currently work with this.  USE WITH CARE
         case("ENDSYS") 
             exit system
         case default

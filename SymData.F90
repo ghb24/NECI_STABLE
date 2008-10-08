@@ -113,6 +113,14 @@ module SymData
     LOGICAL TAbelian  ! TAbelian for Abelian point groups (specifically k-point
                       ! symmetry).
 
+    LOGICAL tAbelianFastExcitGen
+    ! tAbelianFastExcitGen is a temporary flag. 
+    !  It is used to indicate that if an Abelian symmetry group is present
+    !   the excitation generators should use optimized routines
+    !   to take this into account.  Not all excitation generator functions
+    !   currently work with this.  USE WITH CARE
+
+
     ! Memory logging tags.
     INTEGER :: tagKPntSym 
     INTEGER :: tagSymConjTab

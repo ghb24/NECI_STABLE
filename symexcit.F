@@ -47,13 +47,27 @@ C.. If we're just counting, we don't need to keep DSTORE
 !=  global symprods table multiply by [] to give the symmetric rep.
 
 != Excitation Generator Scaling   Timing                    Memory
-!= 
+!=---- 
+!=SSE_CreateClassList(Classes, *ClassCount)
+!=
 != Create Class List              O(N)                      4 N
 !=   Gives NCL =O(NSYM)
+!=
 != Create Class Remainder info    O(NCL)                    
+!=----
+!=SSE_CreateClassSymProds(nPr,nPairs,nCl,SymProds,SymProdCount,*ClassCount,Classes)
+!=SSEA_CreateClassSymProds(nPr,nCl,SymProds,SymProdCount,*ClassCount,Classes)  !  Better scaling
+!=
 != Create Class Sym Product info  O(NCL^2)                  4 NPR 
 !=   Gives NPR ~= NCL^2
-!==   for abelian  NPR<=NSYM
+!=    for abelian  NPR<=NSYM
+!=
+!=----
+!=Form SymProdInd from SymProdCount
+!=----
+!=SSE_StoreOccPairs(OrbPairs,nPairs,nPr,SymProdInd,SymProds)
+!= !Abelian - do nothing
+!=
 != Save list of occ orbital pairs O(N^2) /NPROC             2 O(N^2) /NPROC
 !=   This is sorted according
 !=    to the symmetry product
@@ -62,6 +76,11 @@ C.. If we're just counting, we don't need to keep DSTORE
 !=                                                                   determine this from a list of 
 !=                                                                   occs sorted by sym.  We should
 !=                                                                   store counts however
+!=
+!=----
+!=SSE_CountVirtProds(nDoub,nExcitTypes,nPr,nSymPairProds,nAllowPPS,iLUT)
+!=SSEA_CountVirtProds(nDoub,nExcitTypes,nPr,nSymPairProds,SymProdCount,nAllowPPS) ! Calculated not enumerated
+!=
 != Count number of allowed virt
 !=    pairs of each sym prod      O(NPR M^2 / NCL^2)        O(NCL^2)
 !=    Also counts num of doubles
@@ -69,6 +88,10 @@ C.. If we're just counting, we don't need to keep DSTORE
 !=                                  [ NSYM ]              [ NSYM ]   the difference between the num
 !=                                                                   of occ pairs of a given sym and
 !=                                                                   the total num of pairs.
+!=
+!=----
+!=SSE_CountSingles(nSing,nCl,nExcitTypes,*ClassCount,Classes)
+!=
 != Calculate the number of
 !=    single excitations          O(NCL^3)
 !=                                  [ NSYM ]
@@ -651,6 +674,76 @@ C.. Store all the pointers we need
 C..      ENDIF(.NOT.TCOUNT)
          call halt_timer(proc_timer)
       END
+!=  ILEVEL is 1 for singles, 2 for just doubles, and 3 for both.
+!=  A a new symmetry excitation generation algorithm.
+!=  Algorithm: First list all the different symmetry classes in NI.
+!=  For each pair of symmetry classes, determine its symmetry product.
+!=  Classify and store each possible pair of orbitals under its symmetry product, [].
+!=  With each of the symmetry products [], calculate []' such that []x[]'
+!=  contains the totally symmetric rep.
+!=  We do this by checking whether any of the []' in the 
+!=  global symprods table multiply by [] to give the symmetric rep.
+
+!= Excitation Generator Scaling   Timing                    Memory
+!=---- 
+!=SSE_CreateClassList(Classes, *ClassCount)
+!=
+!= Create Class List              O(N)                      4 N
+!=   Gives NCL =O(NSYM)
+!=
+!= Create Class Remainder info    O(NCL)                    
+!=----
+!=SSE_CreateClassSymProds(nPr,nPairs,nCl,SymProds,SymProdCount,*ClassCount,Classes)
+!=SSEA_CreateClassSymProds(nPr,nCl,SymProds,SymProdCount,*ClassCount,Classes)  !  Better scaling
+!=
+!= Create Class Sym Product info  O(NCL^2)                  4 NPR 
+!=   Gives NPR ~= NCL^2
+!=    for abelian  NPR<=NSYM
+!=
+!=----
+!=Form SymProdInd from SymProdCount
+!=----
+!=SSE_StoreOccPairs(OrbPairs,nPairs,nPr,SymProdInd,SymProds)
+!= !Abelian - do nothing
+!=
+!= Save list of occ orbital pairs O(N^2) /NPROC             2 O(N^2) /NPROC
+!=   This is sorted according
+!=    to the symmetry product
+!=                                                                   For abelian, this isn't
+!=                                  [ O(NCL^2) ]          [ NSYM ]   needed as we can very easily
+!=                                                                   determine this from a list of 
+!=                                                                   occs sorted by sym.  We should
+!=                                                                   store counts however
+!=
+!=----
+!=SSE_CountVirtProds(nDoub,nExcitTypes,nPr,nSymPairProds,nAllowPPS,iLUT)
+!=SSEA_CountVirtProds(nDoub,nExcitTypes,nPr,nSymPairProds,SymProdCount,nAllowPPS) ! Calculated not enumerated
+!=
+!= Count number of allowed virt
+!=    pairs of each sym prod      O(NPR M^2 / NCL^2)        O(NCL^2)
+!=    Also counts num of doubles
+!=                                                                   For abelian this is simply
+!=                                  [ NSYM ]              [ NSYM ]   the difference between the num
+!=                                                                   of occ pairs of a given sym and
+!=                                                                   the total num of pairs.
+!=
+!=----
+!=SSE_CountSingles(nSing,nCl,nExcitTypes,*ClassCount,Classes)
+!=
+!= Calculate the number of
+!=    single excitations          O(NCL^3)
+!=                                  [ NSYM ]
+!= --- Exit here for init
+!= 
+!=----
+!=SSE_StoreSingles(nExcitTypes,nCl,Classes,ThisClassCount,ExcitTupes)
+!=
+!= Store singles classes          O(NCL^3)                  O(NCL^2)
+!=                                  [ NSYM ]                 [ NSYM ]
+!=----
+!=SSE_StoreDoubles(nPr,nSymPairProds,nAllowPPS,ExcitTypes,nExcitTypes,SymProds,SymProdInd)
+!= Store doubles classes          O(NPR NSYM)               O(NPR^2)
+!=                                  [ NSYM^2 ]               [ NSYM^2 ] 
 
       SUBROUTINE SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
      &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL,iMinElec1,iMaxElec1)

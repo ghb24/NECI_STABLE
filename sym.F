@@ -1,7 +1,7 @@
 C.. Symmetries can be unset(=0), or have bits set for the different irreps included
 C.. bit 0 corresponds to totally symmetric.
       
-! JSS: if Abelian symmetry (currently just k-point symmetry), then
+! JSS: if Abelian symmetry, then
 ! symmetry=0 corresponds to the symmetric representation.  It is not
 ! possible to unset symmetries for k-point jobs.
       
@@ -76,6 +76,8 @@ C.. product in the symmetry table, and OR that with the product.
              ! K-point symmetry has k_-i=k_i.  We store k-vectors from 0
              ! to N rather than -N/2 to N.  Hence k_-i=mod(-k_i+N,N) for
              ! each component of the vector.
+             ! This also works for abelian groups made out of symmetry 
+             ! generators which are 2-cycles
              call DecomposeAbelianSym(s2%s,AbelConj)
              do i=1,3
                AbelConj(i)=modulo(-AbelConj(i)+NProp(i),NProp(i))
@@ -360,6 +362,7 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
          use SymData, only: tagSymPairProds,tagSymLabelList
          use SymData, only: tagSymLabelCounts,tagSymStatePairs
          use SymData, only: SymPairProd
+         use SymData, only: tAbelianFastExcitGen
          use global_utilities
          IMPLICIT NONE
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
@@ -392,11 +395,11 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
 C.. First deal with listing single states
          DO I=1,NSTATES
             SYMLABELLIST(I)=I
-                IF(FRZ) THEN
-                    TEMPLIST(I)=SymClasses2(I)
-                ELSE
-                    TEMPLIST(I)=SymClasses(I)
-                ENDIF
+            IF(FRZ) THEN
+               TEMPLIST(I)=SymClasses2(I)
+            ELSE
+               TEMPLIST(I)=SymClasses(I)
+            ENDIF
          ENDDO
 C.. order according to sym label, so SYMLABELLIST gets a list of states grouped under SYMLABEL
          CALL NECI_SORT2I(NSTATES,TEMPLIST,SYMLABELLIST)
@@ -425,30 +428,124 @@ C.. sort the symlabellist
 
 C.. Now deal with pairs of states
 
+         if(tAbelianFastExcitGen) then
+!.. We don't bother listing all pairs of orbs, because we can calculate the number
+!.. and they're easy to generate. 
+!.. Instead of listing all pairs of states, we can list all pairs of sym classes (labels), 
+!..  ordered according to their sym prod.
+            allocate(SymPairProds(nSymLabels**2))
+            call LogMemAlloc('SymPairProds',nSymLabels**2,
+     &                   SymPairProdSize*8,this_routine,tagSymPairProds)
+            CALL IAZZERO(SymPairProds,
+     &         SymPairProdSize*nSymLabels*nSymLabels)
+C.. Now enumerate all pairs, and classify their product, but don't store them.
+            nSymPairProds=0
+            CALL GenSymPairs(nSymLabels,0)
 
-         allocate(SymPairProds(nSymLabels**2))
-         call LogMemAlloc('SymPairProds',nSymLabels**2,
+C.. Now sort the SymPairProds into order
+            CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
+            TOT=0
+            DO I=1,nSymPairProds
+               SymPairProds(I)%nIndex=TOT
+               TOT=TOT+SymPairProds(I)%nPairs
+               SymPairProds(I)%nPairs=0
+            ENDDO
+            WRITE(6,*) TOT," Symmetry PAIRS"
+            WRITE(6,*) NSYMPAIRPRODS,
+     &         " DISTINCT ORBITAL PAIR PRODUCT SYMS"
+            allocate(SymStatePairs(2,0:TOT-1))
+            call LogMemAlloc('SymStatePairs',2*TOT,4,this_routine,
+     &                                                 tagSymStatePairs)
+            CALL IAZZERO(SymStatePairs,TOT*2)
+            CALL GenSymPairs(nSymLabels,1)
+         else
+!.. Non-abelian symmetry requires us to go through and work out all the possible pairs of orbs.
+            allocate(SymPairProds(nSymLabels**2))
+            call LogMemAlloc('SymPairProds',nSymLabels**2,
      &                   SymPairProdSize*8,this_routine,tagSymPairProds)
          SymPairProds=SymPairProd(Symmetry(0),0,0)
 C.. Now enumerate all pairs, and classify their product, but don't store them.
-         nSymPairProds=0
-         CALL GENALLSymStatePairs(NSTATES,.FALSE.,FRZ)
+            nSymPairProds=0
+            CALL GENALLSymStatePairs(NSTATES,.FALSE.,FRZ)
 
 C.. Now sort the SymPairProds into order
-         CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
-         TOT=0
-         DO I=1,nSymPairProds
-            SymPairProds(I)%nIndex=TOT
-            TOT=TOT+SymPairProds(I)%nPairs
-            SymPairProds(I)%nPairs=0
-         ENDDO
-         WRITE(6,*) TOT," STATE PAIRS"
-         WRITE(6,*) NSYMPAIRPRODS," DISTINCT ORBITAL PAIR PRODUCT SYMS"
-         allocate(SymStatePairs(2,0:TOT-1))
-         call LogMemAlloc('SymStatePairs',2*TOT,4,this_routine,
+            CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
+            TOT=0
+            DO I=1,nSymPairProds
+               SymPairProds(I)%nIndex=TOT
+               TOT=TOT+SymPairProds(I)%nPairs
+               SymPairProds(I)%nPairs=0
+            ENDDO
+            WRITE(6,*) TOT," STATE PAIRS"
+            WRITE(6,*) NSYMPAIRPRODS,
+     &         " DISTINCT ORBITAL PAIR PRODUCT SYMS"
+            allocate(SymStatePairs(2,0:TOT-1))
+            call LogMemAlloc('SymStatePairs',2*TOT,4,this_routine,
      &                                                 tagSymStatePairs)
-         SymStatePairs(:,:)=0
-         CALL GENALLSymStatePairs(NSTATES,.TRUE.,FRZ)
+            SymStatePairs(:,:)=0
+            CALL GENALLSymStatePairs(NSTATES,.TRUE.,FRZ)
+         endif
+      END
+
+!= Generates Symmetry pairs in three passes:
+!=  iPass
+!=    0   Count number of pairs of symmetries for each possible symmetry product
+!=    1   Store each pair of symmetries for each symmetry product
+!=    2   Count the number of pairs of STATES for each pair of symmetries.  
+!=
+!=  NB This differs from GENAllSymStatePairs which goes through every possible 
+!=     pair of states (and so is O(N^2)), and eventually stores them all.
+!=     Here we only store pairs of symmetries (but calculate the number of pairs of states)
+!=      This will only work for Abelian symmetries.
+
+      SUBROUTINE GenSymPairs(nSymLabels,iPass)
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabels,SymClasses,SymClasses2
+         use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
+         IMPLICIT NONE
+         INTEGER iPass
+         INTEGER I,J
+         TYPE(Symmetry) PROD
+         TYPE(Symmetry) SYMPROD
+         INTEGER nSymLabels,iProd
+         DO I=1,nSymLabels
+            DO J=I,nSymLabels
+C               WRITE(6,*) I,J,SymClasses(I),SymClasses(J)
+               PROD=SYMPROD(SymLabels(I),
+     &               SymLabels(J))
+               CALL FindSymProd(Prod,SymPairProds,nSymPairProds,iProd)
+               IF(iPass.eq.1) THEN
+C.. put the pair into the list of pairs.
+                  SymStatePairs(1,SymPairProds(iProd)%nIndex
+     &                            +SymPairProds(iProd)%nPairs) =I
+                  SymStatePairs(2,SymPairProds(iProd)%nIndex
+     &                            +SymPairProds(iProd)%nPairs) =J
+            
+               ENDIF
+               IF(iProd.EQ.nSymPairProds+1) THEN
+                  nSymPairProds=nSymPairProds+1
+                  SymPairProds(iProd)%Sym=Prod
+                  SymPairProds(iProd)%nIndex=0
+                  SymPairProds(iProd)%nPairs=0
+                  SymPairProds(iProd)%nPairsStateSS=0
+                  SymPairProds(iProd)%nPairsStateOS=0
+               ENDIF
+C.. increment the counter in the pairlist
+               SymPairProds(iProd)%nPairs=SymPairProds(iProd)%nPairs+1
+               SymPairProds(iProd)%nPairsStateOS=
+     &            SymPairProds(iProd)%nPairsStateOS
+     &           +SymLabelCounts(2,I)*SymLabelCounts(2,J)
+               if(i.ne.J) then
+                SymPairProds(iProd)%nPairsStateSS=
+     &            SymPairProds(iProd)%nPairsStateSS
+     &           +SymLabelCounts(2,I)*SymLabelCounts(2,J)
+               else
+                SymPairProds(iProd)%nPairsStateSS=
+     &            SymPairProds(iProd)%nPairsStateSS
+     &           +SymLabelCounts(2,I)*(SymLabelCounts(2,J)-1)
+            ENDDO
+         ENDDO
       END
 
       SUBROUTINE GENALLSymStatePairs(NSTATES,TSTORE,FRZ)
@@ -463,9 +560,7 @@ C.. Now sort the SymPairProds into order
          TYPE(Symmetry) SYMPROD
          INTEGER NSTATES,iProd
          DO I=1,NSTATES
-CSYMLABELS
             DO J=I,NSTATES
-CSYMLABELS
 C               WRITE(6,*) I,J,SymClasses(I),SymClasses(J)
                 IF(FRZ) THEN
                PROD=SYMPROD(SymLabels(SymClasses2(I)),
