@@ -503,6 +503,7 @@ C.. Now sort the SymPairProds into order
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymLabels,SymClasses,SymClasses2
          use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
+         use SymData, only: SymLabelCounts
          IMPLICIT NONE
          INTEGER iPass
          INTEGER I,J
@@ -536,6 +537,7 @@ C.. increment the counter in the pairlist
                SymPairProds(iProd)%nPairsStateOS=
      &            SymPairProds(iProd)%nPairsStateOS
      &           +SymLabelCounts(2,I)*SymLabelCounts(2,J)
+!.. Same spin has n(n-1)/2 if same state
                if(i.ne.J) then
                 SymPairProds(iProd)%nPairsStateSS=
      &            SymPairProds(iProd)%nPairsStateSS
@@ -543,7 +545,8 @@ C.. increment the counter in the pairlist
                else
                 SymPairProds(iProd)%nPairsStateSS=
      &            SymPairProds(iProd)%nPairsStateSS
-     &           +SymLabelCounts(2,I)*(SymLabelCounts(2,J)-1)
+     &           +(SymLabelCounts(2,I)*(SymLabelCounts(2,J)-1))/2
+               endif
             ENDDO
          ENDDO
       END

@@ -26,7 +26,7 @@ C.. Setup for symmetry routine below.
      &      +SymmetrySize*(NEL*NEL+1),
      &      'DSTORE')
          STORE(1)=IP_DSTORE
-         CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
+         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
      &      DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
@@ -1896,7 +1896,7 @@ C.. This is the first time we've been called for setup.
      &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
                STORE2(1)=IP_DSTORE
 C.. Just count.
-               CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
+               CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
      &           iMaxElec1)
@@ -1950,7 +1950,7 @@ C.. Put the addresses in store
 C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
 !!      SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
 !!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
-               CALL SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
+               CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
      &          iMaxElec1)
@@ -2405,7 +2405,7 @@ C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
          IP_DSTORE=LOC(NMEM(NMEM(1)))
-         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
+         CALL SYMGENRANDEXCITIT2(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
