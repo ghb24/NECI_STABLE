@@ -9,7 +9,7 @@ MODULE Logging
     REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr
-    INTEGER iLagMin,iLagMax,iLagStep
+    INTEGER iLagMin,iLagMax,iLagStep,NoAutoDets
 
     contains
 
@@ -19,6 +19,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      NoAutoDets=10
       iLagMin=0
       iLagMax=0
       iLagStep=1
@@ -65,11 +66,12 @@ MODULE Logging
         call readu(w)
         select case(w)
         case("AUTOCORR")
-!This is a Parallel FCIMC option - it will calculate the ACF of certain determinants specified in the code and output them
+!This is a Parallel FCIMC option - it will calculate the ACF of the 'NoAutoDets' largest weight MP1 determinants and output them
             TAutoCorr=.true.
             call readi(iLagMin)
             call readi(iLagMax)
             call readi(iLagStep)
+            call readi(NoAutoDets)
         case("DETPOPS")
 !This option no longer works...
             TDetPops=.true.

@@ -125,11 +125,11 @@ General options
 FCIMC options
 -------------
 
-**AUTOCORR** [iLagMin] [iLagMax] [iLagStep]
+**AUTOCORR** [iLagMin] [iLagMax] [iLagStep] [NoAutoDets]
     This is a parallel FCIMC option. It will calculate the autocorrelation function for certain
-    determinants specified in the code, between the lag values of iLagMin and iLagMax in steps
+    determinants, between the lag values of iLagMin and iLagMax in steps
     of iLagStep. If iLagMax is negative, it will calculate the ACF over all possible k-times.
-    Currently the ACF is only evaluated for the HF determinant, though this is expected to change.
+    Currently the ACF is evaluated for the 'NoAutoDets' largest-weighted MP1 components.
 
 **POPSFILE** [iWritePopsEvery]
     Default: on.  Default iWritePopsEvery (optional argument) 100000.

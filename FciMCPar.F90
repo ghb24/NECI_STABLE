@@ -21,7 +21,7 @@ MODULE FciMCParMod
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
-    USE Logging , only : TAutoCorr,iLagMin,iLagMax,iLagStep
+    USE Logging , only : TAutoCorr,iLagMin,iLagMax,iLagStep,NoAutoDets
     USE global_utilities
     USE HElem
     USE Parallel
@@ -128,12 +128,11 @@ MODULE FciMCParMod
 
     LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
 
-    TYPE(timer), save :: Walker_Time,Annihil_Time
+    TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time
 
 !These are arrays used to store the autocorrelation function
     INTEGER , ALLOCATABLE :: WeightatDets(:,:)                   !First index - det which is stored, second - weight on proc at that iteration
     INTEGER , ALLOCATABLE :: AutoCorrDets(:,:)                  !(NEl,NoAutoDets)
-    INTEGER :: NoAutoDets
     INTEGER :: WeightatDetsTag=0,AutoCorrDetsTag=0
         
     contains
@@ -154,6 +153,7 @@ MODULE FciMCParMod
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
         Walker_Time%timer_name='WalkerTime'
         Annihil_Time%timer_name='AnnihilTime'
+        ACF_Time%timer_name='ACFTime'
 
         CALL InitFCIMCCalcPar()
 
@@ -226,8 +226,10 @@ MODULE FciMCParMod
 !        REAL*8 :: TestVar(NoAutoDets)
         INTEGER :: SumSquares(NoAutoDets),SumWeights(NoAutoDets),ierr
         INTEGER , ALLOCATABLE :: AllWeightatDets(:,:)
-        INTEGER :: AllWeightatDetsTag=0
+        INTEGER :: AllWeightatDetsTag=0,NoCounts
         CHARACTER(len=*), PARAMETER :: this_routine='CalcAutoCorr'
+        
+        CALL set_timer(ACF_Time,30)
 
         IF(iLagMax.lt.0) THEN
             iLagMax=Iter
@@ -244,13 +246,31 @@ MODULE FciMCParMod
             enddo
             WRITE(6,*) ""
         enddo
+        CALL FLUSH(6)
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
         ALLOCATE(AllWeightatDets(NoAutoDets,Iter),stat=ierr)
         CALL LogMemAlloc('AllWeightatDets',NoAutoDets*Iter,4,this_routine,AllWeightatDetsTag,ierr)
         AllWeightatDets(:,:)=0
+!        WRITE(6,*) Iter
+!        do i=1,Iter
+!            do j=1,NoAutoDets
+!                WRITE(6,'(I10)',advance='no') WeightatDets(j,i)
+!            enddo
+!            WRITE(6,*) ""
+!        enddo
+!        WRITE(6,*) "*****************"
 
+        NoCounts=NoAutoDets*Iter
 !Initially, we will calculate this ACF in serial - this will be easier as there are subtle effects in parallel.
-        CALL MPI_Reduce(WeightatDets(NoAutoDets,1:Iter),AllWeightatDets(NoAutoDets,1:Iter),NoAutoDets*Iter,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(WeightatDets(1:NoAutoDets,1:Iter),AllWeightatDets(1:NoAutoDets,1:Iter),NoCounts,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
+!        do i=1,Iter
+!            do j=1,NoAutoDets
+!                WRITE(6,'(I10)',advance='no') AllWeightatDets(j,i)
+!            enddo
+!            WRITE(6,*) ""
+!        enddo
+!        CALL FLUSH(6)
 
         IF(iProcIndex.eq.root) THEN
 
@@ -335,6 +355,8 @@ MODULE FciMCParMod
         DEALLOCATE(AutoCorrDets)
         CALL LogMemDealloc(this_routine,AutoCorrDetsTag)
 
+        CALL halt_timer(ACF_Time)
+        
         RETURN
 
     END SUBROUTINE CalcAutoCorr
@@ -1301,22 +1323,27 @@ MODULE FciMCParMod
         ENDIF
 
         IF(TAutoCorr) THEN
-            do i=1,NoAutoDets
+            IF(ExcitLevel.eq.2) THEN
+            
+!We are only finding the ACFs for doubles
+                do i=1,NoAutoDets
 !Sum over all the determinants we are interested in calculating the autocorrelation function for
             
-                IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
+                    IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
 !The walker is at a determinant for which we want to calculate the autocorrelation function
-                    IF(WSign) THEN
-                        WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
-                    ELSE
-                        WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                        IF(WSign) THEN
+                            WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
+                        ELSE
+                            WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                        ENDIF
+                        EXIT
                     ENDIF
-                ENDIF
 
-            enddo
-
+                enddo
+        
+            ENDIF
         ENDIF
-
+        
         RETURN
 
     END SUBROUTINE SumEContrib
@@ -2067,16 +2094,12 @@ MODULE FciMCParMod
                 CALL Stop_All("InitFciMCPar","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
             ELSEIF(iLagMax.gt.NMCyc) THEN
                 CALL Stop_All("InitFciMCPar","LagMax cannot be greater than the number of cycles.")
+            ELSEIF(iLagStep.lt.1) THEN
+                CALL Stop_All("InitFciMCPar","LagStep cannot be less than 1")
             ENDIF
-            NoAutoDets=1    !Initially, we are just after the ACF for one determinant
-            ALLOCATE(AutoCorrDets(NEl,NoAutoDets),stat=ierr)
-            CALL LogMemAlloc('AutoCorrDets',NEl*NoAutoDets,4,this_routine,AutoCorrDetsTag,ierr)
-!Fill the autocorrdets array with the determinants that you want to work out the autocorrelation for.
-            AutoCorrDets(:,1)=HFDet(:)
-!The number of occurunces of walkers at the determiants selected needs to be stored for all iterations
-            ALLOCATE(WeightatDets(NoAutoDets,NMCyc),stat=ierr)
-            CALL LogMemAlloc('WeightatDets',NoAutoDets*NMCyc,4,this_routine,WeightatDetsTag,ierr)
-            WeightatDets(:,:)=0
+
+            CALL ChooseACFDets()
+
             WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
         ENDIF
 
@@ -2245,6 +2268,60 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalcPar
+
+    SUBROUTINE ChooseACFDets()
+        INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j
+        REAL*8 , ALLOCATABLE :: TempMax(:)
+        TYPE(HElement) :: Fjj,Hij
+        REAL*8 :: Compt
+        CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
+
+!Commented out code is to just perform the ACF for the HF determinant.
+!            NoAutoDets=1    !Initially, we are just after the ACF for one determinant
+!Fill the autocorrdets array with the determinants that you want to work out the autocorrelation for.
+!            AutoCorrDets(:,1)=HFDet(:)
+
+!The code calculates the ACF for the number of doubles here, or all if it is more
+!        NoAutoDets=10
+        WRITE(6,"(A,I5,A)") "Choosing the ",NoAutoDets," highest MP1 weight determinants to calculate the ACF for."
+        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+        IF(NoAutoDets.gt.HFConn) NoAutoDets=HFConn
+        ALLOCATE(AutoCorrDets(NEl,NoAutoDets),stat=ierr)
+        CALL LogMemAlloc('AutoCorrDets',NEl*NoAutoDets,4,this_routine,AutoCorrDetsTag,ierr)
+        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        ALLOCATE(TempMax(1:NoAutoDets),stat=ierr)
+        IF(ierr.ne.0) THEN
+            CALL Stop_All("ChooseACFDets","Problem allocating memory")
+        ENDIF
+        TempMax(:)=0.D0
+
+        do while(.true.)
+!Generate double excitations
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            IF(nJ(1).eq.0) EXIT
+            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+            do j=1,NoAutoDets
+                IF(abs(Compt).gt.TempMax(j)) THEN
+                    TempMax(j)=abs(Compt)
+                    AutoCorrDets(:,j)=nJ(:)
+                    EXIT
+                ENDIF
+            enddo
+            
+        enddo
+        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        DEALLOCATE(TempMax)
+            
+!The number of occurunces of walkers at the determiants selected needs to be stored for all iterations
+        ALLOCATE(WeightatDets(NoAutoDets,NMCyc),stat=ierr)
+        CALL LogMemAlloc('WeightatDets',NoAutoDets*NMCyc,4,this_routine,WeightatDetsTag,ierr)
+        WeightatDets(:,:)=0
+
+        RETURN
+
+    END SUBROUTINE ChooseACFDets
 
 !This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
 !When arriving at this routine, CurrentXXX are arrays with the data, and NewXXX will be used by the root processor to temporarily store the information
