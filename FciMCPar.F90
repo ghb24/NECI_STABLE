@@ -235,7 +235,7 @@ MODULE FciMCParMod
             iLagMax=Iter
         ENDIF
         IF(iProcIndex.eq.root) THEN
-            OPEN(43,FILE='ACF',STATUS='UNKNOWN')
+            OPEN(43,FILE='AutoCorrFunc',STATUS='UNKNOWN')
         ENDIF
 
         WRITE(6,"(A,I8,A,I8,A,I8,A)") "Calculating the ACF with lags from ",iLagMin," to ",iLagMax," in steps of ",iLagStep," and writing it to file 'ACF'"
@@ -333,14 +333,18 @@ MODULE FciMCParMod
 
                 do k=1,NoAutoDets
 !Effectivly 'normalise' the ACF by dividing by the variance
-                    ACF(k)=ACF(k)/NVar(k)
+                    IF(NVar(k).eq.0.D0) THEN
+                        ACF(k)=0.D0
+                    ELSE
+                        ACF(k)=ACF(k)/NVar(k)
+                    ENDIF
                 enddo
 !Write out the ACF
                 WRITE(43,"(I8,F20.10)",advance='no') i,ACF(1)
-                do k=2,NoAutoDets
+                do k=2,NoAutoDets-1
                     WRITE(43,"(F20.10)",advance='no') ACF(k)
                 enddo
-                WRITE(43,*) ""
+                WRITE(43,"(F20.10)") ACF(NoAutoDets) 
 
             enddo
 
