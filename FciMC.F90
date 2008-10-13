@@ -1,6 +1,6 @@
 MODULE FciMCMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
-    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,TDistAnnihil
     use CalcData , only : TReadPops,ScaleWalkers,TStartMP1,TFixShiftShell,FixShift,ShellFix
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
@@ -61,7 +61,7 @@ MODULE FciMCMod
     REAL*8 :: MeanExcitLevel
     INTEGER :: MinExcitLevel
     INTEGER :: MaxExcitLevel
-    INTEGER :: NoatDoubs,Annihilated,Acceptances
+    INTEGER :: NoatDoubs,Annihilated,Acceptances,ConnAnnihil
     REAL*8 :: AccRat
     INTEGER :: PreviousCycles   !The number of previous cycles performed before the POPSFILE is read in
     INTEGER :: NoatHF           !This is the number at HF for a given Iteration
@@ -121,6 +121,14 @@ MODULE FciMCMod
      &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,    &
      &          ProjectionE,ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+        ELSEIF(TDistAnnihil) THEN
+            WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers ConnAnnihil Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+            WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers ConnAnnihil Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
+            WRITE(15,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,   &
+     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,    &
+     &          ProjectionE,NoatHF,NoatDoubs,AvSign,AccRat,0.D0,MeanExcitLevel,MaxExcitLevel,MinExcitLevel
+
         ELSE
             WRITE(6,*) "       Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
             WRITE(15,*) "#      Step     Shift   WalkerCng   GrowRate    TotWalkers  Annihil NoDied NoBorn   Proj.E        NoatHF NoatDoubs  <s>          AccRat     AvConn         MeanEx     MinEx MaxEx"
@@ -419,6 +427,13 @@ MODULE FciMCMod
                 ENDIF
             ENDIF
 
+        ELSEIF(TDistAnnihil) THEN
+
+!This routine will assign a probability to annihilate any pairs of particles which are connected.
+            CALL AnnihilAtDistance(TotWalkersNew)
+            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
+!            WRITE(6,*) "Number of annihilated particles= ",TotWalkersNew-TotWalkers,Iter,TotWalkers
+
         ELSE
 
 !This routine now cancels down the particles with opposing sign on each determinant
@@ -435,7 +450,9 @@ MODULE FciMCMod
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
             CALL FlipSign()
         ENDIF
-
+        IF(TotWalkers.eq.0) THEN
+            CALL Stop_All("PerformFCIMCyc","All Walkers have died.")
+        ENDIF
 
         IF(TSinglePartPhase) THEN
 !Do not allow culling if we are still in the single particle phase.
@@ -1127,6 +1144,11 @@ MODULE FciMCMod
      &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
             WRITE(6,"(I12,G15.6,I7,G15.6,I10,3I7,2G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,   &
      &         ProjectionMP2,NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+        ELSEIF(TDistAnnihil) THEN
+            WRITE(15,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,ProjectionE,  &
+     &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
+            WRITE(6,"(I12,G15.6,I7,G15.6,I10,4I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ConnAnnihil,Annihilated,NoDied,NoBorn,ProjectionE,   &
+     &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
         ELSE
             WRITE(15,"(I12,G15.6,I7,G15.6,I10,3I7,G15.6,2I9,4G14.6,2I6)") PreviousCycles+Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,Annihilated,NoDied,NoBorn,ProjectionE,  &
      &         NoatHF,NoatDoubs,AvSign,AccRat,AvConnection,MeanExcitLevel,MinExcitLevel,MaxExcitLevel
@@ -1144,6 +1166,7 @@ MODULE FciMCMod
         SumWalkersCyc=0
         AvSign=0.D0        !reinitialise this - average is over update cycle
         Annihilated=0
+        ConnAnnihil=0
         Acceptances=0
         SumConnections=0.D0
         NoDied=0
@@ -1528,6 +1551,149 @@ MODULE FciMCMod
 
     END SUBROUTINE ThermostatParticles
 
+!This routine will assign a probability to annihilate pairs of particles which are connected
+!Walkers are initially distributed on New..., but want to end up on Current...
+!Problem - are walkers more likely to be annihilated if they are at the beginning of the list?
+    SUBROUTINE AnnihilAtDistance(TotWalkersNew)
+        INTEGER :: TotWalkersNew,iGetExcitLevel_2,VecSlot,i,j
+        LOGICAL , ALLOCATABLE :: KillArray(:)
+        INTEGER :: KillArrayTag=0,ierr,Connection,DetCurr(NEl)
+        TYPE(HElement) :: Hij
+        REAL*8 :: ConnStrength
+        CHARACTER(len=*), PARAMETER :: this_routine='AnnihilAtDistance'
+        LOGICAL :: WSign
+
+!Allocate Kill array - this will mark walkers which are annihilated as .true.
+        ALLOCATE(KillArray(TotWalkersNew),stat=ierr) 
+!        CALL LogMemAlloc('KillArray',TotWalkersNew,4,this_routine,KillArrayTag,ierr)
+        KillArray(:)=.false.
+
+!Run through all walkers if not already annihilated
+        do i=1,(TotWalkersNew-1)
+
+            IF(KillArray(i)) CYCLE  !Skip this walker if it has been annihilated in a previous iteration
+            DetCurr(:)=NewDets(:,i)
+            WSign=NewSign(i)
+
+!Run through rest of walkers on the list
+            do j=(i+1),TotWalkersNew
+
+!Test walker has already been annihilated in previous cycle
+                IF(KillArray(j)) CYCLE
+
+!See if walkers are connected (We only need to know if they are doubles or more...
+                Connection=iGetExcitLevel_2(DetCurr(:),NewDets(:,j),NEl,2)
+                IF(Connection.eq.0) THEN
+!If they are the same determinant, then we need to see if the overlap is negative or positive to test annihilation
+
+!                    IF(.not.(IEOR(WSign,NewSign(j)))) THEN - could use xor - cleaner code - might be slower, and only meant for use on integers
+                    IF(WSign) THEN
+                        IF(.not.NewSign(j)) THEN
+!Walkers are different sign - annihilate them with prob = 1
+                            KillArray(i)=.true.
+                            KillArray(j)=.true.
+                            EXIT    !Exit from the loop - walker i can no longer annihilate
+                        ENDIF
+                    ELSE
+                        IF(NewSign(j)) THEN
+!Walkers are different sign - annihilate them with prob = 1
+                            KillArray(i)=.true.
+                            KillArray(j)=.true.
+                            EXIT    !Exit from the loop - walker i can no longer annihilate
+                        ENDIF
+                    ENDIF
+
+                ELSEIF(Connection.le.2) THEN
+!Walkers i and j are connected, but not at the same determinant - first calculate connection strength
+            
+                    Hij=GetHElement2(DetCurr,NewDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Connection,ECore)
+                    IF(AttemptAnnihilatDist(Hij,WSign,NewSign(j))) THEN
+!Particles want to be annihilated at a distinct determinants
+!                        CALL Stop_All("Annihilatdist","Should not get here")
+                        ConnAnnihil=ConnAnnihil+2   !Update the counter counting the annihilation of connected walkers
+                        KillArray(i)=.true.
+                        KillArray(j)=.true.
+                        EXIT        !Exit from the loop - walker i can no longer annihilate
+                    ENDIF
+                ENDIF
+
+            enddo
+
+        enddo
+
+!Now we need to run through the array one final time to transfer the walkers across which are still alive
+        VecSlot=1
+        do i=1,TotWalkersNew
+
+            IF(.not.KillArray(i)) THEN
+!Walker is still alive - transfer it
+                CurrentDets(:,VecSlot)=NewDets(:,i)
+                CurrentSign(VecSlot)=NewSign(i)
+                CurrentIC(VecSlot)=NewIC(i)
+                CurrentH(:,VecSlot)=NewH(:,i)
+                IF(TUnbiasPGeninProjE) CurrentPGen(VecSlot)=NewPGen(i)
+                IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(i),CurrentExcits(VecSlot))
+                VecSlot=VecSlot+1
+            ENDIF
+
+        enddo
+
+        TotWalkers=VecSlot-1
+
+!Deallocate KillArray
+        DEALLOCATE(KillArray)
+
+        RETURN
+
+    END SUBROUTINE AnnihilatDistance
+
+!This function will attempt to annihilate two pre-chosen particles at different sites
+    LOGICAL FUNCTION AttemptAnnihilatDist(Hij,WiSign,WjSign)
+        TYPE(HElement) :: Hij
+        REAL*8 :: ConnStrength,Ran2
+        LOGICAL :: WiSign,WjSign,Attempt
+
+        Attempt=.false.
+        ConnStrength=REAL(Hij%v,r2)*Lambda
+        IF(ConnStrength.lt.0.D0) THEN
+!Particles have a chance of annihilation if they are of opposite sign
+            IF(WiSign) THEN
+                IF(.not.WjSign) THEN
+                    Attempt=.true.
+                ENDIF
+            ELSE
+                IF(WjSign) THEN
+                    Attempt=.true.
+                ENDIF
+            ENDIF
+        ELSE
+!Particles have a chance of annihilation if they are of same sign
+            IF(WiSign) THEN
+                IF(WjSign) THEN
+                    Attempt=.true.
+                ENDIF
+            ELSE
+                IF(.not.WjSign) THEN
+                    Attempt=.true.
+                ENDIF
+            ENDIF
+        ENDIF
+
+        IF(Attempt) THEN
+!Annihilate with probability = ConnStrength
+            IF(ConnStrength.gt.1.D0) WRITE(6,*) "Warning - Annihilation probability > 1",REAL(Hij%v,r2)
+            IF(Ran2(Seed).gt.ConnStrength) THEN
+                AttemptAnnihilatDist=.false.
+            ELSE
+                AttemptAnnihilatDist=.true.
+            ENDIF
+        ELSE
+            AttemptAnnihilatDist=.false.
+        ENDIF
+
+        RETURN
+
+    END FUNCTION AttemptAnnihilatDist
 
 !This routine cancels out particles of opposing sign on the same determinant.
     SUBROUTINE AnnihilatePairs(TotWalkersNew)
@@ -1660,6 +1826,7 @@ MODULE FciMCMod
         NoatDoubs=0
         Acceptances=0
         Annihilated=0
+        ConnAnnihil=0
         AccRat=0.D0
         PreviousCycles=0
         SumConnections=0.D0
@@ -1734,6 +1901,7 @@ MODULE FciMCMod
             WRITE(6,*) "Acceptance probability will not be unbiased for generation probability. Instead, walker contributions to the projected energy will be the unbiasing stage..."
             WRITE(6,*) "WARNING - THIS IS AN EXPERIMENTAL OPTION!"
         ENDIF
+        IF(TDistAnnihil) WRITE(6,*) "Annihilation possible between all connected determinants with Lambda = ",Lambda
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector

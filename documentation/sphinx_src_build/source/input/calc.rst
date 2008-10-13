@@ -641,6 +641,16 @@ The following options are only available in **FCIMC** calculations:
     but may be of use in equilibration steps to maintain particle density at 
     low excitations, before writing out the data and letting the shift change.
 
+**ANNIHILATDISTANCE** [Lambda]
+    Default=0.D0
+
+    A serial FCIMC option. Here, walkers i and j have the chance to annihilate each other
+    as long as they are on connected determinants. They will annihilate with probability
+    given by -Lambda*Hij*(Si*Sj). This is hoped to increase annihilation and allow fewer
+    particles to be needed to sample the space correctly. When Lambda=0.D0, it should be 
+    equivalent to the original annihilation algorithm. Warning - this is much slower than
+    normal annihilation.
+
 **UNBIASPGENINPROJE**
     Default false
     

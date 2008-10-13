@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TDistAnnihil=.false.
           TAnnihilonproc=.false.
           TUnbiasPGeninProjE=.false.
           TFixShiftShell=.false.
@@ -717,6 +718,10 @@ MODULE Calc
             case("ANNIHILATEONPROCS")
 !A parallel FCIMC option. With this, walkers will only be annihilated with other walkers on the same processor. 
                 TAnnihilonproc=.true.
+            case("ANNIHILATDISTANCE")
+!A Serial FCIMC experimental option. With this, walkers have the ability to annihilate each other as long as they are connected, which they will do with probability = Lambda*Hij
+                TDistAnnihil=.true.
+                call Getf(Lambda)
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
