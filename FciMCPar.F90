@@ -137,6 +137,7 @@ MODULE FciMCParMod
         
     contains
 
+
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use soft_exit, only : test_SOFTEXIT
         TYPE(HDElement) :: Weight,Energyxw
