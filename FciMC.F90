@@ -1614,7 +1614,6 @@ MODULE FciMCMod
             
                     Hij=GetHElement2(DetCurr,NewDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Connection,ECore)
                     InteractionResult=AttemptAnnihilatDist(Hij,WSign,NewSign(j))
-                    InteractionResult=0
 
                     IF(InteractionResult.eq.-1) THEN
 !Particles want to be annihilated at a distinct determinants
