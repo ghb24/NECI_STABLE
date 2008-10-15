@@ -201,6 +201,9 @@ MODULE FciMCMod
 !Reset the number at HF & doubs per iteration
         NoatHF=0
         NoatDoubs=0
+        IF(iter.eq.3399) THEN
+            WRITE(6,*) ""
+        ENDIF
 
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -1555,51 +1558,54 @@ MODULE FciMCMod
 !Walkers are initially distributed on New..., but want to end up on Current...
 !Problem - are walkers more likely to be annihilated if they are at the beginning of the list?
     SUBROUTINE AnnihilAtDistance(TotWalkersNew)
-        INTEGER :: TotWalkersNew,iGetExcitLevel_2,VecSlot,i,j
-        LOGICAL , ALLOCATABLE :: KillArray(:)
-        INTEGER :: KillArrayTag=0,ierr,Connection,DetCurr(NEl)
+        INTEGER :: TotWalkersNew,iGetExcitLevel_2,VecSlot,i,j,WalkerScale
+        INTEGER , ALLOCATABLE :: KillArrayOnSite(:),KillArrayAtDist(:)
+        INTEGER :: ierr,Connection,DetCurr(NEl),InteractionResult
         TYPE(HElement) :: Hij
         REAL*8 :: ConnStrength
-        CHARACTER(len=*), PARAMETER :: this_routine='AnnihilAtDistance'
         LOGICAL :: WSign
 
 !Allocate Kill array - this will mark walkers which are annihilated as .true.
-        ALLOCATE(KillArray(TotWalkersNew),stat=ierr) 
-!        CALL LogMemAlloc('KillArray',TotWalkersNew,4,this_routine,KillArrayTag,ierr)
-        KillArray(:)=.false.
+        ALLOCATE(KillArrayOnSite(TotWalkersNew),stat=ierr) 
+        ALLOCATE(KillArrayAtDist(TotWalkersNew),stat=ierr) 
+        KillArrayOnSite(:)=1
+        KillArrayAtDist(:)=0
 
 !Run through all walkers if not already annihilated
         do i=1,(TotWalkersNew-1)
+!        do i=1,TotWalkersNew
 
-            IF(KillArray(i)) CYCLE  !Skip this walker if it has been annihilated in a previous iteration
+!            IF(KillArray(i).eq.0) CYCLE  !Skip this walker if it has been annihilated in a previous iteration
             DetCurr(:)=NewDets(:,i)
             WSign=NewSign(i)
 
 !Run through rest of walkers on the list
             do j=(i+1),TotWalkersNew
+!            do j=1,TotWalkersNew
 
 !Test walker has already been annihilated in previous cycle
-                IF(KillArray(j)) CYCLE
+!                IF(KillArray(j).eq.0) CYCLE
 
 !See if walkers are connected (We only need to know if they are doubles or more...
                 Connection=iGetExcitLevel_2(DetCurr(:),NewDets(:,j),NEl,2)
+
                 IF(Connection.eq.0) THEN
+                    IF((KillArrayOnSite(i).eq.0).or.(KillArrayOnSite(j).eq.0)) CYCLE
 !If they are the same determinant, then we need to see if the overlap is negative or positive to test annihilation
 
-!                    IF(.not.(IEOR(WSign,NewSign(j)))) THEN - could use xor - cleaner code - might be slower, and only meant for use on integers
                     IF(WSign) THEN
                         IF(.not.NewSign(j)) THEN
 !Walkers are different sign - annihilate them with prob = 1
-                            KillArray(i)=.true.
-                            KillArray(j)=.true.
-                            EXIT    !Exit from the loop - walker i can no longer annihilate
+                            KillArrayOnSite(i)=KillArrayOnSite(i)-1
+                            KillArrayOnSite(j)=KillArrayOnSite(j)-1
+!                            IF(KillArray(j).eq.0) EXIT    !Exit from the loop - walker i can no longer annihilate
                         ENDIF
                     ELSE
                         IF(NewSign(j)) THEN
 !Walkers are different sign - annihilate them with prob = 1
-                            KillArray(i)=.true.
-                            KillArray(j)=.true.
-                            EXIT    !Exit from the loop - walker i can no longer annihilate
+                            KillArrayOnSite(i)=KillArrayOnSite(i)-1
+                            KillArrayOnSite(j)=KillArrayOnSite(j)-1
+!                            IF(KillArray(j).eq.0) EXIT    !Exit from the loop - walker i can no longer annihilate
                         ENDIF
                     ENDIF
 
@@ -1607,13 +1613,20 @@ MODULE FciMCMod
 !Walkers i and j are connected, but not at the same determinant - first calculate connection strength
             
                     Hij=GetHElement2(DetCurr,NewDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Connection,ECore)
-                    IF(AttemptAnnihilatDist(Hij,WSign,NewSign(j))) THEN
+                    InteractionResult=AttemptAnnihilatDist(Hij,WSign,NewSign(j))
+                    InteractionResult=0
+
+                    IF(InteractionResult.eq.-1) THEN
 !Particles want to be annihilated at a distinct determinants
-!                        CALL Stop_All("Annihilatdist","Should not get here")
                         ConnAnnihil=ConnAnnihil+2   !Update the counter counting the annihilation of connected walkers
-                        KillArray(i)=.true.
-                        KillArray(j)=.true.
-                        EXIT        !Exit from the loop - walker i can no longer annihilate
+                        KillArrayAtDist(i)=KillArrayAtDist(i)-1
+                        KillArrayAtDist(j)=KillArrayAtDist(j)-1
+                    ELSEIF(InteractionResult.eq.1) THEN
+!We have decided we want to double both particles
+                        ConnAnnihil=ConnAnnihil-2   !We are creating particles, so reduce ConnAnnihil
+                        KillArrayAtDist(i)=KillArrayAtDist(i)+1
+                        KillArrayAtDist(j)=KillArrayAtDist(j)+1
+
                     ENDIF
                 ENDIF
 
@@ -1625,70 +1638,88 @@ MODULE FciMCMod
         VecSlot=1
         do i=1,TotWalkersNew
 
-            IF(.not.KillArray(i)) THEN
-!Walker is still alive - transfer it
+            IF(VecSlot.gt.MaxWalkers) THEN
+                WRITE(6,*) VecSlot,i,ConnAnnihil
+                CALL Stop_All("AnnihilatDistance","Number of particles has grown to greater than MaxWalkers")
+            ENDIF
+            WalkerScale=KillArrayOnSite(i)+KillArrayAtDist(i)
+
+            do j=1,abs(WalkerScale)
+!Walker is still alive (possibly actually more)- transfer it/them
                 CurrentDets(:,VecSlot)=NewDets(:,i)
-                CurrentSign(VecSlot)=NewSign(i)
+                IF(WalkerScale.gt.0) THEN
+                    CurrentSign(VecSlot)=NewSign(i)
+                ELSE
+!Flip sign if we have changed the sign through annihilation...
+                    CurrentSign(VecSlot)=.not.NewSign(i)
+                ENDIF
                 CurrentIC(VecSlot)=NewIC(i)
                 CurrentH(:,VecSlot)=NewH(:,i)
                 IF(TUnbiasPGeninProjE) CurrentPGen(VecSlot)=NewPGen(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgen(NewExcits(i),CurrentExcits(VecSlot))
                 VecSlot=VecSlot+1
-            ENDIF
+            enddo
 
         enddo
 
         TotWalkers=VecSlot-1
 
 !Deallocate KillArray
-        DEALLOCATE(KillArray)
+        DEALLOCATE(KillArrayAtDist)
+        DEALLOCATE(KillArrayOnSite)
 
         RETURN
 
     END SUBROUTINE AnnihilatDistance
 
 !This function will attempt to annihilate two pre-chosen particles at different sites
-    LOGICAL FUNCTION AttemptAnnihilatDist(Hij,WiSign,WjSign)
+!0 means that nothing should be done.
+!1 means that the particles should be doubled
+!-1 means that the particles should be annihilated
+    INTEGER FUNCTION AttemptAnnihilatDist(Hij,WiSign,WjSign)
         TYPE(HElement) :: Hij
         REAL*8 :: ConnStrength,Ran2
-        LOGICAL :: WiSign,WjSign,Attempt
+        LOGICAL :: WiSign,WjSign,AttemptAnn
 
-        Attempt=.false.
+        AttemptAnn=.false.
         ConnStrength=REAL(Hij%v,r2)*Lambda
         IF(ConnStrength.lt.0.D0) THEN
 !Particles have a chance of annihilation if they are of opposite sign
             IF(WiSign) THEN
                 IF(.not.WjSign) THEN
-                    Attempt=.true.
+                    AttemptAnn=.true.
                 ENDIF
             ELSE
                 IF(WjSign) THEN
-                    Attempt=.true.
+                    AttemptAnn=.true.
                 ENDIF
             ENDIF
         ELSE
 !Particles have a chance of annihilation if they are of same sign
             IF(WiSign) THEN
                 IF(WjSign) THEN
-                    Attempt=.true.
+                    AttemptAnn=.true.
                 ENDIF
             ELSE
                 IF(.not.WjSign) THEN
-                    Attempt=.true.
+                    AttemptAnn=.true.
                 ENDIF
             ENDIF
         ENDIF
+        ConnStrength=ABS(ConnStrength)
+        IF(ConnStrength.gt.1.D0) WRITE(6,*) "Warning - Annihilation/Reinforcing probability > 1",REAL(Hij%v,r2)
 
-        IF(Attempt) THEN
-!Annihilate with probability = ConnStrength
-            IF(ConnStrength.gt.1.D0) WRITE(6,*) "Warning - Annihilation probability > 1",REAL(Hij%v,r2)
-            IF(Ran2(Seed).gt.ConnStrength) THEN
-                AttemptAnnihilatDist=.false.
-            ELSE
-                AttemptAnnihilatDist=.true.
-            ENDIF
+        IF(Ran2(Seed).gt.ConnStrength) THEN
+            AttemptAnnihilatDist=0
         ELSE
-            AttemptAnnihilatDist=.false.
+!We have succeeded in annihilating/reinforcing - which one?
+            IF(AttemptAnn) THEN
+!Annihilate with probability = ConnStrength
+                AttemptAnnihilatDist=-1
+            ELSE
+!Reinforce with probability = ConnStrength
+                AttemptAnnihilatDist=1
+            ENDIF
         ENDIF
 
         RETURN
