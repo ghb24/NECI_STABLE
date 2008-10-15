@@ -274,6 +274,15 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
 
         IF(iProcIndex.eq.root) THEN
+!            OPEN(44,FILE='DoublePops',STATUS='UNKNOWN')
+!            do i=1,Iter
+!                WRITE(44,"(2I8)",advance='no') i,AllWeightatDets(1,i)
+!                do k=2,NoAutoDets-1
+!                    WRITE(44,"(I8)",advance='no') AllWeightatDets(k,i)
+!                enddo
+!                WRITE(44,"(I8)") AllWeightatDets(NoAutoDets,i) 
+!            enddo
+!            CLOSE(44)
 
 !First, we need to calculate the average value for each of the determinants - this could be calculated during the simulation
 !We also want to divide the ACF components by sum_i ((s_i - av(s))^2) , which is N * Var(s) = sum(s^2) - 1/N (sum(x))^2
@@ -324,7 +333,8 @@ MODULE FciMCParMod
 
                     do k=1,NoAutoDets
 !k is the run over the desired determinants which to calculate the ACFs
-                        ACF(k)=ACF(k)+((REAL(AllWeightatDets(k,j),r2)-Means(k))*(REAL(AllWeightatDets(k,j+i),r2)-Means(k)))
+!                        ACF(k)=ACF(k)+(REAL(AllWeightatDets(k,j),r2)-Means(k))*(REAL(AllWeightatDets(k,j+i),r2)-Means(k))
+                        ACF(k)=ACF(k)+((REAL(AllWeightatDets(k,j),r2))*(REAL(AllWeightatDets(k,j+i),r2)))
                     enddo
 
                 enddo
@@ -334,18 +344,14 @@ MODULE FciMCParMod
 
                 do k=1,NoAutoDets
 !Effectivly 'normalise' the ACF by dividing by the variance
-                    IF(NVar(k).eq.0.D0) THEN
-                        ACF(k)=0.D0
-                    ELSE
-                        ACF(k)=ACF(k)/NVar(k)
-                    ENDIF
+                    ACF(k)=(ACF(k)/NVar(k))*REAL(Iter/(Iter-i+0.D0),r2)
                 enddo
 !Write out the ACF
                 WRITE(43,"(I8,F20.10)",advance='no') i,ACF(1)
                 do k=2,NoAutoDets-1
                     WRITE(43,"(F20.10)",advance='no') ACF(k)
                 enddo
-                WRITE(43,"(F20.10)") ACF(NoAutoDets) 
+                WRITE(43,"(F20.10)") ACF(NoAutoDets)
 
             enddo
 
