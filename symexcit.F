@@ -26,7 +26,7 @@ C.. Setup for symmetry routine below.
      &      +SymmetrySize*(NEL*NEL+1),
      &      'DSTORE')
          STORE(1)=IP_DSTORE
-         CALL SymSetupExcits2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
+         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE,TCOUNT,
      &      ICOUNT,DSTORE(1),
      &      DSTORE(SymClassSize*NEL+1),
      &      DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
@@ -814,7 +814,7 @@ C.. Now go through the list of all pairs, finding out how many pairs are to be e
 C.. orbitals in this determinant.
 C.. We first create a quick lookup table to enable us to quickly check whether a given orbital is in this determinant
 C.. in order 1, not order NEL.
-         ILUT(:)=0
+         ILUT(0:NBASIS/32)=0
          DO I=1,NEL
             ILUT((NI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
          ENDDO
@@ -1884,7 +1884,7 @@ C.. This is the first time we've been called for setup.
      &                     +SymmetrySize*(NEL*NEL+1),'DSTORE')
                STORE2(1)=IP_DSTORE
 C.. Just count.
-               CALL SymSetupExcits2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
+               CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
      &           iMaxElec1)
@@ -1938,7 +1938,7 @@ C.. Put the addresses in store
 C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
 !!      SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
 !!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
-               CALL SymSetupExcits2(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
+               CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,NBASISMAX,STORE2,
      &            .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),
      &          DSTORE(SymClassSize*NEL+1+NBASIS/32+1),ILEVEL,iMinElec1,
      &          iMaxElec1)
@@ -2938,15 +2938,16 @@ C..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
 C..   DSTORE(NEL*SymClassSize+1) - ...       ILUT
 C.. Actually generate a det
          IP_DSTORE=LOC(NMEM(NMEM(1)))
-         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
-     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
-     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
-     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
-!         CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
+!         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
 !     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
-!     &         ISEED,NJ,IC,PGEN)
+!     &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
+!     &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NMEM(23),ISEED,NJ,IC,
+!     &         G1,NBASISMAX,UMAT,ARR,NBASIS,PGEN)
+         CALL SymGenRandExcitIt2(NI,NEL,NMEM(NMEM(2)),DSTORE(1),
+     &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
+     &         nMem(23),ISEED,NJ,IC,PGEN)
          ICOUNT=NMEM(23)
+!         call writedet(6,nI,nEl,.true.)
       END
       SUBROUTINE SYMGENRANDEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,       &
      &               CLASSES,                                           &
@@ -3180,7 +3181,7 @@ C.. Actually generate a det
 
       SUBROUTINE SymGenRandExcitIt2(NI,NEL,EXCITTYPES,                  &
      &               CLASSES,                                           &
-     &               SYMPRODIND,ILUT,ORBPAIRS,ISEED,                    &
+     &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,             &
      &               NK,IC,PGEN)      
          USE symexcit2
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -3236,10 +3237,10 @@ C.. Actually generate a det
             IFROM=EXCITTYPES(3,IEXCIT)
             ITO=EXCITTYPES(4,IEXCIT)
             Call SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
-     &       iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I, pGen)
+     &       iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I,pGen)
 
             Call SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
-     &         iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT, I, pGen)
+     &         iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT, I,nK,pGen)
 !.. Indicate we're a double.
             iC=2
          ENDIF
@@ -3418,7 +3419,7 @@ C.. Actually generate a det
 
       Subroutine SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
      &      iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
-     &      I, pGen)
+     &      I,nK, pGen)
          USE symexcit2
          use SystemData, only: G1, nBasis, nBasisMax
          use SystemData, only: Arr,nEl
