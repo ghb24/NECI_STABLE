@@ -224,6 +224,7 @@ MODULE FciMCParMod
     SUBROUTINE CalcAutoCorr()
         INTEGER :: i,j,k,error
         REAL*8 :: Means(NoAutoDets),NVar(NoAutoDets),ACF(NoAutoDets)!,AllACF(NoAutoDets)
+        REAL*8 :: Norm(NoAutoDets)
 !        REAL*8 :: TestVar(NoAutoDets)
         INTEGER :: SumSquares(NoAutoDets),SumWeights(NoAutoDets),ierr
         INTEGER , ALLOCATABLE :: AllWeightatDets(:,:)
@@ -232,8 +233,8 @@ MODULE FciMCParMod
         
         CALL set_timer(ACF_Time,30)
 
-        IF(iLagMax.lt.0) THEN
-            iLagMax=Iter
+        IF((iLagMax.lt.0).or.(iLagMax.gt.Iter/2)) THEN
+            iLagMax=Iter/2
         ENDIF
         IF(iProcIndex.eq.root) THEN
             OPEN(43,FILE='AutoCorrFunc',STATUS='UNKNOWN')
@@ -290,11 +291,13 @@ MODULE FciMCParMod
             SumSquares(:)=0
             NVar(:)=0.D0
             Means(:)=0.D0
+            Norm(:)=0.D0
         
             do i=1,Iter
                 do j=1,NoAutoDets
                     SumWeights(j)=SumWeights(j)+AllWeightatDets(j,i)
                     SumSquares(j)=SumSquares(j)+(AllWeightatDets(j,i)**2)
+                    IF(i.le.(Iter/2)) Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
                 enddo
             enddo
 
@@ -328,13 +331,14 @@ MODULE FciMCParMod
 
                 ACF(:)=0.D0
 
-                do j=1,(Iter-i)
+!                do j=1,(Iter-i)
+                do j=1,Iter/2
 !j is the run over the values needed
 
                     do k=1,NoAutoDets
 !k is the run over the desired determinants which to calculate the ACFs
 !                        ACF(k)=ACF(k)+(REAL(AllWeightatDets(k,j),r2)-Means(k))*(REAL(AllWeightatDets(k,j+i),r2)-Means(k))
-                        ACF(k)=ACF(k)+((REAL(AllWeightatDets(k,j),r2))*(REAL(AllWeightatDets(k,j+i),r2)))
+                        ACF(k)=ACF(k)+(AllWeightatDets(k,j)*AllWeightatDets(k,j+i))
                     enddo
 
                 enddo
@@ -344,7 +348,8 @@ MODULE FciMCParMod
 
                 do k=1,NoAutoDets
 !Effectivly 'normalise' the ACF by dividing by the variance
-                    ACF(k)=(ACF(k)/NVar(k))*REAL(Iter/(Iter-i+0.D0),r2)
+!                    ACF(k)=(ACF(k)/NVar(k))!*REAL(Iter/(Iter-i+0.D0),r2)
+                    ACF(k)=ACF(k)/REAL(NORM(k),8)
                 enddo
 !Write out the ACF
                 WRITE(43,"(I8,F20.10)",advance='no') i,ACF(1)
@@ -993,7 +998,7 @@ MODULE FciMCParMod
             IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
                 WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
                 WRITE(6,*) "Sendcounts is: ",sendcounts(:)
-                CALL FLUSH(6)
+!                CALL FLUSH(6)
             ENDIF
         ENDIF
         
