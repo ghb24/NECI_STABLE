@@ -369,11 +369,12 @@ C.. (Requires whole rho matrix)
          INTEGER INTERSECT(NRHOMAXWIDTH)
          REAL*8 PROB(NRHOMAXWIDTH)
          REAL*8 RAN2
+         REAL(KIND=4) :: SecondSeed=0.0
          type(timer), save :: proc_timer
          proc_timer%timer_name='MCPATHS   '
          call set_timer(proc_timer)
 C.. Randomize the seed:
-         ISEED=INT(SECNDS(0.0))
+         ISEED=INT(SECNDS(SecondSeed))
          IF(MOD(ISEED,2).EQ.0) ISEED=ISEED-1
 C.. THe seed must be odd
          

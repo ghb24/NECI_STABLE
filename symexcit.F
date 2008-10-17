@@ -3393,7 +3393,7 @@ C.. Actually generate a det
 !.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !.. SYMPRODS(I) in ORBPAIRS
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
-         pGen=(0.+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
+         pGen=(0.D0+ExcitTypes(5,iExcit))/iTotal !pGen is the prob of choosing iExcit
 !  Allocate memory to store all weights and excitations in this category
          CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
      &      SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
