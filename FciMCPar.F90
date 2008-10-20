@@ -127,6 +127,7 @@ MODULE FciMCParMod
     INTEGER :: MaxIndex
 
     LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
+    LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
 
     TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time
 
@@ -1054,7 +1055,7 @@ MODULE FciMCParMod
             FinalBlockIndex=j-1         !Start at j-1 since we are increasing FinalBlockIndex even with the first det in the next loop
             HashCurr=HashArray(j)
             do while((HashArray(j).eq.HashCurr).and.(j.le.MaxIndex))
-!First loop counts walkers in the block
+!First loop counts walkers in the block - TotWalkersDet is then the residual sign of walkers on that determinant
                 IF(CurrentSign(j)) THEN
                     TotWalkersDet=TotWalkersDet+1
                 ELSE
@@ -1070,31 +1071,36 @@ MODULE FciMCParMod
 !                CALL FLUSH(6)
 !            ENDIF
 
+!            IF(TLocalAnnihilation) THEN
+!This is an attempt to approximate the expected annihilation rates when the occupancy of a determinant is only 1.
+            
+
+
             do k=InitialBlockIndex,FinalBlockIndex
 !Second run through the block of same determinants marks walkers for annihilation
                 IF(TotWalkersDet.eq.0) THEN
 !All walkers in block want to be annihilated
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
                     ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
-                    Hash2Array(ToAnnihilateIndex)=HashArray(k)     !This is not strictly needed - remove after checking
-                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
-                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 1",j,k
+!                    Hash2Array(ToAnnihilateIndex)=HashArray(k)     !This is not strictly needed - remove after checking
+!                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
+!                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 1",j,k
                     ToAnnihilateIndex=ToAnnihilateIndex+1
                 ELSEIF((TotWalkersDet.lt.0).and.(CurrentSign(k))) THEN
 !Annihilate if block has a net negative walker count, and current walker is positive
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
                     ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
-                    Hash2Array(ToAnnihilateIndex)=HashArray(k)     !This is not strictly needed - remove after checking
-                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
-                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 2",j,k
+!                    Hash2Array(ToAnnihilateIndex)=HashArray(k)     !This is not strictly needed - remove after checking
+!                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
+!                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 2",j,k
                     ToAnnihilateIndex=ToAnnihilateIndex+1
                 ELSEIF((TotWalkersDet.gt.0).and.(.not.CurrentSign(k))) THEN
 !Annihilate if block has a net positive walker count, and current walker is negative
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
                     ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
-                    Hash2Array(ToAnnihilateIndex)=HashArray(k)     !This is not strictly needed - remove after checking
-                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
-                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 3",j,k
+!                    Hash2Array(ToAnnihilateIndex)=HashArray(k)     !This is not strictly needed - remove after checking
+!                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
+!                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 3",j,k
                     ToAnnihilateIndex=ToAnnihilateIndex+1
                 ELSE
 !If net walkers is positive, and we have a positive walkers, then remove one from the net positive walkers and continue through the block
@@ -1231,7 +1237,7 @@ MODULE FciMCParMod
             i=1             !i is the index in the original array of TotWalkersNew
             do j=1,ToAnnihilateonProc
 !Loop over all particles to be annihilated
-                IF(Iter.eq.DebugIter) WRITE(6,*) Index2Table(j)
+!                IF(Iter.eq.DebugIter) WRITE(6,*) Index2Table(j)
                 do while(i.lt.Index2Table(j))
 !Copy accross all particles less than this number
                     CurrentDets(:,VecSlot)=NewDets(:,i)
@@ -1341,22 +1347,46 @@ MODULE FciMCParMod
         IF(TAutoCorr) THEN
             IF(ExcitLevel.eq.2) THEN
             
-!We are only finding the ACFs for doubles
+!We are finding the ACFs for doubles
                 do i=1,NoAutoDets
 !Sum over all the determinants we are interested in calculating the autocorrelation function for
             
                     IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
 !The walker is at a determinant for which we want to calculate the autocorrelation function
                         IF(WSign) THEN
-                            WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
+                            IF(TFlippedSign) THEN
+                                WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                            ELSE
+                                WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
+                            ENDIF
                         ELSE
-                            WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                            IF(TFlippedSign) THEN
+                                WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
+                            ELSE
+                                WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                            ENDIF
                         ENDIF
                         EXIT
                     ENDIF
 
                 enddo
         
+            ELSEIF(ExcitLevel.eq.0) THEN
+!We are histogramming HF - this is the first element of the array
+!The walker is at a determinant for which we want to calculate the autocorrelation function
+                IF(WSign) THEN
+                    IF(TFlippedSign) THEN
+                        WeightatDets(1,Iter)=WeightatDets(1,Iter)-1
+                    ELSE
+                        WeightatDets(1,Iter)=WeightatDets(1,Iter)+1
+                    ENDIF
+                ELSE
+                    IF(TFlippedSign) THEN
+                        WeightatDets(1,Iter)=WeightatDets(1,Iter)+1
+                    ELSE
+                        WeightatDets(1,Iter)=WeightatDets(1,Iter)-1
+                    ENDIF
+                ENDIF
             ENDIF
         ENDIF
         
@@ -2300,12 +2330,15 @@ MODULE FciMCParMod
 !The code calculates the ACF for the number of doubles here, or all if it is more
 !        NoAutoDets=10
         WRITE(6,"(A,I5,A)") "Choosing the ",NoAutoDets," highest MP1 weight determinants to calculate the ACF for."
+        WRITE(6,*) "First determinant will be the HF determinant"
         CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
         IF(NoAutoDets.gt.HFConn) NoAutoDets=HFConn
         ALLOCATE(AutoCorrDets(NEl,NoAutoDets),stat=ierr)
         CALL LogMemAlloc('AutoCorrDets',NEl*NoAutoDets,4,this_routine,AutoCorrDetsTag,ierr)
+!Set the first determinant to find the ACF of to be the HF determinant
+        AutoCorrDets(:,1)=HFDet(:)
         CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
-        ALLOCATE(TempMax(1:NoAutoDets),stat=ierr)
+        ALLOCATE(TempMax(2:NoAutoDets),stat=ierr)
         IF(ierr.ne.0) THEN
             CALL Stop_All("ChooseACFDets","Problem allocating memory")
         ENDIF
@@ -2318,7 +2351,7 @@ MODULE FciMCParMod
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            do j=1,NoAutoDets
+            do j=2,NoAutoDets
                 IF(abs(Compt).gt.TempMax(j)) THEN
                     TempMax(j)=abs(Compt)
                     AutoCorrDets(:,j)=nJ(:)
@@ -2983,6 +3016,8 @@ MODULE FciMCParMod
         do i=1,TotWalkers
             CurrentSign(i)=.not.CurrentSign(i)
         enddo
+!Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
+        TFlippedSign=.not.TFlippedSign
         RETURN
     
     END SUBROUTINE FlipSign
