@@ -651,6 +651,16 @@ The following options are only available in **FCIMC** calculations:
     equivalent to the original annihilation algorithm. Warning - this is much slower than
     normal annihilation.
 
+**LOCALANNIHILATION** [Lambda]
+    
+    A parallel FCIMC option. An additional diagonal death rate is included at the annihilation
+    stage for particles which are only singly occupied. The probability of death is given by
+    Tau*EXP(-Lambda*ExcitDensity) where ExcitDensity is the approximate density of particles in
+    the excitation level of the particle. This should raise death through this local annihilation,
+    and hence keep the shift at a more resonable value in the undersampled regime. This will
+    hopefully mean that a more accurate energy value can be obtained by removing the random
+    killing of particles which arises from such a low shift value.
+
 **UNBIASPGENINPROJE**
     Default false
     

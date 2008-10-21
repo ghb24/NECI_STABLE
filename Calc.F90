@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          TLocalAnnihilation=.false.
           TDistAnnihil=.false.
           TAnnihilonproc=.false.
           TUnbiasPGeninProjE=.false.
@@ -721,6 +722,11 @@ MODULE Calc
             case("ANNIHILATDISTANCE")
 !A Serial FCIMC experimental option. With this, walkers have the ability to annihilate each other as long as they are connected, which they will do with probability = Lambda*Hij
                 TDistAnnihil=.true.
+                call Getf(Lambda)
+            case("LOCALANNIHIL")
+!A parallel FCIMC experimental option. This will attempt to compensate for undersampled systems, by including extra annihilation for walkers which are the sole occupier of determiants
+!This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.
+                TLocalAnnihilation=.true.
                 call Getf(Lambda)
             case default
                 call report("Keyword "                                &

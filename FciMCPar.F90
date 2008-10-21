@@ -15,7 +15,7 @@ MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
-    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers
+    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS,ICILevel
@@ -86,6 +86,7 @@ MODULE FciMCParMod
     INTEGER :: MinExcitLevel
     INTEGER :: MaxExcitLevel
     INTEGER :: Annihilated      !This is the number annihilated on one processor
+    INTEGER :: LocalAnn         !This is the number of locally annihilated particles
     INTEGER :: NoatHF           !This is the instantaneous number of particles at the HF determinant
     INTEGER :: NoatDoubs
     INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
@@ -96,7 +97,7 @@ MODULE FciMCParMod
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
     INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc,AllTotSign,AllTotSignOld
-    INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs
+    INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs,AllLocalAnn
     REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
     INTEGER :: AllNoBorn,AllNoDied
 
@@ -135,6 +136,10 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: WeightatDets(:,:)                   !First index - det which is stored, second - weight on proc at that iteration
     INTEGER , ALLOCATABLE :: AutoCorrDets(:,:)                  !(NEl,NoAutoDets)
     INTEGER :: WeightatDetsTag=0,AutoCorrDetsTag=0
+
+!These are variables relating to calculating the population density of an excitation level for use with TLocalAnnihilation
+    REAL*8 , ALLOCATABLE :: ApproxExcitDets(:)    !This is the approximate size of each excitation level
+    INTEGER , ALLOCATABLE :: PartsInExcitLevel(:) !This is the number of walkers for a given iteration in that excitation level
         
     contains
 
@@ -153,22 +158,30 @@ MODULE FciMCParMod
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_ARE_FATAL,error)
-        Walker_Time%timer_name='WalkerTime'
-        Annihil_Time%timer_name='AnnihilTime'
-        ACF_Time%timer_name='ACFTime'
-
+        
         CALL InitFCIMCCalcPar()
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(6,*) ""
-            WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-            WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+            IF(TLocalAnnihilation) THEN
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   LocalAnn  TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  LocalAnn   TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 !TotWalkersOld is the number of walkers last time the shift was changed
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
-     &          AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
-     &          AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+     &              AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+     &              AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+
+            ELSE
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+!TotWalkersOld is the number of walkers last time the shift was changed
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+     &              AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+     &              AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            ENDIF
         ENDIF
         
 
@@ -276,15 +289,15 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
 
         IF(iProcIndex.eq.root) THEN
-!            OPEN(44,FILE='DoublePops',STATUS='UNKNOWN')
-!            do i=1,Iter
-!                WRITE(44,"(2I8)",advance='no') i,AllWeightatDets(1,i)
-!                do k=2,NoAutoDets-1
-!                    WRITE(44,"(I8)",advance='no') AllWeightatDets(k,i)
-!                enddo
-!                WRITE(44,"(I8)") AllWeightatDets(NoAutoDets,i) 
-!            enddo
-!            CLOSE(44)
+            OPEN(44,FILE='DoublePops',STATUS='UNKNOWN')
+            do i=1,Iter
+                WRITE(44,"(2I8)",advance='no') i,AllWeightatDets(1,i)
+                do k=2,NoAutoDets-1
+                    WRITE(44,"(I8)",advance='no') AllWeightatDets(k,i)
+                enddo
+                WRITE(44,"(I8)") AllWeightatDets(NoAutoDets,i) 
+            enddo
+            CLOSE(44)
 
 !First, we need to calculate the average value for each of the determinants - this could be calculated during the simulation
 !We also want to divide the ACF components by sum_i ((s_i - av(s))^2) , which is N * Var(s) = sum(s^2) - 1/N (sum(x))^2
@@ -298,7 +311,8 @@ MODULE FciMCParMod
                 do j=1,NoAutoDets
                     SumWeights(j)=SumWeights(j)+AllWeightatDets(j,i)
                     SumSquares(j)=SumSquares(j)+(AllWeightatDets(j,i)**2)
-                    IF(i.le.(Iter/2)) Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
+!                    IF(i.le.(Iter/2)) Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
+                    Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
                 enddo
             enddo
 
@@ -332,8 +346,8 @@ MODULE FciMCParMod
 
                 ACF(:)=0.D0
 
-!                do j=1,(Iter-i)
-                do j=1,Iter/2
+                do j=1,(Iter-i)
+!                do j=1,Iter/2
 !j is the run over the values needed
 
                     do k=1,NoAutoDets
@@ -350,7 +364,8 @@ MODULE FciMCParMod
                 do k=1,NoAutoDets
 !Effectivly 'normalise' the ACF by dividing by the variance
 !                    ACF(k)=(ACF(k)/NVar(k))!*REAL(Iter/(Iter-i+0.D0),r2)
-                    ACF(k)=ACF(k)/REAL(NORM(k),8)
+                    ACF(k)=(ACF(k)/REAL(NORM(k),r2))*REAL(Iter/(Iter-i+0.D0),r2)
+!                    ACF(k)=ACF(k)/REAL(NORM(k),8)
                 enddo
 !Write out the ACF
                 WRITE(43,"(I8,F20.10)",advance='no') i,ACF(1)
@@ -861,6 +876,8 @@ MODULE FciMCParMod
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
         INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER :: Minsendcounts,Maxsendcounts,DebugIter
+        REAL*8 :: PopDensity(0:NEl)
+        INTEGER , ALLOCATABLE :: TempExcitLevel(:)
         INTEGER(KIND=i2) :: HashCurr!MinBin,RangeofBins,NextBinBound
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
 
@@ -869,12 +886,27 @@ MODULE FciMCParMod
 !            WRITE(6,*) "Printing out annihilation debug info for Iteration: ",Iter,DebugIter
 !        ENDIF
 
+        IF(TLocalAnnihilation) THEN
+!We need to calculate the approximate population density of each excitation level
+!ApproxExcitDets contains the approximate number of determinants in each excitation level
+!PartsinExcitlevel is the number of particles in each excitation level for the current iteration
+!PopDensity is simply the approximate population density of particles in a given excitation level
+            do i=0,NEl
+                PopDensity(i)=REAL(PartsinExcitLevel(i),r2)/ApproxExcitDets(i)
+            enddo
+            PartsinExcitLevel(:)=0  !Rezero for the next iteration
+!Allocate memory to hold the excitation levels. This is needed since the amount of local annihilation will be a function of
+!PopDensity which the particle is at. This means it needs to be taken with the hash.
+            ALLOCATE(TempExcitLevel(TotWalkersNew),stat=ierr)
+            TempExcitLevel(1:TotWalkersNew)=NewIC(1:TotWalkersNew)
+        ENDIF
+
 !First, allocate memory to hold the signs and the hashes while we annihilate
         ALLOCATE(TempSign(TotWalkersNew),stat=ierr)
 !Comment out the memallocs later
-        CALL LogMemAlloc('TempSign',TotWalkersNew,4,this_routine,TempSignTag,ierr)
+!        CALL LogMemAlloc('TempSign',TotWalkersNew,4,this_routine,TempSignTag,ierr)
         ALLOCATE(TempHash(TotWalkersNew),stat=ierr)
-        CALL LogMemAlloc('TempHash',TotWalkersNew,8,this_routine,TempHashTag,ierr)
+!        CALL LogMemAlloc('TempHash',TotWalkersNew,8,this_routine,TempHashTag,ierr)
         
 !Temporary arrays, storing the signs and Hashes need ot be kept, as both these arrays are going to be mixed
         TempSign(1:TotWalkersNew)=NewSign(1:TotWalkersNew)
@@ -895,7 +927,12 @@ MODULE FciMCParMod
 
 !Next, order the hash array, taking the index, CPU and sign with it...
 !Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
-        CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+        IF(TLocalAnnihilation) THEN
+!If we are locally annihilating, then we need to take the excitation level of each walker with the hash
+            CALL SortMod4I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),TempExcitLevel(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+        ELSE
+            CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+        ENDIF
 !        CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
         
 !        IF(Iter.eq.DebugIter) THEN
@@ -1026,6 +1063,11 @@ MODULE FciMCParMod
             WRITE(6,*) "Error in dividing up hashes in annihilation"
             CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
         ENDIF
+        IF(TLocalAnnihilation) THEN
+!If we are locally annihilating, then we need to take the excitation level of the particle with us.
+!We can send the information to CurrentIC - this is where the final information will be stored, but currently, it is redundant.
+            CALL MPI_AlltoAllv(TempExcitLevel(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,CurrentIC,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        ENDIF
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "AFTER DIVISION:   - No. on processor is: ",MaxIndex
@@ -1036,7 +1078,12 @@ MODULE FciMCParMod
 !        ENDIF
 
 !The hashes now need to be sorted again - this time by their number
-        CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
+        IF(TLocalAnnihilation) THEN
+!If we are locally annihilating, then we need to take the excitation level with us.
+            CALL Sort4I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentIC(1:MaxIndex),CurrentSign(1:MaxIndex))
+        ELSE
+            CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
+        ENDIF
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "AFTER DIVISION & ORDERING:   - No. on processor is: ",MaxIndex
@@ -1071,15 +1118,24 @@ MODULE FciMCParMod
 !                CALL FLUSH(6)
 !            ENDIF
 
-!            IF(TLocalAnnihilation) THEN
+            IF(TLocalAnnihilation) THEN
 !This is an attempt to approximate the expected annihilation rates when the occupancy of a determinant is only 1.
+                IF(InitialBlockIndex.eq.FinalBlockIndex) THEN
+!The occupancy of the determinant is only one
+!The walker is at an excitation level of CurrentIC(InitialBlockIndex). The only parameter the local annihilation depends on is the population 
+!density of that excitation level, stored in PopDensity
+                    IF(AttemptLocalAnn(PopDensity(CurrentIC(InitialBlockIndex)))) THEN
+!Particle is killed, even though it is the lone occupier of the determinant
+                        TotWalkersDet=0     !By setting TotWalkersDet to zero, it will kill the particle in the next section
+                        LocalAnn=LocalAnn+1 !Keep a track of the number of particles locally annihilated
+                    ENDIF
+                ENDIF
+            ENDIF
             
-
-
             do k=InitialBlockIndex,FinalBlockIndex
 !Second run through the block of same determinants marks walkers for annihilation
                 IF(TotWalkersDet.eq.0) THEN
-!All walkers in block want to be annihilated
+!All walkers in block want to be annihilated from now on.
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
                     ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
 !                    Hash2Array(ToAnnihilateIndex)=HashArray(k)     !This is not strictly needed - remove after checking
@@ -1293,9 +1349,12 @@ MODULE FciMCParMod
         ENDIF
 
         DEALLOCATE(TempSign)
-        CALL LogMemDealloc(this_routine,TempSignTag)
+!        CALL LogMemDealloc(this_routine,TempSignTag)
         DEALLOCATE(TempHash)
-        CALL LogMemDealloc(this_routine,TempHashTag)
+!        CALL LogMemDealloc(this_routine,TempHashTag)
+        IF(TLocalAnnihilation) THEN
+            DEALLOCATE(TempExcitLevel)
+        ENDIF
         
         RETURN
 
@@ -1342,6 +1401,11 @@ MODULE FciMCParMod
             ELSE
                 AvSign=AvSign-1.D0
             ENDIF
+        ENDIF
+
+        IF(TLocalAnnihilation) THEN
+!We need to count the population of walkers at each excitation level for each iteration
+            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
         ENDIF
 
         IF(TAutoCorr) THEN
@@ -1678,7 +1742,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(6),outpair(6)
+        INTEGER :: inpair(7),outpair(7)
         REAL*8 :: TempSumNoatHF,MeanWalkers
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
@@ -1695,6 +1759,7 @@ MODULE FciMCParMod
         inpair(4)=NoBorn
         inpair(5)=NoDied
         inpair(6)=SumWalkersCyc
+        inpair(7)=LocalAnn
         outpair(:)=0
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !Find total Annihilated,Total at HF and Total at doubles
@@ -1704,13 +1769,14 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
         AllTotWalkers=outpair(1)
         AllAnnihilated=outpair(2)
         AllNoatDoubs=outpair(3)
         AllNoBorn=outpair(4)
         AllNoDied=outpair(5)
         AllSumWalkersCyc=outpair(6)
+        AllLocalAnn=outpair(7)
 
 
         MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
@@ -1805,12 +1871,21 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
-                    AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
-                    AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-            CALL FLUSH(15)
-            CALL FLUSH(6)
+            IF(TLocalAnnihilation) THEN
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllLocalAnn,AllAnnihilated,     &
+                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllLocalAnn,AllAnnihilated,      &
+                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                CALL FLUSH(15)
+                CALL FLUSH(6)
+            ELSE
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
+                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
+                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                CALL FLUSH(15)
+                CALL FLUSH(6)
+            ENDIF
         ENDIF
 
 !Now need to reinitialise all variables on all processers
@@ -1821,6 +1896,7 @@ MODULE FciMCParMod
         AvSign=0.D0        !Rezero this quantity - <s> is now a average over the update cycle
         AvSignHFD=0.D0     !This is the average sign over the HF and doubles
         Annihilated=0
+        LocalAnn=0
         Acceptances=0
         NoBorn=0
         NoDied=0
@@ -1838,6 +1914,7 @@ MODULE FciMCParMod
         AllAvSignHFD=0.D0
         AllSumWalkersCyc=0
         AllAnnihilated=0
+        AllLocalAnn=0
         AllNoatHF=0
         AllNoatDoubs=0
         AllNoBorn=0
@@ -1973,10 +2050,17 @@ MODULE FciMCParMod
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc
         TYPE(HElement) :: rh,TempHii
+        REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
+        
+!Set timed routine names
+        Walker_Time%timer_name='WalkerTime'
+        Annihil_Time%timer_name='AnnihilTime'
+        ACF_Time%timer_name='ACFTime'
+
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
             abstr=''
@@ -2027,6 +2111,7 @@ MODULE FciMCParMod
         MeanExcitLevel=0.D0
         MinExcitLevel=NEl+10
         MaxExcitLevel=0
+        LocalAnn=0
         Annihilated=0
         Acceptances=0
         PreviousCycles=0
@@ -2045,6 +2130,8 @@ MODULE FciMCParMod
         AllAvSignHFD=0.D0
         AllNoBorn=0
         AllNoDied=0
+        AllLocalAnn=0
+        AllAnnihilated=0
 
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
         CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
@@ -2148,6 +2235,24 @@ MODULE FciMCParMod
 
             WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
         ENDIF
+        IF(TLocalAnnihilation) THEN
+!If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
+!in each excitation level
+            ALLOCATE(ApproxExcitDets(0:NEl))
+            ALLOCATE(PartsinExcitLevel(0:NEl))
+            TotDets=1.D0
+            do i=0,NEl
+                ApproxExcitDets(i)=Choose(NEl,i)*Choose(nBasis-NEl,i)
+            enddo
+            SymFactor=ApproxExcitDets(2)/(HFConn+0.D0)
+            do i=1,NEl
+                ApproxExcitDets(i)=ApproxExcitDets(i)/SymFactor
+                TotDets=TotDets+ApproxExcitDets(i)
+            enddo
+            WRITE(6,*) "Approximate size of determinant space is: ",TotDets
+            PartsinExcitLevel(:)=0  !Zero the array to hold the population of walkers in each excitation level
+        ENDIF
+
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
@@ -3098,6 +3203,25 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
+!This is a function which tells us whether to annihilate a particle on a determinant if it is the only one there.
+!Hopefully this will simulate the annihilation rate to some extent and stop the shift from becoming too negative.
+!The only variable it relies on is the approximate density of particles for the given excitation level - ExcitDensity
+    LOGICAL FUNCTION AttemptLocalAnn(ExcitDensity)
+        REAL*8 :: ExcitDensity,Ran2,AnnProb
+
+!The function can initially be a simple Tau*EXP(-Lambda*ExcitDensity)
+        AnnProb=Tau*EXP(-Lambda*ExcitDensity)
+        IF(Ran2(Seed).lt.AnnProb) THEN
+!Particle is annihilated
+            AttemptLocalAnn=.true.
+        ELSE
+!Particle survives
+            AttemptLocalAnn=.false.
+        ENDIF
+        RETURN
+
+    END FUNCTION AttemptLocalAnn
+
 !This function tells us whether we should kill the particle at determinant DetCurr
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
 !The function allows multiple births(if +ve shift) or deaths from the same particle.
@@ -3445,6 +3569,10 @@ MODULE FciMCParMod
             CALL LogMemDealloc(this_routine,GraphKiiTag)
             DEALLOCATE(DetsinGraph)
             CALL LogMemDealloc(this_routine,DetsinGraphTag)
+        ENDIF
+        IF(TLocalAnnihilation) THEN
+            DEALLOCATE(ApproxExcitDets)
+            DEALLOCATE(PartsinExcitLevel)
         ENDIF
 
         DEALLOCATE(HFDet)

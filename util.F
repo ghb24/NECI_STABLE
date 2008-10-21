@@ -158,3 +158,22 @@
              FACTRL=FACTRL*i
          end do
       end function FACTRL
+
+!This finds the binomial coefficient N C R
+      REAL*8 FUNCTION Choose(N,R)
+         INTEGER :: N,R
+
+         IF(R.gt.N) THEN
+             Choose=0.D0
+             RETURN
+         ENDIF
+         IF(R.gt.(N/2)) THEN
+             R=N-K  !Faster
+         ENDIF
+         Choose=1.D0
+         DO I=0,R-1
+             Choose=(Choose*(N-I))/(I+1)
+         ENDDO
+         RETURN
+      END FUNCTION Choose
+
