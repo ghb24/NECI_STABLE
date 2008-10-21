@@ -651,7 +651,7 @@ The following options are only available in **FCIMC** calculations:
     equivalent to the original annihilation algorithm. Warning - this is much slower than
     normal annihilation.
 
-**LOCALANNIHILATION** [Lambda]
+**LOCALANNIHIL** [Lambda]
     
     A parallel FCIMC option. An additional diagonal death rate is included at the annihilation
     stage for particles which are only singly occupied. The probability of death is given by
