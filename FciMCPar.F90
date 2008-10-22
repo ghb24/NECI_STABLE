@@ -21,7 +21,7 @@ MODULE FciMCParMod
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
-    USE Logging , only : TAutoCorr,iLagMin,iLagMax,iLagStep,NoAutoDets
+    USE Logging , only : TAutoCorr,NoAutoDets!,iLagMin,iLagMax,iLagStep
     USE global_utilities
     USE HElem
     USE Parallel
@@ -133,7 +133,7 @@ MODULE FciMCParMod
     TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time
 
 !These are arrays used to store the autocorrelation function
-    INTEGER , ALLOCATABLE :: WeightatDets(:,:)                   !First index - det which is stored, second - weight on proc at that iteration
+    INTEGER , ALLOCATABLE :: WeightatDets(:)                   !First index - det which is stored, second - weight on proc at that iteration
     INTEGER , ALLOCATABLE :: AutoCorrDets(:,:)                  !(NEl,NoAutoDets)
     INTEGER :: WeightatDetsTag=0,AutoCorrDetsTag=0
 
@@ -161,29 +161,7 @@ MODULE FciMCParMod
         
         CALL InitFCIMCCalcPar()
 
-        IF(iProcIndex.eq.root) THEN
-!Print out initial starting configurations
-            WRITE(6,*) ""
-            IF(TLocalAnnihilation) THEN
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   LocalAnn  TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  LocalAnn   TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-!TotWalkersOld is the number of walkers last time the shift was changed
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
-     &              AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
-     &              AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-
-            ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-!TotWalkersOld is the number of walkers last time the shift was changed
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
-     &              AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
-     &              AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
-            ENDIF
-        ENDIF
-        
+        CALL WriteFCIMCStats()
 
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
@@ -209,6 +187,7 @@ MODULE FciMCParMod
 !This will write out the POPSFILE
                 CALL WriteToPopsFilePar()
             ENDIF
+            IF(TAutoCorr) CALL WriteHistogrammedDets
 
 !End of MC cycle
         enddo
@@ -222,10 +201,11 @@ MODULE FciMCParMod
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
         
-        IF(TAutoCorr) CALL CalcAutoCorr()
+!        IF(TAutoCorr) CALL CalcAutoCorr()
 
         IF(iProcIndex.eq.Root) CLOSE(15)
         IF(TDebug) CLOSE(11)
+        IF(TAutoCorr) CLOSE(44)
 
 !        CALL MPIEnd(.false.)    !Finalize MPI
 
@@ -233,166 +213,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
-!This routine calculates the autocorrelation function for the determinants listed in AutoCorrDets array, with lags from iLagMin to iLagMax in steps of iLagStep
-!and writes it to a file ACF. The calculation is done in serial. It is not trivial to turn it into an efficient parallel algorithm
-    SUBROUTINE CalcAutoCorr()
-        INTEGER :: i,j,k,error
-        REAL*8 :: Means(NoAutoDets),NVar(NoAutoDets),ACF(NoAutoDets)!,AllACF(NoAutoDets)
-        REAL*8 :: Norm(NoAutoDets)
-!        REAL*8 :: TestVar(NoAutoDets)
-        INTEGER :: SumSquares(NoAutoDets),SumWeights(NoAutoDets),ierr
-        INTEGER , ALLOCATABLE :: AllWeightatDets(:,:)
-        INTEGER :: AllWeightatDetsTag=0,NoCounts
-        CHARACTER(len=*), PARAMETER :: this_routine='CalcAutoCorr'
-        
-        CALL set_timer(ACF_Time,30)
-
-        IF((iLagMax.lt.0).or.(iLagMax.gt.Iter/2)) THEN
-            iLagMax=Iter/2
-        ENDIF
-        IF(iProcIndex.eq.root) THEN
-            OPEN(43,FILE='AutoCorrFunc',STATUS='UNKNOWN')
-        ENDIF
-
-        WRITE(6,"(A,I8,A,I8,A,I8,A)") "Calculating the ACF with lags from ",iLagMin," to ",iLagMax," in steps of ",iLagStep," and writing it to file 'ACF'"
-        WRITE(6,*) "Calculating the ACF for the following determinants:"
-        do i=1,NoAutoDets
-            do j=1,NEl
-                WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
-            enddo
-            WRITE(6,*) ""
-        enddo
-        CALL FLUSH(6)
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-        ALLOCATE(AllWeightatDets(NoAutoDets,Iter),stat=ierr)
-        CALL LogMemAlloc('AllWeightatDets',NoAutoDets*Iter,4,this_routine,AllWeightatDetsTag,ierr)
-        AllWeightatDets(:,:)=0
-!        WRITE(6,*) Iter
-!        do i=1,Iter
-!            do j=1,NoAutoDets
-!                WRITE(6,'(I10)',advance='no') WeightatDets(j,i)
-!            enddo
-!            WRITE(6,*) ""
-!        enddo
-!        WRITE(6,*) "*****************"
-
-        NoCounts=NoAutoDets*Iter
-!Initially, we will calculate this ACF in serial - this will be easier as there are subtle effects in parallel.
-        CALL MPI_Reduce(WeightatDets(1:NoAutoDets,1:Iter),AllWeightatDets(1:NoAutoDets,1:Iter),NoCounts,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
-!        do i=1,Iter
-!            do j=1,NoAutoDets
-!                WRITE(6,'(I10)',advance='no') AllWeightatDets(j,i)
-!            enddo
-!            WRITE(6,*) ""
-!        enddo
-!        CALL FLUSH(6)
-
-        IF(iProcIndex.eq.root) THEN
-            OPEN(44,FILE='DoublePops',STATUS='UNKNOWN')
-            do i=1,Iter
-                WRITE(44,"(2I8)",advance='no') i,AllWeightatDets(1,i)
-                do k=2,NoAutoDets-1
-                    WRITE(44,"(I8)",advance='no') AllWeightatDets(k,i)
-                enddo
-                WRITE(44,"(I8)") AllWeightatDets(NoAutoDets,i) 
-            enddo
-            CLOSE(44)
-
-!First, we need to calculate the average value for each of the determinants - this could be calculated during the simulation
-!We also want to divide the ACF components by sum_i ((s_i - av(s))^2) , which is N * Var(s) = sum(s^2) - 1/N (sum(x))^2
-            SumWeights(:)=0
-            SumSquares(:)=0
-            NVar(:)=0.D0
-            Means(:)=0.D0
-            Norm(:)=0.D0
-        
-            do i=1,Iter
-                do j=1,NoAutoDets
-                    SumWeights(j)=SumWeights(j)+AllWeightatDets(j,i)
-                    SumSquares(j)=SumSquares(j)+(AllWeightatDets(j,i)**2)
-!                    IF(i.le.(Iter/2)) Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
-                    Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
-                enddo
-            enddo
-
-!This then needs to be sent to all nodes
-!            CALL MPI_AllReduce(SumWeights,AllSumWeights,NoAutoDets,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
-!            CALL MPI_AllReduce(SumSquares,AllSumSquares,NoAutoDets,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
-
-            do j=1,NoAutoDets
-                Means(j)=REAL(SumWeights(j),r2)/REAL(Iter,r2)
-                NVar(j)=REAL(SumSquares(j),r2)-((REAL(SumWeights(j),r2)**2)/REAL(Iter,r2))
-                WRITE(6,"(A,I4)",advance='no') "Mean+Var for det: ",AutoCorrDets(1,j)
-                do k=2,NEl
-                    WRITE(6,"(I4)",advance='no') AutoCorrDets(k,j)
-                enddo
-                WRITE(6,"(A,2F20.10)") " is: ", Means(j),NVar(j)/REAL(Iter,r2)
-            enddo
-
-!Alternativly, we can calculate the variance seperatly...
-!            TestVar(:)=0.D0
-!            do i=1,Iter
-!                do j=1,NoAutoDets
-!                    TestVar(j)=TestVar(j)+((REAL(AllWeightatDets(j,i),r2)-Means(j))**2)
-!                enddo
-!            enddo
-!            CALL MPI_AllReduce(TestVar,AllTestVar,NoAutoDets,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-!            WRITE(6,*) "TESTVAR: ",TestVar/REAL(Iter,r2)
-
-!Now we need to calculate the ACF for the desired values of the lag.
-            do i=iLagMin,iLagMax,iLagStep
-!i is now the value of the lag which we are calculating
-
-                ACF(:)=0.D0
-
-                do j=1,(Iter-i)
-!                do j=1,Iter/2
-!j is the run over the values needed
-
-                    do k=1,NoAutoDets
-!k is the run over the desired determinants which to calculate the ACFs
-!                        ACF(k)=ACF(k)+(REAL(AllWeightatDets(k,j),r2)-Means(k))*(REAL(AllWeightatDets(k,j+i),r2)-Means(k))
-                        ACF(k)=ACF(k)+(AllWeightatDets(k,j)*AllWeightatDets(k,j+i))
-                    enddo
-
-                enddo
-
-!Now we need to collate the information from all processors
-!                CALL MPI_Reduce(ACF,AllACF,NoAutoDets,MPI_DOUBLE_PRECISION,MPI_SUM,root,MPI_COMM_WORLD,error)
-
-                do k=1,NoAutoDets
-!Effectivly 'normalise' the ACF by dividing by the variance
-!                    ACF(k)=(ACF(k)/NVar(k))!*REAL(Iter/(Iter-i+0.D0),r2)
-                    ACF(k)=(ACF(k)/REAL(NORM(k),r2))*REAL(Iter/(Iter-i+0.D0),r2)
-!                    ACF(k)=ACF(k)/REAL(NORM(k),8)
-                enddo
-!Write out the ACF
-                WRITE(43,"(I8,F20.10)",advance='no') i,ACF(1)
-                do k=2,NoAutoDets-1
-                    WRITE(43,"(F20.10)",advance='no') ACF(k)
-                enddo
-                WRITE(43,"(F20.10)") ACF(NoAutoDets)
-
-            enddo
-
-            CLOSE(43)
-
-        ENDIF
-        
-        DEALLOCATE(WeightatDets)
-        CALL LogMemDealloc(this_routine,WeightatDetsTag)
-        DEALLOCATE(AllWeightatDets)
-        CALL LogMemDealloc(this_routine,AllWeightatDetsTag)
-        DEALLOCATE(AutoCorrDets)
-        CALL LogMemDealloc(this_routine,AutoCorrDetsTag)
-
-        CALL halt_timer(ACF_Time)
-        
-        RETURN
-
-    END SUBROUTINE CalcAutoCorr
-    
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
         INTEGER :: VecSlot,i,j,k,l
@@ -1128,6 +948,9 @@ MODULE FciMCParMod
 !Particle is killed, even though it is the lone occupier of the determinant
                         TotWalkersDet=0     !By setting TotWalkersDet to zero, it will kill the particle in the next section
                         LocalAnn=LocalAnn+1 !Keep a track of the number of particles locally annihilated
+!                        IF(HashCurr.eq.HFHash) THEN
+!                            WRITE(6,*) "HF Determinant particle locally annihilated"
+!                        ENDIF
                     ENDIF
                 ENDIF
             ENDIF
@@ -1142,6 +965,9 @@ MODULE FciMCParMod
 !                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
 !                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 1",j,k
                     ToAnnihilateIndex=ToAnnihilateIndex+1
+!                    IF(HashCurr.eq.HFHash) THEN
+!                        WRITE(6,*) "HF Determinant particle annihilated"
+!                    ENDIF
                 ELSEIF((TotWalkersDet.lt.0).and.(CurrentSign(k))) THEN
 !Annihilate if block has a net negative walker count, and current walker is positive
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
@@ -1150,6 +976,9 @@ MODULE FciMCParMod
 !                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
 !                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 2",j,k
                     ToAnnihilateIndex=ToAnnihilateIndex+1
+!                    IF(HashCurr.eq.HFHash) THEN
+!                        WRITE(6,*) "HF Determinant particle annihilated"
+!                    ENDIF
                 ELSEIF((TotWalkersDet.gt.0).and.(.not.CurrentSign(k))) THEN
 !Annihilate if block has a net positive walker count, and current walker is negative
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
@@ -1158,6 +987,9 @@ MODULE FciMCParMod
 !                    NewSign(ToAnnihilateIndex)=CurrentSign(k)       !This is also need needed, but useful for checking
 !                    IF(Iter.eq.DebugIter) WRITE(6,*) "Annihilating from if block 3",j,k
                     ToAnnihilateIndex=ToAnnihilateIndex+1
+!                    IF(HashCurr.eq.HFHash) THEN
+!                        WRITE(6,*) "HF Determinant particle annihilated"
+!                    ENDIF
                 ELSE
 !If net walkers is positive, and we have a positive walkers, then remove one from the net positive walkers and continue through the block
                     IF(CurrentSign(k)) THEN
@@ -1419,15 +1251,15 @@ MODULE FciMCParMod
 !The walker is at a determinant for which we want to calculate the autocorrelation function
                         IF(WSign) THEN
                             IF(TFlippedSign) THEN
-                                WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                                WeightatDets(i)=WeightatDets(i)-1
                             ELSE
-                                WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
+                                WeightatDets(i)=WeightatDets(i)+1
                             ENDIF
                         ELSE
                             IF(TFlippedSign) THEN
-                                WeightatDets(i,Iter)=WeightatDets(i,Iter)+1
+                                WeightatDets(i)=WeightatDets(i)+1
                             ELSE
-                                WeightatDets(i,Iter)=WeightatDets(i,Iter)-1
+                                WeightatDets(i)=WeightatDets(i)-1
                             ENDIF
                         ENDIF
                         EXIT
@@ -1440,15 +1272,15 @@ MODULE FciMCParMod
 !The walker is at a determinant for which we want to calculate the autocorrelation function
                 IF(WSign) THEN
                     IF(TFlippedSign) THEN
-                        WeightatDets(1,Iter)=WeightatDets(1,Iter)-1
+                        WeightatDets(1)=WeightatDets(1)-1
                     ELSE
-                        WeightatDets(1,Iter)=WeightatDets(1,Iter)+1
+                        WeightatDets(1)=WeightatDets(1)+1
                     ENDIF
                 ELSE
                     IF(TFlippedSign) THEN
-                        WeightatDets(1,Iter)=WeightatDets(1,Iter)+1
+                        WeightatDets(1)=WeightatDets(1)+1
                     ELSE
-                        WeightatDets(1,Iter)=WeightatDets(1,Iter)-1
+                        WeightatDets(1)=WeightatDets(1)-1
                     ENDIF
                 ENDIF
             ENDIF
@@ -1869,24 +1701,7 @@ MODULE FciMCParMod
 
         AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
 
-        IF(iProcIndex.eq.Root) THEN
-!Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
-            IF(TLocalAnnihilation) THEN
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllLocalAnn,AllAnnihilated,     &
-                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllLocalAnn,AllAnnihilated,      &
-                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                CALL FLUSH(15)
-                CALL FLUSH(6)
-            ELSE
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,     &
-                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,AllTotWalkers,AllAnnihilated,      &
-                        AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                CALL FLUSH(15)
-                CALL FLUSH(6)
-            ENDIF
-        ENDIF
+        CALL WriteFCIMCStats()
 
 !Now need to reinitialise all variables on all processers
         MinExcitLevel=NEl+10
@@ -2223,17 +2038,17 @@ MODULE FciMCParMod
 
         IF(TAutoCorr) THEN
 !We want to calculate the autocorrelation function over the determinants
-            IF(iLagMin.lt.0) THEN
-                CALL Stop_All("InitFciMCPar","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
-            ELSEIF(iLagMax.gt.NMCyc) THEN
-                CALL Stop_All("InitFciMCPar","LagMax cannot be greater than the number of cycles.")
-            ELSEIF(iLagStep.lt.1) THEN
-                CALL Stop_All("InitFciMCPar","LagStep cannot be less than 1")
-            ENDIF
+!            IF(iLagMin.lt.0) THEN
+!                CALL Stop_All("InitFciMCPar","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
+!            ELSEIF(iLagMax.gt.NMCyc) THEN
+!                CALL Stop_All("InitFciMCPar","LagMax cannot be greater than the number of cycles.")
+!            ELSEIF(iLagStep.lt.1) THEN
+!                CALL Stop_All("InitFciMCPar","LagStep cannot be less than 1")
+!            ENDIF
 
             CALL ChooseACFDets()
 
-            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
+!            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
         ENDIF
         IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
@@ -2411,8 +2226,21 @@ MODULE FciMCParMod
 
         CullInfo(1:10,1:3)=0
         NoCulls=0
+        
+        IF(iProcIndex.eq.root) THEN
+!Print out initial starting configurations
+            WRITE(6,*) ""
+            IF(TLocalAnnihilation) THEN
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   LocalAnn  TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  LocalAnn   TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 
-
+            ELSE
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+            
+            ENDIF
+        ENDIF
+        
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -2469,9 +2297,22 @@ MODULE FciMCParMod
         DEALLOCATE(TempMax)
             
 !The number of occurunces of walkers at the determiants selected needs to be stored for all iterations
-        ALLOCATE(WeightatDets(NoAutoDets,NMCyc),stat=ierr)
-        CALL LogMemAlloc('WeightatDets',NoAutoDets*NMCyc,4,this_routine,WeightatDetsTag,ierr)
-        WeightatDets(:,:)=0
+        ALLOCATE(WeightatDets(NoAutoDets),stat=ierr)
+        CALL LogMemAlloc('WeightatDets',NoAutoDets,4,this_routine,WeightatDetsTag,ierr)
+        WeightatDets(:)=0
+!If we want to calculate the ACF, then we now do this in a seperate step. Now we simply write out the determinant populations at each iteration
+!to a file called HFDoublePops
+        
+        WRITE(6,*) "Histogramming the following determinants:"
+        do i=1,NoAutoDets
+            do j=1,NEl
+                WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
+            enddo
+            WRITE(6,*) ""
+        enddo
+
+        OPEN(44,FILE='HFDoublePops',STATUS='UNKNOWN')
+
 
         RETURN
 
@@ -3210,7 +3051,9 @@ MODULE FciMCParMod
         REAL*8 :: ExcitDensity,Ran2,AnnProb
 
 !The function can initially be a simple Tau*EXP(-Lambda*ExcitDensity)
-        AnnProb=Tau*EXP(-Lambda*ExcitDensity)
+!        AnnProb=Tau*EXP(-Lambda*ExcitDensity)
+!        AnnProb=Lambda/ExcitDensity
+        AnnProb=Lambda/ExcitDensity
         IF(Ran2(Seed).lt.AnnProb) THEN
 !Particle is annihilated
             AttemptLocalAnn=.true.
@@ -3609,6 +3452,214 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE DeallocFCIMCMemPar
+
+    SUBROUTINE WriteFCIMCStats()
+
+        IF(iProcIndex.eq.root) THEN
+
+            IF(TLocalAnnihilation) THEN
+!TotWalkersOld is the number of walkers last time the shift was changed
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+ &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+ &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+
+            ELSE
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+ &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+ &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMaxExcitLevel,AllMinExcitLevel
+            ENDIF
+            
+            CALL FLUSH(6)
+            CALL FLUSH(15)
+            
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE WriteFCIMCStats
+
+!This routine simply reduces the histogrammed determinants, and prints out their population for the given iteration
+    SUBROUTINE WriteHistogrammedDets()
+        INTEGER :: AllWeightatDets(NoAutoDets),error,k
+        
+!First, collate the information onto the root
+        AllWeightatDets(:)=0
+        CALL MPI_Reduce(WeightatDets(1:NoAutoDets),AllWeightatDets(1:NoAutoDets),NoAutoDets,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
+
+        IF(iProcIndex.eq.root) THEN
+            WRITE(44,"(2I8)",advance='no') Iter,AllWeightatDets(1)
+            do k=2,NoAutoDets-1
+                WRITE(44,"(I8)",advance='no') AllWeightatDets(k)
+            enddo
+            WRITE(44,"(I8)") AllWeightatDets(NoAutoDets)
+        ENDIF
+        WeightatDets(:)=0   !Rezero the array for the next iteration
+    END SUBROUTINE WriteHistogrammedDets
+
+    
+!This routine calculates the autocorrelation function for the determinants listed in AutoCorrDets array, with lags from iLagMin to iLagMax in steps of iLagStep
+!and writes it to a file ACF. The calculation is done in serial. It is not trivial to turn it into an efficient parallel algorithm
+!The autocorrelation function is now calculated in a seperate standalone program. The occupations at each point are simply printed out.
+!    SUBROUTINE CalcAutoCorr()
+!        INTEGER :: i,j,k,error
+!        REAL*8 :: Means(NoAutoDets),NVar(NoAutoDets),ACF(NoAutoDets)!,AllACF(NoAutoDets)
+!        REAL*8 :: Norm(NoAutoDets)
+!!        REAL*8 :: TestVar(NoAutoDets)
+!        INTEGER :: SumSquares(NoAutoDets),SumWeights(NoAutoDets),ierr
+!        INTEGER , ALLOCATABLE :: AllWeightatDets(:,:)
+!        INTEGER :: AllWeightatDetsTag=0,NoCounts
+!        CHARACTER(len=*), PARAMETER :: this_routine='CalcAutoCorr'
+!        
+!        CALL set_timer(ACF_Time,30)
+!        
+!        IF((iLagMax.lt.0).or.(iLagMax.gt.Iter/2)) THEN
+!            iLagMax=Iter/2
+!        ENDIF
+!        IF(iProcIndex.eq.root) THEN
+!            OPEN(43,FILE='AutoCorrFunc',STATUS='UNKNOWN')
+!        ENDIF
+!
+!        WRITE(6,"(A,I8,A,I8,A,I8,A)") "Calculating the ACF with lags from ",iLagMin," to ",iLagMax," in steps of ",iLagStep," and writing it to file 'ACF'"
+!        WRITE(6,*) "Calculating the ACF for the following determinants:"
+!        do i=1,NoAutoDets
+!            do j=1,NEl
+!                WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
+!            enddo
+!            WRITE(6,*) ""
+!        enddo
+!        CALL FLUSH(6)
+!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!
+!        ALLOCATE(AllWeightatDets(NoAutoDets,Iter),stat=ierr)
+!        CALL LogMemAlloc('AllWeightatDets',NoAutoDets*Iter,4,this_routine,AllWeightatDetsTag,ierr)
+!        AllWeightatDets(:,:)=0
+!!        WRITE(6,*) Iter
+!!        do i=1,Iter
+!!            do j=1,NoAutoDets
+!!                WRITE(6,'(I10)',advance='no') WeightatDets(j,i)
+!!            enddo
+!!            WRITE(6,*) ""
+!!        enddo
+!!        WRITE(6,*) "*****************"
+!
+!        NoCounts=NoAutoDets*Iter
+!!Initially, we will calculate this ACF in serial - this will be easier as there are subtle effects in parallel.
+!        CALL MPI_Reduce(WeightatDets(1:NoAutoDets,1:Iter),AllWeightatDets(1:NoAutoDets,1:Iter),NoCounts,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
+!!        do i=1,Iter
+!!            do j=1,NoAutoDets
+!!                WRITE(6,'(I10)',advance='no') AllWeightatDets(j,i)
+!!            enddo
+!!            WRITE(6,*) ""
+!!        enddo
+!!        CALL FLUSH(6)
+!
+!        IF(iProcIndex.eq.root) THEN
+!            OPEN(44,FILE='DoublePops',STATUS='UNKNOWN')
+!            do i=1,Iter
+!                WRITE(44,"(2I8)",advance='no') i,AllWeightatDets(1,i)
+!                do k=2,NoAutoDets-1
+!                    WRITE(44,"(I8)",advance='no') AllWeightatDets(k,i)
+!                enddo
+!                WRITE(44,"(I8)") AllWeightatDets(NoAutoDets,i) 
+!            enddo
+!            CLOSE(44)
+!
+!!First, we need to calculate the average value for each of the determinants - this could be calculated during the simulation
+!!We also want to divide the ACF components by sum_i ((s_i - av(s))^2) , which is N * Var(s) = sum(s^2) - 1/N (sum(x))^2
+!            SumWeights(:)=0
+!            SumSquares(:)=0
+!            NVar(:)=0.D0
+!            Means(:)=0.D0
+!            Norm(:)=0.D0
+!        
+!            do i=1,Iter
+!                do j=1,NoAutoDets
+!                    SumWeights(j)=SumWeights(j)+AllWeightatDets(j,i)
+!                    SumSquares(j)=SumSquares(j)+(AllWeightatDets(j,i)**2)
+!!                    IF(i.le.(Iter/2)) Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
+!                    Norm(j)=Norm(j)+(AllWeightatDets(j,i)**2)
+!                enddo
+!            enddo
+!
+!!This then needs to be sent to all nodes
+!!            CALL MPI_AllReduce(SumWeights,AllSumWeights,NoAutoDets,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+!!            CALL MPI_AllReduce(SumSquares,AllSumSquares,NoAutoDets,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+!
+!            do j=1,NoAutoDets
+!                Means(j)=REAL(SumWeights(j),r2)/REAL(Iter,r2)
+!                NVar(j)=REAL(SumSquares(j),r2)-((REAL(SumWeights(j),r2)**2)/REAL(Iter,r2))
+!                WRITE(6,"(A,I4)",advance='no') "Mean+Var for det: ",AutoCorrDets(1,j)
+!                do k=2,NEl
+!                    WRITE(6,"(I4)",advance='no') AutoCorrDets(k,j)
+!                enddo
+!                WRITE(6,"(A,2F20.10)") " is: ", Means(j),NVar(j)/REAL(Iter,r2)
+!            enddo
+!
+!!Alternativly, we can calculate the variance seperatly...
+!!            TestVar(:)=0.D0
+!!            do i=1,Iter
+!!                do j=1,NoAutoDets
+!!                    TestVar(j)=TestVar(j)+((REAL(AllWeightatDets(j,i),r2)-Means(j))**2)
+!!                enddo
+!!            enddo
+!!            CALL MPI_AllReduce(TestVar,AllTestVar,NoAutoDets,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+!!            WRITE(6,*) "TESTVAR: ",TestVar/REAL(Iter,r2)
+!
+!!Now we need to calculate the ACF for the desired values of the lag.
+!            do i=iLagMin,iLagMax,iLagStep
+!!i is now the value of the lag which we are calculating
+!
+!                ACF(:)=0.D0
+!
+!                do j=1,(Iter-i)
+!!                do j=1,Iter/2
+!!j is the run over the values needed
+!
+!                    do k=1,NoAutoDets
+!!k is the run over the desired determinants which to calculate the ACFs
+!!                        ACF(k)=ACF(k)+(REAL(AllWeightatDets(k,j),r2)-Means(k))*(REAL(AllWeightatDets(k,j+i),r2)-Means(k))
+!                        ACF(k)=ACF(k)+(AllWeightatDets(k,j)*AllWeightatDets(k,j+i))
+!                    enddo
+!
+!                enddo
+!
+!!Now we need to collate the information from all processors
+!!                CALL MPI_Reduce(ACF,AllACF,NoAutoDets,MPI_DOUBLE_PRECISION,MPI_SUM,root,MPI_COMM_WORLD,error)
+!
+!                do k=1,NoAutoDets
+!!Effectivly 'normalise' the ACF by dividing by the variance
+!!                    ACF(k)=(ACF(k)/NVar(k))!*REAL(Iter/(Iter-i+0.D0),r2)
+!                    ACF(k)=(ACF(k)/REAL(NORM(k),r2))*REAL(Iter/(Iter-i+0.D0),r2)
+!!                    ACF(k)=ACF(k)/REAL(NORM(k),8)
+!                enddo
+!!Write out the ACF
+!                WRITE(43,"(I8,F20.10)",advance='no') i,ACF(1)
+!                do k=2,NoAutoDets-1
+!                    WRITE(43,"(F20.10)",advance='no') ACF(k)
+!                enddo
+!                WRITE(43,"(F20.10)") ACF(NoAutoDets)
+!
+!            enddo
+!
+!            CLOSE(43)
+!
+!        ENDIF
+!        
+!        DEALLOCATE(WeightatDets)
+!        CALL LogMemDealloc(this_routine,WeightatDetsTag)
+!        DEALLOCATE(AllWeightatDets)
+!        CALL LogMemDealloc(this_routine,AllWeightatDetsTag)
+!        DEALLOCATE(AutoCorrDets)
+!        CALL LogMemDealloc(this_routine,AutoCorrDetsTag)
+!
+!        CALL halt_timer(ACF_Time)
+!        
+!        RETURN
+!
+!    END SUBROUTINE CalcAutoCorr
+    
 
 END MODULE FciMCParMod
 
