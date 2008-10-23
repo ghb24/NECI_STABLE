@@ -2076,11 +2076,10 @@ MODULE FciMCParMod
             SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
             TotDets=1.D0
             do i=1,NEl
-                ApproxExcitDets(i)=ApproxExcitDets(i)/SymFactor
-                WRITE(6,*) "Excitation level population: ",i,(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
-                TotDets=TotDets+ApproxExcitDets(i)
+                WRITE(6,*) "Approximate excitation level population: ",i,NINT((Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor)
+                TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
             enddo
-            WRITE(6,*) "Approximate size of determinant space is: ",TotDets
+            WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
         ENDIF
 
 
