@@ -349,6 +349,9 @@ MODULE FciMCParMod
                             Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
                         ENDIF
                         VecSlot=VecSlot+1
+                        IF(TLocalAnnihilation) THEN
+                            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
+                        ENDIF
                     enddo
 
                     Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
@@ -2050,6 +2053,7 @@ MODULE FciMCParMod
 
 !            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
         ENDIF
+
         IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
 !in each excitation level
@@ -2058,14 +2062,25 @@ MODULE FciMCParMod
             TotDets=1.D0
             do i=0,NEl
                 ApproxExcitDets(i)=Choose(NEl,i)*Choose(nBasis-NEl,i)
+!                WRITE(6,*) "Excitation level: ",i,ApproxExcitDets(i)
             enddo
             SymFactor=ApproxExcitDets(2)/(HFConn+0.D0)
             do i=1,NEl
                 ApproxExcitDets(i)=ApproxExcitDets(i)/SymFactor
+                WRITE(6,*) "Excitation level: ",i,ApproxExcitDets(i)
                 TotDets=TotDets+ApproxExcitDets(i)
             enddo
             WRITE(6,*) "Approximate size of determinant space is: ",TotDets
             PartsinExcitLevel(:)=0  !Zero the array to hold the population of walkers in each excitation level
+        ELSE
+            SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.D0)
+            TotDets=1.D0
+            do i=1,NEl
+                ApproxExcitDets(i)=ApproxExcitDets(i)/SymFactor
+                WRITE(6,*) "Excitation level population: ",i,(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
+                TotDets=TotDets+ApproxExcitDets(i)
+            enddo
+            WRITE(6,*) "Approximate size of determinant space is: ",TotDets
         ENDIF
 
 
@@ -3059,6 +3074,7 @@ MODULE FciMCParMod
             AttemptLocalAnn=.true.
         ELSE
 !Particle survives
+!            WRITE(6,*) "Particle survives with prob = ",AnnProb
             AttemptLocalAnn=.false.
         ENDIF
         RETURN
