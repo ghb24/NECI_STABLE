@@ -1,3 +1,68 @@
+!This is an O[2*N] operation for doubles or O[N] operation for single excitations.
+!It takes a determinant nI, and a 2x2 matrix indicating the excited 'to' and 'from'
+!orbitals, and finds the determinant nJ, while keeping the final determinant ordered.
+!This will save having to order the final determinant. The ExcitMat wants to be in the
+!same form as the output from the routine 'GETEXCITATIONS'.
+!ExcitMat(1,*) are the orbitals to vacate from nI (the i,j pair)
+!ExcitMat(2,*) are the orbitals to occupy in nJ (the a,b pair)
+!IC should be 1 or 2, depending on whether it is a double or single excitation
+!Single excitations should just have ExcitMat(1,1) and ExcitMat(2,1) with orbital
+!information.
+!The algorithm could be improved for double excitations by only searching through the
+!determinant once, reducing it from an O[2N] to O[N] operation, though would be a little
+!more fiddly...
+      SUBROUTINE FindExcitDet(ExcitMat,nI,nJ,IC)
+         use SystemData , only : NEl
+         IMPLICIT NONE
+         INTEGER :: ExcitMat(2,2),i,j,k
+         INTEGER :: nI(NEl),nJ(NEl),IC
+         
+         IF((IC.gt.2).or.(IC.lt.0)) THEN
+             CALL Stop_All("FindExcitDet","Trying to find an excitation"&
+     &          //" which is more than a double away.")
+         ELSEIF(IC.eq.0) THEN
+!Excitation is the same determinant - return
+             nJ(:)=nI(:)
+             RETURN
+         ENDIF
+
+         nJ(:)=nI(:)    !Fill new determinant with the old orbitals
+
+         do k=1,IC
+!This needs to be done twice for double excitations of nI
+             
+             i=1    !Look through the determinant for the orbital to vacate
+             do while(nJ(i).ne.ExcitMat(1,k))
+                 i=i+1
+             enddo
+
+!i is now the index of the excited orbital
+             IF(ExcitMat(2,k).gt.ExcitMat(1,k)) THEN
+!Excited orbital is a higher-indexed orbital than the original
+
+                 j=i+1  !Start looking for insertion point at the index one above the now empty index
+                 do while(nJ(j).lt.ExcitMat(2,k))
+                     nJ(j-1)=nJ(j)      !Substitute the orbital into the one below it to maintain ordering
+                     j=j+1
+                 enddo
+                 nJ(j-1)=ExcitMat(2,k)  !Finally found the correct place to insert the new orbital
+             ELSE
+!orbital to occupy is a lower-indexed orbital than the original
+                 j=i-1  !Start looking at the index one below the now empty orbital
+                 do while(nJ(j).gt.ExcitMat(2,k))
+                     nJ(j+1)=nJ(j)
+                     j=j-1
+                 enddo
+                 nJ(j+1)=ExcitMat(2,k)  !Found the correct place for the newly-occupied orbital to keep order
+             ENDIF
+
+         enddo  !End loop ever number of excitations
+
+         RETURN
+     
+      END SUBROUTINE FindExcitDet
+
+
       LOGICAL FUNCTION AREDETSEXCITS(D1,D2,NEL,NBASISMAX,ICE)
          IMPLICIT NONE
          INTEGER ICE,NEL,D1(NEL),D2(NEL),NBASISMAX(*)
