@@ -21,7 +21,7 @@ MODULE FciMCParMod
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
-    USE Logging , only : TAutoCorr,NoAutoDets!,iLagMin,iLagMax,iLagStep
+    USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
     USE global_utilities
     USE HElem
     USE Parallel
@@ -136,6 +136,7 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: WeightatDets(:)                   !First index - det which is stored, second - weight on proc at that iteration
     INTEGER , ALLOCATABLE :: AutoCorrDets(:,:)                  !(NEl,NoAutoDets)
     INTEGER :: WeightatDetsTag=0,AutoCorrDetsTag=0
+    INTEGER :: NoAutoDets
 
 !These are variables relating to calculating the population density of an excitation level for use with TLocalAnnihilation
     REAL*8 , ALLOCATABLE :: ApproxExcitDets(:)    !This is the approximate size of each excitation level
@@ -1200,7 +1201,7 @@ MODULE FciMCParMod
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign)
-        INTEGER :: DetCurr(NEl),ExcitLevel,i
+        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex
         LOGICAL :: WSign,CompiPath
         TYPE(HElement) :: HOffDiag
 
@@ -1246,11 +1247,27 @@ MODULE FciMCParMod
         ENDIF
 
         IF(TAutoCorr) THEN
-            IF(ExcitLevel.eq.2) THEN
-            
-!We are finding the ACFs for doubles
-                do i=1,NoAutoDets
-!Sum over all the determinants we are interested in calculating the autocorrelation function for
+!First element is HF Det to histogram. Then come doubles, triples and quads
+
+            IF(ExcitLevel.eq.4) THEN
+                LowIndex=2+NoACDets(2)+NoACDets(3)
+                HighIndex=NoAutoDets
+            ELSEIF(ExcitLevel.eq.3) THEN
+                LowIndex=2+NoACDets(2)
+                HighIndex=1+NoACDets(2)+NoACDets(3)
+            ELSEIF(ExcitLevel.eq.2) THEN
+                LowIndex=2
+                HighIndex=1+NoACDets(2)
+            ELSEIF(ExcitLevel.eq.0) THEN
+                LowIndex=1
+                HighIndex=1
+            ELSE
+                LowIndex=0
+            ENDIF
+
+            IF(LowIndex.ne.0) THEN
+
+                do i=LowIndex,HighIndex
             
                     IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
 !The walker is at a determinant for which we want to calculate the autocorrelation function
@@ -1271,23 +1288,6 @@ MODULE FciMCParMod
                     ENDIF
 
                 enddo
-        
-            ELSEIF(ExcitLevel.eq.0) THEN
-!We are histogramming HF - this is the first element of the array
-!The walker is at a determinant for which we want to calculate the autocorrelation function
-                IF(WSign) THEN
-                    IF(TFlippedSign) THEN
-                        WeightatDets(1)=WeightatDets(1)-1
-                    ELSE
-                        WeightatDets(1)=WeightatDets(1)+1
-                    ENDIF
-                ELSE
-                    IF(TFlippedSign) THEN
-                        WeightatDets(1)=WeightatDets(1)+1
-                    ELSE
-                        WeightatDets(1)=WeightatDets(1)-1
-                    ENDIF
-                ENDIF
             ENDIF
         ENDIF
         
@@ -2265,10 +2265,11 @@ MODULE FciMCParMod
     END SUBROUTINE InitFCIMCCalcPar
 
     SUBROUTINE ChooseACFDets()
-        INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j
+        INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j,MaxIndex,ExcitLevel,iGetExcitLevel_2
         REAL*8 , ALLOCATABLE :: TempMax(:)
-        TYPE(HElement) :: Fjj,Hij
-        REAL*8 :: Compt
+        TYPE(HElement) :: Fjj,Hij,Fkk
+        REAL*8 :: Compt,MaxWeight
+        TYPE(ExcitGenerator) :: ExcitGenTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
 
 !Commented out code is to just perform the ACF for the HF determinant.
@@ -2278,16 +2279,21 @@ MODULE FciMCParMod
 
 !The code calculates the ACF for the number of doubles here, or all if it is more
 !        NoAutoDets=10
-        WRITE(6,"(A,I5,A)") "Choosing the ",NoAutoDets," highest MP1 weight determinants to calculate the ACF for."
+!        WRITE(6,"(A,I5,A)") "Choosing the ",NoAutoDets," highest MP1 weight determinants to calculate the ACF for."
+        NoAutoDets=1+NoACDets(2)+NoACDets(3)+NoACDets(4)    !Total number of dets to histogram is sum of the determinants for the individual excitation levels.
+        WRITE(6,"(A,I5,A)") "Choosing the ",NoACDets(2)+1," highest MP1 weight determinants to calculate the ACF for."
+        WRITE(6,"(A,I5,A,I5,A)") "Also picking ",NoACDets(3), " high weighted triply excited and ",NoACDets(4), " quadruply excited determinants."
         WRITE(6,*) "First determinant will be the HF determinant"
         CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
         IF(NoAutoDets.gt.HFConn) NoAutoDets=HFConn
         ALLOCATE(AutoCorrDets(NEl,NoAutoDets),stat=ierr)
         CALL LogMemAlloc('AutoCorrDets',NEl*NoAutoDets,4,this_routine,AutoCorrDetsTag,ierr)
+        AutoCorrDets(:,:)=0
+        
 !Set the first determinant to find the ACF of to be the HF determinant
         AutoCorrDets(:,1)=HFDet(:)
         CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
-        ALLOCATE(TempMax(2:NoAutoDets),stat=ierr)
+        ALLOCATE(TempMax(2:NoACDets(2)+1),stat=ierr)   !This will temporarily hold the largest components (+1 since we are no longer considering HF in NoACDets(2))
         IF(ierr.ne.0) THEN
             CALL Stop_All("ChooseACFDets","Problem allocating memory")
         ENDIF
@@ -2300,7 +2306,7 @@ MODULE FciMCParMod
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            do j=2,NoAutoDets
+            do j=2,NoACDets(2)+1!NoAutoDets
                 IF(abs(Compt).gt.TempMax(j)) THEN
                     TempMax(j)=abs(Compt)
                     AutoCorrDets(:,j)=nJ(:)
@@ -2310,7 +2316,79 @@ MODULE FciMCParMod
             
         enddo
         CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+!Find largest weight MP1 contribution
+        MaxWeight=0.D0
+        do i=2,NoACDets(2)+1
+            IF(TempMax(i).gt.MaxWeight) THEN
+                MaxIndex=i
+            ENDIF
+        enddo
         DEALLOCATE(TempMax)
+        
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(6,*) "*** Histogramming the following determinants:"
+!            do i=1,NoAutoDets
+!                do j=1,NEl
+!                    WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
+!                enddo
+!                WRITE(6,*) ""
+!            enddo
+!        ENDIF
+
+!We have now found the largest weight Doubles. To guess at large weighted triples & quads, we simply take the largest weighted double, and find 
+!its large MP1 weighted contributions with it as the reference.
+!        WRITE(6,*) "MaxIndex = ", MaxIndex
+        CALL SetupExitgenPar(AutoCorrDets(:,MaxIndex),ExcitGenTemp)
+        CALL GetH0Element(AutoCorrDets(:,MaxIndex),NEl,Arr,nBasis,ECore,Fjj)
+        ALLOCATE(TempMax(1:(NoACDets(3)+NoACDets(4))),stat=ierr)
+        TempMax(:)=0.D0
+
+        do while(.true.)
+            CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp%Excitdata,nJ,iExcit,0,nStore,3)
+            IF(nJ(1).eq.0) EXIT
+            Hij=GetHElement2(AutoCorrDets(:,MaxIndex),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fkk)
+            Compt=real(Hij%v,r2)/(real(Fjj%v,r2)-(real(Fkk%v,r2)))
+            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,4)
+            IF(ExcitLevel.eq.3) THEN
+!We have generated a triple - try to add it to the list
+                do j=1,NoACDets(3)
+                    IF(abs(Compt).gt.TempMax(j)) THEN
+                        TempMax(j)=abs(Compt)
+                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
+                        EXIT
+                    ENDIF
+                enddo
+            ELSEIF(ExcitLevel.eq.4) THEN
+!We have generated a quad - try to add it to the list
+                do j=NoACDets(3)+1,(NoACDets(3)+NoACDets(4))
+                    IF(abs(Compt).gt.TempMax(j)) THEN
+                        TempMax(j)=abs(Compt)
+                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
+                        EXIT
+                    ENDIF
+                enddo
+            ENDIF
+        enddo
+
+!Deallocate TempExcitgen
+        DEALLOCATE(TempMax)
+        DEALLOCATE(ExcitGenTemp%Excitdata)
+        
+!Find if any zeros
+        do i=1,NoAutoDets
+            IF(AutoCorrDets(1,i).eq.0) THEN
+                NoAutoDets=NoAutoDets-1
+                WRITE(6,*) "Could not find AutoCorrFunc determinant to histogram slot ",i
+!Move these zeros to the end of the list
+                do j=i,NoAutoDets
+                    IF(AutoCorrDets(1,j).ne.0) THEN
+                        AutoCorrDets(:,i)=AutoCorrDets(:,j)
+                        EXIT
+                    ENDIF
+                enddo
+            ENDIF
+        enddo
             
 !The number of occurunces of walkers at the determiants selected needs to be stored for all iterations
         ALLOCATE(WeightatDets(NoAutoDets),stat=ierr)

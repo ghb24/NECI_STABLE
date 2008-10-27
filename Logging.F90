@@ -9,7 +9,7 @@ MODULE Logging
     REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr
-    INTEGER NoAutoDets
+    INTEGER NoACDets(2:4)
 
     contains
 
@@ -19,7 +19,7 @@ MODULE Logging
       use default_sets
       implicit none
 
-      NoAutoDets=10
+      NoACDets(:)=0
       TAutoCorr=.false.
       MaxHistE=50.D0
       NoHistBins=200
@@ -51,6 +51,7 @@ MODULE Logging
       USE input
       IMPLICIT NONE
       LOGICAL eof
+      INTEGER :: i
       CHARACTER (LEN=100) w
 
       ILogging=iLoggingDef
@@ -64,8 +65,12 @@ MODULE Logging
         select case(w)
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
+!HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 
+!number of quads to histogram.
             TAutoCorr=.true.
-            call readi(NoAutoDets)
+            do i=2,4
+                IF(item.lt.nitems) call readi(NoACDets(i))
+            enddo
         case("DETPOPS")
 !This option no longer works...
             TDetPops=.true.
