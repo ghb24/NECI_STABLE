@@ -203,9 +203,11 @@ MODULE FciMCParMod
         
 !        IF(TAutoCorr) CALL CalcAutoCorr()
 
-        IF(iProcIndex.eq.Root) CLOSE(15)
+        IF(iProcIndex.eq.Root) THEN
+            CLOSE(15)
+            IF(TAutoCorr) CLOSE(44)
+        ENDIF
         IF(TDebug) CLOSE(11)
-        IF(TAutoCorr) CLOSE(44)
 
 !        CALL MPIEnd(.false.)    !Finalize MPI
 
@@ -2317,16 +2319,17 @@ MODULE FciMCParMod
 !If we want to calculate the ACF, then we now do this in a seperate step. Now we simply write out the determinant populations at each iteration
 !to a file called HFDoublePops
         
-        WRITE(6,*) "Histogramming the following determinants:"
-        do i=1,NoAutoDets
-            do j=1,NEl
-                WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
+        IF(iProcIndex.eq.root) THEN
+            WRITE(6,*) "Histogramming the following determinants:"
+            do i=1,NoAutoDets
+                do j=1,NEl
+                    WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
+                enddo
+                WRITE(6,*) ""
             enddo
-            WRITE(6,*) ""
-        enddo
 
-        OPEN(44,FILE='HFDoublePops',STATUS='UNKNOWN')
-
+            OPEN(44,FILE='HFDoublePops',STATUS='UNKNOWN')
+        ENDIF
 
         RETURN
 
