@@ -27,7 +27,7 @@ INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
-INTEGER :: RhoApp,NEquilSteps,MemoryFac,ShellFix
+INTEGER :: RhoApp,NEquilSteps,MemoryFac,ShellFix,MemoryFacExcit
 
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ

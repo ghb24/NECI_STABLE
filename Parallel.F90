@@ -74,6 +74,7 @@ Subroutine MPIInit(tExternal)
    endif
    call MPI_COMM_RANK(MPI_COMM_WORLD, iProcIndex, ierr)
    call MPI_COMM_SIZE(MPI_COMM_WORLD, nProcessors, ierr)
+   WRITE(6,*) "Number of processors: ",nProcessors
 
    if(tExternal) then
       write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
@@ -96,10 +97,12 @@ Subroutine MPIInit(tExternal)
       else
 
          write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' moving to local output.'
-         if (iProcIndex.le.9) then
+         if (iProcIndex.lt.9) then
              write (NodeFile,'(a,i1)') 'NodeFile',iProcIndex+1
-         else
+         elseif(iProcIndex.lt.99) then
              write (NodeFile,'(a,i2)') 'NodeFile',iProcIndex+1
+         else
+             write (NodeFile,'(a,i3)') 'NodeFile',iProcIndex+1
          end if
          write(6,*) "outfile=",NodeFile
          close(6,status="keep")
