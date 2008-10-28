@@ -120,7 +120,7 @@ MODULE FciMCParMod
 
     LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
 
-    INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
+!    INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
     LOGICAL :: TBalanceNodes                    !This is true when the nodes need to be balanced
 
@@ -867,28 +867,28 @@ MODULE FciMCParMod
         ENDIF
         
 !Now send the chunks of hashes to the corresponding processors
-        CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,mpilongintegertype,MPI_COMM_WORLD,error)        
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in dividing up hashes in annihilation"
-            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-        ENDIF
+        CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in dividing up hashes in annihilation"
+!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
+!        ENDIF
 
 !The signs of the hashes, index and CPU also need to be taken with them.
         CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_LOGICAL,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in dividing up hashes in annihilation"
-            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-        ENDIF
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in dividing up hashes in annihilation"
+!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
+!        ENDIF
         CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in dividing up hashes in annihilation"
-            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-        ENDIF
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in dividing up hashes in annihilation"
+!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
+!        ENDIF
         CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in dividing up hashes in annihilation"
-            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-        ENDIF
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in dividing up hashes in annihilation"
+!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
+!        ENDIF
         IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to take the excitation level of the particle with us.
 !We can send the information to CurrentIC - this is where the final information will be stored, but currently, it is redundant.
@@ -1631,7 +1631,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !            RangeWalkers=MaxWalkersProc-MinWalkersProc
 !            IF(RangeWalkers.gt.300) THEN
-            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.50)) THEN
+            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(nProcessors*500))) THEN
                 TBalanceNodes=.true.
             ENDIF
         ENDIF
@@ -1954,8 +1954,8 @@ MODULE FciMCParMod
         AllAnnihilated=0
 
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
-        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
-        CALL MPI_Type_commit(mpilongintegertype,error)
+!        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
+!        CALL MPI_Type_commit(mpilongintegertype,error)
         
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
             CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
@@ -2582,7 +2582,7 @@ MODULE FciMCParMod
         CALL MPI_BCast(SumENum,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
 !Scatter the number of walkers each node will receive to TempInitWalkers, and the SumNoatHF for each node which is distributed approximatly equally
         CALL MPI_Scatter(WalkerstoReceive,1,MPI_INTEGER,TempInitWalkers,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-        CALL MPI_Scatter(NodeSumNoatHF,1,mpilongintegertype,SumNoatHF,1,mpilongintegertype,root,MPI_COMM_WORLD,error)
+        CALL MPI_Scatter(NodeSumNoatHF,1,MPI_DOUBLE_PRECISION,SumNoatHF,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         
 !Now we want to allocate memory on all nodes.
         MaxWalkers=MemoryFac*InitWalkers    !All nodes have the same amount of memory allocated
@@ -3429,7 +3429,8 @@ MODULE FciMCParMod
                 CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !It seems like too much like hard work to send the excitation generators accross, just let them be regenerated on the other side...
-                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 
                 TotWalkers=TotWalkers-WalktoTransfer(1)         !Update TotWalkers on this node to reflect that we have lost some
             
@@ -3444,7 +3445,7 @@ MODULE FciMCParMod
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
-                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !Also need to indicate that the excitation generators are no longer useful...
                 IF(.not.TRegenExcitgens) THEN
                     do j=IndexFrom,IndexTo
