@@ -618,10 +618,19 @@ The following options are only available in **FCIMC** calculations:
     to the INITPARTICLES value.
 
 **MEMORYFAC** [MemoryFac]
-    Default 50.
+    Default 30.
 
     MemoryFac is the factor by which space will be made available for extra
     walkers compared to InitWalkers.
+
+**MEMORYFACEXCIT** [MemoryFacExcit]
+    Default 30.
+
+    MemoryFac is a parallel FCIMC option - it is the factor by which space will be 
+    made available for excitation generators compared to InitWalkers. This can be 
+    smaller than memoryfac, because the excitation generator array is not used in 
+    the parallel annihilation, which may not be exactly load-balanced because of 
+    differences in the wavevector.
 
 **ANNIHILATEONPROCS**
     Default false

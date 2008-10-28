@@ -16,7 +16,7 @@ MODULE FciMCParMod
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc,MemoryFacExcit
     USE Determinants , only : FDet,GetHElement2
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -66,7 +66,7 @@ MODULE FciMCParMod
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
-    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps
+    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersExcit
     INTEGER :: exFlag=3
 
 !This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
@@ -417,9 +417,9 @@ MODULE FciMCParMod
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
-        rat=(TotWalkersNew+0.D0)/(MaxWalkers+0.D0)
+        rat=(TotWalkersNew+0.D0)/(MaxWalkersExcit+0.D0)
         IF(rat.gt.0.9) THEN
-            WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
+            WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkersExcit"
             CALL FLUSH(6)
         ENDIF
         IF(TotWalkersNew.eq.0) THEN
@@ -2102,7 +2102,11 @@ MODULE FciMCParMod
 
 !Set the maximum number of walkers allowed
             MaxWalkers=MemoryFac*InitWalkers
-            WRITE(6,*) "Memory allocated for a maximum particle number per node of: ",MaxWalkers
+            MaxWalkersExcit=MemoryFacExcit*InitWalkers
+            WRITE(6,"(A,I14)") "Memory Factor for walkers is: ",MemoryFac
+            WRITE(6,"(A,I14)") "Memory Factor for excitation generators is: ",MemoryFacExcit
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkers
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for excitgens of: ",MaxWalkersExcit
 
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -2192,8 +2196,8 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
             IF(.not.TRegenExcitgens) THEN
-                ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
-                ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+                ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
+                ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
 
 !Allocate pointers to the correct excitation arrays
@@ -2208,8 +2212,9 @@ MODULE FciMCParMod
                         CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
                     enddo
                 ENDIF
-                MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+                MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkersExcit
 
+                WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
             ELSE

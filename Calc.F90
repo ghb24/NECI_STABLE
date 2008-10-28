@@ -41,6 +41,7 @@ MODULE Calc
           ShellFix=0
           TRegenExcitgens=.false.
           MemoryFac=30
+          MemoryFacExcit=30
           TStartSinglePart=.false.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -704,6 +705,10 @@ MODULE Calc
             case("MEMORYFAC")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
                 CALL Geti(MemoryFac)
+            case("MEMORYFACEXCIT")
+!!An FCIMC option - MemoryFac is the factor by which space will be made available for excitation generators compared to InitWalkers. This can be smaller than
+!memoryfac, because the excitation generator array is not used in the parallel annihilation, which may not be exactly load-balanced because of differences in the wavevector.
+                CALL Geti(MemoryFacExcit)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
