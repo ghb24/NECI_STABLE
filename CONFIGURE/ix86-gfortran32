@@ -11,17 +11,17 @@
      GLOBALS='GLOBALS-gfortran'
 #     PreprocSep=""
      if [ $debug ]; then
-       FC='gfortran -c -g '
+       FC='gfortran -m32 -c -g '
        CC='cc -g -sb -C -errtags'
-       LD='gfortran -g'
-       FCD='gfortran -c -g '
+       LD='gfortran -m32 -g'
+       FCD='gfortran -m32 -c -g '
        CCD='cc -g -sb -C -errtags'
-       LDD='gfortran -g'
+       LDD='gfortran -m32 -g'
      else
-       FC='gfortran -c -O4'
+       FC='gfortran -m32 -c -O4'
        CC='cc -O'
-       LD='gfortran -O4'
-       FCD='gfortran -c -g'
+       LD='gfortran -m32 -O4'
+       FCD='gfortran -m32 -c -g'
        CCD='cc -g -sb -C -errtags'
-       LDD='gfortran -g'
+       LDD='gfortran -m32 -g'
      fi
