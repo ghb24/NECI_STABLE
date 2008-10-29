@@ -618,13 +618,13 @@ The following options are only available in **FCIMC** calculations:
     to the INITPARTICLES value.
 
 **MEMORYFAC** [MemoryFac]
-    Default 30.
+    Default 30.D0
 
     MemoryFac is the factor by which space will be made available for extra
     walkers compared to InitWalkers.
 
 **MEMORYFACEXCIT** [MemoryFacExcit]
-    Default 30.
+    Default 30.D0
 
     MemoryFac is a parallel FCIMC option - it is the factor by which space will be 
     made available for excitation generators compared to InitWalkers. This can be 
@@ -669,6 +669,8 @@ The following options are only available in **FCIMC** calculations:
     and hence keep the shift at a more resonable value in the undersampled regime. This will
     hopefully mean that a more accurate energy value can be obtained by removing the random
     killing of particles which arises from such a low shift value.
+
+    This is now commented out in the code
 
 **UNBIASPGENINPROJE**
     Default false

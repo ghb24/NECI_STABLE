@@ -139,6 +139,7 @@ MODULE FciMCParMod
     INTEGER :: NoAutoDets
 
 !These are variables relating to calculating the population density of an excitation level for use with TLocalAnnihilation
+!Local annihilation is currently commented out
     REAL*8 , ALLOCATABLE :: ApproxExcitDets(:)    !This is the approximate size of each excitation level
     INTEGER , ALLOCATABLE :: PartsInExcitLevel(:) !This is the number of walkers for a given iteration in that excitation level
         
@@ -352,9 +353,9 @@ MODULE FciMCParMod
                             Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
                         ENDIF
                         VecSlot=VecSlot+1
-                        IF(TLocalAnnihilation) THEN
-                            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
-                        ENDIF
+!                        IF(TLocalAnnihilation) THEN
+!                            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
+!                        ENDIF
                     enddo
 
                     Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
@@ -712,20 +713,20 @@ MODULE FciMCParMod
 !            WRITE(6,*) "Printing out annihilation debug info for Iteration: ",Iter,DebugIter
 !        ENDIF
 
-        IF(TLocalAnnihilation) THEN
-!We need to calculate the approximate population density of each excitation level
-!ApproxExcitDets contains the approximate number of determinants in each excitation level
-!PartsinExcitlevel is the number of particles in each excitation level for the current iteration
-!PopDensity is simply the approximate population density of particles in a given excitation level
-            do i=0,NEl
-                PopDensity(i)=REAL(PartsinExcitLevel(i),r2)/ApproxExcitDets(i)
-            enddo
-            PartsinExcitLevel(:)=0  !Rezero for the next iteration
-!Allocate memory to hold the excitation levels. This is needed since the amount of local annihilation will be a function of
-!PopDensity which the particle is at. This means it needs to be taken with the hash.
-            ALLOCATE(TempExcitLevel(TotWalkersNew),stat=ierr)
-            TempExcitLevel(1:TotWalkersNew)=NewIC(1:TotWalkersNew)
-        ENDIF
+!        IF(TLocalAnnihilation) THEN
+!!We need to calculate the approximate population density of each excitation level
+!!ApproxExcitDets contains the approximate number of determinants in each excitation level
+!!PartsinExcitlevel is the number of particles in each excitation level for the current iteration
+!!PopDensity is simply the approximate population density of particles in a given excitation level
+!            do i=0,NEl
+!                PopDensity(i)=REAL(PartsinExcitLevel(i),r2)/ApproxExcitDets(i)
+!            enddo
+!            PartsinExcitLevel(:)=0  !Rezero for the next iteration
+!!Allocate memory to hold the excitation levels. This is needed since the amount of local annihilation will be a function of
+!!PopDensity which the particle is at. This means it needs to be taken with the hash.
+!            ALLOCATE(TempExcitLevel(TotWalkersNew),stat=ierr)
+!            TempExcitLevel(1:TotWalkersNew)=NewIC(1:TotWalkersNew)
+!        ENDIF
 
 !First, allocate memory to hold the signs and the hashes while we annihilate
         ALLOCATE(TempSign(TotWalkersNew),stat=ierr)
@@ -753,12 +754,12 @@ MODULE FciMCParMod
 
 !Next, order the hash array, taking the index, CPU and sign with it...
 !Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
-        IF(TLocalAnnihilation) THEN
+!        IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to take the excitation level of each walker with the hash
-            CALL SortMod4I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),TempExcitLevel(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
-        ELSE
+!            CALL SortMod4I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),TempExcitLevel(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+!        ELSE
             CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
-        ENDIF
+!        ENDIF
 !        CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
         
 !        IF(Iter.eq.DebugIter) THEN
@@ -889,11 +890,11 @@ MODULE FciMCParMod
 !            WRITE(6,*) "Error in dividing up hashes in annihilation"
 !            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
 !        ENDIF
-        IF(TLocalAnnihilation) THEN
-!If we are locally annihilating, then we need to take the excitation level of the particle with us.
-!We can send the information to CurrentIC - this is where the final information will be stored, but currently, it is redundant.
-            CALL MPI_AlltoAllv(TempExcitLevel(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,CurrentIC,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        ENDIF
+!        IF(TLocalAnnihilation) THEN
+!!If we are locally annihilating, then we need to take the excitation level of the particle with us.
+!!We can send the information to CurrentIC - this is where the final information will be stored, but currently, it is redundant.
+!            CALL MPI_AlltoAllv(TempExcitLevel(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,CurrentIC,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+!        ENDIF
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "AFTER DIVISION:   - No. on processor is: ",MaxIndex
@@ -904,12 +905,12 @@ MODULE FciMCParMod
 !        ENDIF
 
 !The hashes now need to be sorted again - this time by their number
-        IF(TLocalAnnihilation) THEN
+!        IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to take the excitation level with us.
-            CALL Sort4I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentIC(1:MaxIndex),CurrentSign(1:MaxIndex))
-        ELSE
+!            CALL Sort4I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentIC(1:MaxIndex),CurrentSign(1:MaxIndex))
+!        ELSE
             CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
-        ENDIF
+!        ENDIF
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "AFTER DIVISION & ORDERING:   - No. on processor is: ",MaxIndex
@@ -944,22 +945,22 @@ MODULE FciMCParMod
 !                CALL FLUSH(6)
 !            ENDIF
 
-            IF(TLocalAnnihilation) THEN
-!This is an attempt to approximate the expected annihilation rates when the occupancy of a determinant is only 1.
-                IF(InitialBlockIndex.eq.FinalBlockIndex) THEN
-!The occupancy of the determinant is only one
-!The walker is at an excitation level of CurrentIC(InitialBlockIndex). The only parameter the local annihilation depends on is the population 
-!density of that excitation level, stored in PopDensity
-                    IF(AttemptLocalAnn(PopDensity(CurrentIC(InitialBlockIndex)))) THEN
-!Particle is killed, even though it is the lone occupier of the determinant
-                        TotWalkersDet=0     !By setting TotWalkersDet to zero, it will kill the particle in the next section
-                        LocalAnn=LocalAnn+1 !Keep a track of the number of particles locally annihilated
-!                        IF(HashCurr.eq.HFHash) THEN
-!                            WRITE(6,*) "HF Determinant particle locally annihilated"
-!                        ENDIF
-                    ENDIF
-                ENDIF
-            ENDIF
+!            IF(TLocalAnnihilation) THEN
+!!This is an attempt to approximate the expected annihilation rates when the occupancy of a determinant is only 1.
+!                IF(InitialBlockIndex.eq.FinalBlockIndex) THEN
+!!The occupancy of the determinant is only one
+!!The walker is at an excitation level of CurrentIC(InitialBlockIndex). The only parameter the local annihilation depends on is the population 
+!!density of that excitation level, stored in PopDensity
+!                    IF(AttemptLocalAnn(PopDensity(CurrentIC(InitialBlockIndex)))) THEN
+!!Particle is killed, even though it is the lone occupier of the determinant
+!                        TotWalkersDet=0     !By setting TotWalkersDet to zero, it will kill the particle in the next section
+!                        LocalAnn=LocalAnn+1 !Keep a track of the number of particles locally annihilated
+!!                        IF(HashCurr.eq.HFHash) THEN
+!!                            WRITE(6,*) "HF Determinant particle locally annihilated"
+!!                        ENDIF
+!                    ENDIF
+!                ENDIF
+!            ENDIF
             
             do k=InitialBlockIndex,FinalBlockIndex
 !Second run through the block of same determinants marks walkers for annihilation
@@ -1190,9 +1191,9 @@ MODULE FciMCParMod
 !        CALL LogMemDealloc(this_routine,TempSignTag)
         DEALLOCATE(TempHash)
 !        CALL LogMemDealloc(this_routine,TempHashTag)
-        IF(TLocalAnnihilation) THEN
-            DEALLOCATE(TempExcitLevel)
-        ENDIF
+!        IF(TLocalAnnihilation) THEN
+!            DEALLOCATE(TempExcitLevel)
+!        ENDIF
         
         RETURN
 
@@ -1241,10 +1242,10 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(TLocalAnnihilation) THEN
+!        IF(TLocalAnnihilation) THEN
 !We need to count the population of walkers at each excitation level for each iteration
-            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
-        ENDIF
+!            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
+!        ENDIF
 
         IF(TAutoCorr) THEN
 !First element is HF Det to histogram. Then come doubles, triples and quads
@@ -2101,10 +2102,10 @@ MODULE FciMCParMod
 !initialise the particle positions - start at HF with positive sign
 
 !Set the maximum number of walkers allowed
-            MaxWalkers=MemoryFac*InitWalkers
-            MaxWalkersExcit=MemoryFacExcit*InitWalkers
-            WRITE(6,"(A,I14)") "Memory Factor for walkers is: ",MemoryFac
-            WRITE(6,"(A,I14)") "Memory Factor for excitation generators is: ",MemoryFacExcit
+            MaxWalkers=NINT(MemoryFac*InitWalkers)
+            MaxWalkersExcit=NINT(MemoryFacExcit*InitWalkers)
+            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFac
+            WRITE(6,"(A,F14.5)") "Memory Factor for excitation generators is: ",MemoryFacExcit
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkers
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for excitgens of: ",MaxWalkersExcit
 
@@ -2590,7 +2591,7 @@ MODULE FciMCParMod
         CALL MPI_Scatter(NodeSumNoatHF,1,MPI_DOUBLE_PRECISION,SumNoatHF,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         
 !Now we want to allocate memory on all nodes.
-        MaxWalkers=MemoryFac*InitWalkers    !All nodes have the same amount of memory allocated
+        MaxWalkers=NINT(MemoryFac*InitWalkers)    !All nodes have the same amount of memory allocated
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
@@ -2631,7 +2632,7 @@ MODULE FciMCParMod
         IF(ScaleWalkers.ne.1) THEN
 
             WRITE(6,*) "Rescaling walkers  by a factor of: ",ScaleWalkers
-            MaxWalkers=MemoryFac*(NINT(InitWalkers*ScaleWalkers))   !InitWalkers here is simply the average number of walkers per node, not actual
+            MaxWalkers=NINT(MemoryFac*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
 
 !Allocate memory for walkvec2, which will temporarily hold walkers
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
@@ -2823,7 +2824,7 @@ MODULE FciMCParMod
         
     
 !Set the maximum number of walkers allowed
-        MaxWalkers=MemoryFac*InitWalkers
+        MaxWalkers=NINT(MemoryFac*InitWalkers)
         WRITE(6,*) "Memory allocated for a maximum particle number per node of: ",MaxWalkers
 
 !Put a barrier here so all processes synchronise
