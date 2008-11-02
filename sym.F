@@ -1457,7 +1457,6 @@ C.. T1= highest integer less than R1
          use SymData, only: SymLabels,nSymLabels
 
          IMPLICIT NONE
-         INTEGER FindSymLabel
          Type(Symmetry) s
          logical symeq
          integer i

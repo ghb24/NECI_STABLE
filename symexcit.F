@@ -906,7 +906,7 @@ C.. Store all the pointers we need
          STORE(6)=NEXCITTYPES
          ENDIF
 C..      ENDIF(.NOT.TCOUNT)
-         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
+!         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
          call halt_timer(proc_timer)
 
       END Subroutine SymSetupExcits3
@@ -1675,11 +1675,14 @@ C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
          INTEGER G1(*),NBASISMAX(*)
          INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
          type(BasisFN) ISYM
+         character(50) error_msg
 
          ICOUNT=0
-         if(tAbelianFastExcitGen) 
-     &      STOP 'Fast Abelian excitation generators do not work for'
-     &       //'SymGenAllExcits'
+         if(tAbelianFastExcitGen) then
+             error_msg='Fast Abelian excitation generators do not work '
+     &       //'for SymGenAllExcits'
+             STOP 
+         end if
 
 C.. Now work out all the excitations
          DO IEXCIT=1,NEXCITTYPES
