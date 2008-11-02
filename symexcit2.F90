@@ -56,7 +56,7 @@ MODULE SymExcit2
      &                  ews,Norm,iCount,G1,nBasisMax,UMat,Arr,nBasis)
          ENDDO
       END subroutine
-!  Enumerate the excitations and weights of excitations of a given ExcitType.
+!  Enumerate the excitations and weights of excitations of a given ExcitType.  
       SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,G1,NBASISMAX,UMAT,Arr,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -79,18 +79,25 @@ MODULE SymExcit2
          TYPE(ExcitWeight) ews(*)
          INTEGER K
          REAL*8 Arr(nBasis,2)
+         INTEGER iLooped,iTo1,iTo2
+         LOGICAL tDebugPrint
+         tDebugPrint=.false.
          ISPN=ExcitType(2)
          IFROM=ExcitType(3)
          ITO=ExcitType(4)
 ! K loops over the possible pairs of states which we are allowed to excite to.
-         DO K=SymPairProds(ITO)%nIndex,SymPairProds(ITO)%nIndex+SymPairProds(ITO)%nPairs-1
+         K=-2
+         Call SymGenExcitIt_GetNextPair(K,iTo,iLooped,iTo1,iTo2,  &
+     &         tDebugPrint)
+         DO WHILE(iLooped.lt.1)
+!         DO K=SymPairProds(ITO)%nIndex,SymPairProds(ITO)%nIndex+SymPairProds(ITO)%nPairs-1
 !.. Now check according to ISPN
 !.. ICC1 is the beta orbital corresponding to the first state, and ICC2 the alpha
 !.. ICC3 is the beta orbital corresponding to the  state, and ICC4 the alpha
-            ICC1=SymStatePairs(1,K)*2-1
-            ICC2=ICC1+1
-            ICC3=SymStatePairs(2,K)*2-1
-            ICC4=ICC3+1
+            ICC1=iTo1
+            ICC2=iTo1+1
+            ICC3=iTo2
+            ICC4=iTo2+1
             L1B=BTEST(ILUT((ICC1-1)/32),MOD(ICC1-1,32))
             L1A=BTEST(ILUT((ICC2-1)/32),MOD(ICC2-1,32))
             L2B=BTEST(ILUT((ICC3-1)/32),MOD(ICC3-1,32))
@@ -137,6 +144,8 @@ MODULE SymExcit2
      &                  ews,Norm,ICOUNT,G1,NBASISMAX,UMAT,Arr,NBASIS)
                ENDIF
             ENDIF
+         Call SymGenExcitIt_GetNextPair(K,iTo,iLooped,iTo1,iTo2,  &
+     &         tDebugPrint)
          ENDDO
       END subroutine
 ! Add the weight of the excitation to the list in ExWeights

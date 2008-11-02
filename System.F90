@@ -56,7 +56,7 @@ MODULE System
       OrbECutoff=1e20
       tStoreAsExcitations=.false.
       TBIN=.false.
-      tAbelianFastExcitGen=.false.
+      tAbelianFastExcitGen=.true.
 
       lNoSymmetry=.false.
 
@@ -286,6 +286,13 @@ MODULE System
     !   the excitation generators should use optimized routines
     !   to take this into account.  Not all excitation generator functions
     !   currently work with this.  USE WITH CARE
+            if (item.lt.nitems) then
+                call readu(w)
+                select case(w)
+                case("OFF")
+                   tAbelianFastExcitGen=.false.
+                end select
+            end if
         case("ENDSYS") 
             exit system
         case default

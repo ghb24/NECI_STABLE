@@ -362,13 +362,20 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
          use SymData, only: tagSymPairProds,tagSymLabelList
          use SymData, only: tagSymLabelCounts,tagSymStatePairs
          use SymData, only: SymPairProd
-         use SymData, only: tAbelianFastExcitGen
+         use SymData, only: tAbelianFastExcitGen,tAbelian
          use global_utilities
          IMPLICIT NONE
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
          INTEGER TEMPLIST(NSTATES)
          LOGICAL FRZ
          character(*), parameter :: this_routine='GenSymStatePairs'
+
+         if(tAbelianFastExcitGen.AND..NOT.tAbelian) THEN
+            WRITE(6,*) "Fast Abelian excitation generators specified,"
+     &      ,"but abelian symmetry not in use.  Using slow generators."
+            tAbelianFastExcitGen=.false.
+         endif
+
          !May need to deallocate, since this info is allocated in storage of UMAT before freezing
          if (allocated(SymPairProds)) then
              deallocate(SymPairProds)
@@ -422,7 +429,7 @@ C.. sort the symlabellist
          CALL NECI_SORTI(SYMLABELCOUNTS(2,TEMPLIST(I-1)),
      &         SYMLABELLIST(SYMLABELCOUNTS(1,TEMPLIST(I-1))))
 !         DO I=1,NSYMLABELS
-!            WRITE(6,*) "NSL",I,SYMLABELCOUNTS(1,I),SYMLABELCOUNTS(2,I),
+!            WRITE(6,*) "NSL",I,SYMLABELCOUNTS(1,I),SYMLABELCOUNTS(2,I)
 !     &         SymLabels(I)
 !         ENDDO
 
@@ -445,9 +452,14 @@ C.. Now sort the SymPairProds into order
             CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
             TOT=0
             DO I=1,nSymPairProds
+!               WRITE(6,*) I,SymPairProds(I)%Sym,SymPairProds(I)%nPairs,
+!     &           SymPairProds(I)%nIndex, SymPairProds(I)%nPairsStateSS,
+!     &           SymPairProds(I)%nPairsStateOS
                SymPairProds(I)%nIndex=TOT
                TOT=TOT+SymPairProds(I)%nPairs
                SymPairProds(I)%nPairs=0
+               SymPairProds(I)%nPairsStateSS=0
+               SymPairProds(I)%nPairsStateOS=0
             ENDDO
             WRITE(6,*) TOT," Symmetry PAIRS"
             WRITE(6,*) NSYMPAIRPRODS,
@@ -470,6 +482,7 @@ C.. Now enumerate all pairs, and classify their product, but don't store them.
 C.. Now sort the SymPairProds into order
             CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
             TOT=0
+!            write(6,*) "SymPairs",nSymPairProds
             DO I=1,nSymPairProds
                SymPairProds(I)%nIndex=TOT
                TOT=TOT+SymPairProds(I)%nPairs
@@ -509,6 +522,7 @@ C.. Now sort the SymPairProds into order
          TYPE(Symmetry) PROD
          TYPE(Symmetry) SYMPROD
          INTEGER nSymLabels,iProd
+         INTEGER iSS,iOS
          DO I=1,nSymLabels
             DO J=I,nSymLabels
 C               WRITE(6,*) I,J,SymClasses(I),SymClasses(J)
@@ -521,6 +535,7 @@ C.. put the pair into the list of pairs.
      &                            +SymPairProds(iProd)%nPairs) =I
                   SymStatePairs(2,SymPairProds(iProd)%nIndex
      &                            +SymPairProds(iProd)%nPairs) =J
+!                  WRITE(6,*) iProd,I,J,PROD
             
                ENDIF
                IF(iProd.EQ.nSymPairProds+1) THEN
@@ -531,20 +546,25 @@ C.. put the pair into the list of pairs.
                   SymPairProds(iProd)%nPairsStateSS=0
                   SymPairProds(iProd)%nPairsStateOS=0
                ENDIF
-C.. increment the counter in the pairlist
-               SymPairProds(iProd)%nPairs=SymPairProds(iProd)%nPairs+1
-               SymPairProds(iProd)%nPairsStateOS=
-     &            SymPairProds(iProd)%nPairsStateOS
-     &           +SymLabelCounts(2,I)*SymLabelCounts(2,J)
+                  
+               iOS=SymLabelCounts(2,I)*SymLabelCounts(2,J)
+               if(i.ne.j) iOS=iOS*2
 !.. Same spin has n(n-1)/2 if same state
                if(i.ne.J) then
-                SymPairProds(iProd)%nPairsStateSS=
-     &            SymPairProds(iProd)%nPairsStateSS
-     &           +SymLabelCounts(2,I)*SymLabelCounts(2,J)
+                 iSS=SymLabelCounts(2,I)*SymLabelCounts(2,J)
                else
-                SymPairProds(iProd)%nPairsStateSS=
-     &            SymPairProds(iProd)%nPairsStateSS
-     &           +(SymLabelCounts(2,I)*(SymLabelCounts(2,J)-1))/2
+                 iSS=(SymLabelCounts(2,I)*(SymLabelCounts(2,J)-1))/2
+               endif
+               if(iOS.gt.0.or.iSS.gt.0) THEN
+C.. increment the counter in the pairlist
+                 SymPairProds(iProd)%nPairs=SymPairProds(iProd)%nPairs+1
+                 SymPairProds(iProd)%nPairsStateOS=
+     &              SymPairProds(iProd)%nPairsStateOS+iOS
+                 SymPairProds(iProd)%nPairsStateSS=
+     &              SymPairProds(iProd)%nPairsStateSS+iSS
+!                write(6,*) "NN",SymLabelCounts(2,I),SymLabelCounts(2,J),
+!     &           SymPairProds(iProd)%nPairsStateSS,
+!     &           SymPairProds(iProd)%nPairsStateOS
                endif
             ENDDO
          ENDDO
@@ -1431,8 +1451,24 @@ C.. T1= highest integer less than R1
          ENDIF    
          RETURN
       END
-C.. A binary search to find VAL in TAB.  TAB is sorted
 
+      integer Function FindSymLabel(s)
+         use SystemData, only: Symmetry
+         use SymData, only: SymLabels,nSymLabels
+
+         IMPLICIT NONE
+         INTEGER FindSymLabel
+         Type(Symmetry) s
+         logical symeq
+         integer i
+         do i=1,nSymLabels
+            if(symeq(SymLabels(i),s)) exit
+         enddo
+         if(i.gt.nSymLabels) i=0
+         FindSymLabel=i
+         return
+      end
+C.. A binary search to find VAL in TAB.  TAB is sorted
       SUBROUTINE BINARYSEARCHSYM(VAL,TAB,ROWLEN,LEN,LOC)
          use SystemData, only: Symmetry
          IMPLICIT NONE

@@ -829,9 +829,11 @@ C.. the complete list, and store that value in NALLOWPPS
          ELSE
             IP_NALLOWPPS=STORE(3)
          ENDIF
+         nExcitTypes=0
          if(tAbelianFastExcitGen) then
             Call SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,
-     &               nPr,nSymPairProds,SymProdCount,nAllowPPS) ! Calculated not enumerated
+     &           nCl,nPr,SymProds,SymProdInd,Classes,ClassCount,
+     &           nAllowPPS) ! Calculated not enumerated
          else
              Call SymSetupExcits_CountVirtProds(nDoub, nExcitTypes,nPr,
      &   SymProdInd,SymProds,nAllowPPS,iLUT)
@@ -846,8 +848,10 @@ C.. the complete list, and store that value in NALLOWPPS
          IF(BTEST(ILEVEL,0)) NEXCITS=NEXCITS+NSING
          IF(BTEST(ILEVEL,1)) NEXCITS=NEXCITS+NDOUB
          ICOUNT=NEXCITS
-C         WRITE(6,*) "Total number of excitations: ",NEXCITS
-C         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
+!         WRITE(6,*) "Total number of singles: ",NSING
+!         WRITE(6,*) "Total number of doubles: ",NDOUB
+!         WRITE(6,*) "Total number of excitations: ",NEXCITS
+!         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
 
          IF(TCOUNT) THEN
 C.. If we're just counting, we're done, so we get rid of some pointers.
@@ -902,6 +906,7 @@ C.. Store all the pointers we need
          STORE(6)=NEXCITTYPES
          ENDIF
 C..      ENDIF(.NOT.TCOUNT)
+         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
          call halt_timer(proc_timer)
 
       END Subroutine SymSetupExcits3
@@ -1121,8 +1126,8 @@ C.. Create a cumulative sum.
             SYMPRODCOUNT(1,I)=SYMPRODCOUNT(3,I-1)+SYMPRODCOUNT(1,I)
             SYMPRODCOUNT(2,I)=SYMPRODCOUNT(1,I)+SYMPRODCOUNT(2,I)
             SYMPRODCOUNT(3,I)=SYMPRODCOUNT(2,I)+SYMPRODCOUNT(3,I)
-C            WRITE(6,*) SYMPRODS(I),SYMPRODCOUNT(1,I),
-C     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
+!            WRITE(6,*) SYMPRODS(I),SYMPRODCOUNT(1,I),
+!     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
          ENDDO
       End Subroutine
 
@@ -1185,7 +1190,7 @@ C..                 The index          +  offset of the element
                
 !               WRITE(6,"(A,2I4,2Z4,2I4)") 
 !     &            "SP",ICC,ISPN,PR,SYMPRODS(K),NI(I),NI(J)
-C               WRITE(6,*) L,NI(I),NI(J),PR,K
+!               WRITE(6,*) L,NI(I),NI(J),PR,K
             ENDDO
          ENDDO
       End Subroutine
@@ -1228,7 +1233,6 @@ C.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
 C.. [ SymStatePairs(1,I) , SymStatePairs(2,I) ] is the pair of symlabels whose prod is of that symmetry.
 
          NDOUB=0
-         NEXCITTYPES=0
          DO I=1,NPR
             DO J=1,NSYMPAIRPRODS
 C.. If it's the first time around, we flag NALLOWPPS as invalid
@@ -1286,11 +1290,11 @@ C     &                     ,L1B,L1A,L2B,L2A
                   ENDIF
 !.. Now count all the excitations allowed for this set of []->[]'
                   DO ISPN=1,3
-                     K=NALLOWPPS(ISPN,J)
-                     L=SYMPRODIND(2,ISPN,I)
+                     L=NALLOWPPS(ISPN,J)
+                     K=SYMPRODIND(2,ISPN,I)
                      ICC=L*K
-C                     WRITE(6,"(2I5,2Z6,4I5)") I,J,SYMPRODS(I),
-C     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
+!                     WRITE(6,"(14I5)") I,J,SYMPRODS(I),
+!     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
                      NDOUB=NDOUB+ICC
                      IF(ICC.GT.0) NEXCITTYPES=NEXCITTYPES+1
                   ENDDO
@@ -1302,8 +1306,140 @@ C     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
       End Subroutine
 
       Subroutine SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,
-     &               nPr,SymProdCount,nAllowPPS) ! Calculated not enumerated
-                   
+     &            nCl,nPr,SymProds,SymProdInd,Classes,ClassCount,
+     &            nAllowPPS) ! Calculated not enumerated
+         use SymData, only: SymPairProds,nSymPairProds,SymmetrySize
+         use SymData, only: Symmetry,SymLabelCounts,SymLabels,SymClass
+         IMPLICIT NONE
+         Type(Symmetry) SymProds(0:*)
+         INTEGER nPr,nCl
+         INTEGER ClassCount(2,*)
+         Type(SymClass) Classes(nCl)
+         INTEGER nAllowPPS(1:3,nSymPairProds)
+
+         Integer FindSymLabel
+         Type(Symmetry) SymConj,SymProd
+C.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
+C.. SYMPRODS(I) in ORBPAIRS
+C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
+         INTEGER SymProdInd(1:2,1:3,0:*)
+         INTEGER nDoub
+         INTEGER nExcitTypes
+         INTEGER I,L,K,KK,ICC,ISPN,lab,iOccs,iVirts,iClass,inCl
+         Type(Symmetry) s
+         Logical tDebugPrint
+         tDebugPrint=.false.
+         nDoub=0 
+         nAllowPPS=0
+! For each Symmetry product count the number of allowed doubles.
+! Loop over the complete list of pair types
+!  Each pair prod in the full list can only interact with prods of the same sym in the list of occ pairs.
+         DO I=1,nSymPairProds
+! Now search for that symmetry within our occupied pair counts
+           CALL BINARYSEARCHSYM(SymPairProds(I)%Sym,SYMPRODS(1),
+     &         SymmetrySize,NPR,K)
+!K now has the index of that sym in the occ sym prod list.
+
+            IF(tDebugPrint)
+     &     WRITE(6,*) "Sym:",SymPairProds(I)%Sym
+           IF(K.NE.0) THEN
+!.. Now count all the excitations allowed for this set of []->[]'
+               DO ISPN=1,3
+! First get the virts
+                  If(iSpn.eq.2) THEN
+                     L=SymPairProds(I)%nPairsStateOS
+                  else
+                     L=SymPairProds(I)%nPairsStateSS
+                  ENDIF
+! L now contains total number (including occ and single excits) of double excits of this sym.
+! We must remove the single excitations.
+! The number of pairs of doubles in the total list with sym prod SymProds(K)
+!  which contain just one of the occupied orbitals can be worked out by
+!  multiplying SymProds(K) by the inverse of the symmetry of each occupied class.
+!   This will give the sym of the virtual which would make up the pair.  
+!   Since we know how many occ there are in each occ class, and can calculated
+!   How many virts there are in its complement, that gives us the number of 
+!  'single excitations' masquerading as doubles.
+
+!  First loop over occupied classes
+                  DO iClass=1,nCl
+!  SymLabels(Classes(iClass)%SymLab) is the sym of the class
+!  WARNING - here we use SymConj to mean 'inverse'.
+!   This seems right, although it would be nice to have it really proven.
+                     if(tDebugPrint)
+     &                  WRITE(6,*) "Occ Class,sym:",iClass,
+     &                  SymLabels(Classes(iClass)%SymLab)
+                     s=SymProd(
+     &                   SymConj(SymLabels(Classes(iClass)%SymLab)),
+     &                   SymPairProds(I)%Sym)
+                     lab=FindSymLabel(s)
+!   SymLabelCounts(2,lab) is the total number of states with the inverse sym.
+                     iVirts=SymLabelCounts(2,lab)
+                     if(tDebugPrint)
+     &                  Write(6,*) "Virts,lab",iVirts,lab
+                     do iNCl=1,nCl
+                        if(Classes(iNCl)%SymLab.eq.lab) exit
+                     enddo
+                     if(tDebugPrint)
+     &                  WRITE(6,*) "Virt Class,sym:",iNCl,s
+                     if(iSpn.eq.2) then
+!The mixed spin case
+                        if(tDebugPrint)
+     &                  WRITE(6,*) "OS Tot:",L
+                        if(iNCL.le.nCl) then
+!  We've found the class corresponding to the inverse, so we know how many occs it has
+                           iOccs=ClassCount(1,iClass)
+                           L=L-iOccs*(iVirts-ClassCount(2,iNCL))
+                           if(tDebugPrint)
+     &                        WRITE(6,*) "Aocc Bvirt removed:", 
+     &         iOccs*(iVirts-ClassCount(2,iNCL)),ClassCount(2,iNCL)
+                           iOccs=ClassCount(2,iClass)
+                           L=L-iOccs*(iVirts-ClassCount(1,iNCL))
+                           if(tDebugPrint)
+     &                        WRITE(6,*) "Bocc Avirt removed:", 
+     &         iOccs*(iVirts-ClassCount(1,iNCL)),ClassCount(1,iNCL)
+                        else
+                           iOccs=ClassCount(1,iClass)
+                           L=L-iOccs*iVirts
+                           if(tDebugPrint)
+     &                     WRITE(6,*) "Aocc Bvirt removed:",iOccs*iVirts
+                           iOccs=ClassCount(2,iClass)
+                           L=L-iOccs*iVirts
+                           if(tDebugPrint)
+     &                     WRITE(6,*) "Bocc Avirt removed:",iOccs*iVirts
+                        endif
+                     else
+! same spin case
+                        iOccs=ClassCount((iSpn+1)/2,iClass)
+                        if(tDebugPrint)
+     &                  WRITE(6,*) "SS Tot:",L
+                        if(iNCL.le.nCl) then
+                          L=L-iOccs*(iVirts-ClassCount((iSpn+1)/2,iNCL))
+                        else
+                          L=L-iOccs*iVirts
+                        endif
+                        if(tDebugPrint)
+     &                  WRITE(6,*) "SS singles removed:",L
+                     endif
+                  enddo
+! The number of occupied pairs with sym prod SymProds(K)
+                  KK=SymProdInd(2,iSpn,K)
+! Also remove the occupied pairs from the count of virtuals
+                  L=L-KK
+! Save this for later
+                  nAllowPPS(iSpn,I)=L
+                  ICC=L*KK
+                  if(tDebugPrint)
+     &                  WRITE(6,*) "Occ removed", L
+                  if(tDebugPrint)
+     &                  WRITE(6,"(14I5)") I,K,
+     &                  SYMPAIRPRODS(I),ISPN,L,KK,ICC
+                  NDOUB=NDOUB+ICC
+                  IF(ICC.GT.0) NEXCITTYPES=NEXCITTYPES+1
+               ENDDO
+             
+           ENDIF 
+         ENDDO                
       End Subroutine
 
       Subroutine SymSetupExcits_CountSingles(nSing,nCl,nExcitTypes,
@@ -1518,6 +1654,7 @@ C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymLabelCounts,SymStatePairs,SymClass
          use SymData, only: SymLabelList,SymPairProds
+         use SymData, only: tAbelianFastExcitGen
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
          
@@ -1540,6 +1677,9 @@ C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
          type(BasisFN) ISYM
 
          ICOUNT=0
+         if(tAbelianFastExcitGen) 
+     &      STOP 'Fast Abelian excitation generators do not work for'
+     &       //'SymGenAllExcits'
 
 C.. Now work out all the excitations
          DO IEXCIT=1,NEXCITTYPES
@@ -1963,7 +2103,7 @@ C     &         (NMEM(I),I=7,14)
 !!     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
 !!     &               I,J,K,L,ICC,LS,
 !!     &               NK,IC)
-            CALL SYMGENEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
+            CALL SYMGENEXCITIT2(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),
      &         NMEM(NMEM(5)),DSTORE(SymClassSize*NEL+1),NMEM(NMEM(4)),
      &         NMEM(7),NMEM(8),NMEM(9),NMEM(10),NMEM(11),NMEM(12),
      &         NMEM(13),NMEM(14),NMEM(15),NMEM(19),NJ,IC,iMinElec1,
@@ -2412,12 +2552,12 @@ C.. We're done
             ENDIF
             IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
                Call SymGenExcitIt_GenSingle(iRet,iSpn,iFrom,iTo,iCC,
-     &   I,J,K,L,tDebugPrint,iExcit,iMinElec1,iMaxElec1,
-     &   nI,nK)
+     &   I,J,K,L,tDebugPrint,iExcit,iMinElec1,iMaxElec1,iC,
+     &   nI,nK,nEl)
             ELSE
                Call SymGenExcitIt_GenDouble(iRet,SPP,
-     &   I,J,K,L,iTo,iCC,iLUT,LS,OrbPairs,SymProdInd,
-     &   nI,nK,nEl,iC)
+     &   I,J,K,L,iTo,iSpn,iFrom,iCC,iLUT,LS,OrbPairs,SymProdInd,
+     &   nI,nK,nEl,iC,tDebugPrint)
             ENDIF 
             if(iRet.eq.1) cycle
             if(iRet.eq.2) return
@@ -2491,8 +2631,8 @@ C.. a double
          IFROM=EXCITTYPES(3,IEXCIT)
          ITO=EXCITTYPES(4,IEXCIT)
          I=0
-         L=5
-         K=-2
+         L=5 !An invalid spin
+         K=-2 !When we +1 this is still invalid so it resets the pair index
          IF(tDebugPrint)
      &      WRITE(6,*) "EXC",IEXCIT,ISPN,IFROM,ITO,SYMPRODIND(2,ISPN,
      &            IFROM)
@@ -2620,9 +2760,10 @@ C.. quit the do loop
          RETURN
       End Subroutine SymGenExcitIt_GenSingle
 
-      Subroutine SymGenExcitIt_GenDouble(iRet,SPP,
-     &   I,J,K,L,iTo,iCC,iLUT,LS,OrbPairs,SymProdInd,
-     &   nI,nK,nEl,iC)
+!Because the fast abelian excitation generators don't keep a stored list of virtual pairs, they need a different excitation generator routine.  We generate the list on the fly.
+      Subroutine SymGenExcitItOld_GenDouble(iRet,SPP,
+     &   I,J,K,L,iTo,iSpn,iFrom,iCC,iLUT,LS,OrbPairs,SymProdInd,
+     &   nI,nK,nEl,iC,tDebugPrint)
          use SystemData , only : TSTOREASEXCITATIONS
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -2695,34 +2836,10 @@ C.. Now check for an excitation
             L=2
             IF(ISPN.EQ.1.AND.ICC(1).NE.ICC(3).AND.
      &            .NOT.(LS(1,1).OR.LS(2,1))) THEN
-               IF(tStoreAsExcitations) THEN
-!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-                  NK(1)=-1
-                  NK(2)=2
-                  NK(3)=1
-                  NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
-                  NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
-                  NK(6)=ICC(1)
-                  NK(7)=ICC(3)
-               ELSE
-                  CALL NECI_ICOPY(NEL,NI,1,NK,1)
-                  DO J=1,NEL
-                     IF(NI(J).EQ.ORBPAIRS(1,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
-                        NK(J)=ICC(1)
-                     ENDIF
-                     IF(NI(J).EQ.ORBPAIRS(2,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        IF(tDebugPrint)
-     &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
-                        NK(J)=ICC(3)
-                     ENDIF
-                  ENDDO
-C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                  CALL NECI_SORTI(NEL,NK)
-               ENDIF
+               Call SymGenExcitIt_MakeDouble(
+     &            ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &            ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &            ICC(1),ICC(3),nI,nK,nEl,tDebugPrint)
                IC=2
                iRet=2
                RETURN
@@ -2733,34 +2850,10 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
             IF(ISPN.EQ.2) THEN
 C.. If neither virtuals are in NI, then allow
                IF(.NOT.(LS(1,1).OR.LS(2,2))) THEN
-                  IF(tStoreAsExcitations) THEN
-!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-                     NK(1)=-1
-                     NK(2)=2
-                     NK(3)=1
-                     NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
-                     NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
-                     NK(6)=ICC(1)
-                     NK(7)=ICC(4)
-                  ELSE
-                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
-                     DO J=1,NEL
-                        IF(NI(J).EQ.ORBPAIRS(1,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                           IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(1),","
-                           NK(J)=ICC(1)
-                        ENDIF
-                        IF(NI(J).EQ.ORBPAIRS(2,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                           IF(tDebugPrint)
-     &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
-                           NK(J)=ICC(4)
-                        ENDIF
-                     ENDDO
-C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL NECI_SORTI(NEL,NK)
-                  ENDIF
+                  Call SymGenExcitIt_MakeDouble(
+     &             ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ICC(1),ICC(4),nI,nK,nEl,tDebugPrint)
                   IC=2
                   iRet=2
                   RETURN
@@ -2773,34 +2866,249 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
 C.. If neither virtuals are in NI, and they're not the same(which would give
 C.. us the same excitation as previously), then allow
               IF(.NOT.(LS(1,2).OR.LS(2,1)).AND.ICC(1).NE.ICC(3)) THEN
-                IF(tStoreAsExcitations) THEN
-!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-                  NK(1)=-1
-                  NK(2)=2
-                  NK(3)=1
-                  NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
-                  NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
-                  NK(6)=ICC(2)
-                  NK(7)=ICC(3)
-                ELSE
-                  CALL NECI_ICOPY(NEL,NI,1,NK,1)
-                  DO J=1,NEL
-                     IF(NI(J).EQ.ORBPAIRS(1,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
-                        NK(J)=ICC(2)
-                     ENDIF
-                     IF(NI(J).EQ.ORBPAIRS(2,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        IF(tDebugPrint)
-     &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
-                        NK(J)=ICC(3)
-                     ENDIF
-                  ENDDO
-C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                  CALL NECI_SORTI(NEL,NK)
-                ENDIF
+                Call SymGenExcitIt_MakeDouble(
+     &             ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ICC(2),ICC(3),nI,nK,nEl,tDebugPrint)
+                IC=2
+                iRet=2
+                RETURN
+               ENDIF
+            ENDIF
+         ENDIF
+         IF(L.EQ.4) THEN
+            L=5
+            IF(ISPN.EQ.3) THEN
+C.. If both virtuals aren't the same and neither are in NI, then allow
+              IF(ICC(1).NE.ICC(3).AND..NOT.(LS(1,2).OR.LS(2,2))) THEN
+                Call SymGenExcitIt_MakeDouble(
+     &             ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ICC(2),ICC(4),nI,nK,nEl,tDebugPrint)
+                IC=2
+                iRet=2
+                RETURN
+               ENDIF
+            ENDIF
+         ENDIF
+      End Subroutine SymGenExcitItOld_GenDouble
+
+!Get a new pair from the global list (if there is one) or generate one afresh.  All according to the pair type iTo which is the index into SymPairProds.
+!   iLooped will be set to 1 by this if we've run out of pairs and had to go back to the beginning.
+!   The pair is retured in iTo1 and iTo2.
+!  K is a counter for us to keep track of where we are.  If K<-1 on entry, we
+!  start afresh and set iLooped to -1.
+      Subroutine SymGenExcitIt_GetNextPair(K,iTo,iLooped,iTo1,iTo2,
+     &      tDebugPrint)
+         use SymData, only: tAbelianFastExcitGen
+         use SymData, only: SymLabelCounts,SymStatePairs
+         use SymData, only: SymLabelList,SymPairProds
+         IMPLICIT NONE
+         INTEGER K,iTo
+         INTEGER iLooped
+         INTEGER iTo1,iTo2
+
+         INTEGER iLabelPairIndexOff
+         INTEGER iLabelPairBase
+         INTEGER iLabel1Index,iLabel2Index
+         INTEGER iLabel1,iLabel2
+         LOGICAL tDebugPrint
+         iLooped=0
+         if(tAbelianFastExcitGen) then
+! We must generate the pair as we don't have a stored list
+! SymStatePairs holds a list of SymLabels.
+! SymPairProds(iTo) tells is which set of pairs we're using
+! we split K into 3 integers
+!   (LabelPairIndex, Label1Index, Label2Index)
+!bits      30-24         23-12           11-0
+            if(K.lt.0) then
+               iLabelPairIndexOff=0
+               iLabel1Index=0
+               iLabel2Index=-1
+               iLooped=-1 !indicate we've reset from nothing
+            else
+               iLabelPairIndexOff=IShft(IAND(K,'7F000000'X),-24)
+               iLabel1Index=IShft(IAND(K,'FFF000'X),-12)
+               iLabel2Index=IAND(K,'FFF'X)
+            endif
+            iLabelPairBase=SymPairProds(iTo)%nIndex
+            iLabel1=SymStatePairs(1,iLabelPairBase+iLabelPairIndexOff)
+            iLabel2=SymStatePairs(2,iLabelPairBase+iLabelPairIndexOff)
+! We cycle through these with Label2Index fastest
+            iLabel2Index=iLabel2Index+1
+! This is a do rather than an if because if iLabel1==iLabel2, it's possible
+!  that there are no valid combinations after an increment, so we have to go round again.
+            if(iLabel2Index.ge.SymLabelCounts(2,iLabel2)) then
+! Increment label 1
+               iLabel1Index=iLabel1Index+1
+               if(iLabel1Index.ge.SymLabelCounts(2,iLabel1)) then
+! Increment the Pair Index
+                  iLabelPairIndexOff=iLabelPairIndexOff+1
+                  if(iLabelPairIndexOff.ge.SymPairProds(iTo)%nPairs)
+     &                then
+                     iLooped=1 ! indicate we're looping
+                     iLabelPairIndexOff=0
+                  endif
+                  iLabel1=SymStatePairs(1,
+     &               iLabelPairBase+iLabelPairIndexOff)
+                  iLabel2=SymStatePairs(2,
+     &               iLabelPairBase+iLabelPairIndexOff)
+                  iLabel1Index=0
+               endif
+!  If the two are from the same symlabel, we enforce 2's index>1
+               if(iLabel1.eq.iLabel2) then
+                  iLabel2Index=iLabel1Index
+               else
+                  iLabel2Index=0
+               endif
+            endif
+! Now extract the states and turn them into orbitals.
+            iTo1=(SymLabelList(SymLabelCounts(1,iLabel1)+iLabel1Index))
+     &            *2-1 
+            iTo2=(SymLabelList(SymLabelCounts(1,iLabel2)+iLabel2Index))
+     &            *2-1 
+! Put the K index back together
+            K=IShft(iLabelPairIndexOff,24)
+     &            +IShft(iLabel1Index,12)+iLabel2Index
+            if(tDebugPrint) THEN
+               Write(6,*) "To: ",iTo, "LabelPair:", iLabelPairIndexOff,
+     &            "/",SymPairProds(iTo)%nPairs
+               Write(6,"(A10,I4,A1,I4,A1,I4,I4)") "Label1: (",iLabel1,
+     &            ")",iLabel1Index, "/",
+     &            SymLabelCounts(2 ,iLabel1), iTo1
+               Write(6,"(A10,I4,A1,I4,A1,I4,I4)") "Label2: (",iLabel2,
+     &            ")",iLabel2Index, "/",
+     &            SymLabelCounts(2 ,iLabel2), iTo2
+               WRITE(6,"(A,Z,A,I3)") "K:",K,"Looped:",iLooped
+            endif
+         else
+! We have a stored list, so just get the next from there.
+            K=K+1
+            IF(K.lt.0.or.
+     &           K.GE.SymPairProds(ITO)%nIndex+SymPairProds(ITO)%nPairs)
+     &            THEN
+               iLooped=1 !we've looped
+               if(K.lt.0) iLooped=-1 ! we've reset
+               K=SymPairProds(ITO)%nIndex
+            ENDIF
+            iTo1=SymStatePairs(1,K)*2-1
+            iTo2=SymStatePairs(2,K)*2-1
+            if(tDebugPrint) THEN
+               Write(6,*) "To: ",iTo
+               WRITE(6,*) iTo1
+               WRITE(6,*) iTo2
+               WRITE(6,"(A,Z,A,I3)") "K:",K,"Looped:",iLooped
+            endif
+         ENDIF
+         RETURN
+      End Subroutine SymGenExcitIt_GetNextPair
+
+      Subroutine SymGenExcitIt_GenDouble(iRet,SPP,
+     &   I,J,K,L,iTo,iSpn,iFrom,iCC,iLUT,LS,OrbPairs,SymProdInd,
+     &   nI,nK,nEl,iC,tDebugPrint)
+         use SystemData , only : TSTOREASEXCITATIONS
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: SymLabelCounts,SymStatePairs,SymClass
+         use SymData, only: SymLabelList,SymPairProds
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL)
+         
+         INTEGER I,J,K,L
+         INTEGER NK(NEL)
+         INTEGER IEXCIT
+         INTEGER IFROM,ITO,ISPN
+         INTEGER IFROMSL,ITOSL
+         TYPE(Symmetry) SPP
+         LOGICAL L1,L2
+         INTEGER ICC(4)
+C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
+         LOGICAL LS(2,2)
+
+         INTEGER ORBPAIRS(2,*)
+         INTEGER ILUT(0:*)
+         INTEGER SYMPRODIND(2,3,0:*)
+         INTEGER IC
+         LOGICAL tDebugPrint
+         INTEGER iMinElec1, iMaxElec1
+
+         INTEGER iRet
+         INTEGER iLooped
+         INTEGER iTo1,iTo2
+         iRet=0
+C.. doubles
+         SPP=SymPairProds(ITO)%Sym
+C.. See if we need a new K.  L is the spin label, and goes from 1..4.
+         IF(L.GT.4) THEN
+            L=1
+            Call SymGenExcitIt_GetNextPair(K,iTo,iLooped,iTo1,iTo2,
+     &         tDebugPrint)
+            IF(iLooped.ne.0) THEN
+C.. K is invalid.  Get a new I
+               I=I+1
+               IF(I.GT.SYMPRODIND(2,ISPN,IFROM)) THEN
+C.. I is now invalid
+                  I=-1
+                  iRet=1
+                  RETURN
+               ENDIF
+            ENDIF
+C.. We've got a new K, so we need to reset some variables
+            ICC(1)=iTo1
+            ICC(2)=iTo1+1
+            ICC(3)=iTo2
+            ICC(4)=iTo2+1
+C                     WRITE(6,*) ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+C     &                      ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)
+C                     WRITE(6,*) ISPN,ICC(1),ICC(3)
+            LS(1,1)=BTEST(ILUT((ICC(1)-1)/32),
+     &                     MOD(ICC(1)-1,32))
+            LS(1,2)=BTEST(ILUT((ICC(2)-1)/32),
+     &                     MOD(ICC(2)-1,32))
+            LS(2,1)=BTEST(ILUT((ICC(3)-1)/32),
+     &                     MOD(ICC(3)-1,32))
+            LS(2,2)=BTEST(ILUT((ICC(4)-1)/32),
+     &                     MOD(ICC(4)-1,32))
+         ENDIF
+C.. Now check for an excitation
+         IF(L.EQ.1) THEN
+            L=2
+            IF(ISPN.EQ.1.AND.ICC(1).NE.ICC(3).AND.
+     &            .NOT.(LS(1,1).OR.LS(2,1))) THEN
+               Call SymGenExcitIt_MakeDouble(
+     &            ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &            ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &            ICC(1),ICC(3),nI,nK,nEl,tDebugPrint)
+               IC=2
+               iRet=2
+               RETURN
+            ENDIF
+         ENDIF
+         IF(L.EQ.2) THEN
+            L=3
+            IF(ISPN.EQ.2) THEN
+C.. If neither virtuals are in NI, then allow
+               IF(.NOT.(LS(1,1).OR.LS(2,2))) THEN
+                  Call SymGenExcitIt_MakeDouble(
+     &             ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ICC(1),ICC(4),nI,nK,nEl,tDebugPrint)
+                  IC=2
+                  iRet=2
+                  RETURN
+               ENDIF
+            ENDIF
+         ENDIF
+         IF(L.EQ.3) THEN
+            L=4
+            IF(ISPN.EQ.2) THEN
+C.. If neither virtuals are in NI, and they're not the same(which would give
+C.. us the same excitation as previously), then allow
+              IF(.NOT.(LS(1,2).OR.LS(2,1)).AND.ICC(1).NE.ICC(3)) THEN
+                Call SymGenExcitIt_MakeDouble(
+     &             ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ICC(2),ICC(3),nI,nK,nEl,tDebugPrint)
                 IC=2
                 iRet=2
                 RETURN
@@ -2812,34 +3120,10 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
             IF(ISPN.EQ.3) THEN
 C.. If both virtuals aren't the samem and neither are in NI, then allow
               IF(ICC(1).NE.ICC(3).AND..NOT.(LS(1,2).OR.LS(2,2))) THEN
-                IF(tStoreAsExcitations) THEN
-!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
-                  NK(1)=-1
-                  NK(2)=2
-                  NK(3)=1
-                  NK(4)=ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I)     
-                  NK(5)=ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I)     
-                  NK(6)=ICC(2)
-                  NK(7)=ICC(4)
-                ELSE
-                  CALL NECI_ICOPY(NEL,NI,1,NK,1)
-                  DO J=1,NEL
-                     IF(NI(J).EQ.ORBPAIRS(1,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        IF(tDebugPrint)
-     &                       WRITE(6,"(A,I3,A,I3,A,$)") "[",NK(J),"->",ICC(2),","
-                        NK(J)=ICC(2)
-                     ENDIF
-                     IF(NI(J).EQ.ORBPAIRS(2,
-     &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                        IF(tDebugPrint)
-     &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
-                        NK(J)=ICC(4)
-                     ENDIF
-                  ENDDO
-C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                  CALL NECI_SORTI(NEL,NK)
-                ENDIF
+                Call SymGenExcitIt_MakeDouble(
+     &             ORBPAIRS(1,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ORBPAIRS(2,SYMPRODIND(1,ISPN,IFROM)+I),
+     &             ICC(2),ICC(4),nI,nK,nEl,tDebugPrint)
                 IC=2
                 iRet=2
                 RETURN
@@ -2847,6 +3131,47 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
             ENDIF
          ENDIF
       End Subroutine SymGenExcitIt_GenDouble
+! Actually go through and generate the excitation given a det and from and to.
+!  nI is the reference, nK has the new det returned in it and nEl is the # electrons.
+      Subroutine SymGenExcitIt_MakeDouble(iFrom1,iFrom2,
+     &      iTo1,iTo2,nI,nK,nEl,tDebugPrint)
+         use SystemData , only : TSTOREASEXCITATIONS
+         IMPLICIT NONE
+         INTEGER iFrom1,iFrom2
+         INTEGER iTo1,iTo2
+         INTEGER nEl,nI(nEl),nK(nEl)
+         LOGICAL tDebugPrint
+
+         INTEGER J
+         IF(tStoreAsExcitations) THEN
+!The excitation storage starts with -1.  The next number is the excitation level,L .  Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+            NK(1)=-1
+            NK(2)=2
+            NK(3)=1
+            NK(4)=iFrom1
+            NK(5)=iFrom2
+            NK(6)=iTo1
+            NK(7)=iTo2
+         ELSE
+            CALL NECI_ICOPY(NEL,NI,1,NK,1)
+            DO J=1,NEL
+               IF(NI(J).EQ.iFrom1) THEN
+                  IF(tDebugPrint)
+     &               WRITE(6,"(A,I3,A,I3,A,$)") "[",iFrom1,"->",
+     &                   iTo1,","
+                  NK(J)=iTo1
+               ENDIF
+               IF(NI(J).EQ.iFrom2) THEN
+                  IF(tDebugPrint)
+     &               WRITE(6,*) iFrom2,"->",iTo2,"]"
+                  NK(J)=iTo2
+               ENDIF
+            ENDDO
+C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
+            CALL NECI_SORTI(NEL,NK)
+         ENDIF
+      End Subroutine SymGenExcitIt_MakeDouble
+      
 C.. Generate a random symmetry allowed excitation.  GENSYMEXCITIT2 must be called twice
 C.. before this.
 C.. This version is based on GenRandSymExcitIt2, but does not need values it extracts from modules
