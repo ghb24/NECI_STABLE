@@ -661,7 +661,8 @@ C..   Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
                CALL GETUNCSFELEC(NI2(I),NI(I),SSYM)
             ENDDO
          ELSE
-            CALL NECI_ICOPY(NEL,NI2,1,NI,1)
+!            CALL NECI_ICOPY(NEL,NI2,1,NI,1)
+            NI(1:NEL)=NI2(1:NEL)
          ENDIF
          DO I=1,NEL
 C.. Count all electrons in each rep

@@ -950,7 +950,7 @@ C.. CLASSES(iCl)%SymLab is the symmetry label (i.e. entry in SymClasses) of this
          Type(Symmetry) TotSymRep
          TYPE(Symmetry) SYMPROD,SymConj
          
-         NCL=0
+         NCL=0  !This is our running count of how many symmetry classes we have
          DO I=1,NEL
             TNEW=.TRUE.
 !            WRITE(6,*) I,SymClasses((NI(I)+1)/2)
@@ -994,7 +994,7 @@ C.. Now calculate the resultant symmetry from removing one of each of the classe
 C.. i.e. if we remove j, what's the symmetry of SYMCONJ(<ikl... |) (X) SYM( |ikl...>)
 C..   NB to cope with non-abelians, this actually takes the prod sym of the classes of each orb, 
 C..   rather than the orb itself, so may end up classifying a single as allowed when it's not.
-C.. we'll use this in the future to determina the allowed j->a
+C.. we'll use this in the future to determine the allowed j->a
 C.. This is stored in CLASSES(iCl)%SymRem
          DO I=1,NCL
             PR=TotSymRep()
@@ -1728,12 +1728,14 @@ C.. We've found an orb in NI with the correct sym.  Now go through the list of p
                         ENDDO
                         IF(L.GT.NEL.OR.NI(L).NE.ITOSL) THEN
 C.. We've found a virtual into which we can excite our occupied orb.
-                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                           NK(:)=NI(:)
                            NK(I)=ITOSL
                            CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=1
-                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+!                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+                           LSTE(1:NEL,ICOUNT)=NK(:)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
 C                           WRITE(26,'(Z6)') ISYM 
@@ -1794,7 +1796,8 @@ C.. L1B is set if the beta of the first virtual is in NI, i.e. is disallowed
                      IF(ISPN.EQ.1) THEN
 C.. If both virtuals aren't the samem and neither are in NI, then allow
                         IF(ICC1.NE.ICC3.AND..NOT.(L1B.OR.L2B)) THEN
-                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                           NK(1:NEL)=NI(1:NEL)
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -1809,7 +1812,8 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
-                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+!                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+                           LSTE(1:NEL,ICOUNT)=NK(1:NEL)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
 C                           WRITE(26,'(Z6)') ISYM
@@ -1818,7 +1822,8 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                      ELSEIF(ISPN.EQ.2) THEN
 C.. If neither virtuals are in NI, then allow
                         IF(.NOT.(L1B.OR.L2A)) THEN
-                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                           NK(1:NEL)=NI(1:NEL)
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -1833,7 +1838,8 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
-                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+!                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+                           LSTE(1:NEL,ICOUNT)=NK(1:NEL)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
 C                           WRITE(26,'(Z6)') ISYM 
@@ -1842,7 +1848,8 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
 C.. If neither virtuals are in NI, and they're not the same(which would give
 C.. us the same excitation as previously), then allow
                         IF(.NOT.(L1A.OR.L2B).AND.ICC1.NE.ICC3) THEN
-                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                           NK(1:NEL)=NI(1:NEL)
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -1857,7 +1864,8 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
-                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+!                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+                           LSTE(1:NEL,ICOUNT)=NK(1:NEL)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
 C                           WRITE(26,'(Z6)') ISYM 
@@ -1866,7 +1874,8 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                      ELSEIF(ISPN.EQ.3) THEN
 C.. If both virtuals aren't the samem and neither are in NI, then allow
                         IF(ICC1.NE.ICC3.AND..NOT.(L1A.OR.L2A)) THEN
-                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                           NK(1:NEL)=NI(1:NEL)
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -1881,7 +1890,8 @@ C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
                            CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
-                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+!                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
+                           LSTE(1:NEL,ICOUNT)=NK(1:NEL)
 C                           CALL WRITEDET(26,NK,NEL,.FALSE.)
 C                           CALL GETSYM(NK,NEL,G1,NBASISMAX,ISYM)
 C                           WRITE(26,'(Z6)') ISYM 
@@ -2287,7 +2297,8 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
                NK(5)=ITOSL
                STOP 'tStoreAsExcitations not tested for singles.'
             ELSE
-               CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!               CALL NECI_ICOPY(NEL,NI,1,NK,1)
+               NK(1:NEL)=NI(1:NEL)
                IF(tDebugPrint)
      &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
                NK(I)=ITOSL
@@ -2350,7 +2361,8 @@ C.. Now check for an excitation
                      NK(6)=ICC(1)
                      NK(7)=ICC(3)
                   ELSE
-                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                     NK(1:NEL)=NI(1:NEL)
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -2388,7 +2400,8 @@ C.. If neither virtuals are in NI, then allow
                      NK(6)=ICC(1)
                      NK(7)=ICC(4)
                    ELSE
-                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                     NK(1:NEL)=NI(1:NEL)
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -2428,7 +2441,8 @@ C.. us the same excitation as previously), then allow
                      NK(6)=ICC(2)
                      NK(7)=ICC(3)
                    ELSE
-                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                     NK(1:NEL)=NI(1:NEL)
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -2467,7 +2481,8 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                      NK(6)=ICC(2)
                      NK(7)=ICC(4)
                    ELSE
-                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                     NK(1:NEL)=NI(1:NEL)
                      DO J=1,NEL
                         IF(NI(J).EQ.ORBPAIRS(1,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
@@ -2751,7 +2766,8 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
             NK(5)=ITOSL
             STOP 'tStoreAsExcitations not tested for singles.'
          ELSE
-            CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!            CALL NECI_ICOPY(NEL,NI,1,NK,1)
+            NK(1:NEL)=NI(1:NEL)
             IF(tDebugPrint)
      &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
             NK(I)=ITOSL
@@ -3156,7 +3172,8 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
             NK(6)=iTo1
             NK(7)=iTo2
          ELSE
-            CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!            CALL NECI_ICOPY(NEL,NI,1,NK,1)
+            NK(1:NEL)=NI(1:NEL)
             DO J=1,NEL
                IF(NI(J).EQ.iFrom1) THEN
                   IF(tDebugPrint)
@@ -3387,7 +3404,8 @@ C.. Actually generate a det
                      ICOUNT=ICOUNT+1
                   ELSEIF(ICOUNT.EQ.0) THEN
 !.. We've found a virtual into which we can excite our occupied orb.
-                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                     NK(1:NEL)=NI(1:NEL)
                      NK(I)=ITOSL
                      CALL NECI_SORTI(NEL,NK)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
@@ -3486,7 +3504,8 @@ C.. Actually generate a det
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcit)
 !           times prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
-         CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!         CALL NECI_ICOPY(NEL,NI,1,NK,1)
+         NK(1:NEL)=NI(1:NEL)
          DO J=1,NEL
             IF(NI(J).EQ.ews(K)%I) THEN
                NK(J)=ews(K)%A
@@ -3665,7 +3684,8 @@ C.. Actually generate a det
                      ICOUNT=ICOUNT+1
                   ELSEIF(ICOUNT.EQ.0) THEN
 !.. We've found a virtual into which we can excite our occupied orb.
-                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
+                     NK(1:NEL)=NI(1:NEL)
                      NK(I)=ITOSL
                      CALL NECI_SORTI(NEL,NK)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
@@ -3807,7 +3827,8 @@ C.. Actually generate a det
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcit)
 !           times prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
-         CALL NECI_ICOPY(NEL,NI,1,NK,1)
+!         CALL NECI_ICOPY(NEL,NI,1,NK,1)
+         NK(1:NEL)=NI(1:NEL)
          DO J=1,NEL
             IF(NI(J).EQ.ews(K)%I) THEN
                NK(J)=ews(K)%A
