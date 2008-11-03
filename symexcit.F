@@ -1664,6 +1664,7 @@ C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
          INTEGER IEXCIT
          INTEGER IFROM,ITO,ISPN
          INTEGER IFROMSL,ITOSL
+         INTEGER ExcitMat(2,2)
          TYPE(Symmetry) SPP
          LOGICAL L1,L2
          INTEGER ICC1,ICC2,ICC3,ICC4
@@ -1730,8 +1731,12 @@ C.. We've found an orb in NI with the correct sym.  Now go through the list of p
 C.. We've found a virtual into which we can excite our occupied orb.
 !                           CALL NECI_ICOPY(NEL,NI,1,NK,1)
                            NK(:)=NI(:)
-                           NK(I)=ITOSL
-                           CALL NECI_SORTI(NEL,NK)
+!Find the ordered excited determinant
+                           ExcitMat(1,1)=I  !This is the position of the orbital to excite
+                           ExcitMat(2,1)=ITOSL
+                           CALL FindExcitDet(ExcitMat,NK,1)
+!                           NK(I)=ITOSL
+!                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=1
 !                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1801,15 +1806,20 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC1
+                                 ExcitMat(1,1)=J
+                                 ExcitMat(2,1)=ICC1
+!                                 NK(J)=ICC1
                               ENDIF
                               IF(NI(J).EQ.ORBPAIRS(2,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC3
+                                 ExcitMat(2,1)=J
+                                 ExcitMat(2,2)=ICC3
+!                                 NK(J)=ICC3
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL NECI_SORTI(NEL,NK)
+                           CALL FindExcitDet(ExcitMat,NK,2)
+!                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
 !                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1827,15 +1837,20 @@ C.. If neither virtuals are in NI, then allow
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC1
+                                 ExcitMat(1,1)=J
+                                 ExcitMat(2,1)=ICC1
+!                                 NK(J)=ICC1
                               ENDIF
                               IF(NI(J).EQ.ORBPAIRS(2,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC4
+                                 ExcitMat(1,2)=J
+                                 ExcitMat(2,2)=ICC4
+!                                 NK(J)=ICC4
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL NECI_SORTI(NEL,NK)
+                           CALL FindExcitDet(ExcitMat,NK,2)
+!                           CALL NECI_SORTI(NEL,NK)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
 !                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1853,15 +1868,20 @@ C.. us the same excitation as previously), then allow
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC2
+                                 ExcitMat(1,1)=J
+                                 ExcitMat(2,1)=ICC2
+!                                 NK(J)=ICC2
                               ENDIF
                               IF(NI(J).EQ.ORBPAIRS(2,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC3
+                                 ExcitMat(1,2)=J
+                                 ExcitMat(2,2)=ICC3
+!                                 NK(J)=ICC3
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL NECI_SORTI(NEL,NK)
+!                           CALL NECI_SORTI(NEL,NK)
+                           CALL FindExcitDet(ExcitMat,NK,2)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
 !                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -1879,15 +1899,20 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                            DO J=1,NEL
                               IF(NI(J).EQ.ORBPAIRS(1,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC2
+                                 ExcitMat(1,1)=J
+                                 ExcitMat(2,1)=ICC2
+!                                 NK(J)=ICC2
                               ENDIF
                               IF(NI(J).EQ.ORBPAIRS(2,
      &                           SYMPRODIND(1,ISPN,IFROM)+I)) THEN
-                                 NK(J)=ICC4
+                                 ExcitMat(1,2)=J
+                                 ExcitMat(2,2)=ICC4
+!                                 NK(J)=ICC4
                               ENDIF
                            ENDDO
 C                           CALL WRITEDET(6,NK,NEL,.TRUE.)
-                           CALL NECI_SORTI(NEL,NK)
+!                           CALL NECI_SORTI(NEL,NK)
+                           CALL FindExcitDet(ExcitMat,NK,2)
                            ICOUNT=ICOUNT+1
                            ICLIST(ICOUNT)=2
 !                           CALL NECI_ICOPY(NEL,NK,1,LSTE(1,ICOUNT),1)
@@ -2169,7 +2194,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER ORBPAIRS(2,*)
       INTEGER ILUT(0:*)
       INTEGER SYMPRODIND(2,3,0:*)
-      INTEGER IC
+      INTEGER IC,ExcitMat(2,2)
       LOGICAL tDebugPrint
       INTEGER iMinElec1, iMaxElec1
       tDebugPrint=.false.
@@ -2301,8 +2326,11 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
                NK(1:NEL)=NI(1:NEL)
                IF(tDebugPrint)
      &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
-               NK(I)=ITOSL
-               CALL NECI_SORTI(NEL,NK)
+               ExcitMat(1,1)=I
+               ExcitMat(2,1)=ITOSL
+               CALL FindExcitDet(ExcitMat,NK,1)
+!               NK(I)=ITOSL
+!               CALL NECI_SORTI(NEL,NK)
                IC=1
             ENDIF
 C.. quit the do loop
@@ -2369,17 +2397,22 @@ C.. Now check for an excitation
                            IF(tDebugPrint)
      &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
      &                                        "[",NK(J),"->",ICC(1),","
-                           NK(J)=ICC(1)
+                           ExcitMat(1,1)=J
+                           ExcitMat(2,1)=ICC(1)
+!                           NK(J)=ICC(1)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
      &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
-                           NK(J)=ICC(3)
+!                           NK(J)=ICC(3)
+                           ExcitMat(1,2)=J
+                           ExcitMat(2,2)=ICC(3)
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL NECI_SORTI(NEL,NK)
+!                     CALL NECI_SORTI(NEL,NK)
+                     CALL FindExcitDet(ExcitMat,NK,2)
                   ENDIF
                   IC=2
                   EXIT
@@ -2408,17 +2441,22 @@ C.. If neither virtuals are in NI, then allow
                            IF(tDebugPrint)
      &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
      &                                        "[",NK(J),"->",ICC(1),","
-                           NK(J)=ICC(1)
+                           ExcitMat(1,1)=J
+                           ExcitMat(2,1)=ICC(1)
+!                           NK(J)=ICC(1)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
      &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
-                           NK(J)=ICC(4)
+                           ExcitMat(1,2)=J
+                           ExcitMat(2,2)=ICC(4)
+!                           NK(J)=ICC(4)
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL NECI_SORTI(NEL,NK)
+                     CALL FindExcitDet(ExcitMat,NK,2)
+!                     CALL NECI_SORTI(NEL,NK)
                    ENDIF
                    IC=2
                    EXIT
@@ -2449,17 +2487,22 @@ C.. us the same excitation as previously), then allow
                            IF(tDebugPrint)
      &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
      &                                        "[",NK(J),"->",ICC(2),","
-                           NK(J)=ICC(2)
+                           ExcitMat(1,1)=J
+                           ExcitMat(2,1)=ICC(2)
+!                           NK(J)=ICC(2)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
      &                       WRITE(6,*) NK(J),"->",ICC(3),"]"
-                           NK(J)=ICC(3)
+!                           NK(J)=ICC(3)
+                           ExcitMat(1,2)=J
+                           ExcitMat(2,2)=ICC(3)
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL NECI_SORTI(NEL,NK)
+!                     CALL NECI_SORTI(NEL,NK)
+                     CALL FindExcitDet(ExcitMat,NK,2)
                    ENDIF
                    IC=2
                    EXIT
@@ -2489,17 +2532,22 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                            IF(tDebugPrint)
      &                       WRITE(6,"(A,I3,A,I3,A)",advance='no')
      &                                        "[",NK(J),"->",ICC(2),","
-                           NK(J)=ICC(2)
+                           ExcitMat(1,1)=J
+                           ExcitMat(2,1)=ICC(2)
+!                           NK(J)=ICC(2)
                         ENDIF
                         IF(NI(J).EQ.ORBPAIRS(2,
      &                     SYMPRODIND(1,ISPN,IFROM)+I)) THEN
                            IF(tDebugPrint)
      &                       WRITE(6,*) NK(J),"->",ICC(4),"]"
-                           NK(J)=ICC(4)
+!                           NK(J)=ICC(4)
+                           ExcitMat(1,2)=J
+                           ExcitMat(2,2)=ICC(4)
                         ENDIF
                      ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-                     CALL NECI_SORTI(NEL,NK)
+!                     CALL NECI_SORTI(NEL,NK)
+                     CALL FindExcitDet(ExcitMat,NK,2)
                    ENDIF
                    IC=2
                    EXIT
@@ -2680,7 +2728,7 @@ C.. a double
 C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
          LOGICAL LS(2,2)
 
-         INTEGER iC
+         INTEGER iC,ExcitMat(2,2)
          LOGICAL tDebugPrint
          INTEGER iMinElec1, iMaxElec1
 
@@ -2770,8 +2818,11 @@ C.. hoorah!  We've got an I in the det, and a K not in the det.  Create an excit
             NK(1:NEL)=NI(1:NEL)
             IF(tDebugPrint)
      &        WRITE(6,*) "[",NK(I),"->",ITOSL,"]"
-            NK(I)=ITOSL
-            CALL NECI_SORTI(NEL,NK)
+            ExcitMat(1,1)=I
+            ExcitMat(2,1)=ITOSL
+!            NK(I)=ITOSL
+!            CALL NECI_SORTI(NEL,NK)
+            CALL FindExcitDet(ExcitMat,NK,1)
             IC=1
          ENDIF
 C.. quit the do loop
@@ -3157,7 +3208,7 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
          use SystemData , only : TSTOREASEXCITATIONS
          IMPLICIT NONE
          INTEGER iFrom1,iFrom2
-         INTEGER iTo1,iTo2
+         INTEGER iTo1,iTo2,ExcitMat(2,2)
          INTEGER nEl,nI(nEl),nK(nEl)
          LOGICAL tDebugPrint
 
@@ -3179,16 +3230,21 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
                   IF(tDebugPrint)
      &               WRITE(6,"(A,I3,A,I3,A,$)") "[",iFrom1,"->",
      &                   iTo1,","
-                  NK(J)=iTo1
+                  ExcitMat(1,1)=J
+                  ExcitMat(2,1)=iTo1
+!                  NK(J)=iTo1
                ENDIF
                IF(NI(J).EQ.iFrom2) THEN
                   IF(tDebugPrint)
      &               WRITE(6,*) iFrom2,"->",iTo2,"]"
-                  NK(J)=iTo2
+                  ExcitMat(1,2)=J
+                  ExcitMat(2,2)=iTo2
+!                  NK(J)=iTo2
                ENDIF
             ENDDO
 C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
-            CALL NECI_SORTI(NEL,NK)
+!            CALL NECI_SORTI(NEL,NK)
+            CALL FindExcitDet(ExcitMat,NK,2)
          ENDIF
       End Subroutine SymGenExcitIt_MakeDouble
       
@@ -3313,7 +3369,7 @@ C.. Actually generate a det
       TYPE(SymClass) CLASSES(*)
       INTEGER IEXCIT
       INTEGER IFROM,ITO,ISPN
-      INTEGER IFROMSL,ITOSL
+      INTEGER IFROMSL,ITOSL,ExcitMat(2,2)
       TYPE(Symmetry) SPP
       LOGICAL L1,L2
       INTEGER ICC(4)
@@ -3406,8 +3462,11 @@ C.. Actually generate a det
 !.. We've found a virtual into which we can excite our occupied orb.
 !                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
                      NK(1:NEL)=NI(1:NEL)
-                     NK(I)=ITOSL
-                     CALL NECI_SORTI(NEL,NK)
+                     ExcitMat(1,1)=I
+                     ExcitMat(2,1)=ITOSL
+                     CALL FindExcitDet(ExcitMat,NK,1)
+!                     NK(I)=ITOSL
+!                     CALL NECI_SORTI(NEL,NK)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
             
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
@@ -3508,13 +3567,18 @@ C.. Actually generate a det
          NK(1:NEL)=NI(1:NEL)
          DO J=1,NEL
             IF(NI(J).EQ.ews(K)%I) THEN
-               NK(J)=ews(K)%A
+               ExcitMat(1,1)=J
+               ExcitMat(2,1)=ews(K)%A
+!               NK(J)=ews(K)%A
             ENDIF
             IF(NI(J).EQ.ews(K)%J) THEN
-               NK(J)=ews(K)%B
+               ExcitMat(1,2)=J
+               ExcitMat(2,2)=ews(K)%B
+!               NK(J)=ews(K)%B
             ENDIF
          ENDDO
-         CALL NECI_SORTI(NEL,NK)
+!         CALL NECI_SORTI(NEL,NK)
+         CALL FindExcitDet(ExcitMat,NK,2)
          IC=2
          CALL N_FREEM(IP_ExcitWeight)
          RETURN
@@ -3653,7 +3717,7 @@ C.. Actually generate a det
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
-         INTEGER I
+         INTEGER I,ExcitMat(2,2)
          INTEGER iSpn,iTo
          INTEGER iC
 
@@ -3686,8 +3750,11 @@ C.. Actually generate a det
 !.. We've found a virtual into which we can excite our occupied orb.
 !                     CALL NECI_ICOPY(NEL,NI,1,NK,1)
                      NK(1:NEL)=NI(1:NEL)
-                     NK(I)=ITOSL
-                     CALL NECI_SORTI(NEL,NK)
+                     ExcitMat(1,1)=I
+                     ExcitMat(2,1)=ITOSL
+!                     NK(I)=ITOSL
+!                     CALL NECI_SORTI(NEL,NK)
+                     CALL FindExcitDet(ExcitMat,NK,1)
                      IF(.NOT.ISVALIDDET(NK,NEL)) THEN
             
                        WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
@@ -3776,7 +3843,7 @@ C.. Actually generate a det
          INTEGER iSeed
          INTEGER nI(nEl)
          INTEGER ExcitTypes(5,*)
-         INTEGER iExcit
+         INTEGER iExcit,ExcitMat(2,2)
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,0:*)
          INTEGER iSpn,iFrom
@@ -3831,13 +3898,18 @@ C.. Actually generate a det
          NK(1:NEL)=NI(1:NEL)
          DO J=1,NEL
             IF(NI(J).EQ.ews(K)%I) THEN
-               NK(J)=ews(K)%A
+               ExcitMat(1,1)=J
+               ExcitMat(2,1)=ews(K)%A
+!               NK(J)=ews(K)%A
             ENDIF
             IF(NI(J).EQ.ews(K)%J) THEN
-               NK(J)=ews(K)%B
+               ExcitMat(1,2)=J
+               ExcitMat(2,2)=ews(K)%B
+!               NK(J)=ews(K)%B
             ENDIF
          ENDDO
-         CALL NECI_SORTI(NEL,NK)
+!         CALL NECI_SORTI(NEL,NK)
+         CALL FindExcitDet(ExcitMat,NK,2)
          CALL  N_FREEM(IP_ExcitWeight)
          RETURN
       End Subroutine SymGenRandExcitIt2_Double_GetTo

@@ -29,9 +29,13 @@ C.. product in the symmetry table, and OR that with the product.
          if (TAbelian) then
              call DecomposeAbelianSym(ISym1%s,Abel1)
              call DecomposeAbelianSym(ISym2%s,Abel2)
-             do i=1,3
-               Abel1(i)=modulo(Abel1(i)+Abel2(i),NProp(i))
-             end do
+!Slightly faster when calling a lot to do it in an array operation
+             Abel1(:)=modulo(Abel1(:)+Abel2(:),NProp(:))
+!             do i=1,3
+!               Abel1(1)=modulo(Abel1(1)+Abel2(1),NProp(i))
+!               Abel1(2)=modulo(Abel1(2)+Abel2(2),NProp(i))
+!               Abel1(3)=modulo(Abel1(3)+Abel2(3),NProp(i))
+!             end do
              SymProd%s=ComposeAbelianSym(Abel1)
          else
              IF(ISYM1%s.EQ.0.OR.ISYM2%s.EQ.0) THEN
