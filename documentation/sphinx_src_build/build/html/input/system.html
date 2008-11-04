@@ -161,6 +161,19 @@ apart from CPMD- or VASP-based  calculations.</dd>
 If off, we are effectively reduced to a using Hartree multi-electron
 wavefunctions rather than Slater determinants.</p>
 </dd>
+<dt><strong>FAST-EXCITGEN</strong>  [ <strong>OFF</strong> ]</dt>
+<dd><p class="first">Default on.  Temporary flag [ AJWT 2008/09/22 ]
+Used to indicate that if an Abelian symmetry group is present
+the excitation generators should use optimized routines
+to take this into account.  Not all (i.e. no) excitation generator functions
+currently work with this.  USE WITH CARE
+This will disable itself if it detects non-abelian symmetry.</p>
+<div class="last admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">The excitation generators for Abelian symmetries are currently incompatible
+with density-fitting.  Density fitting calculations should use <strong>FAST-EXCITGEN OFF</strong>.</p>
+</div>
+</dd>
 <dt><strong>NEL</strong> [NEL]</dt>
 <dd>Synonym for <strong>ELECTRONS</strong>.</dd>
 <dt><strong>NOSYMMETRY</strong></dt>
@@ -386,7 +399,7 @@ it will be set to be equivalent to a sphere of the same volume as the cell,
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 30, 2008.
+      Last updated on Nov 04, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

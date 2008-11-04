@@ -43,6 +43,7 @@ General options
 
    Excitiation level at which to truncate determinant list.  If ICILEVEL=0
    then all determinants are enumerated.
+   This also works for FCIMC calculations.
 
 **EXCITATIONS** [**OLD** **NEW**]
    For generation of up to double excitations use the old (completely
@@ -617,10 +618,19 @@ The following options are only available in **FCIMC** calculations:
     to the INITPARTICLES value.
 
 **MEMORYFAC** [MemoryFac]
-    Default 50.
+    Default 30.D0
 
     MemoryFac is the factor by which space will be made available for extra
     walkers compared to InitWalkers.
+
+**MEMORYFACEXCIT** [MemoryFacExcit]
+    Default 30.D0
+
+    MemoryFac is a parallel FCIMC option - it is the factor by which space will be 
+    made available for excitation generators compared to InitWalkers. This can be 
+    smaller than memoryfac, because the excitation generator array is not used in 
+    the parallel annihilation, which may not be exactly load-balanced because of 
+    differences in the wavevector.
 
 **ANNIHILATEONPROCS**
     Default false
@@ -631,14 +641,36 @@ The following options are only available in **FCIMC** calculations:
     Less memory is required, since no hashes need to be stored. Also, no communication is
     needed, so the routine should scale better as the number of walkers grows.
 
-**FIXHFDOUBSSHIFT** [DoubsShift]
-    Default 0.D0
+**FIXSHELLSHIFT** [ShellFix] [FixShift]
+    Default 0,0.D0
 
     An FCIMC option. With this, the shift is fixed at a value given here, 
-    but only for the HF and doubles. This will almost definitly give the wrong 
-    answers for both the energy and the shift, but may be of use in equilibration 
-    steps to maintain particle density at low excitations, before writing out the 
-    data and letting the shift change.
+    but only for the excitation levels at a value of ShellFix or lower. This will 
+    almost definitly give the wrong answers for both the energy and the shift, 
+    but may be of use in equilibration steps to maintain particle density at 
+    low excitations, before writing out the data and letting the shift change.
+
+**ANNIHILATDISTANCE** [Lambda]
+    Default=0.D0
+
+    A serial FCIMC option. Here, walkers i and j have the chance to annihilate each other
+    as long as they are on connected determinants. They will annihilate with probability
+    given by -Lambda*Hij*(Si*Sj). This is hoped to increase annihilation and allow fewer
+    particles to be needed to sample the space correctly. When Lambda=0.D0, it should be 
+    equivalent to the original annihilation algorithm. Warning - this is much slower than
+    normal annihilation.
+
+**LOCALANNIHIL** [Lambda]
+    
+    A parallel FCIMC option. An additional diagonal death rate is included at the annihilation
+    stage for particles which are only singly occupied. The probability of death is given by
+    Tau*EXP(-Lambda*ExcitDensity) where ExcitDensity is the approximate density of particles in
+    the excitation level of the particle. This should raise death through this local annihilation,
+    and hence keep the shift at a more resonable value in the undersampled regime. This will
+    hopefully mean that a more accurate energy value can be obtained by removing the random
+    killing of particles which arises from such a low shift value.
+
+    This is now commented out in the code
 
 **UNBIASPGENINPROJE**
     Default false

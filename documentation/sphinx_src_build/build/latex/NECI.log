@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592-1.40.3 (Web2C 7.5.6) (format=pdflatex 2008.8.5)  30 SEP 2008 13:07
+This is pdfTeX, Version 3.141592-1.40.3 (Web2C 7.5.6) (format=pdflatex 2008.10.8)  4 NOV 2008 17:29
 entering extended mode
 **NECI.tex
 (./NECI.tex
@@ -763,117 +763,122 @@ Underfull \hbox (badness 10000) in paragraph at lines 794--795
 
  []
 
-[12] [13] [14] [15]
-Overfull \hbox (78.02779pt too wide) in paragraph at lines 1220--1223
+[12] [13]
+Underfull \hbox (badness 10000) in paragraph at lines 977--978
+
+ []
+
+[14] [15] [16]
+Overfull \hbox (78.02779pt too wide) in paragraph at lines 1233--1236
 []
  []
 
-[16] [17] [18] [19]
-Underfull \hbox (badness 10000) in paragraph at lines 1612--1613
+[17] [18] [19] [20]
+Underfull \hbox (badness 10000) in paragraph at lines 1626--1627
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1632--1633
+Underfull \hbox (badness 10000) in paragraph at lines 1646--1647
 
  []
 
-[20]
-Underfull \hbox (badness 10000) in paragraph at lines 1706--1707
+
+Underfull \hbox (badness 10000) in paragraph at lines 1720--1721
 
  []
 
 [21]
-Underfull \hbox (badness 10000) in paragraph at lines 1715--1718
+Underfull \hbox (badness 10000) in paragraph at lines 1729--1732
 []\T1/ptm/m/n/10 Construct a sin-gle
  []
 
-[22] [23] [24] [25]
-Underfull \hbox (badness 10000) in paragraph at lines 2219--2220
+[22] [23] [24] [25] [26] [27]
+Underfull \hbox (badness 10000) in paragraph at lines 2268--2269
 
  []
 
-[26] [27] [28]
-Overfull \hbox (109.69804pt too wide) in paragraph at lines 2535--2536
-[]
- []
-
-[29]
-Overfull \hbox (153.38806pt too wide) in paragraph at lines 2555--2557
+[28] [29] [30]
+Overfull \hbox (109.69804pt too wide) in paragraph at lines 2584--2585
 []
  []
 
 
-Overfull \hbox (304.23747pt too wide) in paragraph at lines 2572--2580
+Overfull \hbox (153.38806pt too wide) in paragraph at lines 2604--2606
 []
  []
 
 
-Overfull \hbox (60.20851pt too wide) in paragraph at lines 2586--2589
+Overfull \hbox (304.23747pt too wide) in paragraph at lines 2621--2629
 []
  []
 
 
-Overfull \hbox (158.41797pt too wide) in paragraph at lines 2592--2599
+Overfull \hbox (60.20851pt too wide) in paragraph at lines 2635--2638
+[]
+ []
+
+[31]
+Overfull \hbox (158.41797pt too wide) in paragraph at lines 2641--2648
 []
  []
 
 
-Overfull \hbox (14.88817pt too wide) in paragraph at lines 2612--2619
+Overfull \hbox (14.88817pt too wide) in paragraph at lines 2661--2668
 []
  []
 
-[30] [31] [32] [33] [34]
-Underfull \hbox (badness 10000) in paragraph at lines 3037--3038
+[32] [33] [34] [35]
+Underfull \hbox (badness 10000) in paragraph at lines 3086--3087
 []\T1/ptm/m/n/10 [A(
  []
 
 
-Overfull \hbox (52.70607pt too wide) in paragraph at lines 3054--3055
+Overfull \hbox (52.70607pt too wide) in paragraph at lines 3103--3104
 []\T1/ptm/m/n/10 ($\OML/cmm/m/it/10 ^^Z[]; ^^Z[]; []  ; ^^Z[]; \OMS/cmsy/m/n/10
  j\OML/cmm/m/it/10 ^^Z[]; ^^Z[]; []  ; ^^Z[]; \OMS/cmsy/m/n/10 j [] j\OML/cmm/m
 /it/10 ^^Z[]; ^^Z[]; []  ; ^^Z[]; \OMS/cmsy/m/n/10 j$\T1/ptm/m/n/10 ), 
  []
 
-
-Overfull \hbox (23.86696pt too wide) in paragraph at lines 3116--3123
+[36]
+Overfull \hbox (23.86696pt too wide) in paragraph at lines 3165--3172
 []
  []
 
-[35] [36] [37]
+[37] [38]
 Chapter 6.
-[38
+[39
 
-] [39] [40] [41] [42]
+] [40] [41] [42] [43]
 Chapter 7.
-[43
+[44
 
-] [44]
-Underfull \hbox (badness 10000) in paragraph at lines 3696--3698
+] [45]
+Underfull \hbox (badness 10000) in paragraph at lines 3755--3757
 []\T1/ptm/m/n/10 DALTON, a molec-u-lar elec-tronic struc-ture pro-gram, Re-leas
 e 2.0 (2005), see
  []
 
-(./NECI.ind) [45
+(./NECI.ind) [46
 
 pdfTeX warning (ext4): destination with the same identifier (name{cite.StarPape
 r}) has been already used, duplicate ignored
 <to be read again> 
                    \endgroup \set@typeset@protect 
-l.3728 \end{document}
+l.3787 \end{document}
                      ] (./NECI.aux)
 
 LaTeX Warning: There were multiply-defined labels.
 
  ) 
 Here is how much of TeX's memory you used:
- 5947 strings out of 94086
- 75626 string characters out of 1167507
- 143263 words of memory out of 3500000
+ 5948 strings out of 94086
+ 75633 string characters out of 1167506
+ 143262 words of memory out of 3500000
  8934 multiletter control sequences out of 10000+50000
  57453 words of font info for 57 fonts, out of 1200000 for 2000
  646 hyphenation exceptions out of 8191
- 41i,17n,45p,905b,497s stack positions out of 5000i,500n,6000p,200000b,5000s
+ 41i,17n,45p,905b,465s stack positions out of 5000i,500n,6000p,200000b,5000s
 {/usr/share/texmf/fonts/enc/dvips/base/8r.enc}</usr/share/texmf/fonts/type1/b
 luesky/cm/cmbx10.pfb></usr/share/texmf/fonts/type1/bluesky/cm/cmbx5.pfb></usr/s
 hare/texmf/fonts/type1/bluesky/cm/cmbx7.pfb></usr/share/texmf/fonts/type1/blues
@@ -888,9 +893,9 @@ type1/urw/helvetic/uhvb8a.pfb></usr/share/texmf/fonts/type1/urw/helvetic/uhvbo8
 a.pfb></usr/share/texmf/fonts/type1/urw/times/utmb8a.pfb></usr/share/texmf/font
 s/type1/urw/times/utmr8a.pfb></usr/share/texmf/fonts/type1/urw/times/utmri8a.pf
 b>
-Output written on NECI.pdf (47 pages, 324001 bytes).
+Output written on NECI.pdf (48 pages, 327606 bytes).
 PDF statistics:
- 607 PDF objects out of 1000 (max. 8388607)
- 185 named destinations out of 1000 (max. 131072)
+ 611 PDF objects out of 1000 (max. 8388607)
+ 186 named destinations out of 1000 (max. 131072)
  273 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -125,6 +125,16 @@ General options
 FCIMC options
 -------------
 
+**AUTOCORR** [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]
+    This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
+    determinants every iteration. This is so that a seperate standalone ACF program can be used on it.
+    Currently the histogramming is evaluated for the HF determinants by default, but can also 
+    histogram determinants from other excitation levels. Firstly, it will calculate the 'NoACDets(2)' 
+    largest-weighted MP1 components (double excitations). It will then take the largest weighted double
+    and do a new MP1 calculation with it as the root. It will then histogram the 'NoACDets(3)' largest 
+    weighted triple excitations, and the 'NoACDets(4)' largest quadruple excitations from this calculation
+    to also histogram.
+
 **POPSFILE** [iWritePopsEvery]
     Default: on.  Default iWritePopsEvery (optional argument) 100000.
     Print out the determinants every iWritePopsEvery Monte-Carlo cycles.

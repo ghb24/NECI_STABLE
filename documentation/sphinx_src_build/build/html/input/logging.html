@@ -169,6 +169,15 @@ Print out timing information for the nPrintTimer routines which took the longest
 <div class="section" id="fcimc-options">
 <h2 id="fcimc-options">FCIMC options<a class="headerlink" href="#fcimc-options" title="Permalink to this headline">¶</a></h2>
 <dl class="docutils">
+<dt><strong>AUTOCORR</strong> [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]</dt>
+<dd>This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
+determinants every iteration. This is so that a seperate standalone ACF program can be used on it.
+Currently the histogramming is evaluated for the HF determinants by default, but can also
+histogram determinants from other excitation levels. Firstly, it will calculate the &#8216;NoACDets(2)&#8217;
+largest-weighted MP1 components (double excitations). It will then take the largest weighted double
+and do a new MP1 calculation with it as the root. It will then histogram the &#8216;NoACDets(3)&#8217; largest
+weighted triple excitations, and the &#8216;NoACDets(4)&#8217; largest quadruple excitations from this calculation
+to also histogram.</dd>
 <dt><strong>POPSFILE</strong> [iWritePopsEvery]</dt>
 <dd><p class="first">Default: on.  Default iWritePopsEvery (optional argument) 100000.
 Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
@@ -321,7 +330,7 @@ steps. This is slows the calculation down substantially.</p>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 30, 2008.
+      Last updated on Nov 04, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

@@ -83,7 +83,8 @@ are started at this determinant.</dd>
 <dt><strong>EXCITE</strong> [ICILEVEL]</dt>
 <dd><p class="first">Default 0.</p>
 <p class="last">Excitiation level at which to truncate determinant list.  If ICILEVEL=0
-then all determinants are enumerated.</p>
+then all determinants are enumerated.
+This also works for FCIMC calculations.</p>
 </dd>
 <dt><strong>EXCITATIONS</strong> [<strong>OLD</strong> <strong>NEW</strong>]</dt>
 <dd><p class="first">For generation of up to double excitations use the old (completely
@@ -626,9 +627,17 @@ space were all of the same sign. This is not the case here.</p>
 and fix the shift at its initial value, until the number of particles gets
 to the INITPARTICLES value.</dd>
 <dt><strong>MEMORYFAC</strong> [MemoryFac]</dt>
-<dd><p class="first">Default 50.</p>
+<dd><p class="first">Default 30.D0</p>
 <p class="last">MemoryFac is the factor by which space will be made available for extra
 walkers compared to InitWalkers.</p>
+</dd>
+<dt><strong>MEMORYFACEXCIT</strong> [MemoryFacExcit]</dt>
+<dd><p class="first">Default 30.D0</p>
+<p class="last">MemoryFac is a parallel FCIMC option - it is the factor by which space will be
+made available for excitation generators compared to InitWalkers. This can be
+smaller than memoryfac, because the excitation generator array is not used in
+the parallel annihilation, which may not be exactly load-balanced because of
+differences in the wavevector.</p>
 </dd>
 <dt><strong>ANNIHILATEONPROCS</strong></dt>
 <dd><p class="first">Default false</p>
@@ -638,14 +647,36 @@ separate simulations. If there are enough particles, then this should be suffici
 Less memory is required, since no hashes need to be stored. Also, no communication is
 needed, so the routine should scale better as the number of walkers grows.</p>
 </dd>
-<dt><strong>FIXHFDOUBSSHIFT</strong> [DoubsShift]</dt>
-<dd><p class="first">Default 0.D0</p>
+<dt><strong>FIXSHELLSHIFT</strong> [ShellFix] [FixShift]</dt>
+<dd><p class="first">Default 0,0.D0</p>
 <p class="last">An FCIMC option. With this, the shift is fixed at a value given here,
-but only for the HF and doubles. This will almost definitly give the wrong
-answers for both the energy and the shift, but may be of use in equilibration
-steps to maintain particle density at low excitations, before writing out the
-data and letting the shift change.</p>
+but only for the excitation levels at a value of ShellFix or lower. This will
+almost definitly give the wrong answers for both the energy and the shift,
+but may be of use in equilibration steps to maintain particle density at
+low excitations, before writing out the data and letting the shift change.</p>
 </dd>
+<dt><strong>ANNIHILATDISTANCE</strong> [Lambda]</dt>
+<dd><p class="first">Default=0.D0</p>
+<p class="last">A serial FCIMC option. Here, walkers i and j have the chance to annihilate each other
+as long as they are on connected determinants. They will annihilate with probability
+given by -Lambda*Hij*(Si*Sj). This is hoped to increase annihilation and allow fewer
+particles to be needed to sample the space correctly. When Lambda=0.D0, it should be
+equivalent to the original annihilation algorithm. Warning - this is much slower than
+normal annihilation.</p>
+</dd>
+</dl>
+<p><strong>LOCALANNIHIL</strong> [Lambda]</p>
+<blockquote>
+<p>A parallel FCIMC option. An additional diagonal death rate is included at the annihilation
+stage for particles which are only singly occupied. The probability of death is given by
+Tau*EXP(-Lambda*ExcitDensity) where ExcitDensity is the approximate density of particles in
+the excitation level of the particle. This should raise death through this local annihilation,
+and hence keep the shift at a more resonable value in the undersampled regime. This will
+hopefully mean that a more accurate energy value can be obtained by removing the random
+killing of particles which arises from such a low shift value.</p>
+<p>This is now commented out in the code</p>
+</blockquote>
+<dl class="docutils">
 <dt><strong>UNBIASPGENINPROJE</strong></dt>
 <dd><p class="first">Default false</p>
 <p class="last">An FCIMC serial option. Here, the acceptance probabilities are not unbiased for
@@ -763,7 +794,7 @@ calculation thus benefits from having a <strong>UMatCache</strong> of non-zero s
 <p class="first admonition-title">Note</p>
 <p>INPUT_DOC has this to say:</p>
 <div class="system-message">
-<p class="system-message-title">System Message: WARNING/2 (<tt class="docutils">/home/jss43/projects/NECI/documentation/sphinx_src_build/source/input/calc.rst</tt>, line 770)</p>
+<p class="system-message-title">System Message: WARNING/2 (<tt class="docutils">/home/jss43/projects/CLEAN/NECI/documentation/sphinx_src_build/source/input/calc.rst</tt>, line 802)</p>
 Literal block expected; none found.</div>
 <p class="last">I am sure this is out of date...</p>
 </div>
@@ -1213,7 +1244,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Sep 30, 2008.
+      Last updated on Nov 04, 2008.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

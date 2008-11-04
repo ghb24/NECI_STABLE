@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{September 30, 2008}
+\date{November 04, 2008}
 \release{0.1}
 \author{James Spencer, with contributions from the Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -963,6 +963,19 @@ Specify whether to include Exchange in the Slater-Condon rules.
 If off, we are effectively reduced to a using Hartree multi-electron
 wavefunctions rather than Slater determinants.
 
+\item[\textbf{FAST-EXCITGEN}  {[} \textbf{OFF} {]}]
+Default on.  Temporary flag {[} AJWT 2008/09/22 {]}
+Used to indicate that if an Abelian symmetry group is present
+the excitation generators should use optimized routines
+to take this into account.  Not all (i.e. no) excitation generator functions
+currently work with this.  USE WITH CARE
+This will disable itself if it detects non-abelian symmetry.
+
+\begin{notice}[warning]
+The excitation generators for Abelian symmetries are currently incompatible
+with density-fitting.  Density fitting calculations should use \textbf{FAST-EXCITGEN OFF}.
+\end{notice}
+
 \item[\textbf{NEL} {[}NEL{]}]
 Synonym for \textbf{ELECTRONS}.
 
@@ -1423,6 +1436,7 @@ Default 0.
 
 Excitiation level at which to truncate determinant list.  If ICILEVEL=0
 then all determinants are enumerated.
+This also works for FCIMC calculations.
 
 \item[\textbf{EXCITATIONS} {[}\textbf{OLD} \textbf{NEW}{]}]
 For generation of up to double excitations use the old (completely
@@ -2065,10 +2079,19 @@ and fix the shift at its initial value, until the number of particles gets
 to the INITPARTICLES value.
 
 \item[\textbf{MEMORYFAC} {[}MemoryFac{]}]
-Default 50.
+Default 30.D0
 
 MemoryFac is the factor by which space will be made available for extra
 walkers compared to InitWalkers.
+
+\item[\textbf{MEMORYFACEXCIT} {[}MemoryFacExcit{]}]
+Default 30.D0
+
+MemoryFac is a parallel FCIMC option - it is the factor by which space will be
+made available for excitation generators compared to InitWalkers. This can be
+smaller than memoryfac, because the excitation generator array is not used in
+the parallel annihilation, which may not be exactly load-balanced because of
+differences in the wavevector.
 
 \item[\textbf{ANNIHILATEONPROCS}]
 Default false
@@ -2079,15 +2102,41 @@ separate simulations. If there are enough particles, then this should be suffici
 Less memory is required, since no hashes need to be stored. Also, no communication is
 needed, so the routine should scale better as the number of walkers grows.
 
-\item[\textbf{FIXHFDOUBSSHIFT} {[}DoubsShift{]}]
-Default 0.D0
+\item[\textbf{FIXSHELLSHIFT} {[}ShellFix{]} {[}FixShift{]}]
+Default 0,0.D0
 
 An FCIMC option. With this, the shift is fixed at a value given here,
-but only for the HF and doubles. This will almost definitly give the wrong
-answers for both the energy and the shift, but may be of use in equilibration
-steps to maintain particle density at low excitations, before writing out the
-data and letting the shift change.
+but only for the excitation levels at a value of ShellFix or lower. This will
+almost definitly give the wrong answers for both the energy and the shift,
+but may be of use in equilibration steps to maintain particle density at
+low excitations, before writing out the data and letting the shift change.
 
+\item[\textbf{ANNIHILATDISTANCE} {[}Lambda{]}]
+Default=0.D0
+
+A serial FCIMC option. Here, walkers i and j have the chance to annihilate each other
+as long as they are on connected determinants. They will annihilate with probability
+given by -Lambda*Hij*(Si*Sj). This is hoped to increase annihilation and allow fewer
+particles to be needed to sample the space correctly. When Lambda=0.D0, it should be
+equivalent to the original annihilation algorithm. Warning - this is much slower than
+normal annihilation.
+
+\end{description}
+
+\textbf{LOCALANNIHIL} {[}Lambda{]}
+\begin{quote}
+
+A parallel FCIMC option. An additional diagonal death rate is included at the annihilation
+stage for particles which are only singly occupied. The probability of death is given by
+Tau*EXP(-Lambda*ExcitDensity) where ExcitDensity is the approximate density of particles in
+the excitation level of the particle. This should raise death through this local annihilation,
+and hence keep the shift at a more resonable value in the undersampled regime. This will
+hopefully mean that a more accurate energy value can be obtained by removing the random
+killing of particles which arises from such a low shift value.
+
+This is now commented out in the code
+\end{quote}
+\begin{description}
 \item[\textbf{UNBIASPGENINPROJE}]
 Default false
 
@@ -3135,6 +3184,16 @@ Synonym for \textbf{FMCPR XIJ}.
 
 \subsection{FCIMC options}
 \begin{description}
+\item[\textbf{AUTOCORR} {[}NoACDets(2){]} {[}NoACDets(3){]} {[}NoACDets(4){]}]
+This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
+determinants every iteration. This is so that a seperate standalone ACF program can be used on it.
+Currently the histogramming is evaluated for the HF determinants by default, but can also
+histogram determinants from other excitation levels. Firstly, it will calculate the `NoACDets(2)'
+largest-weighted MP1 components (double excitations). It will then take the largest weighted double
+and do a new MP1 calculation with it as the root. It will then histogram the `NoACDets(3)' largest
+weighted triple excitations, and the `NoACDets(4)' largest quadruple excitations from this calculation
+to also histogram.
+
 \item[\textbf{POPSFILE} {[}iWritePopsEvery{]}]
 Default: on.  Default iWritePopsEvery (optional argument) 100000.
 Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
