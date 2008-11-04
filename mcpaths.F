@@ -1432,6 +1432,7 @@ C     &            NBASIS,NBASISMAX,.TRUE.,
 C     &            ISYM,.FALSE.,CURGEN,NJ,IC,IFRZ2)
 C               CALL WRITEDET(6,IPATH(1,IEXFROM),NEL,.FALSE.)
 C               CALL WRITEDET(6,NJ,NEL,.FALSE.)
+!                WRITE(17,*) LT,NJ(:)
 C               WRITE(6,"(3I)") I_VIND,LOC(CURGEN),CURGEN(6)
 C.. Check to see it's actually been generated
                IF(NJ(1).EQ.0) THEN

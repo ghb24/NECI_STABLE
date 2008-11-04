@@ -17,13 +17,14 @@
          INTEGER :: ExcitMat(2,2),i,j,k
          INTEGER :: nI(NEl),IC
          
-         IF((IC.gt.2).or.(IC.lt.0)) THEN
-             CALL Stop_All("FindExcitDet","Trying to find an excitation"&
-     &          //" which is more than a double away.")
-         ELSEIF(IC.eq.0) THEN
+!         WRITE(19,*) ExcitMat(:,:),nI
+!         IF((IC.gt.2).or.(IC.lt.0)) THEN
+!             CALL Stop_All("FindExcitDet","Trying to find an excitation"&
+!     &          //" which is more than a double away.")
+!         ELSEIF(IC.eq.0) THEN
 !Excitation is the same determinant - return
-             RETURN
-         ENDIF
+!             RETURN
+!         ENDIF
 
          do k=1,IC
 !This needs to be done twice for double excitations of nI
@@ -38,49 +39,67 @@
              IF(ExcitMat(2,k).gt.nI(ExcitMat(1,k))) THEN
 !Excited orbital is a higher-indexed orbital than the original
 
-                 j=i+1  !Start looking for insertion point at the index one above the now empty index
-                 do while(nI(j).lt.ExcitMat(2,k))
-                     nI(j-1)=nI(j)      !Substitute the orbital into the one below it to maintain ordering
-                     IF(j.eq.NEl) THEN
+                 IF(i.eq.NEl) THEN
+!We want to replace the final orbital with one larger than it - there is no more rearranging to do.
+                     nI(i)=ExcitMat(2,k)
+                 ELSE
+                     j=i+1  !Start looking for insertion point at the index one above the now empty index
+                     do while(nI(j).lt.ExcitMat(2,k))
+                         nI(j-1)=nI(j)      !Substitute the orbital into the one below it to maintain ordering
+                         IF(j.eq.NEl) THEN
 !We have reached the end of the determinant list. The new orbital must go here.
+                             j=j+1
+                             EXIT
+                         ENDIF
                          j=j+1
-                         EXIT
-                     ENDIF
-                     j=j+1
-                 enddo
-                 nI(j-1)=ExcitMat(2,k)  !Finally found the correct place to insert the new orbital
-             
+                     enddo
+                     nI(j-1)=ExcitMat(2,k)  !Finally found the correct place to insert the new orbital
+
 !Since we have shifted all the orbitals in a certain range in the first insertion, we need to compensate for
 !this by changing the insertion point of the next orbital
-                 IF((ExcitMat(1,2).gt.ExcitMat(1,1)).and.               &
-     &                (ExcitMat(1,2).lt.j)) THEN
-                     ExcitMat(1,2)=ExcitMat(1,2)-1
-                 ENDIF
+                     IF((ExcitMat(1,2).gt.ExcitMat(1,1)).and.           &
+     &                    (ExcitMat(1,2).lt.j)) THEN
+                         ExcitMat(1,2)=ExcitMat(1,2)-1
+                     ENDIF
 
+                 ENDIF
+             
+
+!             ELSEIF(ExcitMat(2,k).eq.nI(ExcitMat(1,k))) THEN
+!We are replacing an orbital with the same orbital. We want to do nothing to the determinant
+!                 CYCLE
              ELSE
 !orbital to occupy is a lower-indexed orbital than the original
-                 j=i-1  !Start looking at the index one below the now empty orbital
-                 do while(nI(j).gt.ExcitMat(2,k))
-                     nI(j+1)=nI(j)
-                     IF(j.eq.1) THEN
+                 IF(i.eq.1) THEN
+!We want to replace the final orbital with one smaller than it - there is no more rearranging to do.
+                     nI(1)=ExcitMat(2,k)
+                 ELSE
+                     j=i-1  !Start looking at the index one below the now empty orbital
+                     do while(nI(j).gt.ExcitMat(2,k))
+                         nI(j+1)=nI(j)
+                         IF(j.eq.1) THEN
 !We have reached the beginning of the determinant list. The new orbital must go here.
+                             j=j-1
+                             EXIT
+                         ENDIF
                          j=j-1
-                         EXIT
-                     ENDIF
-                     j=j-1
-                 enddo
-                 nI(j+1)=ExcitMat(2,k)  !Found the correct place for the newly-occupied orbital to keep order
+                     enddo
+                     nI(j+1)=ExcitMat(2,k)  !Found the correct place for the newly-occupied orbital to keep order
 
 !Since we have shifted all the orbitals in a certain range in the first insertion, we need to compensate for
 !this by changing the insertion point of the next orbital
-                 IF((ExcitMat(1,2).lt.ExcitMat(1,1)).and.               &
-     &                (ExcitMat(1,2).gt.j)) THEN
-                     ExcitMat(1,2)=ExcitMat(1,2)+1
+                     IF((ExcitMat(1,2).lt.ExcitMat(1,1)).and.           &
+     &                   (ExcitMat(1,2).gt.j)) THEN
+                         ExcitMat(1,2)=ExcitMat(1,2)+1
+                     ENDIF
+
                  ENDIF
 
              ENDIF
 
          enddo  !End loop over number of excitations
+
+!         WRITE(19,*) nI(:)
 
          RETURN
      
