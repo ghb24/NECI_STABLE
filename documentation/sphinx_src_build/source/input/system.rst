@@ -107,10 +107,14 @@ General options
 **FAST-EXCITGEN**  [ **OFF** ]
     Default on.  Temporary flag [ AJWT 2008/09/22 ]
     Used to indicate that if an Abelian symmetry group is present
-     the excitation generators should use optimized routines
-     to take this into account.  Not all (i.e. no) excitation generator functions
-     currently work with this.  USE WITH CARE
-   This will disable itself if it detects non-abelian symmetry
+    the excitation generators should use optimized routines
+    to take this into account.  Not all (i.e. no) excitation generator functions
+    currently work with this.  USE WITH CARE
+    This will disable itself if it detects non-abelian symmetry.
+    
+    .. warning::
+       The excitation generators for Abelian symmetries are currently incompatible 
+       with density-fitting.  Density fitting calculations should use **FAST-EXCITGEN OFF**.
 
 **NEL** [NEL]
     Synonym for **ELECTRONS**.
