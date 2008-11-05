@@ -201,11 +201,12 @@ MODULE FciMCMod
 !Reset the number at HF & doubs per iteration
         NoatHF=0
         NoatDoubs=0
-        IF(iter.eq.3399) THEN
-            WRITE(6,*) ""
-        ENDIF
 
         do j=1,TotWalkers
+!            IF(iter.eq.227.and.(j.eq.29)) THEN
+!                WRITE(6,*) j
+!                CALL FLUSH(6)
+!            ENDIF
 !j runs through all current walkers
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
