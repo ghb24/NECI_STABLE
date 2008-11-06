@@ -3525,7 +3525,7 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,HFDetTag)
         DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
-            do i=1,MaxWalkers
+            do i=1,MaxWalkersExcit
                 IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
                     DEALLOCATE(WalkVecExcits(i)%ExcitData)
                 ENDIF
