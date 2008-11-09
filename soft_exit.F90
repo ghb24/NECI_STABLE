@@ -39,22 +39,28 @@ contains
        implicit none
        logical :: exists
        logical :: AnyExist
-       integer :: error
+       integer :: error,ierr,i
+       character(*), parameter :: msg='just some dummy text to send'
 
        inquire(file='SOFTEXIT',exist=exists)
        !This collective will check the exists logical on all nodes, and perform a logical or operation,
        !before broadcasting the result back to all nodes.
        CALL MPI_AllReduce(exists,AnyExist,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
        test_SOFTEXIT=AnyExist
-!       if(exists) THEN
-           !At the moment, SOFTEXIT isn't removed after it is detected.
-           !This is because it is likely to be detected on multiple processors and they can't all try to close the file
-           !at the same time. Anyone have a good solution to this problem? Anyone?!
-!           open(13,file='SOFTEXIT')
-!           close(13,status='delete')
-!       endif
        if(test_SOFTEXIT) then
            write (6,'(X,a)') 'Request for SOFTEXIT detected on a node.'
+           do i=0,nProcessors-1
+               if (i==iProcIndex.and.exists) then
+                   open(13,file='SOFTEXIT')
+                   close(13,status='delete')
+                   exit
+               end if
+               ! Broadcast a message to all other processors from the i-th
+               ! processor.  This causes each processor to attempt to delete
+               ! SOFTEXIT in turn, and hence avoid race conditions between
+               ! processors sharing the same disk.
+               call MPI_BCast(msg,len(msg),MPI_CHARACTER,i,MPI_COMM_WORLD,ierr)
+           end do
        endif
 
     end function test_SOFTEXIT
