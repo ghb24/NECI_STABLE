@@ -45,6 +45,8 @@ MODULE Determinants
       ENDDO     
       WRITE(6,*) "Fock operator energy:",E0HFDET
     End Subroutine DetPreFreezeInit
+
+    
     Subroutine DetInit()
         Use global_utilities
         Use HElem

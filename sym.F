@@ -19,6 +19,7 @@ C.. product in the symmetry table, and OR that with the product.
          FUNCTION SYMPROD(ISYM1,ISYM2)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: TReadInt
          use SymData, only: SymTable,nProp,tAbelian
          IMPLICIT NONE
          TYPE(Symmetry) ISYM1, ISYM2
@@ -27,16 +28,26 @@ C.. product in the symmetry table, and OR that with the product.
          INTEGER I,J,Abel1(3),Abel2(3)
          integer*8  ComposeAbelianSym
          if (TAbelian) then
-             call DecomposeAbelianSym(ISym1%s,Abel1)
-             call DecomposeAbelianSym(ISym2%s,Abel2)
+
+             IF(TReadInt) THEN
+!For molecular systems, we can only have a maximum of 8 irreps, and so can do a simple
+!xor to get the symmetry.
+
+                 SymProd%s=IEOR(ISym1%s,ISym2%s)
+
+             ELSE
+             
+                 call DecomposeAbelianSym(ISym1%s,Abel1)
+                 call DecomposeAbelianSym(ISym2%s,Abel2)
 !Slightly faster when calling a lot to do it in an array operation
-             Abel1(:)=modulo(Abel1(:)+Abel2(:),NProp(:))
-!             do i=1,3
-!               Abel1(1)=modulo(Abel1(1)+Abel2(1),NProp(i))
-!               Abel1(2)=modulo(Abel1(2)+Abel2(2),NProp(i))
-!               Abel1(3)=modulo(Abel1(3)+Abel2(3),NProp(i))
-!             end do
-             SymProd%s=ComposeAbelianSym(Abel1)
+                 Abel1(:)=modulo(Abel1(:)+Abel2(:),NProp(:))
+!                do i=1,3
+!                    Abel1(1)=modulo(Abel1(1)+Abel2(1),NProp(i))
+!                    Abel1(2)=modulo(Abel1(2)+Abel2(2),NProp(i))
+!                    Abel1(3)=modulo(Abel1(3)+Abel2(3),NProp(i))
+!                end do
+                 SymProd%s=ComposeAbelianSym(Abel1)
+             ENDIF
          else
              IF(ISYM1%s.EQ.0.OR.ISYM2%s.EQ.0) THEN
                 SYMPROD%s=0
@@ -397,6 +408,7 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
              deallocate(SymStatePairs)
              call LogMemDealloc(this_routine,tagSymStatePairs)
          end if
+
          allocate(SymLabelList(nStates))
          call LogMemAlloc('SymLabelList',nStates,4,this_routine,
      &                                                  tagSymLabelList)
@@ -473,6 +485,7 @@ C.. Now sort the SymPairProds into order
      &                                                 tagSymStatePairs)
             SymStatePairs(:,:)=0
             CALL GenSymPairs(nSymLabels,1)
+
          else
 !.. Non-abelian symmetry requires us to go through and work out all the possible pairs of orbs.
             allocate(SymPairProds(nSymLabels**2))
@@ -551,6 +564,8 @@ C.. put the pair into the list of pairs.
                   SymPairProds(iProd)%nPairsStateOS=0
                ENDIF
                   
+!.. iOS counts the number of pairs of spin-orbitals with the opposite spin, which give rise to the
+!.. given symmetry product. iSS is for same spin orbital pairs.
                iOS=SymLabelCounts(2,I)*SymLabelCounts(2,J)
                if(i.ne.j) iOS=iOS*2
 !.. Same spin has n(n-1)/2 if same state
@@ -1707,6 +1722,7 @@ C.. Initialize symmetry to take into account the core electrons
          INTEGER J
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM,Abel)
+!            WRITE(IUNIT,"(I10)",advance='no') SYM%s
             WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")")',advance='no')
      &                                                        Abel(1:3)
          ELSEIF(NSYM.LE.16) THEN

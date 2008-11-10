@@ -2825,8 +2825,12 @@ MODULE FciMCParMod
     
 !Set the maximum number of walkers allowed
         MaxWalkers=NINT(MemoryFac*InitWalkers)
-        WRITE(6,*) "Memory allocated for a maximum particle number per node of: ",MaxWalkers
-
+        MaxWalkersExcit=NINT(MemoryFacExcit*InitWalkers)
+        WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFac
+        WRITE(6,"(A,F14.5)") "Memory Factor for excitation generators is: ",MemoryFacExcit
+        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkers
+        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for excitgens of: ",MaxWalkersExcit
+                                            
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
@@ -3016,8 +3020,8 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
         IF(.not.TRegenExcitgens) THEN
-            ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
-            ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+            ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
 
 !Allocate pointers to the correct excitation arrays
@@ -3033,7 +3037,7 @@ MODULE FciMCParMod
                     CurrentExcits(j)%ExitgenForDet=.false.
                 ENDIF
             enddo
-            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkersExcit
 
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."

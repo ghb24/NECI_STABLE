@@ -379,18 +379,18 @@ MODULE Integrals
          ISPINSKIP=2
       ELSEIF(TREADINT) THEN
          WRITE(6,*) ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
-    !.. Generate the 2e integrals (UMAT)
+!.. Generate the 2e integrals (UMAT)
          ISPINSKIP=NBasisMax(2,3)
          IF(ISPINSKIP.eq.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
-    !!C.. We can only do restricted systems, so alpha and beta spinorbital
-    !!C... integrals will be the same 
-    !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+!!C.. We can only do restricted systems, so alpha and beta spinorbital
+!!C... integrals will be the same 
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
          CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
          Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
-    !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          IF(TBIN) THEN
             CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
