@@ -38,9 +38,8 @@ contains
        use Parallel
        implicit none
        logical :: exists
-       logical :: AnyExist
+       logical :: AnyExist,deleted_file,any_deleted_file
        integer :: error,ierr,i
-       character(*), parameter :: msg='just some dummy text to send'
 
        inquire(file='SOFTEXIT',exist=exists)
        !This collective will check the exists logical on all nodes, and perform a logical or operation,
@@ -49,17 +48,20 @@ contains
        test_SOFTEXIT=AnyExist
        if(test_SOFTEXIT) then
            write (6,'(X,a)') 'Request for SOFTEXIT detected on a node.'
+           deleted_file=.false.
            do i=0,nProcessors-1
+               ! This causes each processor to attempt to delete
+               ! SOFTEXIT in turn (as each cycle of the loop involves waiting
+               ! for all processors to reach the AllReduce before the next cycle 
+               ! can start, and hence avoid race conditions between processors 
+               ! sharing the same disk.
                if (i==iProcIndex.and.exists) then
                    open(13,file='SOFTEXIT')
                    close(13,status='delete')
-                   exit
+                   deleted_file=.true.
                end if
-               ! Broadcast a message to all other processors from the i-th
-               ! processor.  This causes each processor to attempt to delete
-               ! SOFTEXIT in turn, and hence avoid race conditions between
-               ! processors sharing the same disk.
-               call MPI_BCast(msg,len(msg),MPI_CHARACTER,i,MPI_COMM_WORLD,ierr)
+               call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+               if (any_deleted_file) exit
            end do
        endif
 
