@@ -19,8 +19,7 @@ C.. product in the symmetry table, and OR that with the product.
          FUNCTION SYMPROD(ISYM1,ISYM2)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: TReadInt
-         use SymData, only: SymTable,nProp,tAbelian
+         use SymData, only: SymTable,nProp,tAbelian,TwoCycleSymGens
          IMPLICIT NONE
          TYPE(Symmetry) ISYM1, ISYM2
          TYPE(Symmetry) SYMPROD
@@ -29,7 +28,7 @@ C.. product in the symmetry table, and OR that with the product.
          integer*8  ComposeAbelianSym
          if (TAbelian) then
 
-             IF(TReadInt) THEN
+             IF(TwoCycleSymGens) THEN
 !For molecular systems, we can only have a maximum of 8 irreps, and so can do a simple
 !xor to get the symmetry.
 
@@ -81,14 +80,14 @@ C.. product in the symmetry table, and OR that with the product.
 
       FUNCTION SymConj(s2)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,TReadInt
-         use SymData, only: tAbelian,nProp,SymConjTab
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SymData, only: tAbelian,nProp,SymConjTab,TwoCycleSymGens
          IMPLICIT NONE
          TYPE(Symmetry) s,SymConj,s2
          INTEGER i,AbelConj(3)
          integer*8 ComposeAbelianSym
          if (TAbelian) then
-             IF(TReadInt) THEN
+             IF(TwoCycleSymGens) THEN
 !For molecular systems, we only have symmetry generators which are two cycles, and so the inverse of
 !a symmetry is simply itself.
 

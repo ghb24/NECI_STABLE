@@ -320,7 +320,7 @@ MODULE System
         
     Subroutine SysInit
       Use global_utilities
-      use SymData, only: tAbelian
+      use SymData, only: tAbelian,TwoCycleSymGens
       implicit none
       character(25), parameter :: this_routine='SysInit'
       integer ierr
@@ -410,6 +410,7 @@ MODULE System
       ENDIF
       
 
+      TwoCycleSymGens=.false.
       IF(TCPMD) THEN
          WRITE(6,*) ' *** GENERIC SYSTEM USING KOHN-SHAM ORBITALS *** '
          CALL CPMDSYSTEMINIT(LEN)   
@@ -429,6 +430,7 @@ MODULE System
             THUB=.FALSE.
             WRITE(6,*) "Setting THUB=.FALSE."
          ENDIF
+         TwoCycleSymGens=.true.
          IF(TDFREAD) THEN
             WRITE(6,*) "Reading Density fitted integrals."
             LMSBASIS=LMS

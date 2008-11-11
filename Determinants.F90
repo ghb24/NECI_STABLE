@@ -302,12 +302,17 @@ END MODULE Determinants
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
          INTEGER I
-         ISUHFDET=.FALSE.
-         IF(.NOT.TUSEBRILLOUIN) RETURN
-            ISUHFDET=.TRUE.
-            DO I=1,NEL
-               IF(NI(I).NE.NUHFDET(I)) ISUHFDET=.FALSE.
-            ENDDO
+         IF(.NOT.TUSEBRILLOUIN) THEN
+             ISUHFDET=.FALSE.
+             RETURN
+         ENDIF
+         ISUHFDET=.TRUE.
+         DO I=NEL,1,-1
+            IF(NI(I).NE.NUHFDET(I)) THEN
+                ISUHFDET=.FALSE.
+                EXIT
+            ENDIF
+         ENDDO
 !         ISUHFDET=.FALSE.
          RETURN
       END Function
