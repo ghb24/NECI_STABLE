@@ -814,13 +814,18 @@ C.. Now go through the list of all pairs, finding out how many pairs are to be e
 C.. orbitals in this determinant.
 C.. We first create a quick lookup table to enable us to quickly check whether a given orbital is in this determinant
 C.. in order 1, not order NEL.
-         ILUT(0:NBASIS/32)=0
-         DO I=1,NEL
-            ILUT((NI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
-         ENDDO
-!         DO I=0,NBASIS/32
-!            WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
-!         ENDDO
+         IF((tAbelianFastExcitGen.and.(.not.TCOUNT)).or.                
+     &          (.not.tAbelianFastExcitGen)) THEN
+!ILUT is not needed in the setup of the excitation generators for abelian symmetry
+            ILUT(0:NBASIS/32)=0
+            DO I=1,NEL
+                ILUT((NI(I)-1)/32)=
+     &              IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
+            ENDDO
+!            DO I=0,NBASIS/32
+!                WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
+!            ENDDO
+         ENDIF
 C.. Now look through the list of our pairs.  For each pair sym of the complete list which has a 
 C.. symmetric product with any of our pair syms, we work out how many allowed pairs there are in
 C.. the complete list, and store that value in NALLOWPPS
