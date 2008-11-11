@@ -1067,10 +1067,10 @@ C.. SymLabels(ISYMLABEL)
                ENDDO
                IF(TNEW) THEN
                   NPR=NPR+1
+!K will then give the index for the unique symmetry product.
                   K=NPR
-                  SYMPRODS(NPR)=PR
+                  SYMPRODS(NPR)=PR  !Add the new symmetry product label to SymProds
                ENDIF
-C.. 1 corresponds to beta beta, 2 to alpha/beta and beta/alpha, and 3 to alpha, alpha
 C.. 1 corresponds to beta beta, 2 to alpha/beta and beta/alpha, and 3 to alpha, alpha
 !  The number of pairs is somewhat more complex when we split electron 1 between processors
 !  For systems where we require the upper-triangle (excluding diagonal) we have
@@ -1103,6 +1103,7 @@ C.. 1 corresponds to beta beta, 2 to alpha/beta and beta/alpha, and 3 to alpha, 
                SYMPRODCOUNT(2,K)=SYMPRODCOUNT(2,K)+ICC2
                SYMPRODCOUNT(3,K)=SYMPRODCOUNT(3,K)+ICC3
      
+!Find total number of spin-orbital pairs of all spin-combos
                NPAIRS=NPAIRS+ICC1+ICC2+ICC3
 !                  WRITE(6,"(6I6)") CLASSCOUNT(1:2,I),
 !     &  THISCLASSCOUNT(1:2,I), PREVCLASSCOUNT(1:2,I)
@@ -1469,6 +1470,7 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          DO I=1,NCL
 C.. For each class, see what sym prods it can interact with
             DO J=1,NSYMLABELS
+                
                IF(LSYMSYM(SYMPROD(CLASSES(I)%SymRem,
      &                  SYMPROD(SymConj(SymLabels(J)),
      &                         SymLabels(CLASSES(I)%SymLab))))) THEN
@@ -1489,6 +1491,7 @@ C     &                  CLASSCOUNT(ISPN,I),
 C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
                   ENDDO
                ENDIF
+
             ENDDO
          ENDDO         
 
@@ -2073,7 +2076,7 @@ C.. Just count.
      &           iMaxElec1)
 
                CALL N_FREEM(IP_DSTORE)
-               DO i=1,6
+               DO i=2,6
                   STORE(i)=STORE2(i)
                ENDDO
                STORE(1)=SymClassSize*NEL+NBASIS/32+1+
