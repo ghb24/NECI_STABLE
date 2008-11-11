@@ -81,23 +81,31 @@ C.. product in the symmetry table, and OR that with the product.
 
       FUNCTION SymConj(s2)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,TReadInt
          use SymData, only: tAbelian,nProp,SymConjTab
          IMPLICIT NONE
          TYPE(Symmetry) s,SymConj,s2
          INTEGER i,AbelConj(3)
          integer*8 ComposeAbelianSym
          if (TAbelian) then
-             ! K-point symmetry has k_-i=k_i.  We store k-vectors from 0
-             ! to N rather than -N/2 to N.  Hence k_-i=mod(-k_i+N,N) for
-             ! each component of the vector.
-             ! This also works for abelian groups made out of symmetry 
-             ! generators which are 2-cycles
-             call DecomposeAbelianSym(s2%s,AbelConj)
-             do i=1,3
-               AbelConj(i)=modulo(-AbelConj(i)+NProp(i),NProp(i))
-             end do
-             SymConj%s=ComposeAbelianSym(AbelConj)
+             IF(TReadInt) THEN
+!For molecular systems, we only have symmetry generators which are two cycles, and so the inverse of
+!a symmetry is simply itself.
+
+                 SymConj%s=s2%s
+             ELSE
+! K-point symmetry has k_-i=k_i.  We store k-vectors from 0
+! to N rather than -N/2 to N.  Hence k_-i=mod(-k_i+N,N) for
+! each component of the vector.
+! This also works for abelian groups made out of symmetry 
+! generators which are 2-cycles
+                 call DecomposeAbelianSym(s2%s,AbelConj)
+                 do i=1,3
+                   AbelConj(i)=modulo(-AbelConj(i)+NProp(i),NProp(i))
+                 end do
+                 SymConj%s=ComposeAbelianSym(AbelConj)
+
+             ENDIF
          else
              SymConj%s=0
              s=s2
