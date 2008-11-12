@@ -92,6 +92,7 @@ C.. product in the symmetry table, and OR that with the product.
 !a symmetry is simply itself.
 
                  SymConj%s=s2%s
+                 RETURN
              ELSE
 ! K-point symmetry has k_-i=k_i.  We store k-vectors from 0
 ! to N rather than -N/2 to N.  Hence k_-i=mod(-k_i+N,N) for

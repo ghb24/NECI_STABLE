@@ -844,8 +844,13 @@ C.. the complete list, and store that value in NALLOWPPS
      &   SymProdInd,SymProds,nAllowPPS,iLUT)
          end if
          IF(.NOT.ISUHFDET(NI,NEL)) THEN
-          Call SymSetupExcits_CountSingles(nSing,nCl,nExcitTypes,
-     &   ThisClassCount, ClassCount,Classes)
+            if(tAbelianFastExcitGen) then
+                CALL SymSetupExcitsAbelian_CountSingles(nSing,nCl,
+     &              nExcitTypes,ThisClassCount, ClassCount,Classes)
+            else
+                Call SymSetupExcits_CountSingles(nSing,nCl,nExcitTypes,
+     &              ThisClassCount, ClassCount,Classes)
+            endif
          ELSE
           nSing=0
          ENDIF
@@ -885,30 +890,36 @@ C.. 2   SPIN (for single, 1=beta, 2=alpha.  For double, 1=beta/beta; 2=alpha/bet
 C.. 3   FROM (for single, I in CLASSES(I); for double, I in SYMPRODS(I) )
 C.. 4   TO   (for single, J in SymLabels(J); for double, J in SYMPAIRPRODS(J) )
 C.. 5  COUNT (Total number of excitations in this category)
-         IF(STORE(2).EQ.0) THEN
-            CALL N_MEMORY(IP_EXCITTYPES,(NEXCITTYPES*5)/IRAT+1,
+             IF(STORE(2).EQ.0) THEN
+                CALL N_MEMORY(IP_EXCITTYPES,(NEXCITTYPES*5)/IRAT+1,
      &                                                     'EXCITTYPES')
-         ELSE
-            IP_EXCITTYPES=STORE(2)
-         ENDIF
+             ELSE
+                IP_EXCITTYPES=STORE(2)
+             ENDIF
 
-         nExcitTypes=0
-         IF(.NOT.ISUHFDET(NI,NEL)) THEN
-            IF(BTEST(ILEVEL,0)) THEN
-               Call SymSetupExcits_StoreSingles(nExcitTypes,nCl,
-     &   Classes,ThisClassCount,ExcitTypes)
-            ENDIF
-         ENDIF
-         IF(BTEST(ILEVEL,1)) THEN
-            Call SymSetupExcits_StoreDoubles(nPr,nSymPairProds,
+             nExcitTypes=0
+             IF(.NOT.ISUHFDET(NI,NEL)) THEN
+                IF(BTEST(ILEVEL,0)) THEN
+                    IF(tAbelianFastExcitGen) THEN
+                        Call SymSetupExcitsAbelian_StoreSingles(
+     &                           nExcitTypes,nCl,Classes,ThisClassCount,
+     &                          ExcitTypes)
+                    ELSE
+                        Call SymSetupExcits_StoreSingles(nExcitTypes,
+     &                   nCl,Classes,ThisClassCount,ExcitTypes)
+                    ENDIF
+                ENDIF
+             ENDIF
+             IF(BTEST(ILEVEL,1)) THEN
+                Call SymSetupExcits_StoreDoubles(nPr,nSymPairProds,
      &   nAllowPPS,ExcitTypes,nExcitTypes,SymProds,SymProdInd)
-         ENDIF
+             ENDIF
 C.. Store all the pointers we need
-         STORE(2)=IP_EXCITTYPES
-         STORE(3)=IP_NALLOWPPS
-         STORE(4)=IP_ORBPAIRS
-         STORE(5)=IP_SYMPRODIND
-         STORE(6)=NEXCITTYPES
+             STORE(2)=IP_EXCITTYPES
+             STORE(3)=IP_NALLOWPPS
+             STORE(4)=IP_ORBPAIRS
+             STORE(5)=IP_SYMPRODIND
+             STORE(6)=NEXCITTYPES
          ENDIF
 C..      ENDIF(.NOT.TCOUNT)
 !         WRITE(6,*) "Total number of excitation types: ",NEXCITTYPES
@@ -935,6 +946,7 @@ C.. CLASSES(iCl)%SymLab is the symmetry label (i.e. entry in SymClasses) of this
          use SystemData, only: BasisFN
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymClasses,SymLabels
+         use SymData, only: tAbelianFastExcitgen
          IMPLICIT NONE
          INTEGER nEl, nI(nEl)
          Type(BasisFN) G1(*)
@@ -995,27 +1007,32 @@ C.. ISPN=1 is beta, ISPN=2 is alpha
                ENDIF
             ENDIF
          ENDDO
+
+         IF(.not.tAbelianFastExcitgen) THEN
+!This is not needed for abelian symmetry, since orb i and a must be the same symmetry class
 C.. Now calculate the resultant symmetry from removing one of each of the classes (for singles)
 C.. i.e. if we remove j, what's the symmetry of SYMCONJ(<ikl... |) (X) SYM( |ikl...>)
 C..   NB to cope with non-abelians, this actually takes the prod sym of the classes of each orb, 
 C..   rather than the orb itself, so may end up classifying a single as allowed when it's not.
 C.. we'll use this in the future to determine the allowed j->a
 C.. This is stored in CLASSES(iCl)%SymRem
-         DO I=1,NCL
-            PR=TotSymRep()
-            DO J=1,NCL
-               L=CLASSCOUNT(1,I)+CLASSCOUNT(2,I)
-               IF(J.EQ.I) L=L-1
-               DO K=1,L
-                  PR=SYMPROD( PR,SymConj(SymLabels(CLASSES(J)%SymLab)))
-                  PR=SYMPROD( PR,SymLabels(CLASSES(J)%SymLab))
-               ENDDO
-            ENDDO
-            CLASSES(I)%SymRem=PR
+             DO I=1,NCL
+                PR=TotSymRep()
+                DO J=1,NCL
+                   L=CLASSCOUNT(1,I)+CLASSCOUNT(2,I)
+                   IF(J.EQ.I) L=L-1
+                   DO K=1,L
+                      PR=SYMPROD( PR,SymConj(
+     &                   SymLabels(CLASSES(J)%SymLab)))
+                      PR=SYMPROD( PR,SymLabels(CLASSES(J)%SymLab))
+                   ENDDO
+                ENDDO
+                CLASSES(I)%SymRem=PR
 !            WRITE(6,"(A,I4,2Z4,I)") "CLASS ",NCL,CLASSES(I)%SymLab,
 !     &            CLASSES(I)%SymRem,I
-         ENDDO
+             ENDDO
 !            WRITE(6,*) NCL," Symmetry Classes"
+         ENDIF
       End Subroutine
 
 C.. Now determine all possible symmetry products of pairs of orbs, and classify them.
@@ -1459,10 +1476,8 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          INTEGER ThisClassCount(2,*)
          INTEGER ClassCount(2,*)
          Type(SymClass) Classes(nCl)
-         
          Type(Symmetry) SymProd,SymConj
          LOGICAL LSymSym
-
          INTEGER I,J,K
          INTEGER iSpn
          INTEGER iCC
@@ -1494,9 +1509,128 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
 
             ENDDO
          ENDDO         
-
+         
 !         WRITE(6,*) "Number of single excitations: ",NSING
       End Subroutine
+
+!A simple routine for counting the number of single excitations in abelian systems.
+!orbital 'a' must have the same symmetry and spin as orbital 'b'
+!Simply run through symmetry classes in NI to count these.
+!NExcitTypes counts the number of different ways of getting an excitation, i.e. Different spin or symmetry
+      Subroutine SymSetupExcitsAbelian_CountSingles(nSing,nCl,
+     &      nExcitTypes,ThisClassCount, ClassCount,Classes)
+         use SystemData, only: Symmetry
+         use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
+         IMPLICIT NONE
+         INTEGER nSing
+         INTEGER nCl
+         INTEGER nExcitTypes
+         INTEGER ThisClassCount(2,*)
+         INTEGER ClassCount(2,*)
+         Type(SymClass) Classes(nCl)
+         INTEGER I,ICC
+         nSing=0
+!Loop over all symmetry classes of your electrons
+         DO I=1,nCl
+
+!First deal with alpha spins - there are ThisClassCount(1,I) alpha spins in this determinant.
+!We need to know how many unoccupied alpha spins with the same symmetry there are.
+!There are SymLabelCounts(1,Classes(I)%SymLab) total alpha spin-orbitals with the same symmetry.
+!SymLabelCounts(2,Classes(I)%SymLab)-ThisClassCount(1,I) indicates the number of unoccupied alpha orbitals with the required symmetry.
+!Each electron can excite to each unoccupied orbital, giving us the number of single excitations for this symmetry and spin
+
+             IF(ThisClassCount(1,I).ne.0) THEN
+!Aren't going to be any singles if there are no electrons of that spin in the symmetry...
+                ICC=(SymLabelCounts(2,Classes(I)%SymLab)-
+     &                      ThisClassCount(1,I))*ThisClassCount(1,I)
+                IF(ICC.ne.0) THEN
+!We have found some alpha->alpha single excitations
+                    nSing=nSing+ICC
+                    nExcitTypes=nExcitTypes+1
+                ENDIF
+
+             ENDIF
+
+!Now do the same for beta spins
+             IF(ThisClassCount(2,I).ne.0) THEN
+                ICC=(SymLabelCounts(2,Classes(I)%SymLab)-
+     &                      ThisClassCount(2,I))*ThisClassCount(2,I)
+                IF(ICC.ne.0) THEN
+!We have found some single excitations
+                    nSing=nSing+ICC
+                    nExcitTypes=nExcitTypes+1
+                ENDIF
+             ENDIF
+
+         ENDDO
+
+      End Subroutine SymSetupExcitsAbelian_CountSingles
+
+!Based on the Count singles analogue, this fills the ExcitTypes array with
+!symmetry and excitation type information.
+      Subroutine SymSetupExcitsAbelian_StoreSingles(nExcitTypes,nCl,
+     &      Classes,ThisClassCount,ExcitTypes)
+         use SystemData, only: Symmetry
+         use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
+         IMPLICIT NONE
+         INTEGER nCl
+         INTEGER nExcitTypes
+         INTEGER ThisClassCount(2,*)
+         Type(SymClass) Classes(nCl)
+         INTEGER I,ICC
+         INTEGER ExcitTypes(5,*)
+!nExcitTypes is reset to zero before this routine - the nExcitTypes will be incremented for doubles later.
+!Loop over all symmetry classes of your electrons
+         DO I=1,nCl
+
+!First deal with alpha spins - there are ThisClassCount(1,I) alpha spins in this determinant.
+!We need to know how many unoccupied alpha spins with the same symmetry there are.
+!There are SymLabelCounts(1,Classes(I)%SymLab) total alpha spin-orbitals with the same symmetry.
+!SymLabelCounts(2,Classes(I)%SymLab)-ThisClassCount(1,I) indicates the number of unoccupied alpha orbitals with the required symmetry.
+!Each electron can excite to each unoccupied orbital, giving us the number of single excitations for this symmetry and spin
+             IF(ThisClassCount(1,I).ne.0) THEN
+!Aren't going to be any singles if there are no electrons of that spin in the symmetry...
+                ICC=(SymLabelCounts(2,Classes(I)%SymLab)-
+     &                      ThisClassCount(1,I))*ThisClassCount(1,I)
+                IF(ICC.ne.0) THEN
+!We have found some alpha->alpha single excitations of a new 'type'
+                    nExcitTypes=nExcitTypes+1
+!Put information on these type of excitation into the excittypes array
+                    ExcitTypes(1,nExcitTypes)=1     !Its a single
+                    ExcitTypes(2,nExcitTypes)=1     !Its an alpha->alpha excitation
+                    ExcitTypes(3,nExcitTypes)=I     !Symmetry class of occupied orbital
+                    ExcitTypes(4,nExcitTypes)=Classes(I)%SymLab     
+                                                    !Symmetry class of virtual orbital (the same!)
+                                                    !However, it wants to be the symmetry class from all
+                                                    !symmetry classes
+                    ExcitTypes(5,nExcitTypes)=ICC   !Number of this type of excitation
+                ENDIF
+
+             ENDIF
+
+!Now do the same for beta spins
+             IF(ThisClassCount(2,I).ne.0) THEN
+                ICC=(SymLabelCounts(2,Classes(I)%SymLab)-
+     &                      ThisClassCount(2,I))*ThisClassCount(2,I)
+                IF(ICC.ne.0) THEN
+!We have found some beta single excitations of a new 'type'
+                    nExcitTypes=nExcitTypes+1
+!Put information on these type of excitation into the excittypes array
+                    ExcitTypes(1,nExcitTypes)=1     !Its a single
+                    ExcitTypes(2,nExcitTypes)=2     !Its an beta->beta excitation
+                    ExcitTypes(3,nExcitTypes)=I     !Symmetry class of occupied orbital
+                    ExcitTypes(4,nExcitTypes)=Classes(I)%SymLab     
+                                                    !Symmetry class of virtual orbital (the same!)
+                                                    !However, it wants to be the symmetry class from all
+                                                    !symmetry classes
+                    ExcitTypes(5,nExcitTypes)=ICC   !Number of this type of excitation
+                ENDIF
+             ENDIF
+
+         ENDDO
+
+      End Subroutine SymSetupExcitsAbelian_StoreSingles
+
       
       Subroutine SymSetupExcits_StoreSingles(nExcitTypes,nCl,
      &   Classes,ThisClassCount,ExcitTypes)

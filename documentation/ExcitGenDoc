@@ -204,7 +204,9 @@ SYMPRODS is the final NEL^2 * SymmetrySize elements of DSTORE and will hold info
 ILEVEL is 1 for single, 2 for just doubles and 3 for both.
 IMinElec1 and IMaxElec1 are simply 1 and NEL respectivly if not using the parallel excitation generators.
 
-CLASSES ( NEL )     Type(SymClass)      Info about the symmetry class of each occupied spin-orbital
+CLASSES ( NEL )     Type(SymClass)      Info about the symmetry class of each occupied spin-orbital.
+                                        If not every electron is in a distinct class, then it will only be useful up to nCl, since the electrons will
+                                            then be grouped into the same symclass.
                                         SymRem: Type(Symmetry)  The resultant symmetry of Di when we remove an orbital with this symmetry.
                                         SymLab: INTEGER         The symmetry of the orbital being removed (i.e. its value in SymClasses)
 
@@ -226,6 +228,7 @@ Two arrays are filled:                  CLASSES(NEL) gives the symmetry details 
 CLASSCOUNT( 2 , NEL )   INTEGER     -   Number of electrons in each class.
                                         This has the format (Spn,iCl), where Spin=1,2 corresponding to alpha and beta and
                                         iCl is the index of the Class. Classes(iCL)%SymLab will then give the symmetry of class iCL.
+                                        If not every electron is in a distinct class, then it will only be useful up to nCl.
 
 NCL is returned with the number of symmetry classes in Di.
 
@@ -336,8 +339,9 @@ enumerate them without this need. The number of virtual pairs is simply the diff
 
 Returned values:   
 
-nDoubs                      INTEGER     This is the number of ???
-nExcitTypes                 INTEGER     This is the number of ???
+nDoubs                      INTEGER     This is the number of allowed doubles
+nExcitTypes                 INTEGER     This is the number of different ways of getting an excitation, i.e. Different spin or symmetry
+                                            The same information about singles is added to this.
 NAllowPPS (3,nSymPairProds) INTEGER     Allowed virtual pairs for each spin-combo and symmetry      
 
 Algorithm:      Loop over nSymPairProds (Symmetry products of all orbital pairs)
