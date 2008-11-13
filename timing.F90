@@ -32,6 +32,9 @@ module timing
 !=       call end_timing()
 !=       call print_timing_report()
 !=
+!= 4. The time spent in a given timer can be obtained at runtime using
+!=    the get_total_time function.  See this function for more details.
+!=
 != set_timer and print_timing_report take optional arguments.
 != See the individual routines for more information.
 ! ========================================================================
@@ -44,7 +47,7 @@ integer :: itimer=0
 
 type timer
     character(25) :: timer_name=''
-    type(timer_object), pointer :: store 
+    type(timer_object), pointer :: store=>null()
     logical :: time=.true. ! False if object is too low-level to be timed.
 end type
 
@@ -58,7 +61,7 @@ type timer_object
     logical :: timing_on=.false.   ! true whilst the timer is active.
 end type timer_object
 
-type(timer_object),target :: timers(ntimer)
+type(timer_object),allocatable,target :: timers(:)
 
 ! For total calculation time.
 real(4) :: global_time_cpu=0.d0
@@ -85,6 +88,8 @@ contains
       global_time_cpu=t(1)
       global_time_system=t(2)
       global_timing_on=.true.
+
+      if (.not.allocated(timers)) allocate(timers(ntimer))
 
       do i=1,itimer
           ! Have already done one run if itimer>0.  Clear existing timing info.
@@ -231,20 +236,35 @@ contains
 
 
 
-   real(4) function get_total_time(proc_timer)
+   real(4) function get_total_time(proc_timer,t_elapsed)
       != Return the (current) total time for a given timed procedure.
+      != By default this does not include the elapsed time of the current
+      != run of proc_timer's routine, so if proc_timer is active then
+      != the default call to get_total_time returns the time spent in 
+      != proc_timer%timer_name up to the most recent call.
       != In:
       !=   proc_timer: the timer object of the procedure.  Must be intialised by
       !=               set_timer.
+      !=   t_elapsed(optional): include the elapsed time.  Warning: involves an
+      !=               additional call to etime, so will affect performance if
+      !=               called large numbers (10s of millions) of times.
 
       implicit none
       type(timer) :: proc_timer
+      logical,optional :: t_elapsed
+      real(4) :: etime,s,t(2)
 
       if (.not.associated(proc_timer%store)) then
           call warning('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
           get_total_time=-1000.0 ! Helpfully return insane value, so it is obvious something went wrong. ;-)
       else
           get_total_time=proc_timer%store%sum_time_cpu+proc_timer%store%sum_time_system
+          if (present(t_elapsed)) then
+              if (t_elapsed) then
+                  s=etime(t)
+                  get_total_time=get_total_time+t(1)+t(2)-proc_timer%store%time_cpu-proc_timer%store%time_system
+              end if
+          end if
       end if
 
    end function get_total_time
@@ -253,6 +273,8 @@ contains
 
    subroutine print_timing_report(ntimer_objects,iunit)
       != Output a timing report.
+      != If the global timer has been turned off (ie end_timing has been
+      != called), then also deallocate the timers array).
       != In:
       !=    ntimer_objects (optional): the timing report prints out the objects 
       !=    took the largest amount of time in total.  ntimer_objects gives the 
@@ -299,7 +321,7 @@ contains
               id=maxloc(sum_times)
               it=id(1)
               sum_times(it)=0.d0 ! Don't find this object again.
-              write (io,'(X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
+              write (io,'(1X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
                                              timers(it)%sum_time_cpu,timers(it)%sum_time_system,&
                                              timers(it)%sum_time_cpu+timers(it)%sum_time_system
               total_cpu=total_cpu+timers(it)%sum_time_cpu
@@ -318,6 +340,8 @@ contains
           write (io,'(a20,f10.2)') 'Global system time',t(2)-global_time_system
       end if
       write (io,'(a65)') '================================================================'
+
+      if (.not.global_timing_on) deallocate(timers) ! Assume we're done as end_timing has been called.
 
    end subroutine print_timing_report
 
