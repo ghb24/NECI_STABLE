@@ -45,7 +45,7 @@ CHARACTER(LEN=40) :: file(10)=""
 
 INTEGER, SAVE :: lc=3
 
-INTEGER, PARAMETER :: sp=kind(6),dp=kind(1d0)!, qp=selected_real_kind(30)
+INTEGER, PARAMETER :: sp=kind(1.0),dp=kind(1.d0)!, qp=selected_real_kind(30)
 
 INTERFACE readf
   MODULE    PROCEDURE read_single, read_double!, read_quad
@@ -975,7 +975,7 @@ END FUNCTION find_io
 SUBROUTINE read_colour(fmt, colour, clamp)
 
 CHARACTER(LEN=*), INTENT(IN) :: fmt
-REAL, INTENT(OUT) :: colour(3)
+REAL(kind=sp), INTENT(OUT) :: colour(3)
 LOGICAL, INTENT(IN), OPTIONAL :: clamp
 CHARACTER(LEN=6) :: x
 INTEGER :: i, r, g, b
@@ -990,9 +990,9 @@ case("RGB")
   call readf(colour(2))
   call readf(colour(3))
 case("RGB255")
-  call readf(colour(1),255.0)
-  call readf(colour(2),255.0)
-  call readf(colour(3),255.0)
+  call readf(colour(1),255.0_sp)
+  call readf(colour(2),255.0_sp)
+  call readf(colour(3),255.0_sp)
 case("RGBX")
   call readu(x)
   read (x(1:2),"(z2)") r
