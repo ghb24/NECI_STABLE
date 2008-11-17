@@ -2110,17 +2110,18 @@ MODULE FciMCParMod
             WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFac
             WRITE(6,"(A,F14.5)") "Memory Factor for excitation generators is: ",MemoryFacExcit
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkers
-            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for excitgens of: ",MaxWalkersExcit
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for excitgens (+ particle paths) of: ",MaxWalkersExcit
 
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-            ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(1:NEl,1:MaxWalkers)=0
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
+            ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
+
             ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
@@ -2132,12 +2133,13 @@ MODULE FciMCParMod
             CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
             ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH=0.d0
+            WalkVecH(:)=0.d0
             ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
-            WalkVec2H=0.d0
+            WalkVec2H(:)=0.d0
             
-            MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
+!            MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
+            MemoryAlloc=((8*MaxWalkers)+(2*NEl*MaxWalkersExcit))*4    !Memory Allocated in bytes
 
             IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                 ALLOCATE(HashArray(MaxWalkers),stat=ierr)
