@@ -494,6 +494,12 @@ C.. Now sort the SymPairProds into order
             SymStatePairs(:,:)=0
             CALL GenSymPairs(nSymLabels,1)
 
+!            WRITE(6,*) "SymLabelList: ",SymLabelList(:)
+!            WRITE(6,*) "***","SymLabelCounts..."
+!            WRITE(6,*) SymLabelCounts(1,:)
+!            WRITE(6,*) "***"
+!            WRITE(6,*) SymLabelCounts(2,:)
+
          else
 !.. Non-abelian symmetry requires us to go through and work out all the possible pairs of orbs.
             allocate(SymPairProds(nSymLabels**2))

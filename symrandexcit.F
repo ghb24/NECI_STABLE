@@ -351,9 +351,11 @@ C.. Actually generate a det
      &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,             &
      &               NK,IC,PGEN)      
          USE symexcit2
+         use CalcData, only: ExcitFuncs
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         use SymData, only: tAbelianFastExcitgen
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)
          INTEGER I
@@ -369,9 +371,9 @@ C.. Actually generate a det
          INTEGER SymProdInd(2,3,0:*)
          INTEGER nK(nEl)
          INTEGER iSeed
-         
          REAL*8 RAN2   
 !.. First generate a random excitation 
+
          PGEN=1.D0/ITOTAL
          I=ITOTAL*RAN2(ISEED)
 !.. Now work out which Excitation Type it's in.
@@ -386,10 +388,19 @@ C.. Actually generate a det
             ISPN=EXCITTYPES(2,IEXCIT)-2
             IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
             ITO=EXCITTYPES(4,IEXCIT)
-            Call SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,iSpn,
-     &          iFrom,I)
-            Call SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,iSpn,
-     &         iTo,nK)
+            IF(ExcitFuncs(10)) THEN
+!There is no excitation weighting - we do not need to enumerate all excitations
+                Call SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
+     &                  ILUT,nEl,iSpn,iFrom,I,nI)
+                Call SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,
+     &                  nEl,I,iSpn,iTo,nK)
+            ELSE
+!We have an excitation weighting - enumerate all excitations to get normalisation
+                Call SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,
+     &                  iSpn,iFrom,I)
+                Call SymGenRandExcitIt2_Single_GetTo(iSeed,nI,nEl,I,
+     &                  iSpn,iTo,nK)
+            ENDIF
 !.. Indicate we're a single
             iC=1
          ELSE
@@ -403,15 +414,87 @@ C.. Actually generate a det
             ISPN=EXCITTYPES(2,IEXCIT)
             IFROM=EXCITTYPES(3,IEXCIT)
             ITO=EXCITTYPES(4,IEXCIT)
-            Call SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
-     &       iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I,pGen)
+            IF(ExcitFuncs(10).and.(.not.tAbelianFastExcitgen)) THEN
+!There is no excitation weighting - we do not need to enumerate all excitations in the class
+                Call SymGenRandExcitIt2_Double_GetFrom_NoWeight(iSeed,
+     &               iSpn,iFrom,SymProdInd,I,nI,OrbPairs)
 
-            Call SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
-     &         iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT, I,nK,pGen)
+                Call SymGenRandExcitIt2_Double_GetTo_NoWeight(iSeed,
+     &               nI,ExcitTypes,iExcit,OrbPairs,SymProdInd,iSpn,
+     &               iFrom,iLUT,I,nK)
+            ELSE
+!            WRITE(6,*) "NI: ",NI(:)
+!            WRITE(6,*) "CLASSES: ",Classes(1:4)%Symlab
+                Call SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
+     &         iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I,pGen)
+
+               Call SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
+     &          iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT, I,nK,pGen)
+            ENDIF
 !.. Indicate we're a double.
             iC=2
          ENDIF
       End Subroutine SymGenRandExcitIt2
+
+!Return the index of orbital to excit within nI into I. i.e. nI(I) will be excited.
+!In the case where we have no weighting, the can be done very simply
+!iSpn is -1 for alpha and 0 for beta.
+!iFrom is the symmetry label of the electron to pick.
+!I is the returned orbital to excite
+      Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,ILUT,
+     &       nEl,iSpn,iFrom,I,nI)
+         use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         IMPLICIT NONE
+         INTEGER iSeed
+         INTEGER nEl,nI(nEl)
+         INTEGER iSpn, iFrom
+         INTEGER I,ILUT(0:*)
+         INTEGER State
+         INTEGER SpinOrb
+         INTEGER J,K,OrbChosen,nOrbs
+         LOGICAL InvalidOrb
+         REAL*8 RAN2   
+
+!Algorithm is to simply keep drawing orbitals of the required symmetry at random, until we
+!pick one which is in NI.
+         InvalidOrb=.true.
+
+!Number of states with allowed symmetry is given by SymLabelCounts(2,Sym)
+!Draw an orbital at random from this number, and find its related orbital, given at index SymLabelCounts(1,Sym)+(DrawnOrb-1)
+!See if the spin orbital relating to this state is in NI. If not, redraw.
+         nOrbs=SymLabelCounts(2,iFrom)
+!         WRITE(6,*) "SYM: ",iFrom
+!         WRITE(6,*) "NORBS: ",nOrbs
+!         WRITE(6,*) "iSpn: ",iSpn
+
+         do while(InvalidOrb)
+
+            OrbChosen=INT(Ran2(iSeed)*nOrbs)+1      !This is the orbital picked at random from the number with desired symmetry
+!            WRITE(6,*) "OrbChosen: ",OrbChosen
+            State=SymLabelList(SymLabelCounts(1,iFrom)+OrbChosen-1) !This is the index of the state chosen
+!            WRITE(6,*) "State: ",State
+            SpinOrb=(2*State)+iSpn      !This is the index of the spin-orbital we've chosen
+!            WRITE(6,*) "SpinOrb: ",SpinOrb
+!            WRITE(6,*) "ILUT: ", ILUT(0:1)
+
+!Now we need to check if the spin-orbital relating to the state is in NI
+!This should be binary searched for speed. Even better, we could just to a bit-test on ILUT
+            DO j=1,NEl
+                IF(nI(j).eq.SpinOrb) THEN
+!We've found an allowed orbital
+                    InvalidOrb=.false.
+                    I=j
+!                    IF(.not.BTEST(ILUT((SpinOrb-1)/32)
+!     &                       ,mod(SpinOrb-1,32))) THEN
+!                        STOP 'ILUT failure'
+!                    ENDIF
+                    EXIT
+                ENDIF
+            ENDDO
+
+        enddo
+
+      End Subroutine SymGenRandExcitIt2_Single_GetFrom_NoWeight
 
 !Return the index of orbital to excit within nI into I. i.e. nI(I) will be excited.
       Subroutine SymGenRandExcitIt2_Single_GetFrom(iSeed,nI,nEl,iSpn,
@@ -464,6 +547,75 @@ C.. Actually generate a det
          ENDDO ot
 !.. NI(I) is now the orbital to excite
       End Subroutine SymGenRandExcitIt2_Single_GetFrom
+
+!.. Locate an orbital to excite to, and create the excitation, copying it back to nI.
+!..  I is the index in NI to excite from.
+! This is for the case that there is no excitation weighting
+      Subroutine SymGenRandExcitIt2_Single_GetTo_NoWeight(iSeed,nI,nEl,
+     &              I,iSpn,iTo,nK)
+      use SymData, only: SymClass,SymLabelCounts,SymLabelList
+         IMPLICIT NONE
+         INTEGER iSeed
+         INTEGER nEl,nI(nEl)
+         INTEGER I,ExcitMat(2,2)
+         INTEGER iSpn,iTo
+         INTEGER OrbChosen,norbs,spinorb
+         INTEGER J,State
+         INTEGER NK(nEl),iGetExcitLevel,ExcitLevel
+         LOGICAL InDi,ISVALIDDET
+         REAL*8 RAN2   
+
+!Number of states with allowed symmetry is given by SymLabelCounts(2,Sym)
+!Draw an orbital at random from this number, and find its related orbital, given at index SymLabelCounts(1,Sym)+(DrawnOrb-1)
+!See if the spin orbital relating to this state is in NI. If it is, redraw.
+         nOrbs=SymLabelCounts(2,iTo)
+
+         do while(.true.)
+
+            OrbChosen=INT(Ran2(iSeed)*nOrbs)+1      !This is the orbital picked at random from the number with desired symmetry
+            State=SymLabelList(SymLabelCounts(1,iTo)+OrbChosen-1) !This is the index of the state chosen
+            SpinOrb=(2*State)+iSpn      !This is the index of the spin-orbital we've chosen
+
+!Now we need to check if the spin-orbital relating to the state is in NI
+!This should be binary searched for speed. Even better, we could just to a bit-test on ILUT
+            InDi=.false.
+            DO j=1,NEl
+                IF(nI(j).eq.SpinOrb) THEN
+!We've found the same orbital in Di - this is not a valid virtual to excite to.
+                    InDi=.true.
+                    EXIT
+                ENDIF
+            ENDDO
+!            WRITE(6,*) "NI: ",NI(:)
+!            WRITE(6,*) "Orb to vacate: ",NI(I)
+!            WRITE(6,*) "Orb to occupy: ",SpinOrb
+            IF(.not.InDi) THEN
+                NK(1:NEl)=NI(1:NEl)
+                ExcitMat(1,1)=I
+                ExcitMat(2,1)=SpinOrb
+                CALL FindExcitDet(ExcitMat,NK,1)
+                Excitlevel=iGetExcitLevel(NI,NK,NEL)
+                IF(Excitlevel.ne.1) THEN
+                    WRITE(6,*) "Have not created a single excitation"
+                   CALL WRITEDET(6,NI,NEL,.TRUE.)
+                   CALL WRITEDET(6,NK,NEL,.TRUE.)
+                   WRITE(6,*) I,SpinOrb
+                    STOP "Have not created a single excitation"
+                ENDIF
+                IF(.NOT.ISVALIDDET(NK,NEL)) THEN
+                   WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
+                   CALL WRITEDET(6,NI,NEL,.TRUE.)
+                   CALL WRITEDET(6,NK,NEL,.TRUE.)
+                   WRITE(6,*) I,SpinOrb
+                   STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
+                ENDIF
+                EXIT
+            ENDIF
+
+        enddo
+
+      End Subroutine SymGenRandExcitIt2_Single_GetTo_NoWeight
+
 
 !.. Locate an orbital to excite to, and create the excitation, copying it back to nI.
 !..  I is the index in I to excite from.
@@ -535,6 +687,57 @@ C.. Actually generate a det
 
 !.. Get the FROM pair.  Return as index I into the part of OrbPairs pointed to
 !.. by the SymProdInd correspnding to (iSpn,iFrom) 
+!.. ExcitTypes is the whole excittypes array.iExcit the label the the interested type.
+!.. iSpn is the spin (1, 2 or 3)
+!.. iFrom is the symmetry label of the orbital pair to choose
+!.. OrbPairs is the list of all occupied pairs, ordered by symmetry and spin.
+!.. iTotal is the total number of excitations.
+      Subroutine SymGenRandExcitIt2_Double_GetFrom_NoWeight(iSeed,
+     &       iSpn, iFrom,
+     &       SymProdInd,I,nI,OrbPairs)
+         use SystemData , only: NEl
+         IMPLICIT NONE
+         INTEGER iSeed,nI(NEl)
+         INTEGER iSpn
+         INTEGER iFrom,OrbPairs(2,*)
+         INTEGER SymProdInd(2,3,0:*)
+         INTEGER I,k,j
+         LOGICAL found
+         REAL*8 RAN2
+!!.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
+!!.. SYMPRODS(I) in ORBPAIRS
+!!.. SYMPRODIND(2,ISPN,I) contains the number of such elements
+!.. Get the FROM pair.  Return as index I into the part of OrbPairs pointed to
+!.. by the SymProdInd correspnding to (iSpn,iFrom) 
+!There are SymProdInd(2,iSpn,iFrom) excitations with the desired spin and symmetry.
+!There should be no reason why one should be preferred over another, therefore, just pick at random
+
+          I=INT(RAN2(iSeed)*SymProdInd(2,iSpn,iFrom))+1
+!         WRITE(6,*) "OrbPair: ", OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
+!     &            OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
+          do j=1,2
+              found=.false.
+              do k=1,NEl
+               IF(nI(k).eq.OrbPairs(j,I+SymProdInd(1,iSpn,iFrom))) THEN
+                      found=.true.
+                      exit
+                  ENDIF
+              enddo
+              IF(.not.found) THEN
+                  WRITE(6,*) "Cannot locate found occupied orbital pair"
+                  WRITE(6,*) iSpn,iFrom,
+     &               OrbPairs(j,I+SymProdInd(1,iSpn,iFrom))
+                  WRITE(6,*) nI(:)
+                  STOP 'Cannot locate found occupied orbital pair'
+              ENDIF
+          enddo
+!          WRITE(6,*) "NI= ",NI(:)
+!          WRITE(6,*) "i,j = ",OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
+!     &          OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
+
+      End Subroutine SymGenRandExcitIt2_Double_GetFrom_NoWeight
+
+
       Subroutine SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
      &       iExcit,iSpn, iFrom,
      &      OrbPairs, SymProdInd, iTotal, 
@@ -560,6 +763,21 @@ C.. Actually generate a det
          POINTER (IP_ExcitWeight,ews)
          INTEGER iCount
          REAL*8 RAN2
+
+!         WRITE(6,*) "IEXCIT: ",IExcit
+!         WRITE(6,*) "ExcitTypes2",ExcitTypes(2,1:4)
+!         WRITE(6,*) "ExcitTypes3",ExcitTypes(3,1:4)
+!         WRITE(6,*) "ExcitTypes4",ExcitTypes(4,1:4)
+!         WRITE(6,*) "ExcitTypes5",ExcitTypes(5,1:4)
+!         WRITE(6,*) "SymProdInd(1,1,:): ",SymProdInd(1,1,1:8)
+!         WRITE(6,*) "SymProdInd(1,2,:): ",SymProdInd(1,2,1:8)
+!         WRITE(6,*) "SymProdInd(1,3,:): ",SymProdInd(1,3,1:8)
+!         WRITE(6,*) "SymProdInd(2,1,:): ",SymProdInd(2,1,1:8)
+!         WRITE(6,*) "SymProdInd(2,2,:): ",SymProdInd(2,2,1:8)
+!         WRITE(6,*) "SymProdInd(2,3,:): ",SymProdInd(2,3,1:8)
+!         WRITE(6,*) "***"
+!         WRITE(6,*) "OrbPairs: ",OrbPairs(:,0:26)
+
 !.. Go through the list of pairs with a given symprod.
 !.. SYMPRODIND(1,ISPN,I)+1 contains the index of the first element of spin ISPN of sym
 !.. SYMPRODS(I) in ORBPAIRS
@@ -583,10 +801,192 @@ C.. Actually generate a det
 !  I is the index of the specific SYM PAIR FROM
          pGen=pGen*ews(I)%Weight
          
+!         WRITE(6,*) "OrbPair: ", OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
+!     &            OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
+         
+         
 !  pGen is the prob of choosing a specific FROM (given having chosen iExcit proportional to the number of excitations in each iExcit)
 !           times the prob of choosing iExcit
          CALL  N_FREEM(IP_ExcitWeight)
       End Subroutine SymGenRandExcitIt2_Double_GetFrom
+      
+!This is a routine to pick an allowed virtual pair of orbitals to excite to.
+!There is no weighting function, so it simply 
+      Subroutine SymGenRandExcitIt2_Double_GetTo_NoWeight(iSeed,nI,
+     &      ExcitTypes,iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,
+     &      I,nK)
+         use SystemData, only: nEl
+         use SymData, only: tAbelianFastExcitgen
+         use SymData, only: SymPairProds,SymStatePairs
+         IMPLICIT NONE
+         INTEGER iSeed
+         INTEGER nI(nEl)
+         INTEGER ExcitTypes(5,*)
+         INTEGER iExcit,ExcitMat(2,2)
+         INTEGER OrbPairs(2,*)
+         INTEGER SymProdInd(2,3,0:*)
+         INTEGER iSpn,iFrom,iTo,FinalA,FinalB
+         INTEGER iLUT(0:*)
+         INTEGER I,StatePair,Index1,Orb1,Orb2,Orb1Alpha,Orb1Beta
+         INTEGER NK(nEl),Orb2Alpha,Orb2Beta,OrbAlpha,OrbBeta
+         LOGICAL :: NotSelectedPair,Check1,Check2,ISVALIDDET
+         INTEGER K,J,iGetExcitLevel,ExcitLevel
+         REAL*8 RAN2
+             
+         iTo=ExcitTypes(4,iExcit)   !This is the symmetry of the virtual pair type
+
+         do while(.true.)   !Cycle until we find an acceptable virtual pair to excite to.
+             
+             IF(.not.tAbelianFastExcitgen) THEN
+!We have an explicit list of state pairs and their symmetry, so we can just pick one at random.
+!The number of pairs with desired symmetry is given by SymPairsProds(ExcitTypes(4,iExcit))%nPairs.
+                IF((iSpn.eq.1).or.(iSpn.eq.3)) THEN
+!Choose a state pair from the list at random
+                    StatePair=INT(Ran2(iSeed)*
+     &                  SymPairProds(iTo)%nPairs)+1
+!Orb1/2 are the is the beta orbital corresponding to the a state in the state pair with the desired symmetry product             
+                    Index1=SymPairProds(iTo)%nIndex+StatePair-1
+
+                    Orb1=SymStatePairs(1,Index1)*2-1
+                    Orb2=SymStatePairs(2,Index1)*2-1
+
+                    Orb1Beta=Orb1
+                    Orb2Beta=Orb2
+                    Orb1Alpha=Orb1+1
+                    Orb2Alpha=Orb2+1
+
+                ELSE
+!We want to pick an alpha-beta spin orbtial combo without biasing the pick.
+!The difficulty is due to the fact that some state pairs will have two possible ab combinations (different states)
+!but some will have only one, if they are from the same state. To get around this, reject the choice with Prob=0.5 if
+!we pick a state pair with two same states. Otherwise, just choose an ab state at random from the states chosen.
+                    NotSelectedPair=.true.
+                    do while(NotSelectedPair)
+
+                        StatePair=INT(Ran2(iSeed)*
+     &                     SymPairProds(iTo)%nPairs)+1
+
+                        Index1=SymPairProds(iTo)%nIndex+StatePair-1
+
+                        Orb1=SymStatePairs(1,Index1)*2-1
+                        Orb2=SymStatePairs(2,Index1)*2-1
+
+                        IF(Orb1.eq.Orb2) THEN
+!We have a same-state pair - reject with prob=0.5
+                            IF(Ran2(iSeed).le.0.5) THEN
+!Accept the state pair
+                                NotSelectedPair=.false.
+                                OrbAlpha=Orb1+1
+                                OrbBeta=Orb1
+                            ENDIF
+                        ELSE
+!We have different states in our state pair. Choose whether to take the ab pair, or ba pair.
+                            IF(Ran2(iSeed).le.0.5) THEN
+                                NotSelectedPair=.false.
+                                OrbAlpha=Orb1+1
+                                OrbBeta=Orb2
+                            ELSE
+                                NotSelectedPair=.false.
+                                OrbAlpha=Orb2+1
+                                OrbBeta=Orb1
+                            ENDIF
+                        ENDIF
+
+                    enddo
+
+                ENDIF
+
+             ELSE
+!How can we make an unbiased draw when we do not have the list? Do we need to generate it?
+                STOP 'Not currently working for fast-excitgen'
+             ENDIF
+
+!             WRITE(6,*) "Chosen orbs: ",iSpn,OrbAlpha,OrbBeta
+
+             IF(iSpn.eq.1) THEN
+!We want a beta beta pair.
+                 IF(Orb1Beta.ne.Orb2Beta) THEN
+!The two states are different - we now just need to see if one of the orbitals is in NI
+!The checks will return true if the orbital is in NI.
+                     Check1=BTEST(ILUT((Orb1Beta-1)/32),
+     &                   MOD(Orb1Beta-1,32))
+                     Check2=BTEST(ILUT((Orb2Beta-1)/32),
+     &                   MOD(Orb2Beta-1,32))
+                     IF(.not.(Check1.or.Check2)) THEN
+!We have found an acceptable pair of virtual orbitals. Excite into these.
+                         FinalA=Orb1Beta
+                         FinalB=Orb2Beta
+                         EXIT
+                     ENDIF
+                 ENDIF
+
+             ELSEIF(iSpn.eq.2) THEN
+!We want an alpha beta pair
+                Check1=BTEST(ILUT((OrbAlpha-1)/32),
+     &              MOD(OrbAlpha-1,32))
+                Check2=BTEST(ILUT((OrbBeta-1)/32),
+     &              MOD(OrbBeta-1,32))
+                IF(.not.(Check1.or.Check2)) THEN
+!We have found an acceptable pair of virtual orbitals. Excite into these.
+                     FinalA=OrbAlpha
+                     FinalB=OrbBeta
+                     EXIT
+                 ENDIF
+             ELSEIF(iSpn.eq.3) THEN
+!We want a alpha alpha pair
+                 IF(Orb1Alpha.ne.Orb2Alpha) THEN
+!The two states are different - we now just need to see if one of the orbitals is in NI
+!The checks will return true if the orbital is in NI.
+                     Check1=BTEST(ILUT((Orb1Alpha-1)/32),
+     &                   MOD(Orb1Alpha-1,32))
+                     Check2=BTEST(ILUT((Orb2Alpha-1)/32),
+     &                   MOD(Orb2Alpha-1,32))
+                     IF(.not.(Check1.or.Check2)) THEN
+!We have found an acceptable pair of virtual orbitals. Excite into these.
+                         FinalA=Orb1Alpha
+                         FinalB=Orb2Alpha
+                         EXIT
+                     ENDIF
+                 ENDIF
+
+             ENDIF
+
+         enddo  !End over loop until we find an allowed virtual pair
+
+!         WRITE(6,*) "OrbPair to vacate: ", 
+!     &            OrbPairs(1,I+SymProdInd(1,iSpn,iFrom)),
+!     &            OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))
+!         WRITE(6,*) "Orbs to fill: ",
+!     &           iSpn,OrbAlpha,OrbBeta
+
+         NK(1:NEl)=NI(1:NEL)
+!ExcitMat(1,*) are the indices in NI to excite from and 2,* are the spin orbs to excite to.
+         DO J=1,NEL
+             IF(NI(J).EQ.OrbPairs(1,I+SymProdInd(1,iSpn,iFrom))) THEN
+               ExcitMat(1,1)=J
+               ExcitMat(2,1)=FinalA
+            ELSEIF(NI(J).EQ.OrbPairs(2,I+SymProdInd(1,iSpn,iFrom))) THEN
+               ExcitMat(1,2)=J
+               ExcitMat(2,2)=FinalB
+            ENDIF
+         ENDDO
+         CALL FindExcitDet(ExcitMat,NK,2)
+         Excitlevel=iGetExcitLevel(NI,NK,NEL)
+         IF(Excitlevel.ne.2) THEN
+             WRITE(6,*) "Have not created a double excitation"
+            CALL WRITEDET(6,NK,NEL,.TRUE.)
+            CALL WRITEDET(6,NI,NEL,.TRUE.)
+            WRITE(6,*) I
+            STOP "Have not created a double excitation"
+         ENDIF
+         IF(.NOT.ISVALIDDET(NK,NEL)) THEN
+             WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT DOUBLE"
+             CALL WRITEDET(6,NK,NEL,.TRUE.)
+             CALL WRITEDET(6,NI,NEL,.TRUE.)
+             STOP "INVALID DET SYMGENRANDEXCITIT DOUBLE"
+         ENDIF
+
+      End Subroutine SymGenRandExcitIt2_Double_GetTo_NoWeight
 
       Subroutine SymGenRandExcitIt2_Double_GetTo(iSeed,nI,ExcitTypes,
      &      iExcit,OrbPairs, SymProdInd,iSpn,iFrom,iLUT,

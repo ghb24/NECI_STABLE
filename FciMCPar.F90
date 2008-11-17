@@ -5,6 +5,9 @@
 !All variables refer to values per processor
 
 !!!!! TO DO !!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!Make excitation generator arrays pointers to save having to move around excitation generators...
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Package up variables into one array to communicated to avoid latency overheads
 ! Test different hashes
 ! Option for calculating non-essential information

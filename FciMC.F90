@@ -203,10 +203,6 @@ MODULE FciMCMod
         NoatDoubs=0
 
         do j=1,TotWalkers
-!            IF(iter.eq.227.and.(j.eq.29)) THEN
-!                WRITE(6,*) j
-!                CALL FLUSH(6)
-!            ENDIF
 !j runs through all current walkers
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
