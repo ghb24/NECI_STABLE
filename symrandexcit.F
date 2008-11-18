@@ -375,13 +375,26 @@ C.. Actually generate a det
 !.. First generate a random excitation 
 
          PGEN=1.D0/ITOTAL
+         I=ITOTAL
+         IEXCIT=1
+         DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)
+            I=I-EXCITTYPES(5,IEXCIT)
+!            WRITE(6,"(A,7I5)") "SE",IEXCIT,
+!     &                   EXCITTYPES(1,IEXCIT),
+!     &                   EXCITTYPES(3,IEXCIT),
+!     &                   EXCITTYPES(4,IEXCIT),
+!     &                   EXCITTYPES(2,IEXCIT),
+!     &                   EXCITTYPES(5,IEXCIT),I
+            IEXCIT=IEXCIT+1
+         ENDDO
          I=ITOTAL*RAN2(ISEED)
 !.. Now work out which Excitation Type it's in.
          IEXCIT=1
-         DO WHILE(EXCITTYPES(5,IEXCIT).LE.I)
+         DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)
             I=I-EXCITTYPES(5,IEXCIT)
             IEXCIT=IEXCIT+1
          ENDDO
+!         WRITE(6,*) "Excit:",iExcit
 !..   iExcit is the Excitation Type
          IF(EXCITTYPES(1,IEXCIT).EQ.1) THEN
 !.. It's a single
@@ -1017,7 +1030,8 @@ C.. Actually generate a det
 !  Allocate memory to store all weights and excitations in this category
          CALL N_MEMORY(IP_ExcitWeight,ExcitWeightSize*
      &      EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),'ExcitWeigh')
-
+!         WRITE(6,*)EXCITTYPES(5,IEXCIT)/SYMPRODIND(2,ISPN,IFROM),
+!     &         EXCITTYPES(5,IEXCIT),SYMPRODIND(2,ISPN,IFROM)
 !.. Now go through the list of virtual pairs, ng those with orbitals in NI 
 !.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
 !.. states (listed in SymStatePairs), and the index of the start of this list
@@ -1034,6 +1048,7 @@ C.. Actually generate a det
          CALL EnumExcitWeights(EXCITTYPES(1,IEXCIT),I,ILUT,ews,OrbPairs,
      &      SymProdInd,RCOUNT,ICOUNT,G1,NBASISMAX,UMAT,ARR,NBASIS)
 
+!         Write(6,*) "Doub To", iCount,rCount
          pGen=pGen/rCount           ! Normalize for the sum of TOs
          
 !  We've now got a list of iCount weights in ews, and total norm rCount.
@@ -1044,7 +1059,8 @@ C.. Actually generate a det
          DO WHILE (rCount.GT.0.D0)
             K=K+1
             rCount=rCount-ews(K)%Weight
-         ENDDO   
+         ENDDO 
+!         WRITE(6,*) K,rCount  
 !  ews(K) is the excitation we've chosen
          PGEN=PGEN*ews(K)%Weight !weight with the weight of this TO
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcit)
@@ -1065,7 +1081,11 @@ C.. Actually generate a det
             ENDIF
          ENDDO
 !         CALL NECI_SORTI(NEL,NK)
+!         Call WriteDet(6,nK,nEl,.true.)
+!         WRITE(6,*) ExcitMat
          CALL FindExcitDet(ExcitMat,NK,2)
+!         Call WriteDet(6,nK,nEl,.true.)
          CALL  N_FREEM(IP_ExcitWeight)
+!         WRiTE(6,*) "ENd GetTo"
          RETURN
       End Subroutine SymGenRandExcitIt2_Double_GetTo

@@ -476,7 +476,8 @@ C.. Now sort the SymPairProds into order
             CALL SORTSYMARR(nSymPairProds,SymPairProds,SymPairProdSize)
             TOT=0
             DO I=1,nSymPairProds
-!               WRITE(6,*) I,SymPairProds(I)%Sym,SymPairProds(I)%nPairs,
+!               WRITE(6,"(I4,Z8,4I4)")
+!     &             I,SymPairProds(I)%Sym,SymPairProds(I)%nPairs,
 !     &           SymPairProds(I)%nIndex, SymPairProds(I)%nPairsStateSS,
 !     &           SymPairProds(I)%nPairsStateOS
                SymPairProds(I)%nIndex=TOT
@@ -493,6 +494,10 @@ C.. Now sort the SymPairProds into order
      &                                                 tagSymStatePairs)
             SymStatePairs(:,:)=0
             CALL GenSymPairs(nSymLabels,1)
+!            WRITE(6,*) "Sym State Pairs"
+!            DO I=0,TOT-1
+!               WRITE(6,*) I,SymStatePairs(1:2,I)
+!            ENDDO
 
 !            WRITE(6,*) "SymLabelList: ",SymLabelList(:)
 !            WRITE(6,*) "***","SymLabelCounts..."
@@ -556,19 +561,10 @@ C.. Now sort the SymPairProds into order
          INTEGER iSS,iOS
          DO I=1,nSymLabels
             DO J=I,nSymLabels
-C               WRITE(6,*) I,J,SymClasses(I),SymClasses(J)
+!               WRITE(6,*) I,J
                PROD=SYMPROD(SymLabels(I),
      &               SymLabels(J))
                CALL FindSymProd(Prod,SymPairProds,nSymPairProds,iProd)
-               IF(iPass.eq.1) THEN
-C.. put the pair into the list of pairs.
-                  SymStatePairs(1,SymPairProds(iProd)%nIndex
-     &                            +SymPairProds(iProd)%nPairs) =I
-                  SymStatePairs(2,SymPairProds(iProd)%nIndex
-     &                            +SymPairProds(iProd)%nPairs) =J
-!                  WRITE(6,*) iProd,I,J,PROD
-            
-               ENDIF
                IF(iProd.EQ.nSymPairProds+1) THEN
                   nSymPairProds=nSymPairProds+1
                   SymPairProds(iProd)%Sym=Prod
@@ -589,6 +585,19 @@ C.. put the pair into the list of pairs.
                  iSS=(SymLabelCounts(2,I)*(SymLabelCounts(2,J)-1))/2
                endif
                if(iOS.gt.0.or.iSS.gt.0) THEN
+                  IF(iPass.eq.1) THEN
+C.. put the pair into the list of pairs.
+                     SymStatePairs(1,SymPairProds(iProd)%nIndex
+     &                            +SymPairProds(iProd)%nPairs) =I
+                     SymStatePairs(2,SymPairProds(iProd)%nIndex
+     &                            +SymPairProds(iProd)%nPairs) =J
+!                     WRITE(6,"(3I5,Z10,3I5)") 
+!     &                  iProd,I,J,PROD,SymPairProds(iProd)%nIndex
+!     &                            +SymPairProds(iProd)%nPairs,
+!     &                           SymPairProds(iProd)%nIndex,
+!     &                            SymPairProds(iProd)%nPairs
+
+                  ENDIF
 C.. increment the counter in the pairlist
                  SymPairProds(iProd)%nPairs=SymPairProds(iProd)%nPairs+1
                  SymPairProds(iProd)%nPairsStateOS=

@@ -482,8 +482,8 @@ C     &                     ,L1B,L1A,L2B,L2A
                      K=NALLOWPPS(ISPN,J)
                      L=SYMPRODIND(2,ISPN,I)
                      ICC=L*K
-C                     WRITE(6,"(2I5,2Z6,4I5)") I,J,SYMPRODS(I),
-C     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
+                     WRITE(6,"(14I5)") I,J,
+     &                  SYMPAIRPRODS(I),ISPN,L,K,ICC
                      NDOUB=NDOUB+ICC
                      IF(ICC.GT.0) NEXCITTYPES=NEXCITTYPES+1
                   ENDDO
@@ -633,6 +633,8 @@ C.. And the doubles
                            EXCITTYPES(3,NEXCITTYPES)=I
                            EXCITTYPES(4,NEXCITTYPES)=J
                            EXCITTYPES(5,NEXCITTYPES)=ICC
+                        WRITE(6,"(A,3I5,4I5)") "SS",NEXCITTYPES,I,J,
+     &                     ISPN,L,K,ICC
 C                        WRITE(6,"(2I5,2Z6,4I5)") I,J,SYMPRODS(I),
 C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
                         ENDIF
@@ -1316,6 +1318,7 @@ C     &                     ,L1B,L1A,L2B,L2A
                      L=NALLOWPPS(ISPN,J)
                      K=SYMPRODIND(2,ISPN,I)
                      ICC=L*K
+!                     WRITE(6,*) "ET",NEXCITTYPES
 !                     WRITE(6,"(14I5)") I,J,SYMPRODS(I),
 !     &                  SYMPAIRPRODS(J),ISPN,L,K,ICC
                      NDOUB=NDOUB+ICC
@@ -1454,8 +1457,9 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
                   ICC=L*KK
                   if(tDebugPrint)
      &                  WRITE(6,*) "Occ removed", L
+                  if(tDebugPrint) WRITE(6,*) "ET",NEXCITTYPES
                   if(tDebugPrint)
-     &                  WRITE(6,"(14I5)") I,K,
+     &                  WRITE(6,"(14I5)") K,I,
      &                  SYMPAIRPRODS(I),ISPN,L,KK,ICC
                   NDOUB=NDOUB+ICC
                   IF(ICC.GT.0) NEXCITTYPES=NEXCITTYPES+1
@@ -1732,8 +1736,8 @@ C.. And the doubles
                         EXCITTYPES(3,NEXCITTYPES)=I
                         EXCITTYPES(4,NEXCITTYPES)=J
                         EXCITTYPES(5,NEXCITTYPES)=ICC
-C                        WRITE(6,"(2I5,2Z6,4I5)") I,J,SYMPRODS(I),
-C     &                     SYMPAIRPRODS(J),ISPN,L,K,ICC
+!                        WRITE(6,"(A,3I5,4I5)") "SD",NEXCITTYPES,I,J,
+!     &                     ISPN,L,K,ICC
                      ENDIF
                   ENDDO
                ENDIF
@@ -2273,6 +2277,7 @@ C.. and now instead the indices within NMEM
                ENDDO
 C.. Second setup finally complete.
 C               CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
+!               WRITE(6,*) "DST",LOC(NMEM(NMEM(1)))
             ENDIF
          ELSE
 C.. Actually generate a det
@@ -3115,6 +3120,7 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
          use SymData, only: tAbelianFastExcitGen
          use SymData, only: SymLabelCounts,SymStatePairs
          use SymData, only: SymLabelList,SymPairProds
+         use SymData, only: SymClasses
          IMPLICIT NONE
          INTEGER K,iTo
          INTEGER iLooped
@@ -3130,8 +3136,15 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
 ! We must generate the pair as we don't have a stored list
 ! SymStatePairs holds a list of SymLabels.
 ! SymPairProds(iTo) tells is which set of pairs we're using
-! we split K into 3 integers
-!   (LabelPairIndex, Label1Index, Label2Index)
+! we split K into 3 integers as we need to store 3 variables rather than 1
+!   (LabelPairIndexOff, Label1Index, Label2Index)
+! LabelPairIndexOff:  Which pair of symmetries (in SymStatePairs)
+!                       This is the index for a given iTo.  The base is iLabelPairBase
+! Label1Index:        The index of the current first state within its symmetry class
+! Label2Index:        The index of the current second state within it symmetry class
+
+!  the symmetries of the states are determined by the LAbelPairIndexOff.
+!   We iterate through all possible [LabelPair,(state1,state2)], in order state2, state1, LabelPair.
 !bits      30-24         23-12           11-0
             if(K.lt.0) then
                iLabelPairIndexOff=0
@@ -3183,7 +3196,8 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
             K=IShft(iLabelPairIndexOff,24)
      &            +IShft(iLabel1Index,12)+iLabel2Index
             if(tDebugPrint) THEN
-               Write(6,*) "To: ",iTo, "LabelPair:", iLabelPairIndexOff,
+               Write(6,*) "To: ",iTo, "LabelPair:", iLabelPairBase,"+",
+     &            iLabelPairIndexOff,
      &            "/",SymPairProds(iTo)%nPairs
                Write(6,"(A10,I4,A1,I4,A1,I4,I4)") "Label1: (",iLabel1,
      &            ")",iLabel1Index, "/",
@@ -3191,7 +3205,7 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
                Write(6,"(A10,I4,A1,I4,A1,I4,I4)") "Label2: (",iLabel2,
      &            ")",iLabel2Index, "/",
      &            SymLabelCounts(2 ,iLabel2), iTo2
-               WRITE(6,"(A,Z,A,I3)") "K:",K,"Looped:",iLooped
+               WRITE(6,"(A,Z10,A,I3)") "K:",K," Looped:",iLooped
             endif
          else
 ! We have a stored list, so just get the next from there.
@@ -3207,9 +3221,11 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
             iTo2=SymStatePairs(2,K)*2-1
             if(tDebugPrint) THEN
                Write(6,*) "To: ",iTo
-               WRITE(6,*) iTo1
-               WRITE(6,*) iTo2
-               WRITE(6,"(A,Z,A,I3)") "K:",K,"Looped:",iLooped
+               WRITE(6,"(A10,I4,A1,I4)") "Label1: (",
+     &            SymClasses((iTo1+1)/2),")",iTo1
+               WRITE(6,"(A10,I4,A1,I4)") "Label2: (",
+     &            SymClasses((iTo2+1)/2),")",iTo2
+               WRITE(6,"(A,I10,A,I3)") "K:",K," Looped:",iLooped
             endif
          ENDIF
          RETURN
