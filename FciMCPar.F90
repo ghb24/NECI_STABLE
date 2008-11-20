@@ -36,12 +36,21 @@ MODULE FciMCParMod
     INTEGER , PARAMETER :: i2=SELECTED_INT_KIND(18)
     
     TYPE ExcitGenerator
-        INTEGER , ALLOCATABLE :: ExcitData(:)      !This stores the excitation generator
-        INTEGER :: nExcitMemLen                    !This is the length of the excitation generator
-        LOGICAL :: ExitGenForDet=.false.           !This is true when the excitation generator stored corresponds to the determinant
+        INTEGER , POINTER :: ExcitData(:)       !This stores the excitation generator
+        INTEGER :: nExcitMemLen                     !This is the length of the excitation generator
+        INTEGER :: nPointed                         !This indicates the number of elements in the excitation pointer arrays which are pointing to this position
     END TYPE
+
+    TYPE ExcitPointer
+        INTEGER , POINTER :: PointToExcit(:)        !This is a pointer to the excitation generator in ExcitGens
+        INTEGER :: IndexinExArr                     !This is the index in ExcitGens which we are pointing at
+    END TYPE
+
+    TYPE(ExcitGenerator) , ALLOCATABLE :: ExcitGens(:)  !This is the array to store all the excitation generators
+    INTEGER :: NextFreeExInd                         !This points to the next free index in the excitation generators list
     
-    TYPE(ExcitGenerator) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
+    TYPE(ExcitPointer) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
+
     INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)                !Contains determinant list
     LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)                    !Contains sign list
     INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)                        !Contains excit level list
@@ -62,7 +71,7 @@ MODULE FciMCParMod
     LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
     INTEGER , POINTER :: CurrentIC(:), NewIC(:)
     REAL*8 , POINTER :: CurrentH(:), NewH(:)
-    TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
+    TYPE(ExcitPointer) , POINTER :: CurrentExcits(:), NewExcits(:)
     
     INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
     INTEGER :: HFDetTag=0
@@ -248,6 +257,7 @@ MODULE FciMCParMod
         do j=1,TotWalkers
 !j runs through all current walkers
 
+!            WRITE(6,*) Iter,j,TotWalkers
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
             CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentSign(j))
 
@@ -260,7 +270,7 @@ MODULE FciMCParMod
                 IF(.not.TRegenExcitgens) THEN
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
                     CALL SetupExitgenPar(CurrentDets(:,j),CurrentExcits(j))
-                    CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                    CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
                 ELSE
                     CALL GetPartRandExcitPar(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
                 ENDIF
@@ -349,7 +359,7 @@ MODULE FciMCParMod
                         NewDets(:,VecSlot)=nJ(:)
 !                        NewDets(:,VecSlot)=nJ(:)
                         NewSign(VecSlot)=WSign
-                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
+                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
                         NewIC(VecSlot)=ExcitLevel
                         NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
                         IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -370,7 +380,7 @@ MODULE FciMCParMod
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
                 NoDied=NoDied+iDie          !Update death counter
-
+                
                 IF(iDie.le.0) THEN
 !This indicates that the particle is spared and we may want to create more...copy them across to NewDets
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
@@ -380,17 +390,23 @@ MODULE FciMCParMod
 !                        NewDets(:,VecSlot)=CurrentDets(:,j)
                         NewSign(VecSlot)=CurrentSign(j)
 !Copy excitation generator accross
-                        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot))
+                        IF(ASSOCIATED(NewExcits(VecSlot)%PointToExcit)) THEN
+                            WRITE(6,*) "Problem is here",NewExcits(VecSlot)%IndexinExArr
+                        ENDIF
+                        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(VecSlot)=CurrentH(j)
                         IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
                     enddo
 
-                ELSEIF(iDie.gt.0) THEN
-!This indicates that particles want to be killed. The first kill will simply be performed by not copying accross the original particle.
-!Therefore, if iDie = 1, then we can simply ignore it.
-!However, after that anti-particles will need to be created on the same determinant.
+                ELSEIF(iDie.eq.1) THEN
+!The particle wants to be killed. Nothing needs to be copied accross, but we do want to kill the old excitation generator.
+                    IF(.not.TRegenExcitgens) CALL DissociateExitgen(CurrentExcits(j))
+
+                ELSE!IF(iDie.gt.1) THEN
+!This indicates that extra particles want to be killed.
+!Anti-particles will need to be created on the same determinant.
 
                     do l=1,iDie-1
                         NewDets(:,VecSlot)=CurrentDets(:,j)
@@ -402,7 +418,12 @@ MODULE FciMCParMod
                             NewSign(VecSlot)=.TRUE.
                         ENDIF
 !Copy excitation generator accross
-                        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot))
+                        IF(l.eq.iDie-1) THEN
+!Delete old excitation generator behind us (ie the final one is a move, rather than copy)
+                            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
+                        ELSE
+                            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.false.)
+                        ENDIF
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(VecSlot)=CurrentH(j)
                         IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
@@ -554,12 +575,13 @@ MODULE FciMCParMod
 !If there are enough particles, then this should be sufficient. Less memory is required, since no hashes need to be stored. Also, no communication is needed,
 !so the routine should scale better as the number of walkers grows.
     SUBROUTINE AnnihilateonProc(TotWalkersNew)
-        TYPE(ExcitGenerator) :: TempExcit
+        TYPE(ExcitPointer) :: TempExcit
         REAL*8 :: TempH
         INTEGER :: TempIC
         INTEGER :: TotWalkersNew,j,k,l,DetCurr(NEl),VecSlot,TotWalkersDet
         INTEGER :: DetLT
 
+        TempExcit%PointToExcit=>null()
 !First, it is necessary to sort the list of determinants
         CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NEl)
 
@@ -570,7 +592,7 @@ MODULE FciMCParMod
         DetCurr(:)=NewDets(:,j)
         TempIC=NewIC(j)
         TempH=NewH(j)
-        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit)
+        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit,.true.) !This will delete what is behind it - is that ok?
         
         VecSlot=1
 
@@ -594,7 +616,7 @@ MODULE FciMCParMod
                     CurrentSign(VecSlot)=.true.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
-                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot))
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
                     VecSlot=VecSlot+1
                 enddo
             ELSE
@@ -604,7 +626,7 @@ MODULE FciMCParMod
                     CurrentSign(VecSlot)=.false.
                     CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
-                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot))
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
                     VecSlot=VecSlot+1
                 enddo
             ENDIF
@@ -612,7 +634,10 @@ MODULE FciMCParMod
             DetCurr(:)=NewDets(:,j)
             TempIC=NewIC(j)
             TempH=NewH(j)
-            IF(.not.TRegenExcitgens) CALL CopyExitGenPar(NewExcits(j),TempExcit)
+            IF(.not.TRegenExcitgens) THEN
+                CALL DissociateExitGen(TempExcit)
+                CALL CopyExitGenPar(NewExcits(j),TempExcit,.true.)
+            ENDIF
         enddo
 !The new number of residual cancelled walkers is given by one less that VecSlot again.
         TotWalkers=VecSlot-1
@@ -628,7 +653,7 @@ MODULE FciMCParMod
 ! NElecs is the length (in numbers of integers) of each element of Dets
 ! Vectors of NewXXX will be sorted correspondingly
     SUBROUTINE SortPartsPar(N,Dets,NElecs)
-        TYPE(ExcitGenerator) :: ExcitTemp
+        TYPE(ExcitPointer) :: ExcitTemp
         REAL*8 :: HTemp
         INTEGER :: ICTemp
         INTEGER :: TempDet(NElecs)     !This stores a single element of the vector temporarily     
@@ -637,6 +662,7 @@ MODULE FciMCParMod
         INTEGER Dets(NElecs,N)
         INTEGER DETLT
 
+        ExcitTemp%PointToExcit=>null()
         IF(N.LE.1) RETURN
         L=N/2+1 
         IR=N
@@ -647,26 +673,26 @@ MODULE FciMCParMod
             HTemp=NewH(L)
             ICTemp=NewIC(L)
             WSignTemp=NewSign(L)
-            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp)
+            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp,.true.) !This will delete what is behind it - is this ok?
         ELSE
             TempDet(:)=Dets(:,IR)      !Copy IRth elements to temp
             HTemp=NewH(IR)
             ICTemp=NewIC(IR)
             WSignTemp=NewSign(IR)
-            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp)
+            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp,.true.)
 
             Dets(:,IR)=Dets(:,1)    !Copy 1st element to IRth element
             NewH(IR)=NewH(1)
             NewIC(IR)=NewIC(1)
             NewSign(IR)=NewSign(1)
-            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR))
+            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR),.true.)
             IR=IR-1
             IF(IR.EQ.1)THEN
                 Dets(:,1)=TempDet(:)    !Copy temp element to 1st element
                 NewH(1)=HTemp
                 NewIC(1)=ICTemp
                 NewSign(1)=WSignTemp
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(1))
+                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(1),.true.)
                 RETURN
             ENDIF
         ENDIF
@@ -681,7 +707,7 @@ MODULE FciMCParMod
                 NewH(I)=NewH(J)
                 NewIC(I)=NewIC(J)
                 NewSign(I)=NewSign(J)
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(J),NewExcits(I))
+                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(J),NewExcits(I),.true.)
                 I=J
                 J=J+J
             ELSE
@@ -693,7 +719,7 @@ MODULE FciMCParMod
         NewH(I)=HTemp
         NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
-        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(I))
+        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(I),.true.)
         GO TO 10
 
     END SUBROUTINE SortPartsPar
@@ -1082,10 +1108,10 @@ MODULE FciMCParMod
 !        ENDIF
 !        CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
         CALL MPI_AlltoAllv(IndexTable(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in sending back annihilated particles"
-            CALL Stop_All("AnnihilatePartPar","Error in sending back annihilated particles")
-        ENDIF
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in sending back annihilated particles"
+!            CALL Stop_All("AnnihilatePartPar","Error in sending back annihilated particles")
+!        ENDIF
 !        CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 !        IF(error.ne.MPI_SUCCESS) THEN
 !            WRITE(6,*) "Error in sending back annihilated particles"
@@ -1141,12 +1167,13 @@ MODULE FciMCParMod
                     CurrentDets(:,VecSlot)=NewDets(:,i)
                     CurrentIC(VecSlot)=NewIC(i)
                     CurrentH(VecSlot)=NewH(i)
-                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot),.true.)
                     HashArray(VecSlot)=TempHash(i)
                     CurrentSign(VecSlot)=TempSign(i)
                     i=i+1
                     VecSlot=VecSlot+1
                 enddo
+                CALL DissociateExitgen(NewExcits(i))    !Destroy particles if not copying accross
                 i=i+1
             enddo
 
@@ -1155,7 +1182,7 @@ MODULE FciMCParMod
                 CurrentDets(:,VecSlot)=NewDets(:,i)
                 CurrentIC(VecSlot)=NewIC(i)
                 CurrentH(VecSlot)=NewH(i)
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot),.true.)
                 HashArray(VecSlot)=TempHash(i)
                 CurrentSign(VecSlot)=TempSign(i)
                 VecSlot=VecSlot+1
@@ -1168,7 +1195,7 @@ MODULE FciMCParMod
                 CurrentDets(:,VecSlot)=NewDets(:,i)
                 CurrentIC(VecSlot)=NewIC(i)
                 CurrentH(VecSlot)=NewH(i)
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot),.true.)
                 HashArray(VecSlot)=TempHash(i)
                 CurrentSign(VecSlot)=TempSign(i)
                 VecSlot=VecSlot+1
@@ -1319,17 +1346,18 @@ MODULE FciMCParMod
 
 !This routine will create a graph from a given initial determinant
     SUBROUTINE CreateGraphPar(nI,VecInd,Prob)
-        TYPE(ExcitGenerator) :: TempExcitgen
+        TYPE(ExcitPointer) :: TempExcitgen
         INTEGER :: nI(NEl),nJ(NEl),VecInd,i,j,IC,iCount,Attempts
         REAL*8 :: Prob,ExcitProb
         LOGICAL :: SameDet,CompiPath
         TYPE(HElement) :: Hij,Hjj
 
+        TempExcitgen%PointToExcit=>null()
+
 !First, set up the excitation generators for the root determinant
         IF(.not.TRegenExcitgens) THEN
             CALL SetupExitgenPar(nI,CurrentExcits(VecInd))
         ELSE
-            TempExcitgen%ExitGenForDet=.false.
             CALL SetupExitgenPar(nI,TempExcitgen)
         ENDIF
 
@@ -1337,9 +1365,9 @@ MODULE FciMCParMod
 !We know that determinants are not going to be regenerated if NDets=2, so we can do this in a slightly simpler way
             
             IF(TRegenExcitgens) THEN
-                CALL GenRandSymExcitIt3(nI,TempExcitgen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
             ELSE
-                CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
             ENDIF
 
             Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
@@ -1364,9 +1392,9 @@ MODULE FciMCParMod
             do while(i.lt.NDets)    !Loop until all determinants found
 
                 IF(TRegenExcitgens) THEN
-                    CALL GenRandSymExcitIt3(nI,TempExcitgen%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                    CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
                 ELSE
-                    CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%ExcitData,nJ,Seed,IC,0,Prob,iCount)
+                    CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
                 ENDIF
 
                 SameDet=.false.
@@ -1423,7 +1451,7 @@ MODULE FciMCParMod
 
         IF(TRegenExcitgens) THEN
 !Deallocate excitation generator if we are regenerating them
-            DEALLOCATE(TempExcitgen%ExcitData)
+            CALL DissociateExitgen(TempExcitgen)
         ENDIF
 
         RETURN
@@ -1477,7 +1505,7 @@ MODULE FciMCParMod
                     NewSign(VecSlot)=TempSign
                     NewIC(VecSlot)=ExcitLevel
                     NewH(VecSlot)=GraphKii(i)       !Diagonal H El previously stored
-                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%ExitGenForDet=.false.
+                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
                     IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                         Hash2Array(VecSlot)=HashTemp
                     ENDIF
@@ -1517,7 +1545,11 @@ MODULE FciMCParMod
                 NewDets(:,VecSlot)=nI(:)
                 NewSign(VecSlot)=TempSign
 !Copy excitation generator accross
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot))
+                IF(j.eq.abs(Create)) THEN
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot),.true.)
+                ELSE
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot),.false.)
+                ENDIF
                 NewIC(VecSlot)=CurrentIC(VecInd)
                 NewH(VecSlot)=CurrentH(VecInd)
                 IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -1774,8 +1806,8 @@ MODULE FciMCParMod
                 CurrentH(Chosen)=CurrentH(TotWalkers)
                 CurrentIC(Chosen)=CurrentIC(TotWalkers)
                 IF(.not.TRegenExcitgens) THEN
-                    CALL CopyExitgenPar(CurrentExcits(TotWalkers),CurrentExcits(Chosen))
-                    CurrentExcits(TotWalkers)%ExitGenForDet=.false.
+                    CALL DissociateExitgen(CurrentExcits(Chosen))    !First, destroy the excitation generator of the chosen particle
+                    CALL CopyExitgenPar(CurrentExcits(TotWalkers),CurrentExcits(Chosen),.true.) !Then move the end particle to its place.
                 ENDIF
 
                 TotWalkers=TotWalkers-1
@@ -1802,7 +1834,7 @@ MODULE FciMCParMod
                 CurrentSign(VecSlot)=CurrentSign(i)
                 CurrentH(VecSlot)=CurrentH(i)
                 CurrentIC(VecSlot)=CurrentIC(i)
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(i),CurrentExcits(VecSlot))
+                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(i),CurrentExcits(VecSlot),.false.)
 
                 VecSlot=VecSlot+1
 
@@ -1872,7 +1904,7 @@ MODULE FciMCParMod
         use CalcData, only : EXCITFUNCS
         use Determinants , only : GetH0Element3
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
@@ -1910,7 +1942,17 @@ MODULE FciMCParMod
         HFHash=CreateHash(HFDet)
 
 !Setup excitation generator for the HF determinant
-        CALL SetupExitgenPar(HFDet,HFExcit)
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("InitFCIMC","Problem allocating excitation generator")
+        HFExcit%ExcitData(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
+        HFExcit%nPointed=0
+!Indicate that the excitation generator is now correctly allocated.
+
+!        CALL SetupExitgenPar(HFDet,HFExcit)
         CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
@@ -2202,23 +2244,35 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
             IF(.not.TRegenExcitgens) THEN
+
                 ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
                 ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
+                ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
+
+                do j=1,MaxWalkersExcit
+                    NULLIFY(WalkVecExcits(j)%PointToExcit)
+                    NULLIFY(WalkVec2Excits(j)%PointToExcit)
+                    ExcitGens(j)%nPointed=0
+                enddo
 
 !Allocate pointers to the correct excitation arrays
                 CurrentExcits=>WalkVecExcits
                 NewExcits=>WalkVec2Excits
 
-                IF(TStartSinglePart) THEN
-                    CALL CopyExitGenPar(HFExcit,CurrentExcits(1))
-                ELSE
-                    do j=1,InitWalkers
+!Initialise the first Free Excitgens indices...
+                NextFreeExInd=1
+
+!Setup the first particle on HF...
+                CALL SetupExitGenPar(HFDet,CurrentExcits(1))
+                
+                IF(.not.TStartSinglePart) THEN
+                    do j=2,InitWalkers
 !Copy the HF excitation generator accross to each initial particle
-                        CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
+                        CALL CopyExitGenPar(CurrentExcits(1),CurrentExcits(j),.false.)
                     enddo
                 ENDIF
-                MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkersExcit
+                MemoryAlloc=((HFExcit%nExcitMemLen)+4)*4*MaxWalkersExcit
 
                 WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
@@ -2270,7 +2324,6 @@ MODULE FciMCParMod
         
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
         RETURN
 
     END SUBROUTINE InitFCIMCCalcPar
@@ -2280,7 +2333,7 @@ MODULE FciMCParMod
         REAL*8 , ALLOCATABLE :: TempMax(:)
         TYPE(HElement) :: Fjj,Hij,Fkk
         REAL*8 :: Compt,MaxWeight
-        TYPE(ExcitGenerator) :: ExcitGenTemp
+        TYPE(ExcitPointer) :: ExcitGenTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
 
 !Commented out code is to just perform the ACF for the HF determinant.
@@ -2349,13 +2402,14 @@ MODULE FciMCParMod
 !We have now found the largest weight Doubles. To guess at large weighted triples & quads, we simply take the largest weighted double, and find 
 !its large MP1 weighted contributions with it as the reference.
 !        WRITE(6,*) "MaxIndex = ", MaxIndex
+        ExcitGenTemp%PointToExcit=>null()
         CALL SetupExitgenPar(AutoCorrDets(:,MaxIndex),ExcitGenTemp)
         CALL GetH0Element(AutoCorrDets(:,MaxIndex),NEl,Arr,nBasis,ECore,Fjj)
         ALLOCATE(TempMax(1:(NoACDets(3)+NoACDets(4))),stat=ierr)
         TempMax(:)=0.D0
 
         do while(.true.)
-            CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp%Excitdata,nJ,iExcit,0,nStore,3)
+            CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp%PointToExcit,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) EXIT
             Hij=GetHElement2(AutoCorrDets(:,MaxIndex),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fkk)
@@ -2384,7 +2438,8 @@ MODULE FciMCParMod
 
 !Deallocate TempExcitgen
         DEALLOCATE(TempMax)
-        DEALLOCATE(ExcitGenTemp%Excitdata)
+        CALL DissociateExitgen(ExcitGenTemp)
+!        DEALLOCATE(ExcitGenTemp%Excitdata)
         
 !Find if any zeros
         do i=1,NoAutoDets
@@ -2507,11 +2562,11 @@ MODULE FciMCParMod
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
-        LOGICAL :: exists
+        LOGICAL :: exists,First
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,iGetExcitLevel_2,MemoryAlloc,Tag
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer
         REAL*8 :: Ran2,FracPart
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
@@ -2597,12 +2652,13 @@ MODULE FciMCParMod
         
 !Now we want to allocate memory on all nodes.
         MaxWalkers=NINT(MemoryFac*InitWalkers)    !All nodes have the same amount of memory allocated
+        MaxWalkersExcit=NINT(MemoryFacExcit*InitWalkers)
 !Allocate memory to hold walkers at least temporarily
-        ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        WalkVecDets(1:NEl,1:MaxWalkers)=0
-        ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecSign',MaxWalkers*NEl,4,this_routine,WalkVecSignTag,ierr)
+        ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
+        WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
+        ALLOCATE(WalkVecSign(MaxWalkersExcit),stat=ierr)
+        CALL LogMemAlloc('WalkVecSign',MaxWalkersExcit*NEl,4,this_routine,WalkVecSignTag,ierr)
 
         IF(iProcIndex.eq.root) THEN
 !Root process reads all walkers in and then sends them to the correct processor
@@ -2638,11 +2694,12 @@ MODULE FciMCParMod
 
             WRITE(6,*) "Rescaling walkers  by a factor of: ",ScaleWalkers
             MaxWalkers=NINT(MemoryFac*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+            MaxWalkersExcit=NINT(MemoryFacExcit*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
 
 !Allocate memory for walkvec2, which will temporarily hold walkers
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
 
@@ -2683,9 +2740,9 @@ MODULE FciMCParMod
             CALL LogMemDealloc(this_routine,WalkVecDetsTag)
             DEALLOCATE(WalkVecSign)
             CALL LogMemDealloc(this_routine,WalkVecSignTag)
-            ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(1:NEl,1:MaxWalkers)=0
+            ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
             ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
 
@@ -2701,9 +2758,9 @@ MODULE FciMCParMod
         ELSE
 !We are not scaling the number of walkers...
 
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
             ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
 
@@ -2772,15 +2829,23 @@ MODULE FciMCParMod
         NewH=>WalkVec2H
 
         IF(.not.TRegenExcitgens) THEN
-            ALLOCATE(WalkVecExcits(MaxWalkers),stat=ierr)
-            ALLOCATE(WalkVec2Excits(MaxWalkers),stat=ierr)
+            ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("ReadFromPopsfilePar","Error in allocating walker excitation generators")
+            do j=1,MaxWalkersExcit
+                NULLIFY(WalkVecExcits(j)%PointToExcit)
+                NULLIFY(WalkVec2Excits(j)%PointToExcit)
+                ExcitGens(j)%nPointed=0
+            enddo
 
 !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
 
-            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkers
+            NextFreeExInd=1
+
+            MemoryAlloc=((HFExcit%nExcitMemLen)+4)*4*MaxWalkers
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
 
@@ -2792,18 +2857,26 @@ MODULE FciMCParMod
         CALL FLUSH(6)
 
 !Now find out the data needed for the particles which have been read in...
+        First=.true.
         do j=1,TotWalkers
             CurrentIC(j)=iGetExcitLevel_2(HFDet,CurrentDets(:,j),NEl,NEl)
             IF(CurrentIC(j).eq.0) THEN
                 CurrentH(j)=0.D0
-                IF(.not.TRegenExcitgens) CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
+                IF(First) THEN
+!First run - create the excitation.
+                    IF(.not.TRegenExcitgens) CALL SetupExitgenPar(HFDet,CurrentExcits(j))
+                    HFPointer=j
+                    First=.false.
+                ELSE
+                    IF(.not.TRegenExcitgens) CALL CopyExitGenPar(CurrentExcits(HFPointer),CurrentExcits(j),.false.)
+                ENDIF
                 IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=HFHash
                 ENDIF
             ELSE
                 HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                 CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
-                IF(.not.TRegenExcitgens) CurrentExcits(j)%ExitGenForDet=.false.
+                IF(.not.TRegenExcitgens) CurrentExcits(j)%PointToExcit=>null()
                 IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=CreateHash(CurrentDets(:,j))
                 ENDIF
@@ -2818,7 +2891,7 @@ MODULE FciMCParMod
 
 !This will set up the initial walker distribution proportially to the MP1 wavevector.
     SUBROUTINE InitWalkersMP1Par()
-        INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF
+        INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF,HFPointer
         REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r
         TYPE(HElement) :: Hij,Hjj,Fjj
         INTEGER , ALLOCATABLE :: MP1Dets(:,:)
@@ -2826,6 +2899,7 @@ MODULE FciMCParMod
         REAL*8 , ALLOCATABLE :: MP1Comps(:)
         INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF
         CHARACTER(len=*), PARAMETER :: this_routine='InitWalkersMP1Par'
+        LOGICAL :: First
         
     
 !Set the maximum number of walkers allowed
@@ -2839,12 +2913,12 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-        ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        WalkVecDets(1:NEl,1:MaxWalkers)=0
-        ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVec2Dets',MaxWalkers*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-        WalkVec2Dets(1:NEl,1:MaxWalkers)=0
+        ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
+        WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
+        ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
+        CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+        WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
         ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
         ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
@@ -3027,19 +3101,35 @@ MODULE FciMCParMod
         IF(.not.TRegenExcitgens) THEN
             ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
+            do j=1,MaxWalkersExcit
+                NULLIFY(WalkVecExcits(j)%PointToExcit)
+                NULLIFY(WalkVec2Excits(j)%PointToExcit)
+                ExcitGens(j)%nPointed=0
+            enddo
 
 !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
 
+            NextFreeExInd=1
+!            CALL SetupExitGenPar(HFDet,CurrentExcits(1))
+
+            First=.true.
             do j=1,InitWalkers
 !Copy the HF excitation generator accross to each initial particle
                 IF(CurrentIC(j).eq.0) THEN
 !We are at HF - we can save the excitgen
-                    CALL CopyExitGenPar(HFExcit,CurrentExcits(j))
+                    IF(First) THEN
+                        CALL SetupExitgenPar(HFDet,CurrentExcits(j))
+                        HFPointer=j
+                        First=.false.
+                    ELSE
+                        CALL CopyExitGenPar(CurrentExcits(HFPointer),CurrentExcits(j),.false.)
+                    ENDIF
                 ELSE
-                    CurrentExcits(j)%ExitgenForDet=.false.
+                    CurrentExcits(j)%PointToExcit=>null()
                 ENDIF
             enddo
             MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkersExcit
@@ -3240,27 +3330,28 @@ MODULE FciMCParMod
     END FUNCTION CreateHash
 
 !This routine copies an excitation generator from origExcit to NewExit, if the original claims that it is for the correct determinant
-    SUBROUTINE CopyExitgenPar(OrigExit,NewExit)
-        TYPE(ExcitGenerator) :: OrigExit,NewExit
+    SUBROUTINE CopyExitgenPar(OrigExit,NewExit,DelOldCopy)
+        TYPE(ExcitPointer) :: OrigExit,NewExit
+        LOGICAL :: DelOldCopy
         INTEGER :: ierr
         
-        IF(Allocated(NewExit%ExcitData)) THEN
-            DEALLOCATE(NewExit%ExcitData)
+        IF(ASSOCIATED(NewExit%PointToExcit)) THEN
+            CALL Stop_All("CopyExitgenPar","Trying to copy an excitation, but new pointer is already associated.")
         ENDIF
-        IF(.not.OrigExit%ExitGenForDet) THEN
-!See if we actually want the excitation generator - is it for the correct determinant
-            NewExit%ExitGenForDet=.false.
+        IF(.not.ASSOCIATED(OrigExit%PointToExcit)) THEN
+!We have not got a new pointer - it hasn't been created yet.
             RETURN
+        ENDIF
+
+        NewExit%PointToExcit => OrigExit%PointToExcit
+        NewExit%IndexinExArr=OrigExit%IndexinExArr
+
+        IF(DelOldCopy) THEN
+!Delete the old excitation - i.e. we are moving excitation generators, rather than copying them.
+            OrigExit%PointToExcit=>null()
         ELSE
-!We want to copy the excitation generator
-            ALLOCATE(NewExit%ExcitData(OrigExit%nExcitMemLen),stat=ierr)
-!            IF(OrigExit%nExcitMemLen.eq.0) THEN
-!                CALL Stop_All("CopyExitgenPar","Problem allocating memory for new excit")
-!            ENDIF
-            IF(ierr.ne.0) CALL Stop_All("CopyExitgenPar","Problem with allocating memory for new excitation generator")
-            NewExit%ExcitData(:)=OrigExit%ExcitData(:)
-            NewExit%nExcitMemLen=OrigExit%nExcitMemLen
-            NewExit%ExitGenForDet=.true.
+! We are copying, so increment the number of objects pointing at the excitgen.
+            EXCITGENS(NewExit%IndexinExArr)%nPointed=EXCITGENS(NewExit%IndexinExArr)%nPointed+1
         ENDIF
 
         RETURN
@@ -3268,37 +3359,127 @@ MODULE FciMCParMod
     END SUBROUTINE CopyExitgenPar
 
     SUBROUTINE SetupExitgenPar(nI,ExcitGen)
-        TYPE(ExcitGenerator) :: ExcitGen
-        INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl)
+        TYPE(ExcitPointer) :: ExcitGen
+        INTEGER :: ierr,iMaxExcit,nExcitMemLen,nJ(NEl),MinIndex,i
         INTEGER :: nI(NEl),nStore(6)
 
-        IF(ExcitGen%ExitGenForDet) THEN
-!The excitation generator is already allocated for the determinant in question - no need to recreate it
-            IF(.not.Allocated(ExcitGen%ExcitData)) THEN
-                CALL Stop_All("SetupExitgenPar","Excitation generator meant to already be set up")
-            ENDIF
-
+        IF(ASSOCIATED(ExcitGen%PointToExcit)) THEN
+!The determinant already has an associated excitation generator set up.
+            RETURN
         ELSE
 
-            IF(Allocated(ExcitGen%ExcitData)) THEN
-                DEALLOCATE(ExcitGen%ExcitData)
+!First, we need to find the next free element in the excitgens array...
+            IF(NextFreeExInd.gt.0) THEN
+                MinIndex=NextFreeExInd
+            ELSE
+!We need to search for the next free index unfortunately...
+                do i=abs(NextFreeExInd),MaxWalkersExcit
+                    IF(.not.Allocated(ExcitGens(i)%ExcitData)) THEN
+                        EXIT
+                    ENDIF
+                enddo
+                IF(i.gt.MaxWalkersExcit+1) THEN
+!We have not managed to find a free slot. Somethings wrong.
+                    CALL Stop_All("SetupExitgenPar","Cannot find an empty Excitgens slot")
+                ENDIF
+                MinIndex=i
             ENDIF
 
-!Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
+!MinIndex is the array element we want to point our new excitation generator to.
+!Setup excit generators for this determinant
             iMaxExcit=0
             nStore(1:6)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-            ALLOCATE(ExcitGen%ExcitData(ExcitGen%nExcitMemLen),stat=ierr)
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(EXCITGENS(MinIndex)%ExcitData(EXCITGENS(MinIndex)%nExcitMemLen),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-            ExcitGen%ExcitData(1)=0
-            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGen%ExcitData,nJ,iMaxExcit,0,nStore,3)
+            EXCITGENS(MinIndex)%ExcitData(1)=0
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGENS(MinIndex)%ExcitData,nJ,iMaxExcit,0,nStore,3)
 
-!Indicate that the excitation generator is now correctly allocated.
-            ExcitGen%ExitGenForDet=.true.
+!Indicate that the excitation generator is now correctly allocated and pointed to by one particle.
+            EXCITGENS(MinIndex)%nPointed=1
+
+!Now point Excitgen to this value
+            ExcitGen%PointToExcit=>EXCITGENS(MinIndex)%ExcitData
+            ExcitGen%IndexinExArr=MinIndex
+
+!The index slot is now filled. Return a negative value for this to show that the array is filled up to here.
+            NextFreeExInd=-MinIndex
         
         ENDIF
 
     END SUBROUTINE SetupExitgenPar
+                
+    SUBROUTINE DissociateExitgen(Exitgen)
+        TYPE(ExcitPointer) :: Exitgen
+        INTEGER :: ind
+
+        IF(.not.ASSOCIATED(Exitgen%PointToExcit)) THEN
+            RETURN
+        ENDIF
+        Ind=Exitgen%IndexinExArr
+        IF(Excitgens(Ind)%nPointed.eq.1) THEN
+            DEALLOCATE(Excitgens(Ind)%ExcitData)
+            Excitgens(Ind)%nPointed=0
+!Add removed excitgen to the free index list
+!If the index is negative, then we can give it a positive value.(Unless it is larger than abs(index)?)
+!If it is positive, then we want to show the smallest positive number possible.
+            IF(NextFreeExInd.lt.0) THEN
+                IF(Ind.lt.abs(NextFreeExInd)) NextFreeExInd=Ind
+            ELSE
+                IF(Ind.lt.NextFreeExInd) NextFreeExInd=Ind
+            ENDIF
+
+!!If all indices are negative, then we can say that the list is full up to the abs(lowest negative value), therefore
+!!we want to replace the index anywhere but the lowest negative index.
+!!If there is a mixture of negative and positive indices, then we want to put it over any but the lowest negative number.
+!!If all indices are positive, then we want to replace the smallest one.
+!            MaxInd=0
+!            MaxNeg=0
+!            MinNegInd=0
+!            do i=1,5
+!                IF(NextFreeExInd(i).lt.0) THEN
+!                    IF(MaxNeg.gt.NextFreeExInd(i)) THEN
+!                        MaxNeg=NextFreeExInd(i)
+!                        MaxNegInd=i
+!                    ELSE
+!                        MinNegInd=i
+!                    ENDIF
+!                ELSE
+!                    IF(NextFreeExInd(i).gt.MaxInd) THEN
+!                        MaxInd=NextFreeExInd(i)
+!                        MaxIndInd=i
+!                    ENDIF
+!                ENDIF
+!            enddo
+!            IF(MaxInd.eq.0) THEN
+!!All indices are negative. Put anywhere but the lowest negative value.
+!                IF(NextFreeExInd(1).eq.MaxNeg) THEN
+!                    NextFreeExInd(2)=Ind
+!                ELSE
+!                    NextFreeExInd(1)=Ind
+!                ENDIF
+!            ELSEIF(MaxNeg.eq.0) THEN
+!!All indices are positive. Put anywhere but the largest positive value.
+!                IF(NextFreeExInd(1).eq.MaxInd) THEN
+!                    NextFreeExInd(2)=Ind
+!                ELSE
+!                    NextFreeExInd(1)=Ind
+!                ENDIF
+!            ELSE
+!!We have a mixture of positive and negative indices. Exchange for any but the lowest negative index (unless thats the only one)
+!                IF(MinNegInd.eq.MaxNegInd) THEN
+!                    NextFreeExInd(MinNegInd)=Ind
+!                ELSE
+!                    NextFreeExInd(
+
+
+
+        ELSE
+            Excitgens(Ind)%nPointed=Excitgens(Ind)%nPointed-1
+        ENDIF
+        Exitgen%PointToExcit=>null()    !Point to null to show that it is now free.
+
+    END SUBROUTINE DissociateExitgen
 
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
     SUBROUTINE GetPartRandExcitPar(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,ExcitLevel)
@@ -3341,7 +3522,7 @@ MODULE FciMCParMod
         REAL*8 :: MeanWalkers,MidWalkers
         INTEGER :: WalktoTransfer(4)                !This gives information about how many walkers to transfer from and to
         INTEGER :: Transfers        !This is the number of transfers of walkers necessary
-        INTEGER :: IndexFrom,IndexTo,j,Stat(MPI_STATUS_SIZE),Tag
+        INTEGER :: IndexFrom,IndexTo,j,Stat(MPI_STATUS_SIZE),Tag,l
 
         Tag=123         !Set tag for sends
 !        CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -3444,6 +3625,12 @@ MODULE FciMCParMod
                 CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !It seems like too much like hard work to send the excitation generators accross, just let them be regenerated on the other side...
+!However, we do need to indicate that these the excitgens are no longer being pointed at.
+                do l=IndexFrom,TotWalkers
+!Run through the list of walkers, and make sure that their excitgen is removed.
+                    CALL DissociateExitgen(CurrentExcits(l))
+                enddo
+
                 IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 
@@ -3464,7 +3651,7 @@ MODULE FciMCParMod
 !Also need to indicate that the excitation generators are no longer useful...
                 IF(.not.TRegenExcitgens) THEN
                     do j=IndexFrom,IndexTo
-                        CurrentExcits(j)%ExitgenForDet=.false.
+                        CurrentExcits(j)%PointToExcit=>null()
                     enddo
                 ENDIF
 
@@ -3535,15 +3722,18 @@ MODULE FciMCParMod
         DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
             do i=1,MaxWalkersExcit
-                IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
-                    DEALLOCATE(WalkVecExcits(i)%ExcitData)
-                ENDIF
-                IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
-                    DEALLOCATE(WalkVec2Excits(i)%ExcitData)
-                ENDIF
+                CALL DissociateExitgen(WalkVecExcits(i))
+
+!                IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN
+!                    DEALLOCATE(WalkVecExcits(i)%ExcitData)
+!                ENDIF
+!                IF(Allocated(WalkVec2Excits(i)%ExcitData)) THEN
+!                    DEALLOCATE(WalkVec2Excits(i)%ExcitData)
+!                ENDIF
             enddo
             DEALLOCATE(WalkVecExcits)
             DEALLOCATE(WalkVec2Excits)
+            DEALLOCATE(ExcitGens)
         ENDIF
 
 !There seems to be some problems freeing the derived mpi type.
