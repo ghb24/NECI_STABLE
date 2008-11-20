@@ -47,8 +47,11 @@ MODULE FciMCParMod
     END TYPE
 
     TYPE(ExcitGenerator) , ALLOCATABLE :: ExcitGens(:)  !This is the array to store all the excitation generators
-    INTEGER :: NextFreeExInd                         !This points to the next free index in the excitation generators list
-    
+    INTEGER , ALLOCATABLE :: FreeIndArray(:)            !This is a circular list of the free positions to put excitation generators in ExcitGens.
+    INTEGER :: BackofList,FrontOfList                   !This indicates where in the list we are.
+                                                        !We add indices which become available in ExcitGens to the front of the list, and when we use them up,
+                                                        !take off the back of the list. It is circular and so will repeat indefinitly.
+
     TYPE(ExcitPointer) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
 
     INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)                !Contains determinant list
@@ -2248,20 +2251,23 @@ MODULE FciMCParMod
                 ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
                 ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
                 ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
+                ALLOCATE(FreeIndArray(MaxWalkersExcit),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
 
                 do j=1,MaxWalkersExcit
                     NULLIFY(WalkVecExcits(j)%PointToExcit)
                     NULLIFY(WalkVec2Excits(j)%PointToExcit)
                     ExcitGens(j)%nPointed=0
+                    FreeIndArray(j)=j       !All points are initially free
                 enddo
 
 !Allocate pointers to the correct excitation arrays
                 CurrentExcits=>WalkVecExcits
                 NewExcits=>WalkVec2Excits
 
-!Initialise the first Free Excitgens indices...
-                NextFreeExInd=1
+!Initialise the first Free Excitgens indices...initially whole list is free
+                BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
+                FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
 
 !Setup the first particle on HF...
                 CALL SetupExitGenPar(HFDet,CurrentExcits(1))
@@ -2832,18 +2838,22 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
             ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(FreeIndArray(MaxWalkersExcit),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("ReadFromPopsfilePar","Error in allocating walker excitation generators")
             do j=1,MaxWalkersExcit
                 NULLIFY(WalkVecExcits(j)%PointToExcit)
                 NULLIFY(WalkVec2Excits(j)%PointToExcit)
                 ExcitGens(j)%nPointed=0
+                FreeIndArray(j)=j
             enddo
 
 !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
 
-            NextFreeExInd=1
+!Initialise the first Free Excitgens indices...initially whole list is free
+            BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
+            FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
 
             MemoryAlloc=((HFExcit%nExcitMemLen)+4)*4*MaxWalkers
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
@@ -3102,18 +3112,24 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
             ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
             ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(FreeIndArray(MaxWalkersExcit),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
+
             do j=1,MaxWalkersExcit
                 NULLIFY(WalkVecExcits(j)%PointToExcit)
                 NULLIFY(WalkVec2Excits(j)%PointToExcit)
                 ExcitGens(j)%nPointed=0
+                FreeIndArray(j)=j       !All points are initially free
             enddo
 
 !Allocate pointers to the correct excitation arrays
             CurrentExcits=>WalkVecExcits
             NewExcits=>WalkVec2Excits
 
-            NextFreeExInd=1
+!Initialise the first Free Excitgens indices...initially whole list is free
+            BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
+            FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
+
 !            CALL SetupExitGenPar(HFDet,CurrentExcits(1))
 
             First=.true.
@@ -3369,20 +3385,17 @@ MODULE FciMCParMod
         ELSE
 
 !First, we need to find the next free element in the excitgens array...
-            IF(NextFreeExInd.gt.0) THEN
-                MinIndex=NextFreeExInd
+!This is simply FreeIndArray(BackOfList)
+            MinIndex=FreeIndArray(BackOfList)
+!Increment BackOfList in a circular fashion.
+            IF(BackOfList.eq.MaxWalkersExcit) THEN
+                BackOfList=1
             ELSE
-!We need to search for the next free index unfortunately...
-                do i=abs(NextFreeExInd),MaxWalkersExcit
-                    IF(.not.Allocated(ExcitGens(i)%ExcitData)) THEN
-                        EXIT
-                    ENDIF
-                enddo
-                IF(i.gt.MaxWalkersExcit+1) THEN
-!We have not managed to find a free slot. Somethings wrong.
-                    CALL Stop_All("SetupExitgenPar","Cannot find an empty Excitgens slot")
-                ENDIF
-                MinIndex=i
+                BackOfList=BackOfList+1
+            ENDIF
+
+            IF(Allocated(ExcitGens(MinIndex)%ExcitData)) THEN
+                CALL Stop_All("SetupExitgenPar","Index chosen to create excitation generator is not free.")
             ENDIF
 
 !MinIndex is the array element we want to point our new excitation generator to.
@@ -3402,9 +3415,6 @@ MODULE FciMCParMod
             ExcitGen%PointToExcit=>EXCITGENS(MinIndex)%ExcitData
             ExcitGen%IndexinExArr=MinIndex
 
-!The index slot is now filled. Return a negative value for this to show that the array is filled up to here.
-            NextFreeExInd=-MinIndex
-        
         ENDIF
 
     END SUBROUTINE SetupExitgenPar
@@ -3417,62 +3427,20 @@ MODULE FciMCParMod
             RETURN
         ENDIF
         Ind=Exitgen%IndexinExArr
+
         IF(Excitgens(Ind)%nPointed.eq.1) THEN
+!We want to delete this excitgen.
             DEALLOCATE(Excitgens(Ind)%ExcitData)
             Excitgens(Ind)%nPointed=0
-!Add removed excitgen to the free index list
-!If the index is negative, then we can give it a positive value.(Unless it is larger than abs(index)?)
-!If it is positive, then we want to show the smallest positive number possible.
-            IF(NextFreeExInd.lt.0) THEN
-                IF(Ind.lt.abs(NextFreeExInd)) NextFreeExInd=Ind
+
+!Add removed excitgen to the front of the free index list
+            FreeIndArray(FrontOfList)=Ind
+!Increment frontoflist in a circular fashion.
+            IF(FrontOfList.eq.MaxWalkersExcit) THEN
+                FrontOfList=1
             ELSE
-                IF(Ind.lt.NextFreeExInd) NextFreeExInd=Ind
+                FrontOfList=FrontOfList+1
             ENDIF
-
-!!If all indices are negative, then we can say that the list is full up to the abs(lowest negative value), therefore
-!!we want to replace the index anywhere but the lowest negative index.
-!!If there is a mixture of negative and positive indices, then we want to put it over any but the lowest negative number.
-!!If all indices are positive, then we want to replace the smallest one.
-!            MaxInd=0
-!            MaxNeg=0
-!            MinNegInd=0
-!            do i=1,5
-!                IF(NextFreeExInd(i).lt.0) THEN
-!                    IF(MaxNeg.gt.NextFreeExInd(i)) THEN
-!                        MaxNeg=NextFreeExInd(i)
-!                        MaxNegInd=i
-!                    ELSE
-!                        MinNegInd=i
-!                    ENDIF
-!                ELSE
-!                    IF(NextFreeExInd(i).gt.MaxInd) THEN
-!                        MaxInd=NextFreeExInd(i)
-!                        MaxIndInd=i
-!                    ENDIF
-!                ENDIF
-!            enddo
-!            IF(MaxInd.eq.0) THEN
-!!All indices are negative. Put anywhere but the lowest negative value.
-!                IF(NextFreeExInd(1).eq.MaxNeg) THEN
-!                    NextFreeExInd(2)=Ind
-!                ELSE
-!                    NextFreeExInd(1)=Ind
-!                ENDIF
-!            ELSEIF(MaxNeg.eq.0) THEN
-!!All indices are positive. Put anywhere but the largest positive value.
-!                IF(NextFreeExInd(1).eq.MaxInd) THEN
-!                    NextFreeExInd(2)=Ind
-!                ELSE
-!                    NextFreeExInd(1)=Ind
-!                ENDIF
-!            ELSE
-!!We have a mixture of positive and negative indices. Exchange for any but the lowest negative index (unless thats the only one)
-!                IF(MinNegInd.eq.MaxNegInd) THEN
-!                    NextFreeExInd(MinNegInd)=Ind
-!                ELSE
-!                    NextFreeExInd(
-
-
 
         ELSE
             Excitgens(Ind)%nPointed=Excitgens(Ind)%nPointed-1
@@ -3734,6 +3702,7 @@ MODULE FciMCParMod
             DEALLOCATE(WalkVecExcits)
             DEALLOCATE(WalkVec2Excits)
             DEALLOCATE(ExcitGens)
+            DEALLOCATE(FreeIndArray)
         ENDIF
 
 !There seems to be some problems freeing the derived mpi type.
