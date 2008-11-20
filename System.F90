@@ -12,6 +12,7 @@ MODULE System
 
       use default_sets
       USE SymData, only: tAbelianFastExcitGen
+      USE SymData, only: tStoreStateList
       implicit none
 
 !     SYSTEM defaults - leave these as the default defaults
@@ -57,6 +58,8 @@ MODULE System
       tStoreAsExcitations=.false.
       TBIN=.false.
       tAbelianFastExcitGen=.true.
+      TNoRenormRandExcits=.false.
+      tStoreStateList=.false.   !This will be turned to true by default if not in abelian symmetry
 
       lNoSymmetry=.false.
 
@@ -74,6 +77,7 @@ MODULE System
     SUBROUTINE SysReadInput()
       USE input
       USE SymData, only: tAbelianFastExcitGen
+      USE SymData, only: tStoreStateList
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
@@ -293,6 +297,21 @@ MODULE System
                    tAbelianFastExcitGen=.false.
                 end select
             end if
+        case("NORENORMRANDEXCITS")
+!    Since we have already calculated the number of excitations possible for each symmetry type, there
+!    no need to renormalise all excitations with weight 1. As long as pairs of allowed occupied and
+!    virtual orbitals can be chosen without any bias, then we can generate random excitations in O[1] time.
+!    This is default off since it will change previous results, however it is strongly recommended to be
+!    on for virtually all unweighted MC calculations, since it should speed up generation, especially in
+!    low symmetry and/or large systems.
+            tNoRenormRandExcits=.true.
+        case("STORESTATELIST")
+!This flag indicates that we want to store the full list of symmetry state pairs.
+!This is done by default in non-abelian symmetries, but in abelian symmetries, will
+!only be done if specified. This may be wanted, since it means that random excitations
+!will be created quicker currently, since NoRenormRandExcits can only work with it on in 
+!abelian symmetry.
+            tStoreStateList=.true.
         case("ENDSYS") 
             exit system
         case default

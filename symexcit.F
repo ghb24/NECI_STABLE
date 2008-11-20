@@ -731,6 +731,7 @@ C..      ENDIF(.NOT.TCOUNT)
          use SystemData, only: Symmetry,BasisFN
          use SymData, only: SymClass,nSymPairProds
          use SymData, only: tAbelianFastExcitGen
+         use SymData, only: tStoreStateList
          IMPLICIT NONE
          INCLUDE 'irat.inc'
          INTEGER NEL,NI(NEL),NBASIS
@@ -816,9 +817,10 @@ C.. Now go through the list of all pairs, finding out how many pairs are to be e
 C.. orbitals in this determinant.
 C.. We first create a quick lookup table to enable us to quickly check whether a given orbital is in this determinant
 C.. in order 1, not order NEL.
-         IF((tAbelianFastExcitGen.and.(.not.TCOUNT)).or.                
-     &          (.not.tAbelianFastExcitGen)) THEN
-!ILUT is not needed in the setup of the excitation generators for abelian symmetry
+         IF(((.not.tStoreStateList).and.(.not.TCOUNT)).or.             
+     &          (tStoreStateList)) THEN
+!ILUT is not needed in the setup of the excitation generators for abelian symmetry.
+!tStoreStateList will be false for abelian symmetry, unless specified otherwise.
             ILUT(0:NBASIS/32)=0
             DO I=1,NEL
                 ILUT((NI(I)-1)/32)=
@@ -837,7 +839,8 @@ C.. the complete list, and store that value in NALLOWPPS
             IP_NALLOWPPS=STORE(3)
          ENDIF
          nExcitTypes=0
-         if(tAbelianFastExcitGen) then
+         if(.not.tStoreStateList) then
+!We can calculate the virtual pairs more easily in abelian symmetry.
             Call SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,
      &           nCl,nPr,SymProds,SymProdInd,Classes,ClassCount,
      &           nAllowPPS) ! Calculated not enumerated
@@ -847,6 +850,7 @@ C.. the complete list, and store that value in NALLOWPPS
          end if
          IF(.NOT.ISUHFDET(NI,NEL)) THEN
             if(tAbelianFastExcitGen) then
+!This can be done quicker for abelian symmetry, whether or not the state pairs are stored or not.
                 CALL SymSetupExcitsAbelian_CountSingles(nSing,nCl,
      &              nExcitTypes,ThisClassCount, ClassCount,Classes)
             else
@@ -3117,7 +3121,7 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
 !  start afresh and set iLooped to -1.
       Subroutine SymGenExcitIt_GetNextPair(K,iTo,iLooped,iTo1,iTo2,
      &      tDebugPrint)
-         use SymData, only: tAbelianFastExcitGen
+         use SymData, only: tStoreStateList
          use SymData, only: SymLabelCounts,SymStatePairs
          use SymData, only: SymLabelList,SymPairProds
          use SymData, only: SymClasses
@@ -3132,12 +3136,18 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
          INTEGER iLabel1,iLabel2
          LOGICAL tDebugPrint
          iLooped=0
-         if(tAbelianFastExcitGen) then
+         if(.not.tStoreStateList) then
 ! We must generate the pair as we don't have a stored list
 ! SymStatePairs holds a list of SymLabels.
 ! SymPairProds(iTo) tells is which set of pairs we're using
+! iTo is the symmetry of the 'to' spin-orb pair
 ! we split K into 3 integers as we need to store 3 variables rather than 1
 !   (LabelPairIndexOff, Label1Index, Label2Index)
+!bits      30-24         23-12           11-0
+!The index of the current state of the 1st symmetry of the pair (Label1Index)             
+!The index of the current state of the 2nd symmetry of the pair (Label2Index)
+
+!we loop over these with Label2Index changing fastest, then Label1Index, then iLabelPairIndexOff
 ! LabelPairIndexOff:  Which pair of symmetries (in SymStatePairs)
 !                       This is the index for a given iTo.  The base is iLabelPairBase
 ! Label1Index:        The index of the current first state within its symmetry class
@@ -3145,7 +3155,8 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
 
 !  the symmetries of the states are determined by the LAbelPairIndexOff.
 !   We iterate through all possible [LabelPair,(state1,state2)], in order state2, state1, LabelPair.
-!bits      30-24         23-12           11-0
+
+
             if(K.lt.0) then
                iLabelPairIndexOff=0
                iLabel1Index=0

@@ -157,6 +157,7 @@ MODULE ReadInput
       Use Determinants, only : SpecDet,tagSpecDet
       use IntegralsData , only : NFROZEN,TDISCONODES,TQuadValMax,TQuadVecMax,TCalcExcitStar,TJustQuads,TNoDoubs,TDiagStarStars,TExcitStarsRootChange,TRmRootExcitStarsRootChange,TLinRootChange
       USE Logging , only : ILOGGING
+      use SystemData, only : TNoRenormRandExcits
       USE input
       use global_utilities
       IMPLICIT NONE
@@ -294,10 +295,16 @@ MODULE ReadInput
         enddo
       ENDIF
 
-      !IF THERE IS NO WEIGHTING FUNCTION
+      !IF THERE IS NO WEIGHTING FUNCTION, ExcitFuncs(10)=.true.
       do vv=1,9
           IF(EXCITFUNCS(vv)) EXCITFUNCS(10)=.false.
       enddo
+
+      IF(TNoRenormRandExcits.and.(.not.ExcitFuncs(10))) THEN
+          WRITE(6,*) "Random excitations WILL have to be renormalised, "&
+     &      //"since an excitation weighting has been detected."
+      ENDIF
+
       !IF FINDD or USED specified without using Excitweighting option
       do vv=2,preIV_MAX
 !    IF((pre_TAY(1,vv).eq.-20).and.((NWHTAY(1,vv).eq.-7).or.        &

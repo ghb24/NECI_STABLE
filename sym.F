@@ -386,6 +386,7 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
          use SymData, only: tagSymLabelCounts,tagSymStatePairs
          use SymData, only: SymPairProd
          use SymData, only: tAbelianFastExcitGen,tAbelian
+         use SymData, only: tStoreStateList
          use global_utilities
          IMPLICIT NONE
          INTEGER I,IDECOMP,TOT,NPRODS,NSTATES
@@ -397,6 +398,11 @@ C.. Precompute a list of the symmetry product of all pairs of symmetry labels
             WRITE(6,*) "Fast Abelian excitation generators specified,"
      &      ,"but abelian symmetry not in use.  Using slow generators."
             tAbelianFastExcitGen=.false.
+         endif
+
+         if(.not.tAbelianFastExcitGen) THEN
+!We are not in abelian fast excitgen - we are always storing state pairs, whether specified or not.
+             tStoreStateList=.true.
          endif
 
          !May need to deallocate, since this info is allocated in storage of UMAT before freezing
@@ -459,7 +465,7 @@ C.. sort the symlabellist
 
 C.. Now deal with pairs of states
 
-         if(tAbelianFastExcitGen) then
+         if(.not.tStoreStateList) then
 !.. We don't bother listing all pairs of orbs, because we can calculate the number
 !.. and they're easy to generate. 
 !.. Instead of listing all pairs of states, we can list all pairs of sym classes (labels), 

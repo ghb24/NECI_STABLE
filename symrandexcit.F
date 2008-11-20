@@ -356,6 +356,8 @@ C.. Actually generate a det
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymClass,SymLabelCounts,SymLabelList
          use SymData, only: tAbelianFastExcitgen
+         use SymData, only: tStoreStateList
+         use SystemData, only: tNoRenormRandExcits
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)
          INTEGER I
@@ -401,7 +403,7 @@ C.. Actually generate a det
             ISPN=EXCITTYPES(2,IEXCIT)-2
             IFROM=CLASSES(EXCITTYPES(3,IEXCIT))%SymLab
             ITO=EXCITTYPES(4,IEXCIT)
-            IF(ExcitFuncs(10)) THEN
+            IF(tNoRenormRandExcits) THEN
 !There is no excitation weighting - we do not need to enumerate all excitations
                 Call SymGenRandExcitIt2_Single_GetFrom_NoWeight(iSeed,
      &                  ILUT,nEl,iSpn,iFrom,I,nI)
@@ -427,8 +429,9 @@ C.. Actually generate a det
             ISPN=EXCITTYPES(2,IEXCIT)
             IFROM=EXCITTYPES(3,IEXCIT)
             ITO=EXCITTYPES(4,IEXCIT)
-            IF(ExcitFuncs(10).and.(.not.tAbelianFastExcitgen)) THEN
+            IF(tStoreStateList.and.tNoRenormRandExcits) THEN
 !There is no excitation weighting - we do not need to enumerate all excitations in the class
+!However, currently, we do need a list of state pairs.
                 Call SymGenRandExcitIt2_Double_GetFrom_NoWeight(iSeed,
      &               iSpn,iFrom,SymProdInd,I,nI,OrbPairs)
 
@@ -436,8 +439,6 @@ C.. Actually generate a det
      &               nI,ExcitTypes,iExcit,OrbPairs,SymProdInd,iSpn,
      &               iFrom,iLUT,I,nK)
             ELSE
-!            WRITE(6,*) "NI: ",NI(:)
-!            WRITE(6,*) "CLASSES: ",Classes(1:4)%Symlab
                 Call SymGenRandExcitIt2_Double_GetFrom(iSeed,ExcitTypes,
      &         iExcit,iSpn, iFrom, OrbPairs, SymProdInd, iTotal, I,pGen)
 
@@ -850,68 +851,62 @@ C.. Actually generate a det
 
          do while(.true.)   !Cycle until we find an acceptable virtual pair to excite to.
              
-             IF(.not.tAbelianFastExcitgen) THEN
 !We have an explicit list of state pairs and their symmetry, so we can just pick one at random.
 !The number of pairs with desired symmetry is given by SymPairsProds(ExcitTypes(4,iExcit))%nPairs.
-                IF((iSpn.eq.1).or.(iSpn.eq.3)) THEN
+             IF((iSpn.eq.1).or.(iSpn.eq.3)) THEN
 !Choose a state pair from the list at random
-                    StatePair=INT(Ran2(iSeed)*
-     &                  SymPairProds(iTo)%nPairs)+1
+                StatePair=INT(Ran2(iSeed)*
+     &              SymPairProds(iTo)%nPairs)+1
 !Orb1/2 are the is the beta orbital corresponding to the a state in the state pair with the desired symmetry product             
+                Index1=SymPairProds(iTo)%nIndex+StatePair-1
+
+                Orb1=SymStatePairs(1,Index1)*2-1
+                Orb2=SymStatePairs(2,Index1)*2-1
+
+                Orb1Beta=Orb1
+                Orb2Beta=Orb2
+                Orb1Alpha=Orb1+1
+                Orb2Alpha=Orb2+1
+
+             ELSE
+!We want to pick an alpha-beta spin orbtial combo without biasing the pick.
+!The difficulty is due to the fact that some state pairs will have two possible ab combinations (different states)
+!but some will have only one, if they are from the same state. To get around this, reject the choice with Prob=0.5 if
+!we pick a state pair with two same states. Otherwise, just choose an ab state at random from the states chosen.
+                NotSelectedPair=.true.
+                do while(NotSelectedPair)
+
+                    StatePair=INT(Ran2(iSeed)*
+     &                 SymPairProds(iTo)%nPairs)+1
+
                     Index1=SymPairProds(iTo)%nIndex+StatePair-1
 
                     Orb1=SymStatePairs(1,Index1)*2-1
                     Orb2=SymStatePairs(2,Index1)*2-1
 
-                    Orb1Beta=Orb1
-                    Orb2Beta=Orb2
-                    Orb1Alpha=Orb1+1
-                    Orb2Alpha=Orb2+1
-
-                ELSE
-!We want to pick an alpha-beta spin orbtial combo without biasing the pick.
-!The difficulty is due to the fact that some state pairs will have two possible ab combinations (different states)
-!but some will have only one, if they are from the same state. To get around this, reject the choice with Prob=0.5 if
-!we pick a state pair with two same states. Otherwise, just choose an ab state at random from the states chosen.
-                    NotSelectedPair=.true.
-                    do while(NotSelectedPair)
-
-                        StatePair=INT(Ran2(iSeed)*
-     &                     SymPairProds(iTo)%nPairs)+1
-
-                        Index1=SymPairProds(iTo)%nIndex+StatePair-1
-
-                        Orb1=SymStatePairs(1,Index1)*2-1
-                        Orb2=SymStatePairs(2,Index1)*2-1
-
-                        IF(Orb1.eq.Orb2) THEN
+                    IF(Orb1.eq.Orb2) THEN
 !We have a same-state pair - reject with prob=0.5
-                            IF(Ran2(iSeed).le.0.5) THEN
+                        IF(Ran2(iSeed).le.0.5) THEN
 !Accept the state pair
-                                NotSelectedPair=.false.
-                                OrbAlpha=Orb1+1
-                                OrbBeta=Orb1
-                            ENDIF
-                        ELSE
-!We have different states in our state pair. Choose whether to take the ab pair, or ba pair.
-                            IF(Ran2(iSeed).le.0.5) THEN
-                                NotSelectedPair=.false.
-                                OrbAlpha=Orb1+1
-                                OrbBeta=Orb2
-                            ELSE
-                                NotSelectedPair=.false.
-                                OrbAlpha=Orb2+1
-                                OrbBeta=Orb1
-                            ENDIF
+                            NotSelectedPair=.false.
+                            OrbAlpha=Orb1+1
+                            OrbBeta=Orb1
                         ENDIF
+                    ELSE
+!We have different states in our state pair. Choose whether to take the ab pair, or ba pair.
+                        IF(Ran2(iSeed).le.0.5) THEN
+                            NotSelectedPair=.false.
+                            OrbAlpha=Orb1+1
+                            OrbBeta=Orb2
+                        ELSE
+                            NotSelectedPair=.false.
+                            OrbAlpha=Orb2+1
+                            OrbBeta=Orb1
+                        ENDIF
+                    ENDIF
 
-                    enddo
+                enddo
 
-                ENDIF
-
-             ELSE
-!How can we make an unbiased draw when we do not have the list? Do we need to generate it?
-                STOP 'Not currently working for fast-excitgen'
              ENDIF
 
 !             WRITE(6,*) "Chosen orbs: ",iSpn,OrbAlpha,OrbBeta

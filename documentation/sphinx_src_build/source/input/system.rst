@@ -116,6 +116,29 @@ General options
        The excitation generators for Abelian symmetries are currently incompatible 
        with density-fitting.  Density fitting calculations should use **FAST-EXCITGEN OFF**.
 
+**NORENORMRANDEXCITS**
+    Default off.
+
+    Since we have already calculated the number of excitations possible for each symmetry type, there
+    no need to renormalise all excitations with weight 1. As long as pairs of allowed occupied and
+    virtual orbitals can be chosen without any bias, then we can generate random excitations in O[1] time.
+    This is default off since it will change previous results, however it is strongly recommended to be
+    on for virtually all unweighted MC calculations, since it should speed up generation, especially in
+    low symmetry and/or large systems. However, currently this facility is not possible for use with doubles
+    with abelian symmetry, unless FASTEXCITGEN is OFF, or STORESTATELIST is activated. For single excitations,
+    the list is not needed, and so they will always be chosen faster.
+
+**STORESTATELIST**
+    Default off.
+
+    This indicates that the list of state pairs is stored. This is taken by default to be off, however, for 
+    non-abelian symmetry, or if FASTEXCITGEN is OFF, then it will be stored no matter what. The advantage to 
+    storing the list is that NORENROMRANDEXCITS can be used with double excitations, leading to quicker
+    generation of determinants if there is no weighting function. However, this can use a not insignificant
+    amount of memory and some of the abelian features in the excitation generator setup are no longer used.
+    It is hoped that soon the ability to generate random unweighted excitations without renormalisation will
+    be available without storage of the state pairs.
+
 **NEL** [NEL]
     Synonym for **ELECTRONS**.
 

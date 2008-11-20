@@ -44,6 +44,12 @@ module SymData
 !can only be 8 irreps. This is the default for Dalton generated molecular systems.
     LOGICAL :: TwoCycleSymGens
 
+!This flag indicates that we want to store the full list of symmetry state pairs.
+!This is done by default in non-abelian symmetries, but in abelian symmetries, will
+!only be done if specified. This may be wanted, since it means that random excitations
+!will be created quicker currently.
+    LOGICAL :: TStoreStateList
+
     ! For translational symmetry groups:
     ! We need to know the periodic condition of propogation, as the
     ! multiplication of two irreps is equivalent to the addition of their
