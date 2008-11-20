@@ -36,7 +36,7 @@ MODULE FciMCParMod
     INTEGER , PARAMETER :: i2=SELECTED_INT_KIND(18)
     
     TYPE ExcitGenerator
-        INTEGER , POINTER :: ExcitData(:)       !This stores the excitation generator
+        INTEGER , POINTER :: ExcitData(:)=>null()   !This stores the excitation generator
         INTEGER :: nExcitMemLen                     !This is the length of the excitation generator
         INTEGER :: nPointed                         !This indicates the number of elements in the excitation pointer arrays which are pointing to this position
     END TYPE
@@ -3394,7 +3394,7 @@ MODULE FciMCParMod
                 BackOfList=BackOfList+1
             ENDIF
 
-            IF(Allocated(ExcitGens(MinIndex)%ExcitData)) THEN
+            IF(associated(ExcitGens(MinIndex)%ExcitData)) THEN
                 CALL Stop_All("SetupExitgenPar","Index chosen to create excitation generator is not free.")
             ENDIF
 
