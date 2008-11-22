@@ -1,7 +1,7 @@
      compiler='INTEL-ifort9-on-LINUX'
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DPARALLEL"
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL'
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8'

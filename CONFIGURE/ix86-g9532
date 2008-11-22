@@ -1,7 +1,7 @@
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)'"
-MAXMEM := 1024 # RAM available, in MB.
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT'
+     MAXMEM := 1024 # RAM available, in MB.
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS=''

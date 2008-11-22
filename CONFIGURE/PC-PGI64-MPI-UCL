@@ -2,7 +2,7 @@
      IRAT=2
      CFLAGS='-D__PGI'
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS="-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DPARALLEL"
+     CPPFLAGS='-D__Linux -D__PGI -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL'
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8 pc=64 -Msignextend -Minform=warn -Msecond_underscore'

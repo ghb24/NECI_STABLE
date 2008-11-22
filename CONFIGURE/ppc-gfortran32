@@ -1,6 +1,6 @@
      IRAT=2
      CPP='cpp -P -C -traditional'
-     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)' -DMAXMEM='\$(MAXMEM)' -DGFORTRAN"
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DGFORTRAN'
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'

@@ -188,7 +188,8 @@ cat << END >&3
 SHELL = /bin/bash
 #
 #--------------- Default Configuration for $Configuration ---------------
-SVNVER := \$(shell echo -n \" && (grep '^Revision:\|^commit ' <(svn info || git svn info || git log --max-count=1 || echo 'Revision:"not under svn control"') | sed -e 's/^Revision: *\|^commit *//g' ) 2> /dev/null && echo -n \" ) 
+VCS_VER:= \$(shell set -o pipefail && echo -n \" && ( ( (svn info || git svn info) | grep 'Revision' | sed -e 's/Revision: //' ) ||  git log --max-count=1 --pretty=format:%H || echo -n 'Not under version control.' ) 2> /dev/null | tr -d '\r\n'  && echo -n \")
+WORKING_DIR_CHANGES := \$(shell (if [[ -e .svn ]]; then svn st -q | xargs -i test -z {} ; else (git diff-index --quiet --cached HEAD --ignore-submodules -- && git diff-files --quiet --ignore-submodules) 2> /dev/null ; fi) || echo -n "-D_WORKING_DIR_CHANGES")
 MAXMEM := 2048 # RAM available, in MB.
 compiler = ${compiler}
 SRC  = .
@@ -201,7 +202,7 @@ LFLAGS = ${LFLAGS}
 LDFLAGS = ${LDFLAGS}
 CFLAGS = ${CFLAGS}
 CPP = ${CPP}
-CPPFLAGS = ${CPPFLAGS}
+CPPFLAGS = ${CPPFLAGS} -DMAXMEM='\$(MAXMEM)' -D_VCS_VER='\$(VCS_VER)' \$(WORKING_DIR_CHANGES)
 FC = ${FC}
 LD = ${LD}
 FCD = ${FCD}

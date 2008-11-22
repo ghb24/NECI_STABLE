@@ -1,6 +1,6 @@
      IRAT=2
      CPP='cpp -P -C -traditional'
-     CPPFLAGS="-D__Linux -DLAPACK -DFFT_DEFAULT #CMPLXFLAG -DSVNVER='\$(SVNVER)'"
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT '
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none'
