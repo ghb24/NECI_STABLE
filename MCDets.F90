@@ -848,9 +848,9 @@ subroutine DumpParticleList(iunit,PL)
    Allocate(P%nI(PL%nEl))
    call GetNextParticle(PL,iParticle,P)
    do while (iParticle.ne.0)
-      write(iUnit,"(I)",advance='no') iParticle
+      write(iUnit,"(I12)",advance='no') iParticle
       call WriteDet(iUnit,P%nI,PL%nEl,.false.)
-      write(iUnit,"(7I)") P%d%iWeight,P%d%iSgn,P%d%iParent, P%d%iBefore,P%d%iAfter,P%d%ExGen%tagExData,P%d%ExGen%iRefCount
+      write(iUnit,"(7I12)") P%d%iWeight,P%d%iSgn,P%d%iParent, P%d%iBefore,P%d%iAfter,P%d%ExGen%tagExData,P%d%ExGen%iRefCount
       call GetNextParticle(PL,iParticle,P)
    enddo
    Deallocate(P%nI)
