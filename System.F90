@@ -59,7 +59,8 @@ MODULE System
       TBIN=.false.
       tAbelianFastExcitGen=.true.
       TNoRenormRandExcits=.false.
-      tStoreStateList=.false.   !This will be turned to true by default if not in abelian symmetry
+      tStoreStateList=.false.       !This will be turned to true by default if not in abelian symmetry
+      tAssumeSizeExcitgen=.false.
 
       lNoSymmetry=.false.
 
@@ -312,6 +313,14 @@ MODULE System
 !will be created quicker currently, since NoRenormRandExcits can only work with it on in 
 !abelian symmetry.
             tStoreStateList=.true.
+        case("ASSUMESIZEEXCITGEN")
+!This flag indicates that we want to setup the excitations faster, by returning a maximum size of the
+!generators instantly in the first setup, and then we do not need to run through the excitations twice.
+!However, certain bits of the generator are not stored, namely nAllowPPS and SymProds, as well as the
+!iterator information. This means that we can only randomly generate excitations, and any attempt to
+!use these assumed size excitation generators to generate the whole list of excitations, will result 
+!in bad, bad times.
+            tAssumeSizeExcitgen=.true.
         case("ENDSYS") 
             exit system
         case default
