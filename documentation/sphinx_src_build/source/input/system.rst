@@ -139,6 +139,18 @@ General options
     It is hoped that soon the ability to generate random unweighted excitations without renormalisation will
     be available without storage of the state pairs.
 
+**ASSUMESIZEEXCITGEN**
+    Default off.
+
+    This indicates that the size of excitation generator will be calculated on the basis of the upper bound of the memory
+    needed. This means that there is no need to run through the excitations twice to count and then allocate the memory
+    for the excitations. This makes calculation of the excitation generators very much faster. The first entry to 
+    symgenexcitit2 will now simply return the maximum size of the excitation 
+    generator. This size is actually smaller than the full excitation generators, since various components of the
+    generators is left out, namely: Iterator info, STORE info, nAllowPPS and SymProds arrays. Because of this, the 
+    excitation generators are smaller, but also are only useful for random excitation generation. If code which fully
+    enumerates excitations is used with this flag, things will go very wrong.
+
 **NEL** [NEL]
     Synonym for **ELECTRONS**.
 

@@ -799,12 +799,6 @@ C.. Store in SYMPRODIND(1,ISPN,I) too
             SYMPRODIND(1,2,I)=SYMPRODCOUNT(2,I)
             SYMPRODIND(1,1,I)=SYMPRODCOUNT(1,I)
          ENDDO
-         IF(.not.TCount) THEN
-         DO I=1,NPR
-            WRITE(9,"(Z4,3I4)") SYMPRODS(I),SYMPRODCOUNT(1,I),
-     &         SYMPRODCOUNT(2,I),SYMPRODCOUNT(3,I)
-         ENDDO
-         ENDIF
 C.. We allocate enough memory to store all the pairs.
 C.. Each pair consists of (ORB1,ORB2) where ORB1<ORB2
          IF(STORE(4).EQ.0) THEN
