@@ -3738,15 +3738,15 @@ MODULE FciMCParMod
 
             IF(TLocalAnnihilation) THEN
 !TotWalkersOld is the number of walkers last time the shift was changed
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
  &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
  &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 
             ELSE
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
  &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I9,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
  &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             ENDIF
             
