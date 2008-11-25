@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc,MemoryFacExcit
-    USE Determinants , only : FDet,GetHElement2
+    USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
@@ -238,8 +238,8 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount
         REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,iGetExcitLevel_2,TotWalkersNew,error,length,temp
-        LOGICAL :: WSign
+        INTEGER :: ExcitLevel,iGetExcitLevel_2,TotWalkersNew,error,length,temp,Ex(2,2)
+        LOGICAL :: WSign,tParity
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -273,9 +273,9 @@ MODULE FciMCParMod
                 IF(.not.TRegenExcitgens) THEN
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
                     CALL SetupExitgenPar(CurrentDets(:,j),CurrentExcits(j))
-                    CALL GenRandSymExcitIt3(CurrentDets(:,j),CurrentExcits(j)%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
+                    CALL GenRandSymExcitIt4(CurrentDets(:,j),CurrentExcits(j)%PointToExcit,nJ,Seed,IC,0,Prob,iCount,Ex,tParity)
                 ELSE
-                    CALL GetPartRandExcitPar(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
+                    CALL GetPartRandExcitPar(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j),Ex,tParity)
                 ENDIF
 !Calculate number of children to spawn
 
@@ -292,10 +292,10 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                                 Child=0
                             ELSE
-                                Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                                Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                             ENDIF
                         ELSE
-                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                         ENDIF
 
                     ELSEIF(CurrentIC(j).eq.ICILevel) THEN
@@ -305,17 +305,17 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                             Child=0
                         ELSE
-                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                         ENDIF
                     ELSE
 !Excitation cannot be in a dissallowed excitation level - allow it as normal
-                        Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                        Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                     ENDIF 
                 
                 ELSE
 !SD Space is not truncated - allow attempted spawn as usual
 
-                    Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC)
+                    Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
 
                 ENDIF
                 
@@ -3186,15 +3186,25 @@ MODULE FciMCParMod
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
-    INTEGER FUNCTION AttemptCreatePar(DetCurr,WSign,nJ,Prob,IC)
+    INTEGER FUNCTION AttemptCreatePar(DetCurr,WSign,nJ,Prob,IC,Ex,tParity)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate
-        LOGICAL :: WSign
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2)
+        LOGICAL :: WSign,tParity
         REAL*8 :: Prob,Ran2,rat
-        TYPE(HElement) :: rh
+        TYPE(HElement) :: rh,rhcheck
 
 !Calculate off diagonal hamiltonian matrix element between determinants
-        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+        rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+
+!        rhcheck=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!        IF(rh%v.ne.rhcheck%v) THEN
+!            WRITE(6,*) "DetCurr: ",DetCurr(:)
+!            WRITE(6,*) "nJ: ",nJ(:)
+!            WRITE(6,*) "EX: ",Ex(1,:),Ex(2,:)
+!            WRITE(6,*) "tParity: ",tParity
+!            STOP
+!        ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
         rat=Tau*abs(rh%v)/Prob
@@ -3450,14 +3460,16 @@ MODULE FciMCParMod
     END SUBROUTINE DissociateExitgen
 
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
-    SUBROUTINE GetPartRandExcitPar(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,ExcitLevel)
+    SUBROUTINE GetPartRandExcitPar(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
         INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
-        INTEGER :: Excitlevel
+        INTEGER :: Excitlevel,Ex(2,2)
         REAL*8 :: Prob
+        LOGICAL :: tParity
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
         IF(ExcitLevel.eq.0) THEN
-            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
+!            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
+            CALL GenRandSymExcitIt4(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
             RETURN
         ENDIF
             
@@ -3472,7 +3484,8 @@ MODULE FciMCParMod
         CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
 
 !Now generate random excitation
-        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
+!        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
+        CALL GenRandSymExcitIt4(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
 
 !Deallocate when finished
         DEALLOCATE(ExcitGenTemp)

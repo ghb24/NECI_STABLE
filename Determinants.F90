@@ -185,6 +185,40 @@ MODULE Determinants
          GetHElement3=GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC,ECore)
       END Function GetHElement3
 
+
+!Function for get the hamiltonian matrix element, when we have the excitation matrix and parity of the excitation.
+      TYPE(HElement) function GetHElement4(NI,NJ,iC2,ExcitMat,TParity)
+         USE HElem
+         use SystemData, only : nEl,nBasisMax,G1,nBasis,Brr
+         use SystemData, only : ECore,ALat,NMSH
+         use IntegralsData, only : UMat,FCK,NMAX
+         INTEGER NI(nEl),NJ(nEl),iC,ExcitMat(2,2),IC2
+         LOGICAL TParity
+         TYPE(HElement) Sum
+         IC=IC2
+         GetHElement4%v=0.D0
+         
+         IF(IC.LT.0) THEN
+!             IC=IGETEXCITLEVEL_2(NI,NJ,NEL,2)   !Calculate whether connected or not
+             CALL Stop_All("GetHElement4","GetHElement4 should only be used if we know the number of excitations and the excitation matrix")
+         ENDIF
+
+!.. if we differ by more than 2 spin orbital, then the hamiltonian element is 0         
+         IF(IC.GT.2) RETURN
+
+!.. SLTCND has IC is # electrons the same in 2 dets
+         CALL SltCndExcit2(nEl,nBasisMax,nBasis,NI,NJ,G1,nEl-iC,NMSH,FCK,NMAX,ALAT,UMat,Sum,ExcitMat,TParity)
+
+         GetHElement4=Sum
+         IF(iC.EQ.0) GetHElement4%v=GetHElement4%v+ECore
+!         CALL WRITEDET(6,NI,NEL,.TRUE.)
+!         CALL WRITEDET(6,NJ,NEL,.TRUE.)
+!         WRITE(6,*) GetHElement4
+
+         RETURN
+      END FUNCTION GetHElement4
+
+
       type(HElement) function GetH0Element3(nI)
          ! Wrapper for GetH0Element.
          ! Returns the matrix element of the unperturbed Hamiltonian, which is
