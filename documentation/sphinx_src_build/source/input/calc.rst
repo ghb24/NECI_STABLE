@@ -795,12 +795,6 @@ Perturbation theory options
         .. warning::
             It is currently assumed that the calculation is restricted.
 
-    .. note::
-        INPUT_DOC has this to say::
-
-
-        I am sure this is out of date...
-
 **EPSTEIN-NESBET**
     Apply Epstein--Nesbet perturbation theory, rather than
     Moller--Plesset.  Only works for **VERTEX SUM NEW** and **VERTEX
