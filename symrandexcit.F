@@ -717,21 +717,23 @@ C.. Actually generate a det
                 ExcitMat(1,1)=I
                 ExcitMat(2,1)=SpinOrb
                 CALL FindExcitDet(ExcitMat,NK,1,TParity)
-                Excitlevel=iGetExcitLevel(NI,NK,NEL)
-                IF(Excitlevel.ne.1) THEN
-                    WRITE(6,*) "Have not created a single excitation"
-                   CALL WRITEDET(6,NI,NEL,.TRUE.)
-                   CALL WRITEDET(6,NK,NEL,.TRUE.)
-                   WRITE(6,*) I,SpinOrb
-                    STOP "Have not created a single excitation"
-                ENDIF
-                IF(.NOT.ISVALIDDET(NK,NEL)) THEN
-                   WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
-                   CALL WRITEDET(6,NI,NEL,.TRUE.)
-                   CALL WRITEDET(6,NK,NEL,.TRUE.)
-                   WRITE(6,*) I,SpinOrb
-                   STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
-                ENDIF
+!These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
+!excitations, I recommend uncommenting these tests to check the results.
+!                Excitlevel=iGetExcitLevel(NI,NK,NEL)
+!                IF(Excitlevel.ne.1) THEN
+!                    WRITE(6,*) "Have not created a single excitation"
+!                   CALL WRITEDET(6,NI,NEL,.TRUE.)
+!                   CALL WRITEDET(6,NK,NEL,.TRUE.)
+!                   WRITE(6,*) I,SpinOrb
+!                    STOP "Have not created a single excitation"
+!                ENDIF
+!                IF(.NOT.ISVALIDDET(NK,NEL)) THEN
+!                   WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
+!                   CALL WRITEDET(6,NI,NEL,.TRUE.)
+!                   CALL WRITEDET(6,NK,NEL,.TRUE.)
+!                   WRITE(6,*) I,SpinOrb
+!                   STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
+!                ENDIF
                 EXIT
             ENDIF
 
@@ -1088,20 +1090,22 @@ C.. Actually generate a det
             ENDIF
          ENDDO
          CALL FindExcitDet(ExcitMat,NK,2,TParity)
-         Excitlevel=iGetExcitLevel(NI,NK,NEL)
-         IF(Excitlevel.ne.2) THEN
-             WRITE(6,*) "Have not created a double excitation"
-            CALL WRITEDET(6,NK,NEL,.TRUE.)
-            CALL WRITEDET(6,NI,NEL,.TRUE.)
-            WRITE(6,*) I
-            STOP "Have not created a double excitation"
-         ENDIF
-         IF(.NOT.ISVALIDDET(NK,NEL)) THEN
-             WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT DOUBLE"
-             CALL WRITEDET(6,NK,NEL,.TRUE.)
-             CALL WRITEDET(6,NI,NEL,.TRUE.)
-             STOP "INVALID DET SYMGENRANDEXCITIT DOUBLE"
-         ENDIF
+!These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
+!excitations, I recommend uncommenting these tests to check the results.
+!         Excitlevel=iGetExcitLevel(NI,NK,NEL)
+!         IF(Excitlevel.ne.2) THEN
+!             WRITE(6,*) "Have not created a double excitation"
+!            CALL WRITEDET(6,NK,NEL,.TRUE.)
+!            CALL WRITEDET(6,NI,NEL,.TRUE.)
+!            WRITE(6,*) I
+!            STOP "Have not created a double excitation"
+!         ENDIF
+!         IF(.NOT.ISVALIDDET(NK,NEL)) THEN
+!             WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT DOUBLE"
+!             CALL WRITEDET(6,NK,NEL,.TRUE.)
+!             CALL WRITEDET(6,NI,NEL,.TRUE.)
+!             STOP "INVALID DET SYMGENRANDEXCITIT DOUBLE"
+!         ENDIF
 
       End Subroutine SymGenRandExcitIt2_Double_GetTo_NoWeight
 
