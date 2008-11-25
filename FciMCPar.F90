@@ -1,18 +1,11 @@
 #ifdef PARALLEL
-!This is a parallel MPI version of the FciMC code. It picks random excitations to work with, and can fully diagonalise the 
-!resultant 2v graph, or apply it many times.
-!Excitation generators are now stored along with the particles (but in a separate array)
+!This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
 !!!!! TO DO !!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!Make excitation generator arrays pointers to save having to move around excitation generators...
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Package up variables into one array to communicated to avoid latency overheads
-! Test different hashes
+! Add new test
 ! Option for calculating non-essential information
-! Other optimisation (Annihilation - do we want to be allocating?)
-
+! Simulate Magnetization to break sign symmetry
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
@@ -393,9 +386,9 @@ MODULE FciMCParMod
 !                        NewDets(:,VecSlot)=CurrentDets(:,j)
                         NewSign(VecSlot)=CurrentSign(j)
 !Copy excitation generator accross
-                        IF(ASSOCIATED(NewExcits(VecSlot)%PointToExcit)) THEN
-                            WRITE(6,*) "Problem is here",NewExcits(VecSlot)%IndexinExArr
-                        ENDIF
+!                        IF(ASSOCIATED(NewExcits(VecSlot)%PointToExcit)) THEN
+!                            WRITE(6,*) "Problem is here",NewExcits(VecSlot)%IndexinExArr
+!                        ENDIF
                         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
                         NewIC(VecSlot)=CurrentIC(j)
                         NewH(VecSlot)=CurrentH(j)
@@ -1176,7 +1169,7 @@ MODULE FciMCParMod
                     i=i+1
                     VecSlot=VecSlot+1
                 enddo
-                CALL DissociateExitgen(NewExcits(i))    !Destroy particles if not copying accross
+                IF(.not.TRegenExcitgens) CALL DissociateExitgen(NewExcits(i))    !Destroy particles if not copying accross
                 i=i+1
             enddo
 
@@ -3607,10 +3600,12 @@ MODULE FciMCParMod
                 CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !It seems like too much like hard work to send the excitation generators accross, just let them be regenerated on the other side...
 !However, we do need to indicate that these the excitgens are no longer being pointed at.
-                do l=IndexFrom,TotWalkers
+                IF(.not.TRegenExcitgens) THEN
+                    do l=IndexFrom,TotWalkers
 !Run through the list of walkers, and make sure that their excitgen is removed.
-                    CALL DissociateExitgen(CurrentExcits(l))
-                enddo
+                        CALL DissociateExitgen(CurrentExcits(l))
+                    enddo
+                ENDIF
 
                 IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
