@@ -351,9 +351,8 @@ MODULE FciMCParMod
                     ENDIF
 
                     do l=1,abs(Child)
-!Copy across children - cannot copy excitation generators, as do not know them
+!Copy across children - cannot copy excitation generators, as do not know them...unless it is HF (this might save a little time if implimented)
                         NewDets(:,VecSlot)=nJ(:)
-!                        NewDets(:,VecSlot)=nJ(:)
                         NewSign(VecSlot)=WSign
                         IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
                         NewIC(VecSlot)=ExcitLevel
@@ -2927,15 +2926,16 @@ MODULE FciMCParMod
 
 !This will set up the initial walker distribution proportially to the MP1 wavevector.
     SUBROUTINE InitWalkersMP1Par()
+        use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF,HFPointer
         REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r
         TYPE(HElement) :: Hij,Hjj,Fjj
-        INTEGER , ALLOCATABLE :: MP1Dets(:,:)
+        INTEGER , ALLOCATABLE :: MP1Dets(:,:), ExcitgenTemp(:)
         LOGICAL , ALLOCATABLE :: MP1Sign(:)
         REAL*8 , ALLOCATABLE :: MP1Comps(:)
-        INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF
+        INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF,ExcitLength,iMaxExcit
         CHARACTER(len=*), PARAMETER :: this_routine='InitWalkersMP1Par'
-        LOGICAL :: First
+        LOGICAL :: First,TurnBackAssumeExGen
         
     
 !Set the maximum number of walkers allowed
@@ -3028,11 +3028,26 @@ MODULE FciMCParMod
         VecSlot=2           !This is the next free slot in the MP1 arrays
         MP2Energy=0.D0      !Calculate the MP2 energy as we go, since the shift will be set to this
 
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+!If tAssumeSizeExcitgens is on, then we cannot enumerate all determinants. Regenerate HF excitgen, turning of tAssumeSizeExcitgen if on.
+        IF(tAssumeSizeExcitgen) THEN
+            TurnBackAssumeExGen=.true.
+            tAssumeSizeExcitgen=.false.
+        ELSE
+            TurnBackAssumeExGen=.false.
+        ENDIF
+
+!Setup excit generators for HF Determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
+        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
 
         do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
             IF(nJ(1).eq.0) EXIT
             IF(iExcit.ne.2) THEN
                 CALL Stop_All("InitWalkersMP1","Error - excitations other than doubles being generated in MP1 wavevector code")
@@ -3055,7 +3070,8 @@ MODULE FciMCParMod
             VecSlot=VecSlot+1
 
         enddo
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+
+        DEALLOCATE(ExcitGenTemp)
 
         WRITE(6,"(A,F15.7,A)") "Sum of absolute components of MP1 wavefunction is ",SumMP1Compts," with the HF being 1."
 
@@ -3128,6 +3144,11 @@ MODULE FciMCParMod
         DEALLOCATE(MP1Sign)
         CALL LogMemDealloc(this_routine,MP1SignTag)
 
+!We have finished enumerating all determinants from HF - turn back on assume size excitgen if it was off.
+        IF(TurnBackAssumeExGen) THEN
+            tAssumeSizeExcitgen=.true.
+        ENDIF
+
         WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
         WRITE(6,*) "Initial memory allocation sucessful..."
         CALL FLUSH(6)
@@ -3155,8 +3176,6 @@ MODULE FciMCParMod
 !Initialise the first Free Excitgens indices...initially whole list is free
             BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
             FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
-
-!            CALL SetupExitGenPar(HFDet,CurrentExcits(1))
 
             First=.true.
             do j=1,InitWalkers
