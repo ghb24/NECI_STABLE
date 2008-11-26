@@ -2310,12 +2310,12 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(TLocalAnnihilation) THEN
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   LocalAnn  TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  LocalAnn   TotAnnihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    LocalAnn   TotAnnihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 
             ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate      TotWalkers   Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate      TotWalkers  Annihil   NoDied   NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
             
             ENDIF
         ENDIF
