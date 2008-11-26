@@ -2270,7 +2270,7 @@ MODULE FciMCParMod
                         CALL CopyExitGenPar(CurrentExcits(1),CurrentExcits(j),.false.)
                     enddo
                 ENDIF
-                MemoryAlloc=((HFExcit%nExcitMemLen)+4)*4*MaxWalkersExcit
+                MemoryAlloc=((HFExcit%nExcitMemLen)+6)*4*MaxWalkersExcit    !This is the memory needed by all the excitation generator arrays
 
                 WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
@@ -2880,7 +2880,7 @@ MODULE FciMCParMod
             BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
             FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
 
-            MemoryAlloc=((HFExcit%nExcitMemLen)+4)*4*MaxWalkers
+            MemoryAlloc=((HFExcit%nExcitMemLen)+6)*4*MaxWalkers
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
 
@@ -3193,7 +3193,7 @@ MODULE FciMCParMod
                     CurrentExcits(j)%PointToExcit=>null()
                 ENDIF
             enddo
-            MemoryAlloc=((HFExcit%nExcitMemLen)+2)*4*MaxWalkersExcit
+            MemoryAlloc=((HFExcit%nExcitMemLen)+6)*4*MaxWalkersExcit
 
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
