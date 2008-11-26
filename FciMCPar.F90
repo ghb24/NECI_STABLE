@@ -1937,7 +1937,7 @@ MODULE FciMCParMod
         enddo
         HFHash=CreateHash(HFDet)
 
-!Setup excitation generator for the HF determinant
+!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         iMaxExcit=0
         nStore(1:6)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
@@ -2328,11 +2328,14 @@ MODULE FciMCParMod
     END SUBROUTINE InitFCIMCCalcPar
 
     SUBROUTINE ChooseACFDets()
+        use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j,MaxIndex,ExcitLevel,iGetExcitLevel_2
+        INTEGER :: iMaxExcit,ExcitLength
         REAL*8 , ALLOCATABLE :: TempMax(:)
+        LOGICAL :: TurnBackAssumeExGen
         TYPE(HElement) :: Fjj,Hij,Fkk
         REAL*8 :: Compt,MaxWeight
-        TYPE(ExcitPointer) :: ExcitGenTemp
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
         CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
 
 !Commented out code is to just perform the ACF for the HF determinant.
@@ -2355,16 +2358,34 @@ MODULE FciMCParMod
         
 !Set the first determinant to find the ACF of to be the HF determinant
         AutoCorrDets(:,1)=HFDet(:)
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+
+!We do not know if tAssumeSizeExcitgen is on - if it is, then we can't enumerate all determinants. Get around this by simply regenerating it anyway.
+!First, we need to turn off AssumeSizeExcitgen if it is on.
+        IF(tAssumeSizeExcitgen) THEN
+            TurnBackAssumeExGen=.true.
+            tAssumeSizeExcitgen=.false.
+        ELSE
+            TurnBackAssumeExGen=.false.
+        ENDIF
+
         ALLOCATE(TempMax(2:NoACDets(2)+1),stat=ierr)   !This will temporarily hold the largest components (+1 since we are no longer considering HF in NoACDets(2))
         IF(ierr.ne.0) THEN
             CALL Stop_All("ChooseACFDets","Problem allocating memory")
         ENDIF
         TempMax(:)=0.D0
 
+!Setup excit generators for HF Determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
+        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("ChooseACFDets","Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
+
         do while(.true.)
 !Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,HFExcit%Excitdata,nJ,iExcit,0,nStore,2)
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
             IF(nJ(1).eq.0) EXIT
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
@@ -2378,7 +2399,7 @@ MODULE FciMCParMod
             enddo
             
         enddo
-        CALL ResetExIt2(HFDet,NEl,G1,nBasis,nBasisMax,HFExcit%ExcitData,0)
+        DEALLOCATE(ExcitGenTemp)
 !Find largest weight MP1 contribution
         MaxWeight=0.D0
         do i=2,NoACDets(2)+1
@@ -2401,14 +2422,21 @@ MODULE FciMCParMod
 !We have now found the largest weight Doubles. To guess at large weighted triples & quads, we simply take the largest weighted double, and find 
 !its large MP1 weighted contributions with it as the reference.
 !        WRITE(6,*) "MaxIndex = ", MaxIndex
-        ExcitGenTemp%PointToExcit=>null()
-        CALL SetupExitgenPar(AutoCorrDets(:,MaxIndex),ExcitGenTemp)
+!Setup excit generators for the highest weighted double excitation
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("ChooseACFDets","Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+
         CALL GetH0Element(AutoCorrDets(:,MaxIndex),NEl,Arr,nBasis,ECore,Fjj)
         ALLOCATE(TempMax(1:(NoACDets(3)+NoACDets(4))),stat=ierr)
         TempMax(:)=0.D0
 
         do while(.true.)
-            CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp%PointToExcit,nJ,iExcit,0,nStore,3)
+            CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) EXIT
             Hij=GetHElement2(AutoCorrDets(:,MaxIndex),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fkk)
@@ -2437,8 +2465,8 @@ MODULE FciMCParMod
 
 !Deallocate TempExcitgen
         DEALLOCATE(TempMax)
-        CALL DissociateExitgen(ExcitGenTemp)
-!        DEALLOCATE(ExcitGenTemp%Excitdata)
+!        CALL DissociateExitgen(ExcitGenTemp)
+        DEALLOCATE(ExcitGenTemp)
         
 !Find if any zeros
         do i=1,NoAutoDets
@@ -2472,6 +2500,11 @@ MODULE FciMCParMod
             enddo
 
             OPEN(44,FILE='HFDoublePops',STATUS='UNKNOWN')
+        ENDIF
+
+        IF(TurnBackAssumeExGen) THEN
+!We turned off assumed sized excitation generators for this routine - turn it back on.
+            tAssumeSizeExcitgen=.true.
         ENDIF
 
         RETURN
