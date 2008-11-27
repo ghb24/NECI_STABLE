@@ -101,6 +101,12 @@ MODULE FciMCParMod
     REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
     INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
     INTEGER :: NoBorn,NoDied
+    INTEGER :: HFPopCyc         !This is the number of update cycles which have a HF particle at some point
+    INTEGER :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
+    REAL*8 :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
+    REAL*8 :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
+    REAL*8 :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
+    REAL*8 :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
@@ -1238,13 +1244,15 @@ MODULE FciMCParMod
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
                 NoatHF=NoatHF+1
-                AvSign=AvSign+1.D0
-                AvSignHFD=AvSignHFD+1.D0
+                HFCyc=HFCyc+1       !This is simply the number at HF*sign over the course of the update cycle 
+!                AvSign=AvSign+1.D0
+!                AvSignHFD=AvSignHFD+1.D0
             ELSE
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF-1
                 NoatHF=NoatHF-1
-                AvSign=AvSign-1.D0
-                AvSignHFD=AvSignHFD-1.D0
+                HFCyc=HFCyc-1
+!                AvSign=AvSign-1.D0
+!                AvSignHFD=AvSignHFD-1.D0
             ENDIF
         ELSEIF(ExcitLevel.eq.2) THEN
             NoatDoubs=NoatDoubs+1
@@ -1252,19 +1260,21 @@ MODULE FciMCParMod
             HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
             IF(WSign) THEN
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum+REAL(HOffDiag%v,r2)
-                AvSign=AvSign+1.D0
-                AvSignHFD=AvSignHFD+1.D0
+!                AvSign=AvSign+1.D0
+!                AvSignHFD=AvSignHFD+1.D0
+                ENumCyc=ENumCyc+REAL(HOffDiag%v,r2)     !This is simply the Hij*sign summed over the course of the update cycle
             ELSE
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum-REAL(HOffDiag%v,r2)
-                AvSign=AvSign-1.D0
-                AvSignHFD=AvSignHFD-1.D0
+!                AvSign=AvSign-1.D0
+!                AvSignHFD=AvSignHFD-1.D0
+                ENumCyc=ENumCyc-REAL(HOffDiag%v,r2)
             ENDIF
-        ELSE
-            IF(WSign) THEN
-                AvSign=AvSign+1.D0
-            ELSE
-                AvSign=AvSign-1.D0
-            ENDIF
+!        ELSE
+!            IF(WSign) THEN
+!                AvSign=AvSign+1.D0
+!            ELSE
+!                AvSign=AvSign-1.D0
+!            ENDIF
         ENDIF
 
 !        IF(TLocalAnnihilation) THEN
@@ -1610,7 +1620,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(7),outpair(7)
+        INTEGER :: inpair(8),outpair(8)
         REAL*8 :: TempSumNoatHF,MeanWalkers
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
@@ -1628,6 +1638,7 @@ MODULE FciMCParMod
         inpair(5)=NoDied
         inpair(6)=SumWalkersCyc
         inpair(7)=LocalAnn
+        inpair(8)=HFCyc
         outpair(:)=0
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !Find total Annihilated,Total at HF and Total at doubles
@@ -1637,7 +1648,7 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(inpair,outpair,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
         AllTotWalkers=outpair(1)
         AllAnnihilated=outpair(2)
         AllNoatDoubs=outpair(3)
@@ -1645,6 +1656,7 @@ MODULE FciMCParMod
         AllNoDied=outpair(5)
         AllSumWalkersCyc=outpair(6)
         AllLocalAnn=outpair(7)
+        AllHFCyc=REAL(outpair(8),r2)
 
 
         MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
@@ -1676,6 +1688,9 @@ MODULE FciMCParMod
             AllGrowRate=AllGrowRate/(real(AllSumWalkersCyc,r2))
         ENDIF
 
+!For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
+        CALL MPIDSumRoot(ENumCyc,1,AllENumCyc,Root)
+
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
         MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,r2)))
@@ -1684,14 +1699,15 @@ MODULE FciMCParMod
             AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,r2)
         ENDIF
 
-        AvSign=AvSign/real(SumWalkersCyc,r2)
-        AvSignHFD=AvSignHFD/real(SumWalkersCyc,r2)
-        CALL MPI_Reduce(AvSign,AllAvSign,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(AvSignHFD,AllAvSignHFD,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        IF(iProcIndex.eq.Root) THEN
-            AllAvSign=AllAvSign/real(nProcessors,r2)
-            AllAvSignHFD=AllAvSignHFD/real(nProcessors,r2)
-        ENDIF
+!AvSign no longer calculated (but would be easy to put back in) - ACF much better bet...
+!        AvSign=AvSign/real(SumWalkersCyc,r2)
+!        AvSignHFD=AvSignHFD/real(SumWalkersCyc,r2)
+!        CALL MPI_Reduce(AvSign,AllAvSign,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        CALL MPI_Reduce(AvSignHFD,AllAvSignHFD,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        IF(iProcIndex.eq.Root) THEN
+!            AllAvSign=AllAvSign/real(nProcessors,r2)
+!            AllAvSignHFD=AllAvSignHFD/real(nProcessors,r2)
+!        ENDIF
 
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         TempSumNoatHF=real(SumNoatHF,r2)
@@ -1727,6 +1743,13 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             IF(.not.TSinglePartPhase) DiagSft=DiagSft-(log(AllGrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
             ProjectionE=AllSumENum/AllSumNoatHF
+
+!Calculate the projected energy where each update cycle contributes the same weight to the average for its estimator for the energy
+            IF(AllHFCyc.ne.0.D0) THEN
+                ProjEIterSum=ProjEIterSum+(AllENumCyc/AllHFCyc)
+                HFPopCyc=HFPopCyc+1   !This is the number of iterations where we have a non-zero contribution from HF particles
+                ProjEIter=ProjEIterSum/REAL(HFPopCyc,r2)
+            ENDIF
         ENDIF
 !We wan to now broadcast this new shift to all processors
         CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
@@ -1744,25 +1767,30 @@ MODULE FciMCParMod
         MaxExcitLevel=0
         MeanExcitLevel=0.D0
         SumWalkersCyc=0
-        AvSign=0.D0        !Rezero this quantity - <s> is now a average over the update cycle
-        AvSignHFD=0.D0     !This is the average sign over the HF and doubles
+!        AvSign=0.D0        !Rezero this quantity - <s> is now a average over the update cycle
+!        AvSignHFD=0.D0     !This is the average sign over the HF and doubles
         Annihilated=0
         LocalAnn=0
         Acceptances=0
         NoBorn=0
         NoDied=0
+        ENumCyc=0.D0
+        ProjEIter=0.D0
+        HFCyc=0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
 
 !Also reinitialise the global variables - should not necessarily need to do this...
+        AllHFCyc=0.D0
+        AllENumCyc=0.D0
         AllSumENum=0.D0
         AllSumNoatHF=0.D0
         AllTotWalkersOld=AllTotWalkers
         AllTotWalkers=0
         AllGrowRate=0.D0
         AllMeanExcitLevel=0.D0
-        AllAvSign=0.D0
-        AllAvSignHFD=0.D0
+!        AllAvSign=0.D0
+!        AllAvSignHFD=0.D0
         AllSumWalkersCyc=0
         AllAnnihilated=0
         AllLocalAnn=0
@@ -1978,6 +2006,11 @@ MODULE FciMCParMod
         PreviousCycles=0
         NoBorn=0
         NoDied=0
+        HFPopCyc=0
+        HFCyc=0
+        ENumCyc=0.D0
+        ProjEIter=0.D0
+        ProjEIterSum=0.D0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -1993,6 +2026,8 @@ MODULE FciMCParMod
         AllNoDied=0
         AllLocalAnn=0
         AllAnnihilated=0
+        AllENumCyc=0.D0
+        AllHFCyc=0.D0
 
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
@@ -2310,12 +2345,12 @@ MODULE FciMCParMod
 !Print out initial starting configurations
             WRITE(6,*) ""
             IF(TLocalAnnihilation) THEN
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    LocalAnn   TotAnnihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    LocalAnn   TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 
             ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs      AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AccRat       MeanEx     MinEx MaxEx"
             
             ENDIF
         ENDIF
@@ -3790,16 +3825,16 @@ MODULE FciMCParMod
 
             IF(TLocalAnnihilation) THEN
 !TotWalkersOld is the number of walkers last time the shift was changed
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
- &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
- &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I11,2G16.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+ &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I11,2G16.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+ &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 
             ELSE
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
- &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,G16.7,2I10,2F13.5,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
- &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,AllNoatHF,AllNoatDoubs,AllAvSign,AllAvSignHFD,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,2G16.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+ &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,2G16.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+ &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
             ENDIF
             
             CALL FLUSH(6)
