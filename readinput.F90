@@ -19,6 +19,7 @@ MODULE ReadInput
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use Integrals,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
+        use Parallel,   only : iProcIndex
         use default_sets
 #ifdef NAGF95
     !  USe doesn't get picked up by the make scripts
@@ -103,7 +104,7 @@ MODULE ReadInput
 !Now return to the beginning and process the whole input file
         if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.
         Rewind(ir)
-        Call input_options(echo_lines=.true.,skip_blank_lines=.true.)
+        Call input_options(echo_lines=iProcIndex.eq.0,skip_blank_lines=.true.)
 
         Write (6,'(/,64("*"),/)')
 

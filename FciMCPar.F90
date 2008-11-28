@@ -1779,7 +1779,7 @@ MODULE FciMCParMod
         NoBorn=0
         NoDied=0
         ENumCyc=0.D0
-        ProjEIter=0.D0
+!        ProjEIter=0.D0     Do not want to rezero, since otherwise, if there are no particles at HF in the next update cycle, it will print out zero.
         HFCyc=0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
@@ -2010,8 +2010,8 @@ MODULE FciMCParMod
         PreviousCycles=0
         NoBorn=0
         NoDied=0
-        HFPopCyc=0
         HFCyc=0
+        HFPopCyc=0
         ENumCyc=0.D0
         ProjEIter=0.D0
         ProjEIterSum=0.D0
