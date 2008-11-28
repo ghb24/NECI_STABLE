@@ -89,7 +89,7 @@ MODULE FciMCParMod
     INTEGER*8 :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
     REAL*8 :: AvSign           !This is the average sign of the particles on each node
     REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
-    INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
+    INTEGER(KIND=i2) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
     REAL*8 :: MeanExcitLevel    
     INTEGER :: MinExcitLevel
     INTEGER :: MaxExcitLevel
@@ -110,7 +110,8 @@ MODULE FciMCParMod
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate,AllMeanExcitLevel
-    INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllSumWalkersCyc,AllTotSign,AllTotSignOld
+    INTEGER :: AllMinExcitLevel,AllMaxExcitLevel,AllTotWalkers,AllTotWalkersOld,AllTotSign,AllTotSignOld
+    INTEGER(KIND=i2) :: AllSumWalkersCyc
     INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs,AllLocalAnn
     REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
     INTEGER :: AllNoBorn,AllNoDied
@@ -439,7 +440,7 @@ MODULE FciMCParMod
         enddo
         
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+TotWalkers
+        SumWalkersCyc=SumWalkersCyc+(INT(TotWalkers,i2))
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
@@ -1620,8 +1621,8 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(8),outpair(8)
-        REAL*8 :: TempSumNoatHF,MeanWalkers
+        INTEGER :: inpair(7),outpair(7)
+        REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
         CALL UpdateDiagSftPar()
@@ -1636,9 +1637,8 @@ MODULE FciMCParMod
         inpair(3)=NoatDoubs
         inpair(4)=NoBorn
         inpair(5)=NoDied
-        inpair(6)=SumWalkersCyc
+        inpair(6)=HFCyc         !SumWalkersCyc is now an integer*8
         inpair(7)=LocalAnn
-        inpair(8)=HFCyc
         outpair(:)=0
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !Find total Annihilated,Total at HF and Total at doubles
@@ -1648,16 +1648,19 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(inpair,outpair,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
         AllTotWalkers=outpair(1)
         AllAnnihilated=outpair(2)
         AllNoatDoubs=outpair(3)
         AllNoBorn=outpair(4)
         AllNoDied=outpair(5)
-        AllSumWalkersCyc=outpair(6)
+        AllHFCyc=REAL(outpair(6),r2)
         AllLocalAnn=outpair(7)
-        AllHFCyc=REAL(outpair(8),r2)
 
+!SumWalkersCyc is now an int*8, therefore is needs to be reduced as a real*8
+        TempSumWalkersCyc=REAL(SumWalkersCyc,r2)
+        TempAllSumWalkersCyc=0.D0
+        CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
         MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
@@ -1682,10 +1685,11 @@ MODULE FciMCParMod
         CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
         
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
-        GrowRate=GrowRate*SumWalkersCyc                    
+        GrowRate=GrowRate*TempSumWalkersCyc                    
         CALL MPIDSumRoot(GrowRate,1,AllGrowRate,Root)   
+
         IF(iProcIndex.eq.Root) THEN
-            AllGrowRate=AllGrowRate/(real(AllSumWalkersCyc,r2))
+            AllGrowRate=AllGrowRate/TempAllSumWalkersCyc
         ENDIF
 
 !For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
@@ -1693,7 +1697,7 @@ MODULE FciMCParMod
 
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
-        MeanExcitLevel=(MeanExcitLevel/(real(SumWalkersCyc,r2)))
+        MeanExcitLevel=MeanExcitLevel/TempSumWalkersCyc
         CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
         IF(iProcIndex.eq.Root) THEN
             AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,r2)
@@ -1758,7 +1762,7 @@ MODULE FciMCParMod
             CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
         ENDIF
 
-        AccRat=(REAL(Acceptances,r2))/(REAL(SumWalkersCyc,r2))      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
+        AccRat=(REAL(Acceptances,r2))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
 
         CALL WriteFCIMCStats()
 
