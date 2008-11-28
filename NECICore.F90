@@ -73,18 +73,16 @@ subroutine NECICodeInit(tCPMD,tVASP)
     ! Utility modules
     use MemoryManager, only: InitMemoryManager
     use timing, only: init_timing
-#ifdef PARALLEL
     use Parallel, only: MPIInit
-#endif
 
     implicit none
     logical, intent(in) :: tCPMD,tVASP
 
     call init_timing()
 
-#ifdef PARALLEL
+    ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
+    ! can refer to the processor index being 0 for the parent processor.
     Call MPIInit(tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
-#endif
 
     if (.not.TCPMD) then
         call InitMemoryManager()
