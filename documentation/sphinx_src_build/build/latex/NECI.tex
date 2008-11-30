@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{November 25, 2008}
+\date{November 30, 2008}
 \release{0.1}
 \author{James Spencer, with contributions from the Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -438,7 +438,7 @@ the same platform is used for both.
 The settings in .compileconf are overridden by command line options, but override
 any defaults in the compilation scripts.
 
-.compileconf in its simplest form simply contains the name of the desired
+.compileconf in its simplest (and oldest) form simply contains the name of the desired
 platform, e.g.:
 
 \begin{Verbatim}[commandchars=@\[\]]
@@ -447,9 +447,16 @@ PC@PYGbe[-]ifort64
 
 will use the PC-ifort64 platform as the default.
 
-The CPMD .compileconf can be used to set local defaults for more
-variables---see the comments in runmake.sh for more details.  For example, to set
-different defaults for the platform and the location of the NECI source:
+.compileconf can also be used to set local defaults for more
+variables---see the comments in runmake.sh for more details on the CPMD
+.compileconf and the comments in compile for more details on the NECI
+.compileconf.  The format of both .compileconf files is the same, but the
+variables available differ.  Defaults are used for any variables not set
+in the .compileconf files.
+
+For example, to set different defaults for the platform
+and the location of the NECI source, .compileconf in the CPMD directory
+would look like:
 
 \begin{Verbatim}[commandchars=@\[\]]
 platform=PC-ifort64
@@ -587,14 +594,9 @@ for example, the memory and timing information.  NECI checks the working
 directory of the calculation for a file called SOFTEXIT, which can be
 created by the user by, for instance, using touch:
 
-Unknown directive type ``code\_block''.
-
 \begin{Verbatim}[commandchars=@\[\]]
-.. code_block:: bash
-
-   touch SOFTEXIT
+touch SOFTEXIT
 \end{Verbatim}
-
 
 On creation of SOFTEXIT, the next time SOFTEXIT is checked to see
 if it exists, the code will exit cleanly and quietly, with no error

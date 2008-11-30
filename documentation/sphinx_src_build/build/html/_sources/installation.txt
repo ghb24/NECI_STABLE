@@ -183,16 +183,23 @@ the same platform is used for both.
 The settings in .compileconf are overridden by command line options, but override
 any defaults in the compilation scripts.
 
-.compileconf in its simplest form simply contains the name of the desired
+.compileconf in its simplest (and oldest) form simply contains the name of the desired
 platform, e.g.::
 
     PC-ifort64
 
 will use the PC-ifort64 platform as the default.
 
-The CPMD .compileconf can be used to set local defaults for more
-variables---see the comments in runmake.sh for more details.  For example, to set
-different defaults for the platform and the location of the NECI source::
+.compileconf can also be used to set local defaults for more
+variables---see the comments in runmake.sh for more details on the CPMD
+.compileconf and the comments in compile for more details on the NECI
+.compileconf.  The format of both .compileconf files is the same, but the
+variables available differ.  Defaults are used for any variables not set
+in the .compileconf files.
+
+For example, to set different defaults for the platform
+and the location of the NECI source, .compileconf in the CPMD directory
+would look like::
 
     platform=PC-ifort64
     NECIsrc=~/NECI/source
