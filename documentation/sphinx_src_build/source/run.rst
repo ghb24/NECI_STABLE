@@ -69,7 +69,7 @@ for example, the memory and timing information.  NECI checks the working
 directory of the calculation for a file called SOFTEXIT, which can be
 created by the user by, for instance, using touch:
 
-.. code_block:: bash
+.. code-block:: bash
 
    touch SOFTEXIT
 
