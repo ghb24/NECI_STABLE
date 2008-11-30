@@ -1,22 +1,38 @@
 SHELL=/bin/bash
 
+# Setup destination directories from .compileconf
+# if it exists.
+
 config_exists := $(wildcard .compileconf)
 
+# Default locations.
 dest:=dest
 dbg_dest:=dest
 
+# If .compileconf exists, read it.
 ifeq ($(config_exists),.compileconf)
 	include .compileconf
 endif
 
+# If dbg_dest was not changed in .compileconf,
+# update it to be the same as dest.
 ifdef ($(dbg_dest),'dest')
 	dbg_dest:=$(dest)
 endif
 
+# If the last makefile to be produced was with
+# the debug flags on, then default to using the
+# dbg directory (which might well be the same as 
+# the standard destination directory.
 ifeq ($(dbg_on),'y')
 	dest:=$(dbg_dest)
 	dbg_flag='-d'
 endif
+
+# Destination for compiling the complex code.
+kdest:='k'$(dest)
+
+# Targets.
 
 neci: $(dest)/Makefile
 	cd $(dest); ${MAKE} neci.x

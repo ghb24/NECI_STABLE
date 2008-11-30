@@ -41,6 +41,7 @@ END
 
 dest='dest' # default destination of compiled objects.
 dbg_dest='' # Set later (via .compileconf).
+platform=PC-PGI64
 
 dbg_flag=''
 compile=1
@@ -68,9 +69,10 @@ if [ "$#" -ne 0 ]; then
 elif [ -e .compileconf ]; then
 	# Read the user's default platform (if the .compileconf exists 
 	# in the current working directory).
-    grep -vq '=' .compileconf
-    if [ $? -eq 0 ]; then
-        # Old style format: contains just the platform as a bareword.
+    grep -q '=' .compileconf
+    if [[ $? -eq 1 && -s .compileconf ]]; then
+        # Old style format: contains just the platform as a bareword
+        # (and is not just an empty file).
         platform=`cat .compileconf`
     else
         # New format.  Contains config info in the form:
@@ -78,10 +80,7 @@ elif [ -e .compileconf ]; then
         # etc.
         . .compileconf
     fi
-else
-	platform=PC-PGI64
 fi
-
 echo "Using platform: $platform"
 
 if [ "$dbg_flag" == "-d" ]; then
@@ -90,12 +89,10 @@ if [ "$dbg_flag" == "-d" ]; then
     else
         dest=$dbg_dest
     fi
-    test ! -d .compileconf && grep -q "dbg_on" .compileconf || echo "dbg_on='y'" >> .compileconf
+    test ! -d .compileconf && grep -q "dbg_on" .compileconf || echo -e "# Remove dbg_on line to change back to using the optimised code in the main Makefile without having to produce new makefiles.\ndbg_on='y'" >> .compileconf
 else
     test ! -d .compileconf && perl -ni -e 'print if (! /dbg_on/);' .compileconf
 fi
-
-exit
 
 ./mkconfig.sh $dbg_flag $platform -DEST=${PWD}/DESTDIR > mktemplate
 
