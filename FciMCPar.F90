@@ -449,9 +449,9 @@ MODULE FciMCParMod
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkersExcit"
             CALL FLUSH(6)
         ENDIF
-        IF(TotWalkersNew.eq.0) THEN
-            CALL Stop_All("PerformFciMCycPar","All walkers have died on a node")
-        ENDIF
+!        IF(TotWalkersNew.eq.0) THEN
+!            CALL Stop_All("PerformFciMCycPar","All walkers have died on a node")
+!        ENDIF
         
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
@@ -1657,6 +1657,12 @@ MODULE FciMCParMod
         AllHFCyc=REAL(outpair(6),r2)
         AllLocalAnn=outpair(7)
 
+        IF(iProcIndex.eq.0) THEN
+            IF(AllTotWalkers.eq.0) THEN
+                CALL Stop_All("CalcNewShift","All particles have died. Consider choosing new seed, or raising shift value.")
+            ENDIF
+        ENDIF
+
 !SumWalkersCyc is now an int*8, therefore is needs to be reduced as a real*8
         TempSumWalkersCyc=REAL(SumWalkersCyc,r2)
         TempAllSumWalkersCyc=0.D0
@@ -1891,7 +1897,11 @@ MODULE FciMCParMod
         INTEGER :: j,k,GrowthSteps
 
         IF(NoCulls.eq.0) THEN
-            GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+            IF(TotWalkersOld.eq.0) THEN
+                GrowRate=0.D0
+            ELSE
+                GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+            ENDIF
         ELSEIF(NoCulls.eq.1) THEN
 !GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
             GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
