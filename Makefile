@@ -1,9 +1,26 @@
-# THIS IS A TEST.
 SHELL=/bin/bash
 
-neci: dest/Makefile
-	cd dest; ${MAKE} neci.x
-	test -e neci.x || ln -s {dest/,}neci.x
+config_exists := $(wildcard .compileconf)
+
+dest:=dest
+dbg_dest:=dest
+
+ifeq ($(config_exists),.compileconf)
+	include .compileconf
+endif
+
+ifdef ($(dbg_dest),'dest')
+	dbg_dest:=$(dest)
+endif
+
+ifeq ($(dbg_on),'y')
+	dest:=$(dbg_dest)
+	dbg_flag='-d'
+endif
+
+neci: $(dest)/Makefile
+	cd $(dest); ${MAKE} neci.x
+	test -e neci.x || ln -s {$(dest)/,}neci.x
 
 new:
 	./compile
@@ -12,20 +29,20 @@ dbg:
 	./compile -d
 
 gneci-cpmd:
-	cd dest; ${MAKE} neci-cpmd.a
+	cd $(dest); ${MAKE} neci-cpmd.a
 
 kneci-cpmd:
-	cd kdest; ${MAKE} neci-cpmd.a
+	cd $(kdest); ${MAKE} neci-cpmd.a
 
 neci-cpmd:
 	${MAKE} gneci-cpmd
 	${MAKE} kneci-cpmd
 
 gneci-vasp:
-	cd dest; ${MAKE} neci-vasp.a
+	cd $(dest); ${MAKE} neci-vasp.a
 
 kneci-vasp:
-	cd kdest; ${MAKE} neci-vasp.a
+	cd $(kdest); ${MAKE} neci-vasp.a
 
 neci-vasp:
 	${MAKE} gneci-vasp
@@ -42,11 +59,11 @@ newall:
 	${MAKE} neci-vasp
 
 clean:
-	cd dest; ${MAKE} clean
-	cd kdest; ${MAKE} clean
+	cd $(dest); ${MAKE} clean
+	cd $(kdest); ${MAKE} clean
 
-dest/Makefile mkfiles:
-	./compile -m
+$(dest)/Makefile mkfiles:
+	./compile $(dbg_flag) -m
 
 dbgmkfiles:
 	./compile -d -m

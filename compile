@@ -14,13 +14,41 @@ Options:
 END
 }
 
-dbgflag=''
+#-------------------------------------------------------------
+#
+# .compileconf
+#
+# The file .compileconf (if present) is used to override the
+# default values, and can be used to set local/user defaults.
+# 
+# The dest, dbg_dest and platform variables are those that can
+# currently be set.
+# For instance, to set the destination sub-directory for optimised
+# compiled objects to be dest_local, the destination sub-directory 
+# for debug compiled objects to be dest_dbg_local and the default
+# platform to be PC-ifort64, then .compileconf should contain::
+
+#    platform=PC-ifort64
+#    dest=dest_local
+#    dbg_dest=dest_dbg_local
+
+# This makes switching between debug and optimised versions 
+# much faster, as a clean build is not necessary.
+# Note that compile will add/remove a debug variable from 
+# .compileconf as appropriate, for use with the master Makefile.
+
+#-------------------------------------------------------------
+
+dest='dest' # default destination of compiled objects.
+dbg_dest='' # Set later (via .compileconf).
+
+dbg_flag=''
 compile=1
 fast=0
 
 while getopts 'dfmh' options; do
     case $options in
-        d)  dbgflag='-d';;
+        d)  dbg_flag='-d';;
         f)  fast=1 ;;
         m)  compile=0 ;;
         h)  usage
@@ -40,22 +68,46 @@ if [ "$#" -ne 0 ]; then
 elif [ -e .compileconf ]; then
 	# Read the user's default platform (if the .compileconf exists 
 	# in the current working directory).
-	platform=`cat .compileconf`
+    grep -vq '=' .compileconf
+    if [ $? -eq 0 ]; then
+        # Old style format: contains just the platform as a bareword.
+        platform=`cat .compileconf`
+    else
+        # New format.  Contains config info in the form:
+        # platform=ix86-gfortran32
+        # etc.
+        . .compileconf
+    fi
 else
 	platform=PC-PGI64
 fi
 
 echo "Using platform: $platform"
 
-./mkconfig.sh $dbgflag $platform -DEST=${PWD}/DESTDIR > mktemplate
+if [ "$dbg_flag" == "-d" ]; then
+    if [ "$dbg_dest" == "" ]; then
+        dest=$dest
+    else
+        dest=$dbg_dest
+    fi
+    test ! -d .compileconf && grep -q "dbg_on" .compileconf || echo "dbg_on='y'" >> .compileconf
+else
+    test ! -d .compileconf && perl -ni -e 'print if (! /dbg_on/);' .compileconf
+fi
 
-test ! -d dest && mkdir dest
-test ! -d kdest && mkdir kdest
+exit
 
-cp irat.inc dest/
-cp irat.inc kdest/
-sed -e 's/#CMPLXFLAG//' -e "s/DESTDIR/dest/" mktemplate > dest/Makefile
-sed -e 's/#CMPLXFLAG/-D__CMPLX/' -e "s/DESTDIR/kdest/"  mktemplate > kdest/Makefile
+./mkconfig.sh $dbg_flag $platform -DEST=${PWD}/DESTDIR > mktemplate
+
+kdest='k'$dest
+
+test ! -d $dest && mkdir $dest
+test ! -d $kdest && mkdir $kdest
+
+cp irat.inc $dest/
+cp irat.inc $kdest/
+sed -e 's/#CMPLXFLAG//' -e "s/DESTDIR/$dest/" mktemplate > $dest/Makefile
+sed -e 's/#CMPLXFLAG/-D__CMPLX/' -e "s/DESTDIR/$kdest/"  mktemplate > $kdest/Makefile
 
 if [[ $compile -eq 1 ]]; then
     if [[ $fast -eq 0 ]]; then
@@ -63,12 +115,12 @@ if [[ $compile -eq 1 ]]; then
         touch *.F *.F90
         make clean
     fi
-    cd dest
+    cd $dest
     make neci.x
     stat=$?
     cd ..
     if [[ $stat -eq 0 && ! -e neci.x ]]; then
-        ln -s dest/neci.x neci.x
+        ln -s $dest/neci.x neci.x
     fi
 fi
 exit $stat
