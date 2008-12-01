@@ -9,14 +9,17 @@ config_exists := $(wildcard .compileconf)
 dest:=dest
 dbg_dest:=dest
 
-# If .compileconf exists, read it.
+# If .compileconf exists and is of the new format, read it.
 ifeq ($(config_exists),.compileconf)
-	include .compileconf
+	fmt := $(shell grep -q '=' .compileconf && echo 'new' || echo 'old')
+	ifeq ($(fmt),new)
+		include .compileconf
+	endif
 endif
 
 # If dbg_dest was not changed in .compileconf,
 # update it to be the same as dest.
-ifdef ($(dbg_dest),'dest')
+ifeq ($(dbg_dest),dest)
 	dbg_dest:=$(dest)
 endif
 
