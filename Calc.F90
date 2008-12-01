@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tGlobalSftCng=.false.
           TLocalAnnihilation=.false.
           TDistAnnihil=.false.
           TAnnihilonproc=.false.
@@ -733,6 +734,10 @@ MODULE Calc
 !This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.
                 TLocalAnnihilation=.true.
                 call Getf(Lambda)
+            case("GLOBALSHIFT")
+!A parallel FCIMC option. It is generally recommended to have this option on. This will calculate the growth rate of the system as a simple ratio of the total walkers on all processors
+!before and after update cycle. This however is incompatable with culling, and so is removed for update cycles with this in. 
+                tGlobalSftCng=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

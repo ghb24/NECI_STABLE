@@ -680,6 +680,15 @@ The following options are only available in **FCIMC** calculations:
     walker contributes to the energy estimator. This should reduce the variance for the 
     energy estimator.
 
+**GLOBALSHIFT**
+    Default false
+
+    A parallel FCIMC option. It is generally recommended to have this option on. This will 
+    calculate the growth rate of the system as a simple ratio of the total walkers on all processors
+    before and after update cycle, rather than a weighted average. This however is incompatable with culling, and so 
+    is removed for update cycles with this in. This should be more stable than the
+    default version and give a more reliable shift estimator for large systems.
+
 **GRAPHSIZE** [NDets]
     In ResumFCIMC, this is the number of connected determinants to form the
     graph which you take as your sumsystem for the resummed spawning.  Must

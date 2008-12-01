@@ -1690,12 +1690,18 @@ MODULE FciMCParMod
 !We need to tell all nodes whether to balance the nodes or not...
         CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
         
+        IF(GrowRate.eq.-1.D0) THEN
+!tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
+!This will only be a sensible value on the root.
+            AllGrowRate=REAL(AllTotWalkers,r2)/REAL(AllTotWalkersOld,r2)
+        ELSE
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
-        GrowRate=GrowRate*TempSumWalkersCyc                    
-        CALL MPIDSumRoot(GrowRate,1,AllGrowRate,Root)   
+            GrowRate=GrowRate*TempSumWalkersCyc                    
+            CALL MPIDSumRoot(GrowRate,1,AllGrowRate,Root)   
 
-        IF(iProcIndex.eq.Root) THEN
-            AllGrowRate=AllGrowRate/TempAllSumWalkersCyc
+            IF(iProcIndex.eq.Root) THEN
+                AllGrowRate=AllGrowRate/TempAllSumWalkersCyc
+            ENDIF
         ENDIF
 
 !For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
@@ -1763,10 +1769,10 @@ MODULE FciMCParMod
         ENDIF
 !We wan to now broadcast this new shift to all processors
         CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            WRITE(6,*) "Error in broadcasting new shift"
-            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
-        ENDIF
+!        IF(error.ne.MPI_SUCCESS) THEN
+!            WRITE(6,*) "Error in broadcasting new shift"
+!            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
+!        ENDIF
 
         AccRat=(REAL(Acceptances,r2))/TempSumWalkersCyc      !The acceptance ratio which is printed is only for the current node - not summed over all nodes
 
@@ -1893,14 +1899,18 @@ MODULE FciMCParMod
 !This routine looks at the change in residual particle number over a number of cycles, and adjusts the 
 !value of the diagonal shift in the hamiltonian in order to compensate for this
     SUBROUTINE UpdateDiagSftPar()
-        IMPLICIT NONE
+        USE CalcData , only : tGlobalSftCng
         INTEGER :: j,k,GrowthSteps
 
         IF(NoCulls.eq.0) THEN
-            IF(TotWalkersOld.eq.0) THEN
-                GrowRate=0.D0
+            IF(.not.tGlobalSftCng) THEN
+                IF(TotWalkersOld.eq.0) THEN
+                    GrowRate=0.D0
+                ELSE
+                    GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+                ENDIF
             ELSE
-                GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+                GrowRate=-1.D0
             ENDIF
         ELSEIF(NoCulls.eq.1) THEN
 !GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
