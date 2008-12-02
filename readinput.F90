@@ -47,14 +47,14 @@ MODULE ReadInput
         ir=1                            !default to file descriptor 1 which we'll open below
         If(cFilename.ne.'') Then
             Write(6,*) "Reading from file: ", Trim(cFilename)
-            inquire(file='cFilename',exist=tExists)
+            inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(1,File=cFilename,Status='OLD',err=99,iostat=ios)
         ElseIf(iArgC().gt.0) then
     ! We have some arguments we can process instead
             Call GetArg(1,cInp)      !Read argument 1 into inp
             Write(6,*) "Reading from file: ", Trim(cInp)
-            inquire(file='cInp',exist=tExists)
+            inquire(file=cInp,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')
             Open(1,File=cInp,Status='OLD',FORM="FORMATTED",err=99,iostat=ios)
         Else
