@@ -89,9 +89,13 @@ if [ "$dbg_flag" == "-d" ]; then
     else
         dest=$dbg_dest
     fi
-    test ! -d .compileconf && grep -q "dbg_on" .compileconf || echo -e "# Remove dbg_on line to change back to using the optimised code in the main Makefile without having to produce new makefiles.\ndbg_on='y'" >> .compileconf
+    if grep -q '=' .compileconf; then
+        if ! grep -q "dbg_on" .compileconf; then
+            echo -e "# Remove dbg_on line to change back to using the optimised code in the main Makefile without having to produce new makefiles.\ndbg_on='y'" >> .compileconf
+        fi
+    fi
 else
-    test ! -d .compileconf && perl -ni -e 'print if (! /dbg_on/);' .compileconf
+    perl -ni -e 'print if (! /dbg_on/);' .compileconf
 fi
 
 ./mkconfig.sh $dbg_flag $platform -DEST=${PWD}/DESTDIR > mktemplate
