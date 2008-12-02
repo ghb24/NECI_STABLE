@@ -39,6 +39,7 @@ MODULE ReadInput
 !        Integer             ir         !The file descriptor we are reading from
         Character(len=100)  w,x         !strings for input storage
         Logical             tEof        !set when read_line runs out of lines
+        logical             tExists     !test for existence of input file.
         Integer             idDef       !What default set do we use
         
         cTitle=""
@@ -46,11 +47,15 @@ MODULE ReadInput
         ir=1                            !default to file descriptor 1 which we'll open below
         If(cFilename.ne.'') Then
             Write(6,*) "Reading from file: ", Trim(cFilename)
+            inquire(file='cFilename',exist=tExists)
+            if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(1,File=cFilename,Status='OLD',err=99,iostat=ios)
         ElseIf(iArgC().gt.0) then
     ! We have some arguments we can process instead
             Call GetArg(1,cInp)      !Read argument 1 into inp
             Write(6,*) "Reading from file: ", Trim(cInp)
+            inquire(file='cInp',exist=tExists)
+            if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')
             Open(1,File=cInp,Status='OLD',FORM="FORMATTED",err=99,iostat=ios)
         Else
             ir=5                    !file descriptor 5 is stdin
@@ -140,6 +145,7 @@ MODULE ReadInput
         IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
    99   IF (ios.gt.0) THEN
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
+            call stop_all('ReadInputMain','Input error.')
         END IF
         call checkinput()
         RETURN
