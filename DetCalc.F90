@@ -129,6 +129,9 @@ CONTAINS
             STOP "No determinants found.  Cannot continue"
          ENDIF
 !C.. NEL now only includes active electrons
+         WRITE(6,*) "Number of determinants found to be: ",II
+         WRITE(6,*) "Allocating initial memory for calculation of energy..."
+         CALL FLUSH(6)
          Allocate(NMrks(nEl,II),stat=ierr)
          LogAlloc(ierr,'NMRKS',NEL*II,4,tagNMRKS)
          NMRKS(1:NEL,1:II)=0
