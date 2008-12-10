@@ -146,6 +146,10 @@ FCIMC options
     A calculation can then be restarted at a later date by reading the
     determinants back in using **READPOPS** in the **CALC** section. 
     Walker number can also be scaled up/down by using **SCALEWALKERS**.
+    If the iWritePopsEvery argument is negative, then the POPSFILE is never
+    written out, even at the end of a simulation. This is useful for very large
+    calculations where the POPSFILE will take a long time to write out and use
+    a lot of disk space.
 
 **ZEROPROJE**
     This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 

@@ -83,7 +83,13 @@ MODULE Logging
 ! will write the configuration of particles out each time the iteration
 ! passes that many.
             TPopsFile=.true.
-            IF(item.lt.nitems) call readi(iWritePopsEvery)
+            IF(item.lt.nitems) THEN
+                call readi(iWritePopsEvery)
+                IF(iWritePopsEvery.lt.0) THEN
+!If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.
+                    TPopsFile=.false.
+                ENDIF
+            ENDIF
         case("WRITEDETE")
 !This logging option will write out the energies of all determinants which have been spawned at in the simulation
 ! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.
