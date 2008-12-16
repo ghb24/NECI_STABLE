@@ -13,6 +13,7 @@ MODULE FciMCParMod
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc,MemoryFacExcit
+    use CalcData , only : FixedKiiCutoff,tFixShiftKii
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -2094,7 +2095,7 @@ MODULE FciMCParMod
             ELSEIF(NDets.lt.2) THEN
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
                 CALL Stop_All("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
-            ELSEIF(TFixShiftShell) THEN
+            ELSEIF(TFixShiftShell.or.tFixShiftKii) THEN
                 CALL Stop_All("InitFCIMCCalcPar","Fixing the shift of the certain excitation levels cannot be used within ResumFCIMC")
             ENDIF
             IF(iProcIndex.eq.root) THEN
@@ -2131,7 +2132,12 @@ MODULE FciMCParMod
         IF(TFixShiftShell) THEN
             IF(iProcIndex.eq.root) THEN
                 WRITE(6,"(A,I5,A,F20.10)") "All excitations up to ",ShellFix," will have their shift fixed at ",FixShift
-                WRITE(6,*) "With this option, results are going to be non-exact, but can be used to equilibrate calculations"
+                WRITE(6,*) "With this option, results are going to be non-exact"
+            ENDIF
+        ELSEIF(tFixShiftKii) THEN
+            IF(iProcIndex.eq.root) THEN
+                WRITE(6,"(A,G25.16,A,F20.10)") "All excitations with Kii values less than ",FixedKiiCutoff," will have their shift fixed at ",FixShift
+                WRITE(6,*) "With this option, results are going to be non-exact"
             ENDIF
         ENDIF
         IF(ICILevel.ne.0) THEN
@@ -3415,6 +3421,12 @@ MODULE FciMCParMod
         IF(TFixShiftShell.and.(.not.TSinglePartPhase)) THEN
 !            IF((IC.eq.0).or.(IC.eq.2)) THEN
             IF(IC.le.ShellFix) THEN
+                rat=Tau*(Kii-FixShift)
+            ELSE
+                rat=Tau*(Kii-DiagSft)
+            ENDIF
+        ELSEIF(tFixShiftKii.and.(.not.TSinglePartPhase)) THEN
+            IF(Kii.le.FixedKiiCutoff) THEN
                 rat=Tau*(Kii-FixShift)
             ELSE
                 rat=Tau*(Kii-DiagSft)

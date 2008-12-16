@@ -20,6 +20,7 @@ LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
 LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell
+LOGICAL :: TFixShiftKii
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
@@ -35,7 +36,7 @@ REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
 REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
-REAL*8 :: FixShift,MemoryFacExcit,MemoryFac
+REAL*8 :: FixShift,MemoryFacExcit,MemoryFac,FixedKiiCutoff
 
 
 

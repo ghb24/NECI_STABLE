@@ -32,6 +32,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tFixShiftKii=.false.
+          FixedKiiCutoff=0.D0
           tGlobalSftCng=.false.
           TLocalAnnihilation=.false.
           TDistAnnihil=.false.
@@ -719,6 +721,13 @@ MODULE Calc
                 TFixShiftShell=.true.
                 CALL Geti(ShellFix)
                 CALL Getf(FixShift)
+            case("FIXKIISHIFT")
+!A Parallel FCIMC option. Similar to FixShellShift option, but will fix the shifts of the particles which have a diagonal
+!matrix element Kii of less than the cutoff, FixedKiiCutOff.
+                TFixShiftKii=.true.
+                CALL Getf(FixedKiiCutoff)
+                CALL Getf(FixShift)
+
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
                 TUnbiasPGeninProjE=.true.
@@ -745,6 +754,9 @@ MODULE Calc
           end do calc
           IF((.not.TReadPops).and.(ScaleWalkers.ne.1.D0)) THEN
               call report("Can only specify to scale walkers if READPOPS is set",.true.)
+          ENDIF
+          IF(tFixShiftKii.and.tFixShiftShell) THEN
+              call Stop_All("ReadCalc","Cannot have both fixshellshift and fixshiftkii options")
           ENDIF
 
           ! Set if we need virtual orbitals  (usually set).  Will be unset (by

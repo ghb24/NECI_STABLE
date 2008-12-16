@@ -650,6 +650,13 @@ The following options are only available in **FCIMC** calculations:
     but may be of use in equilibration steps to maintain particle density at 
     low excitations, before writing out the data and letting the shift change.
 
+**FIXKIISHIFT** FixedKiiCutoff FixShift
+
+    Another fixed shift based approximation method for FCIMC in parallel. However, rather
+    than fixing the shift based on an excitation level, it is now fixed according to the 
+    Kii value. Determinants lower in energy than FixedKiiCutoff will have their shifts
+    fixed to the value given.
+
 **ANNIHILATDISTANCE** [Lambda]
     Default=0.D0
 
