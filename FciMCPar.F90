@@ -2395,11 +2395,11 @@ MODULE FciMCParMod
         use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j,MaxIndex,ExcitLevel,iGetExcitLevel_2
         INTEGER :: iMaxExcit,ExcitLength
-        REAL*8 , ALLOCATABLE :: TempMax(:)
+        REAL*8 , ALLOCATABLE :: TempMax(:),ACEnergy(:)
         LOGICAL :: TurnBackAssumeExGen
-        TYPE(HElement) :: Fjj,Hij,Fkk
+        TYPE(HElement) :: Fii,Fjj,Hij,Fkk
         REAL*8 :: Compt,MaxWeight
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:),ACExcLevel(:)
         CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
 
 !Commented out code is to just perform the ACF for the HF determinant.
@@ -2422,6 +2422,11 @@ MODULE FciMCParMod
         
 !Set the first determinant to find the ACF of to be the HF determinant
         AutoCorrDets(:,1)=HFDet(:)
+
+        ALLOCATE(ACExcLevel(NoAutoDets))
+        ACExcLevel(:)=0
+        ALLOCATE(ACEnergy(NoAutoDets))
+        AcEnergy(:)=0
 
 !We do not know if tAssumeSizeExcitgen is on - if it is, then we can't enumerate all determinants. Get around this by simply regenerating it anyway.
 !First, we need to turn off AssumeSizeExcitgen if it is on.
@@ -2453,11 +2458,15 @@ MODULE FciMCParMod
             IF(nJ(1).eq.0) EXIT
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
-            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
+            Compt=real(Hij%v,r2)/(real(Fii%v,r2)-(REAL(Fjj%v,r2)))
+            ACEnergy(1)=real(Fii%v,r2)
             do j=2,NoACDets(2)+1!NoAutoDets
                 IF(abs(Compt).gt.TempMax(j)) THEN
                     TempMax(j)=abs(Compt)
                     AutoCorrDets(:,j)=nJ(:)
+                    ACExcLevel(j)=2
+                    ACEnergy(j)=real(Fjj%v,r2)
                     EXIT
                 ENDIF
             enddo
@@ -2512,6 +2521,8 @@ MODULE FciMCParMod
                     IF(abs(Compt).gt.TempMax(j)) THEN
                         TempMax(j)=abs(Compt)
                         AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
+                        ACExcLevel(j+1+NoACDets(2))=3
+                        ACEnergy(j+1+NoACDets(2))=real(Fkk%v,r2)
                         EXIT
                     ENDIF
                 enddo
@@ -2521,6 +2532,8 @@ MODULE FciMCParMod
                     IF(abs(Compt).gt.TempMax(j)) THEN
                         TempMax(j)=abs(Compt)
                         AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
+                        ACExcLevel(j+1+NoACDets(2))=4
+                        ACEnergy(j+1+NoACDets(2))=real(Fkk%v,r2)
                         EXIT
                     ENDIF
                 enddo
@@ -2535,15 +2548,18 @@ MODULE FciMCParMod
 !Find if any zeros
         do i=1,NoAutoDets
             IF(AutoCorrDets(1,i).eq.0) THEN
-                NoAutoDets=NoAutoDets-1
+!                NoAutoDets=NoAutoDets-1
                 WRITE(6,*) "Could not find AutoCorrFunc determinant to histogram slot ",i
 !Move these zeros to the end of the list
                 do j=i,NoAutoDets
                     IF(AutoCorrDets(1,j).ne.0) THEN
                         AutoCorrDets(:,i)=AutoCorrDets(:,j)
+                        ACExcLevel(i)=ACExcLevel(j)
+                        ACEnergy(i)=ACEnergy(j)
                         EXIT
                     ENDIF
                 enddo
+                NoAutoDets=NoAutoDets-1
             ENDIF
         enddo
             
@@ -2564,7 +2580,21 @@ MODULE FciMCParMod
             enddo
 
             OPEN(44,FILE='HFDoublePops',STATUS='UNKNOWN')
+            WRITE(44,*) 'Energy of determinant'
+            WRITE(44,"(A8)",advance='no') "-"
+            do i=1,NoAutoDets
+                WRITE(44,"(F20.10)",advance='no') ACEnergy(i)
+            enddo
+            WRITE(44,*) 'Excitation level'
+            WRITE(44,"(A8)",advance='no') "-"
+            do i=1,NoAutoDets
+                WRITE(44,"(I8)",advance='no') ACExcLevel(i)
+            enddo
+            WRITE(44,"(/,A14,5X,A23)") "Iteration No.","Determinant Populations"
         ENDIF
+
+        DEALLOCATE(ACExcLevel)
+        DEALLOCATE(ACEnergy)
 
         IF(TurnBackAssumeExGen) THEN
 !We turned off assumed sized excitation generators for this routine - turn it back on.
