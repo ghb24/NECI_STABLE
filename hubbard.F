@@ -90,6 +90,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          USE HElem
          use SystemData, only: BasisFN
          USE OneEInts,only : TMat2D,TMATSYM,TSTARSTORE,TMatInd,SetupTMAT
+         USE Parallel , only : iProcIndex
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -99,7 +100,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
          REAL*8 SUM,S1
-         OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
+         IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
          CALL SetupTMAT(NBASIS,2,iSize)
          SUM=0.D0
@@ -132,10 +133,10 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                   IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
                      IF(TSTARSTORE) THEN
                         TMATSYM(TMatInd(I,J))=SUM
-                        WRITE(10,*) I,J,SUM
+                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,SUM
                      ELSE
                         TMAT2D(I,J)=SUM
-                        WRITE(10,*) I,J,SUM
+                        IF(iProcIndex.eq.0) WRITE(10,*) I,J,SUM
                      ENDIF
                   ENDIF
                ENDDO
@@ -147,7 +148,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
      &               NBASISMAX,BHUB,
      &               TTILT,SUM,TREAL)
                   TMAT2D(I,I)=SUM
-                  WRITE(10,*) I,I,TMAT2D(I,I)
+                  IF(iProcIndex.eq.0) WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
             ELSE
                DO I=1,NBASIS
@@ -155,11 +156,11 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
      &               NBASISMAX,BHUB,
      &               TTILT,SUM,TREAL)
                   TMAT2D(I,I)=SUM
-                  WRITE(10,*) I,I,TMAT2D(I,I)
+                  IF(iProcIndex.eq.0) WRITE(10,*) I,I,TMAT2D(I,I)
                ENDDO
             ENDIF
          ENDIF
-         CLOSE(10)
+         IF(iProcIndex.eq.0) CLOSE(10)
          RETURN
       END
 C.. NBASISMAX descriptor (1,3)
