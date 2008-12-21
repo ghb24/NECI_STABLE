@@ -220,23 +220,26 @@ C            WRITE(32,*) I_V,ICLASS,RHOC
       END
 
       SUBROUTINE WRITECLASSPATHS()
+         USE Parallel , only : iProcIndex
          INCLUDE 'calcp.inc'
          INTEGER I,J
-         OPEN(45,FILE='CLASSPATHS',STATUS='UNKNOWN')
-         OPEN(46,FILE='CLASSPATHS2',STATUS='UNKNOWN')
-         DO I=0,1023
-            IF(CALCP_N(I).GT.0) THEN
+         IF(iProcIndex.eq.0) THEN
+             OPEN(45,FILE='CLASSPATHS',STATUS='UNKNOWN')
+             OPEN(46,FILE='CLASSPATHS2',STATUS='UNKNOWN')
+             DO I=0,1023
+                IF(CALCP_N(I).GT.0) THEN
                WRITE(45,"(I5,I11,4G19.11)") I,CALCP_N(I),CALCP_SUM(I,1),
-     &            CALCP_HSUM(I),CALCP_SUM(I,2),CALCP_SUM(I,3)
+     &              CALCP_HSUM(I),CALCP_SUM(I,2),CALCP_SUM(I,3)
                WRITE(46,"(I5,I11,2G19.11)") I,CALCP_N(I),CALCP_SUM(I,2),
-     &            CALCP_SUM(I,3)
-               DO J=1,15
-                  WRITE(46,*) -J,CALCP_NT(I,J,1),CALCP_NT(I,J,2)
-               ENDDO
-            ENDIF
-         ENDDO
-         CLOSE(45)
-         CLOSE(46)
+     &              CALCP_SUM(I,3)
+                    DO J=1,15
+                        WRITE(46,*) -J,CALCP_NT(I,J,1),CALCP_NT(I,J,2)
+                    ENDDO
+                ENDIF
+            ENDDO
+            CLOSE(45)
+            CLOSE(46)
+         ENDIF
       END
 
 
