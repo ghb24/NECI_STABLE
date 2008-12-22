@@ -1624,6 +1624,7 @@ MODULE FciMCParMod
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
         INTEGER :: inpair(7),outpair(7)
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
+        LOGICAL :: TBalanceNodesTemp
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
         CALL UpdateDiagSftPar()
@@ -1685,11 +1686,25 @@ MODULE FciMCParMod
 !            RangeWalkers=MaxWalkersProc-MinWalkersProc
 !            IF(RangeWalkers.gt.300) THEN
             IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(nProcessors*500))) THEN
-                TBalanceNodes=.true.
+                TBalanceNodesTemp=.true.
+            ELSE
+                TBalanceNodesTemp=.false.
             ENDIF
         ENDIF
+!Also choose to balance the nodes if all particles have died on one of them
+        IF(TotWalkers.eq.0) THEN
+            TBalanceNodesTemp=.true.
+        ELSE
+            TBalanceNodesTemp=.false.
+        ENDIF
 !We need to tell all nodes whether to balance the nodes or not...
+        CALL MPI_Reduce(TBalanceNodesTemp,TBalanceNodes,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,Root,error)
         CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
+        IF(iProcIndex.eq.Root) THEN
+            IF(TBalanceNodes.and.(.not.TBalanceNodesTemp)) THEN
+                WRITE(6,*) "Balancing nodes since all particles have died on a node..."
+            ENDIF
+        ENDIF
         
         IF(GrowRate.eq.-1.D0) THEN
 !tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
@@ -1710,8 +1725,10 @@ MODULE FciMCParMod
 
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
+!        WRITE(6,"(2I10,2G25.16)",advance='no') Iter,TotWalkers,MeanExcitLevel,TempSumWalkersCyc
         MeanExcitLevel=MeanExcitLevel/TempSumWalkersCyc
-        CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
+        CALL MPI_Reduce(MeanExcitLevel,AllMeanExcitLevel,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
         IF(iProcIndex.eq.Root) THEN
             AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,r2)
         ENDIF
