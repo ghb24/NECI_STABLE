@@ -1695,7 +1695,9 @@ MODULE FciMCParMod
         IF(TotWalkers.eq.0) THEN
             TBalanceNodesTemp=.true.
         ELSE
-            TBalanceNodesTemp=.false.
+            IF(iProcIndex.ne.Root) THEN
+                TBalanceNodesTemp=.false.
+            ENDIF
         ENDIF
 !We need to tell all nodes whether to balance the nodes or not...
         CALL MPI_Reduce(TBalanceNodesTemp,TBalanceNodes,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,Root,error)
