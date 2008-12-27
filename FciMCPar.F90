@@ -1920,7 +1920,20 @@ MODULE FciMCParMod
 !value of the diagonal shift in the hamiltonian in order to compensate for this
     SUBROUTINE UpdateDiagSftPar()
         USE CalcData , only : tGlobalSftCng
-        INTEGER :: j,k,GrowthSteps
+        INTEGER :: j,k,GrowthSteps,MaxCulls,error
+        LOGICAL :: Changed
+
+        
+        IF(tGlobalSftCng) THEN
+            CALL MPI_AllReduce(NoCulls,MaxCulls,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,error)
+            IF(MaxCulls.gt.0) THEN
+!At least one of the nodes is culling at least once, therefore every processor has to perform the original grow rate calculation.
+                tGlobalSftCng=.false.
+                Changed=.true.
+            ELSE
+                Changed=.false.
+            ENDIF
+        ENDIF
 
         IF(NoCulls.eq.0) THEN
             IF(.not.tGlobalSftCng) THEN
@@ -1955,6 +1968,11 @@ MODULE FciMCParMod
             NoCulls=0
             CullInfo(1:10,1:3)=0
 
+        ENDIF
+
+        IF(Changed) THEN
+!Return the flag for global shift change back to true.
+            tGlobalSftCng=.true.
         ENDIF
         
 !        DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
