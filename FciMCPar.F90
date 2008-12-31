@@ -1700,8 +1700,8 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 !We need to tell all nodes whether to balance the nodes or not...
-        CALL MPI_Reduce(TBalanceNodesTemp,TBalanceNodes,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,Root,error)
-        CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
+        CALL MPI_AllReduce(TBalanceNodesTemp,TBalanceNodes,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+!        CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
         IF(iProcIndex.eq.Root) THEN
             IF(TBalanceNodes.and.(.not.TBalanceNodesTemp)) THEN
                 WRITE(6,*) "Balancing nodes since all particles have died on a node..."
