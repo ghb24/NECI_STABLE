@@ -654,14 +654,19 @@ MODULE FciMCParMod
     SUBROUTINE FindMagneticDets()
         use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: j,i,ierr,iMaxExcit,nStore(6),ExcitLength,nJ(NEl),iExcit
-        TYPE(HElement) :: Hij,Fjj
+        TYPE(HElement) :: Hij,Fjj,Kiitemp
         LOGICAL :: TurnBackAssumeExGen
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
         REAL*8 , ALLOCATABLE :: TempMax(:)
-        REAL*8 :: MP1Energy,Compt
+        REAL*8 :: MP1Energy,Compt,Kii
         CHARACTER(len=*), PARAMETER :: this_routine='FindMagneticDets'
 
-        WRITE(6,*) "Finding the sign of the ",NoMagDets," largest weighted MP1 determinants..."
+        WRITE(6,"(A,I8,A)") "Finding the sign of the ",NoMagDets," largest weighted MP1 determinants..."
+        IF(tSymmetricField) THEN
+            WRITE(6,"(A,F14.6)") "Magnetized determinants will raise/lower the energy of anti-parallel/parallel particles by ",BField
+        ELSE
+            WRITE(6,"(A,F14.6)") "Magnetized determinants will only raise the energy of anti-parallel particles by ",BField
+        ENDIF
         IF(NoMagDets.lt.1) THEN
             CALL Stop_All("FindMagneticDets","Number of determinant signs to find < 1 - exiting...")
         ENDIF
@@ -704,16 +709,18 @@ MODULE FciMCParMod
         ExcitGenTemp(1)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
 
+        i=0
         do while(.true.)
 !Generate double excitations
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
             IF(nJ(1).eq.0) EXIT
+            i=i+1
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
             MP1Energy=MP1Energy+((real(Hij%v,r2)**2)/(Fii-(REAL(Fjj%v,r2))))
             do j=1,NoMagDets-1  !NoMagDets-1
-                IF(abs(Compt).gt.abs(TempMax(j))) THEN
+                IF(abs(Compt).ge.abs(TempMax(j))) THEN
                     TempMax(j)=Compt
                     MagDets(:,j)=nJ(:)
                     IF(Compt.lt.0) THEN
@@ -726,14 +733,20 @@ MODULE FciMCParMod
             enddo
             
         enddo
+        WRITE(6,*) i," double excitations found from HF"
+        IF(i.lt.NoMagDets-1) THEN
+            CALL Stop_All(this_routine,"Not enough double excitations to satisfy number of magnetic determinants requested.")
+        ENDIF
         DEALLOCATE(ExcitGenTemp)
 
-        WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp) :"
+        WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp   OrigKii) :"
         CALL WRITEDET(6,HFDet,NEl,.false.)
-        WRITE(6,"(F12.4)") 1.D0
+        WRITE(6,"(2F14.6)") 1.D0,0.D0
         do j=1,NoMagDets-1
             CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
-            WRITE(6,"(F12.4)") TempMax(j)
+!            Kiitemp=GetHElement2(MagDets(:,j),MagDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!            Kii=REAL(Kiitemp%v,r2)-Hii
+            WRITE(6,"(2F14.6)") TempMax(j),Kii
         enddo
 
         WRITE(6,*) "MP1 ENERGY is: ", MP1Energy
