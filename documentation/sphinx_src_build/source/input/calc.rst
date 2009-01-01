@@ -696,6 +696,22 @@ The following options are only available in **FCIMC** calculations:
     is removed for update cycles with this in. This should be more stable than the
     default version and give a more reliable shift estimator for large systems.
 
+**MAGNETIZE** [NoMagDets] [BField]
+    Default false
+
+    This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their 
+    sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
+    i.e. diagonal matrix element is raised by an energy given by BField. First parameter is an
+    integer indicating the number of determinants to 'magnetize', and the second is a real
+    giving the amount the energy of a particle should be raised if it is of an opposite sign.
+    
+**MAGNETIZESYM** [NoMagDets] [BField]
+    Default false
+
+    A parallel FCIMC option. Similar to the MAGNETIZE option (same arguments), but in addition to 
+    the energy being raised for particles of the opposite sign, the energy is lowered by the same 
+    amount for particles of 'parallel' sign.
+    
 **GRAPHSIZE** [NDets]
     In ResumFCIMC, this is the number of connected determinants to form the
     graph which you take as your sumsystem for the resummed spawning.  Must

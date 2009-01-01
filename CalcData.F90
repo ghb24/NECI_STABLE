@@ -20,7 +20,7 @@ LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
 LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell
-LOGICAL :: TFixShiftKii
+LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
@@ -28,7 +28,7 @@ INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
-INTEGER :: RhoApp,NEquilSteps,ShellFix
+INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets
 
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
@@ -37,6 +37,7 @@ REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
 REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
 REAL*8 :: FixShift,MemoryFacExcit,MemoryFac,FixedKiiCutoff
+REAL*8 :: BField
 
 
 

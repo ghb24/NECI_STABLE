@@ -5,7 +5,7 @@
 !!!!! TO DO !!!!
 ! Add new test
 ! Option for calculating non-essential information
-! Simulate Magnetization to break sign symmetry
+! Simulate Magnetization to break sign symmetry tau*(Kii-S-Bs_i) B on HF is +ve
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
@@ -13,7 +13,7 @@ MODULE FciMCParMod
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc,MemoryFacExcit
-    use CalcData , only : FixedKiiCutoff,tFixShiftKii
+    use CalcData , only : FixedKiiCutoff,tFixShiftKii,tMagnetize,BField,NoMagDets,tSymmetricField
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -158,6 +158,11 @@ MODULE FciMCParMod
 !Local annihilation is currently commented out
     REAL*8 , ALLOCATABLE :: ApproxExcitDets(:)    !This is the approximate size of each excitation level
     INTEGER , ALLOCATABLE :: PartsInExcitLevel(:) !This is the number of walkers for a given iteration in that excitation level
+    
+!Variables for magnetisation
+    INTEGER , ALLOCATABLE :: MagDets(:,:)       !This is to hold the NoMagDets-1 magnetic determinant paths (HF is always magnetic)
+    LOGICAL , ALLOCATABLE :: MagDetsSign(:)      !This is to hold the sign of the NoMagDets-1 magnetic determinants (HF is always positive)
+    INTEGER :: MagDetsTag=0,MagDetsSignTag=0
         
     contains
 
@@ -346,12 +351,16 @@ MODULE FciMCParMod
 !Only need it for double excitations, since these are the only ones which contribute to energy
 !                        HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
 !                    ENDIF
-                    IF(ExcitLevel.eq.0) THEN
-!We know we are at HF - HDiag=0
-                        HDiag=0.D0
+                    IF(TMagnetize) THEN
+                        CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
                     ELSE
-                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                        IF(ExcitLevel.eq.0) THEN
+!We know we are at HF - HDiag=0
+                            HDiag=0.D0
+                        ELSE
+                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                            HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                        ENDIF
                     ENDIF
 
                     IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -572,6 +581,173 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE PerformFCIMCycPar
+
+
+! Simulate Magnetization to break sign symmetry. Death probabiliy is now sign-dependent and given by tau*(Kii-S-Bs_i). B on HF is +ve and sign of particle is s_i.
+! This routine simply calculates whether the determinant is magnetic, and how the energy is therefore shifted.
+    SUBROUTINE FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
+        REAL*8 :: HDiag
+        LOGICAL :: WSign,MagDet,CompiPath
+        INTEGER :: ExcitLevel,nJ(NEl),i
+        TYPE(HElement) :: HDiagTemp
+
+        IF(ExcitLevel.eq.0) THEN
+!The HF determinant is definitely magnetic and we define the sign of the particles on HF to want to be +ve to be parallel with B
+            IF(WSign) THEN
+!Particle is alligned with B - energy is lower by a value B
+                IF(tSymmetricField) THEN
+                    HDiag=-BField
+                ENDIF
+            ELSE
+!Particle is antiparallel to B - energy is raised by B
+                HDiag=BField
+            ENDIF
+        
+        ELSEIF(ExcitLevel.eq.2) THEN
+!We can only tell the sign of the doubles or HF with any certainty. This information is calculated in FindMagneticDets.
+!First need to find out if the determinant is one which has been selected to be magnetic
+            MagDet=.false.
+            do i=1,NoMagDets-1 !Is NoMagDets-1 since the HF det is always magnetic
+                IF(CompiPath(nJ,MagDets(:,i),NEl)) THEN
+!Determinant is magnetic - now need to find if parallel or antiparallel
+                    MagDet=.true.
+                    EXIT
+                ENDIF
+            enddo
+
+            IF(MagDet) THEN
+!Determinant is magnetic - first find what the unperturbed energy of the determinant is.
+                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                
+!+ and + wants a +ve number to subtract
+!- and - wants a +ve number to subtract
+!Else wants a -ve number to subtract (particle is antiparallel)
+                IF(.not.XOR(WSign,MagDetsSign(i))) THEN
+!Particle is correctly alligned. If we have tSymmetricField on, then this lowers the energy. Otherwise, it stays the same.
+                    IF(tSymmetricField) THEN
+                        HDiag=HDiag-BField
+                    ENDIF
+                ELSE
+!Particle is incorrectly alligned.
+                    HDiag=HDiag+BField
+                ENDIF
+
+            ELSE
+!Double excitation is not magnetic, find diagonal element as normal
+                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                HDiag=(REAL(HDiagTemp%v,r2))-Hii
+            ENDIF
+
+        ELSE
+!Give the child the same diagonal K-matrix element it would normally have.
+            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            HDiag=(REAL(HDiagTemp%v,r2))-Hii
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE FindDiagElwithB
+
+
+!This routine will find the largest weighted MP1 determinants, from which we can construct energy level splitting dependant on the sign.
+    SUBROUTINE FindMagneticDets()
+        use SystemData , only : tAssumeSizeExcitgen
+        INTEGER :: j,i,ierr,iMaxExcit,nStore(6),ExcitLength,nJ(NEl),iExcit
+        TYPE(HElement) :: Hij,Fjj
+        LOGICAL :: TurnBackAssumeExGen
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+        REAL*8 , ALLOCATABLE :: TempMax(:)
+        REAL*8 :: MP1Energy,Compt
+        CHARACTER(len=*), PARAMETER :: this_routine='FindMagneticDets'
+
+        WRITE(6,*) "Finding the sign of the ",NoMagDets," largest weighted MP1 determinants..."
+        IF(NoMagDets.lt.1) THEN
+            CALL Stop_All("FindMagneticDets","Number of determinant signs to find < 1 - exiting...")
+        ENDIF
+        IF(NoMagDets.eq.1) THEN
+            WRITE(6,*) "Only fixing the sign of HF determinant"
+        ENDIF
+        IF(BField.lt.0.D0) THEN
+            CALL Stop_All("FindMagneticDets","Magnetic field cannot be negative...")
+        ENDIF
+
+!First allocate memory for chosen determinants. HF path is already stored and has a positive sign by definition, so only store NoMagDets-1 of them
+        ALLOCATE(MagDets(NEl,NoMagDets-1),stat=ierr)
+        CALL LogMemAlloc('MagDets',NEl*(NoMagDets-1),4,this_routine,MagDetsTag,ierr)
+        ALLOCATE(MagDetsSign(NoMagDets-1),stat=ierr)
+        CALL LogMemAlloc('MagDetsSign',NoMagDets-1,4,this_routine,MagDetsSignTag,ierr)
+
+!Do an MP1 calculation to find determinants to fix the sign of...
+!We do not know if tAssumeSizeExcitgen is on - if it is, then we can't enumerate all determinants. Get around this by simply regenerating it anyway.
+!First, we need to turn off AssumeSizeExcitgen if it is on.
+        IF(tAssumeSizeExcitgen) THEN
+            TurnBackAssumeExGen=.true.
+            tAssumeSizeExcitgen=.false.
+        ELSE
+            TurnBackAssumeExGen=.false.
+        ENDIF
+
+        ALLOCATE(TempMax(NoMagDets-1),stat=ierr)   !This will temporarily hold the largest components
+        IF(ierr.ne.0) THEN
+            CALL Stop_All(this_routine,"Problem allocating memory")
+        ENDIF
+        TempMax(:)=0.D0
+        MP1Energy=0.D0
+
+!Setup excit generators for HF Determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
+        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
+
+        do while(.true.)
+!Generate double excitations
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
+            IF(nJ(1).eq.0) EXIT
+            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+            MP1Energy=MP1Energy+((real(Hij%v,r2)**2)/(Fii-(REAL(Fjj%v,r2))))
+            do j=1,NoMagDets-1  !NoMagDets-1
+                IF(abs(Compt).gt.abs(TempMax(j))) THEN
+                    TempMax(j)=Compt
+                    MagDets(:,j)=nJ(:)
+                    IF(Compt.lt.0) THEN
+                        MagDetsSign(j)=.false.
+                    ELSE
+                        MagDetsSign(j)=.true.
+                    ENDIF
+                    EXIT
+                ENDIF
+            enddo
+            
+        enddo
+        DEALLOCATE(ExcitGenTemp)
+
+        WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp) :"
+        CALL WRITEDET(6,HFDet,NEl,.false.)
+        WRITE(6,"(F12.4)") 1.D0
+        do j=1,NoMagDets-1
+            CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
+            WRITE(6,"(F12.4)") TempMax(j)
+        enddo
+
+        WRITE(6,*) "MP1 ENERGY is: ", MP1Energy
+
+        DEALLOCATE(TempMax)
+        
+        IF(TurnBackAssumeExGen) THEN
+!We turned off assumed sized excitation generators for this routine - turn it back on.
+            tAssumeSizeExcitgen=.true.
+        ENDIF
+
+        RETURN
+
+    END SUBROUTINE FindMagneticDets
 
 
 !A routine to annihilate particles separatly on each node. This should mean less annihilation occurs, but it is effect running nProcessors separate simulations.
@@ -2199,6 +2375,10 @@ MODULE FciMCParMod
 !            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
         ENDIF
 
+        IF(tMagnetize) THEN
+            CALL FindMagneticDets()
+        ENDIF
+
         IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
 !in each excitation level
@@ -2434,7 +2614,7 @@ MODULE FciMCParMod
         INTEGER :: iMaxExcit,ExcitLength
         REAL*8 , ALLOCATABLE :: TempMax(:),ACEnergy(:)
         LOGICAL :: TurnBackAssumeExGen
-        TYPE(HElement) :: Fii,Fjj,Hij,Fkk
+        TYPE(HElement) :: Fjj,Hij,Fkk
         REAL*8 :: Compt,MaxWeight
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:),ACExcLevel(:)
         CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
@@ -2495,9 +2675,9 @@ MODULE FciMCParMod
             IF(nJ(1).eq.0) EXIT
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
-            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
-            Compt=real(Hij%v,r2)/(real(Fii%v,r2)-(REAL(Fjj%v,r2)))
-            ACEnergy(1)=real(Fii%v,r2)
+!            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
+            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+            ACEnergy(1)=Fii
             do j=2,NoACDets(2)+1!NoAutoDets
                 IF(abs(Compt).gt.TempMax(j)) THEN
                     TempMax(j)=abs(Compt)

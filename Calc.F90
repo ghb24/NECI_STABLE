@@ -32,6 +32,10 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tSymmetricField=.false.
+          NoMagDets=1
+          BField=0.D0
+          tMagnetize=.false.
           tFixShiftKii=.false.
           FixedKiiCutoff=0.D0
           tGlobalSftCng=.false.
@@ -747,6 +751,20 @@ MODULE Calc
 !A parallel FCIMC option. It is generally recommended to have this option on. This will calculate the growth rate of the system as a simple ratio of the total walkers on all processors
 !before and after update cycle. This however is incompatable with culling, and so is removed for update cycles with this in. 
                 tGlobalSftCng=.true.
+            case("MAGNETIZE")
+!This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
+!i.e. diagonal matrix element is raised by an energy given by BField.
+                tMagnetize=.true.
+                tSymmetricField=.false.
+                call Geti(NoMagDets)
+                call Getf(BField)
+            case("MAGNETIZESYM")
+!A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for particles of the opposite sign, the energy is lowered by the same amount for particles
+!of 'parallel' sign.
+                call Geti(NoMagDets)
+                call Getf(BField)
+                tSymmetricField=.true.
+                tMagnetize=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
