@@ -653,12 +653,12 @@ MODULE FciMCParMod
 !This routine will find the largest weighted MP1 determinants, from which we can construct energy level splitting dependant on the sign.
     SUBROUTINE FindMagneticDets()
         use SystemData , only : tAssumeSizeExcitgen
-        INTEGER :: j,i,ierr,iMaxExcit,nStore(6),ExcitLength,nJ(NEl),iExcit
+        INTEGER :: j,i,ierr,iMaxExcit,nStore(6),MinIndex,ExcitLength,nJ(NEl),iExcit
         TYPE(HElement) :: Hij,Fjj,Kiitemp
         LOGICAL :: TurnBackAssumeExGen
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
         REAL*8 , ALLOCATABLE :: TempMax(:)
-        REAL*8 :: MP1Energy,Compt,Kii
+        REAL*8 :: MP1Energy,Compt,Kii,MinCompt
         CHARACTER(len=*), PARAMETER :: this_routine='FindMagneticDets'
 
         WRITE(6,"(A,I8,A)") "Finding the sign of the ",NoMagDets," largest weighted MP1 determinants..."
@@ -719,18 +719,26 @@ MODULE FciMCParMod
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
             MP1Energy=MP1Energy+((real(Hij%v,r2)**2)/(Fii-(REAL(Fjj%v,r2))))
-            do j=1,NoMagDets-1  !NoMagDets-1
-                IF(abs(Compt).ge.abs(TempMax(j))) THEN
-                    TempMax(j)=Compt
-                    MagDets(:,j)=nJ(:)
-                    IF(Compt.lt.0) THEN
-                        MagDetsSign(j)=.false.
-                    ELSE
-                        MagDetsSign(j)=.true.
-                    ENDIF
-                    EXIT
+!Find position of minimum MP1 component stored
+            MinCompt=abs(TempMax(1))
+            MinIndex=1
+            do j=2,NoMagDets-1
+                IF(MinCompt.gt.abs(TempMax(j))) THEN
+                    MinIndex=j
+                    MinCompt=abs(TempMax(j))
                 ENDIF
             enddo
+
+!Compare the minimum index MP1 component to the one found from this excitation generated.
+            IF(abs(Compt).gt.MinCompt) THEN
+                TempMax(MinIndex)=Compt
+                MagDets(:,MinIndex)=nJ(:)
+                IF(Compt.lt.0) THEN
+                    MagDetsSign(MinIndex)=.false.
+                ELSE
+                    MagDetsSign(MinIndex)=.true.
+                ENDIF
+            ENDIF
             
         enddo
         WRITE(6,*) i," double excitations found from HF"
@@ -744,8 +752,8 @@ MODULE FciMCParMod
         WRITE(6,"(2F14.6)") 1.D0,0.D0
         do j=1,NoMagDets-1
             CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
-!            Kiitemp=GetHElement2(MagDets(:,j),MagDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!            Kii=REAL(Kiitemp%v,r2)-Hii
+            Kiitemp=GetHElement2(MagDets(:,j),MagDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            Kii=REAL(Kiitemp%v,r2)-Hii
             WRITE(6,"(2F14.6)") TempMax(j),Kii
         enddo
 
@@ -2624,11 +2632,11 @@ MODULE FciMCParMod
     SUBROUTINE ChooseACFDets()
         use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j,MaxIndex,ExcitLevel,iGetExcitLevel_2
-        INTEGER :: iMaxExcit,ExcitLength
+        INTEGER :: iMaxExcit,ExcitLength,MinInd
         REAL*8 , ALLOCATABLE :: TempMax(:),ACEnergy(:)
         LOGICAL :: TurnBackAssumeExGen
         TYPE(HElement) :: Fjj,Hij,Fkk
-        REAL*8 :: Compt,MaxWeight
+        REAL*8 :: Compt,MaxWeight,MinValue
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:),ACExcLevel(:)
         CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
 
@@ -2691,15 +2699,33 @@ MODULE FciMCParMod
 !            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
             ACEnergy(1)=Fii
-            do j=2,NoACDets(2)+1!NoAutoDets
-                IF(abs(Compt).gt.TempMax(j)) THEN
-                    TempMax(j)=abs(Compt)
-                    AutoCorrDets(:,j)=nJ(:)
-                    ACExcLevel(j)=2
-                    ACEnergy(j)=real(Fjj%v,r2)
-                    EXIT
+            MinInd=2
+            MinValue=TempMax(2)
+!First need to find the minimum value to swap out
+            do j=3,NoACDets(2)+1    !NoAutoDets
+                IF(MinValue.gt.TempMax(j)) THEN
+                    MinValue=TempMax(j)
+                    MinInd=j
                 ENDIF
             enddo
+
+!See if the just calculated value of the MP1 component is larger than the one current minimum.
+            IF(abs(Compt).gt.TempMax(MinInd)) THEN
+                TempMax(MinInd)=abs(Compt)
+                AutoCorrDets(:,MinInd)=nJ(:)
+                ACExcLevel(MinInd)=2
+                ACEnergy(MinInd)=real(Fjj%v,r2)
+            ENDIF
+
+!            do j=2,NoACDets(2)+1!NoAutoDets
+!                IF(abs(Compt).gt.TempMax(j)) THEN
+!                    TempMax(j)=abs(Compt)
+!                    AutoCorrDets(:,j)=nJ(:)
+!                    ACExcLevel(j)=2
+!                    ACEnergy(j)=real(Fjj%v,r2)
+!                    EXIT
+!                ENDIF
+!            enddo
             
         enddo
         DEALLOCATE(ExcitGenTemp)
