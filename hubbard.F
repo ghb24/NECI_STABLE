@@ -1,16 +1,19 @@
 C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,
      &            UMAT)
+         use UMatCache , only : UMatInd
          IMPLICIT NONE
          INTEGER NEL,NBASIS,nBasisMax(5,*),G1(*)
-         REAL*8 UMAT(NBASIS,NBASIS,NBASIS,NBASIS)
+         REAL*8 UMAT(*)
          REAL*8 UHUB
          INTEGER I,J,K,IC
          OPEN(10,FILE='UMAT',STATUS='UNKNOWN')
          IC=1
          DO I=1,NBASIS-1,2
-            UMAT(I,I+1,I,I+1)=UHUB
-            UMAT(I+1,I,I+1,I)=UHUB
+            UMAT(UMatInd(I,I+1,I,I+1,0,0))=UHUB
+            UMAT(UMatInd(I+1,I,I+1,I,0,0))=UHUB
+!            UMAT(I,I+1,I,I+1)=UHUB
+!            UMAT(I+1,I,I+1,I)=UHUB
             WRITE(10,'(4I7,F19.9)') I,I+1,I,I+1,UHUB
          ENDDO
          CLOSE(10)

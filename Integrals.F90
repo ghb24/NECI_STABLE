@@ -411,6 +411,7 @@ MODULE Integrals
                   Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
                   UMat=HElement(0.d0)
+                  WRITE(6,*) "Size of UMat is: ",UMATINT
                   CALL CALCUMATHUBREAL(NEL,NBASIS,NBASISMAX,G1,UHUB,UMAT)
                ELSEIF(THUB.AND..NOT.TPBC) THEN
     !!C.. we pre-compute the 2-e integrals

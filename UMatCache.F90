@@ -319,6 +319,8 @@ MODULE UMatCache
          INTEGER iPairs,nBi,nEl,noccup
          INTEGER :: iSize
          nBi=nBasis/iSS
+!         WRITE(6,*) iSS,nBasis,nBi
+!         CALL FLUSH(6)
          IF(TSTARSTORE) THEN
             IF(MOD(nel,2).ne.0) THEN
                 noccup=(nel+1)/iSS
