@@ -267,6 +267,7 @@ MODULE FciMCParMod
 !j runs through all current walkers
 
 !            WRITE(6,*) Iter,j,TotWalkers
+!            CALL FLUSH(6)
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
             CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentSign(j))
 
@@ -508,7 +509,7 @@ MODULE FciMCParMod
             Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
 
         ENDIF
-        
+
         CALL halt_timer(Annihil_Time)
         
 !Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
@@ -747,14 +748,15 @@ MODULE FciMCParMod
         ENDIF
         DEALLOCATE(ExcitGenTemp)
 
-        WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp   OrigKii) :"
+        WRITE(6,*) "Determinants picked for magnetisation are (Det   MP1Comp   OrigKii   Kij) :"
         CALL WRITEDET(6,HFDet,NEl,.false.)
         WRITE(6,"(2F14.6)") 1.D0,0.D0
         do j=1,NoMagDets-1
             CALL WRITEDET(6,MagDets(:,j),NEl,.false.)
             Kiitemp=GetHElement2(MagDets(:,j),MagDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
             Kii=REAL(Kiitemp%v,r2)-Hii
-            WRITE(6,"(2F14.6)") TempMax(j),Kii
+            Hij=GetHElement2(MagDets(:,j),HFDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
+            WRITE(6,"(3F14.6)") TempMax(j),Kii,REAL(Hij%v,r2)
         enddo
 
         WRITE(6,*) "MP1 ENERGY is: ", MP1Energy
@@ -1824,6 +1826,8 @@ MODULE FciMCParMod
         LOGICAL :: TBalanceNodesTemp
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
+!        WRITE(6,*) "Get Here"
+!        CALL FLUSH(6)
         CALL UpdateDiagSftPar()
 
 !Put a barrier here so all processes synchronise
@@ -1847,7 +1851,11 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(NoBorn,AllNoBorn,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(NoDied,AllNoDied,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 1"
+!        CALL FLUSH(6)
         CALL MPI_Reduce(inpair,outpair,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 2"
+!        CALL FLUSH(6)
         AllTotWalkers=outpair(1)
         AllAnnihilated=outpair(2)
         AllNoatDoubs=outpair(3)
@@ -1866,6 +1874,8 @@ MODULE FciMCParMod
         TempSumWalkersCyc=REAL(SumWalkersCyc,r2)
         TempAllSumWalkersCyc=0.D0
         CALL MPI_Reduce(TempSumWalkersCyc,TempAllSumWalkersCyc,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 3"
+!        CALL FLUSH(6)
 
         MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
         MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
@@ -1874,6 +1884,8 @@ MODULE FciMCParMod
 !        inpair(1)=TotWalkers
 !        inpair(2)=iProcIndex
         CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 4"
+!        CALL FLUSH(6)
 !        MaxWalkersProc=outpair(1)
 !        WRITE(6,*) "***",MaxWalkersProc,MaxAllowedWalkers,MeanWalkers
 !        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MINLOC,root,MPI_COMM_WORLD,error)
@@ -1898,6 +1910,8 @@ MODULE FciMCParMod
         ENDIF
 !We need to tell all nodes whether to balance the nodes or not...
         CALL MPI_AllReduce(TBalanceNodesTemp,TBalanceNodes,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 5"
+!        CALL FLUSH(6)
 !        CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
         IF(iProcIndex.eq.Root) THEN
             IF(TBalanceNodes.and.(.not.TBalanceNodesTemp)) THEN
@@ -1918,15 +1932,21 @@ MODULE FciMCParMod
                 AllGrowRate=AllGrowRate/TempAllSumWalkersCyc
             ENDIF
         ENDIF
+!        WRITE(6,*) "Get Here 6"
+!        CALL FLUSH(6)
 
 !For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
         CALL MPIDSumRoot(ENumCyc,1,AllENumCyc,Root)
+!        WRITE(6,*) "Get Here 7"
+!        CALL FLUSH(6)
 
 !Do the same for the mean excitation level of all walkers, and the total positive particles
 !MeanExcitLevel here is just the sum of all the excitation levels - it needs to be divided by the total walkers in the update cycle first.
 !        WRITE(6,"(2I10,2G25.16)",advance='no') Iter,TotWalkers,MeanExcitLevel,TempSumWalkersCyc
         MeanExcitLevel=MeanExcitLevel/TempSumWalkersCyc
         CALL MPI_Reduce(MeanExcitLevel,AllMeanExcitLevel,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 8"
+!        CALL FLUSH(6)
 !        CALL MPIDSumRoot(MeanExcitLevel,1,AllMeanExcitLevel,Root)
         IF(iProcIndex.eq.Root) THEN
             AllMeanExcitLevel=AllMeanExcitLevel/real(nProcessors,r2)
@@ -1945,13 +1965,19 @@ MODULE FciMCParMod
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         TempSumNoatHF=real(SumNoatHF,r2)
         CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
+!        WRITE(6,*) "Get Here 9"
+!        CALL FLUSH(6)
         CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
+!        WRITE(6,*) "Get Here 10"
+!        CALL FLUSH(6)
 
 !To find minimum and maximum excitation levels, search for them using MPI_Reduce
 !        inpair(1)=MaxExcitLevel
 !        inpair(2)=iProcIndex
 
         CALL MPI_Reduce(MaxExcitLevel,AllMaxExcitLevel,1,MPI_INTEGER,MPI_MAX,Root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 11"
+!        CALL FLUSH(6)
 !        IF(error.ne.MPI_SUCCESS) THEN
 !            WRITE(6,*) "Error in finding max excitation level"
 !            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
@@ -1964,6 +1990,8 @@ MODULE FciMCParMod
 !        inpair(1)=MinExcitLevel
 !        inpair(2)=iProcIndex
         CALL MPI_Reduce(MinExcitLevel,AllMinExcitLevel,1,MPI_INTEGER,MPI_MIN,Root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 12"
+!        CALL FLUSH(6)
 !        IF(error.ne.MPI_SUCCESS) THEN
 !            WRITE(6,*) "Error in finding min excitation level"
 !            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
@@ -1986,6 +2014,8 @@ MODULE FciMCParMod
         ENDIF
 !We wan to now broadcast this new shift to all processors
         CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get Here 13"
+!        CALL FLUSH(6)
 !        IF(error.ne.MPI_SUCCESS) THEN
 !            WRITE(6,*) "Error in broadcasting new shift"
 !            CALL MPI_ABORT(MPI_COMM_WORLD,rc,error)
@@ -2120,15 +2150,14 @@ MODULE FciMCParMod
         INTEGER :: j,k,GrowthSteps,MaxCulls,error
         LOGICAL :: Changed
 
-        
+        Changed=.false.
         IF(tGlobalSftCng) THEN
             CALL MPI_AllReduce(NoCulls,MaxCulls,1,MPI_INTEGER,MPI_MAX,MPI_COMM_WORLD,error)
             IF(MaxCulls.gt.0) THEN
+                WRITE(6,*) "Culling has occurred in this update cycle..."
 !At least one of the nodes is culling at least once, therefore every processor has to perform the original grow rate calculation.
                 tGlobalSftCng=.false.
                 Changed=.true.
-            ELSE
-                Changed=.false.
             ENDIF
         ENDIF
 
