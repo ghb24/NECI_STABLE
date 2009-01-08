@@ -3312,9 +3312,9 @@ MODULE FciMCParMod
             CALL Stop_All("InitWalkersMP1","Error in calculating sum of MP1 components")
         ENDIF
 
-        DiagSft=MP2Energy
+!        DiagSft=MP2Energy
         MP2Energy=MP2Energy+Hii
-        WRITE(6,"(A,F16.7,A,F16.7)") "MP2 energy is ",MP2Energy," which the initial shift has been set to: ",DiagSft
+        WRITE(6,"(A,F16.7,A,F16.7)") "MP2 energy is ",MP2Energy,", but the initial shift has been set to: ",DiagSft
 
         WalkersonHF=0       !Find the number of walkers we are assigning to HF
 
