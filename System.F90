@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tNonUniRandExcits=.false.
       tCycleOrbs=.false.
       TSTARSTORE=.false.
       TSTARBIN=.false.
@@ -329,6 +330,7 @@ MODULE System
 !and cycling through them until the allowed one is drawn, rather than randomly drawing and redrawing until
 !an allowed orbital is found. For large basis sets, the chance of drawing a forbidden orbital is small
 !enough that this should be an unneccesary expense.
+            tNonUniRandExcits=.true.
             if(item.lt.nitems) then
                 call readu(w)
                 select case(w)

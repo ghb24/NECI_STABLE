@@ -485,18 +485,18 @@ C.. Actually generate a det
 !.. irst generate a random excitation 
 
          PGEN=1.D0/ITOTAL
-         I=ITOTAL
-         IEXCIT=1
-         DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)
-            I=I-EXCITTYPES(5,IEXCIT)
+!         I=ITOTAL
+!         IEXCIT=1
+!         DO WHILE(I.GT.0.AND.EXCITTYPES(5,IEXCIT).LE.I)
+!            I=I-EXCITTYPES(5,IEXCIT)
 !            WRITE(6,"(A,7I5)") "SE",IEXCIT,
 !     &                   EXCITTYPES(1,IEXCIT),
 !     &                   EXCITTYPES(3,IEXCIT),
 !     &                   EXCITTYPES(4,IEXCIT),
 !     &                   EXCITTYPES(2,IEXCIT),
 !     &                   EXCITTYPES(5,IEXCIT),I
-            IEXCIT=IEXCIT+1
-         ENDDO
+!            IEXCIT=IEXCIT+1
+!         ENDDO
          I=ITOTAL*RAN2(ISEED)
 !.. Now work out which Excitation Type it's in.
          IEXCIT=1

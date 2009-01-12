@@ -9,7 +9,7 @@
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
-    use SystemData , only : tHub,tReal
+    use SystemData , only : tHub,tReal,tNonUniRandExcits
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
@@ -164,7 +164,9 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: MagDets(:,:)       !This is to hold the NoMagDets-1 magnetic determinant paths (HF is always magnetic)
     LOGICAL , ALLOCATABLE :: MagDetsSign(:)      !This is to hold the sign of the NoMagDets-1 magnetic determinants (HF is always positive)
     INTEGER :: MagDetsTag=0,MagDetsSignTag=0
-        
+
+    REAL*8 :: pDoubles                          !This is the approximate fraction of excitations which are doubles. This is calculated if we are using non-uniform
+                                                !random excitations.
     contains
 
 
@@ -2051,6 +2053,7 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
+        use SystemData, only : tUseBrillouin
         use CalcData, only : EXCITFUNCS
         use Determinants , only : GetH0Element3
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
@@ -2061,6 +2064,8 @@ MODULE FciMCParMod
         CHARACTER(len=12) :: abstr
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
+        WRITE(6,*) ""
+        WRITE(6,*) "Performing Parallel FCIMC...."
         
 !Set timed routine names
         Walker_Time%timer_name='WalkerTime'
@@ -2123,7 +2128,6 @@ MODULE FciMCParMod
             Hii=0.D0
         ENDIF
 
-
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
 !Initialise variables for calculation on each node
@@ -2169,6 +2173,19 @@ MODULE FciMCParMod
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
 !        CALL MPI_Type_commit(mpilongintegertype,error)
+        IF(tNonUniRandExcits) THEN
+!These are the new random excitations which give non-uniform generation probabilities.
+            IF(tUseBrillouin) THEN
+                WRITE(6,*) "Brillouin theorem specified, but this will not be in use with the non-uniform excitation generators."
+            ENDIF
+            WRITE(6,*) "Non-uniform excitation generators in use."
+            IF(.not.tRegenExcitgens) THEN
+                WRITE(6,*) "Currently, we can not store the excitation generators with non-uniform excitations. Instead, they will be regenerated."
+                tRegenExcitgens=.true.
+            ENDIF
+            CALL CalcApproxpDoubles(HFConn)
+        ENDIF
+
         
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
             CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
@@ -2218,8 +2235,7 @@ MODULE FciMCParMod
 !                CALL Stop_All("InitFCIMCCalcPar","Annihilation is not currently compatable with ResumFCIMC in parallel")
 !            ENDIF
         ENDIF
-        WRITE(6,*) ""
-        WRITE(6,*) "Performing Parallel FCIMC...."
+        
         IF(TStartSinglePart) THEN
             WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number on root node gets to ",InitWalkers
         ELSE
@@ -3744,34 +3760,41 @@ MODULE FciMCParMod
 
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
     SUBROUTINE GetPartRandExcitPar(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
+        use GenRandSymExcitNUMod , only : GenRandSymExcitNU
         INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
         INTEGER :: Excitlevel,Ex(2,2)
         REAL*8 :: Prob
         LOGICAL :: tParity
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
-        IF(ExcitLevel.eq.0) THEN
+        IF(tNonUniRandExcits) THEN
+!Generate non-uniform random excitations
+            CALL GenRandSymExcitNU(DetCurr,nJ,Seed,pDoubles,IC,Ex,tParity,exFlag,Prob)
+
+        ELSE
+            IF(ExcitLevel.eq.0) THEN
 !            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
-            CALL GenRandSymExcitIt4(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
-            RETURN
-        ENDIF
-            
+                CALL GenRandSymExcitIt4(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
+                RETURN
+            ENDIF
+                
 !Need to generate excitation generator to find excitation.
 !Setup excit generators for this determinant 
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,MemLength,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(ExcitGenTemp(MemLength),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+            ExcitGenTemp(1)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
 
 !Now generate random excitation
 !        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
-        CALL GenRandSymExcitIt4(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
+            CALL GenRandSymExcitIt4(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
 
 !Deallocate when finished
-        DEALLOCATE(ExcitGenTemp)
+            DEALLOCATE(ExcitGenTemp)
+        ENDIF
 
         RETURN
 
@@ -4133,6 +4156,66 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE BalanceWalkersonProcs
+
+    SUBROUTINE CalcApproxpDoubles(HFConn)
+        use SystemData , only : tAssumeSizeExcitgen
+        use SymData , only : SymClassSize
+        INTEGER :: HFConn,PosExcittypes,iTotal,i
+        INTEGER :: nSing,nDoub,ExcitInd
+
+        WRITE(6,*) "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+        IF(tAssumeSizeExcitgen) THEN
+            PosExcittypes=SymClassSize*NEL+NBASIS/32+4
+            iTotal=HFExcit%ExcitData(1)
+        ELSE
+            PosExcittypes=HFExcit%ExcitData(2)
+            iTotal=HFExcit%ExcitData(23)
+        ENDIF
+        IF(iTotal.ne.HFConn) THEN
+            CALL Stop_All("CalcApproxpDoubles","Number of excitations from HF determinant has been confused somewhere...")
+        ENDIF
+!        WRITE(6,*) "**********"
+!        do i=0,100
+!            WRITE(6,*) i,HFExcit%ExcitData(PosExcittypes+i)
+!        enddo
+        nSing=0
+        nDoub=0
+        i=iTotal
+!ExcitTypes is normally a (5,NExcitTypes) array, so we have to be a little careful with the indexing.
+        ExcitInd=4+PosExcittypes
+
+        do while((i.gt.0).and.HFExcit%ExcitData(ExcitInd).le.i)
+            IF(HFExcit%ExcitData(ExcitInd-4).eq.1) THEN
+!We are counting single excitations
+                NSing=NSing+HFExcit%ExcitData(ExcitInd)
+            ELSEIF(HFExcit%ExcitData(ExcitInd-4).eq.2) THEN
+                NDoub=NDoub+HFExcit%ExcitData(ExcitInd)
+            ELSE
+                CALL Stop_All("CalcApproxpDoubles","Cannot read excittypes")
+            ENDIF
+            i=i-HFExcit%ExcitData(ExcitInd)
+            ExcitInd=ExcitInd+5
+        enddo
+
+        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculated pDoubles."
+
+        IF((NSing+nDoub).ne.iTotal) THEN
+            CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
+        ENDIF
+        IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
+            WRITE(6,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
+            pDoubles=0.95
+            RETURN
+        ELSEIF((NSing.lt.0).or.(NDoub.lt.0)) THEN
+            CALL Stop_All("CalcApproxpDoubles","Number of singles or doubles found to be a negative number. Error here.")
+        ENDIF
+
+!Set pDoubles to be the fraction of double excitations.
+        pDoubles=real(nDoub,r2)/real(iTotal,r2)
+
+        WRITE(6,"(A,F14.6)") "pDoubles set to: ",pDoubles
+
+    END SUBROUTINE CalcApproxpDoubles
     
     SUBROUTINE DeallocFCIMCMemPar()
         INTEGER :: i,error,length,temp

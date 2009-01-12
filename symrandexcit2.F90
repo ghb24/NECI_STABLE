@@ -88,6 +88,15 @@ MODULE GenRandSymExcitNUMod
             CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
             CALL CreateSingleExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            IF(pGen.eq.-1.D0) THEN
+                IF(ExFlag.ne.3) THEN
+                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
+                ENDIF
+                pDoubNew=1.D0
+                IC=2
+                CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            ENDIF
+
         ENDIF
 
     END SUBROUTINE GenRandSymExcitNU
@@ -238,7 +247,7 @@ MODULE GenRandSymExcitNUMod
 
 !We now have our final orbitals.
             IF(z.ne.ChosenUnocc) THEN
-                CALL Stop_All("CreateSingleExcit","Could not find allowed unoccupied orbital to excite to.")
+                CALL Stop_All("PickBOrb","Could not find allowed unoccupied orbital to excite to.")
             ENDIF
 
         ELSE
@@ -667,6 +676,14 @@ MODULE GenRandSymExcitNUMod
             ENDIF
         enddo
 
+        IF(ElecsWNoExcits.eq.NEl) THEN
+!There are no single excitations from this determinant at all. Indicate this by putting pGen=-1.D0.
+!Then we will create a double excitation instead.
+            pGen=-1.D0
+            RETURN
+        ENDIF
+
+
         Attempts=0
         do while(.true.)
 
@@ -691,7 +708,7 @@ MODULE GenRandSymExcitNUMod
             IF(NExcit.ne.0) EXIT    !Have found electron with allowed excitations
 
             IF(Attempts.gt.250) THEN
-                WRITE(6,*) "Cannot find single excitation from following electron after 250 attempts..."
+                WRITE(6,*) "Cannot find single excitation from electrons after 250 attempts..."
                 CALL WRITEDET(6,nI,NEL,.true.)
                 WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
                 WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
@@ -759,6 +776,9 @@ MODULE GenRandSymExcitNUMod
                 
                 IF(Attempts.gt.250) THEN
                     WRITE(6,*) "Cannot find single excitation unoccupied orbital after 250 attempts..."
+                    WRITE(6,*) "Desired symmetry of unoccupied orbital = ",ElecSym
+                    WRITE(6,*) "Number of orbitals (of correct spin) in symmetry = ",nOrbs
+                    WRITE(6,*) "Number of orbitals to legitimatly pick = ",NExcit
                     CALL WRITEDET(6,nI,NEL,.true.)
                     WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
                     WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
