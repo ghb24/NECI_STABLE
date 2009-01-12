@@ -234,6 +234,9 @@ MODULE FciMCMod
                 ELSE
                     CALL GetPartRandExcit(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j))
                 ENDIF
+        
+!                CALL TestGenRandSymExcitNU(nJ,1000000,0.97,Seed,3)
+!                STOP
 
                 IF(ICILevel.ne.0) THEN
 !We are performing run in a truncated space

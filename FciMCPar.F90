@@ -2108,6 +2108,8 @@ MODULE FciMCParMod
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed-iProcIndex
 
+!        CALL TestGenRandSymExcitNU(HFDet,100000,0.95,Seed,1)
+
 !Calculate Hii
         TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
         Hii=REAL(TempHii%v,r2)

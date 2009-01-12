@@ -148,20 +148,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-         Excitlevel=iGetExcitLevel_2(nI,nJ,NEl,2)
-         IF(Excitlevel.ne.2) THEN
-             WRITE(6,*) "Have not created a double excitation"
-            CALL WRITEDET(6,nI,NEL,.TRUE.)
-            CALL WRITEDET(6,nJ,NEL,.TRUE.)
-            WRITE(6,*) nI(Elec1Ind),nI(Elec2Ind),OrbA,OrbB
-            STOP "Have not created a double excitation"
-         ENDIF
-         IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
-             WRITE(6,*) "INVALID DET DOUBLE"
-             CALL WRITEDET(6,nI,NEL,.TRUE.)
-             CALL WRITEDET(6,nJ,NEL,.TRUE.)
-             STOP "INVALID DET DOUBLE"
-         ENDIF
+        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
 
     END SUBROUTINE FindNewDet
 
@@ -191,23 +178,23 @@ MODULE GenRandSymExcitNUMod
 !We have already picked an alpha orbital, so now we want to pick a beta orbital. Find out how many of these there are.
                 NExcit=ClassCountUnocc2(2,SymB)
                 NExcitOtherWay=ClassCountUnocc2(1,SymA)
-                SpinOrbB=1  !This is defined differently to SpinOrbA. 1=Beta, 2=alpha.
+                SpinOrbB=0  !This is defined differently to SpinOrbA. 0=Beta, -1=alpha.
             ELSE
 !Want to pick an alpha orbital.
                 NExcit=ClassCountUnocc2(1,SymB)
                 NExcitOtherWay=ClassCountUnocc2(2,SymA)
-                SpinOrbB=2
+                SpinOrbB=-1
             ENDIF
         ELSEIF(iSpn.eq.1) THEN
 !Definitely want a beta orbital
             NExcit=ClassCountUnocc2(2,SymB)
             NExcitOtherWay=ClassCountUnocc2(2,SymA)
-            SpinOrbB=1
+            SpinOrbB=0
         ELSE
 !Definitely want an alpha orbital
             NExcit=ClassCountUnocc2(1,SymB)
             NExcitOtherWay=ClassCountUnocc2(1,SymA)
-            SpinOrbB=2
+            SpinOrbB=-1
         ENDIF
 
         IF((iSpn.ne.2).and.(SymProduct.eq.0)) THEN
@@ -238,7 +225,7 @@ MODULE GenRandSymExcitNUMod
                 OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+i))+SpinOrbB
 
 !Find out if the orbital is in the determinant, or is the other unocc picked
-                IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD(OrbB-1,32)))).and.(OrbB.ne.OrbA)) THEN
+                IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32)))).and.(OrbB.ne.OrbA)) THEN
 !The orbital is not found in the original determinant - increment z
                     z=z+1
                     IF(z.eq.ChosenUnocc) THEN
@@ -268,15 +255,15 @@ MODULE GenRandSymExcitNUMod
                 OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+ChosenUnocc))+SpinOrbB
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
-                IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD(OrbB-1,32)))).and.(OrbB.ne.OrbA)) THEN
+                IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32)))).and.(OrbB.ne.OrbA)) THEN
 !Orbital not in nI. Accept.
                     EXIT
                 ENDIF
                 
-                IF(Attempts.gt.25) THEN
-                    WRITE(6,*) "Cannot find double excitation unoccupied orbital after 25 attempts..."
+                IF(Attempts.gt.250) THEN
+                    WRITE(6,*) "Cannot find double excitation unoccupied orbital after 250 attempts..."
                     CALL WRITEDET(6,nI,NEL,.true.)
-                    CALL Stop_All("PickBOrb","Cannot find double excitation unoccupied orbital after 25 attempts...")
+                    CALL Stop_All("PickBOrb","Cannot find double excitation unoccupied orbital after 250 attempts...")
                 ENDIF
 
             enddo
@@ -439,10 +426,10 @@ MODULE GenRandSymExcitNUMod
                             EXIT
                         ENDIF
                         
-                        IF(Attempts.gt.25) THEN
-                            WRITE(6,*) "Cannot find A unoccupied orbital after 25 attempts..."
+                        IF(Attempts.gt.250) THEN
+                            WRITE(6,*) "Cannot find A unoccupied orbital after 250 attempts..."
                             CALL WRITEDET(6,nI,NEL,.true.)
-                            CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 25 attempts...")
+                            CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 250 attempts...")
                         ENDIF
 
                     enddo
@@ -470,15 +457,15 @@ MODULE GenRandSymExcitNUMod
 !This could be changed to an O[N] operation, rather than O[M] with a little thought...
                     do i=1,nBasis/2
                         IF(iSpn.eq.1) THEN
-!We want to run through all beta orbitals
-                            OrbA=(2*i)-1
-                        ELSE
-!We want to run through all alpha orbitals
+!We want to run through all beta orbitals (even numbered basis function)
                             OrbA=(2*i)
+                        ELSE
+!We want to run through all alpha orbitals (odd numbered basis functions)
+                            OrbA=(2*i)-1
                         ENDIF
 
 !Find out if the orbital is in the determinant.
-                        IF(.not.(BTEST(ILUT(OrbA-1/32),MOD(OrbA-1,32)))) THEN
+                        IF(.not.(BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32)))) THEN
 !The orbital is not found in the original determinant - increment z
                             z=z+1
                             IF(z.eq.ChosenUnocc) THEN
@@ -520,10 +507,10 @@ MODULE GenRandSymExcitNUMod
                             EXIT
                         ENDIF
                         
-                        IF(Attempts.gt.25) THEN
-                            WRITE(6,*) "Cannot find A unoccupied orbital after 25 attempts..."
+                        IF(Attempts.gt.250) THEN
+                            WRITE(6,*) "Cannot find A unoccupied orbital after 250 attempts..."
                             CALL WRITEDET(6,nI,NEL,.true.)
-                            CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 25 attempts...")
+                            CALL Stop_All("PickAOrb","Cannot find A unoccupied orbital after 250 attempts...")
                         ENDIF
 
                     enddo
@@ -586,8 +573,8 @@ MODULE GenRandSymExcitNUMod
                 ENDIF
             ENDIF
 
-            IF(AttemptsOverall.gt.30) THEN
-                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 30 attempts."
+            IF(AttemptsOverall.gt.300) THEN
+                WRITE(6,*) "Cannot find first allowed unoccupied orbital for given i,j pair after 300 attempts."
                 WRITE(6,*) "It may be that there are no possible excitations from this i,j pair, in which case "
                 WRITE(6,*) "the given algorithm is inadequate to describe excitations from such a small space."
                 WRITE(6,*) "Try reverting to old excitation generators."
@@ -703,15 +690,15 @@ MODULE GenRandSymExcitNUMod
 
             IF(NExcit.ne.0) EXIT    !Have found electron with allowed excitations
 
-            IF(Attempts.gt.25) THEN
-                WRITE(6,*) "Cannot find single excitation from following electron after 25 attempts..."
+            IF(Attempts.gt.250) THEN
+                WRITE(6,*) "Cannot find single excitation from following electron after 250 attempts..."
                 CALL WRITEDET(6,nI,NEL,.true.)
                 WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
                 WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
                 WRITE(6,*) "***"
                 WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
                 WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-                CALL Stop_All("CreateSingleExcit","Cannot find single excitation from following electron after 25 attempts...")
+                CALL Stop_All("CreateSingleExcit","Cannot find single excitation from following electron after 250 attempts...")
             ENDIF
 
         enddo
@@ -732,7 +719,7 @@ MODULE GenRandSymExcitNUMod
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
             do i=0,nOrbs-1
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
-                Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))+iSpn
+                Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
 
 !Find out if the orbital is in the determinant.
                 IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
@@ -762,7 +749,7 @@ MODULE GenRandSymExcitNUMod
                 
 !Draw randomly from the set of orbitals
                 ChosenUnocc=INT(nOrbs*Ran2(iSeed))
-                Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))+iSpn
+                Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))-(iSpn-1)
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
                 IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
@@ -770,15 +757,15 @@ MODULE GenRandSymExcitNUMod
                     EXIT
                 ENDIF
                 
-                IF(Attempts.gt.25) THEN
-                    WRITE(6,*) "Cannot find single excitation unoccupied orbital after 25 attempts..."
+                IF(Attempts.gt.250) THEN
+                    WRITE(6,*) "Cannot find single excitation unoccupied orbital after 250 attempts..."
                     CALL WRITEDET(6,nI,NEL,.true.)
                     WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
                     WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
                     WRITE(6,*) "***"
                     WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
                     WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-                    CALL Stop_All("CreateSingleExcit","Cannot find single excitation unoccupied orbital after 25 attempts...")
+                    CALL Stop_All("CreateSingleExcit","Cannot find single excitation unoccupied orbital after 250 attempts...")
                 ENDIF
 
             enddo
@@ -793,20 +780,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-         Excitlevel=iGetExcitLevel(nI,nJ,NEl)
-         IF(Excitlevel.ne.1) THEN
-             WRITE(6,*) "Have not created a single excitation"
-            CALL WRITEDET(6,nI,NEL,.TRUE.)
-            CALL WRITEDET(6,nJ,NEL,.TRUE.)
-            WRITE(6,*) nI(Eleci),Orb
-            STOP "Have not created a single excitation"
-         ENDIF
-         IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
-             WRITE(6,*) "INVALID DET SYMGENRANDEXCITIT SINGLE"
-             CALL WRITEDET(6,nI,NEL,.TRUE.)
-             CALL WRITEDET(6,nJ,NEL,.TRUE.)
-             STOP "INVALID DET SYMGENRANDEXCITIT SINGLE"
-         ENDIF
+        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
@@ -824,6 +798,8 @@ MODULE GenRandSymExcitNUMod
         ClassCount2(:,:)=0
         ClassCountUnocc2(:,:)=0
         ILUT(:)=0
+        NOccAlpha=0
+        NOccBeta=0
         do i=1,NEl
             
 !Create ILUT for O[1] comparison of orbitals in root determinant
@@ -831,13 +807,13 @@ MODULE GenRandSymExcitNUMod
 
             IF(G1(nI(i))%Ms.eq.-1) THEN
 !orbital is an alpha orbital and symmetry of the orbital can be found in G1
-                WRITE(6,*) G1(nI(i))%Sym%S
+!                WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
                 ClassCount2(1,INT(G1(nI(i))%Sym%S,4))=ClassCount2(1,INT(G1(nI(i))%Sym%S,4))+1
                 NOccAlpha=NOccAlpha+1
 
             ELSE
 !orbital is a beta orbital
-                WRITE(6,*) G1(nI(i))%Sym%S
+!                WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
                 ClassCount2(2,INT(G1(nI(i))%Sym%S,4))=ClassCount2(2,INT(G1(nI(i))%Sym%S,4))+1
                 NOccBeta=NOccBeta+1
             ENDIF
@@ -861,14 +837,23 @@ END MODULE GenRandSymExcitNUMod
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
 SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     Use SystemData , only : NEl,nBasis,G1,nBasisMax
-    Use GenRandSymExcitNUMod , only : GenRandSymExcitNU
+    Use GenRandSymExcitNUMod , only : GenRandSymExcitNU,ConstructClassCounts
+    Use SymData , only : nSymLabels
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),iSeed,IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
+    INTEGER :: ClassCount2(2,0:nSymLabels-1)
+    INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+    INTEGER :: ILUT(0:nBasis/32)
     LOGICAL :: tParity
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
-    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum
+    INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS
+
+    WRITE(6,*) nI(:)
+    WRITE(6,*) Iterations,pDoub,iSeed,exFlag
+    WRITE(6,*) "nSymLabels: ",nSymLabels
+    CALL FLUSH(6)
 
 !Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
 !Setup excit generators for this determinant
@@ -892,10 +877,20 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     IF(ierr.ne.0) THEN
         CALL Stop_All("TestGenRandSymExcitNU","Not possible to allocate memory to do histogramming")
     ENDIF
+    DoublesHist(:,:,:,:)=0.D0
+    SinglesHist(:,:)=0.D0
     
     do i=1,Iterations
 
+        WRITE(6,"(A,I10)") "Iteration: ",i
+
         CALL GenRandSymExcitNU(nI,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+        IF(IC.eq.1) THEN
+!            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
+        ELSE
+!            WRITE(6,*) "Double Created"
+!            WRITE(6,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
+        ENDIF
 
         IF(IC.eq.1) THEN
             SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.D0/pGen)
@@ -919,7 +914,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
         ENDIF
 
 !Check excitation
-        CALL IsSymAllowedExcit(IC,ExcitMat)
+        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 
     enddo
 
@@ -933,7 +928,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
                     IF(DoublesHist(i,j,k,l).gt.0.D0) THEN
 !                        DoublesHist(i,j,k,l)=DoublesHist(i,j,k,l)/real(Iterations,8)
                         DetNum=DetNum+1
-                        WRITE(8,*) DetNum,DoublesHist(i,j,k,l)/real(Iterations,8)
+                        WRITE(8,"(I12,F20.12,4I5)") DetNum,DoublesHist(i,j,k,l)/real(Iterations,8),i,j,k,l
                     ENDIF
                 enddo
             enddo
@@ -942,32 +937,66 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     CLOSE(8)
     WRITE(6,*) DetNum," Double excitations found from nI"
     OPEN(9,FILE="SinglesHist",STATUS="UNKNOWN")
-    DetNum=0
+    DetNumS=0
     do i=1,nBasis
         do j=1,nBasis
             IF(SinglesHist(i,j).gt.0.D0) THEN
-                DetNum=DetNum+1
-                WRITE(9,*) DetNum,SinglesHist(i,j)/real(Iterations,8)
+                DetNumS=DetNumS+1
+                WRITE(9,*) DetNumS,SinglesHist(i,j)/real(Iterations,8)
             ENDIF
         enddo
     enddo
     CLOSE(9)
-    WRITE(6,*) DetNum," Single excitations found from nI"
+    WRITE(6,*) DetNumS," Single excitations found from nI"
+    IF((DetNum+DetNumS).ne.DetConn) THEN
+        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2,ILUT)
+        WRITE(6,*) "Total determinants = ", DetConn
+        WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
+        WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
+        WRITE(6,*) "***"
+        WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
+        WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
+        CALL Stop_All("TestGenRandSymExcitNU","Not all excitations accounted for...")
+    ENDIF
 
 END SUBROUTINE TestGenRandSymExcitNU
 
-SUBROUTINE IsSymAllowedExcit(IC,ExcitMat)
-    Use SystemData , only : G1
+SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
+    Use SystemData , only : G1,NEl
     Use SystemData , only : Symmetry
     IMPLICIT NONE
     Type(Symmetry) :: SymProduct,SymProduct2,SYMPROD
-    LOGICAL :: SYMEQ
-    INTEGER :: IC,ExcitMat(2,2)
+    LOGICAL :: SYMEQ,ISVALIDDET
+    INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
 
-    SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
-    SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
-    IF(.not.SYMEQ(SymProduct,SymProduct2)) THEN
-        CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed excitation")
+     Excitlevel=iGetExcitLevel(nI,nJ,NEl)
+     IF(Excitlevel.ne.IC) THEN
+         WRITE(6,*) "Have not created a correct excitation"
+        CALL WRITEDET(6,nI,NEL,.TRUE.)
+        CALL WRITEDET(6,nJ,NEL,.TRUE.)
+        STOP "Have not created a correct excitation"
+     ENDIF
+     IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
+         WRITE(6,*) "INVALID DET"
+         CALL WRITEDET(6,nI,NEL,.TRUE.)
+         CALL WRITEDET(6,nJ,NEL,.TRUE.)
+         STOP "INVALID DET"
+     ENDIF
+     
+     IF(IC.eq.2) THEN
+        SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
+        SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
+        IF(.not.SYMEQ(SymProduct,SymProduct2)) THEN
+            CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed double excitation")
+        ENDIF
+    ELSE
+        IF(.not.SYMEQ(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(2,1))%Sym)) THEN
+            CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed single excitation")
+        ENDIF
+        IF(G1(ExcitMat(1,1))%Ms.ne.G1(ExcitMat(2,1))%Ms) THEN
+            CALL Stop_All("IsSymAllowedExcit","Excitation not a valid spin-symmetry allowed single excitation")
+        ENDIF
     ENDIF
+        
 
 END SUBROUTINE IsSymAllowedExcit
