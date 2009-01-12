@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tCycleOrbs=.false.
       TSTARSTORE=.false.
       TSTARBIN=.false.
       TREADINT=.false.
@@ -321,6 +322,22 @@ MODULE System
 !use these assumed size excitation generators to generate the whole list of excitations, will result 
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
+        case("NONUNIFORMRANDEXCITS")
+!This indicates that the new, non-uniform O[N] random excitation generators are to be used.
+!CYCLETHRUORBS can be useful if we have small basis sets or v high restrictive symmetry and will eliminate
+!large numbers of unsuccessful random draws of orbitals by calculating how many allowed orbitals there are
+!and cycling through them until the allowed one is drawn, rather than randomly drawing and redrawing until
+!an allowed orbital is found. For large basis sets, the chance of drawing a forbidden orbital is small
+!enough that this should be an unneccesary expense.
+            if(item.lt.nitems) then
+                call readu(w)
+                select case(w)
+                    case("CYCLETHRUORBS")
+                        tCycleOrbs=.true.
+                    case default
+                        call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
+                end select
+            endif
         case("ENDSYS") 
             exit system
         case default
