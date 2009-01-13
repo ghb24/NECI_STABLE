@@ -736,8 +736,11 @@ MODULE Calc
                 CALL Getf(FixShift)
             
             case("FIXCASSHIFT")                
-!A Parallel FCIMC option similar to the FixShellShift and FixShiftKii options.  In this option, an active space is chosen containing a certain number of highest occupied spin orbitals (OccCASorbs) and
-!lowest unoccupied spin orbitals (VirtCASorbs).  The shift is then fixed only for determinants which have completely occupied spin orbitals for those lower in energy than the active space, and completely unoccupied spin orbitals above the active space.  i.e. the electrons are only excited within the active space.  
+!A Parallel FCIMC option similar to the FixShellShift and FixShiftKii options.
+!In this option, an active space is chosen containing a certain number of highest occupied spin orbitals (OccCASorbs) and
+!lowest unoccupied spin orbitals (VirtCASorbs).  The shift is then fixed only for determinants 
+!which have completely occupied spin orbitals for those lower in energy than the active space, 
+!and completely unoccupied spin orbitals above the active space.  i.e. the electrons are only excited within the active space.  
                 TFixCASShift=.true.
                 call Geti(OccCASorbs)
                 call Geti(VirtCASorbs)
