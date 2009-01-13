@@ -2277,7 +2277,9 @@ MODULE FciMCParMod
             ENDIF
         ELSEIF(tFixCASShift) THEN
             IF(iProcIndex.eq.root) THEN
-                WRITE(6,"(A,I5,A,I5,A,F20.10)") "All determinants containing excitations within the active space of ",OccCASorbs," highest energy, occupied spin orbitals, and ",VirtCASorbs," lowest energy, virtual spin orbitals, will have their shift fixed at ",FixShift
+                WRITE(6,"(A,I5)") "All determinants containing excitations within the active space of ",OccCASorbs
+                WRITE(6,"(A,I5,A)")" highest energy, occupied spin orbitals, and ",VirtCASorbs," lowest energy, "
+                WRITE(6,"(A,F20.10)") "virtual spin orbitals, will have their shift fixed at ",FixShift
                 WRITE(6,*) "With this option, results are going to be non-exact"
             ENDIF
 !The SpinInvBRR array is required for the FixCASShift option. Its properties are explained more fully in the subroutine. 
