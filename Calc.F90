@@ -38,6 +38,9 @@ MODULE Calc
           tMagnetize=.false.
           tFixShiftKii=.false.
           FixedKiiCutoff=0.D0
+          tFixCASShift=.false.
+          OccCASorbs=0
+          VirtCASorbs=0
           tGlobalSftCng=.false.
           TLocalAnnihilation=.false.
           TDistAnnihil=.false.
@@ -731,6 +734,14 @@ MODULE Calc
                 TFixShiftKii=.true.
                 CALL Getf(FixedKiiCutoff)
                 CALL Getf(FixShift)
+            
+            case("FIXCASSHIFT")                
+!A Parallel FCIMC option similar to the FixShellShift and FixShiftKii options.  In this option, an active space is chosen containing a certain number of highest occupied spin orbitals (OccCASorbs) and
+!lowest unoccupied spin orbitals (VirtCASorbs).  The shift is then fixed only for determinants which have completely occupied spin orbitals for those lower in energy than the active space, and completely unoccupied spin orbitals above the active space.  i.e. the electrons are only excited within the active space.  
+                TFixCASShift=.true.
+                call Geti(OccCASorbs)
+                call Geti(VirtCASorbs)
+                call Getf(FixShift)
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
@@ -775,6 +786,12 @@ MODULE Calc
           ENDIF
           IF(tFixShiftKii.and.tFixShiftShell) THEN
               call Stop_All("ReadCalc","Cannot have both fixshellshift and fixshiftkii options")
+          ENDIF
+          IF(tFixShiftKii.and.tFixCASShift) THEN
+              call Stop_All("ReadCalc","Cannot have both fixshiftkii and fixCASshift options")
+          ENDIF
+          IF(tFixCASShift.and.tFixShiftShell) THEN
+              call Stop_All("ReadCalc","Cannot have both fixCASshift and fixshiftshell options")
           ENDIF
 
           ! Set if we need virtual orbitals  (usually set).  Will be unset (by

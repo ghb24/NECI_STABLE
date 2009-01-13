@@ -657,6 +657,16 @@ The following options are only available in **FCIMC** calculations:
     Kii value. Determinants lower in energy than FixedKiiCutoff will have their shifts
     fixed to the value given.
 
+**FIXCASSHIFT** [OccCASorbs] [VirtCASorbs] [FixShift]
+    Default 0 0 0.D0
+
+    A third fixed shift approximation method for FCIMC in parallel.  In this option, an active
+    space is chosen containing a number of highest occupied spin orbitals (OccCASorbs) and a 
+    number of lowest unoccupied spin orbitals (VirtCASorbs).  The shift is then fixed (at FixShift)
+    for determinants with excitations within this space only.  I.e. determinants for which the spin 
+    orbitals lower in energy than the active space are completely occupied and those higher in 
+    energy are completely unoccupied.
+
 **ANNIHILATDISTANCE** [Lambda]
     Default=0.D0
 

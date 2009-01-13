@@ -10,11 +10,11 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use SystemData , only : tHub,tReal,tNonUniRandExcits
-    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
+    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc,MemoryFacExcit
-    use CalcData , only : FixedKiiCutoff,tFixShiftKii,tMagnetize,BField,NoMagDets,tSymmetricField
+    use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -164,6 +164,12 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: MagDets(:,:)       !This is to hold the NoMagDets-1 magnetic determinant paths (HF is always magnetic)
     LOGICAL , ALLOCATABLE :: MagDetsSign(:)      !This is to hold the sign of the NoMagDets-1 magnetic determinants (HF is always positive)
     INTEGER :: MagDetsTag=0,MagDetsSignTag=0
+
+!These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
+!The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
+    INTEGER, ALLOCATABLE :: SpinInvBRR(:)
+    INTEGER :: SpinInvBRRTag=0
+    INTEGER :: CASmin=0,CASmax=0
 
     REAL*8 :: pDoubles                          !This is the approximate fraction of excitations which are doubles. This is calculated if we are using non-uniform
                                                 !random excitations.
@@ -2055,13 +2061,15 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use SystemData, only : tUseBrillouin
         use CalcData, only : EXCITFUNCS
+        use Calc, only : VirtCASorbs,OccCASorbs,FixShift
         use Determinants , only : GetH0Element3
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel)
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
+
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
         WRITE(6,*) ""
@@ -2224,7 +2232,7 @@ MODULE FciMCParMod
             ELSEIF(NDets.lt.2) THEN
                 WRITE(6,*) "Graphs cannot be smaller than two vertices. Exiting."
                 CALL Stop_All("InitFCIMCCalcPar","Graphs cannot be smaller than two vertices")
-            ELSEIF(TFixShiftShell.or.tFixShiftKii) THEN
+            ELSEIF(TFixShiftShell.or.tFixShiftKii.or.tFixCASShift) THEN
                 CALL Stop_All("InitFCIMCCalcPar","Fixing the shift of the certain excitation levels cannot be used within ResumFCIMC")
             ENDIF
             IF(iProcIndex.eq.root) THEN
@@ -2267,6 +2275,24 @@ MODULE FciMCParMod
                 WRITE(6,"(A,G25.16,A,F20.10)") "All excitations with Kii values less than ",FixedKiiCutoff," will have their shift fixed at ",FixShift
                 WRITE(6,*) "With this option, results are going to be non-exact"
             ENDIF
+        ELSEIF(tFixCASShift) THEN
+            IF(iProcIndex.eq.root) THEN
+                WRITE(6,"(A,I5,A,I5,A,F20.10)") "All determinants containing excitations within the active space of ",OccCASorbs," highest energy, occupied spin orbitals, and ",VirtCASorbs," lowest energy, virtual spin orbitals, will have their shift fixed at ",FixShift
+                WRITE(6,*) "With this option, results are going to be non-exact"
+            ENDIF
+!The SpinInvBRR array is required for the FixCASShift option. Its properties are explained more fully in the subroutine. 
+
+            CALL CreateSpinInvBRR()
+
+            CASmax=NEl+VirtCASorbs
+! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
+! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
+! to be in the active space.
+            CASmin=NEl-OccCASorbs
+! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
+! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
+! the determinant to be in the active space.
+
         ENDIF
         IF(ICILevel.ne.0) THEN
 !We are truncating the excitations at a certain value
@@ -2529,7 +2555,7 @@ MODULE FciMCParMod
         INTEGER :: iMaxExcit,ExcitLength,MinInd
         REAL*8 , ALLOCATABLE :: TempMax(:),ACEnergy(:)
         LOGICAL :: TurnBackAssumeExGen
-        TYPE(HElement) :: Fjj,Hij,Fkk
+        TYPE(HElement) :: Hij,Hjj,Fjj,Fkk
         REAL*8 :: Compt,MaxWeight,MinValue
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:),ACExcLevel(:)
         CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
@@ -2583,16 +2609,16 @@ MODULE FciMCParMod
         IF(ierr.ne.0) CALL Stop_All("ChooseACFDets","Problem allocating excitation generator")
         ExcitGenTemp(1)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
+        ACEnergy(1)=0.D0
 
         do while(.true.)
 !Generate double excitations
             CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
             IF(nJ(1).eq.0) EXIT
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
-            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+!            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Hjj)
 !            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            ACEnergy(1)=Fii
             MinInd=2
             MinValue=TempMax(2)
 !First need to find the minimum value to swap out
@@ -2605,10 +2631,11 @@ MODULE FciMCParMod
 
 !See if the just calculated value of the MP1 component is larger than the one current minimum.
             IF(abs(Compt).gt.TempMax(MinInd)) THEN
+                Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                 TempMax(MinInd)=abs(Compt)
                 AutoCorrDets(:,MinInd)=nJ(:)
                 ACExcLevel(MinInd)=2
-                ACEnergy(MinInd)=real(Fjj%v,r2)
+                ACEnergy(MinInd)=real(Hjj%v,r2)-Hii
             ENDIF
 
 !            do j=2,NoACDets(2)+1!NoAutoDets
@@ -2669,10 +2696,11 @@ MODULE FciMCParMod
 !We have generated a triple - try to add it to the list
                 do j=1,NoACDets(3)
                     IF(abs(Compt).gt.TempMax(j)) THEN
+                        Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                         TempMax(j)=abs(Compt)
                         AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
                         ACExcLevel(j+1+NoACDets(2))=3
-                        ACEnergy(j+1+NoACDets(2))=real(Fkk%v,r2)
+                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
                         EXIT
                     ENDIF
                 enddo
@@ -2680,10 +2708,11 @@ MODULE FciMCParMod
 !We have generated a quad - try to add it to the list
                 do j=NoACDets(3)+1,(NoACDets(3)+NoACDets(4))
                     IF(abs(Compt).gt.TempMax(j)) THEN
+                        Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                         TempMax(j)=abs(Compt)
                         AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
                         ACExcLevel(j+1+NoACDets(2))=4
-                        ACEnergy(j+1+NoACDets(2))=real(Fkk%v,r2)
+                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
                         EXIT
                     ENDIF
                 enddo
@@ -3594,6 +3623,8 @@ MODULE FciMCParMod
         INTEGER :: DetCurr(NEl),iKill,IC
 !        TYPE(HElement) :: rh,rhij
         REAL*8 :: Ran2,rat,Kii
+        LOGICAL :: tDETinCAS
+
 
 !Calculate the diagonal hamiltonian matrix element for the determinant
 !        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -3614,9 +3645,25 @@ MODULE FciMCParMod
             ELSE
                 rat=Tau*(Kii-DiagSft)
             ENDIF
+        ELSEIF(tFixCASShift.and.(.not.TSinglePartPhase)) THEN
+! The 'TestifDETinCAS' function finds out if the determinant is in the complete active space or not.  If it is, the shift is fixed at 
+! the chosen fixed value (FixShift), if not the shift remains as the changing DiagSft value.
+           
+            tDETinCAS=TestifDETinCAS(DetCurr)
+            
+            IF(tDETinCAS) THEN
+                rat=Tau*(Kii-FixShift)
+            ELSE
+                rat=Tau*(Kii-DiagSft)
+            ENDIF
         ELSE
             rat=Tau*(Kii-DiagSft)
         ENDIF
+
+! DEALLOCATE SpinInvBRR
+!        CALL LogMemDealloc(t_r,tagSpinInvBRR)
+!        DEALLOCATE(SpinInvBRR)
+
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
@@ -3636,7 +3683,95 @@ MODULE FciMCParMod
         RETURN
 
     END FUNCTION AttemptDiePar
+   
     
+    LOGICAL FUNCTION TestifDETinCAS(DetCurr)
+        INTEGER :: k,z,DetCurr(NEl)
+
+!        CASmax=NEl+VirtCASorbs
+! CASmax is the max spin orbital number (when ordered energetically) within the chosen active space.
+! Spin orbitals with energies larger than this maximum value must be unoccupied for the determinant
+! to be in the active space.
+!        CASmin=NEl-OccCASorbs   (These have been moved to the InitCalc subroutine so they're not calculated
+! each time.
+! CASmin is the max spin orbital number below the active space.  As well as the above criteria, spin 
+! orbitals with energies equal to, or below that of the CASmin orbital must be completely occupied for 
+! the determinant to be in the active space.
+
+        z=0
+        do k=1,NEl      ! running over all electrons
+            if (SpinInvBRR(DetCurr(k)).gt.CASmax) THEN
+                TestifDETinCAS=.false.
+                EXIT            
+! if at any stage an electron has an energy greater than the CASmax value, the determinant can be ruled out
+! of the active space.  Upon identifying this, it is not necessary to check the remaining electrons.
+            else
+                if (SpinInvBRR(DetCurr(k)).le.CASmin) THEN
+                    z=z+1
+                endif
+! while running over all electrons, the number that occupy orbitals equal to or below the CASmin cutoff are
+! counted.
+            endif
+        enddo
+! the final number of electrons in this low energy region must be equal to the number of orbitals (CASmin), 
+! otherwise an orbital is unoccupied, and the determinant cannot be part of the active space.
+        if (z.eq.CASmin) THEN
+            TestifDETinCAS=.true.
+        else
+            TestifDETinCAS=.false.
+        endif
+        
+        RETURN
+
+    END FUNCTION TestifDETinCAS
+
+
+    SUBROUTINE CreateSpinInvBRR()
+    ! Create an SpinInvBRR containing spin orbitals, 
+    ! unlike 'createInvBRR' which only has spatial orbitals.
+    ! This is used for the FixCASshift option in establishing whether or not
+    ! a determinant is in the complete active space.
+    ! In:
+    !    BRR(i)=j: orbital i is the j-th lowest in energy.
+    !    nBasis: size of basis
+    ! SpinInvBRR is the inverse of BRR.  SpinInvBRR(j)=i: the j-th lowest energy
+    ! orbital corresponds to the i-th orbital in the original basis.
+    ! i.e the position in SpinInvBRR now corresponds to the orbital number and 
+    ! the value to the relative energy of this orbital. 
+    
+        IMPLICIT NONE
+        INTEGER :: I,t,ierr
+        CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
+            
+        ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
+        CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
+            
+
+        IF(iProcIndex.eq.root) THEN
+            WRITE(6,*) "================================"
+            WRITE(6,*) "BRR is "
+            WRITE(6,*) BRR(:)
+        ENDIF
+        
+        SpinInvBRR(:)=0
+        
+        t=0
+        DO I=1,NBASIS
+            t=t+1
+            SpinInvBRR(BRR(I))=t
+        ENDDO
+
+        IF(iProcIndex.eq.root) THEN
+            WRITE(6,*) "================================"
+            WRITE(6,*) "SpinInvBRR is "
+            WRITE(6,*) SpinInvBRR(:)
+        ENDIF
+        
+        RETURN
+        
+    END SUBROUTINE CreateSpinInvBRR
+
+
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
         INTEGER(KIND=i2) :: CreateHash
@@ -4273,6 +4408,12 @@ MODULE FciMCParMod
             DEALLOCATE(ExcitGens)
             DEALLOCATE(FreeIndArray)
         ENDIF
+
+        If(tFixCASShift) THEN
+            CALL LogMemDealloc(this_routine,SpinInvBRRTag)
+            DEALLOCATE(SpinInvBRR)
+        ENDIF
+        
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN

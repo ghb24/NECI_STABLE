@@ -132,8 +132,7 @@ MODULE UMatCache
          nOcc=nOccSpatOrbs
          nStates=nSpatOrbs
       End Subroutine InitStarStoreUMat
-      
-
+     
 
       SUBROUTINE CreateInvBRR2(BRR2,NBASIS)
       ! Create new INVBRR for the freezing process
@@ -147,6 +146,10 @@ MODULE UMatCache
         INTEGER BRR2(NBASIS),NBASIS,ierr,I,t
         character(*), parameter :: t_r='CreateInvBRR2'
 
+!        WRITE(6,*) "================================"
+!        WRITE(6,*) "BRR2 is "
+!        WRITE(6,*) BRR2(:)
+
         ALLOCATE(INVBRR2(NBASIS/2),STAT=ierr)
         CALL LogMemAlloc('INVBRR2',NBASIS/2,4,t_r,tagINVBRR2,ierr)
         INVBRR2(1:NBASIS/2)=0
@@ -155,6 +158,11 @@ MODULE UMatCache
             t=t+1
             INVBRR2(BRR2(I)/2)=t
         ENDDO
+       
+!        WRITE(6,*) "================================"
+!        WRITE(6,*) "InvBRR2 is "
+!        WRITE(6,*) INVBRR2(:)
+        
         RETURN
       END SUBROUTINE CreateInvBRR2
 

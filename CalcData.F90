@@ -20,7 +20,7 @@ LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
 LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell
-LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField
+LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
@@ -29,6 +29,7 @@ INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
 INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets
+INTEGER :: OccCASorbs,VirtCASorbs
 
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
