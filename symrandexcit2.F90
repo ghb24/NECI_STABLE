@@ -25,12 +25,10 @@ MODULE GenRandSymExcitNUMod
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
 
-    use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-    use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-    use SystemData, only: nEl,G1, nBasis,nBasisMax
-    use SystemData, only: Arr,nMax,tAssumeSizeExcitgen,tCycleOrbs
+    use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits
+    use SystemData, only: Arr,nMax,tCycleOrbs
     use IntegralsData, only: UMat
-    use SymData, only: SymClassSize,nSymPairProds,nSymLabels,TwoCycleSymGens
+    use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
     IMPLICIT NONE
     SAVE
@@ -157,7 +155,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
+!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
 
     END SUBROUTINE FindNewDet
 
@@ -227,11 +225,19 @@ MODULE GenRandSymExcitNUMod
             ChosenUnocc=INT(NExcit*Ran2(iSeed))+1
 
 !Now run through all allowed orbitals until we find this one.
-            nOrbs=SymLabelCounts(2,SymB+1)
+            IF(tNoSymGenRandExcits) THEN
+                nOrbs=nBasis/2      !No symmetry, therefore all orbitals of allowed spin possible to generate.
+            ELSE
+                nOrbs=SymLabelCounts(2,SymB+1)
+            ENDIF
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
             do i=0,nOrbs-1
+                IF(tNoSymGenRandExcits) THEN
+                    OrbB=(2*(i+1))+SpinOrbB
+                ELSE
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
-                OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+i))+SpinOrbB
+                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+i))+SpinOrbB
+                ENDIF
 
 !Find out if the orbital is in the determinant, or is the other unocc picked
                 IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32)))).and.(OrbB.ne.OrbA)) THEN
@@ -254,14 +260,22 @@ MODULE GenRandSymExcitNUMod
 ! METHOD 2 (Keep drawing orbitals from the desired symmetry and spin until we find one unoccupied)
 ! =========================
 
-            nOrbs=SymLabelCounts(2,SymB+1)
+            IF(tNoSymGenRandExcits) THEN
+                nOrbs=nBasis/2
+            ELSE
+                nOrbs=SymLabelCounts(2,SymB+1)
+            ENDIF
             Attempts=0
             do while(.true.)
                 Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
                 ChosenUnocc=INT(nOrbs*Ran2(iSeed))
-                OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+ChosenUnocc))+SpinOrbB
+                IF(tNoSymGenRandExcits) THEN
+                    OrbB=(2*(ChosenUnocc+1))+SpinOrbB
+                ELSE
+                    OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+ChosenUnocc))+SpinOrbB
+                ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
                 IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32)))).and.(OrbB.ne.OrbA)) THEN
@@ -532,8 +546,13 @@ MODULE GenRandSymExcitNUMod
 
 !We now need to test whether this orbital has any symmetry-allowed unoccupied orbitals to form a pair with.
 !To test this, we need to find the needed symmetry of B, in order that Sym(A) x Sym(B) = SymProduct
-            SymA=INT(G1(OrbA)%Sym%S,4)
-            SymB=IEOR(SymA,SymProduct)
+            IF(tNoSymGenRandExcits) THEN
+                SymA=0
+                SymB=0
+            ELSE
+                SymA=INT(G1(OrbA)%Sym%S,4)
+                SymB=IEOR(SymA,SymProduct)
+            ENDIF
             
             IF(iSpn.eq.2) THEN
 !We want an alpha/beta unocc pair. 
@@ -634,7 +653,11 @@ MODULE GenRandSymExcitNUMod
         Elec2Ind=NEl-X+((K*(K+1))/2)
 
 !We now want to find the symmetry product of the two electrons, and the spin product of the two electrons.
-        SymProduct=INT(IEOR(G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S),4)
+        IF(tNoSymGenRandExcits) THEN
+            SymProduct=0
+        ELSE
+            SymProduct=INT(IEOR(G1(nI(Elec1Ind))%Sym%S,G1(nI(Elec2Ind))%Sym%S),4)
+        ENDIF
 
         IF((G1(nI(Elec1Ind))%Ms)*(G1(nI(Elec2Ind))%Ms).eq.-1) THEN
 !We have an alpha beta pair of electrons.
@@ -693,7 +716,11 @@ MODULE GenRandSymExcitNUMod
             Eleci=INT(NEl*Ran2(iSeed))+1
 
 !Find symmetry of chosen electron
-            ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
+            IF(tNoSymGenRandExcits) THEN
+                ElecSym=0
+            ELSE
+                ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
+            ENDIF
 
             IF(G1(nI(Eleci))%Ms.eq.-1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
@@ -732,11 +759,19 @@ MODULE GenRandSymExcitNUMod
             ChosenUnocc=INT(NExcit*Ran2(iSeed))+1
 
 !Now run through all allowed orbitals until we find this one.
-            nOrbs=SymLabelCounts(2,ElecSym+1)
+            IF(tNoSymGenRandExcits) THEN
+                nOrbs=nBasis/2
+            ELSE
+                nOrbs=SymLabelCounts(2,ElecSym+1)
+            ENDIF
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
             do i=0,nOrbs-1
 !Find the spin orbital index. SymLabelCounts has the index of the state for the given symmetry.
-                Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
+                IF(tNoSymGenRandExcits) THEN
+                    Orb=(2*(i+1))-(iSpn-1)
+                ELSE
+                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
+                ENDIF
 
 !Find out if the orbital is in the determinant.
                 IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
@@ -759,14 +794,22 @@ MODULE GenRandSymExcitNUMod
 ! METHOD 2 (Keep drawing orbitals from the desired symmetry and spin until we find one unoccupied)
 ! =========================
 
-            nOrbs=SymLabelCounts(2,ElecSym+1)
+            IF(tNoSymGenRandExcits) THEN
+                nOrbs=nBasis/2
+            ELSE
+                nOrbs=SymLabelCounts(2,ElecSym+1)
+            ENDIF
             Attempts=0
             do while(.true.)
                 Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
                 ChosenUnocc=INT(nOrbs*Ran2(iSeed))
-                Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))-(iSpn-1)
+                IF(tNoSymGenRandExcits) THEN
+                    Orb=(2*(ChosenUnocc+1))-(iSpn-1)
+                ELSE
+                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+ChosenUnocc))-(iSpn-1)
+                ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
                 IF(.not.(BTEST(ILUT((Orb-1)/32),MOD(Orb-1,32)))) THEN
@@ -800,7 +843,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
+!        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
@@ -828,13 +871,21 @@ MODULE GenRandSymExcitNUMod
             IF(G1(nI(i))%Ms.eq.-1) THEN
 !orbital is an alpha orbital and symmetry of the orbital can be found in G1
 !                WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                ClassCount2(1,INT(G1(nI(i))%Sym%S,4))=ClassCount2(1,INT(G1(nI(i))%Sym%S,4))+1
+                IF(tNoSymGenRandExcits) THEN
+                    ClassCount2(1,0)=ClassCount2(1,0)+1
+                ELSE
+                    ClassCount2(1,INT(G1(nI(i))%Sym%S,4))=ClassCount2(1,INT(G1(nI(i))%Sym%S,4))+1
+                ENDIF
                 NOccAlpha=NOccAlpha+1
 
             ELSE
 !orbital is a beta orbital
 !                WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
-                ClassCount2(2,INT(G1(nI(i))%Sym%S,4))=ClassCount2(2,INT(G1(nI(i))%Sym%S,4))+1
+                IF(tNoSymGenRandExcits) THEN
+                    ClassCount2(2,0)=ClassCount2(2,0)+1
+                ELSE
+                    ClassCount2(2,INT(G1(nI(i))%Sym%S,4))=ClassCount2(2,INT(G1(nI(i))%Sym%S,4))+1
+                ENDIF
                 NOccBeta=NOccBeta+1
             ENDIF
         enddo
@@ -844,8 +895,16 @@ MODULE GenRandSymExcitNUMod
 !There are therefore equal number of alpha and beta orbitals in each state from which to calculate the unoccupied classcount.
 !Again, we store as 
         do i=1,nSymLabels
-            ClassCountUnocc2(1,i-1)=SymLabelCounts(2,i)-ClassCount2(1,i-1)
-            ClassCountUnocc2(2,i-1)=SymLabelCounts(2,i)-ClassCount2(2,i-1)
+            IF(tNoSymGenRandExcits) THEN
+                IF(i.eq.1) THEN
+!All orbitals are in irrep 0
+                    ClassCountUnocc2(1,0)=(nBasis/2)-ClassCount2(1,0)
+                    ClassCountUnocc2(2,0)=(nBasis/2)-ClassCount2(2,0)
+                ENDIF
+            ELSE
+                ClassCountUnocc2(1,i-1)=SymLabelCounts(2,i)-ClassCount2(1,i-1)
+                ClassCountUnocc2(2,i-1)=SymLabelCounts(2,i)-ClassCount2(2,i-1)
+            ENDIF
         enddo
 
     END SUBROUTINE ConstructClassCounts

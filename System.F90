@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tNoSymGenRandExcits=.false.
       tNonUniRandExcits=.false.
       tCycleOrbs=.false.
       TSTARSTORE=.false.
@@ -331,15 +332,18 @@ MODULE System
 !an allowed orbital is found. For large basis sets, the chance of drawing a forbidden orbital is small
 !enough that this should be an unneccesary expense.
             tNonUniRandExcits=.true.
-            if(item.lt.nitems) then
+            do while (item.lt.nitems)
                 call readu(w)
                 select case(w)
                     case("CYCLETHRUORBS")
                         tCycleOrbs=.true.
+                    case("NOSYMGEN")
+!Do not generate symmetry-allowed excitations only, but all excitations. Spin-symmetry is still taken into account.
+                        tNoSymGenRandExcits=.true.
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
-            endif
+            enddo
         case("ENDSYS") 
             exit system
         case default
