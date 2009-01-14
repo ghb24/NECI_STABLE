@@ -597,7 +597,7 @@ MODULE Integrals
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
        USE HElem
-       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub,tReal
+       use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
        use OneEInts
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
@@ -626,8 +626,8 @@ MODULE Integrals
        REAL*8 ALAT(3)
        character(*), parameter :: this_routine='IntFreezeBasis'
 
-       IF(tHub.and..not.tReal) THEN
-           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the momentum-space hubbard model.")
+       IF(tHub) THEN
+           CALL Stop_All("IntFreezeBasis","Freezing does not currently work with the hubbard model.")
        ENDIF
 
 !!C.. Just check to see if we're not in the middle of a degenerate set with the same sym
