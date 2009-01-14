@@ -104,6 +104,18 @@ General options
     If off, we are effectively reduced to a using Hartree multi-electron
     wavefunctions rather than Slater determinants.
 
+**NONUNIFORMRANDEXCITS** [**NOSYMGEN** | **CYCLETHRUORBS**]
+    Default false.
+
+    These are new excitation generators, currently only interfaced with the parallel
+    FCIMC algorithm. They are generated with normalised probability, but not uniformly.
+    They scale well however at O[N]. NOSYMGEN means that spatial symmetry will not
+    be considered when generating the excitations and cyclethruorbs indicates that
+    only orbitals which are allowed will be randomly selected, although this involves
+    an O[M] loop over the basis and is marginaly slower, but will not need to redraw 
+    forbidden orbitals many times. This may be useful for small basis-set sizes with
+    high symmetry.
+
 **FAST-EXCITGEN**  [ **OFF** ]
     Default on.  Temporary flag [ AJWT 2008/09/22 ]
     Used to indicate that if an Abelian symmetry group is present
@@ -156,7 +168,7 @@ General options
 
 **NOSYMMETRY**
     Ignore all spatial symmetry information. This does not apply to
-    periodic calculations.
+    periodic calculations or the hubbard model.
 
 **SPIN-RESTRICT** [LMS]
     Default off.  Default LMS=0.  Turns spin restriction on, limiting

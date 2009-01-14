@@ -201,6 +201,9 @@ MODULE System
             TCSF = .true.
         case("NOSYMMETRY")
             lNoSymmetry=.true.
+            IF(tHub) THEN
+                CALL Stop_All("SysReadInput","Cannot turn off symmetry with the hubbard model.")
+            ENDIF
         case("SYM")
             TPARITY = .true.
             do I = 1,4

@@ -5,7 +5,7 @@ MODULE FciMCMod
     use CalcData , only : GrowMaxFactor,CullFactor,TMCDets,TNoBirth,Lambda,TDiffuse,FlipTauCyc,TFlipTau
     use CalcData , only : TExtraPartDiff,TFullUnbias,TNodalCutoff,NodalCutoff,TNoAnnihil,TMCDiffusion
     use CalcData , only : NDets,RhoApp,TResumFCIMC,NEquilSteps,TSignShift,THFRetBias,PRet,TExcludeRandGuide
-    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFac,TRegenExcitgens,TUnbiasPGeninProjE
+    use CalcData , only : TProjEMP2,TFixParticleSign,TStartSinglePart,MemoryFacPart,TRegenExcitgens,TUnbiasPGeninProjE
     USE Determinants , only : FDet,GetHElement2,GetH0Element3
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
@@ -1958,7 +1958,7 @@ MODULE FciMCMod
 !initialise the particle positions - start at HF with positive sign
 
 !Set the maximum number of walkers allowed
-            MaxWalkers=NINT(MemoryFac*InitWalkers)
+            MaxWalkers=NINT(MemoryFacPart*InitWalkers)
         
             IF(TStartSinglePart) THEN
                 WRITE(6,"(A,F9.3,A,I9)") "Initial number of particles set to 1, and shift will be held at ",DiagSft," until particle number gets to ",InitWalkers
@@ -2199,7 +2199,7 @@ MODULE FciMCMod
 !initialise the particle positions according to a discretized MP1 wavefunction
 
 !Set the maximum number of walkers allowed
-        MaxWalkers=NINT(MemoryFac*InitWalkers)
+        MaxWalkers=NINT(MemoryFacPart*InitWalkers)
         
         WRITE(6,"(A,I10,A)") "Initial number of particles set to ",InitWalkers," distributed according to the MP1 wavefunction. Shift will start at the MP2 energy."
         WRITE(6,*) "Damping parameter for Diag Shift set to: ", SftDamp
@@ -2588,7 +2588,7 @@ MODULE FciMCMod
             SumENum=0.D0
         ENDIF
 
-        MaxWalkers=NINT(MemoryFac*InitWalkers)
+        MaxWalkers=NINT(MemoryFacPart*InitWalkers)
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(NEl,MaxWalkers),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkers*NEl,4,this_routine,WalkVecDetsTag,ierr)
@@ -2605,7 +2605,7 @@ MODULE FciMCMod
         IF(ScaleWalkers.ne.1.D0) THEN
 
             WRITE(6,*) "Rescaling walkers by a factor of: ",ScaleWalkers
-            MaxWalkers=NINT(MemoryFac*(nint(InitWalkers*ScaleWalkers)))
+            MaxWalkers=NINT(MemoryFacPart*(nint(InitWalkers*ScaleWalkers)))
             
 !Allocate more memory for WalkVec2
             ALLOCATE(WalkVec2Dets(NEl,MaxWalkers),stat=ierr)

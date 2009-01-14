@@ -617,20 +617,20 @@ The following options are only available in **FCIMC** calculations:
     and fix the shift at its initial value, until the number of particles gets
     to the INITPARTICLES value.
 
-**MEMORYFAC** [MemoryFac]
-    Default 30.D0
+**MEMORYFACPART** [MemoryFacPart]
+    Default 10.D0
 
-    MemoryFac is the factor by which space will be made available for extra
+    MemoryFacPart is the factor by which space will be made available for extra
     walkers compared to InitWalkers.
 
-**MEMORYFACEXCIT** [MemoryFacExcit]
-    Default 30.D0
+**MEMORYFACANNIHIL** [MemoryFacAnnihil]
+    Default 10.D0
 
-    MemoryFac is a parallel FCIMC option - it is the factor by which space will be 
-    made available for excitation generators compared to InitWalkers. This can be 
-    smaller than memoryfac, because the excitation generator array is not used in 
-    the parallel annihilation, which may not be exactly load-balanced because of 
-    differences in the wavevector.
+    MemoryFacAnnihil is a parallel FCIMC option - it is the factor by which space will be 
+    made available for annihilation arrays compared to InitWalkers. This generally will need to be 
+    larger than memoryfacpart, because the parallel annihilation may not be exactly load-balanced because of 
+    non-uniformity in the wavevector and the hashing algorithm. This will tend to want to be larger 
+    when it is running on more processors.
 
 **ANNIHILATEONPROCS**
     Default false

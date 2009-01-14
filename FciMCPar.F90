@@ -13,7 +13,7 @@ MODULE FciMCParMod
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFac,TAnnihilonproc,MemoryFacExcit
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
@@ -76,7 +76,7 @@ MODULE FciMCParMod
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
-    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersExcit
+    INTEGER :: Seed,MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
     INTEGER :: exFlag=3
 
 !This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
@@ -468,9 +468,9 @@ MODULE FciMCParMod
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
-        rat=(TotWalkersNew+0.D0)/(MaxWalkersExcit+0.D0)
-        IF(rat.gt.0.9) THEN
-            WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkersExcit"
+        rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
+        IF(rat.gt.0.95) THEN
+            WRITE(6,*) "*WARNING* - Number of walkers has increased to over 95% of MaxWalkersPart"
             CALL FLUSH(6)
         ENDIF
 !        IF(TotWalkersNew.eq.0) THEN
@@ -797,8 +797,8 @@ MODULE FciMCParMod
 !Create the arrays for index and process
         do i=1,TotWalkersNew
             IndexTable(i)=i
-            ProcessVec(i)=iProcIndex
         enddo
+        ProcessVec(1:TotWalkersNew)=iProcIndex
 
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) TotWalkersNew
@@ -901,8 +901,8 @@ MODULE FciMCParMod
 
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
-        IF(MaxIndex.gt.(0.95*MaxWalkers)) THEN
-            CALL Stop_All("AnnihilatePartPar","Maximum index is close to maximum length of array")
+        IF(MaxIndex.gt.(0.95*MaxWalkersAnnihil)) THEN
+            CALL Warning("AnnihilatePartPar","Maximum index of annihilation array is close to maximum length. Increase MemoryFacAnnihil")
         ENDIF
 
 !        IF(Iter.eq.DebugIter) THEN
@@ -2367,63 +2367,64 @@ MODULE FciMCParMod
 !initialise the particle positions - start at HF with positive sign
 
 !Set the maximum number of walkers allowed
-            MaxWalkers=NINT(MemoryFac*InitWalkers)
-            MaxWalkersExcit=NINT(MemoryFacExcit*InitWalkers)
-            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFac
-            WRITE(6,"(A,F14.5)") "Memory Factor for excitation generators is: ",MemoryFacExcit
-            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkers
-            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for excitgens (+ particle paths) of: ",MaxWalkersExcit
+            MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
+            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
+            WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
+            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
 
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-            ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
+            ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
 
-            ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
-            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+            ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+            ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
 
-            ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
-            ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
-            ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
+            ALLOCATE(WalkVecIC(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
+            ALLOCATE(WalkVec2IC(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2IC',MaxWalkersPart,4,this_routine,WalkVec2ICTag,ierr)
+            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
             WalkVecH(:)=0.d0
-            ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
+            ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
             WalkVec2H(:)=0.d0
             
 !            MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
-            MemoryAlloc=((8*MaxWalkers)+(2*NEl*MaxWalkersExcit))*4    !Memory Allocated in bytes
+!            MemoryAlloc=((8*MaxWalkers)+(2*NEl*MaxWalkersExcit))*4    !Memory Allocated in bytes
+            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*NEl)+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
 
             IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                ALLOCATE(HashArray(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
+                ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
                 HashArray(:)=0
-                ALLOCATE(Hash2Array(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('Hash2Array',MaxWalkers,8,this_routine,Hash2ArrayTag,ierr)
+                ALLOCATE(Hash2Array(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('Hash2Array',MaxWalkersAnnihil,8,this_routine,Hash2ArrayTag,ierr)
                 Hash2Array(:)=0
-                ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
-                IndexTable(1:MaxWalkers)=0
-                ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
-                Index2Table(1:MaxWalkers)=0
-                ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
-                ProcessVec(1:MaxWalkers)=0
-                ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
-                CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
-                Process2Vec(1:MaxWalkers)=0
+                ALLOCATE(IndexTable(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('IndexTable',MaxWalkersAnnihil,4,this_routine,IndexTableTag,ierr)
+                IndexTable(1:MaxWalkersAnnihil)=0
+                ALLOCATE(Index2Table(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('Index2Table',MaxWalkersAnnihil,4,this_routine,Index2TableTag,ierr)
+                Index2Table(1:MaxWalkersAnnihil)=0
+                ALLOCATE(ProcessVec(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('ProcessVec',MaxWalkersAnnihil,4,this_routine,ProcessVecTag,ierr)
+                ProcessVec(1:MaxWalkersAnnihil)=0
+                ALLOCATE(Process2Vec(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('Process2Vec',MaxWalkersAnnihil,4,this_routine,Process2VecTag,ierr)
+                Process2Vec(1:MaxWalkersAnnihil)=0
 
-                MemoryAlloc=MemoryAlloc+32*MaxWalkers
+                MemoryAlloc=MemoryAlloc+32*MaxWalkersAnnihil
             ENDIF
 
 !Allocate pointers to the correct walker arrays
@@ -2465,13 +2466,13 @@ MODULE FciMCParMod
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
             IF(.not.TRegenExcitgens) THEN
 
-                ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
-                ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
-                ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
-                ALLOCATE(FreeIndArray(MaxWalkersExcit),stat=ierr)
+                ALLOCATE(WalkVecExcits(MaxWalkersPart),stat=ierr)
+                ALLOCATE(WalkVec2Excits(MaxWalkersPart),stat=ierr)
+                ALLOCATE(ExcitGens(MaxWalkersPart),stat=ierr)
+                ALLOCATE(FreeIndArray(MaxWalkersPart),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
 
-                do j=1,MaxWalkersExcit
+                do j=1,MaxWalkersPart
                     NULLIFY(WalkVecExcits(j)%PointToExcit)
                     NULLIFY(WalkVec2Excits(j)%PointToExcit)
                     ExcitGens(j)%nPointed=0
@@ -2495,7 +2496,7 @@ MODULE FciMCParMod
                         CALL CopyExitGenPar(CurrentExcits(1),CurrentExcits(j),.false.)
                     enddo
                 ENDIF
-                MemoryAlloc=((HFExcit%nExcitMemLen)+6)*4*MaxWalkersExcit    !This is the memory needed by all the excitation generator arrays
+                MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart    !This is the memory needed by all the excitation generator arrays
 
                 WRITE(6,"(A,I12)") "Size of HF excitgen is: ",HFExcit%nExcitMemLen
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
@@ -2503,7 +2504,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
             ENDIF
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
             CALL FLUSH(6)
         
             IF(TStartSinglePart) THEN
@@ -2958,14 +2959,14 @@ MODULE FciMCParMod
         CALL MPI_Scatter(NodeSumNoatHF,1,MPI_DOUBLE_PRECISION,SumNoatHF,1,MPI_DOUBLE_PRECISION,root,MPI_COMM_WORLD,error)
         
 !Now we want to allocate memory on all nodes.
-        MaxWalkers=NINT(MemoryFac*InitWalkers)    !All nodes have the same amount of memory allocated
-        MaxWalkersExcit=NINT(MemoryFacExcit*InitWalkers)
+        MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)    !All nodes have the same amount of memory allocated
+        MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
 !Allocate memory to hold walkers at least temporarily
-        ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
-        ALLOCATE(WalkVecSign(MaxWalkersExcit),stat=ierr)
-        CALL LogMemAlloc('WalkVecSign',MaxWalkersExcit*NEl,4,this_routine,WalkVecSignTag,ierr)
+        ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
+        WalkVecDets(1:NEl,1:MaxWalkersPart)=0
+        ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+        CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil*NEl,4,this_routine,WalkVecSignTag,ierr)
 
         IF(iProcIndex.eq.root) THEN
 !Root process reads all walkers in and then sends them to the correct processor
@@ -3000,15 +3001,15 @@ MODULE FciMCParMod
         IF(ScaleWalkers.ne.1) THEN
 
             WRITE(6,*) "Rescaling walkers  by a factor of: ",ScaleWalkers
-            MaxWalkers=NINT(MemoryFac*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
-            MaxWalkersExcit=NINT(MemoryFacExcit*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+            MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
 
 !Allocate memory for walkvec2, which will temporarily hold walkers
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
-            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
 
 !Scale up the integer part and fractional part seperately
             IntegerPart=INT(ScaleWalkers)       !Round to zero
@@ -3047,11 +3048,11 @@ MODULE FciMCParMod
             CALL LogMemDealloc(this_routine,WalkVecDetsTag)
             DEALLOCATE(WalkVecSign)
             CALL LogMemDealloc(this_routine,WalkVecSignTag)
-            ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
-            ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
+            ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
 
 !Transfer scaled particles back accross to WalkVecDets
             do l=1,TotWalkers
@@ -3060,16 +3061,16 @@ MODULE FciMCParMod
             enddo
 
 !Zero the second array for good measure
-            WalkVec2Dets(1:NEl,1:MaxWalkers)=0
+            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
 
         ELSE
 !We are not scaling the number of walkers...
 
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
-            ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
 
             TotWalkers=TempInitWalkers      !Set the total number of walkers
             TotWalkersOld=TempInitWalkers
@@ -3083,42 +3084,42 @@ MODULE FciMCParMod
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
 
 !Need to now allocate other arrays
-        ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
-        WalkVecIC(1:MaxWalkers)=0
-        ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
-        WalkVec2IC(1:MaxWalkers)=0
-        ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
+        ALLOCATE(WalkVecIC(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
+        WalkVecIC(1:MaxWalkersPart)=0
+        ALLOCATE(WalkVec2IC(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVec2IC',MaxWalkersPart,4,this_routine,WalkVec2ICTag,ierr)
+        WalkVec2IC(1:MaxWalkersPart)=0
+        ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
         WalkVecH=0.d0
-        ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
+        ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
         WalkVec2H=0.d0
 
-        MemoryAlloc=(8+(2*NEl))*MaxWalkers*4    !Memory allocated in bytes
+        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*NEl)+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
 
         IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-            ALLOCATE(HashArray(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
+            ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
             HashArray(:)=0
-            ALLOCATE(Hash2Array(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('Hash2Array',MaxWalkers,8,this_routine,Hash2ArrayTag,ierr)
+            ALLOCATE(Hash2Array(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Hash2Array',MaxWalkersAnnihil,8,this_routine,Hash2ArrayTag,ierr)
             Hash2Array(:)=0
-            ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
-            IndexTable(1:MaxWalkers)=0
-            ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
-            Index2Table(1:MaxWalkers)=0
-            ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
-            ProcessVec(1:MaxWalkers)=0
-            ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
-            Process2Vec(1:MaxWalkers)=0
+            ALLOCATE(IndexTable(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('IndexTable',MaxWalkersAnnihil,4,this_routine,IndexTableTag,ierr)
+            IndexTable(1:MaxWalkersAnnihil)=0
+            ALLOCATE(Index2Table(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Index2Table',MaxWalkersAnnihil,4,this_routine,Index2TableTag,ierr)
+            Index2Table(1:MaxWalkersAnnihil)=0
+            ALLOCATE(ProcessVec(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('ProcessVec',MaxWalkersAnnihil,4,this_routine,ProcessVecTag,ierr)
+            ProcessVec(1:MaxWalkersAnnihil)=0
+            ALLOCATE(Process2Vec(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Process2Vec',MaxWalkersAnnihil,4,this_routine,Process2VecTag,ierr)
+            Process2Vec(1:MaxWalkersAnnihil)=0
 
-            MemoryAlloc=MemoryAlloc+32*MaxWalkers
+            MemoryAlloc=MemoryAlloc+32*MaxWalkersAnnihil
         ENDIF
 
         WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb"
@@ -3136,12 +3137,12 @@ MODULE FciMCParMod
         NewH=>WalkVec2H
 
         IF(.not.TRegenExcitgens) THEN
-            ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
-            ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
-            ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
-            ALLOCATE(FreeIndArray(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(WalkVecExcits(MaxWalkersPart),stat=ierr)
+            ALLOCATE(WalkVec2Excits(MaxWalkersPart),stat=ierr)
+            ALLOCATE(ExcitGens(MaxWalkersPart),stat=ierr)
+            ALLOCATE(FreeIndArray(MaxWalkersPart),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("ReadFromPopsfilePar","Error in allocating walker excitation generators")
-            do j=1,MaxWalkersExcit
+            do j=1,MaxWalkersPart
                 NULLIFY(WalkVecExcits(j)%PointToExcit)
                 NULLIFY(WalkVec2Excits(j)%PointToExcit)
                 ExcitGens(j)%nPointed=0
@@ -3156,7 +3157,7 @@ MODULE FciMCParMod
             BackOfList=1    !I.e. first allocation should be at ExcitGens(FreeIndArray(1))
             FrontOfList=1   !i.e. first free index should be put at FreeIndArray(1)
 
-            MemoryAlloc=((HFExcit%nExcitMemLen)+6)*4*MaxWalkers
+            MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
 
@@ -3164,7 +3165,7 @@ MODULE FciMCParMod
             WRITE(6,*) "Excitgens will be regenerated when they are needed..."
         ENDIF
 
-        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
+        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
         CALL FLUSH(6)
 
 !Now find out the data needed for the particles which have been read in...
@@ -3218,61 +3219,61 @@ MODULE FciMCParMod
             CALL Stop_All(this_routine,"Cannot initialise walkers in MP1 for real space hubbard calculations.")
         ENDIF
 !Set the maximum number of walkers allowed
-        MaxWalkers=NINT(MemoryFac*InitWalkers)
-        MaxWalkersExcit=NINT(MemoryFacExcit*InitWalkers)
-        WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFac
-        WRITE(6,"(A,F14.5)") "Memory Factor for excitation generators is: ",MemoryFacExcit
-        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkers
-        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for excitgens of: ",MaxWalkersExcit
+        MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
+        MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
+        WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
+        WRITE(6,"(A,F14.5)") "Memory Factor for annihilation is: ",MemoryFacAnnihil
+        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
+        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
                                             
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-        ALLOCATE(WalkVecDets(NEl,MaxWalkersExcit),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkersExcit*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        WalkVecDets(1:NEl,1:MaxWalkersExcit)=0
-        ALLOCATE(WalkVec2Dets(NEl,MaxWalkersExcit),stat=ierr)
-        CALL LogMemAlloc('WalkVec2Dets',MaxWalkersExcit*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-        WalkVec2Dets(1:NEl,1:MaxWalkersExcit)=0
-        ALLOCATE(WalkVecSign(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecSign',MaxWalkers,4,this_routine,WalkVecSignTag,ierr)
-        ALLOCATE(WalkVec2Sign(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVec2Sign',MaxWalkers,4,this_routine,WalkVec2SignTag,ierr)
+        ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
+        WalkVecDets(1:NEl,1:MaxWalkersPart)=0
+        ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
+        WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+        ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+        CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+        ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+        CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
 
-        ALLOCATE(WalkVecIC(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecIC',MaxWalkers,4,this_routine,WalkVecICTag,ierr)
-        ALLOCATE(WalkVec2IC(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVec2IC',MaxWalkers,4,this_routine,WalkVec2ICTag,ierr)
-        ALLOCATE(WalkVecH(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVecH',MaxWalkers,8,this_routine,WalkVecHTag,ierr)
+        ALLOCATE(WalkVecIC(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
+        ALLOCATE(WalkVec2IC(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVec2IC',MaxWalkersPart,4,this_routine,WalkVec2ICTag,ierr)
+        ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
         WalkVecH=0.d0
-        ALLOCATE(WalkVec2H(MaxWalkers),stat=ierr)
-        CALL LogMemAlloc('WalkVec2H',MaxWalkers,8,this_routine,WalkVec2HTag,ierr)
+        ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
         WalkVec2H=0.d0
         
-        MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
+        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*NEl)+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
 
         IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-            ALLOCATE(HashArray(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('HashArray',MaxWalkers,8,this_routine,HashArrayTag,ierr)
+            ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
             HashArray(:)=0
-            ALLOCATE(Hash2Array(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('Hash2Array',MaxWalkers,8,this_routine,Hash2ArrayTag,ierr)
+            ALLOCATE(Hash2Array(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Hash2Array',MaxWalkersAnnihil,8,this_routine,Hash2ArrayTag,ierr)
             Hash2Array(:)=0
-            ALLOCATE(IndexTable(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('IndexTable',MaxWalkers,4,this_routine,IndexTableTag,ierr)
-            IndexTable(1:MaxWalkers)=0
-            ALLOCATE(Index2Table(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('Index2Table',MaxWalkers,4,this_routine,Index2TableTag,ierr)
-            Index2Table(1:MaxWalkers)=0
-            ALLOCATE(ProcessVec(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('ProcessVec',MaxWalkers,4,this_routine,ProcessVecTag,ierr)
-            ProcessVec(1:MaxWalkers)=0
-            ALLOCATE(Process2Vec(MaxWalkers),stat=ierr)
-            CALL LogMemAlloc('Process2Vec',MaxWalkers,4,this_routine,Process2VecTag,ierr)
-            Process2Vec(1:MaxWalkers)=0
+            ALLOCATE(IndexTable(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('IndexTable',MaxWalkersAnnihil,4,this_routine,IndexTableTag,ierr)
+            IndexTable(1:MaxWalkersAnnihil)=0
+            ALLOCATE(Index2Table(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Index2Table',MaxWalkersAnnihil,4,this_routine,Index2TableTag,ierr)
+            Index2Table(1:MaxWalkersAnnihil)=0
+            ALLOCATE(ProcessVec(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('ProcessVec',MaxWalkersAnnihil,4,this_routine,ProcessVecTag,ierr)
+            ProcessVec(1:MaxWalkersAnnihil)=0
+            ALLOCATE(Process2Vec(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('Process2Vec',MaxWalkersAnnihil,4,this_routine,Process2VecTag,ierr)
+            Process2Vec(1:MaxWalkersAnnihil)=0
 
-            MemoryAlloc=MemoryAlloc+32*MaxWalkers
+            MemoryAlloc=MemoryAlloc+32*MaxWalkersAnnihil
         ENDIF
 
 !Allocate pointers to the correct walker arrays
@@ -3435,13 +3436,13 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
         IF(.not.TRegenExcitgens) THEN
-            ALLOCATE(WalkVecExcits(MaxWalkersExcit),stat=ierr)
-            ALLOCATE(WalkVec2Excits(MaxWalkersExcit),stat=ierr)
-            ALLOCATE(ExcitGens(MaxWalkersExcit),stat=ierr)
-            ALLOCATE(FreeIndArray(MaxWalkersExcit),stat=ierr)
+            ALLOCATE(WalkVecExcits(MaxWalkersPart),stat=ierr)
+            ALLOCATE(WalkVec2Excits(MaxWalkersPart),stat=ierr)
+            ALLOCATE(ExcitGens(MaxWalkersPart),stat=ierr)
+            ALLOCATE(FreeIndArray(MaxWalkersPart),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("InitFCIMMCCalcPar","Error in allocating walker excitation generators")
 
-            do j=1,MaxWalkersExcit
+            do j=1,MaxWalkersPart
                 NULLIFY(WalkVecExcits(j)%PointToExcit)
                 NULLIFY(WalkVec2Excits(j)%PointToExcit)
                 ExcitGens(j)%nPointed=0
@@ -3472,14 +3473,14 @@ MODULE FciMCParMod
                     CurrentExcits(j)%PointToExcit=>null()
                 ENDIF
             enddo
-            MemoryAlloc=((HFExcit%nExcitMemLen)+6)*4*MaxWalkersExcit
+            MemoryAlloc=((HFExcit%nExcitMemLen)+8)*4*MaxWalkersPart
 
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
         ELSE
             WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
         ENDIF
-        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkers*12,r2)/1048576.D0," Mb/Processor"
+        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
         CALL FLUSH(6)
         
 !TotWalkers contains the number of current walkers at each step
@@ -3513,13 +3514,18 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptCreatePar(DetCurr,WSign,nJ,Prob,IC,Ex,tParity)
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2)
-        LOGICAL :: WSign,tParity
+        LOGICAL :: WSign,tParity,SymAllowed
         REAL*8 :: Prob,Ran2,rat
         TYPE(HElement) :: rh,rhcheck
 
 !Calculate off diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
         rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+
+!        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
+!        IF((.not.SymAllowed).and.(abs(rh%v).gt.0.D0)) THEN
+!            WRITE(17,*) rh%v
+!        ENDIF
 
 !        rhcheck=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
 !        IF(rh%v.ne.rhcheck%v) THEN
@@ -3834,7 +3840,7 @@ MODULE FciMCParMod
 !This is simply FreeIndArray(BackOfList)
             MinIndex=FreeIndArray(BackOfList)
 !Increment BackOfList in a circular fashion.
-            IF(BackOfList.eq.MaxWalkersExcit) THEN
+            IF(BackOfList.eq.MaxWalkersPart) THEN
                 BackOfList=1
             ELSE
                 BackOfList=BackOfList+1
@@ -3882,7 +3888,7 @@ MODULE FciMCParMod
 !Add removed excitgen to the front of the free index list
             FreeIndArray(FrontOfList)=Ind
 !Increment frontoflist in a circular fashion.
-            IF(FrontOfList.eq.MaxWalkersExcit) THEN
+            IF(FrontOfList.eq.MaxWalkersPart) THEN
                 FrontOfList=1
             ELSE
                 FrontOfList=FrontOfList+1
@@ -4395,7 +4401,7 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,HFDetTag)
         DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
-            do i=1,MaxWalkersExcit
+            do i=1,MaxWalkersPart
                 CALL DissociateExitgen(WalkVecExcits(i))
 
 !                IF(Allocated(WalkVecExcits(i)%ExcitData)) THEN

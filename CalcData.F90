@@ -37,7 +37,7 @@ REAL*8 :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
 REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
-REAL*8 :: FixShift,MemoryFacExcit,MemoryFac,FixedKiiCutoff
+REAL*8 :: FixShift,MemoryFacPart,MemoryFacAnnihil,FixedKiiCutoff
 REAL*8 :: BField
 
 

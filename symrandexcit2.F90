@@ -43,14 +43,36 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag,iSeed
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
-        INTEGER :: ILUT(0:nBasis/32)
+        INTEGER :: ILUT(0:nBasis/32),i
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,Ran2
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
 
+!        WRITE(6,*) "nSymlabels:", nSymLabels
+!        WRITE(6,*) "SymLabelList: "
+!        do i=1,nbasis/2
+!            WRITE(6,*) SymLabelList(i)
+!        enddo
+!        WRITE(6,*) "SymLabelCounts:"
+!        do i=1,nSymLabels
+!            WRITE(6,*) SymLabelCounts(1,i),SymLabelCounts(2,i)
+!        enddo
+!        WRITE(6,*) "G1:"
+!        do i=1,nBasis
+!            WRITE(6,*) G1(i)%Sym%S
+!        enddo
+!        CALL FLUSH(6)
+!        STOP
+
         IF(.not.TwoCycleSymGens) THEN
-!Currently only available for molecular systems
-            CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems")
+!Currently only available for molecular systems, or without using symmetry.
+            IF(.not.tNoSymGenRandExcits) THEN
+                WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
+                WRITE(6,*) "This is because of difficulties with other symmetries setup."
+                WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
+                CALL FLUSH(6)
+                CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems")
+            ENDIF
         ENDIF
 
 !First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
@@ -143,7 +165,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
         INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat(2,2)
         INTEGER :: iGetExcitLevel_2,ExcitLevel
-        LOGICAL :: tParity,IsValidDet
+        LOGICAL :: tParity,IsValidDet,SymAllowed
 
 !First construct ExcitMat
         ExcitMat(1,1)=Elec1Ind
@@ -155,7 +177,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat)
+!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
 
     END SUBROUTINE FindNewDet
 
@@ -683,7 +705,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         INTEGER :: ILUT(0:nBasis/32)
         REAL*8 :: Ran2,pGen
-        LOGICAL :: tParity,IsValidDet
+        LOGICAL :: tParity,IsValidDet,SymAllowed
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
 !will affect the probabilities.
@@ -742,7 +764,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "***"
                 WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
                 WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
-                CALL Stop_All("CreateSingleExcit","Cannot find single excitation from following electron after 250 attempts...")
+                CALL Stop_All("CreateSingleExcit","Cannot find single excitation from electrons after 250 attempts...")
             ENDIF
 
         enddo
@@ -843,7 +865,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-!        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat)
+!        CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat,SymAllowed)
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
@@ -894,18 +916,17 @@ MODULE GenRandSymExcitNUMod
 !SymLabelCounts(2,1:nSymLabels) gives the number of *states* in each symmetry class.
 !There are therefore equal number of alpha and beta orbitals in each state from which to calculate the unoccupied classcount.
 !Again, we store as 
-        do i=1,nSymLabels
-            IF(tNoSymGenRandExcits) THEN
-                IF(i.eq.1) THEN
+        IF(tNoSymGenRandExcits) THEN
 !All orbitals are in irrep 0
-                    ClassCountUnocc2(1,0)=(nBasis/2)-ClassCount2(1,0)
-                    ClassCountUnocc2(2,0)=(nBasis/2)-ClassCount2(2,0)
-                ENDIF
-            ELSE
+            ClassCountUnocc2(1,0)=(nBasis/2)-ClassCount2(1,0)
+            ClassCountUnocc2(2,0)=(nBasis/2)-ClassCount2(2,0)
+        ELSE
+
+            do i=1,nSymLabels
                 ClassCountUnocc2(1,i-1)=SymLabelCounts(2,i)-ClassCount2(1,i-1)
                 ClassCountUnocc2(2,i-1)=SymLabelCounts(2,i)-ClassCount2(2,i-1)
-            ENDIF
-        enddo
+            enddo
+        ENDIF
 
     END SUBROUTINE ConstructClassCounts
 
@@ -924,7 +945,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     INTEGER :: ClassCount2(2,0:nSymLabels-1)
     INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
     INTEGER :: ILUT(0:nBasis/32)
-    LOGICAL :: tParity
+    LOGICAL :: tParity,SymAllowed
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS
@@ -993,7 +1014,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
         ENDIF
 
 !Check excitation
-        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
+        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
 
     enddo
 
@@ -1040,14 +1061,15 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
 
 END SUBROUTINE TestGenRandSymExcitNU
 
-SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
+SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
     Use SystemData , only : G1,NEl
-    Use SystemData , only : Symmetry
+    Use SystemData , only : Symmetry,tNoSymGenRandExcits
     IMPLICIT NONE
     Type(Symmetry) :: SymProduct,SymProduct2,SYMPROD
-    LOGICAL :: SYMEQ,ISVALIDDET
+    LOGICAL :: SYMEQ,ISVALIDDET,SymAllowed
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
 
+     SymAllowed=.true.
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
          WRITE(6,*) "Have not created a correct excitation"
@@ -1062,18 +1084,23 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
          STOP "INVALID DET"
      ENDIF
      
-     IF(IC.eq.2) THEN
-        SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
-        SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
-        IF(.not.SYMEQ(SymProduct,SymProduct2)) THEN
-            CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed double excitation")
-        ENDIF
-    ELSE
-        IF(.not.SYMEQ(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(2,1))%Sym)) THEN
-            CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed single excitation")
-        ENDIF
-        IF(G1(ExcitMat(1,1))%Ms.ne.G1(ExcitMat(2,1))%Ms) THEN
-            CALL Stop_All("IsSymAllowedExcit","Excitation not a valid spin-symmetry allowed single excitation")
+     IF(.not.tNoSymGenRandExcits) THEN
+         IF(IC.eq.2) THEN
+            SymProduct=SYMPROD(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(1,2))%Sym)
+            SymProduct2=SYMPROD(G1(ExcitMat(2,1))%Sym,G1(ExcitMat(2,2))%Sym)
+            IF(.not.SYMEQ(SymProduct,SymProduct2)) THEN
+                SymAllowed=.false.
+                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed double excitation")
+            ENDIF
+        ELSE
+            IF(.not.SYMEQ(G1(ExcitMat(1,1))%Sym,G1(ExcitMat(2,1))%Sym)) THEN
+                SymAllowed=.false.
+                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid symmetry allowed single excitation")
+            ENDIF
+            IF(G1(ExcitMat(1,1))%Ms.ne.G1(ExcitMat(2,1))%Ms) THEN
+                SymAllowed=.false.
+                CALL Stop_All("IsSymAllowedExcit","Excitation not a valid spin-symmetry allowed single excitation")
+            ENDIF
         ENDIF
     ENDIF
         

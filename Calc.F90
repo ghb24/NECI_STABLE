@@ -50,8 +50,8 @@ MODULE Calc
           FixShift=0.D0
           ShellFix=0
           TRegenExcitgens=.false.
-          MemoryFac=30.D0
-          MemoryFacExcit=30.D0
+          MemoryFacPart=10.D0
+          MemoryFacAnnihil=10.D0
           TStartSinglePart=.false.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -712,13 +712,13 @@ MODULE Calc
             case("STARTSINGLEPART")
 !A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
                 TStartSinglePart=.true.
-            case("MEMORYFAC")
+            case("MEMORYFACPART")
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
-                CALL Getf(MemoryFac)
-            case("MEMORYFACEXCIT")
-!!An FCIMC option - MemoryFac is the factor by which space will be made available for excitation generators compared to InitWalkers. This can be smaller than
-!memoryfac, because the excitation generator array is not used in the parallel annihilation, which may not be exactly load-balanced because of differences in the wavevector.
-                CALL Getf(MemoryFacExcit)
+                CALL Getf(MemoryFacPart)
+            case("MEMORYFACANNIHIL")
+!!An FCIMC option - MemoryFac is the factor by which space will be made available for particles sent to the processor during annihilation compared to InitWalkers. This will generally want to be larger than
+!memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences in the wavevector and uniformity of the hashing algorithm.
+                CALL Getf(MemoryFacAnnihil)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
