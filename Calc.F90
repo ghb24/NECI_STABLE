@@ -812,7 +812,7 @@ MODULE Calc
 
         Subroutine CalcInit()
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
-          use SystemData, only: tUEG
+          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
@@ -892,6 +892,21 @@ MODULE Calc
                 WRITE(6,*) 'Kinetic=',CALCT2(FDET,NEL,G1,ALAT,NBASIS,CST)
              ENDIF
           ENDIF
+
+! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
+          nOccAlpha=0
+          nOccBeta=0
+          do i=1,NEl
+              IF(G1(FDET(i))%Ms.eq.-1) THEN
+!Orbital is an alpha orbital
+                 nOccAlpha=nOccAlpha+1
+              ELSE
+                 nOccBeta=nOccBeta+1
+              ENDIF
+          enddo
+          WRITE(6,"(A,I5,A,I5,A)") "FDet has ",nOccAlpha," alpha electrons, and ",nOccBeta," beta electrons."
+          ElecPairs=(NEl*(NEl-1))/2
+
           IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC
              NLIST=1

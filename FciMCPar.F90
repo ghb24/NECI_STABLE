@@ -2143,13 +2143,18 @@ MODULE FciMCParMod
         TempHii=GetH0Element3(HFDet)
         Fii=REAL(TempHii%v,r2)
 
-        IF(tHub.and.tReal) THEN
+        IF(tHub) THEN
+            IF(tReal) THEN
 !If we are doing a real-space hubbard calculation, then we cannot subtract out the energy of the reference determinant.
 !This is because the reference is not the HF determinant and is an undefined determinant. In momentum space this is not the case.
-            HubRefEnergy=Hii
-            Hii=0.D0
+                HubRefEnergy=Hii
+                Hii=0.D0
 !We also know that in real-space hubbard calculations, there are only single excitations.
-            exFlag=1
+                exFlag=1
+            ELSE
+!We are doing a momentum space hubbard calculation - set exFlag to 2 since only doubles are connected for momentum conservation.
+                exFlag=2
+            ENDIF
         ENDIF
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
@@ -4165,11 +4170,11 @@ MODULE FciMCParMod
         Elec=0
         do i=0,nBasis/32
             do j=0,31
-                IF(Elec.eq.NEl) RETURN
                 IF(BTEST(iLut(i),j)) THEN
 !An electron is at this orbital
                     nI(Elec+1)=(i*32)+(j+1)
                     Elec=Elec+1
+                    IF(Elec.eq.NEl) RETURN
                 ENDIF
             enddo
         enddo
@@ -4350,12 +4355,20 @@ MODULE FciMCParMod
         INTEGER :: HFConn,PosExcittypes,iTotal,i
         INTEGER :: nSing,nDoub,ExcitInd
 
-        IF(tHub.and.tReal) THEN
-            WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
-            WRITE(6,*) "Setting pDoub to 0.D0"
-            pDoubles=0.D0
-            RETURN
+        IF(tHub) THEN
+            IF(tReal) THEN
+                WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
+                WRITE(6,*) "Setting pDoub to 0.D0"
+                pDoubles=0.D0
+                RETURN
+            ELSE
+                WRITE(6,*) "Since we are using a momentum-space hubbard model, only double excitaitons are connected."
+                WRITE(6,*) "Setting pDoub to 1.D0"
+                pDoubles=1.D0
+                RETURN
+            ENDIF
         ENDIF
+
         WRITE(6,*) "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         IF(tAssumeSizeExcitgen) THEN
             PosExcittypes=SymClassSize*NEL+NBASIS/32+4
