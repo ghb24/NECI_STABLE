@@ -2148,6 +2148,8 @@ MODULE FciMCParMod
 !This is because the reference is not the HF determinant and is an undefined determinant. In momentum space this is not the case.
             HubRefEnergy=Hii
             Hii=0.D0
+!We also know that in real-space hubbard calculations, there are only single excitations.
+            exFlag=1
         ENDIF
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
@@ -4348,6 +4350,12 @@ MODULE FciMCParMod
         INTEGER :: HFConn,PosExcittypes,iTotal,i
         INTEGER :: nSing,nDoub,ExcitInd
 
+        IF(tHub.and.tReal) THEN
+            WRITE(6,*) "Since we are using a real-space hubbard model, only single excitations are connected."
+            WRITE(6,*) "Setting pDoub to 0.D0"
+            pDoubles=0.D0
+            RETURN
+        ENDIF
         WRITE(6,*) "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         IF(tAssumeSizeExcitgen) THEN
             PosExcittypes=SymClassSize*NEL+NBASIS/32+4

@@ -120,6 +120,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                   DZ=ABS(G1(I)%k(3)-G1(J)%k(3))
                   SUM=BHUB
                   IF(TPBC) THEN
+!This bit is only for if the hubbard lattice only has one site in a certain dimension
                      IF(DX.EQ.LX) THEN
                         DX=1
                         IF(LX.EQ.1) SUM=SUM+BHUB
@@ -134,6 +135,7 @@ C         IF(LZ.GT.1) SUM=SUM+COS(PI*K/(LZ+1))
                      ENDIF
                   ENDIF
                   IF(DX+DY+DZ.EQ.1.AND.G1(I)%Ms.EQ.G1(J)%MS) THEN
+!This is for if the site can interact with a periodic image.
                      IF(TSTARSTORE) THEN
                         TMATSYM(TMatInd(I,J))=SUM
                         IF(iProcIndex.eq.0) WRITE(10,*) I,J,SUM
@@ -258,6 +260,7 @@ C+1-MOD(NMAXX,2)
          NBASISMAX(1,5)=NMAXX
          NBASISMAX(2,5)=NMAXY
          NBASISMAX(3,5)=NMAXZ
+!Len is number of basis functions
          LEN=NMAXX*NMAXY*(ITILTX*ITILTX+ITILTY*ITILTY)
      &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 C         LEN=NMAXX*NMAXY*2
