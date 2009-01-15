@@ -173,6 +173,7 @@ MODULE FciMCParMod
 
     REAL*8 :: pDoubles                          !This is the approximate fraction of excitations which are doubles. This is calculated if we are using non-uniform
                                                 !random excitations.
+    INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
     contains
 
 
@@ -2063,7 +2064,7 @@ MODULE FciMCParMod
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift
         use Determinants , only : GetH0Element3
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl)
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
@@ -2103,6 +2104,19 @@ MODULE FciMCParMod
             HFDet(i)=FDet(i)
         enddo
         HFHash=CreateHash(HFDet)
+
+!test the encoding of the HFdet to bit representation.
+        ALLOCATE(iLutHF(0:nBasis/32),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("InitFciMCPar","Cannot allocate memory for iLutHF")
+        CALL EncodeBitDet(HFDet,iLutHF)
+        CALL DecodeBitDet(HFDetTest,iLutHF)
+        do i=1,NEl
+            IF(HFDetTest(i).ne.HFDet(i)) THEN
+                WRITE(6,*) "HFDet: ",HFDet(:)
+                WRITE(6,*) "HFDetTest: ",HFDetTest(:)
+                CALL Stop_All("InitFciMCPar","HF Determinant incorrectly decoded.")
+            ENDIF
+        enddo
 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         iMaxExcit=0
@@ -4131,6 +4145,34 @@ MODULE FciMCParMod
 
     END SUBROUTINE FindMagneticDets
 
+!This routine will take a determinant in orbital form, and construct the bit representation from it.
+    SUBROUTINE EncodeBitDet(nI,iLut)
+        INTEGER :: nI(NEl),iLut(0:nBasis/32),i
+
+        iLut(:)=0
+        do i=1,NEl
+            iLut((nI(i)-1)/32)=IBSET(iLut((nI(i)-1)/32),mod(nI(i)-1,32))
+        enddo
+
+    END SUBROUTINE EncodeBitDet
+
+!This will decode a determinant from a bit representation, to orbital form.
+    SUBROUTINE DecodeBitDet(nI,iLut)
+        INTEGER :: nI(NEl),iLut(0:nBasis/32),Elec,i,j
+
+        Elec=0
+        do i=0,nBasis/32
+            do j=0,31
+                IF(Elec.eq.NEl) RETURN
+                IF(BTEST(iLut(i),j)) THEN
+!An electron is at this orbital
+                    nI(Elec+1)=(i*32)+(j+1)
+                    Elec=Elec+1
+                ENDIF
+            enddo
+        enddo
+
+    END SUBROUTINE DecodeBitDet
 
 !This routine will move walkers between the processors, in order to balance the number of walkers on each node.
 !This could be made slightly faster by using an MPI_Reduce, rather than searching for the min and max by hand...
@@ -4340,7 +4382,7 @@ MODULE FciMCParMod
             ExcitInd=ExcitInd+5
         enddo
 
-        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculated pDoubles."
+        WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
         IF((NSing+nDoub).ne.iTotal) THEN
             CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
@@ -4399,6 +4441,7 @@ MODULE FciMCParMod
 
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)
+        DEALLOCATE(iLutHF)
         DEALLOCATE(HFExcit%ExcitData)
         IF(.not.TRegenExcitgens) THEN
             do i=1,MaxWalkersPart
