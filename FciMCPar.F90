@@ -174,6 +174,8 @@ MODULE FciMCParMod
     REAL*8 :: pDoubles                          !This is the approximate fraction of excitations which are doubles. This is calculated if we are using non-uniform
                                                 !random excitations.
     INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
+    INTEGER :: NoIntforDet                      !This indicates the upper-bound for the walkvecdets arrays when expressed in bit-form. This will equal INT(nBasis/32).
+                                                !The actual total length for a determinant in bit form will be NoIntforDet+1
     contains
 
 
@@ -249,7 +251,7 @@ MODULE FciMCParMod
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
         INTEGER :: VecSlot,i,j,k,l
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount
+        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,iGetExcitLevel_2,TotWalkersNew,error,length,temp,Ex(2,2)
@@ -276,21 +278,25 @@ MODULE FciMCParMod
 
 !            WRITE(6,*) Iter,j,TotWalkers
 !            CALL FLUSH(6)
+
+!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
+
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(CurrentDets(:,j),CurrentIC(j),CurrentSign(j))
+            CALL SumEContrib(DetCurr,CurrentIC(j),CurrentSign(j))
 
             IF(TResumFCIMC) THEN
 
-                CALL ResumGraphPar(CurrentDets(:,j),CurrentSign(j),VecSlot,j)
+                CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
             ELSE
 
                 IF(.not.TRegenExcitgens) THEN
 !Setup excit generators for this determinant (This can be reduced to an order N routine later for abelian symmetry.
-                    CALL SetupExitgenPar(CurrentDets(:,j),CurrentExcits(j))
-                    CALL GenRandSymExcitIt4(CurrentDets(:,j),CurrentExcits(j)%PointToExcit,nJ,Seed,IC,0,Prob,iCount,Ex,tParity)
+                    CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
+                    CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,Seed,IC,0,Prob,iCount,Ex,tParity)
                 ELSE
-                    CALL GetPartRandExcitPar(CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j),Ex,tParity)
+                    CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,CurrentIC(j),Ex,tParity)
                 ENDIF
 !Calculate number of children to spawn
 
@@ -307,10 +313,10 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                                 Child=0
                             ELSE
-                                Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
+                                Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                             ENDIF
                         ELSE
-                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
+                            Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                         ENDIF
 
                     ELSEIF(CurrentIC(j).eq.ICILevel) THEN
@@ -320,17 +326,17 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                             Child=0
                         ELSE
-                            Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
+                            Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                         ENDIF
                     ELSE
 !Excitation cannot be in a dissallowed excitation level - allow it as normal
-                        Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
+                        Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity)
                     ENDIF 
                 
                 ELSE
 !SD Space is not truncated - allow attempted spawn as usual
 
-                    Child=AttemptCreatePar(CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity)
+                    Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity)
 
                 ENDIF
                 
@@ -382,9 +388,12 @@ MODULE FciMCParMod
                         HashTemp=CreateHash(nJ)
                     ENDIF
 
+!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
+                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex)
+
                     do l=1,abs(Child)
 !Copy across children - cannot copy excitation generators, as do not know them...unless it is HF (this might save a little time if implimented)
-                        NewDets(:,VecSlot)=nJ(:)
+                        NewDets(:,VecSlot)=iLutnJ(:)
                         NewSign(VecSlot)=WSign
                         IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
                         NewIC(VecSlot)=ExcitLevel
@@ -403,7 +412,7 @@ MODULE FciMCParMod
                 ENDIF   !End if child created
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-                iDie=AttemptDiePar(CurrentDets(:,j),CurrentH(j),CurrentIC(j))
+                iDie=AttemptDiePar(DetCurr,CurrentH(j),CurrentIC(j))
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
                 NoDied=NoDied+iDie          !Update death counter
@@ -414,7 +423,6 @@ MODULE FciMCParMod
         
                     do l=1,abs(iDie)+1    !We need to copy accross one more, since we need to include the original spared particle
                         NewDets(:,VecSlot)=CurrentDets(:,j)
-!                        NewDets(:,VecSlot)=CurrentDets(:,j)
                         NewSign(VecSlot)=CurrentSign(j)
 !Copy excitation generator accross
 !                        IF(ASSOCIATED(NewExcits(VecSlot)%PointToExcit)) THEN
@@ -605,12 +613,12 @@ MODULE FciMCParMod
         TYPE(ExcitPointer) :: TempExcit
         REAL*8 :: TempH
         INTEGER :: TempIC
-        INTEGER :: TotWalkersNew,j,k,l,DetCurr(NEl),VecSlot,TotWalkersDet
+        INTEGER :: TotWalkersNew,j,k,l,DetCurr(0:NoIntforDet),VecSlot,TotWalkersDet
         INTEGER :: DetLT
 
         TempExcit%PointToExcit=>null()
 !First, it is necessary to sort the list of determinants
-        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NEl)
+        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NoIntforDet+1)
 
 !Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
         j=1
@@ -626,7 +634,7 @@ MODULE FciMCParMod
         do while(j.le.TotWalkersNew)
 !Loop over all walkers
             TotWalkersDet=0
-            do while ((DetLT(NewDets(:,j),DetCurr,NEl).eq.0).and.(j.le.TotWalkersNew))
+            do while ((DetLT(NewDets(:,j),DetCurr,(NoIntforDet+1)).eq.0).and.(j.le.TotWalkersNew))
 !Loop over all walkers on DetCurr and count residual number after cancelling
                 IF(NewSign(j)) THEN
                     TotWalkersDet=TotWalkersDet+1
@@ -2371,6 +2379,7 @@ MODULE FciMCParMod
             WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
         ENDIF
 
+        NoIntforDet=INT(nBasis/32)  !This indicates the upper-bound for the walkvecdets arrays when expressed in bit-form.
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
@@ -2398,12 +2407,12 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-            ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(1:NEl,1:MaxWalkersPart)=0
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntForDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
 
             ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
@@ -2423,7 +2432,7 @@ MODULE FciMCParMod
             
 !            MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
 !            MemoryAlloc=((8*MaxWalkers)+(2*NEl*MaxWalkersExcit))*4    !Memory Allocated in bytes
-            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*NEl)+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
 
             IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                 ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
@@ -2459,7 +2468,8 @@ MODULE FciMCParMod
             NewH=>WalkVec2H
 
             IF(TStartSinglePart) THEN
-                CurrentDets(:,1)=HFDet(:)
+!                CurrentDets(:,1)=HFDet(:)
+                CurrentDets(:,1)=iLutHF(:)
                 CurrentIC(1)=0
                 CurrentSign(1)=.true.
                 CurrentH(1)=0.D0
@@ -2469,7 +2479,8 @@ MODULE FciMCParMod
             ELSE
 
                 do j=1,InitWalkers
-                    CurrentDets(:,j)=HFDet(:)
+!                    CurrentDets(:,j)=HFDet(:)
+                    CurrentDets(:,j)=iLutHF(:)
                     CurrentSign(j)=.true.
                     CurrentIC(j)=0
                     CurrentH(j)=0.D0
@@ -2531,16 +2542,16 @@ MODULE FciMCParMod
             IF(TStartSinglePart) THEN
                 TotWalkers=1
                 TotWalkersOld=1
-    !Initialise global variables for calculation on the root node
+!Initialise global variables for calculation on the root node
                 IF(iProcIndex.eq.root) THEN
                     AllTotWalkers=nProcessors
                     AllTotWalkersOld=nProcessors
                 ENDIF
             ELSE
-    !TotWalkers contains the number of current walkers at each step
+!TotWalkers contains the number of current walkers at each step
                 TotWalkers=InitWalkers
                 TotWalkersOld=InitWalkers
-    !Initialise global variables for calculation on the root node
+!Initialise global variables for calculation on the root node
                 IF(iProcIndex.eq.root) THEN
                     AllTotWalkers=InitWalkers*nProcessors
                     AllTotWalkersOld=InitWalkers*nProcessors
@@ -2849,8 +2860,8 @@ MODULE FciMCParMod
             WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
             do j=1,TotWalkers
 !First write out walkers on head node
-                do k=1,NEl
-                    WRITE(17,"(I5)",advance='no') CurrentDets(k,j)
+                do k=0,NoIntforDet
+                    WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
                 enddo
                 WRITE(17,*) CurrentSign(j)
             enddo
@@ -2858,13 +2869,13 @@ MODULE FciMCParMod
 !Now we need to receive the data from each other processor sequentially
             do i=1,nProcessors-1
 !Run through all other processors...receive the data...
-                CALL MPI_Recv(NewDets(:,1:WalkersonNodes(i)),WalkersonNodes(i)*NEl,MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(NewDets(:,1:WalkersonNodes(i)),WalkersonNodes(i)*(NoIntforDet+1),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(NewSign(1:WalkersonNodes(i)),WalkersonNodes(i),MPI_LOGICAL,i,Tag,MPI_COMM_WORLD,Stat,error)
                 
 !Then write it out...
                 do j=1,WalkersonNodes(i)
-                    do k=1,NEl
-                        WRITE(17,"(I5)",advance='no') NewDets(k,j)
+                    do k=0,NoIntforDet
+                        WRITE(17,"(I20)",advance='no') NewDets(k,j)
                     enddo
                     WRITE(17,*) NewSign(j)
                 enddo
@@ -2875,7 +2886,7 @@ MODULE FciMCParMod
 
         ELSE
 !All other processors need to send their data to root...
-            CALL MPI_Send(CurrentDets(:,1:TotWalkers),TotWalkers*NEl,MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
+            CALL MPI_Send(CurrentDets(:,1:TotWalkers),TotWalkers*(NoIntforDet+1),MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
             CALL MPI_Send(CurrentSign(1:TotWalkers),TotWalkers,MPI_LOGICAL,root,Tag,MPI_COMM_WORLD,error)
         ENDIF
 
@@ -2895,7 +2906,7 @@ MODULE FciMCParMod
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,iGetExcitLevel_2,MemoryAlloc,Tag
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl)
         REAL*8 :: Ran2,FracPart
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
@@ -2983,23 +2994,23 @@ MODULE FciMCParMod
         MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)    !All nodes have the same amount of memory allocated
         MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
 !Allocate memory to hold walkers at least temporarily
-        ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        WalkVecDets(1:NEl,1:MaxWalkersPart)=0
+        ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
+        WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
         ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
-        CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil*NEl,4,this_routine,WalkVecSignTag,ierr)
+        CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
 
         IF(iProcIndex.eq.root) THEN
 !Root process reads all walkers in and then sends them to the correct processor
             do i=nProcessors,1,-1
 !Read in data for processor i
                 do j=1,WalkerstoReceive(i)
-                    READ(17,*) WalkVecDets(1:NEl,j),WalkVecSign(j)
+                    READ(17,*) WalkVecDets(0:NoIntforDet,j),WalkVecSign(j)
                 enddo
 
                 IF(i.ne.1) THEN
 !Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor
-                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*NEl,MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
+                    CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NoIntforDet+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
                     CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_LOGICAL,i-1,Tag,MPI_COMM_WORLD,error)
                 ENDIF
 
@@ -3012,7 +3023,7 @@ MODULE FciMCParMod
         do i=1,nProcessors-1
             IF(iProcIndex.eq.i) THEN
 !All other processors want to pick up their data from root
-                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*NEl,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NoIntforDet+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_LOGICAL,0,Tag,MPI_COMM_WORLD,Stat,error)
             ENDIF
         enddo
@@ -3026,9 +3037,9 @@ MODULE FciMCParMod
             MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
 
 !Allocate memory for walkvec2, which will temporarily hold walkers
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
             ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
 
@@ -3039,13 +3050,13 @@ MODULE FciMCParMod
             VecSlot=1
             do l=1,TempInitWalkers
                 do k=1,IntegerPart
-                    WalkVec2Dets(1:NEl,VecSlot)=WalkVecDets(1:NEl,l)
+                    WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
                     WalkVec2Sign(VecSlot)=WalkVecSign(l)
                     VecSlot=VecSlot+1
                 enddo
                 IF(Ran2(Seed).lt.FracPart) THEN
 !Stochastically choose whether to create another particle
-                    WalkVec2Dets(1:NEl,VecSlot)=WalkVecDets(1:NEl,l)
+                    WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
                     WalkVec2Sign(VecSlot)=WalkVecSign(l)
                     VecSlot=VecSlot+1
                 ENDIF
@@ -3069,27 +3080,27 @@ MODULE FciMCParMod
             CALL LogMemDealloc(this_routine,WalkVecDetsTag)
             DEALLOCATE(WalkVecSign)
             CALL LogMemDealloc(this_routine,WalkVecSignTag)
-            ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
+            WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
             ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
 
 !Transfer scaled particles back accross to WalkVecDets
             do l=1,TotWalkers
-                WalkVecDets(1:NEl,l)=WalkVec2Dets(1:NEl,l)
+                WalkVecDets(0:NoIntforDet,l)=WalkVec2Dets(0:NoIntforDet,l)
                 WalkVecSign(l)=WalkVec2Sign(l)
             enddo
 
 !Zero the second array for good measure
-            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
 
         ELSE
 !We are not scaling the number of walkers...
 
-            ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+            ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
             ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
 
@@ -3118,7 +3129,7 @@ MODULE FciMCParMod
         CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
         WalkVec2H=0.d0
 
-        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*NEl)+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
 
         IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
             ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
@@ -3192,7 +3203,8 @@ MODULE FciMCParMod
 !Now find out the data needed for the particles which have been read in...
         First=.true.
         do j=1,TotWalkers
-            CurrentIC(j)=iGetExcitLevel_2(HFDet,CurrentDets(:,j),NEl,NEl)
+            CALL DecodeBitDet(TempnI,CurrentDets(:,j))
+            CurrentIC(j)=iGetExcitLevel_2(HFDet,TempnI,NEl,NEl)
             IF(CurrentIC(j).eq.0) THEN
                 CurrentH(j)=0.D0
                 IF(First) THEN
@@ -3207,11 +3219,11 @@ MODULE FciMCParMod
                     HashArray(j)=HFHash
                 ENDIF
             ELSE
-                HElemTemp=GetHElement2(CurrentDets(:,j),CurrentDets(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                HElemTemp=GetHElement2(TempnI,TempnI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                 CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%PointToExcit=>null()
                 IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                    HashArray(j)=CreateHash(CurrentDets(:,j))
+                    HashArray(j)=CreateHash(TempnI)
                 ENDIF
                 
             ENDIF
@@ -3250,9 +3262,9 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
-        ALLOCATE(WalkVecDets(NEl,MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*NEl,4,this_routine,WalkVecDetsTag,ierr)
-        WalkVecDets(1:NEl,1:MaxWalkersPart)=0
+        ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
+        WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
         ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
         WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
@@ -3272,7 +3284,7 @@ MODULE FciMCParMod
         CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
         WalkVec2H=0.d0
         
-        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*NEl)+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+6)*MaxWalkersPart))*4    !Memory Allocated in bytes
 
         IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
             ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
@@ -3407,7 +3419,7 @@ MODULE FciMCParMod
             IF(i.eq.1) THEN
 !If we are at HF, then we do not need to calculate the information for the walker        
                 WalkersonHF=WalkersonHF+1
-                CurrentDets(1:NEl,j)=HFDet(:)
+                CurrentDets(0:NoIntforDet,j)=iLutHF(:)
                 CurrentIC(j)=0
                 CurrentSign(j)=.true.
                 CurrentH(j)=0.D0
@@ -3416,7 +3428,8 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
 !We are at a double excitation - we need to calculate most of this information...
-                CurrentDets(1:NEl,j)=MP1Dets(1:NEl,i)
+                CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j))
+!                CurrentDets(1:NEl,j)=MP1Dets(1:NEl,i)
                 CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
                 Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
@@ -3923,17 +3936,17 @@ MODULE FciMCParMod
     END SUBROUTINE DissociateExitgen
 
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
-    SUBROUTINE GetPartRandExcitPar(DetCurr,nJ,Seed,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
+    SUBROUTINE GetPartRandExcitPar(DetCurr,iLutDet,nJ,Seed,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitNU
         INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
-        INTEGER :: Excitlevel,Ex(2,2)
+        INTEGER :: Excitlevel,Ex(2,2),iLutDet(0:NoIntforDet)
         REAL*8 :: Prob
         LOGICAL :: tParity
         INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
         IF(tNonUniRandExcits) THEN
 !Generate non-uniform random excitations
-            CALL GenRandSymExcitNU(DetCurr,nJ,Seed,pDoubles,IC,Ex,tParity,exFlag,Prob)
+            CALL GenRandSymExcitNU(DetCurr,iLutDet,nJ,Seed,pDoubles,IC,Ex,tParity,exFlag,Prob)
 
         ELSE
             IF(ExcitLevel.eq.0) THEN
@@ -4151,6 +4164,25 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FindMagneticDets
+    
+!This routine will find the bit-representation of an excitation by constructing the new iLut from the old one and the excitation matrix.
+    SUBROUTINE FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
+        INTEGER :: iLutnI(0:NoIntforDet),iLutnJ(0:NoIntforDet),IC,ExcitMat(2,2)
+
+        iLutnJ(:)=iLutnI(:)
+        IF(IC.eq.1) THEN
+!Single excitation - clear one bit and set another.
+            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
+            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
+        ELSE
+!Double excitation - clear two bits and set two others.
+            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
+            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
+            iLutnJ((ExcitMat(1,2)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,2)-1)/32),mod(ExcitMat(1,2)-1,32))
+            iLutnJ((ExcitMat(2,2)-1)/32)=IBSET(iLutnJ((ExcitMat(2,2)-1)/32),mod(ExcitMat(2,2)-1,32))
+        ENDIF
+
+    END SUBROUTINE FindExcitBitDet
 
 !This routine will take a determinant in orbital form, and construct the bit representation from it.
     SUBROUTINE EncodeBitDet(nI,iLut)
@@ -4287,7 +4319,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) "TRANSFER: ",Transfers,WalkToTransfer(:),IndexFrom,TotWalkers
 !                CALL FLUSH(6)
                 
-                CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*NEl,MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*(NoIntforDet+1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
@@ -4312,7 +4344,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) "RECEIVING: ",Transfers,WalkToTransfer(:),IndexFrom,IndexTo
 !                CALL FLUSH(6)
 
-                CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*NEl,MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*(NoIntforDet+1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)

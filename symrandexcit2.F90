@@ -38,7 +38,7 @@ MODULE GenRandSymExcitNUMod
 
     contains
 
-    SUBROUTINE GenRandSymExcitNU(nI,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+    SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag,iSeed
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
@@ -79,7 +79,7 @@ MODULE GenRandSymExcitNUMod
 !This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
 !For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
 !This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
-        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2,ILUT)
+        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
@@ -923,25 +923,23 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateSingleExcit
 
 
-    SUBROUTINE ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2,ILUT)
+    SUBROUTINE ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
         INTEGER :: i,nI(NEl)
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
-        INTEGER :: ILUT(0:nBasis/32)
 
         ClassCount2(:,:)=0
         ClassCountUnocc2(:,:)=0
-        ILUT(:)=0
 !nOccAlpha and nOccBeta now set in the system block. Since we conserve Sz, these will not change.
 !        NOccAlpha=0
 !        NOccBeta=0
 
         IF(tNoSymGenRandExcits) THEN
 
-            do i=1,NEl
-!Create ILUT for O[1] comparison of orbitals in root determinant
-                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
-            enddo
+!            do i=1,NEl
+!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
+!                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
+!            enddo
 !All orbitals are in irrep 0
             ClassCount2(1,0)=nOccAlpha
             ClassCount2(2,0)=nOccBeta
@@ -952,8 +950,8 @@ MODULE GenRandSymExcitNUMod
 
             do i=1,NEl
                 
-!Create ILUT for O[1] comparison of orbitals in root determinant
-                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
+!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
+!                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
 
                 IF(G1(nI(i))%Ms.eq.-1) THEN
 !orbital is an alpha orbital and symmetry of the orbital can be found in G1
@@ -995,9 +993,8 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),iSeed,IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
-    INTEGER :: ClassCount2(2,0:nSymLabels-1)
+    INTEGER :: ClassCount2(2,0:nSymLabels-1),iLut(0:nBasis/32)
     INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
-    INTEGER :: ILUT(0:nBasis/32)
     LOGICAL :: tParity,SymAllowed
     REAL*8 , ALLOCATABLE :: DoublesHist(:,:,:,:),SinglesHist(:,:)
     INTEGER , ALLOCATABLE :: EXCITGEN(:)
@@ -1032,12 +1029,17 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     ENDIF
     DoublesHist(:,:,:,:)=0.D0
     SinglesHist(:,:)=0.D0
+
+    do i=1,NEl
+!Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
+        ILUT((nI(i)-1)/32)=IBSET(ILUT((NI(i)-1)/32),MOD(NI(i)-1,32))
+    enddo
     
     do i=1,Iterations
 
         WRITE(6,"(A,I10)") "Iteration: ",i
 
-        CALL GenRandSymExcitNU(nI,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+        CALL GenRandSymExcitNU(nI,iLut,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         IF(IC.eq.1) THEN
 !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
         ELSE
@@ -1102,7 +1104,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     CLOSE(9)
     WRITE(6,*) DetNumS," Single excitations found from nI"
     IF((DetNum+DetNumS).ne.DetConn) THEN
-        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2,ILUT)
+        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
         WRITE(6,*) "Total determinants = ", DetConn
         WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
         WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
