@@ -716,6 +716,9 @@ MODULE System
 !C.. we're reading in integrals and have a molpro symmetry table
          IF(lNoSymmetry) THEN
             WRITE(6,*) "Turning Symmetry off"
+            DO I=1,nBasis
+               G1(I)%Sym%s=0
+            ENDDO
             CALL GENMOLPSYMTABLE(1,G1,NBASIS,ARR,BRR)
             DO I=1,nBasis
                G1(I)%Sym%s=0
