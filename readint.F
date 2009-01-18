@@ -147,6 +147,7 @@ C.. At the moment we're ignoring the core energy
             IF(I.NE.0) GOTO 1
          ENDIF
 99       CONTINUE
+         SYMMAX=1
          DO I=1,NORB
             DO ISPN=1,ISPINS
                 BRR(ISPINS*I-ISPN+1)=ISPINS*I-ISPN+1
@@ -156,9 +157,9 @@ C.. set momentum to 0
                 G1(ISPINS*I-ISPN+1)%k(2)=0
                 G1(ISPINS*I-ISPN+1)%k(3)=0
                 G1(ISPINS*I-ISPN+1)%Ms=-MOD(ISPINS*I-ISPN+1,2)*2+1
+               IF(SYMMAX.lt.ORBSYM(I)) SYMMAX=ORBSYM(I)
             ENDDO
          ENDDO
-         SYMMAX=ORBSYM(NORB)
          IF(SYMMAX.EQ.1) THEN
          ELSEIF(SYMMAX.LE.2) THEN
          ELSEIF(SYMMAX.LE.4) THEN
