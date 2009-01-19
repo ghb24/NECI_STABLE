@@ -29,6 +29,7 @@ MODULE FciMCParMod
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     INTEGER , PARAMETER :: r2=kind(0.d0)
     INTEGER , PARAMETER :: i2=SELECTED_INT_KIND(18)
+!    REAL*8 , PARAMETER :: HEpsilon=0.D+0
     
     TYPE ExcitGenerator
         INTEGER , POINTER :: ExcitData(:)=>null()   !This stores the excitation generator
@@ -3568,6 +3569,11 @@ MODULE FciMCParMod
 !            WRITE(6,*) "EX: ",Ex(1,:),Ex(2,:)
 !            WRITE(6,*) "tParity: ",tParity
 !            STOP
+!        ENDIF
+
+!        IF(abs(rh%v).le.HEpsilon) THEN
+!            AttemptCreatePar=0
+!            RETURN
 !        ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
