@@ -255,7 +255,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,iGetExcitLevel_2,TotWalkersNew,error,length,temp,Ex(2,2)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2)
         LOGICAL :: WSign,tParity
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
@@ -281,7 +281,7 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j))
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NoIntforDet)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
             CALL SumEContrib(DetCurr,CurrentIC(j),CurrentSign(j))
@@ -354,6 +354,9 @@ MODULE FciMCParMod
                         CALL FLUSH(6)
                     ENDIF
 
+!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
+                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NoIntforDet)
+
                     IF(Child.gt.0) THEN
 !We have successfully created at least one positive child at nJ
                         WSign=.true.
@@ -362,11 +365,12 @@ MODULE FciMCParMod
                         WSign=.false.
                     ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
-                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-!                    IF(ExcitLevel.eq.2) THEN
-!Only need it for double excitations, since these are the only ones which contribute to energy
-!                        HOffDiag=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+!                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+                    CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,NEl)
+!                    IF(ExcitLevelx.ne.ExcitLevel) THEN
+!                        CALL Stop_All("xxx","Excitlevels not same")
 !                    ENDIF
+
                     IF(TMagnetize) THEN
                         CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
                     ELSE
@@ -388,9 +392,6 @@ MODULE FciMCParMod
                     IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                         HashTemp=CreateHash(nJ)
                     ENDIF
-
-!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex)
 
                     do l=1,abs(Child)
 !Copy across children - cannot copy excitation generators, as do not know them...unless it is HF (this might save a little time if implimented)
@@ -2074,7 +2075,7 @@ MODULE FciMCParMod
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift
         use Determinants , only : GetH0Element3
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl)
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis)
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
@@ -2113,12 +2114,15 @@ MODULE FciMCParMod
             HFDet(i)=FDet(i)
         enddo
         HFHash=CreateHash(HFDet)
+        
+        NoIntforDet=INT(nBasis/32)  !This indicates the upper-bound for the walkvecdets arrays when expressed in bit-form.
 
 !test the encoding of the HFdet to bit representation.
-        ALLOCATE(iLutHF(0:nBasis/32),stat=ierr)
+        ALLOCATE(iLutHF(0:NoIntforDet),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("InitFciMCPar","Cannot allocate memory for iLutHF")
-        CALL EncodeBitDet(HFDet,iLutHF)
-        CALL DecodeBitDet(HFDetTest,iLutHF)
+        CALL EncodeBitDet(HFDet,iLutHF,NEl,NoIntforDet)
+!Test that the bit operations are working correctly...
+        CALL DecodeBitDet(HFDetTest,iLutHF,NEl,NoIntforDet)
         do i=1,NEl
             IF(HFDetTest(i).ne.HFDet(i)) THEN
                 WRITE(6,*) "HFDet: ",HFDet(:)
@@ -2126,6 +2130,23 @@ MODULE FciMCParMod
                 CALL Stop_All("InitFciMCPar","HF Determinant incorrectly decoded.")
             ENDIF
         enddo
+        CALL LargestBitSet(iLutHF,NoIntforDet,LargestOrb)
+        IF(LargestOrb.ne.HFDet(NEl)) THEN
+            do i=0,NoIntforDet
+                do j=0,31
+                    IF(BTEST(iLutHF(i),j)) THEN
+                        WRITE(6,*) i,j,"1"
+                    ELSE
+                        WRITE(6,*) i,j,"0"
+                    ENDIF
+                enddo
+            enddo
+            CALL Stop_All("InitFciMCPar","LargestBitSet FAIL")
+        ENDIF
+        CALL CountBits(iLutHF,NoIntforDet,nBits,NEl)
+        IF(nBits.ne.NEl) THEN
+            CALL Stop_All(this_routine,"CountBits FAIL")
+        ENDIF
 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         iMaxExcit=0
@@ -2379,8 +2400,6 @@ MODULE FciMCParMod
             enddo
             WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
         ENDIF
-
-        NoIntforDet=INT(nBasis/32)  !This indicates the upper-bound for the walkvecdets arrays when expressed in bit-form.
 
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
@@ -2906,7 +2925,7 @@ MODULE FciMCParMod
         LOGICAL :: exists,First
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
-        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,iGetExcitLevel_2,MemoryAlloc,Tag
+        INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl)
         REAL*8 :: Ran2,FracPart
         TYPE(HElement) :: HElemTemp
@@ -3204,8 +3223,9 @@ MODULE FciMCParMod
 !Now find out the data needed for the particles which have been read in...
         First=.true.
         do j=1,TotWalkers
-            CALL DecodeBitDet(TempnI,CurrentDets(:,j))
-            CurrentIC(j)=iGetExcitLevel_2(HFDet,TempnI,NEl,NEl)
+            CALL DecodeBitDet(TempnI,CurrentDets(:,j),NEl,NoIntforDet)
+!            CurrentIC(j)=iGetExcitLevel_2(HFDet,TempnI,NEl,NEl)
+            CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,CurrentIC(j),NEl,NEl) 
             IF(CurrentIC(j).eq.0) THEN
                 CurrentH(j)=0.D0
                 IF(First) THEN
@@ -3429,7 +3449,7 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
 !We are at a double excitation - we need to calculate most of this information...
-                CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j))
+                CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j),NEl,NoIntforDet)
 !                CurrentDets(1:NEl,j)=MP1Dets(1:NEl,i)
                 CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
@@ -4171,54 +4191,6 @@ MODULE FciMCParMod
 
     END SUBROUTINE FindMagneticDets
     
-!This routine will find the bit-representation of an excitation by constructing the new iLut from the old one and the excitation matrix.
-    SUBROUTINE FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
-        INTEGER :: iLutnI(0:NoIntforDet),iLutnJ(0:NoIntforDet),IC,ExcitMat(2,2)
-
-        iLutnJ(:)=iLutnI(:)
-        IF(IC.eq.1) THEN
-!Single excitation - clear one bit and set another.
-            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
-            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
-        ELSE
-!Double excitation - clear two bits and set two others.
-            iLutnJ((ExcitMat(1,1)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,1)-1)/32),mod(ExcitMat(1,1)-1,32))
-            iLutnJ((ExcitMat(2,1)-1)/32)=IBSET(iLutnJ((ExcitMat(2,1)-1)/32),mod(ExcitMat(2,1)-1,32))
-            iLutnJ((ExcitMat(1,2)-1)/32)=IBCLR(iLutnJ((ExcitMat(1,2)-1)/32),mod(ExcitMat(1,2)-1,32))
-            iLutnJ((ExcitMat(2,2)-1)/32)=IBSET(iLutnJ((ExcitMat(2,2)-1)/32),mod(ExcitMat(2,2)-1,32))
-        ENDIF
-
-    END SUBROUTINE FindExcitBitDet
-
-!This routine will take a determinant in orbital form, and construct the bit representation from it.
-    SUBROUTINE EncodeBitDet(nI,iLut)
-        INTEGER :: nI(NEl),iLut(0:nBasis/32),i
-
-        iLut(:)=0
-        do i=1,NEl
-            iLut((nI(i)-1)/32)=IBSET(iLut((nI(i)-1)/32),mod(nI(i)-1,32))
-        enddo
-
-    END SUBROUTINE EncodeBitDet
-
-!This will decode a determinant from a bit representation, to orbital form.
-    SUBROUTINE DecodeBitDet(nI,iLut)
-        INTEGER :: nI(NEl),iLut(0:nBasis/32),Elec,i,j
-
-        Elec=0
-        do i=0,nBasis/32
-            do j=0,31
-                IF(BTEST(iLut(i),j)) THEN
-!An electron is at this orbital
-                    nI(Elec+1)=(i*32)+(j+1)
-                    Elec=Elec+1
-                    IF(Elec.eq.NEl) RETURN
-                ENDIF
-            enddo
-        enddo
-
-    END SUBROUTINE DecodeBitDet
-
 !This routine will move walkers between the processors, in order to balance the number of walkers on each node.
 !This could be made slightly faster by using an MPI_Reduce, rather than searching for the min and max by hand...
     SUBROUTINE BalanceWalkersonProcs()
