@@ -77,6 +77,13 @@ General options
     Give the vertex level of the calculation.  Cannot be used in
     conjunction with a **METHODS** block.
 
+**CONSTRUCTNATORBS**
+    Calculates the 1 electron reduced density matrix (1-RDM) as a FCIMC 
+    calculation progresses.  At the end of the iterations, this matrix
+    is diagonalised to get linear combinations of the HF orbitals which
+    approximate the natural orbitals.  The occupation numbers (e-values)
+    of these are printed in the OUTPUT file.
+
 
 **METHOD** [Method option(s)]
     Specify the method for a graph theory calculation.  See Method

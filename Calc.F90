@@ -36,6 +36,7 @@ MODULE Calc
           NoMagDets=1
           BField=0.D0
           tMagnetize=.false.
+          tConstructNOs=.false.
           tFixShiftKii=.false.
           FixedKiiCutoff=0.D0
           tFixCASShift=.false.
@@ -276,6 +277,16 @@ MODULE Calc
                 call geti(KOBS)
             case("WORKOUT")
                 call geti(NDETWORK)
+
+! Using the keyword CONSTRUCTNATORBS includes a calculation of the 1 electron reduced 
+! density matrix (1-RDM) as the FCIMC calculation progresses.
+! Diagonalisation of this matrix gives linear combinations of the HF orbitals which 
+! tend towards the natural orbitals.
+! The EQUILSTEPS keyword specifies the number of iterations which must pass before the 
+! population of the singles is counted towards the projection energy. 
+            case("CONSTRUCTNATORBS")
+                tConstructNOs = .true.
+            
             case("ENDCALC")
                 exit calc
             case("METHODS")
@@ -654,8 +665,8 @@ MODULE Calc
                 call getf(CullFactor)
             case("EQUILSTEPS")
 !For FCIMC, this indicates the number of cycles which have to
-!pass before the energy of the system from the doubles
-!population is counted
+!pass before the energy of the system from the doubles (HF)
+!or singles (natural orbitals) population is counted.
                 call geti(NEquilSteps)
             case("NOBIRTH")
 !For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.

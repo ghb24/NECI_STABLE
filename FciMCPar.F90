@@ -12,6 +12,7 @@ MODULE FciMCParMod
     use SystemData , only : tHub,tReal,tNonUniRandExcits
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
+    use CalcData , only : tConstructNOs
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
@@ -177,6 +178,11 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
     INTEGER :: NoIntforDet                      !This indicates the upper-bound for the walkvecdets arrays when expressed in bit-form. This will equal INT(nBasis/32).
                                                 !The actual total length for a determinant in bit form will be NoIntforDet+1
+    
+    REAL*8 , ALLOCATABLE :: OneRDM(:,:)         !This is the 1 electron reduced density matrix.
+    INTEGER :: OneRDMTag=0                      !It is calculated as an FCIMC run progresses.  As the run tends towards the correct wavefunction, diagonalisation 
+    INTEGER :: Orbs(2)                          !of the 1RDM gives linear combinations of the HF orbitals which tend towards the natural orbitals of the system.
+                                                                         
     contains
 
 
@@ -234,6 +240,8 @@ MODULE FciMCParMod
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
 
+        IF(tConstructNos) CALL NormandDiagOneRDM()
+
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
         
@@ -248,6 +256,48 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FciMCPar
+
+
+    SUBROUTINE NormandDiagOneRDM()
+!This routine takes the OneRDM with non-normalised off-diagonal elements, adds the diagonal elements from the HF determinant
+!and normalises it according to the number of walkers on the HF determinant.
+!It then diagonalises the 1-RDM to find linear combinations of the HF orbitals that are closer to the natural orbitals,
+!and the occupation numbers of these new orbitals (e-values).
+        INTEGER :: i,j,AllSumNoatHF,HFDet(nEl),error,ierr
+        REAL*8 :: OneRDM(nBasis,nBasis),TempSumNoatHF
+        REAL*8 , ALLOCATABLE :: Temp1RDM(:,:)
+
+        TempSumNoatHF=real(SumNoatHF,r2)
+!Sum TempSumNoatHF over all processors and then send to all processes
+        CALL MPI_AllReduce(TempSumNoatHF,AllSumNoatHF,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        ALLOCATE(Temp1RDM(nBasis,nBasis),stat=ierr)
+        IF(ierr.ne.0) THEN
+            CALL Stop_All("NormandDiagOneRDM","Could not allocate Temp1RDM")
+        ENDIF
+
+        CALL MPI_AllReduce(OneRDM(:,:),Temp1RDM(:,:),nBasis*nBasis,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        OneRDM(:,:)=Temp1RDM(:,:)
+        DEALLOCATE(Temp1RDM)
+        
+!Normalise the off-diag OneRDM elements using the number of walkers on the HF determinant
+        do i=1,nBasis
+            do j=i+1,nBasis
+                OneRDM(i,j)=OneRDM(i,j)/AllSumNoatHF
+                OneRDM(j,i)=OneRDM(i,j)
+            enddo
+        enddo
+!Using the decoded version of the HF determinant, place values of 1.D0 in the diagonal elements
+!of the 1-RDM corresponding to the occupied orbitals.
+        do i=1,NEl
+            OneRDM(HFDet(i),HFDet(i))=1.D0
+        enddo
+    
+        CALL FindNatOrbs(OneRDM)           !Diagonalise the 1-RDM
+
+    ENDSUBROUTINE NormandDiagOneRDM
+
+
+
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
@@ -284,7 +334,7 @@ MODULE FciMCParMod
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NoIntforDet)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(DetCurr,CurrentIC(j),CurrentSign(j))
+            CALL SumEContrib(DetCurr,CurrentIC(j),CurrentSign(j),CurrentDets(:,j))
 
             IF(TResumFCIMC) THEN
 
@@ -1268,8 +1318,8 @@ MODULE FciMCParMod
 
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign)
-        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex
+    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr)
+        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NoIntforDet)
         LOGICAL :: WSign,CompiPath
         TYPE(HElement) :: HOffDiag
 
@@ -1290,6 +1340,7 @@ MODULE FciMCParMod
 !                AvSign=AvSign-1.D0
 !                AvSignHFD=AvSignHFD-1.D0
             ENDIF
+        
         ELSEIF(ExcitLevel.eq.2) THEN
             NoatDoubs=NoatDoubs+1
 !At double excit - find and sum in energy
@@ -1312,6 +1363,32 @@ MODULE FciMCParMod
 !            ELSE
 !                AvSign=AvSign-1.D0
 !            ENDIF
+
+        ELSEIF(tConstructNOs) THEN
+!Fill the 1-RDM to find natural orbital on-the-fly.
+            IF(ExcitLevel.eq.1) THEN
+!Find the orbitals that are involved in the excitation (those that differ in occupation to the ref orbital).
+                CALL FindSingleOrbs(iLutHF,iLutCurr,NoIntforDet,Orbs)
+!Add 1.D0 (or -1.D0) to the off-diagonal element connecting the relevent orbitals.
+                IF(Iter.gt.NEquilSteps) THEN
+                    IF(WSign) THEN
+                        OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))+1.D0
+                        OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
+                    ELSE
+                        OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))-1.D0
+                        OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
+                    ENDIF
+                ENDIF
+!At the end of all iterations, this OneRDM will contain only the unnormalised off-diagonal elements.
+
+
+!                IF(WSign) THEN
+!                    IF(Iter.gt.NEquilSteps) SumENumSing=SumENumSing+REAL(HOffDiagSing%v,r2) 
+!                ELSE
+!                    IF(Iter.gt.NEquilSteps) SumENumSing=SumENumSing-REAL(HOffDiagSing%v,r2)
+!                ENDIF
+            ENDIF
+            
         ENDIF
 
         IF(tHub.and.tReal) THEN
@@ -1383,6 +1460,7 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE SumEContrib
+
     
 !This is a routine to create a graph from the walker at nI, and ascribe new walkers at each vertex on the graph, according to a number of applications of the rho matrix.
     SUBROUTINE ResumGraphPar(nI,WSign,VecSlot,VecInd)
@@ -1823,6 +1901,7 @@ MODULE FciMCParMod
 !        WRITE(6,*) "Get Here 10"
 !        CALL FLUSH(6)
 
+
 !To find minimum and maximum excitation levels, search for them using MPI_Reduce
 !        inpair(1)=MaxExcitLevel
 !        inpair(2)=iProcIndex
@@ -2244,8 +2323,14 @@ MODULE FciMCParMod
             ENDIF
             CALL CalcApproxpDoubles(HFConn)
         ENDIF
+    
+        IF(tConstructNOs) THEN
+            ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
+            CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
+            OneRDM(:,:)=0.D0
+        ENDIF
+               
 
-        
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
             CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
         ENDIF
@@ -4491,9 +4576,14 @@ MODULE FciMCParMod
             DEALLOCATE(FreeIndArray)
         ENDIF
 
-        If(tFixCASShift) THEN
+        IF(tFixCASShift) THEN
             CALL LogMemDealloc(this_routine,SpinInvBRRTag)
             DEALLOCATE(SpinInvBRR)
+        ENDIF
+
+        IF(tConstructNOs) THEN
+            DEALLOCATE(OneRDM)
+            CALL LogMemDealloc(this_routine,OneRDMTag)
         ENDIF
         
 
