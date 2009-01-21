@@ -424,7 +424,7 @@ MODULE FciMCParMod
                     ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
 !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-                    CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,NEl)
+                    CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,2)
 !                    IF(ExcitLevelx.ne.ExcitLevel) THEN
 !                        CALL Stop_All("xxx","Excitlevels not same")
 !                    ENDIF
@@ -2681,8 +2681,8 @@ MODULE FciMCParMod
                 WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 
             ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat       MeanEx     MinEx MaxEx"
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     MinEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     MinEx"
             
             ENDIF
         ENDIF
