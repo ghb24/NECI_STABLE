@@ -4,6 +4,19 @@
 
 
 SUBROUTINE FindNatOrbs(OneRDM)
+    use SystemData , only : nBasis
+    IMPLICIT NONE
+    REAL*8 :: OneRDM(nBasis,nBasis)
+    INTEGER :: i,j
+
+    OPEN(12,FILE='ONEEL-RDM',STATUS='UNKNOWN')
+    do i=1,nBasis
+        do j=1,nBasis
+            WRITE(12,"(F18.7)",advance='no') OneRDM(i,j)
+        enddo
+        WRITE(12,*) ""
+    enddo
+    CLOSE(12)
 
 !First, diagonalize the 1-RDM...
     CALL Diag1RDM(OneRDM)
@@ -33,7 +46,11 @@ SUBROUTINE Diag1RDM(OneRDM)
 
 !Find desired optimal workspace size
     WorkSize=-1
-    CALL DSYEV('V','U',nBasis,OneRDM,nBasis,NOccNums,WorkCheck,WorkSize,iErr)
+    WorkCheck=3*nBasis+1
+!    CALL DSYEV('V','U',nBasis,OneRDM,nBasis,NOccNums,WorkCheck,WorkSize,iErr)
+!    IF(iErr.ne.0) THEN
+!        CALL Stop_All(this_routine,"Error in finding scratch space size")
+!    ENDIF
     WorkSize=WorkCheck
 
     WRITE(6,*) "Optimal size of scratch space for diagonalization = ",WorkCheck

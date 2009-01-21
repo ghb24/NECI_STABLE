@@ -265,8 +265,8 @@ MODULE FciMCParMod
 !and normalises it according to the number of walkers on the HF determinant.
 !It then diagonalises the 1-RDM to find linear combinations of the HF orbitals that are closer to the natural orbitals,
 !and the occupation numbers of these new orbitals (e-values).
-        INTEGER :: i,j,AllSumNoatHF,HFDet(nEl),error,ierr
-        REAL*8 :: OneRDM(nBasis,nBasis),TempSumNoatHF
+        INTEGER :: i,j,error,ierr
+        REAL*8 :: TempSumNoatHF
         REAL*8 , ALLOCATABLE :: Temp1RDM(:,:)
 
         TempSumNoatHF=real(SumNoatHF,r2)
@@ -979,13 +979,13 @@ MODULE FciMCParMod
 !        ENDIF
 
 !Insert a load-balance check here...maybe find the s.d. of the sendcounts array - maybe just check the range first.
-        IF(TotWalkersNew.gt.200) THEN
-            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
-                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
-                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
-!                CALL FLUSH(6)
-            ENDIF
-        ENDIF
+!        IF(TotWalkersNew.gt.200) THEN
+!            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
+!                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
+!                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
+!!                CALL FLUSH(6)
+!            ENDIF
+!        ENDIF
         
 !Now send the chunks of hashes to the corresponding processors
         CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
