@@ -19,7 +19,7 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,tPopsFilePar
     USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
     USE global_utilities
     USE HElem

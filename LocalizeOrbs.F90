@@ -1,5 +1,10 @@
 MODULE LocalizeOrbsMod
 
+    REAL*8 , ALLOCATABLE :: Coeff(:,:)
+    REAL*8 , ALLOCATABLE :: Lambdas(:,:)
+    REAL*8 , ALLOCATABLE :: DerivCoeff(:,:)
+    REAL*8 , ALLOCATABLE :: DerivLambda(:,:)
+
     contains
 
     SUBROUTINE LocalizeOrbs()
@@ -34,6 +39,23 @@ MODULE LocalizeOrbsMod
         CALL TestForConvergence()
 
     END SUBROUTINE RotateOrbs
+
+
+    SUBROUTINE FindTheForce
+
+!loop over m,z
+
+    !loop over i,j,k,l
+
+        !loop over a,b,g,d to find 'new' matrix element
+
+        !seperate loop over bgd/agd/abd...
+
+    !loop over j
+
+    !loop over i
+
+    END SUBROUTINE FindTheForce
 
         
 
