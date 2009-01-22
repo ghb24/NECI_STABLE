@@ -4,6 +4,11 @@ MODULE LocalizeOrbsMod
     REAL*8 , ALLOCATABLE :: Lambdas(:,:)
     REAL*8 , ALLOCATABLE :: DerivCoeff(:,:)
     REAL*8 , ALLOCATABLE :: DerivLambda(:,:)
+    REAL*8 , ALLOCATABLE :: OneIndInts(:,:), TwoIndInts(:,:), ThreeIndInts(:,:), FourIndInts(:,:)   !These are the arrays to store the
+                                                                                                    !partially transformed integrals for
+                                                                                                    !each iteration. The FourIndInts are
+                                                                                                    !the full <ij|kl> integrals for the
+                                                                                                    !current iteration.
 
     contains
 
@@ -38,6 +43,8 @@ MODULE LocalizeOrbsMod
 !Force should go to zero as we end in minimum - test for this
         CALL TestForConvergence()
 
+        CALL Transform2ElInts()
+
     END SUBROUTINE RotateOrbs
 
 
@@ -47,8 +54,6 @@ MODULE LocalizeOrbsMod
 
     !loop over i,j,k,l
 
-        !loop over a,b,g,d to find 'new' matrix element
-
         !seperate loop over bgd/agd/abd...
 
     !loop over j
@@ -56,6 +61,28 @@ MODULE LocalizeOrbsMod
     !loop over i
 
     END SUBROUTINE FindTheForce
+
+    SUBROUTINE Transform2EInts()
+
+!Zero arrays from previous transform
+
+!loop over i
+    !loop over beta,gamma,delta
+        !sum over alpha to store <i beta | gamma delta> - OneIndInts
+
+!loop over j
+    !loop over i, gamma, delta
+        !sum over beta to store <i j | gamma delta> - TwoIndInts
+
+!loop over k
+    !loop over i, j, delta
+        !sum over gamma to store <i j | k delta> - ThreeIndInts
+
+!loop over l
+    !loop over i,j,k
+        !sum over delta to store <i j | k l> - FourIndInts
+
+    END SUBROUTINE Transform2EInts
 
         
 
