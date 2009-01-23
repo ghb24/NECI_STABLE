@@ -1,5 +1,9 @@
 MODULE LocalizeOrbsMod
 
+    USE Global_utilities
+    USE IntegralsData , only : UMAT
+    USE UMatCache , only : UMatInd
+    IMPLICIT NONE
     REAL*8 , ALLOCATABLE :: Coeff(:,:)
     REAL*8 , ALLOCATABLE :: Lambdas(:,:)
     REAL*8 , ALLOCATABLE :: DerivCoeff(:,:)
@@ -8,8 +12,9 @@ MODULE LocalizeOrbsMod
 !partially transformed integrals for each iteration. The FourIndInts are the full <ij|kl> integrals for the current iteration.
 !OneIndInts = <i b|g d> ; TwoIndInts = <i b|k d> ; ThreeIndInts = <i j|k d>
     INTEGER :: SpatOrbs,OneIndIntsTag,TwoIndIntsTag,ThreeIndIntsTag,FourIndIntsTag
-    INTEGER :: CoeffTag,LambdasTag,DerivCoeffTag,DerivLambdaTag
+    INTEGER :: CoeffTag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration
     LOGICAL :: tNotConverged
+    REAL*8 :: OrthoNorm,PotEnergy,Force,2EInts,DistCs
 
     contains
 
@@ -20,9 +25,18 @@ MODULE LocalizeOrbsMod
         tNotConverged=.true.
         do while(tNotConverged)
 
+            Iteration=Iteration+1
+
             CALL RotateOrbs() 
 
+            WRITE(6,*) Iteration,PotEnergy,Force,2EInts,OrthoNorm,DistCs
+            WRITE(12,*) Iteration,PotEnergy,Force,2EInts,OrthoNorm,DistCs
+            CALL FLUSH(6)
+            CALL FLUSH(12)
+
         enddo
+
+        WRITE(6,*) "Convergence criterion met. Finalizing new orbitals..."
 
 !Make symmetry, orbitals, one/two-electron integrals consistent with rest of neci
         CALL FinalizeNewOrbs()
@@ -43,12 +57,31 @@ MODULE LocalizeOrbsMod
 !Update coefficents by moving them in direction of force. Also update lambda matrix. Print sum of squared changes in coefficients. 
         CALL UseTheForce()
 
+        CALL TestOrthonormality()
+
+
 !Force should go to zero as we end in minimum - test for this
         CALL TestForConvergence()
 
         CALL Transform2ElInts()
 
     END SUBROUTINE RotateOrbs
+
+    SUBROUTINE TestOrthonormality
+        INTEGER :: i,j,a
+
+        OrthoNorm=0.D0
+        do i=1,SpatOrbs
+            do j=1,i
+                do a=1,SpatOrbs
+                    OrthoNorm=OrthoNorm+Coeff(i,a)*Coeff(j,a)
+                enddo
+            enddo
+        enddo
+        OrthoNorm=OrthoNorm-real(SpatOrbs,8)
+        OrthoNorm=(OrthoNorm*2.D0)/REAL((SpatOrbs*(SpatOrbs+1.D0)),8)
+
+    END SUBROUTINE TestOrthonormality
 
 
     SUBROUTINE FindTheForce
@@ -164,7 +197,15 @@ MODULE LocalizeOrbsMod
         REAL*8 :: t
         INTEGER :: i,j,k,l,ierr
 
+        WRITE(6,*) "Calculating new molecular orbitals based on mimimisation of <ij|kl>^2 integrals..."
+
+        OrthoNorm=0.D0
+        PotEnergy=0.D0
+        Force=0.D0
+        2EIntes=0.D0
+        DistCs=0.D0
         SpatOrbs=nBasis/2
+        Iteration=0
 
 !Allocate memory
         ALLOCATE(Coeff(SpatOrbs,SpatOrbs),stat=ierr)
@@ -221,6 +262,9 @@ MODULE LocalizeOrbsMod
         enddo
 
         OPEN(12,FILE='Transform.Dat',STATUS='unknown')
+!We want to write out: Iteration, Potential energy, Force, Sum<ij|kl>^2, OrthonormalityCondition
+        WRITE(12,*) "# Iteration   PotEnergy   Force   Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
+        WRITE(6,*) "Iteration   PotEnergy   Force   Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
 
     END SUBROUTINE InitLocalOrbs
 
