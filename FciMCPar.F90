@@ -190,11 +190,24 @@ MODULE FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use soft_exit, only : test_SOFTEXIT
+        use UMatCache, only : UMatInd
         TYPE(HDElement) :: Weight,Energyxw
-        INTEGER :: i,j,error
+        INTEGER :: i,j,error!,k,l
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
-        TYPE(HElement) :: Hamii
+        TYPE(HElement) :: Hamii!,t
         LOGICAL :: TIncrement
+
+!        t=HElement(0.D0)
+!        do i=1,nBasis/2
+!            do j=1,nBasis/2
+!                do k=1,nBasis/2
+!                    do l=1,nBasis/2
+!                        t=t+(UMAT(UMatInd(i,j,k,l,0,0))*UMAT(UMatInd(i,j,k,l,0,0)))
+!                    enddo
+!                enddo
+!            enddo
+!        enddo
+!        WRITE(6,*) "Sum of squares of <ij|kl> integrals is: ",REAL(t%v,r2)
 
         TDebug=.false.  !Set debugging flag
 

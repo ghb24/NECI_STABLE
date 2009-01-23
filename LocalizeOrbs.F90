@@ -59,7 +59,6 @@ MODULE LocalizeOrbsMod
 
         CALL TestOrthonormality()
 
-
 !Force should go to zero as we end in minimum - test for this
         CALL TestForConvergence()
 
@@ -167,6 +166,19 @@ MODULE LocalizeOrbsMod
 
         enddo
     enddo
+
+!We also need to find the force on the lambdas to ensure orthonormality...
+    DerivLambda(:,:)=0.D0
+    do i=1,SpatOrbs
+        do j=1,i
+            do a=1,SpatOrbs
+                DerivLambda(i,j)=DerivLambda(i,j)+Coeff(i,a)*Coeff(j,a)
+            enddo
+            IF(i.eq.j) DerivLambda(i,j)=DerivLambda(i,j)-1.D0
+            DerivLambda(j,i)=DerivLambda(i,j)
+        enddo
+    enddo
+
 
     END SUBROUTINE FindTheForce
 

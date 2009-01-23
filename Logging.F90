@@ -36,6 +36,7 @@ MODULE Logging
       TDetPops=.false.
       TZeroProjE=.false.
       TWriteDetE=.false.
+!      iPopsPartEvery=1
 
 ! Feb08 defaults
       IF(Feb08) THEN
