@@ -217,6 +217,7 @@ MODULE Calc
             end if
             call readu(w)
             select case(w)
+
             case("HAMILTONIAN")
                 TCALCHMAT = .true.
                 IF(item.lt.nitems) THEN

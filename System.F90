@@ -67,6 +67,9 @@ MODULE System
 
       lNoSymmetry=.false.
 
+      tLocalizeOrbs=.false.
+      TimeStep=0.1
+      ConversionLimit=0.001
 !Feb08 defaults:
       IF(Feb08) THEN
           !...add defaults...
@@ -327,6 +330,18 @@ MODULE System
 !use these assumed size excitation generators to generate the whole list of excitations, will result 
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
+
+
+
+! The LOCALIZEORBS calculation initiates a routine which takes the HF orbitals
+! and finds the optimal set of transformation coefficients to produce a new 
+! set of orbitals which minimise the sum of |<ij|kl>|^2 elements.
+! This new set of orbitals is then used to perform the FCIMC calculation.
+        case("LOCALIZEORBS")
+            tLocalizeOrbs=.true.
+            call Getf(TimeStep)
+            call Getf(ConversionLimit)
+
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
 !CYCLETHRUORBS can be useful if we have small basis sets or v high restrictive symmetry and will eliminate
