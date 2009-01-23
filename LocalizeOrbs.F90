@@ -85,18 +85,117 @@ MODULE LocalizeOrbsMod
 
 
     SUBROUTINE FindTheForce
+        INTEGER :: m,z,i,j,k,l,a,b,g,d,t1,t2,t3
+        REAL*8 :: Deriv4indint,Deri4indintsqrd
 
-!loop over m,z
+! Running over m and z, covers all matrix elements of the force matrix (derivative 
+! of equation we are minimising, with respect to each translation coefficient) filling 
+! them in as it goes.
 
-    !loop over i,j,k,l
+    DerivCoeff(:,:)=0.D0
+    
+    do m=1,SpatOrbs
+! To include: symmetry requirement that z must be from the same irrep as m
+        do z=1,SpatOrbs
+                
+! This runs over the full <ij|kl> integrals from the previous iteration. 
+! In the future we can take advantage of the permutational symmetry of the matrix elements
+! however this only takes into account 1/4 of the off-diagonal plus the diagonal elements
+! and this must be accounted for when calculating Deriv4indintsqrd.
+            do i=1,SpatOrbs
+                do k=1,SpatOrbs
+                    do j=1,SpatOrbs
+                        do l=1,SpatOrbs
 
-        !seperate loop over bgd/agd/abd...
+! To include: If statement to check the symmetry of i x j x k x l is A1.
+!                                If((((i-1)*nBasis)+k).ge.(((j-1)*nBasis)+l)) THEN
 
-    !loop over j
+! Already calculated the four index integrals and some partial integrals
+! in Transform2ElInts routine of the previous iteration.
 
-    !loop over i
+! Deriv4indint is the derivative of <ij|kl> with respect to a coefficient
+! c(m,z), at the current m,z,i,j,k,l of the loop.
+! This involves 4 terms in which the derivative is taken w.r.t the i,j,k or l position in <ij|kl>. 
+
+                            t1=0.D0    
+                            do b=1,SpatOrbs
+                                do g=1,SpatOrbs
+                                    do d=1,SpatOrbs
+                                        t1=t1+(Coeff(j,b)*Coeff(k,g)*Coeff(l,d)*UMAT(UMatInd(z,b,g,d,0,0)))
+                                    enddo
+                                enddo
+                            enddo
+                            
+                            t2=0.D0    
+                            do d=1,SpatOrbs     
+                                t2=t2+(Coeff(l,d)*TwoIndInts(i,z,k,d))
+                            enddo
+
+                            t3=0.D0
+                            do b=1,SpatOrbs
+                                do d=1,SpatOrbs
+                                    t3=t3+Coeff(j,b)*Coeff(l,d)*OneIndInts(i,b,z,d)
+                                enddo
+                            enddo
+
+                            Deriv4indint=(t1 + t2 + t3 + ThreeIndInts(i,j,k,z))
+
+! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
+! This accumulates as the loop sums over i,j,k and l.
+                            Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInt(i,j,k,l)*Deriv4indint)   
+
+!                                endif
+                        enddo
+                    enddo
+                enddo
+            enddo
+
+            ! Calculate the derivatives of orthogonalisation condition.
+               
+            do j=1,SpatOrbs
+                LambdaTerm1=LambdaTerm1+(Lambdas(m,j)*Coeff(z,j))
+            enddo
+
+            do i=1,SpatOrbs
+                LambdaTerm2=LambdaTerm2+(Lambdas(i,m)*Coeff(i,z))
+            enddo
+
+! DerivCoeff is 'the force'.  I.e. the derivative of |<ij|kl>|^2 (with orthogonalisation constraints) with 
+! respect to each transformation coefficient.  It is the values of this matrix that will tend to 0 as
+! we minimise the sum of the |<ij|kl>|^2 values.
+            DerivCoeff(m,z)=(2*Deriv4indintsqrd)-LambdaTerm1-LambdaTerm2
+
+        enddo
+    enddo
 
     END SUBROUTINE FindTheForce
+
+    
+    SUBROUTINE UseTheForce()
+! This routine takes the old translation coefficients and Lambdas and moves them by a timestep in the direction 
+! of the calculated force.
+    INTEGER :: m,z,i,j
+    REAL*8 :: NewCoeff,NewLambda
+
+    
+    do m=1,SpatOrbs
+        do z=1,SpatOrbs
+            NewCoeff=0.D0
+            NewCoeff=Coeff(m,z)-(TimeStep*DerivCoeff(m,z))
+            Coeff(m,z)=NewCoeff
+        enddo
+    enddo
+
+    do i=1,SpatOrbs
+        do j=1,SpatOrbs
+            NewLambda=0.D0
+            NewLambda=Lambdas(i,j)-(TimeStep*DerivLambda(i,j))  ! Timestep must be specified in the input file.
+            Lambdas(i,j)=NewLambda
+        enddo
+    enddo
+
+    ENDSUBROUTINE UseTheForce
+
 
     
 !This is an M^5 transform, which transforms all the two-electron integrals into the new basis described by the Coeff matrix.
