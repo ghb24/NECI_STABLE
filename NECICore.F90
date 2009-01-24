@@ -163,7 +163,7 @@ subroutine NECICalcInit(iCacheFlag)
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
     if (tPostFreezeHF) call HFDoCalc()
-    IF(tLocalizeOrbs) CALL LocalizeOrbs(TimeStep,ConversionLimit)
+!    IF(tLocalizeOrbs) CALL LocalizeOrbs(TimeStep,ConversionLimit)
     call DetInit()
 
 ! Deal with the many-electron basis, setting up sym etc.
