@@ -19,7 +19,7 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery
     USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
     USE global_utilities
     USE HElem
@@ -2951,14 +2951,19 @@ MODULE FciMCParMod
         CALL MPI_Barrier(MPI_COMM_WORLD,error)  !sync
 
 !First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
-        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
+!        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         TempSumNoatHF=real(SumNoatHF,r2)
         CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
         CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
 
 !We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
-        CALL MPI_Gather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        do i=0,nProcessors-1
+            IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
+                RETURN
+            ENDIF
+        enddo
 
         Tag=125
 !        WRITE(6,*) "Get Here"
@@ -2968,14 +2973,19 @@ MODULE FciMCParMod
 !First, check that we are going to receive the correct number of particles...
             Total=0
             do i=0,nProcessors-1
-                Total=Total+WalkersonNodes(i)
+                Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
-            IF(Total.ne.AllTotWalkers) THEN
-                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
-            ENDIF
+            AllTotWalkers=Total
+!            IF(Total.ne.AllTotWalkers) THEN
+!                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
+!            ENDIF
 
 !Write header information
-            WRITE(6,*) "Writing to POPSFILE..."
+            IF(iPopsPartEvery.ne.1) THEN
+                WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",AllTotWalkers, " particles."
+            ELSE
+                WRITE(6,*) "Writing to POPSFILE..."
+            ENDIF
             OPEN(17,FILE='POPSFILE',Status='unknown')
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
@@ -2984,10 +2994,12 @@ MODULE FciMCParMod
             WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
             do j=1,TotWalkers
 !First write out walkers on head node
-                do k=0,NoIntforDet
-                    WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
-                enddo
-                WRITE(17,*) CurrentSign(j)
+                IF(mod(j,iPopsPartEvery).eq.0) THEN
+                    do k=0,NoIntforDet
+                        WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
+                    enddo
+                    WRITE(17,*) CurrentSign(j)
+                ENDIF
             enddo
 !            WRITE(6,*) "Written out own walkers..."
 !            CALL FLUSH(6)
@@ -3002,10 +3014,12 @@ MODULE FciMCParMod
                 
 !Then write it out...
                 do j=1,WalkersonNodes(i)
-                    do k=0,NoIntforDet
-                        WRITE(17,"(I20)",advance='no') NewDets(k,j)
-                    enddo
-                    WRITE(17,*) NewSign(j)
+                    IF(mod(j,iPopsPartEvery).eq.0) THEN
+                        do k=0,NoIntforDet
+                            WRITE(17,"(I20)",advance='no') NewDets(k,j)
+                        enddo
+                        WRITE(17,*) NewSign(j)
+                    ENDIF
                 enddo
 !                WRITE(6,*) "Writted out walkers for processor ",i
 !                CALL FLUSH(6)

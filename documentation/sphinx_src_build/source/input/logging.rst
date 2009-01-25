@@ -135,6 +135,9 @@ FCIMC options
     weighted triple excitations, and the 'NoACDets(4)' largest quadruple excitations from this calculation
     to also histogram.
 
+**REDUCEDPOPSFILE** [iWritePopsEvery] [iPopsPartEvery]
+    This works in the same way as the normal popsfile, but only every iPopsPartEvery particle is printed out.
+
 **POPSFILE** [iWritePopsEvery]
     Default: on.  Default iWritePopsEvery (optional argument) 100000.
     Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
