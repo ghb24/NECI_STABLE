@@ -21,7 +21,7 @@ MODULE LocalizeOrbsMod
     INTEGER :: SpatOrbs,OneIndIntsTag,TwoIndIntsTag,ThreeIndIntsTag,FourIndIntsTag
     INTEGER :: CoeffTag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration
     LOGICAL :: tNotConverged
-    REAL*8 :: OrthoNorm,PotEnergy,Force,TwoEInts,DistCs,OrthoForce
+    REAL*8 :: OrthoNorm,PotEnergy,Force,TwoEInts,DistCs,OrthoForce,DistLs,LambdaMag
     REAL*8 :: OrthoFac=1.D0
 
     contains
@@ -30,8 +30,8 @@ MODULE LocalizeOrbsMod
 
         CALL InitLocalOrbs()
 
-        WRITE(6,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
-        WRITE(12,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
+        WRITE(6,"(I7,8F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+        WRITE(12,"(I7,8F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
         tNotConverged=.true.
         do while(tNotConverged)
 
@@ -39,8 +39,8 @@ MODULE LocalizeOrbsMod
 
             CALL RotateOrbs() 
 
-            WRITE(6,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
-            WRITE(12,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
+            WRITE(6,"(I7,8F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+            WRITE(12,"(I7,8F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
             CALL FLUSH(6)
             CALL FLUSH(12)
 
@@ -87,7 +87,7 @@ MODULE LocalizeOrbsMod
 
     END SUBROUTINE TestForConvergence
 
-    SUBROUTINE TestOrthonormality
+    SUBROUTINE TestOrthonormality()
         INTEGER :: i,j,a
 
         OrthoNorm=0.D0
@@ -238,13 +238,19 @@ MODULE LocalizeOrbsMod
     enddo
     DistCs=DistCs/(REAL(SpatOrbs**2,8))
 
+    DistLs=0.D0
+    LambdaMag=0.D0
     do i=1,SpatOrbs
         do j=1,SpatOrbs
             NewLambda=0.D0
             NewLambda=Lambdas(i,j)-(TimeStep*DerivLambda(i,j))  ! Timestep must be specified in the input file.
+            DistLs=DistLs+abs(TimeStep*DerivLambda(i,j))
             Lambdas(i,j)=NewLambda
+            LambdaMag=LambdaMag+abs(NewLambda)
         enddo
     enddo
+    DistLs=DistLs/(REAL(SpatOrbs**2,8))
+    LambdaMag=LambdaMag/(REAL(SpatOrbs**2,8))
 
     ENDSUBROUTINE UseTheForce
 
@@ -371,6 +377,8 @@ MODULE LocalizeOrbsMod
         Force=0.D0
         TwoEInts=0.D0
         DistCs=0.D0
+        DistLs=0.D0
+        LambdaMag=0.D0
         SpatOrbs=nBasis/2
         Iteration=0
         OrthoForce=0.D0
@@ -430,11 +438,12 @@ MODULE LocalizeOrbsMod
                 enddo
             enddo
         enddo
+        CALL TestOrthonormality()
 
         OPEN(12,FILE='Transform',STATUS='unknown')
 !We want to write out: Iteration, Potential energy, Force, Sum<ij|kl>^2, OrthonormalityCondition
-        WRITE(12,"(A)") "# Iteration   PotEnergy   Force   OrthoForce    Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
-        WRITE(6,"(A)") "Iteration   PotEnergy   Force   OrthoForce    Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
+        WRITE(12,"(A)") "# Iteration   PotEnergy   Force   OrthoForce    Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs   DistMovedByLs   LambdaMag"
+        WRITE(6,"(A)") "Iteration   PotEnergy   Force   OrthoForce    Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs   DistMovedbyLs   LambdaMag"
 
     END SUBROUTINE InitLocalOrbs
 
