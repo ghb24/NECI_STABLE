@@ -69,7 +69,7 @@ MODULE System
 
       tLocalizeOrbs=.false.
       TimeStep=0.1
-      ConversionLimit=0.001
+      ConvergedForce=0.001
 !Feb08 defaults:
       IF(Feb08) THEN
           !...add defaults...
@@ -340,7 +340,7 @@ MODULE System
         case("LOCALIZEORBS")
             tLocalizeOrbs=.true.
             call Getf(TimeStep)
-            call Getf(ConversionLimit)
+            call Getf(ConvergedForce)
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

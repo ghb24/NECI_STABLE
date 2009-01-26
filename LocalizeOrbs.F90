@@ -1,8 +1,15 @@
+!TO DO
+!Spatial symmetry
+!Finalize orbs to fully test
+!Permutational symmetry where possible
+!Parallelize
+
 MODULE LocalizeOrbsMod
 
     USE Global_utilities
     USE IntegralsData , only : UMAT
     USE UMatCache , only : UMatInd
+    USE SystemData , only : ConvergedForce,TimeStep
     IMPLICIT NONE
     REAL*8 , ALLOCATABLE :: Coeff(:,:)
     REAL*8 , ALLOCATABLE :: Lambdas(:,:)
@@ -14,11 +21,11 @@ MODULE LocalizeOrbsMod
     INTEGER :: SpatOrbs,OneIndIntsTag,TwoIndIntsTag,ThreeIndIntsTag,FourIndIntsTag
     INTEGER :: CoeffTag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration
     LOGICAL :: tNotConverged
-    REAL*8 :: OrthoNorm,PotEnergy,Force,2EInts,DistCs
+    REAL*8 :: OrthoNorm,PotEnergy,Force,TwoEInts,DistCs
 
     contains
 
-    SUBROUTINE LocalizeOrbs(TimeStep,ConversionLimit)
+    SUBROUTINE LocalizeOrbs()
 
         CALL InitLocalOrbs()
 
@@ -29,8 +36,8 @@ MODULE LocalizeOrbsMod
 
             CALL RotateOrbs() 
 
-            WRITE(6,*) Iteration,PotEnergy,Force,2EInts,OrthoNorm,DistCs
-            WRITE(12,*) Iteration,PotEnergy,Force,2EInts,OrthoNorm,DistCs
+            WRITE(6,*) Iteration,PotEnergy,Force,TwoEInts,OrthoNorm,DistCs
+            WRITE(12,*) Iteration,PotEnergy,Force,TwoEInts,OrthoNorm,DistCs
             CALL FLUSH(6)
             CALL FLUSH(12)
 
@@ -39,13 +46,15 @@ MODULE LocalizeOrbsMod
         WRITE(6,*) "Convergence criterion met. Finalizing new orbitals..."
 
 !Make symmetry, orbitals, one/two-electron integrals consistent with rest of neci
-        CALL FinalizeNewOrbs()
+!        CALL FinalizeNewOrbs()
 
 !option to create new FCIDUMP?
 
         CALL DeallocateMem()
 
         CLOSE(12)
+
+        CALL Stop_All("LocalizeOrbs","This code is still in the testing phase")
 
     END SUBROUTINE LocalizeOrbs
 
@@ -66,6 +75,15 @@ MODULE LocalizeOrbsMod
 
     END SUBROUTINE RotateOrbs
 
+!This just tests the convergence on the grounds that the force is smaller that the input parameter: ConvergedForce
+    SUBROUTINE TestForConvergence()
+
+        IF(Force.lt.ConvergedForce) THEN
+            tNotConverged=.false.
+        ENDIF
+
+    END SUBROUTINE TestForConvergence
+
     SUBROUTINE TestOrthonormality
         INTEGER :: i,j,a
 
@@ -73,7 +91,7 @@ MODULE LocalizeOrbsMod
         do i=1,SpatOrbs
             do j=1,i
                 do a=1,SpatOrbs
-                    OrthoNorm=OrthoNorm+Coeff(i,a)*Coeff(j,a)
+                    OrthoNorm=OrthoNorm+Coeff(i,a)*Coeff(a,j)
                 enddo
             enddo
         enddo
@@ -82,16 +100,16 @@ MODULE LocalizeOrbsMod
 
     END SUBROUTINE TestOrthonormality
 
-
     SUBROUTINE FindTheForce
-        INTEGER :: m,z,i,j,k,l,a,b,g,d,t1,t2,t3
-        REAL*8 :: Deriv4indint,Deri4indintsqrd
+        INTEGER :: m,z,i,j,k,l,a,b,g,d
+        REAL*8 :: Deriv4indint,Deriv4indintsqrd,t1,t2,t3,LambdaTerm1,LambdaTerm2
 
 ! Running over m and z, covers all matrix elements of the force matrix (derivative 
 ! of equation we are minimising, with respect to each translation coefficient) filling 
 ! them in as it goes.
 
     DerivCoeff(:,:)=0.D0
+    Force=0.D0
     
     do m=1,SpatOrbs
 ! To include: symmetry requirement that z must be from the same irrep as m
@@ -120,7 +138,7 @@ MODULE LocalizeOrbsMod
                             do b=1,SpatOrbs
                                 do g=1,SpatOrbs
                                     do d=1,SpatOrbs
-                                        t1=t1+(Coeff(j,b)*Coeff(k,g)*Coeff(l,d)*UMAT(UMatInd(z,b,g,d,0,0)))
+                                        t1=t1+(Coeff(j,b)*Coeff(k,g)*Coeff(l,d)*REAL(UMAT(UMatInd(z,b,g,d,0,0))%v,8))
                                     enddo
                                 enddo
                             enddo
@@ -141,7 +159,7 @@ MODULE LocalizeOrbsMod
 
 ! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
 ! This accumulates as the loop sums over i,j,k and l.
-                            Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInt(i,j,k,l)*Deriv4indint)   
+                            Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint)   
 
 !                                endif
                         enddo
@@ -149,8 +167,10 @@ MODULE LocalizeOrbsMod
                 enddo
             enddo
 
-            ! Calculate the derivatives of orthogonalisation condition.
-               
+! Calculate the derivatives of orthogonalisation condition.
+
+            LambdaTerm1=0.D0
+            LambdaTerm2=0.D0
             do j=1,SpatOrbs
                 LambdaTerm1=LambdaTerm1+(Lambdas(m,j)*Coeff(z,j))
             enddo
@@ -163,20 +183,25 @@ MODULE LocalizeOrbsMod
 ! respect to each transformation coefficient.  It is the values of this matrix that will tend to 0 as
 ! we minimise the sum of the |<ij|kl>|^2 values.
             DerivCoeff(m,z)=(2*Deriv4indintsqrd)-LambdaTerm1-LambdaTerm2
+            Force=Force+DerivCoeff(m,z)
 
         enddo
     enddo
+
+    Force=Force/REAL(SpatOrbs**2,8)
 
 !We also need to find the force on the lambdas to ensure orthonormality...
     DerivLambda(:,:)=0.D0
     do i=1,SpatOrbs
         do j=1,i
             do a=1,SpatOrbs
-                DerivLambda(i,j)=DerivLambda(i,j)+Coeff(i,a)*Coeff(j,a)
+                DerivLambda(i,j)=DerivLambda(i,j)+Coeff(i,a)*Coeff(a,j)
             enddo
-            IF(i.eq.j) DerivLambda(i,j)=DerivLambda(i,j)-1.D0
             DerivLambda(j,i)=DerivLambda(i,j)
         enddo
+    enddo
+    do i=1,SpatOrbs
+        DerivLambda(i,i)=DerivLambda(i,i)-1.D0
     enddo
 
 
@@ -189,14 +214,16 @@ MODULE LocalizeOrbsMod
     INTEGER :: m,z,i,j
     REAL*8 :: NewCoeff,NewLambda
 
-    
+    DistCs=0.D0 
     do m=1,SpatOrbs
         do z=1,SpatOrbs
             NewCoeff=0.D0
             NewCoeff=Coeff(m,z)-(TimeStep*DerivCoeff(m,z))
+            DistCs=DistCs+abs(TimeStep*DerivCoeff(m,z))
             Coeff(m,z)=NewCoeff
         enddo
     enddo
+    DistCs=DistCs/(REAL(SpatOrbs**2,8))
 
     do i=1,SpatOrbs
         do j=1,SpatOrbs
@@ -212,7 +239,7 @@ MODULE LocalizeOrbsMod
     
 !This is an M^5 transform, which transforms all the two-electron integrals into the new basis described by the Coeff matrix.
 !This is v memory inefficient and currently does not use any spatial symmetry information.
-    SUBROUTINE Transform2EInts()
+    SUBROUTINE Transform2ElInts()
         INTEGER :: i,j,k,l,a,b,g,d
         REAL*8 :: t
 
@@ -233,7 +260,7 @@ MODULE LocalizeOrbsMod
                         t=0.D0
                         do a=1,SpatOrbs     !This loop only wants to be over the atomic orbitals in the symmetry class of the current i loop
 !sum over alpha to store <i beta | gamma delta> - OneIndInts
-                            t=t+Coeff(i,a)*UMAT(UMatInd(a,b,g,d,0,0))
+                            t=t+Coeff(i,a)*REAL(UMAT(UMatInd(a,b,g,d,0,0))%v,8)
                         enddo
                         OneIndInts(i,b,g,d)=t
                         OneIndInts(i,d,g,b)=t
@@ -279,6 +306,8 @@ MODULE LocalizeOrbsMod
             enddo
         enddo
 
+        PotEnergy=0.D0
+        TwoEInts=0.D0
         do l=1,SpatOrbs !loop over l orbitals in each symmetry irrep
             do j=1,l    ! j =< l
                 do i=1,SpatOrbs
@@ -294,12 +323,26 @@ MODULE LocalizeOrbsMod
                         FourIndInts(k,j,i,l)=t
                         FourIndInts(i,l,k,j)=t
                         FourIndInts(k,l,i,j)=t
+                        PotEnergy=PotEnergy+(t**2)
+                        TwoEInts=TwoEInts+(t**2)
                     enddo
                 enddo
             enddo
         enddo
 
-    END SUBROUTINE Transform2EInts
+! Now find the change of the potential energy due to the orthonormality of the orbitals...
+        do i=1,SpatOrbs
+            do j=1,SpatOrbs
+                t=0.D0
+                do a=1,SpatOrbs
+                    t=Coeff(i,a)*Coeff(a,j)
+                enddo
+                IF(i.eq.j) t=t-1.D0
+                PotEnergy=PotEnergy-Lambdas(i,j)*t
+            enddo
+        enddo
+
+    END SUBROUTINE Transform2ElInts
 
 
     SUBROUTINE InitLocalOrbs()
@@ -313,7 +356,7 @@ MODULE LocalizeOrbsMod
         OrthoNorm=0.D0
         PotEnergy=0.D0
         Force=0.D0
-        2EIntes=0.D0
+        TwoEInts=0.D0
         DistCs=0.D0
         SpatOrbs=nBasis/2
         Iteration=0
@@ -350,7 +393,9 @@ MODULE LocalizeOrbsMod
             do k=1,i
                 do j=1,SpatOrbs
                     do l=1,j
-                        t=UMAT(UMatInd(i,j,k,l,0,0))
+                        t=REAL(UMAT(UMatInd(i,j,k,l,0,0))%v,8)
+                        PotEnergy=PotEnergy+(t**2)       !Potential energy starts as this since the orbitals are orthonormal by construction.
+                        TwoEInts=TwoEInts+(t**2)
                         FourIndInts(i,j,k,l)=t
                         FourIndInts(k,j,i,l)=t
                         FourIndInts(i,l,k,j)=t
@@ -400,10 +445,6 @@ MODULE LocalizeOrbsMod
         CALL LogMemDealloc(this_routine,FourIndIntsTag)
 
     END SUBROUTINE DeallocateMem
-        
-
-
-
         
 
 END MODULE LocalizeOrbsMod
