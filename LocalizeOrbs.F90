@@ -21,7 +21,8 @@ MODULE LocalizeOrbsMod
     INTEGER :: SpatOrbs,OneIndIntsTag,TwoIndIntsTag,ThreeIndIntsTag,FourIndIntsTag
     INTEGER :: CoeffTag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration
     LOGICAL :: tNotConverged
-    REAL*8 :: OrthoNorm,PotEnergy,Force,TwoEInts,DistCs
+    REAL*8 :: OrthoNorm,PotEnergy,Force,TwoEInts,DistCs,OrthoForce
+    REAL*8 :: OrthoFac=1.D0
 
     contains
 
@@ -29,6 +30,8 @@ MODULE LocalizeOrbsMod
 
         CALL InitLocalOrbs()
 
+        WRITE(6,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
+        WRITE(12,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
         tNotConverged=.true.
         do while(tNotConverged)
 
@@ -36,8 +39,8 @@ MODULE LocalizeOrbsMod
 
             CALL RotateOrbs() 
 
-            WRITE(6,*) Iteration,PotEnergy,Force,TwoEInts,OrthoNorm,DistCs
-            WRITE(12,*) Iteration,PotEnergy,Force,TwoEInts,OrthoNorm,DistCs
+            WRITE(6,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
+            WRITE(12,"(I7,6F25.10)") Iteration,PotEnergy,Force,OrthoForce,TwoEInts,OrthoNorm,DistCs
             CALL FLUSH(6)
             CALL FLUSH(12)
 
@@ -78,7 +81,7 @@ MODULE LocalizeOrbsMod
 !This just tests the convergence on the grounds that the force is smaller that the input parameter: ConvergedForce
     SUBROUTINE TestForConvergence()
 
-        IF(Force.lt.ConvergedForce) THEN
+        IF(abs(Force).lt.ConvergedForce) THEN
             tNotConverged=.false.
         ENDIF
 
@@ -110,6 +113,7 @@ MODULE LocalizeOrbsMod
 
     DerivCoeff(:,:)=0.D0
     Force=0.D0
+    Deriv4indintsqrd=0.D0
     
     do m=1,SpatOrbs
 ! To include: symmetry requirement that z must be from the same irrep as m
@@ -159,7 +163,11 @@ MODULE LocalizeOrbsMod
 
 ! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
 ! This accumulates as the loop sums over i,j,k and l.
-                            Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint)   
+!                            IF(Iteration.lt.1000) THEN
+                                Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint)   
+!                            ELSE
+!                                Deriv4indintsqrd=0.D0
+!                            ENDIF
 
 !                                endif
                         enddo
@@ -182,13 +190,18 @@ MODULE LocalizeOrbsMod
 ! DerivCoeff is 'the force'.  I.e. the derivative of |<ij|kl>|^2 (with orthogonalisation constraints) with 
 ! respect to each transformation coefficient.  It is the values of this matrix that will tend to 0 as
 ! we minimise the sum of the |<ij|kl>|^2 values.
-            DerivCoeff(m,z)=(2*Deriv4indintsqrd)-LambdaTerm1-LambdaTerm2
+!            IF(Iteration.lt.1000) THEN
+                DerivCoeff(m,z)=(2*Deriv4indintsqrd)-OrthoFac*(LambdaTerm1-LambdaTerm2)
+!            ELSE
+!                DerivCoeff(m,z)=-LambdaTerm1-LambdaTerm2
+!            ENDIF
             Force=Force+DerivCoeff(m,z)
 
         enddo
     enddo
 
     Force=Force/REAL(SpatOrbs**2,8)
+    OrthoForce=(LambdaTerm1+LambdaTerm2)/REAL(SpatOrbs**2,8)
 
 !We also need to find the force on the lambdas to ensure orthonormality...
     DerivLambda(:,:)=0.D0
@@ -360,6 +373,7 @@ MODULE LocalizeOrbsMod
         DistCs=0.D0
         SpatOrbs=nBasis/2
         Iteration=0
+        OrthoForce=0.D0
 
 !Allocate memory
         ALLOCATE(Coeff(SpatOrbs,SpatOrbs),stat=ierr)
@@ -417,10 +431,10 @@ MODULE LocalizeOrbsMod
             enddo
         enddo
 
-        OPEN(12,FILE='Transform.Dat',STATUS='unknown')
+        OPEN(12,FILE='Transform',STATUS='unknown')
 !We want to write out: Iteration, Potential energy, Force, Sum<ij|kl>^2, OrthonormalityCondition
-        WRITE(12,*) "# Iteration   PotEnergy   Force   Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
-        WRITE(6,*) "Iteration   PotEnergy   Force   Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
+        WRITE(12,"(A)") "# Iteration   PotEnergy   Force   OrthoForce    Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
+        WRITE(6,"(A)") "Iteration   PotEnergy   Force   OrthoForce    Sum<ij|kl>^2   OrthoNormCondition   DistMovedbyCs"
 
     END SUBROUTINE InitLocalOrbs
 
