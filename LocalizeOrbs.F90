@@ -105,7 +105,7 @@ MODULE LocalizeOrbsMod
 
     SUBROUTINE FindTheForce
         INTEGER :: m,z,i,j,k,l,a,b,g,d
-        REAL*8 :: Deriv4indint,Deriv4indintsqrd,t1,t2,t3,LambdaTerm1,LambdaTerm2
+        REAL*8 :: Deriv4indint,Deriv4indintsqrd,t1,t2,t3,t4,LambdaTerm1,LambdaTerm2
 
 ! Running over m and z, covers all matrix elements of the force matrix (derivative 
 ! of equation we are minimising, with respect to each translation coefficient) filling 
@@ -121,12 +121,10 @@ MODULE LocalizeOrbsMod
                 
 ! This runs over the full <ij|kl> integrals from the previous iteration. 
 ! In the future we can take advantage of the permutational symmetry of the matrix elements
-! however this only takes into account 1/4 of the off-diagonal plus the diagonal elements
-! and this must be accounted for when calculating Deriv4indintsqrd.
             do i=1,SpatOrbs
-                do k=1,SpatOrbs
+                do k=i+1,SpatOrbs                       ! i < k
                     do j=1,SpatOrbs
-                        do l=1,SpatOrbs
+                        do l=j+1,SpatOrbs               ! j < l
 
 ! To include: If statement to check the symmetry of i x j x k x l is A1.
 !                                If((((i-1)*nBasis)+k).ge.(((j-1)*nBasis)+l)) THEN
@@ -137,34 +135,47 @@ MODULE LocalizeOrbsMod
 ! Deriv4indint is the derivative of <ij|kl> with respect to a coefficient
 ! c(m,z), at the current m,z,i,j,k,l of the loop.
 ! This involves 4 terms in which the derivative is taken w.r.t the i,j,k or l position in <ij|kl>. 
-
-                            t1=0.D0    
-                            do b=1,SpatOrbs
-                                do g=1,SpatOrbs
-                                    do d=1,SpatOrbs
-                                        t1=t1+(Coeff(j,b)*Coeff(k,g)*Coeff(l,d)*REAL(UMAT(UMatInd(z,b,g,d,0,0))%v,8))
+                            t1=0.D0
+                            t2=0.D0
+                            t3=0.D0
+                            t4=0.D0
+                            
+                            IF (m.eq.i) THEN
+                                do b=1,SpatOrbs
+                                    do g=1,SpatOrbs
+                                        do d=1,SpatOrbs
+                                            t1=t1+(Coeff(j,b)*Coeff(k,g)*Coeff(l,d)*REAL(UMAT(UMatInd(z,b,g,d,0,0))%v,8))
+                                        enddo
                                     enddo
                                 enddo
-                            enddo
-                            
-                            t2=0.D0    
-                            do d=1,SpatOrbs     
-                                t2=t2+(Coeff(l,d)*TwoIndInts(i,z,k,d))
-                            enddo
+                            ENDIF
 
-                            t3=0.D0
-                            do b=1,SpatOrbs
-                                do d=1,SpatOrbs
-                                    t3=t3+Coeff(j,b)*Coeff(l,d)*OneIndInts(i,b,z,d)
+                            IF (m.eq.j) THEN
+                                do d=1,SpatOrbs     
+                                    t2=t2+(Coeff(l,d)*TwoIndInts(i,z,k,d))
                                 enddo
-                            enddo
+                            ENDIF
 
-                            Deriv4indint=(t1 + t2 + t3 + ThreeIndInts(i,j,k,z))
+                            IF (m.eq.k) THEN
+                                do b=1,SpatOrbs
+                                    do d=1,SpatOrbs
+                                        t3=t3+Coeff(j,b)*Coeff(l,d)*OneIndInts(i,b,z,d)
+                                    enddo
+                                enddo
+                            ENDIF
+
+                            IF (m.eq.l) THEN
+                                t4=ThreeIndInts(i,j,k,z)
+                            ENDIF
+
+                            Deriv4indint=(t1 + t2 + t3 + t4)
+                            ! At a particular i, j, k and l; t1, t2, t3 and t4 are only non-zero if m is equal to 
+                            ! i, j, k and/or l respectively.
 
 ! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
 ! This accumulates as the loop sums over i,j,k and l.
 !                            IF(Iteration.lt.1000) THEN
-                                Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint)   
+                            Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint) 
 !                            ELSE
 !                                Deriv4indintsqrd=0.D0
 !                            ENDIF
@@ -179,10 +190,10 @@ MODULE LocalizeOrbsMod
 
             LambdaTerm1=0.D0
             LambdaTerm2=0.D0
+            
             do j=1,SpatOrbs
                 LambdaTerm1=LambdaTerm1+(Lambdas(m,j)*Coeff(z,j))
             enddo
-
             do i=1,SpatOrbs
                 LambdaTerm2=LambdaTerm2+(Lambdas(i,m)*Coeff(i,z))
             enddo
