@@ -840,6 +840,10 @@ MODULE FciMCParMod
         INTEGER , ALLOCATABLE :: TempExcitLevel(:)
         INTEGER(KIND=i2) :: HashCurr!MinBin,RangeofBins,NextBinBound
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
+        
+!This is just to see if there are higher-weighted determinants that HF...
+!        AllNoatHF=0
+!        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
 
 !        DebugIter=0
 !        IF(Iter.eq.DebugIter) THEN
@@ -1072,6 +1076,10 @@ MODULE FciMCParMod
                 j=j+1
             enddo
 
+!            IF(TotWalkersDet.gt.AllNoatHF) THEN
+!                WRITE(6,"(A,I20,2I7)",advance='no') "High-weighted Det: ",HashCurr,TotWalkersDet,INT(AllSumNoatHF,4)
+!            ENDIF
+            
 !            IF(Iter.eq.DebugIter) THEN
 !                WRITE(6,*) "Common block of dets found from ",InitialBlockIndex," ==> ",FinalBlockIndex
 !                WRITE(6,*) "Sum of signs in block is: ",TotWalkersDet
@@ -1770,6 +1778,7 @@ MODULE FciMCParMod
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
         INTEGER :: inpair(7),outpair(7)
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
+        REAL*8 :: inpairreal(3),outpairreal(3)
         LOGICAL :: TBalanceNodesTemp
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
@@ -1883,7 +1892,7 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
 
 !For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
-        CALL MPIDSumRoot(ENumCyc,1,AllENumCyc,Root)
+!        CALL MPIDSumRoot(ENumCyc,1,AllENumCyc,Root)
 !        WRITE(6,*) "Get Here 7"
 !        CALL FLUSH(6)
 
@@ -1911,12 +1920,19 @@ MODULE FciMCParMod
 
 !Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
         TempSumNoatHF=real(SumNoatHF,r2)
-        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
+!        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
 !        WRITE(6,*) "Get Here 9"
 !        CALL FLUSH(6)
-        CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
+!        CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
 !        WRITE(6,*) "Get Here 10"
 !        CALL FLUSH(6)
+        inpairreal(1)=ENumCyc
+        inpairreal(2)=TempSumNoatHF
+        inpairreal(3)=SumENum
+        CALL MPI_Reduce(inpairreal,outpairreal,3,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        AllENumCyc=outpairreal(1)
+        AllSumNoatHF=outpairreal(2)
+        AllSumENum=outpairreal(3)
 
 
 !To find minimum and maximum excitation levels, search for them using MPI_Reduce
