@@ -114,17 +114,20 @@ MODULE LocalizeOrbsMod
     DerivCoeff(:,:)=0.D0
     Force=0.D0
     Deriv4indintsqrd=0.D0
+    OrthoForce=0.D0
     
     do m=1,SpatOrbs
 ! To include: symmetry requirement that z must be from the same irrep as m
         do z=1,SpatOrbs
+
+            Deriv4indintsqrd=0.D0
                 
 ! This runs over the full <ij|kl> integrals from the previous iteration. 
 ! In the future we can take advantage of the permutational symmetry of the matrix elements
             do i=1,SpatOrbs
-                do k=i+1,SpatOrbs                       ! i < k
+                do k=1,i-1                       ! i < k
                     do j=1,SpatOrbs
-                        do l=j+1,SpatOrbs               ! j < l
+                        do l=1,j-1               ! j < l
 
 ! To include: If statement to check the symmetry of i x j x k x l is A1.
 !                                If((((i-1)*nBasis)+k).ge.(((j-1)*nBasis)+l)) THEN
@@ -167,7 +170,7 @@ MODULE LocalizeOrbsMod
                             IF (m.eq.l) THEN
                                 t4=ThreeIndInts(i,j,k,z)
                             ENDIF
-
+                            Deriv4indint=0.D0
                             Deriv4indint=(t1 + t2 + t3 + t4)
                             ! At a particular i, j, k and l; t1, t2, t3 and t4 are only non-zero if m is equal to 
                             ! i, j, k and/or l respectively.
@@ -193,26 +196,25 @@ MODULE LocalizeOrbsMod
             
             do j=1,SpatOrbs
                 LambdaTerm1=LambdaTerm1+(Lambdas(m,j)*Coeff(z,j))
-            enddo
-            do i=1,SpatOrbs
-                LambdaTerm2=LambdaTerm2+(Lambdas(i,m)*Coeff(i,z))
+                LambdaTerm2=LambdaTerm2+(Lambdas(j,m)*Coeff(j,z))
             enddo
 
 ! DerivCoeff is 'the force'.  I.e. the derivative of |<ij|kl>|^2 (with orthogonalisation constraints) with 
 ! respect to each transformation coefficient.  It is the values of this matrix that will tend to 0 as
 ! we minimise the sum of the |<ij|kl>|^2 values.
 !            IF(Iteration.lt.1000) THEN
-                DerivCoeff(m,z)=(2*Deriv4indintsqrd)-OrthoFac*(LambdaTerm1-LambdaTerm2)
+                DerivCoeff(m,z)=(2*Deriv4indintsqrd)-LambdaTerm1-LambdaTerm2
 !            ELSE
 !                DerivCoeff(m,z)=-LambdaTerm1-LambdaTerm2
 !            ENDIF
             Force=Force+DerivCoeff(m,z)
+            OrthoForce=OrthoForce-LambdaTerm1-LambdaTerm2
 
         enddo
     enddo
 
     Force=Force/REAL(SpatOrbs**2,8)
-    OrthoForce=(LambdaTerm1+LambdaTerm2)/REAL(SpatOrbs**2,8)
+    OrthoForce=OrthoForce/REAL(SpatOrbs**2,8)
 
 !We also need to find the force on the lambdas to ensure orthonormality...
     DerivLambda(:,:)=0.D0
@@ -353,8 +355,10 @@ MODULE LocalizeOrbsMod
                         FourIndInts(k,j,i,l)=t
                         FourIndInts(i,l,k,j)=t
                         FourIndInts(k,l,i,j)=t
-                        PotEnergy=PotEnergy+(t**2)
-                        TwoEInts=TwoEInts+(t**2)
+                        IF(.not.((i.eq.k).or.(j.eq.l))) THEN
+                            PotEnergy=PotEnergy+(t**2)    
+                            TwoEInts=TwoEInts+(t**2)
+                        ENDIF
                     enddo
                 enddo
             enddo
@@ -427,8 +431,10 @@ MODULE LocalizeOrbsMod
                 do j=1,SpatOrbs
                     do l=1,j
                         t=REAL(UMAT(UMatInd(i,j,k,l,0,0))%v,8)
-                        PotEnergy=PotEnergy+(t**2)       !Potential energy starts as this since the orbitals are orthonormal by construction.
-                        TwoEInts=TwoEInts+(t**2)
+                        IF(.not.((i.eq.k).or.(j.eq.l))) THEN
+                            PotEnergy=PotEnergy+(t**2)       !Potential energy starts as this since the orbitals are orthonormal by construction.
+                            TwoEInts=TwoEInts+(t**2)
+                        ENDIF
                         FourIndInts(i,j,k,l)=t
                         FourIndInts(k,j,i,l)=t
                         FourIndInts(i,l,k,j)=t
