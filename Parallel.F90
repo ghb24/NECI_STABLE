@@ -58,27 +58,30 @@ Subroutine MPIInit(tExternal)
    integer a,b,g
    character*20 NodeFile
    logical :: Local_IO,flag
+   logical, save :: initialised=.false.
 #if PARALLEL
    integer(Kind=MPI_ADDRESS_KIND) :: res
 
-   if(tExternal) then
-     write(6,*) 'Using CPMD MPI configuration'
-   else 
-     write(6,*) 'Initing MPI'
+   if (.not.initialised) then
 
-     call MPI_INIT(ierr)
-     if (ierr .ne. MPI_SUCCESS) then
-        print *,'Error starting MPI program. Terminating.'
-        call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
-     end if
-   endif
-   call MPI_COMM_RANK(MPI_COMM_WORLD, iProcIndex, ierr)
-   call MPI_COMM_SIZE(MPI_COMM_WORLD, nProcessors, ierr)
-   WRITE(6,*) "Number of processors: ",nProcessors
+       if(tExternal) then
+         write(6,*) 'Using CPMD MPI configuration'
+       else 
+         write(6,*) 'Initing MPI'
 
-   if(tExternal) then
-      write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
-   else
+         call MPI_INIT(ierr)
+         if (ierr .ne. MPI_SUCCESS) then
+            print *,'Error starting MPI program. Terminating.'
+            call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+         end if
+       endif
+       call MPI_COMM_RANK(MPI_COMM_WORLD, iProcIndex, ierr)
+       call MPI_COMM_SIZE(MPI_COMM_WORLD, nProcessors, ierr)
+       WRITE(6,*) "Number of processors: ",nProcessors
+
+       if(tExternal) then
+          write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
+       else
 !Test if I/O is allowed on all processors - get res, the attribute attached to the communicator concerning I/O
 !This does not seem to work...
 !      CALL MPI_Comm_get_attr(MPI_COMM_SELF,MPI_IO,res,flag,ierr)
@@ -92,35 +95,39 @@ Subroutine MPIInit(tExternal)
 !          CALL FLUSH(6)
 !      ENDIF
 
-      if(iProcIndex.eq.0) then
-         write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' as head node.'
-      else
+          if(iProcIndex.eq.0) then
+             write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' as head node.'
+          else
 
-         write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' moving to local output.'
-         if (iProcIndex.lt.9) then
-             write (NodeFile,'(a,i1)') 'NodeFile',iProcIndex+1
-         elseif(iProcIndex.lt.99) then
-             write (NodeFile,'(a,i2)') 'NodeFile',iProcIndex+1
-         else
-             write (NodeFile,'(a,i3)') 'NodeFile',iProcIndex+1
-         end if
-         write(6,*) "outfile=",NodeFile
-         close(6,status="keep")
-         open(6,file=NodeFile)
-         write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
-      endif
-      call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
+             write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' moving to local output.'
+             if (iProcIndex.lt.9) then
+                 write (NodeFile,'(a,i1)') 'NodeFile',iProcIndex+1
+             elseif(iProcIndex.lt.99) then
+                 write (NodeFile,'(a,i2)') 'NodeFile',iProcIndex+1
+             else
+                 write (NodeFile,'(a,i3)') 'NodeFile',iProcIndex+1
+             end if
+             write(6,*) "outfile=",NodeFile
+             close(6,status="keep")
+             open(6,file=NodeFile)
+             write(6,*) "Processor ",iProcIndex+1,'/',nProcessors, ' on local output.'
+          endif
+          call GetProcElectrons(iProcIndex,iProcMinE,iProcMaxE) 
 !  Just synchronize everything briefly
-      a=iProcIndex+1
-      call MPIISum(a,1,g)
-      WRITE(6,*) "Sum: ",g
-   endif
+          a=iProcIndex+1
+          call MPIISum(a,1,g)
+          WRITE(6,*) "Sum: ",g
+       endif
 
 #else 
-    ! Dummy set up for serial work.
-    iProcIndex=0
-    nProcessors=1
+       ! Dummy set up for serial work.
+       iProcIndex=0
+       nProcessors=1
 #endif
+
+       initialised=.true.
+
+   end if
 
     RETURN
    
