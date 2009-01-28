@@ -119,17 +119,18 @@ Subroutine MPIInit(tExternal)
           WRITE(6,*) "Sum: ",g
        endif
 
-#else 
-       ! Dummy set up for serial work.
-       iProcIndex=0
-       nProcessors=1
-#endif
-
        initialised=.true.
 
    end if
 
-    RETURN
+#else 
+
+   ! Dummy set up for serial work.
+   iProcIndex=0
+   nProcessors=1
+#endif
+
+   RETURN
    
 end Subroutine MPIInit
 
