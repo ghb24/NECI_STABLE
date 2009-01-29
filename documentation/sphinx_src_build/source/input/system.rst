@@ -207,6 +207,18 @@ General options
     the Hartree--Fock determinant coupled to the Hartree--Fock determinant
     is zero, so explicitly exclude such single excitations.
 
+**ROTATEORBS** [TimeStep] [ConvergedForce]
+
+    Iterativly rotate the HF orbital in such a way to minimize the two-electron
+    integrals with at least three-distinct indicies. This explicitly orthonormalizes
+    the orbitals after each rotation.
+
+**LAGRANGE**
+    This option can only be used if **ROTATEORBS** is specified, and will try to 
+    maintain orthonormality of the orbitals via a lagrange multiplier force, rather
+    than an explicit reorthogonalization step each iteration.
+
+
 Read options 
 ------------
 

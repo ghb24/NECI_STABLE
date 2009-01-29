@@ -4,12 +4,12 @@
 !Permutational symmetry where possible
 !Parallelize
 
-MODULE LocalizeOrbsMod
+MODULE RotateOrbsMod
 
     USE Global_utilities
     USE IntegralsData , only : UMAT
     USE UMatCache , only : UMatInd
-    USE SystemData , only : ConvergedForce,TimeStep
+    USE SystemData , only : ConvergedForce,TimeStep,tLagrange
     IMPLICIT NONE
     REAL*8 , ALLOCATABLE :: Coeff(:,:)
     REAL*8 , ALLOCATABLE :: Lambdas(:,:)
@@ -26,23 +26,20 @@ MODULE LocalizeOrbsMod
 
     contains
 
-    SUBROUTINE LocalizeOrbs()
+    SUBROUTINE RotateOrbs()
 
         CALL InitLocalOrbs()
 
-        WRITE(6,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
-        WRITE(12,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+        CALL WriteStats()
+
         tNotConverged=.true.
         do while(tNotConverged)
 
             Iteration=Iteration+1
 
-            CALL RotateOrbs() 
+            CALL FindNewOrbs() 
 
-            WRITE(6,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
-            WRITE(12,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
-            CALL FLUSH(6)
-            CALL FLUSH(12)
+            CALL WriteStats()
 
         enddo
 
@@ -57,11 +54,13 @@ MODULE LocalizeOrbsMod
 
         CLOSE(12)
 
-        CALL Stop_All("LocalizeOrbs","This code is still in the testing phase")
+        CALL Stop_All("RotateOrbs","This code is still in the testing phase")
 
-    END SUBROUTINE LocalizeOrbs
+    END SUBROUTINE RotateOrbs
 
-    SUBROUTINE RotateOrbs()
+    SUBROUTINE FindNewOrbs()
+        
+        CALL Transform2ElInts()
 
 !Find derivatives of the c and lambda matrices and print the sum of off-diagonal matrix elements.
         CALL FindTheForce()
@@ -74,18 +73,7 @@ MODULE LocalizeOrbsMod
 !Force should go to zero as we end in minimum - test for this
         CALL TestForConvergence()
 
-        CALL Transform2ElInts()
-
-    END SUBROUTINE RotateOrbs
-
-!This just tests the convergence on the grounds that the force is smaller that the input parameter: ConvergedForce
-    SUBROUTINE TestForConvergence()
-
-        IF((abs(Force).lt.ConvergedForce).and.(abs(OrthoForce).lt.ConvergedForce)) THEN
-            tNotConverged=.false.
-        ENDIF
-
-    END SUBROUTINE TestForConvergence
+    END SUBROUTINE FindNewOrbs
 
     SUBROUTINE TestOrthonormality()
         INTEGER :: i,j,a
@@ -111,24 +99,24 @@ MODULE LocalizeOrbsMod
 ! of equation we are minimising, with respect to each translation coefficient) filling 
 ! them in as it goes.
 
-    DerivCoeff(:,:)=0.D0
-    Force=0.D0
-    Deriv4indintsqrd=0.D0
-    ForceInts=0.D0
-    OrthoForce=0.D0
-    
-    do m=1,SpatOrbs
+        DerivCoeff(:,:)=0.D0
+        Force=0.D0
+        Deriv4indintsqrd=0.D0
+        ForceInts=0.D0
+        OrthoForce=0.D0
+        
+        do m=1,SpatOrbs
 ! To include: symmetry requirement that z must be from the same irrep as m
-        do z=1,SpatOrbs
+            do z=1,SpatOrbs
 
-            Deriv4indintsqrd=0.D0
-                
+                Deriv4indintsqrd=0.D0
+                    
 ! This runs over the full <ij|kl> integrals from the previous iteration. 
 ! In the future we can take advantage of the permutational symmetry of the matrix elements
-            do i=1,SpatOrbs
-                do k=1,i-1                       ! i < k
-                    do j=1,SpatOrbs
-                        do l=1,j-1               ! j < l
+                do i=1,SpatOrbs
+                    do k=1,i-1                       ! i < k
+                        do j=1,SpatOrbs
+                            do l=1,j-1               ! j < l
 
 ! To include: If statement to check the symmetry of i x j x k x l is A1.
 !                                If((((i-1)*nBasis)+k).ge.(((j-1)*nBasis)+l)) THEN
@@ -139,95 +127,95 @@ MODULE LocalizeOrbsMod
 ! Deriv4indint is the derivative of <ij|kl> with respect to a coefficient
 ! c(m,z), at the current m,z,i,j,k,l of the loop.
 ! This involves 4 terms in which the derivative is taken w.r.t the i,j,k or l position in <ij|kl>. 
-                            t1=0.D0
-                            t2=0.D0
-                            t3=0.D0
-                            t4=0.D0
-                            
-                            IF (m.eq.i) THEN
-                                do b=1,SpatOrbs
-                                    do g=1,SpatOrbs
-                                        do d=1,SpatOrbs
-                                            t1=t1+(Coeff(j,b)*Coeff(k,g)*Coeff(l,d)*REAL(UMAT(UMatInd(z,b,g,d,0,0))%v,8))
+                                t1=0.D0
+                                t2=0.D0
+                                t3=0.D0
+                                t4=0.D0
+                                
+                                IF (m.eq.i) THEN
+                                    do b=1,SpatOrbs
+                                        do g=1,SpatOrbs
+                                            do d=1,SpatOrbs
+                                                t1=t1+(Coeff(j,b)*Coeff(k,g)*Coeff(l,d)*REAL(UMAT(UMatInd(z,b,g,d,0,0))%v,8))
+                                            enddo
                                         enddo
                                     enddo
-                                enddo
-                            ENDIF
+                                ENDIF
 
-                            IF (m.eq.j) THEN
-                                do d=1,SpatOrbs     
-                                    t2=t2+(Coeff(l,d)*TwoIndInts(i,z,k,d))
-                                enddo
-                            ENDIF
-
-                            IF (m.eq.k) THEN
-                                do b=1,SpatOrbs
-                                    do d=1,SpatOrbs
-                                        t3=t3+Coeff(j,b)*Coeff(l,d)*OneIndInts(i,b,z,d)
+                                IF (m.eq.j) THEN
+                                    do d=1,SpatOrbs     
+                                        t2=t2+(Coeff(l,d)*TwoIndInts(i,z,k,d))
                                     enddo
-                                enddo
-                            ENDIF
+                                ENDIF
 
-                            IF (m.eq.l) THEN
-                                t4=ThreeIndInts(i,j,k,z)
-                            ENDIF
-                            Deriv4indint=0.D0
-                            Deriv4indint=(t1 + t2 + t3 + t4)
-                            ! At a particular i, j, k and l; t1, t2, t3 and t4 are only non-zero if m is equal to 
-                            ! i, j, k and/or l respectively.
+                                IF (m.eq.k) THEN
+                                    do b=1,SpatOrbs
+                                        do d=1,SpatOrbs
+                                            t3=t3+Coeff(j,b)*Coeff(l,d)*OneIndInts(i,b,z,d)
+                                        enddo
+                                    enddo
+                                ENDIF
+
+                                IF (m.eq.l) THEN
+                                    t4=ThreeIndInts(i,j,k,z)
+                                ENDIF
+                                Deriv4indint=0.D0
+                                Deriv4indint=(t1 + t2 + t3 + t4)
+                                ! At a particular i, j, k and l; t1, t2, t3 and t4 are only non-zero if m is equal to 
+                                ! i, j, k and/or l respectively.
 
 ! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
 ! This accumulates as the loop sums over i,j,k and l.
-!                            IF(Iteration.lt.1000) THEN
-                            Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint) 
-!                            ELSE
-!                                Deriv4indintsqrd=0.D0
-!                            ENDIF
-
-!                                endif
+                                Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint) 
+                            enddo
                         enddo
                     enddo
                 enddo
-            enddo
 
 ! Calculate the derivatives of orthogonalisation condition.
 
-            LambdaTerm1=0.D0
-            LambdaTerm2=0.D0
-            
-            do j=1,SpatOrbs
-                LambdaTerm1=LambdaTerm1+(Lambdas(m,j)*Coeff(j,z))
-                LambdaTerm2=LambdaTerm2+(Lambdas(j,m)*Coeff(j,z))
-            enddo
+                IF(tLagrange) THEN
+                    LambdaTerm1=0.D0
+                    LambdaTerm2=0.D0
+                    
+                    do j=1,SpatOrbs
+                        LambdaTerm1=LambdaTerm1+(Lambdas(m,j)*Coeff(j,z))
+                        LambdaTerm2=LambdaTerm2+(Lambdas(j,m)*Coeff(j,z))
+                    enddo
 
 ! DerivCoeff is 'the force'.  I.e. the derivative of |<ij|kl>|^2 (with orthogonalisation constraints) with 
 ! respect to each transformation coefficient.  It is the values of this matrix that will tend to 0 as
 ! we minimise the sum of the |<ij|kl>|^2 values.
-            DerivCoeff(m,z)=(2*Deriv4indintsqrd)!-LambdaTerm1-LambdaTerm2
-            Force=Force+DerivCoeff(m,z)
-            ForceInts=ForceInts+2*Deriv4indintsqrd
-            OrthoForce=OrthoForce-LambdaTerm1-LambdaTerm2
+                    DerivCoeff(m,z)=(2*Deriv4indintsqrd)-LambdaTerm1-LambdaTerm2
+                    OrthoForce=OrthoForce-LambdaTerm1-LambdaTerm2
+                ELSE
+                    DerivCoeff(m,z)=(2*Deriv4indintsqrd)
+                    Force=Force+DerivCoeff(m,z)
+                    ForceInts=ForceInts+2*Deriv4indintsqrd
+                ENDIF
 
+            enddo
         enddo
-    enddo
 
-    Force=Force/REAL(SpatOrbs**2,8)
-    ForceInts=ForceInts/REAL(SpatOrbs**2,8)
-    OrthoForce=OrthoForce/REAL(SpatOrbs**2,8)
+        Force=Force/REAL(SpatOrbs**2,8)
+        ForceInts=ForceInts/REAL(SpatOrbs**2,8)
+        OrthoForce=OrthoForce/REAL(SpatOrbs**2,8)
 
 !We also need to find the force on the lambdas to ensure orthonormality...
-    DerivLambda(:,:)=0.D0
-    do i=1,SpatOrbs
-        do j=1,i
-            do a=1,SpatOrbs
-                DerivLambda(i,j)=DerivLambda(i,j)+Coeff(i,a)*Coeff(j,a)
+        IF(tLagrange) THEN
+            DerivLambda(:,:)=0.D0
+            do i=1,SpatOrbs
+                do j=1,i
+                    do a=1,SpatOrbs
+                        DerivLambda(i,j)=DerivLambda(i,j)+Coeff(i,a)*Coeff(j,a)
+                    enddo
+                    DerivLambda(j,i)=DerivLambda(i,j)
+                enddo
             enddo
-            DerivLambda(j,i)=DerivLambda(i,j)
-        enddo
-    enddo
-    do i=1,SpatOrbs
-        DerivLambda(i,i)=DerivLambda(i,i)-1.D0
-    enddo
+            do i=1,SpatOrbs
+                DerivLambda(i,i)=DerivLambda(i,i)-1.D0
+            enddo
+        ENDIF
 
 
     END SUBROUTINE FindTheForce
@@ -250,21 +238,25 @@ MODULE LocalizeOrbsMod
         enddo
         DistCs=DistCs/(REAL(SpatOrbs**2,8))
 
-        CALL OrthoNormx(SpatOrbs,SpatOrbs,Coeff) !Explicitly orthonormalize the coefficient vectors.
+        IF(tLagrange) THEN
 
-        DistLs=0.D0
-        LambdaMag=0.D0
-        do i=1,SpatOrbs
-            do j=1,SpatOrbs
-                NewLambda=0.D0
-                NewLambda=Lambdas(i,j)-(TimeStep*DerivLambda(i,j))  ! Timestep must be specified in the input file.
-                DistLs=DistLs+abs(TimeStep*DerivLambda(i,j))
-                Lambdas(i,j)=NewLambda
-                LambdaMag=LambdaMag+abs(NewLambda)
+            DistLs=0.D0
+            LambdaMag=0.D0
+            do i=1,SpatOrbs
+                do j=1,SpatOrbs
+                    NewLambda=0.D0
+                    NewLambda=Lambdas(i,j)-(TimeStep*DerivLambda(i,j))  ! Timestep must be specified in the input file.
+                    DistLs=DistLs+abs(TimeStep*DerivLambda(i,j))
+                    Lambdas(i,j)=NewLambda
+                    LambdaMag=LambdaMag+abs(NewLambda)
+                enddo
             enddo
-        enddo
-        DistLs=DistLs/(REAL(SpatOrbs**2,8))
-        LambdaMag=LambdaMag/(REAL(SpatOrbs**2,8))
+            DistLs=DistLs/(REAL(SpatOrbs**2,8))
+            LambdaMag=LambdaMag/(REAL(SpatOrbs**2,8))
+
+        ELSE
+            CALL OrthoNormx(SpatOrbs,SpatOrbs,Coeff) !Explicitly orthonormalize the coefficient vectors.
+        ENDIF
 
     ENDSUBROUTINE UseTheForce
 
@@ -368,20 +360,37 @@ MODULE LocalizeOrbsMod
         enddo
 
 ! Now find the change of the potential energy due to the orthonormality of the orbitals...
-        PEOrtho=0.D0
-        do i=1,SpatOrbs
-            do j=1,SpatOrbs
-                t=0.D0
-                do a=1,SpatOrbs
-                    t=Coeff(i,a)*Coeff(j,a)
+        IF(tLagrange) THEN
+            PEOrtho=0.D0
+            do i=1,SpatOrbs
+                do j=1,SpatOrbs
+                    t=0.D0
+                    do a=1,SpatOrbs
+                        t=Coeff(i,a)*Coeff(j,a)
+                    enddo
+                    IF(i.eq.j) t=t-1.D0
+                    PEOrtho=PEOrtho-Lambdas(i,j)*t
+                    PotEnergy=PotEnergy-Lambdas(i,j)*t
                 enddo
-                IF(i.eq.j) t=t-1.D0
-                PEOrtho=PEOrtho-Lambdas(i,j)*t
-!                PotEnergy=PotEnergy-Lambdas(i,j)*t
             enddo
-        enddo
+        ENDIF
 
     END SUBROUTINE Transform2ElInts
+
+!This just tests the convergence on the grounds that the force is smaller that the input parameter: ConvergedForce
+    SUBROUTINE TestForConvergence()
+        
+        IF(tLagrange) THEN
+            IF((abs(Force).lt.ConvergedForce).and.(abs(OrthoForce).lt.ConvergedForce)) THEN
+                tNotConverged=.false.
+            ENDIF
+        ELSE
+            IF(abs(Force).lt.ConvergedForce) THEN
+                tNotConverged=.false.
+            ENDIF
+        ENDIF
+
+    END SUBROUTINE TestForConvergence
 
 
     SUBROUTINE InitLocalOrbs()
@@ -391,6 +400,11 @@ MODULE LocalizeOrbsMod
         INTEGER :: i,j,k,l,ierr
 
         WRITE(6,*) "Calculating new molecular orbitals based on mimimisation of <ij|kl>^2 integrals..."
+        IF(tLagrange) THEN
+            WRITE(6,*) "Using a Lagrange multiplier to attempt to rotate orbitals in a way to maintain orthonormality"
+        ELSE
+            WRITE(6,*) "Explicity reorthonormalizing orbitals after each rotation."
+        ENDIF
 
         OrthoNorm=0.D0
         PotEnergy=0.D0
@@ -409,12 +423,8 @@ MODULE LocalizeOrbsMod
 !Allocate memory
         ALLOCATE(Coeff(SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('Coeff',SpatOrbs**2,8,this_routine,CoeffTag,ierr)
-        ALLOCATE(Lambdas(SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('Lambdas',SpatOrbs**2,8,this_routine,LambdasTag,ierr)
         ALLOCATE(DerivCoeff(SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('DerivCoeff',SpatOrbs**2,8,this_routine,DerivCoeffTag,ierr)
-        ALLOCATE(DerivLambda(SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('DerivLambda',SpatOrbs**2,8,this_routine,DerivLambdaTag,ierr)
         ALLOCATE(OneIndInts(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('OneIndInts',SpatOrbs**4,8,this_routine,OneIndIntsTag,ierr)
         ALLOCATE(TwoIndInts(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
@@ -423,15 +433,22 @@ MODULE LocalizeOrbsMod
         CALL LogMemAlloc('ThreeIndInts',SpatOrbs**4,8,this_routine,ThreeIndIntsTag,ierr)
         ALLOCATE(FourIndInts(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndInts',SpatOrbs**4,8,this_routine,FourIndIntsTag,ierr)
+        
+        IF(tLagrange) THEN
+            ALLOCATE(Lambdas(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('Lambdas',SpatOrbs**2,8,this_routine,LambdasTag,ierr)
+            ALLOCATE(DerivLambda(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('DerivLambda',SpatOrbs**2,8,this_routine,DerivLambdaTag,ierr)
+            Lambdas(:,:)=0.D0
+            DerivLambda(:,:)=0.D0
+        ENDIF
 
 !Zero/initialise the arrays
         Coeff(:,:)=0.D0
         do i=1,SpatOrbs
             Coeff(i,i)=1.D0
         enddo
-        Lambdas(:,:)=0.D0
         DerivCoeff(:,:)=0.D0
-        DerivLambda(:,:)=0.D0
 !These loops can be speeded up with spatial symmetry and pairwise permutation symmetry if needed.
 !Fill all the original partially transformed integral arrays with the original two-electron integrals.
         do i=1,SpatOrbs
@@ -467,9 +484,14 @@ MODULE LocalizeOrbsMod
         CALL TestOrthonormality()
 
         OPEN(12,FILE='Transform',STATUS='unknown')
+        IF(tLagrange) THEN
 !We want to write out: Iteration, Potential energy, Force, Sum<ij|kl>^2, OrthonormalityCondition
-        WRITE(12,"(A)") "# Iteration   2.PotEnergy   3.PEInts   4.PEOrtho    5.Force   6.ForceInts   7.OrthoForce    8.Sum<ij|kl>^2   9.OrthoNormCondition   10.DistMovedbyCs   11.DistMovedByLs   12.LambdaMag"
-        WRITE(6,"(A)") "Iteration   2.PotEnergy   3.PEInts   4.PEOrtho   5.Force   6.ForceInts   7.OrthoForce    8.Sum<ij|kl>^2   9.OrthoNormCondition   10.DistMovedbyCs   11.DistMovedbyLs   12.LambdaMag"
+            WRITE(12,"(A)") "# Iteration   2.PotEnergy   3.PEInts   4.PEOrtho    5.Force   6.ForceInts   7.OrthoForce    8.Sum<ij|kl>^2   9.OrthoNormCondition   10.DistMovedbyCs   11.DistMovedByLs   12.LambdaMag"
+            WRITE(6,"(A)") "Iteration   2.PotEnergy   3.PEInts   4.PEOrtho   5.Force   6.ForceInts   7.OrthoForce    8.Sum<ij|kl>^2   9.OrthoNormCondition   10.DistMovedbyCs   11.DistMovedbyLs   12.LambdaMag"
+        ELSE
+            WRITE(12,"(A)") "# Iteration   2.PotEnergy   3.Force      4.OrthoNormCondition   5.DistMovedbyCs"
+            WRITE(6,"(A)") "Iteration   2.PotEnergy   3.Force   4.OrthoNormCondition   5.DistMovedbyCs"
+        ENDIF
 
     END SUBROUTINE InitLocalOrbs
 
@@ -495,5 +517,18 @@ MODULE LocalizeOrbsMod
 
     END SUBROUTINE DeallocateMem
         
+    SUBROUTINE WriteStats()
 
-END MODULE LocalizeOrbsMod
+        IF(tLagrange) THEN
+            WRITE(6,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+            WRITE(12,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+        ELSE
+            WRITE(6,"(I7,4F18.10)") Iteration,PotEnergy,Force,OrthoNorm,DistCs
+            WRITE(12,"(I7,4F18.10)") Iteration,PotEnergy,Force,OrthoNorm,DistCs
+        ENDIF
+        CALL FLUSH(6)
+        CALL FLUSH(12)
+
+    END SUBROUTINE WriteStats
+
+END MODULE RotateOrbsMod

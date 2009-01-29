@@ -64,12 +64,12 @@ MODULE System
       TNoRenormRandExcits=.false.
       tStoreStateList=.false.       !This will be turned to true by default if not in abelian symmetry
       tAssumeSizeExcitgen=.false.
-
+      tLagrange=.false.
       lNoSymmetry=.false.
-
-      tLocalizeOrbs=.false.
+      tRotateOrbs=.false.
       TimeStep=0.1
       ConvergedForce=0.001
+
 !Feb08 defaults:
       IF(Feb08) THEN
           !...add defaults...
@@ -333,14 +333,18 @@ MODULE System
 
 
 
-! The LOCALIZEORBS calculation initiates a routine which takes the HF orbitals
+! The ROTATEORBS calculation initiates a routine which takes the HF orbitals
 ! and finds the optimal set of transformation coefficients to produce a new 
 ! set of orbitals which minimise the sum of |<ij|kl>|^2 elements.
 ! This new set of orbitals is then used to perform the FCIMC calculation.
-        case("LOCALIZEORBS")
-            tLocalizeOrbs=.true.
+        case("ROTATEORBS")
+            tRotateOrbs=.true.
             call Getf(TimeStep)
             call Getf(ConvergedForce)
+        case("LAGRANGE")
+! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
+! attempt to maintain orthogonality. This currently does not seem to work too well!
+            tLagrange=.true.
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

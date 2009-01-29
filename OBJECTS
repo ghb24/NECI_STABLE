@@ -30,7 +30,7 @@ OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          SymData.o vasp_interface.o vasp_init.o error_handling.o CPMDData.o default_sets.o \
          SystemData.o CalcData.o IntegralsData.o timing.o global_utilities.o \
          sortiLong.o soft_exit.o Parallel_Calc.o precalcData.o symrandexcit2.o \
-         DetBitOps.o NatOrbs.o LocalizeOrbs.o Orthonorm.o
+         DetBitOps.o NatOrbs.o RotateOrbs.o Orthonorm.o
 
 OBJ_NOCPMD = cpmdstub.o
 OBJ_NOVASP = vasp_neci_interface_stub.o

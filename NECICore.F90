@@ -136,13 +136,13 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation from within the same CPMD/VASP 
     !=                                calculation.
 
-    use System, only : SysInit,tLocalizeOrbs
+    use System, only : SysInit,tRotateOrbs
     use Integrals, only : IntInit,IntFreeze,tPostFreezeHF
     use DetCalc, only : DetCalcInit,DoDetCalc
     use Determinants, only : DetPreFreezeInit,DetInit
     use Calc, only : CalcInit
     use HFCalc, only: HFDoCalc
-    use LocalizeOrbsMod, only : LocalizeOrbs
+    use RotateOrbsMod, only : RotateOrbs
 
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -164,7 +164,7 @@ subroutine NECICalcInit(iCacheFlag)
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
     if (tPostFreezeHF) call HFDoCalc()
-    IF(tLocalizeOrbs) CALL LocalizeOrbs()
+    IF(tRotateOrbs) CALL RotateOrbs()
     call DetInit()
 
 ! Deal with the many-electron basis, setting up sym etc.
