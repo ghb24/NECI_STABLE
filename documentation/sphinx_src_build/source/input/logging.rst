@@ -154,6 +154,12 @@ FCIMC options
     calculations where the POPSFILE will take a long time to write out and use
     a lot of disk space.
 
+**BINARYPOPS**
+    This means that the popsfile (full or reduced) will now be written out in binary format. 
+    This should now take up less disk space, and be written quicker. It can be read in as
+    normal without specifying any extra criteria. Two files will be produced, a formatted
+    file with the header info and a POPSFILEBIN with the walker information.
+
 **ZEROPROJE**
     This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
     estimator will be restarted.

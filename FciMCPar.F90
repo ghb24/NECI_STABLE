@@ -19,7 +19,7 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel
     use IntegralsData , only : fck,NMax,UMat
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops
     USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
     USE global_utilities
     USE HElem
@@ -2998,25 +2998,51 @@ MODULE FciMCParMod
 
 !Write header information
             IF(iPopsPartEvery.ne.1) THEN
-                WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",AllTotWalkers, " particles."
+                IF(tBinPops) THEN
+                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",AllTotWalkers, " particles."
+                ELSE
+                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",AllTotWalkers, " particles."
+                ENDIF
             ELSE
-                WRITE(6,*) "Writing to POPSFILE..."
+                IF(tBinPops) THEN
+                    WRITE(6,*) "Writing to binary POPSFILEBIN..."
+                ELSE
+                    WRITE(6,*) "Writing to POPSFILE..."
+                ENDIF
             ENDIF
-            OPEN(17,FILE='POPSFILE',Status='unknown')
+            IF(tBinPops) THEN
+                OPEN(17,FILE='POPSFILEHEAD',Status='replace')
+            ELSE
+                OPEN(17,FILE='POPSFILE',Status='replace')
+            ENDIF
             WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
             WRITE(17,*) DiagSft,"   DIAG SHIFT"
             WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
             WRITE(17,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
             WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
-            do j=1,TotWalkers
+            IF(tBinPops) THEN
+                CLOSE(17)
+                OPEN(17,FILE='POPSFILEBIN',Status='replace',form='unformatted')
+            ENDIF
+
+            IF(tBinPops) THEN
+                do j=1,TotWalkers
 !First write out walkers on head node
-                IF(mod(j,iPopsPartEvery).eq.0) THEN
-                    do k=0,NoIntforDet
-                        WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
-                    enddo
-                    WRITE(17,*) CurrentSign(j)
-                ENDIF
-            enddo
+                    IF(mod(j,iPopsPartEvery).eq.0) THEN
+                        WRITE(17) CurrentDets(0:NoIntforDet,j),CurrentSign(j)
+                    ENDIF
+                enddo
+            ELSE
+                do j=1,TotWalkers
+!First write out walkers on head node
+                    IF(mod(j,iPopsPartEvery).eq.0) THEN
+                        do k=0,NoIntforDet
+                            WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
+                        enddo
+                        WRITE(17,*) CurrentSign(j)
+                    ENDIF
+                enddo
+            ENDIF
 !            WRITE(6,*) "Written out own walkers..."
 !            CALL FLUSH(6)
 
@@ -3029,14 +3055,22 @@ MODULE FciMCParMod
 !                CALL FLUSH(6)
                 
 !Then write it out...
-                do j=1,WalkersonNodes(i)
-                    IF(mod(j,iPopsPartEvery).eq.0) THEN
-                        do k=0,NoIntforDet
-                            WRITE(17,"(I20)",advance='no') NewDets(k,j)
-                        enddo
-                        WRITE(17,*) NewSign(j)
-                    ENDIF
-                enddo
+                IF(tBinPops) THEN
+                    do j=1,WalkersonNodes(i)
+                        IF(mod(j,iPopsPartEvery).eq.0) THEN
+                            WRITE(17) NewDets(0:NoIntforDet,j),NewSign(j)
+                        ENDIF
+                    enddo
+                ELSE
+                    do j=1,WalkersonNodes(i)
+                        IF(mod(j,iPopsPartEvery).eq.0) THEN
+                            do k=0,NoIntforDet
+                                WRITE(17,"(I20)",advance='no') NewDets(k,j)
+                            enddo
+                            WRITE(17,*) NewSign(j)
+                        ENDIF
+                    enddo
+                ENDIF
 !                WRITE(6,*) "Writted out walkers for processor ",i
 !                CALL FLUSH(6)
 
@@ -3064,7 +3098,7 @@ MODULE FciMCParMod
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
-        LOGICAL :: exists,First
+        LOGICAL :: exists,First,tBinRead
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag
@@ -3082,62 +3116,84 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
             INQUIRE(FILE='POPSFILE',EXIST=exists)
             IF(exists) THEN
-
                 OPEN(17,FILE='POPSFILE',Status='old')
-!Read in initial data on processors which have a popsfile
-                READ(17,*) AllTotWalkers
-                READ(17,*) DiagSft
-                READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
-                READ(17,*) AllSumENum
-                READ(17,*) PreviousCycles
-
-                AllSumNoatHF=REAL(TempAllSumNoatHF,r2)
-                WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
-                IF(NEquilSteps.gt.0) THEN
-                    WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
-                    NEquilSteps=0
+                tBinRead=.false.
+            ELSE
+!Reading in a binary file
+                tBinRead=.true.
+                INQUIRE(FILE='POPSFILEHEAD',EXIST=exists)
+                IF(.not.exists) THEN
+                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                    IF(.not.exists) THEN
+                        CALL Stop_All(this_routine,"No POPSFILE's of any kind found.")
+                    ELSE
+                        CALL Stop_All(this_routine,"POPSFILEBIN found, but POPSFILEHEAD also needed for header information")
+                    ENDIF
+                ELSE
+                    INQUIRE(FILE='POPSFILEBIN',EXIST=exists)
+                    IF(.not.exists) THEN
+                        CALL Stop_All(this_routine,"POPSFILEHEAD found, but no POPSFILEBIN for particle information - this is also needed")
+                    ELSE
+                        OPEN(17,FILE='POPSFILEHEAD',Status='old')
+                    ENDIF
                 ENDIF
-                IF(TZeroProjE) THEN
-!Reset energy estimator
-                    WRITE(6,*) "Resetting projected energy counters to zero..."
-                    AllSumENum=0.D0
-                    AllSumNoatHF=0.D0
-                ENDIF
-
-!Need to calculate the number of walkers each node will receive...
-                AvWalkers=NINT(real(AllTotWalkers,r2)/real(nProcessors,r2))
-!Divide up the walkers to receive for each node
-                do i=1,nProcessors-1
-                    WalkerstoReceive(i)=AvWalkers
-                enddo
-!The last processor takes the 'remainder'
-                WalkerstoReceive(nProcessors)=AllTotWalkers-(AvWalkers*(nProcessors-1))
-
-!Quick check to ensure we have all walkers accounted for
-                total=0
-                do i=1,nProcessors
-                    total=total+WalkerstoReceive(i)
-                enddo
-                IF(total.ne.AllTotWalkers) THEN
-                    CALL Stop_All("ReadFromPopsfilePar","All Walkers not accounted for when reading in from POPSFILE")
-                ENDIF
-                
-!InitWalkers needs to be reset for the culling criteria
-                InitWalkers=AvWalkers
-                SumENum=AllSumENum/REAL(nProcessors,r2)     !Divide up the SumENum over all processors
-                AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,r2)) !This is the average Sumnoathf
-                do i=1,nProcessors-1
-                    NodeSumNoatHF(i)=INT(AvSumNoatHF,i2)
-                enddo
-                NodeSumNoatHF(nProcessors)=NINT(AllSumNoatHF,i2)-INT((AvSumNoatHF*(nProcessors-1)),i2)
+            ENDIF
                     
-!Reset the global variables
+!Read in initial data on processors which have a popsfile
+            READ(17,*) AllTotWalkers
+            READ(17,*) DiagSft
+            READ(17,*) TempAllSumNoatHF     !AllSumNoatHF stored as integer for compatability with serial POPSFILEs
+            READ(17,*) AllSumENum
+            READ(17,*) PreviousCycles
+
+            IF(tBinRead) THEN
+                CLOSE(17)
+                OPEN(17,FILE='POPSFILEBIN',Status='old',form='unformatted')
+            ENDIF
+
+            AllSumNoatHF=REAL(TempAllSumNoatHF,r2)
+            WRITE(6,*) "Number of cycles in previous simulation: ",PreviousCycles
+            IF(NEquilSteps.gt.0) THEN
+                WRITE(6,*) "Removing equilibration steps since reading in from POPSFILE."
+                NEquilSteps=0
+            ENDIF
+            IF(TZeroProjE) THEN
+!Reset energy estimator
+                WRITE(6,*) "Resetting projected energy counters to zero..."
                 AllSumENum=0.D0
                 AllSumNoatHF=0.D0
-
-            ELSE
-                CALL Stop_All("ReadFromPopsfilePar","No POPSFILE found")
             ENDIF
+
+!Need to calculate the number of walkers each node will receive...
+            AvWalkers=NINT(real(AllTotWalkers,r2)/real(nProcessors,r2))
+!Divide up the walkers to receive for each node
+            do i=1,nProcessors-1
+                WalkerstoReceive(i)=AvWalkers
+            enddo
+!The last processor takes the 'remainder'
+            WalkerstoReceive(nProcessors)=AllTotWalkers-(AvWalkers*(nProcessors-1))
+
+!Quick check to ensure we have all walkers accounted for
+            total=0
+            do i=1,nProcessors
+                total=total+WalkerstoReceive(i)
+            enddo
+            IF(total.ne.AllTotWalkers) THEN
+                CALL Stop_All("ReadFromPopsfilePar","All Walkers not accounted for when reading in from POPSFILE")
+            ENDIF
+            
+!InitWalkers needs to be reset for the culling criteria
+            InitWalkers=AvWalkers
+            SumENum=AllSumENum/REAL(nProcessors,r2)     !Divide up the SumENum over all processors
+            AvSumNoatHF=NINT(AllSumNoatHF/real(nProcessors,r2)) !This is the average Sumnoathf
+            do i=1,nProcessors-1
+                NodeSumNoatHF(i)=INT(AvSumNoatHF,i2)
+            enddo
+            NodeSumNoatHF(nProcessors)=NINT(AllSumNoatHF,i2)-INT((AvSumNoatHF*(nProcessors-1)),i2)
+                
+!Reset the global variables
+            AllSumENum=0.D0
+            AllSumNoatHF=0.D0
 
         ENDIF
 
@@ -3166,9 +3222,15 @@ MODULE FciMCParMod
 !Root process reads all walkers in and then sends them to the correct processor
             do i=nProcessors,1,-1
 !Read in data for processor i
-                do j=1,WalkerstoReceive(i)
-                    READ(17,*) WalkVecDets(0:NoIntforDet,j),WalkVecSign(j)
-                enddo
+                IF(tBinRead) THEN
+                    do j=1,WalkerstoReceive(i)
+                        READ(17) WalkVecDets(0:NoIntforDet,j),WalkVecSign(j)
+                    enddo
+                ELSE
+                    do j=1,WalkerstoReceive(i)
+                        READ(17,*) WalkVecDets(0:NoIntforDet,j),WalkVecSign(j)
+                    enddo
+                ENDIF
 
                 IF(i.ne.1) THEN
 !Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor

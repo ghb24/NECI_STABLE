@@ -8,7 +8,7 @@ MODULE Logging
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops
     INTEGER NoACDets(2:4),iPopsPartEvery
 
     contains
@@ -37,6 +37,7 @@ MODULE Logging
       TZeroProjE=.false.
       TWriteDetE=.false.
       iPopsPartEvery=1
+      tBinPops=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -96,6 +97,9 @@ MODULE Logging
             TPopsFile=.true.
             call readi(iWritePopsEvery)
             call readi(iPopsPartEvery)
+        case("BINARYPOPS")
+!This means that the popsfile (full or reduced) will now be written out in binary format. This should now take up less space, and be written quicker.
+            tBinPops=.true.
         case("WRITEDETE")
 !This logging option will write out the energies of all determinants which have been spawned at in the simulation
 ! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.
