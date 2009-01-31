@@ -151,7 +151,7 @@ MODULE FciMCParMod
     LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
     LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
 
-    TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time
+    TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time,Sort_Time,Comms_Time
 
 !These are arrays used to store the autocorrelation function
     INTEGER , ALLOCATABLE :: WeightatDets(:)                   !First index - det which is stored, second - weight on proc at that iteration
@@ -889,6 +889,7 @@ MODULE FciMCParMod
 !            enddo
 !        ENDIF
 
+        CALL set_timer(Sort_Time,30)
 !Next, order the hash array, taking the index, CPU and sign with it...
 !Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
 !        IF(TLocalAnnihilation) THEN
@@ -898,6 +899,7 @@ MODULE FciMCParMod
             CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
 !        ENDIF
 !        CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
+        CALL halt_timer(Sort_Time)
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "***************"
@@ -971,7 +973,8 @@ MODULE FciMCParMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL set_timer(Comms_Time,30)
 
         CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
 
@@ -996,13 +999,13 @@ MODULE FciMCParMod
 !        ENDIF
 
 !Insert a load-balance check here...maybe find the s.d. of the sendcounts array - maybe just check the range first.
-!        IF(TotWalkersNew.gt.200) THEN
-!            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
-!                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
-!                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
-!!                CALL FLUSH(6)
-!            ENDIF
-!        ENDIF
+        IF(TotWalkersNew.gt.200) THEN
+            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
+                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
+                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
+!                CALL FLUSH(6)
+            ENDIF
+        ENDIF
         
 !Now send the chunks of hashes to the corresponding processors
         CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
@@ -1032,6 +1035,7 @@ MODULE FciMCParMod
 !!We can send the information to CurrentIC - this is where the final information will be stored, but currently, it is redundant.
 !            CALL MPI_AlltoAllv(TempExcitLevel(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,CurrentIC,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 !        ENDIF
+        CALL halt_timer(Comms_Time)
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "AFTER DIVISION:   - No. on processor is: ",MaxIndex
@@ -1041,6 +1045,7 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 !        ENDIF
 
+        CALL set_timer(Sort_Time,30)
 !The hashes now need to be sorted again - this time by their number
 !        IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to take the excitation level with us.
@@ -1048,6 +1053,7 @@ MODULE FciMCParMod
 !        ELSE
             CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
 !        ENDIF
+        CALL halt_timer(Sort_Time)
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "AFTER DIVISION & ORDERING:   - No. on processor is: ",MaxIndex
@@ -1163,8 +1169,10 @@ MODULE FciMCParMod
 !Is the list already ordered according to CPU? Is this further sort even necessary?
 
         IF(ToAnnihilateIndex.gt.1) THEN
+            CALL set_timer(Sort_Time,30)
 !Do not actually have to take indextable, hash2array or newsign with it...
             CALL Sort2IILongL(ToAnnihilateIndex,ProcessVec(1:ToAnnihilateIndex),IndexTable(1:ToAnnihilateIndex),Hash2Array(1:ToAnnihilateIndex),NewSign(1:ToAnnihilateIndex))
+            CALL halt_timer(Sort_Time)
         ENDIF
 
 !We now need to regenerate sendcounts and disps
@@ -1184,7 +1192,8 @@ MODULE FciMCParMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
 !Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL set_timer(Comms_Time,30)
 
         CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
 
@@ -1229,6 +1238,7 @@ MODULE FciMCParMod
 !            WRITE(6,*) "Error in sending back annihilated particles"
 !            CALL Stop_All("AnnihilatePartPar","Error in sending back annihilated particles")
 !        ENDIF
+        CALL halt_timer(Comms_Time)
 
 !TEST
 !        do i=1,ToAnnihilateonProc
@@ -1239,8 +1249,9 @@ MODULE FciMCParMod
 
 !Index2Table now is a list, of length "ToAnnihilateonProc", of walkers which should NOT be transferred to the next array. 
 !Order the list according to this index (Hash and sign does not need to be sorted, but will for debugging purposes)
-
+        CALL set_timer(Sort_Time,30)
         CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
+        CALL halt_timer(Sort_Time)
 
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "Number of hashes originally on processor which need to be removed=",ToAnnihilateonProc
@@ -2201,6 +2212,8 @@ MODULE FciMCParMod
 !Set timed routine names
         Walker_Time%timer_name='WalkerTime'
         Annihil_Time%timer_name='AnnihilTime'
+        Sort_Time%timer_name='SortTime'
+        Comms_Time%timer_name='CommsTime'
         ACF_Time%timer_name='ACFTime'
 
         IF(TDebug) THEN
