@@ -898,6 +898,7 @@ MODULE FciMCParMod
 !        ELSE
             CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
 !        ENDIF
+!We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
 !        CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
         CALL halt_timer(Sort_Time)
         
@@ -909,10 +910,6 @@ MODULE FciMCParMod
 !            enddo
 !        ENDIF
         
-!        IF(nProcessors.eq.1) THEN
-!            CALL STOP_All("AnnihilatePartPar","One processor annihilation not available yet...")
-!        ENDIF
- 
 !Create the send counts and disps for the AlltoAllv. Work out equal ranges of bins for the hashes
 !        Rangeofbins=HUGE(Rangeofbins)/(nProcessors/2)
 !        MinBin=HUGE(MinBin)*-1
@@ -1009,27 +1006,11 @@ MODULE FciMCParMod
         
 !Now send the chunks of hashes to the corresponding processors
         CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in dividing up hashes in annihilation"
-!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-!        ENDIF
 
 !The signs of the hashes, index and CPU also need to be taken with them.
         CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_LOGICAL,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in dividing up hashes in annihilation"
-!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-!        ENDIF
         CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in dividing up hashes in annihilation"
-!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-!        ENDIF
         CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
-!        IF(error.ne.MPI_SUCCESS) THEN
-!            WRITE(6,*) "Error in dividing up hashes in annihilation"
-!            CALL Stop_All("AnnihilatePartPar","Error in dividing up hashes in annihilation")
-!        ENDIF
 !        IF(TLocalAnnihilation) THEN
 !!If we are locally annihilating, then we need to take the excitation level of the particle with us.
 !!We can send the information to CurrentIC - this is where the final information will be stored, but currently, it is redundant.
@@ -1047,6 +1028,8 @@ MODULE FciMCParMod
 
         CALL set_timer(Sort_Time,30)
 !The hashes now need to be sorted again - this time by their number
+!This sorting would be redundant if we had initially sorted the hashes by range. This wants to be attempted.
+!We would need to have 3*nProc indices, since we will have a set of nProc disjoint ordered sublists.
 !        IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to take the excitation level with us.
 !            CALL Sort4I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentIC(1:MaxIndex),CurrentSign(1:MaxIndex))
@@ -1083,7 +1066,7 @@ MODULE FciMCParMod
             enddo
 
 !            IF(TotWalkersDet.gt.AllNoatHF) THEN
-!                WRITE(6,"(A,I20,2I7)",advance='no') "High-weighted Det: ",HashCurr,TotWalkersDet,INT(AllSumNoatHF,4)
+!                WRITE(6,"(A,I20,2I7)") "High-weighted Det: ",HashCurr,TotWalkersDet,INT(AllSumNoatHF,4)
 !            ENDIF
             
 !            IF(Iter.eq.DebugIter) THEN
