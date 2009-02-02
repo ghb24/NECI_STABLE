@@ -1007,7 +1007,12 @@ MODULE FciMCParMod
 !        AnnihilPart(:)=0
 !        CALL MPI_Gather(MaxIndex,1,MPI_INTEGER,AnnihilPart,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
 !        IF(iProcIndex.eq.root) THEN
-!            WRITE(13,*) Iter,AnnihilPart(:)
+!            WRITE(13,"(I10)",advance='no') Iter
+!            do i=1,nProcessors
+!                WRITE(13,"(I10)",advance='no') AnnihilPart(:)
+!            enddo
+!            WRITE(13,"(A)") ""
+!            CALL FLUSH(13)
 !        ENDIF
 
 !        IF(Iter.eq.DebugIter) THEN
