@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tAnnihilatebyrange=.false.
           tSymmetricField=.false.
           NoMagDets=1
           BField=0.D0
@@ -768,6 +769,10 @@ MODULE Calc
 !A Serial FCIMC experimental option. With this, walkers have the ability to annihilate each other as long as they are connected, which they will do with probability = Lambda*Hij
                 TDistAnnihil=.true.
                 call Getf(Lambda)
+            case("ANNIHILATERANGE")
+!This option should give identical results whether on or off. It means that hashes are histogrammed and sent to processors, rather than sent due to the value of mod(hash,nprocs).
+!This removes the need for a second full sorting of the list of hashes, but may have load-balancing issues for the algorithm.
+                tAnnihilatebyrange=.true.
             case("LOCALANNIHIL")
 !A parallel FCIMC experimental option. This will attempt to compensate for undersampled systems, by including extra annihilation for walkers which are the sole occupier of determiants
 !This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.

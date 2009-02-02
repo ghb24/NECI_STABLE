@@ -684,6 +684,14 @@ The following options are only available in **FCIMC** calculations:
     equivalent to the original annihilation algorithm. Warning - this is much slower than
     normal annihilation.
 
+**ANNIHILATERANGE**
+    Default=.false.
+
+    A parallel FCIMC option. This is a slightly different annihilation algorithm, where only
+    one sort of the full set of particles is needed. This should greatly reduce the time needed
+    for annihilation of large numbers of particles. However, the load-balancing across processors
+    may not be so good.
+
 **LOCALANNIHIL** [Lambda]
     
     A parallel FCIMC option. An additional diagonal death rate is included at the annihilation

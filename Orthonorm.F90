@@ -61,3 +61,96 @@ SUBROUTINE OrthoNormx(n,m,a)
 
 END SUBROUTINE OrthoNormx
 
+!Lowdin Orthoganalize
+!for any non-singular R, let S=R RT
+!P = S^(-1/2) R is orthogonal.
+!MAT is NxN and is returned as an orthogal matrix
+!R1 and R2 are NxN workspaces
+      SUBROUTINE LOWDIN_ORTH(MAT,N,R1,R2,WORK)
+         Use HElem
+         IMPLICIT NONE
+         INTEGER N
+         Type(HElement) MAT(N,N),R1(N,N),R2(N,N)
+         REAL*8 L(N),LL,RWORK(3*N)
+         Type(HElement) WORK(3*N)
+         INTEGER INFO,I,J
+!R=MAT
+!S= R1=1.D0 * R * RT + 0.D0*R1
+         IF(HElementSize.EQ.1) THEN
+            CALL DGEMM('N','T',N,N,N,1.D0,MAT,N,MAT,N,0.D0,R1,N)
+         ELSE
+            CALL ZGEMM('N','C',N,N,N,(1.D0,0.d0),MAT,N,MAT,N,(0.D0,0.d0),R1,N)
+         ENDIF
+!         CALL Write_HEMatrix("R",N,N,R1)
+! Diagonalize S=R1 into eigenvectors U=R1 and eigenvalues L
+         IF(HElementSize.EQ.1) THEN
+            CALL DSYEV('V','U',N,R1,N,L,WORK,N*3,INFO)
+         ELSE
+            CALL ZHEEV('V','U',N,R1,N,L,WORK,N*3,RWORK,INFO)
+         ENDIF
+! eigenvector 1 is given by R1(I,1)
+         IF(INFO.NE.0) THEN
+            WRITE(6,*) "INFO=",INFO," on diag in LOWDIN_ORTH. Stopping"
+            STOP 'Error in LOWDIN_ORTH.'
+         ENDIF
+! Calculate P = S^(-1/2) R = U L^(-1/2) UT R.  U=R1
+! First let R2=U R. U=R1.  R=MAT
+! R2=1.D0 * R1 * MAT + 0.D0*R1
+         IF(HElementSize.EQ.1) THEN
+            CALL DGEMM('T','N',N,N,N,1.D0,R1,N,MAT,N,0.D0,R2,N)
+         ELSE
+            CALL ZGEMM('C','N',N,N,N,(1.D0,0.D0),R1,N,MAT,N,(0.D0,0.d0),R2,N)
+         ENDIF
+! Now let R2=L^(-1/2) (U R) = L^(-1/2) R2
+! row I is multiplied by (L(I))^(-1/2)
+         DO I=1,N
+            LL=L(I)**(-0.5D0)
+            DO J=1,N
+               R2(I,J)=R2(I,J)*HElement(LL)
+            ENDDO
+         ENDDO
+! Now let MAT = P = U (L^(-1/2) UT R) = U R2.  U=R1
+! MAT=1.D0 * U * R2 + 0.D0*MAT
+         IF(HElementSize.EQ.1) THEN
+            CALL DGEMM('N','N',N,N,N,1.D0,R1,N,R2,N,0.D0,MAT,N)
+         ELSE
+            CALL ZGEMM('N','N',N,N,N,(1.D0,0.D0),R1,N,R2,N,(0.D0,0.d0),MAT,N)
+         ENDIF
+! and we should be done, with an orthoganal matrix in MAT
+      END SUBROUTINE LOWDIN_ORTH                      
+ 
+      SUBROUTINE GRAMSCHMIDT(MAT,LEN)
+! MAT(IELEMENT,IVECTOR)
+         Use HElem
+         IMPLICIT NONE
+         INTEGER LEN
+         Type(HElement) MAT(LEN,LEN),DOT
+         REAL*8 NORM,SNORM
+         INTEGER I,J,K
+         DO I=1,LEN
+! First dot with all lower vectors, and remove their components
+            DO J=1,I-1
+               DOT=0.D0
+               NORM=0.D0
+               DO K=1,LEN
+                  DOT=DOT+DCONJG(MAT(K,J))*MAT(K,I)
+               ENDDO
+               DO K=1,LEN
+                  MAT(K,I)=MAT(K,I)-MAT(K,J)*DOT
+               ENDDO 
+            ENDDO
+            NORM=0.D0
+            DO K=1,LEN
+               NORM=NORM+SQ(MAT(K,I))
+            ENDDO        
+            SNORM=SQRT(NORM)    
+!            WRITE(6,*) NORM
+            DO K=1,LEN
+!               WRITE(6,*) MAT(K,I),MAT(K,I)/SNORM
+               MAT(K,I)=MAT(K,I)/HElement(SNORM)
+            ENDDO
+         ENDDO
+         RETURN
+      END SUBROUTINE GRAMSCHMIDT
+
+

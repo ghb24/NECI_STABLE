@@ -12,7 +12,7 @@ MODULE FciMCParMod
     use SystemData , only : tHub,tReal,tNonUniRandExcits
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
-    use CalcData , only : tConstructNOs
+    use CalcData , only : tConstructNOs,tAnnihilatebyRange
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
@@ -834,11 +834,11 @@ MODULE FciMCParMod
     SUBROUTINE AnnihilatePartPar(TotWalkersNew)
         INTEGER :: i,j,k,ToAnnihilateIndex,TotWalkersNew,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
-        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors)
-        INTEGER :: Minsendcounts,Maxsendcounts,DebugIter
+        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),AnnihilPart(nProcessors)
+        INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
         REAL*8 :: PopDensity(0:NEl)
         INTEGER , ALLOCATABLE :: TempExcitLevel(:)
-        INTEGER(KIND=i2) :: HashCurr!MinBin,RangeofBins,NextBinBound
+        INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
         
 !This is just to see if there are higher-weighted determinants that HF...
@@ -891,16 +891,54 @@ MODULE FciMCParMod
 
         CALL set_timer(Sort_Time,30)
 !Next, order the hash array, taking the index, CPU and sign with it...
+        IF(.not.tAnnihilatebyRange) THEN
 !Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
-!        IF(TLocalAnnihilation) THEN
+!             IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to take the excitation level of each walker with the hash
-!            CALL SortMod4I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),TempExcitLevel(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
-!        ELSE
+!                 CALL SortMod4I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),TempExcitLevel(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+!             ELSE
             CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
-!        ENDIF
+!             ENDIF
+            CALL halt_timer(Sort_Time)
+
+!Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
+            j=1
+            do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
+                do while((abs(mod(Hash2Array(j),nProcessors)).eq.i).and.(j.le.TotWalkersNew))
+                    j=j+1 
+                enddo
+                sendcounts(i+1)=j-1
+            enddo
+        
+        ELSE
 !We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
-!        CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
-        CALL halt_timer(Sort_Time)
+            CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
+            CALL halt_timer(Sort_Time)
+!We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
+            Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
+            MinBin=-HUGE(MinBin)
+            NextBinBound=MinBin+Rangeofbins
+!            WRITE(6,*) "Rangeofbins: ",Rangeofbins
+!            WRITE(6,*) "MinBin: ",MinBin
+!            WRITE(6,*) "NextBinBound: ",NextBinBound
+
+!We need to find the indices for each block of hashes which are to be sent to each processor.
+!Sendcounts is the size of each block of ordered dets which are going to each processors. This could be binary searched for extra speed.
+            j=1
+            do i=1,nProcessors    !Search through all possible values of the hashes
+                do while((Hash2Array(j).lt.NextBinBound).and.(j.le.TotWalkersNew))
+                    j=j+1
+                enddo
+                sendcounts(i)=j-1
+                IF(i.eq.nProcessors-1) THEN
+!Make sure the final bin catches everything...
+                    NextBinBound=HUGE(NextBinBound)
+                ELSE
+                    NextBinBound=NextBinBound+Rangeofbins
+                ENDIF
+            enddo
+
+        ENDIF
         
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "***************"
@@ -909,27 +947,6 @@ MODULE FciMCParMod
 !                WRITE(6,*) Hash2Array(i),abs(mod(Hash2Array(i),nProcessors)),IndexTable(i),ProcessVec(i),NewSign(i)
 !            enddo
 !        ENDIF
-        
-!Create the send counts and disps for the AlltoAllv. Work out equal ranges of bins for the hashes
-!        Rangeofbins=HUGE(Rangeofbins)/(nProcessors/2)
-!        MinBin=HUGE(MinBin)*-1
-!        NextBinBound=MinBin+Rangeofbins
-
-!Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
-        j=1
-        do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
-
-            do while((abs(mod(Hash2Array(j),nProcessors)).eq.i).and.(j.le.TotWalkersNew))
-                j=j+1 
-            enddo
-            sendcounts(i+1)=j-1
-!            IF(i.eq.nProcessors) THEN
-!                NextBinBound=HUGE(NextBinBound)
-!            ELSE
-!                NextBinBound=NextBinBound+Rangeofbins
-!            ENDIF
-
-        enddo
         
         IF(sendcounts(nProcessors).ne.TotWalkersNew) THEN
             WRITE(6,*) "SENDCOUNTS is: ",sendcounts(:)
@@ -986,6 +1003,12 @@ MODULE FciMCParMod
         IF(MaxIndex.gt.(0.95*MaxWalkersAnnihil)) THEN
             CALL Warning("AnnihilatePartPar","Maximum index of annihilation array is close to maximum length. Increase MemoryFacAnnihil")
         ENDIF
+!Uncomment this if you want to write out load-balancing statistics.
+        AnnihilPart(:)=0
+        CALL MPI_Gather(MaxIndex,1,MPI_INTEGER,AnnihilPart,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+        IF(iProcIndex.eq.root) THEN
+            WRITE(13,*) Iter,AnnihilPart(:)
+        ENDIF
 
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "RECVCOUNTS: "
@@ -1026,18 +1049,88 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 !        ENDIF
 
+!Now we need to perform the actual annihilation, running through all the particles and calculating which ones want to be annihilated.
         CALL set_timer(Sort_Time,30)
+        IF(.not.tAnnihilatebyrange) THEN
 !The hashes now need to be sorted again - this time by their number
-!This sorting would be redundant if we had initially sorted the hashes by range. This wants to be attempted.
-!We would need to have 3*nProc indices, since we will have a set of nProc disjoint ordered sublists.
-!        IF(TLocalAnnihilation) THEN
+!This sorting would be redundant if we had initially sorted the hashes by range (ie tAnnihilatebyrange).
+!            IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to take the excitation level with us.
-!            CALL Sort4I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentIC(1:MaxIndex),CurrentSign(1:MaxIndex))
-!        ELSE
-            CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
-!        ENDIF
+!                CALL Sort4I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentIC(1:MaxIndex),CurrentSign(1:MaxIndex))
+!            ELSE
+                CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
+!            ENDIF
+        ELSE
+!Here, because we have ordered the hashes initially numerically, we have a set of ordered lists. It is therefore easier to sort them.
+!We have to work out how to run sequentially through the hashes, which are a set of nProc seperate ordered lists.
+!We would need to have 2*nProc indices, since we will have a set of nProc disjoint ordered sublists.
+!SubListInds(1,iProc)=index of current hash from processor iProc
+!SubListInds(2,iProc)=index of final hash from processor iProc
+!Indices can be obtained from recvcounts and recvdisps - recvcounts(iProc-1) is number of hashes from iProc
+!recvdisps(iProc-1) is the displacement to the start of the hashes from iProc
+            do i=1,nProcessors-1
+                SubListInds(1,i)=recvdisps(i)+1
+                SubListInds(2,i)=recvdisps(i+1)
+            enddo
+            SubListInds(1,nProcessors)=recvdisps(nProcessors)+1
+            SubListInds(2,nProcessors)=MaxIndex
+!            WRITE(6,*) "SubListInds(1,:) ", SubListInds(1,:)
+!            WRITE(6,*) "SubListInds(2,:) ", SubListInds(2,:)
+!            WRITE(6,*) "Original hash list is: "
+!            do i=1,MaxIndex
+!                WRITE(6,*) HashArray(i)
+!            enddo
+!            WRITE(6,*) "**************"
+!Reorder the lists so that they are in numerical order.
+            j=1
+            do while(j.le.MaxIndex)
+                do i=1,nProcessors
+                    IF(SubListInds(1,i).le.SubListInds(2,i)) THEN
+!This block still has hashes which want to be sorted
+                        MinHash=HashArray(SubListInds(1,i))
+                        MinProc=i
+                        MinInd=SubListInds(1,i)
+                        EXIT
+                    ENDIF
+                enddo
+                IF(MinHash.ne.HashCurr) THEN
+                    do i=MinProc+1,nProcessors
+                        IF((SubListInds(1,i).le.SubListInds(2,i)).and.(HashArray(SubListInds(1,i)).lt.MinHash)) THEN
+                            MinHash=HashArray(SubListInds(1,i))
+                            MinProc=i
+                            MinInd=SubListInds(1,i)
+                            IF(MinHash.eq.HashCurr) THEN
+                                EXIT
+                            ENDIF
+                        ENDIF
+                    enddo
+                ENDIF
+!Next smallest hash is MinHash - move the ordered elements into the other array.
+                Hash2Array(j)=MinHash
+                IndexTable(j)=Index2Table(MinInd)
+                ProcessVec(j)=Process2Vec(MinInd)
+                NewSign(j)=CurrentSign(MinInd)
+                HashCurr=MinHash
+!Move through the block
+                j=j+1
+                SubListInds(1,MinProc)=SubListInds(1,MinProc)+1
+            enddo
+
+!Need to copy the lists back to the original array
+            Index2Table(1:MaxIndex)=IndexTable(1:MaxIndex)
+            Process2Vec(1:MaxIndex)=ProcessVec(1:MaxIndex)
+            CurrentSign(1:MaxIndex)=NewSign(1:MaxIndex)
+            HashArray(1:MaxIndex)=Hash2Array(1:MaxIndex)
+
+!            WRITE(6,*) "Final hash list is: "
+!            do i=1,MaxIndex
+!                WRITE(6,*) HashArray(i)
+!            enddo
+
+        ENDIF
+
         CALL halt_timer(Sort_Time)
-        
+
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "AFTER DIVISION & ORDERING:   - No. on processor is: ",MaxIndex
 !            do i=1,MaxIndex
@@ -1068,7 +1161,7 @@ MODULE FciMCParMod
 !            IF(TotWalkersDet.gt.AllNoatHF) THEN
 !                WRITE(6,"(A,I20,2I7)") "High-weighted Det: ",HashCurr,TotWalkersDet,INT(AllSumNoatHF,4)
 !            ENDIF
-            
+     
 !            IF(Iter.eq.DebugIter) THEN
 !                WRITE(6,*) "Common block of dets found from ",InitialBlockIndex," ==> ",FinalBlockIndex
 !                WRITE(6,*) "Sum of signs in block is: ",TotWalkersDet
@@ -1091,7 +1184,7 @@ MODULE FciMCParMod
 !                    ENDIF
 !                ENDIF
 !            ENDIF
-            
+        
             do k=InitialBlockIndex,FinalBlockIndex
 !Second run through the block of same determinants marks walkers for annihilation
                 IF(TotWalkersDet.eq.0) THEN
@@ -1136,7 +1229,7 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
             enddo
-            
+        
 !            j=j+1   !Increment counter
 
         enddo

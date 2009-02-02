@@ -21,7 +21,7 @@ LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift
-LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng
+LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
