@@ -834,7 +834,7 @@ MODULE FciMCParMod
     SUBROUTINE AnnihilatePartPar(TotWalkersNew)
         INTEGER :: i,j,k,ToAnnihilateIndex,TotWalkersNew,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
-        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),AnnihilPart(nProcessors)
+        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors)!,AnnihilPart(nProcessors)
         INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
         REAL*8 :: PopDensity(0:NEl)
         INTEGER , ALLOCATABLE :: TempExcitLevel(:)
@@ -1004,11 +1004,11 @@ MODULE FciMCParMod
             CALL Warning("AnnihilatePartPar","Maximum index of annihilation array is close to maximum length. Increase MemoryFacAnnihil")
         ENDIF
 !Uncomment this if you want to write out load-balancing statistics.
-        AnnihilPart(:)=0
-        CALL MPI_Gather(MaxIndex,1,MPI_INTEGER,AnnihilPart,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
-        IF(iProcIndex.eq.root) THEN
-            WRITE(13,*) Iter,AnnihilPart(:)
-        ENDIF
+!        AnnihilPart(:)=0
+!        CALL MPI_Gather(MaxIndex,1,MPI_INTEGER,AnnihilPart,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(13,*) Iter,AnnihilPart(:)
+!        ENDIF
 
 !        IF(Iter.eq.DebugIter) THEN
 !            WRITE(6,*) "RECVCOUNTS: "
