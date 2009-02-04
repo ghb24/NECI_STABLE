@@ -1,5 +1,25 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 
+!This will return true if iLutI is identical to iLutJ and will return false otherwise.
+    LOGICAL FUNCTION DetBitEQ(iLutI,iLutJ,NIfD)
+        IMPLICIT NONE
+        INTEGER :: iLutI(0:NIfD),iLutJ(0:NIfD),NIfD,i
+
+        IF(iLutI(0).ne.iLutJ(0)) THEN
+            DetBitEQ=.false.
+            RETURN
+        ELSE
+            do i=1,NIfD
+                IF(iLutI(0).ne.iLutJ(0)) THEN
+                    DetBitEQ=.false.
+                    RETURN
+                ENDIF
+            enddo
+        ENDIF
+        DetBitEQ=.true.
+
+    END FUNCTION DetBitEQ
+
 !This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants are identical, or -1 if iLutI is "more" than iLutJ
     INTEGER FUNCTION DetBitLT(iLutI,iLutJ,NIfD)
         IMPLICIT NONE
