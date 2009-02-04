@@ -1,5 +1,33 @@
 !This file contains a load of useful operations to perform on determinants represented as bit-strings.
 
+!This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants are identical, or -1 if iLutI is "more" than iLutJ
+    INTEGER FUNCTION DetBitLT(iLutI,iLutJ,NIfD)
+        IMPLICIT NONE
+        INTEGER :: iLutI(0:NIfD),iLutJ(0:NIfD),NIfD,i
+
+        IF(iLutI(0).lt.iLutJ(0)) THEN
+!First, compare first integers
+            DetBitLT=1
+            RETURN
+        ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
+!If the integers are the same, then cycle through the rest of the integers until we find a difference.
+            do i=1,NIfD
+                IF(iLutI(i).lt.iLutJ(i)) THEN
+                    DetBitLT=1
+                    RETURN
+                ELSEIF(iLutI(i).gt.iLutJ(i)) THEN
+                    DetBitLT=-1
+                    RETURN
+                ENDIF
+            enddo
+        ELSE
+            DetBitLT=-1
+            RETURN
+        ENDIF
+        DetBitLT=0
+
+    END FUNCTION DetBitLT
+
 !This is a routine to encode a determinant as natural ordered integers (nI) as a bit string (iLut(0:NIfD))
 !where NIfD=INT(nBasis/32)
     SUBROUTINE EncodeBitDet(nI,iLut,NEl,NIfD)
