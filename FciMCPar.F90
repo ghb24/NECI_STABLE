@@ -840,7 +840,7 @@ MODULE FciMCParMod
         INTEGER , ALLOCATABLE :: TempExcitLevel(:)
         INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
-        
+
 !This is just to see if there are higher-weighted determinants that HF...
 !        AllNoatHF=0
 !        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
@@ -926,7 +926,7 @@ MODULE FciMCParMod
 !Sendcounts is the size of each block of ordered dets which are going to each processors. This could be binary searched for extra speed.
             j=1
             do i=1,nProcessors    !Search through all possible values of the hashes
-                do while((Hash2Array(j).lt.NextBinBound).and.(j.le.TotWalkersNew))
+                do while((Hash2Array(j).le.NextBinBound).and.(j.le.TotWalkersNew))
                     j=j+1
                 enddo
                 sendcounts(i)=j-1
@@ -1009,7 +1009,7 @@ MODULE FciMCParMod
 !        IF(iProcIndex.eq.root) THEN
 !            WRITE(13,"(I10)",advance='no') Iter
 !            do i=1,nProcessors
-!                WRITE(13,"(I10)",advance='no') AnnihilPart(:)
+!                WRITE(13,"(I10)",advance='no') AnnihilPart(i)
 !            enddo
 !            WRITE(13,"(A)") ""
 !            CALL FLUSH(13)
@@ -1097,6 +1097,10 @@ MODULE FciMCParMod
                         MinInd=SubListInds(1,i)
                         EXIT
                     ENDIF
+!                    IF(i.eq.nProcessors) THEN
+!                        WRITE(6,*) "ERROR HERE!!"
+!                        CALL FLUSH(6)
+!                    ENDIF
                 enddo
                 IF(MinHash.ne.HashCurr) THEN
                     do i=MinProc+1,nProcessors
@@ -1121,17 +1125,23 @@ MODULE FciMCParMod
                 SubListInds(1,MinProc)=SubListInds(1,MinProc)+1
             enddo
 
+            IF((j-1).ne.MaxIndex) THEN
+                CALL Stop_All(this_routine,"Error here in the merge sort algorithm")
+            ENDIF
+
 !Need to copy the lists back to the original array
-            Index2Table(1:MaxIndex)=IndexTable(1:MaxIndex)
-            Process2Vec(1:MaxIndex)=ProcessVec(1:MaxIndex)
-            CurrentSign(1:MaxIndex)=NewSign(1:MaxIndex)
-            HashArray(1:MaxIndex)=Hash2Array(1:MaxIndex)
-
-!            WRITE(6,*) "Final hash list is: "
-!            do i=1,MaxIndex
-!                WRITE(6,*) HashArray(i)
-!            enddo
-
+            do i=1,MaxIndex
+                Index2Table(i)=IndexTable(i)
+                Process2Vec(i)=ProcessVec(i)
+                CurrentSign(i)=NewSign(i)
+                HashArray(i)=Hash2Array(i)
+            enddo
+                
+!            Index2Table(1:MaxIndex)=IndexTable(1:MaxIndex)
+!            Process2Vec(1:MaxIndex)=ProcessVec(1:MaxIndex)
+!            CurrentSign(1:MaxIndex)=NewSign(1:MaxIndex)
+!            HashArray(1:MaxIndex)=Hash2Array(1:MaxIndex)
+                    
         ENDIF
 
         CALL halt_timer(Sort_Time)
