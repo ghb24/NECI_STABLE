@@ -678,21 +678,32 @@ MODULE FciMCParMod
 !by rotating the newly spawned particles around all determinants and annihilating with the particles on their processor.
 !Valid spawned is the number of newly-spawned particles. Each rotation and annihilation step, the number corresponds to a different processors spawned particles.
 !TotWalkersNew indicates the number of particles in NewDets - the list of particles to compare for annihilation.
+!Improvements in AnnihilateBetweenSpawned:
+!Binary search for sendcounts and others, and only transfer all data when need to.
+!Memory improvements
+!Call as one array for All-to-alls
+!Make sure only sort what need to
     SUBROUTINE RotoAnnihilation(ValidSpawned,TotWalkersNew)
         INTEGER :: ValidSpawned,TotWalkersNew
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
 !First, annihilate between newly spawned particles. Memory for this will be allocated dynamically.
 !This will be done in the usual fashion using the All-to-All communication and hashes.
         CALL AnnihilateBetweenSpawned(ValidSpawned)
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
-        SORT SPAWNED PARTS
-
+        CALL SortBitDets(ValidSpawned,SpawnedParts(1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned)
+        
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
 
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
 !Allocate a buffer here to hold particles when using a buffered send...
-        ATTACH BUFFER
+!The buffer wants to be able to hold (MaxSpawned+1)x(NoIntforDet+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
+!it could get reduced to this... 
+        CALL MPI_Buffer_attach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
 
         do i=1,nProcessors-1
 !Move newly-spawned particles which haven't been annihilated around the processors in sequence, annihilating locally each step.
@@ -707,16 +718,492 @@ MODULE FciMCParMod
 !One final rotation means that the particles are all on their original processor.
         CALL RotateParticles(ValidSpawned)
 
+!Detach buffers
+        CALL MPI_Buffer_detach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL InsertRemoveParts(ValidSpawned)
 
     END SUBROUTINE RotoAnnihilation
 
+!This routine will run through the total list of particles (TotWalkersNew in NewDets with sign NewSign) and the list of newly-spawned but
+!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
+!while removing the particles with sign = 0 from NewDets. 
+!Initially, we can put these new particles into the other array: CurrentDets and CurrentSign, but we will want to remove the need for a second
+!array eventually and keep all the particles on the same array.
+!Binary searching can be used to speed up this transfer substantially.
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+        INTEGER :: IndSpawned,IndParts,VecInd,OrigPartAnn,DetBitLT,TotWalkersNew,ValidSpawned
+
+        
+        IndSpawned=1
+        IndParts=1
+        VecInd=1
+        OrigPartAnn=0   !This will count the number of annihilated particles from the main list.
+
+        do while(IndParts.le.TotWalkersNew)
+            
+            IF(DetBitLT(NewDets(0:NoIntForDet,IndParts),SpawnedParts(0:NoIntForDet,IndSpawned),NoIntForDet).eq.1) THEN
+!Want to move in the particle from NewDets (unless it wants to be annihilated)
+                IF(NewSign(IndParts).ne.0) THEN
+!We want to keep this particle
+                    CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,IndParts)
+                    CurrentSign(VecInd)=NewSign(IndParts)
+                    VecInd=VecInd+1
+                    OrigPartAnn=OrigPartAnn+1
+                ENDIF
+                IndParts=IndParts+1
+            ELSEIF(IndSpawned.le.ValidSpawned)
+!Now, we want to transfer a spawned particle, unless we have transferred them all
+                IF(SpawnedSign.eq.0) THEN
+                    CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
+                ENDIF
+                CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
+                CurrentSign(VecInd)=SpawnedSign(IndSpawned)
+                VecInd=VecInd+1
+                IF(ValidSpawned.eq.IndSpawned) THEN
+                    EXIT    !We have reached the end of the list of spawned particles
+                ELSE
+                    IndSpawned=IndSpawned+1
+                ENDIF
+            ENDIF
+
+        enddo
+
+        IF(IndParts.le.TotWalkersNew) THEN
+!Haven't finished copying rest of original particles
+            do i=IndParts,TotWalkersNew
+                IF(NewSign(i).ne.0) THEN
+                    CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,i)
+                    CurrentSign(VecInd)=NewSign(i)
+                    VecInd=VecInd+1
+                    OrigPartAnn=OrigPartAnn+1
+                ENDIF
+            enddo
+
+        ELSEIF(IndSpawned.le.ValidSpawned) THEN
+            do i=IndSpawned,ValidSpawned
+                CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,i)
+                CurrentSign(VecInd)=SpawnedSign(i)
+                VecInd=VecInd+1
+            enddo
+        ENDIF
+
+!OrigPartAnn particles annihilated from the original list. 
+!This should match the decrease in size of the SpawnedParts array over the course of the annihilation steps.
+!This should also be equal to TotWalkersNew-TotWalkers
+
+        TotWalkers=VecInd-1     !The new total number of particles after all annihilation steps.
+
+    END SUBROUTINE InsertRemoveParts
+
+!This routine wants to take the ValidSpawned particles in the SpawnedParts array and perform All-to-All communication so that 
+!we can annihilate all common particles with opposite signs.
+!Particles are fed in on the SpawnedParts and SpawnedSign array, but are returned on the SpawnedParts2 and SpawnedSign2 arrays.
+!It requires MaxSpawned*36 bytes of memory (on top of the memory of the arrays fed in...)
+    SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
+        INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
+        INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
+        INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
+        INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
+        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
+        INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
+        CHARACTER(len=*), PARAMETER :: this_routine='AnnihilateBetweenSpawned'
+
+!First, we need to allocate memory banks. Each array needs a hash value, a processor value, and an index value.
+!We also want to allocate a temporary sign value
+        ALLOCATE(TempSign(ValidSpawned),stat=ierr)
+
+!These arrays may as well be kept all the way through the simulation?
+        ALLOCATE(HashArray1(MaxSpawned),stat=ierr)
+        ALLOCATE(HashArray2(MaxSpawned),stat=ierr)
+        ALLOCATE(IndexTable1(MaxSpawned),stat=ierr)
+        ALLOCATE(IndexTable2(MaxSpawned),stat=ierr)
+        ALLOCATE(ProcessVec1(MaxSpawned),stat=ierr)
+        ALLOCATE(ProcessVec2(MaxSpawned),stat=ierr)
+
+        IF(ierr.ne.0) THEN
+            CALL Stop_All("AnnihilateBetweenSpawned","Error in allocating initial data")
+        ENDIF
+
+        TempSign(1:ValidSpawned)=SpawnedSign(1:ValidSpawned)
+        ProcessVec1(1:ValidSpawned)=iProcIndex
+
+        do i=1,ValidSpawned
+            IndexTable1(i)=i
+            HashArray1(i)=CreateHash(SpawnedParts(0:NIfD,i)
+        enddo
+
+!Next, order the hash array, taking the index, CPU and sign with it...
+        IF(.not.tAnnihilatebyRange) THEN
+!Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
+            CALL SortMod3I1LLong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned),nProcessors)
+
+!Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
+            j=1
+            do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
+                do while((abs(mod(Hash2Array(j),nProcessors)).eq.i).and.(j.le.ValidSpawned))
+                    j=j+1
+                enddo
+                sendcounts(i+1)=j-1
+            enddo
+
+        ELSE
+!We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
+            CALL Sort3I1LLong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned))
+!We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
+            Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
+            MinBin=-HUGE(MinBin)
+            NextBinBound=MinBin+Rangeofbins
+
+!We need to find the indices for each block of hashes which are to be sent to each processor.
+!Sendcounts is the size of each block of ordered dets which are going to each processors. This could be binary searched for extra speed.
+            j=1
+            do i=1,nProcessors    !Search through all possible values of the hashes
+                do while((HashArray1(j).le.NextBinBound).and.(j.le.ValidSpawned))
+                    j=j+1
+                enddo
+                sendcounts(i)=j-1
+                IF(i.eq.nProcessors-1) THEN
+!Make sure the final bin catches everything...
+                    NextBinBound=HUGE(NextBinBound)
+                ELSE
+                    NextBinBound=NextBinBound+Rangeofbins
+                ENDIF
+            enddo
+
+        ENDIF
+
+        IF(sendcounts(nProcessors).ne.ValidSpawned) THEN
+            WRITE(6,*) "SENDCOUNTS is: ",sendcounts(:)
+            WRITE(6,*) "VALIDSPAWNED is: ",ValidSpawned
+            CALL FLUSH(6)
+            CALL Stop_All("AnnihilateBetweenSpawned","Incorrect calculation of sendcounts")
+        ENDIF
+
+!Oops, we have calculated them cumulativly - undo this
+        maxsendcounts=sendcounts(1)
+        minsendcounts=sendcounts(1)     !Find max & min sendcounts, so that load-balancing can be checked
+!        WRITE(6,*) maxsendcounts,minsendcounts
+        do i=2,nProcessors
+            do j=1,i-1
+                sendcounts(i)=sendcounts(i)-sendcounts(j)
+            enddo
+            IF(sendcounts(i).gt.maxsendcounts) THEN
+                maxsendcounts=sendcounts(i)
+            ELSEIF(sendcounts(i).lt.minsendcounts) THEN
+                minsendcounts=sendcounts(i)
+            ENDIF
+        enddo
+
+!The disps however do want to be cumulative - this is the array indexing the start of the data block
+        disps(1)=0      !Starting element is always the first element
+        do i=2,nProcessors
+            disps(i)=disps(i-1)+sendcounts(i-1)
+        enddo
+
+!We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        recvcounts(1:nProcessors)=0
+
+        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+!We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
+        recvdisps(1)=0
+        do i=2,nProcessors
+            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
+        enddo
+
+        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
+!Max index is the largest occupied index in the array of hashes to be ordered in each processor 
+        IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+            CALL Warning("AnnihilateBetweenSpawned","Maximum index of annihilation array is close to maximum length. Increase MemoryFacSpawn")
+        ENDIF
+
+!Uncomment this if you want to write out load-balancing statistics.
+!        AnnihilPart(:)=0
+!        CALL MPI_Gather(MaxIndex,1,MPI_INTEGER,AnnihilPart,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(13,"(I10)",advance='no') Iter
+!            do i=1,nProcessors
+!                WRITE(13,"(I10)",advance='no') AnnihilPart(i)
+!            enddo
+!            WRITE(13,"(A)") ""
+!            CALL FLUSH(13)
+!        ENDIF
+
+!        IF(Iter.eq.DebugIter) THEN
+!            WRITE(6,*) "RECVCOUNTS: "
+!            WRITE(6,*) recvcounts(:)
+!            WRITE(6,*) "RECVDISPS: "
+!            WRITE(6,*) recvdisps(:),MaxIndex
+!            CALL FLUSH(6)
+!        ENDIF
+
+!Insert a load-balance check here...maybe find the s.d. of the sendcounts array - maybe just check the range first.
+!        IF(TotWalkersNew.gt.200) THEN
+!            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
+!                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
+!                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
+!                CALL FLUSH(6)
+!            ENDIF
+!        ENDIF
+
+!Now send the chunks of hashes to the corresponding processors
+        CALL MPI_AlltoAllv(HashArray1(1:ValidSpawned),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray2(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)
+
+!The signs of the hashes, index and CPU also need to be taken with them.
+        CALL MPI_AlltoAllv(SpawnedSign(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,SpawnedSign2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(IndexTable1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(ProcessVec1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,ProcessVec2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+        IF(.not.tAnnihilatebyrange) THEN
+!The hashes now need to be sorted again - this time by their number
+!This sorting would be redundant if we had initially sorted the hashes by range (ie tAnnihilatebyrange).
+            CALL Sort3I1LLong(MaxIndex,HashArray2(1:MaxIndex),IndexTable2(1:MaxIndex),ProcessVec2(1:MaxIndex),SpawnedSign2(1:MaxIndex))
+        ELSE
+!Here, because we have ordered the hashes initially numerically, we have a set of ordered lists. It is therefore easier to sort them.
+!We have to work out how to run sequentially through the hashes, which are a set of nProc seperate ordered lists.
+!We would need to have 2*nProc indices, since we will have a set of nProc disjoint ordered sublists.
+!SubListInds(1,iProc)=index of current hash from processor iProc
+!SubListInds(2,iProc)=index of final hash from processor iProc
+!Indices can be obtained from recvcounts and recvdisps - recvcounts(iProc-1) is number of hashes from iProc
+!recvdisps(iProc-1) is the displacement to the start of the hashes from iProc
+            do i=1,nProcessors-1
+                SubListInds(1,i)=recvdisps(i)+1
+                SubListInds(2,i)=recvdisps(i+1)
+            enddo
+            SubListInds(1,nProcessors)=recvdisps(nProcessors)+1
+            SubListInds(2,nProcessors)=MaxIndex
+!            WRITE(6,*) "SubListInds(1,:) ", SubListInds(1,:)
+!            WRITE(6,*) "SubListInds(2,:) ", SubListInds(2,:)
+!            WRITE(6,*) "Original hash list is: "
+!            do i=1,MaxIndex
+!                WRITE(6,*) HashArray(i)
+!            enddo
+!            WRITE(6,*) "**************"
+!Reorder the lists so that they are in numerical order.
+            j=1
+            do while(j.le.MaxIndex)
+                do i=1,nProcessors
+                    IF(SubListInds(1,i).le.SubListInds(2,i)) THEN
+!This block still has hashes which want to be sorted
+                        MinHash=HashArray2(SubListInds(1,i))
+                        MinProc=i
+                        MinInd=SubListInds(1,i)
+                        EXIT
+                    ENDIF
+!                    IF(i.eq.nProcessors) THEN
+!                        WRITE(6,*) "ERROR HERE!!"
+!                        CALL FLUSH(6)
+!                    ENDIF
+                enddo
+                IF(MinHash.ne.HashCurr) THEN
+                    do i=MinProc+1,nProcessors
+                        IF((SubListInds(1,i).le.SubListInds(2,i)).and.(HashArray2(SubListInds(1,i)).lt.MinHash)) THEN
+                            MinHash=HashArray2(SubListInds(1,i))
+                            MinProc=i
+                            MinInd=SubListInds(1,i)
+                            IF(MinHash.eq.HashCurr) THEN
+                                EXIT
+                            ENDIF
+                        ENDIF
+                    enddo
+                ENDIF
+!Next smallest hash is MinHash - move the ordered elements into the other array.
+                HashArray1(j)=MinHash
+                IndexTable1(j)=IndexTable2(MinInd)
+                ProcessVec1(j)=ProcessVec2(MinInd)
+                SpawnedSign(j)=SpawnedSign2(MinInd)
+                HashCurr=MinHash
+!Move through the block
+                j=j+1
+                SubListInds(1,MinProc)=SubListInds(1,MinProc)+1
+            enddo
+
+            IF((j-1).ne.MaxIndex) THEN
+                CALL Stop_All(this_routine,"Error here in the merge sort algorithm")
+            ENDIF
+
+!Need to copy the lists back to the original array
+            do i=1,MaxIndex
+                IndexTable2(i)=IndexTable1(i)
+                ProcessVec2(i)=ProcessVec1(i)
+                SpawnedSign2(i)=SpawnedSign(i)
+                HashArray2(i)=HashArray1(i)
+            enddo
+
+        ENDIF
+
+!Work out the index of the particles which want to be annihilated
+        j=1
+        ToAnnihilateIndex=1
+        do while(j.le.MaxIndex)
+            TotWalkersDet=0
+            InitialBlockIndex=j
+            FinalBlockIndex=j-1         !Start at j-1 since we are increasing FinalBlockIndex even with the first det in the next loop
+            HashCurr=HashArray2(j)
+            do while((HashArray2(j).eq.HashCurr).and.(j.le.MaxIndex))
+!First loop counts walkers in the block - TotWalkersDet is then the residual sign of walkers on that determinant
+                IF(SpawnedSign2(j).eq.1) THEN
+                    TotWalkersDet=TotWalkersDet+1
+                ELSE
+                    TotWalkersDet=TotWalkersDet-1
+                ENDIF
+                FinalBlockIndex=FinalBlockIndex+1
+                j=j+1
+            enddo
+
+!            IF(Iter.eq.DebugIter) THEN
+!                WRITE(6,*) "Common block of dets found from ",InitialBlockIndex," ==> ",FinalBlockIndex
+!                WRITE(6,*) "Sum of signs in block is: ",TotWalkersDet
+!                CALL FLUSH(6)
+!            ENDIF
+
+            do k=InitialBlockIndex,FinalBlockIndex
+!Second run through the block of same determinants marks walkers for annihilation
+                IF(TotWalkersDet.eq.0) THEN
+!All walkers in block want to be annihilated from now on.
+                    IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
+                    ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    ToAnnihilateIndex=ToAnnihilateIndex+1
+                ELSEIF((TotWalkersDet.lt.0).and.(SpawnedSign2(k).eq.1)) THEN
+!Annihilate if block has a net negative walker count, and current walker is positive
+                    IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
+                    ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    ToAnnihilateIndex=ToAnnihilateIndex+1
+                ELSEIF((TotWalkersDet.gt.0).and.(SpawnedSign2(k).eq.-1)) THEN
+!Annihilate if block has a net positive walker count, and current walker is negative
+                    IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
+                    ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    ToAnnihilateIndex=ToAnnihilateIndex+1
+                ELSE
+!If net walkers is positive, and we have a positive walkers, then remove one from the net positive walkers and continue through the block
+                    IF(SpawnedSign2(k).eq.1) THEN
+                        TotWalkersDet=TotWalkersDet-1
+                    ELSE
+                        TotWalkersDet=TotWalkersDet+1
+                    ENDIF
+                ENDIF
+            enddo
+
+        enddo
+
+        ToAnnihilateIndex=ToAnnihilateIndex-1   !ToAnnihilateIndex now tells us the total number of particles to annihilate from the list on this processor
+
+!The annihilation is complete - particles to be annihilated are stored in IndexTable and need to be sent back to their original processor
+!To know which processor that is, we need to order the particles to be annihilated in terms of their CPU, i.e. ProcessVec(1:ToAnnihilateIndex)
+!Is the list already ordered according to CPU? Is this further sort even necessary?
+
+        IF(ToAnnihilateIndex.gt.1) THEN
+!Do not actually have to take indextable, hash2array or newsign with it...
+            CALL Sort2IILongL(ToAnnihilateIndex,ProcessVec1(1:ToAnnihilateIndex),IndexTable1(1:ToAnnihilateIndex),HashArray1(1:ToAnnihilateIndex),SpawnedSign(1:ToAnnihilateIndex))
+        ENDIF
+
+!We now need to regenerate sendcounts and disps
+        sendcounts(1:nProcessors)=0
+        do i=1,ToAnnihilateIndex
+            IF(ProcessVec1(i).gt.(nProcessors-1)) THEN
+                CALL Stop_All("AnnihilatePartPar","Annihilation error")
+            ENDIF
+            sendcounts(ProcessVec1(i)+1)=sendcounts(ProcessVec1(i)+1)+1
+        enddo
+!The disps however do want to be cumulative
+        disps(1)=0      !Starting element is always the first element
+        do i=2,nProcessors
+            disps(i)=disps(i-1)+sendcounts(i-1)
+        enddo
+
+!We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        recvcounts(1:nProcessors)=0
+
+        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+!We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
+        recvdisps(1)=0
+        do i=2,nProcessors
+            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
+        enddo
+
+        ToAnnihilateonProc=recvdisps(nProcessors)+recvcounts(nProcessors)
+
+        CALL MPI_AlltoAllv(IndexTable1(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+        CALL NECI_SORTI(ToAnnihilateonProc,IndexTable2(1:ToAnnihilateonProc))
+!        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
+
+        IF(ToAnnihilateonProc.ne.0) THEN
+!Copy across the data, apart from ones which have an index given by the indicies in Index2Table(1:ToAnnihilateonProc)
+            VecSlot=1       !VecSlot is the index in the final array of TotWalkers
+            i=1             !i is the index in the original array of TotWalkersNew
+            do j=1,ToAnnihilateonProc
+!Loop over all particles to be annihilated
+                do while(i.lt.IndexTable2(j))
+!Copy accross all particles less than this number
+                    SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
+                    SpawnedSign2(VecSlot)=TempSign(i)
+                    i=i+1
+                    VecSlot=VecSlot+1
+                enddo
+                i=i+1
+            enddo
+
+!Now need to copy accross the residual - from Index2Table(ToAnnihilateonProc) to TotWalkersNew
+            do i=Index2Table(ToAnnihilateonProc)+1,ValidSpawned
+                SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
+                SpawnedSign2(VecSlot)=TempSign(i)
+                VecSlot=VecSlot+1
+            enddo
+
+        ELSE
+!No particles annihilated
+            VecSlot=1
+            do i=1,ValidSpawned
+                SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
+                SpawnedSign2(VecSlot)=TempSign(i)
+                VecSlot=VecSlot+1
+            enddo
+        ENDIF
+
+        ValidSpawned=VecSlot-1
+
+!        IF((TotWalkersNew-TotWalkers).ne.ToAnnihilateonProc) THEN
+!            WRITE(6,*) TotWalkers,TotWalkersNew,ToAnnihilateonProc,Iter
+!            CALL FLUSH(6)
+!            CALL Stop_All("AnnihilatePartPar","Problem with numbers when annihilating")
+!        ENDIF
+
+!Deallocate temp arrays
+        DEALLOCATE(TempSign)
+        DEALLOCATE(HashArray1)
+        DEALLOCATE(HashArray2)
+        DEALLOCATE(IndexTable1)
+        DEALLOCATE(IndexTable2)
+        DEALLOCATE(ProcessVec1)
+        DEALLOCATE(ProcessVec2)
+
+!We also need to swap round the pointers to the two arrays, since the next annihilation steps take place on SpawnedParts, not SpawnedParts2 
+        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+            SpawnedParts2 => SpawnVec
+            SpawnedSign2 => SpawnSignVec
+            SpawnedParts => SpawnVec2
+            SpawnedSign => SpawnSignVec2
+        ELSE
+            SpawnedParts => SpawnVec
+            SpawnedSign => SpawnSignVec
+            SpawnedParts2 => SpawnVec2
+            SpawnedSign2 => SpawnSignVec2
+        ENDIF
+
+    END SUBROUTINE AnnihilateBetweenSpawned
+
+
 !Do a binary search in NewDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
 !PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
-    SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd
+!(or close enough!)
+    SUBROUTINE BinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd,DetArray(0:NoIntforDet,MinInd:MaxInd)
         LOGICAL :: tSuccess
 
         i=MinInd
@@ -724,8 +1211,8 @@ MODULE FciMCParMod
         do while(j-i.gt.0)  !End when the upper and lower bound are the same.
             N=(i+j)/2       !Find the midpoint of the two indices
 
-!Comp is 1 if NewDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(NewDets(:,N),iLut(:),NoIntforDet)
+!Comp is 1 if DetArray(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(DetArray(:,N),iLut(:),NoIntforDet)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -736,7 +1223,29 @@ MODULE FciMCParMod
 !The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
-            ELSEIF(Comp.eq.-1)
+            ELSEIF(i.eq.N) THEN
+!This deals with the case where we are interested in the final entry in the list. Check the final entry of the list and leave
+
+                IF(i.eq.MaxInd-1) THEN
+                    CALL Stop_All("BinSearchParts","Error in binary search")
+                ENDIF
+
+                Comp=DetBitLT(DetArray(:,i+1),iLut(:),NoIntforDet)
+                IF(Comp.eq.0) THEN
+                    tSuccess=.true.
+                    PartInd=i+1
+                    RETURN
+                ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                    tSuccess=.false.
+                    PartInd=i+1
+                    RETURN
+                ELSE
+                    tSuccess=.false.
+                    PartInd=i
+                ENDIF
+
+            ELSEIF(Comp.eq.-1) THEN
 !The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
                 j=N
             ELSE
@@ -747,8 +1256,9 @@ MODULE FciMCParMod
         enddo
 
 !If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
         
-
     END SUBROUTINE BinSearchParts
 
 !In this routine, we want to search through the list of spawned particles. For each spawned particle, we binary search the list of particles on the processor
@@ -768,7 +1278,7 @@ MODULE FciMCParMod
 
 !This will binary search the NewDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
-            CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 
             IF(tSuccess) THEN
 !A particle on the same list has been found. We now want to search backwards, to find the first particle in this block.
