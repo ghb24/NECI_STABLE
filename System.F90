@@ -65,10 +65,13 @@ MODULE System
       tStoreStateList=.false.       !This will be turned to true by default if not in abelian symmetry
       tAssumeSizeExcitgen=.false.
       tLagrange=.false.
+      tShake=.false.
       lNoSymmetry=.false.
       tRotateOrbs=.false.
       TimeStep=0.1
       ConvergedForce=0.001
+      ShakeConverged=0.001
+      tShakeApprox=.false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -345,6 +348,18 @@ MODULE System
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
 ! attempt to maintain orthogonality. This currently does not seem to work too well!
             tLagrange=.true.
+
+        case("SHAKE")
+! This will use the shake algorithm to iteratively enforce orthonormalisation on the rotation coefficients calculated in the ROTATEORBS
+! routine.  It finds a force matrix which moves the coefficients at a tangent to the constraint surface, from here, a normalisation
+! will require just a small adjustment to ensure complete orthonormalisation, but not majorly affecting the new coefficients.
+            tShake=.true.
+            call Getf(ShakeConverged)
+        case("SHAKEAPPROX")
+! This turns on the shake approximation algorithm.  To be used if the matrix inversion required in the full shake algorithm cannot 
+! be performed.
+! The approximation applies the iterative scheme to find lambda, to each constraint in succession, rather than simultaneously.
+            tShakeApprox=.true.
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

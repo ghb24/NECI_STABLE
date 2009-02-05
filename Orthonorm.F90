@@ -42,22 +42,22 @@ SUBROUTINE OrthoNormx(n,m,a)
 
 
 !  Perform orthonormality test.
-!
-!    allocate ( aTa(n,n) )
-!
-!    aTa = matmul ( transpose ( a ), a )
-!
-!!   aTa should be the identity...
-!
-!    do i=1,n
-!        do j=1,n
-!            WRITE(6,"(F15.7)",advance='no') aTa(j,i)
-!        enddo
-!        WRITE(6,*) ""
-!    enddo
-!
-!
-!    deallocate ( aTa )
+
+    allocate ( aTa(n,n) )
+
+    aTa = matmul ( transpose ( a ), a )
+
+!   aTa should be the identity...
+
+    do i=1,n
+        do j=1,n
+            WRITE(6,"(F15.7)",advance='no') aTa(j,i)
+        enddo
+        WRITE(6,*) ""
+    enddo
+
+
+    deallocate ( aTa )
 
 END SUBROUTINE OrthoNormx
 
