@@ -693,7 +693,7 @@ MODULE FciMCParMod
         CALL AnnihilateBetweenSpawned(ValidSpawned)
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
-        CALL SortBitDets(ValidSpawned,SpawnedParts(1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned)
+        CALL SortBitDets(ValidSpawned,SpawnedParts(1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
         
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
@@ -753,7 +753,7 @@ MODULE FciMCParMod
                     OrigPartAnn=OrigPartAnn+1
                 ENDIF
                 IndParts=IndParts+1
-            ELSEIF(IndSpawned.le.ValidSpawned)
+            ELSEIF(IndSpawned.le.ValidSpawned) THEN
 !Now, we want to transfer a spawned particle, unless we have transferred them all
                 IF(SpawnedSign.eq.0) THEN
                     CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
@@ -832,7 +832,7 @@ MODULE FciMCParMod
 
         do i=1,ValidSpawned
             IndexTable1(i)=i
-            HashArray1(i)=CreateHash(SpawnedParts(0:NIfD,i)
+            HashArray1(i)=CreateHash(SpawnedParts(0:NIfD,i))
         enddo
 
 !Next, order the hash array, taking the index, CPU and sign with it...
