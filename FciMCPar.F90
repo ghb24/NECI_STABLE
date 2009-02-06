@@ -52,23 +52,20 @@ MODULE FciMCParMod
     TYPE(ExcitPointer) , ALLOCATABLE , TARGET :: WalkVecExcits(:),WalkVec2Excits(:)   !This will store the excitation generators for the particles on each node
 
     INTEGER , ALLOCATABLE , TARGET :: WalkVecDets(:,:),WalkVec2Dets(:,:)                !Contains determinant list
-    LOGICAL , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)                    !Contains sign list
+    INTEGER , ALLOCATABLE , TARGET :: WalkVecSign(:),WalkVec2Sign(:)                    !Contains sign list (1 = positive, -1 = negative)
 !    INTEGER , ALLOCATABLE , TARGET :: WalkVecIC(:),WalkVec2IC(:)                        !Contains excit level list
     REAL(KIND=r2) , ALLOCATABLE , TARGET :: WalkVecH(:),WalkVec2H(:)                    !Diagonal hamiltonian element
     INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
     INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
     INTEGER(KIND=i2) , ALLOCATABLE :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
-    LOGICAL , ALLOCATABLE :: TempSign(:)                                                         !Temp array to hold sign of walkers when annihilating
-    INTEGER(KIND=i2) , ALLOCATABLE :: TempHash(:)
     
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
     INTEGER :: WalkVecHTag=0,WalkVec2HTag=0
     INTEGER :: HashArrayTag=0,Hash2ArrayTag=0,IndexTableTag=0,Index2TableTag=0,ProcessVecTag=0,Process2VecTag=0
-    INTEGER :: TempSignTag=0,TempHashTag=0
 
 !Pointers to point at the correct arrays for use
     INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
-    LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
+    INTEGER , POINTER :: CurrentSign(:), NewSign(:)
 !    INTEGER , POINTER :: CurrentIC(:), NewIC(:)
     REAL*8 , POINTER :: CurrentH(:), NewH(:)
     TYPE(ExcitPointer) , POINTER :: CurrentExcits(:), NewExcits(:)
@@ -166,7 +163,7 @@ MODULE FciMCParMod
     
 !Variables for magnetisation
     INTEGER , ALLOCATABLE :: MagDets(:,:)       !This is to hold the NoMagDets-1 magnetic determinant paths (HF is always magnetic)
-    LOGICAL , ALLOCATABLE :: MagDetsSign(:)      !This is to hold the sign of the NoMagDets-1 magnetic determinants (HF is always positive)
+    INTEGER , ALLOCATABLE :: MagDetsSign(:)      !This is to hold the sign of the NoMagDets-1 magnetic determinants (HF is always positive)
     INTEGER :: MagDetsTag=0,MagDetsSignTag=0
 
 !These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
@@ -278,8 +275,8 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2)
-        LOGICAL :: WSign,tParity
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign
+        LOGICAL :: tParity
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -384,10 +381,10 @@ MODULE FciMCParMod
 
                     IF(Child.gt.0) THEN
 !We have successfully created at least one positive child at nJ
-                        WSign=.true.
+                        WSign=1
                     ELSE
 !We have successfully created at least one negative child at nJ
-                        WSign=.false.
+                        WSign=-1
                     ENDIF
 !Calculate excitation level, connection to HF and diagonal ham element
 !                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
@@ -470,11 +467,11 @@ MODULE FciMCParMod
 
                     do l=1,iDie-1
                         NewDets(:,VecSlot)=CurrentDets(:,j)
-                        IF(CurrentSign(j)) THEN
+                        IF(CurrentSign(j).eq.1) THEN
 !Copy accross new anti-particles
-                            NewSign(VecSlot)=.FALSE.
+                            NewSign(VecSlot)=-1
                         ELSE
-                            NewSign(VecSlot)=.TRUE.
+                            NewSign(VecSlot)=1
                         ENDIF
 !Copy excitation generator accross
                         IF(l.eq.iDie-1) THEN
@@ -629,6 +626,9 @@ MODULE FciMCParMod
         INTEGER , ALLOCATABLE :: TempExcitLevel(:)
         INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilatePartPar'
+        INTEGER , ALLOCATABLE :: TempSign(:)                                                         !Temp array to hold sign of walkers when annihilating
+        INTEGER(KIND=i2) , ALLOCATABLE :: TempHash(:)
+        INTEGER :: TempSignTag=0,TempHashTag=0
 
 !This is just to see if there are higher-weighted determinants that HF...
 !        AllNoatHF=0
@@ -686,7 +686,8 @@ MODULE FciMCParMod
 !If we are locally annihilating, then we need to take the excitation level of each walker with the hash
 !                 CALL SortMod4I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),TempExcitLevel(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
 !             ELSE
-            CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+!            CALL SortMod3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
+            CALL SortMod4ILong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew),nProcessors)
 !             ENDIF
             CALL halt_timer(Sort_Time)
 
@@ -701,7 +702,8 @@ MODULE FciMCParMod
         
         ELSE
 !We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
-            CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
+!            CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
+            CALL Sort4ILong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
             CALL halt_timer(Sort_Time)
 !We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
             Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
@@ -825,7 +827,7 @@ MODULE FciMCParMod
         CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
 
 !The signs of the hashes, index and CPU also need to be taken with them.
-        CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_LOGICAL,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(NewSign(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,CurrentSign,recvcounts,recvdisps,MPI_LOGICAL,MPI_COMM_WORLD,error)
         CALL MPI_AlltoAllv(IndexTable(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Index2Table,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
         CALL MPI_AlltoAllv(ProcessVec(1:TotWalkersNew),sendcounts,disps,MPI_INTEGER,Process2Vec,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 !        IF(TLocalAnnihilation) THEN
@@ -852,7 +854,8 @@ MODULE FciMCParMod
 !If we are locally annihilating, then we need to take the excitation level with us.
 !                CALL Sort4I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentIC(1:MaxIndex),CurrentSign(1:MaxIndex))
 !            ELSE
-                CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
+!                CALL Sort3I1LLong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
+                CALL Sort4ILong(MaxIndex,HashArray(1:MaxIndex),Index2Table(1:MaxIndex),Process2Vec(1:MaxIndex),CurrentSign(1:MaxIndex))
 !            ENDIF
         ELSE
 !Here, because we have ordered the hashes initially numerically, we have a set of ordered lists. It is therefore easier to sort them.
@@ -953,7 +956,7 @@ MODULE FciMCParMod
             HashCurr=HashArray(j)
             do while((HashArray(j).eq.HashCurr).and.(j.le.MaxIndex))
 !First loop counts walkers in the block - TotWalkersDet is then the residual sign of walkers on that determinant
-                IF(CurrentSign(j)) THEN
+                IF(CurrentSign(j).eq.1) THEN
                     TotWalkersDet=TotWalkersDet+1
                 ELSE
                     TotWalkersDet=TotWalkersDet-1
@@ -1002,7 +1005,7 @@ MODULE FciMCParMod
 !                    IF(HashCurr.eq.HFHash) THEN
 !                        WRITE(6,*) "HF Determinant particle annihilated"
 !                    ENDIF
-                ELSEIF((TotWalkersDet.lt.0).and.(CurrentSign(k))) THEN
+                ELSEIF((TotWalkersDet.lt.0).and.(CurrentSign(k).eq.1)) THEN
 !Annihilate if block has a net negative walker count, and current walker is positive
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
                     ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
@@ -1013,7 +1016,7 @@ MODULE FciMCParMod
 !                    IF(HashCurr.eq.HFHash) THEN
 !                        WRITE(6,*) "HF Determinant particle annihilated"
 !                    ENDIF
-                ELSEIF((TotWalkersDet.gt.0).and.(.not.CurrentSign(k))) THEN
+                ELSEIF((TotWalkersDet.gt.0).and.(CurrentSign(k).eq.-1)) THEN
 !Annihilate if block has a net positive walker count, and current walker is negative
                     IndexTable(ToAnnihilateIndex)=Index2Table(k)
                     ProcessVec(ToAnnihilateIndex)=Process2Vec(k)
@@ -1026,7 +1029,7 @@ MODULE FciMCParMod
 !                    ENDIF
                 ELSE
 !If net walkers is positive, and we have a positive walkers, then remove one from the net positive walkers and continue through the block
-                    IF(CurrentSign(k)) THEN
+                    IF(CurrentSign(k).eq.1) THEN
                         TotWalkersDet=TotWalkersDet-1
                     ELSE
                         TotWalkersDet=TotWalkersDet+1
@@ -1051,7 +1054,8 @@ MODULE FciMCParMod
         IF(ToAnnihilateIndex.gt.1) THEN
             CALL set_timer(Sort_Time,30)
 !Do not actually have to take indextable, hash2array or newsign with it...
-            CALL Sort2IILongL(ToAnnihilateIndex,ProcessVec(1:ToAnnihilateIndex),IndexTable(1:ToAnnihilateIndex),Hash2Array(1:ToAnnihilateIndex),NewSign(1:ToAnnihilateIndex))
+            CALL Sort2IILongI(ToAnnihilateIndex,ProcessVec(1:ToAnnihilateIndex),IndexTable(1:ToAnnihilateIndex),Hash2Array(1:ToAnnihilateIndex),NewSign(1:ToAnnihilateIndex))
+!            CALL Sort2IILongL(ToAnnihilateIndex,ProcessVec(1:ToAnnihilateIndex),IndexTable(1:ToAnnihilateIndex),Hash2Array(1:ToAnnihilateIndex),NewSign(1:ToAnnihilateIndex))
             CALL halt_timer(Sort_Time)
         ENDIF
 
@@ -1130,7 +1134,8 @@ MODULE FciMCParMod
 !Index2Table now is a list, of length "ToAnnihilateonProc", of walkers which should NOT be transferred to the next array. 
 !Order the list according to this index (Hash and sign does not need to be sorted, but will for debugging purposes)
         CALL set_timer(Sort_Time,30)
-        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
+        CALL SORTIILongI(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
+!        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
         CALL halt_timer(Sort_Time)
 
 !        IF(Iter.eq.DebugIter) THEN
@@ -1235,15 +1240,15 @@ MODULE FciMCParMod
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr)
-        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NoIntforDet)
-        LOGICAL :: WSign,CompiPath
+        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NoIntforDet),WSign
+        LOGICAL :: CompiPath
         TYPE(HElement) :: HOffDiag
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
         IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
         IF(ExcitLevel.eq.0) THEN
-            IF(WSign) THEN
+            IF(WSign.eq.1) THEN
                 IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+1
                 NoatHF=NoatHF+1
                 HFCyc=HFCyc+1       !This is simply the number at HF*sign over the course of the update cycle 
@@ -1262,7 +1267,7 @@ MODULE FciMCParMod
 !At double excit - find and sum in energy
             HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
 
-            IF(WSign) THEN
+            IF(WSign.eq.1) THEN
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum+REAL(HOffDiag%v,r2)
 !                AvSign=AvSign+1.D0
 !                AvSignHFD=AvSignHFD+1.D0
@@ -1274,7 +1279,7 @@ MODULE FciMCParMod
                 ENumCyc=ENumCyc-REAL(HOffDiag%v,r2)
             ENDIF
 !        ELSE
-!            IF(WSign) THEN
+!            IF(WSign.eq.1) THEN
 !                AvSign=AvSign+1.D0
 !            ELSE
 !                AvSign=AvSign-1.D0
@@ -1287,7 +1292,7 @@ MODULE FciMCParMod
                 CALL FindSingleOrbs(iLutHF,iLutCurr,NoIntforDet,Orbs)
 !Add 1.D0 (or -1.D0) to the off-diagonal element connecting the relevent orbitals.
                 IF(Iter.gt.NEquilSteps) THEN
-                    IF(WSign) THEN
+                    IF(WSign.eq.1) THEN
                         OneRDM(Orbs(1),Orbs(2))=OneRDM(Orbs(1),Orbs(2))+1.D0
                         OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
                     ELSE
@@ -1298,7 +1303,7 @@ MODULE FciMCParMod
 !At the end of all iterations, this OneRDM will contain only the unnormalised off-diagonal elements.
 
 
-!                IF(WSign) THEN
+!                IF(WSign.eq.1) THEN
 !                    IF(Iter.gt.NEquilSteps) SumENumSing=SumENumSing+REAL(HOffDiagSing%v,r2) 
 !                ELSE
 !                    IF(Iter.gt.NEquilSteps) SumENumSing=SumENumSing-REAL(HOffDiagSing%v,r2)
@@ -1312,7 +1317,7 @@ MODULE FciMCParMod
             IF(ExcitLevel.eq.1) THEN
                 HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
 
-                IF(WSign) THEN
+                IF(WSign.eq.1) THEN
                     IF(Iter.gt.NEquilSteps) SumENum=SumENum+REAL(HOffDiag%v,r2)
                     ENumCyc=ENumCyc+REAL(HOffDiag%v,r2)     !This is simply the Hij*sign summed over the course of the update cycle
                 ELSE
@@ -1353,7 +1358,7 @@ MODULE FciMCParMod
             
                     IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
 !The walker is at a determinant for which we want to calculate the autocorrelation function
-                        IF(WSign) THEN
+                        IF(WSign.eq.1) THEN
                             IF(TFlippedSign) THEN
                                 WeightatDets(i)=WeightatDets(i)-1
                             ELSE
@@ -2217,7 +2222,7 @@ MODULE FciMCParMod
             IF(TStartSinglePart) THEN
 !                CurrentDets(:,1)=HFDet(:)
                 CurrentDets(:,1)=iLutHF(:)
-                CurrentSign(1)=.true.
+                CurrentSign(1)=1
                 CurrentH(1)=0.D0
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                 IF(.not.TNoAnnihil) THEN
@@ -2228,7 +2233,7 @@ MODULE FciMCParMod
                 do j=1,InitWalkers
 !                    CurrentDets(:,j)=HFDet(:)
                     CurrentDets(:,j)=iLutHF(:)
-                    CurrentSign(j)=.true.
+                    CurrentSign(j)=1
                     CurrentH(j)=0.D0
                     IF(.not.TNoAnnihil) THEN
 !                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -2424,7 +2429,7 @@ MODULE FciMCParMod
             do i=1,nProcessors-1
 !Run through all other processors...receive the data...
                 CALL MPI_Recv(NewDets(0:NoIntforDet,1:WalkersonNodes(i)),WalkersonNodes(i)*(NoIntforDet+1),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
-                CALL MPI_Recv(NewSign(1:WalkersonNodes(i)),WalkersonNodes(i),MPI_LOGICAL,i,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(NewSign(1:WalkersonNodes(i)),WalkersonNodes(i),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
 !                WRITE(6,*) "Recieved walkers for processor ",i
 !                CALL FLUSH(6)
                 
@@ -2455,7 +2460,7 @@ MODULE FciMCParMod
         ELSE
 !All other processors need to send their data to root...
             CALL MPI_Send(CurrentDets(0:NoIntforDet,1:TotWalkers),TotWalkers*(NoIntforDet+1),MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
-            CALL MPI_Send(CurrentSign(1:TotWalkers),TotWalkers,MPI_LOGICAL,root,Tag,MPI_COMM_WORLD,error)
+            CALL MPI_Send(CurrentSign(1:TotWalkers),TotWalkers,MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
 !            WRITE(6,*) "Have sent info to head node..."
 !            CALL FLUSH(6)
         ENDIF
@@ -2609,7 +2614,7 @@ MODULE FciMCParMod
                 IF(i.ne.1) THEN
 !Now send data to processor i-1 (Processor rank goes from 0 -> nProcs-1). If i=1, then we want the data so stay at the root processor
                     CALL MPI_Send(WalkVecDets(:,1:WalkerstoReceive(i)),WalkerstoReceive(i)*(NoIntforDet+1),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
-                    CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_LOGICAL,i-1,Tag,MPI_COMM_WORLD,error)
+                    CALL MPI_Send(WalkVecSign(1:WalkerstoReceive(i)),WalkerstoReceive(i),MPI_INTEGER,i-1,Tag,MPI_COMM_WORLD,error)
                 ENDIF
 
             enddo
@@ -2622,7 +2627,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.i) THEN
 !All other processors want to pick up their data from root
                 CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NoIntforDet+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
-                CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_LOGICAL,0,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
             ENDIF
         enddo
 
@@ -3025,7 +3030,7 @@ MODULE FciMCParMod
                 WalkersonHF=WalkersonHF+1
                 CurrentDets(0:NoIntforDet,j)=iLutHF(:)
 !                CurrentIC(j)=0
-                CurrentSign(j)=.true.
+                CurrentSign(j)=1
                 CurrentH(j)=0.D0
                 IF(.not.TNoAnnihil) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -3142,7 +3147,7 @@ MODULE FciMCParMod
         INTEGER :: i
 
         do i=1,TotWalkers
-            CurrentSign(i)=.not.CurrentSign(i)
+            CurrentSign(i)=-CurrentSign(i)
         enddo
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
         TFlippedSign=.not.TFlippedSign
@@ -3154,8 +3159,8 @@ MODULE FciMCParMod
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
     INTEGER FUNCTION AttemptCreatePar(DetCurr,WSign,nJ,Prob,IC,Ex,tParity)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2)
-        LOGICAL :: WSign,tParity,SymAllowed
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign
+        LOGICAL :: tParity,SymAllowed
         REAL*8 :: Prob,Ran2,rat
         TYPE(HElement) :: rh,rhcheck
 
@@ -3193,7 +3198,7 @@ MODULE FciMCParMod
 !Stochastically choose whether to create or not according to Ran2
         IF(rat.gt.Ran2(Seed)) THEN
 !Child is created - what sign is it?
-            IF(WSign) THEN
+            IF(WSign.eq.1) THEN
 !Parent particle is positive
                 IF(real(rh%v).gt.0.D0) THEN
                     AttemptCreatePar=-1     !-ve walker created
@@ -3226,7 +3231,7 @@ MODULE FciMCParMod
                 AttemptCreatePar=AttemptCreatePar+ExtraCreate
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
-                IF(WSign) THEN
+                IF(WSign.eq.1) THEN
                     IF(real(rh%v).gt.0.D0) THEN
                         AttemptCreatePar=-1*ExtraCreate    !Additional particles are negative
                     ELSE
@@ -3593,13 +3598,13 @@ MODULE FciMCParMod
 ! This routine simply calculates whether the determinant is magnetic, and how the energy is therefore shifted.
     SUBROUTINE FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
         REAL*8 :: HDiag
-        LOGICAL :: WSign,MagDet,CompiPath
-        INTEGER :: ExcitLevel,nJ(NEl),i
+        LOGICAL :: MagDet,CompiPath
+        INTEGER :: ExcitLevel,nJ(NEl),i,WSign
         TYPE(HElement) :: HDiagTemp
 
         IF(ExcitLevel.eq.0) THEN
 !The HF determinant is definitely magnetic and we define the sign of the particles on HF to want to be +ve to be parallel with B
-            IF(WSign) THEN
+            IF(WSign.eq.1) THEN
 !Particle is alligned with B - energy is lower by a value B
                 IF(tSymmetricField) THEN
                     HDiag=-BField
@@ -3629,7 +3634,8 @@ MODULE FciMCParMod
 !+ and + wants a +ve number to subtract
 !- and - wants a +ve number to subtract
 !Else wants a -ve number to subtract (particle is antiparallel)
-                IF(.not.XOR(WSign,MagDetsSign(i))) THEN
+                IF((WSign*MagDetsSign(i)).eq.1) THEN
+!                IF(.not.XOR(WSign,MagDetsSign(i))) THEN
 !Particle is correctly alligned. If we have tSymmetricField on, then this lowers the energy. Otherwise, it stays the same.
                     IF(tSymmetricField) THEN
                         HDiag=HDiag-BField
@@ -3740,9 +3746,9 @@ MODULE FciMCParMod
                 TempMax(MinIndex)=Compt
                 MagDets(:,MinIndex)=nJ(:)
                 IF(Compt.lt.0) THEN
-                    MagDetsSign(MinIndex)=.false.
+                    MagDetsSign(MinIndex)=-1
                 ELSE
-                    MagDetsSign(MinIndex)=.true.
+                    MagDetsSign(MinIndex)=1
                 ENDIF
             ENDIF
             
@@ -3884,7 +3890,7 @@ MODULE FciMCParMod
 !                CALL FLUSH(6)
                 
                 CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*(NoIntforDet+1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
-                CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !It seems like too much like hard work to send the excitation generators accross, just let them be regenerated on the other side...
@@ -3910,7 +3916,7 @@ MODULE FciMCParMod
 !                CALL FLUSH(6)
 
                 CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*(NoIntforDet+1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
-                CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_LOGICAL,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !                CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 IF(.not.TNoAnnihil) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
@@ -4728,7 +4734,7 @@ MODULE FciMCParMod
 !Positive sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
                     CurrentDets(:,VecSlot)=DetCurr(:)
-                    CurrentSign(VecSlot)=.true.
+                    CurrentSign(VecSlot)=1
 !                    CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
@@ -4738,7 +4744,7 @@ MODULE FciMCParMod
 !Negative sign particles want to populate this determinant
                 do l=1,abs(TotWalkersDet)
                     CurrentDets(:,VecSlot)=DetCurr(:)
-                    CurrentSign(VecSlot)=.false.
+                    CurrentSign(VecSlot)=1
 !                    CurrentIC(VecSlot)=TempIC
                     CurrentH(VecSlot)=TempH
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
@@ -4772,7 +4778,7 @@ MODULE FciMCParMod
         REAL*8 :: HTemp
 !        INTEGER :: ICTemp
         INTEGER :: TempDet(NElecs)     !This stores a single element of the vector temporarily     
-        LOGICAL :: WSignTemp
+        INTEGER :: WSignTemp
         INTEGER N,I,L,IR,J,NElecs
         INTEGER Dets(NElecs,N)
         INTEGER DETLT
