@@ -22,6 +22,7 @@ LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange
+LOGICAL :: tRotoAnnihil
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -38,7 +39,7 @@ REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
 REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
 REAL*8 :: FixShift,MemoryFacPart,MemoryFacAnnihil,FixedKiiCutoff
-REAL*8 :: BField
+REAL*8 :: BField,MemoryFacSpawn
 
 
 

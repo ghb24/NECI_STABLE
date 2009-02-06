@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tRotoAnnihil=.false.
           tAnnihilatebyrange=.false.
           tSymmetricField=.false.
           NoMagDets=1
@@ -54,6 +55,7 @@ MODULE Calc
           TRegenExcitgens=.false.
           MemoryFacPart=10.D0
           MemoryFacAnnihil=10.D0
+          MemoryFacSpawn=0.5
           TStartSinglePart=.false.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -732,6 +734,9 @@ MODULE Calc
 !!An FCIMC option - MemoryFac is the factor by which space will be made available for particles sent to the processor during annihilation compared to InitWalkers. This will generally want to be larger than
 !memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences in the wavevector and uniformity of the hashing algorithm.
                 CALL Getf(MemoryFacAnnihil)
+            case("MEMORYFACSPAWN")
+!A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made available for spawned particles each iteration. Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL is redundant, but MEMORYFACPART still need to be specified.
+                CALL Getf(MemoryFacSpawn)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
@@ -773,6 +778,11 @@ MODULE Calc
 !This option should give identical results whether on or off. It means that hashes are histogrammed and sent to processors, rather than sent due to the value of mod(hash,nprocs).
 !This removes the need for a second full sorting of the list of hashes, but may have load-balancing issues for the algorithm.
                 tAnnihilatebyrange=.true.
+            case("ROTOANNIHILATION")
+!A parallel FCIMC option which is a different - and hopefully better scaling - algorithm. This is substantially different to previously. It should involve much less memory.
+!MEMORYFACANNIHIL is no longer needed (MEMORYFACPART still is), and you will need to specift a MEMORYFACSPAWN since newly spawned walkers are held on a different array each iteration.
+!Since the newly-spawned particles are annihilated initially among themselves, you can still specift ANNIHILATEATRANGE as a keyword, which will change things.
+                tRotoAnnihil=.true.
             case("LOCALANNIHIL")
 !A parallel FCIMC experimental option. This will attempt to compensate for undersampled systems, by including extra annihilation for walkers which are the sole occupier of determiants
 !This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.

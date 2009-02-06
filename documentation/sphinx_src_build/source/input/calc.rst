@@ -639,6 +639,13 @@ The following options are only available in **FCIMC** calculations:
     non-uniformity in the wavevector and the hashing algorithm. This will tend to want to be larger 
     when it is running on more processors.
 
+**MEMORYFACSPAWN** [MemoryFacSpawn]
+    Default 0.5
+
+    A parallel FCIMC option for use with **ROTOANNIHILATION**. This is the factor by which space will be made 
+    available for spawned particles each iteration. Several of these arrays are needed for the annihilation 
+    process. With **ROTOANNIHILATION**, **MEMORYFACANNIHIL** is redundant, but **MEMORYFACPART** still need to be specified.
+
 **ANNIHILATEONPROCS**
     Default false
 
@@ -647,6 +654,16 @@ The following options are only available in **FCIMC** calculations:
     separate simulations. If there are enough particles, then this should be sufficient.
     Less memory is required, since no hashes need to be stored. Also, no communication is
     needed, so the routine should scale better as the number of walkers grows.
+
+**ROTOANNIHILATION**
+    Default false
+
+    A parallel FCIMC option which is a different - and hopefully better scaling - algorithm. 
+    This is substantially different to previously. It should involve much less memory.
+    **MEMORYFACANNIHIL** is no longer needed (**MEMORYFACPART** still is), and you will need 
+    to specify a **MEMORYFACSPAWN** since newly spawned walkers are held on a different array each iteration.
+    Since the newly-spawned particles are annihilated initially among themselves, you can still 
+    specify **ANNIHILATEATRANGE** as a keyword, which will change things.
 
 **FIXSHELLSHIFT** [ShellFix] [FixShift]
     Default 0,0.D0

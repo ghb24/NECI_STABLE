@@ -12,7 +12,7 @@ MODULE FciMCParMod
     use SystemData , only : tHub,tReal,tNonUniRandExcits
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
-    use CalcData , only : tConstructNOs,tAnnihilatebyRange
+    use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
@@ -58,16 +58,21 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: IndexTable(:),Index2Table(:)                               !Indexing for the annihilation
     INTEGER , ALLOCATABLE :: ProcessVec(:),Process2Vec(:)                               !Index for process rank of original walker
     INTEGER(KIND=i2) , ALLOCATABLE :: HashArray(:),Hash2Array(:)                         !Hashes for the walkers when annihilating
+    INTEGER , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
+    INTEGER , ALLOCATABLE , TARGET :: SpawnSignVec(:),SpawnSignVec2(:)
     
     INTEGER :: WalkVecDetsTag=0,WalkVec2DetsTag=0,WalkVecSignTag=0,WalkVec2SignTag=0
     INTEGER :: WalkVecHTag=0,WalkVec2HTag=0
     INTEGER :: HashArrayTag=0,Hash2ArrayTag=0,IndexTableTag=0,Index2TableTag=0,ProcessVecTag=0,Process2VecTag=0
+    INTEGER :: SpawnVecTag=0,SpawnVec2Tag=0,SpawnSignVecTag=0,SpawnSignVec2Tag=0
 
 !Pointers to point at the correct arrays for use
     INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
     INTEGER , POINTER :: CurrentSign(:), NewSign(:)
 !    INTEGER , POINTER :: CurrentIC(:), NewIC(:)
     REAL*8 , POINTER :: CurrentH(:), NewH(:)
+    INTEGER , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
+    INTEGER , POINTER :: SpawnedSign(:),SpawnedSign2(:)
     TYPE(ExcitPointer) , POINTER :: CurrentExcits(:), NewExcits(:)
     
     INTEGER , ALLOCATABLE :: HFDet(:)       !This will store the HF determinant
@@ -117,7 +122,7 @@ MODULE FciMCParMod
     INTEGER(KIND=i2) :: AllSumWalkersCyc
     INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs,AllLocalAnn
     REAL*8 :: AllSumNoatHF,AllSumENum,AllAvSign,AllAvSignHFD
-    INTEGER :: AllNoBorn,AllNoDied
+    INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
 
@@ -269,14 +274,819 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
+    
+!This is a new routine to totally annihilate all particles on the same determinant. This is not done using an all-to-all, but rather
+!by rotating the newly spawned particles around all determinants and annihilating with the particles on their processor.
+!Valid spawned is the number of newly-spawned particles. Each rotation and annihilation step, the number corresponds to a different processors spawned particles.
+!TotWalkersNew indicates the number of particles in NewDets - the list of particles to compare for annihilation.
+!Improvements in AnnihilateBetweenSpawned:
+!Binary search for sendcounts and others, and only transfer all data when need to.
+!Memory improvements
+!Call as one array for All-to-alls
+!Make sure only sort what need to
+    SUBROUTINE RotoAnnihilation(ValidSpawned,TotWalkersNew)
+        INTEGER :: ValidSpawned,TotWalkersNew,i
+        INTEGER :: InitialSpawned,ierr,error
+        INTEGER , ALLOCATABLE :: mpibuffer(:)
+
+        InitialSpawned=ValidSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+!First, annihilate between newly spawned particles. Memory for this will be allocated dynamically.
+!This will be done in the usual fashion using the All-to-All communication and hashes.
+        CALL AnnihilateBetweenSpawned(ValidSpawned)
+
+!We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
+        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
+        
+!This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
+        CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+!Allocate a buffer here to hold particles when using a buffered send...
+!The buffer wants to be able to hold (MaxSpawned+1)x(NoIntforDet+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
+!it could get reduced to this... 
+        ALLOCATE(mpibuffer((MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
+        IF(ierr.ne.0) THEN
+            CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
+        ENDIF
+        CALL MPI_Buffer_attach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+
+        do i=1,nProcessors-1
+!Move newly-spawned particles which haven't been annihilated around the processors in sequence, annihilating locally each step.
+!This moves the set of newly-spawned particles on this processor one to the right, and recieves from the left.
+!This also updates the ValidSpawned variable so that it now refers to the new set of spawned-particles.
+            CALL RotateParticles(ValidSpawned)
+
+!This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
+            CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
+
+        enddo
+
+!One final rotation means that the particles are all on their original processor.
+        CALL RotateParticles(ValidSpawned)
+
+!Detach buffers
+        CALL MPI_Buffer_detach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+        DEALLOCATE(mpibuffer)
+
+!Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
+
+!Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
+        CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
+
+    END SUBROUTINE RotoAnnihilation
+
+!This routine will run through the total list of particles (TotWalkersNew in NewDets with sign NewSign) and the list of newly-spawned but
+!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
+!while removing the particles with sign = 0 from NewDets. 
+!Initially, we can put these new particles into the other array: CurrentDets and CurrentSign, but we will want to remove the need for a second
+!array eventually and keep all the particles on the same array.
+!Binary searching can be used to speed up this transfer substantially.
+    SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
+        INTEGER :: IndSpawned,IndParts,VecInd,OrigPartAnn,DetBitLT,TotWalkersNew,ValidSpawned
+        INTEGER :: nJ(NEl),i,InitialSpawned
+        LOGICAL :: DetBitEQ
+        TYPE(HElement) :: HDiagTemp
+        REAL*8 :: HDiag
+        
+        IndSpawned=1
+        IndParts=1
+        VecInd=1
+        OrigPartAnn=0   !This will count the number of annihilated particles from the main list.
+
+        do while(IndParts.le.TotWalkersNew)
+            
+            IF(DetBitLT(NewDets(0:NoIntForDet,IndParts),SpawnedParts(0:NoIntForDet,IndSpawned),NoIntForDet).eq.1) THEN
+!Want to move in the particle from NewDets (unless it wants to be annihilated)
+                IF(NewSign(IndParts).ne.0) THEN
+!We want to keep this particle
+                    CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,IndParts)
+                    CurrentSign(VecInd)=NewSign(IndParts)
+                    CurrentH(VecInd)=NewH(IndParts)
+                    VecInd=VecInd+1
+                    OrigPartAnn=OrigPartAnn+1
+                ENDIF
+                IndParts=IndParts+1
+            ELSEIF(IndSpawned.le.ValidSpawned) THEN
+!Now, we want to transfer a spawned particle, unless we have transferred them all
+                IF(SpawnedSign(IndSpawned).eq.0) THEN
+                    CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
+                ENDIF
+                CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
+                CurrentSign(VecInd)=SpawnedSign(IndSpawned)
+
+!Need to find H-element!
+                IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
+!We know we are at HF - HDiag=0
+                    HDiag=0.D0
+                    IF(tHub.and.tReal) THEN
+!Reference determinant is not HF
+                        CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
+                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiag=(REAL(HDiagTemp%v,r2))
+                    ENDIF
+                ELSE
+                    CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
+                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                ENDIF
+                CurrentH(VecInd)=HDiag
+                
+                VecInd=VecInd+1
+                IF(ValidSpawned.eq.IndSpawned) THEN
+                    EXIT    !We have reached the end of the list of spawned particles
+                ELSE
+                    IndSpawned=IndSpawned+1
+                ENDIF
+            ENDIF
+
+        enddo
+
+        IF(IndParts.le.TotWalkersNew) THEN
+!Haven't finished copying rest of original particles
+            do i=IndParts,TotWalkersNew
+                IF(NewSign(i).ne.0) THEN
+                    CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,i)
+                    CurrentSign(VecInd)=NewSign(i)
+                    CurrentH(VecInd)=NewH(i)
+                    VecInd=VecInd+1
+                    OrigPartAnn=OrigPartAnn+1
+                ENDIF
+            enddo
+
+        ELSEIF(IndSpawned.le.ValidSpawned) THEN
+            do i=IndSpawned,ValidSpawned
+                CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,i)
+                CurrentSign(VecInd)=SpawnedSign(i)
+
+!Need to find H-element!
+                IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
+!We know we are at HF - HDiag=0
+                    HDiag=0.D0
+                    IF(tHub.and.tReal) THEN
+!Reference determinant is not HF
+                        CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
+                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiag=(REAL(HDiagTemp%v,r2))
+                    ENDIF
+                ELSE
+                    CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
+                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                ENDIF
+                CurrentH(VecInd)=HDiag
+
+                VecInd=VecInd+1
+            enddo
+        ENDIF
+
+!OrigPartAnn particles annihilated from the original list. 
+!This should match the decrease in size of the SpawnedParts array over the course of the annihilation steps.
+!This should also be equal to TotWalkersNew-TotWalkers
+
+        TotWalkers=VecInd-1     !The new total number of particles after all annihilation steps.
+        Annihilated=(InitialSpawned-ValidSpawned)+OrigPartAnn   !The total number of annihilated particles is simply the number annihilated from spawned
+                                                                !list plus the number annihilated from the original list.
+
+    END SUBROUTINE InsertRemoveParts
+
+!This routine wants to take the ValidSpawned particles in the SpawnedParts array and perform All-to-All communication so that 
+!we can annihilate all common particles with opposite signs.
+!Particles are fed in on the SpawnedParts and SpawnedSign array, and are returned in the same arrays.
+!It requires MaxSpawned*36 bytes of memory (on top of the memory of the arrays fed in...)
+    SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
+        INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
+        INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
+        INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
+        INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
+        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
+        INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
+        CHARACTER(len=*), PARAMETER :: this_routine='AnnihilateBetweenSpawned'
+
+!First, we need to allocate memory banks. Each array needs a hash value, a processor value, and an index value.
+!We also want to allocate a temporary sign value
+        ALLOCATE(TempSign(ValidSpawned),stat=ierr)
+
+!These arrays may as well be kept all the way through the simulation?
+        ALLOCATE(HashArray1(MaxSpawned),stat=ierr)
+        ALLOCATE(HashArray2(MaxSpawned),stat=ierr)
+        ALLOCATE(IndexTable1(MaxSpawned),stat=ierr)
+        ALLOCATE(IndexTable2(MaxSpawned),stat=ierr)
+        ALLOCATE(ProcessVec1(MaxSpawned),stat=ierr)
+        ALLOCATE(ProcessVec2(MaxSpawned),stat=ierr)
+
+        IF(ierr.ne.0) THEN
+            CALL Stop_All("AnnihilateBetweenSpawned","Error in allocating initial data")
+        ENDIF
+
+        TempSign(1:ValidSpawned)=SpawnedSign(1:ValidSpawned)
+        ProcessVec1(1:ValidSpawned)=iProcIndex
+
+        do i=1,ValidSpawned
+            IndexTable1(i)=i
+            HashArray1(i)=CreateHash(SpawnedParts(0:NoIntforDet,i))
+        enddo
+
+!Next, order the hash array, taking the index, CPU and sign with it...
+        IF(.not.tAnnihilatebyRange) THEN
+!Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
+            CALL SortMod4ILong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned),nProcessors)
+
+!Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
+            j=1
+            do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
+                do while((abs(mod(Hash2Array(j),nProcessors)).eq.i).and.(j.le.ValidSpawned))
+                    j=j+1
+                enddo
+                sendcounts(i+1)=j-1
+            enddo
+
+        ELSE
+!We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
+            CALL Sort4ILong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned))
+!We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
+            Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
+            MinBin=-HUGE(MinBin)
+            NextBinBound=MinBin+Rangeofbins
+
+!We need to find the indices for each block of hashes which are to be sent to each processor.
+!Sendcounts is the size of each block of ordered dets which are going to each processors. This could be binary searched for extra speed.
+            j=1
+            do i=1,nProcessors    !Search through all possible values of the hashes
+                do while((HashArray1(j).le.NextBinBound).and.(j.le.ValidSpawned))
+                    j=j+1
+                enddo
+                sendcounts(i)=j-1
+                IF(i.eq.nProcessors-1) THEN
+!Make sure the final bin catches everything...
+                    NextBinBound=HUGE(NextBinBound)
+                ELSE
+                    NextBinBound=NextBinBound+Rangeofbins
+                ENDIF
+            enddo
+
+        ENDIF
+
+        IF(sendcounts(nProcessors).ne.ValidSpawned) THEN
+            WRITE(6,*) "SENDCOUNTS is: ",sendcounts(:)
+            WRITE(6,*) "VALIDSPAWNED is: ",ValidSpawned
+            CALL FLUSH(6)
+            CALL Stop_All("AnnihilateBetweenSpawned","Incorrect calculation of sendcounts")
+        ENDIF
+
+!Oops, we have calculated them cumulativly - undo this
+        maxsendcounts=sendcounts(1)
+        minsendcounts=sendcounts(1)     !Find max & min sendcounts, so that load-balancing can be checked
+!        WRITE(6,*) maxsendcounts,minsendcounts
+        do i=2,nProcessors
+            do j=1,i-1
+                sendcounts(i)=sendcounts(i)-sendcounts(j)
+            enddo
+            IF(sendcounts(i).gt.maxsendcounts) THEN
+                maxsendcounts=sendcounts(i)
+            ELSEIF(sendcounts(i).lt.minsendcounts) THEN
+                minsendcounts=sendcounts(i)
+            ENDIF
+        enddo
+
+!The disps however do want to be cumulative - this is the array indexing the start of the data block
+        disps(1)=0      !Starting element is always the first element
+        do i=2,nProcessors
+            disps(i)=disps(i-1)+sendcounts(i-1)
+        enddo
+
+!We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        recvcounts(1:nProcessors)=0
+
+        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+!We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
+        recvdisps(1)=0
+        do i=2,nProcessors
+            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
+        enddo
+
+        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
+!Max index is the largest occupied index in the array of hashes to be ordered in each processor 
+        IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+            CALL Warning("AnnihilateBetweenSpawned","Maximum index of annihilation array is close to maximum length. Increase MemoryFacSpawn")
+        ENDIF
+
+!Uncomment this if you want to write out load-balancing statistics.
+!        AnnihilPart(:)=0
+!        CALL MPI_Gather(MaxIndex,1,MPI_INTEGER,AnnihilPart,1,MPI_INTEGER,root,MPI_COMM_WORLD,error)
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(13,"(I10)",advance='no') Iter
+!            do i=1,nProcessors
+!                WRITE(13,"(I10)",advance='no') AnnihilPart(i)
+!            enddo
+!            WRITE(13,"(A)") ""
+!            CALL FLUSH(13)
+!        ENDIF
+
+!        IF(Iter.eq.DebugIter) THEN
+!            WRITE(6,*) "RECVCOUNTS: "
+!            WRITE(6,*) recvcounts(:)
+!            WRITE(6,*) "RECVDISPS: "
+!            WRITE(6,*) recvdisps(:),MaxIndex
+!            CALL FLUSH(6)
+!        ENDIF
+
+!Insert a load-balance check here...maybe find the s.d. of the sendcounts array - maybe just check the range first.
+!        IF(TotWalkersNew.gt.200) THEN
+!            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
+!                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
+!                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
+!                CALL FLUSH(6)
+!            ENDIF
+!        ENDIF
+
+!Now send the chunks of hashes to the corresponding processors
+        CALL MPI_AlltoAllv(HashArray1(1:ValidSpawned),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray2(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)
+
+!The signs of the hashes, index and CPU also need to be taken with them.
+        CALL MPI_AlltoAllv(SpawnedSign(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,SpawnedSign2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(IndexTable1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(ProcessVec1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,ProcessVec2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+        IF(.not.tAnnihilatebyrange) THEN
+!The hashes now need to be sorted again - this time by their number
+!This sorting would be redundant if we had initially sorted the hashes by range (ie tAnnihilatebyrange).
+            CALL Sort4ILong(MaxIndex,HashArray2(1:MaxIndex),IndexTable2(1:MaxIndex),ProcessVec2(1:MaxIndex),SpawnedSign2(1:MaxIndex))
+        ELSE
+!Here, because we have ordered the hashes initially numerically, we have a set of ordered lists. It is therefore easier to sort them.
+!We have to work out how to run sequentially through the hashes, which are a set of nProc seperate ordered lists.
+!We would need to have 2*nProc indices, since we will have a set of nProc disjoint ordered sublists.
+!SubListInds(1,iProc)=index of current hash from processor iProc
+!SubListInds(2,iProc)=index of final hash from processor iProc
+!Indices can be obtained from recvcounts and recvdisps - recvcounts(iProc-1) is number of hashes from iProc
+!recvdisps(iProc-1) is the displacement to the start of the hashes from iProc
+            do i=1,nProcessors-1
+                SubListInds(1,i)=recvdisps(i)+1
+                SubListInds(2,i)=recvdisps(i+1)
+            enddo
+            SubListInds(1,nProcessors)=recvdisps(nProcessors)+1
+            SubListInds(2,nProcessors)=MaxIndex
+!            WRITE(6,*) "SubListInds(1,:) ", SubListInds(1,:)
+!            WRITE(6,*) "SubListInds(2,:) ", SubListInds(2,:)
+!            WRITE(6,*) "Original hash list is: "
+!            do i=1,MaxIndex
+!                WRITE(6,*) HashArray(i)
+!            enddo
+!            WRITE(6,*) "**************"
+!Reorder the lists so that they are in numerical order.
+            j=1
+            do while(j.le.MaxIndex)
+                do i=1,nProcessors
+                    IF(SubListInds(1,i).le.SubListInds(2,i)) THEN
+!This block still has hashes which want to be sorted
+                        MinHash=HashArray2(SubListInds(1,i))
+                        MinProc=i
+                        MinInd=SubListInds(1,i)
+                        EXIT
+                    ENDIF
+!                    IF(i.eq.nProcessors) THEN
+!                        WRITE(6,*) "ERROR HERE!!"
+!                        CALL FLUSH(6)
+!                    ENDIF
+                enddo
+                IF(MinHash.ne.HashCurr) THEN
+                    do i=MinProc+1,nProcessors
+                        IF((SubListInds(1,i).le.SubListInds(2,i)).and.(HashArray2(SubListInds(1,i)).lt.MinHash)) THEN
+                            MinHash=HashArray2(SubListInds(1,i))
+                            MinProc=i
+                            MinInd=SubListInds(1,i)
+                            IF(MinHash.eq.HashCurr) THEN
+                                EXIT
+                            ENDIF
+                        ENDIF
+                    enddo
+                ENDIF
+!Next smallest hash is MinHash - move the ordered elements into the other array.
+                HashArray1(j)=MinHash
+                IndexTable1(j)=IndexTable2(MinInd)
+                ProcessVec1(j)=ProcessVec2(MinInd)
+                SpawnedSign(j)=SpawnedSign2(MinInd)
+                HashCurr=MinHash
+!Move through the block
+                j=j+1
+                SubListInds(1,MinProc)=SubListInds(1,MinProc)+1
+            enddo
+
+            IF((j-1).ne.MaxIndex) THEN
+                CALL Stop_All(this_routine,"Error here in the merge sort algorithm")
+            ENDIF
+
+!Need to copy the lists back to the original array
+            do i=1,MaxIndex
+                IndexTable2(i)=IndexTable1(i)
+                ProcessVec2(i)=ProcessVec1(i)
+                SpawnedSign2(i)=SpawnedSign(i)
+                HashArray2(i)=HashArray1(i)
+            enddo
+
+        ENDIF
+
+!Work out the index of the particles which want to be annihilated
+        j=1
+        ToAnnihilateIndex=1
+        do while(j.le.MaxIndex)
+            TotWalkersDet=0
+            InitialBlockIndex=j
+            FinalBlockIndex=j-1         !Start at j-1 since we are increasing FinalBlockIndex even with the first det in the next loop
+            HashCurr=HashArray2(j)
+            do while((HashArray2(j).eq.HashCurr).and.(j.le.MaxIndex))
+!First loop counts walkers in the block - TotWalkersDet is then the residual sign of walkers on that determinant
+                IF(SpawnedSign2(j).eq.1) THEN
+                    TotWalkersDet=TotWalkersDet+1
+                ELSE
+                    TotWalkersDet=TotWalkersDet-1
+                ENDIF
+                FinalBlockIndex=FinalBlockIndex+1
+                j=j+1
+            enddo
+
+!            IF(Iter.eq.DebugIter) THEN
+!                WRITE(6,*) "Common block of dets found from ",InitialBlockIndex," ==> ",FinalBlockIndex
+!                WRITE(6,*) "Sum of signs in block is: ",TotWalkersDet
+!                CALL FLUSH(6)
+!            ENDIF
+
+            do k=InitialBlockIndex,FinalBlockIndex
+!Second run through the block of same determinants marks walkers for annihilation
+                IF(TotWalkersDet.eq.0) THEN
+!All walkers in block want to be annihilated from now on.
+                    IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
+                    ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    ToAnnihilateIndex=ToAnnihilateIndex+1
+                ELSEIF((TotWalkersDet.lt.0).and.(SpawnedSign2(k).eq.1)) THEN
+!Annihilate if block has a net negative walker count, and current walker is positive
+                    IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
+                    ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    ToAnnihilateIndex=ToAnnihilateIndex+1
+                ELSEIF((TotWalkersDet.gt.0).and.(SpawnedSign2(k).eq.-1)) THEN
+!Annihilate if block has a net positive walker count, and current walker is negative
+                    IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
+                    ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    ToAnnihilateIndex=ToAnnihilateIndex+1
+                ELSE
+!If net walkers is positive, and we have a positive walkers, then remove one from the net positive walkers and continue through the block
+                    IF(SpawnedSign2(k).eq.1) THEN
+                        TotWalkersDet=TotWalkersDet-1
+                    ELSE
+                        TotWalkersDet=TotWalkersDet+1
+                    ENDIF
+                ENDIF
+            enddo
+
+        enddo
+
+        ToAnnihilateIndex=ToAnnihilateIndex-1   !ToAnnihilateIndex now tells us the total number of particles to annihilate from the list on this processor
+
+!The annihilation is complete - particles to be annihilated are stored in IndexTable and need to be sent back to their original processor
+!To know which processor that is, we need to order the particles to be annihilated in terms of their CPU, i.e. ProcessVec(1:ToAnnihilateIndex)
+!Is the list already ordered according to CPU? Is this further sort even necessary?
+
+        IF(ToAnnihilateIndex.gt.1) THEN
+!Do not actually have to take indextable, hash2array or newsign with it...
+            CALL Sort2IILongI(ToAnnihilateIndex,ProcessVec1(1:ToAnnihilateIndex),IndexTable1(1:ToAnnihilateIndex),HashArray1(1:ToAnnihilateIndex),SpawnedSign(1:ToAnnihilateIndex))
+        ENDIF
+
+!We now need to regenerate sendcounts and disps
+        sendcounts(1:nProcessors)=0
+        do i=1,ToAnnihilateIndex
+            IF(ProcessVec1(i).gt.(nProcessors-1)) THEN
+                CALL Stop_All("AnnihilatePartPar","Annihilation error")
+            ENDIF
+            sendcounts(ProcessVec1(i)+1)=sendcounts(ProcessVec1(i)+1)+1
+        enddo
+!The disps however do want to be cumulative
+        disps(1)=0      !Starting element is always the first element
+        do i=2,nProcessors
+            disps(i)=disps(i-1)+sendcounts(i-1)
+        enddo
+
+!We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        recvcounts(1:nProcessors)=0
+
+        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+!We can now get recvdisps from recvcounts in the same way we obtained disps from sendcounts
+        recvdisps(1)=0
+        do i=2,nProcessors
+            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
+        enddo
+
+        ToAnnihilateonProc=recvdisps(nProcessors)+recvcounts(nProcessors)
+
+        CALL MPI_AlltoAllv(IndexTable1(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+        CALL NECI_SORTI(ToAnnihilateonProc,IndexTable2(1:ToAnnihilateonProc))
+!        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
+
+        IF(ToAnnihilateonProc.ne.0) THEN
+!Copy across the data, apart from ones which have an index given by the indicies in Index2Table(1:ToAnnihilateonProc)
+            VecSlot=1       !VecSlot is the index in the final array of TotWalkers
+            i=1             !i is the index in the original array of TotWalkersNew
+            do j=1,ToAnnihilateonProc
+!Loop over all particles to be annihilated
+                do while(i.lt.IndexTable2(j))
+!Copy accross all particles less than this number
+                    SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
+                    SpawnedSign2(VecSlot)=TempSign(i)
+                    i=i+1
+                    VecSlot=VecSlot+1
+                enddo
+                i=i+1
+            enddo
+
+!Now need to copy accross the residual - from Index2Table(ToAnnihilateonProc) to TotWalkersNew
+            do i=Index2Table(ToAnnihilateonProc)+1,ValidSpawned
+                SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
+                SpawnedSign2(VecSlot)=TempSign(i)
+                VecSlot=VecSlot+1
+            enddo
+
+        ELSE
+!No particles annihilated
+            VecSlot=1
+            do i=1,ValidSpawned
+                SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
+                SpawnedSign2(VecSlot)=TempSign(i)
+                VecSlot=VecSlot+1
+            enddo
+        ENDIF
+
+        ValidSpawned=VecSlot-1
+
+!        IF((TotWalkersNew-TotWalkers).ne.ToAnnihilateonProc) THEN
+!            WRITE(6,*) TotWalkers,TotWalkersNew,ToAnnihilateonProc,Iter
+!            CALL FLUSH(6)
+!            CALL Stop_All("AnnihilatePartPar","Problem with numbers when annihilating")
+!        ENDIF
+
+!Deallocate temp arrays
+        DEALLOCATE(TempSign)
+        DEALLOCATE(HashArray1)
+        DEALLOCATE(HashArray2)
+        DEALLOCATE(IndexTable1)
+        DEALLOCATE(IndexTable2)
+        DEALLOCATE(ProcessVec1)
+        DEALLOCATE(ProcessVec2)
+
+!We also need to swap round the pointers to the two arrays, since the next annihilation steps take place on SpawnedParts, not SpawnedParts2 
+        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+            SpawnedParts2 => SpawnVec
+            SpawnedSign2 => SpawnSignVec
+            SpawnedParts => SpawnVec2
+            SpawnedSign => SpawnSignVec2
+        ELSE
+            SpawnedParts => SpawnVec
+            SpawnedSign => SpawnSignVec
+            SpawnedParts2 => SpawnVec2
+            SpawnedSign2 => SpawnSignVec2
+        ENDIF
+
+    END SUBROUTINE AnnihilateBetweenSpawned
+
+
+!Do a binary search in NewDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
+!PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
+!If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
+!(or close enough!)
+    SUBROUTINE BinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd,DetArray(0:NoIntforDet,MinInd:MaxInd)
+        INTEGER :: i,j,N,Comp,DetBitLT
+        LOGICAL :: tSuccess
+
+        i=MinInd
+        j=MaxInd
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+
+!Comp is 1 if DetArray(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(DetArray(:,N),iLut(:),NoIntforDet)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+!This deals with the case where we are interested in the final entry in the list. Check the final entry of the list and leave
+
+                IF(i.eq.MaxInd-1) THEN
+                    CALL Stop_All("BinSearchParts","Error in binary search")
+                ENDIF
+
+                Comp=DetBitLT(DetArray(:,i+1),iLut(:),NoIntforDet)
+                IF(Comp.eq.0) THEN
+                    tSuccess=.true.
+                    PartInd=i+1
+                    RETURN
+                ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                    tSuccess=.false.
+                    PartInd=i+1
+                    RETURN
+                ELSE
+                    tSuccess=.false.
+                    PartInd=i
+                ENDIF
+
+            ELSEIF(Comp.eq.-1) THEN
+!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+        
+    END SUBROUTINE BinSearchParts
+
+!In this routine, we want to search through the list of spawned particles. For each spawned particle, we binary search the list of particles on the processor
+!to see if an annihilation event can occur. If it does, then move the end particle to its position in the list, and decrease ValidSpawned by one. This occurs
+!to the whole list of spawned particles at the end of the routine.
+!In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
+    SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
+        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,SearchInd,AnnihilateInd,ToRemove
+        LOGICAL :: DetBitEQ,tSuccess
+
+!MinInd indicates the minimum bound of the main array in which the particle can be found.
+!Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
+        MinInd=1
+        ToRemove=0  !The number of particles to annihilate
+
+        do i=1,ValidSpawned
+
+!This will binary search the NewDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
+!It will also return the index of the position one below where the particle would be found if was in the list.
+            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+
+            IF(tSuccess) THEN
+!A particle on the same list has been found. We now want to search backwards, to find the first particle in this block.
+
+                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
+                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
+                AnnihilateInd=0     !AnnihilateInd indicates the index in NewDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
+                
+                do while((DetBitEQ(SpawnedParts(:,i),NewDets(:,SearchInd),NoIntforDet)).and.(SearchInd.ge.1))
+!Cycle backwards through the list, checking where the start of this block of determinants starts.
+                    IF((NewSign(SearchInd)*SpawnedSign(i)).eq.-1) THEN
+!We have actually found a complimentary particle - mark the index of this particle for annihilation.
+                        AnnihilateInd=SearchInd
+                        EXIT
+                    ENDIF
+
+                    SearchInd=SearchInd-1
+                enddo
+
+                IF((SearchInd.eq.PartInd).and.(AnnihilateInd.eq.0)) THEN
+!The searchind should not equal partind, since we know that the particles are the same at PartInd, otherwise the binary search should have returned false.
+!(unless we have already found the particle to annihilate)
+                    CALL Stop_All("AnnihilateSpawnedParts","Binary search has fatal error")
+                ENDIF
+
+                IF(AnnihilateInd.eq.0) THEN
+!We have searched from the beginning of the particle block(SearchInd) to PartInd for a complimentary particle, but have not had any success. Now we can search from
+!PartInd+1 to the end of the block for a complimentary particle.
+                    SearchInd=PartInd+1
+                    do while((DetBitEQ(SpawnedParts(:,i),NewDets(:,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
+                        IF((NewSign(SearchInd)*SpawnedSign(i)).eq.-1) THEN
+!We have found a complimentary particle - mark the index of this particle for annihilation.
+                            AnnihilateInd=SearchInd
+                            EXIT
+                        ENDIF
+
+                        SearchInd=SearchInd+1
+                    enddo
+
+!We can now also move the MinInd to the end of the block if we want
+                    MinInd=SearchInd-1     !This cannot be more than TotWalkersNew
+                ENDIF
+
+                IF(AnnihilateInd.ne.0) THEN
+!We have found a particle to annihilate. Mark the particles for annihilation.
+                    NewSign(AnnihilateInd)=0
+                    SpawnedSign(i)=0
+                    ToRemove=ToRemove+1
+                ENDIF
+
+            ELSE
+!A corresponding particle wasn't found, but we now only have a smaller list to search within next time....so not all bad news then...
+                MinInd=PartInd
+            ENDIF
+
+        enddo
+
+!Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
+        IF(ToRemove.gt.0) THEN
+            i=1
+            do while(SpawnedSign(i).ne.0)
+                i=i+1
+            enddo
+!i now indicates the index of the first particle to remove.
+            MinInd=i+1    !MinInd now indicates the index of the beginning of the block for which to move 
+            i=MinInd
+            do j=1,ToRemove
+!Run over the number of particles to annihilate. Each particle will mean that a block of particles will be shifted down.
+                do while((SpawnedSign(i).ne.0).and.(i.le.ValidSpawned))
+                    i=i+1
+                enddo
+!We now want to move the block, donoted by MinInd -> i-1 down by j steps. Can we do this as a array operation?
+!                SpawnedParts(:,MinInd-j:i-1-j)=SpawnedParts(:,MinInd:i-1)
+                do k=MinInd,i-1
+                    SpawnedParts(:,k-j)=SpawnedParts(:,k)
+                    SpawnedSign(k-j)=SpawnedSign(k)
+                enddo
+                MinInd=i+1
+                i=MinInd
+            enddo
+
+!Reduce ValidSpawned by the number of newly-spawned particles which have been annihilated.
+            ValidSpawned=ValidSpawned-ToRemove
+
+        ENDIF
+
+
+    END SUBROUTINE AnnihilateSpawnedParts
+        
+!This rotates the spawned (and still alive particles) around the processors. Particles are sent to MOD(iProcIndex+1,nProcessors) and received from MOD(iProcIndex+nProcessors-1,nProcessors).
+!Issues here:
+!1) Want to avoid deadlock, but also want to avoid having to send data sequentially, therefore blocking is going to be necessary.
+!2) This will also mean we have to beware of buffer overflow. Do we need to attach a specific buffer for the particles?
+!3) Do we want one of two sets of data? If two, then we need to set up a pointer system. If not, then how do we know how many particles to recieve without
+!       extra communication?
+    SUBROUTINE RotateParticles(ValidSpawned)
+        INTEGER :: error,ValidSpawned
+        INTEGER, DIMENSION(MPI_STATUS_SIZE) :: Stat 
+
+!ValidSpawned is the number of particles spawned (and still alive) for this set of particles (index is iProcIndex-no.rotates)
+        SpawnedSign(0)=ValidSpawned
+
+!Send the signs of the particles (number sent is in the first element)
+        CALL MPI_BSend(SpawnedSign(0:ValidSpawned),ValidSpawned,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
+        IF(error.ne.MPI_SUCCESS) THEN
+            CALL Stop_All("RotateParticles","Error in sending signs")
+        ENDIF
+!...and the particles themselves...
+        CALL MPI_BSend(SpawnedParts(0:NoIntforDet,1:ValidSpawned),ValidSpawned*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+        IF(error.ne.MPI_SUCCESS) THEN
+            CALL Stop_All("RotateParticles","Error in sending particles")
+        ENDIF
+
+!Receive signs (let it receive the maximum possible (only the first ValidSpawned will be updated.))
+        CALL MPI_Recv(SpawnedSign2(0:MaxSpawned),MaxSpawned+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
+        IF(error.ne.MPI_SUCCESS) THEN
+            CALL Stop_All("RotateParticles","Error in receiving signs")
+        ENDIF
+        
+!Update the ValidSpawned variable for this new set of data.
+        ValidSpawned=SpawnedSign2(0)
+
+        CALL MPI_Recv(SpawnedParts2(0:NoIntforDet,1:ValidSpawned),ValidSpawned*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+        IF(error.ne.MPI_SUCCESS) THEN
+            CALL Stop_All("RotateParticles","Error in receiving particles")
+        ENDIF
+
+!We now want to make sure that we are working on the correct array. We have now received particles in SpawnedParts2 - switch it so that we are pointing at the other array.
+!We always want to annihilate from the SpawedParts and SpawnedSign arrays.
+        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+            SpawnedParts2 => SpawnVec
+            SpawnedSign2 => SpawnSignVec
+            SpawnedParts => SpawnVec2
+            SpawnedSign => SpawnSignVec2
+        ELSE
+            SpawnedParts => SpawnVec
+            SpawnedSign => SpawnSignVec
+            SpawnedParts2 => SpawnVec2
+            SpawnedSign2 => SpawnSignVec2
+        ENDIF
+
+    END SUBROUTINE RotateParticles
+
+
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
-        INTEGER :: VecSlot,i,j,k,l
+        INTEGER :: VecSlot,i,j,k,l,ValidSpawned
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign
-        LOGICAL :: tParity
+        LOGICAL :: tParity,DetBitEQ
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -293,6 +1103,7 @@ MODULE FciMCParMod
 !Reset number at HF and doubles
         NoatHF=0
         NoatDoubs=0
+        ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -386,48 +1197,59 @@ MODULE FciMCParMod
 !We have successfully created at least one negative child at nJ
                         WSign=-1
                     ENDIF
-!Calculate excitation level, connection to HF and diagonal ham element
-!                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-                    CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,2)
 
-                    IF(TMagnetize) THEN
-                        CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
+                    IF(tRotoAnnihil) THEN
+!In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
+!The excitation level and diagonal matrix element are also found out after the annihilation.
+!Cannot use old excitation generators with rotoannihilation.
+
+                        do l=1,abs(Child)
+                            SpawnedParts(:,ValidSpawned)=iLutnJ(:)
+                            SpawnedSign(ValidSpawned)=WSign
+                            ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+                        enddo
+
                     ELSE
-                        IF(ExcitLevel.eq.0) THEN
-!We know we are at HF - HDiag=0
-                            HDiag=0.D0
-                            IF(tHub.and.tReal) THEN
-!Reference determinant is not HF
-                                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                                HDiag=(REAL(HDiagTemp%v,r2))
-                            ENDIF
+!Calculate diagonal ham element
 
+                        IF(TMagnetize) THEN
+                            CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,2)
+                            CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
                         ELSE
-                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                            HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                            IF(DetBitEQ(iLutnJ,iLutHF,NoIntforDet)) THEN
+!We know we are at HF - HDiag=0
+                                HDiag=0.D0
+                                IF(tHub.and.tReal) THEN
+!Reference determinant is not HF
+                                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                                    HDiag=(REAL(HDiagTemp%v,r2))
+                                ENDIF
+
+                            ELSE
+                                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                                HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                            ENDIF
                         ENDIF
-                    ENDIF
 
-!                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                    IF(.not.TNoAnnihil) THEN
-                        HashTemp=CreateHash(nJ)
-                    ENDIF
-
-                    do l=1,abs(Child)
-!Copy across children - cannot copy excitation generators, as do not know them...unless it is HF (this might save a little time if implimented)
-                        NewDets(:,VecSlot)=iLutnJ(:)
-                        NewSign(VecSlot)=WSign
-                        IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
-                        NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
-                        IF(.not.TNoAnnihil) THEN
 !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                            Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
+                        IF(.not.TNoAnnihil) THEN
+                            HashTemp=CreateHash(nJ)
                         ENDIF
-                        VecSlot=VecSlot+1
-!                        IF(TLocalAnnihilation) THEN
-!                            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
-!                        ENDIF
-                    enddo
+
+                        do l=1,abs(Child)
+!Copy across children - cannot copy excitation generators, as do not know them...unless it is HF (this might save a little time if implimented)
+                            NewDets(:,VecSlot)=iLutnJ(:)
+                            NewSign(VecSlot)=WSign
+                            IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
+                            NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
+                            IF(.not.TNoAnnihil) THEN
+!                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+                                Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
+                            ENDIF
+                            VecSlot=VecSlot+1
+                        enddo
+                    
+                    ENDIF   !Endif rotoannihil
 
                     Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
                 
@@ -452,7 +1274,7 @@ MODULE FciMCParMod
 !                        ENDIF
                         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
                         NewH(VecSlot)=CurrentH(j)
-                        IF(.not.TNoAnnihil) Hash2Array(VecSlot)=HashArray(j)
+                        IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
 !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
                     enddo
@@ -481,7 +1303,7 @@ MODULE FciMCParMod
                             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.false.)
                         ENDIF
                         NewH(VecSlot)=CurrentH(j)
-                        IF(.not.TNoAnnihil) Hash2Array(VecSlot)=HashArray(j)
+                        IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
 !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
                     enddo
@@ -498,16 +1320,33 @@ MODULE FciMCParMod
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
+
         rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
         IF(rat.gt.0.95) THEN
             WRITE(6,*) "*WARNING* - Number of walkers has increased to over 95% of MaxWalkersPart"
             CALL FLUSH(6)
         ENDIF
+
+        IF(tRotoAnnihil) THEN
+            ValidSpawned=ValidSpawned-1     !For rotoannihilation, this is the number of spawned particles.
+
+            rat=(ValidSpawned+0.D0)/(MaxSpawned+0.D0)
+            IF(rat.gt.0.9) THEN
+                WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
+                CALL FLUSH(6)
+            ENDIF
+        ENDIF
+
         
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
         
-        IF(TNoAnnihil) THEN
+        IF(tRotoAnnihil) THEN
+!This is the rotoannihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
+
+            CALL RotoAnnihilation(ValidSpawned,TotWalkersNew)
+
+        ELSEIF(TNoAnnihil) THEN
 !However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
             IF(associated(CurrentDets,target=WalkVecDets)) THEN
                 CurrentDets=>WalkVec2Dets
@@ -1857,15 +2696,6 @@ MODULE FciMCParMod
         enddo
         CALL LargestBitSet(iLutHF,NoIntforDet,LargestOrb)
         IF(LargestOrb.ne.HFDet(NEl)) THEN
-            do i=0,NoIntforDet
-                do j=0,31
-                    IF(BTEST(iLutHF(i),j)) THEN
-                        WRITE(6,*) i,j,"1"
-                    ELSE
-                        WRITE(6,*) i,j,"0"
-                    ENDIF
-                enddo
-            enddo
             CALL Stop_All("InitFciMCPar","LargestBitSet FAIL")
         ENDIF
         CALL CountBits(iLutHF,NoIntforDet,nBits,NEl)
@@ -1889,8 +2719,6 @@ MODULE FciMCParMod
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed-iProcIndex
-
-!        CALL TestGenRandSymExcitNU(HFDet,100000,0.95,Seed,1)
 
 !Calculate Hii
         TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -1969,13 +2797,15 @@ MODULE FciMCParMod
             ENDIF
             CALL CalcApproxpDoubles(HFConn)
         ENDIF
+        IF((.not.tRegenExcitgens).and.(tRotoAnnihil)) THEN
+            CALL Stop_All("InitFCIMCCalcPar","Storage of excitation generators is incompatable with RotoAnnihilation. Regenerate excitation generators.")
+        ENDIF
     
         IF(tConstructNOs) THEN
             ALLOCATE(OneRDM(nBasis,nBasis),stat=ierr)
             CALL LogMemAlloc('OneRDM',nBasis*nBasis,8,this_routine,OneRDMTag,ierr)
             OneRDM(:,:)=0.D0
         ENDIF
-               
 
         IF(TPopsFile.and.(mod(iWritePopsEvery,StepsSft).ne.0)) THEN
             CALL Warning("InitFCIMCCalc","POPSFILE writeout should be a multiple of the update cycle length.")
@@ -1987,6 +2817,8 @@ MODULE FciMCParMod
             CALL Stop_All("InitFCIMCCalcPar","Annihilonproc feature is currently disabled")
             WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
             WRITE(6,*) "This is equivalent to running seperate calculations."
+        ELSEIF(tRotoAnnihil) THEN
+            WRITE(6,*) "RotoAnnihilation in use...!"
         ENDIF
         IF(TReadPops) THEN
 !List of things that readpops can't work with...
@@ -2023,9 +2855,6 @@ MODULE FciMCParMod
                 WRITE(6,*) "Resumming in multiple transitions to/from each excitation"
                 WRITE(6,"(A,I5,A)") "Graphs to resum will consist of ",NDets," determinants."
             ENDIF
-!            IF(.not.TNoAnnihil) THEN
-!                CALL Stop_All("InitFCIMCCalcPar","Annihilation is not currently compatable with ResumFCIMC in parallel")
-!            ENDIF
         ENDIF
         
         IF(TStartSinglePart) THEN
@@ -2103,12 +2932,17 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tMagnetize) THEN
+
+            IF(tRotoAnnihil) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Rotoannihilation not currently supporting Magnetization")
+            ENDIF
             CALL FindMagneticDets()
         ENDIF
 
         IF(TLocalAnnihilation) THEN
 !If we are locally annihilating, then we need to know the walker density for a given excitation level, for which we need to approximate number of determinants
 !in each excitation level
+            CALL Stop_All("InitFCIMCCalcPar","LocalAnnihilation is currently disabled")
             ALLOCATE(ApproxExcitDets(0:NEl))
             ALLOCATE(PartsinExcitLevel(0:NEl))
             TotDets=1.D0
@@ -2151,11 +2985,17 @@ MODULE FciMCParMod
 
 !Set the maximum number of walkers allowed
             MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
-            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
             WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
-            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
+            IF(tRotoAnnihil) THEN
+                MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
+                WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
+            ELSE
+                MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
+                WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
+                WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
+            ENDIF
 
 !Put a barrier here so all processes synchronise
             CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -2166,16 +3006,6 @@ MODULE FciMCParMod
             ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntForDet+1),4,this_routine,WalkVec2DetsTag,ierr)
             WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
-
-            ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
-            ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
-
-!            ALLOCATE(WalkVecIC(MaxWalkersPart),stat=ierr)
-!            CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
-!            ALLOCATE(WalkVec2IC(MaxWalkersPart),stat=ierr)
-!            CALL LogMemAlloc('WalkVec2IC',MaxWalkersPart,4,this_routine,WalkVec2ICTag,ierr)
             ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
             WalkVecH(:)=0.d0
@@ -2183,11 +3013,48 @@ MODULE FciMCParMod
             CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
             WalkVec2H(:)=0.d0
             
-!            MemoryAlloc=((2*NEl+8)*MaxWalkers)*4    !Memory Allocated in bytes
-!            MemoryAlloc=((8*MaxWalkers)+(2*NEl*MaxWalkersExcit))*4    !Memory Allocated in bytes
-            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            IF(tRotoAnnihil) THEN
+                ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
+                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
+                MemoryAlloc=((2*MaxWalkersPart)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            ELSE
+!The sign is sent through when annihilating, so it needs to be longer.
+                ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+                ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+                MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            ENDIF
+            
+            WalkVecSign(:)=0
+            WalkVec2Sign(:)=0
 
-            IF(.not.TNoAnnihil) THEN
+            IF(tRotoAnnihil) THEN
+
+                ALLOCATE(SpawnVec(0:NoIntForDet,MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVecTag,ierr)
+                SpawnVec(:,:)=0
+                ALLOCATE(SpawnVec2(0:NoIntForDet,MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVec2Tag,ierr)
+                SpawnVec2(:,:)=0
+                ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
+                SpawnSignVec(:)=0
+                ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
+                CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
+                SpawnSignVec2(:)=0
+
+!Point at correct spawning arrays
+                SpawnedParts=>SpawnVec
+                SpawnedParts2=>SpawnVec2
+                SpawnedSign=>SpawnSignVec
+                SpawnedSign2=>SpawnSignVec2
+
+                MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NoIntForDet)))*4
+
+            ELSEIF(.not.TNoAnnihil) THEN
 !            IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                 ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
                 CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
@@ -2220,22 +3087,20 @@ MODULE FciMCParMod
             NewH=>WalkVec2H
 
             IF(TStartSinglePart) THEN
-!                CurrentDets(:,1)=HFDet(:)
                 CurrentDets(:,1)=iLutHF(:)
                 CurrentSign(1)=1
                 CurrentH(1)=0.D0
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
                     HashArray(1)=HFHash
                 ENDIF
             ELSE
 
                 do j=1,InitWalkers
-!                    CurrentDets(:,j)=HFDet(:)
                     CurrentDets(:,j)=iLutHF(:)
                     CurrentSign(j)=1
                     CurrentH(j)=0.D0
-                    IF(.not.TNoAnnihil) THEN
+                    IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                         HashArray(j)=HFHash
                     ENDIF
@@ -2288,7 +3153,11 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
             ENDIF
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+            IF(tRotoAnnihil) THEN
+                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ??? Mb/Processor"
+            ELSE
+                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+            ENDIF
             CALL FLUSH(6)
         
             IF(TStartSinglePart) THEN
@@ -2589,13 +3458,24 @@ MODULE FciMCParMod
         
 !Now we want to allocate memory on all nodes.
         MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)    !All nodes have the same amount of memory allocated
-        MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
+        IF(tRotoAnnihil) THEN
+            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+        ELSE
+            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
+        ENDIF
+
 !Allocate memory to hold walkers at least temporarily
         ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
         WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
-        ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
-        CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+        IF(tRotoAnnihil) THEN
+            ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
+            WalkVecSign(:)=0
+        ELSE
+            ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+        ENDIF
 
         IF(iProcIndex.eq.root) THEN
 !Root process reads all walkers in and then sends them to the correct processor
@@ -2620,6 +3500,12 @@ MODULE FciMCParMod
             enddo
 
             CLOSE(17)
+
+            IF(tRotoAnnihil) THEN
+                WRITE(6,*) "Ordering all walkers that have been read in..."
+                CALL SortBitDets(WalkerstoReceive,WalkVecDets(0:NoIntforDet,1:WalkerstoReceive),NoIntforDet,WalkVecSign(1:WalkerstoReceive))
+            ENDIF
+
         
         ENDIF
 
@@ -2628,6 +3514,9 @@ MODULE FciMCParMod
 !All other processors want to pick up their data from root
                 CALL MPI_Recv(WalkVecDets(:,1:TempInitWalkers),TempInitWalkers*(NoIntforDet+1),MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
+                IF(tRotoAnnihil) THEN
+                    CALL SortBitDets(TempInitWalkers,WalkVecDets(0:NoIntforDet,1:TempInitWalkers),NoIntforDet,WalkVecSign(1:TempInitWalkers))
+                ENDIF
             ENDIF
         enddo
 
@@ -2637,14 +3526,24 @@ MODULE FciMCParMod
 
             WRITE(6,*) "Rescaling walkers  by a factor of: ",ScaleWalkers
             MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
-            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+            IF(tRotoAnnihil) THEN
+                MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
+            ELSE
+                MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
+            ENDIF
 
 !Allocate memory for walkvec2, which will temporarily hold walkers
             ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
             WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
-            ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+            IF(tRotoAnnihil) THEN
+                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
+            ELSE
+                ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+            ENDIF
+            WalkVec2Sign(:)=0
 
 !Scale up the integer part and fractional part seperately
             IntegerPart=INT(ScaleWalkers)       !Round to zero
@@ -2686,8 +3585,14 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
-            ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+            IF(tRotoAnnihil) THEN
+                ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
+            ELSE
+                ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+            ENDIF
+            WalkVecSign(:)=0
 
 !Transfer scaled particles back accross to WalkVecDets
             do l=1,TotWalkers
@@ -2704,8 +3609,14 @@ MODULE FciMCParMod
             ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
             WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
-            ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+            IF(tRotoAnnihil) THEN
+                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
+            ELSE
+                ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+            ENDIF
+            WalkVec2Sign(:)=0
 
             TotWalkers=TempInitWalkers      !Set the total number of walkers
             TotWalkersOld=TempInitWalkers
@@ -2719,23 +3630,44 @@ MODULE FciMCParMod
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
 
 !Need to now allocate other arrays
-!        ALLOCATE(WalkVecIC(MaxWalkersPart),stat=ierr)
-!        CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
-!        WalkVecIC(1:MaxWalkersPart)=0
-!        ALLOCATE(WalkVec2IC(MaxWalkersPart),stat=ierr)
-!        CALL LogMemAlloc('WalkVec2IC',MaxWalkersPart,4,this_routine,WalkVec2ICTag,ierr)
-!        WalkVec2IC(1:MaxWalkersPart)=0
         ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-        WalkVecH=0.d0
+        WalkVecH(:)=0.d0
         ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-        WalkVec2H=0.d0
+        WalkVec2H(:)=0.d0
 
-        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        IF(tRotoAnnihil) THEN
+            MemoryAlloc=((2*MaxWalkersPart)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        ELSE
+            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        ENDIF
+
+        IF(tRotoAnnihil) THEN
+
+            ALLOCATE(SpawnVec(0:NoIntForDet,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVecTag,ierr)
+            SpawnVec(:,:)=0
+            ALLOCATE(SpawnVec2(0:NoIntForDet,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVec2Tag,ierr)
+            SpawnVec2(:,:)=0
+            ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
+            SpawnSignVec(:)=0
+            ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
+            SpawnSignVec2(:)=0
+
+!Point at correct spawning arrays
+            SpawnedParts=>SpawnVec
+            SpawnedParts2=>SpawnVec2
+            SpawnedSign=>SpawnSignVec
+            SpawnedSign2=>SpawnSignVec2
+
+            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NoIntForDet)))*4
 
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-        IF(.not.TNoAnnihil) THEN
+        ELSEIF(.not.TNoAnnihil) THEN
             ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
             HashArray(:)=0
@@ -2801,16 +3733,18 @@ MODULE FciMCParMod
             WRITE(6,*) "Excitgens will be regenerated when they are needed..."
         ENDIF
 
-        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+        IF(tRotoAnnihil) THEN
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than ??? Mb/Processor"
+        ELSE
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+        ENDIF
         CALL FLUSH(6)
 
 !Now find out the data needed for the particles which have been read in...
         First=.true.
         do j=1,TotWalkers
             CALL DecodeBitDet(TempnI,CurrentDets(:,j),NEl,NoIntforDet)
-!            CurrentIC(j)=iGetExcitLevel_2(HFDet,TempnI,NEl,NEl)
             CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,Excitlevel,2)
-!            CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,CurrentIC(j),NEl) 
             IF(Excitlevel.eq.0) THEN
                 CurrentH(j)=0.D0
                 IF(First) THEN
@@ -2821,7 +3755,7 @@ MODULE FciMCParMod
                 ELSE
                     IF(.not.TRegenExcitgens) CALL CopyExitGenPar(CurrentExcits(HFPointer),CurrentExcits(j),.false.)
                 ENDIF
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=HFHash
                 ENDIF
@@ -2829,7 +3763,7 @@ MODULE FciMCParMod
                 HElemTemp=GetHElement2(TempnI,TempnI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                 CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%PointToExcit=>null()
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=CreateHash(TempnI)
                 ENDIF
@@ -2861,12 +3795,18 @@ MODULE FciMCParMod
         ENDIF
 !Set the maximum number of walkers allowed
         MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
-        MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
         WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
-        WRITE(6,"(A,F14.5)") "Memory Factor for annihilation is: ",MemoryFacAnnihil
         WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
-                                            
+        IF(tRotoAnnihil) THEN
+            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
+        ELSE
+            MaxWalkersAnnihil=NINT(MemoryFacAnnihil*InitWalkers)
+            WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for annihilation is: ",MemoryFacAnnihil
+            WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for annihilation of: ",MaxWalkersAnnihil
+        ENDIF
+
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Allocate memory to hold walkers
@@ -2876,10 +3816,20 @@ MODULE FciMCParMod
         ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
         WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
-        ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
-        CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
-        ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
-        CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+
+        IF(tRotoAnnihil) THEN
+            ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
+            ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
+        ELSE
+            ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+            ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+        ENDIF
+        WalkVecSign(:)=0
+        WalkVec2Sign(:)=0
 
 !        ALLOCATE(WalkVecIC(MaxWalkersPart),stat=ierr)
 !        CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
@@ -2887,14 +3837,40 @@ MODULE FciMCParMod
 !        CALL LogMemAlloc('WalkVec2IC',MaxWalkersPart,4,this_routine,WalkVec2ICTag,ierr)
         ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-        WalkVecH=0.d0
+        WalkVecH(:)=0.d0
         ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-        WalkVec2H=0.d0
+        WalkVec2H(:)=0.d0
         
-        MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        IF(tRotoAnnihil) THEN
+            MemoryAlloc=((2*(MaxWalkersPart))+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        ELSE
+            MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+        ENDIF
 
-        IF(.not.TNoAnnihil) THEN
+        IF(tRotoAnnihil) THEN
+            
+            ALLOCATE(SpawnVec(0:NoIntForDet,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVecTag,ierr)
+            SpawnVec(:,:)=0
+            ALLOCATE(SpawnVec2(0:NoIntForDet,MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVec2Tag,ierr)
+            SpawnVec2(:,:)=0
+            ALLOCATE(SpawnSignVec(0:MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnSignVec',MaxSpawned+1,4,this_routine,SpawnSignVecTag,ierr)
+            SpawnSignVec(:)=0
+            ALLOCATE(SpawnSignVec2(0:MaxSpawned),stat=ierr)
+            CALL LogMemAlloc('SpawnSignVec2',MaxSpawned+1,4,this_routine,SpawnSignVec2Tag,ierr)
+            SpawnSignVec2(:)=0
+            
+            SpawnedParts=>SpawnVec
+            SpawnedParts2=>SpawnVec2
+            SpawnedSign=>SpawnSignVec
+            SpawnedSign2=>SpawnSignVec2
+
+            MemoryAlloc=MemoryAlloc+(((MaxSpawned+1)*2)+(2*MaxSpawned*(1+NoIntForDet)))*4
+
+        ELSEIF(.not.TNoAnnihil) THEN
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
             ALLOCATE(HashArray(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('HashArray',MaxWalkersAnnihil,8,this_routine,HashArrayTag,ierr)
@@ -2921,11 +3897,9 @@ MODULE FciMCParMod
 !Allocate pointers to the correct walker arrays
         CurrentDets=>WalkVecDets
         CurrentSign=>WalkVecSign
-!        CurrentIC=>WalkVecIC
         CurrentH=>WalkVecH
         NewDets=>WalkVec2Dets
         NewSign=>WalkVec2Sign
-!        NewIC=>WalkVec2IC
         NewH=>WalkVec2H
 
 !Now calculate MP1 components - allocate memory for doubles
@@ -3029,22 +4003,19 @@ MODULE FciMCParMod
 !If we are at HF, then we do not need to calculate the information for the walker        
                 WalkersonHF=WalkersonHF+1
                 CurrentDets(0:NoIntforDet,j)=iLutHF(:)
-!                CurrentIC(j)=0
                 CurrentSign(j)=1
                 CurrentH(j)=0.D0
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=HFHash
                 ENDIF
             ELSE
 !We are at a double excitation - we need to calculate most of this information...
                 CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j),NEl,NoIntforDet)
-!                CurrentDets(1:NEl,j)=MP1Dets(1:NEl,i)
-!                CurrentIC(j)=2
                 CurrentSign(j)=MP1Sign(i)
                 Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
                 CurrentH(j)=real(Hjj%v,r2)-Hii
-                IF(.not.TNoAnnihil) THEN
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=CreateHash(MP1Dets(1:NEl,i))
                 ENDIF
@@ -3126,7 +4097,11 @@ MODULE FciMCParMod
         ELSE
             WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
         ENDIF
-        WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+        IF(tRotoAnnihil) THEN
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than ??? Mb/Processor"
+        ELSE
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
+        ENDIF
         CALL FLUSH(6)
         
 !TotWalkers contains the number of current walkers at each step
@@ -3902,7 +4877,7 @@ MODULE FciMCParMod
                     enddo
                 ENDIF
 
-                IF(.not.TNoAnnihil) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Send(HashArray(IndexFrom:TotWalkers),WalktoTransfer(1),mpilongintegertype,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 
@@ -3919,7 +4894,7 @@ MODULE FciMCParMod
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !                CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
-                IF(.not.TNoAnnihil) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !Also need to indicate that the excitation generators are no longer useful...
                 IF(.not.TRegenExcitgens) THEN
