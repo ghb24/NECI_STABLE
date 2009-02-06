@@ -735,7 +735,8 @@ MODULE Calc
 !memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences in the wavevector and uniformity of the hashing algorithm.
                 CALL Getf(MemoryFacAnnihil)
             case("MEMORYFACSPAWN")
-!A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made available for spawned particles each iteration. Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL is redundant, but MEMORYFACPART still need to be specified.
+!A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made available for spawned particles each iteration. 
+!Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL is redundant, but MEMORYFACPART still need to be specified.
                 CALL Getf(MemoryFacSpawn)
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
