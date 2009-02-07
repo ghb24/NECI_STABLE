@@ -1138,20 +1138,20 @@ MODULE FciMCParMod
 !        WRITE(6,*) "Sent sign",ValidSpawned+1
 !        CALL FLUSH(6)
 
-!Receive signs (let it receive the maximum possible (only the first ValidSpawned will be updated.))
-        CALL MPI_Recv(SpawnedSign2(0:MaxSpawned),MaxSpawned+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            CALL Stop_All("RotateParticles","Error in receiving signs")
-        ENDIF
-!        WRITE(6,*) "Recieved sign",MaxSpawned+1
-!        CALL FLUSH(6)
-        
 !...and then send the particles themselves...
         CALL MPI_BSend(SpawnedParts(0:NoIntforDet,1:ValidSpawned),ValidSpawned*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in sending particles")
         ENDIF
 !        WRITE(6,*) "Sent particles",ValidSpawned
+!        CALL FLUSH(6)
+
+!Receive signs (let it receive the maximum possible (only the first ValidSpawned will be updated.))
+        CALL MPI_Recv(SpawnedSign2(0:MaxSpawned),MaxSpawned+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
+        IF(error.ne.MPI_SUCCESS) THEN
+            CALL Stop_All("RotateParticles","Error in receiving signs")
+        ENDIF
+!        WRITE(6,*) "Recieved sign",MaxSpawned+1
 !        CALL FLUSH(6)
 
 !Update the ValidSpawned variable for this new set of data we are about to receive...
@@ -1182,6 +1182,19 @@ MODULE FciMCParMod
 
     END SUBROUTINE RotateParticles
 
+    SUBROUTINE CheckOrdering(DetArray,NoDets)
+        INTEGER :: NoDets,DetArray(0:NoIntforDet,NoDets),DetBitLT,i,j
+
+        do i=2,NoDets
+            IF(DetBitLT(DetArray(:,i-1),DetArray(:,i),NoIntforDet).eq.-1) THEN
+                do j=i-5,i+5
+                    WRITE(6,*) j,DetArray(:,j)
+                enddo
+                CALL Stop_All("CheckOrdering","Array not ordered correctly")
+            ENDIF
+        enddo
+
+    END SUBROUTINE CheckOrdering
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
@@ -1198,6 +1211,10 @@ MODULE FciMCParMod
         IF(TDebug) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex
             CALL FLUSH(11)
+        ENDIF
+
+        IF(tRotoAnnihil) THEN
+            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),TotWalkers)
         ENDIF
 
         CALL set_timer(Walker_Time,30)
@@ -2823,6 +2840,7 @@ MODULE FciMCParMod
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=G_VMC_Seed-iProcIndex
+        WRITE(6,*) "Value for seed is: ",Seed
 
 !Calculate Hii
         TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -5021,6 +5039,11 @@ MODULE FciMCParMod
             ENDIF
 
         enddo       !loop over transfers
+
+        IF(tRotoAnnihil) THEN
+!If we are using rotoannihilation, then we need to maintain sorted lists. There is a much better way to do it than sorting them all again though!...
+            CALL SortBitDetswH(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
+        ENDIF
 
         IF(iProcIndex.eq.root) THEN
             WRITE(6,*) "Transfer of walkers finished. Number of transfers needed: ",Transfers

@@ -231,6 +231,67 @@
 
       END SUBROUTINE SortBitDets
 
+! Based on SORTI, SortBitDets sorts determinants as bit strings, and takes the corresponding element from array RB with it (sign) and the real array RC (HElems)
+! RA is the array of determinants of length N to sort
+! The RA array elements go from 0:NIfD
+! RB is the array of integers to go with the determinant
+      SUBROUTINE SortBitDetswH(N,RA,NIfD,RB,RC)
+      INTEGER N,NIfD,I,L,IR,J
+      INTEGER RA(0:NIfD,N)
+      INTEGER RB(N)
+      REAL*8 RC(N),RRC
+      INTEGER RRA(0:NIfD),RRB
+      INTEGER DetBitLT
+ 
+      IF(N.LE.1) RETURN
+      L=N/2+1
+      IR=N
+10    CONTINUE
+        IF(L.GT.1)THEN
+          L=L-1
+          RRA(0:NIfD)=RA(0:NIfD,L)
+          RRB=RB(L)
+          RRC=RC(L)
+        ELSE
+          RRA(0:NIfD)=RA(0:NIfD,IR)
+          RA(0:NIfD,IR)=RA(0:NIfD,1)
+          RRB=RB(IR)
+          RB(IR)=RB(1)
+          RRC=RC(IR)
+          RC(IR)=RC(1)
+          IR=IR-1
+          IF(IR.EQ.1)THEN
+            RA(0:NIfD,1)=RRA(0:NIfD)
+            RB(1)=RRB
+            RC(1)=RRC
+            RETURN
+          ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J.LE.IR)THEN
+          IF(J.LT.IR)THEN
+            IF((DetBitLT(RA(0:NIfD,J),RA(0:NIfD,J+1),NIfD)).eq.1) J=J+1
+          ENDIF
+          IF((DetBitLT(RRA(0:NIfD),RA(0:NIfD,J),NIfD)).eq.1) THEN
+            RA(0:NIfD,I)=RA(0:NIfD,J)
+            RB(I)=RB(J)
+            RC(I)=RC(J)
+            I=J
+            J=J+J
+          ELSE
+            J=IR+1
+          ENDIF
+        GO TO 20
+        ENDIF
+        RA(0:NIfD,I)=RRA(0:NIfD)
+        RB(I)=RRB
+        RC(I)=RRC
+
+      GO TO 10
+
+      END SUBROUTINE SortBitDetswH
+
 
 
 
