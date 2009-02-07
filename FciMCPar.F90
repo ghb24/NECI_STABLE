@@ -291,24 +291,26 @@ MODULE FciMCParMod
 
         InitialSpawned=ValidSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
-        WRITE(6,*) "Entering rotoannilation: ",Iter,InitialSpawned
-        CALL FLUSH(6)
+!        WRITE(6,*) "Entering rotoannilation: ",Iter,InitialSpawned,TotWalkersNew
+!        CALL FLUSH(6)
 
 !First, annihilate between newly spawned particles. Memory for this will be allocated dynamically.
 !This will be done in the usual fashion using the All-to-All communication and hashes.
         CALL AnnihilateBetweenSpawned(ValidSpawned)
 
-        WRITE(6,*) "Have annihilated between newly-spawned..."
-        CALL FLUSH(6)
+!        WRITE(6,*) "Have annihilated between newly-spawned..."
+!        CALL FLUSH(6)
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
+!        WRITE(6,*) "Spawned particles sorted..."
+!        CALL FLUSH(6)
         
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
 
-        WRITE(6,*) "Annihilated locally..."
-        CALL FLUSH(6)
+!        WRITE(6,*) "Annihilated locally..."
+!        CALL FLUSH(6)
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -323,21 +325,23 @@ MODULE FciMCParMod
         IF(error.ne.0) THEN
             CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
         ENDIF
-        WRITE(6,*) "Have attached buffer"
-        CALL FLUSH(6)
+!        WRITE(6,*) "Have attached buffer"
+!        CALL FLUSH(6)
 
         do i=1,nProcessors-1
 !Move newly-spawned particles which haven't been annihilated around the processors in sequence, annihilating locally each step.
 !This moves the set of newly-spawned particles on this processor one to the right, and recieves from the left.
 !This also updates the ValidSpawned variable so that it now refers to the new set of spawned-particles.
-            WRITE(6,*) "Attempting to rotate particles...",i
+!            WRITE(6,*) "Attempting to rotate particles...",i
+!            CALL FLUSH(6)
             CALL RotateParticles(ValidSpawned)
-            WRITE(6,*) "Rotating particles for the ",i," time...",Iter
-            CALL FLUSH(6)
+!            WRITE(6,*) "Rotating particles for the ",i," time...",Iter
+!            CALL FLUSH(6)
 
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
             CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
-            WRITE(6,*) "Annihilated locally....",i
+!            WRITE(6,*) "Annihilated locally....",i
+!            CALL FLUSH(6)
 
         enddo
 
@@ -347,6 +351,8 @@ MODULE FciMCParMod
 !Detach buffers
         CALL MPI_Buffer_detach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
         DEALLOCATE(mpibuffer)
+!        WRITE(6,*) "Detached buffer..."
+!        CALL FLUSH(6)
 
 !Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
 
@@ -373,53 +379,66 @@ MODULE FciMCParMod
         VecInd=1
         OrigPartAnn=0   !This will count the number of annihilated particles from the main list.
 
-        do while(IndParts.le.TotWalkersNew)
-            
-            IF(DetBitLT(NewDets(0:NoIntForDet,IndParts),SpawnedParts(0:NoIntForDet,IndSpawned),NoIntForDet).eq.1) THEN
-!Want to move in the particle from NewDets (unless it wants to be annihilated)
-                IF(NewSign(IndParts).ne.0) THEN
-!We want to keep this particle
-                    CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,IndParts)
-                    CurrentSign(VecInd)=NewSign(IndParts)
-                    CurrentH(VecInd)=NewH(IndParts)
-                    VecInd=VecInd+1
-                    OrigPartAnn=OrigPartAnn+1
-                ENDIF
-                IndParts=IndParts+1
-            ELSEIF(IndSpawned.le.ValidSpawned) THEN
-!Now, we want to transfer a spawned particle, unless we have transferred them all
-                IF(SpawnedSign(IndSpawned).eq.0) THEN
-                    CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
-                ENDIF
-                CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
-                CurrentSign(VecInd)=SpawnedSign(IndSpawned)
+!        WRITE(6,*) "Merging lists, ",TotWalkersNew
+!        do i=1,TotWalkersNew
+!            WRITE(6,*) NewDets(:,i),NewSign(i)
+!        enddo
+!        WRITE(6,*) "Spawned list: ",ValidSpawned
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
+!        enddo
+!        CALL FLUSH(6)
 
-!Need to find H-element!
-                IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
-!We know we are at HF - HDiag=0
-                    HDiag=0.D0
-                    IF(tHub.and.tReal) THEN
-!Reference determinant is not HF
+        IF((ValidSpawned.gt.0).and.(TotWalkersNew.gt.0)) THEN
+            do while(IndParts.le.TotWalkersNew)
+                
+                IF(DetBitLT(NewDets(0:NoIntForDet,IndParts),SpawnedParts(0:NoIntForDet,IndSpawned),NoIntForDet).eq.1) THEN
+    !Want to move in the particle from NewDets (unless it wants to be annihilated)
+                    IF(NewSign(IndParts).ne.0) THEN
+    !We want to keep this particle
+                        CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,IndParts)
+                        CurrentSign(VecInd)=NewSign(IndParts)
+                        CurrentH(VecInd)=NewH(IndParts)
+                        VecInd=VecInd+1
+                    ELSE
+                        OrigPartAnn=OrigPartAnn+1
+                    ENDIF
+                    IndParts=IndParts+1
+                ELSEIF(IndSpawned.le.ValidSpawned) THEN
+    !Now, we want to transfer a spawned particle, unless we have transferred them all
+                    IF(SpawnedSign(IndSpawned).eq.0) THEN
+                        CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
+                    ENDIF
+                    CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
+                    CurrentSign(VecInd)=SpawnedSign(IndSpawned)
+
+    !Need to find H-element!
+                    IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
+    !We know we are at HF - HDiag=0
+                        HDiag=0.D0
+                        IF(tHub.and.tReal) THEN
+    !Reference determinant is not HF
+                            CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
+                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                            HDiag=(REAL(HDiagTemp%v,r2))
+                        ENDIF
+                    ELSE
                         CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
                         HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                        HDiag=(REAL(HDiagTemp%v,r2))
+                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ENDIF
-                ELSE
-                    CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
-                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                    HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                    CurrentH(VecInd)=HDiag
+                    
+                    VecInd=VecInd+1
+                    IF(ValidSpawned.eq.IndSpawned) THEN
+                        EXIT    !We have reached the end of the list of spawned particles
+                    ELSE
+                        IndSpawned=IndSpawned+1
+                    ENDIF
                 ENDIF
-                CurrentH(VecInd)=HDiag
-                
-                VecInd=VecInd+1
-                IF(ValidSpawned.eq.IndSpawned) THEN
-                    EXIT    !We have reached the end of the list of spawned particles
-                ELSE
-                    IndSpawned=IndSpawned+1
-                ENDIF
-            ENDIF
 
-        enddo
+            enddo
+        ENDIF
 
         IF(IndParts.le.TotWalkersNew) THEN
 !Haven't finished copying rest of original particles
@@ -429,6 +448,7 @@ MODULE FciMCParMod
                     CurrentSign(VecInd)=NewSign(i)
                     CurrentH(VecInd)=NewH(i)
                     VecInd=VecInd+1
+                ELSE
                     OrigPartAnn=OrigPartAnn+1
                 ENDIF
             enddo
@@ -466,6 +486,8 @@ MODULE FciMCParMod
         TotWalkers=VecInd-1     !The new total number of particles after all annihilation steps.
         Annihilated=(InitialSpawned-ValidSpawned)+OrigPartAnn   !The total number of annihilated particles is simply the number annihilated from spawned
                                                                 !list plus the number annihilated from the original list.
+!        WRITE(6,*) "Annihilated: ",Annihilated,InitialSpawned,ValidSpawned,OrigPartAnn
+!        CALL FLUSH(6)
 
     END SUBROUTINE InsertRemoveParts
 
@@ -513,13 +535,17 @@ MODULE FciMCParMod
             CALL SortMod4ILong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned),nProcessors)
 
 !Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
-            j=1
-            do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
-                do while((abs(mod(Hash2Array(j),nProcessors)).eq.i).and.(j.le.ValidSpawned))
-                    j=j+1
+            IF(ValidSpawned.gt.0) THEN
+                j=1
+                do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
+                    do while((abs(mod(HashArray1(j),nProcessors)).eq.i).and.(j.le.ValidSpawned))
+                        j=j+1
+                    enddo
+                    sendcounts(i+1)=j-1
                 enddo
-                sendcounts(i+1)=j-1
-            enddo
+            ELSE
+                sendcounts(1:nProcessors)=0
+            ENDIF
 
         ELSE
 !We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
@@ -821,7 +847,7 @@ MODULE FciMCParMod
             enddo
 
 !Now need to copy accross the residual - from Index2Table(ToAnnihilateonProc) to TotWalkersNew
-            do i=Index2Table(ToAnnihilateonProc)+1,ValidSpawned
+            do i=IndexTable2(ToAnnihilateonProc)+1,ValidSpawned
                 SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
                 SpawnedSign2(VecSlot)=TempSign(i)
                 VecSlot=VecSlot+1
@@ -869,6 +895,30 @@ MODULE FciMCParMod
 
     END SUBROUTINE AnnihilateBetweenSpawned
 
+    SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd,DetArray(0:NoIntforDet,MinInd:MaxInd)
+        INTEGER :: i,j,N,Comp,DetBitLT
+        LOGICAL :: tSuccess
+
+        N=MinInd
+        do while(N.le.MaxInd)
+            Comp=DetBitLT(DetArray(:,N),iLut(:),NoIntforDet)
+            IF(Comp.eq.1) THEN
+                N=N+1
+            ELSEIF(Comp.eq.-1) THEN
+                PartInd=N-1
+                tSuccess=.false.
+                RETURN
+            ELSE
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ENDIF
+        enddo
+        tSuccess=.false.
+        PartInd=MaxInd-1
+
+    END SUBROUTINE LinSearchParts
 
 !Do a binary search in NewDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
 !PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
@@ -879,10 +929,13 @@ MODULE FciMCParMod
         INTEGER :: i,j,N,Comp,DetBitLT
         LOGICAL :: tSuccess
 
+!        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        CALL FLUSH(6)
         i=MinInd
         j=MaxInd
         do while(j-i.gt.0)  !End when the upper and lower bound are the same.
             N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(6,*) i,j,n
 
 !Comp is 1 if DetArray(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
             Comp=DetBitLT(DetArray(:,N),iLut(:),NoIntforDet)
@@ -897,9 +950,15 @@ MODULE FciMCParMod
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
-!This deals with the case where we are interested in the final entry in the list. Check the final entry of the list and leave
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+                IF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+                ENDIF
 
-                IF(i.eq.MaxInd-1) THEN
+                IF(i.ne.MaxInd-1) THEN
+!We should be continually sampling the penultimate element
                     CALL Stop_All("BinSearchParts","Error in binary search")
                 ENDIF
 
@@ -916,6 +975,7 @@ MODULE FciMCParMod
                 ELSE
                     tSuccess=.false.
                     PartInd=i
+                    RETURN
                 ENDIF
 
             ELSEIF(Comp.eq.-1) THEN
@@ -946,12 +1006,25 @@ MODULE FciMCParMod
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
         MinInd=1
         ToRemove=0  !The number of particles to annihilate
+!        WRITE(6,*) "Annihilating between ",ValidSpawned, " spawned particles and ",TotWalkersNew," original particles..."
+!        WRITE(6,*) "SpawnedParts: "
+!        do i=1,ValidSpawned
+!            WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
+!        enddo
+!        WRITE(6,*) "Original Parts: "
+!        do i=1,TotWalkersNew
+!            WRITE(6,*) NewDets(:,i),NewSign(i)
+!        enddo
+!        CALL FLUSH(6)
 
         do i=1,ValidSpawned
 
 !This will binary search the NewDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
-            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            CALL LinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+!            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+!            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess
+!            CALL FLUSH(6)
 
             IF(tSuccess) THEN
 !A particle on the same list has been found. We now want to search backwards, to find the first particle in this block.
@@ -1054,30 +1127,42 @@ MODULE FciMCParMod
 !ValidSpawned is the number of particles spawned (and still alive) for this set of particles (index is iProcIndex-no.rotates)
         SpawnedSign(0)=ValidSpawned
 
+!        WRITE(6,*) "Particles to send: ",ValidSpawned
+!        CALL FLUSH(6)
+
 !Send the signs of the particles (number sent is in the first element)
-        CALL MPI_BSend(SpawnedSign(0:ValidSpawned),ValidSpawned,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
+        CALL MPI_BSend(SpawnedSign(0:ValidSpawned),ValidSpawned+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in sending signs")
         ENDIF
-!...and the particles themselves...
-        CALL MPI_BSend(SpawnedParts(0:NoIntforDet,1:ValidSpawned),ValidSpawned*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
-        IF(error.ne.MPI_SUCCESS) THEN
-            CALL Stop_All("RotateParticles","Error in sending particles")
-        ENDIF
+!        WRITE(6,*) "Sent sign",ValidSpawned+1
+!        CALL FLUSH(6)
 
 !Receive signs (let it receive the maximum possible (only the first ValidSpawned will be updated.))
         CALL MPI_Recv(SpawnedSign2(0:MaxSpawned),MaxSpawned+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in receiving signs")
         ENDIF
+!        WRITE(6,*) "Recieved sign",MaxSpawned+1
+!        CALL FLUSH(6)
         
-!Update the ValidSpawned variable for this new set of data.
+!...and then send the particles themselves...
+        CALL MPI_BSend(SpawnedParts(0:NoIntforDet,1:ValidSpawned),ValidSpawned*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+        IF(error.ne.MPI_SUCCESS) THEN
+            CALL Stop_All("RotateParticles","Error in sending particles")
+        ENDIF
+!        WRITE(6,*) "Sent particles",ValidSpawned
+!        CALL FLUSH(6)
+
+!Update the ValidSpawned variable for this new set of data we are about to receive...
         ValidSpawned=SpawnedSign2(0)
 
         CALL MPI_Recv(SpawnedParts2(0:NoIntforDet,1:ValidSpawned),ValidSpawned*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
         IF(error.ne.MPI_SUCCESS) THEN
             CALL Stop_All("RotateParticles","Error in receiving particles")
         ENDIF
+!        WRITE(6,*) "Recieving particles, ",ValidSpawned
+!        CALL FLUSH(6)
 
 !We now want to make sure that we are working on the correct array. We have now received particles in SpawnedParts2 - switch it so that we are pointing at the other array.
 !We always want to annihilate from the SpawedParts and SpawnedSign arrays.
@@ -1092,6 +1177,8 @@ MODULE FciMCParMod
             SpawnedParts2 => SpawnVec2
             SpawnedSign2 => SpawnSignVec2
         ENDIF
+!        WRITE(6,*) "Switched arrays around..."
+!        CALL FLUSH(6)
 
     END SUBROUTINE RotateParticles
 

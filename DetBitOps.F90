@@ -212,9 +212,9 @@
         J=L+L
 20      IF(J.LE.IR)THEN
           IF(J.LT.IR)THEN
-            IF((DetBitLT(RA(0:NIfD,J),RA(0:NIfD,J+1),NIfD)).eq.-1) J=J+1
+            IF((DetBitLT(RA(0:NIfD,J),RA(0:NIfD,J+1),NIfD)).eq.1) J=J+1
           ENDIF
-          IF((DetBitLT(RRA(0:NIfD),RA(0:NIfD,J),NIfD)).eq.-1) THEN
+          IF((DetBitLT(RRA(0:NIfD),RA(0:NIfD,J),NIfD)).eq.1) THEN
             RA(0:NIfD,I)=RA(0:NIfD,J)
             RB(I)=RB(J)
             I=J
