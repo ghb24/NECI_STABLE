@@ -291,16 +291,24 @@ MODULE FciMCParMod
 
         InitialSpawned=ValidSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        WRITE(6,*) "Entering rotoannilation: ",Iter,InitialSpawned
+        CALL FLUSH(6)
 
 !First, annihilate between newly spawned particles. Memory for this will be allocated dynamically.
 !This will be done in the usual fashion using the All-to-All communication and hashes.
         CALL AnnihilateBetweenSpawned(ValidSpawned)
+
+        WRITE(6,*) "Have annihilated between newly-spawned..."
+        CALL FLUSH(6)
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
         
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
+
+        WRITE(6,*) "Annihilated locally..."
+        CALL FLUSH(6)
 
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
@@ -312,15 +320,24 @@ MODULE FciMCParMod
             CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
         ENDIF
         CALL MPI_Buffer_attach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+        IF(error.ne.0) THEN
+            CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
+        ENDIF
+        WRITE(6,*) "Have attached buffer"
+        CALL FLUSH(6)
 
         do i=1,nProcessors-1
 !Move newly-spawned particles which haven't been annihilated around the processors in sequence, annihilating locally each step.
 !This moves the set of newly-spawned particles on this processor one to the right, and recieves from the left.
 !This also updates the ValidSpawned variable so that it now refers to the new set of spawned-particles.
+            WRITE(6,*) "Attempting to rotate particles...",i
             CALL RotateParticles(ValidSpawned)
+            WRITE(6,*) "Rotating particles for the ",i," time...",Iter
+            CALL FLUSH(6)
 
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
             CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
+            WRITE(6,*) "Annihilated locally....",i
 
         enddo
 
@@ -3503,7 +3520,7 @@ MODULE FciMCParMod
 
             IF(tRotoAnnihil) THEN
                 WRITE(6,*) "Ordering all walkers that have been read in..."
-                CALL SortBitDets(WalkerstoReceive,WalkVecDets(0:NoIntforDet,1:WalkerstoReceive),NoIntforDet,WalkVecSign(1:WalkerstoReceive))
+                CALL SortBitDets(WalkerstoReceive(1),WalkVecDets(0:NoIntforDet,1:WalkerstoReceive(1)),NoIntforDet,WalkVecSign(1:WalkerstoReceive(1)))
             ENDIF
 
         
