@@ -79,6 +79,7 @@ MODULE FciMCParMod
     INTEGER :: HFDetTag=0
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
+    INTEGER , ALLOCATABLE :: RemoveInds(:)
 
     INTEGER :: Seed,MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
     INTEGER :: exFlag=3
@@ -286,7 +287,7 @@ MODULE FciMCParMod
 !Make sure only sort what need to
     SUBROUTINE RotoAnnihilation(ValidSpawned,TotWalkersNew)
         INTEGER :: ValidSpawned,TotWalkersNew,i
-        INTEGER :: InitialSpawned,ierr,error
+        INTEGER :: InitialSpawned,ierr,error,SpawnedBeforeRoto
         INTEGER , ALLOCATABLE :: mpibuffer(:)
 
         InitialSpawned=ValidSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
@@ -298,16 +299,22 @@ MODULE FciMCParMod
 !This will be done in the usual fashion using the All-to-All communication and hashes.
         CALL AnnihilateBetweenSpawned(ValidSpawned)
 
-!        WRITE(6,*) "Have annihilated between newly-spawned..."
-!        CALL FLUSH(6)
+!        IF(ValidSpawned.ne.InitialSpawned) THEN
+!            WRITE(6,*) "Have annihilated between newly-spawned...",InitialSpawned-ValidSpawned,Iter
+!            CALL FLUSH(6)
+!        ENDIF
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 !        WRITE(6,*) "Spawned particles sorted..."
 !        CALL FLUSH(6)
-        IF(tRotoAnnihil) THEN
-            CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),ValidSpawned)
-        ENDIF
+
+        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),ValidSpawned)
+
+        SpawnedBeforeRoto=ValidSpawned
+
+!This RemoveInds is useful scratch space for the removal of particles from lists. It probably isn't essential, but keeps things simpler initially.
+        ALLOCATE(RemoveInds(MaxSpawned),stat=ierr)
         
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
@@ -320,16 +327,18 @@ MODULE FciMCParMod
 !Allocate a buffer here to hold particles when using a buffered send...
 !The buffer wants to be able to hold (MaxSpawned+1)x(NoIntforDet+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
-        ALLOCATE(mpibuffer((MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
-        IF(ierr.ne.0) THEN
-            CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
+        IF(nProcessors.ne.1) THEN
+            ALLOCATE(mpibuffer((MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
+            ENDIF
+            CALL MPI_Buffer_attach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+            IF(error.ne.0) THEN
+                CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
+            ENDIF
+!            WRITE(6,*) "Have attached buffer"
+!            CALL FLUSH(6)
         ENDIF
-        CALL MPI_Buffer_attach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
-        IF(error.ne.0) THEN
-            CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
-        ENDIF
-!        WRITE(6,*) "Have attached buffer"
-!        CALL FLUSH(6)
 
         do i=1,nProcessors-1
 !Move newly-spawned particles which haven't been annihilated around the processors in sequence, annihilating locally each step.
@@ -349,19 +358,22 @@ MODULE FciMCParMod
         enddo
 
 !One final rotation means that the particles are all on their original processor.
-        CALL RotateParticles(ValidSpawned)
+        IF(nProcessors.ne.1) THEN
+            CALL RotateParticles(ValidSpawned)
 
 !Detach buffers
-        CALL MPI_Buffer_detach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
-        DEALLOCATE(mpibuffer)
-!        WRITE(6,*) "Detached buffer..."
-!        CALL FLUSH(6)
+            CALL MPI_Buffer_detach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+            DEALLOCATE(mpibuffer)
+!            WRITE(6,*) "Detached buffer..."
+!            CALL FLUSH(6)
+        ENDIF
 
 !Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
-
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
-        CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
+        CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew,SpawnedBeforeRoto)
 
+        DEALLOCATE(RemoveInds)
+        
     END SUBROUTINE RotoAnnihilation
 
 !This routine will run through the total list of particles (TotWalkersNew in NewDets with sign NewSign) and the list of newly-spawned but
@@ -370,9 +382,9 @@ MODULE FciMCParMod
 !Initially, we can put these new particles into the other array: CurrentDets and CurrentSign, but we will want to remove the need for a second
 !array eventually and keep all the particles on the same array.
 !Binary searching can be used to speed up this transfer substantially.
-    SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
-        INTEGER :: IndSpawned,IndParts,VecInd,OrigPartAnn,DetBitLT,TotWalkersNew,ValidSpawned
-        INTEGER :: nJ(NEl),i,InitialSpawned
+    SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew,SpawnedBeforeRoto)
+        INTEGER :: IndSpawned,IndParts,VecInd,OrigPartAnn,DetBitLT,TotWalkersNew,ValidSpawned,SpawnedBeforeRoto
+        INTEGER :: nJ(NEl),i,InitialSpawned,AnnFromSpawned,TotAnnFromSpawned,TotAnnFromOrig,error
         LOGICAL :: DetBitEQ
         TYPE(HElement) :: HDiagTemp
         REAL*8 :: HDiag
@@ -396,9 +408,9 @@ MODULE FciMCParMod
             do while(IndParts.le.TotWalkersNew)
                 
                 IF(DetBitLT(NewDets(0:NoIntForDet,IndParts),SpawnedParts(0:NoIntForDet,IndSpawned),NoIntForDet).eq.1) THEN
-    !Want to move in the particle from NewDets (unless it wants to be annihilated)
+!Want to move in the particle from NewDets (unless it wants to be annihilated)
                     IF(NewSign(IndParts).ne.0) THEN
-    !We want to keep this particle
+!We want to keep this particle
                         CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,IndParts)
                         CurrentSign(VecInd)=NewSign(IndParts)
                         CurrentH(VecInd)=NewH(IndParts)
@@ -407,20 +419,25 @@ MODULE FciMCParMod
                         OrigPartAnn=OrigPartAnn+1
                     ENDIF
                     IndParts=IndParts+1
-                ELSEIF(IndSpawned.le.ValidSpawned) THEN
-    !Now, we want to transfer a spawned particle, unless we have transferred them all
+!                ELSEIF(IndSpawned.le.ValidSpawned) THEN
+                ELSE
+!Now, we want to transfer a spawned particle, unless we have transferred them all
+!                    IF(IndSpawned.gt.ValidSpawned) THEN
+!                        SpawnedParts(0:NoIntForDet,IndSpawned)=HUGE(IndSpawned)
+!                        CYCLE
+!                    ENDIF
                     IF(SpawnedSign(IndSpawned).eq.0) THEN
                         CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
                     ENDIF
                     CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
                     CurrentSign(VecInd)=SpawnedSign(IndSpawned)
 
-    !Need to find H-element!
+!Need to find H-element!
                     IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
-    !We know we are at HF - HDiag=0
+!We know we are at HF - HDiag=0
                         HDiag=0.D0
                         IF(tHub.and.tReal) THEN
-    !Reference determinant is not HF
+!Reference determinant is not HF
                             CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
                             HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                             HDiag=(REAL(HDiagTemp%v,r2))
@@ -434,6 +451,7 @@ MODULE FciMCParMod
                     
                     VecInd=VecInd+1
                     IF(ValidSpawned.eq.IndSpawned) THEN
+                        IndSpawned=IndSpawned+1
                         EXIT    !We have reached the end of the list of spawned particles
                     ELSE
                         IndSpawned=IndSpawned+1
@@ -489,6 +507,22 @@ MODULE FciMCParMod
         TotWalkers=VecInd-1     !The new total number of particles after all annihilation steps.
         Annihilated=(InitialSpawned-ValidSpawned)+OrigPartAnn   !The total number of annihilated particles is simply the number annihilated from spawned
                                                                 !list plus the number annihilated from the original list.
+
+        IF(TotWalkers.ne.(InitialSpawned+TotWalkersNew-Annihilated)) THEN
+            CALL Stop_All("InsertRemoveParts","Error in number of surviving particles")
+        ENDIF
+
+        AnnFromSpawned=SpawnedBeforeRoto-ValidSpawned
+        TotAnnFromSpawned=0
+        TotAnnFromOrig=0
+        CALL MPI_Reduce(OrigPartAnn,TotAnnFromOrig,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(AnnFromSpawned,TotAnnFromSpawned,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+        IF(TotAnnFromOrig.ne.TotAnnFromSpawned) THEN
+            WRITE(6,*) Iter,TotAnnFromOrig,TotAnnFromSpawned,SpawnedBeforeRoto,ValidSpawned
+            CALL Stop_All("InsertRemoveParts","Different numbers of particles annihilated from spawned and original lists.")
+        ENDIF
+
 !        WRITE(6,*) "Annihilated: ",Annihilated,InitialSpawned,ValidSpawned,OrigPartAnn
 !        CALL FLUSH(6)
 
@@ -498,12 +532,14 @@ MODULE FciMCParMod
 !we can annihilate all common particles with opposite signs.
 !Particles are fed in on the SpawnedParts and SpawnedSign array, and are returned in the same arrays.
 !It requires MaxSpawned*36 bytes of memory (on top of the memory of the arrays fed in...)
+!Might not need to send hashes in all-to-all - could just use them for determining where they go
+!Package up temp arrays?
     SUBROUTINE AnnihilateBetweenSpawned(ValidSpawned)
         INTEGER(KIND=i2) , ALLOCATABLE :: HashArray1(:),HashArray2(:)
         INTEGER , ALLOCATABLE :: IndexTable1(:),IndexTable2(:),ProcessVec1(:),ProcessVec2(:),TempSign(:)
         INTEGER :: i,j,k,ToAnnihilateIndex,ValidSpawned,ierr,error,sendcounts(nProcessors)
         INTEGER :: TotWalkersDet,InitialBlockIndex,FinalBlockIndex,ToAnnihilateOnProc,VecSlot
-        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors)
+        INTEGER :: disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),nJ(NEl)
         INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
         INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilateBetweenSpawned'
@@ -529,7 +565,8 @@ MODULE FciMCParMod
 
         do i=1,ValidSpawned
             IndexTable1(i)=i
-            HashArray1(i)=CreateHash(SpawnedParts(0:NoIntforDet,i))
+            CALL DecodeBitDet(nJ,SpawnedParts(0:NoIntforDet,i),NEl,NoIntforDet)
+            HashArray1(i)=CreateHash(nJ)
         enddo
 
 !Next, order the hash array, taking the index, CPU and sign with it...
@@ -554,26 +591,29 @@ MODULE FciMCParMod
 !We can try to sort the hashes by range, which may result in worse load-balancing, but will remove the need for a second sort of the hashes once they have been sent to the correct processor.
             CALL Sort4ILong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned))
 !We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
-            Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
-            MinBin=-HUGE(MinBin)
-            NextBinBound=MinBin+Rangeofbins
+            IF(nProcessors.ne.1) THEN
+                Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
+                MinBin=-HUGE(MinBin)
+                NextBinBound=MinBin+Rangeofbins
 
 !We need to find the indices for each block of hashes which are to be sent to each processor.
 !Sendcounts is the size of each block of ordered dets which are going to each processors. This could be binary searched for extra speed.
-            j=1
-            do i=1,nProcessors    !Search through all possible values of the hashes
-                do while((HashArray1(j).le.NextBinBound).and.(j.le.ValidSpawned))
-                    j=j+1
-                enddo
-                sendcounts(i)=j-1
-                IF(i.eq.nProcessors-1) THEN
+                j=1
+                do i=1,nProcessors    !Search through all possible values of the hashes
+                    do while((HashArray1(j).le.NextBinBound).and.(j.le.ValidSpawned))
+                        j=j+1
+                    enddo
+                    sendcounts(i)=j-1
+                    IF(i.eq.nProcessors-1) THEN
 !Make sure the final bin catches everything...
-                    NextBinBound=HUGE(NextBinBound)
-                ELSE
-                    NextBinBound=NextBinBound+Rangeofbins
-                ENDIF
-            enddo
-
+                        NextBinBound=HUGE(NextBinBound)
+                    ELSE
+                        NextBinBound=NextBinBound+Rangeofbins
+                    ENDIF
+                enddo
+            ELSE
+                sendcounts(1)=ValidSpawned
+            ENDIF
         ENDIF
 
         IF(sendcounts(nProcessors).ne.ValidSpawned) THEN
@@ -903,7 +943,7 @@ MODULE FciMCParMod
         INTEGER :: i,j,N,Comp,DetBitLT
         LOGICAL :: tSuccess
 
-        N=MinInd
+        N=MAX(MinInd-1,1)
         do while(N.le.MaxInd)
             Comp=DetBitLT(DetArray(:,N),iLut(:),NoIntforDet)
             IF(Comp.eq.1) THEN
@@ -998,7 +1038,7 @@ MODULE FciMCParMod
     END SUBROUTINE BinSearchParts
 
 !In this routine, we want to search through the list of spawned particles. For each spawned particle, we binary search the list of particles on the processor
-!to see if an annihilation event can occur. If it does, then move the end particle to its position in the list, and decrease ValidSpawned by one. This occurs
+!to see if an annihilation event can occur. The annihilated particles are then removed from the spawned list
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
@@ -1076,6 +1116,7 @@ MODULE FciMCParMod
                     NewSign(AnnihilateInd)=0
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
+                    RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
                 ENDIF
 
             ELSE
@@ -1086,33 +1127,54 @@ MODULE FciMCParMod
         enddo
 
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
+!It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
+!Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
         IF(ToRemove.gt.0) THEN
-            i=1
-            do while(SpawnedSign(i).ne.0)
-                i=i+1
-            enddo
-!i now indicates the index of the first particle to remove.
-            MinInd=i+1    !MinInd now indicates the index of the beginning of the block for which to move 
-            i=MinInd
-            do j=1,ToRemove
-!Run over the number of particles to annihilate. Each particle will mean that a block of particles will be shifted down.
-                do while((SpawnedSign(i).ne.0).and.(i.le.ValidSpawned))
-                    i=i+1
-                enddo
-!We now want to move the block, donoted by MinInd -> i-1 down by j steps. Can we do this as a array operation?
-!                SpawnedParts(:,MinInd-j:i-1-j)=SpawnedParts(:,MinInd:i-1)
-                do k=MinInd,i-1
-                    SpawnedParts(:,k-j)=SpawnedParts(:,k)
-                    SpawnedSign(k-j)=SpawnedSign(k)
-                enddo
-                MinInd=i+1
-                i=MinInd
-            enddo
 
-!Reduce ValidSpawned by the number of newly-spawned particles which have been annihilated.
-            ValidSpawned=ValidSpawned-ToRemove
+            do i=1,ToRemove
+
+                do j=RemoveInds(i)+1-(i-1),ValidSpawned
+                    SpawnedParts(:,j-1)=SpawnedParts(:,j)
+                    SpawnedSign(j-1)=SpawnedSign(j)
+                enddo
+                ValidSpawned=ValidSpawned-1
+            enddo
 
         ENDIF
+
+        do i=1,ValidSpawned
+            IF(SpawnedSign(i).eq.0) THEN
+                CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated")
+            ENDIF
+        enddo
+        CALL CheckOrdering(SpawnedParts,ValidSpawned)
+
+!            i=1
+!            do while(SpawnedSign(i).ne.0)
+!                i=i+1
+!            enddo
+!!i now indicates the index of the first particle to remove.
+!            MinInd=i+1    !MinInd now indicates the index of the beginning of the block for which to move 
+!            i=MinInd
+!            do j=1,ToRemove
+!!Run over the number of particles to annihilate. Each particle will mean that a block of particles will be shifted down.
+!                do while((SpawnedSign(i).ne.0).and.(i.le.ValidSpawned))
+!                    i=i+1
+!                enddo
+!!We now want to move the block, donoted by MinInd -> i-1 down by j steps. Can we do this as a array operation?
+!!                SpawnedParts(:,MinInd-j:i-1-j)=SpawnedParts(:,MinInd:i-1)
+!                do k=MinInd,i-1
+!                    SpawnedParts(:,k-j)=SpawnedParts(:,k)
+!                    SpawnedSign(k-j)=SpawnedSign(k)
+!                enddo
+!                MinInd=i+1
+!                i=MinInd
+!            enddo
+!
+!!Reduce ValidSpawned by the number of newly-spawned particles which have been annihilated.
+!            ValidSpawned=ValidSpawned-ToRemove
+!
+!        ENDIF
 
 
     END SUBROUTINE AnnihilateSpawnedParts
@@ -1460,7 +1522,6 @@ MODULE FciMCParMod
                 CALL FLUSH(6)
             ENDIF
         ENDIF
-
         
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
@@ -1668,29 +1729,33 @@ MODULE FciMCParMod
 !            CALL Sort3I1LLong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
             CALL Sort4ILong(TotWalkersNew,Hash2Array(1:TotWalkersNew),IndexTable(1:TotWalkersNew),ProcessVec(1:TotWalkersNew),NewSign(1:TotWalkersNew))
             CALL halt_timer(Sort_Time)
+            IF(nProcessors.ne.1) THEN
 !We also need to know the ranges of the hashes to send to each processor. Each range should be the same.
-            Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
-            MinBin=-HUGE(MinBin)
-            NextBinBound=MinBin+Rangeofbins
+                Rangeofbins=INT(HUGE(Rangeofbins)/(nProcessors/2),8)
+                MinBin=-HUGE(MinBin)
+                NextBinBound=MinBin+Rangeofbins
 !            WRITE(6,*) "Rangeofbins: ",Rangeofbins
 !            WRITE(6,*) "MinBin: ",MinBin
 !            WRITE(6,*) "NextBinBound: ",NextBinBound
 
 !We need to find the indices for each block of hashes which are to be sent to each processor.
 !Sendcounts is the size of each block of ordered dets which are going to each processors. This could be binary searched for extra speed.
-            j=1
-            do i=1,nProcessors    !Search through all possible values of the hashes
-                do while((Hash2Array(j).le.NextBinBound).and.(j.le.TotWalkersNew))
-                    j=j+1
-                enddo
-                sendcounts(i)=j-1
-                IF(i.eq.nProcessors-1) THEN
+                j=1
+                do i=1,nProcessors    !Search through all possible values of the hashes
+                    do while((Hash2Array(j).le.NextBinBound).and.(j.le.TotWalkersNew))
+                        j=j+1
+                    enddo
+                    sendcounts(i)=j-1
+                    IF(i.eq.nProcessors-1) THEN
 !Make sure the final bin catches everything...
-                    NextBinBound=HUGE(NextBinBound)
-                ELSE
-                    NextBinBound=NextBinBound+Rangeofbins
-                ENDIF
-            enddo
+                        NextBinBound=HUGE(NextBinBound)
+                    ELSE
+                        NextBinBound=NextBinBound+Rangeofbins
+                    ENDIF
+                enddo
+            ELSE
+                sendcounts(1)=TotWalkersNew
+            ENDIF
 
         ENDIF
         
