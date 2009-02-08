@@ -305,6 +305,9 @@ MODULE FciMCParMod
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 !        WRITE(6,*) "Spawned particles sorted..."
 !        CALL FLUSH(6)
+        IF(tRotoAnnihil) THEN
+            CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),ValidSpawned)
+        ENDIF
         
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
