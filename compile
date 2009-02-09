@@ -8,9 +8,10 @@ If platform is not specified, then the platform given in .compileconf is used.
 If .compileconf also doesn't exist, then the default (PC-PGI64) is used.
 
 Options:
-    -d Compile with the compiler debug options on.
-    -f Fast: don't do a make clean before compiling.
-    -m Only make new makefiles.
+    -d    Compile with the compiler debug options on.
+    -f    Fast: don't do a make clean before compiling.
+    -j n  Run make in parallel using n processes.
+    -m    Only make new makefiles.
 END
 }
 
@@ -46,14 +47,16 @@ platform=PC-PGI64
 dbg_flag=''
 compile=1
 fast=0
+j_parallel=1
 
-while getopts 'dfmh' options; do
+while getopts 'dfmhj:' options; do
     case $options in
         d)  dbg_flag='-d';;
         f)  fast=1 ;;
         m)  compile=0 ;;
         h)  usage
             exit 1;;
+        j)  j_parallel=$OPTARG ;;
         \?) usage
             exit 1;;
         *)  usage
@@ -114,10 +117,10 @@ if [[ $compile -eq 1 ]]; then
     if [[ $fast -eq 0 ]]; then
         echo "make clean"
         touch *.F *.F90
-        make clean
+        make -j $j_parallel clean
     fi
     cd $dest
-    make neci.x
+    make -j $j_parallel  neci.x
     stat=$?
     cd ..
     if [[ $stat -eq 0 && ! -e neci.x ]]; then
