@@ -292,6 +292,7 @@ MODULE FciMCParMod
 
         InitialSpawned=ValidSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
         
+!        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Entering rotoannilation: ",Iter,InitialSpawned,TotWalkersNew
 !        CALL FLUSH(6)
@@ -304,10 +305,12 @@ MODULE FciMCParMod
 !            CALL FLUSH(6)
 !        ENDIF
 
+
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 
-        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),ValidSpawned)
+!        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),ValidSpawned)
+!        CALL CheckOrdering(CurrentDets(:,1:TotWalkersNew),TotWalkersNew)
 
         SpawnedBeforeRoto=ValidSpawned
 
@@ -356,6 +359,7 @@ MODULE FciMCParMod
             CALL MPI_Buffer_detach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
             DEALLOCATE(mpibuffer)
         ENDIF
+
 
 !Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
@@ -513,8 +517,7 @@ MODULE FciMCParMod
         ENDIF
 
 !        WRITE(6,*) "Annihilated: ",Annihilated,InitialSpawned,ValidSpawned,OrigPartAnn
-!        CALL FLUSH(6)
-
+    
     END SUBROUTINE InsertRemoveParts
 
 !This routine wants to take the ValidSpawned particles in the SpawnedParts array and perform All-to-All communication so that 
@@ -556,12 +559,11 @@ MODULE FciMCParMod
             IndexTable1(i)=i
             CALL DecodeBitDet(nJ,SpawnedParts(0:NoIntforDet,i),NEl,NoIntforDet)
             HashArray1(i)=CreateHash(nJ)
-
         enddo
 
 !Next, order the hash array, taking the index, CPU and sign with it...
         IF(.not.tAnnihilatebyRange) THEN
-!Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system
+!Order the array by abs(mod(Hash,nProcessors)). This will result in a more load-balanced system (no need to actually take ProcessVec1 - this will always be iProcIndex here.
             CALL SortMod4ILong(ValidSpawned,HashArray1(1:ValidSpawned),IndexTable1(1:ValidSpawned),ProcessVec1(1:ValidSpawned),SpawnedSign(1:ValidSpawned),nProcessors)
 
 !Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
@@ -684,7 +686,7 @@ MODULE FciMCParMod
         CALL MPI_AlltoAllv(HashArray1(1:ValidSpawned),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray2(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)
 
 !The signs of the hashes, index and CPU also need to be taken with them.
-        CALL MPI_AlltoAllv(SpawnedSign(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(SpawnedSign(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
         CALL MPI_AlltoAllv(IndexTable1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
         CALL MPI_AlltoAllv(ProcessVec1(1:ValidSpawned),sendcounts,disps,MPI_INTEGER,ProcessVec2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 
@@ -1287,9 +1289,9 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
-        IF(tRotoAnnihil) THEN
-            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),TotWalkers)
-        ENDIF
+!        IF(tRotoAnnihil) THEN
+!            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),TotWalkers)
+!        ENDIF
 
         CALL set_timer(Walker_Time,30)
         
