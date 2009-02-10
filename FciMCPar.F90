@@ -309,8 +309,7 @@ MODULE FciMCParMod
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 
-!        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),ValidSpawned)
-!        CALL CheckOrdering(CurrentDets(:,1:TotWalkersNew),TotWalkersNew)
+        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
         SpawnedBeforeRoto=ValidSpawned
 
@@ -1063,6 +1062,8 @@ MODULE FciMCParMod
 
             IF(tSuccess) THEN
 !A particle on the same list has been found. We now want to search backwards, to find the first particle in this block.
+!Actually, this shouldn't be necessary - the NewDets array should be sign-coherent. The only time that we need to search forwards/backwards is if we hit upon an already
+!annihilated particle, i.e. Sign=0
 
                 SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
                 MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
@@ -1158,7 +1159,7 @@ MODULE FciMCParMod
                 CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated")
             ENDIF
         enddo
-        CALL CheckOrdering(SpawnedParts,ValidSpawned)
+        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
 !            i=1
 !            do while(SpawnedSign(i).ne.0)
@@ -1258,15 +1259,27 @@ MODULE FciMCParMod
 
     END SUBROUTINE RotateParticles
 
-    SUBROUTINE CheckOrdering(DetArray,NoDets)
-        INTEGER :: NoDets,DetArray(0:NoIntforDet,NoDets),DetBitLT,i,j
+    SUBROUTINE CheckOrdering(DetArray,SignArray,NoDets,tCheckSignCoher)
+        INTEGER :: NoDets,DetArray(0:NoIntforDet,1:NoDets),DetBitLT,i,j
+        INTEGER :: SignArray(1:NoDets),Comp
+        LOGICAL :: tCheckSignCoher
 
         do i=2,NoDets
-            IF(DetBitLT(DetArray(:,i-1),DetArray(:,i),NoIntforDet).eq.-1) THEN
+            Comp=DetBitLT(DetArray(:,i-1),DetArray(:,i),NoIntforDet)
+            IF(Comp.eq.-1) THEN
+!Array is in reverse numerical order for these particles
                 do j=i-5,i+5
-                    WRITE(6,*) j,DetArray(:,j)
+                    WRITE(6,*) j,DetArray(:,j),SignArray(j)
                 enddo
                 CALL Stop_All("CheckOrdering","Array not ordered correctly")
+            ELSEIF(Comp.eq.0) THEN
+!Dets are the same - see if we want to check sign-coherence
+                IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
+                    do j=i-5,i+5
+                        WRITE(6,*) j,DetArray(:,j),SignArray(j)
+                    enddo
+                    CALL Stop_All("CheckOrdering","Array not sign-coherent")
+                ENDIF
             ENDIF
         enddo
 
@@ -1289,9 +1302,15 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
-!        IF(tRotoAnnihil) THEN
-!            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),TotWalkers)
-!        ENDIF
+        IF(tRotoAnnihil) THEN
+            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
+            NewDets(:,:)=0
+            NewSign(:)=0
+            SpawnedParts(:,:)=0
+            SpawnedSign(:)=0
+            SpawnedParts2(:,:)=0
+            SpawnedSign2(:)=0
+        ENDIF
 
         CALL set_timer(Walker_Time,30)
         
@@ -1483,6 +1502,9 @@ MODULE FciMCParMod
                 ELSE!IF(iDie.gt.1) THEN
 !This indicates that extra particles want to be killed.
 !Anti-particles will need to be created on the same determinant.
+                    IF(tRotoAnnihil) THEN
+                        CALL Stop_All("PerformFCIMCyc","Cannot spawn anti-particles in rotoannihilation. Reduce tau.")
+                    ENDIF
 
                     do l=1,iDie-1
                         NewDets(:,VecSlot)=CurrentDets(:,j)
@@ -1536,6 +1558,12 @@ MODULE FciMCParMod
         
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
+
+        IF(tRotoAnnihil) THEN
+            CurrentDets(:,:)=0
+            CurrentSign(:)=0
+            CALL CheckOrdering(NewDets(:,1:TotWalkersNew),NewSign(1:TotWalkersNew),TotWalkersNew,.true.)
+        ENDIF
         
         IF(tRotoAnnihil) THEN
 !This is the rotoannihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
