@@ -72,6 +72,10 @@ MODULE System
       ConvergedForce=0.001
       ShakeConverged=0.001
       tShakeApprox=.false.
+      tROIteration=.false.
+      ROIterMax=5000
+      tShakeIter=.false.
+      ShakeIterMax=5
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -349,6 +353,12 @@ MODULE System
 ! attempt to maintain orthogonality. This currently does not seem to work too well!
             tLagrange=.true.
 
+        case("ROITERATION")
+! Specifying this keyword overwrites the convergence limit from the ROTATEORBS line, and instead runs the orbital rotation for as many
+! iterations as chosen on this line.
+            tROIteration=.true.
+            call Geti(ROIterMax)
+
         case("SHAKE")
 ! This will use the shake algorithm to iteratively enforce orthonormalisation on the rotation coefficients calculated in the ROTATEORBS
 ! routine.  It finds a force matrix which moves the coefficients at a tangent to the constraint surface, from here, a normalisation
@@ -360,6 +370,13 @@ MODULE System
 ! be performed.
 ! The approximation applies the iterative scheme to find lambda, to each constraint in succession, rather than simultaneously.
             tShakeApprox=.true.
+        
+        case("SHAKEITER")
+! Much like 'ROIteration', this overwrites the convergence criteria for the iterations of the shake constraints
+! and instead performs only the number of iterations specified on this line.
+            tShakeIter=.true.
+            call Geti(ShakeIterMax)
+
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
