@@ -10,7 +10,7 @@
             RETURN
         ELSE
             do i=1,NIfD
-                IF(iLutI(0).ne.iLutJ(0)) THEN
+                IF(iLutI(i).ne.iLutJ(i)) THEN
                     DetBitEQ=.false.
                     RETURN
                 ENDIF

@@ -300,16 +300,17 @@ MODULE FciMCParMod
 !First, annihilate between newly spawned particles. Memory for this will be allocated dynamically.
 !This will be done in the usual fashion using the All-to-All communication and hashes.
         CALL AnnihilateBetweenSpawned(ValidSpawned)
+!        CALL AnnihilateBetweenSpawnedOneProc(ValidSpawned)
 !        IF(ValidSpawned.ne.InitialSpawned) THEN
 !            WRITE(6,*) "Have annihilated between newly-spawned...",InitialSpawned-ValidSpawned,Iter
 !            CALL FLUSH(6)
 !        ENDIF
 
 
+
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
-
-        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
+!        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
         SpawnedBeforeRoto=ValidSpawned
 
@@ -367,6 +368,51 @@ MODULE FciMCParMod
         DEALLOCATE(RemoveInds)
         
     END SUBROUTINE RotoAnnihilation
+    
+    SUBROUTINE AnnihilateBetweenSpawnedOneProc(ValidSpawned)
+        INTEGER :: ValidSpawned,DetCurr(0:NoIntforDet),i,j,k,LowBound,HighBound,WSign
+        INTEGER :: VecSlot,TotSign
+        LOGICAL :: DetBitEQ
+
+        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
+
+        VecSlot=1
+        i=1
+        do while(i.le.ValidSpawned)
+            LowBound=i
+            DetCurr(0:NoIntforDet)=SpawnedParts(0:NoIntforDet,i)
+            i=i+1
+            do while(DetBitEQ(DetCurr(0:NoIntforDet),SpawnedParts(0:NoIntforDet,i),NoIntforDet).and.(i.le.ValidSpawned))
+                i=i+1
+            enddo
+            HighBound=i-1
+
+!Now, run through the block of common particles again, counting the residual sign
+            TotSign=0
+            do j=LowBound,HighBound
+                TotSign=TotSign+SpawnedSign(j)
+            enddo
+
+!Now, fill up SpawnedSign2 and SpawnedParts2 with the residual particles
+            IF(TotSign.ne.0) THEN
+                WSign=INT(TotSign/abs(TotSign))
+                do k=1,abs(TotSign)
+                    SpawnedParts2(0:NoIntforDet,VecSlot)=DetCurr(0:NoIntforDet)
+                    SpawnedSign2(VecSlot)=WSign
+                    VecSlot=VecSlot+1
+                enddo
+            ENDIF
+
+        enddo
+
+        ValidSpawned=VecSlot-1
+
+        do i=1,ValidSpawned
+            SpawnedParts(0:NoIntforDet,i)=SpawnedParts2(0:NoIntforDet,i)
+            SpawnedSign(i)=SpawnedSign2(i)
+        enddo
+
+    END SUBROUTINE AnnihilateBetweenSpawnedOneProc
 
 !This routine will run through the total list of particles (TotWalkersNew in NewDets with sign NewSign) and the list of newly-spawned but
 !non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
@@ -934,7 +980,7 @@ MODULE FciMCParMod
         INTEGER :: i,j,N,Comp,DetBitLT
         LOGICAL :: tSuccess
 
-        N=1
+        N=MinInd
         do while(N.le.MaxInd)
             Comp=DetBitLT(DetArray(:,N),iLut(:),NoIntforDet)
             IF(Comp.eq.1) THEN
@@ -1055,7 +1101,7 @@ MODULE FciMCParMod
 
 !This will binary search the NewDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
-            CALL LinSearchParts(NewDets(:,1:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            CALL LinSearchParts(NewDets(:,1:TotWalkersNew),SpawnedParts(0:NoIntforDet,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 !            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 !            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess
 !            CALL FLUSH(6)
@@ -1063,7 +1109,7 @@ MODULE FciMCParMod
             IF(tSuccess) THEN
 !A particle on the same list has been found. We now want to search backwards, to find the first particle in this block.
 !Actually, this shouldn't be necessary - the NewDets array should be sign-coherent. The only time that we need to search forwards/backwards is if we hit upon an already
-!annihilated particle, i.e. Sign=0
+!annihilated particle, i.e. Sign=0. If we hit upon +-1, then we know that the block is sign coherent.
 
                 SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
                 MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
@@ -1074,6 +1120,7 @@ MODULE FciMCParMod
                     IF((NewSign(SearchInd)*SpawnedSign(i)).eq.-1) THEN
 !We have actually found a complimentary particle - mark the index of this particle for annihilation.
                         AnnihilateInd=SearchInd
+!                        WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
                         EXIT
                     ENDIF
 
@@ -1090,9 +1137,10 @@ MODULE FciMCParMod
 !We have searched from the beginning of the particle block(SearchInd) to PartInd for a complimentary particle, but have not had any success. Now we can search from
 !PartInd+1 to the end of the block for a complimentary particle.
                     SearchInd=PartInd+1
-                    do while((DetBitEQ(SpawnedParts(:,i),NewDets(:,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
+                    do while((DetBitEQ(SpawnedParts(0:NoIntforDet,i),NewDets(0:NoIntforDet,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
                         IF((NewSign(SearchInd)*SpawnedSign(i)).eq.-1) THEN
 !We have found a complimentary particle - mark the index of this particle for annihilation.
+!                            WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
                             AnnihilateInd=SearchInd
                             EXIT
                         ENDIF
@@ -1159,7 +1207,7 @@ MODULE FciMCParMod
                 CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated")
             ENDIF
         enddo
-        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
+!        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
 !            i=1
 !            do while(SpawnedSign(i).ne.0)
@@ -1302,15 +1350,9 @@ MODULE FciMCParMod
             CALL FLUSH(11)
         ENDIF
 
-        IF(tRotoAnnihil) THEN
-            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
-            NewDets(:,:)=0
-            NewSign(:)=0
-            SpawnedParts(:,:)=0
-            SpawnedSign(:)=0
-            SpawnedParts2(:,:)=0
-            SpawnedSign2(:)=0
-        ENDIF
+!        IF(tRotoAnnihil) THEN
+!            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
+!        ENDIF
 
         CALL set_timer(Walker_Time,30)
         
@@ -1559,12 +1601,6 @@ MODULE FciMCParMod
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
 
-        IF(tRotoAnnihil) THEN
-            CurrentDets(:,:)=0
-            CurrentSign(:)=0
-            CALL CheckOrdering(NewDets(:,1:TotWalkersNew),NewSign(1:TotWalkersNew),TotWalkersNew,.true.)
-        ENDIF
-        
         IF(tRotoAnnihil) THEN
 !This is the rotoannihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
 
