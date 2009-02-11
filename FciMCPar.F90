@@ -1030,33 +1030,35 @@ MODULE FciMCParMod
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+
+
                 IF(i.eq.MinInd) THEN
                     tSuccess=.false.
                     PartInd=i
                     RETURN
-                ENDIF
 
-                IF(i.ne.MaxInd-1) THEN
-!We should be continually sampling the penultimate element
-                    CALL Stop_All("BinSearchParts","Error in binary search")
-                ENDIF
-
-                Comp=DetBitLT(DetArray(:,i+1),iLut(:),NoIntforDet)
-                IF(Comp.eq.0) THEN
-                    tSuccess=.true.
-                    PartInd=i+1
-                    RETURN
-                ELSEIF(Comp.eq.1) THEN
+                ELSEIF(i.eq.MaxInd-1) THEN
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!We need to check the last index.
+                    Comp=DetBitLT(DetArray(:,i+1),iLut(:),NoIntforDet)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
 !final entry is less than the one we want.
-                    tSuccess=.false.
-                    PartInd=i+1
-                    RETURN
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
                 ELSE
-                    tSuccess=.false.
-                    PartInd=i
-                    RETURN
+                    i=j
                 ENDIF
+
 
             ELSEIF(Comp.eq.-1) THEN
 !The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
@@ -1101,8 +1103,8 @@ MODULE FciMCParMod
 
 !This will binary search the NewDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
-            CALL LinSearchParts(NewDets(:,1:TotWalkersNew),SpawnedParts(0:NoIntforDet,i),MinInd,TotWalkersNew,PartInd,tSuccess)
-!            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+!            CALL LinSearchParts(NewDets(:,1:TotWalkersNew),SpawnedParts(0:NoIntforDet,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 !            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess
 !            CALL FLUSH(6)
 
