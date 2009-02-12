@@ -1081,8 +1081,8 @@ MODULE FciMCParMod
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
-        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,SearchInd,AnnihilateInd,ToRemove,VecInd
-        LOGICAL :: DetBitEQ,tSuccess
+        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,SearchInd,AnnihilateInd,ToRemove,VecInd,SignProd
+        LOGICAL :: DetBitEQ,tSuccess,tSkipSearch
 
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
@@ -1116,26 +1116,34 @@ MODULE FciMCParMod
                 SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
                 MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
                 AnnihilateInd=0     !AnnihilateInd indicates the index in NewDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
+                tSkipSearch=.false. !This indicates whether we want to continue searching forwards through the list once we exit the loop going backwards.
                 
                 do while((DetBitEQ(SpawnedParts(:,i),NewDets(:,SearchInd),NoIntforDet)).and.(SearchInd.ge.1))
 !Cycle backwards through the list, checking where the start of this block of determinants starts.
-                    IF((NewSign(SearchInd)*SpawnedSign(i)).eq.-1) THEN
+                    SignProd=NewSign(SearchInd)*SpawnedSign(i)
+                    IF(SignProd.eq.-1) THEN
 !We have actually found a complimentary particle - mark the index of this particle for annihilation.
                         AnnihilateInd=SearchInd
 !                        WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
+                        tSkipSearch=.true.
+                        EXIT
+                    ELSEIF(SignProd.eq.1) THEN
+!Since the signs are coherent on NewSign, we know that we can not annihilate the SpawnedParts particle if we find a particle of the same sign. 
+                        tSkipSearch=.true.
                         EXIT
                     ENDIF
 
                     SearchInd=SearchInd-1
+                    
                 enddo
 
-                IF((SearchInd.eq.PartInd).and.(AnnihilateInd.eq.0)) THEN
-!The searchind should not equal partind, since we know that the particles are the same at PartInd, otherwise the binary search should have returned false.
-!(unless we have already found the particle to annihilate)
-                    CALL Stop_All("AnnihilateSpawnedParts","Binary search has fatal error")
-                ENDIF
+!                IF((SearchInd.eq.PartInd).and.(AnnihilateInd.eq.0)) THEN
+!!The searchind should not equal partind, since we know that the particles are the same at PartInd, otherwise the binary search should have returned false.
+!!(unless we have already found the particle to annihilate)
+!                    CALL Stop_All("AnnihilateSpawnedParts","Binary search has fatal error")
+!                ENDIF
 
-                IF(AnnihilateInd.eq.0) THEN
+                IF(.not.tSkipSearch) THEN
 !We have searched from the beginning of the particle block(SearchInd) to PartInd for a complimentary particle, but have not had any success. Now we can search from
 !PartInd+1 to the end of the block for a complimentary particle.
                     SearchInd=PartInd+1
@@ -1174,42 +1182,43 @@ MODULE FciMCParMod
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
         IF(ToRemove.gt.0) THEN
 
-            VecInd=1
-            do i=1,ValidSpawned
-                IF(SpawnedSign(i).ne.0) THEN
-                    SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
-                    SpawnedSign2(VecInd)=SpawnedSign(i)
-                    VecInd=VecInd+1
-                ENDIF
-            enddo
-            ValidSpawned=ValidSpawned-ToRemove
-            IF((VecInd-1).ne.ValidSpawned) THEN
-                CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated.")
-            ENDIF
-            do i=1,ValidSpawned
-                SpawnedParts(:,i)=SpawnedParts2(:,i)
-                SpawnedSign(i)=SpawnedSign2(i)
-            enddo
-
-
-
-!            do i=1,ToRemove
-!
-!                do j=RemoveInds(i)+1-(i-1),ValidSpawned
-!                    SpawnedParts(:,j-1)=SpawnedParts(:,j)
-!                    SpawnedSign(j-1)=SpawnedSign(j)
-!                enddo
-!                ValidSpawned=ValidSpawned-1
+!            VecInd=1
+!            do i=1,ValidSpawned
+!                IF(SpawnedSign(i).ne.0) THEN
+!                    SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
+!                    SpawnedSign2(VecInd)=SpawnedSign(i)
+!                    VecInd=VecInd+1
+!                ENDIF
 !            enddo
+!            ValidSpawned=ValidSpawned-ToRemove
+!            IF((VecInd-1).ne.ValidSpawned) THEN
+!                CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated.")
+!            ENDIF
+!            do i=1,ValidSpawned
+!                SpawnedParts(:,i)=SpawnedParts2(:,i)
+!                SpawnedSign(i)=SpawnedSign2(i)
+!            enddo
+
+
+
+            do i=1,ToRemove
+
+                do j=RemoveInds(i)+1-(i-1),ValidSpawned
+                    SpawnedParts(:,j-1)=SpawnedParts(:,j)
+                    SpawnedSign(j-1)=SpawnedSign(j)
+                enddo
+                ValidSpawned=ValidSpawned-1
+            enddo
 
         ENDIF
 
-        do i=1,ValidSpawned
-            IF(SpawnedSign(i).eq.0) THEN
-                CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated")
-            ENDIF
-        enddo
+!        do i=1,ValidSpawned
+!            IF(SpawnedSign(i).eq.0) THEN
+!                CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated")
+!            ENDIF
+!        enddo
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
+
 
 !            i=1
 !            do while(SpawnedSign(i).ne.0)
@@ -4271,7 +4280,9 @@ MODULE FciMCParMod
                 WalkersonHF=WalkersonHF+1
                 CurrentDets(0:NoIntforDet,j)=iLutHF(:)
                 CurrentSign(j)=1
-                CurrentH(j)=0.D0
+                IF(.not.tRotoAnnihil) THEN
+                    CurrentH(j)=0.D0
+                ENDIF
                 IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=HFHash
@@ -4280,8 +4291,11 @@ MODULE FciMCParMod
 !We are at a double excitation - we need to calculate most of this information...
                 CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j),NEl,NoIntforDet)
                 CurrentSign(j)=MP1Sign(i)
-                Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
-                CurrentH(j)=real(Hjj%v,r2)-Hii
+                IF(.not.tRotoAnnihil) THEN
+!With RotoAnnihilation, we fill the CurrentH Array after ordering
+                    Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
+                    CurrentH(j)=real(Hjj%v,r2)-Hii
+                ENDIF
                 IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     HashArray(j)=CreateHash(MP1Dets(1:NEl,i))
@@ -4290,6 +4304,17 @@ MODULE FciMCParMod
             ENDIF
 
         enddo
+        IF(tRotoAnnihil) THEN
+            WRITE(6,*) "Ordering all walkers for rotoannihilation..."
+            CALL SortBitDets(InitWalkers,CurrentDets(0:NoIntforDet,1:InitWalkers),NoIntforDet,CurrentSign(1:InitWalkers))
+            do j=1,InitWalkers
+!Now find the diagonal elements for all the walkers.
+                CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,j),NEl,NoIntforDet)
+                Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                CurrentH(j)=real(Hjj%v,r2)-Hii
+            enddo
+        ENDIF
+
         
         CALL MPI_Reduce(WalkersonHF,SumWalkersonHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
