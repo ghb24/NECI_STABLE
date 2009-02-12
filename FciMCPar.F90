@@ -313,6 +313,7 @@ MODULE FciMCParMod
 !        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
         SpawnedBeforeRoto=ValidSpawned
+!        WRITE(6,*) "SpawnedBeforeRoto: ",SpawnedBeforeRoto
 
 !This RemoveInds is useful scratch space for the removal of particles from lists. It probably isn't essential, but keeps things simpler initially.
         ALLOCATE(RemoveInds(MaxSpawned),stat=ierr)
@@ -4059,7 +4060,7 @@ MODULE FciMCParMod
         REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r
         TYPE(HElement) :: Hij,Hjj,Fjj
         INTEGER , ALLOCATABLE :: MP1Dets(:,:), ExcitgenTemp(:)
-        LOGICAL , ALLOCATABLE :: MP1Sign(:)
+        INTEGER , ALLOCATABLE :: MP1Sign(:)
         REAL*8 , ALLOCATABLE :: MP1Comps(:)
         INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF,ExcitLength,iMaxExcit
         CHARACTER(len=*), PARAMETER :: this_routine='InitWalkersMP1Par'
@@ -4089,9 +4090,9 @@ MODULE FciMCParMod
         ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
         WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
-        ALLOCATE(WalkVec2Dets(NEl,MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*NEl,4,this_routine,WalkVec2DetsTag,ierr)
-        WalkVec2Dets(1:NEl,1:MaxWalkersPart)=0
+        ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+        WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
 
         IF(tRotoAnnihil) THEN
             ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
@@ -4194,7 +4195,7 @@ MODULE FciMCParMod
 !HF Compt. of MP1 is 1
         MP1Dets(1:NEl,1)=HFDet(1:NEl)
         MP1Comps(1)=1.D0
-        MP1Sign(1)=.true.
+        MP1Sign(1)=1
 
         SumMP1Compts=1.D0   !Initialise the sum of the MP1 wavevector components
         VecSlot=2           !This is the next free slot in the MP1 arrays
@@ -4230,9 +4231,9 @@ MODULE FciMCParMod
 
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
             IF(Compt.lt.0.D0) THEN
-                MP1Sign(VecSlot)=.false.
+                MP1Sign(VecSlot)=-1
             ELSE
-                MP1Sign(VecSlot)=.true.
+                MP1Sign(VecSlot)=1
             ENDIF
             MP1Dets(1:NEl,VecSlot)=nJ(:)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
