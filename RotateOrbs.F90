@@ -11,7 +11,7 @@ MODULE RotateOrbsMod
     USE UMatCache , only : UMatInd
     USE HElem , only : HElement
     USE SystemData , only : ConvergedForce,TimeStep,tLagrange,tShake,tShakeApprox,ShakeConverged,tROIteration,ROIterMax,tShakeIter,ShakeIterMax
-    USE SystemData , only : G1
+    USE SystemData , only : G1,ARR
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens
     USE Timing , only : end_timing,print_timing_report
@@ -45,7 +45,6 @@ MODULE RotateOrbsMod
 
         CALL WriteStats()           ! write out the original stats before any rotation.
 
-       
         CALL set_timer(Rotation_Time,30)
 
         tNotConverged=.true.
@@ -65,7 +64,7 @@ MODULE RotateOrbsMod
         WRITE(6,*) "Convergence criterion met. Finalizing new orbitals..."
 
 !Make symmetry, orbitals, one/two-electron integrals consistent with rest of neci
-!        CALL FinalizeNewOrbs()
+        CALL FinalizeNewOrbs()
 
 !option to create new FCIDUMP?
 
@@ -135,7 +134,7 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE FindTheForce
-        INTEGER :: m,z,i,j,k,l,a,b,g,d,Sym,Symz
+        INTEGER :: m,z,i,j,k,l,a,b,g,d,Symm,Symb,Symb2,Symi,Symd
         REAL*8 :: Deriv4indint,Deriv4indintsqrd,t1,t2,t3,t4,LambdaTerm1,LambdaTerm2
         CHARACTER(len=*) , PARAMETER :: this_routine='FindtheForce'
       
@@ -151,39 +150,30 @@ MODULE RotateOrbsMod
         OrthoForce=0.D0
        
 
-!        WRITE(6,*) 'm, z, sym(m), sym(z)'
         
         do m=1,SpatOrbs
 ! To include: symmetry requirement that z must be from the same irrep as m
-!            Sym=AOSymm(m)                                             
+            Symm=AOSymm(m)                                             
             ! Gives the symmetry of the orbital m (0 -> 7)
-!            do z=(SymInd(Sym+1)),(SymInd(Sym+1)+MBas(Sym+1)-1)          
+            do z=(SymInd(Symm+1)),(SymInd(Symm+1)+MBas(Symm+1)-1)          
             ! Runs only over those z with the same symm. 
             
-!                Symz=AOSymm(z)
-
-!                WRITE(6,*) m,', ', z, ', ',sym,', ',symz 
-            do z=1,SpatOrbs
-
                 Deriv4indintsqrd=0.D0
                     
 ! This runs over the full <ij|kl> integrals from the previous iteration. 
 ! In the future we can take advantage of the permutational symmetry of the matrix elements
-                do i=1,SpatOrbs 
-                    do k=1,i-1    ! j =< l
-                        do j=1,SpatOrbs
-                            do l=1,j-1   ! i =< k
+                do l=1,SpatOrbs
+                    do j=1,l-1                          ! j < l
+                        do k=1,SpatOrbs                 
+                            Symi=IEOR(AOSymm(k),IEOR(AOSymm(j),AOSymm(l)))
+                            ! only i with symmetry equal to j x k x l will have integrals with overall
+                            ! symmetry A1 and therefore be non-zero.
 
-!                do l=1,SpatOrbs
-!                    do j=1,l                          ! j < l 
-!                        do k=1,SpatOrbs
-!                            do i=1,k                  ! i < k
+                            do i=(SymInd(Symi+1)),(SymInd(Symi+1)+MBas(Symi+1)-1)
+                                IF(i.lt.k) THEN         ! i < k                            
+
 !                                IF((((i-1)*SpatOrbs)+k).ge.(((j-1)*SpatOrbs)+l)) THEN
                                    
-! To include: If statement to check the symmetry of i x j x k x l is A1.
-!                                    IF(AOSymm(i).eq.(IEOR(AOSymm(k),IEOR(AOSymm(j),AOSymm(l))))) THEN
-
-
 
 ! Already calculated the four index integrals and some partial integrals
 ! in Transform2ElInts routine of the previous iteration.
@@ -196,6 +186,7 @@ MODULE RotateOrbsMod
                                 t3=0.D0
                                 t4=0.D0
 
+! Alternative method, but actually appears to take longer...                                
 !                                IF (m.eq.l) t4=ThreeIndInts(i,j,k,z)
 !                                do d=1,SpatOrbs
 !                                    IF(m.eq.j) t2=t2+(CoeffT1(d,l)*TwoIndInts(i,z,k,d))
@@ -209,32 +200,33 @@ MODULE RotateOrbsMod
 
 
                                 IF (m.eq.i) THEN
-                                    do b=1,SpatOrbs
+                                    do d=1,SpatOrbs
                                         do g=1,SpatOrbs
-                                            do d=1,SpatOrbs
+                                            Symb=IEOR(AOSymm(g),IEOR(AOSymm(d),AOSymm(z)))
+                                            do b=(SymInd(Symb+1)),(SymInd(Symb+1)+MBas(Symb+1)-1)
                                                 t1=t1+(coefft1(b,j)*coefft1(g,k)*coefft1(d,l)*real(umat(umatind(z,b,g,d,0,0))%v,8))
                                             enddo
                                         enddo
                                     enddo
                                 ENDIF
-
                                 IF (m.eq.j) THEN
-                                    do d=1,SpatOrbs     
+                                    Symd=IEOR(AOSymm(i),IEOR(AOSymm(k),AOSymm(z)))
+                                    do d=(SymInd(Symd+1)),(SymInd(Symd+1)+MBas(Symd+1)-1)
                                         t2=t2+(CoeffT1(d,l)*TwoIndInts(i,z,k,d))
                                     enddo
                                 ENDIF
-
                                 IF (m.eq.k) THEN
-                                    do b=1,SpatOrbs
-                                        do d=1,SpatOrbs
+                                    do d=1,SpatOrbs
+                                        Symb2=IEOR(AOSymm(d),IEOR(AOSymm(i),AOSymm(z)))
+                                        do b=(SymInd(Symb2+1)),(SymInd(Symb2+1)+MBas(Symb2+1)-1)
                                             t3=t3+CoeffT1(b,j)*CoeffT1(d,l)*OneIndInts(i,b,z,d)
                                         enddo
                                     enddo
                                 ENDIF
-
                                 IF (m.eq.l) THEN
                                     t4=ThreeIndInts(i,j,k,z)
                                 ENDIF
+
                                 Deriv4indint=0.D0
                                 Deriv4indint=(t1 + t2 + t3 + t4)
                                 ! At a particular i, j, k and l; t1, t2, t3 and t4 are only non-zero if m is equal to 
@@ -243,19 +235,33 @@ MODULE RotateOrbsMod
 ! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
 ! This accumulates as the loop sums over i,j,k and l.
                                 Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint) 
-!                                ENDIF  
+                                ENDIF  
 !                            ENDIF
                                 
                             enddo
                         enddo
                     enddo
                 enddo
-                
+                DerivCoeff(z,m)=(2*Deriv4indintsqrd)  
+                Force=Force+DerivCoeff(z,m)
+                ForceInts=ForceInts+2*Deriv4indintsqrd
+            enddo
+        enddo
+
+ 
+        Force=Force/REAL(SpatOrbs**2,8)
+        ForceInts=ForceInts/REAL(SpatOrbs**2,8)
+
 
 ! Calculate the derivatives of orthogonalisation condition.
-
-                IF(tLagrange) THEN
-                       
+! Have taken this out of the m and z loop to make the shake faster, but can put it back in if start using it a lot.
+        IF(tLagrange) THEN
+            do m=1,SpatOrbs
+                Symm=AOSymm(m)                                             
+                ! Gives the symmetry of the orbital m (0 -> 7)
+                do z=(SymInd(Symm+1)),(SymInd(Symm+1)+MBas(Symm+1)-1)          
+                ! Runs only over those z with the same symm. 
+      
                     LambdaTerm1=0.D0
                     LambdaTerm2=0.D0
                     
@@ -270,23 +276,11 @@ MODULE RotateOrbsMod
 ! With the Lagrange keyword this includes orthonormality conditions, otherwise it is simply the unconstrained force.
                     DerivCoeff(z,m)=(2*Deriv4indintsqrd)-LambdaTerm1-LambdaTerm2
                     OrthoForce=OrthoForce-LambdaTerm1-LambdaTerm2
-                ELSE
-                    DerivCoeff(z,m)=(2*Deriv4indintsqrd)  
-                    Force=Force+DerivCoeff(z,m)
-                    ForceInts=ForceInts+2*Deriv4indintsqrd
-                ENDIF
-
+                enddo
             enddo
-        enddo
-      
-        Force=Force/REAL(SpatOrbs**2,8)
-        ForceInts=ForceInts/REAL(SpatOrbs**2,8)
-        OrthoForce=OrthoForce/REAL(SpatOrbs**2,8)
-        
-
-
+ 
 !If doing a lagrange calc we also need to find the force on the lambdas to ensure orthonormality...
-        IF(tLagrange) THEN
+            OrthoForce=OrthoForce/REAL(SpatOrbs**2,8)
             DerivLambda(:,:)=0.D0
             do i=1,SpatOrbs
                 do j=1,i
@@ -301,6 +295,7 @@ MODULE RotateOrbsMod
             enddo
         ENDIF
 
+
         CALL halt_timer(FindtheForce_Time)
 
 
@@ -310,12 +305,15 @@ MODULE RotateOrbsMod
     SUBROUTINE UseTheForce()
 ! This routine takes the old translation coefficients and Lambdas and moves them by a timestep in the direction 
 ! of the calculated force.
-        INTEGER :: m,z,i,j
+        INTEGER :: m,z,i,j,Symm
         REAL*8 :: NewCoeff,NewLambda
 
         DistCs=0.D0 
         do m=1,SpatOrbs
-            do z=1,SpatOrbs
+            Symm=AOSymm(m)                                             
+            ! Gives the symmetry of the orbital m (0 -> 7)
+            do z=(SymInd(Symm+1)),(SymInd(Symm+1)+MBas(Symm+1)-1)          
+            ! Only coeffs with sym of m and z the same have non-zero coeffs.    
                 NewCoeff=0.D0
                 NewCoeff=CoeffT1(z,m)-(TimeStep*DerivCoeff(z,m))
                 DistCs=DistCs+abs(TimeStep*DerivCoeff(z,m))
@@ -351,7 +349,7 @@ MODULE RotateOrbsMod
 !This is an M^5 transform, which transforms all the two-electron integrals into the new basis described by the Coeff matrix.
 !This is v memory inefficient and currently does not use any spatial symmetry information.
     SUBROUTINE Transform2ElInts()
-        INTEGER :: i,j,k,l,a,b,g,d
+        INTEGER :: i,j,k,l,a,b,g,d,Symd,Symi
         REAL*8 :: t
 
 !Zero arrays from previous transform
@@ -366,12 +364,15 @@ MODULE RotateOrbsMod
 !loop over beta,gamma,delta
             do b=1,SpatOrbs
                 do g=1,SpatOrbs
-                    do d=1,b    !delta =< beta
-!If statement here - the <i b | g d> must be symmetry allowed...
+                    Symd=IEOR(AOSymm(g),IEOR(AOSymm(b),AOSymm(i)))
+                    do d=(SymInd(Symd+1)),(SymInd(Symd+1)+MBas(Symd+1)-1)
+!The <i b | g d> must be symmetry allowed...
                         t=0.D0
-                        do a=1,SpatOrbs     !This loop only wants to be over the atomic orbitals in the symmetry class of the current i loop
-!sum over alpha to store <i beta | gamma delta> - OneIndInts
+                        Symi=AOSymm(i)
+                        do a=(SymInd(Symi+1)),(SymInd(Symi+1)+MBas(Symi+1)-1)     
+                        ! only CoeffT1(a,i) will only be non-zero if i and a same symmetry.
                             t=t+CoeffT1(a,i)*REAL(UMAT(UMatInd(a,b,g,d,0,0))%v,8)
+!this is a sum over alpha to store <i beta | gamma delta> - OneIndInts
                         enddo
                         OneIndInts(i,b,g,d)=t
                         OneIndInts(i,d,g,b)=t
@@ -383,11 +384,12 @@ MODULE RotateOrbsMod
         do k=1,SpatOrbs !loop over k orbitals in each symmetry irrep
             do i=1,k    !i =< k
                 do b=1,SpatOrbs
-                    do d=1,b    !d =< b
+                    Symd=IEOR(AOSymm(b),IEOR(AOSymm(i),AOSymm(k)))
+                    do d=(SymInd(Symd+1)),(SymInd(Symd+1)+MBas(Symd+1)-1)
+                    !Test that <i b | k d> is symmetry allowed
                         !Can test that (i,k) < (b,d) here
-                        !Can test that <i b | k d> is symmetry allowed here
                         t=0.D0
-!sum over gamma to store <i beta | j delta> - TwoIndInts
+!this is a sum over gamma to store <i beta | j delta> - TwoIndInts
                         do g=1,SpatOrbs
                             t=t+CoeffT1(g,k)*OneIndInts(i,b,g,d)
                         enddo
@@ -400,13 +402,13 @@ MODULE RotateOrbsMod
             enddo
         enddo
 
-        do j=1,SpatOrbs !loop over j orbitals in each symmetry irrep
-            do i=1,SpatOrbs
-                do k=1,i    !i =< k
-                    do d=1,SpatOrbs
-                        !Test is symmetry allowed here
+        do k=1,SpatOrbs !loop over j orbitals in each symmetry irrep
+            do j=1,SpatOrbs
+                do i=1,k                                !i =< k
+                    Symd=IEOR(AOSymm(i),IEOR(AOSymm(j),AOSymm(k)))
+                    do d=(SymInd(Symd+1)),(SymInd(Symd+1)+MBas(Symd+1)-1)
                         t=0.D0
-!sum over beta to store <i j | k delta> - ThreeIndInts
+!this is a sum over beta to store <i j | k delta> - ThreeIndInts
                         do b=1,SpatOrbs
                             t=t+CoeffT1(b,j)*TwoIndInts(i,b,k,d)
                         enddo
@@ -420,17 +422,20 @@ MODULE RotateOrbsMod
         PotEnergy=0.D0
         TwoEInts=0.D0
         PEInts=0.D0
-        do l=1,SpatOrbs !loop over l orbitals in each symmetry irrep
-            do j=1,l    ! j =< l
-                do i=1,SpatOrbs
-                    do k=1,i    ! i =< k
-                        !Test that (i,k) =< (j,l) here
-                        !Test that integral is symmetry allowed
-                        t=0.D0
-!sum over delta to store <i j | k l> - FourIndInts
-                        do d=1,SpatOrbs
-                            t=t+CoeffT1(d,l)*ThreeIndInts(i,j,k,d)
-                        enddo
+        do l=1,SpatOrbs
+            do j=1,l                                    ! j =< l
+                do k=1,SpatOrbs
+                    Symi=IEOR(AOSymm(k),IEOR(AOSymm(j),AOSymm(l)))
+                    do i=(SymInd(Symi+1)),(SymInd(Symi+1)+MBas(Symi+1)-1)    ! i =< k
+                        IF(i.le.k) THEN
+                            !Test that (i,k) =< (j,l) here
+                            !Test that integral is symmetry allowed
+                            t=0.D0
+!this is a sum over delta to store <i j | k l> - FourIndInts
+                            do d=1,SpatOrbs
+                                t=t+CoeffT1(d,l)*ThreeIndInts(i,j,k,d)
+                            enddo
+                        ENDIF 
                         FourIndInts(i,j,k,l)=t
                         FourIndInts(k,j,i,l)=t
                         FourIndInts(i,l,k,j)=t
@@ -487,51 +492,128 @@ MODULE RotateOrbsMod
 
 
 
-!    SUBROUTINE FinalizeNewOrbs()
+    SUBROUTINE FinalizeNewOrbs()
 ! At the end of the orbital rotation, have a set of coefficients CoeffT1 which transform the HF orbitals into a set of linear
 ! combinations ui which minimise |<ij|kl>|^2.  This is the final subroutine after all iterations (but before the memory deallocation)
 ! that calculates the final 4 index integrals to be used in the NECI calculation.
-        
-!        CALL Transform2ElInts()
-! The FourIndInts(i,j,k,l) are the <ij|kl> integrals we now want to use instead of the HF UMat.
+        INTEGER :: i,a
+
+
+! First need to do a final explicit orthonormalisation.  The orbitals are very close to being orthonormal, but not exactly.
+! Need to make sure they are exact orthonormal using Gram Schmit maybe...
+
+! Write out some final results of interest, like values of the constraints, values of new coefficients.
+        WRITE(6,*) 'The final transformation coefficients'
+        do i=1,SpatOrbs
+            do a=1,SpatOrbs
+                WRITE(6,'(F20.10)',advance='no') CoeffT1(a,i)
+            enddo
+            WRITE(6,*) ''
+        enddo
+
+        WRITE(6,*) 'The final values of the constraints with corrected coefficients'
+        do i=1,TotNoConstraints
+            WRITE(6,*) ConstraintCor(i)
+        enddo
+
+
+        CALL Transform2ElInts()
+! Use these final coefficients to find the FourIndInts(i,j,k,l).
+! These are now the <ij|kl> integrals we now want to use instead of the HF UMat.
 
 !        CALL RefillUMATandTMAT2D()        
 ! UMat is the 4 index integral matrix (2 electron), whereas TMAT2D is the 2 index integral (1 el) matrix
 
-!    ENDSUBROUTINE FinalizeNewOrbs
+! Calculate the fock matrix, and print it out to see how much the off diagonal terms contribute.
+! Also print out the sum of the diagonal elements to compare to the original value.
+        CALL CalcFOCKMatrix()
+        stop
+
+    ENDSUBROUTINE FinalizeNewOrbs
 
 
 
-!    SUBROUTINE RefillUMATandTMAT2D()
-!        INTEGER :: l,k,j,i,a,b
-!        REAL :: NewTMAT2D
-
-        ! make back into spin orbitals?
+    SUBROUTINE RefillUMATandTMAT2D()
+        INTEGER :: l,k,j,i,a,b
+        REAL :: NewTMAT2D
 
 
         ! Make the UMAT elements the four index integrals.  These are calculated by transforming the HF orbitals using the
         ! coefficients that have been found
-!        do l=1,SpatOrbs
-!            do k=1,SpatOrbs
-!                do j=1,SpatOrbs
-!                    do i=1,SpatOrbs
-!                        UMAT(UMatInd(i,j,k,l,0,0))=HElement(FourIndInts(i,j,k,l))
-!                    enddo
-!                enddo
+        do l=1,SpatOrbs
+            do k=1,SpatOrbs
+                do j=1,SpatOrbs
+                    do i=1,SpatOrbs
+                        UMAT(UMatInd(i,j,k,l,0,0))=HElement(FourIndInts(i,j,k,l))
+                    enddo
+                enddo
                 ! Also calculate the 2 index integrals, and make these the elements of the TMAT2D matrix.
-!                NewTMAT2D=0.D0
-!                do a=1,SpatOrbs
-!                    do b=1,SpatOrbs
-!                        NewTMAT2D=NewTMAT2D+(CoeffT1(b,k)*CoeffT1(a,l)*REAL(TMAT2D(b,a)%v,8))
-!                    enddo
-!                enddo
-!                TMAT2D(k,l)=HElement(NewTMAT2D)
-!            enddo
-!        enddo
+                NewTMAT2D=0.D0
+                do a=1,SpatOrbs
+                    do b=1,SpatOrbs
+                        NewTMAT2D=NewTMAT2D+(CoeffT1(b,k)*CoeffT1(a,l)*REAL(TMAT2D(b,a)%v,8))
+                    enddo
+                enddo
+                TMAT2D(k,l)=HElement(NewTMAT2D)
+            enddo
+        enddo
 
 
-!    ENDSUBROUTINE RefillUMATandTMAT2D
+    ENDSUBROUTINE RefillUMATandTMAT2D
 
+
+    SUBROUTINE CalcFOCKMatrix()
+        USE SystemData , only : nBasis
+        INTEGER :: i,j,a,ArrNewTag,ierr
+        REAL*8 , ALLOCATABLE :: ArrNew(:,:)
+        REAL*8 :: FOCKDiagSumHF,FOCKDiagSumNew
+        CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix'
+
+! This subroutine calculates and writes out the fock matrix for the transformed orbitals.
+! ARR is originally the fock matrix in the HF basis.
+! ARR(:,1) - ordered by energy, ARR(:,2) - ordered by spin-orbital index.
+
+    
+        ALLOCATE(ArrNew(SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('ArrNew',SpatOrbs**2,8,this_routine,ArrNewTag,ierr)
+        ArrNew(:,:)=0.D0                     
+
+
+! First calculate the sum of the diagonal elements of ARR.
+! Check if this is already being done.
+        FOCKDiagSumHF=0.D0
+        do a=1,nBasis        
+            FOCKDiagSumHF=FOCKDiagSumHF+Arr(a,2)
+        enddo
+
+! Then calculate the fock matrix in the transformed basis, and the sum of the new diagonal elements.
+! Our ArrNew is in spatial orbitals, count each twice to compare to above.
+        FOCKDiagSumNew=0.D0
+        do j=1,SpatOrbs
+            do i=1,SpatOrbs
+                do a=1,SpatOrbs
+                    ArrNew(i,j)=ArrNew(i,j)+(CoeffT1(a,i)*Arr(a,2)*CoeffT1(a,j))
+                enddo
+            enddo
+            FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(j,j)*2)
+        enddo
+
+        WRITE(6,*) 'Sum of the diagonal elements of the fock matrix in the HF basis set = ',FOCKDiagSumHF
+        WRITE(6,*) 'Sum of the diagonal elements of the fock matrix in the transformed basis set = ',FOCKDiagSumNew
+
+        WRITE(6,*) 'The fock matrix for the transformed orbitals'
+        do j=1,SpatOrbs
+            do i=1,SpatOrbs
+                WRITE(6,'(F20.10)',advance='no') ArrNew(i,j)
+            enddo
+            WRITE(6,*) ''
+        enddo
+
+        DEALLOCATE(ArrNew)
+        CALL LogMemDealloc(this_routine,ArrNewTag)
+       
+
+    ENDSUBROUTINE CalcFOCKMatrix
 
 
 
@@ -544,9 +626,9 @@ MODULE RotateOrbsMod
         WRITE(6,*) "Calculating new molecular orbitals based on mimimisation of <ij|kl>^2 integrals..."
        
 ! Check for possible errors.
-!        IF(.not.TwoCycleSymGens) THEN
-!            CALL Stop_All(this_routine,"ERROR. TwoCycleSymGens is false.  Symmetry is not abelian.") 
-!       ENDIF
+        IF(.not.TwoCycleSymGens) THEN
+            CALL Stop_All(this_routine,"ERROR. TwoCycleSymGens is false.  Symmetry is not abelian.") 
+        ENDIF
 
         IF(tLagrange.and.tShake) THEN
             CALL FLUSH(6)
@@ -611,7 +693,7 @@ MODULE RotateOrbsMod
             
 ! Set up symmetry arrays.
 
-!        CALL InitSymmArrays()
+        CALL InitSymmArrays()
 
 
 !Allocate memory
@@ -731,8 +813,8 @@ MODULE RotateOrbsMod
             
         DEALLOCATE(Lab)
         CALL LogMemDealloc(this_routine,LabTag)
-!       DEALLOCATE(AOSymm)
-!        CALL LogMemDealloc(this_routine,AOSymmTag)
+        DEALLOCATE(AOSymm)
+        CALL LogMemDealloc(this_routine,AOSymmTag)
         DEALLOCATE(CoeffT1)
         CALL LogMemDealloc(this_routine,CoeffT1Tag)
         DEALLOCATE(CoeffCorT2)
@@ -863,8 +945,6 @@ MODULE RotateOrbsMod
         tShakeNotConverged=.true.
 
 
-! CHECK THIS STUFF!!!
-
 ! Before we start iterating, take the current coefficients and find the derivative of the constraints with respect to them.
         
         CALL CalcDerivConstr(CoeffT1,DerivConstrT1)
@@ -977,10 +1057,11 @@ MODULE RotateOrbsMod
             ShakeLambda(l)=ShakeLambdaNew(l)
         enddo
 
+! DAMPING
 !        do l=1,TotNoConstraints
 !            ShakeLambda(l)=(0.9*ShakeLambda(l))+(0.1*ShakeLambdaNew(l))
 !        enddo
-        ! If decide to use this, make the 0.9 value a damping parameter in the input.
+! If decide to use this, make the 0.9 value a damping parameter in the input.
 
 
     ENDSUBROUTINE UpdateLambdas
@@ -1095,27 +1176,32 @@ MODULE RotateOrbsMod
  
         REAL*8 :: CurrCoeff(SpatOrbs,SpatOrbs)
         REAL*8 :: DerivConstr(SpatOrbs,SpatOrbs,TotNoConstraints)
-        INTEGER :: l,m,i,j,a
-        
+        INTEGER :: l,m,i,j,a,Symm
+       
+        DerivConstr(:,:,:)=0.D0
         do l=1,TotNoConstraints
             i=lab(1,l)
             j=lab(2,l)
             do m=1,SpatOrbs 
-                do a=1,SpatOrbs
-                    IF (m.eq.i.and.m.eq.j) THEN
+!                Symm=AOSymm(m) 
+!                do a=(SymInd(Symm+1)),(SymInd(Symm+1)+MBas(Symm+1)-1)
+                IF (m.eq.i.and.m.eq.j) THEN
+                    do a=1,SpatOrbs
                         DerivConstr(a,m,l)=CurrCoeff(a,j)*2
-                    ELSEIF (m.eq.j) THEN
+                    enddo
+                ELSEIF (m.eq.j) THEN
+                    do a=1,SpatOrbs
                         DerivConstr(a,m,l)=CurrCoeff(a,i) 
-                    ELSEIF (m.eq.i) THEN
+                    enddo
+                ELSEIF (m.eq.i) THEN
+                    do a=1,SpatOrbs
                         DerivConstr(a,m,l)=CurrCoeff(a,j)
-                    ELSE
-                        DerivConstr(a,m,l)=0.D0
-                    ENDIF
-                    ! DerivConstrT1 stays the same throughout the iterations
-                enddo
+                    enddo
+                ENDIF
+                ! DerivConstrT1 stays the same throughout the iterations
             enddo
         enddo
-    
+                  
     ENDSUBROUTINE CalcDerivConstr
 
 
@@ -1124,7 +1210,7 @@ MODULE RotateOrbsMod
     ! This takes the current lambdas with the derivatives of the constraints and calculates a force
     ! for each cm, with an orthonormalisation correction.
     ! This is then used to rotate the coefficients by a defined timestep.
-        INTEGER :: a,l,m
+        INTEGER :: a,l,m,Symm
         REAL*8 :: TotForce,TotDiffCoeffs,CoeffT2(SpatOrbs,SpatOrbs)
 
 !        WRITE(6,*) 'DerivCoeff'
@@ -1145,8 +1231,11 @@ MODULE RotateOrbsMod
 
                 
         do m=1,SpatOrbs
-            ! FIND THE FORCE
-            do a=1,SpatOrbs
+            ! FIND THE FORCE 
+            Symm=AOSymm(m) 
+            do a=(SymInd(Symm+1)),(SymInd(Symm+1)+MBas(Symm+1)-1)
+
+!            do a=1,SpatOrbs
 
                 ForceCorrect(a,m)=DerivCoeff(a,m)-Correction(a,m)
                 ! find the corrected force. (in the case where the uncorrected force is required, correction is set to 0.
@@ -1163,7 +1252,6 @@ MODULE RotateOrbsMod
                 ! Calculate parameters for printing
                 TotForce=TotForce+ForceCorrect(a,m)
                 TotDiffCoeffs=TotDiffCoeffs+ABS(CoeffT2(a,m)-CoeffT1(a,m))
-
 
             enddo
         enddo
