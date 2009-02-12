@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
           tAnnihilatebyrange=.false.
           tSymmetricField=.false.
@@ -741,6 +742,9 @@ MODULE Calc
             case("REGENEXCITGENS")
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
+            case("REGENDIAGHELS")
+!A parallel FCIMC option. With this, the diagonal elements of the hamiltonian matrix will not be stored with each particle. This will generally be slower, but save on memory.
+                tRegenDiagHEls=.true.
             case("FIXSHELLSHIFT")
 !An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than <ShellFix>. This will almost definitly give the wrong answers for both the energy
 !and the shift, but may be of use in equilibration steps to maintain particle density at low excitations, before writing out the data and letting the shift change.

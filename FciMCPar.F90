@@ -2,17 +2,12 @@
 !This is a parallel MPI version of the FciMC code.
 !All variables refer to values per processor
 
-!!!!! TO DO !!!!
-! Add new test
-! Option for calculating non-essential information
-! Simulate Magnetization to break sign symmetry tau*(Kii-S-Bs_i) B on HF is +ve
-
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use SystemData , only : tHub,tReal,tNonUniRandExcits
     use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
-    use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn
+    use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
@@ -452,7 +447,7 @@ MODULE FciMCParMod
 !We want to keep this particle
                         CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,IndParts)
                         CurrentSign(VecInd)=NewSign(IndParts)
-                        CurrentH(VecInd)=NewH(IndParts)
+                        IF(.not.tRegenDiagHEls) CurrentH(VecInd)=NewH(IndParts)
                         VecInd=VecInd+1
                     ELSE
                         OrigPartAnn=OrigPartAnn+1
@@ -471,22 +466,25 @@ MODULE FciMCParMod
                     CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
                     CurrentSign(VecInd)=SpawnedSign(IndSpawned)
 
+                    IF(.not.tRegenDiagHEls) THEN
 !Need to find H-element!
-                    IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
+                        IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
 !We know we are at HF - HDiag=0
-                        HDiag=0.D0
-                        IF(tHub.and.tReal) THEN
+                            HDiag=0.D0
+                            IF(tHub.and.tReal) THEN
 !Reference determinant is not HF
+                                CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
+                                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                                HDiag=(REAL(HDiagTemp%v,r2))
+                            ENDIF
+                        ELSE
                             CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
                             HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                            HDiag=(REAL(HDiagTemp%v,r2))
+                            HDiag=(REAL(HDiagTemp%v,r2))-Hii
                         ENDIF
-                    ELSE
-                        CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
-                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                        CurrentH(VecInd)=HDiag
+
                     ENDIF
-                    CurrentH(VecInd)=HDiag
                     
                     VecInd=VecInd+1
                     IF(ValidSpawned.eq.IndSpawned) THEN
@@ -506,7 +504,7 @@ MODULE FciMCParMod
                 IF(NewSign(i).ne.0) THEN
                     CurrentDets(0:NoIntForDet,VecInd)=NewDets(0:NoIntForDet,i)
                     CurrentSign(VecInd)=NewSign(i)
-                    CurrentH(VecInd)=NewH(i)
+                    IF(.not.tRegenDiagHEls) CurrentH(VecInd)=NewH(i)
                     VecInd=VecInd+1
                 ELSE
                     OrigPartAnn=OrigPartAnn+1
@@ -518,22 +516,25 @@ MODULE FciMCParMod
                 CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,i)
                 CurrentSign(VecInd)=SpawnedSign(i)
 
+                IF(.not.tRegenDiagHEls) THEN
 !Need to find H-element!
-                IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
+                    IF(DetBitEQ(CurrentDets(0:NoIntForDet,VecInd),iLutHF,NoIntforDet)) THEN
 !We know we are at HF - HDiag=0
-                    HDiag=0.D0
-                    IF(tHub.and.tReal) THEN
+                        HDiag=0.D0
+                        IF(tHub.and.tReal) THEN
 !Reference determinant is not HF
+                            CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
+                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                            HDiag=(REAL(HDiagTemp%v,r2))
+                        ENDIF
+                    ELSE
                         CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
                         HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                        HDiag=(REAL(HDiagTemp%v,r2))
+                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
                     ENDIF
-                ELSE
-                    CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,VecInd),NEl,NoIntforDet)
-                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                    HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                    CurrentH(VecInd)=HDiag
+
                 ENDIF
-                CurrentH(VecInd)=HDiag
 
                 VecInd=VecInd+1
             enddo
@@ -1486,18 +1487,20 @@ MODULE FciMCParMod
                             CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,2)
                             CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
                         ELSE
-                            IF(DetBitEQ(iLutnJ,iLutHF,NoIntforDet)) THEN
+                            IF(.not.tRegenDiagHEls) THEN
+                                IF(DetBitEQ(iLutnJ,iLutHF,NoIntforDet)) THEN
 !We know we are at HF - HDiag=0
-                                HDiag=0.D0
-                                IF(tHub.and.tReal) THEN
+                                    HDiag=0.D0
+                                    IF(tHub.and.tReal) THEN
 !Reference determinant is not HF
-                                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                                    HDiag=(REAL(HDiagTemp%v,r2))
-                                ENDIF
+                                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                                        HDiag=(REAL(HDiagTemp%v,r2))
+                                    ENDIF
 
-                            ELSE
-                                HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                                HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                                ELSE
+                                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                                    HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                                ENDIF
                             ENDIF
                         ENDIF
 
@@ -1511,7 +1514,7 @@ MODULE FciMCParMod
                             NewDets(:,VecSlot)=iLutnJ(:)
                             NewSign(VecSlot)=WSign
                             IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
-                            NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
+                            IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
                             IF(.not.TNoAnnihil) THEN
 !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                                 Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
@@ -1526,7 +1529,26 @@ MODULE FciMCParMod
                 ENDIF   !End if child created
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
-                iDie=AttemptDiePar(DetCurr,CurrentH(j),WalkExcitLevel)
+                IF(tRegenDiagHEls) THEN
+!We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
+!TO DO. If we are rotoannihilating, then the particles are ordered. Therefore, it may be worth testing if the particle is the same as the preceeding one.
+!If it is, then the diagonal matrix element (as well as excitation level and decoded determinant integer string) will be the same as the preceeding particle.
+!Need to find H-element!
+                    IF(DetBitEQ(CurrentDets(0:NoIntForDet,j),iLutHF,NoIntforDet).and.(.not.(tHub.and.tReal))) THEN
+!We know we are at HF - HDiag=0
+                        HDiag=0.D0
+                    ELSE
+                        HDiagTemp=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
+                    ENDIF
+
+                    iDie=AttemptDiePar(DetCurr,HDiag,WalkExcitLevel)
+
+                ELSE
+                    
+                    iDie=AttemptDiePar(DetCurr,CurrentH(j),WalkExcitLevel)
+                ENDIF
+
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
 
                 NoDied=NoDied+iDie          !Update death counter
@@ -1543,7 +1565,7 @@ MODULE FciMCParMod
 !                            WRITE(6,*) "Problem is here",NewExcits(VecSlot)%IndexinExArr
 !                        ENDIF
                         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
-                        NewH(VecSlot)=CurrentH(j)
+                        IF(.not.tRegenDiagHEls) NewH(VecSlot)=CurrentH(j)
                         IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
 !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
@@ -1575,7 +1597,7 @@ MODULE FciMCParMod
                         ELSE
                             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.false.)
                         ENDIF
-                        NewH(VecSlot)=CurrentH(j)
+                        IF(.not.tRegenDiagHEls) NewH(VecSlot)=CurrentH(j)
                         IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
 !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
@@ -2289,7 +2311,7 @@ MODULE FciMCParMod
 !Copy accross all particles less than this number
                     CurrentDets(:,VecSlot)=NewDets(:,i)
 !                    CurrentIC(VecSlot)=NewIC(i)
-                    CurrentH(VecSlot)=NewH(i)
+                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=NewH(i)
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot),.true.)
                     HashArray(VecSlot)=TempHash(i)
                     CurrentSign(VecSlot)=TempSign(i)
@@ -2304,7 +2326,7 @@ MODULE FciMCParMod
             do i=Index2Table(ToAnnihilateonProc)+1,TotWalkersNew
                 CurrentDets(:,VecSlot)=NewDets(:,i)
 !                CurrentIC(VecSlot)=NewIC(i)
-                CurrentH(VecSlot)=NewH(i)
+                IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=NewH(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot),.true.)
                 HashArray(VecSlot)=TempHash(i)
                 CurrentSign(VecSlot)=TempSign(i)
@@ -2317,7 +2339,7 @@ MODULE FciMCParMod
             do i=1,TotWalkersNew
                 CurrentDets(:,VecSlot)=NewDets(:,i)
 !                CurrentIC(VecSlot)=NewIC(i)
-                CurrentH(VecSlot)=NewH(i)
+                IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=NewH(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(i),CurrentExcits(VecSlot),.true.)
                 HashArray(VecSlot)=TempHash(i)
                 CurrentSign(VecSlot)=TempSign(i)
@@ -2785,7 +2807,7 @@ MODULE FciMCParMod
 !Move the Walker at the end of the list to the position of the walker we have chosen to destroy
                 CurrentDets(:,Chosen)=CurrentDets(:,TotWalkers)
                 CurrentSign(Chosen)=CurrentSign(TotWalkers)
-                CurrentH(Chosen)=CurrentH(TotWalkers)
+                IF(.not.tRegenDiagHEls) CurrentH(Chosen)=CurrentH(TotWalkers)
 !                CurrentIC(Chosen)=CurrentIC(TotWalkers)
                 IF(.not.TRegenExcitgens) THEN
                     CALL DissociateExitgen(CurrentExcits(Chosen))    !First, destroy the excitation generator of the chosen particle
@@ -2814,7 +2836,7 @@ MODULE FciMCParMod
 !Add clone of walker, at the same determinant, to the end of the list
                 CurrentDets(:,VecSlot)=CurrentDets(:,i)
                 CurrentSign(VecSlot)=CurrentSign(i)
-                CurrentH(VecSlot)=CurrentH(i)
+                IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=CurrentH(i)
 !                CurrentIC(VecSlot)=CurrentIC(i)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(i),CurrentExcits(VecSlot),.false.)
 
@@ -3283,12 +3305,17 @@ MODULE FciMCParMod
             ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntForDet+1),4,this_routine,WalkVec2DetsTag,ierr)
             WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
-            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:)=0.d0
-            ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-            WalkVec2H(:)=0.d0
+
+            IF(.not.tRegenDiagHEls) THEN
+                ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                WalkVecH(:)=0.d0
+                ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
+                WalkVec2H(:)=0.d0
+            ELSE
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,r2)/1048576.D0," Mb/Processor"
+            ENDIF
             
             IF(tRotoAnnihil) THEN
                 ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
@@ -3304,12 +3331,15 @@ MODULE FciMCParMod
                 CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
                 MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
             ENDIF
+
+            IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
             
             WalkVecSign(:)=0
             WalkVec2Sign(:)=0
 
             IF(tRotoAnnihil) THEN
 
+                WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
                 ALLOCATE(SpawnVec(0:NoIntForDet,MaxSpawned),stat=ierr)
                 CALL LogMemAlloc('SpawnVec',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVecTag,ierr)
                 SpawnVec(:,:)=0
@@ -3358,15 +3388,17 @@ MODULE FciMCParMod
 !Allocate pointers to the correct walker arrays
             CurrentDets=>WalkVecDets
             CurrentSign=>WalkVecSign
-            CurrentH=>WalkVecH
+            IF(.not.tRegenDiagHEls) THEN
+                CurrentH=>WalkVecH
+                NewH=>WalkVec2H
+            ENDIF
             NewDets=>WalkVec2Dets
             NewSign=>WalkVec2Sign
-            NewH=>WalkVec2H
 
             IF(TStartSinglePart) THEN
                 CurrentDets(:,1)=iLutHF(:)
                 CurrentSign(1)=1
-                CurrentH(1)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                 IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
                     HashArray(1)=HFHash
@@ -3376,7 +3408,7 @@ MODULE FciMCParMod
                 do j=1,InitWalkers
                     CurrentDets(:,j)=iLutHF(:)
                     CurrentSign(j)=1
-                    CurrentH(j)=0.D0
+                    IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
                     IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                         HashArray(j)=HFHash
@@ -3431,7 +3463,7 @@ MODULE FciMCParMod
                 WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
             ENDIF
             IF(tRotoAnnihil) THEN
-                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ??? Mb/Processor"
+                WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
             ELSE
                 WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
             ENDIF
@@ -3907,21 +3939,27 @@ MODULE FciMCParMod
         WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
 
 !Need to now allocate other arrays
-        ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-        WalkVecH(:)=0.d0
-        ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-        WalkVec2H(:)=0.d0
+        IF(.not.tRegenDiagHEls) THEN
+            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+            WalkVecH(:)=0.d0
+            ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
+            WalkVec2H(:)=0.d0
+        ELSE
+            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+        ENDIF
 
         IF(tRotoAnnihil) THEN
             MemoryAlloc=((2*MaxWalkersPart)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
         ELSE
             MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
         ENDIF
+        IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*4)
 
         IF(tRotoAnnihil) THEN
 
+            WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
             ALLOCATE(SpawnVec(0:NoIntForDet,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
@@ -3975,11 +4013,13 @@ MODULE FciMCParMod
         CurrentDets=>WalkVecDets
         CurrentSign=>WalkVecSign
 !        CurrentIC=>WalkVecIC
-        CurrentH=>WalkVecH
+        IF(.not.tRegenDiagHEls) THEN
+            CurrentH=>WalkVecH
+            NewH=>WalkVec2H
+        ENDIF
         NewDets=>WalkVec2Dets
         NewSign=>WalkVec2Sign
 !        NewIC=>WalkVec2IC
-        NewH=>WalkVec2H
 
         IF(.not.TRegenExcitgens) THEN
             ALLOCATE(WalkVecExcits(MaxWalkersPart),stat=ierr)
@@ -4011,7 +4051,7 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tRotoAnnihil) THEN
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than ??? Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
         ELSE
             WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
         ENDIF
@@ -4023,7 +4063,7 @@ MODULE FciMCParMod
             CALL DecodeBitDet(TempnI,CurrentDets(:,j),NEl,NoIntforDet)
             CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,Excitlevel,2)
             IF(Excitlevel.eq.0) THEN
-                CurrentH(j)=0.D0
+                IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
                 IF(First) THEN
 !First run - create the excitation.
                     IF(.not.TRegenExcitgens) CALL SetupExitgenPar(HFDet,CurrentExcits(j))
@@ -4037,8 +4077,10 @@ MODULE FciMCParMod
                     HashArray(j)=HFHash
                 ENDIF
             ELSE
-                HElemTemp=GetHElement2(TempnI,TempnI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
+                IF(.not.tRegenDiagHEls) THEN
+                    HElemTemp=GetHElement2(TempnI,TempnI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
+                ENDIF
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%PointToExcit=>null()
                 IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -4112,12 +4154,16 @@ MODULE FciMCParMod
 !        CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
 !        ALLOCATE(WalkVec2IC(MaxWalkersPart),stat=ierr)
 !        CALL LogMemAlloc('WalkVec2IC',MaxWalkersPart,4,this_routine,WalkVec2ICTag,ierr)
-        ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-        WalkVecH(:)=0.d0
-        ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-        WalkVec2H(:)=0.d0
+        IF(.not.tRegenDiagHEls) THEN
+            ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+            WalkVecH(:)=0.d0
+            ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
+            WalkVec2H(:)=0.d0
+        ELSE
+            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+        ENDIF
         
         IF(tRotoAnnihil) THEN
             MemoryAlloc=((2*(MaxWalkersPart))+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
@@ -4125,8 +4171,11 @@ MODULE FciMCParMod
             MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
         ENDIF
 
+        IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
+
         IF(tRotoAnnihil) THEN
             
+            WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
             ALLOCATE(SpawnVec(0:NoIntForDet,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NoIntforDet+1),4,this_routine,SpawnVecTag,ierr)
             SpawnVec(:,:)=0
@@ -4174,10 +4223,12 @@ MODULE FciMCParMod
 !Allocate pointers to the correct walker arrays
         CurrentDets=>WalkVecDets
         CurrentSign=>WalkVecSign
-        CurrentH=>WalkVecH
+        IF(.not.tRegenDiagHEls) THEN
+            CurrentH=>WalkVecH
+            NewH=>WalkVec2H
+        ENDIF
         NewDets=>WalkVec2Dets
         NewSign=>WalkVec2Sign
-        NewH=>WalkVec2H
 
 !Now calculate MP1 components - allocate memory for doubles
         CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
@@ -4281,7 +4332,7 @@ MODULE FciMCParMod
                 WalkersonHF=WalkersonHF+1
                 CurrentDets(0:NoIntforDet,j)=iLutHF(:)
                 CurrentSign(j)=1
-                IF(.not.tRotoAnnihil) THEN
+                IF((.not.tRotoAnnihil).and.(.not.tRegenDiagHEls)) THEN
                     CurrentH(j)=0.D0
                 ENDIF
                 IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
@@ -4292,7 +4343,7 @@ MODULE FciMCParMod
 !We are at a double excitation - we need to calculate most of this information...
                 CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j),NEl,NoIntforDet)
                 CurrentSign(j)=MP1Sign(i)
-                IF(.not.tRotoAnnihil) THEN
+                IF((.not.tRotoAnnihil).and.(.not.tRegenDiagHEls)) THEN
 !With RotoAnnihilation, we fill the CurrentH Array after ordering
                     Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
                     CurrentH(j)=real(Hjj%v,r2)-Hii
@@ -4308,12 +4359,14 @@ MODULE FciMCParMod
         IF(tRotoAnnihil) THEN
             WRITE(6,*) "Ordering all walkers for rotoannihilation..."
             CALL SortBitDets(InitWalkers,CurrentDets(0:NoIntforDet,1:InitWalkers),NoIntforDet,CurrentSign(1:InitWalkers))
-            do j=1,InitWalkers
+            IF(.not.tRegenDiagHEls) THEN
+                do j=1,InitWalkers
 !Now find the diagonal elements for all the walkers.
-                CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,j),NEl,NoIntforDet)
-                Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                CurrentH(j)=real(Hjj%v,r2)-Hii
-            enddo
+                    CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,j),NEl,NoIntforDet)
+                    Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    CurrentH(j)=real(Hjj%v,r2)-Hii
+                enddo
+            ENDIF
         ENDIF
 
         
@@ -4391,7 +4444,7 @@ MODULE FciMCParMod
             WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
         ENDIF
         IF(tRotoAnnihil) THEN
-            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than ??? Mb/Processor"
+            WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
         ELSE
             WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
         ENDIF
@@ -5160,7 +5213,9 @@ MODULE FciMCParMod
                 CALL MPI_Send(CurrentDets(:,IndexFrom:TotWalkers),WalktoTransfer(1)*(NoIntforDet+1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
                 CALL MPI_Send(CurrentSign(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
 !                CALL MPI_Send(CurrentIC(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
-                CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                IF(.not.tRegenDiagHEls) THEN
+                    CALL MPI_Send(CurrentH(IndexFrom:TotWalkers),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(3),Tag,MPI_COMM_WORLD,error)
+                ENDIF
 !It seems like too much like hard work to send the excitation generators accross, just let them be regenerated on the other side...
 !However, we do need to indicate that these the excitgens are no longer being pointed at.
                 IF(.not.TRegenExcitgens) THEN
@@ -5186,7 +5241,9 @@ MODULE FciMCParMod
                 CALL MPI_Recv(CurrentDets(:,IndexFrom:IndexTo),WalktoTransfer(1)*(NoIntforDet+1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
                 CALL MPI_Recv(CurrentSign(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !                CALL MPI_Recv(CurrentIC(IndexFrom:IndexTo),WalktoTransfer(1),MPI_INTEGER,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
-                CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                IF(.not.tRegenDiagHEls) THEN
+                    CALL MPI_Recv(CurrentH(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
+                ENDIF
                 IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) CALL MPI_Recv(HashArray(IndexFrom:IndexTo),WalktoTransfer(1),MPI_DOUBLE_PRECISION,WalktoTransfer(2),Tag,MPI_COMM_WORLD,Stat,error)
 !Also need to indicate that the excitation generators are no longer useful...
@@ -5213,7 +5270,11 @@ MODULE FciMCParMod
 
         IF(tRotoAnnihil) THEN
 !If we are using rotoannihilation, then we need to maintain sorted lists. There is a much better way to do it than sorting them all again though!...
-            CALL SortBitDetswH(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
+            IF(.not.tRegenDiagHEls) THEN
+                CALL SortBitDetswH(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
+            ELSE
+                CALL SortBitDets(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers))
+            ENDIF
         ENDIF
 
         IF(iProcIndex.eq.root) THEN
@@ -5317,10 +5378,12 @@ MODULE FciMCParMod
 !        CALL LogMemDealloc(this_routine,WalkVecICTag)
 !        DEALLOCATE(WalkVec2IC)
 !        CALL LogMemDealloc(this_routine,WalkVec2ICTag)
-        DEALLOCATE(WalkVecH)
-        CALL LogMemDealloc(this_routine,WalkVecHTag)
-        DEALLOCATE(WalkVec2H)
-        CALL LogMemDealloc(this_routine,WalkVec2HTag)
+        IF(.not.tRegenDiagHEls) THEN
+            DEALLOCATE(WalkVecH)
+            CALL LogMemDealloc(this_routine,WalkVecHTag)
+            DEALLOCATE(WalkVec2H)
+            CALL LogMemDealloc(this_routine,WalkVec2HTag)
+        ENDIF
         
         IF(TResumFCIMC.and.(NDets.gt.2)) THEN
             DEALLOCATE(GraphRhoMat)
@@ -5687,7 +5750,11 @@ MODULE FciMCParMod
 !Apply the rho matrix successive times. This could be improved if large numbers of applications of rho are needed by diagonalising the rho matrix
         CALL ApplyRhoMatPar()
         
-        CALL CreateNewPartsPar(nI,VecInd,WSign,CurrentH(VecInd),VecSlot,Prob)   !Create particles proportionally to the magnitude of the vector elements in GraphVec
+        IF(.not.tRegenDiagHEls) THEN
+            CALL CreateNewPartsPar(nI,VecInd,WSign,CurrentH(VecInd),VecSlot,Prob)   !Create particles proportionally to the magnitude of the vector elements in GraphVec
+        ELSE
+            CALL Stop_All("ResumGraphPar","ResumGraphPar does not work with regendiaghels.")
+        ENDIF
 
         RETURN
 
@@ -5700,6 +5767,10 @@ MODULE FciMCParMod
         REAL*8 :: Prob,ExcitProb
         LOGICAL :: SameDet,CompiPath
         TYPE(HElement) :: Hij,Hjj
+
+        IF(tRegenDiagHEls) THEN
+            CALL Stop_All("CreateGraphPar","CreateGraphPar will not work with RegenDiagHEls")
+        ENDIF
 
         TempExcitgen%PointToExcit=>null()
 
@@ -5854,7 +5925,7 @@ MODULE FciMCParMod
                     NewDets(1:NEl,VecSlot)=DetsInGraph(1:NEl,i)
                     NewSign(VecSlot)=TempSign
 !                    NewIC(VecSlot)=ExcitLevel
-                    NewH(VecSlot)=GraphKii(i)       !Diagonal H El previously stored
+                    IF(.not.tRegenDiagHEls) NewH(VecSlot)=GraphKii(i)       !Diagonal H El previously stored
                     IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
                     IF(.not.TNoAnnihil) THEN
 !                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -5902,7 +5973,7 @@ MODULE FciMCParMod
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot),.false.)
                 ENDIF
 !                NewIC(VecSlot)=CurrentIC(VecInd)
-                NewH(VecSlot)=CurrentH(VecInd)
+                IF(.not.tRegenDiagHEls) NewH(VecSlot)=CurrentH(VecInd)
                 IF(.not.TNoAnnihil) THEN
 !                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
                     Hash2Array(VecSlot)=HashArray(VecInd)
@@ -5985,7 +6056,7 @@ MODULE FciMCParMod
 !DetCurr is the current determinant
         DetCurr(:)=NewDets(:,j)
 !        TempIC=NewIC(j)
-        TempH=NewH(j)
+        IF(.not.tRegenDiagHEls) TempH=NewH(j)
         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit,.true.) !This will delete what is behind it - is that ok?
         
         VecSlot=1
@@ -6009,7 +6080,7 @@ MODULE FciMCParMod
                     CurrentDets(:,VecSlot)=DetCurr(:)
                     CurrentSign(VecSlot)=1
 !                    CurrentIC(VecSlot)=TempIC
-                    CurrentH(VecSlot)=TempH
+                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=TempH
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
                     VecSlot=VecSlot+1
                 enddo
@@ -6019,7 +6090,7 @@ MODULE FciMCParMod
                     CurrentDets(:,VecSlot)=DetCurr(:)
                     CurrentSign(VecSlot)=1
 !                    CurrentIC(VecSlot)=TempIC
-                    CurrentH(VecSlot)=TempH
+                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=TempH
                     IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
                     VecSlot=VecSlot+1
                 enddo
@@ -6027,7 +6098,7 @@ MODULE FciMCParMod
 !Now update the current determinant
             DetCurr(:)=NewDets(:,j)
 !            TempIC=NewIC(j)
-            TempH=NewH(j)
+            IF(.not.tRegenDiagHEls) TempH=NewH(j)
             IF(.not.TRegenExcitgens) THEN
                 CALL DissociateExitGen(TempExcit)
                 CALL CopyExitGenPar(NewExcits(j),TempExcit,.true.)
@@ -6064,26 +6135,26 @@ MODULE FciMCParMod
         IF(L.GT.1)THEN
             L=L-1
             TempDet(:)=Dets(:,L)
-            HTemp=NewH(L)
+            IF(.not.tRegenDiagHEls) HTemp=NewH(L)
 !            ICTemp=NewIC(L)
             WSignTemp=NewSign(L)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp,.true.) !This will delete what is behind it - is this ok?
         ELSE
             TempDet(:)=Dets(:,IR)      !Copy IRth elements to temp
-            HTemp=NewH(IR)
+            IF(.not.tRegenDiagHEls) HTemp=NewH(IR)
 !            ICTemp=NewIC(IR)
             WSignTemp=NewSign(IR)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp,.true.)
 
             Dets(:,IR)=Dets(:,1)    !Copy 1st element to IRth element
-            NewH(IR)=NewH(1)
+            IF(.not.tRegenDiagHEls) NewH(IR)=NewH(1)
 !            NewIC(IR)=NewIC(1)
             NewSign(IR)=NewSign(1)
             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR),.true.)
             IR=IR-1
             IF(IR.EQ.1)THEN
                 Dets(:,1)=TempDet(:)    !Copy temp element to 1st element
-                NewH(1)=HTemp
+                IF(.not.tRegenDiagHEls) NewH(1)=HTemp
 !                NewIC(1)=ICTemp
                 NewSign(1)=WSignTemp
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(1),.true.)
@@ -6098,7 +6169,7 @@ MODULE FciMCParMod
             ENDIF
             IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
                 Dets(:,I)=Dets(:,J)     !Copy Jth element to Ith element
-                NewH(I)=NewH(J)
+                IF(.not.tRegenDiagHEls) NewH(I)=NewH(J)
 !                NewIC(I)=NewIC(J)
                 NewSign(I)=NewSign(J)
                 IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(J),NewExcits(I),.true.)
@@ -6110,7 +6181,7 @@ MODULE FciMCParMod
             GO TO 20
         ENDIF
         Dets(:,I)=TempDet(:)
-        NewH(I)=HTemp
+        IF(.not.tRegenDiagHEls) NewH(I)=HTemp
 !        NewIC(I)=ICTemp
         NewSign(I)=WSignTemp
         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(I),.true.)

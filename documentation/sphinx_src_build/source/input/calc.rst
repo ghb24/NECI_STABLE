@@ -814,6 +814,13 @@ The following options are only available in **FCIMC** calculations:
     Remove the annihilation of particles on the same
     determinant step.
 
+**REGENDIAGHELS**
+    Default .false.
+    This is a parallel FCIMC option, which means that the diagonal hamiltonian matrix
+    element for each particle is calculated on the fly, rather than stored with the
+    particle. This will free up more memory, but will probably lead to slightly slower
+    calculations.
+
 **REGENEXCITGENS**
     This option will regenerate the excitation generator for each particle, every time a 
     new random excitation is wanted. This is MUCH slower for the same number of particles
