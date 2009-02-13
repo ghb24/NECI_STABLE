@@ -151,7 +151,7 @@ MODULE FciMCParMod
     LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
     LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
 
-    TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time,Sort_Time,Comms_Time
+    TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time,Sort_Time,Comms_Time,AnnSpawned_time,AnnMain_time
 
 !These are arrays used to store the autocorrelation function
     INTEGER , ALLOCATABLE :: WeightatDets(:)                   !First index - det which is stored, second - weight on proc at that iteration
@@ -361,7 +361,9 @@ MODULE FciMCParMod
 
 !Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
+        CALL set_timer(Sort_Time,30)
         CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew,SpawnedBeforeRoto)
+        CALL halt_timer(Sort_Time)
 
         DEALLOCATE(RemoveInds)
         
@@ -584,6 +586,8 @@ MODULE FciMCParMod
         INTEGER :: Minsendcounts,Maxsendcounts,DebugIter,SubListInds(2,nProcessors),MinProc,MinInd
         INTEGER(KIND=i2) :: HashCurr,MinBin,RangeofBins,NextBinBound,MinHash
         CHARACTER(len=*), PARAMETER :: this_routine='AnnihilateBetweenSpawned'
+
+        CALL set_timer(AnnSpawned_time,30)
 
 !First, we need to allocate memory banks. Each array needs a hash value, a processor value, and an index value.
 !We also want to allocate a temporary sign value
@@ -977,6 +981,8 @@ MODULE FciMCParMod
             SpawnedSign2 => SpawnSignVec2
         ENDIF
 
+        CALL halt_timer(AnnSpawned_time)
+
     END SUBROUTINE AnnihilateBetweenSpawned
 
     SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
@@ -1087,6 +1093,8 @@ MODULE FciMCParMod
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
         INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,SearchInd,AnnihilateInd,ToRemove,VecInd,SignProd
         LOGICAL :: DetBitEQ,tSuccess,tSkipSearch
+
+        CALL set_timer(AnnMain_time,30)
 
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
@@ -1251,6 +1259,7 @@ MODULE FciMCParMod
 !
 !        ENDIF
 
+        CALL halt_timer(AnnMain_time)
 
     END SUBROUTINE AnnihilateSpawnedParts
         
@@ -1263,6 +1272,8 @@ MODULE FciMCParMod
     SUBROUTINE RotateParticles(ValidSpawned)
         INTEGER :: error,ValidSpawned
         INTEGER, DIMENSION(MPI_STATUS_SIZE) :: Stat 
+        
+        CALL set_timer(Comms_Time,30)
 
 !ValidSpawned is the number of particles spawned (and still alive) for this set of particles (index is iProcIndex-no.rotates)
         SpawnedSign(0)=ValidSpawned
@@ -1319,6 +1330,8 @@ MODULE FciMCParMod
         ENDIF
 !        WRITE(6,*) "Switched arrays around..."
 !        CALL FLUSH(6)
+
+        CALL halt_timer(Comms_Time)
 
     END SUBROUTINE RotateParticles
 
@@ -2968,6 +2981,8 @@ MODULE FciMCParMod
         Sort_Time%timer_name='SortTime'
         Comms_Time%timer_name='CommsTime'
         ACF_Time%timer_name='ACFTime'
+        AnnSpawned_time%timer_name='AnnSpawnedTime'
+        AnnMain_time%timer_name='AnnMainTime'
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -3478,7 +3493,7 @@ MODULE FciMCParMod
                 WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
                 WRITE(6,*) "Initial allocation of excitation generators successful..."
             ELSE
-                WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
+                WRITE(6,"(A)") "Excitation generators will not be stored, but regenerated each time they are needed..."
             ENDIF
             IF(tRotoAnnihil) THEN
                 WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
@@ -4459,7 +4474,7 @@ MODULE FciMCParMod
             WRITE(6,"(A,F14.6,A)") "Probable maximum memory for excitgens is : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
             WRITE(6,*) "Initial allocation of excitation generators successful..."
         ELSE
-            WRITE(6,*) "Excitation generators will not be stored, but regenerated each time they are needed..."
+            WRITE(6,"(A)") "Excitation generators will not be stored, but regenerated each time they are needed..."
         ENDIF
         IF(tRotoAnnihil) THEN
             WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
@@ -5325,7 +5340,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        WRITE(6,*) "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
+        WRITE(6,"(A)") "Calculating approximate pDoubles for use with excitation generator by looking a excitations from HF."
         IF(tAssumeSizeExcitgen) THEN
             PosExcittypes=SymClassSize*NEL+NBASIS/32+4
             iTotal=HFExcit%ExcitData(1)
