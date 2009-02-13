@@ -354,7 +354,7 @@ MODULE FciMCParMod
             CALL RotateParticles(ValidSpawned)
 
 !Detach buffers
-            CALL MPI_Buffer_detach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+            CALL MPI_Buffer_detach(mpibuffer,2*(MaxSpawned+1)*(NoIntforDet+2)*4,error)
             DEALLOCATE(mpibuffer)
         ENDIF
 
