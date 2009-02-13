@@ -324,11 +324,11 @@ MODULE FciMCParMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NoIntforDet+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer((MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
+            ALLOCATE(mpibuffer(2*(MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
-            CALL MPI_Buffer_attach(mpibuffer,(MaxSpawned+1)*(NoIntforDet+1)*4,error)
+            CALL MPI_Buffer_attach(mpibuffer,2*(MaxSpawned+1)*(NoIntforDet+2)*4,error)
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
