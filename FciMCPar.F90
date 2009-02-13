@@ -1160,10 +1160,13 @@ MODULE FciMCParMod
 !PartInd+1 to the end of the block for a complimentary particle.
                     SearchInd=PartInd+1
                     do while((DetBitEQ(SpawnedParts(0:NoIntforDet,i),NewDets(0:NoIntforDet,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
-                        IF((NewSign(SearchInd)*SpawnedSign(i)).eq.-1) THEN
+                        SignProd=NewSign(SearchInd)*SpawnedSign(i)
+                        IF(SignProd.eq.-1) THEN
 !We have found a complimentary particle - mark the index of this particle for annihilation.
 !                            WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
                             AnnihilateInd=SearchInd
+                            EXIT
+                        ELSEIF(SignProd.eq.1) THEN
                             EXIT
                         ENDIF
 
