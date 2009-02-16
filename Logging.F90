@@ -7,8 +7,8 @@ MODULE Logging
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE
-    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops
+    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogram
     INTEGER NoACDets(2:4),iPopsPartEvery
 
     contains
@@ -38,6 +38,8 @@ MODULE Logging
       TWriteDetE=.false.
       iPopsPartEvery=1
       tBinPops=.false.
+      tROHistogram=.false.
+      tROFciDump=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -65,6 +67,18 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
+        case("ROHISTOGRAM")
+!This option goes with the orbital rotation routine.  If this keyword is included, a histogram is produced, showing the distribution
+!of the four index integral values (<ij|kl>, not including where i=k and/or j=l) both before the orbital transformation (HF integrals)
+!and after.  Two files are produced, ROHistHF and ROHistRotated.
+!As it stands, the bins run from -1 to 1 with increments of 0.05. These parameters may be made options in the future.
+            tROHistogram=.true.
+        
+        case("ROFCIDUMP")
+!Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow
+!so this will prevent us having to do the transformation every time we run a calculation on a particular system
+            tROFciDump=.true.
+
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 
