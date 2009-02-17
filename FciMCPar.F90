@@ -1410,12 +1410,12 @@ MODULE FciMCParMod
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
-        INTEGER :: VecSlot,i,j,k,l,ValidSpawned
+        INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p
-        LOGICAL :: tParity,DetBitEQ
+        LOGICAL :: tParity,DetBitEQ,tMainArr
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -1607,43 +1607,80 @@ MODULE FciMCParMod
                 
                 ENDIF   !End if child created
 
+            enddo   !End of cycling over mulitple particles on same determinant.
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
+!For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
 
-                iDie=AttemptDiePar(DetCurr,HDiagCurr,WalkExcitLevel)
+            iDie=AttemptDiePar(DetCurr,HDiagCurr,WalkExcitLevel,CurrentSign(j))
+            NoDied=NoDied+iDie          !Update death counter
 
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
+            IF(tRotoAnnihil) THEN
 
-                NoDied=NoDied+iDie          !Update death counter
-                
+                IF(CurrentSign(j).le.0) THEN
+                    CopySign=CurrentSign(j)+iDie
+                    IF(CopySign.le.0) THEN
+!If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
+!it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate.
+                        tMainArr=.true.
+                    ELSE
+                        tMainArr=.false.
+                    ENDIF
+                ELSE
+                    CopySign=CurrentSign(j)-iDie
+                    IF(CopySign.ge.0) THEN
+                        tMainArr=.true.
+                    ELSE
+                        tMainArr=.false.
+                    ENDIF
+                ENDIF
+
+                IF(CopySign.ne.0) THEN
+
+                    IF(tMainArr) THEN
+                        NewDets(:,VecSlot)=CurrentDets(:,j)
+                        NewSign(VecSlot)=CopySign
+                        IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiagCurr
+                        VecSlot=VecSlot+1
+                    ELSE
+                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
+                        do p=1,abs(CopySign)
+!In rotoannihilation, we still want to specify the determinants singly - this may change in the future...
+                            SpawnedParts(:,ValidSpawned)=CurrentDets(:,j)
+                            IF(CopySign.lt.0) THEN
+                                SpawnedSign(ValidSpawned)=-1
+                            ELSE
+                                SpawnedSign(ValidSpawned)=1
+                            ENDIF
+                            ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+                        enddo
+                    ENDIF
+
+                ENDIF
+
+            ELSE
+
                 IF(iDie.le.0) THEN
 !This indicates that the particle is spared and we may want to create more...copy them across to NewDets
 !If iDie < 0, then we are creating the same particles multiple times. Copy accross (iDie+1) copies of particle
         
                     do l=1,abs(iDie)+1    !We need to copy accross one more, since we need to include the original spared particle
-                        IF((DetBitEQ(CurrentDets(:,j),NewDets(:,VecSlot-1),NoIntForDet)).and.tRotoAnnihil) THEN
-                            IF(CurrentSign(j).lt.0) THEN
-                                NewSign(VecSlot-1)=NewSign(VecSlot-1)-1
-                            ELSE
-                                NewSign(VecSlot-1)=NewSign(VecSlot-1)+1
-                            ENDIF
+                        NewDets(:,VecSlot)=CurrentDets(:,j)
+                        IF(CurrentSign(j).lt.0) THEN
+                            NewSign(VecSlot)=-1
                         ELSE
-                            NewDets(:,VecSlot)=CurrentDets(:,j)
-                            IF(CurrentSign(j).lt.0) THEN
-                                NewSign(VecSlot)=-1
-                            ELSE
-                                NewSign(VecSlot)=1
-                            ENDIF
-!Copy excitation generator accross
-!                            IF(ASSOCIATED(NewExcits(VecSlot)%PointToExcit)) THEN
-!                                WRITE(6,*) "Problem is here",NewExcits(VecSlot)%IndexinExArr
-!                            ENDIF
-                            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
-                            IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiagCurr
-                            IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
-!                            IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
-                            VecSlot=VecSlot+1
+                            NewSign(VecSlot)=1
                         ENDIF
+!Copy excitation generator accross
+!                        IF(ASSOCIATED(NewExcits(VecSlot)%PointToExcit)) THEN
+!                            WRITE(6,*) "Problem is here",NewExcits(VecSlot)%IndexinExArr
+!                        ENDIF
+                        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
+                        IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiagCurr
+                        IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
+!                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
+                        VecSlot=VecSlot+1
                     enddo
 
                 ELSEIF(iDie.eq.1) THEN
@@ -1653,34 +1690,31 @@ MODULE FciMCParMod
                 ELSE!IF(iDie.gt.1) THEN
 !This indicates that extra particles want to be killed.
 !Anti-particles will need to be created on the same determinant.
-                    IF(tRotoAnnihil) THEN
-                        CALL Stop_All("PerformFCIMCyc","Cannot spawn anti-particles in rotoannihilation. Reduce tau.")
-                    ENDIF
 
                     do l=1,iDie-1
                         NewDets(:,VecSlot)=CurrentDets(:,j)
                         IF(CurrentSign(j).eq.1) THEN
-    !Copy accross new anti-particles
+!Copy accross new anti-particles
                             NewSign(VecSlot)=-1
                         ELSE
                             NewSign(VecSlot)=1
                         ENDIF
-    !Copy excitation generator accross
+!Copy excitation generator accross
                         IF(l.eq.iDie-1) THEN
-    !Delete old excitation generator behind us (ie the final one is a move, rather than copy)
+!Delete old excitation generator behind us (ie the final one is a move, rather than copy)
                             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
                         ELSE
                             IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.false.)
                         ENDIF
                         IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiagCurr
                         IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
-    !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
+!                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
                     enddo
-            
-                ENDIF   !To kill if
 
-            enddo   !Loop over particles on that determinant
+                ENDIF   !Roto Kill If
+        
+            ENDIF   !To kill if
 
 !Finish cycling over walkers
         enddo
@@ -4689,9 +4723,10 @@ MODULE FciMCParMod
 !If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
 !The function allows multiple births(if +ve shift) or deaths from the same particle.
 !The returned number is the number of deaths if positive, and the number of births if negative.
-    INTEGER FUNCTION AttemptDiePar(DetCurr,Kii,IC)
+!Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
+    INTEGER FUNCTION AttemptDiePar(DetCurr,Kii,IC,WSign)
         IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill,IC
+        INTEGER :: DetCurr(NEl),iKill,IC,WSign
 !        TYPE(HElement) :: rh,rhij
         REAL*8 :: Ran2,rat,Kii
         LOGICAL :: tDETinCAS
@@ -4730,6 +4765,9 @@ MODULE FciMCParMod
         ELSE
             rat=Tau*(Kii-DiagSft)
         ENDIF
+
+!If there are multiple particles, decide how many to kill in total...
+        rat=rat*abs(WSign)
 
 ! DEALLOCATE SpinInvBRR
 !        CALL LogMemDealloc(t_r,tagSpinInvBRR)
