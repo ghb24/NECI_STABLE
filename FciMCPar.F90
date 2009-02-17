@@ -549,12 +549,12 @@ MODULE FciMCParMod
 !This should also be equal to TotWalkersNew-TotWalkers
 
         TotWalkers=VecInd-1     !The new total number of particles after all annihilation steps.
-        Annihilated=(InitialSpawned-ValidSpawned)+OrigPartAnn   !The total number of annihilated particles is simply the number annihilated from spawned
+        Annihilated=Annihilated+(InitialSpawned-ValidSpawned)+OrigPartAnn   !The total number of annihilated particles is simply the number annihilated from spawned
                                                                 !list plus the number annihilated from the original list.
 
-        IF(TotWalkers.ne.(InitialSpawned+TotWalkersNew-Annihilated)) THEN
-            CALL Stop_All("InsertRemoveParts","Error in number of surviving particles")
-        ENDIF
+!        IF(TotWalkers.ne.(InitialSpawned+TotWalkersNew-Annihilated)) THEN
+!            CALL Stop_All("InsertRemoveParts","Error in number of surviving particles")
+!        ENDIF
 
         AnnFromSpawned=SpawnedBeforeRoto-ValidSpawned
         TotAnnFromSpawned=0
