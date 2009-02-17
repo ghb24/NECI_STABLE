@@ -1178,7 +1178,10 @@ MODULE FciMCParMod
                         EXIT
                     ELSEIF(SignProd.gt.0) THEN
 !Since the signs are coherent on NewSign, we know that we can not annihilate the SpawnedParts particle if we find a particle of the same sign. 
+!Therefore, we can remove the particle from the list, and instantly transfer the particle to the next array.
                         tSkipSearch=.true.
+                        NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
+                        AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
                         EXIT
                     ENDIF
 
@@ -1204,6 +1207,8 @@ MODULE FciMCParMod
                             AnnihilateInd=SearchInd
                             EXIT
                         ELSEIF(SignProd.gt.0) THEN
+                            NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
+                            AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
                             EXIT
                         ENDIF
 
@@ -1214,7 +1219,7 @@ MODULE FciMCParMod
                     MinInd=SearchInd-1     !This cannot be more than TotWalkersNew
                 ENDIF
 
-                IF(AnnihilateInd.ne.0) THEN
+                IF(AnnihilateInd.gt.0) THEN
 !We have found a particle to annihilate. Mark the particles for annihilation.
                     IF(NewSign(AnnihilateInd).gt.0) THEN
                         NewSign(AnnihilateInd)=NewSign(AnnihilateInd)-1
@@ -1225,6 +1230,12 @@ MODULE FciMCParMod
                     ToRemove=ToRemove+1
                     RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
                     Annihilated=Annihilated+2   !Count that we have annihilated two particles
+
+                ELSEIF(AnnihilateInd.lt.0) THEN
+!We have transferred a particle accross between processors. "Annihilate" from the spawned list, but not the main list.
+                    SpawnedSign(i)=0
+                    ToRemove=ToRemove+1
+                    RemoveInds(ToRemove)=i
                 ENDIF
 
             ELSE
@@ -1269,12 +1280,12 @@ MODULE FciMCParMod
 
         ENDIF
 
-        do i=1,ValidSpawned
+!        do i=1,ValidSpawned
 !            WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
-            IF(SpawnedSign(i).eq.0) THEN
-                CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated")
-            ENDIF
-        enddo
+!            IF(SpawnedSign(i).eq.0) THEN
+!                CALL Stop_All("AnnihilateSpawnedParts","Not all spawned particles correctly annihilated")
+!            ENDIF
+!        enddo
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
 
@@ -1396,7 +1407,7 @@ MODULE FciMCParMod
                 CALL Stop_All("CheckOrdering","Array not ordered correctly")
             ELSEIF(Comp.eq.0) THEN
 !Dets are the same - see if we want to check sign-coherence
-                CALL Stop_All("CheckOrdering","Determinant same as previous one...")
+!                CALL Stop_All("CheckOrdering","Determinant same as previous one...")
                 IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
                     do j=i-5,i+5
                         WRITE(6,*) j,DetArray(:,j),SignArray(j)
@@ -1644,7 +1655,9 @@ MODULE FciMCParMod
                         IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiagCurr
                         VecSlot=VecSlot+1
                     ELSE
-                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
+!                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
+!Here, we are creating anti-particles, and so to keep the sign-coherence of the main array assured, we transfer them to the spawning array.
+!This should generally not happen under normal circumstances.
                         do p=1,abs(CopySign)
 !In rotoannihilation, we still want to specify the determinants singly - this may change in the future...
                             SpawnedParts(:,ValidSpawned)=CurrentDets(:,j)
