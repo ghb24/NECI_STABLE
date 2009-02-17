@@ -16,6 +16,7 @@ MODULE FciMCParMod
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops
     USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
+    USE SymData , only : nSymLabels
     USE global_utilities
     USE HElem
     USE Parallel
@@ -1421,12 +1422,13 @@ MODULE FciMCParMod
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
+        use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU
         INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p
-        LOGICAL :: tParity,DetBitEQ,tMainArr
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -1483,6 +1485,7 @@ MODULE FciMCParMod
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
+            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
             do p=1,abs(CurrentSign(j))
 !If rotoannihilating, we are simply looping over all the particles on the determinant
 
@@ -1491,7 +1494,12 @@ MODULE FciMCParMod
                     CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
                     CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,Seed,IC,0,Prob,iCount,Ex,tParity)
                 ELSE
-                    CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                    IF(tNonUniRandExcits) THEN
+!This will only be a help if most determinants are multiply occupied.
+                        CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,Seed,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                    ELSE
+                        CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                    ENDIF
                 ENDIF
 !Calculate number of children to spawn
 

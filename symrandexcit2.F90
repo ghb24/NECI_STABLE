@@ -38,6 +38,79 @@ MODULE GenRandSymExcitNUMod
 
     contains
 
+!This routine is the same as GenRandSymExcitNU, but you can pass in the ClassCount arrays, so they do not have to be recalculated each time
+!we want an excitation. If tFilled is false, then it wil assume that they are unfilled and calculate them. It will then return the arrays
+!with tFilled = .true. for use in the next excitation.
+!The two arrays want to be integers, both of size (2,1:nSymLabels)
+    SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,iSeed,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag,iSeed
+        INTEGER :: ClassCount2(2,0:nSymLabels-1)
+        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ILUT(0:nBasis/32),i
+        LOGICAL :: tNoSuccess,tParity,tFilled
+        REAL*8 :: pDoub,pGen,Ran2
+        CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
+
+        IF(.not.tFilled) THEN
+            IF(.not.TwoCycleSymGens) THEN
+!Currently only available for molecular systems, or without using symmetry.
+                IF(.not.tNoSymGenRandExcits) THEN
+                    WRITE(6,*) "GenRandSymExcitNU can only be used for molecular systems"
+                    WRITE(6,*) "This is because of difficulties with other symmetries setup."
+                    WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
+                    CALL FLUSH(6)
+                    CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
+                ENDIF
+            ENDIF
+
+!First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
+!and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
+!This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
+!For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
+!This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
+            CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+            tFilled=.true.
+        ENDIF
+
+!ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
+        IF(ExFlag.eq.3) THEN
+!Choose whether to generate a double or single excitation. Prob of generating a double is given by pDoub.
+            pDoubNew=pDoub
+            IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
+
+            IF(Ran2(iSeed).lt.pDoubNew) THEN
+!A double excitation has been chosen to be created.
+                IC=2
+            ELSE
+                IC=1
+            ENDIF
+        ELSEIF(ExFlag.eq.2) THEN
+            IC=2
+            pDoubNew=1.D0
+        ELSEIF(ExFlag.eq.1) THEN
+            IC=1
+            pDoubNew=0.D0
+        ELSE
+            CALL Stop_All(this_routine,"Error in choosing excitations to create.")
+        ENDIF
+
+        IF(IC.eq.2) THEN
+            CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+        ELSE
+            CALL CreateSingleExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            IF(pGen.eq.-1.D0) THEN
+                IF(ExFlag.ne.3) THEN
+                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
+                ENDIF
+                pDoubNew=1.D0
+                IC=2
+                CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            ENDIF
+
+        ENDIF
+
+    END SUBROUTINE GenRandSymExcitScratchNU
+
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag,iSeed
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
@@ -70,7 +143,7 @@ MODULE GenRandSymExcitNUMod
                 WRITE(6,*) "This is because of difficulties with other symmetries setup."
                 WRITE(6,*) "If you want to use these excitation generators, then add NOSYMGEN to the input to ignore symmetry while generating excitations."
                 CALL FLUSH(6)
-                CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems")
+                CALL Stop_All(this_routine,"GenRandSymExcitNU can only be used for molecular systems using symmetry")
             ENDIF
         ENDIF
 
