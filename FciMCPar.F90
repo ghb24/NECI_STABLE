@@ -1826,7 +1826,7 @@ MODULE FciMCParMod
         IF(TSinglePartPhase) THEN
 !Do not allow culling if we are still in the single particle phase.
             IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(TotWalkers.gt.InitWalkers) THEN
+                IF(TotParts.gt.InitWalkers) THEN
                     WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
                     TSinglePartPhase=.false.
                 ENDIF
@@ -1835,7 +1835,7 @@ MODULE FciMCParMod
             CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
         ELSE
 
-            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
+            IF(TotParts.gt.(InitWalkers*GrowMaxFactor)) THEN
 !Particle number is too large - kill them randomly
 
 !Log the fact that we have made a cull
@@ -1846,7 +1846,7 @@ MODULE FciMCParMod
                     call Stop_All("PerformFCIMCyc","Too Many Culls")
                 ENDIF
 !CullInfo(:,1) is walkers before cull
-                CullInfo(NoCulls,1)=TotWalkers
+                CullInfo(NoCulls,1)=TotParts
 !CullInfo(:,3) is MC Steps into shift cycle before cull
                 CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 
@@ -1856,14 +1856,14 @@ MODULE FciMCParMod
 !                CALL FLUSH(6)
                 CALL ThermostatParticlesPar(.true.)
 
-            ELSEIF(TotWalkers.lt.(InitWalkers/2)) THEN
+            ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
 !Particle number is too small - double every particle in its current position
 
 !Log the fact that we have made a cull
                 NoCulls=NoCulls+1
                 IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !CullInfo(:,1) is walkers before cull
-                CullInfo(NoCulls,1)=TotWalkers
+                CullInfo(NoCulls,1)=TotParts
 !CullInfo(:,3) is MC Steps into shift cycle before cull
                 CullInfo(NoCulls,3)=mod(Iter,StepsSft)
                 
@@ -4498,10 +4498,11 @@ MODULE FciMCParMod
 !A reduced determinant representation could be created more easily by stochastically choosing amplitudes and running over excitations, rather than walkers.
             WRITE(6,*) "Ordering and compressing all walkers for rotoannihilation..."
             CALL FLUSH(6)
+            TotWalkers=InitWalkers
 !This will change TotWalkers to be at most the number of double excitations...
-            CALL SortCompressLists(InitWalkers,CurrentDets(0:NoIntforDet,1:InitWalkers),CurrentSign(1:InitWalkers))
+            CALL SortCompressLists(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),CurrentSign(1:TotWalkers))
             IF(.not.tRegenDiagHEls) THEN
-                do j=1,InitWalkers
+                do j=1,TotWalkers
 !Now find the diagonal elements for all the walkers.
                     CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,j),NEl,NoIntforDet)
                     Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -4514,10 +4515,16 @@ MODULE FciMCParMod
         CALL MPI_Reduce(WalkersonHF,SumWalkersonHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.Root) THEN
-            WRITE(6,"(A,I12,A,I12,A)") "Out of ",InitWalkers*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
+            IF(tRotoAnnihil) THEN
+                WRITE(6,"(A,I12,A,I12,A)") "Out of ",TotParts*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
+            ELSE
+                WRITE(6,"(A,I12,A,I12,A)") "Out of ",InitWalkers*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
+                TotParts=InitWalkers
+                AllTotParts=InitWalkers*nProcessors
+            ENDIF
         ENDIF
         AllNoatHF=SumWalkersonHF
-        AllNoatDoubs=(InitWalkers*nProcessors)-SumWalkersonHF
+        AllNoatDoubs=(TotParts*nProcessors)-SumWalkersonHF
 
 !Deallocate MP1 data
         DEALLOCATE(MP1Comps)
@@ -4591,13 +4598,21 @@ MODULE FciMCParMod
         ENDIF
         CALL FLUSH(6)
         
+        IF(tRotoAnnihil) THEN
+            TotWalkersOld=TotWalkers
+            CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
+            AllTotWalkersOld=AllTotWalkers
+            AllTotParts=TotParts*nProcessors
+            AllTotPartsOld=AllTotParts
+        ELSE
 !TotWalkers contains the number of current walkers at each step
-        TotWalkers=InitWalkers
-        TotWalkersOld=InitWalkers
+            TotWalkers=InitWalkers
+            TotWalkersOld=InitWalkers
 !Initialise global variables for calculation on the root node
-        IF(iProcIndex.eq.root) THEN
-            AllTotWalkers=InitWalkers*nProcessors
-            AllTotWalkersOld=InitWalkers*nProcessors
+            IF(iProcIndex.eq.root) THEN
+                AllTotWalkers=InitWalkers*nProcessors
+                AllTotWalkersOld=InitWalkers*nProcessors
+            ENDIF
         ENDIF
 
         RETURN
@@ -5458,12 +5473,12 @@ MODULE FciMCParMod
                     SignList(CurrInd)=SignList(CurrInd)+SignList(i)
                     TotParts=TotParts+abs(SignList(i))
 !Now compress the list...
-                    do j=i-1,Length-1
+                    do j=i,Length-1
                         PartList(:,j)=PartList(:,j+1)
                         SignList(j)=SignList(j+1)
                     enddo
-!                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
-!                    SignList(i-1:Length-1)=SignList(i:Length)
+!                    PartList(:,i:Length-1)=PartList(:,i+1:Length)
+!                    SignList(i:Length-1)=SignList(i+1:Length)
                     Length=Length-1
                 ENDIF
             ELSE
@@ -5502,14 +5517,14 @@ MODULE FciMCParMod
                     SignList(CurrInd)=SignList(CurrInd)+SignList(i)
                     TotParts=TotParts+abs(SignList(i))
 !Now compress the list...
-                    do j=i-1,Length-1
+                    do j=i,Length-1
                         PartList(:,j)=PartList(:,j+1)
                         SignList(j)=SignList(j+1)
                         HList(j)=HList(j+1)
                     enddo
-!                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
-!                    SignList(i-1:Length-1)=SignList(i:Length)
-!                    HList(i-1:Length-1)=HList(i:Length)
+!                    PartList(:,i:Length-1)=PartList(:,i+1:Length)
+!                    SignList(i:Length-1)=SignList(i+1:Length)
+!                    HList(i:Length-1)=HList(i+1:Length)
                     Length=Length-1
                 ENDIF
             ELSE
