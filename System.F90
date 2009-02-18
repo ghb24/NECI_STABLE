@@ -76,6 +76,9 @@ MODULE System
       ROIterMax=5000
       tShakeIter=.false.
       ShakeIterMax=5
+      tSeparateOccVirt=.false.
+      tOccOrbsOnly=.false.
+      tVirtOrbsOnly=.false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -377,6 +380,11 @@ MODULE System
             tShakeIter=.true.
             call Geti(ShakeIterMax)
 
+        case("SEPARATEOCCVIRT")
+! This option applies to the orbital rotation.  If present, the virtual and occuppied orbitals are localised separately.  This has the 
+! advantage of keeping the HF reference determinant the same.
+            tSeparateOccVirt=.true.
+            
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

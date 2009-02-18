@@ -184,7 +184,8 @@ MODULE FciMCParMod
     REAL*8 , ALLOCATABLE :: OneRDM(:,:)         !This is the 1 electron reduced density matrix.
     INTEGER :: OneRDMTag=0                      !It is calculated as an FCIMC run progresses.  As the run tends towards the correct wavefunction, diagonalisation 
     INTEGER :: Orbs(2)                          !of the 1RDM gives linear combinations of the HF orbitals which tend towards the natural orbitals of the system.
-                                                                         
+
+
     contains
 
 
