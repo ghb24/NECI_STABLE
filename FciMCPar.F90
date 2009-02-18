@@ -1433,7 +1433,7 @@ MODULE FciMCParMod
 
         IF(TDebug) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
-            CALL FLUSH(11)
+!            CALL FLUSH(11)
         ENDIF
 
 !        IF(tRotoAnnihil) THEN
@@ -4253,7 +4253,7 @@ MODULE FciMCParMod
 !Set the maximum number of walkers allowed
         MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
         WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
-        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
+        WRITE(6,"(A,I14)") "Memory allocated for a maximum particle/det number per node of: ",MaxWalkersPart
         IF(tRotoAnnihil) THEN
             MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
             WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
@@ -4495,8 +4495,11 @@ MODULE FciMCParMod
 
         enddo
         IF(tRotoAnnihil) THEN
-            WRITE(6,*) "Ordering all walkers for rotoannihilation..."
-            CALL SortBitDets(InitWalkers,CurrentDets(0:NoIntforDet,1:InitWalkers),NoIntforDet,CurrentSign(1:InitWalkers))
+!A reduced determinant representation could be created more easily by stochastically choosing amplitudes and running over excitations, rather than walkers.
+            WRITE(6,*) "Ordering and compressing all walkers for rotoannihilation..."
+            CALL FLUSH(6)
+!This will change TotWalkers to be at most the number of double excitations...
+            CALL SortCompressLists(InitWalkers,CurrentDets(0:NoIntforDet,1:InitWalkers),CurrentSign(1:InitWalkers))
             IF(.not.tRegenDiagHEls) THEN
                 do j=1,InitWalkers
 !Now find the diagonal elements for all the walkers.
@@ -5435,7 +5438,7 @@ MODULE FciMCParMod
 !The 'length' will be returned as the length of the new list.
     SUBROUTINE SortCompressLists(Length,PartList,SignList)
         INTEGER :: Length,PartList(0:NoIntforDet,Length),SignList(Length)
-        INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd
+        INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd,j
 
         CALL SortBitDets(Length,PartList,NoIntforDet,SignList)
 
@@ -5455,8 +5458,12 @@ MODULE FciMCParMod
                     SignList(CurrInd)=SignList(CurrInd)+SignList(i)
                     TotParts=TotParts+abs(SignList(i))
 !Now compress the list...
-                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
-                    SignList(i-1:Length-1)=SignList(i:Length)
+                    do j=i-1,Length-1
+                        PartList(:,j)=PartList(:,j+1)
+                        SignList(j)=SignList(j+1)
+                    enddo
+!                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
+!                    SignList(i-1:Length-1)=SignList(i:Length)
                     Length=Length-1
                 ENDIF
             ELSE
@@ -5473,7 +5480,7 @@ MODULE FciMCParMod
 !The 'length' will be returned as the length of the new list.
 !In this version, the hamiltonian matrix elements will be fed through with the rest of the list and taken with the particles.
     SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
-        INTEGER :: Length,PartList(0:NoIntforDet,Length),SignList(Length)
+        INTEGER :: Length,PartList(0:NoIntforDet,Length),SignList(Length),j
         REAL*8 :: HList(Length)
         INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd
 
@@ -5495,9 +5502,14 @@ MODULE FciMCParMod
                     SignList(CurrInd)=SignList(CurrInd)+SignList(i)
                     TotParts=TotParts+abs(SignList(i))
 !Now compress the list...
-                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
-                    SignList(i-1:Length-1)=SignList(i:Length)
-                    HList(i-1:Length-1)=HList(i:Length)
+                    do j=i-1,Length-1
+                        PartList(:,j)=PartList(:,j+1)
+                        SignList(j)=SignList(j+1)
+                        HList(j)=HList(j+1)
+                    enddo
+!                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
+!                    SignList(i-1:Length-1)=SignList(i:Length)
+!                    HList(i-1:Length-1)=HList(i:Length)
                     Length=Length-1
                 ENDIF
             ELSE
