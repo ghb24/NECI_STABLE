@@ -2719,7 +2719,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        TBalanceNodes=.false.   !Temporarily turn off node balancing
+!        TBalanceNodes=.false.   !Temporarily turn off node balancing
 
 !AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
 !Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
@@ -5248,6 +5248,7 @@ MODULE FciMCParMod
     
 !This routine will move walkers between the processors, in order to balance the number of walkers on each node.
 !This could be made slightly faster by using an MPI_Reduce, rather than searching for the min and max by hand...
+!For rotoannihilation, this will balance the *Determinants* over the processors, not the particles themselves.
     SUBROUTINE BalanceWalkersonProcs()
         INTEGER :: i,ProcWalkers(0:nProcessors-1),error
         INTEGER :: MinWalkers(2),MaxWalkers(2)      !First index gives the number, second the rank of the processor
@@ -5260,7 +5261,7 @@ MODULE FciMCParMod
 !        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.root) THEN
-            WRITE(6,*) "Moving walkers between nodes in order to balance the load..."
+            WRITE(6,*) "Moving particles/determinants between nodes in order to balance the load..."
         ENDIF
         
 !First, it is necessary to find the number of walkers on each processor and gather the info to the root.
@@ -5298,7 +5299,7 @@ MODULE FciMCParMod
                 enddo
                 WalktoTransfer(4)=MaxWalkers(1)-MinWalkers(1)
                 IF(Transfers.eq.0) THEN
-                    WRITE(6,*) "Initial range of walkers is: ",WalktoTransfer(4)
+                    WRITE(6,*) "Initial range of walkers/dets is: ",WalktoTransfer(4)
                 ELSE
 !                    WRITE(6,*) "After ",Transfers," walker transfers, range of walkers is: ",WalktoTransfer(4)
                     IF(Transfers.gt.(10*(nProcessors**2))) THEN
@@ -5412,15 +5413,16 @@ MODULE FciMCParMod
 
         IF(tRotoAnnihil) THEN
 !If we are using rotoannihilation, then we need to maintain sorted lists. There is a much better way to do it than sorting them all again though!...
+!We are also storing the list as determinants, rather than particles. Therefore after sorting, we need to compress the list to remove multiple specifications of the same det.
             IF(.not.tRegenDiagHEls) THEN
-                CALL SortBitDetswH(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
+                CALL SortCompressListswH(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
             ELSE
-                CALL SortBitDets(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers))
+                CALL SortCompressLists(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),CurrentSign(1:TotWalkers))
             ENDIF
         ENDIF
 
         IF(iProcIndex.eq.root) THEN
-            WRITE(6,*) "Transfer of walkers finished. Number of transfers needed: ",Transfers
+            WRITE(6,*) "Transfer of walkers/dets finished. Number of transfers needed: ",Transfers
         ENDIF
 
         TBalanceNodes=.false.
@@ -5428,6 +5430,85 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE BalanceWalkersonProcs
+
+!This routine will take the particle and sign lists, sort them and then compress them so each determinant is only specified once. This requires sign-coherent lists.
+!The 'length' will be returned as the length of the new list.
+    SUBROUTINE SortCompressLists(Length,PartList,SignList)
+        INTEGER :: Length,PartList(0:NoIntforDet,Length),SignList(Length)
+        INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd
+
+        CALL SortBitDets(Length,PartList,NoIntforDet,SignList)
+
+!Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
+        TotParts=abs(SignList(1))
+        CurrInd=1
+        DetCurr=PartList(0:NoIntforDet,1)
+        i=2
+        do while(i.le.Length)
+            CompParts=DetBitLT(DetCurr,PartList(0:NoIntforDet,i),NoIntforDet)
+            IF(CompParts.eq.-1) THEN
+                CALL Stop_All("SortCompressLists","Lists not correctly sorted...")
+            ELSEIF(CompParts.eq.0) THEN
+                IF((SignList(CurrInd)*SignList(i)).le.0) THEN
+                    CALL Stop_All("SortCompressLists","Compressing list which is not sign-coherent")
+                ELSE
+                    SignList(CurrInd)=SignList(CurrInd)+SignList(i)
+                    TotParts=TotParts+abs(SignList(i))
+!Now compress the list...
+                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
+                    SignList(i-1:Length-1)=SignList(i:Length)
+                    Length=Length-1
+                ENDIF
+            ELSE
+                DetCurr=PartList(0:NoIntforDet,i)
+                TotParts=TotParts+abs(SignList(i))
+                CurrInd=i
+                i=i+1
+            ENDIF
+        enddo
+
+    END SUBROUTINE SortCompressLists
+
+!This routine will take the particle and sign lists, sort them and then compress them so each determinant is only specified once. This requires sign-coherent lists.
+!The 'length' will be returned as the length of the new list.
+!In this version, the hamiltonian matrix elements will be fed through with the rest of the list and taken with the particles.
+    SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
+        INTEGER :: Length,PartList(0:NoIntforDet,Length),SignList(Length)
+        REAL*8 :: HList(Length)
+        INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd
+
+        CALL SortBitDetswH(Length,PartList,NoIntforDet,SignList,HList)
+
+!Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
+        TotParts=abs(SignList(1))
+        CurrInd=1
+        DetCurr=PartList(0:NoIntforDet,1)
+        i=2
+        do while(i.le.Length)
+            CompParts=DetBitLT(DetCurr,PartList(0:NoIntforDet,i),NoIntforDet)
+            IF(CompParts.eq.-1) THEN
+                CALL Stop_All("SortCompressLists","Lists not correctly sorted...")
+            ELSEIF(CompParts.eq.0) THEN
+                IF((SignList(CurrInd)*SignList(i)).le.0) THEN
+                    CALL Stop_All("SortCompressLists","Compressing list which is not sign-coherent")
+                ELSE
+                    SignList(CurrInd)=SignList(CurrInd)+SignList(i)
+                    TotParts=TotParts+abs(SignList(i))
+!Now compress the list...
+                    PartList(:,i-1:Length-1)=PartList(:,i:Length)
+                    SignList(i-1:Length-1)=SignList(i:Length)
+                    HList(i-1:Length-1)=HList(i:Length)
+                    Length=Length-1
+                ENDIF
+            ELSE
+                DetCurr=PartList(0:NoIntforDet,i)
+                TotParts=TotParts+abs(SignList(i))
+                CurrInd=i
+                i=i+1
+            ENDIF
+        enddo
+
+    END SUBROUTINE SortCompressListswH
 
     SUBROUTINE CalcApproxpDoubles(HFConn)
         use SystemData , only : tAssumeSizeExcitgen
