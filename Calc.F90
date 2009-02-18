@@ -45,7 +45,7 @@ MODULE Calc
           tFixCASShift=.false.
           OccCASorbs=0
           VirtCASorbs=0
-          tGlobalSftCng=.false.
+          tGlobalSftCng=.true.
           TLocalAnnihilation=.false.
           TDistAnnihil=.false.
           TAnnihilonproc=.false.

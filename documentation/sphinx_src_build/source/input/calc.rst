@@ -730,7 +730,7 @@ The following options are only available in **FCIMC** calculations:
     energy estimator.
 
 **GLOBALSHIFT**
-    Default false
+    Default true
 
     A parallel FCIMC option. It is generally recommended to have this option on. This will 
     calculate the growth rate of the system as a simple ratio of the total walkers on all processors
