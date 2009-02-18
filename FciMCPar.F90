@@ -111,8 +111,6 @@ MODULE FciMCParMod
     REAL*8 :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
     REAL*8 :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
     REAL*8 :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
-    REAL*8 :: AlliUniqueDets    !This is the average number of unique determinants
-    INTEGER :: iUniqueDets
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate
@@ -1434,11 +1432,9 @@ MODULE FciMCParMod
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
 
         IF(TDebug) THEN
-            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex
+            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
             CALL FLUSH(11)
         ENDIF
-        iUniqueDets=iUniqueDets+TotWalkers
-
 
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
@@ -2620,7 +2616,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(9),outpair(9)
+        INTEGER :: inpair(8),outpair(8)
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3)
         LOGICAL :: TBalanceNodesTemp
@@ -2643,7 +2639,7 @@ MODULE FciMCParMod
         inpair(6)=HFCyc         !SumWalkersCyc is now an integer*8
         inpair(7)=LocalAnn
         inpair(8)=TotParts
-        inpair(9)=iUniqueDets
+!        inpair(9)=iUniqueDets
         outpair(:)=0
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !Find total Annihilated,Total at HF and Total at doubles
@@ -2655,7 +2651,7 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
-        CALL MPI_Reduce(inpair,outpair,9,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
         AllTotWalkers=outpair(1)
@@ -2666,7 +2662,7 @@ MODULE FciMCParMod
         AllHFCyc=REAL(outpair(6),r2)
         AllLocalAnn=outpair(7)
         AllTotParts=outpair(8)
-        AlliUniqueDets=REAL(outpair(9),r2)
+!        AlliUniqueDets=REAL(outpair(9),r2)
 
         IF(iProcIndex.eq.0) THEN
             IF(AllTotWalkers.eq.0) THEN
@@ -2726,8 +2722,8 @@ MODULE FciMCParMod
         TBalanceNodes=.false.   !Temporarily turn off node balancing
 
 !AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
-!Divide by nProcessors*StepsSft to get the average number of unique determinants visited over a single iteration.
-        AlliUniqueDets=AlliUniqueDets/(REAL(nProcessors*StepsSft,r2))
+!Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
+!        AlliUniqueDets=AlliUniqueDets/(REAL(StepsSft,r2))
         
         IF(GrowRate.eq.-1.D0) THEN
 !tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
@@ -2867,10 +2863,8 @@ MODULE FciMCParMod
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
         TotPartsOld=TotParts
-        iUniqueDets=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
-        AlliUniqueDets=0.D0
         AllHFCyc=0.D0
         AllENumCyc=0.D0
         AllSumENum=0.D0
@@ -3176,10 +3170,8 @@ MODULE FciMCParMod
         ENumCyc=0.D0
         ProjEIter=0.D0
         ProjEIterSum=0.D0
-        iUniqueDets=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
-        AlliUniqueDets=0.D0
         AllSumENum=0.D0
         AllNoatHF=0
         AllNoatDoubs=0
@@ -3648,8 +3640,8 @@ MODULE FciMCParMod
                 WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 
             ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     AvUniqueDets     MinEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     AvUniqueDets     MinEx"
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     MinEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     MinEx"
             
             ENDIF
         ENDIF
@@ -5618,9 +5610,9 @@ MODULE FciMCParMod
 !                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
                 WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,AllTotParts-AllTotPartsOld,AllGrowRate,   &
- &                  AllTotParts,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AlliUniqueDets),AllMinExcitLevel
+ &                  AllTotParts,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllTotWalkers,AllMinExcitLevel
                 WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,AllTotParts-AllTotPartsOld,AllGrowRate,    &
- &                  AllTotParts,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,NINT(AlliUniqueDets),AllMinExcitLevel
+ &                  AllTotParts,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllTotWalkers,AllMinExcitLevel
             ENDIF
             
             CALL FLUSH(6)
