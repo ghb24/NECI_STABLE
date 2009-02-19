@@ -3,7 +3,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \title{NECI Documentation}
-\date{November 30, 2008}
+\date{February 19, 2009}
 \release{0.1}
 \author{James Spencer, with contributions from the Alavi Group}
 \newcommand{\sphinxlogo}{}
@@ -965,6 +965,18 @@ Specify whether to include Exchange in the Slater-Condon rules.
 If off, we are effectively reduced to a using Hartree multi-electron
 wavefunctions rather than Slater determinants.
 
+\item[\textbf{NONUNIFORMRANDEXCITS} {[}\textbf{NOSYMGEN} | \textbf{CYCLETHRUORBS}{]}]
+Default false.
+
+These are new excitation generators, currently only interfaced with the parallel
+FCIMC algorithm. They are generated with normalised probability, but not uniformly.
+They scale well however at O{[}N{]}. NOSYMGEN means that spatial symmetry will not
+be considered when generating the excitations and cyclethruorbs indicates that
+only orbitals which are allowed will be randomly selected, although this involves
+an O{[}M{]} loop over the basis and is marginaly slower, but will not need to redraw
+forbidden orbitals many times. This may be useful for small basis-set sizes with
+high symmetry.
+
 \item[\textbf{FAST-EXCITGEN}  {[} \textbf{OFF} {]}]
 Default on.  Temporary flag {[} AJWT 2008/09/22 {]}
 Used to indicate that if an Abelian symmetry group is present
@@ -1018,7 +1030,7 @@ Synonym for \textbf{ELECTRONS}.
 
 \item[\textbf{NOSYMMETRY}]
 Ignore all spatial symmetry information. This does not apply to
-periodic calculations.
+periodic calculations or the hubbard model.
 
 \item[\textbf{SPIN-RESTRICT} {[}LMS{]}]
 Default off.  Default LMS=0.  Turns spin restriction on, limiting
@@ -1057,6 +1069,21 @@ where $p_i$ are the components of the propogating vector.
 Apply Brillouin's theorem: the net effect of single-excitations of
 the Hartree--Fock determinant coupled to the Hartree--Fock determinant
 is zero, so explicitly exclude such single excitations.
+
+\end{description}
+
+\textbf{ROTATEORBS} {[}TimeStep{]} {[}ConvergedForce{]}
+\begin{quote}
+
+Iterativly rotate the HF orbital in such a way to minimize the two-electron
+integrals with at least three-distinct indicies. This explicitly orthonormalizes
+the orbitals after each rotation.
+\end{quote}
+\begin{description}
+\item[\textbf{LAGRANGE}]
+This option can only be used if \textbf{ROTATEORBS} is specified, and will try to
+maintain orthonormality of the orbitals via a lagrange multiplier force, rather
+than an explicit reorthogonalization step each iteration.
 
 \end{description}
 
@@ -1509,6 +1536,13 @@ off-diagonal elements between excited determinants.
 \item[\textbf{MAXVERTICES} {[}MAXVERTICES{]}]
 Give the vertex level of the calculation.  Cannot be used in
 conjunction with a \textbf{METHODS} block.
+
+\item[\textbf{CONSTRUCTNATORBS}]
+Calculates the 1 electron reduced density matrix (1-RDM) as a FCIMC
+calculation progresses.  At the end of the iterations, this matrix
+is diagonalised to get linear combinations of the HF orbitals which
+approximate the natural orbitals.  The occupation numbers (e-values)
+of these are printed in the OUTPUT file.
 
 \item[\textbf{METHOD} {[}Method option(s){]}]
 Specify the method for a graph theory calculation.  See Method
@@ -2115,20 +2149,27 @@ This will start the simulation with a single positive particle at the HF,
 and fix the shift at its initial value, until the number of particles gets
 to the INITPARTICLES value.
 
-\item[\textbf{MEMORYFAC} {[}MemoryFac{]}]
-Default 30.D0
+\item[\textbf{MEMORYFACPART} {[}MemoryFacPart{]}]
+Default 10.D0
 
-MemoryFac is the factor by which space will be made available for extra
+MemoryFacPart is the factor by which space will be made available for extra
 walkers compared to InitWalkers.
 
-\item[\textbf{MEMORYFACEXCIT} {[}MemoryFacExcit{]}]
-Default 30.D0
+\item[\textbf{MEMORYFACANNIHIL} {[}MemoryFacAnnihil{]}]
+Default 10.D0
 
-MemoryFac is a parallel FCIMC option - it is the factor by which space will be
-made available for excitation generators compared to InitWalkers. This can be
-smaller than memoryfac, because the excitation generator array is not used in
-the parallel annihilation, which may not be exactly load-balanced because of
-differences in the wavevector.
+MemoryFacAnnihil is a parallel FCIMC option - it is the factor by which space will be
+made available for annihilation arrays compared to InitWalkers. This generally will need to be
+larger than memoryfacpart, because the parallel annihilation may not be exactly load-balanced because of
+non-uniformity in the wavevector and the hashing algorithm. This will tend to want to be larger
+when it is running on more processors.
+
+\item[\textbf{MEMORYFACSPAWN} {[}MemoryFacSpawn{]}]
+Default 0.5
+
+A parallel FCIMC option for use with \textbf{ROTOANNIHILATION}. This is the factor by which space will be made
+available for spawned particles each iteration. Several of these arrays are needed for the annihilation
+process. With \textbf{ROTOANNIHILATION}, \textbf{MEMORYFACANNIHIL} is redundant, but \textbf{MEMORYFACPART} still need to be specified.
 
 \item[\textbf{ANNIHILATEONPROCS}]
 Default false
@@ -2139,6 +2180,16 @@ separate simulations. If there are enough particles, then this should be suffici
 Less memory is required, since no hashes need to be stored. Also, no communication is
 needed, so the routine should scale better as the number of walkers grows.
 
+\item[\textbf{ROTOANNIHILATION}]
+Default false
+
+A parallel FCIMC option which is a different - and hopefully better scaling - algorithm.
+This is substantially different to previously. It should involve much less memory.
+\textbf{MEMORYFACANNIHIL} is no longer needed (\textbf{MEMORYFACPART} still is), and you will need
+to specify a \textbf{MEMORYFACSPAWN} since newly spawned walkers are held on a different array each iteration.
+Since the newly-spawned particles are annihilated initially among themselves, you can still
+specify \textbf{ANNIHILATEATRANGE} as a keyword, which will change things.
+
 \item[\textbf{FIXSHELLSHIFT} {[}ShellFix{]} {[}FixShift{]}]
 Default 0,0.D0
 
@@ -2147,6 +2198,27 @@ but only for the excitation levels at a value of ShellFix or lower. This will
 almost definitly give the wrong answers for both the energy and the shift,
 but may be of use in equilibration steps to maintain particle density at
 low excitations, before writing out the data and letting the shift change.
+
+\end{description}
+
+\textbf{FIXKIISHIFT} FixedKiiCutoff FixShift
+\begin{quote}
+
+Another fixed shift based approximation method for FCIMC in parallel. However, rather
+than fixing the shift based on an excitation level, it is now fixed according to the
+Kii value. Determinants lower in energy than FixedKiiCutoff will have their shifts
+fixed to the value given.
+\end{quote}
+\begin{description}
+\item[\textbf{FIXCASSHIFT} {[}OccCASorbs{]} {[}VirtCASorbs{]} {[}FixShift{]}]
+Default 0 0 0.D0
+
+A third fixed shift approximation method for FCIMC in parallel.  In this option, an active
+space is chosen containing a number of highest occupied spin orbitals (OccCASorbs) and a
+number of lowest unoccupied spin orbitals (VirtCASorbs).  The shift is then fixed (at FixShift)
+for determinants with excitations within this space only.  I.e. determinants for which the spin
+orbitals lower in energy than the active space are completely occupied and those higher in
+energy are completely unoccupied.
 
 \item[\textbf{ANNIHILATDISTANCE} {[}Lambda{]}]
 Default=0.D0
@@ -2157,6 +2229,14 @@ given by -Lambda*Hij*(Si*Sj). This is hoped to increase annihilation and allow f
 particles to be needed to sample the space correctly. When Lambda=0.D0, it should be
 equivalent to the original annihilation algorithm. Warning - this is much slower than
 normal annihilation.
+
+\item[\textbf{ANNIHILATERANGE}]
+Default=.false.
+
+A parallel FCIMC option. This is a slightly different annihilation algorithm, where only
+one sort of the full set of particles is needed. This should greatly reduce the time needed
+for annihilation of large numbers of particles. However, the load-balancing across processors
+may not be so good.
 
 \end{description}
 
@@ -2181,6 +2261,31 @@ An FCIMC serial option. Here, the acceptance probabilities are not unbiased for
 the probability of generating the excitation. Instead, the unbiasing occurs when the
 walker contributes to the energy estimator. This should reduce the variance for the
 energy estimator.
+
+\item[\textbf{GLOBALSHIFT}]
+Default true
+
+A parallel FCIMC option. It is generally recommended to have this option on. This will
+calculate the growth rate of the system as a simple ratio of the total walkers on all processors
+before and after update cycle, rather than a weighted average. This however is incompatable with culling, and so
+is removed for update cycles with this in. This should be more stable than the
+default version and give a more reliable shift estimator for large systems.
+
+\item[\textbf{MAGNETIZE} {[}NoMagDets{]} {[}BField{]}]
+Default false
+
+This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their
+sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
+i.e. diagonal matrix element is raised by an energy given by BField. First parameter is an
+integer indicating the number of determinants to `magnetize', and the second is a real
+giving the amount the energy of a particle should be raised if it is of an opposite sign.
+
+\item[\textbf{MAGNETIZESYM} {[}NoMagDets{]} {[}BField{]}]
+Default false
+
+A parallel FCIMC option. Similar to the MAGNETIZE option (same arguments), but in addition to
+the energy being raised for particles of the opposite sign, the energy is lowered by the same
+amount for particles of `parallel' sign.
 
 \item[\textbf{GRAPHSIZE} {[}NDets{]}]
 In ResumFCIMC, this is the number of connected determinants to form the
@@ -2241,6 +2346,13 @@ This is no longer functional and commented out in the code.
 \item[\textbf{NOANNIHIL}]
 Remove the annihilation of particles on the same
 determinant step.
+
+\item[\textbf{REGENDIAGHELS}]
+Default .false.
+This is a parallel FCIMC option, which means that the diagonal hamiltonian matrix
+element for each particle is calculated on the fly, rather than stored with the
+particle. This will free up more memory, but will probably lead to slightly slower
+calculations.
 
 \item[\textbf{REGENEXCITGENS}]
 This option will regenerate the excitation generator for each particle, every time a
@@ -3222,6 +3334,9 @@ and do a new MP1 calculation with it as the root. It will then histogram the `No
 weighted triple excitations, and the `NoACDets(4)' largest quadruple excitations from this calculation
 to also histogram.
 
+\item[\textbf{REDUCEDPOPSFILE} {[}iWritePopsEvery{]} {[}iPopsPartEvery{]}]
+This works in the same way as the normal popsfile, but only every iPopsPartEvery particle is printed out.
+
 \item[\textbf{POPSFILE} {[}iWritePopsEvery{]}]
 Default: on.  Default iWritePopsEvery (optional argument) 100000.
 Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
@@ -3233,6 +3348,16 @@ smoothly
 A calculation can then be restarted at a later date by reading the
 determinants back in using \textbf{READPOPS} in the \textbf{CALC} section.
 Walker number can also be scaled up/down by using \textbf{SCALEWALKERS}.
+If the iWritePopsEvery argument is negative, then the POPSFILE is never
+written out, even at the end of a simulation. This is useful for very large
+calculations where the POPSFILE will take a long time to write out and use
+a lot of disk space.
+
+\item[\textbf{BINARYPOPS}]
+This means that the popsfile (full or reduced) will now be written out in binary format.
+This should now take up less disk space, and be written quicker. It can be read in as
+normal without specifying any extra criteria. Two files will be produced, a formatted
+file with the header info and a POPSFILEBIN with the walker information.
 
 \item[\textbf{ZEROPROJE}]
 This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy

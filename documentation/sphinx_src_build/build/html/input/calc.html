@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-          URL_ROOT:   '../',
-          VERSION:    '0.1',
-          COLLAPSE_MODINDEX: false
+          URL_ROOT:    '../',
+          VERSION:     '0.1',
+          COLLAPSE_MODINDEX: false,
+          FILE_SUFFIX: '.html'
       };
     </script>
     <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/interface.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <link rel="contents" title="Global table of contents" href="../contents.html" />
     <link rel="index" title="Global index" href="../genindex.html" />
@@ -117,6 +117,12 @@ off-diagonal elements between excited determinants.</dd>
 <dt><strong>MAXVERTICES</strong> [MAXVERTICES]</dt>
 <dd>Give the vertex level of the calculation.  Cannot be used in
 conjunction with a <strong>METHODS</strong> block.</dd>
+<dt><strong>CONSTRUCTNATORBS</strong></dt>
+<dd>Calculates the 1 electron reduced density matrix (1-RDM) as a FCIMC
+calculation progresses.  At the end of the iterations, this matrix
+is diagonalised to get linear combinations of the HF orbitals which
+approximate the natural orbitals.  The occupation numbers (e-values)
+of these are printed in the OUTPUT file.</dd>
 <dt><strong>METHOD</strong> [Method option(s)]</dt>
 <dd><p class="first">Specify the method for a graph theory calculation.  See Method
 options for the available methods.</p>
@@ -626,18 +632,24 @@ space were all of the same sign. This is not the case here.</p>
 <dd>This will start the simulation with a single positive particle at the HF,
 and fix the shift at its initial value, until the number of particles gets
 to the INITPARTICLES value.</dd>
-<dt><strong>MEMORYFAC</strong> [MemoryFac]</dt>
-<dd><p class="first">Default 30.D0</p>
-<p class="last">MemoryFac is the factor by which space will be made available for extra
+<dt><strong>MEMORYFACPART</strong> [MemoryFacPart]</dt>
+<dd><p class="first">Default 10.D0</p>
+<p class="last">MemoryFacPart is the factor by which space will be made available for extra
 walkers compared to InitWalkers.</p>
 </dd>
-<dt><strong>MEMORYFACEXCIT</strong> [MemoryFacExcit]</dt>
-<dd><p class="first">Default 30.D0</p>
-<p class="last">MemoryFac is a parallel FCIMC option - it is the factor by which space will be
-made available for excitation generators compared to InitWalkers. This can be
-smaller than memoryfac, because the excitation generator array is not used in
-the parallel annihilation, which may not be exactly load-balanced because of
-differences in the wavevector.</p>
+<dt><strong>MEMORYFACANNIHIL</strong> [MemoryFacAnnihil]</dt>
+<dd><p class="first">Default 10.D0</p>
+<p class="last">MemoryFacAnnihil is a parallel FCIMC option - it is the factor by which space will be
+made available for annihilation arrays compared to InitWalkers. This generally will need to be
+larger than memoryfacpart, because the parallel annihilation may not be exactly load-balanced because of
+non-uniformity in the wavevector and the hashing algorithm. This will tend to want to be larger
+when it is running on more processors.</p>
+</dd>
+<dt><strong>MEMORYFACSPAWN</strong> [MemoryFacSpawn]</dt>
+<dd><p class="first">Default 0.5</p>
+<p class="last">A parallel FCIMC option for use with <strong>ROTOANNIHILATION</strong>. This is the factor by which space will be made
+available for spawned particles each iteration. Several of these arrays are needed for the annihilation
+process. With <strong>ROTOANNIHILATION</strong>, <strong>MEMORYFACANNIHIL</strong> is redundant, but <strong>MEMORYFACPART</strong> still need to be specified.</p>
 </dd>
 <dt><strong>ANNIHILATEONPROCS</strong></dt>
 <dd><p class="first">Default false</p>
@@ -647,6 +659,15 @@ separate simulations. If there are enough particles, then this should be suffici
 Less memory is required, since no hashes need to be stored. Also, no communication is
 needed, so the routine should scale better as the number of walkers grows.</p>
 </dd>
+<dt><strong>ROTOANNIHILATION</strong></dt>
+<dd><p class="first">Default false</p>
+<p class="last">A parallel FCIMC option which is a different - and hopefully better scaling - algorithm.
+This is substantially different to previously. It should involve much less memory.
+<strong>MEMORYFACANNIHIL</strong> is no longer needed (<strong>MEMORYFACPART</strong> still is), and you will need
+to specify a <strong>MEMORYFACSPAWN</strong> since newly spawned walkers are held on a different array each iteration.
+Since the newly-spawned particles are annihilated initially among themselves, you can still
+specify <strong>ANNIHILATEATRANGE</strong> as a keyword, which will change things.</p>
+</dd>
 <dt><strong>FIXSHELLSHIFT</strong> [ShellFix] [FixShift]</dt>
 <dd><p class="first">Default 0,0.D0</p>
 <p class="last">An FCIMC option. With this, the shift is fixed at a value given here,
@@ -654,6 +675,23 @@ but only for the excitation levels at a value of ShellFix or lower. This will
 almost definitly give the wrong answers for both the energy and the shift,
 but may be of use in equilibration steps to maintain particle density at
 low excitations, before writing out the data and letting the shift change.</p>
+</dd>
+</dl>
+<p><strong>FIXKIISHIFT</strong> FixedKiiCutoff FixShift</p>
+<blockquote>
+Another fixed shift based approximation method for FCIMC in parallel. However, rather
+than fixing the shift based on an excitation level, it is now fixed according to the
+Kii value. Determinants lower in energy than FixedKiiCutoff will have their shifts
+fixed to the value given.</blockquote>
+<dl class="docutils">
+<dt><strong>FIXCASSHIFT</strong> [OccCASorbs] [VirtCASorbs] [FixShift]</dt>
+<dd><p class="first">Default 0 0 0.D0</p>
+<p class="last">A third fixed shift approximation method for FCIMC in parallel.  In this option, an active
+space is chosen containing a number of highest occupied spin orbitals (OccCASorbs) and a
+number of lowest unoccupied spin orbitals (VirtCASorbs).  The shift is then fixed (at FixShift)
+for determinants with excitations within this space only.  I.e. determinants for which the spin
+orbitals lower in energy than the active space are completely occupied and those higher in
+energy are completely unoccupied.</p>
 </dd>
 <dt><strong>ANNIHILATDISTANCE</strong> [Lambda]</dt>
 <dd><p class="first">Default=0.D0</p>
@@ -663,6 +701,13 @@ given by -Lambda*Hij*(Si*Sj). This is hoped to increase annihilation and allow f
 particles to be needed to sample the space correctly. When Lambda=0.D0, it should be
 equivalent to the original annihilation algorithm. Warning - this is much slower than
 normal annihilation.</p>
+</dd>
+<dt><strong>ANNIHILATERANGE</strong></dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">A parallel FCIMC option. This is a slightly different annihilation algorithm, where only
+one sort of the full set of particles is needed. This should greatly reduce the time needed
+for annihilation of large numbers of particles. However, the load-balancing across processors
+may not be so good.</p>
 </dd>
 </dl>
 <p><strong>LOCALANNIHIL</strong> [Lambda]</p>
@@ -683,6 +728,28 @@ killing of particles which arises from such a low shift value.</p>
 the probability of generating the excitation. Instead, the unbiasing occurs when the
 walker contributes to the energy estimator. This should reduce the variance for the
 energy estimator.</p>
+</dd>
+<dt><strong>GLOBALSHIFT</strong></dt>
+<dd><p class="first">Default true</p>
+<p class="last">A parallel FCIMC option. It is generally recommended to have this option on. This will
+calculate the growth rate of the system as a simple ratio of the total walkers on all processors
+before and after update cycle, rather than a weighted average. This however is incompatable with culling, and so
+is removed for update cycles with this in. This should be more stable than the
+default version and give a more reliable shift estimator for large systems.</p>
+</dd>
+<dt><strong>MAGNETIZE</strong> [NoMagDets] [BField]</dt>
+<dd><p class="first">Default false</p>
+<p class="last">This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their
+sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
+i.e. diagonal matrix element is raised by an energy given by BField. First parameter is an
+integer indicating the number of determinants to &#8216;magnetize&#8217;, and the second is a real
+giving the amount the energy of a particle should be raised if it is of an opposite sign.</p>
+</dd>
+<dt><strong>MAGNETIZESYM</strong> [NoMagDets] [BField]</dt>
+<dd><p class="first">Default false</p>
+<p class="last">A parallel FCIMC option. Similar to the MAGNETIZE option (same arguments), but in addition to
+the energy being raised for particles of the opposite sign, the energy is lowered by the same
+amount for particles of &#8216;parallel&#8217; sign.</p>
 </dd>
 <dt><strong>GRAPHSIZE</strong> [NDets]</dt>
 <dd>In ResumFCIMC, this is the number of connected determinants to form the
@@ -733,6 +800,12 @@ the MP1 wavefunction is greater than the NodalCutoff value.</p>
 <dt><strong>NOANNIHIL</strong></dt>
 <dd>Remove the annihilation of particles on the same
 determinant step.</dd>
+<dt><strong>REGENDIAGHELS</strong></dt>
+<dd>Default .false.
+This is a parallel FCIMC option, which means that the diagonal hamiltonian matrix
+element for each particle is calculated on the fly, rather than stored with the
+particle. This will free up more memory, but will probably lead to slightly slower
+calculations.</dd>
 <dt><strong>REGENEXCITGENS</strong></dt>
 <dd>This option will regenerate the excitation generator for each particle, every time a
 new random excitation is wanted. This is MUCH slower for the same number of particles
@@ -1178,7 +1251,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
-            <h3>Table Of Contents</h3>
+            <h3><a href="../index.html">Table Of Contents</a></h3>
             <ul>
 <li><a class="reference external" href="">Calc</a><ul>
 <li><a class="reference external" href="#general-options">General options</a></li>
@@ -1208,7 +1281,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
             <ul class="this-page-menu">
               <li><a href="../_sources/input/calc.txt">Show Source</a></li>
             </ul>
-            <h3>Quick search</h3>
+          <h3>Quick search</h3>
             <form class="search" action="../search.html" method="get">
               <input type="text" name="q" size="18" /> <input type="submit" value="Go" />
               <input type="hidden" name="check_keywords" value="yes" />
@@ -1236,8 +1309,8 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Nov 30, 2008.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a>.
+      Last updated on Feb 19, 2009.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>
 </html>

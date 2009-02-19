@@ -135,6 +135,9 @@ FCIMC options
     weighted triple excitations, and the 'NoACDets(4)' largest quadruple excitations from this calculation
     to also histogram.
 
+**REDUCEDPOPSFILE** [iWritePopsEvery] [iPopsPartEvery]
+    This works in the same way as the normal popsfile, but only every iPopsPartEvery particle is printed out.
+
 **POPSFILE** [iWritePopsEvery]
     Default: on.  Default iWritePopsEvery (optional argument) 100000.
     Print out the determinants every iWritePopsEvery Monte-Carlo cycles.
@@ -146,6 +149,16 @@ FCIMC options
     A calculation can then be restarted at a later date by reading the
     determinants back in using **READPOPS** in the **CALC** section. 
     Walker number can also be scaled up/down by using **SCALEWALKERS**.
+    If the iWritePopsEvery argument is negative, then the POPSFILE is never
+    written out, even at the end of a simulation. This is useful for very large
+    calculations where the POPSFILE will take a long time to write out and use
+    a lot of disk space.
+
+**BINARYPOPS**
+    This means that the popsfile (full or reduced) will now be written out in binary format. 
+    This should now take up less disk space, and be written quicker. It can be read in as
+    normal without specifying any extra criteria. Two files will be produced, a formatted
+    file with the header info and a POPSFILEBIN with the walker information.
 
 **ZEROPROJE**
     This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
