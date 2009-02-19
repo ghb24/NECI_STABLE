@@ -45,7 +45,7 @@ MODULE Calc
           tFixCASShift=.false.
           OccCASorbs=0
           VirtCASorbs=0
-          tGlobalSftCng=.true.
+          tGlobalSftCng=.true. 
           TLocalAnnihilation=.false.
           TDistAnnihil=.false.
           TAnnihilonproc=.false.
@@ -796,7 +796,15 @@ MODULE Calc
             case("GLOBALSHIFT")
 !A parallel FCIMC option. It is generally recommended to have this option on. This will calculate the growth rate of the system as a simple ratio of the total walkers on all processors
 !before and after update cycle. This however is incompatable with culling, and so is removed for update cycles with this in. 
-                tGlobalSftCng=.true.
+                if(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tGlobalSftCng=.false.
+                    end select
+                else
+                    tGlobalSftCng=.true.
+                end if
             case("MAGNETIZE")
 !This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
 !i.e. diagonal matrix element is raised by an energy given by BField.

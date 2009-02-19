@@ -729,8 +729,10 @@ The following options are only available in **FCIMC** calculations:
     walker contributes to the energy estimator. This should reduce the variance for the 
     energy estimator.
 
-**GLOBALSHIFT**
+**GLOBALSHIFT** **OFF**
     Default true
+
+    This option can only be turned off by specifying **OFF**
 
     A parallel FCIMC option. It is generally recommended to have this option on. This will 
     calculate the growth rate of the system as a simple ratio of the total walkers on all processors

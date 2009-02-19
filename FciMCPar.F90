@@ -1407,7 +1407,10 @@ MODULE FciMCParMod
                 CALL Stop_All("CheckOrdering","Array not ordered correctly")
             ELSEIF(Comp.eq.0) THEN
 !Dets are the same - see if we want to check sign-coherence
-!                CALL Stop_All("CheckOrdering","Determinant same as previous one...")
+                do j=min(i-5,1),max(i+5,NoDets)
+                    WRITE(6,*) j,DetArray(:,j),SignArray(j)
+                enddo
+                CALL Stop_All("CheckOrdering","Determinant same as previous one...")
                 IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
                     do j=i-5,i+5
                         WRITE(6,*) j,DetArray(:,j),SignArray(j)
@@ -5438,6 +5441,8 @@ MODULE FciMCParMod
             ELSE
                 CALL SortCompressLists(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),CurrentSign(1:TotWalkers))
             ENDIF
+        ELSE
+            TotParts=TotWalkers
         ENDIF
 
         IF(iProcIndex.eq.root) THEN
@@ -5513,7 +5518,13 @@ MODULE FciMCParMod
                 CALL Stop_All("SortCompressLists","Lists not correctly sorted...")
             ELSEIF(CompParts.eq.0) THEN
                 IF((SignList(CurrInd)*SignList(i)).le.0) THEN
-                    CALL Stop_All("SortCompressLists","Compressing list which is not sign-coherent")
+                    WRITE(6,*) "******************************************"
+                    do j=MIN(CurrInd-10,1),Max(i+10,Length)
+                        WRITE(6,*) j,PartList(:,j),SignList(j)
+                    enddo
+                    WRITE(6,*) Iter,CurrInd,Length,i,SignList(CurrInd),SignList(i)
+                    CALL FLUSH(6)
+                    CALL Stop_All("SortCompressListswH","Compressing list which is not sign-coherent")
                 ELSE
                     SignList(CurrInd)=SignList(CurrInd)+SignList(i)
                     TotParts=TotParts+abs(SignList(i))
