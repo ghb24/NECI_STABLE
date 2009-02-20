@@ -1133,8 +1133,8 @@ MODULE FciMCParMod
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
-        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,SearchInd,AnnihilateInd,ToRemove,VecInd,SignProd
-        LOGICAL :: DetBitEQ,tSuccess,tSkipSearch
+        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd!,SearchInd,AnnihilateInd
+        LOGICAL :: DetBitEQ,tSuccess!,tSkipSearch
 
         CALL set_timer(AnnMain_time,30)
 
@@ -1169,81 +1169,109 @@ MODULE FciMCParMod
 !Actually, this shouldn't be necessary - the NewDets array should be sign-coherent. The only time that we need to search forwards/backwards is if we hit upon an already
 !annihilated particle, i.e. Sign=0. If we hit upon +-1, then we know that the block is sign coherent.
 
-                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
+!                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
                 MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
-                AnnihilateInd=0     !AnnihilateInd indicates the index in NewDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
-                tSkipSearch=.false. !This indicates whether we want to continue searching forwards through the list once we exit the loop going backwards.
+!                AnnihilateInd=0     !AnnihilateInd indicates the index in NewDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
+!                tSkipSearch=.false. !This indicates whether we want to continue searching forwards through the list once we exit the loop going backwards.
                 
-                do while((DetBitEQ(SpawnedParts(:,i),NewDets(:,SearchInd),NoIntforDet)).and.(SearchInd.ge.1))
-!Cycle backwards through the list, checking where the start of this block of determinants starts.
-                    SignProd=NewSign(SearchInd)*SpawnedSign(i)
-                    IF(SignProd.lt.0) THEN
-!We have actually found a complimentary particle - mark the index of this particle for annihilation.
-                        AnnihilateInd=SearchInd
-!                        WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
-                        tSkipSearch=.true.
-                        EXIT
-                    ELSEIF(SignProd.gt.0) THEN
-!Since the signs are coherent on NewSign, we know that we can not annihilate the SpawnedParts particle if we find a particle of the same sign. 
-!Therefore, we can remove the particle from the list, and instantly transfer the particle to the next array.
-                        tSkipSearch=.true.
-                        NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
-                        AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
-                        EXIT
-                    ENDIF
-
-                    SearchInd=SearchInd-1
-                    
-                enddo
-
-!                IF((SearchInd.eq.PartInd).and.(AnnihilateInd.eq.0)) THEN
-!!The searchind should not equal partind, since we know that the particles are the same at PartInd, otherwise the binary search should have returned false.
-!!(unless we have already found the particle to annihilate)
-!                    CALL Stop_All("AnnihilateSpawnedParts","Binary search has fatal error")
-!                ENDIF
-
-                IF(.not.tSkipSearch) THEN
-!We have searched from the beginning of the particle block(SearchInd) to PartInd for a complimentary particle, but have not had any success. Now we can search from
-!PartInd+1 to the end of the block for a complimentary particle.
-                    SearchInd=PartInd+1
-                    do while((DetBitEQ(SpawnedParts(0:NoIntforDet,i),NewDets(0:NoIntforDet,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
-                        SignProd=NewSign(SearchInd)*SpawnedSign(i)
-                        IF(SignProd.lt.0) THEN
-!We have found a complimentary particle - mark the index of this particle for annihilation.
-!                            WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
-                            AnnihilateInd=SearchInd
-                            EXIT
-                        ELSEIF(SignProd.gt.0) THEN
-                            NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
-                            AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
-                            EXIT
-                        ENDIF
-
-                        SearchInd=SearchInd+1
-                    enddo
-
-!We can now also move the MinInd to the end of the block if we want
-                    MinInd=SearchInd-1     !This cannot be more than TotWalkersNew
-                ENDIF
-
-                IF(AnnihilateInd.gt.0) THEN
-!We have found a particle to annihilate. Mark the particles for annihilation.
-                    IF(NewSign(AnnihilateInd).gt.0) THEN
-                        NewSign(AnnihilateInd)=NewSign(AnnihilateInd)-1
+                SignProd=NewSign(PartInd)*SpawnedSign(i)
+                IF(SignProd.lt.0) THEN
+!This indicates that the particle has found the same particle of opposite sign to annihilate with
+!Mark these particles for annihilation in both arrays
+!If we go to a determinant representation of the spawned particles, then we need to be careful that we can only annihilate against the number of particles on the main list.
+!                    AnnihilateInd=SearchInd
+                    IF(NewSign(PartInd).gt.0) THEN
+                        NewSign(PartInd)=NewSign(PartInd)-1
                     ELSE
-                        NewSign(AnnihilateInd)=NewSign(AnnihilateInd)+1
+                        NewSign(PartInd)=NewSign(PartInd)+1
                     ENDIF
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
                     RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
                     Annihilated=Annihilated+2   !Count that we have annihilated two particles
 
-                ELSEIF(AnnihilateInd.lt.0) THEN
+                ELSEIF(SignProd.gt.0) THEN
+!This indicates that the particle has found a similar particle of the same sign. It therefore cannot annihilate, since all arrays accross all processors are sign-coherent.
+!Therefore, we can just transfer it accross now.
+                    NewSign(PartInd)=NewSign(PartInd)+SpawnedSign(i)
 !We have transferred a particle accross between processors. "Annihilate" from the spawned list, but not the main list.
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
                     RemoveInds(ToRemove)=i
+!                    AnnihilateInd=-SearchInd
                 ENDIF
+
+
+!                do while((DetBitEQ(SpawnedParts(:,i),NewDets(:,SearchInd),NoIntforDet)).and.(SearchInd.ge.1))
+!!Cycle backwards through the list, checking where the start of this block of determinants starts.
+!                    SignProd=NewSign(SearchInd)*SpawnedSign(i)
+!                    IF(SignProd.lt.0) THEN
+!!We have actually found a complimentary particle - mark the index of this particle for annihilation.
+!                        AnnihilateInd=SearchInd
+!!                        WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
+!                        tSkipSearch=.true.
+!                        EXIT
+!                    ELSEIF(SignProd.gt.0) THEN
+!!Since the signs are coherent on NewSign, we know that we can not annihilate the SpawnedParts particle if we find a particle of the same sign. 
+!!Therefore, we can remove the particle from the list, and instantly transfer the particle to the next array.
+!                        tSkipSearch=.true.
+!                        NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
+!                        AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
+!                        EXIT
+!                    ENDIF
+!
+!                    SearchInd=SearchInd-1
+!                    
+!                enddo
+!
+!!                IF((SearchInd.eq.PartInd).and.(AnnihilateInd.eq.0)) THEN
+!!!The searchind should not equal partind, since we know that the particles are the same at PartInd, otherwise the binary search should have returned false.
+!!!(unless we have already found the particle to annihilate)
+!!                    CALL Stop_All("AnnihilateSpawnedParts","Binary search has fatal error")
+!!                ENDIF
+!
+!                IF(.not.tSkipSearch) THEN
+!!We have searched from the beginning of the particle block(SearchInd) to PartInd for a complimentary particle, but have not had any success. Now we can search from
+!!PartInd+1 to the end of the block for a complimentary particle.
+!                    SearchInd=PartInd+1
+!                    do while((DetBitEQ(SpawnedParts(0:NoIntforDet,i),NewDets(0:NoIntforDet,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
+!                        SignProd=NewSign(SearchInd)*SpawnedSign(i)
+!                        IF(SignProd.lt.0) THEN
+!!We have found a complimentary particle - mark the index of this particle for annihilation.
+!!                            WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
+!                            AnnihilateInd=SearchInd
+!                            EXIT
+!                        ELSEIF(SignProd.gt.0) THEN
+!                            NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
+!                            AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
+!                            EXIT
+!                        ENDIF
+!
+!                        SearchInd=SearchInd+1
+!                    enddo
+!
+!!We can now also move the MinInd to the end of the block if we want
+!                    MinInd=SearchInd-1     !This cannot be more than TotWalkersNew
+!                ENDIF
+!
+!                IF(AnnihilateInd.gt.0) THEN
+!!We have found a particle to annihilate. Mark the particles for annihilation.
+!                    IF(NewSign(AnnihilateInd).gt.0) THEN
+!                        NewSign(AnnihilateInd)=NewSign(AnnihilateInd)-1
+!                    ELSE
+!                        NewSign(AnnihilateInd)=NewSign(AnnihilateInd)+1
+!                    ENDIF
+!                    SpawnedSign(i)=0
+!                    ToRemove=ToRemove+1
+!                    RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
+!                    Annihilated=Annihilated+2   !Count that we have annihilated two particles
+!
+!                ELSEIF(AnnihilateInd.lt.0) THEN
+!!We have transferred a particle accross between processors. "Annihilate" from the spawned list, but not the main list.
+!                    SpawnedSign(i)=0
+!                    ToRemove=ToRemove+1
+!                    RemoveInds(ToRemove)=i
+!                ENDIF
 
             ELSE
 !A corresponding particle wasn't found, but we now only have a smaller list to search within next time....so not all bad news then...
