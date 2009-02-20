@@ -1061,8 +1061,6 @@ MODULE FciMCParMod
         INTEGER :: i,j,N,Comp,DetBitLT
         LOGICAL :: tSuccess
 
-        CALL set_timer(BinSearch_time,45)
-
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
 !        CALL FLUSH(6)
         i=MinInd
@@ -1128,8 +1126,6 @@ MODULE FciMCParMod
         tSuccess=.false.
         PartInd=MAX(MinInd,i-1)
 
-        CALL halt_timer(BinSearch_time)
-        
     END SUBROUTINE BinSearchParts
 
 !In this routine, we want to search through the list of spawned particles. For each spawned particle, we binary search the list of particles on the processor
@@ -1156,6 +1152,8 @@ MODULE FciMCParMod
 !            WRITE(6,*) NewDets(:,i),NewSign(i)
 !        enddo
 !        CALL FLUSH(6)
+        
+        CALL set_timer(BinSearch_time,45)
 
         do i=1,ValidSpawned
 
@@ -1253,6 +1251,8 @@ MODULE FciMCParMod
             ENDIF
 
         enddo
+        
+        CALL halt_timer(BinSearch_time)
 
 !Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
