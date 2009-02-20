@@ -2948,29 +2948,41 @@ MODULE FciMCParMod
         ELSE
 !The population is too low - give it a boost by doubling every particle
 
-            VecSlot=TotWalkers+1
-            do i=1,TotWalkers
+            IF(tRotoAnnihil) THEN
+
+                do i=1,TotWalkers
+                    CurrentSign(i)=CurrentSign(i)*2
+                enddo
+                TotParts=TotParts*2
+                CullInfo(NoCulls,2)=TotParts
+
+            ELSE
+
+                VecSlot=TotWalkers+1
+                do i=1,TotWalkers
 
 !Add clone of walker, at the same determinant, to the end of the list
-                CurrentDets(:,VecSlot)=CurrentDets(:,i)
-                CurrentSign(VecSlot)=CurrentSign(i)
-                IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=CurrentH(i)
-!                CurrentIC(VecSlot)=CurrentIC(i)
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(i),CurrentExcits(VecSlot),.false.)
+                    CurrentDets(:,VecSlot)=CurrentDets(:,i)
+                    CurrentSign(VecSlot)=CurrentSign(i)
+                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=CurrentH(i)
+!                    CurrentIC(VecSlot)=CurrentIC(i)
+                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(i),CurrentExcits(VecSlot),.false.)
 
-                VecSlot=VecSlot+1
+                    VecSlot=VecSlot+1
 
-            enddo
+                enddo
 
-            TotWalkers=TotWalkers*2
+                TotWalkers=TotWalkers*2
 
-            IF((VecSlot-1).ne.TotWalkers) THEN
-                WRITE(6,*) "Problem in doubling all particles..."
-                STOP "Problem in doubling all particles..."
-            ENDIF
+                IF((VecSlot-1).ne.TotWalkers) THEN
+                    WRITE(6,*) "Problem in doubling all particles..."
+                    STOP "Problem in doubling all particles..."
+                ENDIF
 
 !CullInfo(:,2) is the new number of total walkers
-            CullInfo(NoCulls,2)=TotWalkers
+                CullInfo(NoCulls,2)=TotWalkers
+
+            ENDIF
 
         ENDIF
 
