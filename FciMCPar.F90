@@ -1845,26 +1845,29 @@ MODULE FciMCParMod
             CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
         ELSE
 
-            IF(TotParts.gt.(InitWalkers*GrowMaxFactor)) THEN
+            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 !Particle number is too large - kill them randomly
+                IF(.not.tRotoAnnihil) THEN
 
 !Log the fact that we have made a cull
-                NoCulls=NoCulls+1
-                IF(NoCulls.gt.10) THEN
-                    WRITE(6,*) "Too Many Culls"
-                    CALL FLUSH(6)
-                    call Stop_All("PerformFCIMCyc","Too Many Culls")
-                ENDIF
+                    NoCulls=NoCulls+1
+                    IF(NoCulls.gt.10) THEN
+                        WRITE(6,*) "Too Many Culls"
+                        CALL FLUSH(6)
+                        call Stop_All("PerformFCIMCyc","Too Many Culls")
+                    ENDIF
 !CullInfo(:,1) is walkers before cull
-                CullInfo(NoCulls,1)=TotParts
+                    CullInfo(NoCulls,1)=TotParts
 !CullInfo(:,3) is MC Steps into shift cycle before cull
-                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
 
-                WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
-                WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
-                WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
-!                CALL FLUSH(6)
-                CALL ThermostatParticlesPar(.true.)
+                    WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
+                    WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
+                    WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
+                    CALL FLUSH(6)
+                    CALL ThermostatParticlesPar(.true.)
+
+                ENDIF
 
             ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
 !Particle number is too small - double every particle in its current position
