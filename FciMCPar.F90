@@ -151,7 +151,7 @@ MODULE FciMCParMod
     LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
     LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
 
-    TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time,Sort_Time,Comms_Time,AnnSpawned_time,AnnMain_time
+    TYPE(timer), save :: Walker_Time,Annihil_Time,ACF_Time,Sort_Time,Comms_Time,AnnSpawned_time,AnnMain_time,BinSearch_time
 
 !These are arrays used to store the autocorrelation function
     INTEGER , ALLOCATABLE :: WeightatDets(:)                   !First index - det which is stored, second - weight on proc at that iteration
@@ -1061,6 +1061,8 @@ MODULE FciMCParMod
         INTEGER :: i,j,N,Comp,DetBitLT
         LOGICAL :: tSuccess
 
+        CALL set_timer(BinSearch_time,45)
+
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
 !        CALL FLUSH(6)
         i=MinInd
@@ -1125,6 +1127,8 @@ MODULE FciMCParMod
 !If we have failed, then we want to find the index that is one less than where the particle would have been.
         tSuccess=.false.
         PartInd=MAX(MinInd,i-1)
+
+        CALL halt_timer(BinSearch_time)
         
     END SUBROUTINE BinSearchParts
 
@@ -1406,19 +1410,23 @@ MODULE FciMCParMod
             Comp=DetBitLT(DetArray(:,i-1),DetArray(:,i),NoIntforDet)
             IF(Comp.eq.-1) THEN
 !Array is in reverse numerical order for these particles
-                do j=i-5,i+5
-                    WRITE(6,*) j,DetArray(:,j),SignArray(j)
+                do j=max(i-5,1),min(i+5,NoDets)
+                    WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
                 enddo
                 CALL Stop_All("CheckOrdering","Array not ordered correctly")
             ELSEIF(Comp.eq.0) THEN
 !Dets are the same - see if we want to check sign-coherence
-                do j=max(i-5,1),min(i+5,NoDets)
-                    WRITE(6,*) j,DetArray(:,j),SignArray(j)
-                enddo
-                CALL Stop_All("CheckOrdering","Determinant same as previous one...")
+                IF(tCheckSignCoher) THEN
+!This bit checks that there is only one copy of the determinants in the list
+                    do j=max(i-5,1),min(i+5,NoDets)
+                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
+                    enddo
+                    CALL Stop_All("CheckOrdering","Determinant same as previous one...")
+                ENDIF
                 IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
+!This checks that any multple copies in the list are sign-coherent...
                     do j=i-5,i+5
-                        WRITE(6,*) j,DetArray(:,j),SignArray(j)
+                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
                     enddo
                     CALL Stop_All("CheckOrdering","Array not sign-coherent")
                 ENDIF
@@ -3084,6 +3092,7 @@ MODULE FciMCParMod
         ACF_Time%timer_name='ACFTime'
         AnnSpawned_time%timer_name='AnnSpawnedTime'
         AnnMain_time%timer_name='AnnMainTime'
+        BinSearch_time%timer_name='BinSearchTime'
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -5304,7 +5313,7 @@ MODULE FciMCParMod
 !        CALL MPI_Barrier(MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.root) THEN
-            WRITE(6,*) "Moving particles/determinants between nodes in order to balance the load..."
+            WRITE(6,*) "Moving particles/determinants between nodes in order to balance the load...",Iter
         ENDIF
         
 !First, it is necessary to find the number of walkers on each processor and gather the info to the root.
@@ -5527,6 +5536,8 @@ MODULE FciMCParMod
         INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd
 
         CALL SortBitDetswH(Length,PartList,NoIntforDet,SignList,HList)
+!        WRITE(6,*) "Here1"
+!        CALL CheckOrdering(PartList(:,1:Length),SignList(1:Length),Length,.false.)
 
 !Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
         TotParts=abs(SignList(1))
@@ -5567,6 +5578,9 @@ MODULE FciMCParMod
                 i=i+1
             ENDIF
         enddo
+
+!        WRITE(6,*) "Here2"
+!        CALL CheckOrdering(PartList(:,1:Length),CurrentSign(1:Length),Length,.true.)
 
     END SUBROUTINE SortCompressListswH
 
