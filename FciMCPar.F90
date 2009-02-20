@@ -285,8 +285,8 @@ MODULE FciMCParMod
 !Make sure only sort what need to
     SUBROUTINE RotoAnnihilation(ValidSpawned,TotWalkersNew)
         INTEGER :: ValidSpawned,TotWalkersNew,i
-        INTEGER :: InitialSpawned,ierr,error,SpawnedBeforeRoto
-        INTEGER , ALLOCATABLE :: mpibuffer(:)
+        INTEGER :: InitialSpawned,ierr,error!,SpawnedBeforeRoto
+        CHARACTER , ALLOCATABLE :: mpibuffer(:)
 
         InitialSpawned=ValidSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
         
@@ -309,7 +309,7 @@ MODULE FciMCParMod
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 !        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
-        SpawnedBeforeRoto=ValidSpawned
+!        SpawnedBeforeRoto=ValidSpawned
 !        WRITE(6,*) "SpawnedBeforeRoto: ",SpawnedBeforeRoto
 
 !This RemoveInds is useful scratch space for the removal of particles from lists. It probably isn't essential, but keeps things simpler initially.
@@ -324,11 +324,11 @@ MODULE FciMCParMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NoIntforDet+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(2*(MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
+            ALLOCATE(mpibuffer(9*(MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
-            CALL MPI_Buffer_attach(mpibuffer,2*(MaxSpawned+1)*(NoIntforDet+2)*4,error)
+            CALL MPI_Buffer_attach(mpibuffer,9*(MaxSpawned+1)*(NoIntforDet+2),error)
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
@@ -354,7 +354,7 @@ MODULE FciMCParMod
             CALL RotateParticles(ValidSpawned)
 
 !Detach buffers
-            CALL MPI_Buffer_detach(mpibuffer,2*(MaxSpawned+1)*(NoIntforDet+2)*4,error)
+            CALL MPI_Buffer_detach(mpibuffer,9*(MaxSpawned+1)*(NoIntforDet+2),error)
             DEALLOCATE(mpibuffer)
         ENDIF
 
@@ -362,7 +362,7 @@ MODULE FciMCParMod
 !Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
-        CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew,SpawnedBeforeRoto)
+        CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
         CALL halt_timer(Sort_Time)
 
         DEALLOCATE(RemoveInds)
@@ -420,8 +420,8 @@ MODULE FciMCParMod
 !Initially, we can put these new particles into the other array: CurrentDets and CurrentSign, but we will want to remove the need for a second
 !array eventually and keep all the particles on the same array.
 !Binary searching can be used to speed up this transfer substantially.
-    SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew,SpawnedBeforeRoto)
-        INTEGER :: IndSpawned,IndParts,VecInd,DetBitLT,TotWalkersNew,ValidSpawned,SpawnedBeforeRoto
+    SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
+        INTEGER :: IndSpawned,IndParts,VecInd,DetBitLT,TotWalkersNew,ValidSpawned!,SpawnedBeforeRoto
         INTEGER :: nJ(NEl),i,InitialSpawned,TotAnnFromOrig,error,CompParts
         LOGICAL :: DetBitEQ
         TYPE(HElement) :: HDiagTemp
@@ -432,15 +432,18 @@ MODULE FciMCParMod
         VecInd=1
         TotParts=0
 
-!        WRITE(6,*) "Merging lists, ",TotWalkersNew
-!        do i=1,TotWalkersNew
-!            WRITE(6,*) NewDets(:,i),NewSign(i)
-!        enddo
-!        WRITE(6,*) "Spawned list: ",ValidSpawned
-!        do i=1,ValidSpawned
-!            WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
-!        enddo
-!        CALL FLUSH(6)
+!        IF(Iter.eq.56) THEN
+!            WRITE(6,*) "Merging lists, ",TotWalkersNew
+!            do i=1,TotWalkersNew
+!                WRITE(6,*) NewDets(:,i),NewSign(i)
+!            enddo
+!            WRITE(6,*) "Spawned list: ",ValidSpawned
+!            do i=1,ValidSpawned
+!                WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
+!            enddo
+!            WRITE(6,*) "*****"
+!!            CALL FLUSH(6)
+!        ENDIF
 
         IF((ValidSpawned.gt.0).and.(TotWalkersNew.gt.0)) THEN
             do while(IndParts.le.TotWalkersNew)
@@ -467,35 +470,31 @@ MODULE FciMCParMod
                     IF(.not.tRegenDiagHEls) CurrentH(VecInd)=NewH(IndParts)
                     CurrentSign(VecInd)=NewSign(IndParts)+SpawnedSign(IndSpawned)
                     IndParts=IndParts+1
+                    IndSpawned=IndSpawned+1
 
-                    do while(DetBitEQ(SpawnedParts(:,IndSpawned),SpawnedParts(:,IndSpawned+1),NoIntForDet).and.(IndSpawned.lt.ValidSpawned))
-                        CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned+1)
+                    do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned),NoIntForDet).and.(IndSpawned.le.ValidSpawned))
+                        CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned)
                         IndSpawned=IndSpawned+1
                     enddo
 
                     TotParts=TotParts+abs(CurrentSign(VecInd))
                     VecInd=VecInd+1
-                    IF(ValidSpawned.eq.IndSpawned) THEN
+                    IF(IndSpawned.gt.ValidSpawned) THEN
                         IndSpawned=IndSpawned+1
                         EXIT    !We have reached the end of the list of spawned particles
-                    ELSE
-                        IndSpawned=IndSpawned+1
                     ENDIF
 
                 ELSE
 !Now, we want to transfer a spawned particle, unless we have transferred them all
-!                    IF(IndSpawned.gt.ValidSpawned) THEN
-!                        SpawnedParts(0:NoIntForDet,IndSpawned)=HUGE(IndSpawned)
-!                        CYCLE
-!                    ENDIF
                     IF(SpawnedSign(IndSpawned).eq.0) THEN
                         CALL Stop_All("InsertRemoveParts","Should not have particles marked for annihilation in this array")
                     ENDIF
                     CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
                     CurrentSign(VecInd)=SpawnedSign(IndSpawned)
+                    IndSpawned=IndSpawned+1
                     
-                    do while(DetBitEQ(SpawnedParts(:,IndSpawned),SpawnedParts(:,IndSpawned+1),NoIntForDet).and.(IndSpawned.lt.ValidSpawned))
-                        CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned+1)
+                    do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned),NoIntForDet).and.(IndSpawned.le.ValidSpawned))
+                        CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned)
                         IndSpawned=IndSpawned+1
                     enddo
                     
@@ -522,11 +521,9 @@ MODULE FciMCParMod
                     ENDIF
                     
                     VecInd=VecInd+1
-                    IF(ValidSpawned.eq.IndSpawned) THEN
+                    IF(IndSpawned.gt.ValidSpawned) THEN
                         IndSpawned=IndSpawned+1
                         EXIT    !We have reached the end of the list of spawned particles
-                    ELSE
-                        IndSpawned=IndSpawned+1
                     ENDIF
                 ENDIF
 
@@ -546,12 +543,14 @@ MODULE FciMCParMod
             enddo
 
         ELSEIF(IndSpawned.le.ValidSpawned) THEN
-            do i=IndSpawned,ValidSpawned
-                CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,i)
-                CurrentSign(VecInd)=SpawnedSign(i)
+            do while(IndSpawned.le.ValidSpawned)
 
-                do while(DetBitEQ(SpawnedParts(:,IndSpawned),SpawnedParts(:,IndSpawned+1),NoIntForDet).and.(IndSpawned.lt.ValidSpawned))
-                    CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned+1)
+                CurrentDets(0:NoIntForDet,VecInd)=SpawnedParts(0:NoIntForDet,IndSpawned)
+                CurrentSign(VecInd)=SpawnedSign(IndSpawned)
+                IndSpawned=IndSpawned+1
+
+                do while(DetBitEQ(SpawnedParts(:,IndSpawned-1),SpawnedParts(:,IndSpawned),NoIntForDet).and.(IndSpawned.le.ValidSpawned))
+                    CurrentSign(VecInd)=CurrentSign(VecInd)+SpawnedSign(IndSpawned)
                     IndSpawned=IndSpawned+1
                 enddo
                     
@@ -580,6 +579,12 @@ MODULE FciMCParMod
                 VecInd=VecInd+1
             enddo
         ENDIF
+
+!        IF(Iter.eq.56) THEN
+!            do i=1,VecInd-1
+!                WRITE(6,*) i,CurrentDets(:,i),CurrentSign(i)
+!            enddo
+!        ENDIF
 
 !TotParts is now the total number of particles in the system.
 !This should match the decrease in size of the SpawnedParts array over the course of the annihilation steps.
@@ -1407,7 +1412,7 @@ MODULE FciMCParMod
                 CALL Stop_All("CheckOrdering","Array not ordered correctly")
             ELSEIF(Comp.eq.0) THEN
 !Dets are the same - see if we want to check sign-coherence
-                do j=min(i-5,1),max(i+5,NoDets)
+                do j=max(i-5,1),min(i+5,NoDets)
                     WRITE(6,*) j,DetArray(:,j),SignArray(j)
                 enddo
                 CALL Stop_All("CheckOrdering","Determinant same as previous one...")
@@ -1742,6 +1747,7 @@ MODULE FciMCParMod
         
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
         SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
+!        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
