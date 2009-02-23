@@ -137,7 +137,6 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit,tRotateOrbs
-    use SystemData , only : tSeparateOccVirt,tOccOrbsOnly,tVirtOrbsOnly
     use Integrals, only : IntInit,IntFreeze,tPostFreezeHF
     use DetCalc, only : DetCalcInit,DoDetCalc
     use Determinants, only : DetPreFreezeInit,DetInit
@@ -169,15 +168,7 @@ subroutine NECICalcInit(iCacheFlag)
 
     
     IF(tRotateOrbs) THEN
-        IF (tSeparateOccVirt) THEN
-            tOccOrbsOnly=.true.
-            CALL RotateOrbs()
-!            tOccOrbsOnly=.false.
-!            tVirtOrbsOnly=.true.
-!            CALL RotateOrbs()
-        ELSE
-            CALL RotateOrbs()
-        ENDIF
+        CALL RotateOrbs()
     ENDIF
 
     call DetInit()

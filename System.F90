@@ -77,8 +77,6 @@ MODULE System
       tShakeIter=.false.
       ShakeIterMax=5
       tSeparateOccVirt=.false.
-      tOccOrbsOnly=.false.
-      tVirtOrbsOnly=.false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
