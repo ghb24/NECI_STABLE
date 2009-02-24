@@ -442,7 +442,7 @@ MODULE FciMCParMod
 !                WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
 !            enddo
 !            WRITE(6,*) "*****"
-!!            CALL FLUSH(6)
+!            CALL FLUSH(6)
 !        ENDIF
 
         IF((ValidSpawned.gt.0).and.(TotWalkersNew.gt.0)) THEN
@@ -554,7 +554,7 @@ MODULE FciMCParMod
                     IndSpawned=IndSpawned+1
                 enddo
                     
-                TotParts=TotParts+abs(SpawnedSign(i))
+                TotParts=TotParts+abs(SpawnedSign(VecInd))
 
                 IF(.not.tRegenDiagHEls) THEN
 !Need to find H-element!
