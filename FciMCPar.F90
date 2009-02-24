@@ -554,7 +554,7 @@ MODULE FciMCParMod
                     IndSpawned=IndSpawned+1
                 enddo
                     
-                TotParts=TotParts+abs(SpawnedSign(VecInd))
+                TotParts=TotParts+abs(CurrentSign(VecInd))
 
                 IF(.not.tRegenDiagHEls) THEN
 !Need to find H-element!
