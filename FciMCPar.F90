@@ -488,7 +488,7 @@ MODULE FciMCParMod
             IF(tRotoAnnihil) THEN
 
                 IF(CurrentSign(j).le.0) THEN
-                    CopySign=CurrentSign(j)+iDie
+                    CopySign=CurrentSign(j)+iDie    !Copy sign is the total number of particles x sign that we want to copy accross.
                     IF(CopySign.le.0) THEN
 !If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
 !it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate.
@@ -505,12 +505,22 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
 
+                IF(tMainArr.and.(VecSlot.gt.j)) THEN
+!We only have a single array, therefore surviving particles are simply transferred back into the original array.
+!However, this can not happen if we want to overwrite particles that we haven't even got to yet.
+!However, this should not happen under normal circumstances...
+                    tMainArr=.false.
+                    CALL Stop_All("PerformFCIMCyc","About to overwrite particles which haven't been reached yet. This should not happen in normal situations.")
+                ENDIF
+
                 IF(CopySign.ne.0) THEN
 
                     IF(tMainArr) THEN
-                        NewDets(:,VecSlot)=CurrentDets(:,j)
-                        NewSign(VecSlot)=CopySign
-                        IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiagCurr
+!                        NewDets(:,VecSlot)=CurrentDets(:,j)
+!                        NewSign(VecSlot)=CopySign
+                        CurrentDets(:,VecSlot)=CurrentDets(:,j)
+                        CurrentSign(VecSlot)=CopySign
+                        IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=HDiagCurr
                         VecSlot=VecSlot+1
                     ELSE
 !                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
@@ -530,7 +540,7 @@ MODULE FciMCParMod
 
                 ENDIF
 
-            ELSE
+            ELSE    !Not rotoannihilation
 
                 IF(iDie.le.0) THEN
 !This indicates that the particle is spared and we may want to create more...copy them across to NewDets
@@ -771,7 +781,7 @@ MODULE FciMCParMod
 !        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 
 !        SpawnedBeforeRoto=ValidSpawned
-!        WRITE(6,*) "SpawnedBeforeRoto: ",SpawnedBeforeRoto
+!        WRITE(6,*) "SpawnedBeforeRoto: ",ValidSpawned
 
 !This RemoveInds is useful scratch space for the removal of particles from lists. It probably isn't essential, but keeps things simpler initially.
 !        ALLOCATE(RemoveInds(MaxSpawned),stat=ierr)
@@ -785,11 +795,11 @@ MODULE FciMCParMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NoIntforDet+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(10*(MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
+            ALLOCATE(mpibuffer(8*(MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
-            CALL MPI_Buffer_attach(mpibuffer,10*(MaxSpawned+1)*(NoIntforDet+2),error)
+            CALL MPI_Buffer_attach(mpibuffer,8*(MaxSpawned+1)*(NoIntforDet+2),error)
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
@@ -815,7 +825,7 @@ MODULE FciMCParMod
             CALL RotateParticles(ValidSpawned)
 
 !Detach buffers
-            CALL MPI_Buffer_detach(mpibuffer,10*(MaxSpawned+1)*(NoIntforDet+2),error)
+            CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NoIntforDet+2),error)
             DEALLOCATE(mpibuffer)
         ENDIF
 
@@ -823,6 +833,8 @@ MODULE FciMCParMod
 !Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
+!        WRITE(6,*) "Entering insert/remove..."
+!        CALL FLUSH(6)
         CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
         CALL halt_timer(Sort_Time)
 
@@ -875,11 +887,9 @@ MODULE FciMCParMod
 
     END SUBROUTINE AnnihilateBetweenSpawnedOneProc
 
-!This routine will run through the total list of particles (TotWalkersNew in NewDets with sign NewSign) and the list of newly-spawned but
+!This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
 !non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
-!while removing the particles with sign = 0 from NewDets. 
-!Initially, we can put these new particles into the other array: CurrentDets and CurrentSign, but we will want to remove the need for a second
-!array eventually and keep all the particles on the same array.
+!while removing the particles with sign = 0 from CurrentDets. 
 !Binary searching can be used to speed up this transfer substantially.
     SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
         INTEGER :: IndSpawned,IndParts,VecInd,DetBitLT,TotWalkersNew,ValidSpawned
@@ -891,7 +901,7 @@ MODULE FciMCParMod
 !        IF(Iter.eq.56) THEN
 !            WRITE(6,*) "Merging lists, ",TotWalkersNew,Iter
 !            do i=1,TotWalkersNew
-!                WRITE(6,*) NewDets(:,i),NewSign(i)
+!                WRITE(6,*) CurrentDets(:,i),CurrentSign(i)
 !            enddo
 !            WRITE(6,*) "Spawned list: ",ValidSpawned,Iter
 !            do i=1,ValidSpawned
@@ -908,24 +918,24 @@ MODULE FciMCParMod
         DetsMerged=0
         do i=1,TotWalkersNew
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-            NewDets(0:NoIntforDet,i-DetsMerged)=NewDets(0:NoIntforDet,i)
-            NewSign(i-DetsMerged)=NewSign(i)
-            TotParts=TotParts+abs(NewSign(i))
+            CurrentDets(0:NoIntforDet,i-DetsMerged)=CurrentDets(0:NoIntforDet,i)
+            CurrentSign(i-DetsMerged)=CurrentSign(i)
+            TotParts=TotParts+abs(CurrentSign(i))
             IF(.not.tRegenDiagHEls) THEN
-                NewH(i-DetsMerged)=NewH(i)
+                CurrentH(i-DetsMerged)=CurrentH(i)
             ENDIF
-            IF(NewSign(i).eq.0) THEN
+            IF(CurrentSign(i).eq.0) THEN
                 DetsMerged=DetsMerged+1
             ENDIF
         enddo
         TotWalkersNew=TotWalkersNew-DetsMerged
 
 !        do i=1,TotWalkersNew
-!            IF(NewSign(i).eq.0) THEN
+!            IF(CurrentSign(i).eq.0) THEN
 !                CALL Stop_All("InsertRemoveParts","Particles not removed correctly")
 !            ENDIF
 !        enddo
-!        CALL CheckOrdering(NewDets,NewSign(1:TotWalkersNew),TotWalkersNew,.true.)
+!        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkersNew),TotWalkersNew,.true.)
 
 !We now need to compress the spawned list, so that no particles are specified more than once.
 !In the end, we actually want to do this initially, rather than at the end...
@@ -957,13 +967,14 @@ MODULE FciMCParMod
 !
 !        WRITE(6,*) "Before merging...",TotWalkersNew,Iter
 !        do i=1,TotWalkersNew
-!            WRITE(6,*) i,NewDets(:,i),NewSign(i)
+!            WRITE(6,*) i,CurrentDets(:,i),CurrentSign(i)
 !        enddo
 !        WRITE(6,*) "***"
 !        do i=1,ValidSpawned
 !            WRITE(6,*) i,SpawnedParts(:,i),SpawnedSign(i)
 !        enddo
 !        WRITE(6,*) "***"
+!        CALL FLUSH(6)
 
 !TotWalkersNew is now the number of non-annihilated determinants in the main list left.
 !We now want to merge the main list with the spawned list of non-annihilated spawned particles.
@@ -972,29 +983,30 @@ MODULE FciMCParMod
        
         IF(tRegenDiagHEls) THEN
 
-            CALL MergeLists(TotWalkersNew,MaxWalkersPart,NewDets(0:NoIntforDet,1:MaxWalkersPart),ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NewSign(1:MaxWalkersPart),SpawnedSign(1:ValidSpawned),NoIntforDet)
+            CALL MergeLists(TotWalkersNew,MaxWalkersPart,CurrentDets(0:NoIntforDet,1:MaxWalkersPart),ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),CurrentSign(1:MaxWalkersPart),SpawnedSign(1:ValidSpawned),NoIntforDet)
         ELSE
-            CALL MergeLists(TotWalkersNew,MaxWalkersPart,NewDets(0:NoIntforDet,1:MaxWalkersPart),ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NewSign(1:MaxWalkersPart),SpawnedSign(1:ValidSpawned),NoIntforDet,NewH(1:MaxWalkersPart))
+            CALL MergeListswH(TotWalkersNew,MaxWalkersPart,CurrentDets(0:NoIntforDet,1:MaxWalkersPart),ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),CurrentSign(1:MaxWalkersPart),SpawnedSign(1:ValidSpawned),NoIntforDet,CurrentH(1:MaxWalkersPart))
         ENDIF
         TotWalkers=TotWalkersNew
 
-!        CALL CheckOrdering(NewDets,NewSign(1:TotWalkers),TotWalkers,.true.)
+!        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
-        IF(associated(CurrentDets,target=WalkVecDets)) THEN
-            CurrentDets=>WalkVec2Dets
-            CurrentSign=>WalkVec2Sign
-            CurrentH=>WalkVec2H
-            NewDets=>WalkVecDets
-            NewSign=>WalkVecSign
-            NewH=>WalkVecH
-        ELSE
-            CurrentDets=>WalkVecDets
-            CurrentSign=>WalkVecSign
-            CurrentH=>WalkVecH
-            NewDets=>WalkVec2Dets
-            NewSign=>WalkVec2Sign
-            NewH=>WalkVec2H
-        ENDIF
+!There is now no need to swap the pointers around since we only have one array
+!        IF(associated(CurrentDets,target=WalkVecDets)) THEN
+!            CurrentDets=>WalkVec2Dets
+!            CurrentSign=>WalkVec2Sign
+!            CurrentH=>WalkVec2H
+!            NewDets=>WalkVecDets
+!            NewSign=>WalkVecSign
+!            NewH=>WalkVecH
+!        ELSE
+!            CurrentDets=>WalkVecDets
+!            CurrentSign=>WalkVecSign
+!            CurrentH=>WalkVecH
+!            NewDets=>WalkVec2Dets
+!            NewSign=>WalkVec2Sign
+!            NewH=>WalkVec2H
+!        ENDIF
             
 !        WRITE(6,*) "Final Merged List: "
 !        do i=1,TotWalkers
@@ -1713,7 +1725,7 @@ MODULE FciMCParMod
 !        enddo
 !        WRITE(6,*) "Original Parts: "
 !        do i=1,TotWalkersNew
-!            WRITE(6,*) NewDets(:,i),NewSign(i)
+!            WRITE(6,*) CurrentDets(:,i),CurrentSign(i)
 !        enddo
 !        CALL FLUSH(6)
         
@@ -1721,33 +1733,33 @@ MODULE FciMCParMod
 
         do i=1,ValidSpawned
 
-!This will binary search the NewDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
+!This will binary search the CurrentDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
-!            CALL LinSearchParts(NewDets(:,1:TotWalkersNew),SpawnedParts(0:NoIntforDet,i),MinInd,TotWalkersNew,PartInd,tSuccess)
-            CALL BinSearchParts(NewDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+!            CALL LinSearchParts(CurrentDets(:,1:TotWalkersNew),SpawnedParts(0:NoIntforDet,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            CALL BinSearchParts(CurrentDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 !            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess
 !            CALL FLUSH(6)
 
             IF(tSuccess) THEN
 !A particle on the same list has been found. We now want to search backwards, to find the first particle in this block.
-!Actually, this shouldn't be necessary - the NewDets array should be sign-coherent. The only time that we need to search forwards/backwards is if we hit upon an already
+!Actually, this shouldn't be necessary - the CurrentDets array should be sign-coherent. The only time that we need to search forwards/backwards is if we hit upon an already
 !annihilated particle, i.e. Sign=0. If we hit upon +-1, then we know that the block is sign coherent.
 
 !                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, as we know that PartInd is the same particle.
 !                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next particle will not be at an index smaller than PartInd
-!                AnnihilateInd=0     !AnnihilateInd indicates the index in NewDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
+!                AnnihilateInd=0     !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. It will remain 0 if we find not complimentary particle.
 !                tSkipSearch=.false. !This indicates whether we want to continue searching forwards through the list once we exit the loop going backwards.
                 
-                SignProd=NewSign(PartInd)*SpawnedSign(i)
+                SignProd=CurrentSign(PartInd)*SpawnedSign(i)
                 IF(SignProd.lt.0) THEN
 !This indicates that the particle has found the same particle of opposite sign to annihilate with
 !Mark these particles for annihilation in both arrays
 !If we go to a determinant representation of the spawned particles, then we need to be careful that we can only annihilate against the number of particles on the main list.
 !                    AnnihilateInd=SearchInd
-                    IF(NewSign(PartInd).gt.0) THEN
-                        NewSign(PartInd)=NewSign(PartInd)-1
+                    IF(CurrentSign(PartInd).gt.0) THEN
+                        CurrentSign(PartInd)=CurrentSign(PartInd)-1
                     ELSE
-                        NewSign(PartInd)=NewSign(PartInd)+1
+                        CurrentSign(PartInd)=CurrentSign(PartInd)+1
                     ENDIF
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
@@ -1757,7 +1769,7 @@ MODULE FciMCParMod
                 ELSEIF(SignProd.gt.0) THEN
 !This indicates that the particle has found a similar particle of the same sign. It therefore cannot annihilate, since all arrays accross all processors are sign-coherent.
 !Therefore, we can just transfer it accross now.
-                    NewSign(PartInd)=NewSign(PartInd)+SpawnedSign(i)
+                    CurrentSign(PartInd)=CurrentSign(PartInd)+SpawnedSign(i)
 !We have transferred a particle accross between processors. "Annihilate" from the spawned list, but not the main list.
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
@@ -1766,20 +1778,20 @@ MODULE FciMCParMod
                 ENDIF
 
 
-!                do while((DetBitEQ(SpawnedParts(:,i),NewDets(:,SearchInd),NoIntforDet)).and.(SearchInd.ge.1))
+!                do while((DetBitEQ(SpawnedParts(:,i),CurrentDets(:,SearchInd),NoIntforDet)).and.(SearchInd.ge.1))
 !!Cycle backwards through the list, checking where the start of this block of determinants starts.
-!                    SignProd=NewSign(SearchInd)*SpawnedSign(i)
+!                    SignProd=CurrentSign(SearchInd)*SpawnedSign(i)
 !                    IF(SignProd.lt.0) THEN
 !!We have actually found a complimentary particle - mark the index of this particle for annihilation.
 !                        AnnihilateInd=SearchInd
-!!                        WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
+!!                        WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),CurrentDets(:,SearchInd),CurrentSign(SearchInd)
 !                        tSkipSearch=.true.
 !                        EXIT
 !                    ELSEIF(SignProd.gt.0) THEN
-!!Since the signs are coherent on NewSign, we know that we can not annihilate the SpawnedParts particle if we find a particle of the same sign. 
+!!Since the signs are coherent on CurrentSign, we know that we can not annihilate the SpawnedParts particle if we find a particle of the same sign. 
 !!Therefore, we can remove the particle from the list, and instantly transfer the particle to the next array.
 !                        tSkipSearch=.true.
-!                        NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
+!                        CurrentSign(SearchInd)=CurrentSign(SearchInd)+SpawnedSign(i)
 !                        AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
 !                        EXIT
 !                    ENDIF
@@ -1798,15 +1810,15 @@ MODULE FciMCParMod
 !!We have searched from the beginning of the particle block(SearchInd) to PartInd for a complimentary particle, but have not had any success. Now we can search from
 !!PartInd+1 to the end of the block for a complimentary particle.
 !                    SearchInd=PartInd+1
-!                    do while((DetBitEQ(SpawnedParts(0:NoIntforDet,i),NewDets(0:NoIntforDet,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
-!                        SignProd=NewSign(SearchInd)*SpawnedSign(i)
+!                    do while((DetBitEQ(SpawnedParts(0:NoIntforDet,i),CurrentDets(0:NoIntforDet,SearchInd),NoIntforDet)).and.(SearchInd.le.TotWalkersNew))
+!                        SignProd=CurrentSign(SearchInd)*SpawnedSign(i)
 !                        IF(SignProd.lt.0) THEN
 !!We have found a complimentary particle - mark the index of this particle for annihilation.
-!!                            WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),NewDets(:,SearchInd),NewSign(SearchInd)
+!!                            WRITE(6,"(A,2I12,I4,2I12,I4)") "Annihilated from MainList: ",SpawnedParts(:,i),SpawnedSign(i),CurrentDets(:,SearchInd),CurrentSign(SearchInd)
 !                            AnnihilateInd=SearchInd
 !                            EXIT
 !                        ELSEIF(SignProd.gt.0) THEN
-!                            NewSign(SearchInd)=NewSign(SearchInd)+SpawnedSign(i)
+!                            CurrentSign(SearchInd)=CurrentSign(SearchInd)+SpawnedSign(i)
 !                            AnnihilateInd=-SearchInd    !Give the annihilateInd a negative index to indicate that we only want to annihilate from the spawned list, not main list.
 !                            EXIT
 !                        ENDIF
@@ -1820,10 +1832,10 @@ MODULE FciMCParMod
 !
 !                IF(AnnihilateInd.gt.0) THEN
 !!We have found a particle to annihilate. Mark the particles for annihilation.
-!                    IF(NewSign(AnnihilateInd).gt.0) THEN
-!                        NewSign(AnnihilateInd)=NewSign(AnnihilateInd)-1
+!                    IF(CurrentSign(AnnihilateInd).gt.0) THEN
+!                        CurrentSign(AnnihilateInd)=CurrentSign(AnnihilateInd)-1
 !                    ELSE
-!                        NewSign(AnnihilateInd)=NewSign(AnnihilateInd)+1
+!                        CurrentSign(AnnihilateInd)=CurrentSign(AnnihilateInd)+1
 !                    ENDIF
 !                    SpawnedSign(i)=0
 !                    ToRemove=ToRemove+1
@@ -3557,12 +3569,14 @@ MODULE FciMCParMod
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
+            IF(tRotoAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with rotoannihilation")
             CALL InitWalkersMP1Par()
 
         ELSEIF(TReadPops) THEN
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
 
+            IF(tRotoAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with rotoannihilation")
             CALL ReadFromPopsFilePar()
 
         ELSE
@@ -3588,27 +3602,36 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
-            ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntForDet+1),4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
+            IF(.not.tRotoAnnihil) THEN
+!Rotoannihilation only used a single main array. Spawned particles are put into the spawned arrays.
+                ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntForDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+                WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
+            ENDIF
 
             IF(.not.tRegenDiagHEls) THEN
                 ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
                 WalkVecH(:)=0.d0
-                ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-                WalkVec2H(:)=0.d0
+                IF(.not.tRotoAnnihil) THEN
+                    ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+                    CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
+                    WalkVec2H(:)=0.d0
+                ENDIF
             ELSE
-                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,r2)/1048576.D0," Mb/Processor"
+                IF(tRotoAnnihil) THEN
+                    WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,r2)/1048576.D0," Mb/Processor"
+                ELSE
+                    WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,r2)/1048576.D0," Mb/Processor"
+                ENDIF
             ENDIF
             
             IF(tRotoAnnihil) THEN
                 ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
-                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
-                MemoryAlloc=((2*MaxWalkersPart)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+!                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
+!                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
+                MemoryAlloc=(NoIntforDet+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
             ELSE
 !The sign is sent through when annihilating, so it needs to be longer.
                 ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
@@ -3618,10 +3641,16 @@ MODULE FciMCParMod
                 MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
             ENDIF
 
-            IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
+            IF(tRegenDiagHEls) THEN
+                IF(tRotoAnnihil) THEN
+                    MemoryAlloc=MemoryAlloc-(MaxWalkersPart*8)
+                ELSE
+                    MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
+                ENDIF
+            ENDIF
             
             WalkVecSign(:)=0
-            WalkVec2Sign(:)=0
+            IF(.not.tRotoAnnihil) WalkVec2Sign(:)=0
 
             IF(tRotoAnnihil) THEN
 
@@ -3676,10 +3705,12 @@ MODULE FciMCParMod
             CurrentSign=>WalkVecSign
             IF(.not.tRegenDiagHEls) THEN
                 CurrentH=>WalkVecH
-                NewH=>WalkVec2H
+                IF(.not.tRotoAnnihil) NewH=>WalkVec2H
             ENDIF
-            NewDets=>WalkVec2Dets
-            NewSign=>WalkVec2Sign
+            IF(.not.tRotoAnnihil) THEN
+                NewDets=>WalkVec2Dets
+                NewSign=>WalkVec2Sign
+            ENDIF
 
             IF(TStartSinglePart) THEN
                 CurrentDets(:,1)=iLutHF(:)
@@ -3710,6 +3741,9 @@ MODULE FciMCParMod
             ENDIF
 
             WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
+            IF(tRotoAnnihil) THEN
+                WRITE(6,*) "Only one array of memory to store main particle list allocated..."
+            ENDIF
             WRITE(6,*) "Initial memory allocation sucessful..."
             CALL FLUSH(6)
 
@@ -5808,21 +5842,21 @@ MODULE FciMCParMod
             
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-        DEALLOCATE(WalkVec2Dets)
-        CALL LogMemDealloc(this_routine,WalkVec2DetsTag)
         DEALLOCATE(WalkVecSign)
         CALL LogMemDealloc(this_routine,WalkVecSignTag)
-        DEALLOCATE(WalkVec2Sign)
-        CALL LogMemDealloc(this_routine,WalkVec2SignTag)
-!        DEALLOCATE(WalkVecIC)
-!        CALL LogMemDealloc(this_routine,WalkVecICTag)
-!        DEALLOCATE(WalkVec2IC)
-!        CALL LogMemDealloc(this_routine,WalkVec2ICTag)
+        IF(.not.tRotoAnnihil) THEN
+            DEALLOCATE(WalkVec2Dets)
+            CALL LogMemDealloc(this_routine,WalkVec2DetsTag)
+            DEALLOCATE(WalkVec2Sign)
+            CALL LogMemDealloc(this_routine,WalkVec2SignTag)
+        ENDIF
         IF(.not.tRegenDiagHEls) THEN
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
-            DEALLOCATE(WalkVec2H)
-            CALL LogMemDealloc(this_routine,WalkVec2HTag)
+            IF(.not.tRotoAnnihil) THEN
+                DEALLOCATE(WalkVec2H)
+                CALL LogMemDealloc(this_routine,WalkVec2HTag)
+            ENDIF
         ENDIF
         
         IF(TResumFCIMC.and.(NDets.gt.2)) THEN

@@ -15,7 +15,7 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
-    SUBROUTINE MergeLists(nlist1,nlist1max,list1,nlist2,list2,SignList1,SignList2,NIfD,HList)
+    SUBROUTINE MergeListswH(nlist1,nlist1max,list1,nlist2,list2,SignList1,SignList2,NIfD,HList)
         USE FciMCParMOD , only : iLutHF,Hii
         USE SystemData , only : tHub,tReal,NEl
         USE Determinants , only : GetHElement3
@@ -24,7 +24,7 @@
         INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2),DetBitEQ
         INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
         INTEGER :: ips,ips1,SignList1(nlist1max),SignList2(nlist2)
-        REAL*8 , optional :: HList(nlist1max)
+        REAL*8 :: HList(nlist1max)
         TYPE(HElement) :: HDiagTemp,GetHElement2
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
@@ -49,9 +49,7 @@
 !                 write(6,*) j,'->',j+i
                  list1(0:NIfD,j+i)=list1(0:NIfD,j)
                  SignList1(j+i)=SignList1(j)
-                 IF(present(HList)) THEN
-                     HList(j+i)=HList(j)
-                 ENDIF
+                 HList(j+i)=HList(j)
               endif
            enddo
 !.elements of list1 which were copied over started
@@ -66,24 +64,87 @@
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
            list1(0:NIfD,ips+i-1)=list2(0:NIfD,i)
            SignList1(ips+i-1)=SignList2(i)
-           IF(present(HList)) THEN
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                IF(DetBitEQ(list2(0:NIfD,i),iLutHF,NIfD)) THEN
+           IF(DetBitEQ(list2(0:NIfD,i),iLutHF,NIfD)) THEN
 !We know we are at HF - HDiag=0
-                    HDiag=0.D0
-                    IF(tHub.and.tReal) THEN
+               HDiag=0.D0
+               IF(tHub.and.tReal) THEN
 !Reference determinant is not HF
-                        CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
-                        HDiagTemp=GetHElement3(nJ,nJ,0)
-                        HDiag=(REAL(HDiagTemp%v,8))
-                    ENDIF
-                ELSE
-                    CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
-                    HDiagTemp=GetHElement3(nJ,nJ,0)
-                    HDiag=(REAL(HDiagTemp%v,8))-Hii
-                ENDIF
-                HList(ips+i-1)=HDiag
-            ENDIF
+                   CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
+                   HDiagTemp=GetHElement3(nJ,nJ,0)
+                   HDiag=(REAL(HDiagTemp%v,8))
+               ENDIF
+           ELSE
+               CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
+               HDiagTemp=GetHElement3(nJ,nJ,0)
+               HDiag=(REAL(HDiagTemp%v,8))-Hii
+           ENDIF
+           HList(ips+i-1)=HDiag
+               
+!           write(6,*) ' newly inserted member on position:'                             &
+!     & ,ips+i-1,' of value:',list2(:,i)
+!           write(6,*) 'new list with insertion in it:'
+!           do j=1,nlist1+nlist2
+!               write(6,'(20i15)') j,list1(:,j)
+!           enddo
+!           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+!..new end of list position is the next insertion point
+!           nlisto=min(nlisto,ips+i-2)
+           nlisto=min(nlisto,ips-1)
+!           write(6,*) ' new end of list position:',nlisto
+        enddo
+        nlist1=nlist1+nlist2
+        return
+    END SUBROUTINE MergeListswH
+
+!This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
+    SUBROUTINE MergeLists(nlist1,nlist1max,list1,nlist2,list2,SignList1,SignList2,NIfD)
+        USE FciMCParMOD , only : iLutHF,Hii
+        USE SystemData , only : tHub,tReal,NEl
+        USE Determinants , only : GetHElement3
+        USE HElem
+        IMPLICIT NONE
+        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2),DetBitEQ
+        INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
+        INTEGER :: ips,ips1,SignList1(nlist1max),SignList2(nlist2)
+        TYPE(HElement) :: HDiagTemp,GetHElement2
+        REAL*8 :: HDiag
+        INTEGER :: nJ(NEl),j,nlist1max
+!        LOGICAL :: tbin
+!.................................................................
+!..starting from the end of the list, expand list1 to accomodate
+!.. elements of list2
+       nlisto=nlist1
+       nlo=nlist1
+       do i=nlist2,1,-1
+!.. find the positions in list1 which the list2 would be inserted
+           DetCurr(0:NIfD)=list2(0:NIfD,i)
+           call search(list1,nlisto,DetCurr,ips1,NIfD)
+!          write(6,*) 'position in list1 to be inserted:',ips1
+!..ips1 is the position in list1 which num is to be inserted
+           ips=ips1      
+!           write(6,*) ' Going to insert into position:',ips
+!           write(6,*) ' Copy elements from:',ips,' to',nlisto
+!..if ips is less than nlisto, then no elements will be copied.
+           do j=nlisto,ips,-1
+              if(j.le.nlo) then 
+!                 write(6,*) j,'->',j+i
+                 list1(0:NIfD,j+i)=list1(0:NIfD,j)
+                 SignList1(j+i)=SignList1(j)
+              endif
+           enddo
+!.elements of list1 which were copied over started
+!.. from nlisto and went up to ips
+           nlo=ips
+!           write(6,*) ' position labels of newly enlarged list:'
+!           write(6,'(20i15)') (j,j=1,nlist1+nlist2)
+!           write(6,*) 'new enlarged list on step:',i
+!           do j=1,nlist1+nlist2
+!               write(6,'(20i15)') j,list1(:,j)
+!           enddo
+!           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
+           list1(0:NIfD,ips+i-1)=list2(0:NIfD,i)
+           SignList1(ips+i-1)=SignList2(i)
                
 !           write(6,*) ' newly inserted member on position:'                             &
 !     & ,ips+i-1,' of value:',list2(:,i)
@@ -100,7 +161,6 @@
         nlist1=nlist1+nlist2
         return
     END SUBROUTINE MergeLists
-
 !..............................................................................
 !..find the position in list such that 
 !.. list(0:NIfD,ipos-1) < DetCurr(0:NIfD)
