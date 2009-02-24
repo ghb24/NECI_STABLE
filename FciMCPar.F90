@@ -75,7 +75,6 @@ MODULE FciMCParMod
     INTEGER :: HFDetTag=0
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
-    INTEGER , ALLOCATABLE :: RemoveInds(:)
 
     INTEGER :: Seed,MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
     INTEGER :: TotParts,TotPartsOld,AllTotParts,AllTotPartsOld
@@ -775,7 +774,7 @@ MODULE FciMCParMod
 !        WRITE(6,*) "SpawnedBeforeRoto: ",SpawnedBeforeRoto
 
 !This RemoveInds is useful scratch space for the removal of particles from lists. It probably isn't essential, but keeps things simpler initially.
-        ALLOCATE(RemoveInds(MaxSpawned),stat=ierr)
+!        ALLOCATE(RemoveInds(MaxSpawned),stat=ierr)
         
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
         CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
@@ -786,11 +785,11 @@ MODULE FciMCParMod
 !The buffer wants to be able to hold (MaxSpawned+1)x(NoIntforDet+2) integers (*4 for in bytes). If we could work out the maximum ValidSpawned accross the determinants,
 !it could get reduced to this... 
         IF(nProcessors.ne.1) THEN
-            ALLOCATE(mpibuffer(9*(MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
+            ALLOCATE(mpibuffer(10*(MaxSpawned+1)*(NoIntforDet+2)),stat=ierr)
             IF(ierr.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
-            CALL MPI_Buffer_attach(mpibuffer,9*(MaxSpawned+1)*(NoIntforDet+2),error)
+            CALL MPI_Buffer_attach(mpibuffer,10*(MaxSpawned+1)*(NoIntforDet+2),error)
             IF(error.ne.0) THEN
                 CALL Stop_All("RotoAnnihilation","Error allocating memory for transfer buffers...")
             ENDIF
@@ -816,7 +815,7 @@ MODULE FciMCParMod
             CALL RotateParticles(ValidSpawned)
 
 !Detach buffers
-            CALL MPI_Buffer_detach(mpibuffer,9*(MaxSpawned+1)*(NoIntforDet+2),error)
+            CALL MPI_Buffer_detach(mpibuffer,10*(MaxSpawned+1)*(NoIntforDet+2),error)
             DEALLOCATE(mpibuffer)
         ENDIF
 
@@ -827,7 +826,7 @@ MODULE FciMCParMod
         CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
         CALL halt_timer(Sort_Time)
 
-        DEALLOCATE(RemoveInds)
+!        DEALLOCATE(RemoveInds)
         
     END SUBROUTINE RotoAnnihilation
     
