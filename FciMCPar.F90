@@ -1133,7 +1133,7 @@ MODULE FciMCParMod
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
-        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd!,SearchInd,AnnihilateInd
+        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd,DetsMerged!,SearchInd,AnnihilateInd
         LOGICAL :: DetBitEQ,tSuccess!,tSkipSearch
 
         CALL set_timer(AnnMain_time,30)
@@ -1187,7 +1187,7 @@ MODULE FciMCParMod
                     ENDIF
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
-                    RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
+!                    RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
                     Annihilated=Annihilated+2   !Count that we have annihilated two particles
 
                 ELSEIF(SignProd.gt.0) THEN
@@ -1197,7 +1197,7 @@ MODULE FciMCParMod
 !We have transferred a particle accross between processors. "Annihilate" from the spawned list, but not the main list.
                     SpawnedSign(i)=0
                     ToRemove=ToRemove+1
-                    RemoveInds(ToRemove)=i
+!                    RemoveInds(ToRemove)=i
 !                    AnnihilateInd=-SearchInd
                 ENDIF
 
@@ -1305,15 +1305,30 @@ MODULE FciMCParMod
 !            enddo
 
 
-
-            do i=1,ToRemove
-
-                do j=RemoveInds(i)+1-(i-1),ValidSpawned
-                    SpawnedParts(:,j-1)=SpawnedParts(:,j)
-                    SpawnedSign(j-1)=SpawnedSign(j)
-                enddo
-                ValidSpawned=ValidSpawned-1
+            DetsMerged=0
+            do i=1,ValidSpawned
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                SpawnedParts(0:NoIntforDet,i-DetsMerged)=SpawnedParts(0:NoIntforDet,i)
+                SpawnedSign(i-DetsMerged)=SpawnedSign(i)
+                IF(SpawnedSign(i).eq.0) THEN
+                    DetsMerged=DetsMerged+1
+                ENDIF
             enddo
+            ValidSpawned=ValidSpawned-DetsMerged
+            IF(DetsMerged.ne.ToRemove) THEN
+                CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
+            ENDIF
+
+
+
+!            do i=1,ToRemove
+!
+!                do j=RemoveInds(i)+1-(i-1),ValidSpawned
+!                    SpawnedParts(:,j-1)=SpawnedParts(:,j)
+!                    SpawnedSign(j-1)=SpawnedSign(j)
+!                enddo
+!                ValidSpawned=ValidSpawned-1
+!            enddo
 
         ENDIF
 
