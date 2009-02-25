@@ -34,7 +34,7 @@ MODULE Calc
 !       Calc defaults 
           tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
-          tAnnihilatebyrange=.false.
+          tAnnihilatebyrange=.true.
           tSymmetricField=.false.
           NoMagDets=1
           BField=0.D0
@@ -782,7 +782,16 @@ MODULE Calc
             case("ANNIHILATERANGE")
 !This option should give identical results whether on or off. It means that hashes are histogrammed and sent to processors, rather than sent due to the value of mod(hash,nprocs).
 !This removes the need for a second full sorting of the list of hashes, but may have load-balancing issues for the algorithm.
-                tAnnihilatebyrange=.true.
+!This now is on by default, and can only be turned off by specifying OFF after the input.
+                IF(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tAnnihilatebyrange=.false.
+                    end select
+                ELSE
+                    tAnnihilatebyrange=.true.
+                ENDIF
             case("ROTOANNIHILATION")
 !A parallel FCIMC option which is a different - and hopefully better scaling - algorithm. This is substantially different to previously. It should involve much less memory.
 !MEMORYFACANNIHIL is no longer needed (MEMORYFACPART still is), and you will need to specift a MEMORYFACSPAWN since newly spawned walkers are held on a different array each iteration.
