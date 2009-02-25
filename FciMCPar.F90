@@ -4191,6 +4191,7 @@ MODULE FciMCParMod
         
         PreviousCycles=0    !Zero previous cycles
         SumENum=0.D0
+        TotParts=0
         SumNoatHF=0
         DiagSft=0.D0
         Tag=124             !Set Tag
@@ -4613,8 +4614,11 @@ MODULE FciMCParMod
                 ENDIF
                 
             ENDIF
+            TotParts=TotParts+abs(CurrentSign(j))
 
         enddo
+        CALL MPI_AllReduce(TotParts,AllTotParts,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        AllTotPartsOld=AllTotParts
 
         RETURN
 
