@@ -6954,6 +6954,7 @@ MODULE FciMCParMod
 
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
+    INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
 
     contains
 
