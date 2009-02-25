@@ -172,9 +172,9 @@ MODULE ReadInput
       LOGICAL :: CHECK
       character(*), parameter :: t_r='checkinput'
 
-      IF(GrowMaxFactor.gt.MemoryFacPart) THEN
-          CALL report("GrowMaxFactor is larger than MemoryFacPart - there will not be enough memory allocated if the walker number grows large. Think about increasing MemoryFacPart or reducing GrowMaxFactor.",.true.)
-      ENDIF
+!      IF(GrowMaxFactor.gt.MemoryFacPart) THEN
+!          CALL report("GrowMaxFactor is larger than MemoryFacPart - there will not be enough memory allocated if the walker number grows large. Think about increasing MemoryFacPart or reducing GrowMaxFactor.",.true.)
+!      ENDIF
 
 !If we are using TNoSameExcit, then we have to start with the star - the other random graph algorithm cannot remove same excitation links yet.
       IF(TNoSameExcit.and..not.TInitStar) THEN
