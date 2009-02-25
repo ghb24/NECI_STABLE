@@ -3586,7 +3586,7 @@ MODULE FciMCParMod
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
 
-            IF(tRotoAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with rotoannihilation")
+!            IF(tRotoAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with rotoannihilation")
             CALL ReadFromPopsFilePar()
 
         ELSE
@@ -4180,11 +4180,11 @@ MODULE FciMCParMod
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
-        LOGICAL :: exists,First,tBinRead
+        LOGICAL :: exists,First,tBinRead,DetBitEQ
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag
-        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel
+        INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
         REAL*8 :: Ran2,FracPart
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
@@ -4337,8 +4337,24 @@ MODULE FciMCParMod
             CLOSE(17)
 
             IF(tRotoAnnihil) THEN
-                WRITE(6,*) "Ordering all walkers that have been read in..."
+                WRITE(6,*) "Ordering/compressing all walkers that have been read in..."
                 CALL SortBitDets(WalkerstoReceive(1),WalkVecDets(0:NoIntforDet,1:WalkerstoReceive(1)),NoIntforDet,WalkVecSign(1:WalkerstoReceive(1)))
+                
+                VecInd=1
+                DetsMerged=0
+                do i=2,TempInitWalkers
+                    IF(.not.DetBitEQ(WalkVecDets(0:NoIntforDet,i),WalkVecDets(0:NoIntforDet,VecInd),NoIntforDet)) THEN
+                        VecInd=VecInd+1
+                        WalkVecDets(:,VecInd)=WalkVecDets(:,i)
+                        WalkVecSign(VecInd)=WalkVecSign(i)
+                    ELSE
+                        WalkVecSign(VecInd)=WalkVecSign(VecInd)+WalkVecSign(i)
+                        DetsMerged=DetsMerged+1
+                    ENDIF
+                enddo
+
+                TempInitWalkers=TempInitWalkers-DetsMerged
+
             ENDIF
 
         
@@ -4351,6 +4367,21 @@ MODULE FciMCParMod
                 CALL MPI_Recv(WalkVecSign(1:TempInitWalkers),TempInitWalkers,MPI_INTEGER,0,Tag,MPI_COMM_WORLD,Stat,error)
                 IF(tRotoAnnihil) THEN
                     CALL SortBitDets(TempInitWalkers,WalkVecDets(0:NoIntforDet,1:TempInitWalkers),NoIntforDet,WalkVecSign(1:TempInitWalkers))
+                    VecInd=1
+                    DetsMerged=0
+                    do l=2,TempInitWalkers
+                        IF(.not.DetBitEQ(WalkVecDets(0:NoIntforDet,l),WalkVecDets(0:NoIntforDet,VecInd),NoIntforDet)) THEN
+                            VecInd=VecInd+1
+                            WalkVecDets(:,VecInd)=WalkVecDets(:,l)
+                            WalkVecSign(VecInd)=WalkVecSign(l)
+                        ELSE
+                            WalkVecSign(VecInd)=WalkVecSign(VecInd)+WalkVecSign(l)
+                            DetsMerged=DetsMerged+1
+                        ENDIF
+                    enddo
+
+                    TempInitWalkers=TempInitWalkers-DetsMerged
+
                 ENDIF
             ENDIF
         enddo
@@ -4367,91 +4398,114 @@ MODULE FciMCParMod
                 MaxWalkersAnnihil=NINT(MemoryFacAnnihil*(NINT(InitWalkers*ScaleWalkers)))   !InitWalkers here is simply the average number of walkers per node, not actual
             ENDIF
 
-!Allocate memory for walkvec2, which will temporarily hold walkers
-            ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
             IF(tRotoAnnihil) THEN
-                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
+                IntegerPart=INT(ScaleWalkers)
+                FracPart=ScaleWalkers-REAL(IntegerPart)
+
+                do l=1,TempInitWalkers
+                    WalkVecSign(l)=WalkVecSign(l)*IntegerPart
+                    IF(Ran2(Seed).lt.FracPart) THEN
+!Stochastically create another particle
+                        IF(WalkVecSign(l).lt.0) THEN
+                            WalkVecSign(l)=WalkVecSign(l)-1
+                        ELSE
+                            WalkVecSign(l)=WalkVecSign(l)+1
+                        ENDIF
+                    ENDIF
+                enddo
+
+                InitWalkers=NINT(InitWalkers*ScaleWalkers)  !New (average) number of initial particles for culling criteria
+                TotWalkers=TempInitWalkers  !This is now number of determinants, rather than walkers
+                TotWalkersOld=TempInitWalkers
+!Collate the information about the new total number of walkers
+                CALL MPI_AllReduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+                IF(iProcIndex.eq.root) THEN
+                    AllTotWalkersOld=AllTotWalkers
+                    WRITE(6,*) "Total number of initial determinants occupied is now: ", AllTotWalkers
+                ENDIF
+
             ELSE
+
+!Allocate memory for walkvec2, which will temporarily hold walkers
+                ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+                WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
                 ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
-            ENDIF
-            WalkVec2Sign(:)=0
+                WalkVec2Sign(:)=0
 
 !Scale up the integer part and fractional part seperately
-            IntegerPart=INT(ScaleWalkers)       !Round to zero
-            FracPart=ScaleWalkers-REAL(IntegerPart)
+                IntegerPart=INT(ScaleWalkers)       !Round to zero
+                FracPart=ScaleWalkers-REAL(IntegerPart)
 
-            VecSlot=1
-            do l=1,TempInitWalkers
-                do k=1,IntegerPart
-                    WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
-                    WalkVec2Sign(VecSlot)=WalkVecSign(l)
-                    VecSlot=VecSlot+1
-                enddo
-                IF(Ran2(Seed).lt.FracPart) THEN
+                VecSlot=1
+                do l=1,TempInitWalkers
+                    do k=1,IntegerPart
+                        WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
+                        WalkVec2Sign(VecSlot)=WalkVecSign(l)
+                        VecSlot=VecSlot+1
+                    enddo
+                    IF(Ran2(Seed).lt.FracPart) THEN
 !Stochastically choose whether to create another particle
-                    WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
-                    WalkVec2Sign(VecSlot)=WalkVecSign(l)
-                    VecSlot=VecSlot+1
-                ENDIF
-            enddo
+                        WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
+                        WalkVec2Sign(VecSlot)=WalkVecSign(l)
+                        VecSlot=VecSlot+1
+                    ENDIF
+                enddo
 
 !Redefine new (average) number of initial particles for culling criteria
-            InitWalkers=NINT(InitWalkers*ScaleWalkers)
+                InitWalkers=NINT(InitWalkers*ScaleWalkers)
 !Define TotWalkers as the number of walkers on that node.
-            TotWalkers=VecSlot-1
-            TotWalkersOld=TotWalkers
+                TotWalkers=VecSlot-1
+                TotWalkersOld=TotWalkers
 !Collate the information about the new total number of walkers
-            CALL MPI_AllReduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
-            IF(iProcIndex.eq.root) THEN
-                AllTotWalkersOld=AllTotWalkers
-                WRITE(6,*) "Total number of initial walkers is now: ", AllTotWalkers
-            ENDIF
+                CALL MPI_AllReduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+                IF(iProcIndex.eq.root) THEN
+                    AllTotWalkersOld=AllTotWalkers
+                    WRITE(6,*) "Total number of initial walkers is now: ", AllTotWalkers
+                ENDIF
 
 
 !Deallocate the arrays used to hold the original particles, and reallocate with correct size.
-            DEALLOCATE(WalkVecDets)
-            CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-            DEALLOCATE(WalkVecSign)
-            CALL LogMemDealloc(this_routine,WalkVecSignTag)
-            ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
-            WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
-            IF(tRotoAnnihil) THEN
-                ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
-            ELSE
-                ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
-                CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
-            ENDIF
-            WalkVecSign(:)=0
+                DEALLOCATE(WalkVecDets)
+                CALL LogMemDealloc(this_routine,WalkVecDetsTag)
+                DEALLOCATE(WalkVecSign)
+                CALL LogMemDealloc(this_routine,WalkVecSignTag)
+                ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
+                WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
+                IF(tRotoAnnihil) THEN
+                    ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
+                    CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
+                ELSE
+                    ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
+                    CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
+                ENDIF
+                WalkVecSign(:)=0
 
 !Transfer scaled particles back accross to WalkVecDets
-            do l=1,TotWalkers
-                WalkVecDets(0:NoIntforDet,l)=WalkVec2Dets(0:NoIntforDet,l)
-                WalkVecSign(l)=WalkVec2Sign(l)
-            enddo
+                do l=1,TotWalkers
+                    WalkVecDets(0:NoIntforDet,l)=WalkVec2Dets(0:NoIntforDet,l)
+                    WalkVecSign(l)=WalkVec2Sign(l)
+                enddo
 
 !Zero the second array for good measure
-            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
+                WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
+
+            ENDIF
 
         ELSE
 !We are not scaling the number of walkers...
 
-            ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
-            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
-            IF(tRotoAnnihil) THEN
-                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
-            ELSE
+            IF(.not.tRotoAnnihil) THEN
+                ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+                WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
                 ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+                WalkVec2Sign(:)=0
             ENDIF
-            WalkVec2Sign(:)=0
+                
 
             TotWalkers=TempInitWalkers      !Set the total number of walkers
             TotWalkersOld=TempInitWalkers
@@ -4469,19 +4523,31 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
             WalkVecH(:)=0.d0
-            ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-            WalkVec2H(:)=0.d0
+            IF(.not.tRotoAnnihil) THEN
+                ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
+                WalkVec2H(:)=0.d0
+            ENDIF
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+            IF(tRotoAnnihil) THEN
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,r2)/1048576.D0," Mb/Processor"
+            ELSE
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+            ENDIF
         ENDIF
 
         IF(tRotoAnnihil) THEN
-            MemoryAlloc=((2*MaxWalkersPart)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            MemoryAlloc=((NoIntforDet+1+3)*MaxWalkersPart*4)
         ELSE
             MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
         ENDIF
-        IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*4)
+        IF(tRegenDiagHEls) THEN
+            IF(tRotoAnnihil) THEN
+                MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*2)
+            ELSE
+                MemoryAlloc=MemoryAlloc-(MaxWalkersPart*4*4)
+            ENDIF
+        ENDIF
 
         IF(tRotoAnnihil) THEN
 
