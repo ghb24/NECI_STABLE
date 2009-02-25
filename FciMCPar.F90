@@ -242,7 +242,11 @@ MODULE FciMCParMod
 
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE
-                CALL WriteToPopsFilePar()
+                IF(tRotoAnnihil) THEN
+                    CALL WriteToPopsFileParOneArr()
+                ELSE
+                    CALL WriteToPopsFilePar()
+                ENDIF
             ENDIF
             IF(TAutoCorr) CALL WriteHistogrammedDets
 
@@ -250,7 +254,13 @@ MODULE FciMCParMod
         enddo
 
         IF(TIncrement) Iter=Iter-1     !Reduce the iteration count for the POPSFILE since it is incremented upon leaving the loop (if done naturally)
-        IF(TPopsFile) CALL WriteToPopsFilePar()
+        IF(TPopsFile) THEN
+            IF(tRotoAnnihil) THEN
+                CALL WriteToPopsFileParOneArr()
+            ELSE
+                CALL WriteToPopsFilePar()
+            ENDIF
+        ENDIF
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
@@ -3864,6 +3874,170 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE InitFCIMCCalcPar
+
+!This routine is the same as WriteToPopsfilePar, but does not require two main arrays to hold the data.
+!The root processors data will be stored in a temporary array while it recieves the data from the other processors.
+!This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
+    SUBROUTINE WriteToPopsfileParOneArr()
+        REAL*8 :: TempSumNoatHF
+        INTEGER :: error,WalkersonNodes(0:nProcessors-1)
+        INTEGER :: Stat(MPI_STATUS_SIZE),Tag,Total,i,j,k
+        INTEGER , ALLOCATABLE :: OrigSign(:), OrigParts(:,:)
+        INTEGER :: OrigSignTag=0,OrigPartsTag=0
+        CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)  !sync
+
+!First, make sure we have up-to-date information - again collect AllTotWalkers,AllSumNoatHF and AllSumENum...
+!        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_Sum,root,MPI_COMM_WORLD,error)    
+!Calculate the energy by summing all on HF and doubles - convert number at HF to a real since no int*8 MPI data type
+        TempSumNoatHF=real(SumNoatHF,r2)
+        CALL MPIDSumRoot(TempSumNoatHF,1,AllSumNoatHF,Root)
+        CALL MPIDSumRoot(SumENum,1,AllSumENum,Root)
+
+!We also need to tell the root processor how many particles to expect from each node - these are gathered into WalkersonNodes
+        CALL MPI_AllGather(TotWalkers,1,MPI_INTEGER,WalkersonNodes,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+        do i=0,nProcessors-1
+            IF(INT(WalkersonNodes(i)/iPopsPartEvery).lt.1) THEN
+                RETURN
+            ENDIF
+        enddo
+
+        Tag=125
+!        WRITE(6,*) "Get Here"
+!        CALL FLUSH(6)
+
+        IF(iProcIndex.eq.root) THEN
+!First, check that we are going to receive the correct number of particles...
+            Total=0
+            do i=0,nProcessors-1
+                Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
+            enddo
+            AllTotWalkers=Total
+!            IF(Total.ne.AllTotWalkers) THEN
+!                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
+!            ENDIF
+
+!Write header information
+            IF(iPopsPartEvery.ne.1) THEN
+                IF(tBinPops) THEN
+                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",AllTotWalkers, " particles."
+                ELSE
+                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",AllTotWalkers, " particles."
+                ENDIF
+            ELSE
+                IF(tBinPops) THEN
+                    WRITE(6,*) "Writing to binary POPSFILEBIN..."
+                ELSE
+                    WRITE(6,*) "Writing to POPSFILE..."
+                ENDIF
+            ENDIF
+            IF(tBinPops) THEN
+                OPEN(17,FILE='POPSFILEHEAD',Status='replace')
+            ELSE
+                OPEN(17,FILE='POPSFILE',Status='replace')
+            ENDIF
+            WRITE(17,*) AllTotWalkers,"   TOTWALKERS (all nodes)"
+            WRITE(17,*) DiagSft,"   DIAG SHIFT"
+            WRITE(17,*) NINT(AllSumNoatHF,i2),"   SUMNOATHF (all nodes)"
+            WRITE(17,*) AllSumENum,"   SUMENUM ( \sum<D0|H|Psi> - all nodes)"
+            WRITE(17,*) Iter+PreviousCycles,"   PREVIOUS CYCLES"
+            IF(tBinPops) THEN
+                CLOSE(17)
+                OPEN(17,FILE='POPSFILEBIN',Status='replace',form='unformatted')
+            ENDIF
+
+            IF(tBinPops) THEN
+                do j=1,TotWalkers
+!First write out walkers on head node
+                    IF(mod(j,iPopsPartEvery).eq.0) THEN
+                        WRITE(17) CurrentDets(0:NoIntforDet,j),CurrentSign(j)
+                    ENDIF
+                enddo
+            ELSE
+                do j=1,TotWalkers
+!First write out walkers on head node
+                    IF(mod(j,iPopsPartEvery).eq.0) THEN
+                        do k=0,NoIntforDet
+                            WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
+                        enddo
+                        WRITE(17,*) CurrentSign(j)
+                    ENDIF
+                enddo
+            ENDIF
+!            WRITE(6,*) "Written out own walkers..."
+!            CALL FLUSH(6)
+
+!Now, we copy the head nodes data to a new array...
+            ALLOCATE(OrigSign(TotWalkers),stat=error)
+            CALL LogMemAlloc('OrigSign',TotWalkers,4,this_routine,OrigSignTag,error)
+            ALLOCATE(OrigParts(0:NoIntforDet,TotWalkers),stat=error)
+            CALL LogMemAlloc('OrigParts',TotWalkers*(NoIntforDet+1),4,this_routine,OrigPartsTag,error)
+            do i=1,TotWalkers
+                OrigSign(i)=CurrentSign(i)
+                OrigParts(:,i)=CurrentDets(:,i)
+            enddo
+
+!Now we need to receive the data from each other processor sequentially
+!We can overwrite the head nodes information, since we have now stored it elsewhere.
+            do i=1,nProcessors-1
+!Run through all other processors...receive the data...
+                CALL MPI_Recv(CurrentDets(0:NoIntforDet,1:WalkersonNodes(i)),WalkersonNodes(i)*(NoIntforDet+1),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(CurrentSign(1:WalkersonNodes(i)),WalkersonNodes(i),MPI_INTEGER,i,Tag,MPI_COMM_WORLD,Stat,error)
+!                WRITE(6,*) "Recieved walkers for processor ",i
+!                CALL FLUSH(6)
+                
+!Then write it out...
+                IF(tBinPops) THEN
+                    do j=1,WalkersonNodes(i)
+                        IF(mod(j,iPopsPartEvery).eq.0) THEN
+                            WRITE(17) CurrentDets(0:NoIntforDet,j),CurrentSign(j)
+                        ENDIF
+                    enddo
+                ELSE
+                    do j=1,WalkersonNodes(i)
+                        IF(mod(j,iPopsPartEvery).eq.0) THEN
+                            do k=0,NoIntforDet
+                                WRITE(17,"(I20)",advance='no') CurrentDets(k,j)
+                            enddo
+                            WRITE(17,*) CurrentSign(j)
+                        ENDIF
+                    enddo
+                ENDIF
+!                WRITE(6,*) "Writted out walkers for processor ",i
+!                CALL FLUSH(6)
+
+            enddo
+
+            CLOSE(17)
+
+!Now we need to copy the head processors original information back to itself again.
+            do i=1,TotWalkers
+                CurrentSign(i)=OrigSign(i)
+                CurrentDets(:,i)=OrigParts(:,i)
+            enddo
+!Deallocate memory for temporary storage of information.
+            DEALLOCATE(OrigSign)
+            DEALLOCATE(OrigParts)
+            CALL LogMemDealloc(this_routine,OrigSignTag)
+            CALL LogMemDealloc(this_routine,OrigPartsTag)
+
+        ELSE
+!All other processors need to send their data to root...
+            CALL MPI_Send(CurrentDets(0:NoIntforDet,1:TotWalkers),TotWalkers*(NoIntforDet+1),MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
+            CALL MPI_Send(CurrentSign(1:TotWalkers),TotWalkers,MPI_INTEGER,root,Tag,MPI_COMM_WORLD,error)
+!            WRITE(6,*) "Have sent info to head node..."
+!            CALL FLUSH(6)
+        ENDIF
+
+!Reset the values of the global variables
+        AllSumNoatHF=0.D0
+        AllSumENum=0.D0
+        AllTotWalkers=0
+
+        RETURN
+
+    END SUBROUTINE WriteToPopsfileParOneArr
 
 !This routine will write out to a popsfile. It transfers all walkers to the head node sequentially, so does not want to be called too often
 !When arriving at this routine, CurrentXXX are arrays with the data, and NewXXX will be used by the root processor to temporarily store the information
