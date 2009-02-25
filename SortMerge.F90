@@ -21,13 +21,14 @@
         USE Determinants , only : GetHElement3
         USE HElem
         IMPLICIT NONE
-        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2),DetBitEQ
+        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
         INTEGER :: ips,ips1,SignList1(nlist1max),SignList2(nlist2)
         REAL*8 :: HList(nlist1max)
         TYPE(HElement) :: HDiagTemp,GetHElement2
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
+        LOGICAL :: DetBitEQ
 !        LOGICAL :: tbin
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
@@ -104,12 +105,13 @@
         USE Determinants , only : GetHElement3
         USE HElem
         IMPLICIT NONE
-        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2),DetBitEQ
+        INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
         INTEGER :: ips,ips1,SignList1(nlist1max),SignList2(nlist2)
         TYPE(HElement) :: HDiagTemp,GetHElement2
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
+        LOGICAL :: DetBitEQ
 !        LOGICAL :: tbin
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
