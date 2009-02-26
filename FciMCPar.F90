@@ -5912,41 +5912,63 @@ MODULE FciMCParMod
 !The 'length' will be returned as the length of the new list.
     SUBROUTINE SortCompressLists(Length,PartList,SignList)
         INTEGER :: Length,PartList(0:NoIntforDet,Length),SignList(Length)
-        INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd,j
+        INTEGER :: i,VecInd,DetsMerged
+        LOGICAL :: DetBitEQ
 
         CALL SortBitDets(Length,PartList,NoIntforDet,SignList)
 
-!Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
-        TotParts=abs(SignList(1))
-        CurrInd=1
-        DetCurr=PartList(0:NoIntforDet,1)
-        i=2
-        do while(i.le.Length)
-            CompParts=DetBitLT(DetCurr,PartList(0:NoIntforDet,i),NoIntforDet)
-            IF(CompParts.eq.-1) THEN
-                CALL Stop_All("SortCompressLists","Lists not correctly sorted...")
-            ELSEIF(CompParts.eq.0) THEN
-                IF((SignList(CurrInd)*SignList(i)).le.0) THEN
-                    CALL Stop_All("SortCompressLists","Compressing list which is not sign-coherent")
-                ELSE
-                    SignList(CurrInd)=SignList(CurrInd)+SignList(i)
-                    TotParts=TotParts+abs(SignList(i))
-!Now compress the list...
-                    do j=i,Length-1
-                        PartList(:,j)=PartList(:,j+1)
-                        SignList(j)=SignList(j+1)
-                    enddo
-!                    PartList(:,i:Length-1)=PartList(:,i+1:Length)
-!                    SignList(i:Length-1)=SignList(i+1:Length)
-                    Length=Length-1
-                ENDIF
+!Now compress the list.
+        VecInd=1
+        DetsMerged=0
+        TotParts=0
+        IF(Length.gt.0) THEN
+            TotParts=TotParts+abs(SignList(1))
+        ENDIF
+        do i=2,Length
+            TotParts=TotParts+abs(SignList(i))
+            IF(.not.DetBitEQ(PartList(0:NoIntforDet,i),PartList(0:NoIntforDet,VecInd),NoIntforDet)) THEN
+                VecInd=VecInd+1
+                PartList(:,VecInd)=PartList(:,i)
+                SignList(VecInd)=SignList(i)
             ELSE
-                DetCurr=PartList(0:NoIntforDet,i)
-                TotParts=TotParts+abs(SignList(i))
-                CurrInd=i
-                i=i+1
+                SignList(VecInd)=SignList(VecInd)+SignList(i)
+                DetsMerged=DetsMerged+1
             ENDIF
         enddo
+
+        Length=Length-DetsMerged
+
+!Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
+!        TotParts=abs(SignList(1))
+!        CurrInd=1
+!        DetCurr=PartList(0:NoIntforDet,1)
+!        i=2
+!        do while(i.le.Length)
+!            CompParts=DetBitLT(DetCurr,PartList(0:NoIntforDet,i),NoIntforDet)
+!            IF(CompParts.eq.-1) THEN
+!                CALL Stop_All("SortCompressLists","Lists not correctly sorted...")
+!            ELSEIF(CompParts.eq.0) THEN
+!                IF((SignList(CurrInd)*SignList(i)).le.0) THEN
+!                    CALL Stop_All("SortCompressLists","Compressing list which is not sign-coherent")
+!                ELSE
+!                    SignList(CurrInd)=SignList(CurrInd)+SignList(i)
+!                    TotParts=TotParts+abs(SignList(i))
+!!Now compress the list...
+!                    do j=i,Length-1
+!                        PartList(:,j)=PartList(:,j+1)
+!                        SignList(j)=SignList(j+1)
+!                    enddo
+!!                    PartList(:,i:Length-1)=PartList(:,i+1:Length)
+!!                    SignList(i:Length-1)=SignList(i+1:Length)
+!                    Length=Length-1
+!                ENDIF
+!            ELSE
+!                DetCurr=PartList(0:NoIntforDet,i)
+!                TotParts=TotParts+abs(SignList(i))
+!                CurrInd=i
+!                i=i+1
+!            ENDIF
+!        enddo
 
     END SUBROUTINE SortCompressLists
 
@@ -5956,50 +5978,73 @@ MODULE FciMCParMod
     SUBROUTINE SortCompressListswH(Length,PartList,SignList,HList)
         INTEGER :: Length,PartList(0:NoIntforDet,Length),SignList(Length),j
         REAL*8 :: HList(Length)
-        INTEGER :: DetCurr(0:NoIntforDet),DetBitLT,CompParts,i,CurrInd
+        INTEGER :: i,DetsMerged,VecInd
+        LOGICAL :: DetBitEQ
 
         CALL SortBitDetswH(Length,PartList,NoIntforDet,SignList,HList)
 !        CALL CheckOrdering(PartList(:,1:Length),SignList(1:Length),Length,.false.)
-
-!Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
-        TotParts=abs(SignList(1))
-        CurrInd=1
-        DetCurr=PartList(0:NoIntforDet,1)
-        i=2
-        do while(i.le.Length)
-            CompParts=DetBitLT(DetCurr,PartList(0:NoIntforDet,i),NoIntforDet)
-            IF(CompParts.eq.-1) THEN
-                CALL Stop_All("SortCompressLists","Lists not correctly sorted...")
-            ELSEIF(CompParts.eq.0) THEN
-                IF((SignList(CurrInd)*SignList(i)).le.0) THEN
-                    WRITE(6,*) "******************************************"
-                    do j=MIN(CurrInd-10,1),Max(i+10,Length)
-                        WRITE(6,*) j,PartList(:,j),SignList(j)
-                    enddo
-                    WRITE(6,*) Iter,CurrInd,Length,i,SignList(CurrInd),SignList(i)
-                    CALL FLUSH(6)
-                    CALL Stop_All("SortCompressListswH","Compressing list which is not sign-coherent")
-                ELSE
-                    SignList(CurrInd)=SignList(CurrInd)+SignList(i)
-                    TotParts=TotParts+abs(SignList(i))
-!Now compress the list...
-                    do j=i,Length-1
-                        PartList(:,j)=PartList(:,j+1)
-                        SignList(j)=SignList(j+1)
-                        HList(j)=HList(j+1)
-                    enddo
-!                    PartList(:,i:Length-1)=PartList(:,i+1:Length)
-!                    SignList(i:Length-1)=SignList(i+1:Length)
-!                    HList(i:Length-1)=HList(i+1:Length)
-                    Length=Length-1
-                ENDIF
+  
+!Now compress...
+        VecInd=1
+        DetsMerged=0
+        TotParts=0
+        IF(Length.gt.0) THEN
+            TotParts=TotParts+abs(SignList(1))
+        ENDIF
+        do i=2,Length
+            TotParts=TotParts+abs(SignList(i))
+            IF(.not.DetBitEQ(PartList(0:NoIntforDet,i),PartList(0:NoIntforDet,VecInd),NoIntforDet)) THEN
+                VecInd=VecInd+1
+                PartList(:,VecInd)=PartList(:,i)
+                SignList(VecInd)=SignList(i)
+                HList(VecInd)=HList(i)
             ELSE
-                DetCurr=PartList(0:NoIntforDet,i)
-                TotParts=TotParts+abs(SignList(i))
-                CurrInd=i
-                i=i+1
+                SignList(VecInd)=SignList(VecInd)+SignList(i)
+                DetsMerged=DetsMerged+1
             ENDIF
         enddo
+
+        Length=Length-DetsMerged
+
+!Now go through the list, finding common determinants and combining their sign. Also, recalculate TotParts
+!        TotParts=abs(SignList(1))
+!        CurrInd=1
+!        DetCurr=PartList(0:NoIntforDet,1)
+!        i=2
+!        do while(i.le.Length)
+!            CompParts=DetBitLT(DetCurr,PartList(0:NoIntforDet,i),NoIntforDet)
+!            IF(CompParts.eq.-1) THEN
+!                CALL Stop_All("SortCompressLists","Lists not correctly sorted...")
+!            ELSEIF(CompParts.eq.0) THEN
+!                IF((SignList(CurrInd)*SignList(i)).le.0) THEN
+!                    WRITE(6,*) "******************************************"
+!                    do j=MIN(CurrInd-10,1),Max(i+10,Length)
+!                        WRITE(6,*) j,PartList(:,j),SignList(j)
+!                    enddo
+!                    WRITE(6,*) Iter,CurrInd,Length,i,SignList(CurrInd),SignList(i)
+!                    CALL FLUSH(6)
+!                    CALL Stop_All("SortCompressListswH","Compressing list which is not sign-coherent")
+!                ELSE
+!                    SignList(CurrInd)=SignList(CurrInd)+SignList(i)
+!                    TotParts=TotParts+abs(SignList(i))
+!!Now compress the list...
+!                    do j=i,Length-1
+!                        PartList(:,j)=PartList(:,j+1)
+!                        SignList(j)=SignList(j+1)
+!                        HList(j)=HList(j+1)
+!                    enddo
+!!                    PartList(:,i:Length-1)=PartList(:,i+1:Length)
+!!                    SignList(i:Length-1)=SignList(i+1:Length)
+!!                    HList(i:Length-1)=HList(i+1:Length)
+!                    Length=Length-1
+!                ENDIF
+!            ELSE
+!                DetCurr=PartList(0:NoIntforDet,i)
+!                TotParts=TotParts+abs(SignList(i))
+!                CurrInd=i
+!                i=i+1
+!            ENDIF
+!        enddo
 
 !        CALL CheckOrdering(PartList(:,1:Length),CurrentSign(1:Length),Length,.true.)
 
