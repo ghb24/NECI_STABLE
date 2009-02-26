@@ -3579,7 +3579,7 @@ MODULE FciMCParMod
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
-            IF(tRotoAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with rotoannihilation")
+!            IF(tRotoAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with rotoannihilation")
             CALL InitWalkersMP1Par()
 
         ELSEIF(TReadPops) THEN
@@ -4693,13 +4693,13 @@ MODULE FciMCParMod
 !This will set up the initial walker distribution proportially to the MP1 wavevector.
     SUBROUTINE InitWalkersMP1Par()
         use SystemData , only : tAssumeSizeExcitgen
-        INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF,HFPointer,ExcitLevel
-        REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r
+        INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF,HFPointer,ExcitLevel,VecInd
+        REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r,FracPart
         TYPE(HElement) :: Hij,Hjj,Fjj
         INTEGER , ALLOCATABLE :: MP1Dets(:,:), ExcitgenTemp(:)
         INTEGER , ALLOCATABLE :: MP1Sign(:)
-        REAL*8 , ALLOCATABLE :: MP1Comps(:)
-        INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF,ExcitLength,iMaxExcit
+        REAL*8 , ALLOCATABLE :: MP1Comps(:),MP1CompsNonCum(:)
+        INTEGER :: MP1DetsTag,MP1SignTag,MP1CompsTag,SumWalkersonHF,ExcitLength,iMaxExcit,IntParts,MP1CompsNonCumTag
         CHARACTER(len=*), PARAMETER :: this_routine='InitWalkersMP1Par'
         LOGICAL :: First,TurnBackAssumeExGen
         
@@ -4727,23 +4727,20 @@ MODULE FciMCParMod
         ALLOCATE(WalkVecDets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
         CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVecDetsTag,ierr)
         WalkVecDets(0:NoIntforDet,1:MaxWalkersPart)=0
-        ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
-        WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
-
         IF(tRotoAnnihil) THEN
             ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
-            ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2Sign',MaxWalkersPart,4,this_routine,WalkVec2SignTag,ierr)
         ELSE
+            ALLOCATE(WalkVec2Dets(0:NoIntforDet,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NoIntforDet+1),4,this_routine,WalkVec2DetsTag,ierr)
+            WalkVec2Dets(0:NoIntforDet,1:MaxWalkersPart)=0
             ALLOCATE(WalkVecSign(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('WalkVecSign',MaxWalkersAnnihil,4,this_routine,WalkVecSignTag,ierr)
             ALLOCATE(WalkVec2Sign(MaxWalkersAnnihil),stat=ierr)
             CALL LogMemAlloc('WalkVec2Sign',MaxWalkersAnnihil,4,this_routine,WalkVec2SignTag,ierr)
+            WalkVec2Sign(:)=0
         ENDIF
         WalkVecSign(:)=0
-        WalkVec2Sign(:)=0
 
 !        ALLOCATE(WalkVecIC(MaxWalkersPart),stat=ierr)
 !        CALL LogMemAlloc('WalkVecIC',MaxWalkersPart,4,this_routine,WalkVecICTag,ierr)
@@ -4753,20 +4750,27 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
             WalkVecH(:)=0.d0
-            ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
-            WalkVec2H(:)=0.d0
+            IF(.not.tRotoAnnihil) THEN
+                ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
+                CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
+                WalkVec2H(:)=0.d0
+            ENDIF
         ELSE
-            WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+            IF(tRotoAnnihil) THEN
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*2,r2)/1048576.D0," Mb/Processor"
+            ELSE
+                WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*4*4,r2)/1048576.D0," Mb/Processor"
+            ENDIF
         ENDIF
         
         IF(tRotoAnnihil) THEN
-            MemoryAlloc=((2*(MaxWalkersPart))+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            MemoryAlloc=(NoIntforDet+1+3)*MaxWalkersPart*4    !Memory Allocated in bytes
+            IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*8)
         ELSE
             MemoryAlloc=((2*MaxWalkersAnnihil)+(((2*(NoIntforDet+1))+4)*MaxWalkersPart))*4    !Memory Allocated in bytes
+            IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
         ENDIF
 
-        IF(tRegenDiagHEls) MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
 
         IF(tRotoAnnihil) THEN
             
@@ -4837,11 +4841,16 @@ MODULE FciMCParMod
         MP1Dets(1:NEl,1:HFConn)=0
         ALLOCATE(MP1Sign(HFConn),stat=ierr)
         CALL LogMemAlloc('MP1Sign',HFConn,4,this_routine,MP1SignTag,ierr)
+        MP1Sign(:)=0
+        ALLOCATE(MP1CompsNonCum(HFConn),stat=ierr)
+        CALL LogMemAlloc('MP1CompsNonCum',HFConn,8,this_routine,MP1CompsNonCumTag,ierr)
+        MP1CompsNonCum(:)=0.D0
         
 !HF Compt. of MP1 is 1
         MP1Dets(1:NEl,1)=HFDet(1:NEl)
         MP1Comps(1)=1.D0
         MP1Sign(1)=1
+        MP1CompsNonCum(1)=1.D0      !These are the components of the MP1 wavevector - not stored cumulatively as in MP1Comps
 
         SumMP1Compts=1.D0   !Initialise the sum of the MP1 wavevector components
         VecSlot=2           !This is the next free slot in the MP1 arrays
@@ -4883,6 +4892,7 @@ MODULE FciMCParMod
             ENDIF
             MP1Dets(1:NEl,VecSlot)=nJ(:)
             MP1Comps(VecSlot)=MP1Comps(VecSlot-1)+abs(Compt)
+            MP1CompsNonCum(VecSlot)=abs(Compt)
             SumMP1Compts=SumMP1Compts+abs(Compt)
             MP2Energy=MP2Energy+((real(Hij%v,r2))**2)/(Fii-(REAL(Fjj%v,r2)))
 
@@ -4905,71 +4915,112 @@ MODULE FciMCParMod
         MP2Energy=MP2Energy+Hii
         WRITE(6,"(A,F16.7,A,F16.7)") "MP2 energy is ",MP2Energy,", but the initial shift has been set to: ",DiagSft
 
+!        do i=1,VecSlot
+!            WRITE(6,"(I5,3G20.10)") i,MP1Comps(i),MP1CompsNonCum(i),MP1CompsNonCum(i)/SumMP1Compts*REAL(InitWalkers,r2)
+!        enddo
+
         WalkersonHF=0       !Find the number of walkers we are assigning to HF
 
-        do j=1,InitWalkers
+        IF(tRotoAnnihil) THEN
+!Here, we simply run through the MP1 components and then assign |amp|/sum{amps} x InitWalkers
 
-            i=1
+            VecInd=1
+            TotParts=0
+            do j=1,VecSlot
 
-            r=Ran2(Seed)*SumMP1Compts       !Choose the double that this walker wants to be put...
-            do while(r.gt.MP1Comps(i))
+                FracPart=MP1CompsNonCum(j)/SumMP1Compts*REAL(InitWalkers,r2)
+                IntParts=INT(FracPart)
+                FracPart=FracPart-REAL(IntParts)
+!Determine whether we want to stochastically create another particle
+                IF(FracPart.gt.Ran2(Seed)) THEN
+                    IntParts=IntParts+1
+                ENDIF
 
-                i=i+1
+                IF(IntParts.gt.0) THEN
 
-                IF(i.gt.VecSlot) THEN
-                    CALL Stop_All("InitWalkersMP1","Assigning walkers stochastically has been performed incorrectly")
+                    IF(j.eq.1) THEN
+                        WalkersonHF=IntParts
+                        CurrentDets(0:NoIntforDet,VecInd)=iLutHF(:)
+                        CurrentSign(VecInd)=IntParts*MP1Sign(j)
+                        TotParts=TotParts+IntParts
+                        IF(.not.tRegenDiagHEls) THEN
+                            CurrentH(VecInd)=0.D0
+                        ENDIF
+                    ELSE
+!We are at a double excitation - we need to calculate most of this information...
+                        CALL EncodeBitDet(MP1Dets(1:NEl,j),CurrentDets(0:NoIntforDet,VecInd),NEl,NoIntforDet)
+                        CurrentSign(VecInd)=IntParts*MP1Sign(j)
+                        TotParts=TotParts+IntParts
+                        IF(.not.tRegenDiagHEls) THEN
+                            Hjj=GetHElement2(MP1Dets(1:NEl,j),MP1Dets(1:NEl,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
+                            CurrentH(VecInd)=real(Hjj%v,r2)-Hii
+                        ENDIF
+                    ENDIF
+                    VecInd=VecInd+1
                 ENDIF
 
             enddo
 
-            IF(i.eq.1) THEN
-!If we are at HF, then we do not need to calculate the information for the walker        
-                WalkersonHF=WalkersonHF+1
-                CurrentDets(0:NoIntforDet,j)=iLutHF(:)
-                CurrentSign(j)=1
-                IF((.not.tRotoAnnihil).and.(.not.tRegenDiagHEls)) THEN
-                    CurrentH(j)=0.D0
-                ENDIF
-                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
-!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                    HashArray(j)=HFHash
-                ENDIF
-            ELSE
-!We are at a double excitation - we need to calculate most of this information...
-                CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j),NEl,NoIntforDet)
-                CurrentSign(j)=MP1Sign(i)
-                IF((.not.tRotoAnnihil).and.(.not.tRegenDiagHEls)) THEN
-!With RotoAnnihilation, we fill the CurrentH Array after ordering
-                    Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
-                    CurrentH(j)=real(Hjj%v,r2)-Hii
-                ENDIF
-                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
-!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                    HashArray(j)=CreateHash(MP1Dets(1:NEl,i))
-                ENDIF
-                
-            ENDIF
+            TotWalkers=VecInd-1
 
-        enddo
-        IF(tRotoAnnihil) THEN
 !A reduced determinant representation could be created more easily by stochastically choosing amplitudes and running over excitations, rather than walkers.
-            WRITE(6,*) "Ordering and compressing all walkers for rotoannihilation..."
-            CALL FLUSH(6)
-            TotWalkers=InitWalkers
-!This will change TotWalkers to be at most the number of double excitations...
-            CALL SortCompressLists(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),CurrentSign(1:TotWalkers))
-            IF(.not.tRegenDiagHEls) THEN
-                do j=1,TotWalkers
-!Now find the diagonal elements for all the walkers.
-                    CALL DecodeBitDet(nJ,CurrentDets(0:NoIntForDet,j),NEl,NoIntforDet)
-                    Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                    CurrentH(j)=real(Hjj%v,r2)-Hii
-                enddo
+            WRITE(6,*) "Ordering all walkers for rotoannihilation..."
+            IF(tRegenDiagHEls) THEN
+                CALL SortBitDets(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers))
+            ELSE
+                CALL SortBitDetswH(TotWalkers,CurrentDets(0:NoIntforDet,1:TotWalkers),NoIntforDet,CurrentSign(1:TotWalkers),CurrentH(1:TotWalkers))
             ENDIF
-        ENDIF
+            
+        ELSE
+                        
+            do j=1,InitWalkers
 
+                i=1
+
+                r=Ran2(Seed)*SumMP1Compts       !Choose the double that this walker wants to be put...
+                do while(r.gt.MP1Comps(i))
+
+                    i=i+1
+
+                    IF(i.gt.VecSlot) THEN
+                        CALL Stop_All("InitWalkersMP1","Assigning walkers stochastically has been performed incorrectly")
+                    ENDIF
+
+                enddo
+
+                IF(i.eq.1) THEN
+!If we are at HF, then we do not need to calculate the information for the walker        
+                    WalkersonHF=WalkersonHF+1
+                    CurrentDets(0:NoIntforDet,j)=iLutHF(:)
+                    CurrentSign(j)=1
+                    IF(.not.tRegenDiagHEls) THEN
+                        CurrentH(j)=0.D0
+                    ENDIF
+                    IF(.not.TNoAnnihil) THEN
+!                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+                        HashArray(j)=HFHash
+                    ENDIF
+                ELSE
+!We are at a double excitation - we need to calculate most of this information...
+                    CALL EncodeBitDet(MP1Dets(1:NEl,i),CurrentDets(0:NoIntforDet,j),NEl,NoIntforDet)
+                    CurrentSign(j)=MP1Sign(i)
+                    IF(.not.tRegenDiagHEls) THEN
+                        Hjj=GetHElement2(MP1Dets(1:NEl,i),MP1Dets(1:NEl,i),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)     !Find the diagonal element
+                        CurrentH(j)=real(Hjj%v,r2)-Hii
+                    ENDIF
+                    IF(.not.TNoAnnihil) THEN
+!                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+                        HashArray(j)=CreateHash(MP1Dets(1:NEl,i))
+                    ENDIF
+                    
+                ENDIF
+
+            enddo
+
+        ENDIF
         
         CALL MPI_Reduce(WalkersonHF,SumWalkersonHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(TotParts,AllTotParts,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.Root) THEN
             IF(tRotoAnnihil) THEN
@@ -4981,7 +5032,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
         AllNoatHF=SumWalkersonHF
-        AllNoatDoubs=(TotParts*nProcessors)-SumWalkersonHF
+        AllNoatDoubs=AllTotParts-SumWalkersonHF
 
 !Deallocate MP1 data
         DEALLOCATE(MP1Comps)
@@ -4990,6 +5041,8 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,MP1DetsTag)
         DEALLOCATE(MP1Sign)
         CALL LogMemDealloc(this_routine,MP1SignTag)
+        DEALLOCATE(MP1CompsNonCum)
+        CALL LogMemDealloc(this_routine,MP1CompsNonCumTag)
 
 !We have finished enumerating all determinants from HF - turn back on assume size excitgen if it was off.
         IF(TurnBackAssumeExGen) THEN
@@ -5059,7 +5112,6 @@ MODULE FciMCParMod
             TotWalkersOld=TotWalkers
             CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
             AllTotWalkersOld=AllTotWalkers
-            AllTotParts=TotParts*nProcessors
             AllTotPartsOld=AllTotParts
         ELSE
 !TotWalkers contains the number of current walkers at each step
