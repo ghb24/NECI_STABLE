@@ -42,13 +42,13 @@ MODULE GenRandSymExcitNUMod
 !we want an excitation. If tFilled is false, then it wil assume that they are unfilled and calculate them. It will then return the arrays
 !with tFilled = .true. for use in the next excitation.
 !The two arrays want to be integers, both of size (2,1:nSymLabels)
-    SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,iSeed,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag,iSeed
+    SUBROUTINE GenRandSymExcitScratchNU(nI,iLut,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         INTEGER :: ILUT(0:nBasis/32),i
         LOGICAL :: tNoSuccess,tParity,tFilled
-        REAL*8 :: pDoub,pGen,Ran2
+        REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
 
         IF(.not.tFilled) THEN
@@ -78,7 +78,8 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
             IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
-            IF(Ran2(iSeed).lt.pDoubNew) THEN
+            CALL RANLUX(r,1)
+            IF(r.lt.pDoubNew) THEN
 !A double excitation has been chosen to be created.
                 IC=2
             ELSE
@@ -95,29 +96,29 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(IC.eq.2) THEN
-            CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
-            CALL CreateSingleExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
             IF(pGen.eq.-1.D0) THEN
                 IF(ExFlag.ne.3) THEN
                     CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
                 ENDIF
                 pDoubNew=1.D0
                 IC=2
-                CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
             ENDIF
 
         ENDIF
 
     END SUBROUTINE GenRandSymExcitScratchNU
 
-    SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag,iSeed
+    SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         INTEGER :: ILUT(0:nBasis/32),i
         LOGICAL :: tNoSuccess,tParity
-        REAL*8 :: pDoub,pGen,Ran2
+        REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
 
 !        WRITE(6,*) "nSymlabels:", nSymLabels
@@ -160,7 +161,8 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
             IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
-            IF(Ran2(iSeed).lt.pDoubNew) THEN
+            CALL RANLUX(r,1)
+            IF(r.lt.pDoubNew) THEN
 !A double excitation has been chosen to be created.
                 IC=2
             ELSE
@@ -177,24 +179,24 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(IC.eq.2) THEN
-            CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         ELSE
-            CALL CreateSingleExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+            CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
             IF(pGen.eq.-1.D0) THEN
                 IF(ExFlag.ne.3) THEN
                     CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
                 ENDIF
                 pDoubNew=1.D0
                 IC=2
-                CALL CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+                CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
             ENDIF
 
         ENDIF
 
     END SUBROUTINE GenRandSymExcitNU
 
-    SUBROUTINE CreateDoubExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-        INTEGER :: nI(NEl),nJ(NEl),iSeed,ExcitMat(2,2),NExcitOtherWay,OrbB
+    SUBROUTINE CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+        INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),NExcitOtherWay,OrbB
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         INTEGER :: ILUT(0:nBasis/32),NExcitB,SpinOrbA,OrbA,SymB,NExcitA
@@ -204,7 +206,7 @@ MODULE GenRandSymExcitNUMod
 
 !First, we need to pick an unbiased distinct electron pair.
 !These have symmetry product SymProduct, and spin pair iSpn = 1=beta/beta; 2=alpha/beta; 3=alpha/alpha
-        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,iSeed,SymProduct,iSpn)
+        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn)
 
 !This routine finds the number of orbitals which are allowed by spin, but not part of any spatial symmetry allowed unoccupied pairs.
 !This number is needed for the correct normalisation of the probability of drawing any given A orbital since these can be chucked and redrawn.
@@ -221,7 +223,7 @@ MODULE GenRandSymExcitNUMod
 !               OrbA = Index of the chosen spinorbital
 !               SymB = Symmetry required of the second unoccupied spinorbital, so that sym(A) x sym(B) = SymProduct
 !               SymProduct = (intent in), the symmetry of electron pair chosen
-        CALL PickAOrb(nI,iSeed,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct)
+        CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct)
 
 !This routine will pick an unoccupied orbital at random from a specified spin and symmetry class.
 !There should definitely be a possible spinorbital, since A was chosen so that there was one.
@@ -229,7 +231,7 @@ MODULE GenRandSymExcitNUMod
 !If we do this, then we should chuck and redraw, since there should definitely be another allowed spinorbital in the class.
 !We return the number of allowed B's for the A we picked in NExcitB, however we also need to know the number of allowed A's if we
 !had picked B first. This will be returned in NExcitOtherWay.
-        CALL PickBOrb(nI,iSeed,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcitB,SymProduct,NExcitOtherWay)
+        CALL PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcitB,SymProduct,NExcitOtherWay)
 
         CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
 
@@ -267,12 +269,12 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE FindDoubleProb
 
-    SUBROUTINE PickBOrb(nI,iSeed,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcit,SymProduct,NExcitOtherWay)
-        INTEGER :: nI(NEl),iSeed,iSpn,SpinOrbA,OrbA,SymB,NExcit,SymProduct,NExcitOtherWay
+    SUBROUTINE PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcit,SymProduct,NExcitOtherWay)
+        INTEGER :: nI(NEl),iSpn,SpinOrbA,OrbA,SymB,NExcit,SymProduct,NExcitOtherWay
         INTEGER :: OrbB,Attempts,SpinOrbB,ChosenUnocc
         INTEGER :: ILUT(0:nBasis/32),SymA,nOrbs,z,i
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
-        REAL*8 :: Ran2
+        REAL*8 :: r
 
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
 !We have calculated in NExcit the number of orbitals available for B given A, but we also need to know the number of orbitals to choose from for A IF
@@ -320,7 +322,8 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-            ChosenUnocc=INT(NExcit*Ran2(iSeed))+1
+            CALL RANLUX(r,1)
+            ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
             IF(tNoSymGenRandExcits) THEN
@@ -368,7 +371,8 @@ MODULE GenRandSymExcitNUMod
                 Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
-                ChosenUnocc=INT(nOrbs*Ran2(iSeed))
+                CALL RANLUX(r,1)
+                ChosenUnocc=INT(nOrbs*r)
                 IF(tNoSymGenRandExcits) THEN
                     OrbB=(2*(ChosenUnocc+1))+SpinOrbB
                 ELSE
@@ -504,12 +508,12 @@ MODULE GenRandSymExcitNUMod
 !               OrbA = Index of the chosen spinorbital
 !               SymB = Symmetry required of the second unoccupied spinorbital, so that sym(A) x sym(B) = SymProduct
 !               SymProduct = (intent in), the symmetry of electron pair chosen
-    SUBROUTINE PickAOrb(nI,iSeed,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct)
-        INTEGER :: nI(NEl),iSeed,iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA
+    SUBROUTINE PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcit,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct)
+        INTEGER :: nI(NEl),iSpn,Elec1Ind,Elec2Ind,SpinOrbA,AttemptsOverall,SymA
         INTEGER :: NExcit,ChosenUnocc,z,i,OrbA,Attempts,SymB,SymProduct
         INTEGER :: ILUT(0:nBasis/32)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
-        REAL*8 :: Ran2
+        REAL*8 :: r
 
         IF(iSpn.eq.2) THEN
 !There is no restriction on whether we choose an alpha or beta spin, so there are nBasis-NEl possible spinorbitals to choose from.
@@ -537,7 +541,8 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-                    ChosenUnocc=INT(NExcit*Ran2(iSeed))+1
+                    CALL RANLUX(r,1)
+                    ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
                     z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
@@ -572,7 +577,8 @@ MODULE GenRandSymExcitNUMod
                         Attempts=Attempts+1
                         
 !Draw randomly from the set of orbitals
-                        ChosenUnocc=INT(nBasis*Ran2(iSeed))
+                        CALL RANLUX(r,1)
+                        ChosenUnocc=INT(nBasis*r)
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
                         IF(.not.(BTEST(ILUT(ChosenUnocc/32),MOD(ChosenUnocc,32)))) THEN
@@ -602,7 +608,8 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-                    ChosenUnocc=INT(NExcit*Ran2(iSeed))+1
+                    CALL RANLUX(r,1)
+                    ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
 !Alpha orbitals are the ODD numbered orbitals. Beta orbitals are EVEN numbered orbitals.
@@ -646,7 +653,8 @@ MODULE GenRandSymExcitNUMod
                         Attempts=Attempts+1
                         
 !Draw randomly from the set of orbitals
-                        ChosenUnocc=INT((nBasis/2)*Ran2(iSeed))+1
+                        CALL RANLUX(r,1)
+                        ChosenUnocc=INT((nBasis/2)*r)+1
                         IF(iSpn.eq.1) THEN
 !We only want to choose beta orbitals(i.e. even).
                             ChosenUnocc=2*ChosenUnocc
@@ -748,10 +756,10 @@ MODULE GenRandSymExcitNUMod
 
 !This routine takes determinant nI and returns two randomly chosen electrons, whose index in nI is Elec1Ind and Elec2Ind.
 !These electrons have symmetry product SymProduct and spin pairing iSpn.
-    SUBROUTINE PickElecPair(nI,Elec1Ind,Elec2Ind,iSeed,SymProduct,iSpn)
-        INTEGER :: Ind,iSeed,X,K,Elec1Ind,Elec2Ind,SymProduct
+    SUBROUTINE PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn)
+        INTEGER :: Ind,X,K,Elec1Ind,Elec2Ind,SymProduct
         INTEGER :: nI(NEl),iSpn
-        REAL*8 :: Ran2
+        REAL*8 :: r
 !Triangular indexing system.
 !This is used for picking two distinct electrons out of all N(N-1)/2 pairs.
 !
@@ -774,7 +782,8 @@ MODULE GenRandSymExcitNUMod
 !        ElecPairs=(NEl*(NEl-1))/2
 
 !Find an index randomly.
-        Ind=INT(ElecPairs*Ran2(iSeed))+1
+        CALL RANLUX(r,1)
+        Ind=INT(ElecPairs*r)+1
 
 !X is number of elements at positions larger than ind
         X=ElecPairs-Ind
@@ -806,14 +815,14 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE PickElecPair
 
 
-    SUBROUTINE CreateSingleExcit(nI,nJ,iSeed,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
+    SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
-        INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel,iSeed
+        INTEGER :: ExcitMat(2,2),ExcitLevel,iGetExcitLevel
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         INTEGER :: ILUT(0:nBasis/32)
-        REAL*8 :: Ran2,pGen
+        REAL*8 :: r,pGen
         LOGICAL :: tParity,IsValidDet,SymAllowed
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
@@ -857,7 +866,8 @@ MODULE GenRandSymExcitNUMod
             Attempts=Attempts+1
 
 !Choose an electron randomly...
-            Eleci=INT(NEl*Ran2(iSeed))+1
+            CALL RANLUX(r,1)
+            Eleci=INT(NEl*r)+1
 
 !Find symmetry of chosen electron
             IF(tNoSymGenRandExcits) THEN
@@ -900,7 +910,8 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-            ChosenUnocc=INT(NExcit*Ran2(iSeed))+1
+            CALL RANLUX(r,1)
+            ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
             IF(tNoSymGenRandExcits) THEN
@@ -948,7 +959,8 @@ MODULE GenRandSymExcitNUMod
                 Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
-                ChosenUnocc=INT(nOrbs*Ran2(iSeed))
+                CALL RANLUX(r,1)
+                ChosenUnocc=INT(nOrbs*r)
                 IF(tNoSymGenRandExcits) THEN
                     Orb=(2*(ChosenUnocc+1))-(iSpn-1)
                 ELSE
@@ -1059,12 +1071,12 @@ END MODULE GenRandSymExcitNUMod
 !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
 !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
-SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
+SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
     Use SystemData , only : NEl,nBasis,G1,nBasisMax
     Use GenRandSymExcitNUMod , only : GenRandSymExcitNU,ConstructClassCounts
     Use SymData , only : nSymLabels
     IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),iSeed,IC,ExcitMat(2,2),DetConn
+    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),DetConn
     REAL*8 :: pDoub,pGen
     INTEGER :: ClassCount2(2,0:nSymLabels-1),iLut(0:nBasis/32)
     INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
@@ -1074,7 +1086,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
     INTEGER :: ierr,Ind1,Ind2,Ind3,Ind4,iMaxExcit,nStore(6),nExcitMemLen,j,k,l,DetNum,DetNumS
 
     WRITE(6,*) nI(:)
-    WRITE(6,*) Iterations,pDoub,iSeed,exFlag
+    WRITE(6,*) Iterations,pDoub,exFlag
     WRITE(6,*) "nSymLabels: ",nSymLabels
     CALL FLUSH(6)
 
@@ -1112,7 +1124,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,iSeed,exFlag)
 
         WRITE(6,"(A,I10)") "Iteration: ",i
 
-        CALL GenRandSymExcitNU(nI,iLut,nJ,iSeed,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+        CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
         IF(IC.eq.1) THEN
 !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
         ELSE

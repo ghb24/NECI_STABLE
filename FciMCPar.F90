@@ -5,7 +5,7 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use SystemData , only : tHub,tReal,tNonUniRandExcits
-    use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
+    use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
@@ -76,7 +76,7 @@ MODULE FciMCParMod
     TYPE(ExcitGenerator) :: HFExcit         !This is the excitation generator for the HF determinant
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
-    INTEGER :: Seed,MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
+    INTEGER :: MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
     INTEGER :: TotParts,TotPartsOld,AllTotParts,AllTotPartsOld
     INTEGER :: exFlag=3
 
@@ -352,13 +352,13 @@ MODULE FciMCParMod
                 IF(.not.TRegenExcitgens) THEN
 !Setup excit generators for this determinant
                     CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
-                    CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,Seed,IC,0,Prob,iCount,Ex,tParity)
+                    CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                 ELSE
                     IF(tNonUniRandExcits) THEN
 !This will only be a help if most determinants are multiply occupied.
-                        CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,Seed,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                        CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                     ELSE
-                        CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,Seed,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                        CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
                     ENDIF
                 ENDIF
 !Calculate number of children to spawn
@@ -3083,7 +3083,7 @@ MODULE FciMCParMod
         IMPLICIT NONE
         LOGICAL :: HighLow
         INTEGER :: VecSlot,i,j,ToCull,Culled,OrigWalkers,Chosen
-        REAL*8 :: Ran2
+        REAL*8 :: r
 
         IF(HighLow) THEN
 !The population is too large - cull TotWalkers/CullFactor randomly selected particles
@@ -3095,7 +3095,8 @@ MODULE FciMCParMod
             do while (Culled.lt.ToCull)
 
 !Pick a random walker between 1 and TotWalkers
-                Chosen=int((Ran2(Seed)*TotWalkers)+1.D0)
+                CALL RANLUX(r,1)
+                Chosen=int((r*TotWalkers)+1.D0)
 
 !Move the Walker at the end of the list to the position of the walker we have chosen to destroy
                 CurrentDets(:,Chosen)=CurrentDets(:,TotWalkers)
@@ -3235,11 +3236,11 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use SystemData, only : tUseBrillouin
+        use SystemData, only : tUseBrillouin,iRanLuxLev
         use CalcData, only : EXCITFUNCS
-        use Calc, only : VirtCASorbs,OccCASorbs,FixShift
+        use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl)
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
@@ -3324,8 +3325,10 @@ MODULE FciMCParMod
         CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
-        Seed=G_VMC_Seed-iProcIndex
+        Seed=abs(G_VMC_Seed-iProcIndex)
         WRITE(6,*) "Value for seed is: ",Seed
+!Initialise...
+        CALL RLUXGO(iRanLuxLev,Seed,0,0)
 
 !Calculate Hii
         TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -4185,7 +4188,7 @@ MODULE FciMCParMod
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
-        REAL*8 :: Ran2,FracPart
+        REAL*8 :: r,FracPart
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         
@@ -4404,7 +4407,8 @@ MODULE FciMCParMod
 
                 do l=1,TempInitWalkers
                     WalkVecSign(l)=WalkVecSign(l)*IntegerPart
-                    IF(Ran2(Seed).lt.FracPart) THEN
+                    CALL RANLUX(r,1)
+                    IF(r.lt.FracPart) THEN
 !Stochastically create another particle
                         IF(WalkVecSign(l).lt.0) THEN
                             WalkVecSign(l)=WalkVecSign(l)-1
@@ -4445,7 +4449,8 @@ MODULE FciMCParMod
                         WalkVec2Sign(VecSlot)=WalkVecSign(l)
                         VecSlot=VecSlot+1
                     enddo
-                    IF(Ran2(Seed).lt.FracPart) THEN
+                    CALL RANLUX(r,1)
+                    IF(r.lt.FracPart) THEN
 !Stochastically choose whether to create another particle
                         WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
                         WalkVec2Sign(VecSlot)=WalkVecSign(l)
@@ -4694,7 +4699,7 @@ MODULE FciMCParMod
     SUBROUTINE InitWalkersMP1Par()
         use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF,HFPointer,ExcitLevel,VecInd
-        REAL*8 :: SumMP1Compts,MP2Energy,Compt,Ran2,r,FracPart
+        REAL*8 :: SumMP1Compts,MP2Energy,Compt,r,FracPart
         TYPE(HElement) :: Hij,Hjj,Fjj
         INTEGER , ALLOCATABLE :: MP1Dets(:,:), ExcitgenTemp(:)
         INTEGER , ALLOCATABLE :: MP1Sign(:)
@@ -4932,7 +4937,8 @@ MODULE FciMCParMod
                 IntParts=INT(FracPart)
                 FracPart=FracPart-REAL(IntParts)
 !Determine whether we want to stochastically create another particle
-                IF(FracPart.gt.Ran2(Seed)) THEN
+                CALL RANLUX(r,1)
+                IF(FracPart.gt.r) THEN
                     IntParts=IntParts+1
                 ENDIF
 
@@ -4977,7 +4983,8 @@ MODULE FciMCParMod
 
                 i=1
 
-                r=Ran2(Seed)*SumMP1Compts       !Choose the double that this walker wants to be put...
+                CALL RANLUX(r,1)
+                r=r*SumMP1Compts       !Choose the double that this walker wants to be put...
                 do while(r.gt.MP1Comps(i))
 
                     i=i+1
@@ -5147,7 +5154,7 @@ MODULE FciMCParMod
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign
         LOGICAL :: tParity,SymAllowed
-        REAL*8 :: Prob,Ran2,rat
+        REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
 
 !Calculate off diagonal hamiltonian matrix element between determinants
@@ -5181,8 +5188,9 @@ MODULE FciMCParMod
         rat=rat-REAL(ExtraCreate)
 
 
-!Stochastically choose whether to create or not according to Ran2
-        IF(rat.gt.Ran2(Seed)) THEN
+!Stochastically choose whether to create or not according to ranlux 
+        CALL RANLUX(r,1)
+        IF(rat.gt.r) THEN
 !Child is created - what sign is it?
             IF(WSign.gt.0) THEN
 !Parent particle is positive
@@ -5241,13 +5249,14 @@ MODULE FciMCParMod
 !Hopefully this will simulate the annihilation rate to some extent and stop the shift from becoming too negative.
 !The only variable it relies on is the approximate density of particles for the given excitation level - ExcitDensity
     LOGICAL FUNCTION AttemptLocalAnn(ExcitDensity)
-        REAL*8 :: ExcitDensity,Ran2,AnnProb
+        REAL*8 :: ExcitDensity,r,AnnProb
 
 !The function can initially be a simple Tau*EXP(-Lambda*ExcitDensity)
 !        AnnProb=Tau*EXP(-Lambda*ExcitDensity)
 !        AnnProb=Lambda/ExcitDensity
         AnnProb=Lambda/ExcitDensity
-        IF(Ran2(Seed).lt.AnnProb) THEN
+        CALL RANLUX(r,1)
+        IF(r.lt.AnnProb) THEN
 !Particle is annihilated
             AttemptLocalAnn=.true.
         ELSE
@@ -5268,7 +5277,7 @@ MODULE FciMCParMod
         IMPLICIT NONE
         INTEGER :: DetCurr(NEl),iKill,IC,WSign
 !        TYPE(HElement) :: rh,rhij
-        REAL*8 :: Ran2,rat,Kii
+        REAL*8 :: r,rat,Kii
         LOGICAL :: tDETinCAS
 
 
@@ -5318,7 +5327,8 @@ MODULE FciMCParMod
         rat=rat-REAL(iKill)
 
 !Stochastically choose whether to die or not
-        IF(abs(rat).gt.Ran2(Seed)) THEN
+        CALL RANLUX(r,1)
+        IF(abs(rat).gt.r) THEN
             IF(rat.ge.0.D0) THEN
 !Depends whether we are trying to kill or give birth to particles.
                 iKill=iKill+1
@@ -5543,9 +5553,9 @@ MODULE FciMCParMod
     END SUBROUTINE DissociateExitgen
 
 !This routine gets a random excitation for when we want to generate the excitation generator on the fly, then chuck it.
-    SUBROUTINE GetPartRandExcitPar(DetCurr,iLutDet,nJ,Seed,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
+    SUBROUTINE GetPartRandExcitPar(DetCurr,iLutDet,nJ,IC,Frz,Prob,iCount,ExcitLevel,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitNU
-        INTEGER :: DetCurr(NEl),nJ(NEl),Seed,IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,Frz,iCount,iMaxExcit,nStore(6),MemLength,ierr
         INTEGER :: Excitlevel,Ex(2,2),iLutDet(0:NoIntforDet)
         REAL*8 :: Prob
         LOGICAL :: tParity
@@ -5553,12 +5563,12 @@ MODULE FciMCParMod
 
         IF(tNonUniRandExcits) THEN
 !Generate non-uniform random excitations
-            CALL GenRandSymExcitNU(DetCurr,iLutDet,nJ,Seed,pDoubles,IC,Ex,tParity,exFlag,Prob)
+            CALL GenRandSymExcitNU(DetCurr,iLutDet,nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
 
         ELSE
             IF(ExcitLevel.eq.0) THEN
 !            CALL GenRandSymExcitIt3(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount)
-                CALL GenRandSymExcitIt4(DetCurr,HFExcit%ExcitData,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
+                CALL GenRandSymExcitIt4(DetCurr,HFExcit%ExcitData,nJ,0,IC,Frz,Prob,iCount,Ex,tParity)
                 RETURN
             ENDIF
                 
@@ -5574,7 +5584,7 @@ MODULE FciMCParMod
 
 !Now generate random excitation
 !        CALL GenRandSymExcitIt3(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount)
-            CALL GenRandSymExcitIt4(DetCurr,ExcitGenTemp,nJ,Seed,IC,Frz,Prob,iCount,Ex,tParity)
+            CALL GenRandSymExcitIt4(DetCurr,ExcitGenTemp,nJ,0,IC,Frz,Prob,iCount,Ex,tParity)
 
 !Deallocate when finished
             DEALLOCATE(ExcitGenTemp)
@@ -6600,9 +6610,9 @@ MODULE FciMCParMod
 !We know that determinants are not going to be regenerated if NDets=2, so we can do this in a slightly simpler way
             
             IF(TRegenExcitgens) THEN
-                CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
+                CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,0,IC,0,Prob,iCount)
             ELSE
-                CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
+                CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,0,IC,0,Prob,iCount)
             ENDIF
 
             Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
@@ -6627,9 +6637,9 @@ MODULE FciMCParMod
             do while(i.lt.NDets)    !Loop until all determinants found
 
                 IF(TRegenExcitgens) THEN
-                    CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
+                    CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,0,IC,0,Prob,iCount)
                 ELSE
-                    CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,Seed,IC,0,Prob,iCount)
+                    CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,0,IC,0,Prob,iCount)
                 ENDIF
 
                 SameDet=.false.
@@ -6701,7 +6711,7 @@ MODULE FciMCParMod
         INTEGER :: nI(NEl),VecInd
         INTEGER :: i,j,VecSlot,Create,ExcitLevel,iGetExcitLevel_2
         INTEGER(KIND=i2) :: HashTemp
-        REAL*8 :: Ran2,rat,Kii,Kjj,Prob
+        REAL*8 :: rat,Kii,Kjj,Prob,r
 
 !First deal with the excitations...
         do i=2,NDets
@@ -6711,7 +6721,8 @@ MODULE FciMCParMod
     
             Create=INT(abs(GraphVec(i)))
             rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
-            IF(rat.gt.Ran2(Seed)) Create=Create+1
+            CALL RANLUX(r,1)
+            IF(rat.gt.r) Create=Create+1
             IF(abs(Create).gt.0) THEN
                 IF(.not.WSign) Create=-Create
                 IF(GraphVec(i).lt.0.D0) Create=-Create
@@ -6757,7 +6768,8 @@ MODULE FciMCParMod
         Create=INT(abs(GraphVec(1)))
 
         rat=abs(GraphVec(1))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
-        IF(rat.gt.Ran2(Seed)) Create=Create+1
+        CALL RANLUX(r,1)
+        IF(rat.gt.r) Create=Create+1
         
         IF((abs(Create)).gt.0) THEN
         

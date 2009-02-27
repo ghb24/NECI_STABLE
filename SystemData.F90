@@ -10,7 +10,7 @@ LOGICAL :: TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP
 LOGICAL :: tSeparateOccVirt
 LOGICAL :: TNoRenormRandExcits,tAssumeSizeExcitgen,tCycleOrbs,tROIteration,tShakeIter
 LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tShakeApprox
-INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax
+INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev
 INTEGER :: iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax
 REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB
 REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged

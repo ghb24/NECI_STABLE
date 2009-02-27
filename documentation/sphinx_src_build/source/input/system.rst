@@ -59,6 +59,10 @@ The available system types fall into three categories:
 General options 
 ---------------
 
+**RANLUXLEV** [iRanLuxLev]
+    Default=3
+    Set the random number luxury level.
+
 **BANDGAP**
     Perform calculations for systems containing NEL, NEL+1, and NEL-1
     electrons and extract the band gap energy.
