@@ -131,15 +131,15 @@
       REAL*8 FUNCTION RAN2(ISEED)
          IMPLICIT NONE
          INTEGER ISEED
-         REAL*8 r
+!         REAL*8 r
          IF(ISEED.NE.0) THEN
 !  Init RANLUX
             IF(ISEED.LT.0) ISEED=-ISEED
             CALL RLUXGO(3,ISEED,0,0)
             ISEED=0
          ENDIF
-         CALL RANLUX(r,1)
-         RAN2=r
+         CALL RANLUX(RAN2,1)
+!         RAN2=r
          RETURN
       END FUNCTION RAN2
 
