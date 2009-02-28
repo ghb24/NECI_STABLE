@@ -77,7 +77,7 @@ MODULE FciMCParMod
     INTEGER(KIND=i2) :: HFHash               !This is the hash for the HF determinant
 
     INTEGER :: MaxWalkersPart,TotWalkers,TotWalkersOld,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
-    INTEGER :: TotParts,TotPartsOld,AllTotParts,AllTotPartsOld
+    INTEGER :: TotParts,TotPartsOld
     INTEGER :: exFlag=3
 
 !This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
@@ -114,7 +114,8 @@ MODULE FciMCParMod
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate
 !    REAL*8 :: AllMeanExcitLevel
-    INTEGER :: AllMinExcitLevel,AllTotWalkers,AllTotWalkersOld,AllTotSign,AllTotSignOld
+    INTEGER :: AllMinExcitLevel
+    REAL(KIND=r2) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld
 !    INTEGER :: AllMaxExcitLevel
     INTEGER(KIND=i2) :: AllSumWalkersCyc
     INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs,AllLocalAnn
@@ -2804,7 +2805,8 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(8),outpair(8)
+        INTEGER :: inpair(6),outpair(6)
+        REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3)
         LOGICAL :: TBalanceNodesTemp
@@ -2819,14 +2821,14 @@ MODULE FciMCParMod
 
 !We need to collate the information from the different processors
 !Inpair and outpair are used to package variables to save on latency time
-        inpair(1)=TotWalkers
-        inpair(2)=Annihilated
-        inpair(3)=NoatDoubs
-        inpair(4)=NoBorn
-        inpair(5)=NoDied
-        inpair(6)=HFCyc         !SumWalkersCyc is now an integer*8
-        inpair(7)=LocalAnn
-        inpair(8)=TotParts
+!        inpair(1)=TotWalkers
+        inpair(1)=Annihilated
+        inpair(2)=NoatDoubs
+        inpair(3)=NoBorn
+        inpair(4)=NoDied
+        inpair(5)=HFCyc         !SumWalkersCyc is now an integer*8
+        inpair(6)=LocalAnn
+!        inpair(7)=TotParts
 !        inpair(9)=iUniqueDets
         outpair(:)=0
 !        CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
@@ -2839,21 +2841,26 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
-        CALL MPI_Reduce(inpair,outpair,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
-        AllTotWalkers=outpair(1)
-        AllAnnihilated=outpair(2)
-        AllNoatDoubs=outpair(3)
-        AllNoBorn=outpair(4)
-        AllNoDied=outpair(5)
-        AllHFCyc=REAL(outpair(6),r2)
-        AllLocalAnn=outpair(7)
-        AllTotParts=outpair(8)
+!        AllTotWalkers=outpair(1)
+        AllAnnihilated=outpair(1)
+        AllNoatDoubs=outpair(2)
+        AllNoBorn=outpair(3)
+        AllNoDied=outpair(4)
+        AllHFCyc=REAL(outpair(5),r2)
+        AllLocalAnn=outpair(6)
+!        AllTotParts=outpair(7)
 !        AlliUniqueDets=REAL(outpair(9),r2)
+        TempTotWalkers=REAL(TotWalkers,r2)
+        TempTotParts=REAL(TotParts,r2)
+
+        CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.0) THEN
-            IF(AllTotWalkers.eq.0) THEN
+            IF(AllTotWalkers.le.0.2) THEN
                 CALL Stop_All("CalcNewShift","All particles have died. Consider choosing new seed, or raising shift value.")
             ENDIF
         ENDIF
@@ -2865,7 +2872,7 @@ MODULE FciMCParMod
 !        WRITE(6,*) "Get Here 3"
 !        CALL FLUSH(6)
 
-        MeanWalkers=REAL(AllTotWalkers,r2)/REAL(nProcessors,r2)
+        MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
         MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
 
 !Find the range of walkers on different nodes to see if we need to even up the distribution over nodes
@@ -2882,7 +2889,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !            RangeWalkers=MaxWalkersProc-MinWalkersProc
 !            IF(RangeWalkers.gt.300) THEN
-            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(nProcessors*500))) THEN
+            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2)))) THEN
                 TBalanceNodesTemp=.true.
             ELSE
                 TBalanceNodesTemp=.false.
@@ -2916,7 +2923,7 @@ MODULE FciMCParMod
         IF(GrowRate.eq.-1.D0) THEN
 !tGlobalSftCng is on, and we want to calculate the change in the shift as a global parameter, rather than as a weighted average.
 !This will only be a sensible value on the root.
-            AllGrowRate=REAL(AllTotParts,r2)/REAL(AllTotPartsOld,r2)
+            AllGrowRate=AllTotParts/AllTotPartsOld
         ELSE
 !We want to calculate the mean growth rate over the update cycle, weighted by the total number of walkers
             GrowRate=GrowRate*TempSumWalkersCyc                    
@@ -3059,8 +3066,8 @@ MODULE FciMCParMod
         AllSumNoatHF=0.D0
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
-        AllTotWalkers=0
-        AllTotParts=0
+        AllTotWalkers=0.D0
+        AllTotParts=0.D0
         AllGrowRate=0.D0
 !        AllMeanExcitLevel=0.D0
 !        AllAvSign=0.D0
@@ -3819,10 +3826,10 @@ MODULE FciMCParMod
                 TotPartsOld=1
 !Initialise global variables for calculation on the root node
                 IF(iProcIndex.eq.root) THEN
-                    AllTotWalkers=nProcessors
-                    AllTotWalkersOld=nProcessors
-                    AllTotParts=nProcessors
-                    AllTotPartsOld=nProcessors
+                    AllTotWalkers=REAL(nProcessors,r2)
+                    AllTotWalkersOld=REAL(nProcessors,r2)
+                    AllTotParts=REAL(nProcessors,r2)
+                    AllTotPartsOld=REAL(nProcessors,r2)
                 ENDIF
             ELSE
                 IF(.not.tRotoAnnihil) THEN
@@ -3833,8 +3840,8 @@ MODULE FciMCParMod
                     TotPartsOld=TotWalkersOld
 !Initialise global variables for calculation on the root node
                     IF(iProcIndex.eq.root) THEN
-                        AllTotWalkers=InitWalkers*nProcessors
-                        AllTotWalkersOld=InitWalkers*nProcessors
+                        AllTotWalkers=REAL(InitWalkers*nProcessors,r2)
+                        AllTotWalkersOld=REAL(InitWalkers*nProcessors,r2)
                         AllTotParts=AllTotWalkers
                         AllTotPartsOld=AllTotWalkersOld
                     ENDIF
@@ -3844,10 +3851,10 @@ MODULE FciMCParMod
                     TotParts=InitWalkers
                     TotPartsOld=InitWalkers
                     IF(iProcIndex.eq.root) THEN
-                        AllTotWalkers=nProcessors
-                        AllTotWalkersOld=nProcessors
-                        AllTotParts=InitWalkers*nProcessors
-                        AllTotPartsOld=InitWalkers*nProcessors
+                        AllTotWalkers=REAL(nProcessors,r2)
+                        AllTotWalkersOld=REAL(nProcessors,r2)
+                        AllTotParts=REAL(InitWalkers*nProcessors,r2)
+                        AllTotPartsOld=REAL(InitWalkers*nProcessors,r2)
                     ENDIF
                 ENDIF
 
@@ -3916,7 +3923,7 @@ MODULE FciMCParMod
             do i=0,nProcessors-1
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
-            AllTotWalkers=Total
+            AllTotWalkers=REAL(Total,r2)
 !            IF(Total.ne.AllTotWalkers) THEN
 !                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
 !            ENDIF
@@ -3924,9 +3931,9 @@ MODULE FciMCParMod
 !Write header information
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
-                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",AllTotWalkers, " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,i2), " particles."
                 ELSE
-                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",AllTotWalkers, " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",INT(AllTotWalkers,i2), " particles."
                 ENDIF
             ELSE
                 IF(tBinPops) THEN
@@ -4036,7 +4043,7 @@ MODULE FciMCParMod
 !Reset the values of the global variables
         AllSumNoatHF=0.D0
         AllSumENum=0.D0
-        AllTotWalkers=0
+        AllTotWalkers=0.D0
 
         RETURN
 
@@ -4076,7 +4083,7 @@ MODULE FciMCParMod
             do i=0,nProcessors-1
                 Total=Total+INT(WalkersonNodes(i)/iPopsPartEvery)
             enddo
-            AllTotWalkers=Total
+            AllTotWalkers=REAL(Total,r2)
 !            IF(Total.ne.AllTotWalkers) THEN
 !                CALL Stop_All("WriteToPopsfilePar","Not all walkers accounted for...")
 !            ENDIF
@@ -4084,9 +4091,9 @@ MODULE FciMCParMod
 !Write header information
             IF(iPopsPartEvery.ne.1) THEN
                 IF(tBinPops) THEN
-                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",AllTotWalkers, " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a binary reduced POPSFILEBIN, printing a total of ",INT(AllTotWalkers,i2), " particles."
                 ELSE
-                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",AllTotWalkers, " particles."
+                    WRITE(6,"(A,I12,A)") "Writing a reduced POPSFILE, printing a total of ",INT(AllTotWalkers,i2), " particles."
                 ENDIF
             ELSE
                 IF(tBinPops) THEN
@@ -4174,7 +4181,7 @@ MODULE FciMCParMod
 !Reset the values of the global variables
         AllSumNoatHF=0.D0
         AllSumENum=0.D0
-        AllTotWalkers=0
+        AllTotWalkers=0.D0
 
         RETURN
 
@@ -4186,9 +4193,10 @@ MODULE FciMCParMod
         LOGICAL :: exists,First,tBinRead,DetBitEQ
         INTEGER :: AvWalkers,WalkerstoReceive(nProcessors)
         INTEGER*8 :: NodeSumNoatHF(nProcessors),TempAllSumNoatHF
+        REAL*8 :: TempTotParts
         INTEGER :: TempInitWalkers,error,i,j,k,l,total,ierr,MemoryAlloc,Tag
         INTEGER :: Stat(MPI_STATUS_SIZE),AvSumNoatHF,VecSlot,IntegerPart,HFPointer,TempnI(NEl),ExcitLevel,VecInd,DetsMerged
-        REAL*8 :: r,FracPart
+        REAL*8 :: r,FracPart,TempTotWalkers
         TYPE(HElement) :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         
@@ -4251,20 +4259,20 @@ MODULE FciMCParMod
             ENDIF
 
 !Need to calculate the number of walkers each node will receive...
-            AvWalkers=NINT(real(AllTotWalkers,r2)/real(nProcessors,r2))
+            AvWalkers=NINT(AllTotWalkers/real(nProcessors,r2))
 !Divide up the walkers to receive for each node
             do i=1,nProcessors-1
                 WalkerstoReceive(i)=AvWalkers
             enddo
 !The last processor takes the 'remainder'
-            WalkerstoReceive(nProcessors)=AllTotWalkers-(AvWalkers*(nProcessors-1))
+            WalkerstoReceive(nProcessors)=NINT(AllTotWalkers)-(AvWalkers*(nProcessors-1))
 
 !Quick check to ensure we have all walkers accounted for
             total=0
             do i=1,nProcessors
                 total=total+WalkerstoReceive(i)
             enddo
-            IF(total.ne.AllTotWalkers) THEN
+            IF(total.ne.NINT(AllTotWalkers)) THEN
                 CALL Stop_All("ReadFromPopsfilePar","All Walkers not accounted for when reading in from POPSFILE")
             ENDIF
             
@@ -4389,7 +4397,7 @@ MODULE FciMCParMod
             ENDIF
         enddo
 
-        IF(iProcIndex.eq.root) WRITE(6,*) AllTotWalkers," configurations read in from POPSFILE and distributed."
+        IF(iProcIndex.eq.root) WRITE(6,*) INT(AllTotWalkers,i2)," configurations read in from POPSFILE and distributed."
 
         IF(ScaleWalkers.ne.1) THEN
 
@@ -4422,10 +4430,11 @@ MODULE FciMCParMod
                 TotWalkers=TempInitWalkers  !This is now number of determinants, rather than walkers
                 TotWalkersOld=TempInitWalkers
 !Collate the information about the new total number of walkers
-                CALL MPI_AllReduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+                TempTotWalkers=REAL(TotWalkers,r2)
+                CALL MPI_AllReduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
                 IF(iProcIndex.eq.root) THEN
                     AllTotWalkersOld=AllTotWalkers
-                    WRITE(6,*) "Total number of initial determinants occupied is now: ", AllTotWalkers
+                    WRITE(6,*) "Total number of initial determinants occupied is now: ", INT(AllTotWalkers,i2)
                 ENDIF
 
             ELSE
@@ -4464,10 +4473,11 @@ MODULE FciMCParMod
                 TotWalkers=VecSlot-1
                 TotWalkersOld=TotWalkers
 !Collate the information about the new total number of walkers
-                CALL MPI_AllReduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+                TempTotWalkers=REAL(TotWalkers,r2)
+                CALL MPI_AllReduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
                 IF(iProcIndex.eq.root) THEN
                     AllTotWalkersOld=AllTotWalkers
-                    WRITE(6,*) "Total number of initial walkers is now: ", AllTotWalkers
+                    WRITE(6,*) "Total number of initial walkers is now: ", INT(AllTotWalkers,i2)
                 ENDIF
 
 
@@ -4516,7 +4526,7 @@ MODULE FciMCParMod
             TotWalkersOld=TempInitWalkers
             IF(iProcIndex.eq.root) THEN
                 AllTotWalkersOld=AllTotWalkers
-                WRITE(6,*) "Total number of initial walkers is now: ",AllTotWalkers
+                WRITE(6,*) "Total number of initial walkers is now: ",INT(AllTotWalkers,i2)
             ENDIF
 
         ENDIF
@@ -4688,7 +4698,8 @@ MODULE FciMCParMod
             TotParts=TotParts+abs(CurrentSign(j))
 
         enddo
-        CALL MPI_AllReduce(TotParts,AllTotParts,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        TempTotParts=REAL(TotParts,r2)
+        CALL MPI_AllReduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         AllTotPartsOld=AllTotParts
 
         RETURN
@@ -4699,7 +4710,7 @@ MODULE FciMCParMod
     SUBROUTINE InitWalkersMP1Par()
         use SystemData , only : tAssumeSizeExcitgen
         INTEGER :: HFConn,error,ierr,MemoryAlloc,VecSlot,nJ(NEl),nStore(6),iExcit,i,j,WalkersonHF,HFPointer,ExcitLevel,VecInd
-        REAL*8 :: SumMP1Compts,MP2Energy,Compt,r,FracPart
+        REAL*8 :: SumMP1Compts,MP2Energy,Compt,r,FracPart,TempTotWalkers,TempTotParts
         TYPE(HElement) :: Hij,Hjj,Fjj
         INTEGER , ALLOCATABLE :: MP1Dets(:,:), ExcitgenTemp(:)
         INTEGER , ALLOCATABLE :: MP1Sign(:)
@@ -5027,7 +5038,8 @@ MODULE FciMCParMod
         ENDIF
         
         CALL MPI_Reduce(WalkersonHF,SumWalkersonHF,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(TotParts,AllTotParts,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        TempTotParts=REAL(TotParts,r2)
+        CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.Root) THEN
             IF(tRotoAnnihil) THEN
@@ -5035,11 +5047,11 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,"(A,I12,A,I12,A)") "Out of ",InitWalkers*nProcessors," initial walkers allocated, ",SumWalkersonHF," of them are situated on the HF determinant."
                 TotParts=InitWalkers
-                AllTotParts=InitWalkers*nProcessors
+                AllTotParts=REAL(InitWalkers*nProcessors,r2)
             ENDIF
         ENDIF
         AllNoatHF=SumWalkersonHF
-        AllNoatDoubs=AllTotParts-SumWalkersonHF
+        AllNoatDoubs=INT(AllTotParts)-SumWalkersonHF
 
 !Deallocate MP1 data
         DEALLOCATE(MP1Comps)
@@ -5117,7 +5129,8 @@ MODULE FciMCParMod
         
         IF(tRotoAnnihil) THEN
             TotWalkersOld=TotWalkers
-            CALL MPI_Reduce(TotWalkers,AllTotWalkers,1,MPI_INTEGER,MPI_SUM,root,MPI_COMM_WORLD,error)
+            TempTotWalkers=REAL(TotWalkers,r2)
+            CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,root,MPI_COMM_WORLD,error)
             AllTotWalkersOld=AllTotWalkers
             AllTotPartsOld=AllTotParts
         ELSE
@@ -5126,8 +5139,8 @@ MODULE FciMCParMod
             TotWalkersOld=InitWalkers
 !Initialise global variables for calculation on the root node
             IF(iProcIndex.eq.root) THEN
-                AllTotWalkers=InitWalkers*nProcessors
-                AllTotWalkersOld=InitWalkers*nProcessors
+                AllTotWalkers=REAL(InitWalkers*nProcessors,r2)
+                AllTotWalkersOld=REAL(InitWalkers*nProcessors,r2)
             ENDIF
         ENDIF
 
@@ -6292,10 +6305,10 @@ MODULE FciMCParMod
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 !                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,AllTotParts-AllTotPartsOld,AllGrowRate,   &
- &                  AllTotParts,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllTotWalkers,AllMinExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,AllTotParts-AllTotPartsOld,AllGrowRate,    &
- &                  AllTotParts,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllTotWalkers,AllMinExcitLevel
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),AllMinExcitLevel
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),AllMinExcitLevel
             ENDIF
             
             CALL FLUSH(6)
