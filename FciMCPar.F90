@@ -95,7 +95,7 @@ MODULE FciMCParMod
     REAL*8 :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
     INTEGER(KIND=i2) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
 !    REAL*8 :: MeanExcitLevel    
-    INTEGER :: MinExcitLevel
+!    INTEGER :: MinExcitLevel
 !    INTEGER :: MaxExcitLevel
     INTEGER :: Annihilated      !This is the number annihilated on one processor
     INTEGER :: LocalAnn         !This is the number of locally annihilated particles
@@ -115,7 +115,7 @@ MODULE FciMCParMod
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate
 !    REAL*8 :: AllMeanExcitLevel
-    INTEGER :: AllMinExcitLevel
+!    INTEGER :: AllMinExcitLevel
     REAL(KIND=r2) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld
 !    INTEGER :: AllMaxExcitLevel
     INTEGER(KIND=i2) :: AllSumWalkersCyc
@@ -186,6 +186,9 @@ MODULE FciMCParMod
     INTEGER :: OneRDMTag=0                      !It is calculated as an FCIMC run progresses.  As the run tends towards the correct wavefunction, diagonalisation 
     INTEGER :: Orbs(2)                          !of the 1RDM gives linear combinations of the HF orbitals which tend towards the natural orbitals of the system.
 
+    REAL(4) :: IterTime
+    
+
 
     contains
 
@@ -198,6 +201,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
         TYPE(HElement) :: Hamii!,t
         LOGICAL :: TIncrement
+        REAL(4) :: s,etime,tstart(2),tend(2)
 
 !        t=HElement(0.D0)
 !        do i=1,nBasis/2
@@ -228,7 +232,10 @@ MODULE FciMCParMod
 
             IF(TBalanceNodes) CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced.
             
+            s=etime(tstart)
             CALL PerformFCIMCycPar()
+            s=etime(tend)
+            IterTime=IterTime+(tend(1)-tstart(1))
 
             IF(mod(Iter,StepsSft).eq.0) THEN
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
@@ -325,7 +332,12 @@ MODULE FciMCParMod
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NoIntforDet)
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,WalkExcitLevel,2)
+            IF(tTruncSpace) THEN
+!We need to know the exact excitation level for truncated calculations.
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,WalkExcitLevel,NEl)
+            ELSE
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,WalkExcitLevel,2)
+            ENDIF
             IF(tRegenDiagHEls) THEN
 !We are not storing the diagonal hamiltonian elements for each particle. Therefore, we need to regenerate them.
 !Need to find H-element!
@@ -759,7 +771,8 @@ MODULE FciMCParMod
     
 !This is a new routine to totally annihilate all particles on the same determinant. This is not done using an all-to-all, but rather
 !by rotating the newly spawned particles around all determinants and annihilating with the particles on their processor.
-!Valid spawned is the number of newly-spawned particles. Each rotation and annihilation step, the number corresponds to a different processors spawned particles.
+!Valid spawned is the number of newly-spawned particles. These 'particles' can be multiply specified on the same determinant.
+!Each rotation and annihilation step, the number corresponds to a different processors spawned particles.
 !TotWalkersNew indicates the number of particles in NewDets - the list of particles to compare for annihilation.
 !Improvements in AnnihilateBetweenSpawned:
 !Binary search for sendcounts and others, and only transfer all data when need to.
@@ -771,7 +784,8 @@ MODULE FciMCParMod
         INTEGER :: InitialSpawned,ierr,error!,SpawnedBeforeRoto
         CHARACTER , ALLOCATABLE :: mpibuffer(:)
 
-        InitialSpawned=ValidSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
+!        InitialSpawned=TotSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
+!        InitialSpawned=Annihilated
         
 !        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
@@ -782,15 +796,18 @@ MODULE FciMCParMod
 !This will be done in the usual fashion using the All-to-All communication and hashes.
         CALL AnnihilateBetweenSpawned(ValidSpawned)
 !        CALL AnnihilateBetweenSpawnedOneProc(ValidSpawned)
-        Annihilated=Annihilated+(InitialSpawned-ValidSpawned)
-!        IF(ValidSpawned.ne.InitialSpawned) THEN
-!            WRITE(6,*) "Have annihilated between newly-spawned...",InitialSpawned-ValidSpawned,Iter
-!            CALL FLUSH(6)
+!        Annihilated=Annihilated+(InitialSpawned-TotSpawned)
+!        IF(Annihilated.ne.InitialSpawned) THEN
+!            WRITE(6,*) "Have annihilated between newly-spawned...",Annihilated-InitialSpawned,Iter
 !        ENDIF
-
+            
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 !        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
+!        do i=1,ValidSpawned
+!            WRITE(6,*) 1,i,SpawnedParts(:,i),SpawnedSign(i),Iter
+!            CALL FLUSH(6)
+!        enddo
 
 !        SpawnedBeforeRoto=ValidSpawned
 !        WRITE(6,*) "SpawnedBeforeRoto: ",ValidSpawned
@@ -827,6 +844,7 @@ MODULE FciMCParMod
 
 !This routine annihilates the processors set of newly-spawned particles, with the complete set of particles on the processor.
             CALL AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
+!            CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 !            WRITE(6,*) "Annihilated locally....",i
 !            CALL FLUSH(6)
 
@@ -1238,10 +1256,14 @@ MODULE FciMCParMod
         TempSign(1:ValidSpawned)=SpawnedSign(1:ValidSpawned)
         ProcessVec1(1:ValidSpawned)=iProcIndex
 
+!        WRITE(6,*) "***************************************"
         do i=1,ValidSpawned
             IndexTable1(i)=i
             CALL DecodeBitDet(nJ,SpawnedParts(0:NoIntforDet,i),NEl,NoIntforDet)
             HashArray1(i)=CreateHash(nJ)
+!            IF(Iter.eq.1346.and.(HashArray1(i).eq.2905380077198165348)) THEN
+!                WRITE(6,*) "Hash found, ",i,SpawnedSign(i),HashArray1(i),SpawnedParts(0:NoIntforDet,i)
+!            ENDIF
         enddo
 
 !Next, order the hash array, taking the index, CPU and sign with it...
@@ -1288,6 +1310,10 @@ MODULE FciMCParMod
                 enddo
             ELSE
                 sendcounts(1)=ValidSpawned
+!                do j=1,ValidSpawned
+!                    WRITE(6,*) Iter,j,HashArray1(j),SpawnedSign(j)
+!                enddo
+                    
             ENDIF
         ENDIF
 
@@ -1332,7 +1358,7 @@ MODULE FciMCParMod
 
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
-        IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+        IF(MaxIndex.gt.(0.93*MaxSpawned)) THEN
             CALL Warning("AnnihilateBetweenSpawned","Maximum index of annihilation array is close to maximum length. Increase MemoryFacSpawn")
         ENDIF
 
@@ -1441,7 +1467,7 @@ MODULE FciMCParMod
                 CALL Stop_All(this_routine,"Error here in the merge sort algorithm")
             ENDIF
 
-!Need to copy the lists back to the original array
+!Need to copy the lists back to the original array to fit in with the rest of the code
             do i=1,MaxIndex
                 IndexTable2(i)=IndexTable1(i)
                 ProcessVec2(i)=ProcessVec1(i)
@@ -1461,20 +1487,30 @@ MODULE FciMCParMod
             HashCurr=HashArray2(j)
             do while((HashArray2(j).eq.HashCurr).and.(j.le.MaxIndex))
 !First loop counts walkers in the block - TotWalkersDet is then the residual sign of walkers on that determinant
-                IF(SpawnedSign2(j).eq.1) THEN
-                    TotWalkersDet=TotWalkersDet+1
-                ELSE
-                    TotWalkersDet=TotWalkersDet-1
-                ENDIF
+                TotWalkersDet=TotWalkersDet+SpawnedSign2(j)
+
+!                IF(SpawnedSign2(j).eq.1) THEN
+!                    TotWalkersDet=TotWalkersDet+1
+!                ELSE
+!                    TotWalkersDet=TotWalkersDet-1
+!                ENDIF
                 FinalBlockIndex=FinalBlockIndex+1
                 j=j+1
             enddo
 
-!            IF(Iter.eq.DebugIter) THEN
+!            IF((Iter.eq.1346).and.(InitialBlockIndex.ne.FinalBlockIndex)) THEN
 !                WRITE(6,*) "Common block of dets found from ",InitialBlockIndex," ==> ",FinalBlockIndex
 !                WRITE(6,*) "Sum of signs in block is: ",TotWalkersDet
+!                do k=InitialBlockIndex,FinalBlockIndex
+!                    WRITE(6,*) TotWalkersDet,ToAnnihilateIndex,IndexTable2(k),ProcessVec2(k),SpawnedSign2(k)
+!                enddo
 !                CALL FLUSH(6)
 !            ENDIF
+!We need to now run through the block, and count of the same number of surviving particles as given by TotWalkersDet
+    ! 1. If particles are of opposite sign, then annihilation
+    ! 2. If particles are of same sign, then count out until we have the required number and annihilate the rest.
+    ! Now, the sign has to be passed back. This will indicate the sign of the SURVIVING particles on that determinant.
+    ! ToAnnihilateIndex now indicates the number of particles who want their sign changed at all...
 
             do k=InitialBlockIndex,FinalBlockIndex
 !Second run through the block of same determinants marks walkers for annihilation
@@ -1482,30 +1518,61 @@ MODULE FciMCParMod
 !All walkers in block want to be annihilated from now on.
                     IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
                     ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    SpawnedSign(ToAnnihilateIndex)=0   
                     ToAnnihilateIndex=ToAnnihilateIndex+1
-                ELSEIF((TotWalkersDet.lt.0).and.(SpawnedSign2(k).eq.1)) THEN
+                    Annihilated=Annihilated+abs(SpawnedSign2(k))
+!                    TotSpawned=TotSpawned-abs(SpawnedSign2(k))
+                ELSEIF((TotWalkersDet.lt.0).and.(SpawnedSign2(k).gt.0)) THEN
 !Annihilate if block has a net negative walker count, and current walker is positive
                     IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
                     ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    SpawnedSign(ToAnnihilateIndex)=0
                     ToAnnihilateIndex=ToAnnihilateIndex+1
-                ELSEIF((TotWalkersDet.gt.0).and.(SpawnedSign2(k).eq.-1)) THEN
+                    Annihilated=Annihilated+SpawnedSign2(k)
+!                    TotSpawned=TotSpawned-SpawnedSign2(k)
+                ELSEIF((TotWalkersDet.gt.0).and.(SpawnedSign2(k).lt.0)) THEN
 !Annihilate if block has a net positive walker count, and current walker is negative
                     IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
                     ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                    SpawnedSign(ToAnnihilateIndex)=0
                     ToAnnihilateIndex=ToAnnihilateIndex+1
+                    Annihilated=Annihilated-SpawnedSign2(k)
+!                    TotSpawned=TotSpawned+SpawnedSign2(k)
                 ELSE
 !If net walkers is positive, and we have a positive walkers, then remove one from the net positive walkers and continue through the block
-                    IF(SpawnedSign2(k).eq.1) THEN
-                        TotWalkersDet=TotWalkersDet-1
+!Now, we have a particle which is the same sign as the residual sign we want to pass through.
+!If the sign on the particle is equal to, or less than the residual sign, then we want to let all particles live.
+!Otherwise, we want to annihilate a fraction of them...
+                    IF((abs(TotWalkersDet)).ge.(abs(SpawnedSign2(k)))) THEN
+!All these particles are ok to be transferred accross...Increase (SpawnedSign2(k) < 0) the sign on totwalkersdet)
+                        TotWalkersDet=TotWalkersDet-SpawnedSign2(k)
                     ELSE
-                        TotWalkersDet=TotWalkersDet+1
+!There is a greater number of particles in this entry than the total residual sign. Therefore, this entry want to be PARTIALLY annihilated.
+!SpawnedSign will indicate the number of particles we want to remain on this entry.
+                        IndexTable1(ToAnnihilateIndex)=IndexTable2(k)
+                        ProcessVec1(ToAnnihilateIndex)=ProcessVec2(k)
+                        Annihilated=Annihilated+(abs(SpawnedSign2(k))-abs(TotWalkersDet))
+!                        TotSpawned=TotSpawned-(abs(SpawnedSign2(k))-abs(TotWalkersDet))
+                        SpawnedSign(ToAnnihilateIndex)=TotWalkersDet    !The number of particles that we want left to copy accross is simply the remaining residual sign
+                        ToAnnihilateIndex=ToAnnihilateIndex+1
+                        TotWalkersDet=0     !All the residual sign has now been compensated for.
+
                     ENDIF
+
                 ENDIF
             enddo
+            IF(TotWalkersDet.ne.0) THEN
+                CALL Stop_All("AnnihilateBetweenSpawned","Problem counting residual sign...")
+            ENDIF
 
         enddo
 
         ToAnnihilateIndex=ToAnnihilateIndex-1   !ToAnnihilateIndex now tells us the total number of particles to annihilate from the list on this processor
+!        IF(Iter.eq.1346) THEN
+!            do i=1,ToAnnihilateIndex
+!                WRITE(6,*) i,IndexTable1(i),SpawnedSign(i)
+!            enddo
+!        ENDIF
 
 !The annihilation is complete - particles to be annihilated are stored in IndexTable and need to be sent back to their original processor
 !To know which processor that is, we need to order the particles to be annihilated in terms of their CPU, i.e. ProcessVec(1:ToAnnihilateIndex)
@@ -1544,8 +1611,10 @@ MODULE FciMCParMod
         ToAnnihilateonProc=recvdisps(nProcessors)+recvcounts(nProcessors)
 
         CALL MPI_AlltoAllv(IndexTable1(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,IndexTable2,recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        CALL MPI_AlltoAllv(SpawnedSign(1:ToAnnihilateonProc),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
 
-        CALL NECI_SORTI(ToAnnihilateonProc,IndexTable2(1:ToAnnihilateonProc))
+!We now need to take with the index, the sign to remain on the entry, as it does not necessarily want to be totally annihilated.
+        CALL NECI_SORT2I(ToAnnihilateonProc,IndexTable2(1:ToAnnihilateonProc),SpawnedSign2(1:ToAnnihilateonProc))
 !        CALL SORTIILongL(ToAnnihilateonProc,Index2Table(1:ToAnnihilateonProc),HashArray(1:ToAnnihilateonProc),CurrentSign(1:ToAnnihilateonProc))
 
         IF(ToAnnihilateonProc.ne.0) THEN
@@ -1557,17 +1626,33 @@ MODULE FciMCParMod
                 do while(i.lt.IndexTable2(j))
 !Copy accross all particles less than this number
                     SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
-                    SpawnedSign2(VecSlot)=TempSign(i)
+                    SpawnedSign(VecSlot)=TempSign(i)
+!                    IF(SpawnedSign(VecSlot).eq.0) THEN
+!                        CALL Stop_All("AnnihilateBetweenSpawned","Should have non-zero number of particles in this entry")
+!                    ENDIF
                     i=i+1
                     VecSlot=VecSlot+1
                 enddo
+                IF(SpawnedSign2(j).ne.0) THEN
+!We want the entry to be partially annihilated. Keep the particle, but change its value to be that given by SpawnedSign2
+                    SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
+                    IF(abs(SpawnedSign2(j)).ge.abs(TempSign(i))) THEN
+                        WRITE(6,*) "***",Iter,ToannihilateonProc,ValidSpawned
+                        CALL Stop_All("AnnihilateBetweenSpawned","Incorrect annihilating here...")
+                    ENDIF
+                    SpawnedSign(VecSlot)=SpawnedSign2(j)
+                    IF(SpawnedSign(VecSlot).eq.0) THEN
+                        CALL Stop_All("AnnihilateBetweenSpawned","Should have non-zero number of particles in this entry")
+                    ENDIF
+                    VecSlot=VecSlot+1
+                ENDIF
                 i=i+1
             enddo
 
 !Now need to copy accross the residual - from Index2Table(ToAnnihilateonProc) to TotWalkersNew
             do i=IndexTable2(ToAnnihilateonProc)+1,ValidSpawned
                 SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
-                SpawnedSign2(VecSlot)=TempSign(i)
+                SpawnedSign(VecSlot)=TempSign(i)
                 VecSlot=VecSlot+1
             enddo
 
@@ -1576,12 +1661,16 @@ MODULE FciMCParMod
             VecSlot=1
             do i=1,ValidSpawned
                 SpawnedParts2(:,VecSlot)=SpawnedParts(:,i)
-                SpawnedSign2(VecSlot)=TempSign(i)
+                SpawnedSign(VecSlot)=TempSign(i)
                 VecSlot=VecSlot+1
             enddo
         ENDIF
 
+!Have to swap arrays around here, since the pointers must stay in sync with the arrays they're pointing at.
         ValidSpawned=VecSlot-1
+        do i=1,ValidSpawned
+            SpawnedSign2(i)=SpawnedSign(i)
+        enddo
 
 !        IF((TotWalkersNew-TotWalkers).ne.ToAnnihilateonProc) THEN
 !            WRITE(6,*) TotWalkers,TotWalkersNew,ToAnnihilateonProc,Iter
@@ -1904,6 +1993,7 @@ MODULE FciMCParMod
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
             IF(DetsMerged.ne.ToRemove) THEN
+                WRITE(6,*) "***", Iter
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
             ENDIF
 
@@ -2037,7 +2127,17 @@ MODULE FciMCParMod
         INTEGER :: SignArray(1:NoDets),Comp
         LOGICAL :: tCheckSignCoher
 
+        IF(NoDets.gt.0) THEN
+            IF(SignArray(1).eq.0) THEN
+                WRITE(6,*) "Iter: ",Iter,1
+                CALL Stop_All("CheckOrdering","Array has annihilated particles in it...")
+            ENDIF
+        ENDIF
         do i=2,NoDets
+            IF(SignArray(i).eq.0) THEN
+                WRITE(6,*) "Iter: ",Iter,i
+                CALL Stop_All("CheckOrdering","Array has annihilated particles in it...")
+            ENDIF
             Comp=DetBitLT(DetArray(:,i-1),DetArray(:,i),NoIntforDet)
             IF(Comp.eq.-1) THEN
 !Array is in reverse numerical order for these particles
@@ -2047,20 +2147,20 @@ MODULE FciMCParMod
                 CALL Stop_All("CheckOrdering","Array not ordered correctly")
             ELSEIF(Comp.eq.0) THEN
 !Dets are the same - see if we want to check sign-coherence
-                IF(tCheckSignCoher) THEN
-!This bit checks that there is only one copy of the determinants in the list
-                    do j=max(i-5,1),min(i+5,NoDets)
-                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
-                    enddo
-                    CALL Stop_All("CheckOrdering","Determinant same as previous one...")
-                ENDIF
-                IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
-!This checks that any multple copies in the list are sign-coherent...
-                    do j=i-5,i+5
-                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
-                    enddo
-                    CALL Stop_All("CheckOrdering","Array not sign-coherent")
-                ENDIF
+!                IF(tCheckSignCoher) THEN
+!!This bit checks that there is only one copy of the determinants in the list
+!                    do j=max(i-5,1),min(i+5,NoDets)
+!                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
+!                    enddo
+!                    CALL Stop_All("CheckOrdering","Determinant same as previous one...")
+!                ENDIF
+!                IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
+!!This checks that any multple copies in the list are sign-coherent...
+!                    do j=i-5,i+5
+!                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
+!                    enddo
+!                    CALL Stop_All("CheckOrdering","Array not sign-coherent")
+!                ENDIF
             ENDIF
         enddo
 
@@ -2701,7 +2801,7 @@ MODULE FciMCParMod
         TYPE(HElement) :: HOffDiag
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
-        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
+!        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
@@ -2937,6 +3037,8 @@ MODULE FciMCParMod
 !        WRITE(6,*) "Get Here 6"
 !        CALL FLUSH(6)
 
+        IterTime=IterTime/REAL(StepsSft)    !This is the average time per iteration in the previous update cycle.
+
 !For the unweighted by iterations energy estimator (ProjEIter), we need the sum of the Hij*Sign from all processors over the last update cycle
 !        CALL MPIDSumRoot(ENumCyc,1,AllENumCyc,Root)
 !        WRITE(6,*) "Get Here 7"
@@ -2999,7 +3101,7 @@ MODULE FciMCParMod
 
 !        inpair(1)=MinExcitLevel
 !        inpair(2)=iProcIndex
-        CALL MPI_Reduce(MinExcitLevel,AllMinExcitLevel,1,MPI_INTEGER,MPI_MIN,Root,MPI_COMM_WORLD,error)
+!        CALL MPI_Reduce(MinExcitLevel,AllMinExcitLevel,1,MPI_INTEGER,MPI_MIN,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 12"
 !        CALL FLUSH(6)
 !        IF(error.ne.MPI_SUCCESS) THEN
@@ -3042,7 +3144,8 @@ MODULE FciMCParMod
         CALL WriteFCIMCStats()
 
 !Now need to reinitialise all variables on all processers
-        MinExcitLevel=NEl+10
+        IterTime=0.0
+!        MinExcitLevel=NEl+10
 !        MaxExcitLevel=0
 !        MeanExcitLevel=0.D0
         SumWalkersCyc=0
@@ -3370,6 +3473,7 @@ MODULE FciMCParMod
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
 !Initialise variables for calculation on each node
+        IterTime=0.0
         ProjectionE=0.D0
         AvSign=0.D0
         AvSignHFD=0.D0
@@ -3378,7 +3482,7 @@ MODULE FciMCParMod
         NoatHF=0
         NoatDoubs=0
 !        MeanExcitLevel=0.D0
-        MinExcitLevel=NEl+10
+!        MinExcitLevel=NEl+10
 !        MaxExcitLevel=0
         LocalAnn=0
         Annihilated=0
@@ -6333,20 +6437,20 @@ MODULE FciMCParMod
 
             IF(TLocalAnnihilation) THEN
 !TotWalkersOld is the number of walkers last time the shift was changed
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I11,2G17.9,2I10,G13.5,I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
- &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat,AllMinExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I11,2G17.9,2I10,G13.5,I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
- &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat,AllMinExcitLevel
+                WRITE(15,"(I12,G16.7,I9,G16.7,I12,4I11,2G17.9,2I10,G13.5)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
+ &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat
+                WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I11,2G17.9,2I10,G13.5)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
+ &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat
 
             ELSE
 !                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 !                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),AllMinExcitLevel
-                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,I6)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),AllMinExcitLevel
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
+                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
             ENDIF
             
             CALL FLUSH(6)
@@ -7345,7 +7449,7 @@ MODULE FciMCParMod
     REAL*8 :: AvSignHFD
     INTEGER :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
 !    REAL*8 :: MeanExcitLevel    
-    INTEGER :: MinExcitLevel
+!    INTEGER :: MinExcitLevel
 !    INTEGER :: MaxExcitLevel
 
 !These are the global variables, calculated on the root processor, from the values above
