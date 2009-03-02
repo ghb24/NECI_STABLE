@@ -4,7 +4,7 @@
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
-    use SystemData , only : tHub,tReal,tNonUniRandExcits
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls
@@ -17,6 +17,7 @@ MODULE FciMCParMod
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops
     USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
     USE SymData , only : nSymLabels
+    USE mt95 , only : genrand_real2
     USE global_utilities
     USE HElem
     USE Parallel
@@ -3102,7 +3103,11 @@ MODULE FciMCParMod
             do while (Culled.lt.ToCull)
 
 !Pick a random walker between 1 and TotWalkers
-                CALL RANLUX(r,1)
+                IF(tMerTwist) THEN
+                    CALL genrand_real2(r) 
+                ELSE
+                    CALL RANLUX(r,1)
+                ENDIF
                 Chosen=int((r*TotWalkers)+1.D0)
 
 !Move the Walker at the end of the list to the position of the walker we have chosen to destroy
@@ -3244,6 +3249,7 @@ MODULE FciMCParMod
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         use SystemData, only : tUseBrillouin,iRanLuxLev
+        USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
@@ -3335,7 +3341,11 @@ MODULE FciMCParMod
         Seed=abs(G_VMC_Seed-iProcIndex)
         WRITE(6,*) "Value for seed is: ",Seed
 !Initialise...
-        CALL RLUXGO(iRanLuxLev,Seed,0,0)
+        IF(tMerTwist) THEN
+            CALL genrand_init(Seed)
+        ELSE
+            CALL RLUXGO(iRanLuxLev,Seed,0,0)
+        ENDIF
 
 !Calculate Hii
         TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -4415,7 +4425,11 @@ MODULE FciMCParMod
 
                 do l=1,TempInitWalkers
                     WalkVecSign(l)=WalkVecSign(l)*IntegerPart
-                    CALL RANLUX(r,1)
+                    IF(tMerTwist) THEN
+                        CALL genrand_real2(r) 
+                    ELSE
+                        CALL RANLUX(r,1)
+                    ENDIF
                     IF(r.lt.FracPart) THEN
 !Stochastically create another particle
                         IF(WalkVecSign(l).lt.0) THEN
@@ -4458,7 +4472,11 @@ MODULE FciMCParMod
                         WalkVec2Sign(VecSlot)=WalkVecSign(l)
                         VecSlot=VecSlot+1
                     enddo
-                    CALL RANLUX(r,1)
+                    IF(tMerTwist) THEN
+                        CALL genrand_real2(r) 
+                    ELSE
+                        CALL RANLUX(r,1)
+                    ENDIF
                     IF(r.lt.FracPart) THEN
 !Stochastically choose whether to create another particle
                         WalkVec2Dets(0:NoIntforDet,VecSlot)=WalkVecDets(0:NoIntforDet,l)
@@ -4948,7 +4966,11 @@ MODULE FciMCParMod
                 IntParts=INT(FracPart)
                 FracPart=FracPart-REAL(IntParts)
 !Determine whether we want to stochastically create another particle
-                CALL RANLUX(r,1)
+                IF(tMerTwist) THEN
+                    CALL genrand_real2(r) 
+                ELSE
+                    CALL RANLUX(r,1)
+                ENDIF
                 IF(FracPart.gt.r) THEN
                     IntParts=IntParts+1
                 ENDIF
@@ -4994,7 +5016,11 @@ MODULE FciMCParMod
 
                 i=1
 
-                CALL RANLUX(r,1)
+                IF(tMerTwist) THEN
+                    CALL genrand_real2(r) 
+                ELSE
+                    CALL RANLUX(r,1)
+                ENDIF
                 r=r*SumMP1Compts       !Choose the double that this walker wants to be put...
                 do while(r.gt.MP1Comps(i))
 
@@ -5202,7 +5228,11 @@ MODULE FciMCParMod
 
 
 !Stochastically choose whether to create or not according to ranlux 
-        CALL RANLUX(r,1)
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r) 
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
         IF(rat.gt.r) THEN
 !Child is created - what sign is it?
             IF(WSign.gt.0) THEN
@@ -5268,7 +5298,11 @@ MODULE FciMCParMod
 !        AnnProb=Tau*EXP(-Lambda*ExcitDensity)
 !        AnnProb=Lambda/ExcitDensity
         AnnProb=Lambda/ExcitDensity
-        CALL RANLUX(r,1)
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r) 
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
         IF(r.lt.AnnProb) THEN
 !Particle is annihilated
             AttemptLocalAnn=.true.
@@ -5340,7 +5374,11 @@ MODULE FciMCParMod
         rat=rat-REAL(iKill)
 
 !Stochastically choose whether to die or not
-        CALL RANLUX(r,1)
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r) 
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
         IF(abs(rat).gt.r) THEN
             IF(rat.ge.0.D0) THEN
 !Depends whether we are trying to kill or give birth to particles.
@@ -6734,7 +6772,11 @@ MODULE FciMCParMod
     
             Create=INT(abs(GraphVec(i)))
             rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
-            CALL RANLUX(r,1)
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r) 
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
             IF(rat.gt.r) Create=Create+1
             IF(abs(Create).gt.0) THEN
                 IF(.not.WSign) Create=-Create
@@ -6781,7 +6823,11 @@ MODULE FciMCParMod
         Create=INT(abs(GraphVec(1)))
 
         rat=abs(GraphVec(1))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
-        CALL RANLUX(r,1)
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r) 
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
         IF(rat.gt.r) Create=Create+1
         
         IF((abs(Create)).gt.0) THEN

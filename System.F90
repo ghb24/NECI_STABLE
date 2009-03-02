@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMerTwist=.false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
       tNonUniRandExcits=.false.
@@ -387,6 +388,10 @@ MODULE System
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
             call readi(iRanLuxLev)
+
+        case("MERSENNETWIST")
+!An alternative random number generator.
+            tMerTwist=.true.
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

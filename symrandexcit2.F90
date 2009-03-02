@@ -25,11 +25,12 @@ MODULE GenRandSymExcitNUMod
       !  spin allowed unoccupied a,b pair. The number of these orbitals, Q, is needed to calculate the
       !  normalised probability of generating the excitation.
 
-    use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits
+    use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs
     use IntegralsData, only: UMat
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
+    use mt95 , only : genrand_real2
     IMPLICIT NONE
     SAVE
 
@@ -78,7 +79,11 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
             IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
-            CALL RANLUX(r,1)
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
             IF(r.lt.pDoubNew) THEN
 !A double excitation has been chosen to be created.
                 IC=2
@@ -161,7 +166,11 @@ MODULE GenRandSymExcitNUMod
             pDoubNew=pDoub
             IF(pDoubNew.gt.1.D0) CALL Stop_All(this_routine,"pDoub is greater than 1")
 
-            CALL RANLUX(r,1)
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
             IF(r.lt.pDoubNew) THEN
 !A double excitation has been chosen to be created.
                 IC=2
@@ -322,7 +331,11 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-            CALL RANLUX(r,1)
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
             ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
@@ -371,7 +384,11 @@ MODULE GenRandSymExcitNUMod
                 Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
-                CALL RANLUX(r,1)
+                IF(tMerTwist) THEN
+                    CALL genrand_real2(r)
+                ELSE
+                    CALL RANLUX(r,1)
+                ENDIF
                 ChosenUnocc=INT(nOrbs*r)
                 IF(tNoSymGenRandExcits) THEN
                     OrbB=(2*(ChosenUnocc+1))+SpinOrbB
@@ -541,7 +558,11 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-                    CALL RANLUX(r,1)
+                    IF(tMerTwist) THEN
+                        CALL genrand_real2(r)
+                    ELSE
+                        CALL RANLUX(r,1)
+                    ENDIF
                     ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
@@ -577,7 +598,11 @@ MODULE GenRandSymExcitNUMod
                         Attempts=Attempts+1
                         
 !Draw randomly from the set of orbitals
-                        CALL RANLUX(r,1)
+                        IF(tMerTwist) THEN
+                            CALL genrand_real2(r)
+                        ELSE
+                            CALL RANLUX(r,1)
+                        ENDIF
                         ChosenUnocc=INT(nBasis*r)
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
@@ -608,7 +633,11 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-                    CALL RANLUX(r,1)
+                    IF(tMerTwist) THEN
+                        CALL genrand_real2(r)
+                    ELSE
+                        CALL RANLUX(r,1)
+                    ENDIF
                     ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
@@ -653,7 +682,11 @@ MODULE GenRandSymExcitNUMod
                         Attempts=Attempts+1
                         
 !Draw randomly from the set of orbitals
-                        CALL RANLUX(r,1)
+                        IF(tMerTwist) THEN
+                            CALL genrand_real2(r)
+                        ELSE
+                            CALL RANLUX(r,1)
+                        ENDIF
                         ChosenUnocc=INT((nBasis/2)*r)+1
                         IF(iSpn.eq.1) THEN
 !We only want to choose beta orbitals(i.e. even).
@@ -782,7 +815,11 @@ MODULE GenRandSymExcitNUMod
 !        ElecPairs=(NEl*(NEl-1))/2
 
 !Find an index randomly.
-        CALL RANLUX(r,1)
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r)
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
         Ind=INT(ElecPairs*r)+1
 
 !X is number of elements at positions larger than ind
@@ -866,7 +903,11 @@ MODULE GenRandSymExcitNUMod
             Attempts=Attempts+1
 
 !Choose an electron randomly...
-            CALL RANLUX(r,1)
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
             Eleci=INT(NEl*r)+1
 
 !Find symmetry of chosen electron
@@ -910,7 +951,11 @@ MODULE GenRandSymExcitNUMod
 ! ==========================
 
 !Choose the unoccupied orbital to exite to
-            CALL RANLUX(r,1)
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
             ChosenUnocc=INT(NExcit*r)+1
 
 !Now run through all allowed orbitals until we find this one.
@@ -959,7 +1004,11 @@ MODULE GenRandSymExcitNUMod
                 Attempts=Attempts+1
                 
 !Draw randomly from the set of orbitals
-                CALL RANLUX(r,1)
+                IF(tMerTwist) THEN
+                    CALL genrand_real2(r)
+                ELSE
+                    CALL RANLUX(r,1)
+                ENDIF
                 ChosenUnocc=INT(nOrbs*r)
                 IF(tNoSymGenRandExcits) THEN
                     Orb=(2*(ChosenUnocc+1))-(iSpn-1)
