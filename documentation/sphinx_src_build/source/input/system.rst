@@ -63,6 +63,12 @@ General options
     Default=3
     Set the random number luxury level.
 
+**MERCENNETWIST**
+    Default=.false.
+
+    Use the Mercenne Twister random number generator. This is about 10 times
+    faster than Ranlux. It can be used for FCIMC parallel calculations.
+
 **BANDGAP**
     Perform calculations for systems containing NEL, NEL+1, and NEL-1
     electrons and extract the band gap energy.
