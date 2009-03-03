@@ -432,28 +432,26 @@ MODULE FciMCParMod
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
                     CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NoIntforDet)
                     
-                    IF(Child.gt.0) THEN
-!We have successfully created at least one positive child at nJ
-                        WSign=1
-                    ELSE
-!We have successfully created at least one negative child at nJ
-                        WSign=-1
-                    ENDIF
-
                     IF(tRotoAnnihil) THEN
 !In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
 !The excitation level and diagonal matrix element are also found out after the annihilation.
 !Cannot use old excitation generators with rotoannihilation.
 
-                        do l=1,abs(Child)
-!In rotoannihilation, we still want to specify the determinants singly - this may change in the future...
-                            SpawnedParts(:,ValidSpawned)=iLutnJ(:)
-                            SpawnedSign(ValidSpawned)=WSign
-                            ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
-                        enddo
+!In rotoannihilation, we can specify multiple particles on the same entry. 
+                        SpawnedParts(:,ValidSpawned)=iLutnJ(:)
+                        SpawnedSign(ValidSpawned)=Child
+                        ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
 
                     ELSE
 !Calculate diagonal ham element
+
+                        IF(Child.gt.0) THEN
+!We have successfully created at least one positive child at nJ
+                            WSign=1
+                        ELSE
+!We have successfully created at least one negative child at nJ
+                            WSign=-1
+                        ENDIF
 
                         IF(TMagnetize) THEN
                             CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,2)
@@ -780,9 +778,30 @@ MODULE FciMCParMod
 !Call as one array for All-to-alls
 !Make sure only sort what need to
     SUBROUTINE RotoAnnihilation(ValidSpawned,TotWalkersNew)
-        INTEGER :: ValidSpawned,TotWalkersNew,i
-        INTEGER :: InitialSpawned,ierr,error!,SpawnedBeforeRoto
+        INTEGER :: ValidSpawned,TotWalkersNew,i,DetsMerged,VecInd
+        INTEGER :: ierr,error!,SpawnedBeforeRoto
         CHARACTER , ALLOCATABLE :: mpibuffer(:)
+        LOGICAL :: DetBitEQ
+        
+!First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
+        VecInd=1
+        DetsMerged=0
+        do i=2,ValidSpawned
+            IF(.not.DetBitEQ(SpawnedParts(0:NoIntforDet,i),SpawnedParts(0:NoIntforDet,VecInd),NoIntforDet)) THEN
+                VecInd=VecInd+1
+                SpawnedParts(:,VecInd)=SpawnedParts(:,i)
+                SpawnedSign(VecInd)=SpawnedSign(i)
+            ELSE
+                SpawnedSign(VecInd)=SpawnedSign(VecInd)+SpawnedSign(i)
+                DetsMerged=DetsMerged+1
+            ENDIF
+        enddo
+
+        ValidSpawned=ValidSpawned-DetsMerged
+        IF((ValidSpawned.ne.VecInd).and.(VecInd.ne.1)) THEN
+            WRITE(6,*) ValidSpawned,VecInd
+            CALL Stop_All("RotoAnnihilation","Error in compression of spawned particle list")
+        ENDIF
 
 !        InitialSpawned=TotSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
 !        InitialSpawned=Annihilated
@@ -865,7 +884,7 @@ MODULE FciMCParMod
         CALL set_timer(Sort_Time,30)
 !        WRITE(6,*) "Entering insert/remove..."
 !        CALL FLUSH(6)
-        CALL InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
+        CALL InsertRemoveParts(ValidSpawned,TotWalkersNew)
         CALL halt_timer(Sort_Time)
 
 !        DEALLOCATE(RemoveInds)
@@ -923,12 +942,9 @@ MODULE FciMCParMod
 !Binary searching can be used to speed up this transfer substantially.
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
-    SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
-        INTEGER :: IndSpawned,IndParts,VecInd,DetBitLT,TotWalkersNew,ValidSpawned
-        INTEGER :: nJ(NEl),i,InitialSpawned,TotAnnFromOrig,error,CompParts,DetsMerged
-        LOGICAL :: DetBitEQ
-        TYPE(HElement) :: HDiagTemp
-        REAL*8 :: HDiag
+    SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+        INTEGER :: TotWalkersNew,ValidSpawned
+        INTEGER :: i,DetsMerged
 
 !        IF(Iter.eq.56) THEN
 !            WRITE(6,*) "Merging lists, ",TotWalkersNew,Iter
@@ -972,28 +988,14 @@ MODULE FciMCParMod
 !We now need to compress the spawned list, so that no particles are specified more than once.
 !In the end, we actually want to do this initially, rather than at the end...
 !We also want to find the number of particles we are adding to the list from the spawned list.
-        VecInd=1
-        DetsMerged=0
+!We now calculate the contribution to the total number of particles from the spawned lists.
+!The list has previously been compressed before the annihilation began.
         IF(ValidSpawned.gt.0) THEN
             TotParts=TotParts+abs(SpawnedSign(1))
         ENDIF
         do i=2,ValidSpawned
             TotParts=TotParts+abs(SpawnedSign(i))
-            IF(.not.DetBitEQ(SpawnedParts(0:NoIntforDet,i),SpawnedParts(0:NoIntforDet,VecInd),NoIntforDet)) THEN
-                VecInd=VecInd+1
-                SpawnedParts(:,VecInd)=SpawnedParts(:,i)
-                SpawnedSign(VecInd)=SpawnedSign(i)
-            ELSE
-                SpawnedSign(VecInd)=SpawnedSign(VecInd)+SpawnedSign(i)
-                DetsMerged=DetsMerged+1
-            ENDIF
         enddo
-
-        ValidSpawned=ValidSpawned-DetsMerged
-        IF((ValidSpawned.ne.VecInd).and.(VecInd.ne.1)) THEN
-            WRITE(6,*) ValidSpawned,VecInd
-            CALL Stop_All("InsertRemoveParts","Error in merge of particles")
-        ENDIF
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 !
