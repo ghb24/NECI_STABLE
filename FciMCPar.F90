@@ -921,6 +921,8 @@ MODULE FciMCParMod
 !non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
 !while removing the particles with sign = 0 from CurrentDets. 
 !Binary searching can be used to speed up this transfer substantially.
+!The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
+!the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(InitialSpawned,ValidSpawned,TotWalkersNew)
         INTEGER :: IndSpawned,IndParts,VecInd,DetBitLT,TotWalkersNew,ValidSpawned
         INTEGER :: nJ(NEl),i,InitialSpawned,TotAnnFromOrig,error,CompParts,DetsMerged
@@ -1856,16 +1858,36 @@ MODULE FciMCParMod
 !This indicates that the particle has found the same particle of opposite sign to annihilate with
 !Mark these particles for annihilation in both arrays
 !If we go to a determinant representation of the spawned particles, then we need to be careful that we can only annihilate against the number of particles on the main list.
+!We cannot transfer the rest of the particles across, since we rely on the fact that the main arrays are sign-coherent with each other.
+!This means that at the end, only one sign of a determinant will exist, whether on the main array, or spawned array.
 !                    AnnihilateInd=SearchInd
-                    IF(CurrentSign(PartInd).gt.0) THEN
-                        CurrentSign(PartInd)=CurrentSign(PartInd)-1
+                    IF(abs(SpawnedSign(i)).ge.abs(CurrentSign(PartInd))) THEN
+!There are more (or equal) numbers of spawned particles to annihilate. We can only annihilate some from the spawned list, but all from main list (or all from both if equal and opposite).
+                        SpawnedSign(i)=SpawnedSign(i)+CurrentSign(PartInd)
+                        Annihilated=Annihilated+2*(abs(CurrentSign(PartInd)))
+                        CurrentSign(PartInd)=0
+                        IF(SpawnedSign(i).eq.0) THEN
+!The number of particles were equal and opposite. We want to remove this entry from the spawned list.
+                            ToRemove=ToRemove+1
+                        ENDIF
                     ELSE
-                        CurrentSign(PartInd)=CurrentSign(PartInd)+1
+!There are more particles in the main list, than the spawned list. We want to annihilate all particles from the spawned list, but only some from main list.
+                        CurrentSign(PartInd)=CurrentSign(PartInd)+SpawnedSign(i)
+                        Annihilated=Annihilated+2*(abs(SpawnedSign(i)))
+                        SpawnedSign(i)=0
+                        ToRemove=ToRemove+1
                     ENDIF
-                    SpawnedSign(i)=0
-                    ToRemove=ToRemove+1
-!                    RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
-                    Annihilated=Annihilated+2   !Count that we have annihilated two particles
+
+                        
+!                    IF(CurrentSign(PartInd).gt.0) THEN
+!                        CurrentSign(PartInd)=CurrentSign(PartInd)-1
+!                    ELSE
+!                        CurrentSign(PartInd)=CurrentSign(PartInd)+1
+!                    ENDIF
+!                    SpawnedSign(i)=0
+!                    ToRemove=ToRemove+1
+!!                    RemoveInds(ToRemove)=i  !This is the index of the spawned particle to remove.
+!                    Annihilated=Annihilated+2   !Count that we have annihilated two particles
 
                 ELSEIF(SignProd.gt.0) THEN
 !This indicates that the particle has found a similar particle of the same sign. It therefore cannot annihilate, since all arrays accross all processors are sign-coherent.
