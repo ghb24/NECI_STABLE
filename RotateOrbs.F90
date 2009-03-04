@@ -24,13 +24,13 @@ MODULE RotateOrbsMod
     REAL*8 , ALLOCATABLE :: DerivLambda(:,:),ForceCorrect(:,:),Correction(:,:),ShakeLambdaNew(:),ConstraintCor(:)
     REAL*8 , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:),DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:)
 !    REAL*8 , ALLOCATABLE :: PartTransfInts01(:,:,:,:),PartTransfInts02(:,:,:,:),PartTransfInts03(:,:,:,:),PartTransfInts04(:,:,:,:),PartTransfInts05(:,:,:,:)
-    REAL*8 , ALLOCATABLE :: OneIndInts01(:,:,:,:),OneIndInts02(:,:,:,:),TwoIndInts01(:,:,:,:),TwoIndInts02(:,:,:,:),ThreeIndInts01(:,:,:,:)
+    REAL*8 , ALLOCATABLE :: OneIndInts01(:,:,:,:),OneIndInts02(:,:,:,:),TwoIndInts01(:,:,:,:),TwoIndInts02(:,:,:,:),ThreeIndInts01(:,:,:,:),FourIndInts02(:,:,:,:)
     REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:),ThreeIndInts(:,:,:,:)   
     !These are the arrays to store the
 !partially transformed integrals for each iteration. The FourIndInts are the full <ij|kl> integrals for the current iteration.
 !OneIndInts = <i b|g d> ; TwoIndInts = <i b|k d> ; ThreeIndInts = <i j|k d>
 !    INTEGER :: PartTransfInts01Tag,PartTransfInts02Tag,PartTransfInts03Tag,PartTransfInts04Tag,PartTransfInts05Tag
-    INTEGER :: OneIndInts01Tag,OneIndInts02Tag,TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag
+    INTEGER :: OneIndInts01Tag,OneIndInts02Tag,TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
     INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,SymInd(8),AOSymmTag,MBas(8),SpatOrbs,FourIndIntsTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ThreeIndIntsTag
     INTEGER :: CoeffT1Tag,CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
     INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag,DerivConstrT1T2DiagTag
@@ -96,9 +96,9 @@ MODULE RotateOrbsMod
 
         CALL FLUSH(6)
         CALL FLUSH(12)
-        CALL end_timing()
-        CALL print_timing_report()
-        CALL Stop_All("RotateOrbs","This code is still in the testing phase")
+!        CALL end_timing()
+!        CALL print_timing_report()
+!        CALL Stop_All("RotateOrbs","This code is still in the testing phase")
 
     END SUBROUTINE RotateOrbs
 
@@ -231,10 +231,30 @@ MODULE RotateOrbsMod
 !                                do i=(SymInd(Symi+1)),(SymInd(Symi+1)+MBas(Symi+1)-1)
 !                                    IF(i.lt.k) THEN         ! i < k                            
 !                                    IF((((i-1)*SpatOrbs)+k).ge.(((j-1)*SpatOrbs)+l)) THEN
-                                t1Temp=ThreeIndInts01(k,j,l,z)
+!                                t1Temp=ThreeIndInts01(k,j,l,z)
 
+                                ! running across i, ThreeIndInts01 only contributes if i.eq.m (which will happen once for each m)
+                                IF(m.lt.k) Deriv4indintsqrd=Deriv4indintsqrd+2*(FourIndInts02(j,k,l,m)*ThreeIndInts01(k,j,l,z))
 
-                                do i=1,k-1                    
+                                IF(jeqm) THEN
+                                    do i=1,k-1
+                                        Deriv4indintsqrd=Deriv4indintsqrd+2*(FourIndInts(i,j,k,l)*ThreeIndInts02(i,k,l,z))
+                                    enddo
+                                ENDIF
+
+                                IF(keqm) THEN
+                                    do i=1,k-1
+                                        Deriv4indintsqrd=Deriv4indintsqrd+2*(FourIndInts(i,j,k,l)*ThreeIndInts03(i,j,l,z))
+                                    enddo
+                                ENDIF
+
+                                IF(leqm) THEN
+                                    do i=1,k-1
+                                        Deriv4indintsqrd=Deriv4indintsqrd+2*(FourIndInts(i,j,k,l)*ThreeIndInts04(i,k,j,z))
+                                    enddo
+                                ENDIF
+
+!                                do i=1,k-1                    
 
 ! Already calculated the four index integrals and some partial integrals
 ! in Transform2ElInts routine of the previous iteration.
@@ -242,18 +262,18 @@ MODULE RotateOrbsMod
 ! Deriv4indint is the derivative of <ij|kl> with respect to a coefficient
 ! c(m,z), at the current m,z,i,j,k,l of the loop.
 ! This involves 4 terms in which the derivative is taken w.r.t the i,j,k or l position in <ij|kl>. 
-                                        t1=0.D0
-                                        t2=0.D0
-                                        t3=0.D0
-                                        t4=0.D0
-                                        IF(i.eq.m) t1=t1Temp
-                                        IF(jeqm) t2=ThreeIndInts02(i,k,l,z)
-                                        IF(keqm) t3=ThreeIndInts03(i,j,l,z)
-                                        IF(leqm) t4=ThreeIndInts04(i,k,j,z)
+!                                        t1=0.D0
+!                                        t2=0.D0
+!                                        t3=0.D0
+!                                        t4=0.D0
+!                                        IF(i.eq.m) t1=t1Temp
+!                                        IF(jeqm) t2=ThreeIndInts02(i,k,l,z)
+!                                        IF(keqm) t3=ThreeIndInts03(i,j,l,z)
+!                                        IF(leqm) t4=ThreeIndInts04(i,k,j,z)
 
 
-                                        Deriv4indint=0.D0
-                                        Deriv4indint=(t1 + t2 + t3 + t4)
+!                                        Deriv4indint=0.D0
+!                                        Deriv4indint=(t1 + t2 + t3 + t4)
                                         
 !                                        WRITE(6,'(4I5,4F20.10)') i,j,k,l,t1,t2,t3,t4
 
@@ -261,15 +281,15 @@ MODULE RotateOrbsMod
                                         ! i, j, k and/or l respectively.
 ! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
 ! This accumulates as the loop sums over i,j,k and l.
-                                        Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint) 
+!                                        Deriv4indintsqrd=Deriv4indintsqrd+(FourIndInts(i,j,k,l)*Deriv4indint) 
 !                                    ENDIF  
 !                                    ENDIF
                                    
-                                enddo
+!                                enddo
                             enddo
                         enddo
                     enddo
-                    DerivCoeff(z,m)=(2*Deriv4indintsqrd)  
+                    DerivCoeff(z,m)=Deriv4indintsqrd  
 !                    IF(.not.tSeparateOccVirt) THEN
                     Force=Force+DerivCoeff(z,m)
 !                    ForceInts=ForceInts+2*Deriv4indintsqrd
@@ -605,6 +625,10 @@ MODULE RotateOrbsMod
                         FourIndInts(i,l,k,j)=Temp4indints(j,l)
                         FourIndInts(k,j,i,l)=Temp4indints(j,l)
                         FourIndInts(k,l,i,j)=Temp4indints(j,l)
+                        FourIndInts02(j,k,l,i)=Temp4indints(j,l)
+                        FourIndInts02(j,i,l,k)=Temp4indints(j,l)
+                        FourIndInts02(l,k,j,i)=Temp4indints(j,l)
+                        FourIndInts02(l,i,j,k)=Temp4indints(j,l)
                         IF(.not.((k.eq.i).or.(j.eq.l))) THEN
                             PotEnergy=PotEnergy+(Temp4indints(j,l)**2)
                             TwoEInts=TwoEInts+(Temp4indints(j,l)**2)
@@ -944,7 +968,10 @@ MODULE RotateOrbsMod
 
         ALLOCATE(FourIndInts(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndInts',SpatOrbs**4,8,this_routine,FourIndIntsTag,ierr)
+        ALLOCATE(FourIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('FourIndInts02',SpatOrbs**4,8,this_routine,FourIndInts02Tag,ierr)
  
+
         ALLOCATE(UMATTemp01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('UMATTemp01',SpatOrbs**4,8,this_routine,UMATTemp01Tag,ierr)
         ALLOCATE(UMATTemp02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
@@ -1109,6 +1136,8 @@ MODULE RotateOrbsMod
         CALL LogMemDealloc(this_routine,ThreeIndInts04Tag)
         DEALLOCATE(FourIndInts)
         CALL LogMemDealloc(this_routine,FourIndIntsTag)
+        DEALLOCATE(FourIndInts02)
+        CALL LogMemDealloc(this_routine,FourIndInts02Tag)
         DEALLOCATE(UMATTemp01)
         CALL LogMemDealloc(this_routine,UMATTemp01Tag)
         DEALLOCATE(UMATTemp02)
