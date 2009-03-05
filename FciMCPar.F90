@@ -766,6 +766,61 @@ MODULE FciMCParMod
 
     END SUBROUTINE PerformFCIMCycPar
 
+!This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
+!This is not essential, but should proove worthwhile
+    SUBROUTINE CompressSpawnedList(ValidSpawned)
+        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,SignProd
+        LOGICAL :: DetBitEQ
+
+!We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
+!They should remain sorted after annihilation between spawned
+        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
+
+!First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
+        VecInd=1
+        DetsMerged=0
+        ToRemove=0
+        do i=2,ValidSpawned
+            IF(.not.DetBitEQ(SpawnedParts(0:NoIntforDet,i),SpawnedParts(0:NoIntforDet,VecInd),NoIntforDet)) THEN
+                IF(SpawnedSign(VecInd).eq.0) ToRemove=ToRemove+1
+                VecInd=VecInd+1
+                SpawnedParts(:,VecInd)=SpawnedParts(:,i)
+                SpawnedSign(VecInd)=SpawnedSign(i)
+            ELSE
+                SignProd=SpawnedSign(i)*SpawnedSign(VecInd)
+                IF(SignProd.lt.0) THEN
+!We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
+                    Annihilated=Annihilated+2*(MIN(abs(SpawnedSign(VecInd)),abs(SpawnedSign(i))))
+                ENDIF
+                SpawnedSign(VecInd)=SpawnedSign(VecInd)+SpawnedSign(i)
+                DetsMerged=DetsMerged+1
+            ENDIF
+        enddo
+
+        ValidSpawned=ValidSpawned-DetsMerged
+        IF((ValidSpawned.ne.VecInd).and.(VecInd.ne.1)) THEN
+            WRITE(6,*) ValidSpawned,VecInd
+            CALL Stop_All("RotoAnnihilation","Error in compression of spawned particle list")
+        ENDIF
+        IF(SpawnedSign(ValidSpawned).eq.0.and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+
+!Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
+        DetsMerged=0
+        do i=1,ValidSpawned
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+            SpawnedParts(0:NoIntforDet,i-DetsMerged)=SpawnedParts(0:NoIntforDet,i)
+            SpawnedSign(i-DetsMerged)=SpawnedSign(i)
+            IF(SpawnedSign(i).eq.0) THEN
+                DetsMerged=DetsMerged+1
+            ENDIF
+        enddo
+        IF(DetsMerged.ne.ToRemove) THEN
+            CALL Stop_All("RotoAnnihilation","Wrong number of entries removed from spawned list")
+        ENDIF
+        ValidSpawned=ValidSpawned-DetsMerged
+
+    END SUBROUTINE CompressSpawnedList
+
     
 !This is a new routine to totally annihilate all particles on the same determinant. This is not done using an all-to-all, but rather
 !by rotating the newly spawned particles around all determinants and annihilating with the particles on their processor.
@@ -778,34 +833,15 @@ MODULE FciMCParMod
 !Call as one array for All-to-alls
 !Make sure only sort what need to
     SUBROUTINE RotoAnnihilation(ValidSpawned,TotWalkersNew)
-        INTEGER :: ValidSpawned,TotWalkersNew,i,DetsMerged,VecInd
+        INTEGER :: ValidSpawned,TotWalkersNew,i
         INTEGER :: ierr,error!,SpawnedBeforeRoto
         CHARACTER , ALLOCATABLE :: mpibuffer(:)
-        LOGICAL :: DetBitEQ
-        
-!First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
-        VecInd=1
-        DetsMerged=0
-        do i=2,ValidSpawned
-            IF(.not.DetBitEQ(SpawnedParts(0:NoIntforDet,i),SpawnedParts(0:NoIntforDet,VecInd),NoIntforDet)) THEN
-                VecInd=VecInd+1
-                SpawnedParts(:,VecInd)=SpawnedParts(:,i)
-                SpawnedSign(VecInd)=SpawnedSign(i)
-            ELSE
-                SpawnedSign(VecInd)=SpawnedSign(VecInd)+SpawnedSign(i)
-                DetsMerged=DetsMerged+1
-            ENDIF
-        enddo
-
-        ValidSpawned=ValidSpawned-DetsMerged
-        IF((ValidSpawned.ne.VecInd).and.(VecInd.ne.1)) THEN
-            WRITE(6,*) ValidSpawned,VecInd
-            CALL Stop_All("RotoAnnihilation","Error in compression of spawned particle list")
-        ENDIF
 
 !        InitialSpawned=TotSpawned     !Initial spawned will store the original number of spawned particles, so that we can compare afterwards.
 !        InitialSpawned=Annihilated
         
+        CALL CompressSpawnedList(ValidSpawned)
+
 !        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Entering rotoannilation: ",Iter,InitialSpawned,TotWalkersNew
@@ -821,7 +857,7 @@ MODULE FciMCParMod
 !        ENDIF
             
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
-        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
+!        CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 !        CALL CheckOrdering(SpawnedParts(:,1:ValidSpawned),SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)
 !        do i=1,ValidSpawned
 !            WRITE(6,*) 1,i,SpawnedParts(:,i),SpawnedSign(i),Iter
@@ -986,7 +1022,6 @@ MODULE FciMCParMod
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkersNew),TotWalkersNew,.true.)
 
 !We now need to compress the spawned list, so that no particles are specified more than once.
-!In the end, we actually want to do this initially, rather than at the end...
 !We also want to find the number of particles we are adding to the list from the spawned list.
 !We now calculate the contribution to the total number of particles from the spawned lists.
 !The list has previously been compressed before the annihilation began.
@@ -1424,10 +1459,6 @@ MODULE FciMCParMod
 !            WRITE(6,*) "SubListInds(1,:) ", SubListInds(1,:)
 !            WRITE(6,*) "SubListInds(2,:) ", SubListInds(2,:)
 !            WRITE(6,*) "Original hash list is: "
-!            do i=1,MaxIndex
-!                WRITE(6,*) HashArray(i)
-!            enddo
-!            WRITE(6,*) "**************"
 !Reorder the lists so that they are in numerical order.
             j=1
             do while(j.le.MaxIndex)
@@ -1502,9 +1533,9 @@ MODULE FciMCParMod
                 j=j+1
             enddo
 
-!            IF((Iter.eq.1346).and.(InitialBlockIndex.ne.FinalBlockIndex)) THEN
+!            IF((Iter.eq.1877)) THEN
 !                WRITE(6,*) "Common block of dets found from ",InitialBlockIndex," ==> ",FinalBlockIndex
-!                WRITE(6,*) "Sum of signs in block is: ",TotWalkersDet
+!                WRITE(6,*) "Sum of signs in block is: ",TotWalkersDet,HashCurr
 !                do k=InitialBlockIndex,FinalBlockIndex
 !                    WRITE(6,*) TotWalkersDet,ToAnnihilateIndex,IndexTable2(k),ProcessVec2(k),SpawnedSign2(k)
 !                enddo
@@ -1572,11 +1603,6 @@ MODULE FciMCParMod
         enddo
 
         ToAnnihilateIndex=ToAnnihilateIndex-1   !ToAnnihilateIndex now tells us the total number of particles to annihilate from the list on this processor
-!        IF(Iter.eq.1346) THEN
-!            do i=1,ToAnnihilateIndex
-!                WRITE(6,*) i,IndexTable1(i),SpawnedSign(i)
-!            enddo
-!        ENDIF
 
 !The annihilation is complete - particles to be annihilated are stored in IndexTable and need to be sent back to their original processor
 !To know which processor that is, we need to order the particles to be annihilated in terms of their CPU, i.e. ProcessVec(1:ToAnnihilateIndex)
@@ -1818,6 +1844,17 @@ MODULE FciMCParMod
         LOGICAL :: DetBitEQ,tSuccess!,tSkipSearch
 
         CALL set_timer(AnnMain_time,30)
+!        IF(Iter.eq.1877) THEN
+!            WRITE(6,*) "MainList: ",TotWalkersNew
+!            do i=1,TotWalkersNew
+!                WRITE(6,*) CurrentDets(:,i),CurrentSign(i)
+!            enddo
+!            WRITE(6,*) "** ** **"
+!            do i=1,ValidSpawned
+!                WRITE(6,*) SpawnedParts(:,i),SpawnedSign(i)
+!            enddo
+!            WRITE(6,*) "****************"
+!        ENDIF
 
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
@@ -1900,6 +1937,11 @@ MODULE FciMCParMod
                     ToRemove=ToRemove+1
 !                    RemoveInds(ToRemove)=i
 !                    AnnihilateInd=-SearchInd
+                ELSE
+!One of the signs on the list is actually 0. If this zero is on the spawned list, we need to mark it for removal.
+                    IF(SpawnedSign(i).eq.0) THEN
+                        ToRemove=ToRemove+1
+                    ENDIF
                 ENDIF
 
 
