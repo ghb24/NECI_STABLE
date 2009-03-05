@@ -777,22 +777,27 @@ MODULE FciMCParMod
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
+!During this, we transfer the particles over to SpawnedParts2
+        IF(ValidSpawned.gt.0) THEN
+            SpawnedParts2(0:NoIntforDet,1)=SpawnedParts(0:NoIntforDet,1)
+            SpawnedSign2(1)=SpawnedSign(1)
+        ENDIF
         VecInd=1
         DetsMerged=0
         ToRemove=0
         do i=2,ValidSpawned
-            IF(.not.DetBitEQ(SpawnedParts(0:NoIntforDet,i),SpawnedParts(0:NoIntforDet,VecInd),NoIntforDet)) THEN
-                IF(SpawnedSign(VecInd).eq.0) ToRemove=ToRemove+1
+            IF(.not.DetBitEQ(SpawnedParts(0:NoIntforDet,i),SpawnedParts2(0:NoIntforDet,VecInd),NoIntforDet)) THEN
+                IF(SpawnedSign2(VecInd).eq.0) ToRemove=ToRemove+1
                 VecInd=VecInd+1
-                SpawnedParts(:,VecInd)=SpawnedParts(:,i)
-                SpawnedSign(VecInd)=SpawnedSign(i)
+                SpawnedParts2(:,VecInd)=SpawnedParts(:,i)
+                SpawnedSign2(VecInd)=SpawnedSign(i)
             ELSE
-                SignProd=SpawnedSign(i)*SpawnedSign(VecInd)
+                SignProd=SpawnedSign(i)*SpawnedSign2(VecInd)
                 IF(SignProd.lt.0) THEN
 !We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
-                    Annihilated=Annihilated+2*(MIN(abs(SpawnedSign(VecInd)),abs(SpawnedSign(i))))
+                    Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i))))
                 ENDIF
-                SpawnedSign(VecInd)=SpawnedSign(VecInd)+SpawnedSign(i)
+                SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)
                 DetsMerged=DetsMerged+1
             ENDIF
         enddo
@@ -802,23 +807,25 @@ MODULE FciMCParMod
             WRITE(6,*) ValidSpawned,VecInd
             CALL Stop_All("RotoAnnihilation","Error in compression of spawned particle list")
         ENDIF
-        IF(SpawnedSign(ValidSpawned).eq.0.and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
+        IF(SpawnedSign2(ValidSpawned).eq.0.and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
 
 !Now remove zeros. Not actually necessary, but will be useful I suppose? Shouldn't be too much hassle.
+!We can also use it to copy the particles back to SpawnedParts array
         DetsMerged=0
         do i=1,ValidSpawned
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-            SpawnedParts(0:NoIntforDet,i-DetsMerged)=SpawnedParts(0:NoIntforDet,i)
-            SpawnedSign(i-DetsMerged)=SpawnedSign(i)
-            IF(SpawnedSign(i).eq.0) THEN
+            IF(SpawnedSign2(i).eq.0) THEN
                 DetsMerged=DetsMerged+1
+            ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                SpawnedParts(0:NoIntforDet,i-DetsMerged)=SpawnedParts2(0:NoIntforDet,i)
+                SpawnedSign(i-DetsMerged)=SpawnedSign2(i)
             ENDIF
         enddo
         IF(DetsMerged.ne.ToRemove) THEN
             CALL Stop_All("RotoAnnihilation","Wrong number of entries removed from spawned list")
         ENDIF
         ValidSpawned=ValidSpawned-DetsMerged
-
+        
     END SUBROUTINE CompressSpawnedList
 
     
@@ -1001,15 +1008,18 @@ MODULE FciMCParMod
         TotParts=0
         DetsMerged=0
         do i=1,TotWalkersNew
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-            CurrentDets(0:NoIntforDet,i-DetsMerged)=CurrentDets(0:NoIntforDet,i)
-            CurrentSign(i-DetsMerged)=CurrentSign(i)
-            TotParts=TotParts+abs(CurrentSign(i))
-            IF(.not.tRegenDiagHEls) THEN
-                CurrentH(i-DetsMerged)=CurrentH(i)
-            ENDIF
             IF(CurrentSign(i).eq.0) THEN
                 DetsMerged=DetsMerged+1
+            ELSE
+!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                IF(DetsMerged.ne.0) THEN
+                    CurrentDets(0:NoIntforDet,i-DetsMerged)=CurrentDets(0:NoIntforDet,i)
+                    CurrentSign(i-DetsMerged)=CurrentSign(i)
+                    IF(.not.tRegenDiagHEls) THEN
+                        CurrentH(i-DetsMerged)=CurrentH(i)
+                    ENDIF
+                ENDIF
+                TotParts=TotParts+abs(CurrentSign(i))
             ENDIF
         enddo
         TotWalkersNew=TotWalkersNew-DetsMerged
@@ -2047,20 +2057,33 @@ MODULE FciMCParMod
 !                SpawnedSign(i)=SpawnedSign2(i)
 !            enddo
 
-
+!Since reading and writing from the same array is slow, copy the information accross to the other spawned array, and just swap the pointers around after.
             DetsMerged=0
             do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
-                SpawnedParts(0:NoIntforDet,i-DetsMerged)=SpawnedParts(0:NoIntforDet,i)
-                SpawnedSign(i-DetsMerged)=SpawnedSign(i)
                 IF(SpawnedSign(i).eq.0) THEN
                     DetsMerged=DetsMerged+1
+                ELSE
+                    SpawnedParts2(0:NoIntforDet,i-DetsMerged)=SpawnedParts(0:NoIntforDet,i)
+                    SpawnedSign2(i-DetsMerged)=SpawnedSign(i)
                 ENDIF
             enddo
             ValidSpawned=ValidSpawned-DetsMerged
             IF(DetsMerged.ne.ToRemove) THEN
                 WRITE(6,*) "***", Iter
                 CALL Stop_All("AnnihilateSpawnedParts","Incorrect number of particles removed from spawned list")
+            ENDIF
+!We always want to annihilate from the SpawedParts and SpawnedSign arrays.
+            IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+                SpawnedParts2 => SpawnVec
+                SpawnedSign2 => SpawnSignVec
+                SpawnedParts => SpawnVec2
+                SpawnedSign => SpawnSignVec2
+            ELSE
+                SpawnedParts => SpawnVec
+                SpawnedSign => SpawnSignVec
+                SpawnedParts2 => SpawnVec2
+                SpawnedSign2 => SpawnSignVec2
             ENDIF
 
 
