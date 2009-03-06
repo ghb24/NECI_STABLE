@@ -1062,9 +1062,9 @@ MODULE FciMCParMod
        
         IF(tRegenDiagHEls) THEN
 
-            CALL MergeLists(TotWalkersNew,MaxWalkersPart,CurrentDets(0:NoIntforDet,1:MaxWalkersPart),ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),CurrentSign(1:MaxWalkersPart),SpawnedSign(1:ValidSpawned),NoIntforDet)
+            CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NoIntforDet)
         ELSE
-            CALL MergeListswH(TotWalkersNew,MaxWalkersPart,CurrentDets(0:NoIntforDet,1:MaxWalkersPart),ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),CurrentSign(1:MaxWalkersPart),SpawnedSign(1:ValidSpawned),NoIntforDet,CurrentH(1:MaxWalkersPart))
+            CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NoIntforDet)
         ENDIF
         TotWalkers=TotWalkersNew
 
