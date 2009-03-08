@@ -116,6 +116,13 @@ General options
     If off, we are effectively reduced to a using Hartree multi-electron
     wavefunctions rather than Slater determinants.
 
+**CALCEXACTSIZESPACE**
+    Default false.
+
+    This will calculate the exact size of the symmetry allowed space before any calculations
+    are performed. Only determinants with the same Sz value as the reference are included. 
+    This scales badly and is unsuitable for use with large systems.
+
 **NONUNIFORMRANDEXCITS** [**NOSYMGEN** | **CYCLETHRUORBS**]
     Default false.
 

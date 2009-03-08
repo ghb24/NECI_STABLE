@@ -123,6 +123,7 @@ C.. product in the symmetry table, and OR that with the product.
          end if
       END
 
+
       SUBROUTINE WRITESYMTABLE(IUNIT)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -2027,3 +2028,163 @@ C.. Set to be totally symmetric
         WRITE(13,*) "******************"
         CALL FLUSH(13)
       END
+
+!This routine finds the size of the determinant space in terms, including all symmetry allowed determinants.
+!This is written to IUNIT. This is only available for molecular (i.e. abelian) systems with a maximum of eigth irreps.
+!This is done in a very crude way. Feel free to optimise it!
+      SUBROUTINE FindSymSizeofSpace(IUNIT)
+         use SymData , only : TwoCycleSymGens
+         use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
+         IMPLICIT NONE
+         INTEGER :: ClassCounts(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a,Lim2b
+         INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
+         INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
+         REAL*8 :: Choose,Space,SpaceGrow
+         LOGICAL :: Sym(0:7)
+
+         WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
+     &       //"determinant space..."
+         CALL FLUSH(IUNIT)
+         ClassCounts(:)=0
+!First, we need to find the number of spatial orbitals in each symmetry irrep.
+         do i=1,nBasis,2
+             ClassCounts(INT(G1(i)%Sym%S,4))=                           &
+     &           ClassCounts(INT(G1(i)%Sym%S,4))+1
+         enddo
+
+         Lima(0)=min(nOccAlpha,ClassCounts(0))
+         Limb(0)=min(nOccBeta,ClassCounts(0))
+         Lima(1)=min(nOccAlpha,ClassCounts(1))
+         Limb(1)=min(nOccBeta,ClassCounts(1))
+         Lima(2)=min(nOccAlpha,ClassCounts(2))
+         Limb(2)=min(nOccBeta,ClassCounts(2))
+         Lima(3)=min(nOccAlpha,ClassCounts(3))
+         Limb(3)=min(nOccBeta,ClassCounts(3))
+         Lima(4)=min(nOccAlpha,ClassCounts(4))
+         Limb(4)=min(nOccBeta,ClassCounts(4))
+         Lima(5)=min(nOccAlpha,ClassCounts(5))
+         Limb(5)=min(nOccBeta,ClassCounts(5))
+         Lima(6)=min(nOccAlpha,ClassCounts(6))
+         Limb(6)=min(nOccBeta,ClassCounts(6))
+         Lima(7)=min(nOccAlpha,ClassCounts(7))
+         Limb(7)=min(nOccBeta,ClassCounts(7))
+         Space=0.D0
+
+!         WRITE(6,*) ClassCounts(:)
+!         WRITE(6,*) "***"
+!         WRITE(6,*) Lima(:),Limb(:)
+
+!Loop over each irrep twice, once for alpha electrons and once for beta.
+         do a0=0,Lima(0)
+         do b0=0,Limb(0)
+             IF(mod(a0+b0,2).eq.1) THEN
+                 Sym(0)=.true.
+             ELSE
+                 Sym(0)=.false.
+             ENDIF
+         do a1=0,Lima(1)
+         do b1=0,Limb(1)
+             IF(mod(a1+b1,2).eq.1) THEN
+                 Sym(1)=.true.
+             ELSE
+                 Sym(1)=.false.
+             ENDIF
+         do a2=0,Lima(2)
+         do b2=0,Limb(2)
+             IF(mod(a2+b2,2).eq.1) THEN
+                 Sym(2)=.true.
+             ELSE
+                 Sym(2)=.false.
+             ENDIF
+         do a3=0,Lima(3)
+         do b3=0,Limb(3)
+             IF(mod(a3+b3,2).eq.1) THEN
+                 Sym(3)=.true.
+             ELSE
+                 Sym(3)=.false.
+             ENDIF
+         do a4=0,Lima(4)
+         do b4=0,Limb(4)
+             IF(mod(a4+b4,2).eq.1) THEN
+                 Sym(4)=.true.
+             ELSE
+                 Sym(4)=.false.
+             ENDIF
+         do a5=0,Lima(5)
+         do b5=0,Limb(5)
+             IF(mod(a5+b5,2).eq.1) THEN
+                 Sym(5)=.true.
+             ELSE
+                 Sym(5)=.false.
+             ENDIF
+         do a6=0,Lima(6)
+         do b6=0,Limb(6)
+             IF(mod(a6+b6,2).eq.1) THEN
+                 Sym(6)=.true.
+             ELSE
+                 Sym(6)=.false.
+             ENDIF
+         do a7=0,Lima(7)
+         do b7=0,Limb(7)
+             IF(mod(a7+b7,2).eq.1) THEN
+                 Sym(7)=.true.
+             ELSE
+                 Sym(7)=.false.
+             ENDIF
+
+             OverallSym=0
+             do i=0,7
+                IF(Sym(i)) THEN
+                    OverallSym=IEOR(OverallSym,i)
+                ENDIF
+            enddo
+            IF(OverallSym.eq.0) THEN
+                NAlph=a0+a1+a2+a3+a4+a5+a6+a7
+                NBet=b0+b1+b2+b3+b4+b5+b6+b7
+
+                IF((NAlph.eq.NOccAlpha).and.(NBet.eq.NOccBeta)) THEN
+
+                    SpaceGrow=1.D0
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(0),a0)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(0),b0)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1),a1)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(1),b1)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2),a2)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(2),b2)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(3),a3)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(3),b3)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(4),a4)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(4),b4)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(5),a5)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(5),b5)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(6),a6)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(6),b6)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(7),a7)
+                    SpaceGrow=SpaceGrow*Choose(ClassCounts(7),b7)
+                    Space=Space+SpaceGrow
+                ENDIF
+            ENDIF
+
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+         enddo
+
+         WRITE(IUNIT,"(A,G25.16)") " *EXACT* size of symmetry allowed " &
+     &       //"space of determinants is: ",Space
+         CALL FLUSH(IUNIT)
+
+      END SUBROUTINE FindSymSizeofSpace
+

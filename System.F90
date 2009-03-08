@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tExactSizeSpace=.false.
       tMerTwist=.true.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
@@ -400,6 +401,10 @@ MODULE System
             ELSE
                 tMerTwist=.true.
             ENDIF
+
+        case("CALCEXACTSIZESPACE")
+!This option will calculate the exact size of the symmetry allowed space of determinants. Will scale badly.
+            tExactSizeSpace=.true.
 
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.

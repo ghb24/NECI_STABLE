@@ -861,7 +861,7 @@ MODULE Calc
 
         Subroutine CalcInit()
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
-          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs
+          use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, GetHElement2
@@ -955,6 +955,10 @@ MODULE Calc
           enddo
           WRITE(6,"(A,I5,A,I5,A)") "FDet has ",nOccAlpha," alpha electrons, and ",nOccBeta," beta electrons."
           ElecPairs=(NEl*(NEl-1))/2
+
+          IF(tExactSizeSpace) THEN
+              CALL FindSymSizeofSpace(6)
+          ENDIF
 
           IF(TMCDET) THEN
 !C.. Generate the determinant from which we start the MC
