@@ -2042,6 +2042,14 @@ C.. Set to be totally symmetric
          REAL*8 :: Choose,Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
+         IF(.not.TwoCycleSymGens) THEN
+             WRITE(IUNIT,*) "Only for molecular abelian symmetry "      &
+     &      //" calculations can the exact size of the determinant "    &
+     &      //" space be calculated currently..."
+             WRITE(IUNIT,*) "Skipping size of space calculation..."
+             RETURN
+         ENDIF
+
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
      &       //"determinant space..."
          CALL FLUSH(IUNIT)
