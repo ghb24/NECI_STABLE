@@ -22,7 +22,7 @@ LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange
-LOGICAL :: tRotoAnnihil,tRegenDiagHEls
+LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp

@@ -32,6 +32,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tSpawnAsDet=.false.
           tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
           tAnnihilatebyrange=.true.
@@ -814,6 +815,11 @@ MODULE Calc
                 else
                     tGlobalSftCng=.true.
                 end if
+
+            case("SPAWNASDETS")
+!This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
+!probability of a successful spawn will be multiplied by the number of particles on the determinant.
+                tSpawnAsDet=.true.
             case("MAGNETIZE")
 !This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
 !i.e. diagonal matrix element is raised by an energy given by BField.
