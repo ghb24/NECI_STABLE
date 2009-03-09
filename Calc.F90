@@ -10,6 +10,7 @@ MODULE Calc
           != Set defaults for Calc data items.
 
           Use Determinants, only : iActiveBasis, SpecDet, tSpecDet, nActiveSpace
+          Use Determinants, only : tDefineDet
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead
@@ -185,6 +186,7 @@ MODULE Calc
           calcp_logweight=.false.
           TENPT=.false.
           TLADDER=.false. 
+          tDefineDet=.false.
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -202,6 +204,7 @@ MODULE Calc
         SUBROUTINE CalcReadInput()
           USE input
           Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
+          Use Determinants, only : tDefineDet, DefDet, tagDefDet
           use SystemData, only : Beta,nEl
           Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
@@ -563,6 +566,16 @@ MODULE Calc
                      call geti(SPECDET(I))
                    end do
                 endif
+            
+            case("DEFINEDET")
+                tDefineDet=.true.
+                ALLOCATE(DefDet(NEl),stat=ierr)
+                CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
+                DefDet(:)=0
+                do i=1,NEl
+                    call geti(DefDet(i))
+                enddo
+
             case("TROTTER")
                 TTROT = .true.
             case("BETA")

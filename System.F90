@@ -386,6 +386,15 @@ MODULE System
 ! advantage of keeping the HF reference determinant the same.
             tSeparateOccVirt=.true.
 
+
+        case("ROTATEDORBS")
+! This is a flag which is to be included if the FCIDUMP being read in is one containing rotated orbitals.  The only difference is that the 
+! H elements for single excitations are no longer 0 (as for HF), and walkers on singly excited determinants must be included in the energy 
+! calculations.
+            tRotatedOrbs=.true.
+
+
+
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
             call readi(iRanLuxLev)

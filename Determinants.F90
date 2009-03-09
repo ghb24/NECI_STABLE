@@ -24,6 +24,10 @@ MODULE Determinants
       INTEGER nUHFDet(5000)
       REAL*8  E0HFDet
 
+      INTEGER, allocatable :: DefDet(:)
+      Logical :: tDefineDet
+      integer :: tagDefDet=0
+
     contains
     Subroutine DetPreFreezeInit()
         Use global_utilities
@@ -34,7 +38,14 @@ MODULE Determinants
         character(25), parameter :: this_routine='DetPreFreezeInit'
         Allocate(FDet(nEl), stat=ierr)
         LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
-         CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+        IF(tDefineDet) THEN
+            WRITE(6,*) 'Defining FDet according to input'
+            do i=1,NEl
+                FDet(i)=DefDet(i)
+            enddo
+        ELSE
+             CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
+        ENDIF
 !      ENDIF
       WRITE(6,"(A)",advance='no') "Fermi det (D0):"
       CALL WRITEDET(6,FDET,NEL,.TRUE.)

@@ -11,7 +11,7 @@ MODULE RotateOrbsMod
     USE UMatCache , only : UMatInd
     USE HElem , only : HElement
     USE SystemData , only : ConvergedForce,TimeStep,tLagrange,tShake,tShakeApprox,ShakeConverged,tROIteration,ROIterMax,tShakeIter,ShakeIterMax
-    USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry
+    USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs
     USE Logging , only : tROHistogram,tROFciDump
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens
@@ -50,7 +50,7 @@ MODULE RotateOrbsMod
 !Sym of spatial orbital i is INT(G1(2*i)%sym%S,4) - should go from 0 -> 7
 
         CALL InitLocalOrbs()        ! Set defaults, allocate arrays, write out headings for OUTPUT, set integarals to HF values.
-       
+
         CALL WriteStats()           ! write out the original stats before any rotation.
 
         CALL set_timer(Rotation_Time,30)
@@ -1756,10 +1756,8 @@ MODULE RotateOrbsMod
                     ! the previous iteration).
                     
                     ! Calculate parameters for printing
-!                    IF(.not.tSeparateOccVirt) THEN
-                        TotForce=TotForce+ForceCorrect(a,m)
-                        TotDiffCoeffs=TotDiffCoeffs+ABS(CoeffT2(a,m)-CoeffT1(a,m))
-!                    ENDIF
+                    TotForce=TotForce+ABS(ForceCorrect(a,m))
+                    TotDiffCoeffs=TotDiffCoeffs+ABS(CoeffT2(a,m)-CoeffT1(a,m))
                 enddo
             enddo
         enddo
@@ -2016,6 +2014,7 @@ MODULE RotateOrbsMod
         CALL GRAMSCHMIDT(CoeffT1,SpatOrbs)
 
 ! Write out some final results of interest, like values of the constraints, values of new coefficients.
+
         WRITE(6,*) 'The final transformation coefficients after gram schmidt orthonormalisation'
         do i=1,SpatOrbs
             do a=1,SpatOrbs
@@ -2023,8 +2022,28 @@ MODULE RotateOrbsMod
             enddo
             WRITE(6,*) ''
         enddo
-        
+
+! This file is printed to be used to produce cube files from QChem.
+! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form tranformed orbital 1 etc.
+
+        OPEN(66,FILE='MOTransform',FORM='UNFORMATTED')
+
+        do a=1,SpatOrbs
+            do i=1,SpatOrbs
+                WRITE(66) CoeffT1(a,i)!CoeffT1(a,i)
+            enddo
+!            WRITE(66) ''
+!            do i=1,SpatOrbs
+!               WRITE(66) CoeffT1(a,i),CoeffT1(a,i)
+!            enddo
+            WRITE(66) ''
+        enddo
+
+        CLOSE(66)
+       
+
         CALL CalcConstraints(CoeffT1,GSConstraint,TotGSConstraints)  
+
 
         WRITE(6,*) 'The values of the constraints after gram schmidt orthonormalisation'
         
@@ -2050,7 +2069,11 @@ MODULE RotateOrbsMod
 
         CALL RefillUMATandTMAT2D()        
 ! UMat is the 4 index integral matrix (2 electron), whereas TMAT2D is the 2 index integral (1 el) matrix
-
+   
+! This is the keyword that tells the NECI calculation that the orbitals are not HF.  It means that contributions to
+! the energy from walkers on singly occupied determinants are included in the values printed.
+! Making it true here allows us to go directly from a Rotation into a spawn if required.
+        tRotatedOrbs=.true.
 
     ENDSUBROUTINE FinalizeNewOrbs
 
@@ -2135,10 +2158,10 @@ MODULE RotateOrbsMod
 
         WRITE(48,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB= ',SpatOrbs,',NELEC=',NEl,',MS2=',LMS,','
         WRITE(48,'(A9)',advance='no') 'ORBSYM='
-        i=0
+        i=1
         do while (i.le.SpatOrbs)
-            i=i+1
             WRITE(48,'(A2)',advance='no') '1,'
+            i=i+1
         enddo
         WRITE(48,*) ''
         WRITE(48,'(A7,I1)') 'ISYM=',1
@@ -2285,11 +2308,10 @@ MODULE RotateOrbsMod
 
 !        WRITE(6,*) 'BRR then ARR after being changed'
 !        do i=1,nBasis
-!            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
+!            WRITE(6,*) i,BRR(i),ARR(i,1)
 !        enddo
        
         CALL FLUSH(6)
-
 
         DEALLOCATE(ArrNew)
         CALL LogMemDealloc(this_routine,ArrNewTag)

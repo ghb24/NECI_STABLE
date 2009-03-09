@@ -4,7 +4,7 @@
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -3076,8 +3076,10 @@ MODULE FciMCParMod
             
         ENDIF
 
-        IF(tHub.and.tReal) THEN
+        IF((tHub.and.tReal).or.tRotatedOrbs) THEN
 !For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
+!For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
+!be included in the energy values along with the doubles.
             IF(ExcitLevel.eq.1) THEN
                 HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
 
