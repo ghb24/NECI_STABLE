@@ -16,6 +16,7 @@ MODULE RotateOrbsMod
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens
     USE Timing , only : end_timing,print_timing_report
+    USE Soft_exit, only : test_SOFTEXIT
     IMPLICIT NONE
     INTEGER , ALLOCATABLE :: Lab(:,:),AOSymm(:),LabVirtOrbs(:),LabOccOrbs(:),LabOrbs(:)
     REAL*8 , ALLOCATABLE :: CoeffT1(:,:),CoeffCorT2(:,:),CoeffUncorT2(:,:)
@@ -809,7 +810,7 @@ MODULE RotateOrbsMod
             IF(Iteration.eq.ROIterMax) THEN
                 tNotConverged=.false.
             ENDIF
-        ELSEIF(abs(Force).lt.ConvergedForce) THEN
+        ELSEIF(abs(TotCorrectedForce).lt.ConvergedForce) THEN
             tNotConverged=.false.
         ENDIF
 ! IF an ROIteration value is specified, use this to specify the end of the orbital rotation, otherwise use the 
@@ -1197,6 +1198,13 @@ MODULE RotateOrbsMod
         ENDIF
         CALL FLUSH(6)
         CALL FLUSH(12)
+
+! after writing out stats, test for softexit.
+        if (test_SOFTEXIT()) then
+            WRITE(6,*) 'SOFTEXIT detected, finalizing new orbitals.'
+            tNotConverged=.false.
+        endif
+
 
     END SUBROUTINE WriteStats
 
@@ -2024,23 +2032,40 @@ MODULE RotateOrbsMod
         enddo
 
 ! This file is printed to be used to produce cube files from QChem.
-! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form tranformed orbital 1 etc.
+! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form transformed orbital 1 etc.
 
-        OPEN(66,FILE='MOTransform',FORM='UNFORMATTED')
+        OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED')
 
         do a=1,SpatOrbs
             do i=1,SpatOrbs
-                WRITE(66) CoeffT1(a,i)!CoeffT1(a,i)
+                WRITE(66) CoeffT1(a,i),CoeffT1(a,i)
             enddo
 !            WRITE(66) ''
-!            do i=1,SpatOrbs
-!               WRITE(66) CoeffT1(a,i),CoeffT1(a,i)
-!            enddo
-            WRITE(66) ''
+            do i=1,SpatOrbs
+               WRITE(66) CoeffT1(a,i),CoeffT1(a,i)
+            enddo
+!            WRITE(66) ''
         enddo
 
         CLOSE(66)
-       
+      
+ 
+!        OPEN(67,FILE='MOTRANSFORM02',status='unknown')
+
+!        do a=1,SpatOrbs
+!            do i=1,SpatOrbs
+!                WRITE(67,'(2F15.10)',advance='no') CoeffT1(a,i),CoeffT1(a,i)
+!            enddo
+!            WRITE(67,*) ''
+!            do i=1,SpatOrbs
+!               WRITE(67,'(2F15.10)',advance='no') CoeffT1(a,i),CoeffT1(a,i)
+!            enddo
+!            WRITE(67,*) ''
+!        enddo
+
+!        CLOSE(67)
+        
+
 
         CALL CalcConstraints(CoeffT1,GSConstraint,TotGSConstraints)  
 
