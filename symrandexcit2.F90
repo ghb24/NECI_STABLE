@@ -28,6 +28,7 @@ MODULE GenRandSymExcitNUMod
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
     use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs
     use IntegralsData, only: UMat
+    use Determinants, only: GetHElement4
     use SymData, only: nSymLabels,TwoCycleSymGens
     use SymData, only: SymLabelList,SymLabelCounts
     use mt95 , only : genrand_real2
@@ -46,11 +47,9 @@ MODULE GenRandSymExcitNUMod
 !spawning algorithm, since a stochastic choice as to whether the particle is accepted or not is also done within the routine.
 !Because of this, tau is needed for the timestep of the simulation, and iCreate is returned as the number of children to create
 !on the determinant. If this is zero, then no childred are to be created.
-    SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,tau,iCreate)
+    SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,WSign,tau,iCreate)
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
-        INTEGER :: ClassCount2(2,0:nSymLabels-1)
-        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
-        INTEGER :: ILUT(0:NIfD),i,iCreate,nParts
+        INTEGER :: ILUT(0:NIfD),i,iCreate,nParts,WSign,ElecsWNoExcits
         LOGICAL :: tNoSuccess,tParity
         REAL*8 :: pDoub,pGen,r,tau
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitBiased'
@@ -69,13 +68,6 @@ MODULE GenRandSymExcitNUMod
         ENDIF
         MaxABPairs=(nBasis*(nBasis-1)/2)
         NIfD=nBasis/32
-
-!First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
-!and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
-!This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
-!For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
-!This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
-!        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
 
 !ExFlag is 1 for singles, 2 for just doubles, and 3 for both.
         IF(ExFlag.eq.3) THEN
@@ -105,25 +97,213 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(IC.eq.2) THEN
-            CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,tParity,nParts,Tau,iCreate)
+            CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
         ELSE
-!            CALL CreateSingleExcitBiased(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
-            IF(pGen.eq.-1.D0) THEN
+            CALL CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
+            IF(ElecsWNoExcits.eq.NEl) THEN
                 IF(ExFlag.ne.3) THEN
                     CALL Stop_All(this_routine,"Found determinant with no singles, but can only have got here from single. Should never be in this position!")
                 ENDIF
                 pDoubNew=1.D0
                 IC=2
-                CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,tParity,nParts,Tau,iCreate)
+                CALL CreateDoubExcitBiased(nI,nJ,ILUT,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
             ENDIF
 
         ENDIF
 
     END SUBROUTINE GenRandSymExcitBiased
 
-    SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,Tau,iCreate)
+    SUBROUTINE CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
+        Use SystemData, only: FCoul
+        INTEGER :: ClassCount2(2,0:nSymLabels-1),i,Attempts,OrbA
+        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl),iLut(0:NIfD)
+        INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
+        REAL*8 :: Tau,SpawnProb(nBasis),NormProb,r,rat
+        LOGICAL :: tParity,SymAllowed
+        TYPE(HElement) :: rh
+
+!First, we need to do an O[N] operation to find the number of occupied alpha electrons, number of occupied beta electrons
+!and number of occupied electrons of each symmetry class and spin. This is similar to the ClassCount array.
+!This has the format (Spn,sym), where Spin=1,2 corresponding to alpha and beta.
+!For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
+!This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
+        CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+
+!We need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
+!will affect the probabilities.
+        ElecsWNoExcits=0
+
+!Need to look for forbidden electrons through all the irreps.
+        do i=0,nSymLabels-1
+!Run through all labels
+            IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
+!If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
+                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
+            ENDIF
+            IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
+                ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
+            ENDIF
+        enddo
+
+        IF(ElecsWNoExcits.eq.NEl) THEN
+!There are no single excitations from this determinant at all.
+!Then we will create a double excitation instead.
+            RETURN
+        ENDIF
+
+!We want to pick an occupied electron - Prob = 1/(N-ElecsWNoExcits)
+        Attempts=0
+        do while(.true.)
+
+            Attempts=Attempts+1
+
+!Choose an electron randomly...
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
+            Eleci=INT(NEl*r)+1
+
+!Find symmetry of chosen electron
+            ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
+
+            IF(G1(nI(Eleci))%Ms.eq.-1) THEN
+!Alpha orbital - see how many single excitations there are from this electron...
+                NExcit=ClassCountUnocc2(1,ElecSym)
+                ispn=1
+            ELSE
+!Beta orbital
+                NExcit=ClassCountUnocc2(2,ElecSym)
+                ispn=-1
+            ENDIF
+
+            IF(NExcit.ne.0) EXIT    !Have found electron with allowed excitations
+
+            IF(Attempts.gt.250) THEN
+                WRITE(6,*) "Cannot find single excitation from electrons after 250 attempts..."
+                CALL WRITEDET(6,nI,NEL,.true.)
+                WRITE(6,*) "ClassCount2(1,:)= ",ClassCount2(1,:)
+                WRITE(6,*) "ClassCount2(2,:)= ",ClassCount2(2,:)
+                WRITE(6,*) "***"
+                WRITE(6,*) "ClassCountUnocc2(1,:)= ",ClassCountUnocc2(1,:)
+                WRITE(6,*) "ClassCountUnocc2(2,:)= ",ClassCountUnocc2(2,:)
+                CALL Stop_All("CreateSingleExcit","Cannot find single excitation from electrons after 250 attempts...")
+            ENDIF
+
+        enddo
+        ExcitMat(1,1)=nI(Eleci)
+
+!Now we want to run through all sym+spin allowed excitations of the chosen electron, and determine their matrix elements
+!To run just through the states of the required symmetry we want to use SymLabelCounts.
+        EndSymState=SymLabelCounts(1,ElecSym+1)+SymLabelCounts(2,ElecSym+1)
+        VecInd=1
+
+!We also want to take into account spin. We want the spin of the chosen unoccupied orbital to be the same as the chosen occupied orbital.
+!Run over all possible a orbitals
+        do j=SymLabelCounts(1,ElecSym+1),EndSymState
+
+            IF(ispn.eq.-1) THEN
+                OrbA=(2*j)     !This is the spin orbital chosen for a
+            ELSE
+                OrbA=(2*j)-1
+            ENDIF
+
+            IF(BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32))) THEN
+!Orbital is in nI...not an unoccupied orbital
+                CYCLE
+            ENDIF
+
+!Now we want to find the information about this excitation
+            ExcitMat(2,1)=OrbA
+            CALL Scr1Excit2(NEl,nBasisMax,nI,nI,G1,nBasis,UMat,ALat,iSpinSkip,FCoul,.true.,rh,ExcitMat,.false.)
+        
+            SpawnProb(VecInd)=abs(REAL(rh%v,r2))
+            SpawnOrb(VecInd)=OrbA
+            NormProb=NormProb+SpawnProb(VecInd)
+            VecInd=VecInd+1
+            IF(VecInd.ge.nBasis) THEN
+                CALL Stop_All("CreateSingleExcitBiased","Finding too many virtual pairs...")
+            ENDIF
+
+        enddo
+        IF((VecInd-1).ne.NExcit) THEN
+            CALL Stop_All("CreateSingleExcitBiased","Wrong number of excitations found from chosen electron")
+        ENDIF
+        IF(VecInd.eq.1) THEN
+            CALL Stop_All("CreateSingleExcitBiased","No excitations found from electron, but some should exist")
+        ENDIF
+
+!We now have to find out how many children to spawn, based on the value of normprob.
+        rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,r2)/(1.D0-PDoubNew)
+        iCreate=INT(rat)
+        rat=rat-REAL(iCreate)
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r)
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
+        IF(rat.gt.r) THEN
+!Child is created
+            iCreate=iCreate+1
+        ENDIF
+
+        IF(iCreate.gt.0) THEN
+!We want to spawn particles. This only question now is where. Run through the ab pairs again and choose based on the SpawnProb element.
+            IF(tMerTwist) THEN
+                CALL genrand_real2(r)
+            ELSE
+                CALL RANLUX(r,1)
+            ENDIF
+            r=r*NormProb
+
+            i=0
+            do while(r.gt.0.D0)
+                i=i+1
+                r=r-SpawnProb(i)
+            enddo
+            IF(i.gt.VecInd-1) THEN
+                CALL Stop_All("CreateSingleExcitBiased","Chosen virtual does not correspond to allowed orbital")
+            ENDIF
+
+            OrbA=SpawnOrb(i)
+
+!We now know that we want to create iCreate particles, from orbitals nI(Eleci) -> OrbA.
+            nJ(:)=nI(:)
+!ExcitMat wants to be the index in nI of the orbital to excite from, but returns the actual orbitals.
+            ExcitMat(1,1)=Eleci
+            ExcitMat(2,1)=OrbA
+            CALL FindExcitDet(ExcitMat,nJ,1,TParity)
+
+!These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
+!excitations, I recommend uncommenting these tests to check the results.
+            CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat,SymAllowed)
+
+!Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
+!iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
+            rh=GetHElement4(nI,nJ,1,ExcitMat,tParity)
+
+            IF(WSign.gt.0) THEN
+                !Parent particle is positive
+                IF(real(rh%v).gt.0.D0) THEN
+                    iCreate=-iCreate     !-ve walker created
+                ENDIF
+            ELSE
+                IF(real(rh%v).lt.0.D0) THEN
+                    iCreate=-iCreate    !-ve walkers created
+                ENDIF
+            ENDIF
+
+        ENDIF
+
+    END SUBROUTINE CreateSingleExcitBiased
+        
+
+    SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
         INTEGER :: nI(NEl),nJ(NEl),iLut(0:NIfD),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
-        INTEGER :: Elec1Ind,Elec2Ind,nParts
+        INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign
+        TYPE(HElement) :: rh
         LOGICAL :: tParity
         REAL*8 :: Tau
 
@@ -135,6 +315,28 @@ MODULE GenRandSymExcitNUMod
 !This routine runs through all distinct ab pairs for the chosen ij and stochastically chooses how many particles to create.
 !If spawning wants to occur, then it runs through the list again and chooses a pair, which it returns.
         CALL CalcAllab(nI,iLut,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
+
+!We now know that we want to create iCreate particles, from orbitals nI(Elec1/2Ind) -> OrbA + OrbB.
+        IF(iCreate.gt.0) THEN
+            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
+
+!Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
+!iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
+            rh=GetHElement4(nI,nJ,2,ExcitMat,tParity)
+
+            IF(WSign.gt.0) THEN
+                !Parent particle is positive
+                IF(real(rh%v).gt.0.D0) THEN
+                    iCreate=-iCreate     !-ve walker created
+                ENDIF
+            ELSE
+                IF(real(rh%v).lt.0.D0) THEN
+                    iCreate=-iCreate    !-ve walkers created
+                ENDIF
+            ENDIF
+
+        ENDIF
+
 
     END SUBROUTINE CreateDoubExcitBiased
 
@@ -152,6 +354,7 @@ MODULE GenRandSymExcitNUMod
         SpatOrbj=((nI(Elec2Ind)-1)/2)+1
         Spini=G1(nI(Elec1Ind))%Ms
         Spinj=G1(nI(Elec2Ind))%Ms
+        VecInd=1
 
         do i=1,nBasis
 !Run through all a orbitals
@@ -519,7 +722,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
+        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
 
     END SUBROUTINE FindNewDet
 

@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tImportanceSample=.false.
       tExactSizeSpace=.false.
       tMerTwist=.true.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
@@ -431,6 +432,9 @@ MODULE System
                     case("NOSYMGEN")
 !Do not generate symmetry-allowed excitations only, but all excitations. Spin-symmetry is still taken into account.
                         tNoSymGenRandExcits=.true.
+                    case("IMPORTANCESAMPLE")
+!Importance sample the excitations for FCIMCPar
+                        tImportanceSample=.true.
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select

@@ -4,7 +4,7 @@
 
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
-    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs
+    use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
@@ -362,22 +362,26 @@ MODULE FciMCParMod
             IF(tSpawnAsDet) THEN
 !Here, we spawn all particles on the determinant in one go, by multiplying the probability of spawning by the number of particles on the determinant.
 
-                IF(.not.TRegenExcitgens) THEN
+                IF(.not.tImportanceSample) THEN
+!If we are importance sampling, then the generation of the excitation takes place at the same time as the attempt spawn stage.
+                    IF(.not.TRegenExcitgens) THEN
 !Setup excit generators for this determinant
-                    CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
-                    CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
-                ELSE
-                    IF(tNonUniRandExcits) THEN
-!This will only be a help if most determinants are multiply occupied.
-                        CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+                        CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
+                        CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                     ELSE
-                        CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                        IF(tNonUniRandExcits) THEN
+!This will only be a help if most determinants are multiply occupied.
+                            CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+                        ELSE
+                            CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                        ENDIF
                     ENDIF
                 ENDIF
-!Calculate number of children to spawn
 
+!Calculate number of children to spawn
                 IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
+                   IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
                    IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
 !The current walker is one below the excitation cutoff - if IC is a double, then could go over
@@ -389,10 +393,10 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                                 Child=0
                             ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
                             ENDIF
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
                         ENDIF
 
                     ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
@@ -402,17 +406,17 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                             Child=0
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
                         ENDIF
                     ELSE
 !Excitation cannot be in a dissallowed excitation level - allow it as normal
-                        Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
                     ENDIF 
                 
                 ELSE
 !SD Space is not truncated - allow attempted spawn as usual
 
-                    Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
 
                 ENDIF
                 
@@ -504,22 +508,25 @@ MODULE FciMCParMod
                 do p=1,abs(CurrentSign(j))
 !If rotoannihilating, we are simply looping over all the particles on the determinant
 
-                    IF(.not.TRegenExcitgens) THEN
-!Setup excit generators for this determinant
-                        CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
-                        CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
-                    ELSE
-                        IF(tNonUniRandExcits) THEN
-!This will only be a help if most determinants are multiply occupied.
-                            CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                    IF(.not.tImportanceSample) THEN
+                        IF(.not.TRegenExcitgens) THEN
+    !Setup excit generators for this determinant
+                            CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
+                            CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                         ELSE
-                            CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                            IF(tNonUniRandExcits) THEN
+    !This will only be a help if most determinants are multiply occupied.
+                                CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                            ELSE
+                                CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                            ENDIF
                         ENDIF
                     ENDIF
-!Calculate number of children to spawn
 
+!Calculate number of children to spawn
                     IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
+                    IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
                        IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
 !The current walker is one below the excitation cutoff - if IC is a double, then could go over
@@ -531,10 +538,10 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                                     Child=0
                                 ELSE
-                                    Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
                                 ENDIF
                             ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
                             ENDIF
 
                         ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
@@ -544,17 +551,17 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                                 Child=0
                             ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
                             ENDIF
                         ELSE
 !Excitation cannot be in a dissallowed excitation level - allow it as normal
-                            Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
                         ENDIF 
                     
                     ELSE
 !SD Space is not truncated - allow attempted spawn as usual
 
-                        Child=AttemptCreatePar(DetCurr,CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
 
                     ENDIF
                     
@@ -5527,11 +5534,20 @@ MODULE FciMCParMod
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
-    INTEGER FUNCTION AttemptCreatePar(DetCurr,WSign,nJ,Prob,IC,Ex,tParity,nParts)
+    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,Prob,IC,Ex,tParity,nParts)
+        use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
+        INTEGER :: iLutCurr(0:NoIntforDet)
         LOGICAL :: tParity,SymAllowed
         REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
+
+        IF(tImportanceSample) THEN
+!Here, we generate an excitation and calculate how many to accept all in one go...
+!Most of the arguments to this routine are passed out, rather than passed in.
+            CALL GenRandSymExcitBiased(DetCurr,iLutCurr,nJ,pDoubles,IC,Ex,tParity,exFlag,nParts,WSign,Tau,AttemptCreatePar)
+            RETURN
+        ENDIF
 
 !Calculate off diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
