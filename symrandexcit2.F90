@@ -169,7 +169,7 @@ MODULE GenRandSymExcitNUMod
 !Find symmetry of chosen electron
             ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
 
-            IF(G1(nI(Eleci))%Ms.eq.-1) THEN
+            IF(G1(nI(Eleci))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
                 NExcit=ClassCountUnocc2(1,ElecSym)
                 ispn=1
@@ -206,9 +206,10 @@ MODULE GenRandSymExcitNUMod
         do j=SymLabelCounts(1,ElecSym+1),EndSymState
 
             IF(ispn.eq.-1) THEN
-                OrbA=(2*j)     !This is the spin orbital chosen for a
+!We want to look through all beta orbitals
+                OrbA=(2*SymLabelList(j))-1     !This is the spin orbital chosen for a
             ELSE
-                OrbA=(2*j)-1
+                OrbA=(2*SymLabelList(j))
             ENDIF
 
             IF(BTEST(ILUT((OrbA-1)/32),MOD((OrbA-1),32))) THEN
