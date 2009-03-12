@@ -1754,8 +1754,8 @@ C.. Initialize symmetry to take into account the core electrons
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM,Abel)
 !            WRITE(IUNIT,"(I10)",advance='no') SYM%s
-            WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")")',advance='no')
-     &                                                        Abel(1:3)
+            WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
+     &                                                  Abel(1:3),SYM%s
          ELSEIF(NSYM.LE.16) THEN
             WRITE(IUNIT,"(Z5)",advance='no') SYM
          ELSEIF(NSYM.LE.24) THEN

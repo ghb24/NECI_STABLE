@@ -197,8 +197,9 @@ MODULE GenRandSymExcitNUMod
 
 !Now we want to run through all sym+spin allowed excitations of the chosen electron, and determine their matrix elements
 !To run just through the states of the required symmetry we want to use SymLabelCounts.
-        EndSymState=SymLabelCounts(1,ElecSym+1)+SymLabelCounts(2,ElecSym+1)
+        EndSymState=SymLabelCounts(1,ElecSym+1)+SymLabelCounts(2,ElecSym+1)-1
         VecInd=1
+        NormProb=0.D0
 
 !We also want to take into account spin. We want the spin of the chosen unoccupied orbital to be the same as the chosen occupied orbital.
 !Run over all possible a orbitals
@@ -355,6 +356,7 @@ MODULE GenRandSymExcitNUMod
         Spini=G1(nI(Elec1Ind))%Ms
         Spinj=G1(nI(Elec2Ind))%Ms
         VecInd=1
+        NormProb=0.D0
 
         do i=1,nBasis
 !Run through all a orbitals
@@ -389,7 +391,7 @@ MODULE GenRandSymExcitNUMod
 
 !To run just through the states of the required symmetry we want to use SymLabelCounts.
 !            StartSymState=SymLabelCounts(1,SymB+1)
-            EndSymState=SymLabelCounts(1,SymB+1)+SymLabelCounts(2,SymB+1)
+            EndSymState=SymLabelCounts(1,SymB+1)+SymLabelCounts(2,SymB+1)-1
 
 !We also want to take into account spin.
             IF(ispn.eq.1) THEN
