@@ -688,7 +688,7 @@ MODULE GenRandSymExcitNUMod
 !Now we have to pick the first unoccupied orbital. If an orbital is not present in any allowed pairs, it is chucked and a new one drawn.
 !The number NExcit is the number of unoccupied orbitals that the orbital was chosen from (including symmetry-forbidden orbital pairs)
 !Arguments:     NExcit = Number of possible spin-allowed unoccupied spinorbitals, including forbidden orbs (these will be chucked)
-!               SpinOrbA = Spin of the chosen spin-orbital. -1 is alpha, 1 is beta.
+!               SpinOrbA = Spin of the chosen spin-orbital. 1 is alpha, -1 is beta.
 !               OrbA = Index of the chosen spinorbital
 !               SymB = Symmetry required of the second unoccupied spinorbital, so that sym(A) x sym(B) = SymProduct
 !               SymProduct = (intent in), the symmetry of electron pair chosen
@@ -724,7 +724,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
+!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
 
     END SUBROUTINE FindNewDet
 
@@ -751,26 +751,26 @@ MODULE GenRandSymExcitNUMod
         IF(iSpn.eq.2) THEN
 !If iSpn=2, then we want to find a spinorbital of the opposite spin of SpinOrbA
             IF(SpinOrbA.eq.-1) THEN
-!We have already picked an alpha orbital, so now we want to pick a beta orbital. Find out how many of these there are.
-                NExcit=ClassCountUnocc2(2,SymB)
-                NExcitOtherWay=ClassCountUnocc2(1,SymA)
-                SpinOrbB=0  !This is defined differently to SpinOrbA. 0=Beta, -1=alpha.
-            ELSE
-!Want to pick an alpha orbital.
+!We have already picked a beta orbital, so now we want to pick an alpha orbital. Find out how many of these there are.
                 NExcit=ClassCountUnocc2(1,SymB)
                 NExcitOtherWay=ClassCountUnocc2(2,SymA)
+                SpinOrbB=0  !This is defined differently to SpinOrbA. 0=Alpha, -1=Beta.
+            ELSE
+!Want to pick an beta orbital.
+                NExcit=ClassCountUnocc2(2,SymB)
+                NExcitOtherWay=ClassCountUnocc2(1,SymA)
                 SpinOrbB=-1
             ENDIF
         ELSEIF(iSpn.eq.1) THEN
 !Definitely want a beta orbital
             NExcit=ClassCountUnocc2(2,SymB)
             NExcitOtherWay=ClassCountUnocc2(2,SymA)
-            SpinOrbB=0
+            SpinOrbB=-1
         ELSE
 !Definitely want an alpha orbital
             NExcit=ClassCountUnocc2(1,SymB)
             NExcitOtherWay=ClassCountUnocc2(1,SymA)
-            SpinOrbB=-1
+            SpinOrbB=0
         ENDIF
 
         IF((iSpn.ne.2).and.(SymProduct.eq.0)) THEN
@@ -981,7 +981,7 @@ MODULE GenRandSymExcitNUMod
 !After one has been chosen, we have to make sure that an allowed symmetry pair can be formed, otherwise the orbital is
 !chucked and a new one drawn.
 !Arguments:     NExcit = Number of possible spin-allowed unoccupied spinorbitals, including forbidden orbs (these will be chucked)
-!               SpinOrbA = Spin of the chosen spin-orbital. -1 is alpha, 1 is beta.
+!               SpinOrbA = Spin of the chosen spin-orbital. 1 is alpha, -1 is beta.
 !               OrbA = Index of the chosen spinorbital
 !               SymB = Symmetry required of the second unoccupied spinorbital, so that sym(A) x sym(B) = SymProduct
 !               SymProduct = (intent in), the symmetry of electron pair chosen
@@ -998,10 +998,10 @@ MODULE GenRandSymExcitNUMod
             NExcit=nBasis-NEl
         ELSEIF(iSpn.eq.1) THEN 
 !SpinOrbA indicates the spin of the chosen A orb. This is only really useful for iSpn=2
-            SpinOrbA=1  !Going to pick a beta orb
+            SpinOrbA=-1  !Going to pick a beta orb
             NExcit=(nBasis/2)-nOccBeta  !This is the number of unoccupied beta spinorbitals there are.
         ELSE    !iSpn is 3 - alpha/alpha pair.
-            SpinOrbA=-1 !Going to pick an alpha orb
+            SpinOrbA=1 !Going to pick an alpha orb
             NExcit=(nBasis/2)-nOccAlpha !This is the number of unoccupied alpha spinorbitals there are.
         ENDIF
 
@@ -1107,11 +1107,11 @@ MODULE GenRandSymExcitNUMod
 !This could be changed to an O[N] operation, rather than O[M] with a little thought...
                     do i=1,nBasis/2
                         IF(iSpn.eq.1) THEN
-!We want to run through all beta orbitals (even numbered basis function)
-                            OrbA=(2*i)
+!We want to run through all beta orbitals (odd numbered basis function)
+                            OrbA=(2*i)-1
                         ELSE
 !We want to run through all alpha orbitals (odd numbered basis functions)
-                            OrbA=(2*i)-1
+                            OrbA=(2*i)
                         ENDIF
 
 !Find out if the orbital is in the determinant.
@@ -1149,11 +1149,11 @@ MODULE GenRandSymExcitNUMod
                         ENDIF
                         ChosenUnocc=INT((nBasis/2)*r)+1
                         IF(iSpn.eq.1) THEN
-!We only want to choose beta orbitals(i.e. even).
-                            ChosenUnocc=2*ChosenUnocc
-                        ELSE
-!We only want to choose alpha orbitals(i.e. odd).
+!We only want to choose beta orbitals(i.e. odd).
                             ChosenUnocc=(2*ChosenUnocc)-1
+                        ELSE
+!We only want to choose alpha orbitals(i.e. even).
+                            ChosenUnocc=2*ChosenUnocc
                         ENDIF
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
@@ -1188,7 +1188,7 @@ MODULE GenRandSymExcitNUMod
             
             IF(iSpn.eq.2) THEN
 !We want an alpha/beta unocc pair. 
-                IF(SpinOrbA.eq.-1) THEN
+                IF(SpinOrbA.eq.1) THEN
 !We have picked an alpha orbital - check to see if there are allowed beta unoccupied orbitals from the SymB Class.
                     IF(ClassCountUnocc2(2,SymB).ne.0) THEN
 !Success! We have found an allowed A orbital! Exit from loop.
@@ -1300,7 +1300,7 @@ MODULE GenRandSymExcitNUMod
 !We have an alpha beta pair of electrons.
             iSpn=2
         ELSE
-            IF(G1(nI(Elec1Ind))%Ms.eq.-1) THEN
+            IF(G1(nI(Elec1Ind))%Ms.eq.1) THEN
 !We have an alpha alpha pair of electrons.
                 iSpn=3
             ELSE
@@ -1377,14 +1377,14 @@ MODULE GenRandSymExcitNUMod
                 ElecSym=INT((G1(nI(Eleci))%Sym%S),4)
             ENDIF
 
-            IF(G1(nI(Eleci))%Ms.eq.-1) THEN
+            IF(G1(nI(Eleci))%Ms.eq.1) THEN
 !Alpha orbital - see how many single excitations there are from this electron...
                 NExcit=ClassCountUnocc2(1,ElecSym)
-                iSpn=2
+                iSpn=1
             ELSE
 !Beta orbital
                 NExcit=ClassCountUnocc2(2,ElecSym)
-                iSpn=1
+                iSpn=2
             ENDIF
 
             IF(NExcit.ne.0) EXIT    !Have found electron with allowed excitations
@@ -1547,7 +1547,7 @@ MODULE GenRandSymExcitNUMod
 !Create ILUT for O[1] comparison of orbitals in root determinant - This is now read in
 !                ILUT((nI(I)-1)/32)=IBSET(ILUT((NI(I)-1)/32),MOD(NI(I)-1,32))
 
-                IF(G1(nI(i))%Ms.eq.-1) THEN
+                IF(G1(nI(i))%Ms.eq.1) THEN
 !orbital is an alpha orbital and symmetry of the orbital can be found in G1
 !                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
                     ClassCount2(1,INT(G1(nI(i))%Sym%S,4))=ClassCount2(1,INT(G1(nI(i))%Sym%S,4))+1
@@ -1663,7 +1663,7 @@ SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
         ENDIF
 
 !Check excitation
-        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+!        CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
 
     enddo
 
