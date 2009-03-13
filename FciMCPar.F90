@@ -1919,12 +1919,12 @@ MODULE FciMCParMod
 
     END SUBROUTINE LinSearchParts
 
-!Do a binary search in NewDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
+!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
 !PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
-    SUBROUTINE BinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd,DetArray(0:NoIntforDet,MinInd:MaxInd)
+    SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd
         INTEGER :: i,j,N,Comp,DetBitLT
         LOGICAL :: tSuccess
 
@@ -1936,8 +1936,8 @@ MODULE FciMCParMod
             N=(i+j)/2       !Find the midpoint of the two indices
 !            WRITE(6,*) i,j,n
 
-!Comp is 1 if DetArray(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(DetArray(:,N),iLut(:),NoIntforDet)
+!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NoIntforDet)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -1959,7 +1959,7 @@ MODULE FciMCParMod
                 ELSEIF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
-                    Comp=DetBitLT(DetArray(:,i+1),iLut(:),NoIntforDet)
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NoIntforDet)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -2038,7 +2038,7 @@ MODULE FciMCParMod
 !This will binary search the CurrentDets array to find the desired particle. tSuccess will determine whether the particle has been found or not.
 !It will also return the index of the position one below where the particle would be found if was in the list.
 !            CALL LinSearchParts(CurrentDets(:,1:TotWalkersNew),SpawnedParts(0:NoIntforDet,i),MinInd,TotWalkersNew,PartInd,tSuccess)
-            CALL BinSearchParts(CurrentDets(:,MinInd:TotWalkersNew),SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
+            CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
 !            WRITE(6,*) "Binary search complete: ",i,PartInd,tSuccess
 !            CALL FLUSH(6)
 
