@@ -362,17 +362,17 @@ MODULE GenRandSymExcitNUMod
         do i=1,nBasis
 !Run through all a orbitals
             IF(mod(i,2).eq.0) THEN
-!We have a beta spin...
-                aspn=-1
-                IF(iSpn.eq.3) THEN
-!ij is an alpha/alpha pair, so we only want to pick alpha a orbitals.
-                    CYCLE
-                ENDIF
-            ELSE
 !We have an alpha spin...
                 aspn=1
                 IF(iSpn.eq.1) THEN
-!ij is a beta/beta pair, so we only want to pick beta a orbitals.
+!ij is an beta/beta pair, so we only want to pick beta a orbitals.
+                    CYCLE
+                ENDIF
+            ELSE
+!We have a beta spin...
+                aspn=-1
+                IF(iSpn.eq.3) THEN
+!ij is a alpha/alpha pair, so we only want to pick alpha a orbitals.
                     CYCLE
                 ENDIF
             ENDIF
@@ -413,9 +413,9 @@ MODULE GenRandSymExcitNUMod
             do j=SymLabelCounts(1,SymB+1),EndSymState
 
                 IF(bspn.eq.-1) THEN
-                    OrbB=(2*j)     !This is the spin orbital chosen for b
+                    OrbB=(2*SymLabelList(j))-1     !This is the spin orbital chosen for b
                 ELSE
-                    OrbB=(2*j)-1
+                    OrbB=(2*SymLabelList(j))
                 ENDIF
 
                 IF(OrbB.le.i) THEN
@@ -725,7 +725,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
+        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
 
     END SUBROUTINE FindNewDet
 
