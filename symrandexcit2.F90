@@ -280,7 +280,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-            CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat,SymAllowed)
+!            CALL IsSymAllowedExcit(nI,nJ,1,ExcitMat,SymAllowed)
 
 !Once we have the definitive determinant, we also want to find out what sign the particles we want to create are.
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
@@ -725,7 +725,7 @@ MODULE GenRandSymExcitNUMod
 
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
-        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
+!        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
 
     END SUBROUTINE FindNewDet
 
