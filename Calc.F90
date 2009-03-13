@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tFindGroundDet=.false.
           tSpawnAsDet=.false.
           tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
@@ -840,6 +841,10 @@ MODULE Calc
                 tSymmetricField=.false.
                 call Geti(NoMagDets)
                 call Getf(BField)
+            case("FINDGROUNDDET")
+!A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower than the energy of the current reference determinant, the energies are rezeroed and the
+!reference changed to the new determinant. For a HF basis, this cannot happen, but with rotated orbital will be important.
+                tFindGroundDet=.true.
             case("MAGNETIZESYM")
 !A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for particles of the opposite sign, the energy is lowered by the same amount for particles
 !of 'parallel' sign.

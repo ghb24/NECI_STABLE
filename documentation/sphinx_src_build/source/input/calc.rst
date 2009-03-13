@@ -691,6 +691,14 @@ The following options are only available in **FCIMC** calculations:
     orbitals lower in energy than the active space are completely occupied and those higher in 
     energy are completely unoccupied.
 
+**FINDGROUNDDET**
+    Default=false.
+
+    A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower 
+    than the energy of the current reference determinant, the energies are rezeroed and the
+    reference changed to the new determinant. For a HF basis, this cannot happen, but with 
+    rotated orbital may be important.
+
 **ANNIHILATDISTANCE** [Lambda]
     Default=0.D0
 

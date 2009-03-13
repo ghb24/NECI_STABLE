@@ -5,7 +5,7 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample
-    use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs
+    use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
@@ -352,6 +352,13 @@ MODULE FciMCParMod
             ELSE
 !HDiags are stored.
                 HDiagCurr=CurrentH(j)
+            ENDIF
+            IF(tFindGroundDet) THEN
+                IF(HDiagCurr.lt.0.D0) THEN
+!We have found a determinant lower in energy that the "root" determinant.
+!This should not happen in a HF basis, but can happen if the orbitals have been rotated.
+                    CALL ChangeRefDet(HDiagCurr,DetCurr,CurrentDets(:,j))
+                ENDIF
             ENDIF
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -915,6 +922,61 @@ MODULE FciMCParMod
         ENDIF
 
     END SUBROUTINE PerformFCIMCycPar
+
+!This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
+!projection onto a different determinant.
+    SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
+        use Determinants , only : GetH0Element3
+        INTEGER :: iLutCurr(0:NoIntforDet),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
+        INTEGER :: nJ(NEl)
+        TYPE(HElement) :: TempHii
+        REAL*8 :: HDiagCurr
+
+        do i=1,NEl
+            HFDet(i)=DetCurr(i)
+        enddo
+        Hii=Hii-HDiagCurr
+        iLutHF(0:NoIntforDet)=iLutCurr(0:NoIntforDet)
+        TempHii=GetH0Element3(HFDet)
+        Fii=REAL(TempHii%v,r2)
+        HFHash=CreateHash(HFDet)
+        DEALLOCATE(HFExcit%ExcitData)
+!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("ChangeRefDet","Problem allocating excitation generator")
+        HFExcit%ExcitData(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
+        HFExcit%nPointed=0
+
+        WRITE(6,"(A)") "*** Changing the reference determinant ***"
+        WRITE(6,"(A)") "Switching reference and zeroing energy counters"
+        WRITE(6,"(A,G25.16)") "New reference energy is: ",Hii
+        WRITE(6,"(A)",advance='no') "New Determinant is: "
+        do i=1,NEL-1
+            WRITE(6,"(I4)",advance='no') HFDet(i)
+        enddo
+        WRITE(6,"(I4)") HFDet(NEl)
+        
+        AllSumENum=0.D0
+        AllSumNoatHF=0.D0
+        AllNoatHF=0
+        AllNoatDoubs=0
+        AllHFCyc=0.D0
+        AllENumCyc=0.D0
+        ProjectionE=0.D0
+        SumENum=0.D0
+        NoatHF=0
+        NoatDoubs=0
+        HFCyc=0
+        HFPopCyc=0
+        ENumCyc=0.D0
+        ProjEIter=0.D0
+        ProjEIterSum=0.D0
+
+    END SUBROUTINE ChangeRefDet
 
 !This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
 !This is not essential, but should proove worthwhile
