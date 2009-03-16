@@ -81,6 +81,7 @@ MODULE System
       tShakeIter=.false.
       ShakeIterMax=5
       tSeparateOccVirt=.false.
+      tERLocalization=.false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -344,7 +345,6 @@ MODULE System
             tAssumeSizeExcitgen=.true.
 
 
-
 ! The ROTATEORBS calculation initiates a routine which takes the HF orbitals
 ! and finds the optimal set of transformation coefficients to produce a new 
 ! set of orbitals which minimise the sum of |<ij|kl>|^2 elements.
@@ -357,6 +357,11 @@ MODULE System
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
 ! attempt to maintain orthogonality. This currently does not seem to work too well!
             tLagrange=.true.
+
+        case("ERLOCALIZATION")
+            tERLocalization=.true.
+! This sets the orbital rotation to an Edmiston-Reudenberg localisation.  This maximises the self repulsion energy, i.e 
+! maximises the sum of the <ii|ii> terms.    
 
         case("ROITERATION")
 ! Specifying this keyword overwrites the convergence limit from the ROTATEORBS line, and instead runs the orbital rotation for as many

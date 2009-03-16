@@ -8,7 +8,7 @@ MODULE Logging
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogram
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogram,tERHist
     INTEGER NoACDets(2:4),iPopsPartEvery
 
     contains
@@ -40,6 +40,7 @@ MODULE Logging
       tBinPops=.false.
       tROHistogram=.false.
       tROFciDump=.false.
+      tERHist=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -78,6 +79,10 @@ MODULE Logging
 !Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow
 !so this will prevent us having to do the transformation every time we run a calculation on a particular system
             tROFciDump=.true.
+            
+        case("ERHISTOGRAM")
+!This option creates a histogram of the <ii|ii> terms, the ones that are maximised in the edmiston-reudenberg localisation.
+            tERHist=.true.
 
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
