@@ -970,7 +970,7 @@ MODULE Calc
           nOccAlpha=0
           nOccBeta=0
           do i=1,NEl
-              IF(G1(FDET(i))%Ms.eq.-1) THEN
+              IF(G1(FDET(i))%Ms.eq.1) THEN
 !Orbital is an alpha orbital
                  nOccAlpha=nOccAlpha+1
               ELSE
