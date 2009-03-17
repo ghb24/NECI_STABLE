@@ -125,6 +125,14 @@ General options
 FCIMC options
 -------------
 
+**HISTDETS** [iWriteHistEvery]
+
+    This option will histogram the spawned wavevector, averaged over all previous iterations. 
+    It scales horrifically and can only be done for small systems which can be diagonalized. 
+    It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
+    If done, SymDets will also be written out, containing the exact wavevector in the same format from the 
+    diagonalization.
+
 **AUTOCORR** [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]
     This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
     determinants every iteration. This is so that a seperate standalone ACF program can be used on it.

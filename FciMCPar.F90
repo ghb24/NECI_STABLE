@@ -12,9 +12,9 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
     USE Determinants , only : FDet,GetHElement2,GetHElement4
-    USE DetCalc , only : NMRKS,ICILevel
+    USE DetCalc , only : NMRKS,ICILevel,nDet
     use IntegralsData , only : fck,NMax,UMat
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery
     USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
@@ -188,7 +188,8 @@ MODULE FciMCParMod
 
     REAL(4) :: IterTime
     
-
+    REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:)
+    INTEGER :: MaxDet
 
     contains
 
@@ -197,9 +198,9 @@ MODULE FciMCParMod
         use soft_exit, only : test_SOFTEXIT
         use UMatCache, only : UMatInd
         TYPE(HDElement) :: Weight,Energyxw
-        INTEGER :: i,j,error!,k,l
+        INTEGER :: i,j,error
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
-        TYPE(HElement) :: Hamii!,t
+        TYPE(HElement) :: Hamii
         LOGICAL :: TIncrement
         REAL(4) :: s,etime,tstart(2),tend(2)
 
@@ -259,6 +260,10 @@ MODULE FciMCParMod
             ENDIF
             IF(TAutoCorr) CALL WriteHistogrammedDets
 
+            IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
+                CALL WriteHistogram()
+            ENDIF
+
 !End of MC cycle
         enddo
 
@@ -270,6 +275,8 @@ MODULE FciMCParMod
                 CALL WriteToPopsFilePar()
             ENDIF
         ENDIF
+
+        IF(tHistSpawn) CALL WriteHistogram()
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
@@ -290,6 +297,86 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FciMCPar
+
+!This routine will write out the average wavevector from the spawning run up until now.
+    SUBROUTINE WriteHistogram()
+        use Determinants , only : GetHElement3
+        use SystemData , only : BasisFN
+        INTEGER :: i,j,Det,bits,iLut(0:nBasis/32),error
+        TYPE(BasisFN) :: ISym
+        REAL*8 :: norm
+        TYPE(HElement) :: HEL
+        CHARACTER(len=22) :: abstr
+
+!This will open a file called SpawnHist-"Iter" on unit number 17.
+        abstr=''
+        write(abstr,'(I12)') Iter
+        abstr='SpawnHist-'//adjustl(abstr)
+        IF(iProcIndex.eq.0) THEN
+            WRITE(6,*) "Writing out the average wavevector up to iteration number: ", Iter
+            CALL FLUSH(6)
+        ENDIF
+
+        IF(nBasis/32.ne.0) THEN
+            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
+        ENDIF
+
+        IF(iProcIndex.eq.0) THEN
+            AllHistogram(:)=0.D0
+        ENDIF
+
+        CALL MPI_Reduce(Histogram,AllHistogram,MaxDet,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        
+        IF(iProcIndex.eq.0) THEN
+            norm=0.D0
+            do i=1,MaxDet
+                norm=norm+AllHistogram(i)**2
+            enddo
+            norm=SQRT(norm)
+!            WRITE(6,*) "NORM",norm
+            do i=1,MaxDet
+                AllHistogram(i)=AllHistogram(i)/norm
+            enddo
+            
+            IF(.not.associated(NMRKS)) THEN
+                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
+            ENDIF
+
+            Det=0
+            norm=0.D0
+
+            OPEN(17,FILE=abstr,STATUS='UNKNOWN')
+
+            do i=1,Maxdet
+                bits=0
+                do j=0,nbasis-1
+                    IF(BTEST(i,j)) THEN
+                        Bits=Bits+1
+                    ENDIF
+                enddo
+                IF(Bits.eq.NEl) THEN
+
+                    do j=1,ndet
+                        CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
+                        IF(iLut(0).eq.i) THEN
+                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
+                            IF(ISym%Sym%S.eq.0) THEN
+                                Det=Det+1
+                                WRITE(17,"(3I12)",advance='no') Det,iLut(0)
+                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
+                                norm=norm+(AllHistogram(i))**2
+                                WRITE(17,"(3G25.16)") REAL(HEL%v,8),AllHistogram(i),norm
+                            ENDIF
+                            EXIT
+                        ENDIF
+                    ENDDO
+                ENDIF
+
+            ENDDO
+            CLOSE(17)
+        ENDIF
+
+    END SUBROUTINE WriteHistogram
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
@@ -3104,6 +3191,7 @@ MODULE FciMCParMod
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
+        IF(tHistSpawn) Histogram(iLutCurr(0))=Histogram(iLutCurr(0))+REAL(WSign,r2)
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
             NoatHF=NoatHF+WSign
@@ -3815,6 +3903,21 @@ MODULE FciMCParMod
         AllAnnihilated=0
         AllENumCyc=0.D0
         AllHFCyc=0.D0
+        
+        IF(tHistSpawn) THEN
+            maxdet=0
+            do i=1,nel
+                maxdet=maxdet+2**(nbasis-i)
+            enddo
+            WRITE(6,*) "Histogramming spawning wavevector, with MaxDet=", MaxDet
+            ALLOCATE(Histogram(1:maxdet))
+            Histogram(:)=0.D0
+
+            IF(iProcIndex.eq.0) THEN
+                ALLOCATE(AllHistogram(1:maxdet))
+            ENDIF
+        ENDIF
+
 
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
@@ -4160,9 +4263,9 @@ MODULE FciMCParMod
             ELSE
 
                 IF(tRotoAnnihil) THEN
-                    CurrentDets(:,j)=iLutHF(:)
-                    CurrentSign(j)=InitWalkers
-                    IF(.not.tRegenDiagHEls) CurrentH(j)=0.D0
+                    CurrentDets(:,1)=iLutHF(:)
+                    CurrentSign(1)=InitWalkers
+                    IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
                 ELSE
 
                     do j=1,InitWalkers
@@ -6657,6 +6760,12 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
             
+        IF(tHistSpawn) THEN
+            DEALLOCATE(Histogram)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistogram)
+            ENDIF
+        ENDIF
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         DEALLOCATE(WalkVecSign)

@@ -8,8 +8,8 @@ MODULE Logging
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogram,tERHist
-    INTEGER NoACDets(2:4),iPopsPartEvery
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogram,tERHist,tHistSpawn
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery
 
     contains
 
@@ -19,6 +19,8 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tHistSpawn=.false.
+      iWriteHistEvery=-1
       NoACDets(:)=0
       TAutoCorr=.false.
       MaxHistE=50.D0
@@ -97,6 +99,11 @@ MODULE Logging
             TDetPops=.true.
         case("DISTRIBS")
             TDistrib=.true.
+        case("HISTSPAWN")
+!This option will histogram the spawned wavevector, averaged over all previous iterations. It scales horrifically and can only be done for small systems
+!which can be diagonalized. It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
+            tHistSpawn=.true.
+            IF(item.lt.nitems) call readi(iWriteHistEvery)
         case("POPSFILE")
 ! This is so that the determinants at the end of the MC run are written
 ! out, to enable them to be read back in using READPOPS in the Calc section,

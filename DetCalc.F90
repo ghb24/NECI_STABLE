@@ -2,6 +2,7 @@
 MODULE DetCalc
         Use HElem
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        
     IMPLICIT NONE
      save
 
@@ -24,7 +25,7 @@ MODULE DetCalc
       INTEGER NBLOCKS
       Type(HElement), pointer :: HAMIL(:)
       INTEGER :: tagHamil=0
-      INTEGER, pointer :: NMRKS(:,:)      !NEL-NFROZEN
+      INTEGER, pointer :: NMRKS(:,:)=>null()      !NEL-NFROZEN
       INTEGER :: tagNMRKS=0
       INTEGER iFDEt
       TYPE(HElement), pointer :: CK(:), CKN(:)
@@ -43,7 +44,7 @@ CONTAINS
         use SystemData, only : tParity, tSpn,Symmetry
         Type(BasisFn) ISym
 
-        integer i,ii
+        integer i,ii,j
         integer ierr
         include 'irat.inc'
         integer nDetTot
@@ -245,14 +246,17 @@ CONTAINS
     Subroutine DoDetCalc
       Use global_utilities
       Use HElem
+      use Determinants , only : GetHElement3
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh
       use IntegralsData, only: FCK,NMAX, UMat
-      Use Logging, only: iLogging
+      Use Logging, only: iLogging,tHistSpawn
       use SystemData, only  : tCSF
+      use Parallel, only : iProcIndex
 
       REAL*8 , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:)
       TYPE(HElement), ALLOCATABLE :: WORK(:)
+      TYPE(HElement) :: HEl
       INTEGER , ALLOCATABLE :: LAB(:),NROW(:),INDEX(:),ISCR(:)
 
       integer :: LabTag=0,NRowTag=0,TKETag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0
@@ -260,17 +264,18 @@ CONTAINS
       integer :: ierr
       character(25), parameter :: this_routine = 'DoDetCalc'
       REAL*8 EXEN,GSEN,FLRI,FLSI
+        Type(BasisFn) ISym
 
-        INTEGER GC,I,ICMAX
+        INTEGER GC,I,ICMAX,MaxDet,Bits
         INTEGER iDeg,III,IN
         INCLUDE 'irat.inc'
-        INTEGER NBLOCK
-        INTEGER nKry1
+        INTEGER NBLOCK,Det
+        INTEGER nKry1,ilut(0:nBasis/32)
         
         INTEGER J,JR
         INTEGER LSCR,LISCR
         LOGICAL tMC
-        real*8 GetHElement, calct, calcmcen, calcdlwdb
+        real*8 GetHElement, calct, calcmcen, calcdlwdb,norm
 ! Doesn't seem to have been inited
 
       WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
@@ -482,6 +487,49 @@ CONTAINS
 
 !C.. IF ENERGY CALC
       IF (TENERGY) THEN
+         
+         IF(tHistSpawn.and.(iProcIndex.eq.0)) THEN
+             Det=0
+             maxdet=0
+             do i=1,nel
+                 maxdet=maxdet+2**(nbasis-i)
+             enddo
+             IF(.not.associated(NMRKS)) THEN
+                 WRITE(6,*) "NMRKS not allocated"
+                 CALL FLUSH(6)
+             ENDIF
+             norm=0.D0
+             OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
+
+             do i=1,MAXDET
+                 Bits=0
+                 do j=0,nbasis-1
+                     IF(BTEST(i,j)) THEN
+                         Bits=Bits+1
+                     ENDIF
+                 enddo
+                 IF(Bits.eq.NEl) THEN
+
+                     DO j=1,NDET
+                         CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
+                         IF(iLut(0).eq.i) THEN
+
+                             CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
+                             IF(ISym%Sym%S.eq.0) THEN
+                                 Det=Det+1
+                                 WRITE(17,"(2I12)",advance='no') Det,iLut(0)
+                                 HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
+                                 norm=norm+(REAL(CK(j)%v,8))**2
+                                 WRITE(17,"(3G25.16)") REAL(HEL%v,8),REAL(CK(j)%v,8),norm
+                             ENDIF
+                             EXIT
+                         ENDIF
+                     ENDDO
+                 ENDIF
+
+             ENDDO
+             CLOSE(17)
+         ENDIF
 !C..
          IF(.NOT.TCSF) THEN
             CALL CFF_CHCK(NDET,NEVAL,NMRKS,NBASISMAX,NEL,G1,CK,ALAT,TKE,nBasis,ILOGGING)
