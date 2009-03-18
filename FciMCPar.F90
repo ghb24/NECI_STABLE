@@ -276,7 +276,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(tHistSpawn) CALL WriteHistogram()
+!        IF(tHistSpawn) CALL WriteHistogram()
 
         Weight=HDElement(0.D0)
         Energyxw=HDElement(ProjectionE)
