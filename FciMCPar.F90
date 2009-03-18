@@ -302,11 +302,12 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use Determinants , only : GetHElement3
         use SystemData , only : BasisFN
-        INTEGER :: i,j,Det,bits,iLut(0:nBasis/32),error
+        INTEGER :: i,j,Det,bits,iLut(0:nBasis/32),error,IterRead
         TYPE(BasisFN) :: ISym
-        REAL*8 :: norm,norm1
+        REAL*8 :: norm,norm1,ShiftRead,AllERead
         TYPE(HElement) :: HEL
-        CHARACTER(len=22) :: abstr
+        CHARACTER(len=22) :: abstr,abstr2
+        LOGICAL :: exists
 
 !This will open a file called SpawnHist-"Iter" on unit number 17.
         abstr=''
@@ -354,6 +355,33 @@ MODULE FciMCParMod
 
             OPEN(17,FILE=abstr,STATUS='UNKNOWN')
 
+            abstr=''
+            write(abstr,'(I12)') Iter-iWriteHistEvery
+            abstr='Energies-'//adjustl(abstr)
+
+            abstr2=''
+            write(abstr2,'(I12)') Iter
+            abstr2='Energies-'//adjustl(abstr2)
+            OPEN(29,FILE=abstr2,STATUS='NEW')
+
+            INQUIRE(FILE=abstr,EXIST=exists)
+            IF(exists) THEN
+                OPEN(28,FILE=abstr,STATUS='OLD',POSITION='REWIND',ACTION='READ')
+                do while(.true.)
+                    READ(28,"(I13,2G25.16)",END=99) IterRead,ShiftRead,AllERead
+                    WRITE(29,"(I13,2G25.16)") IterRead,ShiftRead,AllERead
+                enddo
+99              CONTINUE
+                WRITE(29,"(I13,2G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc
+                CLOSE(29)
+                CLOSE(28)
+
+            ELSE
+                OPEN(29,FILE=abstr2,STATUS='UNKNOWN')
+                WRITE(29,"(I13,2G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc
+                CLOSE(29)
+            ENDIF
+
             do i=1,Maxdet
                 bits=0
                 do j=0,nbasis-1
@@ -373,7 +401,7 @@ MODULE FciMCParMod
                                 HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
                                 norm=norm+(AllHistogram(i))**2
                                 norm1=norm1+(AllInstHist(i))**2
-                                WRITE(17,"(7G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1,DiagSft,AllENumCyc/AllHFCyc
+                                WRITE(17,"(5G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1
                             ENDIF
                             EXIT
                         ENDIF
