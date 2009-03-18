@@ -188,7 +188,7 @@ MODULE FciMCParMod
 
     REAL(4) :: IterTime
     
-    REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:)
+    REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:)
     INTEGER :: MaxDet
 
     contains
@@ -304,7 +304,7 @@ MODULE FciMCParMod
         use SystemData , only : BasisFN
         INTEGER :: i,j,Det,bits,iLut(0:nBasis/32),error
         TYPE(BasisFN) :: ISym
-        REAL*8 :: norm
+        REAL*8 :: norm,norm1
         TYPE(HElement) :: HEL
         CHARACTER(len=22) :: abstr
 
@@ -323,19 +323,25 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.0) THEN
             AllHistogram(:)=0.D0
+            AllInstHist(:)=0.D0
         ENDIF
 
         CALL MPI_Reduce(Histogram,AllHistogram,MaxDet,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(InstHist,AllInstHist,MaxDet,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         
         IF(iProcIndex.eq.0) THEN
             norm=0.D0
+            norm1=0.D0
             do i=1,MaxDet
                 norm=norm+AllHistogram(i)**2
+                norm1=norm1+AllInstHist(i)**2
             enddo
             norm=SQRT(norm)
+            norm1=SQRT(norm1)
 !            WRITE(6,*) "NORM",norm
             do i=1,MaxDet
                 AllHistogram(i)=AllHistogram(i)/norm
+                AllInstHist(i)=AllInstHist(i)/norm1
             enddo
             
             IF(.not.associated(NMRKS)) THEN
@@ -344,6 +350,7 @@ MODULE FciMCParMod
 
             Det=0
             norm=0.D0
+            norm1=0.D0
 
             OPEN(17,FILE=abstr,STATUS='UNKNOWN')
 
@@ -365,7 +372,8 @@ MODULE FciMCParMod
                                 WRITE(17,"(3I12)",advance='no') Det,iLut(0)
                                 HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
                                 norm=norm+(AllHistogram(i))**2
-                                WRITE(17,"(3G25.16)") REAL(HEL%v,8),AllHistogram(i),norm
+                                norm1=norm1+(AllInstHist(i))**2
+                                WRITE(17,"(7G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1,DiagSft,AllENumCyc/AllHFCyc
                             ENDIF
                             EXIT
                         ENDIF
@@ -375,6 +383,7 @@ MODULE FciMCParMod
             ENDDO
             CLOSE(17)
         ENDIF
+        InstHist(:)=0.D0
 
     END SUBROUTINE WriteHistogram
 
@@ -2759,13 +2768,13 @@ MODULE FciMCParMod
 !        ENDIF
 
 !Insert a load-balance check here...maybe find the s.d. of the sendcounts array - maybe just check the range first.
-        IF(TotWalkersNew.gt.200) THEN
-            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
-                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
-                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
-!                CALL FLUSH(6)
-            ENDIF
-        ENDIF
+!        IF(TotWalkersNew.gt.200) THEN
+!            IF((Maxsendcounts-Minsendcounts).gt.(TotWalkersNew/3)) THEN
+!                WRITE(6,"(A,I12)") "**WARNING** Parallel annihilation not optimally balanced on this node, for iter = ",Iter
+!                WRITE(6,*) "Sendcounts is: ",sendcounts(:)
+!!                CALL FLUSH(6)
+!            ENDIF
+!        ENDIF
         
 !Now send the chunks of hashes to the corresponding processors
         CALL MPI_AlltoAllv(Hash2Array(1:TotWalkersNew),sendcounts,disps,MPI_DOUBLE_PRECISION,HashArray(1:MaxIndex),recvcounts,recvdisps,MPI_DOUBLE_PRECISION,MPI_COMM_WORLD,error)        
@@ -3191,7 +3200,15 @@ MODULE FciMCParMod
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
-        IF(tHistSpawn) Histogram(iLutCurr(0))=Histogram(iLutCurr(0))+REAL(WSign,r2)
+        IF(tHistSpawn) THEN
+            IF(tFlippedSign) THEN
+                Histogram(iLutCurr(0))=Histogram(iLutCurr(0))-REAL(WSign,r2)
+                InstHist(iLutCurr(0))=InstHist(iLutCurr(0))-REAL(WSign,r2)
+            ELSE
+                Histogram(iLutCurr(0))=Histogram(iLutCurr(0))+REAL(WSign,r2)
+                InstHist(iLutCurr(0))=InstHist(iLutCurr(0))+REAL(WSign,r2)
+            ENDIF
+        ENDIF
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
             NoatHF=NoatHF+WSign
@@ -3555,8 +3572,8 @@ MODULE FciMCParMod
         TotPartsOld=TotParts
 
 !Also reinitialise the global variables - should not necessarily need to do this...
-        AllHFCyc=0.D0
-        AllENumCyc=0.D0
+!        AllHFCyc=0.D0
+!        AllENumCyc=0.D0
         AllSumENum=0.D0
         AllSumNoatHF=0.D0
         AllTotWalkersOld=AllTotWalkers
@@ -3912,9 +3929,12 @@ MODULE FciMCParMod
             WRITE(6,*) "Histogramming spawning wavevector, with MaxDet=", MaxDet
             ALLOCATE(Histogram(1:maxdet))
             Histogram(:)=0.D0
+            ALLOCATE(InstHist(1:maxdet))
+            InstHist(:)=0.D0
 
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(AllHistogram(1:maxdet))
+                ALLOCATE(AllInstHist(1:maxdet))
             ENDIF
         ENDIF
 
@@ -6762,8 +6782,10 @@ MODULE FciMCParMod
             
         IF(tHistSpawn) THEN
             DEALLOCATE(Histogram)
+            DEALLOCATE(InstHist)
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllHistogram)
+                DEALLOCATE(AllInstHist)
             ENDIF
         ENDIF
         DEALLOCATE(WalkVecDets)
