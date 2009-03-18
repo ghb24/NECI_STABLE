@@ -81,7 +81,12 @@ MODULE System
       tShakeIter=.false.
       ShakeIterMax=5
       tSeparateOccVirt=.false.
+      tOffDiagMin=.false.
       tERLocalization=.false.
+      tRotateOccOnly=.false.
+      tRotateVirtOnly=.false.
+      ERWeight=1.D0
+      OffDiagWeight=1.D0
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -346,22 +351,34 @@ MODULE System
 
 
 ! The ROTATEORBS calculation initiates a routine which takes the HF orbitals
-! and finds the optimal set of transformation coefficients to produce a new 
-! set of orbitals which minimise the sum of |<ij|kl>|^2 elements.
-! This new set of orbitals is then used to perform the FCIMC calculation.
+! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
+! This new set of orbitals can then used to produce a ROFCIDUMP file and perform the FCIMC calculation.
         case("ROTATEORBS")
             tRotateOrbs=.true.
             call Getf(TimeStep)
             call Getf(ConvergedForce)
+
         case("LAGRANGE")
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
 ! attempt to maintain orthogonality. This currently does not seem to work too well!
             tLagrange=.true.
 
+        case("OFFDIAGMIN")
+            tOffDiagMin=.true.
+! This sets the orbital rotation to find the coefficients which minimise the sum of the |<ij|kl>|^2 elements.
+
         case("ERLOCALIZATION")
             tERLocalization=.true.
 ! This sets the orbital rotation to an Edmiston-Reudenberg localisation.  This maximises the self repulsion energy, i.e 
 ! maximises the sum of the <ii|ii> terms.    
+
+        case("ERMAXOFFDIAGMIN")
+            tERLocalization=.true.
+            tOFFDiagMin=.true.
+            call Getf(ERWeight)
+            call Getf(OffDiagWeight)
+! This finds the set of coefficients with the best comprimise between maximising the <ii|ii> terms, and minimising the |<ij|kl>|^2 elements.
+! The importance of each of these factors may be controlled by weighting the force towards either technique.
 
         case("ROITERATION")
 ! Specifying this keyword overwrites the convergence limit from the ROTATEORBS line, and instead runs the orbital rotation for as many
@@ -392,6 +409,14 @@ MODULE System
 ! advantage of keeping the HF reference determinant the same.
             tSeparateOccVirt=.true.
 
+        case("ROTATEOCCONLY")
+! This option applies to orbital rotation.  It separates the orbitals into occupied and virtual, and rotates the occupied while keeping the 
+! virtual as the HF.
+            tRotateOccOnly=.true.
+
+        case("ROTATEVIRTONLY")
+! This option rotates the virtual orbitals while keeping the occupied as the HF.            
+            tRotateVirtOnly=.true.
 
         case("ROTATEDORBS")
 ! This is a flag which is to be included if the FCIDUMP being read in is one containing rotated orbitals.  The only difference is that the 
