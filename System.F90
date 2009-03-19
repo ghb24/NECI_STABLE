@@ -72,7 +72,7 @@ MODULE System
       tShake=.false.
       lNoSymmetry=.false.
       tRotateOrbs=.false.
-      TimeStep=0.1
+      TimeStep=0.01
       ConvergedForce=0.001
       ShakeConverged=0.001
       tShakeApprox=.false.
@@ -358,11 +358,6 @@ MODULE System
             call Getf(TimeStep)
             call Getf(ConvergedForce)
 
-        case("LAGRANGE")
-! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
-! attempt to maintain orthogonality. This currently does not seem to work too well!
-            tLagrange=.true.
-
         case("OFFDIAGMIN")
             tOffDiagMin=.true.
 ! This sets the orbital rotation to find the coefficients which minimise the sum of the |<ij|kl>|^2 elements.
@@ -375,23 +370,25 @@ MODULE System
         case("ERMAXOFFDIAGMIN")
             tERLocalization=.true.
             tOFFDiagMin=.true.
-            call Getf(ERWeight)
-            call Getf(OffDiagWeight)
+            IF(item.lt.nitems) THEN
+                call Getf(ERWeight)
+                call Getf(OffDiagWeight)
+            ELSE
+                ERWeight=1.0
+                OffDiagWeight=1.0
+            ENDIF
 ! This finds the set of coefficients with the best comprimise between maximising the <ii|ii> terms, and minimising the |<ij|kl>|^2 elements.
 ! The importance of each of these factors may be controlled by weighting the force towards either technique.
-
-        case("ROITERATION")
-! Specifying this keyword overwrites the convergence limit from the ROTATEORBS line, and instead runs the orbital rotation for as many
-! iterations as chosen on this line.
-            tROIteration=.true.
-            call Geti(ROIterMax)
 
         case("SHAKE")
 ! This will use the shake algorithm to iteratively enforce orthonormalisation on the rotation coefficients calculated in the ROTATEORBS
 ! routine.  It finds a force matrix which moves the coefficients at a tangent to the constraint surface, from here, a normalisation
 ! will require just a small adjustment to ensure complete orthonormalisation, but not majorly affecting the new coefficients.
             tShake=.true.
-            call Getf(ShakeConverged)
+            IF(item.lt.nitems) THEN
+               call getf(ShakeConverged)
+            ENDIF
+
         case("SHAKEAPPROX")
 ! This turns on the shake approximation algorithm.  To be used if the matrix inversion required in the full shake algorithm cannot 
 ! be performed.
@@ -403,6 +400,11 @@ MODULE System
 ! and instead performs only the number of iterations specified on this line.
             tShakeIter=.true.
             call Geti(ShakeIterMax)
+
+        case("LAGRANGE")
+! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
+! attempt to maintain orthogonality. This currently does not seem to work too well!
+            tLagrange=.true.
 
         case("SEPARATEOCCVIRT")
 ! This option applies to the orbital rotation.  If present, the virtual and occuppied orbitals are localised separately.  This has the 
@@ -418,13 +420,17 @@ MODULE System
 ! This option rotates the virtual orbitals while keeping the occupied as the HF.            
             tRotateVirtOnly=.true.
 
+        case("ROITERATION")
+! Specifying this keyword overwrites the convergence limit from the ROTATEORBS line, and instead runs the orbital rotation for as many
+! iterations as chosen on this line.
+            tROIteration=.true.
+            call Geti(ROIterMax)
+
         case("ROTATEDORBS")
 ! This is a flag which is to be included if the FCIDUMP being read in is one containing rotated orbitals.  The only difference is that the 
 ! H elements for single excitations are no longer 0 (as for HF), and walkers on singly excited determinants must be included in the energy 
 ! calculations.
             tRotatedOrbs=.true.
-
-
 
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.

@@ -248,3 +248,24 @@ Monte Carlo options
     Calculate the exact eigen-vectors and -values initially, and 
     print out the running wavevector every nWavevectorPrint Monte Carlo
     steps. This is slows the calculation down substantially.
+
+
+Rotate Orbs Options
+-------------------
+
+**ROFCIDUMP** [OFF]
+    At the end of an orbital rotation (or in the case of a softexit), by default 
+    a ROFCIDUMP file will be printed using the transformation coefficients.
+    This may then be read in to a spawning calculation.
+    In the case of ROFCIDUMP OFF, no FCIDUMP will be printed.
+    Note: When reading in the ROFCIDUMP, the number of electrons must be reduced 
+    by the number frozen in the previous rotation, and the number frozen set to 0.
+
+**ROHISTOGRAM**
+    If this keyword is present, four files are produced. These contain histograms that 
+    show the distribution of the off diagonal 2 electron integrals before and after 
+    rotation, and the single excitation integrals before and after rotation.
+
+**ERHISTOGRAM**
+    With this, two more histogram files are produced which show spread of the <ii|ii>
+    values before and after rotation.

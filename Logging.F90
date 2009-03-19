@@ -41,7 +41,7 @@ MODULE Logging
       iPopsPartEvery=1
       tBinPops=.false.
       tROHistogram=.false.
-      tROFciDump=.false.
+      tROFciDump=.true.
       tERHist=.false.
 
 ! Feb08 defaults
@@ -70,19 +70,28 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
+ 
+        case("ROFCIDUMP")
+!Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow
+!so this will prevent us having to do the transformation every time we run a calculation on a particular system
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROFCIDUMP=.false.
+                end select
+            ELSE
+                tROFCIDUMP=.true.
+            ENDIF
+            
         case("ROHISTOGRAM")
 !This option goes with the orbital rotation routine.  If this keyword is included, a histogram is produced, showing the distribution
 !of the four index integral values (<ij|kl>, not including where i=k and/or j=l) both before the orbital transformation (HF integrals)
 !and after.  Two files are produced, ROHistHF and ROHistRotated.
 !As it stands, the bins run from -1 to 1 with increments of 0.05. These parameters may be made options in the future.
             tROHistogram=.true.
-        
-        case("ROFCIDUMP")
-!Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow
-!so this will prevent us having to do the transformation every time we run a calculation on a particular system
-            tROFciDump=.true.
-            
-        case("ERHISTOGRAM")
+
+       case("ERHISTOGRAM")
 !This option creates a histogram of the <ii|ii> terms, the ones that are maximised in the edmiston-reudenberg localisation.
             tERHist=.true.
 

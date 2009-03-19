@@ -227,16 +227,24 @@ General options
     is zero, so explicitly exclude such single excitations.
 
 **ROTATEORBS** [TimeStep] [ConvergedForce]
+    This keyword initiates an iterative rotation of the HF orbitals to find the 
+    coefficients that best fit a particular criteria (e.g those which maximise 
+    the sum of the <ii|ii> values).
+    This is followed by two real values, the first indicates the size of the 
+    iterative steps, and the second is the force value chosen to indicate convergence. 
+    The default time step is 0.01, and convergence value is 0.001.
+    Further options are described below.
 
-    Iterativly rotate the HF orbital in such a way to minimize the two-electron
-    integrals with at least three-distinct indicies. This explicitly orthonormalizes
-    the orbitals after each rotation.
-
-**LAGRANGE**
-    This option can only be used if **ROTATEORBS** is specified, and will try to 
-    maintain orthonormality of the orbitals via a lagrange multiplier force, rather
-    than an explicit reorthogonalization step each iteration.
-
+**ROTATEDORBS**
+    This keyword is required in the system block if a ROFCIDUMP file is being read in 
+    (after orbital rotation).  As the orbitals are no longer the HF orbitals, Brillouin's 
+    theorem does not apply, and the projected energy must include contributions from 
+    walkers on single (as well as double) excited determinants.
+    NOTE: Currently, if electrons are frozen in a rotation calculation, they are 
+    incorporated into the core energy in the ROFCIDUMP file.  So the number of electrons 
+    specified in an input file which reads in an ROFCIDUMP, needs to be the NEl-No.FrozenEl, 
+    and the number frozen in the INTEGRAL block needs to be set to 0.
+    This will hopefully be fixed in the near future.
 
 Read options 
 ------------
@@ -356,3 +364,81 @@ UEG options
 
 .. [AttenEx]  Efficient calculation of the exact exchange energy in periodic systems using a truncated Coulomb potential, James Spencer and Ali Alavi, PRB, 77 193110 (2008).
 .. [CamCasp] Cambridge package for Calculation of Anisotropic Site Properties, Alston Misquitta and Anthony Stone.  http://www-stone.ch.cam.ac.uk/programs.html#Camcasp
+
+
+Orbital rotation options
+------------------------
+
+The minimum keywords required for this method are the above described **ROTATEORBS**,
+the type of rotation / localisation, and an orthonormalisation method.
+
+Type of rotation / localisation:
+
+**OFFDIAGMIN**
+    This method finds the linear combinations of the HF orbitals that most effectively 
+    minimise the sum of the <ij|kl>^2 values, where i,j,k,l are spin orbitals and
+    i.ne.k, and j.ne.l.
+
+**ERLOCALIZATION**
+    This method performs a Edmiston-Reudenberg localisation.  It finds the coefficients 
+    that maximise the sum of the self-repulsion (<ii|ii>) terms.
+    In reality we minimise -<ii|ii> to keep the code consistent.
+
+**ERMAXOFDIAGMIN** [ERWeight] [OffDiagWeight]
+    This method is a combination of the two above.  It finds the coefficients that most 
+    effectively both maximise the <ii|ii>, and minimise the <ij|kl>^2 terms.
+    The contribution from each method can be adjusted by weighting the effect of either
+    force.  In the absence of values for ERWeight and OffDiagWeight, the defaults of 1.0
+    each will be used.
+
+Each of these methods may be applied for both the cases where symmetry as kept and broken.
+This is controlled by the absence or presence of the NOSYMMETRY keyword respectively.
+Also, the default option is to mix all orbitals (occupied and virtual) together.
+
+Orthonormalisation methods:
+
+**SHAKE** [ShakeConverged]
+    This will use the shake algorithm to iteratively enforce orthonormalisation on the
+    rotation coefficients.
+    Convergence is reached once the sum of the orthonormality constraints is reduced to 
+    below the ShakeConverged value.
+
+    **SHAKEAPPROX**
+        This keyword is likely to be used when the matrix inversion required in the
+        full shake algorithm cannot be performed.  It initiates an approximatation to the 
+        method which treats each constraint in succession, and finds an appropriate lambda
+        for each in turn.  This clearly converges more slowely than the full method in which
+        all constraints are dealt with simultaneously.
+    
+    **SHAKEITER** [ShakeIterMax]
+        The presence of this keyword overrides the ConvergenceLimit specified with the **SHAKE**
+        keyword, and instead the shake algorithm is applied for the number of iterations given 
+        by ShakeIterMax.  It seems that with only a few iterations, although the coefficients do
+        not remain completely orthonormal at every rotation step, orthonormality is eventually imposed 
+        throughout the course of the run.
+
+**LAGRANGE**
+    This option can only be used if **ROTATEORBS** is specified, and will try to 
+    maintain orthonormality of the orbitals via a lagrange multiplier force, rather
+    than an explicit reorthogonalization step each iteration.
+
+Additional options:
+
+**ROITERATION** [ROIterMax]
+    Much like **SHAKEITER**, the presence of this keyword overrides the convergence criteria 
+    on the force, and instead runs for the number of iterations specified here.
+    Note: A SOFTEXIT is also an option in this method.
+
+**SEPARATEOCCVIRT** 
+    If present, this keyword separates the orbitals into occupied and virtual and does not 
+    allow mixing between the two.
+    This has the advantage of keeping the energy of the reference determinant the same as the HF.
+
+    **ROTATEOCCONLY**
+        This option allows mixing amongst the occupied orbitals only, while keeping the virtual
+        the HF.
+
+    **ROTATEVIRTONLY**
+        This option allows mixing amongst the virtual orbitals only.
+
+Note: With this method come logging options **ROFCIDUMP**, **ROHISTOGRAM**, and **ERHISTOGRAM**.
