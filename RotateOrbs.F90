@@ -487,25 +487,25 @@ MODULE RotateOrbsMod
 
 ! Find the lower and upper bounds for each processor when running over a=1,SpatOrbs and then b=1,a.
         
-        do i=1,SpatOrbs
-            SumSpatOrbs=SumSpatOrbs+i
-        enddo
-        SpatOrbsPerProc=SumSpatOrbs/nProcessors
-        j=1
-        k=0
-        do i=1,iProcIndex+1
-            SpatOrbsRem=SpatOrbsPerProc
-            do while (SpatOrbsRem.gt.0)
-                k=k+1
-                SpatOrbsRem=SpatOrbsRem-k
-            enddo
-            IF(iProcIndex.eq.(i-1)) THEN
-                LowBound02=j
-                HighBound02=k
-            ENDIF
-            j=k+1
-        enddo
-        IF(iProcIndex.eq.(nProcessors-1)) HighBound02=SpatOrbs
+!        do i=1,SpatOrbs
+!            SumSpatOrbs=SumSpatOrbs+i
+!        enddo
+!        SpatOrbsPerProc=SumSpatOrbs/nProcessors
+!        j=1
+!        k=0
+!        do i=1,iProcIndex+1
+!            SpatOrbsRem=SpatOrbsPerProc
+!            do while (SpatOrbsRem.gt.0)
+!                k=k+1
+!                SpatOrbsRem=SpatOrbsRem-k
+!            enddo
+!            IF(iProcIndex.eq.(i-1)) THEN
+!                LowBound02=j
+!                HighBound02=k
+!            ENDIF
+!            j=k+1
+!        enddo
+!        IF(iProcIndex.eq.(nProcessors-1)) HighBound02=SpatOrbs
 
 
         OPEN(12,FILE='Transform',STATUS='unknown')
