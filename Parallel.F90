@@ -214,8 +214,8 @@ Subroutine MPIISumArr(iValues, iLen, iReturn)
    != quantities without it getting annoyed with associating a scalar with a vector when we
    != just want to sum single numbers. Since we are parsing by reference, it should mean that
    != arrays are ok too.
-   integer iValues(*), iReturn(*), iLen
-   integer g, ierr,rc
+   integer iValues(iLen), iReturn(iLen), iLen
+   integer g, ierr,rc,i
 #if PARALLEL
    g=MPI_COMM_WORLD
    call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,MPI_SUM,g,ierr)
@@ -224,7 +224,9 @@ Subroutine MPIISumArr(iValues, iLen, iReturn)
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
    end if
 #else
-   iReturn(:)=iValues(:)
+    do i=1,iLen
+        iReturn(i)=iValues(i)
+    enddo
 #endif
 end Subroutine MPIISumArr
 
@@ -268,8 +270,8 @@ Subroutine MPIDSumArr(dValues, iLen, dReturn)
    != quantities without it getting annoyed with associating a scalar with a vector when we
    != just want to sum single numbers. Since we are parsing by reference, it should mean that
    != arrays are ok too.
-   real*8 dValues(*), dReturn(*)
-   integer iLen
+   real*8 dValues(iLen), dReturn(iLen)
+   integer iLen,i
    integer g, ierr,rc
 #ifdef PARALLEL
    g=MPI_COMM_WORLD
@@ -279,7 +281,9 @@ Subroutine MPIDSumArr(dValues, iLen, dReturn)
       call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
    end if
 #else
-    dReturn(:)=dValues(:)
+    do i=1,iLen
+        dReturn(i)=dValues(i)
+    enddo
 #endif
 end Subroutine MPIDSumArr
 
