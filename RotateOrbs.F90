@@ -7,7 +7,7 @@
 MODULE RotateOrbsMod
 
     USE Global_utilities
-    USE Parallel !, only : iProcIndex,nProcessors,MPI_COMM_WORLD,MPI_DOUBLE_PRECISION,MPI_SUM
+    USE Parallel 
     USE IntegralsData , only : UMAT,nFrozen
     USE UMatCache , only : UMatInd
     USE HElem , only : HElement
@@ -22,20 +22,24 @@ MODULE RotateOrbsMod
     IMPLICIT NONE
     INTEGER , PARAMETER :: Root=0   !This is the rank of the root processor
     INTEGER , ALLOCATABLE :: Lab(:,:),LabVirtOrbs(:),LabOccOrbs(:),SymLabelCounts2(:,:),SymLabelList2(:),SymLabelListInv(:)
-    REAL*8 , ALLOCATABLE :: CoeffT1(:,:),CoeffCorT2(:,:),CoeffUncorT2(:,:)
+    REAL*8 , ALLOCATABLE :: CoeffT1(:,:),CoeffT1Temp(:,:),CoeffCorT2(:,:),CoeffUncorT2(:,:)
     REAL*8 , ALLOCATABLE :: Lambdas(:,:),ArrNew(:,:)
     REAL*8 , ALLOCATABLE :: DerivCoeffTemp(:,:),DerivCoeff(:,:),UMATTemp01(:,:,:,:),UMATTemp02(:,:,:,:)
     REAL*8 , ALLOCATABLE :: DerivLambda(:,:),ForceCorrect(:,:),Correction(:,:),ShakeLambdaNew(:),ConstraintCor(:)
-    REAL*8 , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:),DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:)
+    REAL*8 , ALLOCATABLE :: Constraint(:),ShakeLambda(:),DerivConstrT1(:,:,:),DerivConstrT2(:,:,:),DerivConstrT1T2(:,:),DerivConstrT1T2Diag(:),FourIndInts(:,:,:,:),FourIndIntsTemp(:,:,:,:)
 !    REAL*8 , ALLOCATABLE :: PartTransfInts01(:,:,:,:),PartTransfInts02(:,:,:,:),PartTransfInts03(:,:,:,:),PartTransfInts04(:,:,:,:),PartTransfInts05(:,:,:,:)
-    REAL*8 , ALLOCATABLE :: OneIndInts01(:,:,:,:),OneIndInts02Temp(:,:,:,:),TwoIndInts01(:,:,:,:),TwoIndInts02(:,:,:,:),ThreeIndInts01(:,:,:,:),FourIndInts02(:,:,:,:)
-    REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:),ThreeIndInts(:,:,:,:),OneIndInts02(:,:,:,:)   
+    REAL*8 , ALLOCATABLE :: OneIndInts01(:,:,:,:),OneIndInts02(:,:,:,:),TwoIndInts01(:,:,:,:),TwoIndInts02(:,:,:,:),ThreeIndInts01(:,:,:,:),FourIndInts02(:,:,:,:)
+    REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:),ThreeIndInts(:,:,:,:)  
+    REAL*8 , ALLOCATABLE :: OneIndInts01Temp(:,:,:,:),OneIndInts02Temp(:,:,:,:),TwoIndInts01Temp(:,:,:,:),TwoIndInts02Temp(:,:,:,:),ThreeIndInts01Temp(:,:,:,:),FourIndInts02Temp(:,:,:,:)
+    REAL*8 , ALLOCATABLE :: ThreeIndInts02Temp(:,:,:,:),ThreeIndInts03Temp(:,:,:,:),ThreeIndInts04Temp(:,:,:,:),ThreeIndIntsTemp(:,:,:,:)   
     !These are the arrays to store the
 !partially transformed integrals for each iteration. The FourIndInts are the full <ij|kl> integrals for the current iteration.
 !OneIndInts = <i b|g d> ; TwoIndInts = <i b|k d> ; ThreeIndInts = <i j|k d>
 !    INTEGER :: PartTransfInts01Tag,PartTransfInts02Tag,PartTransfInts03Tag,PartTransfInts04Tag,PartTransfInts05Tag
-    INTEGER :: OneIndInts01Tag,OneIndInts02TempTag,TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
-    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,SpatOrbs,FourIndIntsTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ThreeIndIntsTag,OneIndInts02Tag
+    INTEGER :: OneIndInts01Tag,OneIndInts02Tag,TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
+    INTEGER :: OneIndInts01TempTag,OneIndInts02TempTag,TwoIndInts01TempTag,TwoIndInts02TempTag,ThreeIndInts01TempTag,ThreeIndInts02TempTag,ThreeIndInts03TempTag,ThreeIndInts04TempTag
+    INTEGER :: FourIndInts02TempTag,FourIndIntsTempTag,ThreeIndIntsTempTag,CoeffT1TempTag
+    INTEGER :: LabTag,ForceCorrectTag,CorrectionTag,SpatOrbs,FourIndIntsTag,ArrNewTag,UMATTemp01Tag,UMATTemp02Tag,ThreeIndIntsTag
     INTEGER :: CoeffT1Tag,CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
     INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag,DerivConstrT1T2DiagTag,DerivCoeffTempTag
     INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,SymLabelCounts2Tag,SymLabelList2Tag,SymLabelListInvTag,error,LowBound,HighBound
@@ -283,6 +287,8 @@ MODULE RotateOrbsMod
 
 !Allocate memory
 
+        ALLOCATE(CoeffT1Temp(SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('CoeffT1Temp',SpatOrbs**2,8,this_routine,CoeffT1TempTag,ierr)
         ALLOCATE(CoeffT1(SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('CoeffT1',SpatOrbs**2,8,this_routine,CoeffT1Tag,ierr)
         ALLOCATE(CoeffCorT2(SpatOrbs,SpatOrbs),stat=ierr)
@@ -297,15 +303,37 @@ MODULE RotateOrbsMod
         ALLOCATE(DerivCoeff(SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('DerivCoeff',SpatOrbs**2,8,this_routine,DerivCoeffTag,ierr)
 
-        ALLOCATE(OneIndInts01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('OneIndInts01',SpatOrbs**4,8,this_routine,OneIndInts01Tag,ierr)
+        ALLOCATE(OneIndInts01Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('OneIndInts01Temp',SpatOrbs**4,8,this_routine,OneIndInts01TempTag,ierr)
         ALLOCATE(OneIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('OneIndInts02Temp',SpatOrbs**4,8,this_routine,OneIndInts02TempTag,ierr)
 
-!        IF(nProcessors.eq.Root) THEN
-            ALLOCATE(OneIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-            CALL LogMemAlloc('OneIndInts02',SpatOrbs**4,8,this_routine,OneIndInts02Tag,ierr)
-!        ENDIF 
+        ALLOCATE(TwoIndInts01Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('TwoIndInts01Temp',SpatOrbs**4,8,this_routine,TwoIndInts01TempTag,ierr)
+        ALLOCATE(TwoIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('TwoIndInts02Temp',SpatOrbs**4,8,this_routine,TwoIndInts02TempTag,ierr)
+
+        ALLOCATE(ThreeIndIntsTemp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('ThreeIndIntsTemp',SpatOrbs**4,8,this_routine,ThreeIndIntsTempTag,ierr)
+        ALLOCATE(ThreeIndInts01Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('ThreeIndInts01Temp',SpatOrbs**4,8,this_routine,ThreeIndInts01TempTag,ierr)
+        ALLOCATE(ThreeIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('ThreeIndInts02Temp',SpatOrbs**4,8,this_routine,ThreeIndInts02TempTag,ierr)
+        ALLOCATE(ThreeIndInts03Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('ThreeIndInts03Temp',SpatOrbs**4,8,this_routine,ThreeIndInts03TempTag,ierr)
+        ALLOCATE(ThreeIndInts04Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('ThreeIndInts04Temp',SpatOrbs**4,8,this_routine,ThreeIndInts04TempTag,ierr)
+
+        ALLOCATE(FourIndIntsTemp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('FourIndIntsTemp',SpatOrbs**4,8,this_routine,FourIndIntsTempTag,ierr)
+        ALLOCATE(FourIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('FourIndInts02Temp',SpatOrbs**4,8,this_routine,FourIndInts02TempTag,ierr)
+ 
+
+        ALLOCATE(OneIndInts01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('OneIndInts01',SpatOrbs**4,8,this_routine,OneIndInts01Tag,ierr)
+        ALLOCATE(OneIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('OneIndInts02',SpatOrbs**4,8,this_routine,OneIndInts02Tag,ierr)
 
         ALLOCATE(TwoIndInts01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('TwoIndInts01',SpatOrbs**4,8,this_routine,TwoIndInts01Tag,ierr)
@@ -457,12 +485,36 @@ MODULE RotateOrbsMod
         PEInts=PotEnergy
         CALL TestOrthonormality()
 
+! Find the lower and upper bounds for each processor when running over a=1,SpatOrbs and then b=1,a.
+        
+        do i=1,SpatOrbs
+            SumSpatOrbs=SumSpatOrbs+i
+        enddo
+        SpatOrbsPerProc=SumSpatOrbs/nProcessors
+        j=1
+        k=0
+        do i=1,iProcIndex+1
+            SpatOrbsRem=SpatOrbsPerProc
+            do while (SpatOrbsRem.gt.0)
+                k=k+1
+                SpatOrbsRem=SpatOrbsRem-k
+            enddo
+            IF(iProcIndex.eq.(i-1)) THEN
+                LowBound02=j
+                HighBound02=k
+            ENDIF
+            j=k+1
+        enddo
+        IF(iProcIndex.eq.(nProcessors-1)) HighBound02=SpatOrbs
+
 
         OPEN(12,FILE='Transform',STATUS='unknown')
         IF(tLagrange) THEN
 !We want to write out: Iteration, Potential energy, Force, Sum<ij|kl>^2, OrthonormalityCondition
-            WRITE(12,"(A)") "# Iteration   2.PotEnergy   3.PEInts   4.PEOrtho    5.Force   6.ForceInts   7.OrthoForce    8.Sum<ij|kl>^2   9.OrthoNormCondition   10.DistMovedbyCs   11.DistMovedByLs   12.LambdaMag"
-            WRITE(6,"(A)") "Iteration   2.PotEnergy   3.PEInts   4.PEOrtho   5.Force   6.ForceInts   7.OrthoForce    8.Sum<ij|kl>^2   9.OrthoNormCondition   10.DistMovedbyCs   11.DistMovedbyLs   12.LambdaMag"
+            WRITE(12,"(A12,11A18)") "# Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce","8.Sum<ij|kl>^2",&
+                                    &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedByLs","12.LambdaMag"
+            WRITE(6,"(A12,11A19)") "Iteration","2.PotEnergy","3.PEInts","4.PEOrtho","5.Force","6.ForceInts","7.OrthoForce","8.Sum<ij|kl>^2",&
+                                    &"9.OrthoNormCondition","10.DistMovedbyCs","11.DistMovedbyLs","12.LambdaMag"
         ELSE
             WRITE(12,"(A12,5A24)") "# Iteration","2.PotEnergy","3.Force","4.Totalcorrforce","5.OrthoNormCondition","6.DistMovedbyCs"
             WRITE(6,"(A12,5A24)") "Iteration","2.PotEnergy","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
@@ -480,8 +532,8 @@ MODULE RotateOrbsMod
     SUBROUTINE WriteStats()
 
         IF(tLagrange) THEN
-            IF(iProcIndex.eq.Root) WRITE(6,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
-            WRITE(12,"(I7,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+            IF(iProcIndex.eq.Root) WRITE(6,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
+            WRITE(12,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
         ELSE
             IF(Mod(Iteration,10).eq.0) THEN
                 IF(iProcIndex.eq.Root) WRITE(6,"(I12,5F24.10)") Iteration,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
@@ -583,17 +635,8 @@ MODULE RotateOrbsMod
             SymVirtOrbs(i)=INT(G1(LabVirtOrbs(i)*2)%sym%S,4)
         enddo
         
-!        do i=1,((nBasis-NEl)/2)
-!            WRITE(6,'(2I5)') LabVirtOrbs(i),SymVirtOrbs(i)
-!        enddo
-
         CALL NECI_SORT2I((nBasis-NEl)/2,SymVirtOrbs,LabVirtOrbs)
  
-!        WRITE(6,*) 'after'
-!        do i=1,((nBasis-NEL)/2)
-!            WRITE(6,'(2I5)') LabVirtOrbs(i),SymVirtOrbs(i)
-!        enddo
-
         do i=1,NEl/2
             SymLabelList2(i)=LabOccOrbs(i)
         enddo
@@ -752,29 +795,43 @@ MODULE RotateOrbsMod
 !This is v memory inefficient and currently does not use any spatial symmetry information.
     SUBROUTINE Transform2ElInts()
         INTEGER :: i,j,k,l,a,b,g,d
-        REAL*8 :: t,FourIndIntMax,Temp4indints(SpatOrbs,SpatOrbs)
-        
+        REAL*8 :: t,FourIndIntMax,Temp4indints(SpatOrbs,SpatOrbs),PotEnergyTemp,TwoEIntsTemp,PEIntsTemp
+   
         
         CALL set_timer(Transform2ElInts_time,30)
 
 
 !Zero arrays from previous transform
+        OneIndInts01Temp(:,:,:,:)=0.D0
         OneIndInts01(:,:,:,:)=0.D0
         OneIndInts02Temp(:,:,:,:)=0.D0
         OneIndInts02(:,:,:,:)=0.D0
 
+        TwoIndInts01Temp(:,:,:,:)=0.D0
         TwoIndInts01(:,:,:,:)=0.D0
+        TwoIndInts02Temp(:,:,:,:)=0.D0
         TwoIndInts02(:,:,:,:)=0.D0
 
+        ThreeIndIntsTemp(:,:,:,:)=0.D0
         ThreeIndInts(:,:,:,:)=0.D0
+        ThreeIndInts01Temp(:,:,:,:)=0.D0
         ThreeIndInts01(:,:,:,:)=0.D0
+        ThreeIndInts02Temp(:,:,:,:)=0.D0
         ThreeIndInts02(:,:,:,:)=0.D0
+        ThreeIndInts03Temp(:,:,:,:)=0.D0
         ThreeIndInts03(:,:,:,:)=0.D0
+        ThreeIndInts04Temp(:,:,:,:)=0.D0
         ThreeIndInts04(:,:,:,:)=0.D0
 
-
+        FourIndIntsTemp(:,:,:,:)=0.D0
         FourIndInts(:,:,:,:)=0.D0
+        FourIndInts02Temp(:,:,:,:)=0.D0
+        FourIndInts02(:,:,:,:)=0.D0
 
+
+        LowBound=iProcIndex*(SpatOrbs/nProcessors)+1
+        HighBound=(iProcIndex+1)*(SpatOrbs/nProcessors)
+        IF(iProcIndex.eq.(nProcessors-1)) HighBound=SpatOrbs
 
 !<alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
 
@@ -786,25 +843,23 @@ MODULE RotateOrbsMod
 !        enddo
 
 ! Calculating the one-transformed, four index integrals.
-        do b=1,SpatOrbs
+        do b=LowBound,HighBound
             do d=1,b
                 Temp4indints(:,:)=0.D0
                 CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,UMatTemp01(:,:,d,b),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                 do g=1,SpatOrbs
                     do i=1,SpatOrbs
-                        OneIndInts01(g,i,b,d)=Temp4indints(i,g)
-                        OneIndInts01(g,i,d,b)=Temp4indints(i,g)
+                        OneIndInts01Temp(g,i,b,d)=Temp4indints(i,g)
+                        OneIndInts01Temp(g,i,d,b)=Temp4indints(i,g)
                     enddo
                 enddo
             enddo
         enddo
+        CALL MPIDSumArr(OneIndInts01Temp(:,:,:,:),SpatOrbs**4,OneIndInts01(:,:,:,:))
 
 
 ! Only the fourindints are required once this routine is called to finalize the new orbs, these calculations are unnecessary. 
         IF(tNotConverged) THEN
-            LowBound=iProcIndex*(SpatOrbs/nProcessors)+1
-            HighBound=(iProcIndex+1)*(SpatOrbs/nProcessors)
-            IF(iProcIndex.eq.(nProcessors-1)) HighBound=SpatOrbs
             do g=LowBound,HighBound
                 do a=1,g
                     Temp4indints(:,:)=0.D0
@@ -817,58 +872,61 @@ MODULE RotateOrbsMod
                     enddo
                 enddo
             enddo
-            CALL MPI_AllReduce(OneIndInts02Temp(:,:,:,:),OneIndInts02(:,:,:,:),SpatOrbs**4,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+            CALL MPIDSumArr(OneIndInts02Temp(:,:,:,:),SpatOrbs**4,OneIndInts02(:,:,:,:))
+!            CALL MPI_AllReduce(OneIndInts02Temp(:,:,:,:),OneIndInts02(:,:,:,:),SpatOrbs**4,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
         ENDIF
 
 ! Calculating the two-transformed, four index integrals.        
         
-        do b=1,SpatOrbs
+        do b=LowBound,HighBound
             do d=1,b
                 Temp4indints(:,:)=0.D0
                 CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,OneIndInts01(:,:,d,b),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                 do i=1,SpatOrbs
                     do k=1,i
-                        TwoIndInts01(d,b,k,i)=Temp4indints(k,i)
-                        TwoIndInts01(b,d,k,i)=Temp4indints(k,i)
-                        TwoIndInts01(d,b,i,k)=Temp4indints(k,i)
-                        TwoIndInts01(b,d,i,k)=Temp4indints(k,i)
+                        TwoIndInts01Temp(d,b,k,i)=Temp4indints(k,i)
+                        TwoIndInts01Temp(b,d,k,i)=Temp4indints(k,i)
+                        TwoIndInts01Temp(d,b,i,k)=Temp4indints(k,i)
+                        TwoIndInts01Temp(b,d,i,k)=Temp4indints(k,i)
                     enddo
                 enddo
             enddo
         enddo
+        CALL MPIDSumArr(TwoIndInts01Temp(:,:,:,:),SpatOrbs**4,TwoIndInts01(:,:,:,:))
 
 
         IF(tNotConverged) THEN
-            do g=1,SpatOrbs
+            do g=LowBound,HighBound
                 do a=1,g
                     Temp4indints(:,:)=0.D0
                     CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,OneIndInts02(:,:,a,g),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                     do l=1,SpatOrbs
                         do j=1,l
-                            TwoIndInts02(g,a,j,l)=Temp4indints(j,l)
-                            TwoIndInts02(a,g,j,l)=Temp4indints(j,l)
-                            TwoIndInts02(g,a,l,j)=Temp4indints(j,l)
-                            TwoIndInts02(a,g,l,j)=Temp4indints(j,l)
+                            TwoIndInts02Temp(g,a,j,l)=Temp4indints(j,l)
+                            TwoIndInts02Temp(a,g,j,l)=Temp4indints(j,l)
+                            TwoIndInts02Temp(g,a,l,j)=Temp4indints(j,l)
+                            TwoIndInts02Temp(a,g,l,j)=Temp4indints(j,l)
                         enddo
                     enddo
                 enddo
             enddo
+            CALL MPIDSumArr(TwoIndInts02Temp(:,:,:,:),SpatOrbs**4,TwoIndInts02(:,:,:,:))
         ENDIF
 
 
 
 ! Calculating the 3 transformed, 4 index integrals. 01=a untransformed,02=b,03=g,04=d
 
-        do i=1,SpatOrbs
+        do i=LowBound,HighBound
             do k=1,i
                 Temp4indints(:,:)=0.D0
                 CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TwoIndInts01(:,:,k,i),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                 do b=1,SpatOrbs
                     do l=1,SpatOrbs
-                        ThreeIndInts(b,l,k,i)=Temp4indints(l,b)
-                        ThreeIndInts(b,l,i,k)=Temp4indints(l,b)
-                        ThreeIndInts02(i,k,l,b)=Temp4indints(l,b)
-                        ThreeIndInts02(k,i,l,b)=Temp4indints(l,b)
+                        ThreeIndIntsTemp(b,l,k,i)=Temp4indints(l,b)
+                        ThreeIndIntsTemp(b,l,i,k)=Temp4indints(l,b)
+                        ThreeIndInts02Temp(i,k,l,b)=Temp4indints(l,b)
+                        ThreeIndInts02Temp(k,i,l,b)=Temp4indints(l,b)
                     enddo
                 enddo
                 IF(tNotConverged) THEN
@@ -876,37 +934,45 @@ MODULE RotateOrbsMod
                     CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TwoIndInts01(:,:,k,i),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                     do d=1,SpatOrbs
                         do j=1,SpatOrbs
-                            ThreeIndInts04(k,i,j,d)=Temp4indints(j,d)
-                            ThreeIndInts04(i,k,j,d)=Temp4indints(j,d)
+                            ThreeIndInts04Temp(k,i,j,d)=Temp4indints(j,d)
+                            ThreeIndInts04Temp(i,k,j,d)=Temp4indints(j,d)
                         enddo
                     enddo
                 ENDIF
             enddo
         enddo
 
+        CALL MPIDSumArr(ThreeIndIntsTemp(:,:,:,:),SpatOrbs**4,ThreeIndInts(:,:,:,:))
+        CALL MPIDSumArr(ThreeIndInts02Temp(:,:,:,:),SpatOrbs**4,ThreeIndInts02(:,:,:,:))
+        IF(tNotConverged) CALL MPIDSumArr(ThreeIndInts04Temp(:,:,:,:),SpatOrbs**4,ThreeIndInts04(:,:,:,:))
+
 
         IF(tNotConverged) THEN
-            do l=1,SpatOrbs
+            do l=LowBound,HighBound
                 do j=1,l
                     Temp4indints(:,:)=0.D0
                     CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TwoIndInts02(:,:,j,l),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                     do a=1,SpatOrbs
                         do k=1,SpatOrbs
-                            ThreeIndInts01(k,j,l,a)=Temp4indints(k,a)
-                            ThreeIndInts01(k,l,j,a)=Temp4indints(k,a)
+                            ThreeIndInts01Temp(k,j,l,a)=Temp4indints(k,a)
+                            ThreeIndInts01Temp(k,l,j,a)=Temp4indints(k,a)
                         enddo
                     enddo
                     Temp4indints(:,:)=0.D0
                     CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TwoIndInts02(:,:,j,l),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                     do g=1,SpatOrbs
                         do i=1,SpatOrbs
-                            ThreeIndInts03(i,l,j,g)=Temp4indints(i,g)
-                            ThreeIndInts03(i,j,l,g)=Temp4indints(i,g)
+                            ThreeIndInts03Temp(i,l,j,g)=Temp4indints(i,g)
+                            ThreeIndInts03Temp(i,j,l,g)=Temp4indints(i,g)
                         enddo
                     enddo
                 enddo
             enddo
+            CALL MPIDSumArr(ThreeIndInts01Temp(:,:,:,:),SpatOrbs**4,ThreeIndInts01(:,:,:,:))
+            CALL MPIDSumArr(ThreeIndInts03Temp(:,:,:,:),SpatOrbs**4,ThreeIndInts03(:,:,:,:))
         ENDIF
+
+
 
 !        do j=1,3,2
 !            do k=1,SpatOrbs,2
@@ -928,28 +994,31 @@ MODULE RotateOrbsMod
 
 
         PotEnergy=0.D0
+        PotEnergyTemp=0.D0
         TwoEInts=0.D0
+        TwoEIntsTemp=0.D0
         PEInts=0.D0
+        PEIntsTemp=0.D0
         FourIndIntMax=0.D0
-        do i=1,SpatOrbs
+        do i=LowBound,HighBound
             do k=1,i
                 Temp4indints(:,:)=0.D0
                 CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,ThreeIndInts(:,:,k,i),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                 do l=1,SpatOrbs
                     do j=1,l
-                        FourIndInts(i,j,k,l)=Temp4indints(j,l)
-                        FourIndInts(i,l,k,j)=Temp4indints(j,l)
-                        FourIndInts(k,j,i,l)=Temp4indints(j,l)
-                        FourIndInts(k,l,i,j)=Temp4indints(j,l)
-                        FourIndInts02(j,k,l,i)=Temp4indints(j,l)
-                        FourIndInts02(j,i,l,k)=Temp4indints(j,l)
-                        FourIndInts02(l,k,j,i)=Temp4indints(j,l)
-                        FourIndInts02(l,i,j,k)=Temp4indints(j,l)
+                        FourIndIntsTemp(i,j,k,l)=Temp4indints(j,l)
+                        FourIndIntsTemp(i,l,k,j)=Temp4indints(j,l)
+                        FourIndIntsTemp(k,j,i,l)=Temp4indints(j,l)
+                        FourIndIntsTemp(k,l,i,j)=Temp4indints(j,l)
+                        FourIndInts02Temp(j,k,l,i)=Temp4indints(j,l)
+                        FourIndInts02Temp(j,i,l,k)=Temp4indints(j,l)
+                        FourIndInts02Temp(l,k,j,i)=Temp4indints(j,l)
+                        FourIndInts02Temp(l,i,j,k)=Temp4indints(j,l)
                         IF(tOffDiagMin) THEN
                             IF(.not.((k.eq.i).or.(j.eq.l))) THEN
-                                PotEnergy=PotEnergy+(Temp4indints(j,l)**2)
-                                TwoEInts=TwoEInts+(Temp4indints(j,l)**2)
-                                PEInts=PEInts+(Temp4indints(j,l)**2)
+                                PotEnergyTemp=PotEnergyTemp+(Temp4indints(j,l)**2)
+                                TwoEIntsTemp=TwoEIntsTemp+(Temp4indints(j,l)**2)
+                                PEIntsTemp=PEIntsTemp+(Temp4indints(j,l)**2)
                             ENDIF
                         ENDIF
                    enddo
@@ -957,11 +1026,19 @@ MODULE RotateOrbsMod
             enddo
             IF(tERLocalization) THEN
                 ! PotEnergy surface is -<ii|ii>, so that we can minimise it and keep consistent.
-                PotEnergy=PotEnergy-FourIndInts(i,i,i,i)
-                TwoEInts=TwoEInts-FourIndInts(i,i,i,i)
-                PEInts=PEInts-FourIndInts(i,i,i,i)
+                PotEnergyTemp=PotEnergyTemp-FourIndIntsTemp(i,i,i,i)
+                TwoEIntsTemp=TwoEIntsTemp-FourIndIntsTemp(i,i,i,i)
+                PEIntsTemp=PEIntsTemp-FourIndIntsTemp(i,i,i,i)
             ENDIF
         enddo
+
+        CALL MPIDSumArr(FourIndIntsTemp(:,:,:,:),SpatOrbs**4,FourIndInts(:,:,:,:))
+        CALL MPIDSumArr(FourIndInts02Temp(:,:,:,:),SpatOrbs**4,FourIndInts02(:,:,:,:))
+
+        CALL MPIDSum(PotEnergyTemp,1,PotEnergy)
+        CALL MPIDSum(TwoEIntsTemp,1,TwoEInts)
+        CALL MPIDSum(PEIntsTemp,1,PEInts)
+
 
         IF((tROHistogram.or.tERHist).and.((Iteration.eq.1).or.(.not.tNotConverged))) CALL WriteDoubHisttofile()
         IF(tROHistogram.and.(Iteration.eq.1)) CALL WriteSingHisttofile()
@@ -1115,8 +1192,10 @@ MODULE RotateOrbsMod
                 enddo
             enddo
         enddo
-        CALL MPI_AllReduce(DerivCoeffTemp(:,:),DerivCoeff(:,:),SpatOrbs**2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-        CALL MPI_AllReduce(ForceTemp,Force,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+        CALL MPIDSumArr(DerivCoeffTemp(:,:),SpatOrbs**2,DerivCoeff(:,:))
+        CALL MPIDSum(ForceTemp,1,Force)
+!        CALL MPI_AllReduce(DerivCoeffTemp(:,:),DerivCoeff(:,:),SpatOrbs**2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
+!        CALL MPI_AllReduce(ForceTemp,Force,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
         Force=Force/REAL(SpatOrbs**2,8)
 
@@ -1184,10 +1263,10 @@ MODULE RotateOrbsMod
 ! This routine takes the old translation coefficients and Lambdas and moves them by a timestep in the direction 
 ! of the calculated force.
         INTEGER :: m,w,x,y,z,i,j,Symm,SymMin
-        REAL*8 :: NewCoeff,NewLambda
+        REAL*8 :: NewCoeff,NewLambda,DistCsTemp
 
         DistCs=0.D0 
-
+    
 
         do w=MinOccVirt,MaxOccVirt
             IF(w.eq.1) THEN
@@ -1204,12 +1283,16 @@ MODULE RotateOrbsMod
                 MaxMZ=SpatOrbs
             ENDIF
 
+            LowBound=iProcIndex*((MaxMZ-MinMZ)/nProcessors)+MinMZ
+            HighBound=(iProcIndex+1)*((MaxMZ-MinMZ)/nProcessors)+MinMZ-1
+            IF(iProcIndex.eq.(nProcessors-1)) HighBound=MaxMZ
+     
 !            do x=MinMZ,MaxMZ
 !                m=SymLabelList2(x)
 !                SymM=INT(G1(m*2)%sym%S,4)
 !                do y=SymLabelCounts2(1,SymM+SymMin),(SymLabelCounts2(1,SymM+SymMin)+SymLabelCounts2(2,SymM+SymMin)-1)
 !                    z=SymLabelList2(y)
-            do m=MinMZ,MaxMZ
+            do m=LowBound,HighBound
                 SymM=INT(G1(SymLabelList2(m)*2)%sym%S,4)
 ! Symmetry requirement that z must be from the same irrep as m
                 do z=SymLabelCounts2(1,SymM+SymMin),(SymLabelCounts2(1,SymM+SymMin)+SymLabelCounts2(2,SymM+SymMin)-1)
@@ -1218,14 +1301,16 @@ MODULE RotateOrbsMod
                     NewCoeff=0.D0
                     NewCoeff=CoeffT1(z,m)-(TimeStep*DerivCoeff(z,m))
                     DistCs=DistCs+abs(TimeStep*DerivCoeff(z,m))
-                    CoeffT1(z,m)=NewCoeff
+                    CoeffT1Temp(z,m)=NewCoeff
                 enddo
             enddo
         enddo
+        CALL MPIDSumArr(CoeffT1Temp(:,:),SpatOrbs**2,CoeffT1(:,:))
+        CALL MPIDSum(DistCsTemp,1,DistCs)
+
 
         DistCs=DistCs/(REAL(SpatOrbs**2,8))
 
-        
 !        IF(tSeparateOccVirt) CALL ZeroOccVirtElements(CoeffT1)
 
 
@@ -2365,6 +2450,8 @@ MODULE RotateOrbsMod
 
         DEALLOCATE(Lab)
         CALL LogMemDealloc(this_routine,LabTag)
+        DEALLOCATE(CoeffT1Temp)
+        CALL LogMemDealloc(this_routine,CoeffT1TempTag)
         DEALLOCATE(CoeffT1)
         CALL LogMemDealloc(this_routine,CoeffT1Tag)
         DEALLOCATE(CoeffCorT2)
@@ -2379,7 +2466,31 @@ MODULE RotateOrbsMod
         ENDIF 
         DEALLOCATE(DerivCoeff)
         CALL LogMemDealloc(this_routine,DerivCoeffTag)
-        
+
+        DEALLOCATE(OneIndInts01Temp)
+        CALL LogMemDealloc(this_routine,OneIndInts01TempTag)
+        DEALLOCATE(OneIndInts02Temp)
+        CALL LogMemDealloc(this_routine,OneIndInts02TempTag)
+        DEALLOCATE(TwoIndInts01Temp)
+        CALL LogMemDealloc(this_routine,TwoIndInts01TempTag)
+        DEALLOCATE(TwoIndInts02Temp)
+        CALL LogMemDealloc(this_routine,TwoIndInts02TempTag)
+        DEALLOCATE(ThreeIndIntsTemp)
+        CALL LogMemDealloc(this_routine,ThreeIndIntsTempTag)
+        DEALLOCATE(ThreeIndInts01Temp)
+        CALL LogMemDealloc(this_routine,ThreeIndInts01TempTag)
+        DEALLOCATE(ThreeIndInts02Temp)
+        CALL LogMemDealloc(this_routine,ThreeIndInts02TempTag)
+        DEALLOCATE(ThreeIndInts03Temp)
+        CALL LogMemDealloc(this_routine,ThreeIndInts03TempTag)
+        DEALLOCATE(ThreeIndInts04Temp)
+        CALL LogMemDealloc(this_routine,ThreeIndInts04TempTag)
+        DEALLOCATE(FourIndIntsTemp)
+        CALL LogMemDealloc(this_routine,FourIndIntsTempTag)
+        DEALLOCATE(FourIndInts02Temp)
+        CALL LogMemDealloc(this_routine,FourIndInts02TempTag)
+
+
         DEALLOCATE(OneIndInts01)
         CALL LogMemDealloc(this_routine,OneIndInts01Tag)
         DEALLOCATE(OneIndInts02)
@@ -2402,6 +2513,7 @@ MODULE RotateOrbsMod
         CALL LogMemDealloc(this_routine,FourIndIntsTag)
         DEALLOCATE(FourIndInts02)
         CALL LogMemDealloc(this_routine,FourIndInts02Tag)
+
         DEALLOCATE(UMATTemp01)
         CALL LogMemDealloc(this_routine,UMATTemp01Tag)
         DEALLOCATE(UMATTemp02)

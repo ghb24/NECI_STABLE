@@ -174,7 +174,6 @@ Subroutine MPIStopAll(error_str)
 end subroutine MPIStopAll
 
 
-
 Subroutine MPIISum(iValues, iLen, iReturn)
    !=  In:
    !=     iValues(iLen)  Array of integers.  The corresponding elements for each
@@ -203,6 +202,34 @@ end Subroutine MPIISum
 
 
 
+Subroutine MPIISumArr(iValues, iLen, iReturn)
+   !=  In:
+   !=     iValues(iLen)  Array of integers.  The corresponding elements for each
+   !=                    processor are summed over the processors and returned in 
+   !=                    iReturn(iLen).
+   !=     iLen           Length of the arrays.
+   !=  Out:
+   !=     iReturn(iLen)  Array of integers to get the results.
+   != The arrays however are declared as scalar values. This is so that we can pass scalar
+   != quantities without it getting annoyed with associating a scalar with a vector when we
+   != just want to sum single numbers. Since we are parsing by reference, it should mean that
+   != arrays are ok too.
+   integer iValues(*), iReturn(*), iLen
+   integer g, ierr,rc
+#if PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(iValues,iReturn,iLen,MPI_INTEGER,MPI_SUM,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+   iReturn=iValues
+#endif
+end Subroutine MPIISumArr
+
+
+
 Subroutine MPIDSum(dValues, iLen, dReturn)
    !=  In:
    !=     dValues(iLen)  Array of real*8s.  The corresponding elements for each
@@ -228,6 +255,33 @@ Subroutine MPIDSum(dValues, iLen, dReturn)
     dReturn=dValues
 #endif
 end Subroutine MPIDSum
+
+
+Subroutine MPIDSumArr(dValues, iLen, dReturn)
+   !=  In:
+   !=     dValues(iLen)  Array of real*8s.  The corresponding elements for each
+   !=                    processor are summed and returnd into dReturn(iLen).
+   !=     iLen           Length of the arrays.
+   !=  Out:
+   !=     dReturn(iLen)  Array of real*8s to get the results.
+   != The arrays however are declared as scalar values. This is so that we can pass scalar
+   != quantities without it getting annoyed with associating a scalar with a vector when we
+   != just want to sum single numbers. Since we are parsing by reference, it should mean that
+   != arrays are ok too.
+   real*8 dValues(*), dReturn(*)
+   integer iLen
+   integer g, ierr,rc
+#ifdef PARALLEL
+   g=MPI_COMM_WORLD
+   call MPI_ALLREDUCE(dValues,dReturn,iLen,MPI_DOUBLE_PRECISION,MPI_SUM,g,ierr)
+   if (ierr .ne. MPI_SUCCESS) then
+      print *,'Error starting MPI program. Terminating.'
+      call MPI_ABORT(MPI_COMM_WORLD, rc, ierr)
+   end if
+#else
+    dReturn=dValues
+#endif
+end Subroutine MPIDSumArr
 
 
 
