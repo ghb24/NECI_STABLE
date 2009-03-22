@@ -116,6 +116,13 @@ General options
     If off, we are effectively reduced to a using Hartree multi-electron
     wavefunctions rather than Slater determinants.
 
+**UMATEPSILON** [UMatEps]
+    Default **OFF**
+
+    This works when integrals are read in from an FCIDUMP file. If specified, it provides
+    a cutoff for the magnitude of the two-electron integrals. If the integrals are larger
+    than the size specified, they will be zeroed.
+
 **CALCEXACTSIZESPACE**
     Default false.
 

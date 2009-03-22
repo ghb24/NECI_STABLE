@@ -181,10 +181,11 @@ C.. set momentum to 0
          USE HElem
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: UMatEps,tUMatEps
          USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
-         INTEGER NBASIS
+         INTEGER NBASIS,ZeroedInt,NonZeroInt
          REAL*8 ECORE,ARR(NBASIS,2)
          REAL*8 UMAT(*)
          REAL*8 Z
@@ -195,6 +196,8 @@ C.. set momentum to 0
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          UHF=.FALSE.
+         ZeroedInt=0
+         NonZeroInt=0
          
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
@@ -253,11 +256,31 @@ C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
             ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
                 STOP 'Need UMAT2D with TSTARSTORE'
             ELSE
-                UMAT(UMatInd(I,K,J,L,0,0))=Z
+                IF(tUMatEps) THEN
+!We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
+                    IF(abs(Z).lt.UMatEps) THEN
+                        UMAT(UMatInd(I,K,J,L,0,0))=0.D0
+                        ZeroedInt=ZeroedInt+1
+                    ELSE
+                        UMAT(UMatInd(I,K,J,L,0,0))=Z
+                        NonZeroInt=NonZeroInt+1
+                    ENDIF
+                ELSE
+                    UMAT(UMatInd(I,K,J,L,0,0))=Z
+                ENDIF
             ENDIF
          ENDIF
          IF(I.NE.0) GOTO 101
 199      CONTINUE
+         IF(tUMatEps) THEN
+!Write out statistics from zeroed integrals.
+             WRITE(6,"(A,G20.10,A)") "*** Zeroing all two-electron "    &
+     &          //"integrals with a magnitude of over ",UMatEps," ***" 
+             WRITE(6,*) ZeroedInt+NonZeroInt," 2E integrals read in..."
+             WRITE(6,*) ZeroedInt," integrals zeroed..."
+             WRITE(6,*) REAL(100*ZeroedInt)/REAL(NonZeroInt+ZeroedInt), &
+     %          " percent of 2E integrals zeroed."
+         ENDIF
          CLOSE(8)
 C.. If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN

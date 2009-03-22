@@ -18,6 +18,8 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tUMatEps=.false.
+      UMatEps=0.D0
       tImportanceSample=.false.
       tExactSizeSpace=.false.
       tMerTwist=.true.
@@ -475,6 +477,11 @@ MODULE System
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
             enddo
+        case("UMATEPSILON")
+!This is an option for systems which are reaad in from an FCIDUMP file. Any two-electron integrals which are smaller in
+!magnitude than the value set for UMatEps will be set to zero.
+            call readf(UMatEps)
+            tUMatEps=.true.
         case("ENDSYS") 
             exit system
         case default
