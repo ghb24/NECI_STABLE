@@ -83,7 +83,10 @@ MODULE System
       tShakeIter=.false.
       ShakeIterMax=5
       tSeparateOccVirt=.false.
+      tOffDiagSqrdMin=.false.
+      tOffDiagSqrdMax=.false.
       tOffDiagMin=.false.
+      tOffDiagMax=.false.
       tERLocalization=.false.
       tRotateOccOnly=.false.
       tRotateVirtOnly=.false.
@@ -360,27 +363,54 @@ MODULE System
             call Getf(TimeStep)
             call Getf(ConvergedForce)
 
+        case("OFFDIAGSQRDMIN")
+            tOffDiagSqrdMin=.true.
+            IF(item.lt.nitems) THEN
+                call Getf(OffDiagWeight)
+            ELSE
+                OffDiagWeight=1.0
+            ENDIF
+! This sets the orbital rotation to find the coefficients which minimise the sum of the |<ij|kl>|^2 elements.
+! The following real value sets the importance of the minimisation relative to the ER maximisation, providing 
+! the ERLOCALIZATION keyword is also present.  This is the same for all OFFDIAG keywords below.
+
+        case("OFFDIAGSQRDMAX")
+            tOffDiagSqrdMax=.true.
+            IF(item.lt.nitems) THEN
+                call Getf(OffDiagWeight)
+            ELSE
+                OffDiagWeight=1.0
+            ENDIF
+! This sets the orbital rotation to find the coefficients which maximise the sum of the |<ij|kl>|^2 elements.
+
         case("OFFDIAGMIN")
             tOffDiagMin=.true.
+            IF(item.lt.nitems) THEN
+                call Getf(OffDiagWeight)
+            ELSE
+                OffDiagWeight=1.0
+            ENDIF
 ! This sets the orbital rotation to find the coefficients which minimise the sum of the |<ij|kl>|^2 elements.
+
+        case("OFFDIAGMAX")
+            tOffDiagMax=.true.
+            IF(item.lt.nitems) THEN
+                call Getf(OffDiagWeight)
+            ELSE
+                OffDiagWeight=1.0
+            ENDIF
+! This sets the orbital rotation to find the coefficients which minimise the sum of the |<ij|kl>|^2 elements.
+
 
         case("ERLOCALIZATION")
             tERLocalization=.true.
-! This sets the orbital rotation to an Edmiston-Reudenberg localisation.  This maximises the self repulsion energy, i.e 
-! maximises the sum of the <ii|ii> terms.    
-
-        case("ERMAXOFFDIAGMIN")
-            tERLocalization=.true.
-            tOFFDiagMin=.true.
             IF(item.lt.nitems) THEN
                 call Getf(ERWeight)
-                call Getf(OffDiagWeight)
             ELSE
                 ERWeight=1.0
-                OffDiagWeight=1.0
             ENDIF
-! This finds the set of coefficients with the best comprimise between maximising the <ii|ii> terms, and minimising the |<ij|kl>|^2 elements.
-! The importance of each of these factors may be controlled by weighting the force towards either technique.
+! This sets the orbital rotation to an Edmiston-Reudenberg localisation.  This maximises the self repulsion energy, i.e 
+! maximises the sum of the <ii|ii> terms.    
 
         case("SHAKE")
 ! This will use the shake algorithm to iteratively enforce orthonormalisation on the rotation coefficients calculated in the ROTATEORBS

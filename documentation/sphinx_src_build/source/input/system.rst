@@ -381,22 +381,36 @@ the type of rotation / localisation, and an orthonormalisation method.
 
 Type of rotation / localisation:
 
-**OFFDIAGMIN**
+**OFFDIAGSQRDMIN** [OffDiagWeight](optional)
     This method finds the linear combinations of the HF orbitals that most effectively 
     minimise the sum of the <ij|kl>^2 values, where i,j,k,l are spin orbitals and
     i.ne.k, and j.ne.l.
 
-**ERLOCALIZATION**
+**OFFDIAGSQRDMAX** [OffDiagWeight](optional)
+    This method finds the linear combinations of the HF orbitals that most effectively 
+    maximise the sum of the <ij|kl>^2 values, where i,j,k,l are spin orbitals and
+    i.ne.k, and j.ne.l.
+
+**OFFDIAGMIN** [OffDiagWeight](optional)
+    This method finds the linear combinations that minimise the <ij|kl> integrals (without
+    squaring).
+
+**OFFDIAGMAX** [OffDiagWeight](optional)
+    This method finds the linear combinations that maximise the <ij|kl> integrals (without
+    squaring).
+
+**ERLOCALIZATION** [ERWeight](optional)
     This method performs a Edmiston-Reudenberg localisation.  It finds the coefficients 
     that maximise the sum of the self-repulsion (<ii|ii>) terms.
     In reality we minimise -<ii|ii> to keep the code consistent.
 
-**ERMAXOFDIAGMIN** [ERWeight] [OffDiagWeight]
-    This method is a combination of the two above.  It finds the coefficients that most 
-    effectively both maximise the <ii|ii>, and minimise the <ij|kl>^2 terms.
-    The contribution from each method can be adjusted by weighting the effect of either
-    force.  In the absence of values for ERWeight and OffDiagWeight, the defaults of 1.0
-    each will be used.
+    The presence of both the **ERLOCALIZATION** keyword together with one of the first three
+    options finds the coefficients that both maximise the <ii|ii> terms and also fit the chosen 
+    off diagonal criteria.  
+    The contribution from each method can be adjusted by weighting the effect of either force.
+    In the absence of values for ERWeight and/or OffDiagWeight, the defaults of 1.0 each 
+    will be used.
+    These weights are also redundant if only one of the keywords is present.
 
 Each of these methods may be applied for both the cases where symmetry as kept and broken.
 This is controlled by the absence or presence of the NOSYMMETRY keyword respectively.
