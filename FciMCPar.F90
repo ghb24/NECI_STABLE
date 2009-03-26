@@ -549,7 +549,11 @@ MODULE FciMCParMod
 !SD Space is not truncated - allow attempted spawn as usual
 
                     IF(tStarOrbs) THEN
-                        IF((.not.tStarDet).or.(WalkExcitLevel.ne.0)) THEN
+                        IF(tStarDet.or.(WalkExcitLevel.eq.0)) THEN
+!Here, we are either at HF, where we can spawn as normal, or we are at high-energy det and have generated HF which we will try to spawn to.
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                
+                        ELSE
 !We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
 !If tStarDet is true, then we know we are already at one of these determinants, and have alraedy generated HF. If we are at HF, then we are allowed to generate these determinants.
                             CALL CheckStarOrbs(nJ,tCheckStarGenDet)
@@ -717,7 +721,11 @@ MODULE FciMCParMod
                     ELSE
 !SD Space is not truncated - allow attempted spawn as usual
                         IF(tStarOrbs) THEN
-                            IF((.not.tStarDet).or.(WalkExcitLevel.ne.0)) THEN
+                            IF(tStarDet.or.(WalkExcitLevel.eq.0)) THEN
+!Here, we are either at HF, where we can spawn as normal, or we are at high-energy det and have generated HF which we will try to spawn to.
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+
+                            ELSE
 !We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
 !If tStarDet is true, then we know we are already at one of these determinants, and have alraedy generated HF. If we are at HF, then we are allowed to generate these determinants.
                                 CALL CheckStarOrbs(nJ,tCheckStarGenDet)
@@ -728,6 +736,7 @@ MODULE FciMCParMod
 !We have not generated a 'star' determinant. Allow as normal.
                                     Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
                                 ENDIF
+
                             ENDIF
                         ELSE
 
