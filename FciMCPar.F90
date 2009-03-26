@@ -8,7 +8,7 @@ MODULE FciMCParMod
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
-    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
+    use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs
     USE Determinants , only : FDet,GetHElement2,GetHElement4
@@ -493,12 +493,14 @@ MODULE FciMCParMod
                         CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                     ELSE
                         IF(tStarDet) THEN
+                            IF(.not.tNoReturnStarDets) THEN
 !We are at a determinant with high-lying 'star' orbitals - we therefore only want to be able to generate the HF determinant
-                            nJ(:)=HFDet(:)
-                            IC=WalkExcitLevel
-                            Ex(1,1)=WalkExcitLevel
-                            CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
-                            Prob=1.D0   !This is the only allowed excitation - back to HF
+                                nJ(:)=HFDet(:)
+                                IC=WalkExcitLevel
+                                Ex(1,1)=WalkExcitLevel
+                                CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
+                                Prob=1.D0   !This is the only allowed excitation - back to HF
+                            ENDIF
                         ELSE
                             IF(tNonUniRandExcits) THEN
 !This will only be a help if most determinants are multiply occupied.
@@ -549,10 +551,19 @@ MODULE FciMCParMod
 !SD Space is not truncated - allow attempted spawn as usual
 
                     IF(tStarOrbs) THEN
-                        IF(tStarDet.or.(WalkExcitLevel.eq.0)) THEN
-!Here, we are either at HF, where we can spawn as normal, or we are at high-energy det and have generated HF which we will try to spawn to.
+                        IF(tStarDet) THEN
+                            IF(tNoReturnStarDets) THEN
+!We do not allow a return spawn back to HF.
+                                Child=0
+                            ELSE
+!Here, we are at a high-energy det and have generated HF which we will try to spawn to.
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                            ENDIF
+                            
+                        ELSEIF(WalkExcitLevel.eq.0) THEN
+!We are at HF - all determinants allowed. No need to check generated excitations
                             Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                                
+
                         ELSE
 !We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
 !If tStarDet is true, then we know we are already at one of these determinants, and have alraedy generated HF. If we are at HF, then we are allowed to generate these determinants.
@@ -666,12 +677,14 @@ MODULE FciMCParMod
                             CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                         ELSE
                             IF(tStarDet) THEN
+                                IF(.not.tNoReturnStarDets) THEN
 !We are at a determinant with high-lying 'star' orbitals - we therefore only want to be able to generate the HF determinant
-                                nJ(:)=HFDet(:)
-                                IC=WalkExcitLevel
-                                Ex(1,1)=WalkExcitLevel
-                                CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
-                                Prob=1.D0   !This is the only allowed excitation - back to HF
+                                    nJ(:)=HFDet(:)
+                                    IC=WalkExcitLevel
+                                    Ex(1,1)=WalkExcitLevel
+                                    CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
+                                    Prob=1.D0   !This is the only allowed excitation - back to HF
+                                ENDIF
                             ELSE
                                 IF(tNonUniRandExcits) THEN
 !This will only be a help if most determinants are multiply occupied.
@@ -721,8 +734,18 @@ MODULE FciMCParMod
                     ELSE
 !SD Space is not truncated - allow attempted spawn as usual
                         IF(tStarOrbs) THEN
-                            IF(tStarDet.or.(WalkExcitLevel.eq.0)) THEN
-!Here, we are either at HF, where we can spawn as normal, or we are at high-energy det and have generated HF which we will try to spawn to.
+
+                            IF(tStarDet) THEN
+                                IF(tNoReturnStarDets) THEN
+!We do not allow a return spawn back to HF.
+                                    Child=0
+                                ELSE
+!Here, we are at a high-energy det and have generated HF which we will try to spawn to.
+                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                ENDIF
+
+                            ELSEIF(WalkExcitLevel.eq.0) THEN
+!We are at HF - all determinants allowed. No need to check generated excitations
                                 Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
 
                             ELSE

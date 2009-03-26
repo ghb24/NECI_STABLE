@@ -846,15 +846,18 @@ The following option are only available in **MCSTAR** calculations:
     much slower.  See also the **WAVEVECTORPRINT** and **POPSFILE**
     options in the **LOGGING** block.
 
-**STARORBS** [iStarOrbs]
-    Default=.false.
+**STARORBS** [iStarOrbs] [**NORETURN**]
+    Default=.false. , NORETURN = OFF
 
     A parallel FCIMC option. Star orbs means that determinants which 
     contain these orbitals can only be spawned at from the HF determinant, 
     and conversly, can only spawn back at the HF determinant. iStarOrbs is
     the integer variable which decides how many orbitals are in this high-
     energy space, and take the iStarOrbs number of highest energy orbitals
-    to construct it.
+    to construct it. **NORETURN** is an optional keyword specifier. If it
+    is specified, then any excitations from the HF to these high-energy
+    determinants (doubles) are left to die and cannot respawn back to the
+    HF determinant.
 
 
 Return Path Monte Carlo options

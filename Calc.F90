@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tNoReturnStarDets=.false.
           iStarOrbs=0
           tStarOrbs=.false.
           tFindGroundDet=.false.
@@ -850,6 +851,16 @@ MODULE Calc
             case("STARORBS")
 !A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned at from the HF determinant, and conversly, can only spawn back at the HF determinant.
                 call geti(iStarOrbs)
+                if(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("NORETURN")
+!This option will mean that particles spawned at these high energy determinants will not be allowed to spawn back at HF, but will be left to die.
+                        tNoReturnStarDets=.true.
+                    end select
+                else
+                    tNoReturnStarDets=.false.
+                endif
                 tStarOrbs=.true.
             case("MAGNETIZESYM")
 !A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for particles of the opposite sign, the energy is lowered by the same amount for particles
