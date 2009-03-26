@@ -9,8 +9,8 @@ MODULE FciMCParMod
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil
-    use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs
+    use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet
     use IntegralsData , only : fck,NMax,UMat
@@ -203,18 +203,6 @@ MODULE FciMCParMod
         TYPE(HElement) :: Hamii
         LOGICAL :: TIncrement
         REAL(4) :: s,etime,tstart(2),tend(2)
-
-!        t=HElement(0.D0)
-!        do i=1,nBasis/2
-!            do j=1,nBasis/2
-!                do k=1,nBasis/2
-!                    do l=1,nBasis/2
-!                        t=t+(UMAT(UMatInd(i,j,k,l,0,0))*UMAT(UMatInd(i,j,k,l,0,0)))
-!                    enddo
-!                enddo
-!            enddo
-!        enddo
-!        WRITE(6,*) "Sum of squares of <ij|kl> integrals is: ",REAL(t%v,r2)
 
         TDebug=.false.  !Set debugging flag
 
@@ -423,7 +411,7 @@ MODULE FciMCParMod
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
-        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled
+        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -445,6 +433,7 @@ MODULE FciMCParMod
         NoatHF=0
         NoatDoubs=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
+        IF(.not.tStarOrbs) tStarDet=.false.
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -472,7 +461,6 @@ MODULE FciMCParMod
                     HDiagTemp=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
                     HDiagCurr=(REAL(HDiagTemp%v,r2))-Hii
                 ENDIF
-
             ELSE
 !HDiags are stored.
                 HDiagCurr=CurrentH(j)
@@ -483,6 +471,10 @@ MODULE FciMCParMod
 !This should not happen in a HF basis, but can happen if the orbitals have been rotated.
                     CALL ChangeRefDet(HDiagCurr,DetCurr,CurrentDets(:,j))
                 ENDIF
+            ENDIF
+            IF(tStarOrbs) THEN
+!This routine will check to see if any of the orbitals in the determinant are in the orbitals which are only to be attached to HF in a 'star'
+                CALL CheckStarOrbs(DetCurr,tStarDet)
             ENDIF
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -500,11 +492,20 @@ MODULE FciMCParMod
                         CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
                         CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                     ELSE
-                        IF(tNonUniRandExcits) THEN
-!This will only be a help if most determinants are multiply occupied.
-                            CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+                        IF(tStarDet) THEN
+!We are at a determinant with high-lying 'star' orbitals - we therefore only want to be able to generate the HF determinant
+                            nJ(:)=HFDet(:)
+                            IC=WalkExcitLevel
+                            Ex(1,1)=WalkExcitLevel
+                            CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
+                            Prob=1.D0   !This is the only allowed excitation - back to HF
                         ELSE
-                            CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                            IF(tNonUniRandExcits) THEN
+!This will only be a help if most determinants are multiply occupied.
+                                CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+                            ELSE
+                                CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                            ENDIF
                         ENDIF
                     ENDIF
                 ENDIF
@@ -547,7 +548,22 @@ MODULE FciMCParMod
                 ELSE
 !SD Space is not truncated - allow attempted spawn as usual
 
-                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                    IF(tStarOrbs) THEN
+                        IF((.not.tStarDet).or.(WalkExcitLevel.ne.0)) THEN
+!We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
+!If tStarDet is true, then we know we are already at one of these determinants, and have alraedy generated HF. If we are at HF, then we are allowed to generate these determinants.
+                            CALL CheckStarOrbs(nJ,tCheckStarGenDet)
+                            IF(tCheckStarGenDet) THEN
+!We have generated a 'star' determinant. We are not at the HF determinant, so disallow it and Child=0
+                                Child=0
+                            ELSE
+!We have not generated a 'star' determinant. Allow as normal.
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            ENDIF
+                        ENDIF
+                    ELSE
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                    ENDIF
 
                 ENDIF
                 
@@ -560,7 +576,7 @@ MODULE FciMCParMod
                         WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
                         WRITE(6,"(A)") "BEWARE OF MEMORY PROBLEMS"
                         WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
-!                            CALL FLUSH(6)
+!                        CALL FLUSH(6)
                     ENDIF
 
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
@@ -641,15 +657,24 @@ MODULE FciMCParMod
 
                     IF(.not.tImportanceSample) THEN
                         IF(.not.TRegenExcitgens) THEN
-    !Setup excit generators for this determinant
+!Setup excit generators for this determinant
                             CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
                             CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                         ELSE
-                            IF(tNonUniRandExcits) THEN
-    !This will only be a help if most determinants are multiply occupied.
-                                CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                            IF(tStarDet) THEN
+!We are at a determinant with high-lying 'star' orbitals - we therefore only want to be able to generate the HF determinant
+                                nJ(:)=HFDet(:)
+                                IC=WalkExcitLevel
+                                Ex(1,1)=WalkExcitLevel
+                                CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
+                                Prob=1.D0   !This is the only allowed excitation - back to HF
                             ELSE
-                                CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                                IF(tNonUniRandExcits) THEN
+!This will only be a help if most determinants are multiply occupied.
+                                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                                ELSE
+                                    CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                                ENDIF
                             ENDIF
                         ENDIF
                     ENDIF
@@ -691,8 +716,23 @@ MODULE FciMCParMod
                     
                     ELSE
 !SD Space is not truncated - allow attempted spawn as usual
+                        IF(tStarOrbs) THEN
+                            IF((.not.tStarDet).or.(WalkExcitLevel.ne.0)) THEN
+!We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
+!If tStarDet is true, then we know we are already at one of these determinants, and have alraedy generated HF. If we are at HF, then we are allowed to generate these determinants.
+                                CALL CheckStarOrbs(nJ,tCheckStarGenDet)
+                                IF(tCheckStarGenDet) THEN
+!We have generated a 'star' determinant. We are not at the HF determinant, so disallow it and Child=0
+                                    Child=0
+                                ELSE
+!We have not generated a 'star' determinant. Allow as normal.
+                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                ENDIF
+                            ENDIF
+                        ELSE
 
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                        ENDIF
 
                     ENDIF
                     
@@ -1046,6 +1086,21 @@ MODULE FciMCParMod
         ENDIF
 
     END SUBROUTINE PerformFCIMCycPar
+
+!This routine will check to see if any of the orbitals in the determinant are in the orbitals which are only to be attached to HF in a 'star'
+    SUBROUTINE CheckStarOrbs(DetCurr,tStarDet)
+        INTEGER :: DetCurr(NEl),i
+        LOGICAL :: tStarDet
+
+        tStarDet=.false.
+        do i=NEl,1,-1
+            IF(SpinInvBrr(DetCurr(i)).gt.(nBasis-iStarOrbs)) THEN
+                tStarDet=.true.
+                EXIT
+            ENDIF
+        enddo
+
+    END SUBROUTINE CheckStarOrbs
 
 !This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
 !projection onto a different determinant.
@@ -4094,6 +4149,12 @@ MODULE FciMCParMod
 ! the determinant to be in the active space.
 
         ENDIF
+        IF(tStarOrbs) THEN
+            IF(tImportanceSample.or.(ICILevel.ne.0).or.(.not.tRegenExcitgens)) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Cannot use star orbs while storing excitation generators, or truncation or importance sampling...")
+            ENDIF
+            CALL CreateSpinInvBrr()
+        ENDIF
         IF(ICILevel.ne.0) THEN
 !We are truncating the excitations at a certain value
             TTruncSpace=.true.
@@ -5850,6 +5911,29 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+!        IF(tHistSpawns) THEN
+!            IF(IC.eq.1) THEN
+!                Bin=INT((real(rh%v)-MinBin)/BinRange)+1
+!                IF(Bin.gt.MaxBin) THEN
+!                    CALL Stop_All("AttemptCreatePar","Attempting to histogram outside range - singles")
+!                ENDIF
+!                SingleGenHist(Bin)=SingleGenHist(Bin)+(REAL(nParts)/Prob)
+!            ELSE
+!                Bin=INT((real(rh%v)-MinBin)/BinRange)+1
+!                IF(Bin.gt.MaxBin) THEN
+!                    CALL Stop_All("AttemptCreatePar","Attempting to histogram outside range - doubles")
+!                ENDIF
+!                DoubleGenHist(Bin)=DoubleBinHist(Bin)+(REAL(nParts)/Prob)
+!            ENDIF
+!            IF(AttemptCreatePar.ne.0) THEN
+!                IF(IC.eq.1) THEN
+!                    SingleSpawnHist(Bin)=SingleSpawnHist(Bin)+(REAL(nParts)/Prob)
+!                ELSE
+!                    DoubleSpawnHist(Bin)=DoubleSpawnHist(Bin)+(REAL(nParts)/Prob)
+!                ENDIF
+!            ENDIF
+!        ENDIF
+
         RETURN
 
     END FUNCTION AttemptCreatePar
@@ -5930,11 +6014,6 @@ MODULE FciMCParMod
 
 !If there are multiple particles, decide how many to kill in total...
         rat=rat*abs(WSign)
-
-! DEALLOCATE SpinInvBRR
-!        CALL LogMemDealloc(t_r,tagSpinInvBRR)
-!        DEALLOCATE(SpinInvBRR)
-
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
@@ -6871,7 +6950,7 @@ MODULE FciMCParMod
             DEALLOCATE(FreeIndArray)
         ENDIF
 
-        IF(tFixCASShift) THEN
+        IF(ALLOCATED(SpinInvBrr)) THEN
             CALL LogMemDealloc(this_routine,SpinInvBRRTag)
             DEALLOCATE(SpinInvBRR)
         ENDIF
