@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tAllSpawnStarDets=.false.
           tNoReturnStarDets=.false.
           iStarOrbs=0
           tStarOrbs=.false.
@@ -857,6 +858,9 @@ MODULE Calc
                     case("NORETURN")
 !This option will mean that particles spawned at these high energy determinants will not be allowed to spawn back at HF, but will be left to die.
                         tNoReturnStarDets=.true.
+                    case("ALLSPAWNSTARDETS")
+!This option will mean that all particles can spawn at the star determinants and annihilation will take place there. Once there however, they are left to die, and cannot spawn anywhere else.
+                        tAllSpawnStarDets=.true.
                     end select
                 else
                     tNoReturnStarDets=.false.

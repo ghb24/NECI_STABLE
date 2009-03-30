@@ -9,7 +9,7 @@ MODULE FciMCParMod
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
-    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs
+    use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet
@@ -493,7 +493,7 @@ MODULE FciMCParMod
                         CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                     ELSE
                         IF(tStarDet) THEN
-                            IF(.not.tNoReturnStarDets) THEN
+                            IF((.not.tNoReturnStarDets).and.(.not.tAllSpawnStarDets)) THEN
 !We are at a determinant with high-lying 'star' orbitals - we therefore only want to be able to generate the HF determinant
                                 nJ(:)=HFDet(:)
                                 IC=WalkExcitLevel
@@ -552,16 +552,16 @@ MODULE FciMCParMod
 
                     IF(tStarOrbs) THEN
                         IF(tStarDet) THEN
-                            IF(tNoReturnStarDets) THEN
-!We do not allow a return spawn back to HF.
+                            IF(tNoReturnStarDets.or.tAllSpawnStarDets) THEN
+!We do not allow a return spawn back to HF, or any other determinant (allSpawnStarDets)
                                 Child=0
                             ELSE
 !Here, we are at a high-energy det and have generated HF which we will try to spawn to.
                                 Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
                             ENDIF
                             
-                        ELSEIF(WalkExcitLevel.eq.0) THEN
-!We are at HF - all determinants allowed. No need to check generated excitations
+                        ELSEIF((WalkExcitLevel.eq.0).or.tAllSpawnStarDets) THEN
+!We are at HF - all determinants allowed. No need to check generated excitations. Alternativly, in the AllSpawnStarDets scheme, all particles can spawn to star determinants.
                             Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
 
                         ELSE
@@ -677,7 +677,7 @@ MODULE FciMCParMod
                             CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
                         ELSE
                             IF(tStarDet) THEN
-                                IF(.not.tNoReturnStarDets) THEN
+                                IF((.not.tNoReturnStarDets).and.(.not.tAllSpawnStarDets)) THEN
 !We are at a determinant with high-lying 'star' orbitals - we therefore only want to be able to generate the HF determinant
                                     nJ(:)=HFDet(:)
                                     IC=WalkExcitLevel
@@ -736,15 +736,15 @@ MODULE FciMCParMod
                         IF(tStarOrbs) THEN
 
                             IF(tStarDet) THEN
-                                IF(tNoReturnStarDets) THEN
-!We do not allow a return spawn back to HF.
+                                IF(tNoReturnStarDets.or.tAllSpawnStarDets) THEN
+!We do not allow a return spawn back to HF, or any other determinant (allSpawnStarDets)
                                     Child=0
                                 ELSE
 !Here, we are at a high-energy det and have generated HF which we will try to spawn to.
                                     Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
                                 ENDIF
 
-                            ELSEIF(WalkExcitLevel.eq.0) THEN
+                            ELSEIF((WalkExcitLevel.eq.0).or.tAllSpawnStarDets) THEN
 !We are at HF - all determinants allowed. No need to check generated excitations
                                 Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
 
