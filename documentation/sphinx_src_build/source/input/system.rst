@@ -399,6 +399,10 @@ Type of rotation / localisation:
     This method finds the linear combinations that maximise the <ij|kl> integrals (without
     squaring).
 
+**DOUBEXCITEMIN** [OffDiagWeight](optional)
+    This method finds the linear combination that minimise the antisymmetrised double excitation 
+    hamiltonian elements, <ij|kl> - <ij|lk>.
+
 **ERLOCALIZATION** [ERWeight](optional)
     This method performs a Edmiston-Reudenberg localisation.  It finds the coefficients 
     that maximise the sum of the self-repulsion (<ii|ii>) terms.
@@ -411,6 +415,16 @@ Type of rotation / localisation:
     In the absence of values for ERWeight and/or OffDiagWeight, the defaults of 1.0 each 
     will be used.
     These weights are also redundant if only one of the keywords is present.
+
+**ONEELINTMAX** 
+    This maximises the sum of the <i|h|i>, one electron integral values.
+
+**ONEPARTORBENMAX** [Alpha]
+    This maximises the sum of (e_i - e_min)^alpha, where e_i are the fock, one particle orbital
+    energies ( e_i = <i|h|i> + sum_j [<ij||ij>] ), and e_min is currently the energy of the 
+    HF LUMO.  
+    Alpha is a real value specified in the input, with a default value of 1.0.
+
 
 Each of these methods may be applied for both the cases where symmetry as kept and broken.
 This is controlled by the absence or presence of the NOSYMMETRY keyword respectively.
@@ -437,6 +451,11 @@ Orthonormalisation methods:
         by ShakeIterMax.  It seems that with only a few iterations, although the coefficients do
         not remain completely orthonormal at every rotation step, orthonormality is eventually imposed 
         throughout the course of the run.
+
+    **SHAKEDELAY** [ShakeStart]
+        This option sets the shake orthonormalisation algorithm to only kick in after a certain number
+        of rotation iterations, specified by ShakeStart.  This potentially allows a large shift in 
+        the coefficients away from their starting point before orthonormalisation is enforced.
 
 **LAGRANGE**
     This option can only be used if **ROTATEORBS** is specified, and will try to 

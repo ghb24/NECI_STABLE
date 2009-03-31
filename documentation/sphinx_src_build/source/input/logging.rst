@@ -261,11 +261,30 @@ Rotate Orbs Options
     Note: When reading in the ROFCIDUMP, the number of electrons must be reduced 
     by the number frozen in the previous rotation, and the number frozen set to 0.
 
-**ROHISTOGRAM**
-    If this keyword is present, four files are produced. These contain histograms that 
-    show the distribution of the off diagonal 2 electron integrals before and after 
-    rotation, and the single excitation integrals before and after rotation.
+**ROHISTOGRAMALL**
+    If this keyword is present, two files are printed for all possible histograms.
+    One labelled HistHF*, and one HistRot* containing the histogram before and after rotation.
+    With this, certain histograms may be turned off by using the below keywords.  
+    Alternatively combinations of the keywords below may be used to just print a selection
+    of the possible histograms.
 
-**ERHISTOGRAM**
-    With this, two more histogram files are produced which show spread of the <ii|ii>
-    values before and after rotation.
+**ROHISTOFFDIAG** [OFF]
+    Histograms <ij|kl> terms before and after rotation where i<k and j<l.
+
+**ROHISTDOUBEXC** [OFF]
+    Histograms the 2<ij|kl>-<ij|lk> terms, the off diagonal hamiltonian elements for double 
+    excitations.
+
+**ROHISTSINGEXC** [OFF]
+    Histograms the single excitation hamiltonian elements.
+
+**ROHISTER** [OFF]
+    Histograms the <ii|ii> values before and after rotation.
+
+**ROHISTONEElINTS** [OFF]
+    Histograms the one electron integral terms, <i|h|i>.
+
+**ROHISTONEPARTORBEN** [OFF]
+    Histograms the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>],
+    where j is over the occupied orbitals only.
+    

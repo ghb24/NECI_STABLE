@@ -7,8 +7,8 @@ MODULE Logging
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
     REAL*8 MaxHistE
-    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogram,tERHist,tHistSpawn
+    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
+    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery
 
     contains
@@ -40,9 +40,14 @@ MODULE Logging
       TWriteDetE=.false.
       iPopsPartEvery=1
       tBinPops=.false.
-      tROHistogram=.false.
+      tROHistogramAll=.false.
       tROFciDump=.true.
-      tERHist=.false.
+      tROHistER=.false.
+      tROHistDoubExc=.false.
+      tROHistOffDiag=.false.
+      tROHistSingExc=.false.
+      tROHistOnePartOrbEn=.false.
+      tROHistOneElInts=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -84,17 +89,92 @@ MODULE Logging
                 tROFCIDUMP=.true.
             ENDIF
             
-        case("ROHISTOGRAM")
-!This option goes with the orbital rotation routine.  If this keyword is included, a histogram is produced, showing the distribution
-!of the four index integral values (<ij|kl>, not including where i=k and/or j=l) both before the orbital transformation (HF integrals)
-!and after.  Two files are produced, ROHistHF and ROHistRotated.
+        case("ROHISTOGRAMALL")
+!This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
+!These maybe also turned off/on with individual keywords.
 !As it stands, the bins run from -1 to 1 with increments of 0.05. These parameters may be made options in the future.
-            tROHistogram=.true.
+            tROHistogramAll=.true.
+            tROHistOffDiag=.true.
+            tROHistDoubExc=.true.
+            tROHistSingExc=.true.
+            tROHistOneElInts=.true.
+            tROHistOnePartOrbEn=.true.
+            tROHistER=.true.
 
-       case("ERHISTOGRAM")
+       case("ROHISTOFFDIAG")
+!This option creates a histogram of the <ij|kl> terms where i<k and j<l.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROHistOffDiag=.false.
+                end select
+            ELSE
+                tROHistOffDiag=.true.
+            ENDIF
+
+       case("ROHISTDOUBEXC")
+!This option creates a histogram of the 2<ij|kl>-<ij|lk> terms, the off diagonal hamiltonian elements for double excitations.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROHistDoubExc=.false.
+                end select
+            ELSE
+                tROHistDoubExc=.true.
+            ENDIF
+ 
+       case("ROHISTSINGEXC")
+!This option creates a histogram of the single excitation hamiltonian elements.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROHistSingExc=.false.
+                end select
+            ELSE
+                tROHistSingExc=.true.
+            ENDIF
+
+       case("ROHISTER")
 !This option creates a histogram of the <ii|ii> terms, the ones that are maximised in the edmiston-reudenberg localisation.
-            tERHist=.true.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROHistER=.false.
+                end select
+            ELSE
+                tROHistER=.true.
+            ENDIF
+  
+       case("ROHISTONEElINTS")
+!This option creates a histogram of the one electron integrals, the <i|h|i> terms.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROHistOneElInts=.false.
+                end select
+            ELSE
+                tROHistOneElInts=.true.
+            ENDIF
+         
 
+       case("ROHISTONEPARTORBEN")
+!This option creates a histogram of the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>].
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROHistOnePartOrbEn=.false.
+                end select
+            ELSE
+                tROHistOnePartOrbEn=.true.
+            ENDIF
+         
+        
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 

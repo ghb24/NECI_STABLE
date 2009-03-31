@@ -78,6 +78,8 @@ MODULE System
       ConvergedForce=0.001
       ShakeConverged=0.001
       tShakeApprox=.false.
+      tShakeDelay=.false.
+      ShakeStart=1
       tROIteration=.false.
       ROIterMax=5000
       tShakeIter=.false.
@@ -87,11 +89,15 @@ MODULE System
       tOffDiagSqrdMax=.false.
       tOffDiagMin=.false.
       tOffDiagMax=.false.
+      tDoubExcMin=.false.
+      tOneElIntMax=.false.
+      tOnePartOrbEnMax=.false.
       tERLocalization=.false.
       tRotateOccOnly=.false.
       tRotateVirtOnly=.false.
       ERWeight=1.D0
       OffDiagWeight=1.D0
+      OrbEnMaxAlpha=1.D0
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -390,7 +396,7 @@ MODULE System
             ELSE
                 OffDiagWeight=1.0
             ENDIF
-! This sets the orbital rotation to find the coefficients which minimise the sum of the |<ij|kl>|^2 elements.
+! This sets the orbital rotation to find the coefficients which minimise the sum of the <ij|kl> elements.
 
         case("OFFDIAGMAX")
             tOffDiagMax=.true.
@@ -399,8 +405,32 @@ MODULE System
             ELSE
                 OffDiagWeight=1.0
             ENDIF
-! This sets the orbital rotation to find the coefficients which minimise the sum of the |<ij|kl>|^2 elements.
+! This sets the orbital rotation to find the coefficients which maximise the sum of the <ij|kl> elements.
 
+        case("DOUBEXCITEMIN")
+            tDoubExcMin=.true.
+            IF(item.lt.nitems) THEN
+                call Getf(OffDiagWeight)
+            ELSE
+                OffDiagWeight=1.0
+            ENDIF
+! This sets the orbital rotation to find the coefficients which minimise the double excitation hamiltonian elements.
+
+        case("ONEELINTMAX")
+            tOneElIntMax=.true.
+            tRotateVirtOnly=.true.
+! This sets the orbital rotation to find the coefficients which maximise the one electron integrals, <i|h|i>.
+
+        case("ONEPARTORBENMAX")
+            tOnePartOrbEnMax=.true.
+            tRotateVirtOnly=.true.
+            IF(item.lt.nitems) THEN
+                call Getf(OrbEnMaxAlpha)
+            ELSE
+                OrbEnMaxAlpha=1.D0
+            ENDIF
+! This sets the orbital rotation to find the coefficients which maximise the one particle orbital energies.
+! i.e maximise the fock energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>].
 
         case("ERLOCALIZATION")
             tERLocalization=.true.
@@ -432,6 +462,13 @@ MODULE System
 ! and instead performs only the number of iterations specified on this line.
             tShakeIter=.true.
             call Geti(ShakeIterMax)
+        
+        case("SHAKEDELAY")
+! This option sets the shake orthonomalisation algorithm to only kick in after a certain number of rotatation iterations.  This 
+! potentially allows a large shift in the coefficients away from their starting point, followed by orthonormalisation to a 
+! significantly different position.
+            tShakeDelay=.true.
+            call Geti(ShakeStart)
 
         case("LAGRANGE")
 ! This will use a non-iterative lagrange multiplier for each component of each rotated vector in the rotateorbs routines in order to 
