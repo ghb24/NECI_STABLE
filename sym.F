@@ -2055,9 +2055,15 @@ C.. Set to be totally symmetric
          CALL FLUSH(IUNIT)
          ClassCounts(:)=0
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
-         do i=1,nBasis,2
+         do i=1,nBasis,1
              ClassCounts(INT(G1(i)%Sym%S,4))=                           &
      &           ClassCounts(INT(G1(i)%Sym%S,4))+1
+         enddo
+         do i=0,7
+             IF(mod(ClassCounts(i),2).ne.0) THEN
+                 STOP 'Error counting determinants'
+             ENDIF
+             ClassCounts(i)=ClassCounts(i)/2
          enddo
 
          Lima(0)=min(nOccAlpha,ClassCounts(0))
