@@ -93,6 +93,7 @@ MODULE System
       tOneElIntMax=.false.
       tOnePartOrbEnMax=.false.
       tERLocalization=.false.
+      tVirtCoulombMax=.false.
       tRotateOccOnly=.false.
       tRotateVirtOnly=.false.
       ERWeight=1.D0
@@ -441,6 +442,11 @@ MODULE System
             ENDIF
 ! This sets the orbital rotation to an Edmiston-Reudenberg localisation.  This maximises the self repulsion energy, i.e 
 ! maximises the sum of the <ii|ii> terms.    
+
+        case("VIRTCOULOMBMAX")
+            tVirtCoulombMax=.true.
+            tRotateVirtOnly=.true.
+! This sets the orbital rotation to maximise the sum_i_j <ij|ij> terms where both i and j are virtual spatial orbitals.  
 
         case("SHAKE")
 ! This will use the shake algorithm to iteratively enforce orthonormalisation on the rotation coefficients calculated in the ROTATEORBS

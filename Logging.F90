@@ -9,6 +9,7 @@ MODULE Logging
     REAL*8 MaxHistE
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
+    LOGICAL tROHistVirtCoulomb
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery
 
     contains
@@ -100,6 +101,7 @@ MODULE Logging
             tROHistOneElInts=.true.
             tROHistOnePartOrbEn=.true.
             tROHistER=.true.
+            tROHistVirtCoulomb=.true.
 
        case("ROHISTOFFDIAG")
 !This option creates a histogram of the <ij|kl> terms where i<k and j<l.
@@ -173,7 +175,19 @@ MODULE Logging
             ELSE
                 tROHistOnePartOrbEn=.true.
             ENDIF
-         
+ 
+       case("ROHISTVIRTCOULOMB")
+!This option creates a histogram of the coulomb integrals, <ij|ij>, where i and j are both virtual and i<j.
+            IF(item.lt.nitems) THEN
+                call readu(w)
+                select case(w)
+                    case("OFF")
+                        tROHistVirtCoulomb=.false.
+                end select
+            ELSE
+                tROHistVirtCoulomb=.true.
+            ENDIF
+        
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
