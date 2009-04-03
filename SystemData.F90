@@ -9,7 +9,7 @@ LOGICAL :: TSPN,TCSF,TPARITY,TUSEBRILLOUIN,TEXCH,TREAL,TTILT,tUMatEps,tOneElIntM
 LOGICAL :: TALPHA,TSTOREASEXCITATIONS,TBIN,tStarStore,tVASP,tOffDiagSqrdMin,tOffDiagSqrdMax,tOffDiagMax,tShakeDelay
 LOGICAL :: tSeparateOccVirt,tMerTwist,tExactSizeSpace,tRotatedOrbs,tImportanceSample,tERLocalization,tOffDiagMin
 LOGICAL :: TNoRenormRandExcits,tAssumeSizeExcitgen,tCycleOrbs,tROIteration,tShakeIter,tRotateOccOnly,tDoubExcMin
-LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tShakeApprox,tRotateVirtOnly
+LOGICAL :: tNonUniRandExcits,tNoSymGenRandExcits,tRotateOrbs,tLagrange,tShake,tShakeApprox,tRotateVirtOnly,tMaxHLGap
 INTEGER :: LMS,STOT,IPARITY(5),NMAXX,NMAXY,NMAXZ,NMSH,COULDAMPORB,ElecPairs,ROIterMax,iRanLuxLev
 INTEGER :: iPeriodicDampingType,ISTATE,NEL,ITILTX,ITILTY,nOccAlpha,nOccBeta,ShakeIterMax,ShakeStart
 REAL*8 :: BOX,BOA,COA,FUEGRS,fRc,FCOUL,OrbECutoff,UHUB,BHUB,ERWeight,OffDiagWeight,OrbEnMaxAlpha

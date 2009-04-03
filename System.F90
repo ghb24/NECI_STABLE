@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tMaxHLGap=.false.
       tUMatEps=.false.
       UMatEps=0.D0
       tImportanceSample=.false.
@@ -500,6 +501,9 @@ MODULE System
 ! iterations as chosen on this line.
             tROIteration=.true.
             call Geti(ROIterMax)
+
+        case("MAXHLGAP")
+            tMaxHLGap=.true.
 
         case("ROTATEDORBS")
 ! This is a flag which is to be included if the FCIDUMP being read in is one containing rotated orbitals.  The only difference is that the 

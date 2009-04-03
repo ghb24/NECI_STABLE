@@ -14,7 +14,7 @@ MODULE RotateOrbsMod
     USE SystemData , only : ConvergedForce,TimeStep,tLagrange,tShake,tShakeApprox,ShakeConverged,tROIteration,ROIterMax,tShakeIter,ShakeIterMax,OrbEnMaxAlpha
     USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
     USE SystemData, only : tOffDiagMin,ERWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax,tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
-    USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax
+    USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tMaxHLGap
     USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc,tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
@@ -59,6 +59,9 @@ MODULE RotateOrbsMod
         CALL FLUSH(6)
 
         CALL InitLocalOrbs()        ! Set defaults, allocate arrays, write out headings for OUTPUT, set integarals to HF values.
+        IF(tMaxHLGap) THEN
+            CALL EquateDiagFock()
+        ENDIF
 
         CALL WriteStats()           ! write out the original stats before any rotation.
 
@@ -156,6 +159,12 @@ MODULE RotateOrbsMod
             IF(iProcIndex.eq.Root) THEN
                 WRITE(6,*) "Calculating new molecular orbitals based on maximisation "
                 WRITE(6,*) "of the virtual one particle orbital energies."
+                WRITE(6,*) "*****"
+            ENDIF
+        ELSEIF(tMaxHLGap) THEN
+!This will transform all the orbitals within a particlar group to have the same diagonal fock matrix element.
+            IF(iProcIndex.eq.Root) THEN
+                WRITE(6,*) "Transforming orbitals based on equating their diagonal fock matrix elements."
                 WRITE(6,*) "*****"
             ENDIF
         ENDIF
@@ -774,6 +783,171 @@ MODULE RotateOrbsMod
 
     ENDSUBROUTINE InitSymmArrays
 
+    SUBROUTINE EquateDiagFock()
+        INTEGER :: irr,NumInSym,Orbi,Orbj,w,i,j,Prod,ConjOrb,k,ConjInd,OrbjConj
+        REAL*8 :: Angle,AngleConj,Check,Norm
+        REAL*8 , PARAMETER :: PI=3.14159265358979323846264338327950288419716939937510D0
+
+        CoeffT1(:,:)=0.D0
+!        MaxOccVirt=1
+!        WRITE(6,*) MaxOccVirt,"***"
+
+        do w=MinOccVirt,MaxOccVirt
+!Do virtual and occupied orbitals seperately
+
+            do irr=1,8
+!Loop over irreps
+
+                NumInSym=SymLabelCounts2(2,(w-1)*8+irr)
+!                WRITE(6,*) "NumInSym= ",NumInSym,irr-1
+
+                do j=1,NumInSym
+!Loop over the j-orthogonal vectors to create in this symmetry block
+
+                    Orbj=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+j)
+
+!See if this vector has already been done.
+                    Check=0.D0
+                    do i=1,SpatOrbs
+                        Check=Check+CoeffT1(i,Orbj)
+                    enddo
+                    IF(Check.ne.0.D0) THEN
+!This vector is a conjugate pair of another vector and has already been worked out...
+                        CYCLE
+                    ENDIF
+
+!Find out if we this vector will be complex. It will be real if j=N or j=N/2
+                    IF(j.eq.NumInSym) THEN
+!The vector will be the normalized 1,1,1 vector.
+
+                        do i=1,NumInSym
+                            Orbi=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+i)
+                            CoeffT1(Orbi,Orbj)=1/SQRT(REAL(NumInSym,8))
+                        enddo
+
+                    ELSEIF((mod(NumInSym,2).eq.0).and.(j.eq.(NumInSym/2))) THEN
+
+                        do i=1,NumInSym
+                            Orbi=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+i)
+                            IF(mod(i,2).eq.1) THEN
+                                CoeffT1(Orbi,Orbj)=-1/SQRT(REAL(NumInSym,8))
+                            ELSE
+                                CoeffT1(Orbi,Orbj)=1/SQRT(REAL(NumInSym,8))
+                            ENDIF
+                        enddo
+
+                    ELSE
+!Vector is complex - find its conjugate vector - do these at the same time.
+                        ConjInd=NumInSym-j
+                        OrbjConj=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+ConjInd)
+                        
+                        do i=1,NumInSym
+                            
+                            Orbi=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+i)
+
+                            Angle=REAL(i*j*2,8)*PI/REAL(NumInSym,8)
+                            AngleConj=REAL(i*ConjInd*2,8)*PI/REAL(NumInSym,8)
+
+                            CoeffT1(Orbi,Orbj)=(1/SQRT(REAL(2*NumInSym,8)))*(COS(Angle)+COS(AngleConj))
+                            CoeffT1(Orbi,OrbjConj)=(1/SQRT(REAL(2*NumInSym,8)))*(SIN(Angle)-SIN(AngleConj))
+
+                        enddo
+
+                    ENDIF
+
+                enddo
+
+
+!                    do i=1,NumInSym
+!
+!                        Orbi=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+i)
+!                        WRITE(6,*) "Sym= ",irr-1, Orbj, Orbi
+!!Coefficients are going to be C_jk = exp^(i j*k 2Pi/N), i.e roots of unity
+!
+!!                        IF(CoeffT1(i,j).ne.0.D0) CYCLE
+!
+!                        Prod=i*j
+!                        IF(mod(Prod,NumInSym).eq.0) THEN
+!! i*j = N or 2N, 3N, ...
+!                            CoeffT1(Orbi,Orbj)=1.D0/SQRT(REAL(NumInSym,8))
+!                            CoeffT1(Orbj,Orbi)=1.D0/SQRT(REAL(NumInSym,8))
+!
+!                        ELSEIF((mod(Prod*2,NumInSym).eq.0).and.(mod((2*Prod)/NumInSym,2).eq.1)) THEN
+!! i*j = N/2 or 3N/2, 5N/2, ...
+!                            CoeffT1(Orbi,Orbj)=-1.D0/SQRT(REAL(NumInSym,8))
+!                            CoeffT1(Orbj,Orbi)=-1.D0/SQRT(REAL(NumInSym,8))
+!
+!                        ELSE
+!!Here, the values will be complex. Therefore we need to take symmetric and antisymmetric combinations.
+!! Symmetric is: C_jk        = 1/SQRT(2)  [ Phi_jk + Phi_(N-j)k ] = 1/SQRT(2)*2COS(2 j*k PI/N)
+!! AntiSymm is:  C_(N-j)k    = 1/SQRT(-2) [ Phi_jk - Phi_(N-j)k ] = 1/SQRT(2)*2SIN(2 j*k PI/N)
+!
+!                            IF(i.gt.(NumInSym-i)) THEN
+!
+!!                                ConjInd=mod((NumInSym-mod(i+j-1,NumInSym))-(j-1),NumInSym)
+!                                ConjInd=NumInSym-i
+!                                ConjOrb=SymLabelList2(SymLabelCounts2(1,(w-1)*8+irr)-1+ConjInd)
+!
+!                                Angle=REAL(Prod*2,8)*3.141592654/REAL(NumInSym,8)
+!                                CoeffT1(Orbi,Orbj)=1.D0/SQRT(REAL(2*NumInSym,8))*2.D0*COS(Angle)
+!                                CoeffT1(ConjOrb,Orbj)=1.D0/SQRT(REAL(2*NumInSym,8))*2.D0*SIN(Angle)
+!                                WRITE(6,*) "Ind = ",i," J= ",j, "ConjInd = ",ConjInd, " N = ",NumInSym, " Orbj = ",Orbj
+!                                WRITE(6,*) "Angle = ",Angle, " CoeffT1(Orbi,Orbj) = ", CoeffT1(Orbi,Orbj), "CoeffT1(ConjOrb,Orbj) = ", CoeffT1(ConjOrb,Orbj)
+!
+!                            ENDIF
+!
+!                        ENDIF
+!
+!                    enddo
+!                enddo
+            enddo
+        enddo
+
+        do j=1,SpatOrbs
+            Norm=0.D0
+            do i=1,SpatOrbs
+                Norm=Norm+(CoeffT1(i,j)**2)
+            enddo
+            IF(Norm.eq.0.D0) THEN
+                CoeffT1(j,j)=1.D0
+            ENDIF
+        enddo
+
+        do j=1,SpatOrbs
+            do i=1,SpatOrbs
+                WRITE(6,"(G13.5)",advance='no') CoeffT1(j,i)
+            enddo
+            WRITE(6,*) ""
+        enddo
+
+!Check normalization
+        do j=1,SpatOrbs
+            Norm=0.D0
+            do i=1,SpatOrbs
+                Norm=Norm+(CoeffT1(i,j)**2)
+            enddo
+            IF(abs(Norm-1.D0).gt.1.D-7) THEN
+                CALL Stop_All("EquateDiagFock","Rotation Coefficients not normalized")
+            ENDIF
+        enddo
+
+
+!Check orthogonality
+        do j=1,SpatOrbs
+            do i=1,SpatOrbs
+                IF(i.eq.j) CYCLE
+                Norm=0.D0
+                do k=1,SpatOrbs
+                    Norm=Norm+(CoeffT1(k,j)*CoeffT1(k,i))
+                enddo
+                IF(abs(Norm).gt.1.D-7) THEN
+                    WRITE(6,*) "COLUMNS: ",j,i
+                    CALL Stop_All("EquateDiagFock","RotationCoefficients not orthogonal")
+                ENDIF
+            enddo
+        enddo
+
+    END SUBROUTINE EquateDiagFock
 
 
     SUBROUTINE InitOrbitalSeparation()
