@@ -6,11 +6,11 @@ MODULE Logging
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
-    REAL*8 MaxHistE
+    REAL*8 MaxHistE,BinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery
+    LOGICAL tROHistVirtCoulomb,tHistEnergies
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins
 
     contains
 
@@ -20,6 +20,9 @@ MODULE Logging
       use default_sets
       implicit none
 
+      BinRange=0.001
+      iNoBins=100000
+      tHistEnergies=.false.
       tHistSpawn=.false.
       iWriteHistEvery=-1
       NoACDets(:)=0
@@ -202,6 +205,11 @@ MODULE Logging
             TDetPops=.true.
         case("DISTRIBS")
             TDistrib=.true.
+        case("HISTPARTENERGIES")
+!This will histogram the diagonal hamiltonian matrix elements of the particles in the parallel FCIMC algorithm.
+            tHistEnergies=.true.
+            call readf(BinRange)
+            call readi(iNoBins)
         case("HISTSPAWN")
 !This option will histogram the spawned wavevector, averaged over all previous iterations. It scales horrifically and can only be done for small systems
 !which can be diagonalized. It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.

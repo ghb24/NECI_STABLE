@@ -133,6 +133,17 @@ FCIMC options
     If done, SymDets will also be written out, containing the exact wavevector in the same format from the 
     diagonalization.
 
+**HISTPARTENERGIES** [BinRange] [iNoBins]
+
+    This is a histogramming option. It is slow, so not for use unless the diagnostic is needed. It will histogram
+    the diagonal hamiltonian matrix element for three types of particle. Two input values are needed. The first
+    argument is a real value to give the width of the histogram bin. The second is the number of bins needed (integer).
+    Three histograms are produced: EVERYENERGYHIST - this is the histogram over all iterations of every particle in the
+    system. ATTEMPTENERGYHIST - this is the histogram of the energy of all attempted spawned particles (including the 
+    ones which are successfully spawned). For this one, the contibution to the energy is actually 1/Prob of generating. 
+    SPAWNENERGYHIST - this is the histogram of all successfully spawned particles. All these histograms are normalized to
+    one before printing out.
+
 **AUTOCORR** [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]
     This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
     determinants every iteration. This is so that a seperate standalone ACF program can be used on it.

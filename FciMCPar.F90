@@ -14,8 +14,8 @@ MODULE FciMCParMod
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet
     use IntegralsData , only : fck,NMax,UMat
-    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery
-    USE Logging , only : TAutoCorr,NoACDets!,iLagMin,iLagMax,iLagStep
+    USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
+    USE Logging , only : TAutoCorr,NoACDets,BinRange,iNoBins!,iLagMin,iLagMax,iLagStep
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE global_utilities
@@ -188,7 +188,7 @@ MODULE FciMCParMod
 
     REAL(4) :: IterTime
     
-    REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:)
+    REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
     INTEGER :: MaxDet
 
     contains
@@ -271,6 +271,8 @@ MODULE FciMCParMod
 
         IF(tConstructNos) CALL NormandDiagOneRDM()
 
+        IF(tHistEnergies) CALL WriteHistogramEnergies()
+
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
         
@@ -285,6 +287,61 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FciMCPar
+
+    SUBROUTINE WriteHistogramEnergies()
+        INTEGER :: error,i
+        REAL*8 :: Norm,EnergyBin
+
+        IF(iProcIndex.eq.0) THEN
+            AllHistogram(:)=0.D0
+            AllAttemptHist(:)=0.D0
+            AllSpawnHist(:)=0.D0
+        ENDIF
+        CALL MPI_Reduce(Histogram,AllHistogram,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(AttemptHist,AllAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SpawnHist,AllSpawnHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+        IF(iProcIndex.eq.0) THEN
+            Norm=0.D0
+            do i=1,iNoBins
+                Norm=Norm+AllHistogram(i)
+            enddo
+            do i=1,iNoBins
+                AllHistogram(i)=AllHistogram(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iNoBins
+                Norm=Norm+AllAttemptHist(i)
+            enddo
+!            WRITE(6,*) "AllAttemptHistNorm = ",Norm
+            do i=1,iNoBins
+                AllAttemptHist(i)=AllAttemptHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iNoBins
+                Norm=Norm+AllSpawnHist(i)
+            enddo
+!            WRITE(6,*) "AllSpawnHistNorm = ",Norm
+            do i=1,iNoBins
+                AllSpawnHist(i)=AllSpawnHist(i)/Norm
+            enddo
+            OPEN(17,FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
+            OPEN(18,FILE='ATTEMPTENERGYHIST',STATUS='UNKNOWN')
+            OPEN(19,FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
+
+            EnergyBin=BinRange/2.D0
+            do i=1,iNoBins
+                WRITE(17,*) EnergyBin, AllHistogram(i)
+                WRITE(18,*) EnergyBin, AllAttemptHist(i)
+                WRITE(19,*) EnergyBin, AllSpawnHist(i)
+                EnergyBin=EnergyBin+BinRange
+            enddo
+            CLOSE(17)
+            CLOSE(18)
+            CLOSE(19)
+        ENDIF
+
+    END SUBROUTINE WriteHistogramEnergies
 
 !This routine will write out the average wavevector from the spawning run up until now.
     SUBROUTINE WriteHistogram()
@@ -478,7 +535,7 @@ MODULE FciMCParMod
             ENDIF
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j))
+            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr)
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
@@ -3307,9 +3364,10 @@ MODULE FciMCParMod
 
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr)
-        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NoIntforDet),WSign
+    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr)
+        INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NoIntforDet),WSign,Bin
         LOGICAL :: CompiPath
+        REAL*8 :: HDiagCurr
         TYPE(HElement) :: HOffDiag
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
@@ -3323,6 +3381,13 @@ MODULE FciMCParMod
                 Histogram(iLutCurr(0))=Histogram(iLutCurr(0))+REAL(WSign,r2)
                 InstHist(iLutCurr(0))=InstHist(iLutCurr(0))+REAL(WSign,r2)
             ENDIF
+        ELSEIF(tHistEnergies) THEN
+!This wil histogramm the energies of the particles, rather than the determinants themselves.
+            Bin=INT(HDiagCurr/BinRange)+1
+            IF(Bin.gt.iNoBins) THEN
+                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
+            ENDIF
+            Histogram(Bin)=Histogram(Bin)+1.D0
         ENDIF
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
@@ -4050,6 +4115,19 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(AllHistogram(1:maxdet))
                 ALLOCATE(AllInstHist(1:maxdet))
+            ENDIF
+        ELSEIF(tHistEnergies) THEN
+            WRITE(6,*) "Histogramming the energies of the particles, with iNoBins=",iNoBins, " and BinRange=", BinRange
+            ALLOCATE(Histogram(1:iNoBins))
+            ALLOCATE(AttemptHist(1:iNoBins))
+            ALLOCATE(SpawnHist(1:iNoBins))
+            Histogram(:)=0.D0
+            AttemptHist(:)=0.D0
+            SpawnHist(:)=0.D0
+            IF(iProcIndex.eq.0) THEN
+                ALLOCATE(AllHistogram(1:iNoBins))
+                ALLOCATE(AllAttemptHist(1:iNoBins))
+                ALLOCATE(AllSpawnHist(1:iNoBins))
             ENDIF
         ENDIF
 
@@ -5843,7 +5921,7 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,Prob,IC,Ex,tParity,nParts)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
-        INTEGER :: iLutCurr(0:NoIntforDet)
+        INTEGER :: iLutCurr(0:NoIntforDet),Bin
         LOGICAL :: tParity,SymAllowed
         REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
@@ -5943,28 +6021,18 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-!        IF(tHistSpawns) THEN
-!            IF(IC.eq.1) THEN
-!                Bin=INT((real(rh%v)-MinBin)/BinRange)+1
-!                IF(Bin.gt.MaxBin) THEN
-!                    CALL Stop_All("AttemptCreatePar","Attempting to histogram outside range - singles")
-!                ENDIF
-!                SingleGenHist(Bin)=SingleGenHist(Bin)+(REAL(nParts)/Prob)
-!            ELSE
-!                Bin=INT((real(rh%v)-MinBin)/BinRange)+1
-!                IF(Bin.gt.MaxBin) THEN
-!                    CALL Stop_All("AttemptCreatePar","Attempting to histogram outside range - doubles")
-!                ENDIF
-!                DoubleGenHist(Bin)=DoubleBinHist(Bin)+(REAL(nParts)/Prob)
-!            ENDIF
-!            IF(AttemptCreatePar.ne.0) THEN
-!                IF(IC.eq.1) THEN
-!                    SingleSpawnHist(Bin)=SingleSpawnHist(Bin)+(REAL(nParts)/Prob)
-!                ELSE
-!                    DoubleSpawnHist(Bin)=DoubleSpawnHist(Bin)+(REAL(nParts)/Prob)
-!                ENDIF
-!            ENDIF
-!        ENDIF
+        IF(tHistEnergies) THEN
+            rh=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            Bin=INT((real(rh%v,r2)-Hii)/BinRange)+1
+            IF(Bin.gt.iNoBins) THEN
+                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
+            ENDIF
+            IF(AttemptCreatePar.ne.0) THEN
+                SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),r2)
+!                WRITE(6,*) "Get Here!", real(abs(AttemptCreatePar),r2),Bin
+            ENDIF
+            AttemptHist(Bin)=AttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
+        ENDIF
 
         RETURN
 
@@ -6925,6 +6993,15 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllHistogram)
                 DEALLOCATE(AllInstHist)
+            ENDIF
+        ELSEIF(tHistEnergies) THEN
+            DEALLOCATE(Histogram)
+            DEALLOCATE(AttemptHist)
+            DEALLOCATE(SpawnHist)
+            IF(iProcIndex.eq.0) THEN
+                DEALLOCATE(AllHistogram)
+                DEALLOCATE(AllAttemptHist)
+                DEALLOCATE(AllSpawnHist)
             ENDIF
         ENDIF
         DEALLOCATE(WalkVecDets)
