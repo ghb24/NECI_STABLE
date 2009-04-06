@@ -61,6 +61,9 @@ MODULE RotateOrbsMod
         CALL InitLocalOrbs()        ! Set defaults, allocate arrays, write out headings for OUTPUT, set integarals to HF values.
         IF(tMaxHLGap) THEN
             CALL EquateDiagFock()
+            tNotConverged=.false.
+        ELSE
+            tNotConverged=.true.
         ENDIF
 
         CALL WriteStats()           ! write out the original stats before any rotation.
@@ -79,8 +82,6 @@ MODULE RotateOrbsMod
 !        stop
 
 !        CALL InitOrbitalSeparation()        
-        
-        tNotConverged=.true.
 
         do while(tNotConverged)     ! rotate the orbitals until the sum of the four index integral falls below a chose convergence value.
 
@@ -913,12 +914,12 @@ MODULE RotateOrbsMod
             ENDIF
         enddo
 
-        do j=1,SpatOrbs
-            do i=1,SpatOrbs
-                WRITE(6,"(G13.5)",advance='no') CoeffT1(j,i)
-            enddo
-            WRITE(6,*) ""
-        enddo
+!        do j=1,SpatOrbs
+!            do i=1,SpatOrbs
+!                WRITE(6,"(G13.5)",advance='no') CoeffT1(j,i)
+!            enddo
+!            WRITE(6,*) ""
+!        enddo
 
 !Check normalization
         do j=1,SpatOrbs
