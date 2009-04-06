@@ -3387,7 +3387,7 @@ MODULE FciMCParMod
             IF(Bin.gt.iNoBins) THEN
                 CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
-            Histogram(Bin)=Histogram(Bin)+1.D0
+            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
         ENDIF
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
