@@ -1982,9 +1982,9 @@ MODULE RotateOrbsMod
 
 
 ! Write stats from the beginning of the iteration to output.            
-        IF(Mod(Iteration,1).eq.0.or.Iteration.eq.1) THEN
-            IF(iProcIndex.eq.Root) CALL WriteShakeOUTstats01()
-        ENDIF
+!        IF(Mod(Iteration,1).eq.0.or.Iteration.eq.1) THEN
+!            IF(iProcIndex.eq.Root) CALL WriteShakeOUTstats01()
+!        ENDIF
 
         CALL set_timer(Shake_Time,30)
 
@@ -2075,9 +2075,9 @@ MODULE RotateOrbsMod
 ! orthogonal.
 
 ! Write out stats of interest to output:
-            IF(Mod(Iteration,1).eq.0.or.Iteration.eq.1) THEN
-                IF(iProcIndex.eq.Root) CALL WriteShakeOUTstats02(ShakeIteration,TotLambdas,ConvergeCount) ! add correction to this.
-            ENDIF
+!            IF(Mod(Iteration,1).eq.0.or.Iteration.eq.1) THEN
+!                IF(iProcIndex.eq.Root) CALL WriteShakeOUTstats02(ShakeIteration,TotLambdas,ConvergeCount) ! add correction to this.
+!            ENDIF
 
 ! and to SHAKEstats file:
             CALL FLUSH(6)
