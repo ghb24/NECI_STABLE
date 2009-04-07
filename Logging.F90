@@ -9,7 +9,7 @@ MODULE Logging
     REAL*8 MaxHistE,BinRange
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tHistEnergies
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins
 
     contains
@@ -52,6 +52,7 @@ MODULE Logging
       tROHistSingExc=.false.
       tROHistOnePartOrbEn=.false.
       tROHistOneElInts=.false.
+      tPrintInts=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -191,6 +192,10 @@ MODULE Logging
                 tROHistVirtCoulomb=.true.
             ENDIF
         
+        case("PRINTINTEGRALS")
+!This option prints 2 files containing the values of certain integrals at each rotation iteration.  This is so that we can see the
+!effect the rotation is having on all values, other than just the one we are max/minimising.
+            tPrintInts=.true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them

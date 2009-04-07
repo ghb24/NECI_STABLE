@@ -95,11 +95,13 @@ MODULE System
       tOnePartOrbEnMax=.false.
       tERLocalization=.false.
       tVirtCoulombMax=.false.
+      tVirtExchangeMin=.false.
       tRotateOccOnly=.false.
       tRotateVirtOnly=.false.
       ERWeight=1.D0
       OffDiagWeight=1.D0
       OrbEnMaxAlpha=1.D0
+      MaxMinFac=1
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -373,6 +375,7 @@ MODULE System
 
         case("OFFDIAGSQRDMIN")
             tOffDiagSqrdMin=.true.
+            MaxMinFac=1
             IF(item.lt.nitems) THEN
                 call Getf(OffDiagWeight)
             ELSE
@@ -384,6 +387,7 @@ MODULE System
 
         case("OFFDIAGSQRDMAX")
             tOffDiagSqrdMax=.true.
+            MaxMinFac=-1
             IF(item.lt.nitems) THEN
                 call Getf(OffDiagWeight)
             ELSE
@@ -393,6 +397,7 @@ MODULE System
 
         case("OFFDIAGMIN")
             tOffDiagMin=.true.
+            MaxMinFac=1
             IF(item.lt.nitems) THEN
                 call Getf(OffDiagWeight)
             ELSE
@@ -402,6 +407,7 @@ MODULE System
 
         case("OFFDIAGMAX")
             tOffDiagMax=.true.
+            MaxMinFac=-1
             IF(item.lt.nitems) THEN
                 call Getf(OffDiagWeight)
             ELSE
@@ -411,6 +417,7 @@ MODULE System
 
         case("DOUBEXCITEMIN")
             tDoubExcMin=.true.
+            MaxMinFac=1
             IF(item.lt.nitems) THEN
                 call Getf(OffDiagWeight)
             ELSE
@@ -420,11 +427,13 @@ MODULE System
 
         case("ONEELINTMAX")
             tOneElIntMax=.true.
+            MaxMinFac=-1
             tRotateVirtOnly=.true.
 ! This sets the orbital rotation to find the coefficients which maximise the one electron integrals, <i|h|i>.
 
         case("ONEPARTORBENMAX")
             tOnePartOrbEnMax=.true.
+            MaxMinFac=-1
             tRotateVirtOnly=.true.
             IF(item.lt.nitems) THEN
                 call Getf(OrbEnMaxAlpha)
@@ -436,6 +445,7 @@ MODULE System
 
         case("ERLOCALIZATION")
             tERLocalization=.true.
+            MaxMinFac=-1
             IF(item.lt.nitems) THEN
                 call Getf(ERWeight)
             ELSE
@@ -446,8 +456,15 @@ MODULE System
 
         case("VIRTCOULOMBMAX")
             tVirtCoulombMax=.true.
+            MaxMinFac=-1
             tRotateVirtOnly=.true.
 ! This sets the orbital rotation to maximise the sum_i_j <ij|ij> terms where both i and j are virtual spatial orbitals.  
+
+        case("VIRTEXCHANGEMIN")
+            tVirtExchangeMin=.true.
+            MaxMinFac=1
+            tRotateVirtOnly=.true.
+! This sets the orbital rotation to minimise the sum_i_j <ij|ji> terms where both i and j are virtual spatial orbitals.  
 
         case("SHAKE")
 ! This will use the shake algorithm to iteratively enforce orthonormalisation on the rotation coefficients calculated in the ROTATEORBS
