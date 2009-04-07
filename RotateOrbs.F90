@@ -900,12 +900,12 @@ MODULE RotateOrbsMod
             ENDIF
         enddo
 
-!        do j=1,SpatOrbs
-!            do i=1,SpatOrbs
-!                WRITE(6,"(G13.5)",advance='no') CoeffT1(j,i)
-!            enddo
-!            WRITE(6,*) ""
-!        enddo
+        do j=1,SpatOrbs
+            do i=1,SpatOrbs
+                WRITE(6,"(G13.5)",advance='no') CoeffT1(j,i)
+            enddo
+            WRITE(6,*) ""
+        enddo
 
 !Check normalization
         do j=1,SpatOrbs
@@ -2470,7 +2470,7 @@ MODULE RotateOrbsMod
 
 ! First need to do a final explicit orthonormalisation.  The orbitals are very close to being orthonormal, but not exactly.
 ! Need to make sure they are exact orthonormal using Gram Schmit.
-        CALL GRAMSCHMIDT(CoeffT1,SpatOrbs)
+        IF(.not.tMaxHLGap) CALL GRAMSCHMIDT(CoeffT1,SpatOrbs)
 
 ! Write out some final results of interest, like values of the constraints, values of new coefficients.
         
@@ -2478,7 +2478,7 @@ MODULE RotateOrbsMod
             WRITE(6,*) 'The final transformation coefficients after gram schmidt orthonormalisation'
             do i=1,SpatOrbs
                 do a=1,SpatOrbs
-                    WRITE(6,'(F20.10)',advance='no') CoeffT1(a,i)
+                    WRITE(6,'(F10.4)',advance='no') CoeffT1(a,i)
                 enddo
                 WRITE(6,*) ''
             enddo

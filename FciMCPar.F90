@@ -15,7 +15,7 @@ MODULE FciMCParMod
     USE DetCalc , only : NMRKS,ICILevel,nDet
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
-    USE Logging , only : TAutoCorr,NoACDets,BinRange,iNoBins!,iLagMin,iLagMax,iLagStep
+    USE Logging , only : TAutoCorr,NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE global_utilities
@@ -189,7 +189,8 @@ MODULE FciMCParMod
     REAL(4) :: IterTime
     
     REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
-    INTEGER :: MaxDet
+    REAL(KIND=r2) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
+    INTEGER :: MaxDet,iOffDiagNoBins
 
     contains
 
@@ -296,10 +297,18 @@ MODULE FciMCParMod
             AllHistogram(:)=0.D0
             AllAttemptHist(:)=0.D0
             AllSpawnHist(:)=0.D0
+            AllDoublesHist(:)=0.D0
+            AllDoublesAttemptHist(:)=0.D0
+            AllSinglesHist(:)=0.D0
+            AllSinglesAttemptHist(:)=0.D0
         ENDIF
         CALL MPI_Reduce(Histogram,AllHistogram,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(AttemptHist,AllAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(SpawnHist,AllSpawnHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHist,AllSinglesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesAttemptHist,AllSinglesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(DoublesHist,AllDoublesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(DoublesAttemptHist,AllDoublesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
         IF(iProcIndex.eq.0) THEN
             Norm=0.D0
@@ -325,9 +334,42 @@ MODULE FciMCParMod
             do i=1,iNoBins
                 AllSpawnHist(i)=AllSpawnHist(i)/Norm
             enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllSinglesHist(i)
+            enddo
+!            WRITE(6,*) "AllSinglesHistNorm = ",Norm
+            do i=1,iOffDiagNoBins
+                AllSinglesHist(i)=AllSinglesHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllSinglesAttemptHist(i)
+            enddo
+!            WRITE(6,*) "AllSinglesAttemptHistNorm = ",Norm
+            do i=1,iOffDiagNoBins
+                AllSinglesAttemptHist(i)=AllSinglesAttemptHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllDoublesHist(i)
+            enddo
+!            WRITE(6,*) "AllDoublesHistNorm = ",Norm
+            do i=1,iOffDiagNoBins
+                AllDoublesHist(i)=AllDoublesHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllDoublesAttemptHist(i)
+            enddo
+!            WRITE(6,*) "AllDoublesAttemptHist = ",Norm
+            do i=1,iOffDiagNoBins
+                AllDoublesAttemptHist(i)=AllDoublesAttemptHist(i)/Norm
+            enddo
             OPEN(17,FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
             OPEN(18,FILE='ATTEMPTENERGYHIST',STATUS='UNKNOWN')
             OPEN(19,FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
+            OPEN(20,FILE='SINGLESHIST',STATUS='UNKNOWN')
 
             EnergyBin=BinRange/2.D0
             do i=1,iNoBins
@@ -339,6 +381,24 @@ MODULE FciMCParMod
             CLOSE(17)
             CLOSE(18)
             CLOSE(19)
+            OPEN(21,FILE='ATTEMPTSINGLESHIST',STATUS='UNKNOWN')
+            OPEN(22,FILE='DOUBLESHIST',STATUS='UNKNOWN')
+            OPEN(23,FILE='ATTEMPTDOUBLESHIST',STATUS='UNKNOWN')
+
+            EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
+            do i=1,iOffDiagNoBins
+                WRITE(20,*) EnergyBin, AllSinglesHist(i)
+                WRITE(21,*) EnergyBin, AllSinglesAttemptHist(i)
+                WRITE(22,*) EnergyBin, AllDoublesHist(i)
+                WRITE(23,*) EnergyBin, AllDoublesAttemptHist(i)
+                EnergyBin=EnergyBin+OffDiagBinRange
+!                WRITE(6,*) i
+            enddo
+
+            CLOSE(20)
+            CLOSE(21)
+            CLOSE(22)
+            CLOSE(23)
         ENDIF
 
     END SUBROUTINE WriteHistogramEnergies
@@ -4118,16 +4178,31 @@ MODULE FciMCParMod
             ENDIF
         ELSEIF(tHistEnergies) THEN
             WRITE(6,*) "Histogramming the energies of the particles, with iNoBins=",iNoBins, " and BinRange=", BinRange
+            WRITE(6,*) "Histogramming spawning events from ",-OffDiagMax, " with BinRange = ", OffDiagBinRange
+            iOffDiagNoBins=INT((2.D0*OffDiagMax)/OffDiagBinRange)+1
+            WRITE(6,*) "This gives ",iOffDiagNoBins," bins to histogram the off-diagonal matrix elements."
             ALLOCATE(Histogram(1:iNoBins))
             ALLOCATE(AttemptHist(1:iNoBins))
             ALLOCATE(SpawnHist(1:iNoBins))
+            ALLOCATE(SinglesHist(1:iOffDiagNoBins))
+            ALLOCATE(SinglesAttemptHist(1:iOffDiagNoBins))
+            ALLOCATE(DoublesHist(1:iOffDiagNoBins))
+            ALLOCATE(DoublesAttemptHist(1:iOffDiagNoBins))
             Histogram(:)=0.D0
             AttemptHist(:)=0.D0
             SpawnHist(:)=0.D0
+            SinglesHist(:)=0.D0
+            SinglesAttemptHist(:)=0.D0
+            DoublesHist(:)=0.D0
+            DoublesAttemptHist(:)=0.D0
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(AllHistogram(1:iNoBins))
                 ALLOCATE(AllAttemptHist(1:iNoBins))
                 ALLOCATE(AllSpawnHist(1:iNoBins))
+                ALLOCATE(AllSinglesHist(1:iNoBins))
+                ALLOCATE(AllDoublesHist(1:iNoBins))
+                ALLOCATE(AllSinglesAttemptHist(1:iNoBins))
+                ALLOCATE(AllDoublesAttemptHist(1:iNoBins))
             ENDIF
         ENDIF
 
@@ -6022,6 +6097,23 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tHistEnergies) THEN
+!First histogram off-diagonal matrix elements.
+            Bin=INT((real(rh%v,r2)+OffDiagMax)/OffDiagBinRange)+1
+            IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
+                CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, but outside histogram array bounds.")
+            ENDIF
+            IF(IC.eq.1) THEN
+                SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
+                IF(AttemptCreatePar.ne.0) THEN
+                    SinglesHist(Bin)=SinglesHist(Bin)+real(abs(AttemptCreatePar),r2)
+                ENDIF
+            ELSEIF(IC.eq.2) THEN
+                DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
+                IF(AttemptCreatePar.ne.0) THEN
+                    DoublesHist(Bin)=DoublesHist(Bin)+real(abs(AttemptCreatePar),r2)
+                ENDIF
+            ENDIF
+
             rh=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
             Bin=INT((real(rh%v,r2)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
@@ -6998,10 +7090,18 @@ MODULE FciMCParMod
             DEALLOCATE(Histogram)
             DEALLOCATE(AttemptHist)
             DEALLOCATE(SpawnHist)
+            DEALLOCATE(SinglesHist)
+            DEALLOCATE(DoublesHist)
+            DEALLOCATE(DoublesAttemptHist)
+            DEALLOCATE(SinglesAttemptHist)
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllHistogram)
                 DEALLOCATE(AllAttemptHist)
                 DEALLOCATE(AllSpawnHist)
+                DEALLOCATE(AllSinglesAttemptHist)
+                DEALLOCATE(AllSinglesHist)
+                DEALLOCATE(AllDoublesAttemptHist)
+                DEALLOCATE(AllDoublesHist)
             ENDIF
         ENDIF
         DEALLOCATE(WalkVecDets)

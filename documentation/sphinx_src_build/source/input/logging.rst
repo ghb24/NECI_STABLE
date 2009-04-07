@@ -133,7 +133,7 @@ FCIMC options
     If done, SymDets will also be written out, containing the exact wavevector in the same format from the 
     diagonalization.
 
-**HISTPARTENERGIES** [BinRange] [iNoBins]
+**HISTPARTENERGIES** [BinRange] [iNoBins] [OffDiagBinRange] [OffDiagMax]
 
     This is a histogramming option. It is slow, so not for use unless the diagnostic is needed. It will histogram
     the diagonal hamiltonian matrix element for three types of particle. Two input values are needed. The first
@@ -143,6 +143,11 @@ FCIMC options
     ones which are successfully spawned). For this one, the contibution to the energy is actually 1/Prob of generating. 
     SPAWNENERGYHIST - this is the histogram of all successfully spawned particles. All these histograms are normalized to
     one before printing out.
+    Also now, the off-diagonal matrix elements are histogrammed. OffDiagBinRange is a real input parameter which indicates
+    the range of the bins and OffDiagMax is the maximum matrix element to histogram. The doubles and singles will be done
+    seperately, as are the accepted spawns and total spawns. Therefore, four files are produced - SINGLESHIST, ATTEMPTSINGLESHIST,
+    DOUBLESHIST, ATTEMPTDOUBLESHIST. Again, these are normalized and the ATTEMPT files histogram proportionally to 1/probability
+    of generating the excitation.
 
 **AUTOCORR** [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]
     This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
