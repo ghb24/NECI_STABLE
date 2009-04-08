@@ -691,6 +691,15 @@ The following options are only available in **FCIMC** calculations:
     orbitals lower in energy than the active space are completely occupied and those higher in 
     energy are completely unoccupied.
 
+**SINGLESBIAS** [SinglesBias]
+    Default 1.D0
+
+    This represents the factor to which singles are biased towards over double excitations from a determinant.
+    This works with the NONUNIFORMRANDEXCITS excitation generators for FCIMC code. Normally, the
+    pDoubles is given by the number of doubles divided by the total excitations from HF. Now, 
+    the number of singles in the total excitations term is multiplied by SinglesBias. Alternatively,
+    SinglesBias can be set to less than 1 to bias towards doubles.
+
 **FINDGROUNDDET**
     Default=false.
 

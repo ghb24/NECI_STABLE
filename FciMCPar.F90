@@ -10,7 +10,7 @@ MODULE FciMCParMod
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
-    use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs
+    use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet
     use IntegralsData , only : fck,NMax,UMat
@@ -7056,6 +7056,10 @@ MODULE FciMCParMod
 
         WRITE(6,"(I7,A,I7,A)") NDoub, " double excitations, and ",NSing," single excitations found from HF. This will be used to calculate pDoubles."
 
+        IF(SinglesBias.ne.1.D0) THEN
+            WRITE(6,*) "Singles Bias detected. Multiplying single excitation connectivity of HF determinant by ",SinglesBias," to determine pDoubles."
+        ENDIF
+
         IF((NSing+nDoub).ne.iTotal) THEN
             CALL Stop_All("CalcApproxpDoubles","Sum of number of singles and number of doubles does not equal total number of excitations")
         ENDIF
@@ -7068,9 +7072,13 @@ MODULE FciMCParMod
         ENDIF
 
 !Set pDoubles to be the fraction of double excitations.
-        pDoubles=real(nDoub,r2)/real(iTotal,r2)
+        pDoubles=real(nDoub,r2)/((real(NSing,r2)*SinglesBias)+real(NDoub,r2))
 
-        WRITE(6,"(A,F14.6)") "pDoubles set to: ",pDoubles
+        IF(SinglesBias.ne.1.D0) THEN
+            WRITE(6,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ",real(nDoub,r2)/real(iTotal,r2)
+        ELSE
+            WRITE(6,"(A,F14.6)") "pDoubles set to: ",pDoubles
+        ENDIF
 
     END SUBROUTINE CalcApproxpDoubles
     

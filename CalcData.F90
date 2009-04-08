@@ -39,7 +39,7 @@ REAL*8 :: BETAP,RHOEPSILON,DBETA(3),STARCONV,GraphBias
 REAL*8 :: GrowGraphsExpo,DiagSft,Tau,SftDamp,ScaleWalkers
 REAL*8 :: GrowMaxFactor,CullFactor,Lambda,NodalCutoff,PRet
 REAL*8 :: FixShift,MemoryFacPart,MemoryFacAnnihil,FixedKiiCutoff
-REAL*8 :: BField,MemoryFacSpawn
+REAL*8 :: BField,MemoryFacSpawn,SinglesBias
 
 
 

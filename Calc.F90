@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          SinglesBias=1.D0
           tAllSpawnStarDets=.false.
           tNoReturnStarDets=.false.
           iStarOrbs=0
@@ -873,6 +874,9 @@ MODULE Calc
                 call Getf(BField)
                 tSymmetricField=.true.
                 tMagnetize=.true.
+            case("SINGLESBIAS")
+!This is a parallel FCIMC option, where the single excitations from any determinant will be favoured compared to the simple ratio of number of doubles to singles from HF by multiplying the number of singles by this factor.
+                call Getf(SinglesBias)
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
