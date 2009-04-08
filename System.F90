@@ -91,6 +91,7 @@ MODULE System
       tOffDiagMin=.false.
       tOffDiagMax=.false.
       tDoubExcMin=.false.
+      tHijSqrdMin=.false.
       tOneElIntMax=.false.
       tOnePartOrbEnMax=.false.
       tERLocalization=.false.
@@ -98,10 +99,15 @@ MODULE System
       tVirtExchangeMin=.false.
       tRotateOccOnly=.false.
       tRotateVirtOnly=.false.
-      ERWeight=1.D0
+      DiagWeight=1.D0
       OffDiagWeight=1.D0
+      OneElWeight=1.D0
       OrbEnMaxAlpha=1.D0
       MaxMinFac=1
+      DiagMaxMinFac=-1
+      OneElMaxMinFac=1
+      tDiagonalizehij=.false.
+
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -365,13 +371,19 @@ MODULE System
             tAssumeSizeExcitgen=.true.
 
 
+        case("ROTATEORBS")
 ! The ROTATEORBS calculation initiates a routine which takes the HF orbitals
 ! and finds the optimal set of transformation coefficients to fit a particular criteria specified below.
 ! This new set of orbitals can then used to produce a ROFCIDUMP file and perform the FCIMC calculation.
-        case("ROTATEORBS")
             tRotateOrbs=.true.
             call Getf(TimeStep)
             call Getf(ConvergedForce)
+
+        case("DIAGONALIZEHIJ")
+! Instead of doing an orbital rotation according to the P.E's below, this keyword sets the rotate orbs routine to 
+! take the input <i|h|j>, and diagonalise it to give the rotation coefficients.
+            tDiagonalizehij=.true.
+
 
         case("OFFDIAGSQRDMIN")
             tOffDiagSqrdMin=.true.
@@ -425,6 +437,18 @@ MODULE System
             ENDIF
 ! This sets the orbital rotation to find the coefficients which minimise the double excitation hamiltonian elements.
 
+        case("HIJSQRDMIN")
+            tHijSqrdMin=.true.
+            OneElMaxMinFac=1
+            tRotateVirtOnly=.true.
+            IF(item.lt.nitems) THEN
+                call Getf(OneElWeight)
+            ELSE
+                OneElWeight=1.0
+            ENDIF
+! This sets the orbital rotation to find the coefficients which minimis the square of the one electron integrals, <i|h|j>.
+! i can be occupied or virtual, j only virtual, i=<j.
+
         case("ONEELINTMAX")
             tOneElIntMax=.true.
             MaxMinFac=-1
@@ -445,11 +469,11 @@ MODULE System
 
         case("ERLOCALIZATION")
             tERLocalization=.true.
-            MaxMinFac=-1
+            DiagMaxMinFac=-1
             IF(item.lt.nitems) THEN
-                call Getf(ERWeight)
+                call Getf(DiagWeight)
             ELSE
-                ERWeight=1.0
+                DiagWeight=1.0
             ENDIF
 ! This sets the orbital rotation to an Edmiston-Reudenberg localisation.  This maximises the self repulsion energy, i.e 
 ! maximises the sum of the <ii|ii> terms.    
