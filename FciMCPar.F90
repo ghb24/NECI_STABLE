@@ -12,7 +12,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     USE Determinants , only : FDet,GetHElement2,GetHElement4
-    USE DetCalc , only : NMRKS,ICILevel,nDet
+    USE DetCalc , only : NMRKS,ICILevel,nDet,Det
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : TAutoCorr,NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep
@@ -190,7 +190,7 @@ MODULE FciMCParMod
     
     REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
     REAL(KIND=r2) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
-    INTEGER :: MaxDet,iOffDiagNoBins
+    INTEGER :: MaxDet,iOffDiagNoBins,HistMinInd
 
     contains
 
@@ -407,9 +407,9 @@ MODULE FciMCParMod
     SUBROUTINE WriteHistogram()
         use Determinants , only : GetHElement3
         use SystemData , only : BasisFN
-        INTEGER :: i,j,Det,bits,iLut(0:nBasis/32),error,IterRead
+        INTEGER :: i,j,bits,iLut(0:nBasis/32),error,IterRead
         TYPE(BasisFN) :: ISym
-        REAL*8 :: norm,norm1,ShiftRead,AllERead
+        REAL*8 :: norm,norm1,ShiftRead,AllERead,NumParts
         TYPE(HElement) :: HEL
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
@@ -423,38 +423,39 @@ MODULE FciMCParMod
             CALL FLUSH(6)
         ENDIF
 
-        IF(nBasis/32.ne.0) THEN
-            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
-        ENDIF
+!        IF(nBasis/32.ne.0) THEN
+!            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
+!        ENDIF
 
         IF(iProcIndex.eq.0) THEN
             AllHistogram(:)=0.D0
             AllInstHist(:)=0.D0
         ENDIF
 
-        CALL MPI_Reduce(Histogram,AllHistogram,MaxDet,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(InstHist,AllInstHist,MaxDet,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(InstHist,AllInstHist,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         
         IF(iProcIndex.eq.0) THEN
+
+            IF(.not.associated(NMRKS)) THEN
+                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
+            ENDIF
+
             norm=0.D0
             norm1=0.D0
-            do i=1,MaxDet
+            do i=1,Det
                 norm=norm+AllHistogram(i)**2
                 norm1=norm1+AllInstHist(i)**2
             enddo
             norm=SQRT(norm)
             norm1=SQRT(norm1)
 !            WRITE(6,*) "NORM",norm
-            do i=1,MaxDet
+            do i=1,Det
                 AllHistogram(i)=AllHistogram(i)/norm
                 AllInstHist(i)=AllInstHist(i)/norm1
             enddo
             
-            IF(.not.associated(NMRKS)) THEN
-                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
-            ENDIF
-
-            Det=0
+!            Det=0
             norm=0.D0
             norm1=0.D0
 
@@ -473,47 +474,60 @@ MODULE FciMCParMod
             IF(exists) THEN
                 OPEN(28,FILE=abstr,STATUS='OLD',POSITION='REWIND',ACTION='READ')
                 do while(.true.)
-                    READ(28,"(I13,2G25.16)",END=99) IterRead,ShiftRead,AllERead
-                    WRITE(29,"(I13,2G25.16)") IterRead,ShiftRead,AllERead
+                    READ(28,"(I13,3G25.16)",END=99) IterRead,ShiftRead,AllERead,NumParts
+                    WRITE(29,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-                WRITE(29,"(I13,2G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc
+                IF(AllHFCyc.eq.0) THEN
+                    WRITE(19,"(I13,3G25.16)") Iter,DiagSft,AllERead,AllTotPartsOld
+                ELSE
+                    WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
+                ENDIF
                 CLOSE(29)
                 CLOSE(28)
 
             ELSE
                 OPEN(29,FILE=abstr2,STATUS='UNKNOWN')
-                WRITE(29,"(I13,2G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc
+                WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
                 CLOSE(29)
             ENDIF
 
-            do i=1,Maxdet
-                bits=0
-                do j=0,nbasis-1
-                    IF(BTEST(i,j)) THEN
-                        Bits=Bits+1
-                    ENDIF
-                enddo
-                IF(Bits.eq.NEl) THEN
 
-                    do j=1,ndet
-                        CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
-                        IF(iLut(0).eq.i) THEN
-                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
-                            IF(ISym%Sym%S.eq.0) THEN
-                                Det=Det+1
-                                WRITE(17,"(3I12)",advance='no') Det,iLut(0)
-                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
-                                norm=norm+(AllHistogram(i))**2
-                                norm1=norm1+(AllInstHist(i))**2
-                                WRITE(17,"(5G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1
-                            ENDIF
-                            EXIT
-                        ENDIF
-                    ENDDO
-                ENDIF
+            norm=0.D0
+            norm1=0.D0
+            do i=1,Det
+                norm=norm+(AllHistogram(i))**2
+                norm1=norm1+(AllInstHist(i))**2
+                WRITE(17,"(I13,4G25.16)") i,AllHistogram(i),norm,AllInstHist(i),norm1
+            enddo
 
-            ENDDO
+!            do i=1,Maxdet
+!                bits=0
+!                do j=0,nbasis-1
+!                    IF(BTEST(i,j)) THEN
+!                        Bits=Bits+1
+!                    ENDIF
+!                enddo
+!                IF(Bits.eq.NEl) THEN
+!
+!                    do j=1,ndet
+!                        CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
+!                        IF(iLut(0).eq.i) THEN
+!                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
+!                            IF(ISym%Sym%S.eq.0) THEN
+!                                Det=Det+1
+!                                WRITE(17,"(3I12)",advance='no') Det,iLut(0)
+!                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
+!                                norm=norm+(AllHistogram(i))**2
+!                                norm1=norm1+(AllInstHist(i))**2
+!                                WRITE(17,"(5G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1
+!                            ENDIF
+!                            EXIT
+!                        ENDIF
+!                    ENDDO
+!                ENDIF
+!
+!            ENDDO
             CLOSE(17)
         ENDIF
         InstHist(:)=0.D0
@@ -551,6 +565,7 @@ MODULE FciMCParMod
         NoatDoubs=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
         IF(.not.tStarOrbs) tStarDet=.false.
+        HistMinInd=1    !This is for the binary search when histogramming
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -2341,12 +2356,7 @@ MODULE FciMCParMod
             ELSEIF(i.eq.N) THEN
 
 
-                IF(i.eq.MinInd) THEN
-                    tSuccess=.false.
-                    PartInd=i
-                    RETURN
-
-                ELSEIF(i.eq.MaxInd-1) THEN
+                IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
 !We need to check the last index.
                     Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NoIntforDet)
@@ -2364,6 +2374,12 @@ MODULE FciMCParMod
                         PartInd=i
                         RETURN
                     ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+
                 ELSE
                     i=j
                 ENDIF
@@ -3426,7 +3442,8 @@ MODULE FciMCParMod
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr)
         INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NoIntforDet),WSign,Bin
-        LOGICAL :: CompiPath
+        INTEGER :: PartInd
+        LOGICAL :: CompiPath,tSuccess
         REAL*8 :: HDiagCurr
         TYPE(HElement) :: HOffDiag
 
@@ -3434,12 +3451,21 @@ MODULE FciMCParMod
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
         IF(tHistSpawn) THEN
-            IF(tFlippedSign) THEN
-                Histogram(iLutCurr(0))=Histogram(iLutCurr(0))-REAL(WSign,r2)
-                InstHist(iLutCurr(0))=InstHist(iLutCurr(0))-REAL(WSign,r2)
+            CALL BinSearchParts2(iLutCurr,HistMinInd,Det,PartInd,tSuccess)
+            HistMinInd=PartInd
+            IF(tSuccess) THEN
+                IF(tFlippedSign) THEN
+                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                    InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                ELSE
+                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                    InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                ENDIF
             ELSE
-                Histogram(iLutCurr(0))=Histogram(iLutCurr(0))+REAL(WSign,r2)
-                InstHist(iLutCurr(0))=InstHist(iLutCurr(0))+REAL(WSign,r2)
+                WRITE(6,*) DetCurr(:)
+                WRITE(6,*) "***",iLutCurr(0:NoIntforDet)
+                WRITE(6,*) "***",ExcitLevel,HistMinInd,Det
+                CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
             ENDIF
         ELSEIF(tHistEnergies) THEN
 !This wil histogramm the energies of the particles, rather than the determinants themselves.
@@ -4166,15 +4192,24 @@ MODULE FciMCParMod
             do i=1,nel
                 maxdet=maxdet+2**(nbasis-i)
             enddo
-            WRITE(6,*) "Histogramming spawning wavevector, with MaxDet=", MaxDet
-            ALLOCATE(Histogram(1:maxdet))
+            WRITE(6,*) "Histogramming spawning wavevector, with Dets=", Det
+            ALLOCATE(Histogram(1:det),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            ENDIF
             Histogram(:)=0.D0
-            ALLOCATE(InstHist(1:maxdet))
+            ALLOCATE(InstHist(1:det),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            ENDIF
             InstHist(:)=0.D0
 
             IF(iProcIndex.eq.0) THEN
-                ALLOCATE(AllHistogram(1:maxdet))
-                ALLOCATE(AllInstHist(1:maxdet))
+                ALLOCATE(AllHistogram(1:det),stat=ierr)
+                ALLOCATE(AllInstHist(1:det),stat=ierr)
+                IF(ierr.ne.0) THEN
+                    CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+                ENDIF
             ENDIF
         ELSEIF(tHistEnergies) THEN
             WRITE(6,*) "Histogramming the energies of the particles, with iNoBins=",iNoBins, " and BinRange=", BinRange
@@ -8145,6 +8180,80 @@ MODULE FciMCParMod
 !        RETURN
 !
 !    END SUBROUTINE CalcAutoCorr
+    
+!This is the same as BinSearchParts1, but this time, it searches though the full list of determinants created by the full diagonalizer when the histogramming option is on.
+    SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
+        use DetCalc , only : FCIDets
+        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp,DetBitLT
+        LOGICAL :: tSuccess
+
+!        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        CALL FLUSH(6)
+        i=MinInd
+        j=MaxInd
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(6,*) i,j,n
+
+!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(FCIDets(:,N),iLut(:),NoIntforDet)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!We need to check the last index.
+                    Comp=DetBitLT(FCIDets(:,i+1),iLut(:),NoIntforDet)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchParts2
     
 
 END MODULE FciMCParMod

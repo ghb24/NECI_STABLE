@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tFindDets=.false.
           SinglesBias=1.D0
           tAllSpawnStarDets=.false.
           tNoReturnStarDets=.false.
@@ -877,6 +878,10 @@ MODULE Calc
             case("SINGLESBIAS")
 !This is a parallel FCIMC option, where the single excitations from any determinant will be favoured compared to the simple ratio of number of doubles to singles from HF by multiplying the number of singles by this factor.
                 call Getf(SinglesBias)
+            case("JUSTFINDDETS")
+!This option is to be used in conjunction with the diagonalization methods. With this, all the determinants will be enumerated, but the hamiltonian will not be calculated,
+!and the energies not calculated. This is needed when the full list of determinants is needed for later on.
+                tFindDets=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
@@ -1181,6 +1186,7 @@ MODULE Calc
           Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
           Use Determinants, only: specdet, tSpecDet
           Use Logging, only: iLogging
+          Use CalcData, only: tFindDets
           real*8 flri, flsi
           REAL*8 En, ExEn, GSEn
           REAL*8 RH
@@ -1190,7 +1196,7 @@ MODULE Calc
           
           REAL*8 CalcMCEn, CalcDLWDB, DoExMC
             
-          IF(TENERGY) THEN
+          IF(TENERGY.and.(.not.tFindDets)) THEN
              RHOEPS=RHOEPSILON*EXP(-BETA*(W(1))/I_P)
             WRITE(6,*) "RHOEPS:",RHOEPS
              IF(TREAD) THEN

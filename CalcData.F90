@@ -18,7 +18,7 @@ LOGICAL :: TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
 LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
 LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift
 LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
-LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs
+LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs,tFindDets
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell,tNoReturnStarDets
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift,tAllSpawnStarDets
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange

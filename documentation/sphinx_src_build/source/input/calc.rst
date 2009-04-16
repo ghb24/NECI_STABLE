@@ -988,6 +988,13 @@ basis of spin orbitals.
         
         I have (hopefully) combined them correctly.
 
+**JUSTFINDDETS**
+
+    This is an option to be used in conjunction with **ENERGY** and exact diagonalization methods.
+    If specified, the diagonalization routines will just enumerate all the determinants and will
+    not try to form the hamiltonian or diagonalize it. No energy will therefore be found, but
+    enumerating all the determinants can be useful for histogramming methods in FCIMC methods.
+
 **KRYLOV** [NKRY]
     Set number of Krylov vectors.
 

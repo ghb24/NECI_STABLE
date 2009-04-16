@@ -132,6 +132,8 @@ FCIMC options
     It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
     If done, SymDets will also be written out, containing the exact wavevector in the same format from the 
     diagonalization.
+    IF **JUSTFINDDETS** option is on, the exact wavevector will not be written out, but the determinants simply
+    enumerated and stored in a compressed form in FCIDets array.
 
 **HISTPARTENERGIES** [BinRange] [iNoBins] [OffDiagBinRange] [OffDiagMax]
 

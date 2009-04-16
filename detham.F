@@ -35,6 +35,7 @@ C..Global counter
       NROW(1:NDET)=0
 C..   Now we need to match up any two determinants
       DO KI=1,NDET
+         IF(mod(KI,1000).eq.0) WRITE(6,*) KI
          IF(KI.EQ.1) THEN
            IBEG=0
          ELSE
