@@ -125,7 +125,7 @@ General options
 FCIMC options
 -------------
 
-**HISTDETS** [iWriteHistEvery]
+**HISTSPAWN** [iWriteHistEvery]
 
     This option will histogram the spawned wavevector, averaged over all previous iterations. 
     It scales horrifically and can only be done for small systems which can be diagonalized. 
