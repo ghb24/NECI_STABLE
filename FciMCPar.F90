@@ -721,7 +721,7 @@ MODULE FciMCParMod
 
                     IF(Child.gt.25) THEN
                         WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
-                        WRITE(6,"(A)") "Excitation: ",IC
+                        WRITE(6,"(A,I5)") "Excitation: ",IC
                         WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
 !                        CALL FLUSH(6)
                     ENDIF
@@ -907,7 +907,7 @@ MODULE FciMCParMod
 
                         IF(Child.gt.25) THEN
                             WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
-                            WRITE(6,"(A)") "Excitation: ",IC
+                            WRITE(6,"(A,I5)") "Excitation: ",IC
                             WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
 !                            CALL FLUSH(6)
                         ENDIF

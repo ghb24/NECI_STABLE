@@ -510,13 +510,16 @@ CONTAINS
             enddo
             WRITE(6,*) Det," determinants of A1 symmetry found."
             WRITE(6,*) "Normalization of those determinants is: ", norm
+            CALL FLUSH(6)
 
             ALLOCATE(FCIDets(0:nBasis/32,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-            ALLOCATE(FCIGS(Det),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-            ALLOCATE(Temp(Det),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
+            IF(.not.tFindDets) THEN
+                ALLOCATE(FCIGS(Det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
+                ALLOCATE(Temp(Det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
+            ENDIF
 
             Det=0
             do i=1,NDet
@@ -528,24 +531,34 @@ CONTAINS
                 IF(ISym%Sym%S.eq.0) THEN
                     Det=Det+1
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:nBasis/32,Det),NEl,nBasis/32)
-                    IF(tFindDets) THEN
-                        FCIGS(Det)=0.D0
-                    ELSE
+                    IF(.not.tFindDets) THEN
                         FCIGS(Det)=REAL(CK(i)%v,8)/norm
                     ENDIF
                 ENDIF
             enddo
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
-            CALL SortBitDetswH(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp,FCIGS)
-            
-            IF(iProcIndex.eq.0) THEN
-                OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
+            IF(.not.tFindDets) THEN
+                CALL SortBitDetswH(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp,FCIGS)
+            ELSE
+                ALLOCATE(Temp(Det),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
+                CALL SortBitDets(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp)
+                DEALLOCATE(Temp)
 
-                do i=1,Det
-                    WRITE(17,"(I10,G25.16)") i,FCIGS(i)
-                enddo
-                CLOSE(17)
+            ENDIF
+            
+            IF(.not.tFindDets) THEN
+                IF(iProcIndex.eq.0) THEN
+                    OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
+
+                    do i=1,Det
+                        WRITE(17,"(I10,G25.16)") i,FCIGS(i)
+                    enddo
+                    CLOSE(17)
+                ENDIF
+                DEALLOCATE(Temp)
+                DEALLOCATE(FCIGS)
             ENDIF
 !            do i=1,Det
 !                CALL DecodeBitDet(nK,iLut,NEl,nBasis/32)
@@ -555,8 +568,6 @@ CONTAINS
 !                    WRITE(6,*) i,iSym%Sym%S,FCIGS(i)
 !                ENDIF
 !            enddo
-            DEALLOCATE(Temp)
-            DEALLOCATE(FCIGS)
 
 !             Det=0
 !             maxdet=0
