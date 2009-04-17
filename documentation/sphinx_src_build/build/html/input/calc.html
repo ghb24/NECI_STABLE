@@ -693,6 +693,21 @@ for determinants with excitations within this space only.  I.e. determinants for
 orbitals lower in energy than the active space are completely occupied and those higher in
 energy are completely unoccupied.</p>
 </dd>
+<dt><strong>SINGLESBIAS</strong> [SinglesBias]</dt>
+<dd><p class="first">Default 1.D0</p>
+<p class="last">This represents the factor to which singles are biased towards over double excitations from a determinant.
+This works with the NONUNIFORMRANDEXCITS excitation generators for FCIMC code. Normally, the
+pDoubles is given by the number of doubles divided by the total excitations from HF. Now,
+the number of singles in the total excitations term is multiplied by SinglesBias. Alternatively,
+SinglesBias can be set to less than 1 to bias towards doubles.</p>
+</dd>
+<dt><strong>FINDGROUNDDET</strong></dt>
+<dd><p class="first">Default=false.</p>
+<p class="last">A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower
+than the energy of the current reference determinant, the energies are rezeroed and the
+reference changed to the new determinant. For a HF basis, this cannot happen, but with
+rotated orbital may be important.</p>
+</dd>
 <dt><strong>ANNIHILATDISTANCE</strong> [Lambda]</dt>
 <dd><p class="first">Default=0.D0</p>
 <p class="last">A serial FCIMC option. Here, walkers i and j have the chance to annihilate each other
@@ -702,12 +717,13 @@ particles to be needed to sample the space correctly. When Lambda=0.D0, it shoul
 equivalent to the original annihilation algorithm. Warning - this is much slower than
 normal annihilation.</p>
 </dd>
-<dt><strong>ANNIHILATERANGE</strong></dt>
-<dd><p class="first">Default=.false.</p>
+<dt><strong>ANNIHILATERANGE</strong> [<strong>OFF</strong>]</dt>
+<dd><p class="first">Default=.true.</p>
 <p class="last">A parallel FCIMC option. This is a slightly different annihilation algorithm, where only
 one sort of the full set of particles is needed. This should greatly reduce the time needed
 for annihilation of large numbers of particles. However, the load-balancing across processors
-may not be so good.</p>
+may not be so good. This option is now on by default and can only be switched off via the input
+file by specifying <strong>OFF</strong> after the keyword.</p>
 </dd>
 </dl>
 <p><strong>LOCALANNIHIL</strong> [Lambda]</p>
@@ -729,8 +745,9 @@ the probability of generating the excitation. Instead, the unbiasing occurs when
 walker contributes to the energy estimator. This should reduce the variance for the
 energy estimator.</p>
 </dd>
-<dt><strong>GLOBALSHIFT</strong></dt>
+<dt><strong>GLOBALSHIFT</strong> <strong>OFF</strong></dt>
 <dd><p class="first">Default true</p>
+<p>This option can only be turned off by specifying <strong>OFF</strong></p>
 <p class="last">A parallel FCIMC option. It is generally recommended to have this option on. This will
 calculate the growth rate of the system as a simple ratio of the total walkers on all processors
 before and after update cycle, rather than a weighted average. This however is incompatable with culling, and so
@@ -819,6 +836,21 @@ walkers from a list, involving binning the walkers into their
 determinants. This has to refer to the whole space, and so is
 much slower.  See also the <strong>WAVEVECTORPRINT</strong> and <strong>POPSFILE</strong>
 options in the <strong>LOGGING</strong> block.</dd>
+<dt><strong>STARORBS</strong> [iStarOrbs] [<strong>NORETURN</strong> | <strong>ALLSPAWNSTARDETS</strong>]</dt>
+<dd><p class="first">Default=.false. , NORETURN = OFF</p>
+<p class="last">A parallel FCIMC option. Star orbs means that determinants which
+contain these orbitals can only be spawned at from the HF determinant,
+and conversly, can only spawn back at the HF determinant. iStarOrbs is
+the integer variable which decides how many orbitals are in this high-
+energy space, and take the iStarOrbs number of highest energy orbitals
+to construct it. <strong>NORETURN</strong> is an optional keyword specifier. If it
+is specified, then any excitations from the HF to these high-energy
+determinants (doubles) are left to die and cannot respawn back to the
+HF determinant. <strong>ALLSPAWNSTARDETS</strong> is another optional keyword, which
+means that all particles can spawn at determinants with star orbitals, and
+once there, annihilation can occur. However, they cannot respawn anywhere
+else and are left there to die.</p>
+</dd>
 </dl>
 </div>
 <div class="section" id="return-path-monte-carlo-options">
@@ -928,6 +960,14 @@ particularly helful...</p>
 <p class="last">I have (hopefully) combined them correctly.</p>
 </div>
 </dd>
+</dl>
+<p><strong>JUSTFINDDETS</strong></p>
+<blockquote>
+This is an option to be used in conjunction with <strong>ENERGY</strong> and exact diagonalization methods.
+If specified, the diagonalization routines will just enumerate all the determinants and will
+not try to form the hamiltonian or diagonalize it. No energy will therefore be found, but
+enumerating all the determinants can be useful for histogramming methods in FCIMC methods.</blockquote>
+<dl class="docutils">
 <dt><strong>KRYLOV</strong> [NKRY]</dt>
 <dd>Set number of Krylov vectors.</dd>
 <dt><strong>LANCZOS</strong></dt>
@@ -1309,7 +1349,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Feb 19, 2009.
+      Last updated on Apr 17, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

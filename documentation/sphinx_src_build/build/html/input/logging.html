@@ -168,6 +168,30 @@ Print out timing information for the nPrintTimer routines which took the longest
 </div>
 <div class="section" id="fcimc-options">
 <h2 id="fcimc-options">FCIMC options<a class="headerlink" href="#fcimc-options" title="Permalink to this headline">¶</a></h2>
+<p><strong>HISTSPAWN</strong> [iWriteHistEvery]</p>
+<blockquote>
+This option will histogram the spawned wavevector, averaged over all previous iterations.
+It scales horrifically and can only be done for small systems which can be diagonalized.
+It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
+If done, SymDets will also be written out, containing the exact wavevector in the same format from the
+diagonalization.
+IF <strong>JUSTFINDDETS</strong> option is on, the exact wavevector will not be written out, but the determinants simply
+enumerated and stored in a compressed form in FCIDets array.</blockquote>
+<p><strong>HISTPARTENERGIES</strong> [BinRange] [iNoBins] [OffDiagBinRange] [OffDiagMax]</p>
+<blockquote>
+This is a histogramming option. It is slow, so not for use unless the diagnostic is needed. It will histogram
+the diagonal hamiltonian matrix element for three types of particle. Two input values are needed. The first
+argument is a real value to give the width of the histogram bin. The second is the number of bins needed (integer).
+Three histograms are produced: EVERYENERGYHIST - this is the histogram over all iterations of every particle in the
+system. ATTEMPTENERGYHIST - this is the histogram of the energy of all attempted spawned particles (including the
+ones which are successfully spawned). For this one, the contibution to the energy is actually 1/Prob of generating.
+SPAWNENERGYHIST - this is the histogram of all successfully spawned particles. All these histograms are normalized to
+one before printing out.
+Also now, the off-diagonal matrix elements are histogrammed. OffDiagBinRange is a real input parameter which indicates
+the range of the bins and OffDiagMax is the maximum matrix element to histogram. The doubles and singles will be done
+seperately, as are the accepted spawns and total spawns. Therefore, four files are produced - SINGLESHIST, ATTEMPTSINGLESHIST,
+DOUBLESHIST, ATTEMPTDOUBLESHIST. Again, these are normalized and the ATTEMPT files histogram proportionally to 1/probability
+of generating the excitation.</blockquote>
 <dl class="docutils">
 <dt><strong>AUTOCORR</strong> [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]</dt>
 <dd>This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
@@ -285,6 +309,38 @@ steps. This is slows the calculation down substantially.</p>
 </dd>
 </dl>
 </div>
+<div class="section" id="rotate-orbs-options">
+<h2 id="rotate-orbs-options">Rotate Orbs Options<a class="headerlink" href="#rotate-orbs-options" title="Permalink to this headline">¶</a></h2>
+<dl class="docutils">
+<dt><strong>ROFCIDUMP</strong> [OFF]</dt>
+<dd>At the end of an orbital rotation (or in the case of a softexit), by default
+a ROFCIDUMP file will be printed using the transformation coefficients.
+This may then be read in to a spawning calculation.
+In the case of ROFCIDUMP OFF, no FCIDUMP will be printed.
+Note: When reading in the ROFCIDUMP, the number of electrons must be reduced
+by the number frozen in the previous rotation, and the number frozen set to 0.</dd>
+<dt><strong>ROHISTOGRAMALL</strong></dt>
+<dd>If this keyword is present, two files are printed for all possible histograms.
+One labelled HistHF*, and one HistRot* containing the histogram before and after rotation.
+With this, certain histograms may be turned off by using the below keywords.
+Alternatively combinations of the keywords below may be used to just print a selection
+of the possible histograms.</dd>
+<dt><strong>ROHISTOFFDIAG</strong> [OFF]</dt>
+<dd>Histograms &lt;ij|kl&gt; terms before and after rotation where i&lt;k and j&lt;l.</dd>
+<dt><strong>ROHISTDOUBEXC</strong> [OFF]</dt>
+<dd>Histograms the 2&lt;ij|kl&gt;-&lt;ij|lk&gt; terms, the off diagonal hamiltonian elements for double
+excitations.</dd>
+<dt><strong>ROHISTSINGEXC</strong> [OFF]</dt>
+<dd>Histograms the single excitation hamiltonian elements.</dd>
+<dt><strong>ROHISTER</strong> [OFF]</dt>
+<dd>Histograms the &lt;ii|ii&gt; values before and after rotation.</dd>
+<dt><strong>ROHISTONEElINTS</strong> [OFF]</dt>
+<dd>Histograms the one electron integral terms, &lt;i|h|i&gt;.</dd>
+<dt><strong>ROHISTONEPARTORBEN</strong> [OFF]</dt>
+<dd>Histograms the one particle orbital energies, epsilon_i = &lt;i|h|i&gt; + sum_j [&lt;ij||ij&gt;],
+where j is over the occupied orbitals only.</dd>
+</dl>
+</div>
 </div>
 
 
@@ -301,6 +357,7 @@ steps. This is slows the calculation down substantially.</p>
 <li><a class="reference external" href="#graphmorph-options">GraphMorph options</a></li>
 <li><a class="reference external" href="#precalc-options">PRECALC options</a></li>
 <li><a class="reference external" href="#monte-carlo-options">Monte Carlo options</a></li>
+<li><a class="reference external" href="#rotate-orbs-options">Rotate Orbs Options</a></li>
 </ul>
 </li>
 </ul>
@@ -341,7 +398,7 @@ steps. This is slows the calculation down substantially.</p>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Feb 19, 2009.
+      Last updated on Apr 17, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

@@ -125,6 +125,32 @@ General options
 FCIMC options
 -------------
 
+**HISTSPAWN** [iWriteHistEvery]
+
+    This option will histogram the spawned wavevector, averaged over all previous iterations. 
+    It scales horrifically and can only be done for small systems which can be diagonalized. 
+    It requires a diagonalization initially to work. It can write out the average wavevector every iWriteHistEvery.
+    If done, SymDets will also be written out, containing the exact wavevector in the same format from the 
+    diagonalization.
+    IF **JUSTFINDDETS** option is on, the exact wavevector will not be written out, but the determinants simply
+    enumerated and stored in a compressed form in FCIDets array.
+
+**HISTPARTENERGIES** [BinRange] [iNoBins] [OffDiagBinRange] [OffDiagMax]
+
+    This is a histogramming option. It is slow, so not for use unless the diagnostic is needed. It will histogram
+    the diagonal hamiltonian matrix element for three types of particle. Two input values are needed. The first
+    argument is a real value to give the width of the histogram bin. The second is the number of bins needed (integer).
+    Three histograms are produced: EVERYENERGYHIST - this is the histogram over all iterations of every particle in the
+    system. ATTEMPTENERGYHIST - this is the histogram of the energy of all attempted spawned particles (including the 
+    ones which are successfully spawned). For this one, the contibution to the energy is actually 1/Prob of generating. 
+    SPAWNENERGYHIST - this is the histogram of all successfully spawned particles. All these histograms are normalized to
+    one before printing out.
+    Also now, the off-diagonal matrix elements are histogrammed. OffDiagBinRange is a real input parameter which indicates
+    the range of the bins and OffDiagMax is the maximum matrix element to histogram. The doubles and singles will be done
+    seperately, as are the accepted spawns and total spawns. Therefore, four files are produced - SINGLESHIST, ATTEMPTSINGLESHIST,
+    DOUBLESHIST, ATTEMPTDOUBLESHIST. Again, these are normalized and the ATTEMPT files histogram proportionally to 1/probability
+    of generating the excitation.
+
 **AUTOCORR** [NoACDets(2)] [NoACDets(3)] [NoACDets(4)]
     This is a parallel FCIMC option. It will output the histogrammed occupation number for certain
     determinants every iteration. This is so that a seperate standalone ACF program can be used on it.
@@ -240,3 +266,43 @@ Monte Carlo options
     Calculate the exact eigen-vectors and -values initially, and 
     print out the running wavevector every nWavevectorPrint Monte Carlo
     steps. This is slows the calculation down substantially.
+
+
+Rotate Orbs Options
+-------------------
+
+**ROFCIDUMP** [OFF]
+    At the end of an orbital rotation (or in the case of a softexit), by default 
+    a ROFCIDUMP file will be printed using the transformation coefficients.
+    This may then be read in to a spawning calculation.
+    In the case of ROFCIDUMP OFF, no FCIDUMP will be printed.
+    Note: When reading in the ROFCIDUMP, the number of electrons must be reduced 
+    by the number frozen in the previous rotation, and the number frozen set to 0.
+
+**ROHISTOGRAMALL**
+    If this keyword is present, two files are printed for all possible histograms.
+    One labelled HistHF*, and one HistRot* containing the histogram before and after rotation.
+    With this, certain histograms may be turned off by using the below keywords.  
+    Alternatively combinations of the keywords below may be used to just print a selection
+    of the possible histograms.
+
+**ROHISTOFFDIAG** [OFF]
+    Histograms <ij|kl> terms before and after rotation where i<k and j<l.
+
+**ROHISTDOUBEXC** [OFF]
+    Histograms the 2<ij|kl>-<ij|lk> terms, the off diagonal hamiltonian elements for double 
+    excitations.
+
+**ROHISTSINGEXC** [OFF]
+    Histograms the single excitation hamiltonian elements.
+
+**ROHISTER** [OFF]
+    Histograms the <ii|ii> values before and after rotation.
+
+**ROHISTONEElINTS** [OFF]
+    Histograms the one electron integral terms, <i|h|i>.
+
+**ROHISTONEPARTORBEN** [OFF]
+    Histograms the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>],
+    where j is over the occupied orbitals only.
+    

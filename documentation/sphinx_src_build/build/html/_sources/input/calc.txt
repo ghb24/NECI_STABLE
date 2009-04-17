@@ -691,6 +691,23 @@ The following options are only available in **FCIMC** calculations:
     orbitals lower in energy than the active space are completely occupied and those higher in 
     energy are completely unoccupied.
 
+**SINGLESBIAS** [SinglesBias]
+    Default 1.D0
+
+    This represents the factor to which singles are biased towards over double excitations from a determinant.
+    This works with the NONUNIFORMRANDEXCITS excitation generators for FCIMC code. Normally, the
+    pDoubles is given by the number of doubles divided by the total excitations from HF. Now, 
+    the number of singles in the total excitations term is multiplied by SinglesBias. Alternatively,
+    SinglesBias can be set to less than 1 to bias towards doubles.
+
+**FINDGROUNDDET**
+    Default=false.
+
+    A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower 
+    than the energy of the current reference determinant, the energies are rezeroed and the
+    reference changed to the new determinant. For a HF basis, this cannot happen, but with 
+    rotated orbital may be important.
+
 **ANNIHILATDISTANCE** [Lambda]
     Default=0.D0
 
@@ -701,13 +718,14 @@ The following options are only available in **FCIMC** calculations:
     equivalent to the original annihilation algorithm. Warning - this is much slower than
     normal annihilation.
 
-**ANNIHILATERANGE**
-    Default=.false.
+**ANNIHILATERANGE** [**OFF**]
+    Default=.true.
 
     A parallel FCIMC option. This is a slightly different annihilation algorithm, where only
     one sort of the full set of particles is needed. This should greatly reduce the time needed
     for annihilation of large numbers of particles. However, the load-balancing across processors
-    may not be so good.
+    may not be so good. This option is now on by default and can only be switched off via the input
+    file by specifying **OFF** after the keyword.
 
 **LOCALANNIHIL** [Lambda]
     
@@ -729,8 +747,10 @@ The following options are only available in **FCIMC** calculations:
     walker contributes to the energy estimator. This should reduce the variance for the 
     energy estimator.
 
-**GLOBALSHIFT**
+**GLOBALSHIFT** **OFF**
     Default true
+
+    This option can only be turned off by specifying **OFF**
 
     A parallel FCIMC option. It is generally recommended to have this option on. This will 
     calculate the growth rate of the system as a simple ratio of the total walkers on all processors
@@ -834,6 +854,23 @@ The following option are only available in **MCSTAR** calculations:
     determinants. This has to refer to the whole space, and so is
     much slower.  See also the **WAVEVECTORPRINT** and **POPSFILE**
     options in the **LOGGING** block.
+
+**STARORBS** [iStarOrbs] [**NORETURN** | **ALLSPAWNSTARDETS**]
+    Default=.false. , NORETURN = OFF
+
+    A parallel FCIMC option. Star orbs means that determinants which 
+    contain these orbitals can only be spawned at from the HF determinant, 
+    and conversly, can only spawn back at the HF determinant. iStarOrbs is
+    the integer variable which decides how many orbitals are in this high-
+    energy space, and take the iStarOrbs number of highest energy orbitals
+    to construct it. **NORETURN** is an optional keyword specifier. If it
+    is specified, then any excitations from the HF to these high-energy
+    determinants (doubles) are left to die and cannot respawn back to the
+    HF determinant. **ALLSPAWNSTARDETS** is another optional keyword, which
+    means that all particles can spawn at determinants with star orbitals, and
+    once there, annihilation can occur. However, they cannot respawn anywhere
+    else and are left there to die.
+
 
 Return Path Monte Carlo options
 -------------------------------
@@ -950,6 +987,13 @@ basis of spin orbitals.
         particularly helful...  
         
         I have (hopefully) combined them correctly.
+
+**JUSTFINDDETS**
+
+    This is an option to be used in conjunction with **ENERGY** and exact diagonalization methods.
+    If specified, the diagonalization routines will just enumerate all the determinants and will
+    not try to form the hamiltonian or diagonalize it. No energy will therefore be found, but
+    enumerating all the determinants can be useful for histogramming methods in FCIMC methods.
 
 **KRYLOV** [NKRY]
     Set number of Krylov vectors.
