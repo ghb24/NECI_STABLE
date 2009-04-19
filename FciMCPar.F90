@@ -105,6 +105,8 @@ MODULE FciMCParMod
     REAL*8 :: AccRat            !Acceptance ratio for each node over the update cycle
     INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
     INTEGER :: NoBorn,NoDied
+    INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
+    INTEGER :: AllSpawnFromSing
     INTEGER :: HFPopCyc         !This is the number of update cycles which have a HF particle at some point
     INTEGER :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
     REAL*8 :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
@@ -718,6 +720,9 @@ MODULE FciMCParMod
 !We want to spawn a child - find its information to store
 
                     NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+                    IF(IC.eq.1) THEN
+                        SpawnFromSing=SpawnFromSing+abs(Child)
+                    ENDIF
 
                     IF(Child.gt.25) THEN
                         WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
@@ -904,6 +909,9 @@ MODULE FciMCParMod
 !We want to spawn a child - find its information to store
 
                         NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+                        IF(IC.eq.1) THEN
+                            SpawnFromSing=SpawnFromSing+abs(Child)
+                        ENDIF
 
                         IF(Child.gt.25) THEN
                             WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
@@ -3580,7 +3588,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(6),outpair(6)
+        INTEGER :: inpair(7),outpair(7)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3)
@@ -3603,6 +3611,7 @@ MODULE FciMCParMod
         inpair(4)=NoDied
         inpair(5)=HFCyc         !SumWalkersCyc is now an integer*8
         inpair(6)=LocalAnn
+        inpair(7)=SpawnFromSing
 !        inpair(7)=TotParts
 !        inpair(9)=iUniqueDets
         outpair(:)=0
@@ -3616,7 +3625,7 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
-        CALL MPI_Reduce(inpair,outpair,6,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
 !        AllTotWalkers=outpair(1)
@@ -3626,6 +3635,7 @@ MODULE FciMCParMod
         AllNoDied=outpair(4)
         AllHFCyc=REAL(outpair(5),r2)
         AllLocalAnn=outpair(6)
+        AllSpawnFromSing=outpair(7)
 !        AllTotParts=outpair(7)
 !        AlliUniqueDets=REAL(outpair(9),r2)
         TempTotWalkers=REAL(TotWalkers,r2)
@@ -3829,6 +3839,7 @@ MODULE FciMCParMod
         LocalAnn=0
         Acceptances=0
         NoBorn=0
+        SpawnFromSing=0
         NoDied=0
         ENumCyc=0.D0
 !        ProjEIter=0.D0     Do not want to rezero, since otherwise, if there are no particles at HF in the next update cycle, it will print out zero.
@@ -3856,6 +3867,7 @@ MODULE FciMCParMod
         AllNoatHF=0
         AllNoatDoubs=0
         AllNoBorn=0
+        AllSpawnFromSing=0
         AllNoDied=0
 
         RETURN
@@ -4163,6 +4175,7 @@ MODULE FciMCParMod
         Acceptances=0
         PreviousCycles=0
         NoBorn=0
+        SpawnFromSing=0
         NoDied=0
         HFCyc=0
         HFPopCyc=0
@@ -4181,6 +4194,7 @@ MODULE FciMCParMod
         AllAvSign=0.D0
         AllAvSignHFD=0.D0
         AllNoBorn=0
+        AllSpawnFromSing=0
         AllNoDied=0
         AllLocalAnn=0
         AllAnnihilated=0
@@ -4722,8 +4736,8 @@ MODULE FciMCParMod
                 WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 
             ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     MinEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     MinEx"
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing"
             
             ENDIF
         ENDIF
@@ -7248,8 +7262,8 @@ MODULE FciMCParMod
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 !                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn)
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
             ENDIF
