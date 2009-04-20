@@ -192,6 +192,9 @@ MODULE FciMCParMod
     
     REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
     REAL(KIND=r2) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
+    REAL(KIND=r2) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
+    REAL(KIND=r2) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
+
     INTEGER :: MaxDet,iOffDiagNoBins,HistMinInd
 
     contains
@@ -303,6 +306,10 @@ MODULE FciMCParMod
             AllDoublesAttemptHist(:)=0.D0
             AllSinglesHist(:)=0.D0
             AllSinglesAttemptHist(:)=0.D0
+            AllSinglesHistOccOcc(:)=0.D0
+            AllSinglesHistOccVirt(:)=0.D0
+            AllSinglesHistVirtOcc(:)=0.D0
+            AllSinglesHistVirtVirt(:)=0.D0
         ENDIF
         CALL MPI_Reduce(Histogram,AllHistogram,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(AttemptHist,AllAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
@@ -311,7 +318,11 @@ MODULE FciMCParMod
         CALL MPI_Reduce(SinglesAttemptHist,AllSinglesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(DoublesHist,AllDoublesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(DoublesAttemptHist,AllDoublesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
+        CALL MPI_Reduce(SinglesHistOccOcc,AllSinglesHistOccOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistOccVirt,AllSinglesHistOccVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistVirtOcc,AllSinglesHistVirtOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistVirtVirt,AllSinglesHistVirtVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+  
         IF(iProcIndex.eq.0) THEN
             Norm=0.D0
             do i=1,iNoBins
@@ -338,14 +349,6 @@ MODULE FciMCParMod
             enddo
             Norm=0.D0
             do i=1,iOffDiagNoBins
-                Norm=Norm+AllSinglesHist(i)
-            enddo
-!            WRITE(6,*) "AllSinglesHistNorm = ",Norm
-            do i=1,iOffDiagNoBins
-                AllSinglesHist(i)=AllSinglesHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
                 Norm=Norm+AllSinglesAttemptHist(i)
             enddo
 !            WRITE(6,*) "AllSinglesAttemptHistNorm = ",Norm
@@ -368,10 +371,47 @@ MODULE FciMCParMod
             do i=1,iOffDiagNoBins
                 AllDoublesAttemptHist(i)=AllDoublesAttemptHist(i)/Norm
             enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllSinglesHist(i)
+            enddo
+!            WRITE(6,*) "AllSinglesHistNorm = ",Norm
+            do i=1,iOffDiagNoBins
+                AllSinglesHist(i)=AllSinglesHist(i)/Norm
+            enddo
+ 
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistOccOcc(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistOccOcc(i)=AllSinglesHistOccOcc(i)/Norm
+            enddo
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistOccVirt(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistOccVirt(i)=AllSinglesHistOccVirt(i)/Norm
+            enddo
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistVirtOcc(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistVirtOcc(i)=AllSinglesHistVirtOcc(i)/Norm
+            enddo
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistVirtVirt(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistVirtVirt(i)=AllSinglesHistVirtVirt(i)/Norm
+            enddo
+ 
             OPEN(17,FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
             OPEN(18,FILE='ATTEMPTENERGYHIST',STATUS='UNKNOWN')
             OPEN(19,FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
-            OPEN(20,FILE='SINGLESHIST',STATUS='UNKNOWN')
 
             EnergyBin=BinRange/2.D0
             do i=1,iNoBins
@@ -383,9 +423,14 @@ MODULE FciMCParMod
             CLOSE(17)
             CLOSE(18)
             CLOSE(19)
+            OPEN(20,FILE='SINGLESHIST',STATUS='UNKNOWN')
             OPEN(21,FILE='ATTEMPTSINGLESHIST',STATUS='UNKNOWN')
             OPEN(22,FILE='DOUBLESHIST',STATUS='UNKNOWN')
             OPEN(23,FILE='ATTEMPTDOUBLESHIST',STATUS='UNKNOWN')
+            OPEN(24,FILE='SINGLESHISTOCCOCC',STATUS='UNKNOWN')
+            OPEN(25,FILE='SINGLESHISTOCCVIRT',STATUS='UNKNOWN')
+            OPEN(26,FILE='SINGLESHISTVIRTOCC',STATUS='UNKNOWN')
+            OPEN(27,FILE='SINGLESHISTVIRTVIRT',STATUS='UNKNOWN')
 
             EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
             do i=1,iOffDiagNoBins
@@ -393,6 +438,10 @@ MODULE FciMCParMod
                 WRITE(21,*) EnergyBin, AllSinglesAttemptHist(i)
                 WRITE(22,*) EnergyBin, AllDoublesHist(i)
                 WRITE(23,*) EnergyBin, AllDoublesAttemptHist(i)
+                WRITE(24,*) EnergyBin, AllSinglesHistOccOcc(i)
+                WRITE(25,*) EnergyBin, AllSinglesHistOccVirt(i)
+                WRITE(26,*) EnergyBin, AllSinglesHistVirtOcc(i)
+                WRITE(27,*) EnergyBin, AllSinglesHistVirtVirt(i)
                 EnergyBin=EnergyBin+OffDiagBinRange
 !                WRITE(6,*) i
             enddo
@@ -401,6 +450,10 @@ MODULE FciMCParMod
             CLOSE(21)
             CLOSE(22)
             CLOSE(23)
+            CLOSE(24)
+            CLOSE(25)
+            CLOSE(26)
+            CLOSE(27)
         ENDIF
 
     END SUBROUTINE WriteHistogramEnergies
@@ -4235,6 +4288,10 @@ MODULE FciMCParMod
             ALLOCATE(SpawnHist(1:iNoBins))
             ALLOCATE(SinglesHist(1:iOffDiagNoBins))
             ALLOCATE(SinglesAttemptHist(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistOccOcc(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistOccVirt(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistVirtOcc(1:iOffDiagNoBins))
+            ALLOCATE(SinglesHistVirtVirt(1:iOffDiagNoBins))
             ALLOCATE(DoublesHist(1:iOffDiagNoBins))
             ALLOCATE(DoublesAttemptHist(1:iOffDiagNoBins))
             Histogram(:)=0.D0
@@ -4242,6 +4299,10 @@ MODULE FciMCParMod
             SpawnHist(:)=0.D0
             SinglesHist(:)=0.D0
             SinglesAttemptHist(:)=0.D0
+            SinglesHistOccOcc(:)=0.D0
+            SinglesHistOccVirt(:)=0.D0
+            SinglesHistVirtOcc(:)=0.D0
+            SinglesHistVirtVirt(:)=0.D0
             DoublesHist(:)=0.D0
             DoublesAttemptHist(:)=0.D0
             IF(iProcIndex.eq.0) THEN
@@ -4252,6 +4313,10 @@ MODULE FciMCParMod
                 ALLOCATE(AllDoublesHist(1:iNoBins))
                 ALLOCATE(AllSinglesAttemptHist(1:iNoBins))
                 ALLOCATE(AllDoublesAttemptHist(1:iNoBins))
+                ALLOCATE(AllSinglesHistOccOcc(1:iNoBins))
+                ALLOCATE(AllSinglesHistOccVirt(1:iNoBins))
+                ALLOCATE(AllSinglesHistVirtOcc(1:iNoBins))
+                ALLOCATE(AllSinglesHistVirtVirt(1:iNoBins))
             ENDIF
         ENDIF
 
@@ -6155,6 +6220,19 @@ MODULE FciMCParMod
                 SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
                 IF(AttemptCreatePar.ne.0) THEN
                     SinglesHist(Bin)=SinglesHist(Bin)+real(abs(AttemptCreatePar),r2)
+                    IF(BRR(Ex(1,1)).le.NEl) THEN
+                        IF(BRR(Ex(2,1)).le.NEl) THEN
+                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+real(abs(AttemptCreatePar),r2)
+                        ELSE
+                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+real(abs(AttemptCreatePar),r2)
+                        ENDIF
+                    ELSE
+                        IF(BRR(Ex(2,1)).le.NEl/2) THEN
+                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+real(abs(AttemptCreatePar),r2)
+                        ELSE
+                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+real(abs(AttemptCreatePar),r2)
+                        ENDIF
+                    ENDIF
                 ENDIF
             ELSEIF(IC.eq.2) THEN
                 DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
@@ -7151,6 +7229,10 @@ MODULE FciMCParMod
             DEALLOCATE(DoublesHist)
             DEALLOCATE(DoublesAttemptHist)
             DEALLOCATE(SinglesAttemptHist)
+            DEALLOCATE(SinglesHistOccOcc)
+            DEALLOCATE(SinglesHistVirtOcc)
+            DEALLOCATE(SinglesHistOccVirt)
+            DEALLOCATE(SinglesHistVirtVirt)
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllHistogram)
                 DEALLOCATE(AllAttemptHist)
@@ -7159,6 +7241,10 @@ MODULE FciMCParMod
                 DEALLOCATE(AllSinglesHist)
                 DEALLOCATE(AllDoublesAttemptHist)
                 DEALLOCATE(AllDoublesHist)
+                DEALLOCATE(AllSinglesHistOccOcc)
+                DEALLOCATE(AllSinglesHistVirtOcc)
+                DEALLOCATE(AllSinglesHistOccVirt)
+                DEALLOCATE(AllSinglesHistVirtVirt)
             ENDIF
         ENDIF
         DEALLOCATE(WalkVecDets)
