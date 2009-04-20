@@ -4582,8 +4582,10 @@ MODULE FciMCParMod
         ENDIF
         IF(tHighExcitsSing) THEN
             WRITE(6,*) "Only allowing single excitations between determinants where one of them has an excitation level w.r.t. HF of more than ",iHighExcitsSing
-            IF(iHighExcitsSing.ge.NEl) THEN
+            IF(iHighExcitsSing.gt.NEl) THEN
                 CALL Stop_All("InitFciMCCalcPar","iHighExcitsSing.ge.NEl")
+            ELSEIF(iHighExcitsSing.eq.NEl) THEN
+                CALL Warning("InitFciMCCalcPar","iHighExcitsSing = NEl - this will no longer have any effect.")
             ENDIF
             IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace) THEN
                 CALL Stop_All("InitFCIMCCalcPar","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
