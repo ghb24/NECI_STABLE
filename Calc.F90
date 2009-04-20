@@ -33,6 +33,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tHighExcitsSing=.false.
+          iHighExcitsSing=0
           tFindDets=.false.
           SinglesBias=1.D0
           tAllSpawnStarDets=.false.
@@ -868,6 +870,10 @@ MODULE Calc
                     tNoReturnStarDets=.false.
                 endif
                 tStarOrbs=.true.
+            case("EXCITETRUNCSING")
+!This is a parallel FCIMC option, where excitations between determinants where at least one of the determinants is above iHighExcitsSing will be restricted to be single excitations.
+                tHighExcitsSing=.true.
+                call readi(iHighExcitsSing)
             case("MAGNETIZESYM")
 !A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for particles of the opposite sign, the energy is lowered by the same amount for particles
 !of 'parallel' sign.

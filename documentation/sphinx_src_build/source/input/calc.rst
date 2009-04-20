@@ -871,6 +871,12 @@ The following option are only available in **MCSTAR** calculations:
     once there, annihilation can occur. However, they cannot respawn anywhere
     else and are left there to die.
 
+**EXCITETRUNCSING** [iHightExcitsSing]
+    Default=.false.
+
+    This is a parallel FCIMC option, where excitations between determinants where 
+    at least one of the determinants is above iHighExcitsSing will be restricted to be single excitations.
+
 
 Return Path Monte Carlo options
 -------------------------------

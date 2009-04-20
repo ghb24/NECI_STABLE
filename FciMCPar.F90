@@ -11,6 +11,7 @@ MODULE FciMCParMod
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
+    use CalcData , only : tHighExcitsSing,iHighExcitsSing
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det
     use IntegralsData , only : fck,NMax,UMat
@@ -252,7 +253,7 @@ MODULE FciMCParMod
                     CALL WriteToPopsFilePar()
                 ENDIF
             ENDIF
-            IF(TAutoCorr) CALL WriteHistogrammedDets
+            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
                 CALL WriteHistogram()
@@ -632,9 +633,9 @@ MODULE FciMCParMod
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NoIntforDet)
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            IF(tTruncSpace) THEN
+            IF(tTruncSpace.or.tHighExcitsSing) THEN
 !We need to know the exact excitation level for truncated calculations.
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,WalkExcitLevel,ICILevel)
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,WalkExcitLevel,NEl)
             ELSE
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,WalkExcitLevel,2)
             ENDIF
@@ -688,6 +689,14 @@ MODULE FciMCParMod
                                 CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
                                 Prob=1.D0   !This is the only allowed excitation - back to HF
                             ENDIF
+                        ELSEIF(tHighExcitsSing) THEN
+!Here, we only allow single excitations from iHighExcitsSing if the excitation is going further away from the current excitation.
+                            IF(WalkExcitLevel.ge.(iHighExcitsSing+2)) THEN
+                                CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,0.D0,IC,Ex,tParity,exFlag,Prob)
+                            ELSE
+                                CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+                            ENDIF
+
                         ELSE
                             IF(tNonUniRandExcits) THEN
 !This will only be a help if most determinants are multiply occupied.
@@ -763,6 +772,30 @@ MODULE FciMCParMod
                                 Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
                             ENDIF
                         ENDIF
+
+                    ELSEIF(tHighExcitsSing) THEN
+!This option only allows singles connections between determinants above iHighExcitsSing threshold.
+                        
+                        IF((WalkExcitLevel.eq.(iHighExcitsSing+1)).and.(IC.eq.2)) THEN
+!Only allow doubles to the cutoff-1
+                            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
+                            IF(ExcitLevel.eq.(iHighExcitsSing-1)) THEN
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            ELSE
+                                Child=0
+                            ENDIF
+                        ELSEIF((WalkExcitLevel.eq.iHighExcitsSing).and.(IC.eq.2)) THEN
+!Only allow doubles to the cutoff, or less
+                            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
+                            IF(ExcitLevel.le.iHighExcitsSing) THEN
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            ELSE
+                                Child=0
+                            ENDIF
+                        ELSE
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                        ENDIF
+
                     ELSE
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
                     ENDIF
@@ -875,6 +908,14 @@ MODULE FciMCParMod
                                     CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
                                     Prob=1.D0   !This is the only allowed excitation - back to HF
                                 ENDIF
+                            ELSEIF(tHighExcitsSing) THEN
+!Here, we only allow single excitations from iHighExcitsSing if the excitation is going further away from the current excitation.
+                                IF(WalkExcitLevel.ge.(iHighExcitsSing+2)) THEN
+                                    CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,0.D0,IC,Ex,tParity,exFlag,Prob)
+                                ELSE
+                                    CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+                                ENDIF
+
                             ELSE
                                 IF(tNonUniRandExcits) THEN
 !This will only be a help if most determinants are multiply occupied.
@@ -951,6 +992,30 @@ MODULE FciMCParMod
                                 ENDIF
 
                             ENDIF
+
+                        ELSEIF(tHighExcitsSing) THEN
+!This option only allows singles connections between determinants above iHighExcitsSing threshold.
+                            
+                            IF((WalkExcitLevel.eq.(iHighExcitsSing+1)).and.(IC.eq.2)) THEN
+!Only allow doubles to the cutoff-1
+                                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
+                                IF(ExcitLevel.eq.(iHighExcitsSing-1)) THEN
+                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                ELSE
+                                    Child=0
+                                ENDIF
+                            ELSEIF((WalkExcitLevel.eq.iHighExcitsSing).and.(IC.eq.2)) THEN
+!Only allow doubles to the cutoff, or less
+                                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
+                                IF(ExcitLevel.le.iHighExcitsSing) THEN
+                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                ELSE
+                                    Child=0
+                                ENDIF
+                            ELSE
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                            ENDIF
+
                         ELSE
 
                             Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
@@ -961,6 +1026,9 @@ MODULE FciMCParMod
                     IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
 
+!                        WRITE(6,*) "Spawning particle to:",nJ(:)
+!                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+!                        WRITE(6,*) "Excitlevel:", ExcitLevel
                         NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
                         IF(IC.eq.1) THEN
                             SpawnFromSing=SpawnFromSing+abs(Child)
@@ -4511,6 +4579,15 @@ MODULE FciMCParMod
                 TotDets=TotDets+(Choose(NEl,i)*Choose(nBasis-NEl,i))/SymFactor
             enddo
             WRITE(6,*) "Approximate size of determinant space is: ",NINT(TotDets)
+        ENDIF
+        IF(tHighExcitsSing) THEN
+            WRITE(6,*) "Only allowing single excitations between determinants where one of them has an excitation level w.r.t. HF of more than ",iHighExcitsSing
+            IF(iHighExcitsSing.ge.NEl) THEN
+                CALL Stop_All("InitFciMCCalcPar","iHighExcitsSing.ge.NEl")
+            ENDIF
+            IF((.not.tNonUniRandExcits).or.tStarOrbs.or.tTruncSpace) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Cannot use HighExcitsSing without Nonuniformrandexcits, or with starorbs or truncated spaces...")
+            ENDIF
         ENDIF
 
         IF(TStartMP1) THEN

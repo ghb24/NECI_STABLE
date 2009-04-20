@@ -22,7 +22,7 @@ LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs,tFindDets
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell,tNoReturnStarDets
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift,tAllSpawnStarDets
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange
-LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet,tStarOrbs
+LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet,tStarOrbs,tHighExcitsSing
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
@@ -30,7 +30,7 @@ INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
 INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets
-INTEGER :: OccCASorbs,VirtCASorbs,iStarOrbs
+INTEGER :: OccCASorbs,VirtCASorbs,iStarOrbs,iHighExcitsSing
 
 
 REAL*8 :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
