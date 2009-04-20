@@ -94,6 +94,7 @@ MODULE System
       tHijSqrdMin=.false.
       tOneElIntMax=.false.
       tOnePartOrbEnMax=.false.
+      tHFSingDoubExcMax=.false.
       tERLocalization=.false.
       tVirtCoulombMax=.false.
       tVirtExchangeMin=.false.
@@ -384,6 +385,11 @@ MODULE System
 ! take the input <i|h|j>, and diagonalise it to give the rotation coefficients.
             tDiagonalizehij=.true.
 
+        case("HFSINGDOUBEXCMAX")
+! This maximises the square of the four index integrals corresponding to single and double excitations from
+! the HF. 
+            tHFSingDoubExcMax=.true.
+            MaxMinFac=-1
 
         case("OFFDIAGSQRDMIN")
             tOffDiagSqrdMin=.true.
