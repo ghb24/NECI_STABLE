@@ -6306,7 +6306,7 @@ MODULE FciMCParMod
                             SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+real(abs(AttemptCreatePar),r2)
                         ENDIF
                     ELSE
-                        IF(BRR(Ex(2,1)).le.NEl/2) THEN
+                        IF(BRR(Ex(2,1)).le.NEl) THEN
                             SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+real(abs(AttemptCreatePar),r2)
                         ELSE
                             SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+real(abs(AttemptCreatePar),r2)
