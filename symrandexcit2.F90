@@ -504,7 +504,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),Attempts,exFlag
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
-        INTEGER :: ILUT(0:NIfD),i
+        INTEGER :: ILUT(0:NIfD),i!,DetSym
         LOGICAL :: tNoSuccess,tParity,tFilled
         REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
@@ -573,6 +573,13 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
         ENDIF
+!        DetSym=0
+!        do i=1,NEl
+!            DetSym=IEOR(DetSym,INT(G1(nJ(i))%Sym%S,4))
+!        enddo
+!        IF(DetSym.ne.6) THEN
+!            CALL Stop_All("GenRand","WrongSym")
+!        ENDIF
 
     END SUBROUTINE GenRandSymExcitScratchNU
 
@@ -663,6 +670,7 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
+
     END SUBROUTINE GenRandSymExcitNU
 
     SUBROUTINE CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
@@ -722,7 +730,6 @@ MODULE GenRandSymExcitNUMod
         ExcitMat(2,2)=OrbB
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
-
 !These are useful (but O[N]) operations to test the determinant generated. If there are any problems with then
 !excitations, I recommend uncommenting these tests to check the results.
 !        CALL IsSymAllowedExcit(nI,nJ,2,ExcitMat,SymAllowed)
@@ -1522,7 +1529,10 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: i,nI(NEl)
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+!        INTEGER :: Alph,Bet
 
+!        Alph=0
+!        Bet=0
         ClassCount2(:,:)=0
         ClassCountUnocc2(:,:)=0
 !nOccAlpha and nOccBeta now set in the system block. Since we conserve Sz, these will not change.
@@ -1552,12 +1562,14 @@ MODULE GenRandSymExcitNUMod
 !orbital is an alpha orbital and symmetry of the orbital can be found in G1
 !                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
                     ClassCount2(1,INT(G1(nI(i))%Sym%S,4))=ClassCount2(1,INT(G1(nI(i))%Sym%S,4))+1
+!                    Alph=Alph+1
 !                    NOccAlpha=NOccAlpha+1
 
                 ELSE
 !orbital is a beta orbital
 !                    WRITE(6,*) G1(nI(i))%Ms,G1(nI(i))%Sym%S
                     ClassCount2(2,INT(G1(nI(i))%Sym%S,4))=ClassCount2(2,INT(G1(nI(i))%Sym%S,4))+1
+!                    Bet=Bet+1
 !                    NOccBeta=NOccBeta+1
                 ENDIF
             enddo
@@ -1571,6 +1583,8 @@ MODULE GenRandSymExcitNUMod
                 ClassCountUnocc2(1,i-1)=SymLabelCounts(2,i)-ClassCount2(1,i-1)
                 ClassCountUnocc2(2,i-1)=SymLabelCounts(2,i)-ClassCount2(2,i-1)
             enddo
+
+!            WRITE(6,*) "Alph=",alph,"Bet=",Bet
 
         ENDIF
 

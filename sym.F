@@ -2035,10 +2035,12 @@ C.. Set to be totally symmetric
       SUBROUTINE FindSymSizeofSpace(IUNIT)
          use SymData , only : TwoCycleSymGens
          use SystemData , only : nEl,G1,nBasis,nOccAlpha,nOccBeta
+         use Determinants , only : FDet
          IMPLICIT NONE
          INTEGER :: ClassCounts(0:7),Lim0a,Lim0b,Lim1a,Lim1b,Lim2a,Lim2b
          INTEGER :: Lima(0:7),Limb(0:7),a0,a1,a2,a3,a4,a5,a6,a7,NAlph
          INTEGER :: b0,b1,b2,b3,b4,b5,b6,b7,NBet,i,IUNIT,OverallSym
+         INTEGER :: FDetSym
          REAL*8 :: Choose,Space,SpaceGrow
          LOGICAL :: Sym(0:7)
 
@@ -2052,6 +2054,11 @@ C.. Set to be totally symmetric
 
          WRITE(IUNIT,*) "Calculating exact size of symmetry-allowed "   &
      &       //"determinant space..."
+         FDetSym=0
+         do i=1,NEl
+            FDetSym=IEOR(FDetSym,INT(G1(FDet(i))%Sym%S,4))
+         enddo
+         WRITE(6,*) "Symmetry of HF determinant is: ",FDetSym
          CALL FLUSH(IUNIT)
          ClassCounts(:)=0
 !First, we need to find the number of spatial orbitals in each symmetry irrep.
@@ -2152,7 +2159,7 @@ C.. Set to be totally symmetric
                     OverallSym=IEOR(OverallSym,i)
                 ENDIF
             enddo
-            IF(OverallSym.eq.0) THEN
+            IF(OverallSym.eq.FDetSym) THEN
                 NAlph=a0+a1+a2+a3+a4+a5+a6+a7
                 NBet=b0+b1+b2+b3+b4+b5+b6+b7
 
