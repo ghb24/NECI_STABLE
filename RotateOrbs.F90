@@ -2670,42 +2670,44 @@ MODULE RotateOrbsMod
             enddo
         ENDIF
 
+
 ! This file is printed to be used to produce cube files from QChem.
 ! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form transformed orbital 1 etc.
 
         OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED')
 ! Need to put this back into the original order. 
-        do a=1,nBasis
-            b=SymLabelListInv(a)
-            ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
-            ! label i.
-            ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
-            ! Qchem/Dalton label j.
-            w=1
-            do while (w.le.2)
-                WRITE(66) CoeffT1(b,:)
-!                do i=1,SpatOrbs
-!                    j=SymLabelListInv(i)
-!                    WRITE(66) CoeffT1(b,j)
-!                enddo
-                w=w+1
+        w=1
+        do while (w.le.2)
+            do i=1,SpatOrbs
+                j=SymLabelListInv(i)
+                ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
+                ! label i.
+                ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
+                ! Qchem/Dalton label j.
+                do a=1,SpatOrbs
+                    b=SymLabelListInv(a)
+                    WRITE(66) CoeffT1(b,j)
+                    ! a/b are the original (HF) orbitals, and i/j the transformed
+                enddo
             enddo
+            w=w+1
+            ! print the whole matrix twice, once for alpha spin, once for beta.
         enddo
         CLOSE(66)
       
- 
+! Print a file the same as the binary file, but with formatting to have a look at. 
         OPEN(67,FILE='MOTRANSFORM02',status='unknown')
-        do a=1,SpatOrbs
-            b=SymLabelListInv(a)
-            w=1
-            do while (w.le.2)
-                do i=1,SpatOrbs
-                    j=SymLabelListInv(i)
+        w=1
+        do while (w.le.2)
+            do i=1,SpatOrbs
+                j=SymLabelListInv(i)
+                do a=1,SpatOrbs
+                    b=SymLabelListInv(a)
                     WRITE(67,'(F15.10)',advance='no') CoeffT1(b,j)
                 enddo
-                w=w+1
+                WRITE(67,*) ''
             enddo
-            WRITE(67,*) ''
+            w=w+1
         enddo
         CLOSE(67)
 
