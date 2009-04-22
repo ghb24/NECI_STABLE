@@ -83,7 +83,9 @@ MODULE RotateOrbsMod
             CALL EquateDiagFock()
             tNotConverged=.false.
 
-        ELSe
+        ELSE
+
+            tNotConverged=.true.
 
             CALL WriteStats()           ! write out the original stats before any rotation.
            
@@ -2673,14 +2675,19 @@ MODULE RotateOrbsMod
 
         OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED')
 ! Need to put this back into the original order. 
-        do a=1,SpatOrbs
+        do a=1,nBasis
             b=SymLabelListInv(a)
+            ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
+            ! label i.
+            ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
+            ! Qchem/Dalton label j.
             w=1
             do while (w.le.2)
-                do i=1,SpatOrbs
-                    j=SymLabelListInv(i)
-                    WRITE(66) CoeffT1(b,j)
-                enddo
+                WRITE(66) CoeffT1(b,:)
+!                do i=1,SpatOrbs
+!                    j=SymLabelListInv(i)
+!                    WRITE(66) CoeffT1(b,j)
+!                enddo
                 w=w+1
             enddo
         enddo
