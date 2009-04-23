@@ -539,18 +539,6 @@ MODULE RotateOrbsMod
                     do d=1,b
                         l=SymLabelList2(d)
                         t=REAL(UMAT(UMatInd(i,k,j,l,0,0))%v,8)
-                        IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) THEN
-                            IF(.not.((g.eq.a).or.(b.eq.d))) THEN
-                                PotEnergy=PotEnergy+(t**2)          !Potential energy starts as this since the orbitals are orthonormal by construction.
-                                TwoEInts=TwoEInts+(t**2)
-                            ENDIF
-                        ENDIF
-                        IF(tOffDiagMin.or.tOffDiagMax) THEN
-                            IF(.not.((g.eq.a).or.(b.eq.d))) THEN
-                                PotEnergy=PotEnergy+t          
-                                TwoEInts=TwoEInts+t
-                            ENDIF
-                        ENDIF
                         UMATTemp01(a,g,b,d)=t                   !a,g,d,b chosen to make 'transform2elint' steps more efficient
                         UMATTemp01(g,a,b,d)=t
                         UMATTemp01(a,g,d,b)=t
@@ -563,45 +551,7 @@ MODULE RotateOrbsMod
                     enddo
                 enddo
             enddo
-            IF(tDoubExcMin) THEN
-                do g=1,a-1
-                    do b=1,SpatOrbs
-!                        IF(b.eq.g.eq.a) CYCLE
-                        do d=1,a-1
-!                            IF(d.eq.b.eq.g) CYCLE
-!                            IF(d.eq.b.eq.a) CYCLE
-!                            IF(d.eq.g.eq.a) CYCLE
-                            PotEnergy=PotEnergy+(UMATTemp02(d,b,g,a))-UMATTemp02(g,b,d,a)
-                            TwoEInts=TwoEInts+(UMATTemp02(d,b,g,a))-UMATTemp02(g,b,d,a)
-                        enddo
-                    enddo
-                enddo
-            ENDIF
         enddo
-        IF(tRotateVirtOnly) THEN
-            MinA=(NEl/2)+1
-        ELSE
-            MinA=1
-        ENDIF
-        IF((tOnePartOrbEnMax.or.tOneElIntMax)) THEN
-            do a=MinA,SpatOrbs
-                i=SymLabelList2(a)
-                MaxTerm=0.D0
-                MaxTerm=TMAT2DTemp(a,a)
-                IF(tOnePartOrbEnMax) THEN
-                    do b=1,NEl/2
-                        MaxTerm=MaxTerm+(2*UMATTemp01(a,a,b,b))-UMATTemp01(a,b,b,a)
-                    enddo
-!                    WRITE(6,'(2I10,3F20.10)') a,i,ARR(2*i,1),ARR(2*i,2),MaxTerm
-                    MaxTerm=MaxTerm-EpsilonMin
-                    MaxTerm=MaxTerm**OrbEnMaxAlpha
-                    !For a particular i (a in this case), MaxTerm is (Ei - Emin)^Alpha
-                    !The potential E is the sum of these terms for all i (a).
-                ENDIF
-                PotEnergy=PotEnergy+MaxTerm
-            enddo
-        ENDIF
-        PEInts=PotEnergy
         CALL TestOrthonormality()
     
 
@@ -1689,9 +1639,9 @@ MODULE RotateOrbsMod
 
 
     SUBROUTINE FindTheForce()
-        INTEGER :: m,z,i,j,k,l,a,b,g,d,Symm,Symb,Symb2,Symi,Symd,w,x,y,SymMin,n,o,p,q,PermMaxJ,PermMaxI
+        INTEGER :: m,z,i,j,k,l,a,b,g,d,Symm,Symb,Symb2,Symi,Symd,w,x,y,SymMin,n,o,p,q
         REAL*8 :: OffDiagForcemz,DiagForcemz,OneElForcemz,t1,t2,t3,t4,LambdaTerm1,LambdaTerm2,t1Temp,ForceTemp
-        REAL*8 :: NonDerivTerm,DerivPot!,ERDeriv4indint,Deriv4indintsqrd
+        REAL*8 :: NonDerivTerm,DerivPot
         CHARACTER(len=*) , PARAMETER :: this_routine='FindtheForce'
         LOGICAL :: leqm,jeqm,keqm,ieqm
       
@@ -1705,12 +1655,8 @@ MODULE RotateOrbsMod
         ForceInts=0.D0
         OrthoForce=0.D0
 
-!        IF(tOnePartOrbEnMax) THEN
-!            PermMaxJ=SpatOrbs
-!            PermMaxI=SpatOrbs
-!        ENDIF
-
-
+        ! If the orbitals are being separated, do this whole loop twice, once for occupied and once for virtual
+        ! i.e w = 1,2. Otherwise do them all at once.
         do w=MinOccVirt,MaxOccVirt
             IF(w.eq.1) THEN
                 SymMin=1
@@ -1728,73 +1674,110 @@ MODULE RotateOrbsMod
 ! If we are localising the occupied and virtual orbitals separately, the above block ensures that we loop over
 ! first the occupied then the virtual.  If we are not separating the orbitals we just run over all orbitals.
 
-!            do x=MinMZ,MaxMZ
-!                m=SymLabelList2(x)
-! Symmetry requirement that z must be from the same irrep as m
-!                SymM=INT(G1(m*2)%sym%S,4)
-!                do y=SymLabelCounts2(1,SymM+SymMin),(SymLabelCounts2(1,SymM+SymMin)+SymLabelCounts2(2,SymM+SymMin)-1)
-!                    z=SymLabelList2(y)
-            
             LowBound=iProcIndex*((MaxMZ-MinMZ)/nProcessors)+MinMZ
             HighBound=(iProcIndex+1)*((MaxMZ-MinMZ)/nProcessors)+MinMZ-1
             IF(iProcIndex.eq.(nProcessors-1)) HighBound=MaxMZ
 
             do m=LowBound,HighBound
-!                WRITE(6,*) LowBound,HighBound
-!            do m=MinMZ,MaxMZ
                 SymM=INT(G1(SymLabelList2(m)*2)%sym%S,4)
                 do z=SymLabelCounts2(1,SymM+SymMin),(SymLabelCounts2(1,SymM+SymMin)+SymLabelCounts2(2,SymM+SymMin)-1)
  
+                    ! Find the force on a coefficient c(m,z). 
                     OffDiagForcemz=0.D0
-                    DiagForcemz=0.D0
-                    OneElForcemz=0.D0
-!                    Deriv4indintsqrd=0.D0
-!                    ERDeriv4indint=0.D0
+                    ! OffDiagForce is from any of the OffDiagMin/Max (Sqrd or not), or the double/single excitation
+                    ! max/min, as only one of these terms may be used at once.
 
+                    DiagForcemz=0.D0
+                    ! DiagForce includes ER localisation, and the coulomb terms <ij|ij>.
+
+                    OneElForcemz=0.D0
+                    ! OneElForce includes that from the one electron integrals <i|h|j> and the one particle orbital 
+                    ! energies.
+
+                    ! DIAG TERMS
+                    ! Maximise <ii|ii>, self interaction terms. 
                     IF(tERLocalization) THEN
-                        DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+ThreeIndInts02(m,m,m,z) &
-                                                         +ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
+                        DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+ThreeIndInts02(m,m,m,z)+ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
+                        ! Derivative of <ii|ii> only non-zero when i=m.
+                        ! each of the four terms then correspond to zeta = a, b, g, then d in the unrotated basis.
                     ENDIF
  
-                    IF(tHijSqrdMin) THEN
-                        ! minimising |<i|h|j>|^2 where either one or both of i and j are virtual.
-                        ! if i=m, and z=alpha
-                        do j=(NEl/2)+1,SpatOrbs
-                            IF(m.ne.j) OneElForcemz=OneElForcemz+(2*TMAT2DRot(m,j)*TMAT2DPartRot02(z,j))
-                            ! i<j
-                        enddo
-
-                        ! if j=m and z=beta.
-!                        do i=1,SpatOrbs
-                        do i=(NEl/2)+1,SpatOrbs
-                            IF(m.ne.i) OneElForcemz=OneElForcemz+(2*TMAT2DRot(i,m)*TMAT2DPartRot01(i,z))
-                            ! j>i
-                        enddo
-                    ENDIF
-                  
+                    ! Maximise <ij|ij>, coulomb terms, where i<j, i occ or virt, j virt only.
                     IF(tVirtCoulombMax) THEN
-!                        do i=(NEl/2)+1,SpatOrbs
                         do i=1,SpatOrbs
                             IF(i.eq.m) THEN
                                 do j=(NEl/2)+1,SpatOrbs
-!                                do j=i+1,SpatOrbs
-!                                j=i
-                                    IF(j.le.i) CYCLE        ! we are not including ii terms, i<j.
+                                    IF(j.le.i) CYCLE        ! i<j.
                                     DiagForcemz=DiagForcemz+ThreeIndInts01(m,j,j,z)+ThreeIndInts03(m,j,j,z)
-                                    ! j is over virtual only.
                                     ! First term for when m=i and z=a, second when m=i and z=g.
                                 enddo
                             ENDIF
                             IF((m.gt.(NEl/2)).and.(m.gt.i)) DiagForcemz=DiagForcemz+ThreeIndInts02(i,i,m,z)+ThreeIndInts04(i,i,m,z)
-                            ! j (=m) is only over occupied.
-                            ! i runs over all.
-!                            IF(m.eq.i) ERDeriv4indint=ERDeriv4indint+ThreeIndInts02(i,i,m,z)+ThreeIndInts04(i,i,m,z)
- 
                             ! This only contributes when j=m (no point in running over all j.
                             ! First term when m=j and z=b, second when m=j and z=d.
                         enddo
                     ENDIF
 
+                    ! ONE ELECTRON TERMS
+                    ! Minimise |<i|h|j>|^2 where either one or bot of i and j are virtual, but i<j.
+                    IF(tHijSqrdMin) THEN
+                        do j=(NEl/2)+1,SpatOrbs
+                            IF(m.ne.j) OneElForcemz=OneElForcemz+(2*TMAT2DRot(m,j)*TMAT2DPartRot02(z,j))
+                            ! m=i and z=a.
+                        enddo
+                        do i=(NEl/2)+1,SpatOrbs
+                            IF(m.ne.i) OneElForcemz=OneElForcemz+(2*TMAT2DRot(i,m)*TMAT2DPartRot01(i,z))
+                            ! m=j and z=b
+                        enddo
+                    ENDIF
+
+                    ! OnePartOrbEnMax ; Maximisie sum_i [E_i - E_min]^Alpha
+                    ! where E_i = <i|h|i> + sum_j <ij||ij> and E_min is either E_LUMO (rotating virtual only) or the chemical 
+                    ! potential (midway between LUMO and HOMO, when rotating all), Alpha specified in input.
+                    ! The derivative of the one part orb energies is then Alpha * NonDerivTerm * DerivPot^(Alpha-1)  
+
+                    ! OneElIntMax ; Maximise <i|h|i>
+                    IF(tOnePartOrbEnMax.or.tOneElIntMax) THEN
+                        do i=(NEl/2)+1,SpatOrbs
+                            DerivPot=0.D0
+                            DerivPot=DerivPot+TMAT2DPartRot02(z,m)+TMAT2DPartRot01(m,z)
+                            ! First term when m=i and z=a, second when m=i and z=b.
+                            ! This is all that is needed for OneElIntMax
+
+                            IF(tOnePartOrbEnMax) THEN
+                                NonDerivTerm=0.D0
+                                IF(OrbEnMaxAlpha.ne.1.D0) THEN 
+                                    ! The non-derived term in the chain rule, <i|h|i> + sum_j <ij||ij> - E_min.
+                                    NonDerivTerm=NonDerivTerm+TMAT2DRot(i,i)-EpsilonMin
+                                    do j=1,NEl/2
+                                        NonDerivTerm=NonDerivTerm+(2*FourIndInts(i,j,i,j))-FourIndInts(i,j,j,i)
+                                    enddo
+                                    NonDerivTerm=OrbEnMaxAlpha*(NonDerivTerm**(OrbEnMaxAlpha-1))
+                                ELSE
+                                    ! If Alpha = 1, the NonDerivTerm will be raised to the power of 0, thus always 1.
+                                    NonDerivTerm=1.0
+                                ENDIF
+                                IF(i.eq.m) THEN
+                                    do j=1,NEl/2
+                                        DerivPot=DerivPot+(2*ThreeIndInts01(m,j,j,z))-ThreeIndInts01(j,j,m,z)+(2*ThreeIndInts03(m,j,j,z))-ThreeIndInts03(m,j,z,j)
+                                        ! First part is for when m=i and z=a, the second is for when m=i and z=g
+                                    enddo
+                                ENDIF
+                                ! When m=j, for a particular i.
+                                ! m and z run only over virtual, and j is over occupied. m will never = j.
+                            ELSE
+                                NonDerivTerm=1.D0
+                            ENDIF
+
+                            OneElForcemz=OneElForcemz+(NonDerivTerm*DerivPot)
+                        enddo
+                    ENDIF
+
+                    ! OFFDIAGTERMS
+                    ! Maximises the square of the single and double excitation integrals connected to the HF.
+                    ! I.e maximises <ij|kl> where i,j are occupied and k,l are virtual (doubles), except k may be occuppied if
+                    ! equal to i (<ij|il> singles).
+                    ! Currently this is only used for rotating virtual only, so m can only equal k or l.
                     IF(tHFSingDoubExcMax) THEN
                         do i=1,NEl/2
                             do j=1,NEl/2
@@ -1802,34 +1785,32 @@ MODULE RotateOrbsMod
                                     IF(k.eq.m) THEN
                                         do l=(NEl/2)+1,SpatOrbs
                                             OffDiagForcemz=OffDiagForcemz+(2*FourIndInts(i,j,m,l)*ThreeIndInts03(i,j,l,z))
+                                            ! m=k and z=g.
                                         enddo
                                     ENDIF
                                     
-                                    !If(l.eq.m)
                                     OffDiagForcemz=OffDiagForcemz+(2*FourIndInts(i,j,k,m)*ThreeIndInts04(i,k,j,z))
+                                    ! m=l and z=d. 
                                     
                                     !Sing excitations <ij|il> where i and j are occ, l virt.
-                                    !IF(l.eq.m)
-                                    IF(m.gt.j) OffDiagForcemz=OffDiagForcemz+(2*FourIndInts(i,j,i,m)*ThreeIndInts04(i,i,j,z))
+                                    OffDiagForcemz=OffDiagForcemz+(2*FourIndInts(i,j,i,m)*ThreeIndInts04(i,i,j,z))
+                                    ! m=l
                                 enddo
                             enddo
                         enddo
                     ENDIF
 
-
-                    IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax.or.tOffDiagMin.or.tDoubExcMin.or.tOffDiagMax) THEN
-! This runs over the full <ij|kl> integrals from the previous iteration. 
-! In the future we can take advantage of the permutational symmetry of the matrix elements
+                    ! OffDiag Sqrd/notSqrd Min/Max treats the elements <ij|kl>
+                    ! i<k and j<l.
+                    IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax.or.tOffDiagMin.or.tOffDiagMax.or.tDoubExcMin) THEN
                         do l=1,SpatOrbs
                             IF(l.eq.m) THEN
                                 leqm=.true.
                             ELSE
                                 leqm=.false.
                             ENDIF
-                            IF(.not.tOnePartOrbEnMax) PermMaxJ=l-1
-
                             do j=1,l-1                        
-                                IF((j.eq.m).and.(j.lt.l)) THEN
+                                IF(j.eq.m) THEN
                                     jeqm=.true.
                                 ELSE
                                     jeqm=.false.
@@ -1840,21 +1821,20 @@ MODULE RotateOrbsMod
                                     ELSE
                                         keqm=.false.
                                     ENDIF
-                                    IF(.not.tOnePartOrbEnMax) PermMaxI=k-1
 !                                    Symi=IEOR(INT(G1(SymLabelList2(k)*2)%sym%S,4),IEOR(INT(G1(SymLabelList2(j)*2)%sym%S,4),INT(G1(SymLabelList2(l)*2)%sym%S,4)))
-
                                     ! only i with symmetry equal to j x k x l will have integrals with overall
                                     ! symmetry A1 and therefore be non-zero.
 
-                                    ! running across i, ThreeIndInts01 only contributes if i.eq.m (which will happen once for each m)
-                                    IF(m.le.PermMaxI) THEN
+
+                                    ! Running across i, ThreeIndInts01 only contributes if i.eq.m (which will happen once for each m)
+                                    IF(m.le.k-1) THEN
                                         IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts02(j,k,l,m)*ThreeIndInts01(k,j,l,z))
                                         IF(tOffDiagMin.or.tOffDiagMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts01(k,j,l,z)
                                         IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+ThreeIndInts01(k,j,l,z)-ThreeIndInts01(l,j,k,z)
                                     ENDIF
 
                                     IF(jeqm) THEN
-                                        do i=1,PermMaxI
+                                        do i=1,k-1
 !                                        do i=SymLabelCounts2(1,Symi+SymMin),(SymLabelCounts2(1,Symi+SymMin)+SymLabelCounts2(2,Symi+SymMin)-1)
                                             IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts(i,j,k,l)*ThreeIndInts02(i,k,l,z))
                                             IF(tOffDiagMin.or.tOffDiagMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts02(i,k,l,z)
@@ -1864,7 +1844,7 @@ MODULE RotateOrbsMod
 
                                     IF(keqm) THEN
 !                                        do i=SymLabelCounts2(1,Symi+SymMin),(SymLabelCounts2(1,Symi+SymMin)+SymLabelCounts2(2,Symi+SymMin)-1)
-                                        do i=1,PermMaxI
+                                        do i=1,k-1
                                             IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts(i,j,k,l)*ThreeIndInts03(i,j,l,z))
                                             IF(tOffDiagMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts03(i,j,l,z)
                                             IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts03(i,j,l,z))-ThreeIndInts03(i,j,z,l)
@@ -1873,62 +1853,17 @@ MODULE RotateOrbsMod
 
                                     IF(leqm) THEN
 !                                        do i=SymLabelCounts2(1,Symi+SymMin),(SymLabelCounts2(1,Symi+SymMin)+SymLabelCounts2(2,Symi+SymMin)-1)
-                                        do i=1,PermMaxI
+                                        do i=1,k-1
                                             IF(tOffDiagSqrdMin.or.tOffDiagSqrdMin) OffDiagForcemz=OffDiagForcemz+2*(FourIndInts(i,j,k,l)*ThreeIndInts04(i,k,j,z))
                                             IF(tOffDiagMin.or.tOffDiagMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts04(i,k,j,z)
                                             IF(tDoubExcMin) OffDiagForcemz=OffDiagForcemz+(ThreeIndInts04(i,k,j,z))-ThreeIndInts04(i,z,j,k)
                                         enddo
                                     ENDIF
-
-! Already calculated the four index integrals and some partial integrals
-! in Transform2ElInts routine of the previous iteration.
-
-! Deriv4indintsqrd is the derivative of the overall expression for the sum of the squares of the <ij|kl> matrix.
-! This accumulates as the loop sums over i,j,k and l.
-                                       
                                 enddo
                             enddo
                         enddo
                     ENDIF
-                    IF(tOnePartOrbEnMax.or.tOneElIntMax) THEN
-                        do i=(NEl/2)+1,SpatOrbs
-                            DerivPot=0.D0
- 
-                            DerivPot=DerivPot+TMAT2DPartRot02(z,m)+TMAT2DPartRot01(m,z)
-
-                            IF(tOnePartOrbEnMax) THEN
-                                NonDerivTerm=0.D0
-                                IF(OrbEnMaxAlpha.ne.1.D0) THEN 
-                                    NonDerivTerm=NonDerivTerm+TMAT2DRot(i,i)-EpsilonMin
-                                    do j=1,NEl/2
-                                        NonDerivTerm=NonDerivTerm+(2*FourIndInts(i,j,i,j))-FourIndInts(i,j,j,i)
-                                    enddo
-                                    NonDerivTerm=OrbEnMaxAlpha*(NonDerivTerm**(OrbEnMaxAlpha-1))
-                                ELSE
-                                    NonDerivTerm=1.0
-                                ENDIF
-                                IF(i.eq.m) THEN
-                                    do j=1,NEl/2
-                                        DerivPot=DerivPot+(2*ThreeIndInts01(m,j,j,z))-ThreeIndInts01(j,j,m,z)+(2*ThreeIndInts03(m,j,j,z))-ThreeIndInts03(m,j,z,j)
-                                        ! First part is for when m=i and z=a, the second is for when m=i and z=g
-                                    enddo
-                                ENDIF
-!                                DerivPot=DerivPot+(2*ThreeIndInts02(i,i,m,z))-ThreeIndInts02(i,m,i,z)+(2*ThreeIndInts04(i,i,m,z))-ThreeIndInts04(i,z,m,i)
-                                ! When m=j, for a particular i.
-                                ! m and z run only over virtual, and j is over occupied. m will never = j.
-                            ELSE
-                                NonDerivTerm=1.D0
-                            ENDIF
-
-                            DiagForcemz=DiagForcemz+(NonDerivTerm*DerivPot)
-!                            Deriv4indintsqrd=(-1)*ABS(Deriv4indintsqrd)
-                            ! minus sign because we are maximising.
-                        enddo
-                    ENDIF
-
-!                    IF(tOffDiagSqrdMin.or.tOffDiagMin) DerivCoeffTemp(z,m)=(OffDiagWeight*Deriv4indintsqrd) - (ERWeight*ERDeriv4indint) 
-!                    IF(tOffDiagSqrdMax) DerivCoeffTemp(z,m)=(-1)*(OffDiagWeight*Deriv4indintsqrd) - (ERWeight*ERDeriv4indint) 
-!                    DerivCoeffTemp(z,m)=(OffDiagWeight*Deriv4indintsqrd) - (ERWeight*ABS(ERDeriv4indint)) 
+                    ! DerivCoeffTemp(z,m) then combines all the different forces on coefficient(m,z).
                     DerivCoeffTemp(z,m)=(MaxMinFac*OffDiagWeight*OffDiagForcemz)+(DiagMaxMinFac*DiagWeight*DiagForcemz)+(OneElMaxMinFac*OneElWeight*OneElForcemz)
                     ForceTemp=ForceTemp+DerivCoeffTemp(z,m)
                 enddo
@@ -1936,8 +1871,6 @@ MODULE RotateOrbsMod
         enddo
         CALL MPIDSumArr(DerivCoeffTemp(:,:),SpatOrbs**2,DerivCoeff(:,:))
         CALL MPIDSum(ForceTemp,1,Force)
-!        CALL MPI_AllReduce(DerivCoeffTemp(:,:),DerivCoeff(:,:),SpatOrbs**2,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-!        CALL MPI_AllReduce(ForceTemp,Force,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
 
         Force=Force/REAL(SpatOrbs**2,8)
 
@@ -2592,7 +2525,7 @@ MODULE RotateOrbsMod
             ENDIF
             
             TotCorConstraints=TotCorConstraints+ABS(ConstraintCor(l))
-            ! Sum of all Contraint componenets - indication of overall orthonormality.
+            ! Sum of all Contraint components - indication of overall orthonormality.
     
             IF(ABS(ConstraintCor(l)).gt.ShakeConverged) ConvergeCount=ConvergeCount+1
             ! Count the number of constraints which are still well above 0.
@@ -2697,23 +2630,6 @@ MODULE RotateOrbsMod
         enddo
         CLOSE(66)
       
-! Print a file the same as the binary file, but with formatting to have a look at. 
-        OPEN(67,FILE='MOTRANSFORM02',status='unknown')
-        w=1
-        do while (w.le.2)
-            do i=1,SpatOrbs
-                j=SymLabelListInv(i)
-                do a=1,SpatOrbs
-                    b=SymLabelListInv(a)
-                    WRITE(67,'(F15.10)',advance='no') CoeffT1(b,j)
-                enddo
-                WRITE(67,*) ''
-            enddo
-            w=w+1
-        enddo
-        CLOSE(67)
-
-
 !        do a=1,SpatOrbs
 !            b=SymLabelListInv(a)
 !            do i=1,SpatOrbs
