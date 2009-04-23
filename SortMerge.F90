@@ -17,7 +17,7 @@
 ! a linear search would be quicker.
     SUBROUTINE MergeListswH(nlist1,nlist1max,nlist2,list2,SignList2,NIfD)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign,CurrentH
-        USE SystemData , only : tHub,tReal,NEl
+        USE SystemData , only : NEl
         USE Determinants , only : GetHElement3
         USE HElem
         IMPLICIT NONE
@@ -70,12 +70,12 @@
            IF(DetBitEQ(list2(0:NIfD,i),iLutHF,NIfD)) THEN
 !We know we are at HF - HDiag=0
                HDiag=0.D0
-               IF(tHub.and.tReal) THEN
-!Reference determinant is not HF
-                   CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
-                   HDiagTemp=GetHElement3(nJ,nJ,0)
-                   HDiag=(REAL(HDiagTemp%v,8))
-               ENDIF
+!               IF(tHub.and.tReal) THEN
+!!Reference determinant is not HF
+!                   CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
+!                   HDiagTemp=GetHElement3(nJ,nJ,0)
+!                   HDiag=(REAL(HDiagTemp%v,8))
+!               ENDIF
            ELSE
                CALL DecodeBitDet(nJ,list2(0:NIfD,i),NEl,NIfD)
                HDiagTemp=GetHElement3(nJ,nJ,0)
@@ -102,7 +102,7 @@
 !This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
     SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2,NIfD)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign
-        USE SystemData , only : tHub,tReal,NEl
+        USE SystemData , only : NEl
         USE Determinants , only : GetHElement3
         USE HElem
         IMPLICIT NONE

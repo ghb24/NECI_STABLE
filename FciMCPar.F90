@@ -129,7 +129,7 @@ MODULE FciMCParMod
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
 
     TYPE(HElement) :: rhii
-    REAL*8 :: Hii,Fii,HubRefEnergy
+    REAL*8 :: Hii,Fii
 
     REAL*8 , ALLOCATABLE :: GraphRhoMat(:,:)    !This stores the rho matrix for the graphs in resumFCIMC
     INTEGER :: GraphRhoMatTag=0
@@ -849,11 +849,11 @@ MODULE FciMCParMod
                                 IF(DetBitEQ(iLutnJ,iLutHF,NoIntforDet)) THEN
 !We know we are at HF - HDiag=0
                                     HDiag=0.D0
-                                    IF(tHub.and.tReal) THEN
-!Reference determinant is not HF
-                                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                                        HDiag=(REAL(HDiagTemp%v,r2))
-                                    ENDIF
+!                                    IF(tHub.and.tReal) THEN
+!!Reference determinant is not HF
+!                                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!                                        HDiag=(REAL(HDiagTemp%v,r2))
+!                                    ENDIF
 
                                 ELSE
                                     HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -1073,11 +1073,11 @@ MODULE FciMCParMod
                                     IF(DetBitEQ(iLutnJ,iLutHF,NoIntforDet)) THEN
 !We know we are at HF - HDiag=0
                                         HDiag=0.D0
-                                        IF(tHub.and.tReal) THEN
-!Reference determinant is not HF
-                                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                                            HDiag=(REAL(HDiagTemp%v,r2))
-                                        ENDIF
+!                                        IF(tHub.and.tReal) THEN
+!!Reference determinant is not HF
+!                                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!                                            HDiag=(REAL(HDiagTemp%v,r2))
+!                                        ENDIF
 
                                     ELSE
                                         HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -1404,10 +1404,14 @@ MODULE FciMCParMod
         TYPE(HElement) :: TempHii
         REAL*8 :: HDiagCurr
 
+        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
+!Problem is that we need to rerun the simulation from scratch, and particles currently in the simulation will keep on
+!changing the reference since their diagonal K element will remain negative.
+
         do i=1,NEl
             HFDet(i)=DetCurr(i)
         enddo
-        Hii=Hii-HDiagCurr
+        Hii=Hii+HDiagCurr
         iLutHF(0:NoIntforDet)=iLutCurr(0:NoIntforDet)
         TempHii=GetH0Element3(HFDet)
         Fii=REAL(TempHii%v,r2)
@@ -3929,12 +3933,12 @@ MODULE FciMCParMod
                 ProjEIter=ProjEIterSum/REAL(HFPopCyc,r2)
             ENDIF
         ENDIF
-        IF(tHub.and.tReal) THEN
-!Since for the real-space hubbard model the reference is not the HF, it has to be added on to the energy since it is not subtracted from the
-!diagonal hamiltonian elements.
-            ProjectionE=ProjectionE+HubRefEnergy
-            ProjEIter=ProjEIter+HubRefEnergy
-        ENDIF
+!        IF(tHub.and.tReal) THEN
+!!Since for the real-space hubbard model the reference is not the HF, it has to be added on to the energy since it is not subtracted from the
+!!diagonal hamiltonian elements.
+!            ProjectionE=ProjectionE+HubRefEnergy
+!            ProjEIter=ProjEIter+HubRefEnergy
+!        ENDIF
 !We wan to now broadcast this new shift to all processors
         CALL MPI_Bcast(DiagSft,1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 13"
@@ -4265,10 +4269,6 @@ MODULE FciMCParMod
 
         IF(tHub) THEN
             IF(tReal) THEN
-!If we are doing a real-space hubbard calculation, then we cannot subtract out the energy of the reference determinant.
-!This is because the reference is not the HF determinant and is an undefined determinant. In momentum space this is not the case.
-                HubRefEnergy=Hii
-                Hii=0.D0
 !We also know that in real-space hubbard calculations, there are only single excitations.
                 exFlag=1
             ELSE
