@@ -2674,9 +2674,10 @@ MODULE RotateOrbsMod
 ! This file is printed to be used to produce cube files from QChem.
 ! Line 1 is the coefficients of HF spatial orbitals 1 2 3 ... which form transformed orbital 1 etc.
 
-        OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED')
+        OPEN(66,FILE='MOTRANSFORM',FORM='UNFORMATTED',access='direct', recl=8)
 ! Need to put this back into the original order. 
         w=1
+        x=1   !keep a counter of record number
         do while (w.le.2)
             do i=1,SpatOrbs
                 j=SymLabelListInv(i)
@@ -2686,7 +2687,8 @@ MODULE RotateOrbsMod
                 ! Qchem/Dalton label j.
                 do a=1,SpatOrbs
                     b=SymLabelListInv(a)
-                    WRITE(66) CoeffT1(b,j)
+                    WRITE(66,rec=x) CoeffT1(b,j)
+                    x=x+1
                     ! a/b are the original (HF) orbitals, and i/j the transformed
                 enddo
             enddo
