@@ -78,6 +78,7 @@ C.. If we're on the last electron
                KI%Sym%s=0 ! Ignore symmetry in generation of determinants.
             ENDIF
             IF(.NOT.TSPN) KI%Ms=0
+!            WRITE(6,*) KI
             IF(LCHKSYM(KI,KJ)) THEN
                II=II+1
 C.. If we're generating rather than counting

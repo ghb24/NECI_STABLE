@@ -281,6 +281,7 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
       SUBROUTINE GENMOLPSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: tSymIgnoreEnergies
          use SymData, only: SymReps,tagSymReps
          use global_utilities
          IMPLICIT NONE
@@ -296,7 +297,10 @@ C.. now work out which reps are degenerate and label them
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
          DO I=1,NBASIS
-            IF(I.GT.1.AND.(ABS(ARR(I)-ARR(I-1)).LT.1.D-5
+            IF(tSymIgnoreEnergies.AND.MOD(I,2).EQ.0) THEN
+!Pair even orbs up with the odd ones.
+               SYMREPS(2,J)=SYMREPS(2,J)+1
+            ELSEIF(I.GT.1.AND.(ABS(ARR(I)-ARR(I-1)).LT.1.D-5
      &         .AND.G1(BRR(I))%Sym%s.EQ.G1(BRR(I-1))%Sym%s)) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1

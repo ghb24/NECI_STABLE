@@ -108,7 +108,8 @@ MODULE System
       DiagMaxMinFac=-1
       OneElMaxMinFac=1
       tDiagonalizehij=.false.
-
+      tHFNoOrder=.false.
+      tSymIgnoreEnergies=.false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -147,6 +148,8 @@ MODULE System
           select case(w)
           case("ORDER")
               THFORDER = .true.
+          case("NOORDER")
+              THFNOORDER = .true.
           end select
       case("STARBINREAD")        ! Instead, specify StarStore Binary within the system block.
           TSTARSTORE=.true.
@@ -156,6 +159,8 @@ MODULE System
           select case(w)
           case("ORDER")
               THFORDER=.true.
+          case("NOORDER")
+              THFNOORDER = .true.
           end select
       case("DFREAD")             ! Instead, specify DensityFitted within the system block.
           TREADINT = .true.
@@ -164,6 +169,8 @@ MODULE System
           select case(w)
           case("ORDER")
               THFORDER = .true.
+          case("NOORDER")
+              THFNOORDER = .true.
           end select
       case("BINREAD")            ! Instead, specify Binary within the system block.
           TREADINT=.true.
@@ -172,6 +179,8 @@ MODULE System
           select case(w)
           case("ORDER")
               THFORDER=.true.
+          case("NOORDER")
+              THFNOORDER = .true.
           end select
 
       case("READ","GENERIC")
@@ -180,6 +189,8 @@ MODULE System
           select case(w)
           case("ORDER")
               THFORDER = .true.
+          case("NOORDER")
+              THFNOORDER = .true.
           end select
       case("HUBBARD")
           THUB = .true.
@@ -242,6 +253,8 @@ MODULE System
                STOT=0
             endif
             TCSF = .true.
+        case("SYMIGNOREENERGIES")
+            tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")
             lNoSymmetry=.true.
             IF(tHub) THEN
@@ -1044,7 +1057,7 @@ MODULE System
 !C..Now we sort them using SORT2 and then SORT
 
 !C.. This sorts ARR and BRR into order of ARR [AJWT]
-      CALL ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
+      IF(.NOT.THFNOORDER)       CALL ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
       CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
       IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
       CALL FLUSH(6)
