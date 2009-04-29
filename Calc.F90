@@ -196,6 +196,10 @@ MODULE Calc
           TENPT=.false.
           TLADDER=.false. 
           tDefineDet=.false.
+          tFindGuide=.false.
+          iGuideDets=100
+          tUseGuide=.false.
+          iInitGuideParts=1000000
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -584,6 +588,19 @@ MODULE Calc
                 do i=1,NEl
                     call geti(DefDet(i))
                 enddo
+
+            case("FINDGUIDINGFUNCTION")
+! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
+! most populated determinants, to be read in as a guiding (or annihilating) function in a following calculation.
+                tFindGuide=.true.
+                call geti(iGuideDets)
+
+            case("USEGUIDINGFUNCTION")
+! This keyword sets the calculationg to read in a guiding function from a file GUIDINGFUNC.  This function then sits
+! in the back of a calculation, able to annihilate particle, but not allowed to spawn or die.
+! The number of particles initially distributed amongst the guiding function determinants is specified by iInitGuideParts.
+                tUseGuide=.true.
+                call geti(iInitGuideParts)
 
             case("TROTTER")
                 TTROT = .true.

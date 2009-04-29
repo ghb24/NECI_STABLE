@@ -11,7 +11,7 @@ MODULE FciMCParMod
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
-    use CalcData , only : tHighExcitsSing,iHighExcitsSing
+    use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det
     use IntegralsData , only : fck,NMax,UMat
@@ -199,6 +199,13 @@ MODULE FciMCParMod
 
     INTEGER :: MaxDet,iOffDiagNoBins,HistMinInd,HistMinInd2
 
+    INTEGER :: GuideFuncDetsTag,GuideFuncSignTag,DetstoRotateTag,SigntoRotateTag,DetstoRotate2Tag,SigntoRotate2Tag,AlliInitGuideParts,InitGuideFuncSignTag
+    INTEGER :: GuideFuncHFIndex,GuideFuncHF
+    REAL*8 :: GuideFuncDoub
+    INTEGER , ALLOCATABLE :: GuideFuncDets(:,:),GuideFuncSign(:),DetstoRotate(:,:),SigntoRotate(:),DetstoRotate2(:,:),SigntoRotate2(:),InitGuideFuncSign(:)
+
+
+
     contains
 
 
@@ -281,6 +288,10 @@ MODULE FciMCParMod
 
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
+!If we are calculating a guiding function, write it out here.
+        IF(tFindGuide) CALL WriteGuidingFunc()
+        IF(tUseGuide) CALL WriteFinalGuidingFunc()
+
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
         
@@ -295,6 +306,7 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE FciMCPar
+
 
     SUBROUTINE WriteHistogramEnergies()
         INTEGER :: error,i
@@ -459,6 +471,659 @@ MODULE FciMCParMod
         ENDIF
 
     END SUBROUTINE WriteHistogramEnergies
+
+
+
+    SUBROUTINE InitGuidingFunction()
+!This routine reads in the guiding function from the GUIDINGFUNC file printed in a previous calculation.
+!It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
+!The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
+        INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel,DoubDet(NEl)
+        CHARACTER(len=*), PARAMETER :: this_routine='InitGuidingFunction'
+        TYPE(HElement) :: HDoubTemp
+        REAL*8 :: Hdoub
+        LOGICAL :: DetsEq,DetBitEQ
+
+
+        iGuideDets=0
+        AlliInitGuideParts=0
+        DetsEq=.false.
+        IF(iProcIndex.eq.Root) THEN
+            OPEN(36,FILE='GUIDINGFUNC',Status='old')
+            READ(36,*) iGuideDets 
+        ENDIF
+ 
+        CALL MPI_Bcast(iGuideDets,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+        ALLOCATE(GuideFuncDets(0:NoIntforDet,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('GuideFuncDets',(NoIntforDet+1)*iGuideDets,4,this_routine,GuideFuncDetsTag,ierr)
+        ALLOCATE(GuideFuncSign(1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('GuideFuncSign',iGuideDets,4,this_routine,GuideFuncSignTag,ierr)
+
+        ALLOCATE(DetstoRotate(0:NoIntforDet,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('DetstoRotate',(NoIntforDet+1)*iGuideDets,4,this_routine,DetstoRotateTag,ierr)
+        ALLOCATE(SigntoRotate(0:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('SigntoRotate',iGuideDets+1,4,this_routine,SigntoRotateTag,ierr)
+        ALLOCATE(DetstoRotate2(0:NoIntforDet,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('DetstoRotate2',(NoIntforDet+1)*iGuideDets,4,this_routine,DetstoRotate2Tag,ierr)
+        ALLOCATE(SigntoRotate2(0:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('SigntoRotate2',iGuideDets+1,4,this_routine,SigntoRotate2Tag,ierr)
+
+
+        IF(iProcIndex.eq.Root) THEN
+            !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
+            j=1
+            do while (j.le.iGuideDets)
+                READ(36,*) GuideFuncDets(0:NoIntforDet,j),GuideFuncSign(j)
+                j=j+1
+            enddo
+            CLOSE(36)
+
+            !Calculate the total number of particles in the GUIDINGFUNC file.
+            CurrentGuideParts=0
+            do j=1,iGuideDets
+                CurrentGuideParts=CurrentGuideParts+ABS(GuideFuncSign(j))
+            enddo
+
+            !Scale up the populations (sign), by the ratio of the original total to the iInitGuideParts value from the NECI input,
+            !and calculate the new sum (should be approximately iInitGuideParts, but maybe not exactly because need to take nearest integer.
+            NewGuideParts=0
+            do j=1,iGuideDets
+                GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(CurrentGuideParts)))
+                NewGuideParts=NewGuideParts+ABS(GuideFuncSign(j))
+            enddo
+            iInitGuideParts=NewGuideParts
+            !The total number of particles in the guiding function is now iInitGuideParts
+            !WRITE(6,*) 'iInitGuideParts, ',iInitGuideParts
+            
+            !Maybe put in a test here that checks the determinants are in the right order.  But they should be cos we're printing them out right.
+
+            AlliInitGuideParts=iInitGuideParts*nProcessors
+
+            !Want to know what is happening to the guiding function throughout the spawning, so just print it out at the beginning to compare to the
+            !final one.
+            !Store the initguidefuncsigns 
+            ALLOCATE(InitGuideFuncSign(iGuideDets),stat=ierr)
+            CALL LogMemAlloc('InitGuideFuncSign',iGuideDets,4,this_routine,InitGuideFuncSignTag,ierr)
+            InitGuideFuncSign(:)=0
+
+!            OPEN(37,file='GUIDINGFUNCinit',status='unknown')
+!            WRITE(37,*) iGuideDets,' determinants included in the guiding function.'    
+            do j=1,iGuideDets
+                InitGuideFuncSign(j)=nProcessors*GuideFuncSign(j)
+!                WRITE(37,*) GuideFuncDets(0:NoIntforDet,j),nProcessors*GuideFuncSign(j)
+            enddo
+!            CLOSE(37)
+            
+        ENDIF
+
+        !Broadcast the guiding function determinants (and signs) to all processors.
+        !The total number of walkers in the guiding function is therefore nProcessors*iInitGuideParts.
+        CALL MPI_Bcast(GuideFuncDets(0:NoIntforDet,1:iGuideDets),iGuideDets*(NoIntforDet+1),MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(GuideFuncSign(1:iGuideDets),iGuideDets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+        !Run through the guiding function determinants and find the index that contains the HF.
+        !Want this known on all processors, so that we can just look up the sign at this position to get the guiding function HF population.
+        do i=1,iGuideDets
+            DetsEq=DetBitEQ(iLutHF,GuideFuncDets(0:NoIntforDet,i),NoIntforDet)
+            IF(DetsEq) THEN
+                GuideFuncHFIndex=i
+                EXIT
+            ENDIF
+        enddo
+
+        IF(iProcIndex.eq.Root) THEN
+            GuideFuncDoub=0.D0
+            !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
+            do i=1,iGuideDets
+                CALL FindBitExcitLevel(GuideFuncDets(0:NoIntforDet,i),iLutHF,NoIntforDet,ExcitLevel,2)
+                IF(ExcitLevel.eq.2) THEN
+                    DoubDet(:)=0
+                    CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NoIntforDet,i),NEl,NoIntforDet)
+                    HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                    HDoub=REAL(HDoubTemp%v,r2)
+                    GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
+                ENDIF
+            enddo
+            WRITE(6,*) 'The energy of the guiding function alone is ,',GuideFuncDoub/(REAL(GuideFuncSign(GuideFuncHFIndex),r2))
+            GuideFuncDoub=0.D0
+        ENDIF
+            
+
+    ENDSUBROUTINE InitGuidingFunction
+
+
+
+    SUBROUTINE RotoAnnihilGuidingFunc(ValidSpawned)
+! This routine takes the spawned particles (that have already been annihilated with themselves and with the main wavefunction), and tries to 
+! annihilate them with the guiding function.
+! The guiding function itself may be annihilated also, but does not spawn or die by itself.
+! However, if the guiding function is completely annihilated on one processor, the spawned particles must be rotated around the other processors
+! to check for possible annihilations there.
+        INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
+        INTEGER :: Stat(MPI_STATUS_SIZE),ExcitLevel,DoubDet(NEl)
+        TYPE(HElement) :: HDoubTemp
+        REAL*8 :: Hdoub
+        LOGICAL :: tRotateSpawnedTemp,tRotateSpawned,tDetinSpawnList,DetBitEQ,DetsEq
+
+
+        NoDetstoRotate=0
+        CombSign=0
+        DetstoRotate(:,:)=0
+        SigntoRotate(:)=0
+        tRotateSpawned=.false.
+        DetsEq=.false.
+
+        !First attempt at annihilation, just on the processor the spawned particles are currently on.
+
+        !Run through the determinats that have been spawned on.
+        do i=1,ValidSpawned
+            !Run through the guiding function, checking if this spawned determinant is in there.
+            do j=1,iGuideDets
+                !DetsEq is true if the two determinants are equal
+                DetsEq=DetBitEQ(SpawnedParts(0:NoIntforDet,i),GuideFuncDets(0:NoIntforDet,j),NoIntforDet)
+                IF(DetsEq) THEN
+                    CombSign=SpawnedSign(i)*GuideFuncSign(j)
+                    !IF this is negative, the guiding function annihilates the spawned particles.
+                    IF(CombSign.lt.0) THEN
+
+                        IF(ABS(SpawnedSign(i)).gt.ABS(GuideFuncSign(j))) THEN
+                            ! Don't want to change sign of guiding function so if there are more particles in the spawned list, just put the 
+                            ! guiding function to 0 and leave the remaining spawned to be rotated to other processors.
+                            SpawnedSign(i)=SpawnedSign(i)+GuideFuncSign(j)
+                            ! Add because these are opposite signs.
+                            GuideFuncSign(j)=0
+                            ! Then need to rotate the remaining walkers in Spawned list to see if there are walkers in the guiding function
+                            ! to annihilate with on other processors.
+
+                            NoDetstoRotate=NoDetstoRotate+1
+                            DetstoRotate(0:NoIntforDet,NoDetstoRotate)=SpawnedParts(0:NoIntforDet,i)
+                            SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
+
+                        ELSEIF(ABS(SpawnedSign(i)).eq.ABS(GuideFuncSign(j))) THEN
+                            SpawnedSign(i)=0
+                            GuideFuncSign(j)=0
+                        ELSE
+                            ! The spawned are all annihilated, and the guiding function is decreased by that number.
+                            GuideFuncSign(j)=GuideFuncSign(j)+SpawnedSign(i)
+                            SpawnedSign(i)=0
+                        ENDIF
+
+                    !IF the combined sign (CombSign) is positive, signs are the same and the spawned particles remain.
+                    !Nothing changes, the guiding function is not annihilated, and the spawned remain to be put into the full list later.
+
+                    !If CombSign is 0, there are no walkers on the guiding function (for that processor).
+                    !Need to rotate the spawned walker to see if there are any walkers on this determinant to annihilate with.
+                    ELSEIF(CombSign.eq.0) THEN
+                        NoDetstoRotate=NoDetstoRotate+1
+                        DetstoRotate(0:NoIntforDet,NoDetstoRotate)=SpawnedParts(0:NoIntforDet,i)
+                        SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
+                    ENDIF
+
+                    !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
+                    !function, there will be no more matches.
+                    EXIT
+
+                ENDIF
+            enddo
+        enddo
+
+        IF(NoDetstoRotate.gt.0) tRotateSpawnedTemp=.true.
+        !If NoDetstoRotate is 0, don't even have to worry about the rotating stuff.
+
+        !If tRotateSpawnedTemp is true on any processor, this routine makes tRotateSpawned true on all processors.
+        CALL MPI_AllReduce(tRotateSpawnedTemp,tRotateSpawned,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+
+
+!The allocated DetstoRotate arrays are as big as iGuideDets (the number of determinants in the guiding function), but will only need to rotate 
+!a portion of these (those determinants for which the guiding function has had all its walkers annihilated).
+
+
+        IF(tRotateSpawned) THEN !If NoDetstoRotate is greater than 0 on any processor, need to rotate all arrays, otherwise will overwrite each other etc.
+
+            InitNoDetstoRotate=NoDetstoRotate
+            !For now, rotate this same sized array each time, even if not completely necessary.
+            !We are currently just making the determinant (and its sign) 0 if we no longer want to rotate it, but could in the future remove it from the
+            !array.  Probably doesn't make all that much difference because will never find a 0 determinant in the guiding function.
+
+
+            do n=1,nProcessors-1
+            !Rotate the DetstoRotate, SigntoRotate and NoDetstoRotate values.
+
+                DetsEq=.false.
+                CombSign=0
+                SigntoRotate(0)=InitNoDetstoRotate
+
+                !Send the sign of those we want to rotate to the next processor.
+                !Element 0 is the InitNoDetstoRotate value for this processor, send this as well.
+                CALL MPI_BSend(SigntoRotate(0:InitNoDetstoRotate),InitNoDetstoRotate+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending signs")
+                ENDIF
+
+                !Then send the determinants
+                CALL MPI_BSend(DetstoRotate(0:NoIntforDet,1:InitNoDetstoRotate),(NoIntforDet+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
+                ENDIF
+
+                !Receives signs.
+                !Receive max possible, will only overwrite those that are actually being sent.
+                CALL MPI_Recv(SigntoRotate2(0:iGuideDets),iGuideDets+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving signs")
+                ENDIF
+        
+                InitNoDetstoRotate=SigntoRotate2(0)
+
+                !Recieve determinants
+                CALL MPI_Recv(DetstoRotate2(0:NoIntforDet,InitNoDetstoRotate),InitNoDetstoRotate*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
+                ENDIF
+
+                do i=1,InitNoDetstoRotate
+                    SigntoRotate(i)=SigntoRotate2(i)
+                    DetstoRotate(0:NoIntforDet,i)=DetstoRotate2(0:NoIntforDet,i)
+                enddo
+
+                !If a determinant has walkers in the guiding function on the same determinant with the same sign, add the spawned (rotate) walkers
+                !to the spawned list of that processor (no longer need to rotate).
+                !If the walkers have opposite sign, annihilate and rotate any remaining from the spawned list.
+                !If there are no walkers on the guiding function determinant, keep rotating.
+            
+                !Take a rotated determinant and run through to find it in the guiding function of that processor.
+                do i=1,InitNoDetstoRotate
+                    !If the number of particles being rotated has become zero, don't need to search through the guiding function for particles to annihilate.
+                    IF(Signtorotate(i).ne.0) THEN
+                        do j=1,iGuideDets
+
+                            DetsEq=DetBitEQ(DetstoRotate(0:NoIntforDet,i),GuideFuncDets(0:NoIntforDet,j),NoIntforDet)
+
+                            IF(DetsEq) THEN
+                                CombSign=SigntoRotate(i)*GuideFuncSign(j)
+                                !IF this is negative, the guiding function annihilates the spawned particles.
+                                IF(CombSign.lt.0) THEN
+
+                                    IF(ABS(SigntoRotate(i)).gt.ABS(GuideFuncSign(j))) THEN
+                                        !If there are still too many in the spawned (rotated) array to be all annihilated by the guiding function on that
+                                        !processor, annihilate what you can, but leave the determinant in the array to keep rotating.
+                                        SigntoRotate(i)=SigntoRotate(i)+GuideFuncSign(j)
+                                        ! Add because these are opposite signs.
+                                        GuideFuncSign(j)=0
+                                        
+                                    ELSEIF(ABS(SigntoRotate(i)).eq.ABS(GuideFuncSign(j))) THEN
+                                        SigntoRotate(i)=0
+                                        GuideFuncSign(j)=0
+
+                                    ELSE
+                                        ! The spawned are all annihilated, and the guiding function is decreased by that number.
+                                        GuideFuncSign(j)=GuideFuncSign(j)+SigntoRotate(i)
+                                        SigntoRotate(i)=0
+                                    ENDIF
+
+                                    !IF the combined sign (CombSign) is positive, there are walkers in the guiding function of that processor with the same
+                                    !sign. Thus no annihilation occurs and these particles just continue to rotate around (they will just end up back on the
+                                    !the original processor where they'll be recombined back into SpawnedPart.
+
+                                    !If CombSign is 0, there are no walkers on the guiding function (for that processor).
+                                    !Continue rotating spawned walkers to see if there are any on the next processor to annihilate with.
+
+                                    !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
+                                    !function, there will be no more matches.
+                                    EXIT
+
+                                ENDIF
+                            ENDIF
+
+                        enddo
+                    ENDIF
+                enddo
+                    
+            enddo
+
+            !If back to original processor and still have walkers in rotating arrays, just add them to the spawned list.
+            !Do one final rotation, end up on original processor - add remaining particles to spawned list.
+
+            SigntoRotate(0)=InitNoDetstoRotate
+
+            !Send the sign of those we want to rotate to the next processor.
+            CALL MPI_BSend(SigntoRotate(0:InitNoDetstoRotate),InitNoDetstoRotate+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending signs")
+            ENDIF
+
+            !Then send the determinants
+            CALL MPI_BSend(DetstoRotate(0:NoIntforDet,1:InitNoDetstoRotate),(NoIntforDet+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
+            ENDIF
+
+            !Receives signs.
+            CALL MPI_Recv(SigntoRotate2(0:iGuideDets),iGuideDets+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving signs")
+            ENDIF
+            
+            InitNoDetstoRotate=SigntoRotate2(0)
+
+            !Recieve determinants
+            CALL MPI_Recv(DetstoRotate2(0:NoIntforDet,InitNoDetstoRotate),InitNoDetstoRotate*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
+            ENDIF
+
+            !Now add all the remaining DetstoRotate2 and their signs to the SpawnedPart and SpawnedSign lists.
+            !Since I just copied the determinants from SpawnedPart to DetstoRotate, any in DetstoRotate will already been in SpawnedPart.
+            !Need to just search for it and overwrite its spin value.
+            do j=1,InitNoDetstoRotate
+                tDetinSpawnList=.false.
+                do i=1,ValidSpawned
+                    DetsEq=DetBitEQ(SpawnedParts(0:NoIntforDet,i),DetstoRotate2(0:NoIntforDet,j),NoIntforDet)
+                    IF(DetsEq) THEN
+                        SpawnedSign(i)=SigntoRotate2(j)
+                        tDetinSpawnList=.true.
+                        EXIT
+                    ENDIF
+                enddo
+                IF(.not.tDetinSpawnList) CALL Stop_All("RotoAnnihilGuidingFunc","Determinant from rotated list cannot be found in SpawnedParts.")
+            enddo
+
+        ENDIF
+
+        !Calculated the number of walkers in the guiding function after this annihilation.
+        iInitGuideParts=0
+        AlliInitGuideParts=0
+        do i=1,iGuideDets
+            iInitGuideParts=iInitGuideParts+ABS(GuideFuncSign(i))
+        enddo
+!        CALL MPI_Reduce(iInitGuideParts,AlliInitGuideParts,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+        !Need to calculate the contribution to the HF from the guiding function, and then also the contribution from doubles.
+        GuideFuncHF=GuideFuncHF+GuideFuncSign(GuideFuncHFIndex)
+        HFCyc=HFCyc+GuideFuncSign(GuideFuncHFIndex)
+
+
+        !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
+        do i=1,iGuideDets
+            CALL FindBitExcitLevel(GuideFuncDets(0:NoIntforDet,i),iLutHF,NoIntforDet,ExcitLevel,2)
+            IF(ExcitLevel.eq.2) THEN
+                DoubDet(:)=0
+                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NoIntforDet,i),NEl,NoIntforDet)
+                HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                HDoub=REAL(HDoubTemp%v,r2)
+                GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
+            ENDIF
+        enddo
+
+
+    ENDSUBROUTINE RotoAnnihilGuidingFunc
+
+
+
+    SUBROUTINE WriteGuidingFunc()
+!This routine writes out the iGuideDets determinants with the largest no of walkers at the end of a calculation.    
+!Really it finds the number of walkers on the final determinant in iGuideDets, and writes out any determinants
+!with this number or more walkers on them (accounts for degeneracies in the number of walkers on the determinants).
+        INTEGER :: i,j,k,MinGuideDetPop,ierr,error,TestSum,OrigiGuideDets
+        INTEGER :: AlliGuideDets,CompiGuideDets
+        CHARACTER(len=*), PARAMETER :: this_routine='WriteGuidingFunc'
+        INTEGER , ALLOCATABLE :: AllCurrentDets(:,:),AllCurrentSign(:)
+        INTEGER :: AllCurrentDetsTag,AllCurrentSignTag
+        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors)
+        LOGICAL :: DetBitEQ
+
+        CALL FLUSH(6)
+        IF(iGuideDets.gt.TotWalkers) CALL Stop_All(this_routine,'iGuideDets is greater than the number of populated determinants')
+
+!        WRITE(6,*) 'the determinants and sign, on each processor, before I touched them'
+!        do j=1,TotWalkers
+!            WRITE(6,*) CurrentDets(0:NoIntforDet,j),CurrentSign(j)
+!        enddo
+        
+! Firstly order CurrentSign in descending absolute value, taking the corresponding CurrentDets with it.
+        CALL SortBitSign(TotWalkers,CurrentSign(1:TotWalkers),NoIntforDet,CurrentDets(0:NoIntforDet,1:TotWalkers))
+
+! Then run through CurrentSign, finding out how many walkers are on the iGuideDets most populated, and counting how
+! many have this many walkers or more.
+    
+        OrigiGuideDets=iGuideDets
+        MinGuideDetPop=0
+        MinGuideDetPop=ABS(CurrentSign(iGuideDets))
+        ! This is the minimum number of walkers on the included determinants.
+        ! Also want to include determinants with the same number of walkers.
+        j=iGuideDets+1
+        do while (ABS(CurrentSign(j)).eq.MinGuideDetPop)
+            j=j+1
+            iGuideDets=iGuideDets+1
+        enddo
+ 
+!        WRITE(6,*) 'The most populated determinants on each processor, ordered in terms of sign'
+!        WRITE(6,*) iGuideDets,' determinants included in the guiding function.'    
+!        do j=1,iGuideDets
+!            WRITE(6,*) CurrentDets(0:NoIntforDet,j),CurrentSign(j)
+!        enddo
+!        CALL FLUSH(6)
+        
+! Now take the iGuideDets determinants and reorder them back in terms of determinants (taking the sign with them).
+        
+        CALL SortBitDets(iGuideDets,CurrentDets(0:NoIntforDet,1:iGuideDets),NoIntforDet,CurrentSign(1:iGuideDets))
+
+!        WRITE(6,*) 'The most populated determinants on each processor, ordered by determinant'
+!        WRITE(6,*) iGuideDets,' determinants included in the guiding function.'    
+!        do j=1,iGuideDets
+!            WRITE(6,*) CurrentDets(0:NoIntforDet,j),CurrentSign(j)
+!        enddo
+        
+! Calculate RecvCounts(1:nProcessors), and OffSets for the Gatherv calculation
+! Need to gather the iGuideDets values from each processor for this.
+        CALL MPI_Gather(iGuideDets,1,MPI_INTEGER,RecvCounts,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        Offsets(:)=0
+        do j=1,nProcessors-1
+            OffSets(j+1)=RecvCounts(j)+OffSets(j)
+        enddo
+        do j=1,nProcessors
+            RecvCounts02(j)=RecvCounts(j)*(NoIntforDet+1)
+        enddo
+        OffSets02(:)=0
+        do j=1,nProcessors-1
+            OffSets02(j+1)=RecvCounts02(j)+OffSets02(j)
+        enddo
+
+!        do j=1,nProcessors
+!            WRITE(6,*) RecvCounts(j),OffSets(j),RecvCounts02(j),OffSets02(j)
+!        enddo
+
+
+! Find out the total number of iGuideDets on all processors (roughly the input, but not exactly because of 
+! of the degeneracies in the populations). 
+! This should be the same as the sum of RecvCounts.
+        AlliGuideDets=0
+        CALL MPI_Reduce(iGuideDets,AlliGuideDets,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        IF(iProcIndex.eq.Root) THEN
+            TestSum=0
+            do i=1,nProcessors
+                TestSum=TestSum+RecvCounts(i)
+            enddo
+            IF(AlliGuideDets.ne.TestSum) CALL Stop_All("WriteGuidingFunc","Error in parallel sum")
+        ENDIF
+        
+!        IF(iProcIndex.eq.Root) WRITE(6,*) 'AlliGuideDets ',AlliGuideDets
+!        CALL FLUSH(6)
+
+
+! Make arrays containing the most populated determinants from all processors.        
+
+        IF(iProcIndex.eq.Root) THEN
+            ALLOCATE(AllCurrentDets(0:NoIntforDet,1:AlliGuideDets),stat=ierr)
+            CALL LogMemAlloc('AllCurrentDets',(NoIntforDet+1)*AlliGuideDets,4,this_routine,AllCurrentDetsTag,ierr)
+            ALLOCATE(AllCurrentSign(1:AlliGuideDets),stat=ierr)
+            CALL LogMemAlloc('AllCurrentSign',AlliGuideDets,4,this_routine,AllCurrentSignTag,ierr)
+        ENDIF
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+        CALL MPI_Gatherv(CurrentSign(1:iGuideDets),iGuideDets,MPI_INTEGER,AllCurrentSign(1:AlliGuideDets),&
+        &RecvCounts,Offsets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gatherv(CurrentDets(0:NoIntforDet,1:iGuideDets),((NoIntforDet+1)*iGuideDets),MPI_INTEGER,&
+        &AllCurrentDets(0:NoIntforDet,1:AlliGuideDets),RecvCounts02,Offsets02,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL FLUSH(6)
+
+
+        IF(iProcIndex.eq.Root) THEN
+
+!            OPEN(31,file='GUIDINGFUNCall-01',status='unknown')
+!            WRITE(31,*) 'The determinants from each processor combined'
+!            WRITE(31,*) AlliGuideDets,' determinants included in the guiding function.'    
+!            do j=1,AlliGuideDets
+!                WRITE(31,*) AllCurrentDets(0:NoIntforDet,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(31)
+
+! Having taken the largest occupied determinants from each processor, select the iGuideDets most populated from
+! this total list.
+! I.e. reorder in terms of population, compressing so that each determinant only appears once.  Then select out the top iGuideDets 
+! and reorder by determinant once again.
+
+! From the list of determinants from all processors, order in terms of determinant so that this may be compressed to make sure each
+! determinant only appears once.
+            CALL SortBitDets(AlliGuideDets,AllCurrentDets(0:NoIntforDet,1:AlliGuideDets),NoIntforDet,AllCurrentSign(1:AlliGuideDets))
+
+!            OPEN(32,file='GUIDINGFUNCall-02',status='unknown')
+!            WRITE(32,*) 'The determinants from each processor combined'
+!            WRITE(32,*) AlliGuideDets,' determinants included in the guiding function.'    
+!            do j=1,AlliGuideDets
+!                WRITE(32,*) AllCurrentDets(0:NoIntforDet,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(32)
+            
+
+! Find out if two determinants next to each are the same, if so add their signs and move the ones below them up.
+! DetBitEq returns true if two determinants are identical, or false otherwise.
+            CompiGuideDets=AlliGuideDets
+            do i=1,AlliGuideDets-1
+
+                IF(i.gt.CompiGuideDets) EXIT 
+                ! This means we have got to the end of the compressed list, don't want to keep going, as all determinants after this are 0. 
+
+                do while (DetBitEQ(AllCurrentDets(0:NoIntforDet,i),AllCurrentDets(0:NoIntforDet,i+1),NoIntforDet))
+                    ! Take a determinant, if the one above it is identical, add its sign to the original and move the others up to overwrite
+                    ! the second.
+                    ! Repeat this until the i+1 determinant is no longer equal to the i determinant.
+
+                    IF((AllCurrentSign(i)*AllCurrentSign(i+1)).lt.0) THEN
+                        WRITE(6,*) 'Determinant populated with opposite signs',AllCurrentDets(0:NoIntforDet,i)
+                        WRITE(6,*) 'Identical determinant next to it',AllCurrentDets(0:NoIntforDet,i+1)
+                        CALL FLUSH(6)
+                        CALL Stop_All("WriteGuidingFunc","Identical determinants populated with opposite sign")
+                    ENDIF
+
+                    AllCurrentSign(i)=AllCurrentSign(i)+AllCurrentSign(i+1)
+
+                    CompiGuideDets=CompiGuideDets-1
+
+                    do j=i+2,AlliGuideDets
+                        AllCurrentDets(0:NoIntforDet,j-1)=AllCurrentDets(0:NoIntforDet,j)
+                        AllCurrentSign(j-1)=AllCurrentSign(j)
+                    enddo
+                    ! Zero the last determinant
+                    AllCurrentSign(AlliGuideDets)=0
+                    AllCurrentDets(0:NoIntforDet,AlliGuideDets)=0
+                enddo
+            enddo
+            AlliGuideDets=CompiGuideDets
+     
+!            OPEN(33,file='GUIDINGFUNCall-03',status='unknown')
+!            WRITE(33,*) 'The determinants from each processor combined and compressed, ordered by determinant'
+!            WRITE(33,*) AlliGuideDets,' determinants included in the guiding function.'    
+!            do j=1,AlliGuideDets
+!                WRITE(33,*) AllCurrentDets(0:NoIntforDet,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(33)
+
+          
+! Reorder the compressed list of determinants by population (i.e. descending according to absolute value of AllCurrentSign, taking determinant with it).        
+            CALL SortBitSign(AlliGuideDets,AllCurrentSign(1:AlliGuideDets),NoIntforDet,AllCurrentDets(0:NoIntforDet,1:AlliGuideDets))
+
+
+! From this total list of most populated determinants, pick out the iGuideDets most populated, along with any with the same number of walkers as the last.        
+            iGuideDets=OrigiGuideDets
+            MinGuideDetPop=0
+            MinGuideDetPop=ABS(AllCurrentSign(iGuideDets))
+            ! This is the minimum number of walkers on the included determinants.
+            ! Also want to include determinants with the same number of walkers.
+            j=iGuideDets+1
+            do while (ABS(AllCurrentSign(j)).eq.MinGuideDetPop)
+                j=j+1
+                iGuideDets=iGuideDets+1
+            enddo
+      
+!            OPEN(34,file='GUIDINGFUNCall-04',status='unknown')
+!            WRITE(34,*) 'The determinants from each processor combined and compressed, ordered by sign'
+!            WRITE(34,*) iGuideDets,' determinants included in the guiding function.'    
+!            do j=1,iGuideDets
+!                WRITE(34,*) AllCurrentDets(0:NoIntforDet,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(34)
+
+
+! Now take the iGuideDets determinants and reorder them back in terms of determinants (taking the sign with them).
+            CALL SortBitDets(iGuideDets,AllCurrentDets(0:NoIntforDet,1:iGuideDets),NoIntforDet,AllCurrentSign(1:iGuideDets))
+
+
+! Write the iGuideDets most populated determinants (in order of their bit strings) to a file.
+            OPEN(35,file='GUIDINGFUNC',status='unknown')
+            WRITE(35,*) iGuideDets,' determinants included in the guiding function.'    
+            do j=1,iGuideDets
+                WRITE(35,*) AllCurrentDets(0:NoIntforDet,j),AllCurrentSign(j)
+            enddo
+            CLOSE(35)
+
+            DEALLOCATE(AllCurrentDets)
+            CALL LogMemDealloc(this_routine,AllCurrentDetsTag)
+            DEALLOCATE(AllCurrentSign)
+            CALL LogMemDealloc(this_routine,AllCurrentSignTag)
+        
+        ENDIF
+
+
+    END SUBROUTINE WriteGuidingFunc
+
+
+
+
+    SUBROUTINE WriteFinalGuidingFunc()
+        INTEGER :: j,AllGuideFuncSignTag,ierr,error
+        INTEGER , ALLOCATABLE :: AllGuideFuncSign(:)
+
+        IF(iProcIndex.eq.Root) THEN
+            ALLOCATE(AllGuideFuncSign(iGuideDets),stat=ierr)
+            CALL LogMemAlloc('AllGuideFuncSign',iGuideDets,4,'WriteFinalGuidingFunc',AllGuideFuncSignTag,ierr)
+        ENDIF 
+
+        CALL MPI_Reduce(GuideFuncSign,AllGuideFuncSign,iGuideDets,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+ 
+        IF(iProcIndex.eq.Root) THEN
+            OPEN(38,file='GUIDINGFUNCfinal',status='unknown')
+            WRITE(38,*) iGuideDets,' determinants included in the guiding function.'    
+            WRITE(38,'(A11,A28,A11,A15)') "Determinant","InitialPop","FinalPop","TotalChange"
+            do j=1,iGuideDets
+                WRITE(38,*) GuideFuncDets(0:NoIntforDet,j),InitGuideFuncSign(j),AllGuideFuncSign(j),(ABS(AllGuideFuncSign(j))-ABS(InitGuideFuncSign(j)))
+            enddo
+            CLOSE(38)
+
+            DEALLOCATE(AllGuideFuncSign)
+            CALL LogMemDealloc('WriteFinalGuidingFunc',AllGuideFuncSignTag)
+            DEALLOCATE(InitGuideFuncSign)
+            CALL LogMemDealloc('WriteFinalGuidingFunc',InitGuideFuncSignTag)
+ 
+        ENDIF
+
+
+    ENDSUBROUTINE WriteFinalGuidingFunc
+
+
+
 
 !This routine will write out the average wavevector from the spawning run up until now.
     SUBROUTINE WriteHistogram()
@@ -1647,7 +2312,9 @@ MODULE FciMCParMod
             CALL MPI_Buffer_detach(mpibuffer,8*(MaxSpawned+1)*(NoIntforDet+2),error)
             DEALLOCATE(mpibuffer)
         ENDIF
-
+        
+!If we are using a guiding function, then we want to attempt to annihilate newly spawned particles with the guiding function here.
+        IF(tUseGuide) CALL RotoAnnihilGuidingFunc(ValidSpawned)
 
 !Test that we have annihilated the correct number here (from each lists), and calculate Annihilated for each processor.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
@@ -3782,7 +4449,7 @@ MODULE FciMCParMod
 !We don't want to do this too often, since we want the population levels to acclimatise between changing the shifts
     SUBROUTINE CalcNewShift()
         INTEGER :: error,rc,MaxWalkersProc,MaxAllowedWalkers
-        INTEGER :: inpair(7),outpair(7)
+        INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc
         REAL*8 :: inpairreal(3),outpairreal(3)
@@ -3795,6 +4462,16 @@ MODULE FciMCParMod
 
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
+                
+!IF we're using a guiding function, want to sum in the contributions to the energy from this guiding function.
+        IF(tUseGuide) THEN
+!These two are not zeroed after each update cycle, so are average energies over the whole simulation
+            SumENum=SumENum+GuideFuncDoub
+            SumNoatHF=SumNoatHF+REAL(GuideFuncHF,r2)
+!These two variables are zeroed after each update cycle, so are the "instantaneous" energy (averaged only over the update cycle)
+            HFCyc=HFCyc+GuideFuncHF
+            ENumCyc=ENumCyc+GuideFuncDoub
+        ENDIF
 
 !We need to collate the information from the different processors
 !Inpair and outpair are used to package variables to save on latency time
@@ -3806,6 +4483,7 @@ MODULE FciMCParMod
         inpair(5)=HFCyc         !SumWalkersCyc is now an integer*8
         inpair(6)=LocalAnn
         inpair(7)=SpawnFromSing
+        inpair(8)=iInitGuideParts
 !        inpair(7)=TotParts
 !        inpair(9)=iUniqueDets
         outpair(:)=0
@@ -3819,7 +4497,7 @@ MODULE FciMCParMod
 !        CALL MPI_Reduce(SumWalkersCyc,AllSumWalkersCyc,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 1"
 !        CALL FLUSH(6)
-        CALL MPI_Reduce(inpair,outpair,7,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(inpair,outpair,8,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
 !        WRITE(6,*) "Get Here 2"
 !        CALL FLUSH(6)
 !        AllTotWalkers=outpair(1)
@@ -3832,11 +4510,13 @@ MODULE FciMCParMod
         AllSpawnFromSing=outpair(7)
 !        AllTotParts=outpair(7)
 !        AlliUniqueDets=REAL(outpair(9),r2)
+        AlliInitGuideParts=outpair(8)
         TempTotWalkers=REAL(TotWalkers,r2)
         TempTotParts=REAL(TotParts,r2)
 
         CALL MPI_Reduce(TempTotWalkers,AllTotWalkers,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(TempTotParts,AllTotParts,1,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
 
         IF(iProcIndex.eq.0) THEN
             IF(AllTotWalkers.le.0.2) THEN
@@ -4038,6 +4718,8 @@ MODULE FciMCParMod
         ENumCyc=0.D0
 !        ProjEIter=0.D0     Do not want to rezero, since otherwise, if there are no particles at HF in the next update cycle, it will print out zero.
         HFCyc=0
+        GuideFuncHF=0
+        GuideFuncDoub=0.D0
 !Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld=TotWalkers
         TotPartsOld=TotParts
@@ -4242,6 +4924,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
+        LOGICAL :: exists
 
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -4372,6 +5055,8 @@ MODULE FciMCParMod
         ENumCyc=0.D0
         ProjEIter=0.D0
         ProjEIterSum=0.D0
+        GuideFuncDoub=0.D0
+        GuideFuncHF=0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.D0
@@ -4391,6 +5076,23 @@ MODULE FciMCParMod
         AllENumCyc=0.D0
         AllHFCyc=0.D0
         
+        IF(tFindGuide) THEN
+            WRITE(6,*) 'Finding the guiding function from approximately ',iGuideDets,' most populated determinants'
+            IF(.not.tRotoAnnihil) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
+        ELSEIF(tUseGuide) THEN
+            WRITE(6,*) 'Reading in the guiding function and scaling the number of walkers to ',iInitGuideParts
+            IF(.not.tRotoAnnihil) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
+            IF(.not.tStartSinglePart) CALL Stop_All("InitFCIMCCalcPar","Must use single particle start when reading in the guiding function")
+
+            ! Check the guiding function file exists, if so, set up the guiding function arrays based on this file.
+            INQUIRE(FILE='GUIDINGFUNC',EXIST=exists)
+            IF(exists) THEN
+                CALL InitGuidingFunction()
+            ELSE
+                CALL Stop_All("InitFCIMCCalcPar","The guiding function file (GUIDINGFUNC) does not exist")
+            ENDIF
+        ENDIF
+
         IF(tHistSpawn) THEN
             maxdet=0
             do i=1,nel
@@ -4959,6 +5661,13 @@ MODULE FciMCParMod
             IF(TLocalAnnihilation) THEN
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    LocalAnn   TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
                 WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+
+            ELSEIF(tUseGuide) THEN
+                WRITE(6,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
+
+                WRITE(15,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13,A18,A14)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoinGuideFunc"
 
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
@@ -7476,6 +8185,23 @@ MODULE FciMCParMod
             CALL LogMemDealloc(this_routine,OneRDMTag)
         ENDIF
         
+        IF(tUseGuide) THEN
+            DEALLOCATE(GuideFuncDets)
+            CALL LogMemDealloc(this_routine,GuideFuncDetsTag)
+            DEALLOCATE(GuideFuncSign)
+            CALL LogMemDealloc(this_routine,GuideFuncSignTag)
+
+            DEALLOCATE(DetstoRotate)
+            CALL LogMemDealloc(this_routine,DetstoRotateTag)
+            DEALLOCATE(SigntoRotate)
+            CALL LogMemDealloc(this_routine,SigntoRotateTag)
+            DEALLOCATE(DetstoRotate2)
+            CALL LogMemDealloc(this_routine,DetstoRotate2Tag)
+            DEALLOCATE(SigntoRotate2)
+            CALL LogMemDealloc(this_routine,SigntoRotate2Tag)
+        ENDIF
+
+
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -7506,6 +8232,13 @@ MODULE FciMCParMod
  &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat
                 WRITE(6,"(I12,G16.7,I9,G16.7,I12,4I11,2G17.9,2I10,G13.5)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
  &                  AllTotWalkers,AllLocalAnn,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllNoatHF,AllNoatDoubs,AccRat
+
+            ELSEIF(tUseGuide) THEN
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5,G18.5,I14)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),  &
+ &                  IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),AlliInitGuideParts
+                WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
 
             ELSE
 !                WRITE(15,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,   &

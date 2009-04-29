@@ -230,6 +230,61 @@
       GO TO 10
 
       END SUBROUTINE SortBitDets
+    
+! Based on SortBitDets, however in SortBitSign, RA is an array of integers (sign) to be sorted in descending order of absolute size, and
+! RB is an array of elements going from 0:NIfD (determinants) to be taken with the element of RA.
+! RA has length N.
+      SUBROUTINE SortBitSign(N,RA,NIfD,RB)
+      INTEGER N,NIfD,I,L,IR,J
+      INTEGER RA(N)
+      INTEGER RB(0:NIfD,N)
+      INTEGER RRA,RRB(0:NIfD)
+      INTEGER DetBitLT
+ 
+      IF(N.LE.1) RETURN
+      L=N/2+1
+      IR=N
+10    CONTINUE
+        IF(L.GT.1)THEN
+          L=L-1
+          RRA=RA(L)
+          RRB(0:NIfD)=RB(0:NIfD,L)
+        ELSE
+          RRA=RA(IR)
+          RA(IR)=RA(1)
+          RRB(0:NIfD)=RB(0:NIfD,IR)
+          RB(0:NIfD,IR)=RB(0:NIfD,1)
+          IR=IR-1
+          IF(IR.EQ.1)THEN
+            RA(1)=RRA
+            RB(0:NIfD,1)=RRB(0:NIfD)
+            RETURN
+          ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J.LE.IR)THEN
+          IF(J.LT.IR)THEN
+            IF(ABS(RA(J)).gt.ABS(RA(J+1))) J=J+1
+          ENDIF
+          IF(ABS(RRA).gt.ABS(RA(J))) THEN
+            RA(I)=RA(J)
+            RB(0:NIfD,I)=RB(0:NIfD,J)
+            I=J
+            J=J+J
+          ELSE
+            J=IR+1
+          ENDIF
+        GO TO 20
+        ENDIF
+        RA(I)=RRA
+        RB(0:NIfD,I)=RRB(0:NIfD)
+
+      GO TO 10
+
+      END SUBROUTINE SortBitSign
+
+
 
 ! Based on SORTI, SortBitDets sorts determinants as bit strings, and takes the corresponding element from array RB with it (sign) and the real array RC (HElems)
 ! RA is the array of determinants of length N to sort
