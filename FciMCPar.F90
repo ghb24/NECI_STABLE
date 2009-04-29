@@ -13,7 +13,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts
     USE Determinants , only : FDet,GetHElement2,GetHElement4
-    USE DetCalc , only : NMRKS,ICILevel,nDet,Det
+    USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
     use IntegralsData , only : fck,NMax,UMat
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : TAutoCorr,NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep
@@ -197,7 +197,8 @@ MODULE FciMCParMod
     REAL(KIND=r2) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
     REAL(KIND=r2) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
 
-    INTEGER :: MaxDet,iOffDiagNoBins,HistMinInd,HistMinInd2
+    INTEGER :: MaxDet,iOffDiagNoBins
+    INTEGER , ALLOCATABLE :: HistMinInd(:),HistMinInd2(:)
 
     INTEGER :: GuideFuncDetsTag,GuideFuncSignTag,DetstoRotateTag,SigntoRotateTag,DetstoRotate2Tag,SigntoRotate2Tag,AlliInitGuideParts,InitGuideFuncSignTag
     INTEGER :: GuideFuncHFIndex,GuideFuncHF
@@ -1272,6 +1273,7 @@ MODULE FciMCParMod
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
         use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
+        use DetCalc , only : FCIDetIndex
         INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
@@ -1300,7 +1302,8 @@ MODULE FciMCParMod
         NoatDoubs=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
         IF(.not.tStarOrbs) tStarDet=.false.
-        HistMinInd=1    !This is for the binary search when histogramming
+
+        IF(tHistSpawn) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
         
         do j=1,TotWalkers
 !j runs through all current walkers
@@ -1325,7 +1328,7 @@ MODULE FciMCParMod
 
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
-            IF(tTruncSpace.or.tHighExcitsSing) THEN
+            IF(tTruncSpace.or.tHighExcitsSing.or.tHistSpawn) THEN
 !We need to know the exact excitation level for truncated calculations.
                 CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NoIntforDet,WalkExcitLevel,NEl)
             ELSE
@@ -2149,12 +2152,13 @@ MODULE FciMCParMod
 !This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
 !This is not essential, but should proove worthwhile
     SUBROUTINE CompressSpawnedList(ValidSpawned)
-        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,SignProd,PartIndex
+        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,SignProd,PartIndex,ExcitLevel
         LOGICAL :: DetBitEQ,tSuc
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
         CALL SortBitDets(ValidSpawned,SpawnedParts(0:NoIntforDet,1:ValidSpawned),NoIntforDet,SpawnedSign(1:ValidSpawned))
+        IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles over to SpawnedParts2
@@ -2179,7 +2183,16 @@ MODULE FciMCParMod
 
                     IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                        CALL BinSearchParts2(SpawnedParts(:,i),1,Det,PartIndex,tSuc)
+                        CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,NoIntforDet,ExcitLevel,NEl)
+                        IF(ExcitLevel.eq.NEl) THEN
+                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                        ELSEIF(ExcitLevel.eq.0) THEN
+                            PartIndex=1
+                            tSuc=.true.
+                        ELSE
+                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                        ENDIF
+                        HistMinInd2(ExcitLevel)=PartIndex
                         IF(tSuc) THEN
                             AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
                             InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
@@ -3246,6 +3259,7 @@ MODULE FciMCParMod
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
         INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd,DetsMerged,PartIndex!,SearchInd,AnnihilateInd
+        INTEGER :: ExcitLevel
         LOGICAL :: DetBitEQ,tSuccess,tSuc!,tSkipSearch
 
         CALL set_timer(AnnMain_time,30)
@@ -3264,7 +3278,7 @@ MODULE FciMCParMod
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
         MinInd=1
-        HistMinInd2=1
+        IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
         ToRemove=0  !The number of particles to annihilate
 !        WRITE(6,*) "Annihilating between ",ValidSpawned, " spawned particles and ",TotWalkersNew," original particles..."
 !        WRITE(6,*) "SpawnedParts: "
@@ -3313,8 +3327,16 @@ MODULE FciMCParMod
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2,Det,PartIndex,tSuc)
-                            HistMinInd2=PartIndex
+                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,NoIntforDet,ExcitLevel,NEl)
+                            IF(ExcitLevel.eq.NEl) THEN
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                            ELSEIF(ExcitLevel.eq.0) THEN
+                                PartIndex=1
+                                tSuc=.true.
+                            ELSE
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                            ENDIF
+                            HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
                                 AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
                                 InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
@@ -3337,8 +3359,16 @@ MODULE FciMCParMod
                         
                         IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
-                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2,Det,PartIndex,tSuc)
-                            HistMinInd2=PartIndex
+                            CALL FindBitExcitLevel(SpawnedParts(:,i),iLutHF,NoIntforDet,ExcitLevel,NEl)
+                            IF(ExcitLevel.eq.NEl) THEN
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),Det,PartIndex,tSuc)
+                            ELSEIF(ExcitLevel.eq.0) THEN
+                                PartIndex=1
+                                tSuc=.true.
+                            ELSE
+                                CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartIndex,tSuc)
+                            ENDIF
+                            HistMinInd2(ExcitLevel)=PartIndex
                             IF(tSuc) THEN
                                 AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
                                 InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
@@ -4320,8 +4350,15 @@ MODULE FciMCParMod
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
         IF(tHistSpawn) THEN
-            CALL BinSearchParts2(iLutCurr,HistMinInd,Det,PartInd,tSuccess)
-            HistMinInd=PartInd
+            IF(ExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
+            ELSEIF(ExcitLevel.eq.0) THEN
+                PartInd=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+            ENDIF
+            HistMinInd(ExcitLevel)=PartInd
             IF(tSuccess) THEN
                 IF(tFlippedSign) THEN
                     Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
@@ -4333,7 +4370,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,*) DetCurr(:)
                 WRITE(6,*) "***",iLutCurr(0:NoIntforDet)
-                WRITE(6,*) "***",ExcitLevel,HistMinInd,Det
+                WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
                 CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
             ENDIF
         ELSEIF(tHistEnergies) THEN
@@ -5094,6 +5131,8 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tHistSpawn) THEN
+            ALLOCATE(HistMinInd(NEl))
+            ALLOCATE(HistMinInd2(NEl))
             maxdet=0
             do i=1,nel
                 maxdet=maxdet+2**(nbasis-i)

@@ -21,7 +21,7 @@ MODULE DetCalc
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       TYPE(BasisFN), pointer :: BLOCKSYM(:)
       INTEGER tagBlockSym
-      INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:),FCIDets(:,:)
+      INTEGER,ALLOCATABLE :: NBLOCKSTARTS(:),FCIDets(:,:), FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 1->NEl).
       INTEGER NBLOCKS
       Type(HElement), pointer :: HAMIL(:)
       INTEGER :: tagHamil=0
@@ -247,7 +247,7 @@ CONTAINS
     Subroutine DoDetCalc
       Use global_utilities
       Use HElem
-      use Determinants , only : GetHElement3
+      use Determinants , only : GetHElement3,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh
       use IntegralsData, only: FCK,NMAX, UMat
@@ -274,7 +274,7 @@ CONTAINS
         INTEGER NBLOCK
         INTEGER nKry1,ilut(0:nBasis/32),nK(NEl)
         
-        INTEGER J,JR
+        INTEGER J,JR,iGetExcitLevel_2,ExcitLevel
         INTEGER LSCR,LISCR
         LOGICAL tMC
         real*8 GetHElement, calct, calcmcen, calcdlwdb,norm
@@ -514,14 +514,16 @@ CONTAINS
 
             ALLOCATE(FCIDets(0:nBasis/32,Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
+            ALLOCATE(FCIDetIndex(NEl),stat=ierr)
+            ALLOCATE(Temp(Det),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             IF(.not.tFindDets) THEN
                 ALLOCATE(FCIGS(Det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-                ALLOCATE(Temp(Det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ENDIF
 
             Det=0
+            FCIDetIndex(:)=0
             do i=1,NDet
                 CALL GETSYM(NMRKS(1,i),NEL,G1,NBASISMAX,ISYM)
 !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
@@ -530,36 +532,84 @@ CONTAINS
 !                ENDIF
                 IF(ISym%Sym%S.eq.0) THEN
                     Det=Det+1
+                    ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
+                    IF(ExcitLevel.ne.0) THEN
+                        FCIDetIndex(ExcitLevel)=FCIDetIndex(ExcitLevel)+1
+                    ENDIF
+                    Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
                     CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:nBasis/32,Det),NEl,nBasis/32)
                     IF(.not.tFindDets) THEN
                         FCIGS(Det)=REAL(CK(i)%v,8)/norm
                     ENDIF
                 ENDIF
             enddo
+            do i=1,NEl
+                WRITE(6,*) "Number at excitation level: ",i," is: ",FCIDetIndex(i)
+            enddo
+
+!We now want to sort the determinants according to the excitation level (stored in Temp)
+            IF(tFindDets) THEN
+                CALL SORTDETS(Det,Temp(1:Det),1,FCIDets(0:nBasis/32,1:Det),(nBasis/32)+1)
+            ELSE
+                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
+            ENDIF
+
+!Test that HF determinant is the first determinant
+            CALL EncodeBitDet(FDet,iLut(0:nBasis/32),NEl,nBasis/32)
+            do i=0,nBasis/32
+                IF(iLut(i).ne.FCIDets(i,1)) THEN
+                    CALL Stop_All("DetCalc","Problem with ordering the determinants by excitation level")
+                ENDIF
+            enddo
+
+!Change it so that FCIDetIndex indexes the start of the block of that excitation level.
+!            FCIDetIndex(1)=2    !Singles start at index 2
+            FCIDetIndex(NEl)=Det-FCIDetIndex(NEl)+1
+            do i=NEl-1,1,-1
+                FCIDetIndex(i)=FCIDetIndex(i+1)-FCIDetIndex(i)
+            enddo
+!            WRITE(6,*) "FCIDETIndex:", FCIDetIndex(:)
+            IF(FCIDetIndex(1).ne.2) THEN
+                CALL Stop_All("DetCalc","Error in the indexing of determinant excitation level")
+            ENDIF
+
+!We now need to sort within the excitation level by the "number" of the determinant
+            do i=1,NEl-1
+                IF(tFindDets) THEN
+                    CALL SortBitDets(FCIDetIndex(i+1)-FCIDetIndex(i),FCIDets(0:nBasis/32,FCIDetIndex(i):(FCIDetIndex(i+1)-1)),nBasis/32,temp(FCIDetIndex(i):(FCIDetIndex(i+1)-1)))
+                ELSE
+                    !...
+                ENDIF
+            enddo
+!Now sort highest excitation level
+            IF(tFindDets) THEN
+                CALL SortBitDets((Det+1)-FCIDetIndex(NEl),FCIDets(0:nBasis/32,FCIDetIndex(NEl):Det),nBasis/32,temp(FCIDetIndex(NEl):Det))
+            ELSE
+                !...
+            ENDIF
+
+
 
 !This will sort the determinants into ascending order, for quick binary searching later on.
-            IF(.not.tFindDets) THEN
-                CALL SortBitDetswH(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp,FCIGS)
-            ELSE
-                ALLOCATE(Temp(Det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-                CALL SortBitDets(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp)
-                DEALLOCATE(Temp)
-
-            ENDIF
+!            IF(.not.tFindDets) THEN
+!                CALL SortBitDetswH(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp,FCIGS)
+!            ELSE
+!                CALL SortBitDets(Det,FCIDets(0:nBasis/32,1:Det),nBasis/32,temp)
+!
+!            ENDIF
             
             IF(.not.tFindDets) THEN
                 IF(iProcIndex.eq.0) THEN
                     OPEN(17,FILE='SymDETS',STATUS='UNKNOWN')
 
                     do i=1,Det
-                        WRITE(17,"(I10,G25.16)") i,FCIGS(i)
+                        WRITE(17,"(2I10,G25.16)") i,temp(i),FCIGS(i)
                     enddo
                     CLOSE(17)
                 ENDIF
-                DEALLOCATE(Temp)
                 DEALLOCATE(FCIGS)
             ENDIF
+            DEALLOCATE(Temp)
 !            do i=1,Det
 !                CALL DecodeBitDet(nK,iLut,NEl,nBasis/32)
 !                CALL GETSYM(nK,NEL,G1,NBASISMAX,ISYM)
