@@ -192,11 +192,12 @@ MODULE FciMCParMod
     REAL(4) :: IterTime
     
     REAL(KIND=r2) , ALLOCATABLE :: Histogram(:),AllHistogram(:),InstHist(:),AllInstHist(:),AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
+    REAL(KIND=r2) , ALLOCATABLE :: AvAnnihil(:),AllAvAnnihil(:),InstAnnihil(:),AllInstAnnihil(:)
     REAL(KIND=r2) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:),DoublesHist(:),AllDoublesHist(:),DoublesAttemptHist(:),AllDoublesAttemptHist(:)
     REAL(KIND=r2) , ALLOCATABLE :: SinglesHistOccOcc(:),SinglesHistOccVirt(:),SinglesHistVirtOcc(:),SinglesHistVirtVirt(:)
     REAL(KIND=r2) , ALLOCATABLE :: AllSinglesHistOccOcc(:),AllSinglesHistVirtOcc(:),AllSinglesHistOccVirt(:),AllSinglesHistVirtVirt(:)
 
-    INTEGER :: MaxDet,iOffDiagNoBins,HistMinInd
+    INTEGER :: MaxDet,iOffDiagNoBins,HistMinInd,HistMinInd2
 
     contains
 
@@ -465,7 +466,7 @@ MODULE FciMCParMod
         use SystemData , only : BasisFN
         INTEGER :: i,j,bits,iLut(0:nBasis/32),error,IterRead
         TYPE(BasisFN) :: ISym
-        REAL*8 :: norm,norm1,ShiftRead,AllERead,NumParts
+        REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
         TYPE(HElement) :: HEL
         CHARACTER(len=22) :: abstr,abstr2
         LOGICAL :: exists
@@ -486,10 +487,14 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.0) THEN
             AllHistogram(:)=0.D0
             AllInstHist(:)=0.D0
+            AllAvAnnihil(:)=0.D0
+            AllInstAnnihil(:)=0.D0
         ENDIF
 
         CALL MPI_Reduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         CALL MPI_Reduce(InstHist,AllInstHist,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(InstAnnihil,AllInstAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(AvAnnihil,AllAvAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         
         IF(iProcIndex.eq.0) THEN
 
@@ -499,22 +504,30 @@ MODULE FciMCParMod
 
             norm=0.D0
             norm1=0.D0
+            norm2=0.D0
+            norm3=0.D0
             do i=1,Det
                 norm=norm+AllHistogram(i)**2
                 norm1=norm1+AllInstHist(i)**2
+                norm2=norm2+AllInstAnnihil(i)**2
+                norm3=norm3+AllAvAnnihil(i)**2
             enddo
             norm=SQRT(norm)
             norm1=SQRT(norm1)
+            norm2=SQRT(norm2)
+            norm3=SQRT(norm3)
 !            WRITE(6,*) "NORM",norm
             do i=1,Det
                 AllHistogram(i)=AllHistogram(i)/norm
                 AllInstHist(i)=AllInstHist(i)/norm1
+                IF(norm2.ne.0.D0) THEN
+                    AllInstAnnihil(i)=AllInstAnnihil(i)/norm2
+                ENDIF
+                IF(norm3.ne.0.D0) THEN
+                    AllAvAnnihil(i)=AllAvAnnihil(i)/norm3
+                ENDIF
             enddo
             
-!            Det=0
-            norm=0.D0
-            norm1=0.D0
-
             OPEN(17,FILE=abstr,STATUS='UNKNOWN')
 
             abstr=''
@@ -553,8 +566,8 @@ MODULE FciMCParMod
             norm1=0.D0
             do i=1,Det
                 norm=norm+(AllHistogram(i))**2
-                norm1=norm1+(AllInstHist(i))**2
-                WRITE(17,"(I13,4G25.16)") i,AllHistogram(i),norm,AllInstHist(i),norm1
+                norm1=norm1+(AllAvAnnihil(i))**2
+                WRITE(17,"(I13,6G25.16)") i,AllHistogram(i),norm,AllInstHist(i),AllInstAnnihil(i),AllAvAnnihil(i),norm1
             enddo
 
 !            do i=1,Maxdet
@@ -587,6 +600,7 @@ MODULE FciMCParMod
             CLOSE(17)
         ENDIF
         InstHist(:)=0.D0
+        InstAnnihil(:)=0.D0
 
     END SUBROUTINE WriteHistogram
 
@@ -597,7 +611,7 @@ MODULE FciMCParMod
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
@@ -631,6 +645,19 @@ MODULE FciMCParMod
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NoIntforDet)
+!            FDetSym=0
+!            FDetSpin=0
+!            do i=1,NEl
+!               FDetSym=IEOR(FDetSym,INT(G1(DetCurr(i))%Sym%S,4))
+!               FDetSpin=FDetSpin+G1(DetCurr(i))%Ms
+!            enddo
+!            IF(FDetSym.ne.4) THEN
+!                WRITE(6,*) "Symmetry of determinant is: ",FDetSym
+!            ENDIF
+!            IF(FDetSpin.ne.0) THEN
+!                WRITE(6,*) "Spin of determinant is: ",FDetSpin
+!            ENDIF
+
 !Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
 !This can be changed easily by increasing the final argument.
             IF(tTruncSpace.or.tHighExcitsSing) THEN
@@ -1457,8 +1484,8 @@ MODULE FciMCParMod
 !This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
 !This is not essential, but should proove worthwhile
     SUBROUTINE CompressSpawnedList(ValidSpawned)
-        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,SignProd
-        LOGICAL :: DetBitEQ
+        INTEGER :: VecInd,ValidSpawned,DetsMerged,ToRemove,i,SignProd,PartIndex
+        LOGICAL :: DetBitEQ,tSuc
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. (this is not essential, but should proove faster)
 !They should remain sorted after annihilation between spawned
@@ -1484,6 +1511,18 @@ MODULE FciMCParMod
                 IF(SignProd.lt.0) THEN
 !We are actually unwittingly annihilating, but just in serial... we therefore need to count it anyway.
                     Annihilated=Annihilated+2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i))))
+
+                    IF(tHistSpawn) THEN
+!We want to histogram where the particle annihilations are taking place.
+                        CALL BinSearchParts2(SpawnedParts(:,i),1,Det,PartIndex,tSuc)
+                        IF(tSuc) THEN
+                            AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
+                            InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
+                        ELSE
+                            WRITE(6,*) "***",SpawnedParts(0:NoIntforDet,i)
+                            CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
+                        ENDIF
+                    ENDIF
                 ENDIF
                 SpawnedSign2(VecInd)=SpawnedSign2(VecInd)+SpawnedSign(i)
                 DetsMerged=DetsMerged+1
@@ -2539,8 +2578,8 @@ MODULE FciMCParMod
 !to the whole list of spawned particles at the end of the routine.
 !In the main list, we change the 'sign' element of the array to zero. These will be deleted at the end of the total annihilation step.
     SUBROUTINE AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew)
-        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd,DetsMerged!,SearchInd,AnnihilateInd
-        LOGICAL :: DetBitEQ,tSuccess!,tSkipSearch
+        INTEGER :: ValidSpawned,MinInd,TotWalkersNew,PartInd,i,j,k,ToRemove,VecInd,SignProd,DetsMerged,PartIndex!,SearchInd,AnnihilateInd
+        LOGICAL :: DetBitEQ,tSuccess,tSuc!,tSkipSearch
 
         CALL set_timer(AnnMain_time,30)
 !        IF(Iter.eq.1877) THEN
@@ -2558,6 +2597,7 @@ MODULE FciMCParMod
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, we can find the particle position in the main array by only searching a subset.
         MinInd=1
+        HistMinInd2=1
         ToRemove=0  !The number of particles to annihilate
 !        WRITE(6,*) "Annihilating between ",ValidSpawned, " spawned particles and ",TotWalkersNew," original particles..."
 !        WRITE(6,*) "SpawnedParts: "
@@ -2603,15 +2643,44 @@ MODULE FciMCParMod
 !There are more (or equal) numbers of spawned particles to annihilate. We can only annihilate some from the spawned list, but all from main list (or all from both if equal and opposite).
                         SpawnedSign(i)=SpawnedSign(i)+CurrentSign(PartInd)
                         Annihilated=Annihilated+2*(abs(CurrentSign(PartInd)))
+                        
+                        IF(tHistSpawn) THEN
+!We want to histogram where the particle annihilations are taking place.
+                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2,Det,PartIndex,tSuc)
+                            HistMinInd2=PartIndex
+                            IF(tSuc) THEN
+                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
+                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(CurrentSign(PartInd))),r2)
+                            ELSE
+                                WRITE(6,*) "***",SpawnedParts(0:NoIntforDet,i)
+                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
+                            ENDIF
+                        ENDIF
+
                         CurrentSign(PartInd)=0
                         IF(SpawnedSign(i).eq.0) THEN
 !The number of particles were equal and opposite. We want to remove this entry from the spawned list.
                             ToRemove=ToRemove+1
                         ENDIF
+
                     ELSE
 !There are more particles in the main list, than the spawned list. We want to annihilate all particles from the spawned list, but only some from main list.
                         CurrentSign(PartInd)=CurrentSign(PartInd)+SpawnedSign(i)
                         Annihilated=Annihilated+2*(abs(SpawnedSign(i)))
+                        
+                        IF(tHistSpawn) THEN
+!We want to histogram where the particle annihilations are taking place.
+                            CALL BinSearchParts2(SpawnedParts(:,i),HistMinInd2,Det,PartIndex,tSuc)
+                            HistMinInd2=PartIndex
+                            IF(tSuc) THEN
+                                AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
+                                InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(abs(SpawnedSign(i))),r2)
+                            ELSE
+                                WRITE(6,*) "***",SpawnedParts(0:NoIntforDet,i)
+                                CALL Stop_All("AnnihilateSpawnedParts","Cannot find corresponding FCI determinant when histogramming")
+                            ENDIF
+                        ENDIF
+
                         SpawnedSign(i)=0
                         ToRemove=ToRemove+1
                     ENDIF
@@ -4338,10 +4407,22 @@ MODULE FciMCParMod
                 CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
             ENDIF
             InstHist(:)=0.D0
+            ALLOCATE(AvAnnihil(1:det),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            ENDIF
+            AvAnnihil(:)=0.D0
+            ALLOCATE(InstAnnihil(1:det),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
+            ENDIF
+            InstAnnihil(:)=0.D0
 
             IF(iProcIndex.eq.0) THEN
                 ALLOCATE(AllHistogram(1:det),stat=ierr)
                 ALLOCATE(AllInstHist(1:det),stat=ierr)
+                ALLOCATE(AllInstAnnihil(1:det),stat=ierr)
+                ALLOCATE(AllAvAnnihil(1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
                     CALL Stop_All("InitFCIMCCalcPar","Error assigning memory for histogramming arrays (could deallocate NMRKS to save memory?)")
                 ENDIF
@@ -7296,9 +7377,13 @@ MODULE FciMCParMod
         IF(tHistSpawn) THEN
             DEALLOCATE(Histogram)
             DEALLOCATE(InstHist)
+            DEALLOCATE(InstAnnihil)
+            DEALLOCATE(AvAnnihil)
             IF(iProcIndex.eq.0) THEN
                 DEALLOCATE(AllHistogram)
                 DEALLOCATE(AllInstHist)
+                DEALLOCATE(AllAvAnnihil)
+                DEALLOCATE(AllInstAnnihil)
             ENDIF
         ELSEIF(tHistEnergies) THEN
             DEALLOCATE(Histogram)
