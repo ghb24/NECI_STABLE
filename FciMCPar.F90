@@ -1290,7 +1290,7 @@ MODULE FciMCParMod
     SUBROUTINE PerformFCIMCycPar()
         use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
         use DetCalc , only : FCIDetIndex
-        INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign
+        INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign,ParticleWeight,Loop
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
@@ -1381,11 +1381,21 @@ MODULE FciMCParMod
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
+            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
             IF(tSpawnAsDet) THEN
 !Here, we spawn all particles on the determinant in one go, by multiplying the probability of spawning by the number of particles on the determinant.
+                Loop=1
+                ParticleWeight=abs(CurrentSign(j))
+            ELSE
+!Here, we spawn each particle on the determinant in a seperate attempt.
+                Loop=abs(CurrentSign(j))
+                ParticleWeight=1
+            ENDIF
+
+            do p=1,Loop
+!If rotoannihilating, we are simply looping over all the particles on the determinant
 
                 IF(.not.tImportanceSample) THEN
-!If we are importance sampling, then the generation of the excitation takes place at the same time as the attempt spawn stage.
                     IF(.not.TRegenExcitgens) THEN
 !Setup excit generators for this determinant
                         CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
@@ -1411,7 +1421,7 @@ MODULE FciMCParMod
                         ELSE
                             IF(tNonUniRandExcits) THEN
 !This will only be a help if most determinants are multiply occupied.
-                                CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
+                                CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                             ELSE
                                 CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
                             ENDIF
@@ -1422,7 +1432,7 @@ MODULE FciMCParMod
 !Calculate number of children to spawn
                 IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-                   IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
+                IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
                    IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
 !The current walker is one below the excitation cutoff - if IC is a double, then could go over
@@ -1434,10 +1444,10 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                                 Child=0
                             ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                             ENDIF
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                         ENDIF
 
                     ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
@@ -1447,29 +1457,29 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                             Child=0
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                         ENDIF
                     ELSE
 !Excitation cannot be in a dissallowed excitation level - allow it as normal
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                     ENDIF 
                 
                 ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-
                     IF(tStarOrbs) THEN
+
                         IF(tStarDet) THEN
                             IF(tNoReturnStarDets.or.tAllSpawnStarDets) THEN
 !We do not allow a return spawn back to HF, or any other determinant (allSpawnStarDets)
                                 Child=0
                             ELSE
 !Here, we are at a high-energy det and have generated HF which we will try to spawn to.
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                             ENDIF
-                            
+
                         ELSEIF((WalkExcitLevel.eq.0).or.tAllSpawnStarDets) THEN
-!We are at HF - all determinants allowed. No need to check generated excitations. Alternativly, in the AllSpawnStarDets scheme, all particles can spawn to star determinants.
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
+!We are at HF - all determinants allowed. No need to check generated excitations
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
 
                         ELSE
 !We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
@@ -1480,8 +1490,9 @@ MODULE FciMCParMod
                                 Child=0
                             ELSE
 !We have not generated a 'star' determinant. Allow as normal.
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                             ENDIF
+
                         ENDIF
 
                     ELSEIF(tHighExcitsSing) THEN
@@ -1491,7 +1502,7 @@ MODULE FciMCParMod
 !Only allow doubles to the cutoff-1
                             ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
                             IF(ExcitLevel.eq.(iHighExcitsSing-1)) THEN
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                             ELSE
                                 Child=0
                             ENDIF
@@ -1499,16 +1510,17 @@ MODULE FciMCParMod
 !Only allow doubles to the cutoff, or less
                             ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
                             IF(ExcitLevel.le.iHighExcitsSing) THEN
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                             ELSE
                                 Child=0
                             ENDIF
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                         ENDIF
 
                     ELSE
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,abs(CurrentSign(j)))
+
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight)
                     ENDIF
 
                 ENDIF
@@ -1516,6 +1528,9 @@ MODULE FciMCParMod
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
 
+!                        WRITE(6,*) "Spawning particle to:",nJ(:)
+!                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+!                        WRITE(6,*) "Excitlevel:", ExcitLevel
                     NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
                     IF(IC.eq.1) THEN
                         SpawnFromSing=SpawnFromSing+abs(Child)
@@ -1525,7 +1540,7 @@ MODULE FciMCParMod
                         WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
                         WRITE(6,"(A,I5)") "Excitation: ",IC
                         WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
-!                        CALL FLUSH(6)
+!                            CALL FLUSH(6)
                     ENDIF
 
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
@@ -1560,11 +1575,11 @@ MODULE FciMCParMod
                                 IF(DetBitEQ(iLutnJ,iLutHF,NoIntforDet)) THEN
 !We know we are at HF - HDiag=0
                                     HDiag=0.D0
-!                                    IF(tHub.and.tReal) THEN
+!                                        IF(tHub.and.tReal) THEN
 !!Reference determinant is not HF
-!                                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                                        HDiag=(REAL(HDiagTemp%v,r2))
-!                                    ENDIF
+!                                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!                                            HDiag=(REAL(HDiagTemp%v,r2))
+!                                        ENDIF
 
                                 ELSE
                                     HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -1597,233 +1612,7 @@ MODULE FciMCParMod
                 
                 ENDIF   !End if child created
 
-            ELSE
-!Here, we spawn each particle on the determinant in a seperate attempt.
-
-                tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
-                do p=1,abs(CurrentSign(j))
-!If rotoannihilating, we are simply looping over all the particles on the determinant
-
-                    IF(.not.tImportanceSample) THEN
-                        IF(.not.TRegenExcitgens) THEN
-!Setup excit generators for this determinant
-                            CALL SetupExitgenPar(DetCurr,CurrentExcits(j))
-                            CALL GenRandSymExcitIt4(DetCurr,CurrentExcits(j)%PointToExcit,nJ,0,IC,0,Prob,iCount,Ex,tParity)
-                        ELSE
-                            IF(tStarDet) THEN
-                                IF((.not.tNoReturnStarDets).and.(.not.tAllSpawnStarDets)) THEN
-!We are at a determinant with high-lying 'star' orbitals - we therefore only want to be able to generate the HF determinant
-                                    nJ(:)=HFDet(:)
-                                    IC=WalkExcitLevel
-                                    Ex(1,1)=WalkExcitLevel
-                                    CALL GetExcitation(DetCurr,nJ,NEl,Ex,tParity)
-                                    Prob=1.D0   !This is the only allowed excitation - back to HF
-                                ENDIF
-                            ELSEIF(tHighExcitsSing) THEN
-!Here, we only allow single excitations from iHighExcitsSing if the excitation is going further away from the current excitation.
-                                IF(WalkExcitLevel.ge.(iHighExcitsSing+2)) THEN
-                                    CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,0.D0,IC,Ex,tParity,exFlag,Prob)
-                                ELSE
-                                    CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
-                                ENDIF
-
-                            ELSE
-                                IF(tNonUniRandExcits) THEN
-!This will only be a help if most determinants are multiply occupied.
-                                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
-                                ELSE
-                                    CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
-                                ENDIF
-                            ENDIF
-                        ENDIF
-                    ENDIF
-
-!Calculate number of children to spawn
-                    IF(TTruncSpace) THEN
-!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-                    IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
-
-                       IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
-!The current walker is one below the excitation cutoff - if IC is a double, then could go over
-
-                            IF(IC.eq.2) THEN
-!Need to check excitation level of excitation
-                                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                                IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                                    Child=0
-                                ELSE
-                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                                ENDIF
-                            ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                            ENDIF
-
-                        ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
-!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
-                            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                            IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                                Child=0
-                            ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                            ENDIF
-                        ELSE
-!Excitation cannot be in a dissallowed excitation level - allow it as normal
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                        ENDIF 
-                    
-                    ELSE
-!SD Space is not truncated - allow attempted spawn as usual
-                        IF(tStarOrbs) THEN
-
-                            IF(tStarDet) THEN
-                                IF(tNoReturnStarDets.or.tAllSpawnStarDets) THEN
-!We do not allow a return spawn back to HF, or any other determinant (allSpawnStarDets)
-                                    Child=0
-                                ELSE
-!Here, we are at a high-energy det and have generated HF which we will try to spawn to.
-                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                                ENDIF
-
-                            ELSEIF((WalkExcitLevel.eq.0).or.tAllSpawnStarDets) THEN
-!We are at HF - all determinants allowed. No need to check generated excitations
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-
-                            ELSE
-!We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
-!If tStarDet is true, then we know we are already at one of these determinants, and have alraedy generated HF. If we are at HF, then we are allowed to generate these determinants.
-                                CALL CheckStarOrbs(nJ,tCheckStarGenDet)
-                                IF(tCheckStarGenDet) THEN
-!We have generated a 'star' determinant. We are not at the HF determinant, so disallow it and Child=0
-                                    Child=0
-                                ELSE
-!We have not generated a 'star' determinant. Allow as normal.
-                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                                ENDIF
-
-                            ENDIF
-
-                        ELSEIF(tHighExcitsSing) THEN
-!This option only allows singles connections between determinants above iHighExcitsSing threshold.
-                            
-                            IF((WalkExcitLevel.eq.(iHighExcitsSing+1)).and.(IC.eq.2)) THEN
-!Only allow doubles to the cutoff-1
-                                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
-                                IF(ExcitLevel.eq.(iHighExcitsSing-1)) THEN
-                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                                ELSE
-                                    Child=0
-                                ENDIF
-                            ELSEIF((WalkExcitLevel.eq.iHighExcitsSing).and.(IC.eq.2)) THEN
-!Only allow doubles to the cutoff, or less
-                                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
-                                IF(ExcitLevel.le.iHighExcitsSing) THEN
-                                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                                ELSE
-                                    Child=0
-                                ENDIF
-                            ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                            ENDIF
-
-                        ELSE
-
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,1)
-                        ENDIF
-
-                    ENDIF
-                    
-                    IF(Child.ne.0) THEN
-!We want to spawn a child - find its information to store
-
-!                        WRITE(6,*) "Spawning particle to:",nJ(:)
-!                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-!                        WRITE(6,*) "Excitlevel:", ExcitLevel
-                        NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
-                        IF(IC.eq.1) THEN
-                            SpawnFromSing=SpawnFromSing+abs(Child)
-                        ENDIF
-
-                        IF(Child.gt.25) THEN
-                            WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
-                            WRITE(6,"(A,I5)") "Excitation: ",IC
-                            WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
-!                            CALL FLUSH(6)
-                        ENDIF
-
-!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                        CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NoIntforDet)
-                        
-                        IF(tRotoAnnihil) THEN
-!In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
-!The excitation level and diagonal matrix element are also found out after the annihilation.
-!Cannot use old excitation generators with rotoannihilation.
-
-!In rotoannihilation, we can specify multiple particles on the same entry. 
-                            SpawnedParts(:,ValidSpawned)=iLutnJ(:)
-                            SpawnedSign(ValidSpawned)=Child
-                            ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
-
-                        ELSE
-!Calculate diagonal ham element
-
-                            IF(Child.gt.0) THEN
-!We have successfully created at least one positive child at nJ
-                                WSign=1
-                            ELSE
-!We have successfully created at least one negative child at nJ
-                                WSign=-1
-                            ENDIF
-
-                            IF(TMagnetize) THEN
-                                CALL FindBitExcitLevel(iLutnJ,iLutHF,NoIntforDet,ExcitLevel,2)
-                                CALL FindDiagElwithB(HDiag,ExcitLevel,nJ,WSign)
-                            ELSE
-                                IF(.not.tRegenDiagHEls) THEN
-                                    IF(DetBitEQ(iLutnJ,iLutHF,NoIntforDet)) THEN
-!We know we are at HF - HDiag=0
-                                        HDiag=0.D0
-!                                        IF(tHub.and.tReal) THEN
-!!Reference determinant is not HF
-!                                            HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!                                            HDiag=(REAL(HDiagTemp%v,r2))
-!                                        ENDIF
-
-                                    ELSE
-                                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                                        HDiag=(REAL(HDiagTemp%v,r2))-Hii
-                                    ENDIF
-                                ENDIF
-                            ENDIF
-
-!                            IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                            IF(.not.TNoAnnihil) THEN
-                                HashTemp=CreateHash(nJ)
-                            ENDIF
-
-                            do l=1,abs(Child)
-!Copy across children - cannot copy excitation generators, as do not know them...unless it is HF (this might save a little time if implimented)
-                                NewDets(:,VecSlot)=iLutnJ(:)
-                                NewSign(VecSlot)=WSign
-                                IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
-                                IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiag                     !Diagonal H-element-Hii
-                                IF(.not.TNoAnnihil) THEN
-!                                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                                    Hash2Array(VecSlot)=HashTemp        !Hash put in Hash2Array - no need for pointer since always annihilating if storing hashes
-                                ENDIF
-                                VecSlot=VecSlot+1
-                            enddo
-                        
-                        ENDIF   !Endif rotoannihil
-
-                        Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
-                    
-                    ENDIF   !End if child created
-
-                enddo   !End of cycling over mulitple particles on same determinant.
-
-            ENDIF   !End if tSpawnAsDet
+            enddo   !End of cycling over mulitple particles on same determinant.
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
 !For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
