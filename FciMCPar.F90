@@ -612,61 +612,66 @@ MODULE FciMCParMod
         CombSign=0
         DetstoRotate(:,:)=0
         SigntoRotate(:)=0
+        tRotateSpawnedTemp=.false.
         tRotateSpawned=.false.
         DetsEq=.false.
+
 
         !First attempt at annihilation, just on the processor the spawned particles are currently on.
 
         !Run through the determinats that have been spawned on.
         do i=1,ValidSpawned
-            !Run through the guiding function, checking if this spawned determinant is in there.
-            do j=1,iGuideDets
-                !DetsEq is true if the two determinants are equal
-                DetsEq=DetBitEQ(SpawnedParts(0:NoIntforDet,i),GuideFuncDets(0:NoIntforDet,j),NoIntforDet)
-                IF(DetsEq) THEN
-                    CombSign=SpawnedSign(i)*GuideFuncSign(j)
-                    !IF this is negative, the guiding function annihilates the spawned particles.
-                    IF(CombSign.lt.0) THEN
+            IF(SpawnedSign(i).ne.0) THEN
+                !Run through the guiding function, checking if this spawned determinant is in there.
+                do j=1,iGuideDets
+                    DetsEq=.false.
+                    !DetsEq is true if the two determinants are equal
+                    DetsEq=DetBitEQ(SpawnedParts(0:NoIntforDet,i),GuideFuncDets(0:NoIntforDet,j),NoIntforDet)
+                    IF(DetsEq) THEN
+                        CombSign=SpawnedSign(i)*GuideFuncSign(j)
+                        !IF this is negative, the guiding function annihilates the spawned particles.
+                        IF(CombSign.lt.0) THEN
 
-                        IF(ABS(SpawnedSign(i)).gt.ABS(GuideFuncSign(j))) THEN
-                            ! Don't want to change sign of guiding function so if there are more particles in the spawned list, just put the 
-                            ! guiding function to 0 and leave the remaining spawned to be rotated to other processors.
-                            SpawnedSign(i)=SpawnedSign(i)+GuideFuncSign(j)
-                            ! Add because these are opposite signs.
-                            GuideFuncSign(j)=0
-                            ! Then need to rotate the remaining walkers in Spawned list to see if there are walkers in the guiding function
-                            ! to annihilate with on other processors.
+                            IF(ABS(SpawnedSign(i)).gt.ABS(GuideFuncSign(j))) THEN
+                                ! Don't want to change sign of guiding function so if there are more particles in the spawned list, just put the 
+                                ! guiding function to 0 and leave the remaining spawned to be rotated to other processors.
+                                SpawnedSign(i)=SpawnedSign(i)+GuideFuncSign(j)
+                                ! Add because these are opposite signs.
+                                GuideFuncSign(j)=0
+                                ! Then need to rotate the remaining walkers in Spawned list to see if there are walkers in the guiding function
+                                ! to annihilate with on other processors.
 
+                                NoDetstoRotate=NoDetstoRotate+1
+                                DetstoRotate(0:NoIntforDet,NoDetstoRotate)=SpawnedParts(0:NoIntforDet,i)
+                                SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
+
+                            ELSEIF(ABS(SpawnedSign(i)).eq.ABS(GuideFuncSign(j))) THEN
+                                SpawnedSign(i)=0
+                                GuideFuncSign(j)=0
+                            ELSE
+                                ! The spawned are all annihilated, and the guiding function is decreased by that number.
+                                GuideFuncSign(j)=GuideFuncSign(j)+SpawnedSign(i)
+                                SpawnedSign(i)=0
+                            ENDIF
+
+                        !IF the combined sign (CombSign) is positive, signs are the same and the spawned particles remain.
+                        !Nothing changes, the guiding function is not annihilated, and the spawned remain to be put into the full list later.
+
+                        !If CombSign is 0, there are no walkers on the guiding function (for that processor).
+                        !Need to rotate the spawned walker to see if there are any walkers on this determinant to annihilate with.
+                        ELSEIF(CombSign.eq.0) THEN
                             NoDetstoRotate=NoDetstoRotate+1
                             DetstoRotate(0:NoIntforDet,NoDetstoRotate)=SpawnedParts(0:NoIntforDet,i)
                             SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
-
-                        ELSEIF(ABS(SpawnedSign(i)).eq.ABS(GuideFuncSign(j))) THEN
-                            SpawnedSign(i)=0
-                            GuideFuncSign(j)=0
-                        ELSE
-                            ! The spawned are all annihilated, and the guiding function is decreased by that number.
-                            GuideFuncSign(j)=GuideFuncSign(j)+SpawnedSign(i)
-                            SpawnedSign(i)=0
                         ENDIF
 
-                    !IF the combined sign (CombSign) is positive, signs are the same and the spawned particles remain.
-                    !Nothing changes, the guiding function is not annihilated, and the spawned remain to be put into the full list later.
+                        !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
+                        !function, there will be no more matches.
+                        EXIT
 
-                    !If CombSign is 0, there are no walkers on the guiding function (for that processor).
-                    !Need to rotate the spawned walker to see if there are any walkers on this determinant to annihilate with.
-                    ELSEIF(CombSign.eq.0) THEN
-                        NoDetstoRotate=NoDetstoRotate+1
-                        DetstoRotate(0:NoIntforDet,NoDetstoRotate)=SpawnedParts(0:NoIntforDet,i)
-                        SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
                     ENDIF
-
-                    !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
-                    !function, there will be no more matches.
-                    EXIT
-
-                ENDIF
-            enddo
+                enddo
+            ENDIF
         enddo
 
         IF(NoDetstoRotate.gt.0) tRotateSpawnedTemp=.true.
@@ -679,14 +684,12 @@ MODULE FciMCParMod
 !The allocated DetstoRotate arrays are as big as iGuideDets (the number of determinants in the guiding function), but will only need to rotate 
 !a portion of these (those determinants for which the guiding function has had all its walkers annihilated).
 
-
         IF(tRotateSpawned) THEN !If NoDetstoRotate is greater than 0 on any processor, need to rotate all arrays, otherwise will overwrite each other etc.
 
             InitNoDetstoRotate=NoDetstoRotate
             !For now, rotate this same sized array each time, even if not completely necessary.
             !We are currently just making the determinant (and its sign) 0 if we no longer want to rotate it, but could in the future remove it from the
             !array.  Probably doesn't make all that much difference because will never find a 0 determinant in the guiding function.
-
 
             do n=1,nProcessors-1
             !Rotate the DetstoRotate, SigntoRotate and NoDetstoRotate values.
@@ -714,11 +717,11 @@ MODULE FciMCParMod
                 IF(error.ne.MPI_SUCCESS) THEN
                     CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving signs")
                 ENDIF
-        
+
                 InitNoDetstoRotate=SigntoRotate2(0)
 
                 !Recieve determinants
-                CALL MPI_Recv(DetstoRotate2(0:NoIntforDet,InitNoDetstoRotate),InitNoDetstoRotate*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+                CALL MPI_Recv(DetstoRotate2(0:NoIntforDet,1:InitNoDetstoRotate),InitNoDetstoRotate*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
                 IF(error.ne.MPI_SUCCESS) THEN
                     CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
                 ENDIF
@@ -738,7 +741,7 @@ MODULE FciMCParMod
                     !If the number of particles being rotated has become zero, don't need to search through the guiding function for particles to annihilate.
                     IF(Signtorotate(i).ne.0) THEN
                         do j=1,iGuideDets
-
+                            DetsEq=.false.
                             DetsEq=DetBitEQ(DetstoRotate(0:NoIntforDet,i),GuideFuncDets(0:NoIntforDet,j),NoIntforDet)
 
                             IF(DetsEq) THEN
@@ -772,9 +775,10 @@ MODULE FciMCParMod
 
                                     !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
                                     !function, there will be no more matches.
-                                    EXIT
 
                                 ENDIF
+
+                                EXIT
                             ENDIF
 
                         enddo
@@ -809,10 +813,15 @@ MODULE FciMCParMod
             InitNoDetstoRotate=SigntoRotate2(0)
 
             !Recieve determinants
-            CALL MPI_Recv(DetstoRotate2(0:NoIntforDet,InitNoDetstoRotate),InitNoDetstoRotate*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+            CALL MPI_Recv(DetstoRotate2(0:NoIntforDet,1:InitNoDetstoRotate),InitNoDetstoRotate*(NoIntforDet+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
             IF(error.ne.MPI_SUCCESS) THEN
                 CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
             ENDIF
+
+            do i=1,InitNoDetstoRotate
+                SigntoRotate(i)=SigntoRotate2(i)
+                DetstoRotate(0:NoIntforDet,i)=DetstoRotate2(0:NoIntforDet,i)
+            enddo
 
             !Now add all the remaining DetstoRotate2 and their signs to the SpawnedPart and SpawnedSign lists.
             !Since I just copied the determinants from SpawnedPart to DetstoRotate, any in DetstoRotate will already been in SpawnedPart.
@@ -820,14 +829,22 @@ MODULE FciMCParMod
             do j=1,InitNoDetstoRotate
                 tDetinSpawnList=.false.
                 do i=1,ValidSpawned
-                    DetsEq=DetBitEQ(SpawnedParts(0:NoIntforDet,i),DetstoRotate2(0:NoIntforDet,j),NoIntforDet)
+                    DetsEq=.false.
+                    DetsEq=DetBitEQ(SpawnedParts(0:NoIntforDet,i),DetstoRotate(0:NoIntforDet,j),NoIntforDet)
                     IF(DetsEq) THEN
-                        SpawnedSign(i)=SigntoRotate2(j)
+                        SpawnedSign(i)=SigntoRotate(j)
                         tDetinSpawnList=.true.
                         EXIT
                     ENDIF
                 enddo
-                IF(.not.tDetinSpawnList) CALL Stop_All("RotoAnnihilGuidingFunc","Determinant from rotated list cannot be found in SpawnedParts.")
+                IF(.not.tDetinSpawnList) THEN
+                    WRITE(6,*) 'Determinant from rotate list : ',DetstoRotate(0:NoIntforDet,j)
+!                    do i=1,ValidSpawned
+!                        WRITE(6,*) SpawnedParts(0:NoIntforDet,i)
+!                    enddo
+                    CALL FLUSH(6)
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Determinant from rotated list cannot be found in SpawnedParts.")
+                ENDIF
             enddo
 
         ENDIF
@@ -842,7 +859,6 @@ MODULE FciMCParMod
 
         !Need to calculate the contribution to the HF from the guiding function, and then also the contribution from doubles.
         GuideFuncHF=GuideFuncHF+GuideFuncSign(GuideFuncHFIndex)
-        HFCyc=HFCyc+GuideFuncSign(GuideFuncHFIndex)
 
 
         !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
@@ -2009,10 +2025,11 @@ MODULE FciMCParMod
         
 !Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
         AllNoatHF=0
-        
+
 !Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
         CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
+
         IF(AllNoatHF.lt.0) THEN
 !Flip the sign if we're beginning to get a negative population on the HF
             WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
@@ -2338,7 +2355,8 @@ MODULE FciMCParMod
         CALL halt_timer(Sort_Time)
 
 !        DEALLOCATE(RemoveInds)
-        
+
+
     END SUBROUTINE RotoAnnihilation
     
     SUBROUTINE AnnihilateBetweenSpawnedOneProc(ValidSpawned)
@@ -4504,7 +4522,7 @@ MODULE FciMCParMod
         IF(tUseGuide) THEN
 !These two are not zeroed after each update cycle, so are average energies over the whole simulation
             SumENum=SumENum+GuideFuncDoub
-            SumNoatHF=SumNoatHF+REAL(GuideFuncHF,r2)
+            SumNoatHF=SumNoatHF+GuideFuncHF
 !These two variables are zeroed after each update cycle, so are the "instantaneous" energy (averaged only over the update cycle)
             HFCyc=HFCyc+GuideFuncHF
             ENumCyc=ENumCyc+GuideFuncDoub
