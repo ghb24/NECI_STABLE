@@ -48,6 +48,54 @@
 
     END FUNCTION DetBitLT
 
+!This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants are identical, or -1 if iLutI is "more" than iLutJ
+!This particular version checks excitation level initially, then only if these are the same does it move on to determinants.
+    INTEGER FUNCTION DetExcitBitLT(iLutI,iLutJ,iLutHF,NIfD,NEl)
+        IMPLICIT NONE
+        INTEGER :: iLutI(0:NIfD),iLutJ(0:NIfD),iLutHF(0:NIfD),NIfD,i,ExcitLevelI,ExcitLevelJ,NEl
+        
+        CALL FindBitExcitLevel(iLutI,iLutHF,NIfD,ExcitLevelI,NEl)
+        CALL FindBitExcitLevel(iLutJ,iLutHF,NIfD,ExcitLevelJ,NEl)
+
+! First order in terms of excitation level.  I.e. if the excitation levels are different, we don't care what the determinants
+! are we just order in terms of the excitation level.
+        IF(ExcitLevelI.lt.ExcitLevelJ) THEN
+            DetExcitBitLT=1
+            RETURN
+        ELSEIF(ExcitLevelI.gt.ExcitLevelJ) THEN
+            DetExcitBitLT=-1
+            RETURN
+
+! If the excitation levels are the same however, we need to look at the determinant and order according to this.            
+        ELSEIF(ExcitLevelI.eq.ExcitLevelJ) THEN
+        
+            IF(iLutI(0).lt.iLutJ(0)) THEN
+! First, compare first integers
+                DetExcitBitLT=1
+                RETURN
+            ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
+! If the integers are the same, then cycle through the rest of the integers until we find a difference.
+                do i=1,NIfD
+                    IF(iLutI(i).lt.iLutJ(i)) THEN
+                        DetExcitBitLT=1
+                        RETURN
+                    ELSEIF(iLutI(i).gt.iLutJ(i)) THEN
+                        DetExcitBitLT=-1
+                        RETURN
+                    ENDIF
+                enddo
+            ELSE
+                DetExcitBitLT=-1
+                RETURN
+            ENDIF
+! If it gets through all this without being returned then the two determinants are equal and DetExcitBitLT=0
+            DetExcitBitLT=0
+
+        ENDIF
+
+    END FUNCTION DetExcitBitLT
+
+
 !This is a routine to encode a determinant as natural ordered integers (nI) as a bit string (iLut(0:NIfD))
 !where NIfD=INT(nBasis/32)
     SUBROUTINE EncodeBitDet(nI,iLut,NEl,NIfD)
@@ -231,6 +279,65 @@
 
       END SUBROUTINE SortBitDets
     
+ 
+! Based on SortBitDets, this sorts determinants as bit strings by excitation level and then determinant and takes the corresponding
+! element from array RB with it (sign).
+! RA is the array of determinants of length N to sort
+! The RA array elements go from 0:NIfD
+! RB is the array of integers to go with the determinant
+! iLutHF is the HF determinant (in bit string), and NEl is the number of electrons.
+      SUBROUTINE SortExcitBitDets(N,RA,NIfD,RB,iLutHF,NEl)
+      INTEGER N,NIfD,I,L,IR,J,NEl
+      INTEGER RA(0:NIfD,N)
+      INTEGER RB(N)
+      INTEGER iLutHF(0:NIfD)
+      INTEGER RRA(0:NIfD),RRB
+      INTEGER DetExcitBitLT
+ 
+      IF(N.LE.1) RETURN
+      L=N/2+1
+      IR=N
+10    CONTINUE
+        IF(L.GT.1)THEN
+          L=L-1
+          RRA(0:NIfD)=RA(0:NIfD,L)
+          RRB=RB(L)
+        ELSE
+          RRA(0:NIfD)=RA(0:NIfD,IR)
+          RA(0:NIfD,IR)=RA(0:NIfD,1)
+          RRB=RB(IR)
+          RB(IR)=RB(1)
+          IR=IR-1
+          IF(IR.EQ.1)THEN
+            RA(0:NIfD,1)=RRA(0:NIfD)
+            RB(1)=RRB
+            RETURN
+          ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J.LE.IR)THEN
+          IF(J.LT.IR)THEN
+            IF((DetExcitBitLT(RA(0:NIfD,J),RA(0:NIfD,J+1),iLutHF(0:NIfD),NIfD,NEl)).eq.1) J=J+1
+          ENDIF
+          IF((DetExcitBitLT(RRA(0:NIfD),RA(0:NIfD,J),iLutHF(0:NIfD),NIfD,NEl)).eq.1) THEN
+            RA(0:NIfD,I)=RA(0:NIfD,J)
+            RB(I)=RB(J)
+            I=J
+            J=J+J
+          ELSE
+            J=IR+1
+          ENDIF
+        GO TO 20
+        ENDIF
+        RA(0:NIfD,I)=RRA(0:NIfD)
+        RB(I)=RRB
+
+      GO TO 10
+
+      END SUBROUTINE SortExcitBitDets
+    
+
 ! Based on SortBitDets, however in SortBitSign, RA is an array of integers (sign) to be sorted in descending order of absolute size, and
 ! RB is an array of elements going from 0:NIfD (determinants) to be taken with the element of RA.
 ! RA has length N.
@@ -283,8 +390,7 @@
       GO TO 10
 
       END SUBROUTINE SortBitSign
-
-
+   
 
 ! Based on SORTI, SortBitDets sorts determinants as bit strings, and takes the corresponding element from array RB with it (sign) and the real array RC (HElems)
 ! RA is the array of determinants of length N to sort

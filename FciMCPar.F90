@@ -12,6 +12,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
     use IntegralsData , only : fck,NMax,UMat
@@ -205,6 +206,9 @@ MODULE FciMCParMod
     REAL*8 :: GuideFuncDoub
     INTEGER , ALLOCATABLE :: GuideFuncDets(:,:),GuideFuncSign(:),DetstoRotate(:,:),SigntoRotate(:),DetstoRotate2(:,:),SigntoRotate2(:),InitGuideFuncSign(:)
 
+    INTEGER , ALLOCATABLE :: DomExcIndex(:),DomDets(:,:)
+    INTEGER :: DomExcIndexTag,DomDetsTag,iMinDomLev,iMaxDomLev,iNoDomDets
+
 
 
     contains
@@ -292,6 +296,10 @@ MODULE FciMCParMod
 !If we are calculating a guiding function, write it out here.
         IF(tFindGuide) CALL WriteGuidingFunc()
         IF(tUseGuide) CALL WriteFinalGuidingFunc()
+
+!If we are writing out the dominant determinats, do this here.
+        IF(tPrintDominant) CALL PrintDominantDets()
+
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
@@ -1138,6 +1146,254 @@ MODULE FciMCParMod
 
 
     ENDSUBROUTINE WriteFinalGuidingFunc
+
+
+
+    SUBROUTINE InitSpawnDominant()
+!It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
+!The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
+        INTEGER :: i,j,ierr,error,iNoExcLevels,Temp,iMinDomLevPop,SumExcLevPop,ExcitLevel
+        CHARACTER(len=*), PARAMETER :: this_routine='InitSpawnDominant'
+
+        IF(iProcIndex.eq.Root) THEN
+            OPEN(41,FILE='DOMINANTDETS',Status='old')
+            READ(41,*) iNoDomDets
+            READ(41,*) iNoExcLevels 
+            READ(41,*) iMinDomLev,SumExcLevPop
+            iMaxDomLev=iMinDomLev+iNoExcLevels-1
+        ENDIF
+
+        ALLOCATE(DomExcIndex(iMinDomLev:(iMinDomLev+iNoExcLevels)),stat=ierr)
+        CALL LogMemAlloc('DomExcIndex',iNoExcLevels+1,4,this_routine,DomExcIndexTag,ierr)
+        DomExcIndex(:)=0
+
+        IF(iProcIndex.eq.Root) THEN
+            DomExcIndex(iMinDomLev)=1
+            i=iMinDomLev+1
+            do while(i.le.iMaxDomLev)
+                DomExcIndex(i)=SumExcLevPop+DomExcIndex(i-1)
+                READ(41,*) ExcitLevel,Temp
+                SumExcLevPop=Temp
+                i=i+1
+            enddo
+            DomExcIndex(iMaxDomLev+1)=SumExcLevPop+DomExcIndex(i-1)
+            IF(DomExcIndex(iMaxDomLev+1).ne.(iNoDomDets+1)) CALL Stop_All(this_routine,'ERROR in filling the indexing excitation indexing array.')
+        ENDIF
+
+
+        CALL MPI_Bcast(iMinDomLev,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(iMaxDomLev,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(iNoDomDets,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(DomExcIndex(iMinDomLev:(iMaxDomLev+1)),iMaxDomLev-iMinDomLev+2,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+        ALLOCATE(DomDets(0:NoIntforDet,1:iNoDomDets),stat=ierr)
+        CALL LogMemAlloc('DomDets',(NoIntforDet+1)*iNoDomDets,4,this_routine,DomDetsTag,ierr)
+
+        IF(iProcIndex.eq.Root) THEN
+            !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
+            j=1
+            do while (j.le.iNoDomDets)
+                READ(41,*) DomDets(0:NoIntforDet,j)
+                j=j+1
+            enddo
+            CLOSE(41)
+        ENDIF
+
+        ! Broadcast this list of DomDets to all processors
+        CALL MPI_Bcast(DomDets(0:NoIntforDet,1:iNoDomDets),iNoDomDets*(NoIntforDet+1),MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+
+    ENDSUBROUTINE InitSpawnDominant 
+
+
+
+
+    SUBROUTINE PrintDominantDets()
+! This routine takes the list of determinants with particles on them, and picks out those with excitation levels between the max and min
+! specified in the input file.  It then orders these in terms of population, takes the iNoDominantDets most populated and prints them 
+! in order of excitation level and then determinant to a file named DOMINANTDETS.
+        INTEGER :: i,j,k,ierr,error,TestSum,ExcitLevel,NoExcDets,AllNoExcDets,ExcDetsTag,ExcSignTag,AllExcDetsTag,AllExcSignTag
+        INTEGER :: ExcDetsIndex,MinDomDetPop,AllExcLevelTag,ExcLevelTag,CurrExcitLevel,NoExcitLevel,OrigiDominantDets,HFPop
+        CHARACTER(len=*), PARAMETER :: this_routine='PrintDominantDets'
+        REAL*8 :: MinRelDomPop
+        INTEGER , ALLOCATABLE :: ExcDets(:,:),ExcSign(:),AllExcDets(:,:),AllExcSign(:)
+        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors)
+
+        CALL FLUSH(6)
+        IF(.not.tRotoAnnihil) CALL Stop_All(this_routine,'PRINTDOMINANTDETS can only be used with rotoannihilation.')
+
+        WRITE(6,'(A13,I5,A53,I3,A5,I3)') 'Printing the ',iNoDominantDets,' dominant determinants with excitation level between ',MinExcDom,' and ',MaxExcDom
+
+
+!        WRITE(6,*) 'the determinants and sign, on each processor, before I touched them'
+!        do j=1,TotWalkers
+!            WRITE(6,*) CurrentDets(0:NoIntforDet,j),CurrentSign(j)
+!        enddo
+
+
+! Firstly, copy the determinants with excitation level between the min and max into a separate array (and do the same with sign).  
+! Need to first count the number that are going to go in this array.
+        NoExcDets=0
+        AllNoExcDets=0
+        do i=1,TotWalkers
+            CALL FindBitExcitLevel(CurrentDets(0:NoIntforDet,i),iLutHF(0:NoIntforDet),NoIntforDet,ExcitLevel,MaxExcDom)
+            IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) NoExcDets=NoExcDets+1
+            IF(ExcitLevel.eq.0) HFPop=CurrentSign(i)
+        enddo
+
+        CALL MPI_Reduce(NoExcDets,AllNoExcDets,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+
+! Allocate arrays of this size - these are the ones that will be reordered to find the iNoDominantDets most populated etc.        
+        ALLOCATE(ExcDets(0:NoIntforDet,1:NoExcDets),stat=ierr)
+        CALL LogMemAlloc('ExcDets',(NoIntforDet+1)*NoExcDets,4,this_routine,ExcDetsTag,ierr)
+        ALLOCATE(ExcSign(1:NoExcDets),stat=ierr)
+        CALL LogMemAlloc('ExcSign',NoExcDets,4,this_routine,ExcSignTag,ierr)
+ 
+        IF(iProcIndex.eq.Root) THEN
+            ALLOCATE(AllExcDets(0:NoIntforDet,1:AllNoExcDets),stat=ierr)
+            CALL LogMemAlloc('AllExcDets',(NoIntforDet+1)*AllNoExcDets,4,this_routine,AllExcDetsTag,ierr)
+            ALLOCATE(AllExcSign(1:AllNoExcDets),stat=ierr)
+            CALL LogMemAlloc('AllExcSign',AllNoExcDets,4,this_routine,AllExcSignTag,ierr)
+        ENDIF
+
+
+! Now run through the occupied determinant.  If the determinant has the correct excitation level, add it to the ExcDets array, and
+! add its sign to the ExcSign array.
+        ExcDetsIndex=0
+        do i=1,TotWalkers
+            CALL FindBitExcitLevel(CurrentDets(0:NoIntforDet,i),iLutHF(0:NoIntforDet),NoIntforDet,ExcitLevel,MaxExcDom)
+            IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
+                ExcDetsIndex=ExcDetsIndex+1
+                ExcDets(0:NoIntforDet,ExcDetsIndex)=CurrentDets(0:NoIntforDet,i)
+                ExcSign(ExcDetsIndex)=CurrentSign(i)
+            ENDIF
+        enddo
+        IF(ExcDetsIndex.ne.NoExcDets) CALL Stop_All(this_routine,'Error in selecting determinants with the correct excited states.')
+
+
+! Now need to collect this array on the root processor and find the most populated determinants.
+! First set up the RecvCounts and OffSet arrays.
+
+! Need to gather the NoExcDets values from each processor for this.
+        CALL MPI_Gather(NoExcDets,1,MPI_INTEGER,RecvCounts,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        
+        Offsets(:)=0
+        do j=1,nProcessors-1
+            OffSets(j+1)=RecvCounts(j)+OffSets(j)
+        enddo
+        do j=1,nProcessors
+            RecvCounts02(j)=RecvCounts(j)*(NoIntforDet+1)
+        enddo
+        OffSets02(:)=0
+        do j=1,nProcessors-1
+            OffSets02(j+1)=RecvCounts02(j)+OffSets02(j)
+        enddo
+
+!        do j=1,nProcessors
+!            WRITE(6,*) RecvCounts(j),OffSets(j),RecvCounts02(j),OffSets02(j)
+!        enddo
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+        CALL MPI_Gatherv(ExcSign(1:NoExcDets),NoExcDets,MPI_INTEGER,AllExcSign(1:AllNoExcDets),&
+        &RecvCounts,Offsets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gatherv(ExcDets(0:NoIntforDet,1:NoExcDets),((NoIntforDet+1)*NoExcDets),MPI_INTEGER,&
+        &AllExcDets(0:NoIntforDet,1:AllNoExcDets),RecvCounts02,Offsets02,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL FLUSH(6)
+
+
+
+! Now that we have arrays on the root processor with the determinants and sign of correct excitation level, need to order these 
+! in descending absolute value, taking the corresponding sign with it.
+        IF(iProcIndex.eq.Root) THEN
+            CALL SortBitSign(AllNoExcDets,AllExcSign(1:AllNoExcDets),NoIntforDet,AllExcDets(0:NoIntforDet,1:AllNoExcDets))
+
+            OPEN(39,file='DOMINANTDETSdescpop',status='unknown')
+            WRITE(39,*) AllNoExcDets,' determinants with the right excitation level.'    
+            do j=1,AllNoExcDets
+                WRITE(39,*) AllExcDets(0:NoIntforDet,j),AllExcSign(j)
+            enddo
+            CLOSE(39)
+
+
+! Then run through AllExcSign, finding out how many walkers are on the iNoDominantDets most populated, and counting how
+! many have this many walkers or more.
+        
+            OrigiDominantDets=iNoDominantDets
+            MinDomDetPop=0
+            MinDomDetPop=ABS(AllExcSign(iNoDominantDets))
+            ! This is the minimum number of walkers on the included determinants.
+            ! Also want to include determinants with the same number of walkers.
+            j=iNoDominantDets+1
+            do while (ABS(AllExcSign(j)).eq.MinDomDetPop)
+                j=j+1
+                iNoDominantDets=iNoDominantDets+1
+            enddo
+            WRITE(6,*) 'This amounts to determinants with population ',ABS(MinDomDetPop),' and larger.'
+
+            MinRelDomPop=REAL(ABS(MinDomDetPop),r2)/REAL(ABS(HFPop),r2)
+            WRITE(6,*) 'These determinants have amplitude ; ',MinRelDomPop,' relative to the most populated determinant.' 
+
+     
+! Now take the iNoDominantDets determinants and reorder them in terms of excitation level and then determinants.
+! SortExcitBitDets orders the determinants first by excitation level and then by determinant, taking the corresponding sign with them.        
+! We have just fed the first iNoDominantDets from the list ordered in terms of population.
+! Only this amount will be reordered by excitation level then determinant, and then we print out this many only.
+
+            CALL SortExcitBitDets(iNoDominantDets,AllExcDets(0:NoIntforDet,1:iNoDominantDets),NoIntforDet,AllExcSign(1:iNoDominantDets),iLutHF(0:NoIntforDet),NEl)
+ 
+            OPEN(40,file='DOMINANTDETSexclevelbit',status='unknown')
+            WRITE(40,*) AllNoExcDets,' determinants with the right excitation level.'    
+            do j=1,AllNoExcDets
+                CALL FindBitExcitLevel(AllExcDets(0:NoIntforDet,j),iLutHF(0:NoIntforDet),NoIntforDet,ExcitLevel,MaxExcDom)
+                WRITE(40,*) AllExcDets(0:NoIntforDet,j),AllExcSign(j),ExcitLevel
+            enddo
+            CLOSE(40)
+
+
+! Write the iGuideDets most populated determinants (in order of their bit strings) to a file.
+            OPEN(38,file='DOMINANTDETS',status='unknown')
+            WRITE(38,*) iNoDominantDets,' dominant determinants printed here.'    
+            WRITE(38,*) (MaxExcDom-MinExcDom+1),' excitation levels included.'
+            
+! Need to run through these ordered determinants, counting the number in each excitation level.            
+            j=1
+            do while (j.le.iNoDominantDets)
+                NoExcitLevel=0
+                i=j 
+                CALL FindBitExcitLevel(AllExcDets(0:NoIntforDet,i),iLutHF(0:NoIntforDet),NoIntforDet,CurrExcitLevel,MaxExcDom)
+                ExcitLevel=CurrExcitLevel
+                do while (ExcitLevel.eq.CurrExcitLevel)
+                    NoExcitLevel=NoExcitLevel+1
+                    j=j+1
+                    IF(j.gt.iNoDominantDets) EXIT
+                    CALL FindBitExcitLevel(AllExcDets(0:NoIntforDet,j),iLutHF(0:NoIntforDet),NoIntforDet,ExcitLevel,MaxExcDom)
+                enddo
+                WRITE(38,*) CurrExcitLevel,NoExcitLevel
+            enddo
+
+            do j=1,iNoDominantDets
+                WRITE(38,*) AllExcDets(0:NoIntforDet,j),AllExcSign(j)
+            enddo
+            CLOSE(38)
+
+            DEALLOCATE(AllExcDets)
+            CALL LogMemDealloc(this_routine,AllExcDetsTag)
+            DEALLOCATE(AllExcSign)
+            CALL LogMemDealloc(this_routine,AllExcSignTag)
+
+        ENDIF
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+        DEALLOCATE(ExcDets)
+        CALL LogMemDealloc(this_routine,ExcDetsTag)
+        DEALLOCATE(ExcSign)
+        CALL LogMemDealloc(this_routine,ExcSignTag)
+
+    END SUBROUTINE PrintDominantDets 
+
 
 
 
@@ -4934,6 +5190,16 @@ MODULE FciMCParMod
                 CALL InitGuidingFunction()
             ELSE
                 CALL Stop_All("InitFCIMCCalcPar","The guiding function file (GUIDINGFUNC) does not exist")
+            ENDIF
+        ENDIF
+
+        IF(tSpawnDominant) THEN
+            WRITE(6,*) 'Reading in from DOMINANTDETS, and only allowing spawning on the determinants in this file.'
+            INQUIRE(FILE='DOMINANTDETS',EXIST=exists)
+            IF(exists) THEN
+                CALL InitSpawnDominant()
+            ELSE
+                CALL Stop_All("InitFCIMCCalcPar","The dominant determinant file (DOMINANTDETS) does not exist")
             ENDIF
         ENDIF
 

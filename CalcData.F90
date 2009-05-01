@@ -15,9 +15,9 @@ LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips,tConstructNOs
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL :: THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets
 LOGICAL :: TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
-LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion
+LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion,tPrintDominant
 LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift,tFindGuide,tUseGuide
-LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign
+LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign,tSpawnDominant
 LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs,tFindDets
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell,tNoReturnStarDets
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift,tAllSpawnStarDets
@@ -28,8 +28,8 @@ INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
-INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax
-INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets,iGuideDets
+INTEGER :: InitWalkers,NMCyc,StepsSft,FlipTauCyc,CLMax,MaxExcDom,MinExcDom
+INTEGER :: RhoApp,NEquilSteps,ShellFix,NoMagDets,iGuideDets,iNoDominantDets
 INTEGER :: OccCASorbs,VirtCASorbs,iStarOrbs,iHighExcitsSing,iInitGuideParts
 
 
