@@ -1688,9 +1688,9 @@ MODULE FciMCParMod
 !Calculate number of children to spawn
                 IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-                IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
+                    IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
-                   IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
+                    IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
 !The current walker is one below the excitation cutoff - if IC is a double, then could go over
 
                         IF(IC.eq.2) THEN
@@ -7091,8 +7091,8 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,Prob,IC,Ex,tParity,nParts)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
-        INTEGER :: iLutCurr(0:NoIntforDet),Bin
-        LOGICAL :: tParity,SymAllowed
+        INTEGER :: iLutCurr(0:NoIntforDet),Bin,iLutnJ(0:NoIntforDet),PartInd,ExcitLev
+        LOGICAL :: tParity,SymAllowed,tSuccess
         REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
 
@@ -7102,6 +7102,24 @@ MODULE FciMCParMod
             CALL GenRandSymExcitBiased(DetCurr,iLutCurr,nJ,pDoubles,IC,Ex,tParity,exFlag,nParts,WSign,Tau,AttemptCreatePar)
             RETURN
         ENDIF
+
+        IF(tSpawnDominant) THEN
+!We only allow spawning at determinants between iMinDomLev and iMaxDomLev which are in an allowed list of dominant determinants.
+!Find the excitation level of the excitation
+!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
+            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,NoIntforDet)
+            CALL FindBitExcitLevel(iLutHF,iLutnJ,NoIntforDet,ExcitLev,iMaxDomLev)
+            IF((ExcitLev.le.iMaxDomLev).and.(ExcitLev.ge.iMinDomLev)) THEN
+!We now need to binary search the list of allowed determinants to see whether it is in the list or not.
+                CALL BinSearchParts3(iLutnJ,DomDets,iNoDomDets,DomExcIndex(ExcitLev),DomExcIndex(ExcitLev+1)-1,PartInd,tSuccess)
+                IF(.not.tSuccess) THEN
+!If the particle is not in the list, then do not allow a spawning event there.
+                    AttemptCreatePar=0
+                    RETURN
+                ENDIF
+            ENDIF
+        ENDIF
+                
 
 !Calculate off diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
@@ -9364,6 +9382,79 @@ MODULE FciMCParMod
 
     END SUBROUTINE BinSearchParts2
     
+!This is the same as BinSearchParts1, but this time, the list to search is passed in as an argument. The list goes from 1 to Length, but only between MinInd and MaxInd is actually searched.
+    SUBROUTINE BinSearchParts3(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd
+        INTEGER :: List(0:NoIntforDet,Length),Length
+        INTEGER :: i,j,N,Comp,DetBitLT
+        LOGICAL :: tSuccess
+
+!        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        CALL FLUSH(6)
+        i=MinInd
+        j=MaxInd
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(6,*) i,j,n
+
+!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(List(:,N),iLut(:),NoIntforDet)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!We need to check the last index.
+                    Comp=DetBitLT(List(:,i+1),iLut(:),NoIntforDet)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchParts3
 
 END MODULE FciMCParMod
 
