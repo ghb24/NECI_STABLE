@@ -38,10 +38,15 @@ MODULE GenRandSymExcitNUMod
 
     REAL*8 :: pDoubNew
     INTEGER , PARAMETER :: r2=kind(0.d0)
+!    INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
+!    LOGICAL :: tSymLists2=.false.
     INTEGER :: MaxABPairs
     INTEGER :: NIfD
 
     contains
+
+!!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
+!!to be cast
     
 !This routine is an importance sampled excitation generator. However, it is currently set up to work with the
 !spawning algorithm, since a stochastic choice as to whether the particle is accepted or not is also done within the routine.

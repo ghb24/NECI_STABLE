@@ -5094,13 +5094,16 @@ MODULE FciMCParMod
         tFoundOrbs(:)=.false.
 
         do i=1,nSymLabels
+!            WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
             EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
+!            WRITE(6,*) "Number of states: ",SymLabelCounts(2,i)
             do j=SymLabelCounts(1,i),EndSymState
 
                 Beta=(2*SymLabelList(j))-1
                 Alpha=(2*SymLabelList(j))
                 SymAlpha=INT((G1(Alpha)%Sym%S),4)
                 SymBeta=INT((G1(Beta)%Sym%S),4)
+!                WRITE(6,*) "***",Alpha,Beta
 
                 IF(.not.tFoundOrbs(Beta)) THEN
                     tFoundOrbs(Beta)=.true.
@@ -5124,6 +5127,7 @@ MODULE FciMCParMod
         enddo
         do i=1,nBasis
             IF(.not.tFoundOrbs(i)) THEN
+                WRITE(6,*) "Orbital: ",i, " not found."
                 CALL Stop_All("InitFCIMCCalcPar","Orbital not found")
             ENDIF
         enddo
