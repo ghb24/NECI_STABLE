@@ -1581,7 +1581,6 @@ MODULE FciMCParMod
 !j runs through all current walkers
 !If we are rotoannihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
 !            WRITE(6,*) Iter,j,TotWalkers
-!            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NoIntforDet)
@@ -5018,13 +5017,14 @@ MODULE FciMCParMod
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed
+        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: exists
+        LOGICAL :: exists,tSuccess
 
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -5088,6 +5088,33 @@ MODULE FciMCParMod
         IF(nBits.ne.NEl) THEN
             CALL Stop_All(this_routine,"CountBits FAIL")
         ENDIF
+
+!Check that the symmetry routines have set the symmetry up correctly...
+        tSuccess=.true.
+        do i=1,nSymLabels
+            EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
+            do j=SymLabelCounts(1,i),EndSymState
+
+                Beta=(2*SymLabelList(j))-1
+                Alpha=(2*SymLabelList(j))
+                SymAlpha=INT((G1(Alpha)%Sym%S),4)
+                SymBeta=INT((G1(Beta)%Sym%S),4)
+
+                IF(G1(Beta)%Ms.ne.-1) THEN
+                    tSuccess=.false.
+                ELSEIF(G1(Alpha)%Ms.ne.1) THEN
+                    tSuccess=.false.
+                ELSEIF((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
+                    tSuccess=.false.
+                ENDIF
+            enddo
+        enddo
+        IF(.not.tSuccess) THEN
+            CALL Stop_All("InitFCIMCCalcPar","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
+        ELSE
+            WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
+        ENDIF
+
 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
         iMaxExcit=0

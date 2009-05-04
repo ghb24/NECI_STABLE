@@ -505,9 +505,13 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCount2(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         INTEGER :: ILUT(0:NIfD),i!,DetSym
+!        INTEGER , SAVE :: Iter=0
         LOGICAL :: tNoSuccess,tParity,tFilled
         REAL*8 :: pDoub,pGen,r
         CHARACTER , PARAMETER :: this_routine='GenRandSymExcitNU'
+
+!        Iter=Iter+1
+!        WRITE(6,*) Iter,tFilled,nSymLabels
 
         MaxABPairs=(nBasis*(nBasis-1)/2)
         NIfD=nBasis/32
@@ -529,6 +533,14 @@ MODULE GenRandSymExcitNUMod
 !For molecular systems, sym runs from 0 to 7. This is NOT general and should be made so using SymLabels.
 !This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
             CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
+!            IF(Iter.eq.5436) THEN
+!                WRITE(6,*) "Ni:", nI(1:NEl)
+!                WRITE(6,*) "alphaocc:", ClassCount2(1,0:nSymLabels-1)
+!                WRITE(6,*) "betaocc:", ClassCount2(2,0:nSymLabels-1)
+!                WRITE(6,*) "AlphUnocc:", ClassCountUnocc2(1,0:nSymLabels-1)
+!                WRITE(6,*) "BetaUnocc:", ClassCountUnocc2(2,0:nSymLabels-1)
+!            ENDIF
+
             tFilled=.true.
         ENDIF
 
@@ -558,6 +570,8 @@ MODULE GenRandSymExcitNUMod
         ELSE
             CALL Stop_All(this_routine,"Error in choosing excitations to create.")
         ENDIF
+
+!        IF(Iter.eq.5436) WRITE(6,*) "IC: ",IC
 
         IF(IC.eq.2) THEN
             CALL CreateDoubExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
@@ -694,6 +708,8 @@ MODULE GenRandSymExcitNUMod
             CALL FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,SymProduct,iSpn)
         ENDIF
 
+!        WRITE(6,*) "***",Elec1Ind,Elec2Ind,SymProduct,iSpn,ForbiddenOrbs
+
 !Now we have to pick the first unoccupied orbital. If an orbital is not present in any allowed pairs, it is chucked and a new one drawn.
 !The number NExcit is the number of unoccupied orbitals that the orbital was chosen from (including symmetry-forbidden orbital pairs)
 !Arguments:     NExcit = Number of possible spin-allowed unoccupied spinorbitals, including forbidden orbs (these will be chucked)
@@ -702,6 +718,8 @@ MODULE GenRandSymExcitNUMod
 !               SymB = Symmetry required of the second unoccupied spinorbital, so that sym(A) x sym(B) = SymProduct
 !               SymProduct = (intent in), the symmetry of electron pair chosen
         CALL PickAOrb(nI,iSpn,ILUT,ClassCountUnocc2,NExcitA,Elec1Ind,Elec2Ind,SpinOrbA,OrbA,SymA,SymB,SymProduct)
+
+!        WRITE(6,*) "()", SpinOrbA,OrbA,SymA,SymB,SymProduct
 
 !This routine will pick an unoccupied orbital at random from a specified spin and symmetry class.
 !There should definitely be a possible spinorbital, since A was chosen so that there was one.
@@ -761,7 +779,9 @@ MODULE GenRandSymExcitNUMod
             IF(SpinOrbA.eq.-1) THEN
 !We have already picked a beta orbital, so now we want to pick an alpha orbital. Find out how many of these there are.
                 NExcit=ClassCountUnocc2(1,SymB)
+!                WRITE(6,*) "NExcit",NExcit
                 NExcitOtherWay=ClassCountUnocc2(2,SymA)
+!                WRITE(6,*) "NExcitOtherWay:", NExcitOtherWay
                 SpinOrbB=0  !This is defined differently to SpinOrbA. 0=Alpha, -1=Beta.
             ELSE
 !Want to pick an beta orbital.
@@ -863,6 +883,8 @@ MODULE GenRandSymExcitNUMod
                 ELSE
                     OrbB=(2*SymLabelList(SymLabelCounts(1,SymB+1)+ChosenUnocc))+SpinOrbB
                 ENDIF
+!                WRITE(6,*) "B: ",OrbB, nOrbs, SpinOrbB
+!                WRITE(6,*) "SymLabelList(1:nBasis): ",SymLabelList(1:nBasis)
 
 !Find out if orbital is in nI or not. Accept if it isn't in it.
                 IF((.not.(BTEST(ILUT((OrbB-1)/32),MOD((OrbB-1),32)))).and.(OrbB.ne.OrbA)) THEN
@@ -932,12 +954,14 @@ MODULE GenRandSymExcitNUMod
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
                     ConjSym=IEOR(SymProduct,i)
                     ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(2,ConjSym) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
+!                    WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                 ENDIF
                 IF(ClassCountUnocc2(2,i).eq.0) THEN
 !This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any unoccupied alpha orbitals which are now forbidden?
 !If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
                     ConjSym=IEOR(SymProduct,i)
                     ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(1,ConjSym)
+!                    WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                 ENDIF
             enddo
 
