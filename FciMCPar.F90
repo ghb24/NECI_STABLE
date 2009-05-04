@@ -5024,7 +5024,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: exists,tSuccess
+        LOGICAL :: exists,tSuccess,tFoundOrbs(nBasis)
 
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -5091,6 +5091,8 @@ MODULE FciMCParMod
 
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.
+        tFoundOrbs(:)=.false.
+
         do i=1,nSymLabels
             EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
             do j=SymLabelCounts(1,i),EndSymState
@@ -5100,6 +5102,17 @@ MODULE FciMCParMod
                 SymAlpha=INT((G1(Alpha)%Sym%S),4)
                 SymBeta=INT((G1(Beta)%Sym%S),4)
 
+                IF(.not.tFoundOrbs(Beta)) THEN
+                    tFoundOrbs(Beta)=.true.
+                ELSE
+                    CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
+                ENDIF
+                IF(.not.tFoundOrbs(Alpha)) THEN
+                    tFoundOrbs(Alpha)=.true.
+                ELSE
+                    CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
+                ENDIF
+
                 IF(G1(Beta)%Ms.ne.-1) THEN
                     tSuccess=.false.
                 ELSEIF(G1(Alpha)%Ms.ne.1) THEN
@@ -5108,6 +5121,11 @@ MODULE FciMCParMod
                     tSuccess=.false.
                 ENDIF
             enddo
+        enddo
+        do i=1,nBasis
+            IF(.not.tFoundOrbs(i)) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Orbital not found")
+            ENDIF
         enddo
         IF(.not.tSuccess) THEN
             CALL Stop_All("InitFCIMCCalcPar","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
