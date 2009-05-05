@@ -5165,6 +5165,7 @@ MODULE FciMCParMod
 !Calculate Hii
         TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
         Hii=REAL(TempHii%v,r2)
+        WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
         Fii=REAL(TempHii%v,r2)
 

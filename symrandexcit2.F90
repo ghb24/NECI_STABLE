@@ -45,8 +45,8 @@ MODULE GenRandSymExcitNUMod
 
     contains
 
-!!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
-!!to be cast
+!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
+!to be cast in terms of spin orbitals, and 
     
 !This routine is an importance sampled excitation generator. However, it is currently set up to work with the
 !spawning algorithm, since a stochastic choice as to whether the particle is accepted or not is also done within the routine.
