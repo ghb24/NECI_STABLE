@@ -1877,6 +1877,8 @@ MODULE FciMCParMod
 
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
             IF(tRotoAnnihil) THEN
+!We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
+!entry, but VecSlot remains where it is, meaning that j should never be less that VecSlot
 
                 IF(CurrentSign(j).le.0) THEN
                     CopySign=CurrentSign(j)+iDie    !Copy sign is the total number of particles x sign that we want to copy accross.
@@ -5018,6 +5020,7 @@ MODULE FciMCParMod
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
+        use GenRandSymExcitNUMod , only : SpinOrbSymSetup 
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits
         TYPE(HElement) :: rh,TempHii
@@ -5132,9 +5135,18 @@ MODULE FciMCParMod
             ENDIF
         enddo
         IF(.not.tSuccess) THEN
-            CALL Stop_All("InitFCIMCCalcPar","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
+            WRITE(6,*) "************************************************"
+            WRITE(6,*) "**                 WARNING!!!                 **"
+            WRITE(6,*) "************************************************"
+            WRITE(6,*) "Symmetry information not set up correctly in NECI initialisation"
+            WRITE(6,*) "Will attempt to set up the symmetry again, but now in terms of spin orbitals"
+            WRITE(6,*) "I strongly suggest you check that the reference energy is correct."
+!            CALL Stop_All("InitFCIMCCalcPar","Error in the setup of the symmetry/spin ordering of the orbitals. This configuration will not work with spawning excitation generators")
+            CALL SpinOrbSymSetup(.true.) 
         ELSE
             WRITE(6,*) "Symmetry and spin of orbitals correctly set up for spawning excitation generators."
+!            CALL SpinOrbSymSetup(.false.) 
+!            CALL Stop_All("SSS","SKCJB")
         ENDIF
 
 

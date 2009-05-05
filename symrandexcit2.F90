@@ -38,15 +38,80 @@ MODULE GenRandSymExcitNUMod
 
     REAL*8 :: pDoubNew
     INTEGER , PARAMETER :: r2=kind(0.d0)
-!    INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
-!    LOGICAL :: tSymLists2=.false.
+    INTEGER , ALLOCATABLE :: SymLabelList2(:,:),SymLabelCounts2(:,:,:)
     INTEGER :: MaxABPairs
     INTEGER :: NIfD
 
     contains
 
 !Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
-!to be cast in terms of spin orbitals, and 
+!to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
+    SUBROUTINE SpinOrbSymSetup(tRedoSym)
+        INTEGER :: AlphaCounter,BetaCounter,i,j,Sym,CountSymAlpha,CountSymBeta
+        LOGICAL :: tFirstSymBeta,tFirstSymAlpha,tRedoSym
+
+
+        Allocate(SymLabelList2(2,nBasis))   !This will seperate the alpha and beta states.
+        Allocate(SymLabelCounts2(2,2,nSymLabels))     !Indices: (Alpha:Beta, Index:Number , Symmetry)
+        IF(tRedoSym) THEN
+            AlphaCounter=1
+            BetaCounter=1
+            do i=0,nSymLabels
+                tFirstSymAlpha=.true.
+                tFirstSymBeta=.true.
+                CountSymAlpha=0
+                CountSymBeta=0
+                do j=1,nBasis
+                    Sym=INT(G1(j)%Sym%S,4)
+                    IF(G1(j)%Ms.eq.1) THEN
+    !Alpha orbital
+                        IF(Sym.eq.i) THEN
+                            IF(tFirstSymAlpha) THEN
+                                SymLabelCounts2(1,1,i+1)=AlphaCounter
+                                tFirstSymAlpha=.false.
+                            ENDIF
+                            SymLabelList2(1,AlphaCounter)=j
+                            AlphaCounter=AlphaCounter+1
+                            CountSymAlpha=CountSymAlpha+1
+                        ENDIF
+                    ELSE
+    !Beta orbital
+                        IF(Sym.eq.i) THEN
+                            IF(tFirstSymBeta) THEN
+                                SymLabelCounts2(2,1,i+1)=BetaCounter
+                                tFirstSymBeta=.false.
+                            ENDIF
+                            SymLabelList2(2,BetaCounter)=j
+                            BetaCounter=BetaCounter+1
+                            CountSymBeta=CountSymBeta+1
+                        ENDIF
+                    ENDIF
+                enddo
+                SymLabelCounts2(1,2,i+1)=CountSymAlpha
+                SymLabelCounts2(2,2,i+1)=CountSymBeta
+            enddo
+        ELSE
+            do i=1,nBasis/2
+                SymLabelList2(1,i)=2*SymLabelList(i)
+                SymLabelList2(2,i)=(2*SymLabelList(i))-1
+            enddo
+            do i=1,nSymLabels
+                SymLabelCounts2(1,1,i)=SymLabelCounts(1,i)
+                SymLabelCounts2(2,1,i)=SymLabelCounts(1,i)
+                SymLabelCounts2(1,2,i)=SymLabelCounts(2,i)
+                SymLabelCounts2(2,2,i)=SymLabelCounts(2,i)
+            enddo
+        ENDIF
+
+        WRITE(6,*) G1(1:nBasis)%Sym%S
+        WRITE(6,*) "***"
+        WRITE(6,*) "***",SymLabelList2(1,1:nBasis)
+        WRITE(6,*) SymLabelCounts2(1,1,1:nBasis)
+        WRITE(6,*) "***"
+        WRITE(6,*) SymLabelCounts2(2,1,1:nBasis)
+
+    END SUBROUTINE SpinOrbSymSetup
+        
     
 !This routine is an importance sampled excitation generator. However, it is currently set up to work with the
 !spawning algorithm, since a stochastic choice as to whether the particle is accepted or not is also done within the routine.
