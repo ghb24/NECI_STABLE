@@ -21,7 +21,7 @@ LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign,tSpawnDominan
 LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs,tFindDets
 LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell,tNoReturnStarDets
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift,tAllSpawnStarDets
-LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange
+LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange,tExpandSpace
 LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet,tStarOrbs,tHighExcitsSing
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits

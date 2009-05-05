@@ -12,7 +12,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
     use IntegralsData , only : fck,NMax,UMat
@@ -215,7 +215,7 @@ MODULE FciMCParMod
 
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-        use soft_exit, only : test_SOFTEXIT
+        use soft_exit, only : test_SOFTEXIT,test_ExpandSpace
         use UMatCache, only : UMatInd
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error
@@ -249,6 +249,22 @@ MODULE FciMCParMod
             IF(mod(Iter,StepsSft).eq.0) THEN
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
                 CALL CalcNewShift()
+
+
+!Test whether to increase the current excitation level allowed in the equilibration step.
+                IF(tExpandSpace.and.test_ExpandSpace(ICILevel)) THEN
+!If an EXPANDSPACE file exists, it will read the value of ICILevel from it, delete the file, and expand the space.
+                    
+                    IF(ICILevel.eq.0) THEN
+                        WRITE(6,"(A,I12,A)") "*** EXPANDSPACE file detected. Expanding the space on iteration ",Iter, " to the full space." 
+!The full space is now accessible. There is no longer any need to continue to check for the presence of the file.
+                        tTruncSpace=.false.
+                        tExpandSpace=.false.
+                    ELSE
+                        WRITE(6,"(A,I12,A,I5)") "*** EXPANDSPACE file detected. Expanding the space on iteration ",Iter, " to excitation level: ",ICILevel
+                    ENDIF
+
+                ENDIF
 
 !Test if the file SOFTEXIT is present. If it is, then exit cleanly.
                 IF(test_SOFTEXIT()) THEN
@@ -5482,7 +5498,14 @@ MODULE FciMCParMod
         IF(ICILevel.ne.0) THEN
 !We are truncating the excitations at a certain value
             TTruncSpace=.true.
-            WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
+            IF(tExpandSpace) THEN
+                IF(.not.tStartSinglePart) THEN
+                    CALL Stop_All("InitFCIMCCalcPar","Must use Single particle start with EXPANDSPACE")
+                ENDIF
+                WRITE(6,'(A,I4,A)') "Truncating the space initially at an excitation level of ",ICILevel, " which can be expanded with EXPANDSPACE files"
+            ELSE
+                WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
+            ENDIF
             IF(TResumFciMC) CALL Stop_All("InitFciMCPar","Space cannot be truncated with ResumFCIMC")
         ENDIF
 

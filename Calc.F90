@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tExpandSpace=.false.
           tHighExcitsSing=.false.
           iHighExcitsSing=0
           tFindDets=.false.
@@ -285,6 +286,9 @@ MODULE Calc
                     TBLOCK = .true.
                 end select
             case("EXCITE")
+                IF(tExpandSpace) THEN
+                    CALL Stop_All("ReadCalc","Cannot specift EXPANDSPACE and EXCITE to avoid confusion")
+                ENDIF
                 call geti(ICILEVEL)
             case("EXCITATIONS")
                 call readu(w)
@@ -926,6 +930,12 @@ MODULE Calc
 !This option is to be used in conjunction with the diagonalization methods. With this, all the determinants will be enumerated, but the hamiltonian will not be calculated,
 !and the energies not calculated. This is needed when the full list of determinants is needed for later on.
                 tFindDets=.true.
+            case("EXPANDSPACE")
+                IF(ICILevel.ne.0) THEN
+                    CALL Stop_All("ReadCalc","Cannot specify both EXCITE and EXPANDSPACE to avoid confusion")
+                ENDIF
+                tExpandSpace=.true.
+                call geti(ICILevel)
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
