@@ -93,40 +93,40 @@ C.. SHow that there's no momentum conservation
          G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
          ARR=0.d0
 
-!Calculate a key, which will reorder the orbitals in symmetry order.
-!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
-         Counter(:)=0
-         SymMax=1
-         do i=1,norb
-             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
-             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
-         enddo
-!         WRITE(6,*) Counter(:)
-         do i=SymMax,2,-1
-             Counter(i)=1
-             do j=1,i-1
-                 Counter(i)=Counter(i)+Counter(j)
-             enddo
-         enddo
-         Counter(1)=1
-!Check that all orbitals are accounted for.
-         j=0
-         do i=1,norb
-             IF(ORBSYM(i).eq.SymMax) j=j+1
-         enddo
-         IF((Counter(SymMax)+j-1).ne.norb) THEN
-             WRITE(6,*) "***",SymMax,norb,j
-             WRITE(6,*) Counter(1:SymMax)
-             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
-         ENDIF
-!Now work out what the new indices are to be called
-         Index(1:norb)=0
-         do i=1,norb
-             Index(i)=Counter(OrbSym(i))
-             Counter(OrbSym(i))=Counter(OrbSym(i))+1
-         enddo
-!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
-         CALL NECI_SORTI(norb,OrbSym(1:norb))
+!!Calculate a key, which will reorder the orbitals in symmetry order.
+!!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
+!         Counter(:)=0
+!         SymMax=1
+!         do i=1,norb
+!             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
+!             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
+!         enddo
+!!         WRITE(6,*) Counter(:)
+!         do i=SymMax,2,-1
+!             Counter(i)=1
+!             do j=1,i-1
+!                 Counter(i)=Counter(i)+Counter(j)
+!             enddo
+!         enddo
+!         Counter(1)=1
+!!Check that all orbitals are accounted for.
+!         j=0
+!         do i=1,norb
+!             IF(ORBSYM(i).eq.SymMax) j=j+1
+!         enddo
+!         IF((Counter(SymMax)+j-1).ne.norb) THEN
+!             WRITE(6,*) "***",SymMax,norb,j
+!             WRITE(6,*) Counter(1:SymMax)
+!             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
+!         ENDIF
+!!Now work out what the new indices are to be called
+!         Index(1:norb)=0
+!         do i=1,norb
+!             Index(i)=Counter(OrbSym(i))
+!             Counter(OrbSym(i))=Counter(OrbSym(i))+1
+!         enddo
+!!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
+!         CALL NECI_SORTI(norb,OrbSym(1:norb))
 
 
 
@@ -144,10 +144,10 @@ C.. SHow that there's no momentum conservation
             IND=Ishft(IND,-16)
             I=iand(IND,MASK)
 
-            I=Index(I)
-            J=Index(J)
-            K=Index(K)
-            L=Index(L)
+!            I=Index(I)
+!            J=Index(J)
+!            K=Index(K)
+!            L=Index(L)
             
 C.. Each orbital in the file corresponds to alpha and beta spinorbitals
          !Fill ARR with the energy levels
@@ -169,10 +169,10 @@ C.. At the moment we're ignoring the core energy
             IF(I.NE.0) GOTO 2
          ELSE
 1           READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
-            I=Index(I)
-            J=Index(J)
-            K=Index(K)
-            L=Index(L)
+!            I=Index(I)
+!            J=Index(J)
+!            K=Index(K)
+!            L=Index(L)
 C.. Each orbital in the file corresponds to alpha and beta spinorbitals
          !Fill ARR with the energy levels
             IF(I.NE.0.AND.K.EQ.0.AND.I.EQ.J) THEN
@@ -253,45 +253,45 @@ C.. set momentum to 0
          ISPINS=2
          IF(UHF) ISPINS=1
 
-!Calculate a key, which will reorder the orbitals in symmetry order.
-!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
-         Counter(:)=0
-         SymMax=1
-         do i=1,NORB
-             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
-             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
-         enddo
-         do i=SymMax,2,-1
-             Counter(i)=1
-             do j=1,i-1
-                 Counter(i)=Counter(i)+Counter(j)
-             enddo
-         enddo
-         Counter(1)=1
-!Check that all orbitals are accounted for.
-         j=0
-         do i=1,NORB
-             IF(ORBSYM(i).eq.SymMax) j=j+1
-         enddo
-         IF((Counter(SymMax)+j-1).ne.NORB) THEN
-             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
-         ENDIF
-!Now work out what the new indices are to be called
-         Index(1:NORB)=0
-         do i=1,NORB
-             Index(i)=Counter(OrbSym(i))
-             Counter(OrbSym(i))=Counter(OrbSym(i))+1
-         enddo
-!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
-         CALL NECI_SORTI(NORB,OrbSym(1:NORB))
+!!Calculate a key, which will reorder the orbitals in symmetry order.
+!!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
+!         Counter(:)=0
+!         SymMax=1
+!         do i=1,NORB
+!             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
+!             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
+!         enddo
+!         do i=SymMax,2,-1
+!             Counter(i)=1
+!             do j=1,i-1
+!                 Counter(i)=Counter(i)+Counter(j)
+!             enddo
+!         enddo
+!         Counter(1)=1
+!!Check that all orbitals are accounted for.
+!         j=0
+!         do i=1,NORB
+!             IF(ORBSYM(i).eq.SymMax) j=j+1
+!         enddo
+!         IF((Counter(SymMax)+j-1).ne.NORB) THEN
+!             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
+!         ENDIF
+!!Now work out what the new indices are to be called
+!         Index(1:NORB)=0
+!         do i=1,NORB
+!             Index(i)=Counter(OrbSym(i))
+!             Counter(OrbSym(i))=Counter(OrbSym(i))+1
+!         enddo
+!!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
+!         CALL NECI_SORTI(NORB,OrbSym(1:NORB))
 
 
 
 101      READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
-         I=Index(I)
-         J=Index(J)
-         K=Index(K)
-         L=Index(L)
+!         I=Index(I)
+!         J=Index(J)
+!         K=Index(K)
+!         L=Index(L)
 C.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
          IF(I.EQ.0) THEN
 C.. Core energy
@@ -404,37 +404,37 @@ C.. If we've changed the eigenvalues, we write out the basis again
          OPEN(8,FILE='FCIDUMP',STATUS='OLD',FORM='UNFORMATTED')
 
 
-!Calculate a key, which will reorder the orbitals in symmetry order.
-!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
-         Counter(:)=0
-         SymMax=1
-         do i=1,NORB
-             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
-             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
-         enddo
-         do i=SymMax,2,-1
-             Counter(i)=1
-             do j=1,i-1
-                 Counter(i)=Counter(i)+Counter(j)
-             enddo
-         enddo
-         Counter(1)=1
-!Check that all orbitals are accounted for.
-         j=0
-         do i=1,NORB
-             IF(ORBSYM(i).eq.SymMax) j=j+1
-         enddo
-         IF((Counter(SymMax)+j-1).ne.NORB) THEN
-             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
-         ENDIF
-!Now work out what the new indices are to be called
-         Index(1:NORB)=0
-         do i=1,norb
-             Index(i)=Counter(OrbSym(i))
-             Counter(OrbSym(i))=Counter(OrbSym(i))+1
-         enddo
-!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
-         CALL NECI_SORTI(norb,OrbSym(1:norb))
+!!Calculate a key, which will reorder the orbitals in symmetry order.
+!!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
+!         Counter(:)=0
+!         SymMax=1
+!         do i=1,NORB
+!             IF(ORBSYM(i).gt.SymMax) SymMax=ORBSYM(i)
+!             Counter(ORBSYM(i))=Counter(ORBSYM(i))+1
+!         enddo
+!         do i=SymMax,2,-1
+!             Counter(i)=1
+!             do j=1,i-1
+!                 Counter(i)=Counter(i)+Counter(j)
+!             enddo
+!         enddo
+!         Counter(1)=1
+!!Check that all orbitals are accounted for.
+!         j=0
+!         do i=1,NORB
+!             IF(ORBSYM(i).eq.SymMax) j=j+1
+!         enddo
+!         IF((Counter(SymMax)+j-1).ne.NORB) THEN
+!             CALL Stop_All("GETFCIBASIS","Counter incorrectly set up")
+!         ENDIF
+!!Now work out what the new indices are to be called
+!         Index(1:NORB)=0
+!         do i=1,norb
+!             Index(i)=Counter(OrbSym(i))
+!             Counter(OrbSym(i))=Counter(OrbSym(i))+1
+!         enddo
+!!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
+!         CALL NECI_SORTI(norb,OrbSym(1:norb))
 
          MASK=(2**16)-1
          !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
@@ -446,10 +446,10 @@ C.. If we've changed the eigenvalues, we write out the basis again
          J=iand(IND,MASK)
          IND=Ishft(IND,-16)
          I=iand(IND,MASK)
-         I=Index(I)
-         J=Index(J)
-         K=Index(K)
-         L=Index(L)
+!         I=Index(I)
+!         J=Index(J)
+!         K=Index(K)
+!         L=Index(L)
          
 C.. Each orbital in the file corresponds to alpha and beta spinorbitalsa
          IF(I.EQ.0) THEN
