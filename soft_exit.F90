@@ -78,7 +78,7 @@ contains
        implicit none
        logical :: exists
        logical :: AnyExist,deleted_file,any_deleted_file
-       integer :: error,ierr,i,iLevel,SavedProc
+       integer :: error,ierr,i,iLevel
 
        inquire(file='EXPANDSPACE',exist=exists)
        !This collective will check the exists logical on all nodes, and perform a logical or operation,
@@ -96,14 +96,13 @@ contains
                if (i==iProcIndex.and.exists) then
                    open(13,file='EXPANDSPACE')
                    READ(13,*) iLevel
-                   SavedProc=i
                    close(13,status='delete')
                    deleted_file=.true.
                end if
                call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
                if (any_deleted_file) exit
            end do
-           call MPI_BCast(iLevel,1,MPI_INTEGER,SavedProc,MPI_COMM_WORLD,error)
+           call MPI_BCast(iLevel,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
        endif
 
     end function test_ExpandSpace
