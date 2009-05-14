@@ -12,9 +12,10 @@ module MemoryManager
 ! error checking the allocation/deallocation.
 !
 ! 1. Initialise the logger:
-!      call InitMemSize(MemSize) 
-!    where:
-!      MemSize: max amount of memory available in MB.
+!      call InitMemoryManager(MemSize,print_err) 
+!    where the optional arguments are:
+!      MemSize: max amount of memory available in MB. Default 1GB.
+!      print_err: print error messages. Default true.
 !
 ! 2. For each array to be logged, define an integer "tag" with an initial value of 0.
 !      real(8), allocatable :: testarr(:)
@@ -84,6 +85,7 @@ logical, save :: CachingMemLog = .true. ! See above for how MemLog is used.
 logical, save :: MemUnitsBytes = .true. ! If true, then output object size in bytes/KB/MB.
                                         ! If false, then output in words (an ugly unit!).
 
+logical, save :: err_output = .true. ! Print error messages.
 
 integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
 
@@ -123,17 +125,19 @@ integer(li), allocatable, save :: LookupPointer(:)
 
 contains
 
-    subroutine InitMemoryManager(MemSize)
+    subroutine InitMemoryManager(MemSize,print_err)
     ! Initialise memory manager.
 
     ! In:
-    !    MemSize (optional) : max amount of memory available in MB.
+    !    MemSize (optional) : max amount of memory available in MB.  Default: 1GB.
+    !    print_err (optional): print all error messages from memory manager. Default: true.
 
     ! MAXMEM must be set via c pre-processing or set to be an integer.
 
     implicit none
 
     integer(li), intent(in), optional :: MemSize
+    logical, intent(in), optional :: print_err
     integer(li) :: MaxMemBytes
     integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
     character(len=*), parameter :: ThisRoutine = 'InitMemoryManager'
@@ -144,14 +148,21 @@ contains
     else
         MaxMemBytes=MaxMemLimit*1024**2
     end if
+    if (present(print_err)) then
+        err_output=print_err
+    else
+        err_output=.true.
+    end if
 
     if (initialised) then
-        write (6,*) 'Already initialised memory manager.  Not re-initialsing.'
+        if (err_output) write (6,*) 'Already initialised memory manager.  Not re-initialsing.'
     else
         if (MaxMemBytes.le.0) then
-            write (6,*) 'Illegal maximum memory value passed to memorymanager.'
-            write (6,*) 'MaxMemgbytes = ',dfloat(MaxMemBytes)/(1024**2)
-            write (6,*) 'Setting maximum memory available to 1GB.'
+            if (err_output) then
+                write (6,*) 'Illegal maximum memory value passed to memorymanager.'
+                write (6,*) 'MaxMemgbytes = ',dfloat(MaxMemBytes)/(1024**2)
+                write (6,*) 'Setting maximum memory available to 1GB.'
+            end if
             MaxMemBytes=1024**3
         endif
 
@@ -217,7 +228,7 @@ contains
     MemoryLeft=MaxMemory-MemoryUsed
 
     if (MemoryLeft.lt.0.and.nWarn.lt.MaxWarn) then
-        write (6,*) 'WARNING: Memory used exceeds maximum memory set',MemoryLeft
+        if (err_output) write (6,*) 'WARNING: Memory used exceeds maximum memory set',MemoryLeft
         nWarn=nWarn+1
     end if
 
@@ -230,9 +241,11 @@ contains
     if (ipos.gt.MaxLen) then
         if (.not.warned) then
             warned=.true.
-            write (6,*) 'Warning: Array capacity of memory manager exceeded.'
-            write (6,*) 'Required array length is ',ipos
-            write (6,*) 'Max memory used is likely to be incorrect.'
+            if (err_output) then
+                write (6,*) 'Warning: Array capacity of memory manager exceeded.'
+                write (6,*) 'Required array length is ',ipos
+                write (6,*) 'Max memory used is likely to be incorrect.'
+            end if
         end if
         tag=-1
         ! If we're not putting it in the log, test if it's a huge array:
@@ -281,17 +294,17 @@ contains
     character(len=25) :: ObjectName
 
     if (.not.initialised) then
-        write (6,*) 'Memory manager not initialised. Cannot log deallocation.'
+        if (err_output) write (6,*) 'Memory manager not initialised. Cannot log deallocation.'
         return
     end if
 
     ObjectName='Unknown'
 
     if (tag.eq.0) then
-        write (6,*) 'Warning: attempting to log deallocation but never logged allocation.'
+        if (err_output) write (6,*) 'Warning: attempting to log deallocation but never logged allocation.'
         tag=-1
     else if(tag.gt.MaxLen.or.tag.lt.-1) then
-        write (6,*) 'Warning: attempting to log deallocation but tag does not exist: ',tag
+        if (err_output) write (6,*) 'Warning: attempting to log deallocation but tag does not exist: ',tag
         tag=-1
     else 
 
@@ -375,7 +388,7 @@ contains
     character(len=*), parameter :: fmt1='(3a19)'
 
     if (.not.initialised) then
-        write (6,*) 'Memory manager not initialised. Cannot leave memory manager.'
+        if (err_output) write (6,*) 'Memory manager not initialised. Cannot leave memory manager.'
         return
     end if
 
