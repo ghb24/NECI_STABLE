@@ -1746,7 +1746,7 @@ C.. Initialize symmetry to take into account the core electrons
          CALL WRITESYM(IUNIT,SYM%SYM,LTERM)
       END
       SUBROUTINE WRITESYM(IUNIT,SYM,LTERM)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,tCPMD
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: nSym,tAbelian
          IMPLICIT NONE
@@ -1757,9 +1757,13 @@ C.. Initialize symmetry to take into account the core electrons
          INTEGER J
          IF(TAbelian) THEN
             CALL DecomposeAbelianSym(SYM,Abel)
-!            WRITE(IUNIT,"(I10)",advance='no') SYM%s
-            WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
+            if (tCPMD) then
+              WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
+     &                                                  Abel(1:3)
+            else
+              WRITE(IUNIT,'(" (",I2,",",I2,",",I2,")",I2)',advance='no')
      &                                                  Abel(1:3),SYM%s
+            end if
          ELSEIF(NSYM.LE.16) THEN
             WRITE(IUNIT,"(Z5)",advance='no') SYM
          ELSEIF(NSYM.LE.24) THEN
