@@ -1562,7 +1562,7 @@ MODULE FciMCParMod
     SUBROUTINE PerformFCIMCycPar()
         use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
         use DetCalc , only : FCIDetIndex
-        INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign,ParticleWeight,Loop
+        INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
@@ -1588,6 +1588,7 @@ MODULE FciMCParMod
 !Reset number at HF and doubles
         NoatHF=0
         NoatDoubs=0
+        iPartBloom=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
         IF(.not.tStarOrbs) tStarDet=.false.
 
@@ -1808,10 +1809,18 @@ MODULE FciMCParMod
                     ENDIF
 
                     IF(Child.gt.25) THEN
-                        WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
-                        WRITE(6,"(A,I5)") "Excitation: ",IC
-                        WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
-!                            CALL FLUSH(6)
+!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
+                        IF(Child.gt.abs(iPartBloom)) THEN
+                            IF(IC.eq.1) THEN
+                                iPartBloom=-Child
+                            ELSE
+                                iPartBloom=Child
+                            ENDIF
+                        ENDIF
+!                        WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
+!                        WRITE(6,"(A,I5)") "Excitation: ",IC
+!                        WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
+!                        CALL FLUSH(6)
                     ENDIF
 
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
@@ -2016,6 +2025,17 @@ MODULE FciMCParMod
 !Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
         TotWalkersNew=VecSlot-1
 
+!Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
+        IF(iPartBloom.ne.0) THEN
+            WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOMS in iteration ",Iter
+            IF(iPartBloom.gt.0) THEN
+                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
+            ELSE
+                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+            ENDIF
+        ENDIF
+
+
         rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
         IF(rat.gt.0.95) THEN
             WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
@@ -2137,16 +2157,18 @@ MODULE FciMCParMod
             ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
 !Particle number is too small - double every particle in its current position
 
+                IF(.not.tRotoAnnihil) THEN
 !Log the fact that we have made a cull
-                NoCulls=NoCulls+1
-                IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
+                    NoCulls=NoCulls+1
+                    IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
 !CullInfo(:,1) is walkers before cull
-                CullInfo(NoCulls,1)=TotParts
+                    CullInfo(NoCulls,1)=TotParts
 !CullInfo(:,3) is MC Steps into shift cycle before cull
-                CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-                
-                WRITE(6,*) "Doubling particle population on this node to increase total number..."
-                CALL ThermostatParticlesPar(.false.)
+                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+                    
+                    WRITE(6,*) "Doubling particle population on this node to increase total number..."
+                    CALL ThermostatParticlesPar(.false.)
+                ENDIF
 
             ENDIF
         
