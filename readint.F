@@ -1,7 +1,8 @@
       SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
+         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry
          IMPLICIT NONE
          INTEGER NEL,nBasisMax(5,*),LEN,LMS
-         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM
+         INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i
          LOGICAL TBIN,exists,UHF
          CHARACTER*3 :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
@@ -27,6 +28,15 @@
             READ(8,FCI)
          ENDIF
          CLOSE(8)
+         DO i=1,NORB
+             IF(ORBSYM(i).eq.0) THEN
+                 WRITE(6,*) "*** WARNING ***"
+                 WRITE(6,*) "*** Unconverged symmetry of orbitals ***"
+                 WRITE(6,*) "*** Turning symmetry off for rest of run *"
+                 tNoSymGenRandExcits=.true.
+                 lNoSymmetry=.true.
+             ENDIF
+         ENDDO
          IF(NELEC.NE.NEL)  WRITE(6,*) 
      &      '*** WARNING: NEL in FCIDUMP differs from input file ***'
 C         NEL=NELEC
