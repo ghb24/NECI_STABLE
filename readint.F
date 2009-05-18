@@ -35,6 +35,7 @@
                  WRITE(6,*) "*** Turning symmetry off for rest of run *"
                  tNoSymGenRandExcits=.true.
                  lNoSymmetry=.true.
+                 EXIT
              ENDIF
          ENDDO
          IF(NELEC.NE.NEL)  WRITE(6,*) 
