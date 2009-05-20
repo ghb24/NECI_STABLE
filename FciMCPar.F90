@@ -4514,13 +4514,13 @@ MODULE FciMCParMod
             ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
             
             
-!            IF(tSpawnSymDets) THEN
-!                CALL FindExcitBitDetSym(iLutCurr,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
-!                IF(.not.DetBitEQ(iLutCurr,iLut2,NoIntforDet)) THEN
-!                    IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
-!                    ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
-!                ENDIF
-!            ENDIF
+            IF(tSpawnSymDets) THEN
+                CALL FindExcitBitDetSym(iLutCurr,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
+                IF(.not.DetBitEQ(iLutCurr,iLut2,NoIntforDet)) THEN
+                    IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
+                    ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
+                ENDIF
+            ENDIF
 
 !        ELSE
 !            AvSign=AvSign+REAL(WSign,r2)
@@ -7290,6 +7290,7 @@ MODULE FciMCParMod
             CALL EncodeBitDet(nJ,iLut,NEl,NoIntforDet)
             CALL FindExcitBitDetSym(iLut,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
             IF(.not.DetBitEQ(iLut,iLut2,NoIntforDet)) THEN
+!                WRITE(6,*) "Open Shell"
 !                Prob=2.D0*Prob
                 do i=1,NEl-1,2
                     IF(mod(nJ(i),2).eq.0) THEN
@@ -7299,13 +7300,14 @@ MODULE FciMCParMod
 !Electron is beta - does it have an alpha partner? Do not allow if the first open shell electron is a beta electron. Check that this is open.
                         IF(.not.(nJ(i)+1).eq.nJ(i+1)) THEN
                             !Open spatial orbital here.
-                            IF(mod(nJ(i),2).eq.0) THEN
+!                            IF(mod(nJ(i),2).eq.1) THEN
                                 !Open shell electron is a beta electron
                                 AttemptCreatePar=0
+!                                WRITE(6,*) "Get HERE!"
                                 RETURN
-                            ELSE
-                                EXIT
-                            ENDIF
+!                            ELSE
+!                                EXIT
+!                            ENDIF
                         ENDIF
                     ENDIF
                 enddo
