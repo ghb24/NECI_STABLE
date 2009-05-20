@@ -2556,8 +2556,6 @@ MODULE FciMCParMod
             ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
 !Particle number is too small - double every particle in its current position
                 IF(.not.tRotoAnnihil) THEN
-
-                IF(.not.tRotoAnnihil) THEN
 !Log the fact that we have made a cull
                     NoCulls=NoCulls+1
                     IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
