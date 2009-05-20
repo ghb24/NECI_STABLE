@@ -12,7 +12,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace,tSpawnSymDets
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
     use IntegralsData , only : fck,NMax,UMat
@@ -1563,7 +1563,7 @@ MODULE FciMCParMod
         use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
         use DetCalc , only : FCIDetIndex
         INTEGER :: VecSlot,i,j,k,l,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet)
+        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NoIntforDet),iLutnJ2(0:NoIntforDet)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
@@ -1825,7 +1825,7 @@ MODULE FciMCParMod
 
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
                     CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NoIntforDet)
-                    
+
                     IF(tRotoAnnihil) THEN
 !In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
 !The excitation level and diagonal matrix element are also found out after the annihilation.
@@ -1835,6 +1835,20 @@ MODULE FciMCParMod
                         SpawnedParts(:,ValidSpawned)=iLutnJ(:)
                         SpawnedSign(ValidSpawned)=Child
                         ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+
+!                        IF(tSpawnSymDets) THEN
+!!With this option, we also spawn on a determinant which by symmetry is constrained to have the same CI amplitude. For S=0, the sign is also the same.
+!                            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
+!!We also want to spawn the same number of particles on its symmetric determinant too, with the same sign.
+!                            IF(.not.DetBitEQ(iLutnJ,iLutnJ2,NoIntforDet)) THEN
+!                                SpawnedParts(:,ValidSpawned)=iLutnJ2(:)
+!                                SpawnedSign(ValidSpawned)=Child
+!                                ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+!                                Acceptances=Acceptances+ABS(Child)      !Double the number of created children to use in acceptance ratio
+!                                NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+!                                IF(IC.eq.1) SpawnFromSing=SpawnFromSing+abs(Child)
+!                            ENDIF
+!                        ENDIF
 
                     ELSE
 !Calculate diagonal ham element
@@ -4444,7 +4458,7 @@ MODULE FciMCParMod
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr)
         INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NoIntforDet),WSign,Bin
         INTEGER :: PartInd
-        LOGICAL :: CompiPath,tSuccess
+        LOGICAL :: CompiPath,tSuccess,iLut2(0:NoIntforDet),DetBitEQ
         REAL*8 :: HDiagCurr
         TYPE(HElement) :: HOffDiag
 
@@ -4498,6 +4512,15 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
+            
+            
+!            IF(tSpawnSymDets) THEN
+!                CALL FindExcitBitDetSym(iLutCurr,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
+!                IF(.not.DetBitEQ(iLutCurr,iLut2,NoIntforDet)) THEN
+!                    IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
+!                    ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
+!                ENDIF
+!            ENDIF
 
 !        ELSE
 !            AvSign=AvSign+REAL(WSign,r2)
@@ -5052,7 +5075,7 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use SystemData, only : tUseBrillouin,iRanLuxLev
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -5227,6 +5250,18 @@ MODULE FciMCParMod
 !We are doing a momentum space hubbard calculation - set exFlag to 2 since only doubles are connected for momentum conservation.
                 exFlag=2
             ENDIF
+        ENDIF
+
+        IF(tSpawnSymDets) THEN
+!This option will spawn on determinants where the alpha and beta strings are swapped for S=0 RHF systems.
+!These determinants should have the same amplitude in the CI wavefunction - see Helgakker for details.
+            IF(tSpn) THEN
+                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets cannot work with ROHF or UHF systems (currently?)")
+            ENDIF
+            IF(.not.tRotoAnnihil) THEN
+                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets must be used with RotoAnnihilation currently")
+            ENDIF
+            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
         ENDIF
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
@@ -7198,8 +7233,8 @@ MODULE FciMCParMod
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,Prob,IC,Ex,tParity,nParts)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
-        INTEGER :: iLutCurr(0:NoIntforDet),Bin,iLutnJ(0:NoIntforDet),PartInd,ExcitLev
-        LOGICAL :: tParity,SymAllowed,tSuccess
+        INTEGER :: iLutCurr(0:NoIntforDet),Bin,iLutnJ(0:NoIntforDet),PartInd,ExcitLev,iLut(0:NoIntforDet),iLut2(0:NoIntforDet)
+        LOGICAL :: tParity,SymAllowed,tSuccess,DetBitEQ
         REAL*8 :: Prob,r,rat
         TYPE(HElement) :: rh,rhcheck
 
@@ -7249,6 +7284,59 @@ MODULE FciMCParMod
 !        IF(abs(rh%v).le.HEpsilon) THEN
 !            AttemptCreatePar=0
 !            RETURN
+!        ENDIF
+
+        IF(tSpawnSymDets) THEN
+            CALL EncodeBitDet(nJ,iLut,NEl,NoIntforDet)
+            CALL FindExcitBitDetSym(iLut,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
+            IF(.not.DetBitEQ(iLut,iLut2,NoIntforDet)) THEN
+!                Prob=2.D0*Prob
+                do i=1,NEl-1,2
+                    IF(mod(nJ(i),2).eq.0) THEN
+                        !Alpha electron...allow it
+                        EXIT
+                    ELSE
+!Electron is beta - does it have an alpha partner? Do not allow if the first open shell electron is a beta electron. Check that this is open.
+                        IF(.not.(nJ(i)+1).eq.nJ(i+1)) THEN
+                            !Open spatial orbital here.
+                            IF(mod(nJ(i),2).eq.0) THEN
+                                !Open shell electron is a beta electron
+                                AttemptCreatePar=0
+                                RETURN
+                            ELSE
+                                EXIT
+                            ENDIF
+                        ENDIF
+                    ENDIF
+                enddo
+                IF(i.gt.NEl-1) THEN
+                    WRITE(6,*) "***",i
+                    WRITE(6,*) nJ(:)
+                    CALL Stop_All("AttemptCreatePar","Open shell, but cannot determine spin of first open shell electron")
+                ENDIF
+            ENDIF
+        ENDIF
+
+        
+
+!        IF(tSpawnSymDets) THEN
+!            do i=2,NEl-1
+!                IF(mod(nJ(i),2).eq.0) THEN
+!                    !Alpha
+!                    IF(nJ(i-1).ne.(nJ(i)-1)) THEN
+!                        !Open shell
+!                        Prob=2.D0*Prob
+!                        EXIT
+!                    ENDIF
+!                ELSE
+!                    !Beta
+!                    IF(nJ(i+1).ne.(nJ(i)+1)) THEN
+!                        !Open
+!                        Prob=2.D0*Prob
+!                        EXIT
+!                    ENDIF
+!                ENDIF
+!            enddo
 !        ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
@@ -7350,7 +7438,7 @@ MODULE FciMCParMod
             rh=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
             Bin=INT((real(rh%v,r2)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
-                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
+                CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
             ENDIF
             IF(AttemptCreatePar.ne.0) THEN
                 SpawnHist(Bin)=SpawnHist(Bin)+real(abs(AttemptCreatePar),r2)
