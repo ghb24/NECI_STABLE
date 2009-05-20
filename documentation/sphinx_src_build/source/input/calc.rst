@@ -846,6 +846,40 @@ The following options are only available in **FCIMC** calculations:
     new random excitation is wanted. This is MUCH slower for the same number of particles
     (10x?). However, this frees up a lot more memory to store more particles.
 
+**PRINTDOMINANTDETS** [NoDeterminants] [MinExcLevel] [MaxExcLevel]
+    Default=.false.
+
+    This is a parallel FCIMC option.  With this keyword, at the end of a calculation a DOMINANTDETS file
+    is printed containing the NoDeterminants most populated determinants between excitation
+    levels of MinExcLevel and MaxExcLevel (inclusive).  This must be used with rotoannihilation.
+
+**PRINTDOMSPINCOUPLED** [OFF]
+    Default=.true.
+
+    This a parallel FCIMC option to go with the one above.  It takes the list of dominant determinants
+    chosen based on their populations and adds to the list all the spin coupled determinants that 
+    are not already there.  This prevents any spin contamination when we truncate the available 
+    determinants.  This is automatically on, but can be turned off using this keyword followed by OFF.
+
+**SPAWNDOMINANTONLY**
+    Default=.false.
+
+    This is a parallel FCIMC option.  It takes a DOMINANTDETS file (printed using the above keywords)
+    and reads it in at the beginning of the calculation.  During the calculation, if a walker is
+    to be spawned with an excitation level of those printed in DOMINANTDETS, this is only allowed if
+    the determinant is in the list of dominant determinants.  This does not allow truncation of 
+    the doubles, and must be used with rotoannihilation.
+    
+**STARMINORDETERMINANTS**    
+    Default=.false.
+    
+    This is a parallel FCIMC option.  It goes along with the **SPAWNDOMINANTONLY** keyword.  If this
+    is present, spawning to determinants not in the dominant list is done with a star approximation.
+    That is, spawning onto minor determinants is allowed, but these walkers are only allowed
+    to spawn back to the parent from which they came.  The walkers undergo death and annihilation
+    like usual (however, the walkers for annihilation are chosen randomly as they differ depending
+    on their parent).
+
 The following option are only available in **MCSTAR** calculations:
 
 **BINCANCEL** 
@@ -892,7 +926,6 @@ The following option are only available in **MCSTAR** calculations:
     allow the full space and not continue checking for the files from then
     on. Hopefully expanding the space in this way will allow quicker
     convergence.
-
 
 Return Path Monte Carlo options
 -------------------------------

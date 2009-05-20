@@ -204,9 +204,11 @@ MODULE Calc
           iInitGuideParts=1000000
           tPrintDominant=.false.
           iNoDominantDets=100
+          tNoDomSpinCoup=.false.
           MinExcDom=3
           MaxExcDom=3
           tSpawnDominant=.false.
+          tMinorDetsStar=.false.
 
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -612,13 +614,11 @@ MODULE Calc
                 tUseGuide=.true.
                 call geti(iInitGuideParts)
 
-
             case("SPAWNDOMINANTONLY")
 ! This option sets the calculation to read in from a file DOMINANTDETS.  The determinants from this file make up a list of 
 ! determinants on which spawning is allowed for the excitation levels included.
 ! Spawning onto determinants that have the listed excitation level, but are not read in from this file is forbidden.
                 tSpawnDominant=.true.
-
 
             case("PRINTDOMINANTDETS")
 ! This option finds the iNoDominantDets most populated determinants with excitation level between MinExcDom and MaxExcDom and
@@ -627,6 +627,26 @@ MODULE Calc
                 call geti(iNoDominantDets)
                 call geti(MinExcDom)
                 call geti(MaxExcDom)
+
+            case("PRINTDOMSPINCOUPLED")
+! This option finds the iNoDominantDets most populated determinants with excitation level between MinExcDom and MaxExcDom and
+! prints them to a file named DOMINANTDETS.  This can be later read in as the allowed determinants for spawing in a restricted calc.
+                if(item.lt.nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF")
+                        tNoDomSpinCoup=.true.
+                    end select
+                else
+                    tNoDomSpinCoup=.false.
+                end if
+
+            case("STARMINORDETERMINANTS")
+                tMinorDetsStar=.true.
+! This option goes along with the SPAWNDOMINANTONLY option.  However, if this keyword is present, spawning onto determinants that are not in the 
+! dominant determinants list is allowed, however once spawned into this "insignificant" region, walkers may only spawn back onto the determinant 
+! from which they came.  In the mean time, walkers on "insignificant" determinants may live/die and annihilate like any others.
+! This is a second order perturbation to the SPAWNDOMINANTONLY approximation.
 
             case("TROTTER")
                 TTROT = .true.

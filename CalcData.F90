@@ -18,8 +18,8 @@ LOGICAL :: TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff
 LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion,tPrintDominant
 LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift,tFindGuide,tUseGuide
 LOGICAL :: THFRetBias,TExcludeRandGuide,TProjEMP2,TFixParticleSign,tSpawnDominant
-LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs,tFindDets,tSpawnSymDets
-LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell,tNoReturnStarDets
+LOGICAL :: TStartSinglePart,TRegenExcitgens,TFixShiftDoubs,tFindDets,tSpawnSymDets,tMinorDetsStar
+LOGICAL :: TUnbiasPGeninProjE,TAnnihilonproc,TFixShiftShell,tNoReturnStarDets,tNoDomSpinCoup
 LOGICAL :: TFixShiftKii,tMagnetize,tSymmetricField,tFixCASShift,tAllSpawnStarDets
 LOGICAL :: TDistAnnihil,TLocalAnnihilation,tGlobalSftCng,tAnnihilatebyrange,tExpandSpace
 LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet,tStarOrbs,tHighExcitsSing

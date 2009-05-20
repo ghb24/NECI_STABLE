@@ -20,6 +20,58 @@
 
     END FUNCTION DetBitEQ
 
+!if(Det2BitLT(MinorStarDets(0:NIfD,nup),DetCurr(0:NIfD),NIfD,MinorStarParent(0:NIfD,nup),DetCurr2(0:NIfD),NIfD).eq.1) then 
+
+!This will return 1 if iLutI is "less" than iLutJ, or -1 if iLutI is "more" than iLutJ.  If these are identical, this routine looks at 
+!iLut2I and iLut2J, and returns 1 if iLut2I is "less" than iLut2J, -1 if iLut2I is "more than iLut2J, and 0 if these are still identical.
+    INTEGER FUNCTION Det2BitLT(iLutI,iLutJ,NIfD,iLut2I,iLut2J,NIfD2)
+        IMPLICIT NONE
+        INTEGER :: iLutI(0:NIfD),iLutJ(0:NIfD),NIfD,i
+        INTEGER :: iLut2I(0:NIfD2),iLut2J(0:NIfD2),NIfD2
+
+        IF(iLutI(0).lt.iLutJ(0)) THEN
+!First, compare first integers
+            Det2BitLT=1
+            RETURN
+        ELSEIF(iLutI(0).gt.iLutJ(0)) THEN
+            Det2BitLT=-1
+            RETURN
+        ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
+!If the integers are the same, then cycle through the rest of the integers until we find a difference.
+            do i=1,NIfD
+                IF(iLutI(i).lt.iLutJ(i)) THEN
+                    Det2BitLT=1
+                    RETURN
+                ELSEIF(iLutI(i).gt.iLutJ(i)) THEN
+                    Det2BitLT=-1
+                    RETURN
+                ENDIF
+            enddo
+!If we get through this loop without RETURN-ing, iLutI and iLutJ are identical, so look to iLut2I and iLut2J            
+            IF(iLut2I(0).lt.iLut2J(0)) THEN
+                Det2BitLT=1
+                RETURN
+            ELSEIF(iLut2I(0).gt.iLut2J(0)) THEN
+                Det2BitLT=-1
+                RETURN
+            ELSEIF(iLut2I(0).eq.iLut2J(0)) THEN
+                do i=1,NIfD2
+                    IF(iLut2I(i).lt.iLut2J(i)) THEN
+                        Det2BitLT=1
+                        RETURN
+                    ELSEIF(iLut2I(i).gt.iLut2J(i)) THEN
+                        Det2BitLT=-1
+                        RETURN
+                    ENDIF
+                enddo
+            ENDIF
+!If we still have not returned, both determinants are identical.               
+        ENDIF
+        Det2BitLT=0
+
+    END FUNCTION Det2BitLT
+
+
 !This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants are identical, or -1 if iLutI is "more" than iLutJ
     INTEGER FUNCTION DetBitLT(iLutI,iLutJ,NIfD)
         IMPLICIT NONE
@@ -47,6 +99,7 @@
         DetBitLT=0
 
     END FUNCTION DetBitLT
+
 
 !This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants are identical, or -1 if iLutI is "more" than iLutJ
 !This particular version checks excitation level initially, then only if these are the same does it move on to determinants.
@@ -380,6 +433,73 @@
       GO TO 10
 
       END SUBROUTINE SortBitDets
+     
+! Based on SortBitDets, this routine sorts determinants firstly by array RA as bit strings, then by the bit strings in array RA2.
+! When ordered, the determinants take the corresponding elements from array RB with them (sign).
+! RA is the array of determinants of length N to sort first.
+! The RA array elements go from 0:NIfD
+! RA2 is the array of determinants of length N2 to sort second.
+! the RA2 array elements go from 0:NIfD2
+! RB is the array of integers to go with the determinant
+
+!        CALL Sort2BitDetsPlus3(MinorValidSpawned,MinorSpawnDets(0:NoIntforDet,1:MinorValidSpawned),NoIntforDet,MinorSpawnParent(0:NoIntforDet,1:MinorValidSpawned),&
+!                &NoIntforDet,MinorSpawnSign(MinorValidSpawned))
+
+      SUBROUTINE Sort2BitDetsPlus3(N,RA,NIfD,RA2,NIfD2,RB)
+      INTEGER N,NIfD,NIfD2,I,L,IR,J
+      INTEGER RA(0:NIfD,N),RA2(0:NIfD2,N)
+      INTEGER RB(N),RC(N),RD(N)
+      INTEGER RRA(0:NIfD),RRA2(0:NIfD2),RRB
+      INTEGER Det2BitLT
+ 
+      IF(N.LE.1) RETURN
+      L=N/2+1
+      IR=N
+10    CONTINUE
+        IF(L.GT.1)THEN
+          L=L-1
+          RRA(0:NIfD)=RA(0:NIfD,L)
+          RRA2(0:NIfD2)=RA2(0:NIfD2,L)
+          RRB=RB(L)
+        ELSE
+          RRA(0:NIfD)=RA(0:NIfD,IR)
+          RA(0:NIfD,IR)=RA(0:NIfD,1)
+          RRA2(0:NIfD2)=RA2(0:NIfD2,IR)
+          RA2(0:NIfD2,IR)=RA2(0:NIfD2,1)
+          RRB=RB(IR)
+          RB(IR)=RB(1)
+          IR=IR-1
+          IF(IR.EQ.1)THEN
+            RA(0:NIfD,1)=RRA(0:NIfD)
+            RA2(0:NIfD2,1)=RRA2(0:NIfD2)
+            RB(1)=RRB
+            RETURN
+          ENDIF
+        ENDIF
+        I=L
+        J=L+L
+20      IF(J.LE.IR)THEN
+          IF(J.LT.IR)THEN
+            IF(Det2BitLT(RA(0:NIfD,J),RA(0:NIfD,J+1),NIfD,RA2(0:NIfD2,J),RA2(0:NIfD2,J+1),NIfD2).eq.1) J=J+1
+          ENDIF
+          IF((Det2BitLT(RRA(0:NIfD),RA(0:NIfD,J),NIfD,RRA2(0:NIfD2),RA2(0:NIfD2,J),NIfD2)).eq.1) THEN
+            RA(0:NIfD,I)=RA(0:NIfD,J)
+            RA2(0:NIfD2,I)=RA2(0:NIfD2,J)
+            RB(I)=RB(J)
+            I=J
+            J=J+J
+          ELSE
+            J=IR+1
+          ENDIF
+        GO TO 20
+        ENDIF
+        RA(0:NIfD,I)=RRA(0:NIfD)
+        RA2(0:NIfD2,I)=RRA2(0:NIfD2)
+        RB(I)=RRB
+
+      GO TO 10
+
+      END SUBROUTINE Sort2BitDetsPlus3
     
  
 ! Based on SortBitDets, this sorts determinants as bit strings by excitation level and then determinant and takes the corresponding
