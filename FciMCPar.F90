@@ -1297,10 +1297,12 @@ MODULE FciMCParMod
         CALL LogMemAlloc('ExcSign',NoExcDets,4,this_routine,ExcSignTag,ierr)
  
         IF(iProcIndex.eq.Root) THEN
-            ALLOCATE(AllExcDets(0:NoIntforDet,1:(5*AllNoExcDets)),stat=ierr)
-            CALL LogMemAlloc('AllExcDets',(NoIntforDet+1)*5*AllNoExcDets,4,this_routine,AllExcDetsTag,ierr)
-            ALLOCATE(AllExcSign(1:(5*AllNoExcDets)),stat=ierr)
-            CALL LogMemAlloc('AllExcSign',5*AllNoExcDets,4,this_routine,AllExcSignTag,ierr)
+            ALLOCATE(AllExcDets(0:NoIntforDet,1:(10*AllNoExcDets)),stat=ierr)
+            CALL LogMemAlloc('AllExcDets',(NoIntforDet+1)*10*AllNoExcDets,4,this_routine,AllExcDetsTag,ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'ERROR allocating memory to AllExcDets.')
+            ALLOCATE(AllExcSign(1:(10*AllNoExcDets)),stat=ierr)
+            CALL LogMemAlloc('AllExcSign',10*AllNoExcDets,4,this_routine,AllExcSignTag,ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'ERROR allocating memory to AllExcSign.')
         ENDIF
 
 
@@ -1315,7 +1317,6 @@ MODULE FciMCParMod
                 ExcSign(ExcDetsIndex)=CurrentSign(i)
             ENDIF
         enddo
-        IF(ExcDetsIndex.ne.NoExcDets) CALL Stop_All(this_routine,'Error in selecting determinants with the correct excited states.')
 
 
 ! Now need to collect this array on the root processor and find the most populated determinants.
@@ -1347,12 +1348,18 @@ MODULE FciMCParMod
         CALL MPI_Gatherv(ExcDets(0:NoIntforDet,1:NoExcDets),((NoIntforDet+1)*NoExcDets),MPI_INTEGER,&
         &AllExcDets(0:NoIntforDet,1:AllNoExcDets),RecvCounts02,Offsets02,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
         CALL FLUSH(6)
-
-
-
+       
 ! Now that we have arrays on the root processor with the determinants and sign of correct excitation level, need to order these 
 ! in descending absolute value, taking the corresponding sign with it.
         IF(iProcIndex.eq.Root) THEN
+ 
+            IF(iNoDominantDets.gt.AllNoExcDets) THEN
+                WRITE(6,*) 'iNoDominantDets: ',iNoDominantDets
+                WRITE(6,*) 'AllNoExcDets: ',AllNoExcDets
+                CALL Stop_All(this_routine,'Not enough determinants are occupied to pick out the number of dominant requested.')
+            ENDIF
+
+
             CALL SortBitSign(AllNoExcDets,AllExcSign(1:AllNoExcDets),NoIntforDet,AllExcDets(0:NoIntforDet,1:AllNoExcDets))
 
 ! Then run through AllExcSign, finding out how many walkers are on the iNoDominantDets most populated, and counting how
@@ -1383,6 +1390,13 @@ MODULE FciMCParMod
             MinRelDomPop=REAL(MinDomDetPop)/REAL(HFPop)
             WRITE(6,*) 'These determinants have amplitude ; ',MinRelDomPop,' relative to the most populated determinant.' 
 
+! In order to do binary searches for the spin determinants, need to sort the determinants back into order.
+! Do this in two separate lots, 1:iNoDominantDets and iNoDominantDets+1:AllNoExcDets
+
+            CALL SortBitDets(iNoDominantDets,AllExcDets(0:NoIntforDet,1:iNoDominantDets),NoIntforDet,AllExcSign(1:iNoDominantDets))
+            CALL SortBitDets((AllNoExcDets-iNoDominantDets),AllExcDets(0:NoIntforDet,(iNoDominantDets+1):AllNoExcDets),NoIntforDet,&
+                            &AllExcSign((iNoDominantDets+1):AllNoExcDets))
+
 ! Put a bit in here to run through the determinants, construct all the different spin eigenstates from each and make sure 
 ! they are all included.  - need to add them to the list maintaining order.
 ! At the moment, these are ordered in terms of population, and only the first iNoDominantDets are going to be taken.
@@ -1393,7 +1407,7 @@ MODULE FciMCParMod
                 ! The number of DominantDets before including spin coupled ones.
                 do j=1,CurriNoDominantDets
                     ! Decode the current determinant
-                    CALL DecodeBitDet(DetCurr,AllExcDets(:,j),NEl,NoIntforDet)
+                    CALL DecodeBitDet(DetCurr,AllExcDets(0:NoIntforDet,j),NEl,NoIntforDet)
 !                    WRITE(6,*) 'DetCurrBit',AllExcDets(:,j)
 !                    WRITE(6,*) 'DetCurr',DetCurr(:)
 
@@ -1475,32 +1489,79 @@ MODULE FciMCParMod
 !                        WRITE(6,*) 'SpinCoupDetBit',SpinCoupDetBit(:)
 
                         ! Search through dom dets 
-                        tSuccess=.false.
-                        CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,1:AllNoExcDets),SpinCoupDetBit(0:NoIntforDet),1,AllNoExcDets,PartInd,tSuccess)
-                        IF(tSuccess.and.(PartInd.le.iNoDominantDets)) THEN
-                            iRead=iRead+1
+!                        tSuccess=.false.
+!                        CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,1:AllNoExcDets),SpinCoupDetBit(0:NoIntforDet),1,AllNoExcDets,PartInd,tSuccess)
+!                        IF(tSuccess.and.(PartInd.le.iNoDominantDets)) THEN
+!                            iRead=iRead+1
 !                            WRITE(6,*) '*******SUCCESS!*********'
                             ! move onto next spin coupled because the spincoupled det is already in the dominant dets list.
-                        ELSEIF(tSuccess) THEN
+!                        ELSEIF(tSuccess) THEN
                             ! put the spin coupled determinant on the end of the list, and increase the number of dom dets.
-                            AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(:)
-                            AllExcSign(iNoDominantDets+1)=AllExcSign(PartInd)
-                            iNoDominantDets=iNoDominantDets+1
+!                            AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
+!                            AllExcSign(iNoDominantDets+1)=AllExcSign(PartInd)
+!                            iNoDominantDets=iNoDominantDets+1
 !                            IF(iNoDominantDets.gt.AllNoExcDets) THEN
 !                                WRITE(6,*) 'no of dominant dets has exceeded AllNoExcDets.'
 !                                CALL FLUSH(6)
 !                                CALL Stop_All(this_routine,'No of dominant determinants has exceeded the AllNoExcDets.')
 !                            ENDIF
-                            iRead=iRead+1
-                        ELSE
-                            AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(:)
-                            AllExcSign(iNoDominantDets+1)=0
-                            iNoDominantDets=iNoDominantDets+1
-                            iRead=iRead+1
-                        ENDIF
+!                            iRead=iRead+1
+!                        ELSEIF(.not.tSuccess) THEN
+!                            AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
+!                            AllExcSign(iNoDominantDets+1)=0
+!                            iNoDominantDets=iNoDominantDets+1
+!                            iRead=iRead+1
+!                        ENDIF
 !                            CALL FLUSH(6)
 !                            CALL Stop_All(this_routine,'Error. Spin coupled determinant not found in list of all determinants.')
 !                        ENDIF
+
+                    !    WRITE(6,*) 'up to here 01'
+                    !    CALL FLUSH(6)
+                        tSuccess=.false.
+                        CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,1:CurriNoDominantDets),SpinCoupDetBit(0:NoIntforDet),1,CurriNoDominantDets,PartInd,tSuccess)
+                    !    WRITE(6,*) 'up to here 02'
+                    !    CALL FLUSH(6)
+                        IF(tSuccess) THEN
+                            ! Determinant found in the dominant list.
+                            iRead=iRead+1
+                        ELSE
+                            ! Need to search the determinants that have been added.  Think its quicker to sort these then bin search rather than straight search.
+                            CALL SortBitDets((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NoIntforDet,(CurriNoDominantDets+1):iNoDominantDets),&
+                                                    &NoIntforDet,AllExcSign((CurriNoDominantDets+1):iNoDominantDets))
+                            CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,(CurriNoDominantDets+1):iNoDominantDets),SpinCoupDetBit(0:NoIntforDet),(CurriNoDominantDets+1),&
+                                                    &iNoDominantDets,PartInd,tSuccess)
+                            IF(tSuccess) THEN
+                                iRead=iRead+1
+                                ! If the determinant has already been added, don't need to do anything.
+                            ELSE
+                                ! Check if the determinant is in the rest of the list (to get the sign)
+                                IF((AllNoExcDets-iNoDominantDets).gt.0) THEN
+                                    CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,(iNoDominantDets+1):AllNoExcDets),SpinCoupDetBit(0:NoIntforDet),(iNoDominantDets+1),&
+                                                    &AllNoExcDets,PartInd,tSuccess)
+                                ENDIF
+                                IF(tSuccess) THEN
+                                    ! Determinant found in the rest of the list, put it on the end of the dom dets along with its sign.
+                                    iRead=iRead+1
+                                    AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
+                                    AllExcSign(iNoDominantDets+1)=AllExcSign(PartInd)
+                                    iNoDominantDets=iNoDominantDets+1
+                                ELSE
+                                    ! Determinant not in the list at all, add to the end of the dom dets list with a sign of 0.
+                                    iRead=iRead+1
+                                    AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
+                                    AllExcSign(iNoDominantDets+1)=0
+                                    iNoDominantDets=iNoDominantDets+1
+                                ENDIF
+                            ENDIF
+                        ENDIF
+                        IF(iNoDominantDets.gt.(10*AllNoExcDets)) THEN
+                            do i=1,iNoDominantDets
+                                WRITE(6,*) AllExcDets(:,i),AllExcSign(i)
+                            enddo
+                            CALL FLUSH(6)
+                            CALL Stop_All(this_routine,'No spin coupled dets has reached larger than AllExcDets array can handle.')
+                        ENDIF
                     enddo
                     CLOSE(91)
                     ! do that little bit for all spin coupled determinants and then for all determinants currently in the list.       
@@ -11674,6 +11735,21 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: DetsinGraph(:,:)   !This stores the determinants in the graph created for ResumFCIMC
     INTEGER :: DetsinGraphTag=0
     INTEGER , ALLOCATABLE :: iLutHF(:)          !This is the bit representation of the HF determinant.
+
+    INTEGER :: GuideFuncDetsTag,GuideFuncSignTag,DetstoRotateTag,SigntoRotateTag,DetstoRotate2Tag,SigntoRotate2Tag,AlliInitGuideParts,InitGuideFuncSignTag
+    INTEGER :: GuideFuncHFIndex,GuideFuncHF
+    REAL*8 :: GuideFuncDoub
+    INTEGER , ALLOCATABLE :: GuideFuncDets(:,:),GuideFuncSign(:),DetstoRotate(:,:),SigntoRotate(:),DetstoRotate2(:,:),SigntoRotate2(:),InitGuideFuncSign(:)
+
+    INTEGER , ALLOCATABLE :: DomExcIndex(:),DomDets(:,:)
+    INTEGER :: DomExcIndexTag,DomDetsTag,iMinDomLev,iMaxDomLev,iNoDomDets
+    INTEGER , ALLOCATABLE :: MinorStarDets(:,:),MinorSpawnDets(:,:),MinorStarParent(:,:),MinorSpawnParent(:,:),MinorStarSign(:),MinorSpawnSign(:)
+    INTEGER , ALLOCATABLE :: MinorSpawnDets2(:,:),MinorSpawnSign2(:),MinorSpawnParent2(:,:)
+    INTEGER :: MinorStarDetsTag,MinorSpawnDetsTag,MinorStarParentTag,MinorSpawnParentTag,MinorStarSignTag,MinorSpawnSignTag,MinorStarHiiTag,MinorStarHijTag,NoMinorWalkers
+    INTEGER :: MinorSpawnDets2Tag,MinorSpawnSign2Tag,MinorSpawnParent2Tag,MinorAnnihilated,AllMinorAnnihilated
+    TYPE(HElement), ALLOCATABLE :: MinorStarHii(:),MinorStarHij(:)
+    REAL*8 :: AllNoMinorWalkers
+
 
     contains
 
