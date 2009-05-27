@@ -1208,7 +1208,7 @@ MODULE FciMCParMod
             READ(41,*) iNoExcLevels 
             READ(41,*) iMinDomLev,SumExcLevPop
             iMaxDomLev=iMinDomLev+iNoExcLevels-1
-            IF(iMinDomLev.le.2) CALL Stop_All('InitSpawnDominant','Code is not set up to deal with removing doubles or lower.')
+!            IF(iMinDomLev.le.2) CALL Stop_All('InitSpawnDominant','Code is not set up to deal with removing doubles or lower.')
         ENDIF
         
         CALL MPI_Bcast(iMinDomLev,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
@@ -1260,6 +1260,8 @@ MODULE FciMCParMod
                 CALL Stop_All(this_routine,'STARMINORDETERMINANTS can only be used with rotoannihilation.') 
             ELSEIF(tFixShiftShell) THEN
                 CALL Stop_All(this_routine,'STARMINORDETERMINANTS cannot be used with the fixed shift shell approximation.') 
+            ELSEIF(iMinDomLev.le.2) THEN
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS is not set up to deal with removing doubles or lower.')
             ELSE
                 CALL InitMinorDetsStar()
             ENDIF
