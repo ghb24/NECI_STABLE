@@ -512,11 +512,11 @@ MODULE FciMCParMod
 !This routine reads in the guiding function from the GUIDINGFUNC file printed in a previous calculation.
 !It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
 !The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
-        INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel,DoubDet(NEl)
+        INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel,DoubDet(NEl),HFPop,PartInd
         CHARACTER(len=*), PARAMETER :: this_routine='InitGuidingFunction'
         TYPE(HElement) :: HDoubTemp
         REAL*8 :: Hdoub
-        LOGICAL :: DetsEq,DetBitEQ
+        LOGICAL :: DetsEq,DetBitEQ,tSuccess
 
 
         iGuideDets=0
@@ -531,8 +531,8 @@ MODULE FciMCParMod
 
         ALLOCATE(GuideFuncDets(0:NoIntforDet,1:iGuideDets),stat=ierr)
         CALL LogMemAlloc('GuideFuncDets',(NoIntforDet+1)*iGuideDets,4,this_routine,GuideFuncDetsTag,ierr)
-        ALLOCATE(GuideFuncSign(1:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('GuideFuncSign',iGuideDets,4,this_routine,GuideFuncSignTag,ierr)
+        ALLOCATE(GuideFuncSign(0:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('GuideFuncSign',iGuideDets+1,4,this_routine,GuideFuncSignTag,ierr)
 
         ALLOCATE(DetstoRotate(0:NoIntforDet,1:iGuideDets),stat=ierr)
         CALL LogMemAlloc('DetstoRotate',(NoIntforDet+1)*iGuideDets,4,this_routine,DetstoRotateTag,ierr)
@@ -554,21 +554,41 @@ MODULE FciMCParMod
             CLOSE(36)
 
             !Calculate the total number of particles in the GUIDINGFUNC file.
-            CurrentGuideParts=0
-            do j=1,iGuideDets
-                CurrentGuideParts=CurrentGuideParts+ABS(GuideFuncSign(j))
-            enddo
+            !CurrentGuideParts=0
+            !do j=1,iGuideDets
+                !CurrentGuideParts=CurrentGuideParts+ABS(GuideFuncSign(j))
+            !enddo
 
             !Scale up the populations (sign), by the ratio of the original total to the iInitGuideParts value from the NECI input,
             !and calculate the new sum (should be approximately iInitGuideParts, but maybe not exactly because need to take nearest integer.
+            !NewGuideParts=0
+            !do j=1,iGuideDets
+                !GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(CurrentGuideParts)))
+                !NewGuideParts=NewGuideParts+ABS(GuideFuncSign(j))
+            !enddo
+            !iInitGuideParts=NewGuideParts
+            !The total number of particles in the guiding function is now iInitGuideParts
+            !WRITE(6,*) 'iInitGuideParts, ',iInitGuideParts
+
+            !Find the HF determinant and the population in the guiding function.  Take the number from the input and find the factor by which
+            !the current pop needs to be scaled by to reach the input value.  Scale all the other populations by the same value.
+            !First binary search the Guiding function determinants for the HFDet.
+
+            CALL BinSearchGuideParts(iLutHF,1,iGuideDets,PartInd,tSuccess)
+            IF(tSuccess) THEN
+                GuideFuncSign(0)=PartInd
+                HFPop=ABS(GuideFuncSign(PartInd))
+            ELSE
+                CALL Stop_All(this_routine, 'HF determinant not found in the guiding function.')
+            ENDIF
             NewGuideParts=0
             do j=1,iGuideDets
-                GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(CurrentGuideParts)))
+                GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(HFPop)))
                 NewGuideParts=NewGuideParts+ABS(GuideFuncSign(j))
             enddo
             iInitGuideParts=NewGuideParts
-            !The total number of particles in the guiding function is now iInitGuideParts
-            !WRITE(6,*) 'iInitGuideParts, ',iInitGuideParts
+            
+
             
             !Maybe put in a test here that checks the determinants are in the right order.  But they should be cos we're printing them out right.
 
@@ -594,17 +614,19 @@ MODULE FciMCParMod
         !Broadcast the guiding function determinants (and signs) to all processors.
         !The total number of walkers in the guiding function is therefore nProcessors*iInitGuideParts.
         CALL MPI_Bcast(GuideFuncDets(0:NoIntforDet,1:iGuideDets),iGuideDets*(NoIntforDet+1),MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Bcast(GuideFuncSign(1:iGuideDets),iGuideDets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(GuideFuncSign(0:iGuideDets),iGuideDets+1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
 
         !Run through the guiding function determinants and find the index that contains the HF.
         !Want this known on all processors, so that we can just look up the sign at this position to get the guiding function HF population.
-        do i=1,iGuideDets
-            DetsEq=DetBitEQ(iLutHF,GuideFuncDets(0:NoIntforDet,i),NoIntforDet)
-            IF(DetsEq) THEN
-                GuideFuncHFIndex=i
-                EXIT
-            ENDIF
-        enddo
+!        do i=1,iGuideDets
+!            DetsEq=DetBitEQ(iLutHF,GuideFuncDets(0:NoIntforDet,i),NoIntforDet)
+!            IF(DetsEq) THEN
+!                GuideFuncHFIndex=i
+!                EXIT
+!            ENDIF
+!        enddo
+!        IF(GuideFuncHFIndex.ne.GuideFuncSign(0)) CALL Stop_All(this_routine,'Wrong HF Index')
+        GuideFuncHFIndex=GuideFuncSign(0)
 
         IF(iProcIndex.eq.Root) THEN
             GuideFuncDoub=0.D0
@@ -1151,7 +1173,7 @@ MODULE FciMCParMod
             CALL LogMemAlloc('AllGuideFuncSign',iGuideDets,4,'WriteFinalGuidingFunc',AllGuideFuncSignTag,ierr)
         ENDIF 
 
-        CALL MPI_Reduce(GuideFuncSign,AllGuideFuncSign,iGuideDets,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(GuideFuncSign(1:iGuideDets),AllGuideFuncSign,iGuideDets,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
  
         IF(iProcIndex.eq.Root) THEN
             OPEN(38,file='GUIDINGFUNCfinal',status='unknown')
@@ -1256,9 +1278,9 @@ MODULE FciMCParMod
         INTEGER :: i,j,k,ierr,error,TestSum,ExcitLevel,NoExcDets,AllNoExcDets,ExcDetsTag,ExcSignTag,AllExcDetsTag,AllExcSignTag
         INTEGER :: ExcDetsIndex,MinDomDetPop,AllExcLevelTag,ExcLevelTag,CurrExcitLevel,NoExcitLevel,OrigiDominantDets,HFPop,CurriNoDominantDets
         CHARACTER(len=*), PARAMETER :: this_routine='PrintDominantDets'
-        REAL*8 :: MinRelDomPop,SpinTot
+        REAL*8 :: MinRelDomPop,SpinTot,NormDef
         INTEGER , ALLOCATABLE :: ExcDets(:,:),ExcSign(:),AllExcDets(:,:),AllExcSign(:)
-        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors),DetCurr(NEl)
+        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors),DetCurr(NEl),NormDefTrunc,NormDefTot
         INTEGER :: SpinCoupDetBit(0:NoIntforDet),SpinCoupDet(NEl),OpenShell(2,NEl),UpSpin(NEl),NoOpenShell,NoUpSpin,iRead,PartInd,ID1,ID2,iComb
         LOGICAL :: tDoubOcc,tSuccess
 
@@ -1306,7 +1328,7 @@ MODULE FciMCParMod
         ENDIF
 
 
-! Now run through the occupied determinant.  If the determinant has the correct excitation level, add it to the ExcDets array, and
+! Now run through the occupied determinants.  If the determinant has the correct excitation level, add it to the ExcDets array, and
 ! add its sign to the ExcSign array.
         ExcDetsIndex=0
         do i=1,TotWalkers
@@ -1397,6 +1419,15 @@ MODULE FciMCParMod
             CALL SortBitDets((AllNoExcDets-iNoDominantDets),AllExcDets(0:NoIntforDet,(iNoDominantDets+1):AllNoExcDets),NoIntforDet,&
                             &AllExcSign((iNoDominantDets+1):AllNoExcDets))
 
+! Run through all the determinants, finding sum_k=1->AllNoExcDets c_k^2 = NormDefTot.  Want to do this before doing the spin
+! coupled stuff when some determinants have overwritten others.
+            NormDefTot=0
+            do i=1,AllNoExcDets
+                NormDefTot=NormDefTot+(AllExcSign(i)**2)
+            enddo
+
+
+
 ! Put a bit in here to run through the determinants, construct all the different spin eigenstates from each and make sure 
 ! they are all included.  - need to add them to the list maintaining order.
 ! At the moment, these are ordered in terms of population, and only the first iNoDominantDets are going to be taken.
@@ -1406,6 +1437,7 @@ MODULE FciMCParMod
                 CurriNoDominantDets=iNoDominantDets
                 ! The number of DominantDets before including spin coupled ones.
                 do j=1,CurriNoDominantDets
+                    ! Add the sign from this determinant to the Norm Deficiency calc - this will be in trunc.
                     ! Decode the current determinant
                     CALL DecodeBitDet(DetCurr,AllExcDets(0:NoIntforDet,j),NEl,NoIntforDet)
 !                    WRITE(6,*) 'DetCurrBit',AllExcDets(:,j)
@@ -1516,12 +1548,8 @@ MODULE FciMCParMod
 !                            CALL Stop_All(this_routine,'Error. Spin coupled determinant not found in list of all determinants.')
 !                        ENDIF
 
-                    !    WRITE(6,*) 'up to here 01'
-                    !    CALL FLUSH(6)
                         tSuccess=.false.
                         CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,1:CurriNoDominantDets),SpinCoupDetBit(0:NoIntforDet),1,CurriNoDominantDets,PartInd,tSuccess)
-                    !    WRITE(6,*) 'up to here 02'
-                    !    CALL FLUSH(6)
                         IF(tSuccess) THEN
                             ! Determinant found in the dominant list.
                             iRead=iRead+1
@@ -1570,8 +1598,17 @@ MODULE FciMCParMod
                 enddo
             ENDIF
             WRITE(6,*) 'By including spin coupling ',iNoDominantDets-CurriNoDominantDets,' more determinants are included.'
+
+! Run through all the determinants we are including in the truncated list (i.e. all those to go in the dominant dets list).            
+! Count up the squares of the populations to calculate the normalisation deficiency.
+            NormDefTrunc=0
+            do i=1,iNoDominantDets
+                NormDefTrunc=NormDefTrunc+(AllExcSign(i)**2)
+            enddo
+            NormDef=1.D0-(REAL(NormDefTrunc)/REAL(NormDefTot))
+            WRITE(6,*) 'The NORMALISATION DEFICIENCY of such a truncation is : ',NormDef
+
  
-     
 ! Now take the iNoDominantDets determinants and reorder them in terms of excitation level and then determinants.
 ! SortExcitBitDets orders the determinants first by excitation level and then by determinant, taking the corresponding sign with them.        
 ! We have just fed the first iNoDominantDets from the list ordered in terms of population.
@@ -5017,6 +5054,84 @@ MODULE FciMCParMod
         PartInd=MAX(MinInd,i-1)
 
     END SUBROUTINE BinSearchParts
+
+!Do a binary search the guiding function dets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
+!PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
+!If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
+!(or close enough!)
+    SUBROUTINE BinSearchGuideParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: iLut(0:NoIntforDet),MinInd,MaxInd,PartInd
+        INTEGER :: i,j,N,Comp,DetBitLT
+        LOGICAL :: tSuccess
+
+!        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        CALL FLUSH(6)
+        i=MinInd
+        j=MaxInd
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(6,*) i,j,n
+
+!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(GuideFuncDets(:,N),iLut(:),NoIntforDet)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!We need to check the last index.
+                    Comp=DetBitLT(GuideFuncDets(:,i+1),iLut(:),NoIntforDet)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchGuideParts
+
 
 !Do a binary search in MinorStarDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
 !PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
