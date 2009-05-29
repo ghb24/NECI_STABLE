@@ -345,6 +345,87 @@
         enddo
         ipos=n+1
     END SUBROUTINE Search
+!..............................................................................
+!..find the position in list such that 
+!.. list(0:NIfD,ipos-1) < DetCurr(0:NIfD)
+!.. list(0:NIfD,ipos) ge DetCurr(0:NIfD)
+!..list is assumed to be in increasing order
+    SUBROUTINE searchgen(n,list,DetCurr,ipos,NIfD)
+        IMPLICIT NONE
+        INTEGER :: n,NIfD,DetCurr(0:NIfD)
+        INTEGER :: nlo,nup,DetBitLT,i,ipos,ncurr,CompPart
+        INTEGER :: list(0:NIfD,n)
+!        logical :: tbin
+!        if(.not.tbin) goto 200
+!.......................................................................
+!..binary seach
+        nlo=1
+        nup=n
+ 100    continue
+!..if num is larger than the last element of list,
+!.. return ipos as nup+1
+        if(DetBitLT(list(0:NIfD,nup),DetCurr(0:NIfD),NIfD).eq.1) then 
+           ipos=nup+1
+           return
+        endif
+!..if num is le the first element of the list
+!.. return ipos as nlo
+        if(DetBitLT(DetCurr(0:NIfD),list(0:NIfD,nlo),NIfD).eq.1) then
+           ipos=nlo
+           return
+        endif
+!..at this point num is within the range of list
+!.. take the mid-point and see how num compares
+        ncurr=(nlo+nup)/2
+        IF(nlo.eq.ncurr) THEN
+!Insertion point is between nlo and nup...
+            ipos=nlo+1
+            return
+        ENDIF
+
+        CompPart=DetBitLT(list(0:NIfD,ncurr),DetCurr(0:NIfD),NIfD)
+
+!.. if list(ncurr) gt num then the upper bound to the 
+!.. list can be shifted to nup
+!        if(list(ncurr).gt.num) nup=ncurr
+        if(CompPart.eq.-1) THEN
+            nup=ncurr
+        else
+!..if list(ncurr) le num then the lower bound can be 
+!.. can be shifted to ncurr
+            nlo=ncurr
+        endif
+!..
+!.. list(ncurr).eq.num
+        if(CompPart.eq.0) then 
+!..check to see if the previous member is less than num.
+!.. if so, return ipose=ncurr
+           if(DetBitLT(list(0:NIfD,ncurr-1),DetCurr(0:NIfD),NIfD).eq.1) then
+!           if(list(ncurr-1).lt.num) then
+              ipos=ncurr 
+              return
+           endif
+!..check to see if the next member of list is ge num
+!.. if so, return ipos=ncurr
+           if(DetBitLT(list(0:NIfD,ncurr+1),DetCurr(0:NIfD),NIfD).eq.-1) then
+!           if(list(ncurr+1).gt.num) then
+              ipos=ncurr 
+              return
+           endif
+        endif
+        goto 100
+!...........................................................................
+ 200    continue
+!..simple linear search. At the moment, you cannot get here.
+        do i=1,n
+           if(DetBitLT(list(0:NIfD,i),DetCurr(0:NIfD),NIfD).ne.1) then 
+             ipos=i
+             return
+           endif
+        enddo
+        ipos=n+1
+    END SUBROUTINE Searchgen
+
 
 !..............................................................................
 !..find the position in list such that 
