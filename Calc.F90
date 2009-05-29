@@ -33,7 +33,6 @@ MODULE Calc
 
 
 !       Calc defaults 
-          tSpawnSymDets=.false.
           tExpandSpace=.false.
           tHighExcitsSing=.false.
           iHighExcitsSing=0
@@ -957,10 +956,6 @@ MODULE Calc
                 ENDIF
                 tExpandSpace=.true.
                 call geti(ICILevel)
-            case("SPAWNSYMDETS")
-!When this is on, it means that determinants will automatically spawn at the symmetric partners. This can be done for S=0 systems (RHF), where we know that the amplitude
-!on a determinant is equal to the amplitude when the alpha and beta strings are swapped. See Helgakker for more details.
-                tSpawnSymDets=.true.
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)

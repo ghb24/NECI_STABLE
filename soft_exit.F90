@@ -107,6 +107,44 @@ contains
 
     end function test_ExpandSpace
     
+    
+    logical function test_VaryShift()
+       != Test if the file VARYSHIFT exists.
+       != Return True means that the file is there and you should start to vary the shift.
+       != False means that the calculation should proceed as normal. 
+
+       use Parallel
+       implicit none
+       logical :: exists
+       logical :: AnyExist,deleted_file,any_deleted_file
+       integer :: error,ierr,i
+
+       inquire(file='VARYSHIFT',exist=exists)
+       !This collective will check the exists logical on all nodes, and perform a logical or operation,
+       !before broadcasting the result back to all nodes.
+       CALL MPI_AllReduce(exists,AnyExist,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+       test_VaryShift=AnyExist
+       if(test_VaryShift) then
+           write (6,'(X,a)') 'Request to vary the shift detected on a node.'
+           deleted_file=.false.
+           do i=0,nProcessors-1
+               ! This causes each processor to attempt to delete
+               ! SOFTEXIT in turn (as each cycle of the loop involves waiting
+               ! for all processors to reach the AllReduce before the next cycle 
+               ! can start, and hence avoid race conditions between processors 
+               ! sharing the same disk.
+               if (i==iProcIndex.and.exists) then
+                   open(13,file='VARYSHIFT')
+                   close(13,status='delete')
+                   deleted_file=.true.
+               end if
+               call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+               if (any_deleted_file) exit
+           end do
+       endif
+
+    end function test_VaryShift
+    
 #else
     
     logical function test_SOFTEXIT()
@@ -129,6 +167,27 @@ contains
        end if
 
     end function test_SOFTEXIT
+    
+    logical function test_VaryShift()
+       != Test if the file VARYSHIFT exists.
+       != Return True means that the file is there and you should start to vary the shift.
+       != False means that the calculation should proceed as normal. 
+
+       implicit none
+       logical :: exists
+
+       inquire(file='VARYSHIFT',exist=exists)
+       test_VaryShift=exists
+       ! We'll also do some house-keeping whilst we're here.
+       if (test_VaryShift) then
+           ! Remove it so it doesn't catch us out the next time the calculation
+           ! is run!
+           open(13,file='VARYSHIFT')
+           close(13,status='delete')
+           write (6,'(X,a)') 'Request to vary the shift detected.'
+       end if
+
+    end function test_VaryShift
     
     logical function test_ExpandSpace(iLevel)
        != Test if the file ExpandSpace exists.

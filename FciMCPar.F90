@@ -12,7 +12,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace,tSpawnSymDets,tMinorDetsStar
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace,tMinorDetsStar
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
     use IntegralsData , only : fck,NMax,UMat
@@ -224,7 +224,7 @@ MODULE FciMCParMod
 
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-        use soft_exit, only : test_SOFTEXIT,test_ExpandSpace
+        use soft_exit, only : test_SOFTEXIT,test_ExpandSpace,test_VaryShift
         use UMatCache, only : UMatInd
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error
@@ -279,6 +279,13 @@ MODULE FciMCParMod
                 IF(test_SOFTEXIT()) THEN
                     TIncrement=.false.  !This is so that when the popsfile is written out before exit, it counteracts the subtraction by one.
                     EXIT
+                ENDIF
+
+                IF(TSinglePartPhase) THEN
+                    IF(test_VaryShift()) THEN
+                        TSinglePartPhase=.false.
+                        IF(iProcIndex.eq.Root) WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                    ENDIF
                 ENDIF
 
             ENDIF
@@ -2698,7 +2705,7 @@ MODULE FciMCParMod
                     WRITE(6,*) "Doubling particle population on this node to increase total number..."
                     CALL ThermostatParticlesPar(.false.)
                 ELSE
-                    WRITE(6,*) "Particle number on this node is less than half InitWalkers value"
+!                    WRITE(6,*) "Particle number on this node is less than half InitWalkers value"
                 ENDIF
             ENDIF
         
@@ -6466,14 +6473,6 @@ MODULE FciMCParMod
             ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
             
             
-            IF(tSpawnSymDets) THEN
-                CALL FindExcitBitDetSym(iLutCurr,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
-                IF(.not.DetBitEQ(iLutCurr,iLut2,NoIntforDet)) THEN
-                    IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
-                    ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
-                ENDIF
-            ENDIF
-
 !        ELSE
 !            AvSign=AvSign+REAL(WSign,r2)
 
@@ -7212,17 +7211,17 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
-        IF(tSpawnSymDets) THEN
-!This option will spawn on determinants where the alpha and beta strings are swapped for S=0 RHF systems.
-!These determinants should have the same amplitude in the CI wavefunction - see Helgakker for details.
-            IF(tSpn) THEN
-                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets cannot work with ROHF or UHF systems (currently?)")
-            ENDIF
-            IF(.not.tRotoAnnihil) THEN
-                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets must be used with RotoAnnihilation currently")
-            ENDIF
-            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
-        ENDIF
+!        IF(tSpawnSymDets) THEN
+!!This option will spawn on determinants where the alpha and beta strings are swapped for S=0 RHF systems.
+!!These determinants should have the same amplitude in the CI wavefunction - see Helgakker for details.
+!            IF(tSpn) THEN
+!                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets cannot work with ROHF or UHF systems (currently?)")
+!            ENDIF
+!            IF(.not.tRotoAnnihil) THEN
+!                CALL Stop_All("InitFCIMCCalcPar","SpawnSymDets must be used with RotoAnnihilation currently")
+!            ENDIF
+!            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
+!        ENDIF
 
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
@@ -9271,38 +9270,39 @@ MODULE FciMCParMod
 !            RETURN
 !        ENDIF
 
-        IF(tSpawnSymDets) THEN
-            CALL EncodeBitDet(nJ,iLut,NEl,NoIntforDet)
-            CALL FindExcitBitDetSym(iLut,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
-            IF(.not.DetBitEQ(iLut,iLut2,NoIntforDet)) THEN
-!                WRITE(6,*) "Open Shell"
-!                Prob=2.D0*Prob
-                do i=1,NEl-1,2
-                    IF(mod(nJ(i),2).eq.0) THEN
-                        !Alpha electron...allow it
-                        EXIT
-                    ELSE
-!Electron is beta - does it have an alpha partner? Do not allow if the first open shell electron is a beta electron. Check that this is open.
-                        IF(.not.(nJ(i)+1).eq.nJ(i+1)) THEN
-                            !Open spatial orbital here.
-!                            IF(mod(nJ(i),2).eq.1) THEN
-                                !Open shell electron is a beta electron
-                                AttemptCreatePar=0
-!                                WRITE(6,*) "Get HERE!"
-                                RETURN
-!                            ELSE
-!                                EXIT
-!                            ENDIF
-                        ENDIF
-                    ENDIF
-                enddo
-                IF(i.gt.NEl-1) THEN
-                    WRITE(6,*) "***",i
-                    WRITE(6,*) nJ(:)
-                    CALL Stop_All("AttemptCreatePar","Open shell, but cannot determine spin of first open shell electron")
-                ENDIF
-            ENDIF
-        ENDIF
+!        IF(tSpawnSymDets) THEN
+!            CALL EncodeBitDet(nJ,iLut,NEl,NoIntforDet)
+!            CALL FindExcitBitDetSym(iLut,iLut2,NoIntforDet,NEl) !This will find the bit string of the symmetric determinant.
+!            IF(.not.DetBitEQ(iLut,iLut2,NoIntforDet)) THEN
+!!                WRITE(6,*) "Open Shell"
+!!                Prob=2.D0*Prob
+!!                do i=1,NEl-1,2
+!!                    IF(mod(nJ(i),2).eq.0) THEN
+!!                        !Alpha electron...allow it
+!!                        EXIT
+!!                    ELSE
+!!!Electron is beta - does it have an alpha partner? Do not allow if the first open shell electron is a beta electron. Check that this is open.
+!!                        IF(.not.(nJ(i)+1).eq.nJ(i+1)) THEN
+!!                            !Open spatial orbital here.
+!!!                            IF(mod(nJ(i),2).eq.1) THEN
+!!                                !Open shell electron is a beta electron
+!!                                AttemptCreatePar=0
+!!!                                WRITE(6,*) "Get HERE!"
+!!                                RETURN
+!!!                            ELSE
+!!!                                EXIT
+!!!                            ENDIF
+!!                        ENDIF
+!!                    ENDIF
+!!                enddo
+!!                IF(i.gt.NEl-1) THEN
+!!                    WRITE(6,*) "***",i
+!!                    WRITE(6,*) nJ(:)
+!!                    CALL Stop_All("AttemptCreatePar","Open shell, but cannot determine spin of first open shell electron")
+!!                ENDIF
+!                Prob=Prob*(SQRT(2.D0))
+!            ENDIF
+!        ENDIF
 
         
 
