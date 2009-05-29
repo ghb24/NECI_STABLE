@@ -1277,13 +1277,13 @@ MODULE FciMCParMod
 ! This routine takes the list of determinants with particles on them, and picks out those with excitation levels between the max and min
 ! specified in the input file.  It then orders these in terms of population, takes the iNoDominantDets most populated and prints them 
 ! in order of excitation level and then determinant to a file named DOMINANTDETS.
-        INTEGER :: i,j,k,ierr,error,TestSum,ExcitLevel,NoExcDets,AllNoExcDets,ExcDetsTag,ExcSignTag,AllExcDetsTag,AllExcSignTag
+        INTEGER :: i,j,k,ierr,error,TestSum,ExcitLevel,NoExcDets,AllNoExcDets,ExcDetsTag,ExcSignTag,AllExcDetsTag,AllExcSignTag,ipos
         INTEGER :: ExcDetsIndex,MinDomDetPop,AllExcLevelTag,ExcLevelTag,CurrExcitLevel,NoExcitLevel,OrigiDominantDets,HFPop,CurriNoDominantDets
         CHARACTER(len=*), PARAMETER :: this_routine='PrintDominantDets'
         REAL*8 :: MinRelDomPop,SpinTot,NormDef
         INTEGER , ALLOCATABLE :: ExcDets(:,:),ExcSign(:),AllExcDets(:,:),AllExcSign(:)
         INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors),DetCurr(NEl),NormDefTrunc,NormDefTot
-        INTEGER :: SpinCoupDetBit(0:NoIntforDet),SpinCoupDet(NEl),OpenShell(2,NEl),UpSpin(NEl),NoOpenShell,NoUpSpin,iRead,PartInd,ID1,ID2,iComb
+        INTEGER :: SpinCoupDetBit(0:NoIntforDet),SpinCoupDet(NEl),OpenShell(2,NEl),UpSpin(NEl),NoOpenShell,NoUpSpin,iRead,PartInd,ID1,ID2,iComb,TempSign
         LOGICAL :: tDoubOcc,tSuccess
 
         CALL FLUSH(6)
@@ -1420,6 +1420,15 @@ MODULE FciMCParMod
             CALL SortBitDets(iNoDominantDets,AllExcDets(0:NoIntforDet,1:iNoDominantDets),NoIntforDet,AllExcSign(1:iNoDominantDets))
             CALL SortBitDets((AllNoExcDets-iNoDominantDets),AllExcDets(0:NoIntforDet,(iNoDominantDets+1):AllNoExcDets),NoIntforDet,&
                             &AllExcSign((iNoDominantDets+1):AllNoExcDets))
+ 
+            OPEN(47,file='DOMINANTDETSsorted',status='unknown')
+            WRITE(47,*) AllNoExcDets,' determinants with the right excitation level.'    
+            WRITE(47,*) iNoDominantDets,' with population ',MinDomDetPop, ' and above.'
+            do j=1,AllNoExcDets
+                WRITE(47,*) AllExcDets(0:NoIntforDet,j),AllExcSign(j)
+            enddo
+            CLOSE(47)
+ 
 
 ! Run through all the determinants, finding sum_k=1->AllNoExcDets c_k^2 = NormDefTot.  Want to do this before doing the spin
 ! coupled stuff when some determinants have overwritten others.
@@ -1432,8 +1441,8 @@ MODULE FciMCParMod
 
 ! Put a bit in here to run through the determinants, construct all the different spin eigenstates from each and make sure 
 ! they are all included.  - need to add them to the list maintaining order.
-! At the moment, these are ordered in terms of population, and only the first iNoDominantDets are going to be taken.
-! If we need to include any more, just put them in position iNoDominantDets+1, and increase iNoDominantDets.
+! At the moment, these are ordered by determinant, and only the first iNoDominantDets are going to be taken.
+! Determinants that are added to the list should be added in order.
             IF(.not.tNoDomSpinCoup) THEN 
                 WRITE(6,*) 'Also including determinants that are spin coupled to those in the list of dominant dets.'
                 CurriNoDominantDets=iNoDominantDets
@@ -1522,66 +1531,78 @@ MODULE FciMCParMod
                         CALL EncodeBitDet(SpinCoupDet(1:NEl),SpinCoupDetBit(0:NoIntforDet),NEl,NoIntforDet)
 !                        WRITE(6,*) 'SpinCoupDetBit',SpinCoupDetBit(:)
 
-                        ! Search through dom dets 
-!                        tSuccess=.false.
-!                        CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,1:AllNoExcDets),SpinCoupDetBit(0:NoIntforDet),1,AllNoExcDets,PartInd,tSuccess)
-!                        IF(tSuccess.and.(PartInd.le.iNoDominantDets)) THEN
-!                            iRead=iRead+1
-!                            WRITE(6,*) '*******SUCCESS!*********'
-                            ! move onto next spin coupled because the spincoupled det is already in the dominant dets list.
-!                        ELSEIF(tSuccess) THEN
-                            ! put the spin coupled determinant on the end of the list, and increase the number of dom dets.
-!                            AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
-!                            AllExcSign(iNoDominantDets+1)=AllExcSign(PartInd)
-!                            iNoDominantDets=iNoDominantDets+1
-!                            IF(iNoDominantDets.gt.AllNoExcDets) THEN
-!                                WRITE(6,*) 'no of dominant dets has exceeded AllNoExcDets.'
-!                                CALL FLUSH(6)
-!                                CALL Stop_All(this_routine,'No of dominant determinants has exceeded the AllNoExcDets.')
-!                            ENDIF
-!                            iRead=iRead+1
-!                        ELSEIF(.not.tSuccess) THEN
-!                            AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
-!                            AllExcSign(iNoDominantDets+1)=0
-!                            iNoDominantDets=iNoDominantDets+1
-!                            iRead=iRead+1
-!                        ENDIF
-!                            CALL FLUSH(6)
-!                            CALL Stop_All(this_routine,'Error. Spin coupled determinant not found in list of all determinants.')
-!                        ENDIF
-
+                        ! First search through the list of dominant determinants.
                         tSuccess=.false.
                         CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,1:CurriNoDominantDets),SpinCoupDetBit(0:NoIntforDet),1,CurriNoDominantDets,PartInd,tSuccess)
                         IF(tSuccess) THEN
                             ! Determinant found in the dominant list.
                             iRead=iRead+1
                         ELSE
-                            ! Need to search the determinants that have been added.  Think its quicker to sort these then bin search rather than straight search.
-                            CALL SortBitDets((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NoIntforDet,(CurriNoDominantDets+1):iNoDominantDets),&
-                                                    &NoIntforDet,AllExcSign((CurriNoDominantDets+1):iNoDominantDets))
-                            CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,(CurriNoDominantDets+1):iNoDominantDets),SpinCoupDetBit(0:NoIntforDet),(CurriNoDominantDets+1),&
+                            ! If not found in the original dominant determinant list then need to search through the determinants that have been added.
+                            IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
+                                CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,(CurriNoDominantDets+1):iNoDominantDets),SpinCoupDetBit(0:NoIntforDet),(CurriNoDominantDets+1),&
                                                     &iNoDominantDets,PartInd,tSuccess)
+                                IF((PartInd.le.CurriNoDominantDets).or.(PartInd.gt.iNoDominantDets)) CALL Stop_All(this_routine, '')                                                    
+                            ENDIF
+
                             IF(tSuccess) THEN
                                 iRead=iRead+1
                                 ! If the determinant has already been added, don't need to do anything.
                             ELSE
-                                ! Check if the determinant is in the rest of the list (to get the sign)
+
+                                ! If there are still determinants left in the rest of the list, search through these to check if the determinant is there (to get the sign).
                                 IF((AllNoExcDets-iNoDominantDets).gt.0) THEN
                                     CALL BinSearchDomParts(AllExcDets(0:NoIntforDet,(iNoDominantDets+1):AllNoExcDets),SpinCoupDetBit(0:NoIntforDet),(iNoDominantDets+1),&
                                                     &AllNoExcDets,PartInd,tSuccess)
                                 ENDIF
                                 IF(tSuccess) THEN
-                                    ! Determinant found in the rest of the list, put it on the end of the dom dets along with its sign.
+                                    ! Determinant found in the rest of the list, put it in dom dets along with its sign.
+                                    ! Need to insert the determinant in the correct position, so that these added determinants stay ordered.
+                                    ! SearchGen will give back ipos so that the determinant we are inserting is < ipos-1 and ge ipos.
+                                    ! I.e this determinant goes in ipos and everything else is moved up 1.
+                                    IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
+                                        CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NoIntforDet,(CurriNoDominantDets+1):iNoDominantDets),&
+                                                    &SpinCoupDetBit(0:NoIntforDet),ipos,NoIntforDet)
+                                    ELSE
+                                        ipos=0
+                                    ENDIF
+                                    ipos=ipos+CurriNoDominantDets
+!                                    CALL SearchGen(iNoDominantDets,AllExcDets(0:NoIntforDet,1:iNoDominantDets),SpinCoupDetBit(0:NoIntforDet),ipos,NoIntforDet)
+                                    ! The position the determinant should go is ipos, if the current determinant in ipos is not equal to the SpinCoupDetBit,
+                                    ! then we want to insert this determinant here, move all the others up by one, put the determinant that is getting written
+                                    ! over at iNoDominantDets+1 in the position of the spincoupdetbit.
+                                    
+                                    TempSign=AllExcSign(iNoDominantDets+1) 
+                                    AllExcDets(0:NoIntforDet,PartInd)=AllExcDets(0:NoIntforDet,iNoDominantDets+1)
+
+                                    do i=iNoDominantDets,ipos,-1                                                    
+                                        AllExcDets(0:NoIntforDet,i+1)=AllExcDets(0:NoIntforDet,i)                                                    
+                                        AllExcSign(i+1)=AllExcSign(i)
+                                    enddo
+                                    AllExcDets(0:NoIntforDet,ipos)=SpinCoupDetBit(0:NoIntforDet)
+                                    AllExcSign(ipos)=AllExcSign(PartInd)
                                     iRead=iRead+1
-                                    AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
-                                    AllExcSign(iNoDominantDets+1)=AllExcSign(PartInd)
                                     iNoDominantDets=iNoDominantDets+1
+                                    AllExcSign(PartInd)=TempSign
                                 ELSE
-                                    ! Determinant not in the list at all, add to the end of the dom dets list with a sign of 0.
+                                    ! Determinant not in the list at all, add to added determinants (maintaining order) with a sign of 0.
+                                    CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NoIntforDet,(CurriNoDominantDets+1):iNoDominantDets),&
+                                                    &SpinCoupDetBit(0:NoIntforDet),ipos,NoIntforDet)
+                                    ipos=ipos+CurriNoDominantDets
+                                    
+                                    AllExcDets(0:NoIntforDet,AllNoExcDets+1)=AllExcDets(0:NoIntforDet,iNoDominantDets+1)
+                                    AllExcSign(AllNoExcDets+1)=AllExcSign(iNoDominantDets+1)
+
+                                    do i=iNoDominantDets,ipos,-1                                                    
+                                        AllExcDets(0:NoIntforDet,i+1)=AllExcDets(0:NoIntforDet,i)                                                    
+                                        AllExcSign(i+1)=AllExcSign(i)
+                                    enddo
+
+                                    AllExcDets(0:NoIntforDet,ipos)=SpinCoupDetBit(0:NoIntforDet)
+                                    AllExcSign(ipos)=0
                                     iRead=iRead+1
-                                    AllExcDets(0:NoIntforDet,iNoDominantDets+1)=SpinCoupDetBit(0:NoIntforDet)
-                                    AllExcSign(iNoDominantDets+1)=0
                                     iNoDominantDets=iNoDominantDets+1
+                                    AllNoExcDets=AllNoExcDets+1
                                 ENDIF
                             ENDIF
                         ENDIF
@@ -1637,6 +1658,11 @@ MODULE FciMCParMod
             do while (j.le.iNoDominantDets)
                 NoExcitLevel=0
                 i=j 
+                IF(ExcitLevel.ne.(CurrExcitLevel+1)) THEN
+                    do k=CurrExcitLevel+1,ExcitLevel-1
+                        WRITE(38,*) k,0
+                    enddo
+                ENDIF
                 CALL FindBitExcitLevel(AllExcDets(0:NoIntforDet,i),iLutHF(0:NoIntforDet),NoIntforDet,CurrExcitLevel,MaxExcDom)
                 ExcitLevel=CurrExcitLevel
                 do while (ExcitLevel.eq.CurrExcitLevel)
@@ -1647,6 +1673,11 @@ MODULE FciMCParMod
                 enddo
                 WRITE(38,*) CurrExcitLevel,NoExcitLevel
             enddo
+            IF(CurrExcitLevel.ne.MaxExcDom) THEN
+                do i=CurrExcitLevel+1,MaxExcDom
+                    WRITE(38,*) i,0
+                enddo
+            ENDIF
 
             do j=1,iNoDominantDets
                 WRITE(38,*) AllExcDets(0:NoIntforDet,j),AllExcSign(j)
