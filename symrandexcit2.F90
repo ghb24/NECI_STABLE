@@ -566,6 +566,146 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CalcAllab
 
 
+!This routine will calculate the PGen between two connected determinants, nI and nJ which are IC excitations of each other, using the unbiased scheme.
+!Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs.
+!This is the prob of generating nJ FROM nI, not the other way round.
+!Passed in is also the ClassCount2 arrays for nI, and the probability of picking a double.
+    SUBROUTINE CalcNonUniPGen(Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
+        REAL*8 :: pDoub,pGen!,PabGivenij
+        INTEGER :: ClassCount2(2,0:nSymLabels-1),ForbiddenOrbs,SymA,SymB
+        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ElecsWNoExcits,i,NExcitOtherWay
+        INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2)
+
+        IF(IC.eq.1) THEN
+
+!First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
+!will affect the probabilities.
+            ElecsWNoExcits=0
+
+            IF(tNoSymGenRandExcits) THEN
+                IF((ClassCount2(1,0).ne.0).and.(ClassCountUnocc2(1,0).eq.0)) THEN
+                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,0)
+                ENDIF
+                IF((ClassCount2(2,0).ne.0).and.(ClassCountUnocc2(2,0).eq.0)) THEN
+                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,0)
+                ENDIF
+                
+!Find symmetry of chosen electron
+                ElecSym=0
+            ELSE
+!Need to look for forbidden electrons through all the irreps.
+
+                do i=0,nSymLabels-1
+!Run through all labels
+                    IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
+!If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
+                    ENDIF
+                    IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
+                    ENDIF
+                enddo
+                
+                ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
+
+            ENDIF
+
+            IF(G1(Ex(1,1))%Ms.eq.1) THEN
+!Alpha orbital - see how many single excitations there are from this electron...
+                NExcitA=ClassCountUnocc2(1,ElecSym)
+            ELSE
+!Beta orbital
+                NExcitA=ClassCountUnocc2(2,ElecSym)
+            ENDIF
+
+!Now we need to find the probability of creating this excitation.
+!This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
+!Prob of generating a single is 1-pDoub
+!            pGen=(1.D0-pDoub)*(1.D0/real(NEl,r2))*(1.D0/real(NExcitA,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
+            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),r2))
+
+        ELSE
+!Prob of generating a double excitation.
+!Find the I and J orbitals
+            OrbI=Ex(1,1)
+            OrbJ=Ex(1,2)
+            OrbA=Ex(2,1)
+            OrbB=Ex(2,2)
+
+!Find the spin-product of the occupied pair
+            IF((G1(OrbI)%Ms)*(G1(OrbJ)%Ms).eq.-1) THEN
+!We have an alpha beta pair of electrons.
+                iSpn=2
+!NExcit is the number of allowed unoccupied orbitals to choose
+                NExcitA=nBasis-NEl
+            ELSE
+                IF(G1(OrbI)%Ms.eq.1) THEN
+!We have an alpha alpha pair of electrons.
+                    iSpn=3
+                    NExcitA=(nBasis/2)-nOccAlpha     !This is the number of unocc alpha spinorbs
+                ELSE
+!We have a beta beta pair of electrons.
+                    iSpn=1
+                    NExcitA=(nBasis/2)-nOccBeta      !This is the number of unocc beta spinorbs
+                ENDIF
+            ENDIF
+        
+            IF(tNoSymGenRandExcits) THEN
+                ElecSym=0
+                CALL FindNumForbiddenOrbsNoSym(ForbiddenOrbs,ClassCountUnocc2,iSpn)
+                SymA=0
+                SymB=0
+            ELSE
+!Calculate the symmetry product of the occupied orbital pair
+                ElecSym=INT(IEOR(G1(OrbI)%Sym%S,G1(OrbJ)%Sym%S),4)
+!This will calculate the A orbitals which will have no B pair
+                CALL FindNumForbiddenOrbs(ForbiddenOrbs,ClassCountUnocc2,ElecSym,iSpn)
+!Need to find the symmetries of the unoccupied A and B orbitals.
+                SymA=INT(G1(OrbA)%Sym%S,4)
+                SymB=IEOR(SymA,ElecSym)
+            ENDIF
+
+
+!We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
+!We have calculated in NExcit the number of orbitals available for B given A, but we also need to know the number of orbitals to choose from for A IF
+!we had picked B first.
+            IF(iSpn.eq.2) THEN
+!If iSpn=2, then we want to find a spinorbital of the opposite spin of SpinOrbA
+                IF((G1(OrbA)%Ms).eq.-1) THEN
+!We have already picked a beta orbital, so now we want to pick an alpha orbital. Find out how many of these there are.
+                    NExcitB=ClassCountUnocc2(1,SymB)
+                    NExcitOtherWay=ClassCountUnocc2(2,SymA)
+                ELSE
+!Want to pick an beta orbital.
+                    NExcitB=ClassCountUnocc2(2,SymB)
+                    NExcitOtherWay=ClassCountUnocc2(1,SymA)
+                ENDIF
+            ELSEIF(iSpn.eq.1) THEN
+!Definitely want a beta orbital
+                NExcitB=ClassCountUnocc2(2,SymB)
+                NExcitOtherWay=ClassCountUnocc2(2,SymA)
+            ELSE
+!Definitely want an alpha orbital
+                NExcitB=ClassCountUnocc2(1,SymB)
+                NExcitOtherWay=ClassCountUnocc2(1,SymA)
+            ENDIF
+
+            IF((iSpn.ne.2).and.(ElecSym.eq.0)) THEN
+!In this case, we need to check that we do not pick the same orbital as OrbA. If we do this, then we need to redraw.
+!Only when ElecSym=0 will the classes of a and b be the same, and the spins will be different if iSpn=2, so this is the only possibility of a clash.
+                NExcitB=NExcitB-1     !Subtract 1 from the number of possible orbitals since we cannot choose orbital A.
+                NExcitOtherWay=NExcitOtherWay-1     !The same goes for the probabilities the other way round.
+            ENDIF
+
+!            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
+!            pGen=pDoub*(1.D0/real(ElecPairs,r2))*PabGivenij
+            pGen=pDoub*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+
+        ENDIF
+
+    END SUBROUTINE CalcNonUniPGen
+
+
 !This routine is the same as GenRandSymExcitNU, but you can pass in the ClassCount arrays, so they do not have to be recalculated each time
 !we want an excitation. If tFilled is false, then it wil assume that they are unfilled and calculate them. It will then return the arrays
 !with tFilled = .true. for use in the next excitation.
@@ -648,7 +788,8 @@ MODULE GenRandSymExcitNUMod
         ELSE
             CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
             IF(pGen.eq.-1.D0) THEN
-                IF(ExFlag.ne.3) THEN
+                IF((ExFlag.ne.3)) THEN  !.or.tHPHF) THEN
+!If using HPHF wavefunctions, then we do not want to do this, since it will affect the generation probabilities calculated using CalcNonUniPGens.
                     CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
                 ENDIF
                 pDoubNew=1.D0
@@ -827,10 +968,11 @@ MODULE GenRandSymExcitNUMod
 !This routine finds the probability of creating the excitation. See the header of the file for more information on how this works.
     SUBROUTINE FindDoubleProb(ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay,pGen)
         INTEGER :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
-        REAL*8 :: pGen,PabGivenij
+        REAL*8 :: pGen!,PabGivenij
 
-        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
-        pGen=pDoubNew*(1.D0/real(ElecPairs,r2))*PabGivenij
+!        PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
+!        pGen=pDoubNew*(1.D0/real(ElecPairs,r2))*PabGivenij
+        pGen=pDoubNew*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
 
     END SUBROUTINE FindDoubleProb
 
@@ -1614,7 +1756,8 @@ MODULE GenRandSymExcitNUMod
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
-        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,r2))*(1.D0/real(NExcit,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
+!        pGen=(1.D0-pDoubNew)*(1.D0/real(NEl,r2))*(1.D0/real(NExcit,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
+        pGen=(1.D0-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),r2))
 
     END SUBROUTINE CreateSingleExcit
 

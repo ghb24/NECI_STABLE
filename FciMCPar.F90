@@ -216,10 +216,6 @@ MODULE FciMCParMod
     TYPE(HElement), ALLOCATABLE :: MinorStarHii(:),MinorStarHij(:)
     REAL*8 :: AllNoMinorWalkers
 
-
-
-
-
     contains
 
 
