@@ -1,3 +1,12 @@
+! JSS 1 June 2009
+! Comment out all *_nd functions for n>0.  These are not currently used.
+! ifort currently struggles to compile this module with them in: I think the
+! optimiser goes haywire with the multiple procedures and layered calls.
+! By commenting them out, the time for compilation for this module goes from
+! over 10 minutes to under 0.5s.
+! If needed, please only comment back in the ones you actully need.
+
+
 ! A C-program for MT19937, with initialization improved 2002/1/26.
 ! Coded by Takuji Nishimura and Makoto Matsumoto.                 
 
@@ -69,18 +78,24 @@ module mt95
   private :: uiadd, uisub, uimlt, uidiv, uimod
   private :: init_by_type, init_by_scalar, init_by_array, next_state
   private :: genrand_encode, genrand_decode, genrand_load_state, genrand_dump_state
-  private :: genrand_int32_0d, genrand_int32_1d, genrand_int32_2d, genrand_int32_3d
-  private :: genrand_int32_4d, genrand_int32_5d, genrand_int32_6d, genrand_int32_7d
-  private :: genrand_int31_0d, genrand_int31_1d, genrand_int31_2d, genrand_int31_3d
-  private :: genrand_int31_4d, genrand_int31_5d, genrand_int31_6d, genrand_int31_7d
-  private :: genrand_real1_0d, genrand_real1_1d, genrand_real1_2d, genrand_real1_3d
-  private :: genrand_real1_4d, genrand_real1_5d, genrand_real1_6d, genrand_real1_7d
-  private :: genrand_real2_0d, genrand_real2_1d, genrand_real2_2d, genrand_real2_3d
-  private :: genrand_real2_4d, genrand_real2_5d, genrand_real2_6d, genrand_real2_7d
-  private :: genrand_real3_0d, genrand_real3_1d, genrand_real3_2d, genrand_real3_3d
-  private :: genrand_real3_4d, genrand_real3_5d, genrand_real3_6d, genrand_real3_7d
-  private :: genrand_res53_0d, genrand_res53_1d, genrand_res53_2d, genrand_res53_3d
-  private :: genrand_res53_4d, genrand_res53_5d, genrand_res53_6d, genrand_res53_7d
+  private :: genrand_int32_0d
+!  private :: genrand_int32_1d, genrand_int32_2d, genrand_int32_3d
+!  private :: genrand_int32_4d, genrand_int32_5d, genrand_int32_6d, genrand_int32_7d
+  private :: genrand_int31_0d
+!  private :: genrand_int31_1d, genrand_int31_2d, genrand_int31_3d
+!  private :: genrand_int31_4d, genrand_int31_5d, genrand_int31_6d, genrand_int31_7d
+  private :: genrand_real1_0d
+!  private :: genrand_real1_1d, genrand_real1_2d, genrand_real1_3d
+!  private :: genrand_real1_4d, genrand_real1_5d, genrand_real1_6d, genrand_real1_7d
+  private :: genrand_real2_0d
+!  private :: genrand_real2_1d, genrand_real2_2d, genrand_real2_3d
+!  private :: genrand_real2_4d, genrand_real2_5d, genrand_real2_6d, genrand_real2_7d
+  private :: genrand_real3_0d
+!  private :: genrand_real3_1d, genrand_real3_2d, genrand_real3_3d
+!  private :: genrand_real3_4d, genrand_real3_5d, genrand_real3_6d, genrand_real3_7d
+  private :: genrand_res53_0d
+!  private :: genrand_res53_1d, genrand_res53_2d, genrand_res53_3d
+!  private :: genrand_res53_4d, genrand_res53_5d, genrand_res53_6d, genrand_res53_7d
 
   intrinsic :: selected_int_kind, selected_real_kind
 
@@ -142,68 +157,68 @@ module mt95
 
   interface genrand_int32
     module procedure genrand_int32_0d
-    module procedure genrand_int32_1d
-    module procedure genrand_int32_2d
-    module procedure genrand_int32_3d
-    module procedure genrand_int32_4d
-    module procedure genrand_int32_5d
-    module procedure genrand_int32_6d
-    module procedure genrand_int32_7d
+!    module procedure genrand_int32_1d
+!    module procedure genrand_int32_2d
+!    module procedure genrand_int32_3d
+!    module procedure genrand_int32_4d
+!    module procedure genrand_int32_5d
+!    module procedure genrand_int32_6d
+!    module procedure genrand_int32_7d
   end interface genrand_int32
 
   interface genrand_int31
     module procedure genrand_int31_0d
-    module procedure genrand_int31_1d
-    module procedure genrand_int31_2d
-    module procedure genrand_int31_3d
-    module procedure genrand_int31_4d
-    module procedure genrand_int31_5d
-    module procedure genrand_int31_6d
-    module procedure genrand_int31_7d
+!    module procedure genrand_int31_1d
+!    module procedure genrand_int31_2d
+!    module procedure genrand_int31_3d
+!    module procedure genrand_int31_4d
+!    module procedure genrand_int31_5d
+!    module procedure genrand_int31_6d
+!    module procedure genrand_int31_7d
   end interface genrand_int31
 
   interface genrand_real1
     module procedure genrand_real1_0d
-    module procedure genrand_real1_1d
-    module procedure genrand_real1_2d
-    module procedure genrand_real1_3d
-    module procedure genrand_real1_4d
-    module procedure genrand_real1_5d
-    module procedure genrand_real1_6d
-    module procedure genrand_real1_7d
+!    module procedure genrand_real1_1d
+!    module procedure genrand_real1_2d
+!    module procedure genrand_real1_3d
+!    module procedure genrand_real1_4d
+!    module procedure genrand_real1_5d
+!    module procedure genrand_real1_6d
+!    module procedure genrand_real1_7d
   end interface genrand_real1
 
   interface genrand_real2
     module procedure genrand_real2_0d
-    module procedure genrand_real2_1d
-    module procedure genrand_real2_2d
-    module procedure genrand_real2_3d
-    module procedure genrand_real2_4d
-    module procedure genrand_real2_5d
-    module procedure genrand_real2_6d
-    module procedure genrand_real2_7d
+!    module procedure genrand_real2_1d
+!    module procedure genrand_real2_2d
+!    module procedure genrand_real2_3d
+!    module procedure genrand_real2_4d
+!    module procedure genrand_real2_5d
+!    module procedure genrand_real2_6d
+!    module procedure genrand_real2_7d
   end interface genrand_real2
 
   interface genrand_real3
     module procedure genrand_real3_0d
-    module procedure genrand_real3_1d
-    module procedure genrand_real3_2d
-    module procedure genrand_real3_3d
-    module procedure genrand_real3_4d
-    module procedure genrand_real3_5d
-    module procedure genrand_real3_6d
-    module procedure genrand_real3_7d
+!    module procedure genrand_real3_1d
+!    module procedure genrand_real3_2d
+!    module procedure genrand_real3_3d
+!    module procedure genrand_real3_4d
+!    module procedure genrand_real3_5d
+!    module procedure genrand_real3_6d
+!    module procedure genrand_real3_7d
   end interface genrand_real3
 
   interface genrand_res53
     module procedure genrand_res53_0d
-    module procedure genrand_res53_1d
-    module procedure genrand_res53_2d
-    module procedure genrand_res53_3d
-    module procedure genrand_res53_4d
-    module procedure genrand_res53_5d
-    module procedure genrand_res53_6d
-    module procedure genrand_res53_7d
+!    module procedure genrand_res53_1d
+!    module procedure genrand_res53_2d
+!    module procedure genrand_res53_3d
+!    module procedure genrand_res53_4d
+!    module procedure genrand_res53_5d
+!    module procedure genrand_res53_6d
+!    module procedure genrand_res53_7d
   end interface genrand_res53
 
   contains
@@ -601,110 +616,110 @@ module mt95
 
   end subroutine genrand_int32_0d
 
-  subroutine genrand_int32_1d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 1 ), 1
-      call genrand_int32_0d( y(i) )
-    end do
-    return
-
-  end subroutine genrand_int32_1d
-
-  subroutine genrand_int32_2d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:), intent(out) :: y
-    
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 2 ), 1
-      call genrand_int32_1d( y(:,i) )
-    end do
-    return
-
-  end subroutine genrand_int32_2d
-
-  subroutine genrand_int32_3d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:), intent(out) :: y
-    
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 3 ), 1
-      call genrand_int32_2d( y(:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int32_3d
-
-  subroutine genrand_int32_4d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:), intent(out) :: y
-    
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 4 ), 1
-      call genrand_int32_3d( y(:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int32_4d
-
-  subroutine genrand_int32_5d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:,:), intent(out) :: y
-    
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 5 ), 1
-      call genrand_int32_4d( y(:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int32_5d
-
-  subroutine genrand_int32_6d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:,:,:), intent(out) :: y
-    
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 6 ), 1
-      call genrand_int32_5d( y(:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int32_6d
-
-  subroutine genrand_int32_7d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:,:,:,:), intent(out) :: y
-    
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 7 ), 1
-      call genrand_int32_6d( y(:,:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int32_7d
+!  subroutine genrand_int32_1d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 1 ), 1
+!      call genrand_int32_0d( y(i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int32_1d
+!
+!  subroutine genrand_int32_2d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:), intent(out) :: y
+!    
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 2 ), 1
+!      call genrand_int32_1d( y(:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int32_2d
+!
+!  subroutine genrand_int32_3d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:), intent(out) :: y
+!    
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 3 ), 1
+!      call genrand_int32_2d( y(:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int32_3d
+!
+!  subroutine genrand_int32_4d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:), intent(out) :: y
+!    
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 4 ), 1
+!      call genrand_int32_3d( y(:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int32_4d
+!
+!  subroutine genrand_int32_5d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:,:), intent(out) :: y
+!    
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 5 ), 1
+!      call genrand_int32_4d( y(:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int32_5d
+!
+!  subroutine genrand_int32_6d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:,:,:), intent(out) :: y
+!    
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 6 ), 1
+!      call genrand_int32_5d( y(:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int32_6d
+!
+!  subroutine genrand_int32_7d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:,:,:,:), intent(out) :: y
+!    
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 7 ), 1
+!      call genrand_int32_6d( y(:,:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int32_7d
 
   ! generates a random number on [0,0x7fffffff]-interval
   subroutine genrand_int31_0d( y )
@@ -719,110 +734,110 @@ module mt95
 
   end subroutine genrand_int31_0d
 
-  subroutine genrand_int31_1d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 1 ), 1
-      call genrand_int31_0d( y(i) )
-    end do
-    return
-
-  end subroutine genrand_int31_1d
-
-  subroutine genrand_int31_2d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 2 ), 1
-      call genrand_int31_1d( y(:,i) )
-    end do
-    return
-
-  end subroutine genrand_int31_2d
-
-  subroutine genrand_int31_3d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 3 ), 1
-      call genrand_int31_2d( y(:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int31_3d
-
-  subroutine genrand_int31_4d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 4 ), 1
-      call genrand_int31_3d( y(:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int31_4d
-
-  subroutine genrand_int31_5d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:,:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 5 ), 1
-      call genrand_int31_4d( y(:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int31_5d
-
-  subroutine genrand_int31_6d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:,:,:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 6 ), 1
-      call genrand_int31_5d( y(:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int31_6d
-
-  subroutine genrand_int31_7d( y )
-
-    intrinsic :: size
-
-    integer(kind=wi), dimension(:,:,:,:,:,:,:), intent(out) :: y
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( y, 7 ), 1
-      call genrand_int31_6d( y(:,:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_int31_7d
+!  subroutine genrand_int31_1d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 1 ), 1
+!      call genrand_int31_0d( y(i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int31_1d
+!
+!  subroutine genrand_int31_2d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 2 ), 1
+!      call genrand_int31_1d( y(:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int31_2d
+!
+!  subroutine genrand_int31_3d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 3 ), 1
+!      call genrand_int31_2d( y(:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int31_3d
+!
+!  subroutine genrand_int31_4d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 4 ), 1
+!      call genrand_int31_3d( y(:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int31_4d
+!
+!  subroutine genrand_int31_5d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:,:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 5 ), 1
+!      call genrand_int31_4d( y(:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int31_5d
+!
+!  subroutine genrand_int31_6d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:,:,:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 6 ), 1
+!      call genrand_int31_5d( y(:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int31_6d
+!
+!  subroutine genrand_int31_7d( y )
+!
+!    intrinsic :: size
+!
+!    integer(kind=wi), dimension(:,:,:,:,:,:,:), intent(out) :: y
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( y, 7 ), 1
+!      call genrand_int31_6d( y(:,:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_int31_7d
 
   ! generates a random number on [0,1]-real-interval
   subroutine genrand_real1_0d( r )
@@ -840,110 +855,110 @@ module mt95
 
   end subroutine genrand_real1_0d
 
-  subroutine genrand_real1_1d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 1 ), 1
-      call genrand_real1_0d( r(i) )
-    end do
-    return
-
-  end subroutine genrand_real1_1d
-
-  subroutine genrand_real1_2d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 2 ), 1
-      call genrand_real1_1d( r(:,i) )
-    end do
-    return
-
-  end subroutine genrand_real1_2d
-
-  subroutine genrand_real1_3d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 3 ), 1
-      call genrand_real1_2d( r(:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real1_3d
-
-  subroutine genrand_real1_4d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 4 ), 1
-      call genrand_real1_3d( r(:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real1_4d
-
-  subroutine genrand_real1_5d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 5 ), 1
-      call genrand_real1_4d( r(:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real1_5d
-
-  subroutine genrand_real1_6d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 6 ), 1
-      call genrand_real1_5d( r(:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real1_6d
-
-  subroutine genrand_real1_7d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 7 ), 1
-      call genrand_real1_6d( r(:,:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real1_7d
+!  subroutine genrand_real1_1d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 1 ), 1
+!      call genrand_real1_0d( r(i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real1_1d
+!
+!  subroutine genrand_real1_2d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 2 ), 1
+!      call genrand_real1_1d( r(:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real1_2d
+!
+!  subroutine genrand_real1_3d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 3 ), 1
+!      call genrand_real1_2d( r(:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real1_3d
+!
+!  subroutine genrand_real1_4d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 4 ), 1
+!      call genrand_real1_3d( r(:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real1_4d
+!
+!  subroutine genrand_real1_5d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 5 ), 1
+!      call genrand_real1_4d( r(:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real1_5d
+!
+!  subroutine genrand_real1_6d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 6 ), 1
+!      call genrand_real1_5d( r(:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real1_6d
+!
+!  subroutine genrand_real1_7d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 7 ), 1
+!      call genrand_real1_6d( r(:,:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real1_7d
 
   ! generates a random number on [0,1)-real-interval
   subroutine genrand_real2_0d( r )
@@ -961,110 +976,110 @@ module mt95
 
   end subroutine genrand_real2_0d
 
-  subroutine genrand_real2_1d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 1 ), 1
-      call genrand_real2_0d( r(i) )
-    end do
-    return
-
-  end subroutine genrand_real2_1d
-
-  subroutine genrand_real2_2d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 2 ), 1
-      call genrand_real2_1d( r(:,i) )
-    end do
-    return
-
-  end subroutine genrand_real2_2d
-
-  subroutine genrand_real2_3d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 3 ), 1
-      call genrand_real2_2d( r(:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real2_3d
-
-  subroutine genrand_real2_4d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 4 ), 1
-      call genrand_real2_3d( r(:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real2_4d
-
-  subroutine genrand_real2_5d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 5 ), 1
-      call genrand_real2_4d( r(:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real2_5d
-
-  subroutine genrand_real2_6d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 6 ), 1
-      call genrand_real2_5d( r(:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real2_6d
-
-  subroutine genrand_real2_7d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 7 ), 1
-      call genrand_real2_6d( r(:,:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real2_7d
+!  subroutine genrand_real2_1d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 1 ), 1
+!      call genrand_real2_0d( r(i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real2_1d
+!
+!  subroutine genrand_real2_2d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 2 ), 1
+!      call genrand_real2_1d( r(:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real2_2d
+!
+!  subroutine genrand_real2_3d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 3 ), 1
+!      call genrand_real2_2d( r(:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real2_3d
+!
+!  subroutine genrand_real2_4d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 4 ), 1
+!      call genrand_real2_3d( r(:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real2_4d
+!
+!  subroutine genrand_real2_5d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 5 ), 1
+!      call genrand_real2_4d( r(:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real2_5d
+!
+!  subroutine genrand_real2_6d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 6 ), 1
+!      call genrand_real2_5d( r(:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real2_6d
+!
+!  subroutine genrand_real2_7d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 7 ), 1
+!      call genrand_real2_6d( r(:,:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real2_7d
 
   ! generates a random number on (0,1)-real-interval
   subroutine genrand_real3_0d( r )
@@ -1082,110 +1097,110 @@ module mt95
 
   end subroutine genrand_real3_0d
 
-  subroutine genrand_real3_1d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 1 ), 1
-      call genrand_real3_0d( r(i) )
-    end do
-    return
-
-  end subroutine genrand_real3_1d
-
-  subroutine genrand_real3_2d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 2 ), 1
-      call genrand_real3_1d( r(:,i) )
-    end do
-    return
-
-  end subroutine genrand_real3_2d
-
-  subroutine genrand_real3_3d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 3 ), 1
-      call genrand_real3_2d( r(:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real3_3d
-
-  subroutine genrand_real3_4d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 4 ), 1
-      call genrand_real3_3d( r(:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real3_4d
-
-  subroutine genrand_real3_5d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 5 ), 1
-      call genrand_real3_4d( r(:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real3_5d
-
-  subroutine genrand_real3_6d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 6 ), 1
-      call genrand_real3_5d( r(:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real3_6d
-
-  subroutine genrand_real3_7d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 7 ), 1
-      call genrand_real3_6d( r(:,:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_real3_7d
+!  subroutine genrand_real3_1d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 1 ), 1
+!      call genrand_real3_0d( r(i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real3_1d
+!
+!  subroutine genrand_real3_2d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 2 ), 1
+!      call genrand_real3_1d( r(:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real3_2d
+!
+!  subroutine genrand_real3_3d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 3 ), 1
+!      call genrand_real3_2d( r(:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real3_3d
+!
+!  subroutine genrand_real3_4d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 4 ), 1
+!      call genrand_real3_3d( r(:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real3_4d
+!
+!  subroutine genrand_real3_5d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 5 ), 1
+!      call genrand_real3_4d( r(:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real3_5d
+!
+!  subroutine genrand_real3_6d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 6 ), 1
+!      call genrand_real3_5d( r(:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real3_6d
+!
+!  subroutine genrand_real3_7d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 7 ), 1
+!      call genrand_real3_6d( r(:,:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_real3_7d
 
   ! generates a random number on [0,1) with 53-bit resolution
   subroutine genrand_res53_0d( r )
@@ -1205,110 +1220,110 @@ module mt95
 
   end subroutine genrand_res53_0d
 
-  subroutine genrand_res53_1d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 1 ), 1
-      call genrand_res53_0d( r(i) )
-    end do
-    return
-
-  end subroutine genrand_res53_1d
-
-  subroutine genrand_res53_2d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 2 ), 1
-      call genrand_res53_1d( r(:,i) )
-    end do
-    return
-
-  end subroutine genrand_res53_2d
-
-  subroutine genrand_res53_3d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 3 ), 1
-      call genrand_res53_2d( r(:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_res53_3d
-
-  subroutine genrand_res53_4d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 4 ), 1
-      call genrand_res53_3d( r(:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_res53_4d
-
-  subroutine genrand_res53_5d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 5 ), 1
-      call genrand_res53_4d( r(:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_res53_5d
-
-  subroutine genrand_res53_6d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 6 ), 1
-      call genrand_res53_5d( r(:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_res53_6d
-
-  subroutine genrand_res53_7d( r )
-
-    intrinsic :: size
-
-    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
-
-    integer(kind=wi)  :: i
-
-    do i = 1, size( r, 7 ), 1
-      call genrand_res53_6d( r(:,:,:,:,:,:,i) )
-    end do
-    return
-
-  end subroutine genrand_res53_7d
+!  subroutine genrand_res53_1d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 1 ), 1
+!      call genrand_res53_0d( r(i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_res53_1d
+!
+!  subroutine genrand_res53_2d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 2 ), 1
+!      call genrand_res53_1d( r(:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_res53_2d
+!
+!  subroutine genrand_res53_3d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 3 ), 1
+!      call genrand_res53_2d( r(:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_res53_3d
+!
+!  subroutine genrand_res53_4d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 4 ), 1
+!      call genrand_res53_3d( r(:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_res53_4d
+!
+!  subroutine genrand_res53_5d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 5 ), 1
+!      call genrand_res53_4d( r(:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_res53_5d
+!
+!  subroutine genrand_res53_6d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 6 ), 1
+!      call genrand_res53_5d( r(:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_res53_6d
+!
+!  subroutine genrand_res53_7d( r )
+!
+!    intrinsic :: size
+!
+!    real(kind=wr), dimension(:,:,:,:,:,:,:), intent(out)  :: r
+!
+!    integer(kind=wi)  :: i
+!
+!    do i = 1, size( r, 7 ), 1
+!      call genrand_res53_6d( r(:,:,:,:,:,:,i) )
+!    end do
+!    return
+!
+!  end subroutine genrand_res53_7d
   ! These real versions are due to Isaku Wada, 2002/01/09 added 
   ! Altered by José Sousa genrand_real[1-3] will not return exactely
   ! the same values but should have the same properties and are faster
