@@ -1,34 +1,35 @@
 MODULE HPHFRandExcitMod
-
 !Half-projected HF wavefunctions are a linear combination of two HF determinants, where all alphas -> betas and betas -> alpha to create the pair.
 !In closed-shell systems, these two determinants have the same FCI amplitude, and so it is easier to treat them as a pair.
 !The probability of creating this HPHF where both are from pairs of spin-coupled determinants (i & j -> a & b):
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
-    use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs
-    use IntegralsData, only: UMat
-    use Determinants, only: GetHElement4
-    use SymData, only: nSymLabels,TwoCycleSymGens
-    use SymData, only: SymLabelList,SymLabelCounts
+    use SystemData, only: nEl,tMerTwist
     use mt95 , only : genrand_real2
-    use HElem
+    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU 
     IMPLICIT NONE
 
     contains
 
 !nI will always be the determinant with the first open-shell having an alpha spin-orbital occupied.
-    SUBROUTINE GenRandHPHFExcit(nI,iLutnI
+    SUBROUTINE GenRandHPHFExcit(nI,iLutnI,NIfD,nJ,iLutnJ,pDoub,exFlag,pGen)
+        INTEGER :: nI(NEl),iLutnI(0:NIfD),NIfD,iLutnJ(0:NIfD),nJ(NEl),exFlag,ExcitMat(2,2),IC
+        INTEGER :: iLutnJ2(0:NIfD)
+        REAL*8 :: pDoub,pGen
+        INTEGER :: ClassCount2(2,0:nSymLabels-1),ClassCount3(2,0:nSymLabels-1)
+        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ClassCountUnocc3(2,0:nSymLabels-1)
+        LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity
 
-        tFilled=.false.
+        tGenClassCountnI=.false.
+        tGenClassCountnI2=.false.
 
 !Test is nI is a closed-shell determinant
         IF(TestClosedShellDet(iLutnI,NIfD)) THEN
-
-!If determinant is closed shell, then all probabilities are the same, so P=2*Prob since both spins are equally likely to be generated.
+!If determinant is closed shell, then all probabilities are the same, so P=2*Prob since both spins are equally likely to be generated (as long as generates open shell HPHF).
 !Just need to return the right spin.
-            CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tFilled)
+
+            CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
             
 !Create bit representation of excitation - iLutnJ
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
@@ -36,12 +37,15 @@ MODULE HPHFRandExcitMod
             IF(IC.eq.2) THEN
                 IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                     pGen=pGen*2.D0
-                    CALL ReturnAlphaOpenDet(nJ,iLutnJ)
+                    CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,NIfD,.true.)
+                ELSE
+!Excitation is closed shell: Closed shell -> Closed Shell
+                    RETURN
                 ENDIF
             ELSE
 !Excitation is definitely open-shell
                 pGen=pGen*2.D0
-                CALL ReturnAlphaOpenDet(nJ,iLutnJ)
+                CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,NIfD,.true.)
             ENDIF
 
             RETURN
@@ -149,10 +153,10 @@ MODULE HPHFRandExcitMod
 !This routine will take a determinant, and create the determinant whose first open-shell spatial orbital contains an alpha electron.
 !If the first open-shell electron is a beta orbital, then the balue of the bit-string will be smaller. We are interested in returning
 !the larger of the open-shell bit strings since this will correspond to the first open-shell electron being an alpha.
-!iLutnI is returned as this determinant, with iLutSym being the other.
+!iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,iLutnI,iLutSym,NIfD,tCalciLutSym)
-        INTEGER :: iLutSym(0:NIfD)
+        INTEGER :: iLutSym(0:NIfD),nI(NEl),NIfD
         LOGICAL :: tCalciLutSym
 
         IF(tCalciLutSym) THEN
@@ -165,6 +169,8 @@ MODULE HPHFRandExcitMod
             iLutTemp(:)=iLutnI(:)
             iLutnI(:)=iLutSym(:)
             iLutSym(:)=iLutTemp(:)
+            CALL FindDetSpinSym(nI,nJ,NEl)
+            nI(:)=nJ(:)
         ELSEIF(i.eq.0) THEN
             CALL Stop_All("ReturnAlphaOpenDet","Shouldn't have closed shell determinants in here")
         ENDIF
@@ -172,54 +178,20 @@ MODULE HPHFRandExcitMod
     END SUBROUTINE ReturnAlphaOpenDet
         
 
-
-        
-!    SUBROUTINE FindExcitBitDetSym(iLut,iLutSym,NIfD,NEl)
-!        IMPLICIT NONE
-!        INTEGER :: iLut(0:NIfD),iLutSym(0:NIfD),NIfD,nI(1:NEl),NEl,j,i
-!!        WRITE(6,*) "ILut: "
-!!        do i=0,NIfD
-!!            do j=0,31
-!!                IF(BTEST(iLut(i),j)) THEN
-!!                    WRITE(6,"(I3)",advance='no') 1
-!!                ELSE
-!!                    WRITE(6,"(I3)",advance='no') 0
-!!                ENDIF
-!!            enddo
-!!        enddo
-!!        WRITE(6,*) ""
-!
-!        CALL DecodeBitDet(nI,iLut(0:NIfD),NEl,NIfD)
-!
-!!        WRITE(6,*) "nI: ",nI(1:NEl)
-!!
-!        do i=1,NEl
-!            IF(mod(nI(i),2).eq.0) THEN
-!!electron is an alpha - change it to a beta (remove one)
-!                nI(i)=nI(i)-1
-!            ELSE
-!                nI(i)=nI(i)+1
-!            ENDIF
-!        enddo
-!        CALL NECI_SORTI(NEl,nI)
-!!        WRITE(6,*) "nISym: ",nI(1:NEl)
-!        CALL EncodeBitDet(nI,iLutSym,NEl,NIfD)
-!
-!    END SUBROUTINE FindExcitBitDetSym
-
-
 !There will be a quicker way to do this without needing the sort.
+!This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
+        INTEGER :: nI(NEl),nJ(NEl),NEl,i
 
         do i=1,NEl
             IF(mod(nI(i),2).eq.0) THEN
 !electron is an alpha - change it to a beta (remove one)
-                nI(i)=nI(i)-1
+                nJ(i)=nI(i)-1
             ELSE
-                nI(i)=nI(i)+1
+                nJ(i)=nI(i)+1
             ENDIF
         enddo
-        CALL NECI_SORTI(NEl,nI)
+        CALL NECI_SORTI(NEl,nJ)
 
     END SUBROUTINE FindDetSpinSym
 
