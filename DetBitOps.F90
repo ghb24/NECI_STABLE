@@ -202,107 +202,31 @@
 
     END SUBROUTINE FindExcitBitDet
 
+!This function will return true if the determinant is closed shell, or false if not.
+    LOGICAL FUNCTION TestClosedShellDet(iLut,NIfD)
+        INTEGER :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i,NIfD
+        
+        iLutAlpha(:)=0
+        iLutBeta(:)=0
+        MaskBeta=1431655765    !This is 1010101... in binary
+        MaskAlpha=2863311530     !This is 0101010... in binary
+        TestClosedShellDet=.true.
 
-    SUBROUTINE FindExcitBitDetSym(iLut,iLutSym,NIfD,NEl)
-        IMPLICIT NONE
-        INTEGER :: iLut(0:NIfD),iLutSym(0:NIfD),NIfD,nI(1:NEl),NEl,j,i
-!        WRITE(6,*) "ILut: "
-!        do i=0,NIfD
-!            do j=0,31
-!                IF(BTEST(iLut(i),j)) THEN
-!                    WRITE(6,"(I3)",advance='no') 1
-!                ELSE
-!                    WRITE(6,"(I3)",advance='no') 0
-!                ENDIF
-!            enddo
-!        enddo
-!        WRITE(6,*) ""
+        do i=0,NIfD
 
-        CALL DecodeBitDet(nI,iLut(0:NIfD),NEl,NIfD)
-
-!        WRITE(6,*) "nI: ",nI(1:NEl)
-!
-        do i=1,NEl
-            IF(mod(nI(i),2).eq.0) THEN
-!electron is an alpha - change it to a beta (remove one)
-                nI(i)=nI(i)-1
-            ELSE
-                nI(i)=nI(i)+1
+            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
+            iLutBeta(i)=IAND(iLut(i),MaskBeta)
+            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
+            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - they should cancel exactly.
+            
+            IF(iLutAlpha(i).ne.0) THEN
+                TestClosedShellDet=.false.  !Det is not closed shell - return
+                RETURN
             ENDIF
         enddo
-        CALL NECI_SORTI(NEl,nI)
-!        WRITE(6,*) "nISym: ",nI(1:NEl)
-        CALL EncodeBitDet(nI,iLutSym,NEl,NIfD)
 
-    END SUBROUTINE FindExcitBitDetSym
+    END FUNCTION TestClosedShellDet
 
-!!In closed-shell systems with equal number of alpha and beta strings, the amplitude of a determinant in the final CI wavefunction is the same
-!!when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). It will sometimes be necessary to find this other
-!!determinant when spawning. This routine will find the bit-representation of an excitation by constructing the symmetric iLut from the its
-!!symmetric partner, also in bit form.
-!    SUBROUTINE FindExcitBitDetSym(iLut,iLutSym,NIfD)
-!        IMPLICIT NONE
-!        INTEGER :: iLut(0:NIfD),iLutSym(0:NIfD),NIfD
-!        INTEGER :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i
-!
-!!        WRITE(6,*) "******"
-!        iLutSym(:)=0
-!        iLutAlpha(:)=0
-!        iLutBeta(:)=0
-!        MaskBeta=1431655765    !This is 1010101... in binary
-!        MaskAlpha=2863311530     !This is 0101010... in binary
-!
-!!        WRITE(6,*) "MaskAlpha: "
-!!        do i=0,31
-!!            IF(BTEST(MaskAlpha,i)) THEN
-!!                WRITE(6,"(I3)",advance='no') 1
-!!            ELSE
-!!                WRITE(6,"(I3)",advance='no') 0
-!!            ENDIF
-!!        enddo
-!!        WRITE(6,*) ""
-!!        WRITE(6,*) "MaskBeta: "
-!!        do i=0,31
-!!            IF(BTEST(MaskBeta,i)) THEN
-!!                WRITE(6,"(I3)",advance='no') 1
-!!            ELSE
-!!                WRITE(6,"(I3)",advance='no') 0
-!!            ENDIF
-!!        enddo
-!!        WRITE(6,*) ""
-!
-!        do i=0,NIfD
-!
-!            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
-!            iLutBeta(i)=IAND(iLut(i),MaskBeta)
-!
-!            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)  !Shift all alpha bits to the left by one.
-!            iLutBeta(i)=ISHFT(iLutBeta(i),1)   !Shift all beta bits to the right by one.
-!            
-!            iLutSym(i)=IOR(iLutAlpha(i),iLutBeta(i))    !Combine the bit strings to give the final bit representation.
-!
-!!            WRITE(6,*) "ILut: "
-!!            do j=0,31
-!!                IF(BTEST(iLut(i),j)) THEN
-!!                    WRITE(6,"(I3)",advance='no') 1
-!!                ELSE
-!!                    WRITE(6,"(I3)",advance='no') 0
-!!                ENDIF
-!!            enddo
-!!            WRITE(6,*) ""
-!!            WRITE(6,*) "iLutSym: "
-!!            do j=0,31
-!!                IF(BTEST(iLutSym(i),j)) THEN
-!!                    WRITE(6,"(I3)",advance='no') 1
-!!                ELSE
-!!                    WRITE(6,"(I3)",advance='no') 0
-!!                ENDIF
-!!            enddo
-!!            WRITE(6,*) ""
-!
-!        enddo
-!
-!    END SUBROUTINE FindExcitBitDetSym
 
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
     SUBROUTINE LargestBitSet(iLut,NIfD,LargestOrb)

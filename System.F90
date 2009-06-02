@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tHPHF=.false.
       tMaxHLGap=.false.
       tUMatEps=.false.
       UMatEps=0.D0

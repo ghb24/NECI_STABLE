@@ -26,7 +26,7 @@ MODULE GenRandSymExcitNUMod
       !  normalised probability of generating the excitation.
     use SystemData, only: ALAT,iSpinSkip
     use SystemData, only: nEl,G1, nBasis,nBasisMax,tNoSymGenRandExcits,tMerTwist
-    use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs
+    use SystemData, only: Arr,nMax,tCycleOrbs,nOccAlpha,nOccBeta,ElecPairs,tHPHF
     use IntegralsData, only: UMat
     use Determinants, only: GetHElement4
     use SymData, only: nSymLabels,TwoCycleSymGens
@@ -570,6 +570,8 @@ MODULE GenRandSymExcitNUMod
 !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs.
 !This is the prob of generating nJ FROM nI, not the other way round.
 !Passed in is also the ClassCount2 arrays for nI, and the probability of picking a double.
+!A word of warning: The routine does not check that the determinants are indeed connected, and may well return a non-zero probability even if they arent.
+!Therefore, make sure that they are at most double excitations of each other.
     SUBROUTINE CalcNonUniPGen(Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
         REAL*8 :: pDoub,pGen!,PabGivenij
         INTEGER :: ClassCount2(2,0:nSymLabels-1),ForbiddenOrbs,SymA,SymB
@@ -788,9 +790,9 @@ MODULE GenRandSymExcitNUMod
         ELSE
             CALL CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
             IF(pGen.eq.-1.D0) THEN
-                IF((ExFlag.ne.3)) THEN  !.or.tHPHF) THEN
+                IF((ExFlag.ne.3).or.tHPHF) THEN
 !If using HPHF wavefunctions, then we do not want to do this, since it will affect the generation probabilities calculated using CalcNonUniPGens.
-                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
+                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position! (or HPHF is on and this will screw with pGens)")
                 ENDIF
                 pDoubNew=1.D0
                 IC=2
