@@ -157,7 +157,11 @@ MODULE Determinants
          LOGICAL ISCSF
          type(timer), save :: proc_timer
          IF(tHPHF) THEN
-!             CALL HPHFGetHElement()
+             IF(IC.eq.0) THEN
+                 CALL HPHFGetDiagHElement(nI,Sum2)
+             ELSE
+                 CALL HPHFGetOffDiagHElement(nI,nJ,Sum2)
+             ENDIF
              GetHElement2=Sum2
              RETURN
          ENDIF
@@ -191,6 +195,7 @@ MODULE Determinants
          call halt_timer(proc_timer)
          RETURN
       END FUNCTION
+
 !Call GetHElement2 without needing so many arguments
       TYPE(HElement) FUNCTION GetHElement3(NI,NJ,iC)
          Use HElem
