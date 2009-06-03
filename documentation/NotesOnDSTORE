@@ -1,0 +1,21 @@
+Memory storage for others in DStore. Memory required is SymClassSuze*NEl+NBASIS/32+1+Symmetry*(Nel*Nel+1)
+
+DSTORE(1) = CLASSES
+DSTORE(SymClassSize*NEl+1) = ILUT(0:NBASIS/32)
+DSTORE((SymClassSize*NEl+1)+NBASIS/32+1) = SYMPRODS
+
+What do we want to store for the excitation generation of random unweighted determinants?
+EXCITTYPES (Assumed Size = )
+ILUT
+SYMPRODIND
+ORBPAIRS
+Might need - CLASSES - needed for finding the symmetry of electrons, BUT this could be stored in EXCITTYPES.
+
+STORE(1) = EXTRAS
+STORE(2) = EXCITTYPES
+STORE(3) = ALLOWPPS
+STORE(4) = ORBPAIRS
+STORE(5) = SYMPRODIND
+STORE(6) = 0 if lengths.
+
+
