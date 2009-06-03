@@ -17,12 +17,16 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
     CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
 
     IF(TestClosedShellDet(iLutnI,NIfD)) THEN
-        IF(TestClosedShellDet(iLutnJ)) THEN
+        IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
 !Closed Shell -> Closed Shell. Both alpha and beta of the same orbital have been moved to the same new orbital. The matrix element is the same as before.
+!            WRITE(6,*) "Closed Shell -> Closed Shell"
+!            CALL FLUSH(6)
             CALL SltCnd(nEl,nBasisMax,nBasis,nI,nJ,G1,nEl-2,NMSH,FCK,NMAX,ALAT,UMat,MatEl)
             RETURN
         ELSE
 !Closed Shell -> Open Shell. <X|H|Y>= 1/sqrt(2) [Hia + Hib]
+!            WRITE(6,*) "Closed Shell -> Open Shell"
+!            CALL FLUSH(6)
             CALL FindDetSpinSym(nJ,nJ2,NEl)
             CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 
@@ -48,7 +52,9 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
         CALL FindDetSpinSym(nI,nI2,NEl)
         CALL FindExcitBitDetSym(iLutnI,iLutnI2)
 
-        IF(TestClosedShellDet(iLutnJ)) THEN
+        IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
+!            WRITE(6,*) "Open Shell -> Closed Shell"
+!            CALL FLUSH(6)
 !OpenShell -> Closed Shell. I am pretty sure that if one of the determinants is connected, then the other is connected with the same IC (+matrix element?) Test this later.
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
@@ -66,6 +72,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
             RETURN
         ELSE
 !OpenShell -> Open Shell. Find the spin pair of nJ.
+!            WRITE(6,*) "Open Shell -> Open Shell"
+!            CALL FLUSH(6)
             CALL FindDetSpinSym(nJ,nJ2,NEl)
             CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 
