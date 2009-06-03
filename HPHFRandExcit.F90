@@ -6,8 +6,9 @@ MODULE HPHFRandExcitMod
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
     use SystemData, only: nEl,tMerTwist
+    use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
-    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU 
+    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen 
     IMPLICIT NONE
 
     contains
@@ -15,11 +16,11 @@ MODULE HPHFRandExcitMod
 !nI will always be the determinant with the first open-shell having an alpha spin-orbital occupied.
     SUBROUTINE GenRandHPHFExcit(nI,iLutnI,NIfD,nJ,iLutnJ,pDoub,exFlag,pGen)
         INTEGER :: nI(NEl),iLutnI(0:NIfD),NIfD,iLutnJ(0:NIfD),nJ(NEl),exFlag,ExcitMat(2,2),IC
-        INTEGER :: iLutnJ2(0:NIfD)
-        REAL*8 :: pDoub,pGen
+        INTEGER :: iLutnJ2(0:NIfD),nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel,iLutnI2(0:NIfD)
+        REAL*8 :: pDoub,pGen,r,pGen2
         INTEGER :: ClassCount2(2,0:nSymLabels-1),ClassCount3(2,0:nSymLabels-1)
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ClassCountUnocc3(2,0:nSymLabels-1)
-        LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity
+        LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity,tSign
 
         tGenClassCountnI=.false.
         tGenClassCountnI2=.false.
@@ -57,8 +58,12 @@ MODULE HPHFRandExcitMod
         ELSE
             CALL RANLUX(r,1)
         ENDIF
+!This will find the full ordered form for nI2 and its bit representation. (Is this always needed?)
+        CALL FindDetSpinSym(nI,nI2,NEl)
+        CALL FindExcitBitDetSym(iLutnI,iLutnI2,NIfD)
+
         IF(r.lt.0.D5) THEN
-!Excite from nI
+!Excite from nJ from nI
             CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
 
 !Find Bit-representation of excitation.
@@ -68,10 +73,7 @@ MODULE HPHFRandExcitMod
                 RETURN
             ENDIF
 
-            CALL FindDetSpinSym(nI,nI2,NEl)
-
 !We may have been able to excite from nI2 to this determinant. see if it in connected.
-            CALL FindExcitBitDetSym(iLutnI,iLutnI2,NIfD)
             CALL FindBitExcitLevel(iLutnI2,iLutnJ,NIfD,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
 !                CALL DecodeBitDet(nI2,iLutnI2,NIfD)
@@ -86,9 +88,8 @@ MODULE HPHFRandExcitMod
         ELSE
 !Excite from the spin-pair of nI (called nI2)
 
-            CALL FindExcitBitDetSym(iLutnI,iLutnI2,NIfD)
 !            CALL DecodeBitDet(nI2,iLutnI2,NEl,NIfD)
-            CALL FindDetSpinSym(nI,nI2,NEl)
+!            CALL FindDetSpinSym(nI,nI2,NEl)
             CALL GenRandSymExcitScratchNU(nI2,iLutnI2,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount3,ClassCountUnocc3,tGenClassCountnI2)
 
 !Find Bit-representation of excitation.
@@ -123,7 +124,7 @@ MODULE HPHFRandExcitMod
             Ex2(1,1)=ExcitLevel
             CALL GetExcitation(nI2,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI2) THEN
-                tGenClassCountnI2=.true.
+!                tGenClassCountnI2=.true.
                 CALL ConstructClassCounts(nI2,ClassCount3,ClassCountUnocc3)
             ENDIF
             CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount3,ClassCountUnocc3,pDoub,pGen2)
@@ -136,7 +137,7 @@ MODULE HPHFRandExcitMod
             Ex2(1,1)=ExcitLevel
             CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI) THEN
-                tGenClassCountnI=.true.
+!                tGenClassCountnI=.true.
                 CALL ConstructClassCounts(nI,ClassCount2,ClassCountUnocc2)
             ENDIF
             CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
@@ -156,8 +157,8 @@ MODULE HPHFRandExcitMod
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,iLutnI,iLutSym,NIfD,tCalciLutSym)
-        INTEGER :: iLutSym(0:NIfD),nI(NEl),NIfD
-        LOGICAL :: tCalciLutSym
+        INTEGER :: iLutSym(0:NIfD),nI(NEl),NIfD,iLutnI(0:NIfD),nJ(NEl),iLutTemp(0:NIfD),i
+        LOGICAL :: tCalciLutSym,DetBitLT
 
         IF(tCalciLutSym) THEN
             CALL FindExcitBitDetSym(iLutnI,iLutSym,NIfD)
