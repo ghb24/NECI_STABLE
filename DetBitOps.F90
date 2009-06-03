@@ -209,7 +209,7 @@
         iLutAlpha(:)=0
         iLutBeta(:)=0
         MaskBeta=1431655765    !This is 1010101... in binary
-        MaskAlpha=2863311530     !This is 0101010... in binary
+        MaskAlpha=-1431655766  !This is 0101010... in binary
         TestClosedShellDet=.true.
 
         do i=0,NIfD
