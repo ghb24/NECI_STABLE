@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tHPHFInts=.false.
       tHPHF=.false.
       tMaxHLGap=.false.
       tUMatEps=.false.
@@ -384,6 +385,8 @@ MODULE System
 !use these assumed size excitation generators to generate the whole list of excitations, will result 
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
+        case("HPHF")
+            tHPHF=.true.
 
 
         case("ROTATEORBS")

@@ -5,7 +5,7 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nEl,tMerTwist
+    use SystemData, only: nEl,tMerTwist,NIfD
     use SymData, only: nSymLabels
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen 
@@ -14,8 +14,8 @@ MODULE HPHFRandExcitMod
     contains
 
 !nI will always be the determinant with the first open-shell having an alpha spin-orbital occupied.
-    SUBROUTINE GenRandHPHFExcit(nI,iLutnI,NIfD,nJ,iLutnJ,pDoub,exFlag,pGen)
-        INTEGER :: nI(NEl),iLutnI(0:NIfD),NIfD,iLutnJ(0:NIfD),nJ(NEl),exFlag,ExcitMat(2,2),IC
+    SUBROUTINE GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,exFlag,pGen)
+        INTEGER :: nI(NEl),iLutnI(0:NIfD),iLutnJ(0:NIfD),nJ(NEl),exFlag,ExcitMat(2,2),IC
         INTEGER :: iLutnJ2(0:NIfD),nI2(NEl),nJ2(NEl),Ex2(2,2),ExcitLevel,iLutnI2(0:NIfD)
         REAL*8 :: pDoub,pGen,r,pGen2
         INTEGER :: ClassCount2(2,0:nSymLabels-1),ClassCount3(2,0:nSymLabels-1)
@@ -38,7 +38,7 @@ MODULE HPHFRandExcitMod
             IF(IC.eq.2) THEN
                 IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                     pGen=pGen*2.D0
-                    CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,NIfD,.true.)
+                    CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,.true.)
                 ELSE
 !Excitation is closed shell: Closed shell -> Closed Shell
                     RETURN
@@ -46,7 +46,7 @@ MODULE HPHFRandExcitMod
             ELSE
 !Excitation is definitely open-shell
                 pGen=pGen*2.D0
-                CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,NIfD,.true.)
+                CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,.true.)
             ENDIF
 
             RETURN
@@ -60,7 +60,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 !This will find the full ordered form for nI2 and its bit representation. (Is this always needed?)
         CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL FindExcitBitDetSym(iLutnI,iLutnI2,NIfD)
+        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
 
         IF(r.lt.0.D5) THEN
 !Excite from nJ from nI
@@ -115,7 +115,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !We also need to look at how we *could* have excited to the spin-coupled determinant of nJ.
-        CALL FindExcitBitDetSym(iLutnJ,iLutnJ2,NIfD)
+        CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
         CALL FindDetSpinSym(nJ,nJ2,NEl)
 
 !Firstly, nI2 -> nJ2
@@ -147,7 +147,7 @@ MODULE HPHFRandExcitMod
         pGen=pGen/2.D0  !Normalize pGens.
 
 !Excitation is open-shell. We need to find the correct spin-pair to send back. 
-        CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,NIfD,.false.)
+        CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,.false.)
 
     END SUBROUTINE GenRandHPHFExcit
 
@@ -156,12 +156,12 @@ MODULE HPHFRandExcitMod
 !the larger of the open-shell bit strings since this will correspond to the first open-shell electron being an alpha.
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
-    SUBROUTINE ReturnAlphaOpenDet(nI,iLutnI,iLutSym,NIfD,tCalciLutSym)
-        INTEGER :: iLutSym(0:NIfD),nI(NEl),NIfD,iLutnI(0:NIfD),nJ(NEl),iLutTemp(0:NIfD),i
+    SUBROUTINE ReturnAlphaOpenDet(nI,iLutnI,iLutSym,tCalciLutSym)
+        INTEGER :: iLutSym(0:NIfD),nI(NEl),iLutnI(0:NIfD),nJ(NEl),iLutTemp(0:NIfD),i
         LOGICAL :: tCalciLutSym,DetBitLT
 
         IF(tCalciLutSym) THEN
-            CALL FindExcitBitDetSym(iLutnI,iLutSym,NIfD)
+            CALL FindExcitBitDetSym(iLutnI,iLutSym)
         ENDIF
 
         i=DetBitLT(iLutnI,iLutSym,NIfD)
@@ -201,9 +201,9 @@ MODULE HPHFRandExcitMod
 !when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). It will sometimes be necessary to find this other
 !determinant when spawning. This routine will find the bit-representation of an excitation by constructing the symmetric iLut from the its
 !symmetric partner, also in bit form.
-    SUBROUTINE FindExcitBitDetSym(iLut,iLutSym,NIfD)
+    SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
         IMPLICIT NONE
-        INTEGER :: iLut(0:NIfD),iLutSym(0:NIfD),NIfD
+        INTEGER :: iLut(0:NIfD),iLutSym(0:NIfD)
         INTEGER :: iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i
 
 !        WRITE(6,*) "******"

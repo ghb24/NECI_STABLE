@@ -3,7 +3,7 @@
 !All variables refer to values per processor
 
 MODULE FciMCParMod
-    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD
+    use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample
     use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift
@@ -1976,6 +1976,7 @@ MODULE FciMCParMod
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
         use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
+        use HPHFRandExcitMod , only : GenRandHPHFExcit
         use DetCalc , only : FCIDetIndex
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),iLutnJ2(0:NIfD),NoMinorWalkersNew,TempDet(NEl)
@@ -2110,7 +2111,11 @@ MODULE FciMCParMod
                         ELSE
                             IF(tNonUniRandExcits) THEN
 !This will only be a help if most determinants are multiply occupied.
-                                CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                                IF(tHPHF) THEN
+                                    CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
+                                ELSE
+                                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                                ENDIF
                             ELSE
                                 CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
                             ENDIF
@@ -2241,7 +2246,7 @@ MODULE FciMCParMod
                     ENDIF
 
 !We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
+                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
 
                     IF(tRotoAnnihil) THEN
 !In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
@@ -2263,20 +2268,6 @@ MODULE FciMCParMod
                             SpawnedSign(ValidSpawned)=Child
                             ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
                         ENDIF
-
-!                        IF(tSpawnSymDets) THEN
-!!With this option, we also spawn on a determinant which by symmetry is constrained to have the same CI amplitude. For S=0, the sign is also the same.
-!                            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2,NIfD,NEl) !This will find the bit string of the symmetric determinant.
-!!We also want to spawn the same number of particles on its symmetric determinant too, with the same sign.
-!                            IF(.not.DetBitEQ(iLutnJ,iLutnJ2,NIfD)) THEN
-!                                SpawnedParts(:,ValidSpawned)=iLutnJ2(:)
-!                                SpawnedSign(ValidSpawned)=Child
-!                                ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
-!                                Acceptances=Acceptances+ABS(Child)      !Double the number of created children to use in acceptance ratio
-!                                NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
-!                                IF(IC.eq.1) SpawnFromSing=SpawnFromSing+abs(Child)
-!                            ENDIF
-!                        ENDIF
 
                     ELSE
 !Calculate diagonal ham element
@@ -7028,7 +7019,7 @@ MODULE FciMCParMod
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
-        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn
+        use SystemData, only : tUseBrillouin,iRanLuxLev,tSpn,tHPHFInts
         USE mt95 , only : genrand_init
         use CalcData, only : EXCITFUNCS
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
@@ -7192,6 +7183,10 @@ MODULE FciMCParMod
         WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
         Fii=REAL(TempHii%v,r2)
+
+        IF(tHPHF) THEN
+            tHPHFInts=.true.
+        ENDIF
 
         IF(tHub) THEN
             IF(tReal) THEN
@@ -9202,7 +9197,6 @@ MODULE FciMCParMod
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,Prob,IC,Ex,tParity,nParts,tMinorDetList)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
-        use SystemData , only : tHPHF
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
         INTEGER :: iLutCurr(0:NIfD),Bin,iLutnJ(0:NIfD),PartInd,ExcitLev,iLut(0:NIfD),iLut2(0:NIfD)
         LOGICAL :: tParity,SymAllowed,tSuccess,tMinorDetList,DetBitEQ
@@ -9243,7 +9237,8 @@ MODULE FciMCParMod
 !Calculate off diagonal hamiltonian matrix element between determinants
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
         IF(tHPHF) THEN
-            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
+            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
         ELSE
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
         ENDIF

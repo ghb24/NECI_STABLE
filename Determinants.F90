@@ -140,7 +140,7 @@ MODULE Determinants
 
       TYPE(HElement) FUNCTION GetHElement2(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,iC2,ECore)
          Use HElem
-         use SystemData , only : TSTOREASEXCITATIONS,tHPHF
+         use SystemData , only : TSTOREASEXCITATIONS,tHPHFInts
          use SystemData, only: BasisFN
          use global_utilities
          IMPLICIT NONE
@@ -156,7 +156,7 @@ MODULE Determinants
          INTEGER IGETEXCITLEVEL_2
          LOGICAL ISCSF
          type(timer), save :: proc_timer
-         IF(tHPHF) THEN
+         IF(tHPHFInts) THEN
              IF(IC.eq.0) THEN
                  CALL HPHFGetDiagHElement(nI,Sum2)
              ELSE

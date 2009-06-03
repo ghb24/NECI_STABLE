@@ -24,7 +24,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
         ELSE
 !Closed Shell -> Open Shell. <X|H|Y>= 1/sqrt(2) [Hia + Hib]
             CALL FindDetSpinSym(nJ,nJ2,NEl)
-            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2,NIfD)
+            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 
 !First, find <nI|H|nJ>
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
@@ -46,7 +46,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
     ELSE
 !Initial HPHF is open-shell. Find the spin-coupled determinant.
         CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL FindExcitBitDetSym(iLutnI,iLutnI2,NIfD)
+        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
 
         IF(TestClosedShellDet(iLutnJ)) THEN
 !OpenShell -> Closed Shell. I am pretty sure that if one of the determinants is connected, then the other is connected with the same IC (+matrix element?) Test this later.
@@ -67,7 +67,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
         ELSE
 !OpenShell -> Open Shell. Find the spin pair of nJ.
             CALL FindDetSpinSym(nJ,nJ2,NEl)
-            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2,NIfD)
+            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 
 !Matrix element is 1/2 [Hia + Hib + Hja + Hjb]
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
@@ -123,7 +123,7 @@ SUBROUTINE HPHFGetDiagHElement(nI,MatEl)
     ELSE
 !Open Shell Determinant. Find the spin pair
         CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL FindExcitBitDetSym(iLutnI,iLutnI2,NIfD)
+        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
 
         MatEl2=HElement(0.D0)
 !<X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are the two spin-coupled dets which make up X
