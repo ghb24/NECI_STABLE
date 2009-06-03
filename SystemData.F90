@@ -19,6 +19,11 @@ REAL*8 :: ALPHA,FCOULDAMPBETA,FCOULDAMPMU,TimeStep,ConvergedForce,ShakeConverged
 ! Used to be stored in Integrals
 INTEGER :: ORBORDER(8,2)
 
+
+!This indicates the upper-bound for the determinants when expressed in bit-form. This will equal INT(nBasis/32).
+!The actual total length for a determinant in bit form will be NoIntforDet+1
+INTEGER :: NIfD
+
 ! From NECICB
 integer :: lmsBasis
 

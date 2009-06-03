@@ -495,7 +495,7 @@ MODULE Integrals
         
     Subroutine IntFreeze
       use SystemData, only: Alat,Brr,CoulDampOrb,ECore,fCoulDampMu
-      use SystemData, only: G1,iSpinSkip
+      use SystemData, only: G1,iSpinSkip,NIfD
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
@@ -564,6 +564,10 @@ MODULE Integrals
          CALL N_MEMORY_CHECK()
          WRITE(6,*) "Active basis functions:",NHG
          CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
+         NIfD=INT(NHG/32)
+!This indicates the upper-bound for the determinants when expressed in bit-form. This will equal INT(nBasis/32).
+!The actual total length for a determinant in bit form will be NoIntforDet+1
+         WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+1
       ENDIF
 !      CALL WRITETMAT(NBASIS)
 !      CALL WRITESYMCLASSES(NBASIS)

@@ -26,7 +26,7 @@
         INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max),
 !        REAL*8 :: HList(nlist1max)
-        TYPE(HElement) :: HDiagTemp,GetHElement2
+        TYPE(HElement) :: HDiagTemp
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
         LOGICAL :: DetBitEQ
@@ -204,13 +204,11 @@
     SUBROUTINE MergeLists(nlist1,nlist1max,nlist2,list2,SignList2,NIfD)
         USE FciMCParMOD , only : iLutHF,Hii,CurrentDets,CurrentSign
         USE SystemData , only : NEl
-        USE Determinants , only : GetHElement3
         USE HElem
         IMPLICIT NONE
         INTEGER :: list1(0:NIfD,nlist1max),list2(0:NIfD,1:nlist2)
         INTEGER :: nlisto,nlist1,nlist2,NIfD,nlo,i,DetCurr(0:NIfD) 
         INTEGER :: ips,ips1,SignList2(nlist2)!,SignList1(nlist1max)
-        TYPE(HElement) :: HDiagTemp,GetHElement2
         REAL*8 :: HDiag
         INTEGER :: nJ(NEl),j,nlist1max
         LOGICAL :: DetBitEQ
