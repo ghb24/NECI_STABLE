@@ -7210,6 +7210,13 @@ MODULE FciMCParMod
 !            WRITE(6,*) "Spawning on symmetric determinants for each spawning step"
 !        ENDIF
 
+        IF(tSpn) THEN
+            WRITE(6,*) "ROHF or UHF in use. Single excitations will also be used to calculate energy."
+            tRotatedOrbs=.true.
+        ELSEIF(LMS.ne.0) THEN
+            CALL Stop_All("InitFciMCCalcPar","Ms not equal to zero, but tSpn is false. Error here")
+        ENDIF
+
         TBalanceNodes=.false.   !Assume that the nodes are initially load-balanced
 
 !Initialise variables for calculation on each node
