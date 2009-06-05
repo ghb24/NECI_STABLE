@@ -7025,7 +7025,7 @@ MODULE FciMCParMod
         use Calc, only : VirtCASorbs,OccCASorbs,FixShift,G_VMC_Seed
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
-        use GenRandSymExcitNUMod , only : SpinOrbSymSetup 
+        use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits
         TYPE(HElement) :: rh,TempHii
@@ -7151,6 +7151,12 @@ MODULE FciMCParMod
 !            CALL SpinOrbSymSetup(.false.) 
 !            CALL Stop_All("SSS","SKCJB")
         ENDIF
+
+!Check whether it is possible to have a determinant where the electrons
+!can be arranged in a determinant so that there are no unoccupied
+!orbitals with any of the irreps of the occupied orbitals. If this can happen, we need to check for it before generating excitations.
+!NEED TO CREATE A TEST HERE
+       tNoSingsPossible=.true. 
 
 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
