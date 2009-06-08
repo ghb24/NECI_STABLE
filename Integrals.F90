@@ -307,6 +307,7 @@ MODULE Integrals
       INTEGER,SAVE :: tagCOEFF=0
       INTEGER i
       INTEGER TmatInt,UMatInt
+      REAL*8 :: UMatMem
       integer iErr
       character(25), parameter :: this_routine='IntInit'
 
@@ -387,6 +388,8 @@ MODULE Integrals
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
          CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
+         UMatMem=REAL(UMatInt*HElementSizeB,8)/(9.536743164D-7)
+         WRITE(6,"(A,G20.10,A)") "UMatMemory: ",UMatMem, " Mb/Processor"
          Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
