@@ -539,6 +539,7 @@ MODULE Integrals
             LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat)
          ENDIF 
          CALL N_MEMORY_CHECK()
+!At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
          CALL N_MEMORY_CHECK()
          WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
@@ -564,13 +565,13 @@ MODULE Integrals
          CALL N_MEMORY_CHECK()
          WRITE(6,*) "Active basis functions:",NHG
          CALL WRITEBASIS(6,G1,NHG,ARR,BRR)
-         NIfD=INT(NHG/32)
-!This indicates the upper-bound for the determinants when expressed in bit-form. This will equal INT(nBasis/32).
-!The actual total length for a determinant in bit form will be NoIntforDet+1
-         WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+1
       ENDIF
 !      CALL WRITETMAT(NBASIS)
 !      CALL WRITESYMCLASSES(NBASIS)
+      NIfD=INT(nBasis/32)
+!This indicates the upper-bound for the determinants when expressed in bit-form. This will equal INT(nBasis/32).
+!The actual total length for a determinant in bit form will be NoIntforDet+1
+      WRITE(6,*) "Setting integer length of determinants as bit-strings to: ",NIfD+1
          
       IF(COULDAMPORB.GT.0) THEN
          FCOULDAMPMU=(ARR(COULDAMPORB,1)+ARR(COULDAMPORB+1,1))/2
