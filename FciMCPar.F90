@@ -1992,7 +1992,7 @@ MODULE FciMCParMod
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
 !            CALL FLUSH(11)
         ENDIF
-
+        
 !        IF(tRotoAnnihil) THEN
 !            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
 !        ENDIF
@@ -5012,10 +5012,20 @@ MODULE FciMCParMod
         INTEGER :: i,j,N,Comp,DetBitLT
         LOGICAL :: tSuccess
 
-!        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
-!        CALL FLUSH(6)
         i=MinInd
         j=MaxInd
+        IF(MaxInd.eq.1) THEN
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfD)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
+
         do while(j-i.gt.0)  !End when the upper and lower bound are the same.
             N=(i+j)/2       !Find the midpoint of the two indices
 !            WRITE(6,*) i,j,n
@@ -5751,20 +5761,20 @@ MODULE FciMCParMod
                 CALL Stop_All("CheckOrdering","Array not ordered correctly")
             ELSEIF(Comp.eq.0) THEN
 !Dets are the same - see if we want to check sign-coherence
-!                IF(tCheckSignCoher) THEN
+                IF(tCheckSignCoher) THEN
 !!This bit checks that there is only one copy of the determinants in the list
-!                    do j=max(i-5,1),min(i+5,NoDets)
-!                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
-!                    enddo
-!                    CALL Stop_All("CheckOrdering","Determinant same as previous one...")
-!                ENDIF
-!                IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
-!!This checks that any multple copies in the list are sign-coherent...
-!                    do j=i-5,i+5
-!                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
-!                    enddo
-!                    CALL Stop_All("CheckOrdering","Array not sign-coherent")
-!                ENDIF
+                    do j=max(i-5,1),min(i+5,NoDets)
+                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
+                    enddo
+                    CALL Stop_All("CheckOrdering","Determinant same as previous one...")
+                ENDIF
+                IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
+!This checks that any multple copies in the list are sign-coherent...
+                    do j=i-5,i+5
+                        WRITE(6,*) Iter,j,DetArray(:,j),SignArray(j)
+                    enddo
+                    CALL Stop_All("CheckOrdering","Array not sign-coherent")
+                ENDIF
             ENDIF
         enddo
 
@@ -11661,6 +11671,17 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
         i=MinInd
         j=MaxInd
+        IF(MaxInd.eq.1) THEN
+            Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:),NIfD)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
         do while(j-i.gt.0)  !End when the upper and lower bound are the same.
             N=(i+j)/2       !Find the midpoint of the two indices
 !            WRITE(6,*) i,j,n
@@ -11735,6 +11756,17 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
         i=MinInd
         j=MaxInd
+        IF(MaxInd.eq.1) THEN
+            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfD)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
         do while(j-i.gt.0)  !End when the upper and lower bound are the same.
             N=(i+j)/2       !Find the midpoint of the two indices
 !            WRITE(6,*) i,j,n
