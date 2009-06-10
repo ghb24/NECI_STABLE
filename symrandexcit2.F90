@@ -577,19 +577,29 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ClassCount2(2,0:nSymLabels-1),ForbiddenOrbs,SymA,SymB
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ElecsWNoExcits,i,NExcitOtherWay
         INTEGER :: SymProduct,OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2)
+            
+        pDoubNew=pDoub
+        IF(tNoSingsPossible) THEN
+!This will check if there are any possible single excitations from this determinant
+!If there are not, then this will change pDoubNew so that it = 1 and only doubles will be generated.
+            CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2)
+        ENDIF
 
         IF(IC.eq.1) THEN
 
 !First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
 !will affect the probabilities.
-            ElecsWNoExcits=0
 
             IF(tNoSymGenRandExcits) THEN
-                IF((ClassCount2(1,0).ne.0).and.(ClassCountUnocc2(1,0).eq.0)) THEN
-                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,0)
-                ENDIF
-                IF((ClassCount2(2,0).ne.0).and.(ClassCountUnocc2(2,0).eq.0)) THEN
-                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,0)
+
+                IF(.not.tNoSingsPossible) THEN
+                    ElecsWNoExcits=0
+                    IF((ClassCount2(1,0).ne.0).and.(ClassCountUnocc2(1,0).eq.0)) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,0)
+                    ENDIF
+                    IF((ClassCount2(2,0).ne.0).and.(ClassCountUnocc2(2,0).eq.0)) THEN
+                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,0)
+                    ENDIF
                 ENDIF
                 
 !Find symmetry of chosen electron
@@ -597,16 +607,19 @@ MODULE GenRandSymExcitNUMod
             ELSE
 !Need to look for forbidden electrons through all the irreps.
 
-                do i=0,nSymLabels-1
+                IF(.not.tNoSingsPossible) THEN
+                    ElecsWNoExcits=0
+                    do i=0,nSymLabels-1
 !Run through all labels
-                    IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
+                        IF((ClassCount2(1,i).ne.0).and.(ClassCountUnocc2(1,i).eq.0)) THEN
 !If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
-                    ENDIF
-                    IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
-                        ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
-                    ENDIF
-                enddo
+                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(1,i)
+                        ENDIF
+                        IF((ClassCount2(2,i).ne.0).and.(ClassCountUnocc2(2,i).eq.0)) THEN
+                            ElecsWNoExcits=ElecsWNoExcits+ClassCount2(2,i)
+                        ENDIF
+                    enddo
+                ENDIF
                 
                 ElecSym=INT((G1(Ex(1,1))%Sym%S),4)
 
@@ -624,7 +637,7 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
 !            pGen=(1.D0-pDoub)*(1.D0/real(NEl,r2))*(1.D0/real(NExcitA,r2))*((real(NEl,r2))/(real((NEl-ElecsWNoExcits),r2)))
-            pGen=(1.D0-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),r2))
+            pGen=(1.D0-pDoubNew)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),r2))
 
         ELSE
 !Prob of generating a double excitation.
@@ -701,7 +714,7 @@ MODULE GenRandSymExcitNUMod
 
 !            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
 !            pGen=pDoub*(1.D0/real(ElecPairs,r2))*PabGivenij
-            pGen=pDoub*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+            pGen=pDoubNew*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
 
         ENDIF
 

@@ -1976,6 +1976,7 @@ MODULE FciMCParMod
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
         use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
+!        use HPHFRandExcitMod , only : TestGenRandHPHFExcit
         use HPHFRandExcitMod , only : GenRandHPHFExcit
         use DetCalc , only : FCIDetIndex
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
@@ -2019,6 +2020,11 @@ MODULE FciMCParMod
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+!            IF(.not.DetBitEQ(CurrentDets(:,j),iLutHF,NIfD)) THEN
+!!This will test the excitation generator for HPHF wavefunctions
+!                CALL TestGenRandHPHFExcit(DetCurr,NMCyc,pDoubles)
+!                STOP
+!            ENDIF
 !            FDetSym=0
 !            FDetSpin=0
 !            do i=1,NEl
@@ -7213,6 +7219,7 @@ MODULE FciMCParMod
                 exFlag=2
             ENDIF
         ENDIF
+
 
 !        IF(tSpawnSymDets) THEN
 !!This option will spawn on determinants where the alpha and beta strings are swapped for S=0 RHF systems.

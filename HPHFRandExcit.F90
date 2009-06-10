@@ -10,6 +10,8 @@ MODULE HPHFRandExcitMod
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen 
     IMPLICIT NONE
+    SAVE
+    INTEGER :: Count=0
 
     contains
 
@@ -22,8 +24,13 @@ MODULE HPHFRandExcitMod
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ClassCountUnocc3(2,0:nSymLabels-1)
         LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity,tSign
 
+        Count=Count+1
+!        WRITE(6,*) "COUNT: ",Count
+!        CALL FLUSH(6)
         tGenClassCountnI=.false.
         tGenClassCountnI2=.false.
+        IF(Count.eq.109) WRITE(6,*) "R: ",r,iLutnI
+
 
 !Test is nI is a closed-shell determinant
         IF(TestClosedShellDet(iLutnI,NIfD)) THEN
@@ -151,9 +158,11 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE GenRandHPHFExcit
 
-!This routine will take a determinant, and create the determinant whose first open-shell spatial orbital contains an alpha electron.
-!If the first open-shell electron is a beta orbital, then the balue of the bit-string will be smaller. We are interested in returning
-!the larger of the open-shell bit strings since this will correspond to the first open-shell electron being an alpha.
+!This routine will take a determinant, and create the determinant whose final open-shell spatial orbital contains an alpha electron.
+!If the final open-shell electron is a beta orbital, then the balue of the bit-string will be smaller. We are interested in returning
+!the larger of the open-shell bit strings since this will correspond to the final open-shell electron being an alpha.
+!This rationalization may well break down when it comes to the negative bit (32), however, this may not matter, since all we really
+!need is a unique description of a HPHF...?
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,iLutnI,iLutSym,tCalciLutSym)
@@ -265,6 +274,320 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE FindExcitBitDetSym
 
+    
+!This routine will take a HPHF nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
+!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
+!number of excitations generated using the full enumeration excitation generation.
+    SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
+        Use SystemData , only : NEl,nBasis,G1,nBasisMax,NIfD
+        IMPLICIT NONE
+        INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
+        REAL*8 :: pDoub,pGen
+        LOGICAL :: Unique,TestClosedShellDet,DetBitEQ
+        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),iLutnI2(0:NIfD),iLutSym(0:NIfD)
+        INTEGER , ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),ExcitGen(:),UniqueHPHFList(:,:)
+        REAL*8 , ALLOCATABLE :: Weights(:)
+        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l
+
+        CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
+        CALL FindDetSpinSym(nI,nI2,NEl)
+        CALL EncodeBitDet(nI2,iLutnI2,NEl,NIfD)
+        IF(TestClosedShellDet(iLutnI,NIfD)) THEN
+            IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfD)) THEN
+                CALL Stop_All("TestGenRandHPHFExcit","Closed shell determinant entered, but alpha and betas different...")
+            ENDIF
+        ENDIF
+        WRITE(6,*) "nI: ",nI(:)
+        WRITE(6,*) ""
+        WRITE(6,*) "nISym: ",nI2(:)
+        WRITE(6,*) ""
+        WRITE(6,*) "iLutnI: ",iLutnI(:)
+        WRITE(6,*) "iLutnISymL ",iLutnI2(:)
+        WRITE(6,*) "***"
+        WRITE(6,*) Iterations,pDoub
+!        WRITE(6,*) "nSymLabels: ",nSymLabels
+        CALL FLUSH(6)
+
+!First, we need to enumerate all possible HPHF wavefunctions from each spin-pair of determinants.
+!These need to be stored in an array
+!Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
+!Setup excit generators for this determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+        EXCITGEN(:)=0
+        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
+        CALL GetSymExcitCount(EXCITGEN,DetConn)
+        WRITE(6,*) "Alpha determinant has ",DetConn," total excitations:"
+        ALLOCATE(ConnsAlpha(0:NIfD,DetConn))
+        i=1
+        lp2: do while(.true.)
+            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
+            IF(nJ(1).eq.0) exit lp2
+            WRITE(6,*) nJ(:), "***", iExcit
+            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
+                CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutSym,.true.)
+            ENDIF
+            ConnsAlpha(0:NIfD,i)=iLutnJ(:)
+            i=i+1
+        enddo lp2
+
+!Now we also need to store the excitations from the other spin-coupled determinant.
+        iMaxExcit=0
+        nStore(1:6)=0
+        DEALLOCATE(EXCITGEN)
+        
+        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
+        EXCITGEN(:)=0
+        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
+        CALL GetSymExcitCount(EXCITGEN,DetConn2)
+        WRITE(6,*) "Beta determinant has ",DetConn2," total excitations"
+        ALLOCATE(ConnsBeta(0:NIfD,DetConn2))
+        i=1
+        lp: do while(.true.)
+            CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
+            IF(nJ(1).eq.0) exit lp
+            WRITE(6,*) nJ(:), "***",iExcit
+            CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+            IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
+                CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutSym,.true.)
+            ENDIF
+            ConnsBeta(0:NIfD,i)=iLutnJ(:)
+            i=i+1
+        enddo lp
+        DEALLOCATE(EXCITGEN)
+
+!Now we need to find how many HPHF functions there are.
+        iUniqueHPHF=0
+        do j=1,DetConn
+!Run though all HPHF in the first array
+            Unique=.true.
+            do k=j-1,1,-1
+!Run backwards through the array to see if this HPHF has come before
+                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsAlpha(0:NIfD,j),NIfD)) THEN
+!This HPHF has already been counted before...
+                    Unique=.false.
+                    EXIT
+                ENDIF
+            enddo
+            IF(Unique) THEN
+!Unique HPHF found, count it
+                iUniqueHPHF=iUniqueHPHF+1
+            ENDIF
+        enddo
+
+        iUniqueBeta=0
+
+!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
+        do j=1,DetConn2
+!Run though all excitations in the first array, *and* up to where we are in the second array
+            Unique=.true.
+            do k=1,DetConn
+                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                    Unique=.false.
+                    EXIT
+                ENDIF
+            enddo
+            IF(Unique) THEN
+!Need to search backwards through the entries we've already looked at in this array...
+                do k=j-1,1,-1
+                    IF(DetBitEQ(ConnsBeta(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                        Unique=.false.
+                        EXIT
+                    ENDIF
+                enddo
+            ENDIF
+            IF(Unique) THEN
+                iUniqueHPHF=iUniqueHPHF+1
+                iUniqueBeta=iUniqueBeta+1
+            ENDIF
+        enddo
+
+        WRITE(6,*) "There are ",iUniqueHPHF," unique HPHF wavefunctions from the HPHF given."
+        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled determinant, which are not in a alpha version."
+
+        ALLOCATE(UniqueHPHFList(0:NIfD,iUniqueHPHF))
+        UniqueHPHFList(:,:)=0
+!Now fill the list of HPHF Excitations.
+        iUniqueHPHF=0
+        do j=1,DetConn
+!Run though all HPHF in the first array
+            Unique=.true.
+            do k=j-1,1,-1
+!Run backwards through the array to see if this HPHF has come before
+                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsAlpha(0:NIfD,j),NIfD)) THEN
+!This HPHF has already been counted before...
+                    Unique=.false.
+                    EXIT
+                ENDIF
+            enddo
+            IF(Unique) THEN
+!Unique HPHF found, count it
+                iUniqueHPHF=iUniqueHPHF+1
+                UniqueHPHFList(:,iUniqueHPHF)=ConnsAlpha(0:NIfD,j)
+            ENDIF
+        enddo
+
+!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
+        do j=1,DetConn2
+!Run though all excitations in the first array, *and* up to where we are in the second array
+            Unique=.true.
+            do k=1,DetConn
+                IF(DetBitEQ(ConnsAlpha(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                    Unique=.false.
+                    EXIT
+                ENDIF
+            enddo
+            IF(Unique) THEN
+!Need to search backwards through the entries we've already looked at in this array...
+                do k=j-1,1,-1
+                    IF(DetBitEQ(ConnsBeta(0:NIfD,k),ConnsBeta(0:NIfD,j),NIfD)) THEN
+                        Unique=.false.
+                        EXIT
+                    ENDIF
+                enddo
+            ENDIF
+            IF(Unique) THEN
+                iUniqueHPHF=iUniqueHPHF+1
+                UniqueHPHFList(:,iUniqueHPHF)=ConnsBeta(0:NIfD,j)
+            ENDIF
+        enddo
+
+!Now sort the list, so that it can be easily binary searched.
+        ALLOCATE(ExcitGen(iUniqueHPHF))
+        CALL SortBitDets(iUniqueHPHF,UniqueHPHFList(:,1:iUniqueHPHF),NIfD,ExcitGen)
+        DEALLOCATE(ExcitGen)
+
+        WRITE(6,*) "Unique HPHF wavefunctions are: "
+        do i=1,iUniqueHPHF
+            WRITE(6,*) UniqueHPHFList(0:NIfD,i)
+        enddo
+
+        ALLOCATE(Weights(iUniqueHPHF))
+        Weights(:)=0.D0
+
+        do i=1,Iterations
+
+            IF(mod(i,1000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
+
+            CALL GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen)
+!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
+
+!Search through the list of HPHF wavefunctions to find slot.
+            CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(0:NIfd,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)
+
+            IF(.not.Unique) THEN
+                CALL Stop_All("TestGenRandHPHFExcit","Cannot find excitation in list of allowed excitations")
+            ENDIF
+
+            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
+             
+!Check excitation
+!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat,SymAllowed)
+
+        enddo
+        
+        OPEN(8,FILE="PGenHist",STATUS="UNKNOWN")
+
+!normalise excitation probabilities
+        do i=1,iUniqueHPHF
+            Weights(i)=Weights(i)/real(Iterations,8)
+            WRITE(6,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
+            WRITE(8,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
+        enddo
+
+        CLOSE(8)
+
+    END SUBROUTINE TestGenRandHPHFExcit
+
+    SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: iLut(0:NIfD),MinInd,MaxInd,PartInd
+        INTEGER :: List(0:NIfD,Length),Length
+        INTEGER :: i,j,N,Comp,DetBitLT
+        LOGICAL :: tSuccess
+
+!        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        CALL FLUSH(6)
+        i=MinInd
+        j=MaxInd
+        IF(MaxInd.eq.1) THEN
+            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfD)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(6,*) i,j,n
+
+!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
+            Comp=DetBitLT(List(:,N),iLut(:),NIfD)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry of the list and leave
+!We need to check the last index.
+                    Comp=DetBitLT(List(:,i+1),iLut(:),NIfD)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+!If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchListHPHF
 
 END MODULE HPHFRandExcitMod
 
