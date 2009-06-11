@@ -157,7 +157,7 @@ MODULE Determinants
          LOGICAL ISCSF
          type(timer), save :: proc_timer
          IF(tHPHFInts) THEN
-             IF(IC.eq.0) THEN
+             IF(IC2.eq.0) THEN
                  CALL HPHFGetDiagHElement(nI,Sum2)
              ELSE
                  CALL HPHFGetOffDiagHElement(nI,nJ,Sum2)

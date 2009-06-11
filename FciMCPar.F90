@@ -7198,6 +7198,10 @@ MODULE FciMCParMod
         ELSE
             CALL RLUXGO(iRanLuxLev,Seed,0,0)
         ENDIF
+        
+        IF(tHPHF) THEN
+            tHPHFInts=.true.
+        ENDIF
 
 !Calculate Hii
         TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
@@ -7205,10 +7209,6 @@ MODULE FciMCParMod
         WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
         Fii=REAL(TempHii%v,r2)
-
-        IF(tHPHF) THEN
-            tHPHFInts=.true.
-        ENDIF
 
         IF(tHub) THEN
             IF(tReal) THEN
