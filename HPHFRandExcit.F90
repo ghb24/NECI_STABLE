@@ -10,8 +10,8 @@ MODULE HPHFRandExcitMod
     use mt95 , only : genrand_real2
     use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,ConstructClassCounts,CalcNonUniPGen 
     IMPLICIT NONE
-    SAVE
-    INTEGER :: Count=0
+!    SAVE
+!    INTEGER :: Count=0
 
     contains
 
@@ -24,12 +24,11 @@ MODULE HPHFRandExcitMod
         INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1),ClassCountUnocc3(2,0:nSymLabels-1)
         LOGICAL :: tGenClassCountnI,tGenClassCountnI2,TestClosedShellDet,tParity,tSign
 
-        Count=Count+1
+!        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
 !        CALL FLUSH(6)
         tGenClassCountnI=.false.
         tGenClassCountnI2=.false.
-        IF(Count.eq.109) WRITE(6,*) "R: ",r,iLutnI
 
 
 !Test is nI is a closed-shell determinant
@@ -70,7 +69,7 @@ MODULE HPHFRandExcitMod
         CALL FindExcitBitDetSym(iLutnI,iLutnI2)
 
         IF(r.lt.0.D5) THEN
-!Excite from nJ from nI
+!Excite to nJ from nI
             CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tParity,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
 
 !Find Bit-representation of excitation.
@@ -82,7 +81,7 @@ MODULE HPHFRandExcitMod
 
 !We may have been able to excite from nI2 to this determinant. see if it in connected.
             CALL FindBitExcitLevel(iLutnI2,iLutnJ,NIfD,ExcitLevel,2)
-            IF(ExcitLevel.le.2) THEN
+            IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
 !                CALL DecodeBitDet(nI2,iLutnI2,NIfD)
                 Ex2(1,1)=ExcitLevel
                 CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
@@ -109,7 +108,7 @@ MODULE HPHFRandExcitMod
 !We know we have gone from open-shell HPHF to open-shell HPHF. We need all four pGens.
 !We have nI2 -> nJ. Find nI -> nJ. First, we need to know whether it is connected or not.
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
-            IF(ExcitLevel.le.2) THEN
+            IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
                 Ex2(1,1)=ExcitLevel
                 CALL GetExcitation(nI,nJ,NEl,Ex2,tSign)
 !We need to calculate the new classcount arrays for the original determinant passed in.
@@ -127,7 +126,7 @@ MODULE HPHFRandExcitMod
 
 !Firstly, nI2 -> nJ2
         CALL FindBitExcitLevel(iLutnI2,iLutnJ2,NIfD,ExcitLevel,2)
-        IF(ExcitLevel.le.2) THEN
+        IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
             CALL GetExcitation(nI2,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI2) THEN
@@ -140,7 +139,7 @@ MODULE HPHFRandExcitMod
 
 !Finally, nI -> nJ2
         CALL FindBitExcitLevel(iLutnI,iLutnJ2,NIfD,ExcitLevel,2)
-        IF(ExcitLevel.le.2) THEN
+        IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
             Ex2(1,1)=ExcitLevel
             CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
             IF(.not.tGenClassCountnI) THEN
@@ -283,7 +282,7 @@ MODULE HPHFRandExcitMod
         IMPLICIT NONE
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
         REAL*8 :: pDoub,pGen
-        LOGICAL :: Unique,TestClosedShellDet,DetBitEQ
+        LOGICAL :: Unique,TestClosedShellDet,DetBitEQ,Die
         INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),iLutnI2(0:NIfD),iLutSym(0:NIfD)
         INTEGER , ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),ExcitGen(:),UniqueHPHFList(:,:)
         REAL*8 , ALLOCATABLE :: Weights(:)
@@ -326,11 +325,11 @@ MODULE HPHFRandExcitMod
         lp2: do while(.true.)
             CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) exit lp2
-            WRITE(6,*) nJ(:), "***", iExcit
             CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
             IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                 CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutSym,.true.)
             ENDIF
+            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
             ConnsAlpha(0:NIfD,i)=iLutnJ(:)
             i=i+1
         enddo lp2
@@ -352,11 +351,11 @@ MODULE HPHFRandExcitMod
         lp: do while(.true.)
             CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
             IF(nJ(1).eq.0) exit lp
-            WRITE(6,*) nJ(:), "***",iExcit
             CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
             IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                 CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutSym,.true.)
             ENDIF
+            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
             ConnsBeta(0:NIfD,i)=iLutnJ(:)
             i=i+1
         enddo lp
@@ -409,7 +408,13 @@ MODULE HPHFRandExcitMod
         enddo
 
         WRITE(6,*) "There are ",iUniqueHPHF," unique HPHF wavefunctions from the HPHF given."
+        
         WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled determinant, which are not in a alpha version."
+        IF(iUniqueBeta.ne.0) THEN
+            WRITE(6,*) "HPHF from beta, but not from alpha!"
+            CALL FLUSH(6)
+            STOP
+        ENDIF
 
         ALLOCATE(UniqueHPHFList(0:NIfD,iUniqueHPHF))
         UniqueHPHFList(:,:)=0
@@ -473,7 +478,7 @@ MODULE HPHFRandExcitMod
 
         do i=1,Iterations
 
-            IF(mod(i,1000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
+            IF(mod(i,10000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
 
             CALL GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen)
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
@@ -495,13 +500,21 @@ MODULE HPHFRandExcitMod
         OPEN(8,FILE="PGenHist",STATUS="UNKNOWN")
 
 !normalise excitation probabilities
+        Die=.false.
         do i=1,iUniqueHPHF
             Weights(i)=Weights(i)/real(Iterations,8)
+            IF(abs(Weights(i)-1.D0).gt.0.1) THEN
+                WRITE(6,*) "Error here!"
+                Die=.true.
+            ENDIF
             WRITE(6,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
             WRITE(8,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
         enddo
 
         CLOSE(8)
+        IF(Die) THEN
+            CALL Stop_All("IUB","TestFail")
+        ENDIF
 
     END SUBROUTINE TestGenRandHPHFExcit
 
@@ -515,7 +528,7 @@ MODULE HPHFRandExcitMod
 !        CALL FLUSH(6)
         i=MinInd
         j=MaxInd
-        IF(MaxInd.eq.1) THEN
+        IF(i-j.eq.0) THEN
             Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfD)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.

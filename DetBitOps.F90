@@ -227,6 +227,27 @@
 
     END FUNCTION TestClosedShellDet
 
+    SUBROUTINE CalcOpenOrbs(iLut,NIfD,NEl,OpenOrbs)
+        INTEGER :: iLut(0:NIfD),iLutAlpha(0:NIfD),iLutBeta(0:NIfD),MaskAlpha,MaskBeta,i,NIfD,NEl,OpenOrbs
+        
+        iLutAlpha(:)=0
+        iLutBeta(:)=0
+        MaskBeta=1431655765    !This is 1010101... in binary
+        MaskAlpha=-1431655766  !This is 0101010... in binary
+
+        do i=0,NIfD
+
+            iLutAlpha(i)=IAND(iLut(i),MaskAlpha)    !Seperate the alpha and beta bit strings
+            iLutBeta(i)=IAND(iLut(i),MaskBeta)
+            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)     !Shift all alpha bits to the left by one.
+            iLutAlpha(i)=IEOR(iLutAlpha(i),iLutBeta(i)) !Do an XOR on the original beta bits and shifted alpha bits - only open shell occupied orbitals will remain.
+            
+        enddo
+
+        CALL CountBits(iLutAlpha,NIfD,OpenOrbs,NEl)
+        OpenOrbs=OpenOrbs/2
+
+    END SUBROUTINE CalcOpenOrbs
 
 !This routine will find the largest bit set in a bit-string (i.e. the highest value orbital)
     SUBROUTINE LargestBitSet(iLut,NIfD,LargestOrb)

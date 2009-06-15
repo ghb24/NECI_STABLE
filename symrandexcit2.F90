@@ -646,6 +646,7 @@ MODULE GenRandSymExcitNUMod
             OrbJ=Ex(1,2)
             OrbA=Ex(2,1)
             OrbB=Ex(2,2)
+!            WRITE(6,*) OrbI,OrbJ,OrbA,OrbB
 
 !Find the spin-product of the occupied pair
             IF((G1(OrbI)%Ms)*(G1(OrbJ)%Ms).eq.-1) THEN

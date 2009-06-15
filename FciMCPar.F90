@@ -13,8 +13,10 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace,tMinorDetsStar
+    use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit 
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
+    use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
     use IntegralsData , only : fck,NMax,UMat
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
@@ -1975,16 +1977,12 @@ MODULE FciMCParMod
 
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
-        use GenRandSymExcitNUMod , only : GenRandSymExcitScratchNU,GenRandSymExcitNU
-!        use HPHFRandExcitMod , only : TestGenRandHPHFExcit
-        use HPHFRandExcitMod , only : GenRandHPHFExcit
-        use DetCalc , only : FCIDetIndex
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),iLutnJ2(0:NIfD),NoMinorWalkersNew,TempDet(NEl)
+        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),iLutnJ2(0:NIfD),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
-        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor
+        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
@@ -2012,18 +2010,21 @@ MODULE FciMCParMod
         IF(.not.tStarOrbs) tStarDet=.false.
 
         IF(tHistSpawn) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
-        
+
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
 !            WRITE(6,*) Iter,j,TotWalkers
+!            CALL FLUSH(6)
 
 !First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
             CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
-!            IF(.not.DetBitEQ(CurrentDets(:,j),iLutHF,NIfD)) THEN
-!!This will test the excitation generator for HPHF wavefunctions
-!                CALL TestGenRandHPHFExcit(DetCurr,NMCyc,pDoubles)
-!                STOP
+!            IF((Iter.gt.100).and.(.not.DetBitEQ(CurrentDets(:,j),iLutHF,NIfD))) THEN
+!This will test the excitation generator for HPHF wavefunctions
+!                IF(.not.(TestClosedShellDet(CurrentDets(:,j),NIfD))) THEN
+!                    CALL TestGenRandHPHFExcit(DetCurr,NMCyc,pDoubles)
+!                    STOP
+!                ENDIF
 !            ENDIF
 !            FDetSym=0
 !            FDetSpin=0
@@ -2826,7 +2827,16 @@ MODULE FciMCParMod
                             AvAnnihil(PartIndex)=AvAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
                             InstAnnihil(PartIndex)=InstAnnihil(PartIndex)+REAL(2*(MIN(abs(SpawnedSign2(VecInd)),abs(SpawnedSign(i)))),r2)
                         ELSE
-                            WRITE(6,*) "***",SpawnedParts(0:NIfD,i)
+!                            WRITE(6,*) "Searching between: ",HistMinInd2(ExcitLevel), " and ",FCIDetIndex(ExcitLevel+1)-1
+!                            WRITE(6,*) "***",SpawnedParts(0:NIfD,i)
+!                            CALL DecodeBitDet(TempDet,SpawnedParts(0:NIfD,i),NEl,NIfD)
+!                            WRITE(6,*) "Full Det is: ",TempDet(:)
+!                            IF(tHPHF) THEN
+!                                CALL FindExcitBitDetSym(SpawnedParts(0:NIfD,i),iLutSym(:))
+!                                WRITE(6,*) "*** Sym: ",iLutSym(:)
+!                                CALL DecodeBitDet(TempDet,iLutSym(0:NIfD),NEl,NIfD)
+!                                WRITE(6,*) "Full Sym Det is: ",TempDet(:)
+!                            ENDIF
                             CALL Stop_All("CompressSpawnedList","Cannot find corresponding FCI determinant when histogramming")
                         ENDIF
                     ENDIF
@@ -5020,7 +5030,7 @@ MODULE FciMCParMod
 
         i=MinInd
         j=MaxInd
-        IF(MaxInd.eq.1) THEN
+        IF(i-j.eq.0) THEN
             Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfD)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
@@ -6417,7 +6427,7 @@ MODULE FciMCParMod
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
     SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr)
         INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfD),WSign,Bin
-        INTEGER :: PartInd
+        INTEGER :: PartInd,iLutSym(0:NIfD),OpenOrbs
         LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfD),DetBitEQ
         REAL*8 :: HDiagCurr
         TYPE(HElement) :: HOffDiag
@@ -6428,13 +6438,14 @@ MODULE FciMCParMod
         IF(tHistSpawn) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
+                HistMinInd(ExcitLevel)=PartInd
             ELSEIF(ExcitLevel.eq.0) THEN
                 PartInd=1
                 tSuccess=.true.
             ELSE
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                HistMinInd(ExcitLevel)=PartInd
             ENDIF
-            HistMinInd(ExcitLevel)=PartInd
             IF(tSuccess) THEN
                 IF(tFlippedSign) THEN
                     Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
@@ -6448,6 +6459,43 @@ MODULE FciMCParMod
                 WRITE(6,*) "***",iLutCurr(0:NIfD)
                 WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
                 CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
+            ENDIF
+            IF(tHPHF) THEN
+!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
+                CALL FindExcitBitDetSym(iLutCurr,iLutSym)
+                IF(ExcitLevel.eq.NEl) THEN
+                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
+                ELSEIF(ExcitLevel.eq.0) THEN
+                    PartInd=1
+                    tSuccess=.true.
+                ELSE
+                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                ENDIF
+                IF(tSuccess) THEN
+                    CALL CalcOpenOrbs(iLutSym,NIfD,NEl,OpenOrbs)
+                    IF(tFlippedSign) THEN
+                        IF(mod(OpenOrbs,2).eq.1) THEN
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                        ENDIF
+                    ELSE
+                        IF(mod(OpenOrbs,2).eq.1) THEN
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                        ENDIF
+                    ENDIF
+                ELSE
+                    WRITE(6,*) DetCurr(:)
+                    WRITE(6,*) "***",iLutSym(0:NIfD)
+                    WRITE(6,*) "***",ExcitLevel,Det
+                    CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
+                ENDIF
             ENDIF
         ELSEIF(tHistEnergies) THEN
 !This wil histogramm the energies of the particles, rather than the determinants themselves.
@@ -9268,6 +9316,7 @@ MODULE FciMCParMod
 !        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
         IF(tHPHF) THEN
 !The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
+!However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
             rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
         ELSE
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
@@ -11678,7 +11727,7 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
         i=MinInd
         j=MaxInd
-        IF(MaxInd.eq.1) THEN
+        IF(i-j.eq.0) THEN
             Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:),NIfD)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
@@ -11763,7 +11812,7 @@ MODULE FciMCParMod
 !        CALL FLUSH(6)
         i=MinInd
         j=MaxInd
-        IF(MaxInd.eq.1) THEN
+        IF(i-j.eq.0) THEN
             Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfD)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
