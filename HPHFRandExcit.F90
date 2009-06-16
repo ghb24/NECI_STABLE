@@ -157,6 +157,52 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE GenRandHPHFExcit
 
+!This routine will be faster than the one above - it only generates excitations from one of the determinants in the HPHF function to be excited from.
+!This relies on the fact that both determinants in the HPHF function to be excited from will always be connected to all excited HPHF functions.
+!nI will always need to be a unique choice of determinant within each HPHF function, and then we never actually need to refer to its spin-coupled partner.
+    SUBROUTINE GenRandHPHFExcit2Scratch(nI,iLutnI,nJ,iLutnJ,pDoub,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
+        INTEGER :: nI(NEl),iLutnI(0:NIfD),iLutnJ(0:NIfD),nJ(NEl),exFlag,IC,ExcitMat(2,2)
+        INTEGER :: iLutnJ2(0:NIfD),nJ2(NEl),Ex2(2,2),ExcitLevel
+        REAL*8 :: pDoub,pGen,pGen2
+        INTEGER :: ClassCount2(2,0:nSymLabels-1)
+        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
+        LOGICAL :: tGenClassCountnI,TestClosedShellDet,tSign
+
+!        Count=Count+1
+!        WRITE(6,*) "COUNT: ",Count
+!        CALL FLUSH(6)
+
+!Create excitation of uniquely chosen determinant in this HPHF function.
+        CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tSign,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
+!Create bit representation of excitation - iLutnJ
+        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
+
+        IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
+!There is only one way which we could have generated the excitation nJ since it has no spin-partner. Also, we will always return the 'correct' version.
+            RETURN
+        ELSE
+!Open shell excitation - could we have generated the spin-coupled determinant instead?
+
+            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
+            CALL FindBitExcitLevel(iLutnJ2,iLutnI,NIfD,ExcitLevel,2)
+
+            IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
+
+                Ex2(1,1)=ExcitLevel
+                CALL DecodeBitDet(nJ2,iLutnJ2,NEl,NIfD)
+                CALL GetExcitation(nJ2,nI,NEl,Ex2,tSign) !This could be done more efficiently... !***!
+                CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)    !Check this is done efficiently... !***!
+                pGen=pGen+pGen2
+                CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,.false.)  !Here, we actually know nJ, so wouldn't need to regenerate it...
+                RETURN
+            ENDIF
+
+            CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,.false.)
+
+        ENDIF
+
+    END SUBROUTINE GenRandHPHFExcit2Scratch
+
 !This routine will take a determinant, and create the determinant whose final open-shell spatial orbital contains an alpha electron.
 !If the final open-shell electron is a beta orbital, then the balue of the bit-string will be smaller. We are interested in returning
 !the larger of the open-shell bit strings since this will correspond to the final open-shell electron being an alpha.
