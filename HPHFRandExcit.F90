@@ -82,7 +82,6 @@ MODULE HPHFRandExcitMod
 !We may have been able to excite from nI2 to this determinant. see if it in connected.
             CALL FindBitExcitLevel(iLutnI2,iLutnJ,NIfD,ExcitLevel,2)
             IF((ExcitLevel.le.2).and.(ExcitLevel.ne.0)) THEN
-!                CALL DecodeBitDet(nI2,iLutnI2,NIfD)
                 Ex2(1,1)=ExcitLevel
                 CALL GetExcitation(nI2,nJ,NEl,Ex2,tSign)
                 tGenClassCountnI2=.true.
@@ -176,6 +175,17 @@ MODULE HPHFRandExcitMod
         CALL GenRandSymExcitScratchNU(nI,iLutnI,nJ,pDoub,IC,ExcitMat,tSign,exFlag,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
 !Create bit representation of excitation - iLutnJ
         CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
+            
+!Test!
+!        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
+!        IF(abs(pGen-pGen2).gt.1.D-7) THEN
+!            WRITE(6,*) "*******, PGens Incorrect"
+!            CALL Stop_All("ouvbou","OUBOU")
+!        ENDIF
+
+!        IF(Count.eq.4) THEN
+!            WRITE(6,*) "***",nI(:),iLutnJ(:)
+!        ENDIF
 
         IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
 !There is only one way which we could have generated the excitation nJ since it has no spin-partner. Also, we will always return the 'correct' version.
@@ -184,14 +194,26 @@ MODULE HPHFRandExcitMod
 !Open shell excitation - could we have generated the spin-coupled determinant instead?
 
             CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
+!            IF(Count.eq.4) THEN
+!                WRITE(6,*) "***",nI(:),iLutnJ(:),iLutnJ2(:)
+!            ENDIF
             CALL FindBitExcitLevel(iLutnJ2,iLutnI,NIfD,ExcitLevel,2)
 
             IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
 
                 Ex2(1,1)=ExcitLevel
                 CALL DecodeBitDet(nJ2,iLutnJ2,NEl,NIfD)
-                CALL GetExcitation(nJ2,nI,NEl,Ex2,tSign) !This could be done more efficiently... !***!
+!                IF(ExcitLevel.eq.1) THEN
+!                    WRITE(6,*) "SINGLE EXCITATION",nJ2(:),nI(:)
+!                ENDIF
+
+                CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign) !This could be done more efficiently... !***!
                 CALL CalcNonUniPGen(Ex2,ExcitLevel,ClassCount2,ClassCountUnocc2,pDoub,pGen2)    !Check this is done efficiently... !***!
+!                IF(abs(pGen-pGen2).gt.1.D-7) THEN
+!!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
+!                    WRITE(6,*) nI(:),nJ2(:)
+!                    WRITE(6,*) "*************  PGens NOT equal",pGen,pGen2
+!                ENDIF
                 pGen=pGen+pGen2
                 CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutnJ2,.false.)  !Here, we actually know nJ, so wouldn't need to regenerate it...
                 RETURN
@@ -326,9 +348,11 @@ MODULE HPHFRandExcitMod
     SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
         Use SystemData , only : NEl,nBasis,G1,nBasisMax,NIfD
         IMPLICIT NONE
+        INTEGER :: ClassCount2(2,0:nSymLabels-1),nIX(NEl)
+        INTEGER :: ClassCountUnocc2(2,0:nSymLabels-1)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
         REAL*8 :: pDoub,pGen
-        LOGICAL :: Unique,TestClosedShellDet,DetBitEQ,Die
+        LOGICAL :: Unique,TestClosedShellDet,DetBitEQ,Die,tGenClassCountnI
         INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),iLutnI2(0:NIfD),iLutSym(0:NIfD)
         INTEGER , ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),ExcitGen(:),UniqueHPHFList(:,:)
         REAL*8 , ALLOCATABLE :: Weights(:)
@@ -375,7 +399,7 @@ MODULE HPHFRandExcitMod
             IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                 CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutSym,.true.)
             ENDIF
-            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
+!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
             ConnsAlpha(0:NIfD,i)=iLutnJ(:)
             i=i+1
         enddo lp2
@@ -401,7 +425,7 @@ MODULE HPHFRandExcitMod
             IF(.not.TestClosedShellDet(iLutnJ,NIfD)) THEN
                 CALL ReturnAlphaOpenDet(nJ,iLutnJ,iLutSym,.true.)
             ENDIF
-            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
+!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
             ConnsBeta(0:NIfD,i)=iLutnJ(:)
             i=i+1
         enddo lp
@@ -521,12 +545,14 @@ MODULE HPHFRandExcitMod
 
         ALLOCATE(Weights(iUniqueHPHF))
         Weights(:)=0.D0
+        tGenClassCountnI=.false.
 
         do i=1,Iterations
 
             IF(mod(i,10000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
 
             CALL GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen)
+            CALL GenRandHPHFExcit2Scratch(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen,ClassCount2,ClassCountUnocc2,tGenClassCountnI)
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 
 !Search through the list of HPHF wavefunctions to find slot.
@@ -554,6 +580,8 @@ MODULE HPHFRandExcitMod
                 Die=.true.
             ENDIF
             WRITE(6,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
+            CALL DecodeBitDet(nIX,UniqueHPHFList(0:NIfD,i),NEl,NIfD)
+            WRITE(6,*) nIX(:)
             WRITE(8,*) i,UniqueHPHFList(0:NIfD,i),Weights(i)
         enddo
 

@@ -680,6 +680,7 @@ MODULE GenRandSymExcitNUMod
                 SymA=INT(G1(OrbA)%Sym%S,4)
                 SymB=IEOR(SymA,ElecSym)
             ENDIF
+!            WRITE(6,*) "Check: ",ForbiddenOrbs,ElecSym,iSpn,SymA,SymB,OrbA,OrbB
 
 
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
@@ -716,6 +717,7 @@ MODULE GenRandSymExcitNUMod
 !            PabGivenij=(1.D0/real((NExcitA-ForbiddenOrbs),r2))*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))
 !            pGen=pDoub*(1.D0/real(ElecPairs,r2))*PabGivenij
             pGen=pDoubNew*((1.D0/real(NExcitB,r2))+(1.D0/real(NExcitOtherWay,r2)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),r2))
+!            WRITE(6,*) "***",pDoubNew,NExcitB,NExcitOtherWay,ElecPairs,NExcitA,ForbiddenOrbs,ElecSym,iSpn,SymA,SymB
 
         ENDIF
 
