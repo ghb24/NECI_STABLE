@@ -33,6 +33,8 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tMultipleDetsSpawn=.false.
+          iDetGroup=2
           tExpandSpace=.false.
           tHighExcitsSing=.false.
           iHighExcitsSing=0
@@ -956,6 +958,10 @@ MODULE Calc
                 ENDIF
                 tExpandSpace=.true.
                 call geti(ICILevel)
+            case("MULTIPLEDETSSPAWN")
+!This option creates connections from iDetGroup randomly chosen determinants and attempts to spawn from them all at once. This should hopefully mean that annihilations are implicitly done.
+                tMultipleDetsSpawn=.true.
+                call Geti(iDetGroup)
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
