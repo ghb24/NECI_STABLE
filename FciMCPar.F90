@@ -4879,7 +4879,17 @@ MODULE FciMCParMod
         sendcounts(1:nProcessors)=0
         do i=1,ToAnnihilateIndex
             IF(ProcessVec1(i).gt.(nProcessors-1)) THEN
-                CALL Stop_All("AnnihilatePartPar","Annihilation error")
+                WRITE(6,*) i,ToAnnihilateIndex
+                WRITE(6,*) "***"
+                WRITE(6,*) ProcessVec1(1:ToAnnihilateIndex)
+                WRITE(6,*) "***"
+                WRITE(6,*) sendcounts(:)
+                WRITE(6,*) "***"
+                WRITE(6,*) HashArray(1:ToAnnihilateIndex)
+                WRITE(6,*) "***"
+                WRITE(6,*) IndexTable1(1:ToAnnihilateIndex)
+
+                CALL Stop_All("AnnihilateBetweenSpawned","Annihilation error")
             ENDIF
             sendcounts(ProcessVec1(i)+1)=sendcounts(ProcessVec1(i)+1)+1
         enddo
@@ -7093,7 +7103,7 @@ MODULE FciMCParMod
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
@@ -7259,6 +7269,17 @@ MODULE FciMCParMod
         WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
         Fii=REAL(TempHii%v,r2)
+
+!Find the highest energy determinant...
+        IF(.not.tSpn) THEN
+            do i=1,NEl
+                HighEDet(i)=Brr(nBasis-(i-1))
+            enddo
+            TempHii=GetHElement2(HighEDet,HighEDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii%v
+            WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii%v
+!            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
+        ENDIF
 
         IF(tHub) THEN
             IF(tReal) THEN
