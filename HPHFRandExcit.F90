@@ -234,7 +234,8 @@ MODULE HPHFRandExcitMod
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,iLutnI,iLutSym,tCalciLutSym)
         INTEGER :: iLutSym(0:NIfD),nI(NEl),iLutnI(0:NIfD),nJ(NEl),iLutTemp(0:NIfD),i
-        LOGICAL :: tCalciLutSym,DetBitLT
+        INTEGER :: DetBitLT
+        LOGICAL :: tCalciLutSym
 
         IF(tCalciLutSym) THEN
             CALL FindExcitBitDetSym(iLutnI,iLutSym)
