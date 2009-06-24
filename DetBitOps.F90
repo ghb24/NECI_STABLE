@@ -80,7 +80,6 @@
         IF(iLutI(0).lt.iLutJ(0)) THEN
 !First, compare first integers
             DetBitLT=1
-            RETURN
         ELSEIF(iLutI(0).eq.iLutJ(0)) THEN
 !If the integers are the same, then cycle through the rest of the integers until we find a difference.
             do i=1,NIfD
@@ -92,11 +91,10 @@
                     RETURN
                 ENDIF
             enddo
+            DetBitLT=0
         ELSE
             DetBitLT=-1
-            RETURN
         ENDIF
-        DetBitLT=0
 
     END FUNCTION DetBitLT
 
