@@ -12441,7 +12441,7 @@ MODULE FciMCParMod
 
 !Pointers to point at the correct arrays for use
     INTEGER , POINTER :: CurrentDets(:,:), NewDets(:,:)
-    LOGICAL , POINTER :: CurrentSign(:), NewSign(:)
+    INTEGER , POINTER :: CurrentSign(:), NewSign(:)
     INTEGER , POINTER :: CurrentIC(:), NewIC(:)
     REAL*8 , POINTER :: CurrentH(:), NewH(:)
     TYPE(ExcitGenerator) , POINTER :: CurrentExcits(:), NewExcits(:)
