@@ -216,6 +216,9 @@ MODULE FciMCParMod
     TYPE(HElement), ALLOCATABLE :: MinorStarHii(:),MinorStarHij(:)
     REAL*8 :: AllNoMinorWalkers
 
+    INTEGER , ALLOCATABLE :: DoublesDets(:,:)
+    INTEGER :: DoublesDetsTag,NoDoubs
+
     contains
 
 
@@ -2243,13 +2246,13 @@ MODULE FciMCParMod
                         SpawnFromSing=SpawnFromSing+abs(Child)
                     ENDIF
 
-                    IF(Child.gt.25) THEN
+                    IF(abs(Child).gt.25) THEN
 !If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
-                        IF(Child.gt.abs(iPartBloom)) THEN
+                        IF(abs(Child).gt.abs(iPartBloom)) THEN
                             IF(IC.eq.1) THEN
-                                iPartBloom=-Child
+                                iPartBloom=-abs(Child)
                             ELSE
-                                iPartBloom=Child
+                                iPartBloom=abs(Child)
                             ENDIF
                         ENDIF
 !                        WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
@@ -2714,29 +2717,23 @@ MODULE FciMCParMod
     
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE MultipleConnFCIMCycPar()
-        use CalcData , only : iDetGroup
+!        use CalcData , only : iDetGroup
         use Determinants , only : GetHElement3
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
-        INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),iLutnJ2(0:NIfD),NoMinorWalkersNew,DetI,DetSet(0:NIfD,iDetGroup)
-        INTEGER*8 :: Combs
+        INTEGER :: nStore(6),VecSlot,i,j,k,l,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
+        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiag,HDiagCurr,r,HSum
-        INTEGER :: iDie,WalkExcitLevel,DetNext,iLutGen(0:NIfD)
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
-        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet,tNotAttach
-        INTEGER(KIND=i2) :: HashTemp
-        TYPE(HElement) :: HDiagTemp,HOffDiag,HSumTemp
-        CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
+        INTEGER :: iDie,WalkExcitLevel,iMaxExcit,ExcitLength,PartInd,iExcit
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tSuccess,tMinorDetList
+        TYPE(HElement) :: HDiagTemp,HElemTemp
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
         IF(TDebug) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
 !            CALL FLUSH(11)
         ENDIF
         
-!        IF(tRotoAnnihil) THEN
-!            CALL CheckOrdering(CurrentDets(:,1:TotWalkers),CurrentSign(1:TotWalkers),TotWalkers,.true.)
-!        ENDIF
-
         CALL set_timer(Walker_Time,30)
         
 !VecSlot indicates the next free position in NewDets
@@ -2746,72 +2743,172 @@ MODULE FciMCParMod
         NoatDoubs=0
         iPartBloom=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
-        Combs=1
-        do j=1,iDetGroup-1
-!Combs is the total number of pair combinations
-            Combs=Combs*(TotWalkers-j)
-        enddo
+!        Combs=1
+!        do j=1,iDetGroup-1
+!!Combs is the total number of pair combinations
+!            Combs=Combs*(TotWalkers-j)
+!        enddo
 
         do j=1,TotWalkers
 !Spawning loop done separately to the death loop
-            IF(TotWalkers.lt.iDetGroup) THEN
-!Do a normal cycle if we don't have enough seperate determinants to do a combination.
-                CALL PerformFCIMCycPar()
-                RETURN
+!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+
+!Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
+!This can be changed easily by increasing the final argument.
+            IF(tTruncSpace) THEN
+!We need to know the exact excitation level for truncated calculations.
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
+            ELSE
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
             ENDIF
 
-!Pick a determinant at random. It is from this determinant that the excitation will be made.
-!            CALL genrand_real2(r)
-!            DetI=INT(r*real(TotWalkers,8)+1.D0)
-!            DetSet(:,1)=CurrentDets(:,DetI)
-            DetSet(:,1)=CurrentDets(:,j)
-            HSum=0.D0
-            
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
-            CALL GenRandSymExcitNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob)
-            HSumTemp=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-            HSum=REAL(HSumTemp%v,r2)*CurrentSign(j)
+            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
+            IF(tSpawnAsDet) THEN
+!Here, we spawn all particles on the determinant in one go, by multiplying the probability of spawning by the number of particles on the determinant.
+                Loop=1
+                ParticleWeight=abs(CurrentSign(j))
+            ELSE
+!Here, we spawn each particle on the determinant in a seperate attempt.
+                Loop=abs(CurrentSign(j))
+                ParticleWeight=1
+            ENDIF
 
-            CALL EncodeBitDet(nJ,iLutGen,NEl,NIfD)
+            do p=1,Loop
+!If rotoannihilating, we are simply looping over all the particles on the determinant
 
-            do i=1,iDetGroup-1
-!Find others to attach...
-
-                tNotAttach=.true.
-                do while(tNotAttach)
-                    CALL genrand_real2(r)
-                    DetNext=INT(r*real(TotWalkers,8)+1.D0)
-
-                    do k=1,i
-                        IF(DetBitEQ(CurrentDets(:,DetNext),DetSet(:,k),NIfD)) THEN
-                            tNotAttach=.true.
-                            EXIT
+                IF(.not.tImportanceSample) THEN
+                    IF(tNonUniRandExcits) THEN
+!This will only be a help if most determinants are multiply occupied.
+                        IF(tHPHF) THEN
+!                            CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
+                            CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled)
                         ELSE
-                            tNotAttach=.false.
+                            CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                         ENDIF
-                    enddo
-                enddo
+                    ELSE
+                        CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                    ENDIF
+                ENDIF
+                
+                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,2)
+!                WRITE(6,*) ExcitLevel
 
-                IF(.not.tNotAttach) THEN
-                    CALL FindBitExcitLevel(iLutGen,CurrentDets(:,DetNext),NIfD,ExcitLevel,2)
-                    IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
-                        CALL DecodeBitDet(DetCurr,CurrentDets(:,DetNext),NEl,NIfD)
-                        HSumTemp=GetHElement3(DetCurr,nJ,ExcitLevel)
-                        HSum=HSum+REAL(HSumTemp%v,r2)*CurrentSign(DetNext)
+                IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
+!Do not allow spawning at doubles
+                    Child=0
+                ELSE
+
+!Calculate number of children to spawn
+                    IF(TTruncSpace) THEN
+!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
+                        IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
+
+                        IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                            Child=0
+                        ELSE
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                        ENDIF
+                    ELSE
+!SD Space is not truncated - allow attempted spawn as usual
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                    ENDIF
+                ENDIF
+                
+                IF(Child.ne.0) THEN
+!We want to spawn a child - find its information to store
+
+                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+                    IF(IC.eq.1) THEN
+                        SpawnFromSing=SpawnFromSing+abs(Child)
                     ENDIF
 
-                    DetSet(:,i+1)=CurrentDets(:,DetNext)
+                    IF(abs(Child).gt.25) THEN
+!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
+                        IF(abs(Child).gt.abs(iPartBloom)) THEN
+                            IF(IC.eq.1) THEN
+                                iPartBloom=-abs(Child)
+                            ELSE
+                                iPartBloom=abs(Child)
+                            ENDIF
+                        ENDIF
+                    ENDIF
+
+!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
+                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
+
+                    IF(tRotoAnnihil) THEN
+!In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
+!The excitation level and diagonal matrix element are also found out after the annihilation.
+!Cannot use old excitation generators with rotoannihilation.
+
+!In rotoannihilation, we can specify multiple particles on the same entry. 
+                        SpawnedParts(:,ValidSpawned)=iLutnJ(:)
+                        SpawnedSign(ValidSpawned)=Child
+                        ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+
+                    ELSE
+!Calculate diagonal ham element
+                        CALL Stop_All("MultipleConnFcimCycPar","Needs Rotoannihilation")
+                    
+                    ENDIF   !Endif rotoannihil
+
+                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
+                
+                ENDIF   !End if child created
+
+            enddo   !End of cycling over mulitple particles on same determinant.
+
+        enddo
+
+        do j=1,NoDoubs
+
+            DetCurr(:)=DoublesDets(:,j)
+!Setup excit generators for this double excitation 
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("MultipleConnFcimCycPar","Problem allocating excitation generator")
+            ExcitGenTemp(1)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+
+            HSum=0.D0
+
+            do while(.true.)
+!Generate double excitations
+                CALL GenSymExcitIt2(Detcurr,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
+                IF(nJ(1).eq.0) EXIT
+
+!Find matrix element
+                HElemTemp=GetHElement3(DetCurr,nJ,iExcit)
+                IF((abs(REAL(HElemTemp%v,r2))).gt.1.D-8) THEN
+
+!Encode this determinant
+                    CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+
+!If matrix element above a certain size, then find whether the determinant is in the main list.
+                    CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tSuccess)
+
+                    IF(tSuccess) THEN
+!If found, find Ni x Hij and attempt to spawn at j
+                        HSum=HSum+REAL(HElemTemp%v,r2)*CurrentSign(PartInd)
+!                        WRITE(6,*) REAL(HElemTemp%v,r2),CurrentSign(PartInd)
+                    ENDIF
                 ENDIF
 
             enddo
 
+            DEALLOCATE(ExcitGenTemp)
+
 !The sum of Hij*cj is now in HSum.
-            rat=Tau*abs(HSum)*REAL(Combs,r2)/Prob
+            rat=Tau*abs(HSum)
             Child=INT(rat)
             rat=rat-REAL(Child)
             CALL genrand_real2(r)
             IF(rat.gt.r) THEN
-!Create child at iLutGen/nJ
+!Create child at DetCurr 
                 Child=Child+1
             ENDIF
             IF(HSum.gt.0.D0) THEN
@@ -2820,19 +2917,15 @@ MODULE FciMCParMod
             ENDIF
 
             IF(Child.ne.0) THEN
+!                WRITE(6,"(A,F15.5,I5,G20.10,I8,G25.15)") "Inwards ", rat,Child,HSum
 !We want to spawn a child - find its information to store
+                CALL EncodeBitDet(DetCurr,iLutnJ,NEl,NIfD)
 
                 NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
 
-                IF(Child.gt.25) THEN
+                IF(abs(Child).gt.25) THEN
 !If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
-                    IF(Child.gt.abs(iPartBloom)) THEN
-                        IF(IC.eq.1) THEN
-                            iPartBloom=-Child
-                        ELSE
-                            iPartBloom=Child
-                        ENDIF
-                    ENDIF
+                    WRITE(6,"(I9,A)") Child," particles created in one go during inwards spawning step"
                 ENDIF
 
                 IF(tRotoAnnihil) THEN
@@ -2841,7 +2934,7 @@ MODULE FciMCParMod
 !Cannot use old excitation generators with rotoannihilation.
 
 !In rotoannihilation, we can specify multiple particles on the same entry. 
-                    SpawnedParts(:,ValidSpawned)=iLutGen(:)
+                    SpawnedParts(:,ValidSpawned)=iLutnJ(:)
                     SpawnedSign(ValidSpawned)=Child
                     ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
 
@@ -8040,6 +8133,11 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+        IF(tMultipleDetsSpawn) THEN
+!We need to store a list of all double excitations of HF.
+            CALL StoreDoubs()
+        ENDIF
+
         IF(TStartMP1) THEN
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
@@ -9213,6 +9311,63 @@ MODULE FciMCParMod
 
     END SUBROUTINE ReadFromPopsfilePar
 
+!This will store all the double excitations.
+    SUBROUTINE StoreDoubs()
+        use SystemData , only : tAssumeSizeExcitgen,tUseBrillouin
+        INTEGER :: iMaxExcit,nStore(6),ExcitLength,nJ(NEl),ierr,iExcit,VecSlot
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+
+        IF(tAssumeSizeExcitgen) THEN
+            CALL Stop_All("StoreDoubs","Cannot have assumed sized excitation generators for full enumeration of determinants")
+        ENDIF
+        IF(tUseBrillouin) THEN
+            CALL Stop_All("StoreDoubs","Cannot have Brillouin theorem as now storing singles too...")
+        ENDIF
+
+        
+!NoDoubs here is actually the singles + doubles of HF
+        CALL GetSymExcitCount(HFExcit%ExcitData,NoDoubs)
+
+        ALLOCATE(DoublesDets(NEl,NoDoubs),stat=ierr)
+        CALL LogMemAlloc('DoublesDets',NoDoubs*NEl,4,"StoreDoubs",DoublesDetsTag,ierr)
+        DoublesDets(1:NEl,1:NoDoubs)=0
+        
+        VecSlot=1           !This is the next free slot in the DoublesDets array
+
+!Setup excit generators for HF Determinant
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("InitWalkersMP1","Problem allocating excitation generator")
+        ExcitGenTemp(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+
+        do while(.true.)
+!Generate double excitations
+            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
+            IF(nJ(1).eq.0) EXIT
+!            IF(iExcit.ne.2) THEN
+!                CALL Stop_All("StoreDoubles","Error - excitations other than doubles being generated in DoublesDets wavevector code")
+!            ENDIF
+
+            DoublesDets(1:NEl,VecSlot)=nJ(:)
+            VecSlot=VecSlot+1
+
+        enddo
+
+!This means that now NoDoubs is double excitations AND singles
+!        NoDoubs=VecSlot-1
+
+        IF(VecSlot.ne.(NoDoubs+1)) THEN
+            WRITE(6,*) VecSlot,NoDoubs
+            CALL Stop_All("StoreDoubs","Problem enumerating all double excitations")
+        ENDIF
+
+        DEALLOCATE(ExcitGenTemp)
+
+    END SUBROUTINE StoreDoubs
+
 !This will set up the initial walker distribution proportially to the MP1 wavevector.
     SUBROUTINE InitWalkersMP1Par()
         use SystemData , only : tAssumeSizeExcitgen
@@ -9753,61 +9908,6 @@ MODULE FciMCParMod
 !            RETURN
 !        ENDIF
 
-!        IF(tSpawnSymDets) THEN
-!            CALL EncodeBitDet(nJ,iLut,NEl,NIfD)
-!            CALL FindExcitBitDetSym(iLut,iLut2,NIfD,NEl) !This will find the bit string of the symmetric determinant.
-!            IF(.not.DetBitEQ(iLut,iLut2,NIfD)) THEN
-!!                WRITE(6,*) "Open Shell"
-!!                Prob=2.D0*Prob
-!!                do i=1,NEl-1,2
-!!                    IF(mod(nJ(i),2).eq.0) THEN
-!!                        !Alpha electron...allow it
-!!                        EXIT
-!!                    ELSE
-!!!Electron is beta - does it have an alpha partner? Do not allow if the first open shell electron is a beta electron. Check that this is open.
-!!                        IF(.not.(nJ(i)+1).eq.nJ(i+1)) THEN
-!!                            !Open spatial orbital here.
-!!!                            IF(mod(nJ(i),2).eq.1) THEN
-!!                                !Open shell electron is a beta electron
-!!                                AttemptCreatePar=0
-!!!                                WRITE(6,*) "Get HERE!"
-!!                                RETURN
-!!!                            ELSE
-!!!                                EXIT
-!!!                            ENDIF
-!!                        ENDIF
-!!                    ENDIF
-!!                enddo
-!!                IF(i.gt.NEl-1) THEN
-!!                    WRITE(6,*) "***",i
-!!                    WRITE(6,*) nJ(:)
-!!                    CALL Stop_All("AttemptCreatePar","Open shell, but cannot determine spin of first open shell electron")
-!!                ENDIF
-!                Prob=Prob*(SQRT(2.D0))
-!            ENDIF
-!        ENDIF
-
-        
-
-!        IF(tSpawnSymDets) THEN
-!            do i=2,NEl-1
-!                IF(mod(nJ(i),2).eq.0) THEN
-!                    !Alpha
-!                    IF(nJ(i-1).ne.(nJ(i)-1)) THEN
-!                        !Open shell
-!                        Prob=2.D0*Prob
-!                        EXIT
-!                    ENDIF
-!                ELSE
-!                    !Beta
-!                    IF(nJ(i+1).ne.(nJ(i)+1)) THEN
-!                        !Open
-!                        Prob=2.D0*Prob
-!                        EXIT
-!                    ENDIF
-!                ENDIF
-!            enddo
-!        ENDIF
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
         rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
@@ -9873,6 +9973,10 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
         ENDIF
+
+!        IF(AttemptCreatePar.ne.0) THEN
+!            WRITE(6,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh%v),nParts,Prob
+!        ENDIF
 
         IF(tHistEnergies) THEN
 !First histogram off-diagonal matrix elements.
