@@ -7657,44 +7657,46 @@ MODULE FciMCParMod
         tSuccess=.true.
         tFoundOrbs(:)=.false.
 
-        do i=1,nSymLabels
-!            WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
-            EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
-!            WRITE(6,*) "Number of states: ",SymLabelCounts(2,i)
-            do j=SymLabelCounts(1,i),EndSymState
+        IF(.not.tHub) THEN
+            do i=1,nSymLabels
+!                WRITE(6,*) "NSymLabels: ",NSymLabels,i-1
+                EndSymState=SymLabelCounts(1,i)+SymLabelCounts(2,i)-1
+!                WRITE(6,*) "Number of states: ",SymLabelCounts(2,i)
+                do j=SymLabelCounts(1,i),EndSymState
 
-                Beta=(2*SymLabelList(j))-1
-                Alpha=(2*SymLabelList(j))
-                SymAlpha=INT((G1(Alpha)%Sym%S),4)
-                SymBeta=INT((G1(Beta)%Sym%S),4)
-!                WRITE(6,*) "***",Alpha,Beta
+                    Beta=(2*SymLabelList(j))-1
+                    Alpha=(2*SymLabelList(j))
+                    SymAlpha=INT((G1(Alpha)%Sym%S),4)
+                    SymBeta=INT((G1(Beta)%Sym%S),4)
+!                    WRITE(6,*) "***",Alpha,Beta
 
-                IF(.not.tFoundOrbs(Beta)) THEN
-                    tFoundOrbs(Beta)=.true.
-                ELSE
-                    CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
-                ENDIF
-                IF(.not.tFoundOrbs(Alpha)) THEN
-                    tFoundOrbs(Alpha)=.true.
-                ELSE
-                    CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
-                ENDIF
+                    IF(.not.tFoundOrbs(Beta)) THEN
+                        tFoundOrbs(Beta)=.true.
+                    ELSE
+                        CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
+                    ENDIF
+                    IF(.not.tFoundOrbs(Alpha)) THEN
+                        tFoundOrbs(Alpha)=.true.
+                    ELSE
+                        CALL Stop_All("InitFCIMCCalcPar","Orbital specified twice")
+                    ENDIF
 
-                IF(G1(Beta)%Ms.ne.-1) THEN
-                    tSuccess=.false.
-                ELSEIF(G1(Alpha)%Ms.ne.1) THEN
-                    tSuccess=.false.
-                ELSEIF((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
-                    tSuccess=.false.
+                    IF(G1(Beta)%Ms.ne.-1) THEN
+                        tSuccess=.false.
+                    ELSEIF(G1(Alpha)%Ms.ne.1) THEN
+                        tSuccess=.false.
+                    ELSEIF((SymAlpha.ne.(i-1)).or.(SymBeta.ne.(i-1))) THEN
+                        tSuccess=.false.
+                    ENDIF
+                enddo
+            enddo
+            do i=1,nBasis
+                IF(.not.tFoundOrbs(i)) THEN
+                    WRITE(6,*) "Orbital: ",i, " not found."
+                    CALL Stop_All("InitFCIMCCalcPar","Orbital not found")
                 ENDIF
             enddo
-        enddo
-        do i=1,nBasis
-            IF(.not.tFoundOrbs(i)) THEN
-                WRITE(6,*) "Orbital: ",i, " not found."
-                CALL Stop_All("InitFCIMCCalcPar","Orbital not found")
-            ENDIF
-        enddo
+        ENDIF
         IF(.not.tSuccess) THEN
             WRITE(6,*) "************************************************"
             WRITE(6,*) "**                 WARNING!!!                 **"
