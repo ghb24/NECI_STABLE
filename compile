@@ -102,6 +102,10 @@ else
 fi
 
 ./mkconfig.sh $dbg_flag $platform -DEST=${PWD}/DESTDIR > mktemplate
+stat=$?
+if [[ "$stat" -ne 0 ]];then
+    exit $stat
+fi
 
 kdest='k'$dest
 
