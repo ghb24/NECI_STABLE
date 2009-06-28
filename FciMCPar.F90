@@ -5,7 +5,7 @@
 MODULE FciMCParMod
     use SystemData , only : NEl,Alat,Brr,ECore,G1,nBasis,nBasisMax,nMsh,Arr,LMS,NIfD,tHPHF
     use SystemData , only : tHub,tReal,tNonUniRandExcits,tMerTwist,tRotatedOrbs,tImportanceSample
-    use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet
+    use CalcData , only : InitWalkers,NMCyc,DiagSft,Tau,SftDamp,StepsSft,OccCASorbs,VirtCASorbs,tFindGroundDet,tDirectAnnihil
     use CalcData , only : TStartMP1,NEquilSteps,TReadPops,TRegenExcitgens,TFixShiftShell,ShellFix,FixShift,tMultipleDetsSpawn
     use CalcData , only : tConstructNOs,tAnnihilatebyRange,tRotoAnnihil,MemoryFacSpawn,tRegenDiagHEls,tSpawnAsDet
     use CalcData , only : GrowMaxFactor,CullFactor,TStartSinglePart,ScaleWalkers,Lambda,TLocalAnnihilation,tNoReturnStarDets
@@ -219,6 +219,8 @@ MODULE FciMCParMod
     INTEGER , ALLOCATABLE :: DoublesDets(:,:)
     INTEGER :: DoublesDetsTag,NoDoubs
 
+    INTEGER , ALLOCATABLE :: ValidSpawnedList(:) !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
+
     contains
 
 
@@ -247,7 +249,9 @@ MODULE FciMCParMod
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         do Iter=1,NMCyc
 
-            IF(TBalanceNodes) CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced.
+            IF(TBalanceNodes) THEN 
+                CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced.
+            ENDIF
             
             s=etime(tstart)
             IF(tMultipleDetsSpawn) THEN
@@ -351,1649 +355,19 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
-
-    SUBROUTINE WriteHistogramEnergies()
-        INTEGER :: error,i
-        REAL*8 :: Norm,EnergyBin
-
-        IF(iProcIndex.eq.0) THEN
-            AllHistogram(:)=0.D0
-            AllAttemptHist(:)=0.D0
-            AllSpawnHist(:)=0.D0
-            AllDoublesHist(:)=0.D0
-            AllDoublesAttemptHist(:)=0.D0
-            AllSinglesHist(:)=0.D0
-            AllSinglesAttemptHist(:)=0.D0
-            AllSinglesHistOccOcc(:)=0.D0
-            AllSinglesHistOccVirt(:)=0.D0
-            AllSinglesHistVirtOcc(:)=0.D0
-            AllSinglesHistVirtVirt(:)=0.D0
-        ENDIF
-        CALL MPI_Reduce(Histogram,AllHistogram,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(AttemptHist,AllAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SpawnHist,AllSpawnHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHist,AllSinglesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesAttemptHist,AllSinglesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(DoublesHist,AllDoublesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(DoublesAttemptHist,AllDoublesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistOccOcc,AllSinglesHistOccOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistOccVirt,AllSinglesHistOccVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistVirtOcc,AllSinglesHistVirtOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(SinglesHistVirtVirt,AllSinglesHistVirtVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-  
-        IF(iProcIndex.eq.0) THEN
-            Norm=0.D0
-            do i=1,iNoBins
-                Norm=Norm+AllHistogram(i)
-            enddo
-            do i=1,iNoBins
-                AllHistogram(i)=AllHistogram(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iNoBins
-                Norm=Norm+AllAttemptHist(i)
-            enddo
-!            WRITE(6,*) "AllAttemptHistNorm = ",Norm
-            do i=1,iNoBins
-                AllAttemptHist(i)=AllAttemptHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iNoBins
-                Norm=Norm+AllSpawnHist(i)
-            enddo
-!            WRITE(6,*) "AllSpawnHistNorm = ",Norm
-            do i=1,iNoBins
-                AllSpawnHist(i)=AllSpawnHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
-                Norm=Norm+AllSinglesAttemptHist(i)
-            enddo
-!            WRITE(6,*) "AllSinglesAttemptHistNorm = ",Norm
-            do i=1,iOffDiagNoBins
-                AllSinglesAttemptHist(i)=AllSinglesAttemptHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
-                Norm=Norm+AllDoublesHist(i)
-            enddo
-!            WRITE(6,*) "AllDoublesHistNorm = ",Norm
-            do i=1,iOffDiagNoBins
-                AllDoublesHist(i)=AllDoublesHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
-                Norm=Norm+AllDoublesAttemptHist(i)
-            enddo
-!            WRITE(6,*) "AllDoublesAttemptHist = ",Norm
-            do i=1,iOffDiagNoBins
-                AllDoublesAttemptHist(i)=AllDoublesAttemptHist(i)/Norm
-            enddo
-            Norm=0.D0
-            do i=1,iOffDiagNoBins
-                Norm=Norm+AllSinglesHist(i)
-            enddo
-!            WRITE(6,*) "AllSinglesHistNorm = ",Norm
-            do i=1,iOffDiagNoBins
-                AllSinglesHist(i)=AllSinglesHist(i)/Norm
-            enddo
- 
-!            Norm=0.D0
-!            do i=1,iOffDiagNoBins
-!                Norm=Norm+AllSinglesHistOccOcc(i)
-!            enddo
-            do i=1,iOffDiagNoBins
-                AllSinglesHistOccOcc(i)=AllSinglesHistOccOcc(i)/Norm
-            enddo
-!            Norm=0.D0
-!            do i=1,iOffDiagNoBins
-!                Norm=Norm+AllSinglesHistOccVirt(i)
-!            enddo
-            do i=1,iOffDiagNoBins
-                AllSinglesHistOccVirt(i)=AllSinglesHistOccVirt(i)/Norm
-            enddo
-!            Norm=0.D0
-!            do i=1,iOffDiagNoBins
-!                Norm=Norm+AllSinglesHistVirtOcc(i)
-!            enddo
-            do i=1,iOffDiagNoBins
-                AllSinglesHistVirtOcc(i)=AllSinglesHistVirtOcc(i)/Norm
-            enddo
-!            Norm=0.D0
-!            do i=1,iOffDiagNoBins
-!                Norm=Norm+AllSinglesHistVirtVirt(i)
-!            enddo
-            do i=1,iOffDiagNoBins
-                AllSinglesHistVirtVirt(i)=AllSinglesHistVirtVirt(i)/Norm
-            enddo
- 
-            OPEN(17,FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
-            OPEN(18,FILE='ATTEMPTENERGYHIST',STATUS='UNKNOWN')
-            OPEN(19,FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
-
-            EnergyBin=BinRange/2.D0
-            do i=1,iNoBins
-                WRITE(17,*) EnergyBin, AllHistogram(i)
-                WRITE(18,*) EnergyBin, AllAttemptHist(i)
-                WRITE(19,*) EnergyBin, AllSpawnHist(i)
-                EnergyBin=EnergyBin+BinRange
-            enddo
-            CLOSE(17)
-            CLOSE(18)
-            CLOSE(19)
-            OPEN(20,FILE='SINGLESHIST',STATUS='UNKNOWN')
-            OPEN(21,FILE='ATTEMPTSINGLESHIST',STATUS='UNKNOWN')
-            OPEN(22,FILE='DOUBLESHIST',STATUS='UNKNOWN')
-            OPEN(23,FILE='ATTEMPTDOUBLESHIST',STATUS='UNKNOWN')
-            OPEN(24,FILE='SINGLESHISTOCCOCC',STATUS='UNKNOWN')
-            OPEN(25,FILE='SINGLESHISTOCCVIRT',STATUS='UNKNOWN')
-            OPEN(26,FILE='SINGLESHISTVIRTOCC',STATUS='UNKNOWN')
-            OPEN(27,FILE='SINGLESHISTVIRTVIRT',STATUS='UNKNOWN')
-
-            EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
-            do i=1,iOffDiagNoBins
-                WRITE(20,*) EnergyBin, AllSinglesHist(i)
-                WRITE(21,*) EnergyBin, AllSinglesAttemptHist(i)
-                WRITE(22,*) EnergyBin, AllDoublesHist(i)
-                WRITE(23,*) EnergyBin, AllDoublesAttemptHist(i)
-                WRITE(24,*) EnergyBin, AllSinglesHistOccOcc(i)
-                WRITE(25,*) EnergyBin, AllSinglesHistOccVirt(i)
-                WRITE(26,*) EnergyBin, AllSinglesHistVirtOcc(i)
-                WRITE(27,*) EnergyBin, AllSinglesHistVirtVirt(i)
-                EnergyBin=EnergyBin+OffDiagBinRange
-!                WRITE(6,*) i
-            enddo
-
-            CLOSE(20)
-            CLOSE(21)
-            CLOSE(22)
-            CLOSE(23)
-            CLOSE(24)
-            CLOSE(25)
-            CLOSE(26)
-            CLOSE(27)
-        ENDIF
-
-    END SUBROUTINE WriteHistogramEnergies
-
-
-
-    SUBROUTINE InitGuidingFunction()
-!This routine reads in the guiding function from the GUIDINGFUNC file printed in a previous calculation.
-!It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
-!The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
-        INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel,DoubDet(NEl),HFPop,PartInd
-        CHARACTER(len=*), PARAMETER :: this_routine='InitGuidingFunction'
-        TYPE(HElement) :: HDoubTemp
-        REAL*8 :: Hdoub
-        LOGICAL :: DetsEq,DetBitEQ,tSuccess
-
-
-        iGuideDets=0
-        AlliInitGuideParts=0
-        DetsEq=.false.
-        IF(iProcIndex.eq.Root) THEN
-            OPEN(36,FILE='GUIDINGFUNC',Status='old')
-            READ(36,*) iGuideDets 
-        ENDIF
- 
-        CALL MPI_Bcast(iGuideDets,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-
-        ALLOCATE(GuideFuncDets(0:NIfD,1:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('GuideFuncDets',(NIfD+1)*iGuideDets,4,this_routine,GuideFuncDetsTag,ierr)
-        ALLOCATE(GuideFuncSign(0:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('GuideFuncSign',iGuideDets+1,4,this_routine,GuideFuncSignTag,ierr)
-
-        ALLOCATE(DetstoRotate(0:NIfD,1:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('DetstoRotate',(NIfD+1)*iGuideDets,4,this_routine,DetstoRotateTag,ierr)
-        ALLOCATE(SigntoRotate(0:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('SigntoRotate',iGuideDets+1,4,this_routine,SigntoRotateTag,ierr)
-        ALLOCATE(DetstoRotate2(0:NIfD,1:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('DetstoRotate2',(NIfD+1)*iGuideDets,4,this_routine,DetstoRotate2Tag,ierr)
-        ALLOCATE(SigntoRotate2(0:iGuideDets),stat=ierr)
-        CALL LogMemAlloc('SigntoRotate2',iGuideDets+1,4,this_routine,SigntoRotate2Tag,ierr)
-
-
-        IF(iProcIndex.eq.Root) THEN
-            !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
-            j=1
-            do while (j.le.iGuideDets)
-                READ(36,*) GuideFuncDets(0:NIfD,j),GuideFuncSign(j)
-                j=j+1
-            enddo
-            CLOSE(36)
-
-            !Calculate the total number of particles in the GUIDINGFUNC file.
-            !CurrentGuideParts=0
-            !do j=1,iGuideDets
-                !CurrentGuideParts=CurrentGuideParts+ABS(GuideFuncSign(j))
-            !enddo
-
-            !Scale up the populations (sign), by the ratio of the original total to the iInitGuideParts value from the NECI input,
-            !and calculate the new sum (should be approximately iInitGuideParts, but maybe not exactly because need to take nearest integer.
-            !NewGuideParts=0
-            !do j=1,iGuideDets
-                !GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(CurrentGuideParts)))
-                !NewGuideParts=NewGuideParts+ABS(GuideFuncSign(j))
-            !enddo
-            !iInitGuideParts=NewGuideParts
-            !The total number of particles in the guiding function is now iInitGuideParts
-            !WRITE(6,*) 'iInitGuideParts, ',iInitGuideParts
-
-            !Find the HF determinant and the population in the guiding function.  Take the number from the input and find the factor by which
-            !the current pop needs to be scaled by to reach the input value.  Scale all the other populations by the same value.
-            !First binary search the Guiding function determinants for the HFDet.
-
-            CALL BinSearchGuideParts(iLutHF,1,iGuideDets,PartInd,tSuccess)
-            IF(tSuccess) THEN
-                GuideFuncSign(0)=PartInd
-                HFPop=ABS(GuideFuncSign(PartInd))
-            ELSE
-                CALL Stop_All(this_routine, 'HF determinant not found in the guiding function.')
-            ENDIF
-            NewGuideParts=0
-            do j=1,iGuideDets
-                GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(HFPop)))
-                NewGuideParts=NewGuideParts+ABS(GuideFuncSign(j))
-            enddo
-            iInitGuideParts=NewGuideParts
-            
-
-            
-            !Maybe put in a test here that checks the determinants are in the right order.  But they should be cos we're printing them out right.
-
-            AlliInitGuideParts=iInitGuideParts*nProcessors
-
-            !Want to know what is happening to the guiding function throughout the spawning, so just print it out at the beginning to compare to the
-            !final one.
-            !Store the initguidefuncsigns 
-            ALLOCATE(InitGuideFuncSign(iGuideDets),stat=ierr)
-            CALL LogMemAlloc('InitGuideFuncSign',iGuideDets,4,this_routine,InitGuideFuncSignTag,ierr)
-            InitGuideFuncSign(:)=0
-
-!            OPEN(37,file='GUIDINGFUNCinit',status='unknown')
-!            WRITE(37,*) iGuideDets,' determinants included in the guiding function.'    
-            do j=1,iGuideDets
-                InitGuideFuncSign(j)=nProcessors*GuideFuncSign(j)
-!                WRITE(37,*) GuideFuncDets(0:NIfD,j),nProcessors*GuideFuncSign(j)
-            enddo
-!            CLOSE(37)
-            
-        ENDIF
-
-        !Broadcast the guiding function determinants (and signs) to all processors.
-        !The total number of walkers in the guiding function is therefore nProcessors*iInitGuideParts.
-        CALL MPI_Bcast(GuideFuncDets(0:NIfD,1:iGuideDets),iGuideDets*(NIfD+1),MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Bcast(GuideFuncSign(0:iGuideDets),iGuideDets+1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-
-        !Run through the guiding function determinants and find the index that contains the HF.
-        !Want this known on all processors, so that we can just look up the sign at this position to get the guiding function HF population.
-!        do i=1,iGuideDets
-!            DetsEq=DetBitEQ(iLutHF,GuideFuncDets(0:NIfD,i),NIfD)
-!            IF(DetsEq) THEN
-!                GuideFuncHFIndex=i
-!                EXIT
-!            ENDIF
-!        enddo
-!        IF(GuideFuncHFIndex.ne.GuideFuncSign(0)) CALL Stop_All(this_routine,'Wrong HF Index')
-        GuideFuncHFIndex=GuideFuncSign(0)
-
-        IF(iProcIndex.eq.Root) THEN
-            GuideFuncDoub=0.D0
-            !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
-            do i=1,iGuideDets
-                CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,NIfD,ExcitLevel,2)
-                IF(ExcitLevel.eq.2) THEN
-                    DoubDet(:)=0
-                    CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfD,i),NEl,NIfD)
-                    HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                    HDoub=REAL(HDoubTemp%v,r2)
-                    GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
-                ENDIF
-            enddo
-            WRITE(6,*) 'The energy of the guiding function alone is ,',GuideFuncDoub/(REAL(GuideFuncSign(GuideFuncHFIndex),r2))
-            GuideFuncDoub=0.D0
-        ENDIF
-            
-
-    ENDSUBROUTINE InitGuidingFunction
-
-
-
-    SUBROUTINE RotoAnnihilGuidingFunc(ValidSpawned)
-! This routine takes the spawned particles (that have already been annihilated with themselves and with the main wavefunction), and tries to 
-! annihilate them with the guiding function.
-! The guiding function itself may be annihilated also, but does not spawn or die by itself.
-! However, if the guiding function is completely annihilated on one processor, the spawned particles must be rotated around the other processors
-! to check for possible annihilations there.
-        INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
-        INTEGER :: Stat(MPI_STATUS_SIZE),ExcitLevel,DoubDet(NEl)
-        TYPE(HElement) :: HDoubTemp
-        REAL*8 :: Hdoub
-        LOGICAL :: tRotateSpawnedTemp,tRotateSpawned,tDetinSpawnList,DetBitEQ,DetsEq
-
-
-        NoDetstoRotate=0
-        CombSign=0
-        DetstoRotate(:,:)=0
-        SigntoRotate(:)=0
-        tRotateSpawnedTemp=.false.
-        tRotateSpawned=.false.
-        DetsEq=.false.
-
-
-        !First attempt at annihilation, just on the processor the spawned particles are currently on.
-
-        !Run through the determinats that have been spawned on.
-        do i=1,ValidSpawned
-            IF(SpawnedSign(i).ne.0) THEN
-                !Run through the guiding function, checking if this spawned determinant is in there.
-                do j=1,iGuideDets
-                    DetsEq=.false.
-                    !DetsEq is true if the two determinants are equal
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfD,i),GuideFuncDets(0:NIfD,j),NIfD)
-                    IF(DetsEq) THEN
-                        CombSign=SpawnedSign(i)*GuideFuncSign(j)
-                        !IF this is negative, the guiding function annihilates the spawned particles.
-                        IF(CombSign.lt.0) THEN
-
-                            IF(ABS(SpawnedSign(i)).gt.ABS(GuideFuncSign(j))) THEN
-                                ! Don't want to change sign of guiding function so if there are more particles in the spawned list, just put the 
-                                ! guiding function to 0 and leave the remaining spawned to be rotated to other processors.
-                                SpawnedSign(i)=SpawnedSign(i)+GuideFuncSign(j)
-                                ! Add because these are opposite signs.
-                                GuideFuncSign(j)=0
-                                ! Then need to rotate the remaining walkers in Spawned list to see if there are walkers in the guiding function
-                                ! to annihilate with on other processors.
-
-                                NoDetstoRotate=NoDetstoRotate+1
-                                DetstoRotate(0:NIfD,NoDetstoRotate)=SpawnedParts(0:NIfD,i)
-                                SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
-
-                            ELSEIF(ABS(SpawnedSign(i)).eq.ABS(GuideFuncSign(j))) THEN
-                                SpawnedSign(i)=0
-                                GuideFuncSign(j)=0
-                            ELSE
-                                ! The spawned are all annihilated, and the guiding function is decreased by that number.
-                                GuideFuncSign(j)=GuideFuncSign(j)+SpawnedSign(i)
-                                SpawnedSign(i)=0
-                            ENDIF
-
-                        !IF the combined sign (CombSign) is positive, signs are the same and the spawned particles remain.
-                        !Nothing changes, the guiding function is not annihilated, and the spawned remain to be put into the full list later.
-
-                        !If CombSign is 0, there are no walkers on the guiding function (for that processor).
-                        !Need to rotate the spawned walker to see if there are any walkers on this determinant to annihilate with.
-                        ELSEIF(CombSign.eq.0) THEN
-                            NoDetstoRotate=NoDetstoRotate+1
-                            DetstoRotate(0:NIfD,NoDetstoRotate)=SpawnedParts(0:NIfD,i)
-                            SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
-                        ENDIF
-
-                        !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
-                        !function, there will be no more matches.
-                        EXIT
-
-                    ENDIF
-                enddo
-            ENDIF
-        enddo
-
-        IF(NoDetstoRotate.gt.0) tRotateSpawnedTemp=.true.
-        !If NoDetstoRotate is 0, don't even have to worry about the rotating stuff.
-
-        !If tRotateSpawnedTemp is true on any processor, this routine makes tRotateSpawned true on all processors.
-        CALL MPI_AllReduce(tRotateSpawnedTemp,tRotateSpawned,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
-
-
-!The allocated DetstoRotate arrays are as big as iGuideDets (the number of determinants in the guiding function), but will only need to rotate 
-!a portion of these (those determinants for which the guiding function has had all its walkers annihilated).
-
-        IF(tRotateSpawned) THEN !If NoDetstoRotate is greater than 0 on any processor, need to rotate all arrays, otherwise will overwrite each other etc.
-
-            InitNoDetstoRotate=NoDetstoRotate
-            !For now, rotate this same sized array each time, even if not completely necessary.
-            !We are currently just making the determinant (and its sign) 0 if we no longer want to rotate it, but could in the future remove it from the
-            !array.  Probably doesn't make all that much difference because will never find a 0 determinant in the guiding function.
-
-            do n=1,nProcessors-1
-            !Rotate the DetstoRotate, SigntoRotate and NoDetstoRotate values.
-
-                DetsEq=.false.
-                CombSign=0
-                SigntoRotate(0)=InitNoDetstoRotate
-
-                !Send the sign of those we want to rotate to the next processor.
-                !Element 0 is the InitNoDetstoRotate value for this processor, send this as well.
-                CALL MPI_BSend(SigntoRotate(0:InitNoDetstoRotate),InitNoDetstoRotate+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
-                IF(error.ne.MPI_SUCCESS) THEN
-                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending signs")
-                ENDIF
-
-                !Then send the determinants
-                CALL MPI_BSend(DetstoRotate(0:NIfD,1:InitNoDetstoRotate),(NIfD+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
-                IF(error.ne.MPI_SUCCESS) THEN
-                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
-                ENDIF
-
-                !Receives signs.
-                !Receive max possible, will only overwrite those that are actually being sent.
-                CALL MPI_Recv(SigntoRotate2(0:iGuideDets),iGuideDets+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
-                IF(error.ne.MPI_SUCCESS) THEN
-                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving signs")
-                ENDIF
-
-                InitNoDetstoRotate=SigntoRotate2(0)
-
-                !Recieve determinants
-                CALL MPI_Recv(DetstoRotate2(0:NIfD,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
-                IF(error.ne.MPI_SUCCESS) THEN
-                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
-                ENDIF
-
-                do i=1,InitNoDetstoRotate
-                    SigntoRotate(i)=SigntoRotate2(i)
-                    DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
-                enddo
-
-                !If a determinant has walkers in the guiding function on the same determinant with the same sign, add the spawned (rotate) walkers
-                !to the spawned list of that processor (no longer need to rotate).
-                !If the walkers have opposite sign, annihilate and rotate any remaining from the spawned list.
-                !If there are no walkers on the guiding function determinant, keep rotating.
-            
-                !Take a rotated determinant and run through to find it in the guiding function of that processor.
-                do i=1,InitNoDetstoRotate
-                    !If the number of particles being rotated has become zero, don't need to search through the guiding function for particles to annihilate.
-                    IF(Signtorotate(i).ne.0) THEN
-                        do j=1,iGuideDets
-                            DetsEq=.false.
-                            DetsEq=DetBitEQ(DetstoRotate(0:NIfD,i),GuideFuncDets(0:NIfD,j),NIfD)
-
-                            IF(DetsEq) THEN
-                                CombSign=SigntoRotate(i)*GuideFuncSign(j)
-                                !IF this is negative, the guiding function annihilates the spawned particles.
-                                IF(CombSign.lt.0) THEN
-
-                                    IF(ABS(SigntoRotate(i)).gt.ABS(GuideFuncSign(j))) THEN
-                                        !If there are still too many in the spawned (rotated) array to be all annihilated by the guiding function on that
-                                        !processor, annihilate what you can, but leave the determinant in the array to keep rotating.
-                                        SigntoRotate(i)=SigntoRotate(i)+GuideFuncSign(j)
-                                        ! Add because these are opposite signs.
-                                        GuideFuncSign(j)=0
-                                        
-                                    ELSEIF(ABS(SigntoRotate(i)).eq.ABS(GuideFuncSign(j))) THEN
-                                        SigntoRotate(i)=0
-                                        GuideFuncSign(j)=0
-
-                                    ELSE
-                                        ! The spawned are all annihilated, and the guiding function is decreased by that number.
-                                        GuideFuncSign(j)=GuideFuncSign(j)+SigntoRotate(i)
-                                        SigntoRotate(i)=0
-                                    ENDIF
-
-                                    !IF the combined sign (CombSign) is positive, there are walkers in the guiding function of that processor with the same
-                                    !sign. Thus no annihilation occurs and these particles just continue to rotate around (they will just end up back on the
-                                    !the original processor where they'll be recombined back into SpawnedPart.
-
-                                    !If CombSign is 0, there are no walkers on the guiding function (for that processor).
-                                    !Continue rotating spawned walkers to see if there are any on the next processor to annihilate with.
-
-                                    !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
-                                    !function, there will be no more matches.
-
-                                ENDIF
-
-                                EXIT
-                            ENDIF
-
-                        enddo
-                    ENDIF
-                enddo
-                    
-            enddo
-
-            !If back to original processor and still have walkers in rotating arrays, just add them to the spawned list.
-            !Do one final rotation, end up on original processor - add remaining particles to spawned list.
-
-            SigntoRotate(0)=InitNoDetstoRotate
-
-            !Send the sign of those we want to rotate to the next processor.
-            CALL MPI_BSend(SigntoRotate(0:InitNoDetstoRotate),InitNoDetstoRotate+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
-            IF(error.ne.MPI_SUCCESS) THEN
-                CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending signs")
-            ENDIF
-
-            !Then send the determinants
-            CALL MPI_BSend(DetstoRotate(0:NIfD,1:InitNoDetstoRotate),(NIfD+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
-            IF(error.ne.MPI_SUCCESS) THEN
-                CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
-            ENDIF
-
-            !Receives signs.
-            CALL MPI_Recv(SigntoRotate2(0:iGuideDets),iGuideDets+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
-            IF(error.ne.MPI_SUCCESS) THEN
-                CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving signs")
-            ENDIF
-            
-            InitNoDetstoRotate=SigntoRotate2(0)
-
-            !Recieve determinants
-            CALL MPI_Recv(DetstoRotate2(0:NIfD,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
-            IF(error.ne.MPI_SUCCESS) THEN
-                CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
-            ENDIF
-
-            do i=1,InitNoDetstoRotate
-                SigntoRotate(i)=SigntoRotate2(i)
-                DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
-            enddo
-
-            !Now add all the remaining DetstoRotate2 and their signs to the SpawnedPart and SpawnedSign lists.
-            !Since I just copied the determinants from SpawnedPart to DetstoRotate, any in DetstoRotate will already been in SpawnedPart.
-            !Need to just search for it and overwrite its spin value.
-            do j=1,InitNoDetstoRotate
-                tDetinSpawnList=.false.
-                do i=1,ValidSpawned
-                    DetsEq=.false.
-                    DetsEq=DetBitEQ(SpawnedParts(0:NIfD,i),DetstoRotate(0:NIfD,j),NIfD)
-                    IF(DetsEq) THEN
-                        SpawnedSign(i)=SigntoRotate(j)
-                        tDetinSpawnList=.true.
-                        EXIT
-                    ENDIF
-                enddo
-                IF(.not.tDetinSpawnList) THEN
-                    WRITE(6,*) 'Determinant from rotate list : ',DetstoRotate(0:NIfD,j)
-!                    do i=1,ValidSpawned
-!                        WRITE(6,*) SpawnedParts(0:NIfD,i)
-!                    enddo
-                    CALL FLUSH(6)
-                    CALL Stop_All("RotoAnnihilGuidingFunc","Determinant from rotated list cannot be found in SpawnedParts.")
-                ENDIF
-            enddo
-
-        ENDIF
-
-        !Calculated the number of walkers in the guiding function after this annihilation.
-        iInitGuideParts=0
-        AlliInitGuideParts=0
-        do i=1,iGuideDets
-            iInitGuideParts=iInitGuideParts+ABS(GuideFuncSign(i))
-        enddo
-!        CALL MPI_Reduce(iInitGuideParts,AlliInitGuideParts,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
-        !Need to calculate the contribution to the HF from the guiding function, and then also the contribution from doubles.
-        GuideFuncHF=GuideFuncHF+GuideFuncSign(GuideFuncHFIndex)
-
-
-        !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
-        do i=1,iGuideDets
-            CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,NIfD,ExcitLevel,2)
-            IF(ExcitLevel.eq.2) THEN
-                DoubDet(:)=0
-                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfD,i),NEl,NIfD)
-                HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                HDoub=REAL(HDoubTemp%v,r2)
-                GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
-            ENDIF
-        enddo
-
-
-    ENDSUBROUTINE RotoAnnihilGuidingFunc
-
-
-
-    SUBROUTINE WriteGuidingFunc()
-!This routine writes out the iGuideDets determinants with the largest no of walkers at the end of a calculation.    
-!Really it finds the number of walkers on the final determinant in iGuideDets, and writes out any determinants
-!with this number or more walkers on them (accounts for degeneracies in the number of walkers on the determinants).
-        INTEGER :: i,j,k,MinGuideDetPop,ierr,error,TestSum,OrigiGuideDets
-        INTEGER :: AlliGuideDets,CompiGuideDets
-        CHARACTER(len=*), PARAMETER :: this_routine='WriteGuidingFunc'
-        INTEGER , ALLOCATABLE :: AllCurrentDets(:,:),AllCurrentSign(:)
-        INTEGER :: AllCurrentDetsTag,AllCurrentSignTag
-        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors)
-        LOGICAL :: DetBitEQ
-
-        CALL FLUSH(6)
-        IF(iGuideDets.gt.TotWalkers) CALL Stop_All(this_routine,'iGuideDets is greater than the number of populated determinants')
-
-!        WRITE(6,*) 'the determinants and sign, on each processor, before I touched them'
-!        do j=1,TotWalkers
-!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
-!        enddo
-        
-! Firstly order CurrentSign in descending absolute value, taking the corresponding CurrentDets with it.
-        CALL SortBitSign(TotWalkers,CurrentSign(1:TotWalkers),NIfD,CurrentDets(0:NIfD,1:TotWalkers))
-
-! Then run through CurrentSign, finding out how many walkers are on the iGuideDets most populated, and counting how
-! many have this many walkers or more.
-    
-        OrigiGuideDets=iGuideDets
-        MinGuideDetPop=0
-        MinGuideDetPop=ABS(CurrentSign(iGuideDets))
-        ! This is the minimum number of walkers on the included determinants.
-        ! Also want to include determinants with the same number of walkers.
-        j=iGuideDets+1
-        do while (ABS(CurrentSign(j)).eq.MinGuideDetPop)
-            j=j+1
-            iGuideDets=iGuideDets+1
-        enddo
- 
-!        WRITE(6,*) 'The most populated determinants on each processor, ordered in terms of sign'
-!        WRITE(6,*) iGuideDets,' determinants included in the guiding function.'    
-!        do j=1,iGuideDets
-!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
-!        enddo
-!        CALL FLUSH(6)
-        
-! Now take the iGuideDets determinants and reorder them back in terms of determinants (taking the sign with them).
-        
-        CALL SortBitDets(iGuideDets,CurrentDets(0:NIfD,1:iGuideDets),NIfD,CurrentSign(1:iGuideDets))
-
-!        WRITE(6,*) 'The most populated determinants on each processor, ordered by determinant'
-!        WRITE(6,*) iGuideDets,' determinants included in the guiding function.'    
-!        do j=1,iGuideDets
-!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
-!        enddo
-        
-! Calculate RecvCounts(1:nProcessors), and OffSets for the Gatherv calculation
-! Need to gather the iGuideDets values from each processor for this.
-        CALL MPI_Gather(iGuideDets,1,MPI_INTEGER,RecvCounts,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        Offsets(:)=0
-        do j=1,nProcessors-1
-            OffSets(j+1)=RecvCounts(j)+OffSets(j)
-        enddo
-        do j=1,nProcessors
-            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
-        enddo
-        OffSets02(:)=0
-        do j=1,nProcessors-1
-            OffSets02(j+1)=RecvCounts02(j)+OffSets02(j)
-        enddo
-
-!        do j=1,nProcessors
-!            WRITE(6,*) RecvCounts(j),OffSets(j),RecvCounts02(j),OffSets02(j)
-!        enddo
-
-
-! Find out the total number of iGuideDets on all processors (roughly the input, but not exactly because of 
-! of the degeneracies in the populations). 
-! This should be the same as the sum of RecvCounts.
-        AlliGuideDets=0
-        CALL MPI_Reduce(iGuideDets,AlliGuideDets,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        IF(iProcIndex.eq.Root) THEN
-            TestSum=0
-            do i=1,nProcessors
-                TestSum=TestSum+RecvCounts(i)
-            enddo
-            IF(AlliGuideDets.ne.TestSum) CALL Stop_All("WriteGuidingFunc","Error in parallel sum")
-        ENDIF
-        
-!        IF(iProcIndex.eq.Root) WRITE(6,*) 'AlliGuideDets ',AlliGuideDets
-!        CALL FLUSH(6)
-
-
-! Make arrays containing the most populated determinants from all processors.        
-
-        IF(iProcIndex.eq.Root) THEN
-            ALLOCATE(AllCurrentDets(0:NIfD,1:AlliGuideDets),stat=ierr)
-            CALL LogMemAlloc('AllCurrentDets',(NIfD+1)*AlliGuideDets,4,this_routine,AllCurrentDetsTag,ierr)
-            ALLOCATE(AllCurrentSign(1:AlliGuideDets),stat=ierr)
-            CALL LogMemAlloc('AllCurrentSign',AlliGuideDets,4,this_routine,AllCurrentSignTag,ierr)
-        ENDIF
-
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-        CALL MPI_Gatherv(CurrentSign(1:iGuideDets),iGuideDets,MPI_INTEGER,AllCurrentSign(1:AlliGuideDets),&
-        &RecvCounts,Offsets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gatherv(CurrentDets(0:NIfD,1:iGuideDets),((NIfD+1)*iGuideDets),MPI_INTEGER,&
-        &AllCurrentDets(0:NIfD,1:AlliGuideDets),RecvCounts02,Offsets02,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL FLUSH(6)
-
-
-        IF(iProcIndex.eq.Root) THEN
-
-!            OPEN(31,file='GUIDINGFUNCall-01',status='unknown')
-!            WRITE(31,*) 'The determinants from each processor combined'
-!            WRITE(31,*) AlliGuideDets,' determinants included in the guiding function.'    
-!            do j=1,AlliGuideDets
-!                WRITE(31,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
-!            enddo
-!            CLOSE(31)
-
-! Having taken the largest occupied determinants from each processor, select the iGuideDets most populated from
-! this total list.
-! I.e. reorder in terms of population, compressing so that each determinant only appears once.  Then select out the top iGuideDets 
-! and reorder by determinant once again.
-
-! From the list of determinants from all processors, order in terms of determinant so that this may be compressed to make sure each
-! determinant only appears once.
-            CALL SortBitDets(AlliGuideDets,AllCurrentDets(0:NIfD,1:AlliGuideDets),NIfD,AllCurrentSign(1:AlliGuideDets))
-
-!            OPEN(32,file='GUIDINGFUNCall-02',status='unknown')
-!            WRITE(32,*) 'The determinants from each processor combined'
-!            WRITE(32,*) AlliGuideDets,' determinants included in the guiding function.'    
-!            do j=1,AlliGuideDets
-!                WRITE(32,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
-!            enddo
-!            CLOSE(32)
-            
-
-! Find out if two determinants next to each are the same, if so add their signs and move the ones below them up.
-! DetBitEq returns true if two determinants are identical, or false otherwise.
-            CompiGuideDets=AlliGuideDets
-            do i=1,AlliGuideDets-1
-
-                IF(i.gt.CompiGuideDets) EXIT 
-                ! This means we have got to the end of the compressed list, don't want to keep going, as all determinants after this are 0. 
-
-                do while (DetBitEQ(AllCurrentDets(0:NIfD,i),AllCurrentDets(0:NIfD,i+1),NIfD))
-                    ! Take a determinant, if the one above it is identical, add its sign to the original and move the others up to overwrite
-                    ! the second.
-                    ! Repeat this until the i+1 determinant is no longer equal to the i determinant.
-
-                    IF((AllCurrentSign(i)*AllCurrentSign(i+1)).lt.0) THEN
-                        WRITE(6,*) 'Determinant populated with opposite signs',AllCurrentDets(0:NIfD,i)
-                        WRITE(6,*) 'Identical determinant next to it',AllCurrentDets(0:NIfD,i+1)
-                        CALL FLUSH(6)
-                        CALL Stop_All("WriteGuidingFunc","Identical determinants populated with opposite sign")
-                    ENDIF
-
-                    AllCurrentSign(i)=AllCurrentSign(i)+AllCurrentSign(i+1)
-
-                    CompiGuideDets=CompiGuideDets-1
-
-                    do j=i+2,AlliGuideDets
-                        AllCurrentDets(0:NIfD,j-1)=AllCurrentDets(0:NIfD,j)
-                        AllCurrentSign(j-1)=AllCurrentSign(j)
-                    enddo
-                    ! Zero the last determinant
-                    AllCurrentSign(AlliGuideDets)=0
-                    AllCurrentDets(0:NIfD,AlliGuideDets)=0
-                enddo
-            enddo
-            AlliGuideDets=CompiGuideDets
-     
-!            OPEN(33,file='GUIDINGFUNCall-03',status='unknown')
-!            WRITE(33,*) 'The determinants from each processor combined and compressed, ordered by determinant'
-!            WRITE(33,*) AlliGuideDets,' determinants included in the guiding function.'    
-!            do j=1,AlliGuideDets
-!                WRITE(33,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
-!            enddo
-!            CLOSE(33)
-
-          
-! Reorder the compressed list of determinants by population (i.e. descending according to absolute value of AllCurrentSign, taking determinant with it).        
-            CALL SortBitSign(AlliGuideDets,AllCurrentSign(1:AlliGuideDets),NIfD,AllCurrentDets(0:NIfD,1:AlliGuideDets))
-
-
-! From this total list of most populated determinants, pick out the iGuideDets most populated, along with any with the same number of walkers as the last.        
-            iGuideDets=OrigiGuideDets
-            MinGuideDetPop=0
-            MinGuideDetPop=ABS(AllCurrentSign(iGuideDets))
-            ! This is the minimum number of walkers on the included determinants.
-            ! Also want to include determinants with the same number of walkers.
-            j=iGuideDets+1
-            do while (ABS(AllCurrentSign(j)).eq.MinGuideDetPop)
-                j=j+1
-                iGuideDets=iGuideDets+1
-            enddo
-      
-!            OPEN(34,file='GUIDINGFUNCall-04',status='unknown')
-!            WRITE(34,*) 'The determinants from each processor combined and compressed, ordered by sign'
-!            WRITE(34,*) iGuideDets,' determinants included in the guiding function.'    
-!            do j=1,iGuideDets
-!                WRITE(34,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
-!            enddo
-!            CLOSE(34)
-
-
-! Now take the iGuideDets determinants and reorder them back in terms of determinants (taking the sign with them).
-            CALL SortBitDets(iGuideDets,AllCurrentDets(0:NIfD,1:iGuideDets),NIfD,AllCurrentSign(1:iGuideDets))
-
-
-! Write the iGuideDets most populated determinants (in order of their bit strings) to a file.
-            OPEN(35,file='GUIDINGFUNC',status='unknown')
-            WRITE(35,*) iGuideDets,' determinants included in the guiding function.'    
-            do j=1,iGuideDets
-                WRITE(35,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
-            enddo
-            CLOSE(35)
-
-            DEALLOCATE(AllCurrentDets)
-            CALL LogMemDealloc(this_routine,AllCurrentDetsTag)
-            DEALLOCATE(AllCurrentSign)
-            CALL LogMemDealloc(this_routine,AllCurrentSignTag)
-        
-        ENDIF
-
-
-    END SUBROUTINE WriteGuidingFunc
-
-
-
-
-    SUBROUTINE WriteFinalGuidingFunc()
-        INTEGER :: j,AllGuideFuncSignTag,ierr,error
-        INTEGER , ALLOCATABLE :: AllGuideFuncSign(:)
-
-        IF(iProcIndex.eq.Root) THEN
-            ALLOCATE(AllGuideFuncSign(iGuideDets),stat=ierr)
-            CALL LogMemAlloc('AllGuideFuncSign',iGuideDets,4,'WriteFinalGuidingFunc',AllGuideFuncSignTag,ierr)
-        ENDIF 
-
-        CALL MPI_Reduce(GuideFuncSign(1:iGuideDets),AllGuideFuncSign,iGuideDets,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
- 
-        IF(iProcIndex.eq.Root) THEN
-            OPEN(38,file='GUIDINGFUNCfinal',status='unknown')
-            WRITE(38,*) iGuideDets,' determinants included in the guiding function.'    
-            WRITE(38,'(A11,A28,A11,A15)') "Determinant","InitialPop","FinalPop","TotalChange"
-            do j=1,iGuideDets
-                WRITE(38,*) GuideFuncDets(0:NIfD,j),InitGuideFuncSign(j),AllGuideFuncSign(j),(ABS(AllGuideFuncSign(j))-ABS(InitGuideFuncSign(j)))
-            enddo
-            CLOSE(38)
-
-            DEALLOCATE(AllGuideFuncSign)
-            CALL LogMemDealloc('WriteFinalGuidingFunc',AllGuideFuncSignTag)
-            DEALLOCATE(InitGuideFuncSign)
-            CALL LogMemDealloc('WriteFinalGuidingFunc',InitGuideFuncSignTag)
- 
-        ENDIF
-
-
-    ENDSUBROUTINE WriteFinalGuidingFunc
-
-
-
-    SUBROUTINE InitSpawnDominant()
-!It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
-!The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
-        INTEGER :: i,j,ierr,error,iNoExcLevels,Temp,iMinDomLevPop,SumExcLevPop,ExcitLevel
-        CHARACTER(len=*), PARAMETER :: this_routine='InitSpawnDominant'
-
-        IF(iProcIndex.eq.Root) THEN
-            OPEN(41,FILE='DOMINANTDETS',Status='old')
-            READ(41,*) iNoDomDets
-            READ(41,*) iNoExcLevels 
-            READ(41,*) iMinDomLev,SumExcLevPop
-            iMaxDomLev=iMinDomLev+iNoExcLevels-1
-!            IF(iMinDomLev.le.2) CALL Stop_All('InitSpawnDominant','Code is not set up to deal with removing doubles or lower.')
-        ENDIF
-        
-        CALL MPI_Bcast(iMinDomLev,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Bcast(iMaxDomLev,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Bcast(iNoDomDets,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Bcast(iNoExcLevels,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-
-        ALLOCATE(DomExcIndex(iMinDomLev:(iMinDomLev+iNoExcLevels)),stat=ierr)
-        CALL LogMemAlloc('DomExcIndex',iNoExcLevels+1,4,this_routine,DomExcIndexTag,ierr)
-        DomExcIndex(:)=0
-        
-        IF(iProcIndex.eq.Root) THEN
-            DomExcIndex(iMinDomLev)=1
-            i=iMinDomLev+1
-            do while(i.le.iMaxDomLev)
-                DomExcIndex(i)=SumExcLevPop+DomExcIndex(i-1)
-                READ(41,*) ExcitLevel,Temp
-                SumExcLevPop=Temp
-                i=i+1
-            enddo
-            DomExcIndex(iMaxDomLev+1)=SumExcLevPop+DomExcIndex(i-1)
-            IF(DomExcIndex(iMaxDomLev+1).ne.(iNoDomDets+1)) CALL Stop_All(this_routine,'ERROR in filling the indexing excitation indexing array.')
-        ENDIF
-
-
-        CALL MPI_Bcast(DomExcIndex(iMinDomLev:(iMaxDomLev+1)),iMaxDomLev-iMinDomLev+2,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-
-
-        ALLOCATE(DomDets(0:NIfD,1:iNoDomDets),stat=ierr)
-        CALL LogMemAlloc('DomDets',(NIfD+1)*iNoDomDets,4,this_routine,DomDetsTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory for dominant determinants')
-
-        IF(iProcIndex.eq.Root) THEN
-            !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
-            j=1
-            do while (j.le.iNoDomDets)
-                READ(41,*) DomDets(0:NIfD,j)
-                j=j+1
-            enddo
-            CLOSE(41)
-        ENDIF
-
-        ! Broadcast this list of DomDets to all processors
-        CALL MPI_Bcast(DomDets(0:NIfD,1:iNoDomDets),(NIfD+1)*iNoDomDets,MPI_INTEGER,Root,MPI_COMM_WORLD,ierr)
-
-
-        IF(tMinorDetsStar) THEN
-            IF(.not.tRotoAnnihil) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS can only be used with rotoannihilation.') 
-            ELSEIF(tFixShiftShell) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS cannot be used with the fixed shift shell approximation.') 
-            ELSEIF(iMinDomLev.le.2) THEN
-                CALL Stop_All(this_routine,'STARMINORDETERMINANTS is not set up to deal with removing doubles or lower.')
-            ELSE
-                CALL InitMinorDetsStar()
-            ENDIF
-        ENDIF
-
-
-    ENDSUBROUTINE InitSpawnDominant 
-
-
-
-
-    SUBROUTINE PrintDominantDets()
-! This routine takes the list of determinants with particles on them, and picks out those with excitation levels between the max and min
-! specified in the input file.  It then orders these in terms of population, takes the iNoDominantDets most populated and prints them 
-! in order of excitation level and then determinant to a file named DOMINANTDETS.
-        INTEGER :: i,j,k,ierr,error,TestSum,ExcitLevel,NoExcDets,AllNoExcDets,ExcDetsTag,ExcSignTag,AllExcDetsTag,AllExcSignTag,ipos
-        INTEGER :: ExcDetsIndex,MinDomDetPop,AllExcLevelTag,ExcLevelTag,CurrExcitLevel,NoExcitLevel,OrigiDominantDets,HFPop,CurriNoDominantDets
-        CHARACTER(len=*), PARAMETER :: this_routine='PrintDominantDets'
-        REAL*8 :: MinRelDomPop,SpinTot,NormDef
-        INTEGER , ALLOCATABLE :: ExcDets(:,:),ExcSign(:),AllExcDets(:,:),AllExcSign(:)
-        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors),DetCurr(NEl),NormDefTrunc,NormDefTot
-        INTEGER :: SpinCoupDetBit(0:NIfD),SpinCoupDet(NEl),OpenShell(2,NEl),UpSpin(NEl),NoOpenShell,NoUpSpin,iRead,PartInd,ID1,ID2,iComb,TempSign
-        LOGICAL :: tDoubOcc,tSuccess
-
-        CALL FLUSH(6)
-        IF(.not.tRotoAnnihil) CALL Stop_All(this_routine,'PRINTDOMINANTDETS can only be used with rotoannihilation.')
-
-        WRITE(6,'(A13,I10,A53,I3,A5,I3)') 'Printing the ',iNoDominantDets,' dominant determinants with excitation level between ',MinExcDom,' and ',MaxExcDom
-
-
-!        WRITE(6,*) 'the determinants and sign, on each processor, before I touched them'
-!        do j=1,TotWalkers
-!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
-!        enddo
-
-
-! Firstly, copy the determinants with excitation level between the min and max into a separate array (and do the same with sign).  
-! Need to first count the number that are going to go in this array.
-        NoExcDets=0
-        AllNoExcDets=0
-        do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
-            IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
-                NoExcDets=NoExcDets+1
-            ELSEIF(ExcitLevel.eq.0) THEN
-                HFPop=ABS(CurrentSign(i))
-            ENDIF
-        enddo
-
-        CALL MPI_Reduce(NoExcDets,AllNoExcDets,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
-
-
-! Allocate arrays of this size - these are the ones that will be reordered to find the iNoDominantDets most populated etc.        
-        ALLOCATE(ExcDets(0:NIfD,1:NoExcDets),stat=ierr)
-        CALL LogMemAlloc('ExcDets',(NIfD+1)*NoExcDets,4,this_routine,ExcDetsTag,ierr)
-        ALLOCATE(ExcSign(1:NoExcDets),stat=ierr)
-        CALL LogMemAlloc('ExcSign',NoExcDets,4,this_routine,ExcSignTag,ierr)
- 
-        IF(iProcIndex.eq.Root) THEN
-            ALLOCATE(AllExcDets(0:NIfD,1:(10*AllNoExcDets)),stat=ierr)
-            CALL LogMemAlloc('AllExcDets',(NIfD+1)*10*AllNoExcDets,4,this_routine,AllExcDetsTag,ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'ERROR allocating memory to AllExcDets.')
-            ALLOCATE(AllExcSign(1:(10*AllNoExcDets)),stat=ierr)
-            CALL LogMemAlloc('AllExcSign',10*AllNoExcDets,4,this_routine,AllExcSignTag,ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'ERROR allocating memory to AllExcSign.')
-        ENDIF
-
-
-! Now run through the occupied determinants.  If the determinant has the correct excitation level, add it to the ExcDets array, and
-! add its sign to the ExcSign array.
-        ExcDetsIndex=0
-        do i=1,TotWalkers
-            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
-            IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
-                ExcDetsIndex=ExcDetsIndex+1
-                ExcDets(0:NIfD,ExcDetsIndex)=CurrentDets(0:NIfD,i)
-                ExcSign(ExcDetsIndex)=CurrentSign(i)
-            ENDIF
-        enddo
-
-
-! Now need to collect this array on the root processor and find the most populated determinants.
-! First set up the RecvCounts and OffSet arrays.
-
-! Need to gather the NoExcDets values from each processor for this.
-        CALL MPI_Gather(NoExcDets,1,MPI_INTEGER,RecvCounts,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        
-        Offsets(:)=0
-        do j=1,nProcessors-1
-            OffSets(j+1)=RecvCounts(j)+OffSets(j)
-        enddo
-        do j=1,nProcessors
-            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
-        enddo
-        OffSets02(:)=0
-        do j=1,nProcessors-1
-            OffSets02(j+1)=RecvCounts02(j)+OffSets02(j)
-        enddo
-
-!        do j=1,nProcessors
-!            WRITE(6,*) RecvCounts(j),OffSets(j),RecvCounts02(j),OffSets02(j)
-!        enddo
-
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-        CALL MPI_Gatherv(ExcSign(1:NoExcDets),NoExcDets,MPI_INTEGER,AllExcSign(1:AllNoExcDets),&
-        &RecvCounts,Offsets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Gatherv(ExcDets(0:NIfD,1:NoExcDets),((NIfD+1)*NoExcDets),MPI_INTEGER,&
-        &AllExcDets(0:NIfD,1:AllNoExcDets),RecvCounts02,Offsets02,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
-        CALL FLUSH(6)
-       
-! Now that we have arrays on the root processor with the determinants and sign of correct excitation level, need to order these 
-! in descending absolute value, taking the corresponding sign with it.
-        IF(iProcIndex.eq.Root) THEN
- 
-            IF(iNoDominantDets.gt.AllNoExcDets) THEN
-                WRITE(6,*) 'iNoDominantDets: ',iNoDominantDets
-                WRITE(6,*) 'AllNoExcDets: ',AllNoExcDets
-                CALL Stop_All(this_routine,'Not enough determinants are occupied to pick out the number of dominant requested.')
-            ENDIF
-
-
-            CALL SortBitSign(AllNoExcDets,AllExcSign(1:AllNoExcDets),NIfD,AllExcDets(0:NIfD,1:AllNoExcDets))
-
-! Then run through AllExcSign, finding out how many walkers are on the iNoDominantDets most populated, and counting how
-! many have this many walkers or more.
-        
-            OrigiDominantDets=iNoDominantDets
-            MinDomDetPop=0
-            MinDomDetPop=ABS(AllExcSign(iNoDominantDets))
-            ! This is the minimum number of walkers on the included determinants.
-            ! Also want to include determinants with the same number of walkers.
-            j=iNoDominantDets+1
-            do while (ABS(AllExcSign(j)).eq.MinDomDetPop)
-                j=j+1
-                iNoDominantDets=iNoDominantDets+1
-            enddo
- 
-            OPEN(39,file='DOMINANTDETSdescpop',status='unknown')
-            WRITE(39,*) AllNoExcDets,' determinants with the right excitation level.'    
-            WRITE(39,*) iNoDominantDets,' with population ',MinDomDetPop, ' and above.'
-            do j=1,AllNoExcDets
-                WRITE(39,*) AllExcDets(0:NIfD,j),AllExcSign(j)
-            enddo
-            CLOSE(39)
-          
-            WRITE(6,*) 'This amounts to determinants with population ',MinDomDetPop,' and larger.'
-!            WRITE(6,*) 'HFPop',HFPop
-!            WRITE(6,*) 'MinDomDetPop',MinDomDetPop
-            MinRelDomPop=REAL(MinDomDetPop)/REAL(HFPop)
-            WRITE(6,*) 'These determinants have amplitude ; ',MinRelDomPop,' relative to the most populated determinant.' 
-
-! In order to do binary searches for the spin determinants, need to sort the determinants back into order.
-! Do this in two separate lots, 1:iNoDominantDets and iNoDominantDets+1:AllNoExcDets
-
-            CALL SortBitDets(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),NIfD,AllExcSign(1:iNoDominantDets))
-            CALL SortBitDets((AllNoExcDets-iNoDominantDets),AllExcDets(0:NIfD,(iNoDominantDets+1):AllNoExcDets),NIfD,&
-                            &AllExcSign((iNoDominantDets+1):AllNoExcDets))
- 
-            OPEN(47,file='DOMINANTDETSsorted',status='unknown')
-            WRITE(47,*) AllNoExcDets,' determinants with the right excitation level.'    
-            WRITE(47,*) iNoDominantDets,' with population ',MinDomDetPop, ' and above.'
-            do j=1,AllNoExcDets
-                WRITE(47,*) AllExcDets(0:NIfD,j),AllExcSign(j)
-            enddo
-            CLOSE(47)
- 
-
-! Run through all the determinants, finding sum_k=1->AllNoExcDets c_k^2 = NormDefTot.  Want to do this before doing the spin
-! coupled stuff when some determinants have overwritten others.
-            NormDefTot=0
-            do i=1,AllNoExcDets
-                NormDefTot=NormDefTot+(AllExcSign(i)**2)
-            enddo
-
-
-
-! Put a bit in here to run through the determinants, construct all the different spin eigenstates from each and make sure 
-! they are all included.  - need to add them to the list maintaining order.
-! At the moment, these are ordered by determinant, and only the first iNoDominantDets are going to be taken.
-! Determinants that are added to the list should be added in order.
-            IF(.not.tNoDomSpinCoup) THEN 
-                WRITE(6,*) 'Also including determinants that are spin coupled to those in the list of dominant dets.'
-                CurriNoDominantDets=iNoDominantDets
-                ! The number of DominantDets before including spin coupled ones.
-                do j=1,CurriNoDominantDets
-                    ! Add the sign from this determinant to the Norm Deficiency calc - this will be in trunc.
-                    ! Decode the current determinant
-                    CALL DecodeBitDet(DetCurr,AllExcDets(0:NIfD,j),NEl,NIfD)
-!                    WRITE(6,*) 'DetCurrBit',AllExcDets(:,j)
-!                    WRITE(6,*) 'DetCurr',DetCurr(:)
-
-                    ! Need to find overall spin of DetCurr
-                    SpinTot=0.D0
-                    do i=1,NEl
-                        SpinTot=SpinTot+G1(DetCurr(i))%Ms
-                    enddo
-                    IF(SpinTot.ne.(LMS/2)) THEN
-                        WRITE(6,*) 'SpinTot',SpinTot
-                        WRITE(6,*) 'LMS',LMS
-                        CALL FLUSH(6)
-                        CALL Stop_All(this_routine,'Error, the summed Ms values of each electon does not equal LMS/2.')
-                    ENDIF
-
-                    ! Run through orbitals - creating a list of open shell electrons
-                    OpenShell(:,:)=0
-                    NoOpenShell=0
-                    UpSpin(:)=0
-                    NoUpSpin=0
-                    SpinCoupDet(:)=0
-                    do i=1,NEl
-                        ! For an electron of the current det, find the spatial orbital.
-!                        CALL GTID(nBasisMax,DetCurr(i),ID1)
-                        ID1=CEILING(REAL(DetCurr(i))/2.0)
-                        ! Now run through all other orbitals finding out if the same spat orb is occupied.
-                        do k=1,NEl
-                            IF(k.eq.i) CYCLE 
-                            tDoubOcc=.false.
-!                            CALL GTID(nBasisMax,DetCurr(k),ID2)
-                            ID2=CEILING(REAL(DetCurr(k))/2.0)
-                            IF(ID2.eq.ID1) THEN
-                                ! doubly occupied orbital, these will be the same in the spin coupled det.
-                                SpinCoupDet(i)=DetCurr(i)
-                                SpinCoupDet(k)=DetCurr(k)
-                                tDoubOcc=.true.
-                                EXIT
-                            ENDIF
-                        enddo
-                        IF(.not.tDoubOcc) THEN
-                            ! Singly occupied orbitals, put these in the openshell array.
-                            ! OpenShell(1,:) - the spatial orbital 
-                            ! OpenShell(2,:) - the electron number
-                            NoOpenShell=NoOpenShell+1
-                            OpenShell(1,NoOpenShell)=ID1
-                            OpenShell(2,NoOpenShell)=i
-                            IF(mod(DetCurr(i),2).eq.0) NoUpSpin=NoUpSpin+1
-!                            IF(G1(DetCurr(i))%Ms.gt.0) NoUpSpin=NoUpSpin+1
-                        ENDIF
-                    enddo
-!                    WRITE(6,*) 'SpinCoup with just doub occ',SpinCoupDet(:)
-!                    WRITE(6,*) 'OpenShell(1,:) - spat orbs',OpenShell(1,:)
-!                    WRITE(6,*) 'OpenShell(2,:) - electron no.',OpenShell(2,:)
-
-                    CALL gennct(NoOpenShell,NoUpSpin,iComb)
-                    ! in the future, change this so that it doesn't print then read, but takes array straight away.
-
-                    OPEN(91,FILE='COMBINATIONS',Status='old')
-
-                    iRead=1
-                    do while(iRead.le.iComb) 
-                        READ(91,*) UpSpin(1:NoUpSpin)
-!                        WRITE(6,*) 'NoUpSpin',NoUpSpin
-!                        WRITE(6,*) 'UpSpin',UpSpin(1:NoUpSpin)
-
-                        do i=1,NoOpenShell
-                            ! Make all the open shell electrons beta, then overwrite the alpha spin.
-                            SpinCoupDet(OpenShell(2,i))=(OpenShell(1,i)*2)-1                    
-                        enddo
-
-                        do i=1,NoUpSpin
-                            SpinCoupDet(OpenShell(2,(UpSpin(i)+1)))=(OpenShell(1,(UpSpin(i)+1)))*2
-                        enddo
-
-                        ! Then have to turn SpinCoupDet into the bit string for binary searching...
-!                        WRITE(6,*) 'SpinCoup with beta and alpha',SpinCoupDet(:)
-
-                        CALL EncodeBitDet(SpinCoupDet(1:NEl),SpinCoupDetBit(0:NIfD),NEl,NIfD)
-!                        WRITE(6,*) 'SpinCoupDetBit',SpinCoupDetBit(:)
-
-                        ! First search through the list of dominant determinants.
-                        tSuccess=.false.
-                        CALL BinSearchDomParts(AllExcDets(0:NIfD,1:CurriNoDominantDets),SpinCoupDetBit(0:NIfD),1,CurriNoDominantDets,PartInd,tSuccess)
-                        IF(tSuccess) THEN
-                            ! Determinant found in the dominant list.
-                            iRead=iRead+1
-                        ELSE
-                            ! If not found in the original dominant determinant list then need to search through the determinants that have been added.
-                            IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
-                                CALL BinSearchDomParts(AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),SpinCoupDetBit(0:NIfD),(CurriNoDominantDets+1),&
-                                                    &iNoDominantDets,PartInd,tSuccess)
-                                IF((PartInd.le.CurriNoDominantDets).or.(PartInd.gt.iNoDominantDets)) CALL Stop_All(this_routine, '')                                                    
-                            ENDIF
-
-                            IF(tSuccess) THEN
-                                iRead=iRead+1
-                                ! If the determinant has already been added, don't need to do anything.
-                            ELSE
-
-                                ! If there are still determinants left in the rest of the list, search through these to check if the determinant is there (to get the sign).
-                                IF((AllNoExcDets-iNoDominantDets).gt.0) THEN
-                                    CALL BinSearchDomParts(AllExcDets(0:NIfD,(iNoDominantDets+1):AllNoExcDets),SpinCoupDetBit(0:NIfD),(iNoDominantDets+1),&
-                                                    &AllNoExcDets,PartInd,tSuccess)
-                                ENDIF
-                                IF(tSuccess) THEN
-                                    ! Determinant found in the rest of the list, put it in dom dets along with its sign.
-                                    ! Need to insert the determinant in the correct position, so that these added determinants stay ordered.
-                                    ! SearchGen will give back ipos so that the determinant we are inserting is < ipos-1 and ge ipos.
-                                    ! I.e this determinant goes in ipos and everything else is moved up 1.
-                                    IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
-                                        CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
-                                                    &SpinCoupDetBit(0:NIfD),ipos,NIfD)
-                                    ELSE
-                                        ipos=0
-                                    ENDIF
-                                    ipos=ipos+CurriNoDominantDets
-!                                    CALL SearchGen(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),SpinCoupDetBit(0:NIfD),ipos,NIfD)
-                                    ! The position the determinant should go is ipos, if the current determinant in ipos is not equal to the SpinCoupDetBit,
-                                    ! then we want to insert this determinant here, move all the others up by one, put the determinant that is getting written
-                                    ! over at iNoDominantDets+1 in the position of the spincoupdetbit.
-                                    
-                                    TempSign=AllExcSign(iNoDominantDets+1) 
-                                    AllExcDets(0:NIfD,PartInd)=AllExcDets(0:NIfD,iNoDominantDets+1)
-
-                                    do i=iNoDominantDets,ipos,-1                                                    
-                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
-                                        AllExcSign(i+1)=AllExcSign(i)
-                                    enddo
-                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
-                                    AllExcSign(ipos)=AllExcSign(PartInd)
-                                    iRead=iRead+1
-                                    iNoDominantDets=iNoDominantDets+1
-                                    AllExcSign(PartInd)=TempSign
-                                ELSE
-                                    ! Determinant not in the list at all, add to added determinants (maintaining order) with a sign of 0.
-                                    CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
-                                                    &SpinCoupDetBit(0:NIfD),ipos,NIfD)
-                                    ipos=ipos+CurriNoDominantDets
-                                    
-                                    AllExcDets(0:NIfD,AllNoExcDets+1)=AllExcDets(0:NIfD,iNoDominantDets+1)
-                                    AllExcSign(AllNoExcDets+1)=AllExcSign(iNoDominantDets+1)
-
-                                    do i=iNoDominantDets,ipos,-1                                                    
-                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
-                                        AllExcSign(i+1)=AllExcSign(i)
-                                    enddo
-
-                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
-                                    AllExcSign(ipos)=0
-                                    iRead=iRead+1
-                                    iNoDominantDets=iNoDominantDets+1
-                                    AllNoExcDets=AllNoExcDets+1
-                                ENDIF
-                            ENDIF
-                        ENDIF
-                        IF(iNoDominantDets.gt.(10*AllNoExcDets)) THEN
-                            do i=1,iNoDominantDets
-                                WRITE(6,*) AllExcDets(:,i),AllExcSign(i)
-                            enddo
-                            CALL FLUSH(6)
-                            CALL Stop_All(this_routine,'No spin coupled dets has reached larger than AllExcDets array can handle.')
-                        ENDIF
-                    enddo
-                    CLOSE(91)
-                    ! do that little bit for all spin coupled determinants and then for all determinants currently in the list.       
-!                    CALL FLUSH(6)
-!                    CALL Stop_All(this_routine,'cos I meant to.')
-                enddo
-            ENDIF
-            WRITE(6,*) 'By including spin coupling ',iNoDominantDets-CurriNoDominantDets,' more determinants are included.'
-
-! Run through all the determinants we are including in the truncated list (i.e. all those to go in the dominant dets list).            
-! Count up the squares of the populations to calculate the normalisation deficiency.
-            NormDefTrunc=0
-            do i=1,iNoDominantDets
-                NormDefTrunc=NormDefTrunc+(AllExcSign(i)**2)
-            enddo
-            NormDef=1.D0-(REAL(NormDefTrunc)/REAL(NormDefTot))
-            WRITE(6,*) 'The NORMALISATION DEFICIENCY of such a truncation is : ',NormDef
-
- 
-! Now take the iNoDominantDets determinants and reorder them in terms of excitation level and then determinants.
-! SortExcitBitDets orders the determinants first by excitation level and then by determinant, taking the corresponding sign with them.        
-! We have just fed the first iNoDominantDets from the list ordered in terms of population.
-! Only this amount will be reordered by excitation level then determinant, and then we print out this many only.
-
-            CALL SortExcitBitDets(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),NIfD,AllExcSign(1:iNoDominantDets),iLutHF(0:NIfD),NEl)
- 
-!            OPEN(40,file='DOMINANTDETSexclevelbit',status='unknown')
-!            WRITE(40,*) AllNoExcDets,' determinants with the right excitation level.'    
-!            do j=1,AllNoExcDets
-!                CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
-!                WRITE(40,*) AllExcDets(0:NIfD,j),AllExcSign(j),ExcitLevel
-!            enddo
-!            CLOSE(40)
-
-
-! Write the iGuideDets most populated determinants (in order of their bit strings) to a file.
-            OPEN(38,file='DOMINANTDETS',status='unknown')
-            WRITE(38,*) iNoDominantDets,' dominant determinants printed here.'    
-            WRITE(38,*) (MaxExcDom-MinExcDom+1),' excitation levels included.'
-            
-! Need to run through these ordered determinants, counting the number in each excitation level.            
-            j=1
-            do while (j.le.iNoDominantDets)
-                NoExcitLevel=0
-                i=j 
-                IF(ExcitLevel.ne.(CurrExcitLevel+1)) THEN
-                    do k=CurrExcitLevel+1,ExcitLevel-1
-                        WRITE(38,*) k,0
-                    enddo
-                ENDIF
-                CALL FindBitExcitLevel(AllExcDets(0:NIfD,i),iLutHF(0:NIfD),NIfD,CurrExcitLevel,MaxExcDom)
-                ExcitLevel=CurrExcitLevel
-                do while (ExcitLevel.eq.CurrExcitLevel)
-                    NoExcitLevel=NoExcitLevel+1
-                    j=j+1
-                    IF(j.gt.iNoDominantDets) EXIT
-                    CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
-                enddo
-                WRITE(38,*) CurrExcitLevel,NoExcitLevel
-            enddo
-            IF(CurrExcitLevel.ne.MaxExcDom) THEN
-                do i=CurrExcitLevel+1,MaxExcDom
-                    WRITE(38,*) i,0
-                enddo
-            ENDIF
-
-            do j=1,iNoDominantDets
-                WRITE(38,*) AllExcDets(0:NIfD,j),AllExcSign(j)
-            enddo
-            CLOSE(38)
-
-            DEALLOCATE(AllExcDets)
-            CALL LogMemDealloc(this_routine,AllExcDetsTag)
-            DEALLOCATE(AllExcSign)
-            CALL LogMemDealloc(this_routine,AllExcSignTag)
-
-        ENDIF
-
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-
-        DEALLOCATE(ExcDets)
-        CALL LogMemDealloc(this_routine,ExcDetsTag)
-        DEALLOCATE(ExcSign)
-        CALL LogMemDealloc(this_routine,ExcSignTag)
-
-    END SUBROUTINE PrintDominantDets 
-
-
-
-    subroutine gennct(n,t,icomb)
-       integer n,t
-       integer c(t+2)
-       integer j
-       integer icomb
-       icomb=0
-       open(90,file='COMBINATIONS',STATUS='UNKNOWN')
-!      WRITE(6,*) ' Writing combinations to file COMBINATIONS'
-       do j=1,t
-           c(j)=j-1
-       enddo
-       c(t+1)=n
-       c(t+2)=0
-20     continue
-!      visit c(t)
-       
-       icomb=icomb+1
-!      write(90,'(20i3)' ) (c(j)+1,j=1,t)
-       
-       write(90,'(20i3)' ) (c(j),j=1,t)
-       
-       do j=1,n
-           if(c(j+1).ne.(c(j)+1)) goto 30
-           c(j)=j-1
-       enddo
-30     continue
-       if(j.gt.t) then 
-!           write(6,*) ' Generated combinations:',ICOMB
-           CLOSE(90)
-           RETURN
-       endif
-       c(j)=c(j)+1
-       goto 20
-       
-   end subroutine gennct
-       
-
-
-   SUBROUTINE InitMinorDetsStar()
-! This routine simply sets up the arrays etc for the particles spawned into the determinant space that is not in the allowed list.
-! MinorStarDets etc are the particles remaining after annihilation, death etc, whereas MinorSpawnDets etc are the walkers newly
-! spawned in a particular iteration.
-        INTEGER :: ierr
-        CHARACTER(len=*), PARAMETER :: this_routine='InitMinorDetsStar'
-
-        ! The actual determinants.
-        ALLOCATE(MinorStarDets(0:NIfD,1:MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('MinorStarDets',(NIfD+1)*MaxWalkersPart,4,this_routine,MinorStarDetsTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarDets')
-        ALLOCATE(MinorSpawnDets(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnDets',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnDetsTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnDets')
-        MinorSpawnDets(:,:)=0
-        ALLOCATE(MinorSpawnDets2(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnDets2',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnDets2Tag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnDets2')
-
-
-        ! The sign (number of walkers) on each determinant.
-        ALLOCATE(MinorStarSign(1:MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('MinorStarSign',MaxWalkersPart,4,this_routine,MinorStarSignTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarSign')
-        ALLOCATE(MinorSpawnSign(0:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnSign',MaxSpawned+1,4,this_routine,MinorSpawnSignTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnSign')
-        ALLOCATE(MinorSpawnSign2(0:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnSign2',MaxSpawned+1,4,this_routine,MinorSpawnSign2Tag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnSign2')
-
-
-        ! The parent from which the walker was spawned.
-        ALLOCATE(MinorStarParent(0:NIfD,1:MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('MinorStarParent',(NIfD+1)*MaxWalkersPart,4,this_routine,MinorStarParentTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarParent')
-        ALLOCATE(MinorSpawnParent(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnParent',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnParentTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnParent')
-        ALLOCATE(MinorSpawnParent2(0:NIfD,1:MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('MinorSpawnParent2',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnParent2Tag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnParent2')
-
-
-        ! The energy of the "forbidden" determinant with a walker on it.
-        ALLOCATE(MinorStarHii(1:MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('MinorStarHii',MaxWalkersPart,8,this_routine,MinorStarHiiTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarHii')
-
-        ! The diagonal element connecting the "forbidden" determinant to its allowed parent.
-        ALLOCATE(MinorStarHij(1:MaxWalkersPart),stat=ierr)
-        CALL LogMemAlloc('MinorStarHij',MaxWalkersPart,8,this_routine,MinorStarHijTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarHij')
-
-        ALLOCATE(HashArray(MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('HashArray',MaxSpawned,8,this_routine,HashArrayTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to HashArry')
-        HashArray(:)=0
-        ALLOCATE(Hash2Array(MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('Hash2Array',MaxSpawned,8,this_routine,Hash2ArrayTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to Hash2Arry')
-        Hash2Array(:)=0
- 
-        ALLOCATE(IndexTable(MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('IndexTable',MaxSpawned,4,this_routine,IndexTableTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to IndexTable')
-        IndexTable(:)=0
-        ALLOCATE(Index2Table(MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('Index2Table',MaxSpawned,4,this_routine,Index2TableTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to Index2Table')
-        Index2Table(:)=0
-
-        ALLOCATE(ProcessVec(MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('ProcessVec',MaxSpawned,4,this_routine,ProcessVecTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to ProcessVec')
-        ProcessVec(:)=0
-        ALLOCATE(Process2Vec(MaxSpawned),stat=ierr)
-        CALL LogMemAlloc('Process2Vec',MaxSpawned,4,this_routine,Process2VecTag,ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to Process2Vec')
-        Process2Vec(:)=0
-
-
-    END SUBROUTINE InitMinorDetsStar
-
-
-
-
-
-!This routine will write out the average wavevector from the spawning run up until now.
-    SUBROUTINE WriteHistogram()
-        use Determinants , only : GetHElement3
-        use SystemData , only : BasisFN
-        INTEGER :: i,j,bits,iLut(0:NIfD),error,IterRead
-        TYPE(BasisFN) :: ISym
-        REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
-        TYPE(HElement) :: HEL
-        CHARACTER(len=22) :: abstr,abstr2
-        LOGICAL :: exists
-
-!This will open a file called SpawnHist-"Iter" on unit number 17.
-        abstr=''
-        write(abstr,'(I12)') Iter
-        abstr='SpawnHist-'//adjustl(abstr)
-        IF(iProcIndex.eq.0) THEN
-            WRITE(6,*) "Writing out the average wavevector up to iteration number: ", Iter
-            CALL FLUSH(6)
-        ENDIF
-
-!        IF(nBasis/32.ne.0) THEN
-!            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
-!        ENDIF
-
-        IF(iProcIndex.eq.0) THEN
-            AllHistogram(:)=0.D0
-            AllInstHist(:)=0.D0
-            AllAvAnnihil(:)=0.D0
-            AllInstAnnihil(:)=0.D0
-        ENDIF
-
-        CALL MPI_Reduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(InstHist,AllInstHist,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(InstAnnihil,AllInstAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        CALL MPI_Reduce(AvAnnihil,AllAvAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
-        
-        IF(iProcIndex.eq.0) THEN
-
-            IF(.not.associated(NMRKS)) THEN
-                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
-            ENDIF
-
-            norm=0.D0
-            norm1=0.D0
-            norm2=0.D0
-            norm3=0.D0
-            do i=1,Det
-                norm=norm+AllHistogram(i)**2
-                norm1=norm1+AllInstHist(i)**2
-                norm2=norm2+AllInstAnnihil(i)**2
-                norm3=norm3+AllAvAnnihil(i)**2
-            enddo
-            norm=SQRT(norm)
-            norm1=SQRT(norm1)
-            norm2=SQRT(norm2)
-            norm3=SQRT(norm3)
-!            WRITE(6,*) "NORM",norm
-            do i=1,Det
-                AllHistogram(i)=AllHistogram(i)/norm
-                AllInstHist(i)=AllInstHist(i)/norm1
-                IF(norm2.ne.0.D0) THEN
-                    AllInstAnnihil(i)=AllInstAnnihil(i)/norm2
-                ENDIF
-                IF(norm3.ne.0.D0) THEN
-                    AllAvAnnihil(i)=AllAvAnnihil(i)/norm3
-                ENDIF
-            enddo
-            
-            OPEN(17,FILE=abstr,STATUS='UNKNOWN')
-
-            abstr=''
-            write(abstr,'(I12)') Iter-iWriteHistEvery
-            abstr='Energies-'//adjustl(abstr)
-
-            abstr2=''
-            write(abstr2,'(I12)') Iter
-            abstr2='Energies-'//adjustl(abstr2)
-            OPEN(29,FILE=abstr2,STATUS='NEW')
-
-            INQUIRE(FILE=abstr,EXIST=exists)
-            IF(exists) THEN
-                OPEN(28,FILE=abstr,STATUS='OLD',POSITION='REWIND',ACTION='READ')
-                do while(.true.)
-                    READ(28,"(I13,3G25.16)",END=99) IterRead,ShiftRead,AllERead,NumParts
-                    WRITE(29,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
-                enddo
-99              CONTINUE
-                IF(AllHFCyc.eq.0) THEN
-                    WRITE(19,"(I13,3G25.16)") Iter,DiagSft,AllERead,AllTotPartsOld
-                ELSE
-                    WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
-                ENDIF
-                CLOSE(29)
-                CLOSE(28)
-
-            ELSE
-                OPEN(29,FILE=abstr2,STATUS='UNKNOWN')
-                WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
-                CLOSE(29)
-            ENDIF
-
-
-            norm=0.D0
-            norm1=0.D0
-            do i=1,Det
-                norm=norm+(AllHistogram(i))**2
-                norm1=norm1+(AllAvAnnihil(i))**2
-                WRITE(17,"(I13,6G25.16)") i,AllHistogram(i),norm,AllInstHist(i),AllInstAnnihil(i),AllAvAnnihil(i),norm1
-            enddo
-
-!            do i=1,Maxdet
-!                bits=0
-!                do j=0,nbasis-1
-!                    IF(BTEST(i,j)) THEN
-!                        Bits=Bits+1
-!                    ENDIF
-!                enddo
-!                IF(Bits.eq.NEl) THEN
-!
-!                    do j=1,ndet
-!                        CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
-!                        IF(iLut(0).eq.i) THEN
-!                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
-!                            IF(ISym%Sym%S.eq.0) THEN
-!                                Det=Det+1
-!                                WRITE(17,"(3I12)",advance='no') Det,iLut(0)
-!                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
-!                                norm=norm+(AllHistogram(i))**2
-!                                norm1=norm1+(AllInstHist(i))**2
-!                                WRITE(17,"(5G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1
-!                            ENDIF
-!                            EXIT
-!                        ENDIF
-!                    ENDDO
-!                ENDIF
-!
-!            ENDDO
-            CLOSE(17)
-        ENDIF
-        InstHist(:)=0.D0
-        InstAnnihil(:)=0.D0
-
-    END SUBROUTINE WriteHistogram
-
 !This is the heart of FCIMC, where the MC Cycles are performed
     SUBROUTINE PerformFCIMCycPar()
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),iLutnJ2(0:NIfD),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
-        INTEGER :: iDie,WalkExcitLevel             !Indicated whether a particle should self-destruct on DetCurr
+        INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
         TYPE(HElement) :: HDiagTemp,HOffDiag
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
+        REAL :: Gap
 
         IF(TDebug) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
@@ -2013,9 +387,17 @@ MODULE FciMCParMod
         NoatDoubs=0
         iPartBloom=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
+        IF(tDirectAnnihil) THEN
+!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+            do j=0,nProcessors-1
+                ValidSpawnedList(j)=NINT(Gap*j)+1
+            enddo
+        ENDIF
         MinorValidSpawned=1
         tMinorDetList=.false.
         IF(.not.tStarOrbs) tStarDet=.false.
+        ParticleWeight=1    !This will always be the same unless we are 'spawning as determinants'
 
         IF(tHistSpawn) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
 
@@ -2094,7 +476,6 @@ MODULE FciMCParMod
             ELSE
 !Here, we spawn each particle on the determinant in a seperate attempt.
                 Loop=abs(CurrentSign(j))
-                ParticleWeight=1
             ENDIF
 
             do p=1,Loop
@@ -2285,6 +666,13 @@ MODULE FciMCParMod
                             ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
                         ENDIF
 
+                    ELSEIF(tDirectAnnihil) THEN
+!In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
+!The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
+                        Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
+                        SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
+                        SpawnedSign(ValidSpawnedList(Proc))=Child
+                        ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
                     ELSE
 !Calculate diagonal ham element
 
@@ -2593,7 +981,11 @@ MODULE FciMCParMod
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
 
-        IF(tRotoAnnihil) THEN
+        IF(tDirectAnnihil) THEN
+!This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
+            CALL DirectAnnihilation(TotWalkersNew)
+
+        ELSEIF(tRotoAnnihil) THEN
 !This is the rotoannihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
 
             CALL RotoAnnihilation(ValidSpawned,TotWalkersNew)
@@ -2714,554 +1106,104 @@ MODULE FciMCParMod
 
     END SUBROUTINE PerformFCIMCycPar
 
+
+!This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
+!done on a predetermined processor, and not rotated around all of them.
+    SUBROUTINE DirectAnnihilation(TotWalkersNew)
+        INTEGER :: MaxIndex,TotWalkersNew
+
+!This routine will send all the newly-spawned particles to their correct processor. MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
+!The particles are now stored in SpawnedParts2/SpawnedSign2.
+        CALL SendProcNewParts(MaxIndex)
+
+!CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
+        IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
+            SpawnedParts2 => SpawnVec
+            SpawnedSign2 => SpawnSignVec
+            SpawnedParts => SpawnVec2
+            SpawnedSign => SpawnSignVec2
+        ELSE
+            SpawnedParts => SpawnVec
+            SpawnedSign => SpawnSignVec
+            SpawnedParts2 => SpawnVec2
+            SpawnedSign2 => SpawnSignVec2
+        ENDIF
+
+!Now we want to order and compress the spawned list of particles. This will also annihilate the newly spawned particles amongst themselves.
+!MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
+        CALL CompressSpawnedList(MaxIndex)
+
+!Binary search the main list and copy accross/annihilate determinants which are found.
+!This will also remove the found determinants from the spawnedparts lists.
+        CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew)
+
+!Put the surviving particles in the main list, maintaining order of the main list.
+!Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
+        CALL set_timer(Sort_Time,30)
+        CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+        CALL halt_timer(Sort_Time)
+
+    END SUBROUTINE DirectAnnihilation
+
+!This routine is used for sending the determinants to the correct processors. 
+    SUBROUTINE SendProcNewParts(MaxIndex)
+        REAL :: Gap
+        INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
+        INTEGER :: MaxIndex,MaxSendIndex
+
+        Gap=REAL(MaxSpawned)/REAL(nProcessors)
+        do i=0,nProcessors-1
+            sendcounts(i+1)=ValidSpawnedList(i)-NINT(Gap*i)+1
+            disps(i+1)=NINT(Gap*i)
+        enddo
+
+        MaxSendIndex=ValidSpawnedList(nProcessors-1)-1
+
+!We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        recvcounts(1:nProcessors)=0
+        
+        CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+!We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
+        recvdisps(1)=0
+        do i=2,nProcessors
+            recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
+        enddo
+
+        MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
+!Max index is the largest occupied index in the array of hashes to be ordered in each processor 
+        IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+            CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
+        ENDIF
+        
+!This is the main send of newly-spawned particles and signs to each determinants correct processor.
+        CALL MPI_AlltoAllv(SpawnedSign(1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+!Update the number of integers we need to send.
+        do i=1,nProcessors
+            sendcounts(i)=sendcounts(i)*(NIfD+1)
+            disps=disps(i)*(NIfD+1)
+            recvcounts(i)=recvcounts(i)*(NIfD+1)
+            recvdisps(i)=recvdisps(i)*(NIfD+1)
+        enddo
+
+        CALL MPI_AlltoAllv(SpawnedParts(0:NIfD,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfD,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+    END SUBROUTINE SendProcNewParts
     
-!This is the heart of FCIMC, where the MC Cycles are performed
-    SUBROUTINE MultipleConnFCIMCycPar()
-!        use CalcData , only : iDetGroup
-        use Determinants , only : GetHElement3
-!        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
-        INTEGER :: nStore(6),VecSlot,i,j,k,l,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD)
-        REAL*8 :: Prob,rat,HDiag,HDiagCurr,r,HSum
-        INTEGER :: iDie,WalkExcitLevel,iMaxExcit,ExcitLength,PartInd,iExcit
-        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
-        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tSuccess,tMinorDetList
-        TYPE(HElement) :: HDiagTemp,HElemTemp
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
 
-        IF(TDebug) THEN
-            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
-!            CALL FLUSH(11)
-        ENDIF
-        
-        CALL set_timer(Walker_Time,30)
-        
-!VecSlot indicates the next free position in NewDets
-        VecSlot=1
-!Reset number at HF and doubles
-        NoatHF=0
-        NoatDoubs=0
-        iPartBloom=0
-        ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
-!        Combs=1
-!        do j=1,iDetGroup-1
-!!Combs is the total number of pair combinations
-!            Combs=Combs*(TotWalkers-j)
-!        enddo
 
-        do j=1,TotWalkers
-!Spawning loop done separately to the death loop
-!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+    INTEGER FUNCTION DetermineDetProc(iLut)
+        INTEGER :: iLut(0:NIfD),i
+        INTEGER(KIND=i2) :: Summ
 
-!Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
-!This can be changed easily by increasing the final argument.
-            IF(tTruncSpace) THEN
-!We need to know the exact excitation level for truncated calculations.
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
-            ELSE
-                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
-            ENDIF
-
-            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
-            IF(tSpawnAsDet) THEN
-!Here, we spawn all particles on the determinant in one go, by multiplying the probability of spawning by the number of particles on the determinant.
-                Loop=1
-                ParticleWeight=abs(CurrentSign(j))
-            ELSE
-!Here, we spawn each particle on the determinant in a seperate attempt.
-                Loop=abs(CurrentSign(j))
-                ParticleWeight=1
-            ENDIF
-
-            do p=1,Loop
-!If rotoannihilating, we are simply looping over all the particles on the determinant
-
-                IF(.not.tImportanceSample) THEN
-                    IF(tNonUniRandExcits) THEN
-!This will only be a help if most determinants are multiply occupied.
-                        IF(tHPHF) THEN
-!                            CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
-                            CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled)
-                        ELSE
-                            CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
-                        ENDIF
-                    ELSE
-                        CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
-                    ENDIF
-                ENDIF
-                
-                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,2)
-!                WRITE(6,*) ExcitLevel
-
-                IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
-!Do not allow spawning at doubles
-                    Child=0
-                ELSE
-
-!Calculate number of children to spawn
-                    IF(TTruncSpace) THEN
-!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-                        IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
-
-                        IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                            Child=0
-                        ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-                        ENDIF
-                    ELSE
-!SD Space is not truncated - allow attempted spawn as usual
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-                    ENDIF
-                ENDIF
-                
-                IF(Child.ne.0) THEN
-!We want to spawn a child - find its information to store
-
-                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
-                    IF(IC.eq.1) THEN
-                        SpawnFromSing=SpawnFromSing+abs(Child)
-                    ENDIF
-
-                    IF(abs(Child).gt.25) THEN
-!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
-                        IF(abs(Child).gt.abs(iPartBloom)) THEN
-                            IF(IC.eq.1) THEN
-                                iPartBloom=-abs(Child)
-                            ELSE
-                                iPartBloom=abs(Child)
-                            ENDIF
-                        ENDIF
-                    ENDIF
-
-!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
-
-                    IF(tRotoAnnihil) THEN
-!In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
-!The excitation level and diagonal matrix element are also found out after the annihilation.
-!Cannot use old excitation generators with rotoannihilation.
-
-!In rotoannihilation, we can specify multiple particles on the same entry. 
-                        SpawnedParts(:,ValidSpawned)=iLutnJ(:)
-                        SpawnedSign(ValidSpawned)=Child
-                        ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
-
-                    ELSE
-!Calculate diagonal ham element
-                        CALL Stop_All("MultipleConnFcimCycPar","Needs Rotoannihilation")
-                    
-                    ENDIF   !Endif rotoannihil
-
-                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
-                
-                ENDIF   !End if child created
-
-            enddo   !End of cycling over mulitple particles on same determinant.
-
+        Summ=0
+        do i=0,NIfD
+            Summ=(1099511628211*Summ)+(i+1)*iLut(i)
         enddo
+        DetermineDetProc=mod(Summ,nProcessors)
 
-        do j=1,NoDoubs
-
-            DetCurr(:)=DoublesDets(:,j)
-!Setup excit generators for this double excitation 
-            iMaxExcit=0
-            nStore(1:6)=0
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
-            ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All("MultipleConnFcimCycPar","Problem allocating excitation generator")
-            ExcitGenTemp(1)=0
-            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
-
-            HSum=0.D0
-
-            do while(.true.)
-!Generate double excitations
-                CALL GenSymExcitIt2(Detcurr,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
-                IF(nJ(1).eq.0) EXIT
-
-!Find matrix element
-                HElemTemp=GetHElement3(DetCurr,nJ,iExcit)
-                IF((abs(REAL(HElemTemp%v,r2))).gt.1.D-8) THEN
-
-!Encode this determinant
-                    CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
-
-!If matrix element above a certain size, then find whether the determinant is in the main list.
-                    CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tSuccess)
-
-                    IF(tSuccess) THEN
-!If found, find Ni x Hij and attempt to spawn at j
-                        HSum=HSum+REAL(HElemTemp%v,r2)*CurrentSign(PartInd)
-!                        WRITE(6,*) REAL(HElemTemp%v,r2),CurrentSign(PartInd)
-                    ENDIF
-                ENDIF
-
-            enddo
-
-            DEALLOCATE(ExcitGenTemp)
-
-!The sum of Hij*cj is now in HSum.
-            rat=Tau*abs(HSum)
-            Child=INT(rat)
-            rat=rat-REAL(Child)
-            CALL genrand_real2(r)
-            IF(rat.gt.r) THEN
-!Create child at DetCurr 
-                Child=Child+1
-            ENDIF
-            IF(HSum.gt.0.D0) THEN
-!Create negative child
-                Child=-Child
-            ENDIF
-
-            IF(Child.ne.0) THEN
-!                WRITE(6,"(A,F15.5,I5,G20.10,I8,G25.15)") "Inwards ", rat,Child,HSum
-!We want to spawn a child - find its information to store
-                CALL EncodeBitDet(DetCurr,iLutnJ,NEl,NIfD)
-
-                NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
-
-                IF(abs(Child).gt.25) THEN
-!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
-                    WRITE(6,"(I9,A)") Child," particles created in one go during inwards spawning step"
-                ENDIF
-
-                IF(tRotoAnnihil) THEN
-!In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
-!The excitation level and diagonal matrix element are also found out after the annihilation.
-!Cannot use old excitation generators with rotoannihilation.
-
-!In rotoannihilation, we can specify multiple particles on the same entry. 
-                    SpawnedParts(:,ValidSpawned)=iLutnJ(:)
-                    SpawnedSign(ValidSpawned)=Child
-                    ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
-
-                ELSE
-                    CALL Stop_All("LIUB","Die horribly")
-                ENDIF   !Endif rotoannihil
-
-                Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
-            
-            ENDIF   !End if child created
-
-        enddo
-
-
-        do j=1,TotWalkers
-!Death loop done separately to the spawning loop
-!We also have to calculate the energy properties here.
-!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
-            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
-
-!Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
-            CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
-            HDiagCurr=CurrentH(j)
-
-!Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr)
-
-!We now have to decide whether the parent particle (j) wants to self-destruct or not...
-!For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
-
-            iDie=AttemptDiePar(DetCurr,HDiagCurr,WalkExcitLevel,CurrentSign(j))
-            NoDied=NoDied+iDie          !Update death counter
-
-!iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
-            IF(tRotoAnnihil) THEN
-!We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
-!entry, but VecSlot remains where it is, meaning that j should never be less that VecSlot
-
-                IF(CurrentSign(j).le.0) THEN
-                    CopySign=CurrentSign(j)+iDie    !Copy sign is the total number of particles x sign that we want to copy accross.
-                    IF(CopySign.le.0) THEN
-!If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
-!it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate.
-                        tMainArr=.true.
-                    ELSE
-                        tMainArr=.false.
-                    ENDIF
-                ELSE
-                    CopySign=CurrentSign(j)-iDie
-                    IF(CopySign.ge.0) THEN
-                        tMainArr=.true.
-                    ELSE
-                        tMainArr=.false.
-                    ENDIF
-                ENDIF
-
-                IF(tMainArr.and.(VecSlot.gt.j)) THEN
-!We only have a single array, therefore surviving particles are simply transferred back into the original array.
-!However, this can not happen if we want to overwrite particles that we haven't even got to yet.
-!However, this should not happen under normal circumstances...
-                    tMainArr=.false.
-                    CALL Stop_All("PerformFCIMCyc","About to overwrite particles which haven't been reached yet. This should not happen in normal situations.")
-                ENDIF
-
-                IF(CopySign.ne.0) THEN
-
-                    IF(tMainArr) THEN
-!                        NewDets(:,VecSlot)=CurrentDets(:,j)
-!                        NewSign(VecSlot)=CopySign
-                        CurrentDets(:,VecSlot)=CurrentDets(:,j)
-                        CurrentSign(VecSlot)=CopySign
-                        IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=HDiagCurr
-                        VecSlot=VecSlot+1
-                    ELSE
-!                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
-!Here, we are creating anti-particles, and so to keep the sign-coherence of the main array assured, we transfer them to the spawning array.
-!This should generally not happen under normal circumstances.
-                        do p=1,abs(CopySign)
-!In rotoannihilation, we still want to specify the determinants singly - this may change in the future...
-                            SpawnedParts(:,ValidSpawned)=CurrentDets(:,j)
-                            IF(CopySign.lt.0) THEN
-                                SpawnedSign(ValidSpawned)=-1
-                            ELSE
-                                SpawnedSign(ValidSpawned)=1
-                            ENDIF
-                            ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
-                        enddo
-                    ENDIF
-
-                ENDIF
-
-            ENDIF   !To kill if
-
-!Finish cycling over walkers
-        enddo
-
-!SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
-!        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
-
-!Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
-        TotWalkersNew=VecSlot-1
-
-!Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
-        IF(iPartBloom.ne.0) THEN
-            WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOMS in iteration ",Iter
-            IF(iPartBloom.gt.0) THEN
-                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
-            ELSE
-                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
-            ENDIF
-        ENDIF
-
-
-        rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
-        IF(rat.gt.0.95) THEN
-            WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
-            CALL FLUSH(6)
-        ENDIF
-
-        IF(tRotoAnnihil) THEN
-            ValidSpawned=ValidSpawned-1     !For rotoannihilation, this is the number of spawned particles.
-
-            rat=(ValidSpawned+0.D0)/(MaxSpawned+0.D0)
-            IF(rat.gt.0.9) THEN
-                WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
-                CALL FLUSH(6)
-            ENDIF
-        ENDIF
-        
-        CALL halt_timer(Walker_Time)
-        CALL set_timer(Annihil_Time,30)
-
-        IF(tRotoAnnihil) THEN
-!This is the rotoannihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
-
-            CALL RotoAnnihilation(ValidSpawned,TotWalkersNew)
-
-        ELSEIF(TNoAnnihil) THEN
-!However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
-            IF(associated(CurrentDets,target=WalkVecDets)) THEN
-                CurrentDets=>WalkVec2Dets
-                CurrentSign=>WalkVec2Sign
-                CurrentH=>WalkVec2H
-                CurrentExcits=>WalkVec2Excits
-                NewDets=>WalkVecDets
-                NewSign=>WalkVecSign
-                NewH=>WalkVecH
-                NewExcits=>WalkVecExcits
-            ELSE
-                CurrentDets=>WalkVecDets
-                CurrentSign=>WalkVecSign
-                CurrentH=>WalkVecH
-                CurrentExcits=>WalkVecExcits
-                NewDets=>WalkVec2Dets
-                NewSign=>WalkVec2Sign
-                NewH=>WalkVec2H
-                NewExcits=>WalkVec2Excits
-            ENDIF
-
-            TotWalkers=TotWalkersNew
-            TotParts=TotWalkers
-
-        ELSEIF(TAnnihilonProc) THEN
-!In this routine, the particles are just annihilated on their own processors. This means that all simulations are independent and not influenced by each other.
-!This means that there is no communication between processors and so should be much faster as the system size increases.
-
-            CALL Stop_All("PerformFCIMCyc","AnnihilonProc has been disabled")
-            CALL AnnihilateonProc(TotWalkersNew)
-            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
-            TotParts=TotWalkers
-
-        ELSE
-!This routine now cancels down the particles with opposing sign on each determinant
-
-            CALL AnnihilatePartPar(TotWalkersNew)
-            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
-            TotParts=TotWalkers
-
-        ENDIF
-
-        CALL halt_timer(Annihil_Time)
-        
-!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
-        AllNoatHF=0
-
-!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
-
-        IF(AllNoatHF.lt.0) THEN
-!Flip the sign if we're beginning to get a negative population on the HF
-            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
-            CALL FlipSign()
-        ENDIF
-
-        IF(TSinglePartPhase) THEN
-!Do not allow culling if we are still in the single particle phase.
-            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(TotParts.gt.InitWalkers) THEN
-                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
-                    TSinglePartPhase=.false.
-                ENDIF
-            ENDIF
-!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration
-            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
-        ELSE
-
-            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
-!Particle number is too large - kill them randomly
-                IF(.not.tRotoAnnihil) THEN
-
-!Log the fact that we have made a cull
-                    NoCulls=NoCulls+1
-                    IF(NoCulls.gt.10) THEN
-                        WRITE(6,*) "Too Many Culls"
-                        CALL FLUSH(6)
-                        call Stop_All("PerformFCIMCyc","Too Many Culls")
-                    ENDIF
-!CullInfo(:,1) is walkers before cull
-                    CullInfo(NoCulls,1)=TotParts
-!CullInfo(:,3) is MC Steps into shift cycle before cull
-                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-
-                    WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
-                    WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
-                    WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
-                    CALL FLUSH(6)
-                    CALL ThermostatParticlesPar(.true.)
-
-                ENDIF
-
-            ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
-!Particle number is too small - double every particle in its current position
-                IF(.not.tRotoAnnihil) THEN
-!Log the fact that we have made a cull
-                    NoCulls=NoCulls+1
-                    IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
-!CullInfo(:,1) is walkers before cull
-                    CullInfo(NoCulls,1)=TotParts
-!CullInfo(:,3) is MC Steps into shift cycle before cull
-                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-                    
-                    WRITE(6,*) "Doubling particle population on this node to increase total number..."
-                    CALL ThermostatParticlesPar(.false.)
-                ELSE
-!                    WRITE(6,*) "Particle number on this node is less than half InitWalkers value"
-                ENDIF
-            ENDIF
-        
-        ENDIF
-
-    END SUBROUTINE MultipleConnFCIMCycPar
-
-!This routine will check to see if any of the orbitals in the determinant are in the orbitals which are only to be attached to HF in a 'star'
-    SUBROUTINE CheckStarOrbs(DetCurr,tStarDet)
-        INTEGER :: DetCurr(NEl),i
-        LOGICAL :: tStarDet
-
-        tStarDet=.false.
-        do i=NEl,1,-1
-            IF(SpinInvBrr(DetCurr(i)).gt.(nBasis-iStarOrbs)) THEN
-                tStarDet=.true.
-                EXIT
-            ENDIF
-        enddo
-
-    END SUBROUTINE CheckStarOrbs
-
-!This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
-!projection onto a different determinant.
-    SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
-        use Determinants , only : GetH0Element3
-        INTEGER :: iLutCurr(0:NIfD),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
-        INTEGER :: nJ(NEl)
-        TYPE(HElement) :: TempHii
-        REAL*8 :: HDiagCurr
-
-        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
-!Problem is that we need to rerun the simulation from scratch, and particles currently in the simulation will keep on
-!changing the reference since their diagonal K element will remain negative.
-
-        do i=1,NEl
-            HFDet(i)=DetCurr(i)
-        enddo
-        Hii=Hii+HDiagCurr
-        iLutHF(0:NIfD)=iLutCurr(0:NIfD)
-        TempHii=GetH0Element3(HFDet)
-        Fii=REAL(TempHii%v,r2)
-        HFHash=CreateHash(HFDet)
-        DEALLOCATE(HFExcit%ExcitData)
-!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("ChangeRefDet","Problem allocating excitation generator")
-        HFExcit%ExcitData(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
-        HFExcit%nPointed=0
-
-        WRITE(6,"(A)") "*** Changing the reference determinant ***"
-        WRITE(6,"(A)") "Switching reference and zeroing energy counters"
-        WRITE(6,"(A,G25.16)") "New reference energy is: ",Hii
-        WRITE(6,"(A)",advance='no') "New Determinant is: "
-        do i=1,NEL-1
-            WRITE(6,"(I4)",advance='no') HFDet(i)
-        enddo
-        WRITE(6,"(I4)") HFDet(NEl)
-        
-        AllSumENum=0.D0
-        AllSumNoatHF=0.D0
-        AllNoatHF=0
-        AllNoatDoubs=0
-        AllHFCyc=0.D0
-        AllENumCyc=0.D0
-        ProjectionE=0.D0
-        SumENum=0.D0
-        NoatHF=0
-        NoatDoubs=0
-        HFCyc=0
-        HFPopCyc=0
-        ENumCyc=0.D0
-        ProjEIter=0.D0
-        ProjEIterSum=0.D0
-
-    END SUBROUTINE ChangeRefDet
+    END FUNCTION DetermineDetProc
 
 !This sorts and compresses the spawned list to make it easier for the rest of the annihilation process.
 !This is not essential, but should proove worthwhile
@@ -3333,7 +1275,7 @@ MODULE FciMCParMod
         ValidSpawned=ValidSpawned-DetsMerged
         IF((ValidSpawned.ne.VecInd).and.(VecInd.ne.1)) THEN
             WRITE(6,*) ValidSpawned,VecInd
-            CALL Stop_All("RotoAnnihilation","Error in compression of spawned particle list")
+            CALL Stop_All("CompressSpawnedList","Error in compression of spawned particle list")
         ENDIF
         IF(SpawnedSign2(ValidSpawned).eq.0.and.(ValidSpawned.gt.0)) ToRemove=ToRemove+1
 
@@ -3350,7 +1292,7 @@ MODULE FciMCParMod
             ENDIF
         enddo
         IF(DetsMerged.ne.ToRemove) THEN
-            CALL Stop_All("RotoAnnihilation","Wrong number of entries removed from spawned list")
+            CALL Stop_All("CompressSpawnedList","Wrong number of entries removed from spawned list")
         ENDIF
         ValidSpawned=ValidSpawned-DetsMerged
         
@@ -7193,49 +5135,55 @@ MODULE FciMCParMod
 !        WRITE(6,*) "Get Here 3"
 !        CALL FLUSH(6)
 
-        MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
-        MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
+        IF(.not.tDirectAnnihil) THEN
+
+            MeanWalkers=AllTotWalkers/REAL(nProcessors,r2)
+            MaxAllowedWalkers=NINT((MeanWalkers/12.D0)+MeanWalkers)
 
 !Find the range of walkers on different nodes to see if we need to even up the distribution over nodes
-!        inpair(1)=TotWalkers
-!        inpair(2)=iProcIndex
-        CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 4"
-!        CALL FLUSH(6)
-!        MaxWalkersProc=outpair(1)
-!        WRITE(6,*) "***",MaxWalkersProc,MaxAllowedWalkers,MeanWalkers
-!        CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MINLOC,root,MPI_COMM_WORLD,error)
-!        MinWalkersProc=outpair(1)
+!            inpair(1)=TotWalkers
+!            inpair(2)=iProcIndex
+            CALL MPI_Reduce(TotWalkers,MaxWalkersProc,1,MPI_INTEGER,MPI_MAX,root,MPI_COMM_WORLD,error)
+!            WRITE(6,*) "Get Here 4"
+!            CALL FLUSH(6)
+!            MaxWalkersProc=outpair(1)
+!            WRITE(6,*) "***",MaxWalkersProc,MaxAllowedWalkers,MeanWalkers
+!            CALL MPI_Reduce(inpair,outpair,1,MPI_2INTEGER,MPI_MINLOC,root,MPI_COMM_WORLD,error)
+!            MinWalkersProc=outpair(1)
 
-        IF(iProcIndex.eq.root) THEN
-!            RangeWalkers=MaxWalkersProc-MinWalkersProc
-!            IF(RangeWalkers.gt.300) THEN
-            IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2)))) THEN
+            IF(iProcIndex.eq.root) THEN
+!                RangeWalkers=MaxWalkersProc-MinWalkersProc
+!                IF(RangeWalkers.gt.300) THEN
+                IF((MaxWalkersProc.gt.MaxAllowedWalkers).and.(AllTotWalkers.gt.(REAL(nProcessors*500,r2)))) THEN
+                    TBalanceNodesTemp=.true.
+                ELSE
+                    TBalanceNodesTemp=.false.
+                ENDIF
+            ENDIF
+!Also choose to balance the nodes if all particles have died on one of them
+            IF(TotWalkers.eq.0) THEN
                 TBalanceNodesTemp=.true.
             ELSE
-                TBalanceNodesTemp=.false.
+                IF(iProcIndex.ne.Root) THEN
+                    TBalanceNodesTemp=.false.
+                ENDIF
             ENDIF
-        ENDIF
-!Also choose to balance the nodes if all particles have died on one of them
-        IF(TotWalkers.eq.0) THEN
-            TBalanceNodesTemp=.true.
-        ELSE
-            IF(iProcIndex.ne.Root) THEN
-                TBalanceNodesTemp=.false.
-            ENDIF
-        ENDIF
 !We need to tell all nodes whether to balance the nodes or not...
-        CALL MPI_AllReduce(TBalanceNodesTemp,TBalanceNodes,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
-!        WRITE(6,*) "Get Here 5"
-!        CALL FLUSH(6)
-!        CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
-        IF(iProcIndex.eq.Root) THEN
-            IF(TBalanceNodes.and.(.not.TBalanceNodesTemp)) THEN
-                WRITE(6,*) "Balancing nodes since all particles have died on a node..."
+            CALL MPI_AllReduce(TBalanceNodesTemp,TBalanceNodes,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+!            WRITE(6,*) "Get Here 5"
+!            CALL FLUSH(6)
+!            CALL MPI_BCast(TBalanceNodes,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
+            IF(iProcIndex.eq.Root) THEN
+                IF(TBalanceNodes.and.(.not.TBalanceNodesTemp)) THEN
+                    WRITE(6,*) "Balancing nodes since all particles have died on a node..."
+                ENDIF
             ENDIF
-        ENDIF
 
-!        TBalanceNodes=.false.   !Temporarily turn off node balancing
+!        ELSE
+!Cannot load-balance with direct annihilation
+
+!            TBalanceNodes=.false.   !Temporarily turn off node balancing
+        ENDIF
 
 !AlliUniqueDets corresponds to the total number of unique determinants, summed over all iterations in the last update cycle, and over all processors.
 !Divide by StepsSft to get the average number of unique determinants visited over a single iteration.
@@ -10500,6 +8448,554 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE GetPartRandExcitPar
+
+!This is the heart of FCIMC, where the MC Cycles are performed. However, this includes the 'inward spawning' attempt.
+    SUBROUTINE MultipleConnFCIMCycPar()
+!        use CalcData , only : iDetGroup
+        use Determinants , only : GetHElement3
+!        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
+        INTEGER :: nStore(6),VecSlot,i,j,k,l,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
+        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD)
+        REAL*8 :: Prob,rat,HDiag,HDiagCurr,r,HSum
+        INTEGER :: iDie,WalkExcitLevel,iMaxExcit,ExcitLength,PartInd,iExcit
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tSuccess,tMinorDetList
+        TYPE(HElement) :: HDiagTemp,HElemTemp
+        INTEGER , ALLOCATABLE :: ExcitGenTemp(:)
+
+        IF(TDebug) THEN
+            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
+!            CALL FLUSH(11)
+        ENDIF
+        
+        CALL set_timer(Walker_Time,30)
+        
+!VecSlot indicates the next free position in NewDets
+        VecSlot=1
+!Reset number at HF and doubles
+        NoatHF=0
+        NoatDoubs=0
+        iPartBloom=0
+        ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
+!        Combs=1
+!        do j=1,iDetGroup-1
+!!Combs is the total number of pair combinations
+!            Combs=Combs*(TotWalkers-j)
+!        enddo
+
+        do j=1,TotWalkers
+!Spawning loop done separately to the death loop
+!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+
+!Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
+!This can be changed easily by increasing the final argument.
+            IF(tTruncSpace) THEN
+!We need to know the exact excitation level for truncated calculations.
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
+            ELSE
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
+            ENDIF
+
+            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
+            IF(tSpawnAsDet) THEN
+!Here, we spawn all particles on the determinant in one go, by multiplying the probability of spawning by the number of particles on the determinant.
+                Loop=1
+                ParticleWeight=abs(CurrentSign(j))
+            ELSE
+!Here, we spawn each particle on the determinant in a seperate attempt.
+                Loop=abs(CurrentSign(j))
+                ParticleWeight=1
+            ENDIF
+
+            do p=1,Loop
+!If rotoannihilating, we are simply looping over all the particles on the determinant
+
+                IF(.not.tImportanceSample) THEN
+                    IF(tNonUniRandExcits) THEN
+!This will only be a help if most determinants are multiply occupied.
+                        IF(tHPHF) THEN
+!                            CALL GenRandHPHFExcit(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob)
+                            CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                        ELSE
+                            CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                        ENDIF
+                    ELSE
+                        CALL GetPartRandExcitPar(DetCurr,CurrentDets(:,j),nJ,IC,0,Prob,iCount,WalkExcitLevel,Ex,tParity)
+                    ENDIF
+                ENDIF
+                
+                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,2)
+!                WRITE(6,*) ExcitLevel
+
+                IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
+!Do not allow spawning at doubles
+                    Child=0
+                ELSE
+
+!Calculate number of children to spawn
+                    IF(TTruncSpace) THEN
+!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
+                        IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
+
+                        IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                            Child=0
+                        ELSE
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                        ENDIF
+                    ELSE
+!SD Space is not truncated - allow attempted spawn as usual
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                    ENDIF
+                ENDIF
+                
+                IF(Child.ne.0) THEN
+!We want to spawn a child - find its information to store
+
+                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+                    IF(IC.eq.1) THEN
+                        SpawnFromSing=SpawnFromSing+abs(Child)
+                    ENDIF
+
+                    IF(abs(Child).gt.25) THEN
+!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
+                        IF(abs(Child).gt.abs(iPartBloom)) THEN
+                            IF(IC.eq.1) THEN
+                                iPartBloom=-abs(Child)
+                            ELSE
+                                iPartBloom=abs(Child)
+                            ENDIF
+                        ENDIF
+                    ENDIF
+
+!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
+                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
+
+                    IF(tRotoAnnihil) THEN
+!In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
+!The excitation level and diagonal matrix element are also found out after the annihilation.
+!Cannot use old excitation generators with rotoannihilation.
+
+!In rotoannihilation, we can specify multiple particles on the same entry. 
+                        SpawnedParts(:,ValidSpawned)=iLutnJ(:)
+                        SpawnedSign(ValidSpawned)=Child
+                        ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+
+                    ELSE
+!Calculate diagonal ham element
+                        CALL Stop_All("MultipleConnFcimCycPar","Needs Rotoannihilation")
+                    
+                    ENDIF   !Endif rotoannihil
+
+                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
+                
+                ENDIF   !End if child created
+
+            enddo   !End of cycling over mulitple particles on same determinant.
+
+        enddo
+
+        do j=1,NoDoubs
+
+            DetCurr(:)=DoublesDets(:,j)
+!Setup excit generators for this double excitation 
+            iMaxExcit=0
+            nStore(1:6)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
+            ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("MultipleConnFcimCycPar","Problem allocating excitation generator")
+            ExcitGenTemp(1)=0
+            CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+
+            HSum=0.D0
+
+            do while(.true.)
+!Generate double excitations
+                CALL GenSymExcitIt2(Detcurr,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
+                IF(nJ(1).eq.0) EXIT
+
+!Find matrix element
+                HElemTemp=GetHElement3(DetCurr,nJ,iExcit)
+                IF((abs(REAL(HElemTemp%v,r2))).gt.1.D-8) THEN
+
+!Encode this determinant
+                    CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+
+!If matrix element above a certain size, then find whether the determinant is in the main list.
+                    CALL BinSearchParts(iLutnJ,1,TotWalkers,PartInd,tSuccess)
+
+                    IF(tSuccess) THEN
+!If found, find Ni x Hij and attempt to spawn at j
+                        HSum=HSum+REAL(HElemTemp%v,r2)*CurrentSign(PartInd)
+!                        WRITE(6,*) REAL(HElemTemp%v,r2),CurrentSign(PartInd)
+                    ENDIF
+                ENDIF
+
+            enddo
+
+            DEALLOCATE(ExcitGenTemp)
+
+!The sum of Hij*cj is now in HSum.
+            rat=Tau*abs(HSum)
+            Child=INT(rat)
+            rat=rat-REAL(Child)
+            CALL genrand_real2(r)
+            IF(rat.gt.r) THEN
+!Create child at DetCurr 
+                Child=Child+1
+            ENDIF
+            IF(HSum.gt.0.D0) THEN
+!Create negative child
+                Child=-Child
+            ENDIF
+
+            IF(Child.ne.0) THEN
+!                WRITE(6,"(A,F15.5,I5,G20.10,I8,G25.15)") "Inwards ", rat,Child,HSum
+!We want to spawn a child - find its information to store
+                CALL EncodeBitDet(DetCurr,iLutnJ,NEl,NIfD)
+
+                NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+
+                IF(abs(Child).gt.25) THEN
+!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
+                    WRITE(6,"(I9,A)") Child," particles created in one go during inwards spawning step"
+                ENDIF
+
+                IF(tRotoAnnihil) THEN
+!In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
+!The excitation level and diagonal matrix element are also found out after the annihilation.
+!Cannot use old excitation generators with rotoannihilation.
+
+!In rotoannihilation, we can specify multiple particles on the same entry. 
+                    SpawnedParts(:,ValidSpawned)=iLutnJ(:)
+                    SpawnedSign(ValidSpawned)=Child
+                    ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+
+                ELSE
+                    CALL Stop_All("LIUB","Die horribly")
+                ENDIF   !Endif rotoannihil
+
+                Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
+            
+            ENDIF   !End if child created
+
+        enddo
+
+
+        do j=1,TotWalkers
+!Death loop done separately to the spawning loop
+!We also have to calculate the energy properties here.
+!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+
+!Also, we want to find out the excitation level - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
+            CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
+            HDiagCurr=CurrentH(j)
+
+!Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
+            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr)
+
+!We now have to decide whether the parent particle (j) wants to self-destruct or not...
+!For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
+
+            iDie=AttemptDiePar(DetCurr,HDiagCurr,WalkExcitLevel,CurrentSign(j))
+            NoDied=NoDied+iDie          !Update death counter
+
+!iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
+            IF(tRotoAnnihil) THEN
+!We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
+!entry, but VecSlot remains where it is, meaning that j should never be less that VecSlot
+
+                IF(CurrentSign(j).le.0) THEN
+                    CopySign=CurrentSign(j)+iDie    !Copy sign is the total number of particles x sign that we want to copy accross.
+                    IF(CopySign.le.0) THEN
+!If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
+!it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate.
+                        tMainArr=.true.
+                    ELSE
+                        tMainArr=.false.
+                    ENDIF
+                ELSE
+                    CopySign=CurrentSign(j)-iDie
+                    IF(CopySign.ge.0) THEN
+                        tMainArr=.true.
+                    ELSE
+                        tMainArr=.false.
+                    ENDIF
+                ENDIF
+
+                IF(tMainArr.and.(VecSlot.gt.j)) THEN
+!We only have a single array, therefore surviving particles are simply transferred back into the original array.
+!However, this can not happen if we want to overwrite particles that we haven't even got to yet.
+!However, this should not happen under normal circumstances...
+                    tMainArr=.false.
+                    CALL Stop_All("PerformFCIMCyc","About to overwrite particles which haven't been reached yet. This should not happen in normal situations.")
+                ENDIF
+
+                IF(CopySign.ne.0) THEN
+
+                    IF(tMainArr) THEN
+!                        NewDets(:,VecSlot)=CurrentDets(:,j)
+!                        NewSign(VecSlot)=CopySign
+                        CurrentDets(:,VecSlot)=CurrentDets(:,j)
+                        CurrentSign(VecSlot)=CopySign
+                        IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=HDiagCurr
+                        VecSlot=VecSlot+1
+                    ELSE
+!                        CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
+!Here, we are creating anti-particles, and so to keep the sign-coherence of the main array assured, we transfer them to the spawning array.
+!This should generally not happen under normal circumstances.
+                        do p=1,abs(CopySign)
+!In rotoannihilation, we still want to specify the determinants singly - this may change in the future...
+                            SpawnedParts(:,ValidSpawned)=CurrentDets(:,j)
+                            IF(CopySign.lt.0) THEN
+                                SpawnedSign(ValidSpawned)=-1
+                            ELSE
+                                SpawnedSign(ValidSpawned)=1
+                            ENDIF
+                            ValidSpawned=ValidSpawned+1     !Increase index of spawned particles
+                        enddo
+                    ENDIF
+
+                ENDIF
+
+            ENDIF   !To kill if
+
+!Finish cycling over walkers
+        enddo
+
+!SumWalkersCyc calculates the total number of walkers over an update cycle on each process
+        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
+!        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
+
+!Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
+        TotWalkersNew=VecSlot-1
+
+!Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
+        IF(iPartBloom.ne.0) THEN
+            WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOMS in iteration ",Iter
+            IF(iPartBloom.gt.0) THEN
+                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
+            ELSE
+                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+            ENDIF
+        ENDIF
+
+
+        rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
+        IF(rat.gt.0.95) THEN
+            WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
+            CALL FLUSH(6)
+        ENDIF
+
+        IF(tRotoAnnihil) THEN
+            ValidSpawned=ValidSpawned-1     !For rotoannihilation, this is the number of spawned particles.
+
+            rat=(ValidSpawned+0.D0)/(MaxSpawned+0.D0)
+            IF(rat.gt.0.9) THEN
+                WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
+                CALL FLUSH(6)
+            ENDIF
+        ENDIF
+        
+        CALL halt_timer(Walker_Time)
+        CALL set_timer(Annihil_Time,30)
+
+        IF(tRotoAnnihil) THEN
+!This is the rotoannihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
+
+            CALL RotoAnnihilation(ValidSpawned,TotWalkersNew)
+
+        ELSEIF(TNoAnnihil) THEN
+!However, we now need to swap around the pointers of CurrentDets and NewDets, since this was done previously explicitly in the annihilation routine
+            IF(associated(CurrentDets,target=WalkVecDets)) THEN
+                CurrentDets=>WalkVec2Dets
+                CurrentSign=>WalkVec2Sign
+                CurrentH=>WalkVec2H
+                CurrentExcits=>WalkVec2Excits
+                NewDets=>WalkVecDets
+                NewSign=>WalkVecSign
+                NewH=>WalkVecH
+                NewExcits=>WalkVecExcits
+            ELSE
+                CurrentDets=>WalkVecDets
+                CurrentSign=>WalkVecSign
+                CurrentH=>WalkVecH
+                CurrentExcits=>WalkVecExcits
+                NewDets=>WalkVec2Dets
+                NewSign=>WalkVec2Sign
+                NewH=>WalkVec2H
+                NewExcits=>WalkVec2Excits
+            ENDIF
+
+            TotWalkers=TotWalkersNew
+            TotParts=TotWalkers
+
+        ELSEIF(TAnnihilonProc) THEN
+!In this routine, the particles are just annihilated on their own processors. This means that all simulations are independent and not influenced by each other.
+!This means that there is no communication between processors and so should be much faster as the system size increases.
+
+            CALL Stop_All("PerformFCIMCyc","AnnihilonProc has been disabled")
+            CALL AnnihilateonProc(TotWalkersNew)
+            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
+            TotParts=TotWalkers
+
+        ELSE
+!This routine now cancels down the particles with opposing sign on each determinant
+
+            CALL AnnihilatePartPar(TotWalkersNew)
+            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
+            TotParts=TotWalkers
+
+        ENDIF
+
+        CALL halt_timer(Annihil_Time)
+        
+!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
+        AllNoatHF=0
+
+!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
+
+        IF(AllNoatHF.lt.0) THEN
+!Flip the sign if we're beginning to get a negative population on the HF
+            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            CALL FlipSign()
+        ENDIF
+
+        IF(TSinglePartPhase) THEN
+!Do not allow culling if we are still in the single particle phase.
+            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF(TotParts.gt.InitWalkers) THEN
+                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                    TSinglePartPhase=.false.
+                ENDIF
+            ENDIF
+!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration
+            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
+        ELSE
+
+            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
+!Particle number is too large - kill them randomly
+                IF(.not.tRotoAnnihil) THEN
+
+!Log the fact that we have made a cull
+                    NoCulls=NoCulls+1
+                    IF(NoCulls.gt.10) THEN
+                        WRITE(6,*) "Too Many Culls"
+                        CALL FLUSH(6)
+                        call Stop_All("PerformFCIMCyc","Too Many Culls")
+                    ENDIF
+!CullInfo(:,1) is walkers before cull
+                    CullInfo(NoCulls,1)=TotParts
+!CullInfo(:,3) is MC Steps into shift cycle before cull
+                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+
+                    WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
+                    WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
+                    WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
+                    CALL FLUSH(6)
+                    CALL ThermostatParticlesPar(.true.)
+
+                ENDIF
+
+            ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
+!Particle number is too small - double every particle in its current position
+                IF(.not.tRotoAnnihil) THEN
+!Log the fact that we have made a cull
+                    NoCulls=NoCulls+1
+                    IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
+!CullInfo(:,1) is walkers before cull
+                    CullInfo(NoCulls,1)=TotParts
+!CullInfo(:,3) is MC Steps into shift cycle before cull
+                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+                    
+                    WRITE(6,*) "Doubling particle population on this node to increase total number..."
+                    CALL ThermostatParticlesPar(.false.)
+                ELSE
+!                    WRITE(6,*) "Particle number on this node is less than half InitWalkers value"
+                ENDIF
+            ENDIF
+        
+        ENDIF
+
+    END SUBROUTINE MultipleConnFCIMCycPar
+
+!This routine will check to see if any of the orbitals in the determinant are in the orbitals which are only to be attached to HF in a 'star'
+    SUBROUTINE CheckStarOrbs(DetCurr,tStarDet)
+        INTEGER :: DetCurr(NEl),i
+        LOGICAL :: tStarDet
+
+        tStarDet=.false.
+        do i=NEl,1,-1
+            IF(SpinInvBrr(DetCurr(i)).gt.(nBasis-iStarOrbs)) THEN
+                tStarDet=.true.
+                EXIT
+            ENDIF
+        enddo
+
+    END SUBROUTINE CheckStarOrbs
+
+!This routine will change the reference determinant to DetCurr. It will also re-zero all the energy estimators, since they now correspond to
+!projection onto a different determinant.
+    SUBROUTINE ChangeRefDet(HDiagCurr,DetCurr,iLutCurr)
+        use Determinants , only : GetH0Element3
+        INTEGER :: iLutCurr(0:NIfD),DetCurr(NEl),i,nStore(6),ierr,iMaxExcit
+        INTEGER :: nJ(NEl)
+        TYPE(HElement) :: TempHii
+        REAL*8 :: HDiagCurr
+
+        CALL Stop_All("ChangeRefDet","This option does not currently work. Bug ghb24 if its needed")
+!Problem is that we need to rerun the simulation from scratch, and particles currently in the simulation will keep on
+!changing the reference since their diagonal K element will remain negative.
+
+        do i=1,NEl
+            HFDet(i)=DetCurr(i)
+        enddo
+        Hii=Hii+HDiagCurr
+        iLutHF(0:NIfD)=iLutCurr(0:NIfD)
+        TempHii=GetH0Element3(HFDet)
+        Fii=REAL(TempHii%v,r2)
+        HFHash=CreateHash(HFDet)
+        DEALLOCATE(HFExcit%ExcitData)
+!Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
+        iMaxExcit=0
+        nStore(1:6)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
+        ALLOCATE(HFExcit%ExcitData(HFExcit%nExcitMemLen),stat=ierr)
+        IF(ierr.ne.0) CALL Stop_All("ChangeRefDet","Problem allocating excitation generator")
+        HFExcit%ExcitData(1)=0
+        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%ExcitData,nJ,iMaxExcit,0,nStore,3)
+        HFExcit%nPointed=0
+
+        WRITE(6,"(A)") "*** Changing the reference determinant ***"
+        WRITE(6,"(A)") "Switching reference and zeroing energy counters"
+        WRITE(6,"(A,G25.16)") "New reference energy is: ",Hii
+        WRITE(6,"(A)",advance='no') "New Determinant is: "
+        do i=1,NEL-1
+            WRITE(6,"(I4)",advance='no') HFDet(i)
+        enddo
+        WRITE(6,"(I4)") HFDet(NEl)
+        
+        AllSumENum=0.D0
+        AllSumNoatHF=0.D0
+        AllNoatHF=0
+        AllNoatDoubs=0
+        AllHFCyc=0.D0
+        AllENumCyc=0.D0
+        ProjectionE=0.D0
+        SumENum=0.D0
+        NoatHF=0
+        NoatDoubs=0
+        HFCyc=0
+        HFPopCyc=0
+        ENumCyc=0.D0
+        ProjEIter=0.D0
+        ProjEIterSum=0.D0
+
+    END SUBROUTINE ChangeRefDet
     
 ! Simulate Magnetization to break sign symmetry. Death probabiliy is now sign-dependent and given by tau*(Kii-S-Bs_i). B on HF is +ve and sign of particle is s_i.
 ! This routine simply calculates whether the determinant is magnetic, and how the energy is therefore shifted.
@@ -11315,6 +9811,1637 @@ MODULE FciMCParMod
         RETURN
 
     END SUBROUTINE WriteFCIMCStats
+
+    SUBROUTINE WriteHistogramEnergies()
+        INTEGER :: error,i
+        REAL*8 :: Norm,EnergyBin
+
+        IF(iProcIndex.eq.0) THEN
+            AllHistogram(:)=0.D0
+            AllAttemptHist(:)=0.D0
+            AllSpawnHist(:)=0.D0
+            AllDoublesHist(:)=0.D0
+            AllDoublesAttemptHist(:)=0.D0
+            AllSinglesHist(:)=0.D0
+            AllSinglesAttemptHist(:)=0.D0
+            AllSinglesHistOccOcc(:)=0.D0
+            AllSinglesHistOccVirt(:)=0.D0
+            AllSinglesHistVirtOcc(:)=0.D0
+            AllSinglesHistVirtVirt(:)=0.D0
+        ENDIF
+        CALL MPI_Reduce(Histogram,AllHistogram,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(AttemptHist,AllAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SpawnHist,AllSpawnHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHist,AllSinglesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesAttemptHist,AllSinglesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(DoublesHist,AllDoublesHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(DoublesAttemptHist,AllDoublesAttemptHist,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistOccOcc,AllSinglesHistOccOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistOccVirt,AllSinglesHistOccVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistVirtOcc,AllSinglesHistVirtOcc,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(SinglesHistVirtVirt,AllSinglesHistVirtVirt,iNoBins,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+  
+        IF(iProcIndex.eq.0) THEN
+            Norm=0.D0
+            do i=1,iNoBins
+                Norm=Norm+AllHistogram(i)
+            enddo
+            do i=1,iNoBins
+                AllHistogram(i)=AllHistogram(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iNoBins
+                Norm=Norm+AllAttemptHist(i)
+            enddo
+!            WRITE(6,*) "AllAttemptHistNorm = ",Norm
+            do i=1,iNoBins
+                AllAttemptHist(i)=AllAttemptHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iNoBins
+                Norm=Norm+AllSpawnHist(i)
+            enddo
+!            WRITE(6,*) "AllSpawnHistNorm = ",Norm
+            do i=1,iNoBins
+                AllSpawnHist(i)=AllSpawnHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllSinglesAttemptHist(i)
+            enddo
+!            WRITE(6,*) "AllSinglesAttemptHistNorm = ",Norm
+            do i=1,iOffDiagNoBins
+                AllSinglesAttemptHist(i)=AllSinglesAttemptHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllDoublesHist(i)
+            enddo
+!            WRITE(6,*) "AllDoublesHistNorm = ",Norm
+            do i=1,iOffDiagNoBins
+                AllDoublesHist(i)=AllDoublesHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllDoublesAttemptHist(i)
+            enddo
+!            WRITE(6,*) "AllDoublesAttemptHist = ",Norm
+            do i=1,iOffDiagNoBins
+                AllDoublesAttemptHist(i)=AllDoublesAttemptHist(i)/Norm
+            enddo
+            Norm=0.D0
+            do i=1,iOffDiagNoBins
+                Norm=Norm+AllSinglesHist(i)
+            enddo
+!            WRITE(6,*) "AllSinglesHistNorm = ",Norm
+            do i=1,iOffDiagNoBins
+                AllSinglesHist(i)=AllSinglesHist(i)/Norm
+            enddo
+ 
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistOccOcc(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistOccOcc(i)=AllSinglesHistOccOcc(i)/Norm
+            enddo
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistOccVirt(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistOccVirt(i)=AllSinglesHistOccVirt(i)/Norm
+            enddo
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistVirtOcc(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistVirtOcc(i)=AllSinglesHistVirtOcc(i)/Norm
+            enddo
+!            Norm=0.D0
+!            do i=1,iOffDiagNoBins
+!                Norm=Norm+AllSinglesHistVirtVirt(i)
+!            enddo
+            do i=1,iOffDiagNoBins
+                AllSinglesHistVirtVirt(i)=AllSinglesHistVirtVirt(i)/Norm
+            enddo
+ 
+            OPEN(17,FILE='EVERYENERGYHIST',STATUS='UNKNOWN')
+            OPEN(18,FILE='ATTEMPTENERGYHIST',STATUS='UNKNOWN')
+            OPEN(19,FILE='SPAWNENERGYHIST',STATUS='UNKNOWN')
+
+            EnergyBin=BinRange/2.D0
+            do i=1,iNoBins
+                WRITE(17,*) EnergyBin, AllHistogram(i)
+                WRITE(18,*) EnergyBin, AllAttemptHist(i)
+                WRITE(19,*) EnergyBin, AllSpawnHist(i)
+                EnergyBin=EnergyBin+BinRange
+            enddo
+            CLOSE(17)
+            CLOSE(18)
+            CLOSE(19)
+            OPEN(20,FILE='SINGLESHIST',STATUS='UNKNOWN')
+            OPEN(21,FILE='ATTEMPTSINGLESHIST',STATUS='UNKNOWN')
+            OPEN(22,FILE='DOUBLESHIST',STATUS='UNKNOWN')
+            OPEN(23,FILE='ATTEMPTDOUBLESHIST',STATUS='UNKNOWN')
+            OPEN(24,FILE='SINGLESHISTOCCOCC',STATUS='UNKNOWN')
+            OPEN(25,FILE='SINGLESHISTOCCVIRT',STATUS='UNKNOWN')
+            OPEN(26,FILE='SINGLESHISTVIRTOCC',STATUS='UNKNOWN')
+            OPEN(27,FILE='SINGLESHISTVIRTVIRT',STATUS='UNKNOWN')
+
+            EnergyBin=-OffDiagMax+OffDiagBinRange/2.D0
+            do i=1,iOffDiagNoBins
+                WRITE(20,*) EnergyBin, AllSinglesHist(i)
+                WRITE(21,*) EnergyBin, AllSinglesAttemptHist(i)
+                WRITE(22,*) EnergyBin, AllDoublesHist(i)
+                WRITE(23,*) EnergyBin, AllDoublesAttemptHist(i)
+                WRITE(24,*) EnergyBin, AllSinglesHistOccOcc(i)
+                WRITE(25,*) EnergyBin, AllSinglesHistOccVirt(i)
+                WRITE(26,*) EnergyBin, AllSinglesHistVirtOcc(i)
+                WRITE(27,*) EnergyBin, AllSinglesHistVirtVirt(i)
+                EnergyBin=EnergyBin+OffDiagBinRange
+!                WRITE(6,*) i
+            enddo
+
+            CLOSE(20)
+            CLOSE(21)
+            CLOSE(22)
+            CLOSE(23)
+            CLOSE(24)
+            CLOSE(25)
+            CLOSE(26)
+            CLOSE(27)
+        ENDIF
+
+    END SUBROUTINE WriteHistogramEnergies
+
+
+
+    SUBROUTINE InitGuidingFunction()
+!This routine reads in the guiding function from the GUIDINGFUNC file printed in a previous calculation.
+!It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
+!The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
+        INTEGER :: i,j,ierr,CurrentGuideParts,NewGuideParts,error,ExcitLevel,DoubDet(NEl),HFPop,PartInd
+        CHARACTER(len=*), PARAMETER :: this_routine='InitGuidingFunction'
+        TYPE(HElement) :: HDoubTemp
+        REAL*8 :: Hdoub
+        LOGICAL :: DetsEq,DetBitEQ,tSuccess
+
+
+        iGuideDets=0
+        AlliInitGuideParts=0
+        DetsEq=.false.
+        IF(iProcIndex.eq.Root) THEN
+            OPEN(36,FILE='GUIDINGFUNC',Status='old')
+            READ(36,*) iGuideDets 
+        ENDIF
+ 
+        CALL MPI_Bcast(iGuideDets,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+        ALLOCATE(GuideFuncDets(0:NIfD,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('GuideFuncDets',(NIfD+1)*iGuideDets,4,this_routine,GuideFuncDetsTag,ierr)
+        ALLOCATE(GuideFuncSign(0:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('GuideFuncSign',iGuideDets+1,4,this_routine,GuideFuncSignTag,ierr)
+
+        ALLOCATE(DetstoRotate(0:NIfD,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('DetstoRotate',(NIfD+1)*iGuideDets,4,this_routine,DetstoRotateTag,ierr)
+        ALLOCATE(SigntoRotate(0:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('SigntoRotate',iGuideDets+1,4,this_routine,SigntoRotateTag,ierr)
+        ALLOCATE(DetstoRotate2(0:NIfD,1:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('DetstoRotate2',(NIfD+1)*iGuideDets,4,this_routine,DetstoRotate2Tag,ierr)
+        ALLOCATE(SigntoRotate2(0:iGuideDets),stat=ierr)
+        CALL LogMemAlloc('SigntoRotate2',iGuideDets+1,4,this_routine,SigntoRotate2Tag,ierr)
+
+
+        IF(iProcIndex.eq.Root) THEN
+            !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
+            j=1
+            do while (j.le.iGuideDets)
+                READ(36,*) GuideFuncDets(0:NIfD,j),GuideFuncSign(j)
+                j=j+1
+            enddo
+            CLOSE(36)
+
+            !Calculate the total number of particles in the GUIDINGFUNC file.
+            !CurrentGuideParts=0
+            !do j=1,iGuideDets
+                !CurrentGuideParts=CurrentGuideParts+ABS(GuideFuncSign(j))
+            !enddo
+
+            !Scale up the populations (sign), by the ratio of the original total to the iInitGuideParts value from the NECI input,
+            !and calculate the new sum (should be approximately iInitGuideParts, but maybe not exactly because need to take nearest integer.
+            !NewGuideParts=0
+            !do j=1,iGuideDets
+                !GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(CurrentGuideParts)))
+                !NewGuideParts=NewGuideParts+ABS(GuideFuncSign(j))
+            !enddo
+            !iInitGuideParts=NewGuideParts
+            !The total number of particles in the guiding function is now iInitGuideParts
+            !WRITE(6,*) 'iInitGuideParts, ',iInitGuideParts
+
+            !Find the HF determinant and the population in the guiding function.  Take the number from the input and find the factor by which
+            !the current pop needs to be scaled by to reach the input value.  Scale all the other populations by the same value.
+            !First binary search the Guiding function determinants for the HFDet.
+
+            CALL BinSearchGuideParts(iLutHF,1,iGuideDets,PartInd,tSuccess)
+            IF(tSuccess) THEN
+                GuideFuncSign(0)=PartInd
+                HFPop=ABS(GuideFuncSign(PartInd))
+            ELSE
+                CALL Stop_All(this_routine, 'HF determinant not found in the guiding function.')
+            ENDIF
+            NewGuideParts=0
+            do j=1,iGuideDets
+                GuideFuncSign(j)=NINT(REAL(GuideFuncSign(j))*(REAL(iInitGuideParts)/REAL(HFPop)))
+                NewGuideParts=NewGuideParts+ABS(GuideFuncSign(j))
+            enddo
+            iInitGuideParts=NewGuideParts
+            
+
+            
+            !Maybe put in a test here that checks the determinants are in the right order.  But they should be cos we're printing them out right.
+
+            AlliInitGuideParts=iInitGuideParts*nProcessors
+
+            !Want to know what is happening to the guiding function throughout the spawning, so just print it out at the beginning to compare to the
+            !final one.
+            !Store the initguidefuncsigns 
+            ALLOCATE(InitGuideFuncSign(iGuideDets),stat=ierr)
+            CALL LogMemAlloc('InitGuideFuncSign',iGuideDets,4,this_routine,InitGuideFuncSignTag,ierr)
+            InitGuideFuncSign(:)=0
+
+!            OPEN(37,file='GUIDINGFUNCinit',status='unknown')
+!            WRITE(37,*) iGuideDets,' determinants included in the guiding function.'    
+            do j=1,iGuideDets
+                InitGuideFuncSign(j)=nProcessors*GuideFuncSign(j)
+!                WRITE(37,*) GuideFuncDets(0:NIfD,j),nProcessors*GuideFuncSign(j)
+            enddo
+!            CLOSE(37)
+            
+        ENDIF
+
+        !Broadcast the guiding function determinants (and signs) to all processors.
+        !The total number of walkers in the guiding function is therefore nProcessors*iInitGuideParts.
+        CALL MPI_Bcast(GuideFuncDets(0:NIfD,1:iGuideDets),iGuideDets*(NIfD+1),MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(GuideFuncSign(0:iGuideDets),iGuideDets+1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+        !Run through the guiding function determinants and find the index that contains the HF.
+        !Want this known on all processors, so that we can just look up the sign at this position to get the guiding function HF population.
+!        do i=1,iGuideDets
+!            DetsEq=DetBitEQ(iLutHF,GuideFuncDets(0:NIfD,i),NIfD)
+!            IF(DetsEq) THEN
+!                GuideFuncHFIndex=i
+!                EXIT
+!            ENDIF
+!        enddo
+!        IF(GuideFuncHFIndex.ne.GuideFuncSign(0)) CALL Stop_All(this_routine,'Wrong HF Index')
+        GuideFuncHFIndex=GuideFuncSign(0)
+
+        IF(iProcIndex.eq.Root) THEN
+            GuideFuncDoub=0.D0
+            !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
+            do i=1,iGuideDets
+                CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,NIfD,ExcitLevel,2)
+                IF(ExcitLevel.eq.2) THEN
+                    DoubDet(:)=0
+                    CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfD,i),NEl,NIfD)
+                    HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                    HDoub=REAL(HDoubTemp%v,r2)
+                    GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
+                ENDIF
+            enddo
+            WRITE(6,*) 'The energy of the guiding function alone is ,',GuideFuncDoub/(REAL(GuideFuncSign(GuideFuncHFIndex),r2))
+            GuideFuncDoub=0.D0
+        ENDIF
+            
+
+    ENDSUBROUTINE InitGuidingFunction
+
+
+
+    SUBROUTINE RotoAnnihilGuidingFunc(ValidSpawned)
+! This routine takes the spawned particles (that have already been annihilated with themselves and with the main wavefunction), and tries to 
+! annihilate them with the guiding function.
+! The guiding function itself may be annihilated also, but does not spawn or die by itself.
+! However, if the guiding function is completely annihilated on one processor, the spawned particles must be rotated around the other processors
+! to check for possible annihilations there.
+        INTEGER :: i,j,n,ValidSpawned,InitNoDetstoRotate,NoDetstoRotate,CombSign,error
+        INTEGER :: Stat(MPI_STATUS_SIZE),ExcitLevel,DoubDet(NEl)
+        TYPE(HElement) :: HDoubTemp
+        REAL*8 :: Hdoub
+        LOGICAL :: tRotateSpawnedTemp,tRotateSpawned,tDetinSpawnList,DetBitEQ,DetsEq
+
+
+        NoDetstoRotate=0
+        CombSign=0
+        DetstoRotate(:,:)=0
+        SigntoRotate(:)=0
+        tRotateSpawnedTemp=.false.
+        tRotateSpawned=.false.
+        DetsEq=.false.
+
+
+        !First attempt at annihilation, just on the processor the spawned particles are currently on.
+
+        !Run through the determinats that have been spawned on.
+        do i=1,ValidSpawned
+            IF(SpawnedSign(i).ne.0) THEN
+                !Run through the guiding function, checking if this spawned determinant is in there.
+                do j=1,iGuideDets
+                    DetsEq=.false.
+                    !DetsEq is true if the two determinants are equal
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfD,i),GuideFuncDets(0:NIfD,j),NIfD)
+                    IF(DetsEq) THEN
+                        CombSign=SpawnedSign(i)*GuideFuncSign(j)
+                        !IF this is negative, the guiding function annihilates the spawned particles.
+                        IF(CombSign.lt.0) THEN
+
+                            IF(ABS(SpawnedSign(i)).gt.ABS(GuideFuncSign(j))) THEN
+                                ! Don't want to change sign of guiding function so if there are more particles in the spawned list, just put the 
+                                ! guiding function to 0 and leave the remaining spawned to be rotated to other processors.
+                                SpawnedSign(i)=SpawnedSign(i)+GuideFuncSign(j)
+                                ! Add because these are opposite signs.
+                                GuideFuncSign(j)=0
+                                ! Then need to rotate the remaining walkers in Spawned list to see if there are walkers in the guiding function
+                                ! to annihilate with on other processors.
+
+                                NoDetstoRotate=NoDetstoRotate+1
+                                DetstoRotate(0:NIfD,NoDetstoRotate)=SpawnedParts(0:NIfD,i)
+                                SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
+
+                            ELSEIF(ABS(SpawnedSign(i)).eq.ABS(GuideFuncSign(j))) THEN
+                                SpawnedSign(i)=0
+                                GuideFuncSign(j)=0
+                            ELSE
+                                ! The spawned are all annihilated, and the guiding function is decreased by that number.
+                                GuideFuncSign(j)=GuideFuncSign(j)+SpawnedSign(i)
+                                SpawnedSign(i)=0
+                            ENDIF
+
+                        !IF the combined sign (CombSign) is positive, signs are the same and the spawned particles remain.
+                        !Nothing changes, the guiding function is not annihilated, and the spawned remain to be put into the full list later.
+
+                        !If CombSign is 0, there are no walkers on the guiding function (for that processor).
+                        !Need to rotate the spawned walker to see if there are any walkers on this determinant to annihilate with.
+                        ELSEIF(CombSign.eq.0) THEN
+                            NoDetstoRotate=NoDetstoRotate+1
+                            DetstoRotate(0:NIfD,NoDetstoRotate)=SpawnedParts(0:NIfD,i)
+                            SigntoRotate(NoDetstoRotate)=SpawnedSign(i)
+                        ENDIF
+
+                        !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
+                        !function, there will be no more matches.
+                        EXIT
+
+                    ENDIF
+                enddo
+            ENDIF
+        enddo
+
+        IF(NoDetstoRotate.gt.0) tRotateSpawnedTemp=.true.
+        !If NoDetstoRotate is 0, don't even have to worry about the rotating stuff.
+
+        !If tRotateSpawnedTemp is true on any processor, this routine makes tRotateSpawned true on all processors.
+        CALL MPI_AllReduce(tRotateSpawnedTemp,tRotateSpawned,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+
+
+!The allocated DetstoRotate arrays are as big as iGuideDets (the number of determinants in the guiding function), but will only need to rotate 
+!a portion of these (those determinants for which the guiding function has had all its walkers annihilated).
+
+        IF(tRotateSpawned) THEN !If NoDetstoRotate is greater than 0 on any processor, need to rotate all arrays, otherwise will overwrite each other etc.
+
+            InitNoDetstoRotate=NoDetstoRotate
+            !For now, rotate this same sized array each time, even if not completely necessary.
+            !We are currently just making the determinant (and its sign) 0 if we no longer want to rotate it, but could in the future remove it from the
+            !array.  Probably doesn't make all that much difference because will never find a 0 determinant in the guiding function.
+
+            do n=1,nProcessors-1
+            !Rotate the DetstoRotate, SigntoRotate and NoDetstoRotate values.
+
+                DetsEq=.false.
+                CombSign=0
+                SigntoRotate(0)=InitNoDetstoRotate
+
+                !Send the sign of those we want to rotate to the next processor.
+                !Element 0 is the InitNoDetstoRotate value for this processor, send this as well.
+                CALL MPI_BSend(SigntoRotate(0:InitNoDetstoRotate),InitNoDetstoRotate+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending signs")
+                ENDIF
+
+                !Then send the determinants
+                CALL MPI_BSend(DetstoRotate(0:NIfD,1:InitNoDetstoRotate),(NIfD+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
+                ENDIF
+
+                !Receives signs.
+                !Receive max possible, will only overwrite those that are actually being sent.
+                CALL MPI_Recv(SigntoRotate2(0:iGuideDets),iGuideDets+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving signs")
+                ENDIF
+
+                InitNoDetstoRotate=SigntoRotate2(0)
+
+                !Recieve determinants
+                CALL MPI_Recv(DetstoRotate2(0:NIfD,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+                IF(error.ne.MPI_SUCCESS) THEN
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
+                ENDIF
+
+                do i=1,InitNoDetstoRotate
+                    SigntoRotate(i)=SigntoRotate2(i)
+                    DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
+                enddo
+
+                !If a determinant has walkers in the guiding function on the same determinant with the same sign, add the spawned (rotate) walkers
+                !to the spawned list of that processor (no longer need to rotate).
+                !If the walkers have opposite sign, annihilate and rotate any remaining from the spawned list.
+                !If there are no walkers on the guiding function determinant, keep rotating.
+            
+                !Take a rotated determinant and run through to find it in the guiding function of that processor.
+                do i=1,InitNoDetstoRotate
+                    !If the number of particles being rotated has become zero, don't need to search through the guiding function for particles to annihilate.
+                    IF(Signtorotate(i).ne.0) THEN
+                        do j=1,iGuideDets
+                            DetsEq=.false.
+                            DetsEq=DetBitEQ(DetstoRotate(0:NIfD,i),GuideFuncDets(0:NIfD,j),NIfD)
+
+                            IF(DetsEq) THEN
+                                CombSign=SigntoRotate(i)*GuideFuncSign(j)
+                                !IF this is negative, the guiding function annihilates the spawned particles.
+                                IF(CombSign.lt.0) THEN
+
+                                    IF(ABS(SigntoRotate(i)).gt.ABS(GuideFuncSign(j))) THEN
+                                        !If there are still too many in the spawned (rotated) array to be all annihilated by the guiding function on that
+                                        !processor, annihilate what you can, but leave the determinant in the array to keep rotating.
+                                        SigntoRotate(i)=SigntoRotate(i)+GuideFuncSign(j)
+                                        ! Add because these are opposite signs.
+                                        GuideFuncSign(j)=0
+                                        
+                                    ELSEIF(ABS(SigntoRotate(i)).eq.ABS(GuideFuncSign(j))) THEN
+                                        SigntoRotate(i)=0
+                                        GuideFuncSign(j)=0
+
+                                    ELSE
+                                        ! The spawned are all annihilated, and the guiding function is decreased by that number.
+                                        GuideFuncSign(j)=GuideFuncSign(j)+SigntoRotate(i)
+                                        SigntoRotate(i)=0
+                                    ENDIF
+
+                                    !IF the combined sign (CombSign) is positive, there are walkers in the guiding function of that processor with the same
+                                    !sign. Thus no annihilation occurs and these particles just continue to rotate around (they will just end up back on the
+                                    !the original processor where they'll be recombined back into SpawnedPart.
+
+                                    !If CombSign is 0, there are no walkers on the guiding function (for that processor).
+                                    !Continue rotating spawned walkers to see if there are any on the next processor to annihilate with.
+
+                                    !If we have found a determinant in the guiding function that matches that in the spawned, can stop searching the guiding 
+                                    !function, there will be no more matches.
+
+                                ENDIF
+
+                                EXIT
+                            ENDIF
+
+                        enddo
+                    ENDIF
+                enddo
+                    
+            enddo
+
+            !If back to original processor and still have walkers in rotating arrays, just add them to the spawned list.
+            !Do one final rotation, end up on original processor - add remaining particles to spawned list.
+
+            SigntoRotate(0)=InitNoDetstoRotate
+
+            !Send the sign of those we want to rotate to the next processor.
+            CALL MPI_BSend(SigntoRotate(0:InitNoDetstoRotate),InitNoDetstoRotate+1,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),123,MPI_COMM_WORLD,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending signs")
+            ENDIF
+
+            !Then send the determinants
+            CALL MPI_BSend(DetstoRotate(0:NIfD,1:InitNoDetstoRotate),(NIfD+1)*InitNoDetstoRotate,MPI_INTEGER,MOD(iProcIndex+1,nProcessors),456,MPI_COMM_WORLD,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in sending particles")
+            ENDIF
+
+            !Receives signs.
+            CALL MPI_Recv(SigntoRotate2(0:iGuideDets),iGuideDets+1,MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),123,MPI_COMM_WORLD,Stat,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving signs")
+            ENDIF
+            
+            InitNoDetstoRotate=SigntoRotate2(0)
+
+            !Recieve determinants
+            CALL MPI_Recv(DetstoRotate2(0:NIfD,1:InitNoDetstoRotate),InitNoDetstoRotate*(NIfD+1),MPI_INTEGER,MOD(iProcIndex+nProcessors-1,nProcessors),456,MPI_COMM_WORLD,Stat,error)
+            IF(error.ne.MPI_SUCCESS) THEN
+                CALL Stop_All("RotoAnnihilGuidingFunc","Error in receiving particles")
+            ENDIF
+
+            do i=1,InitNoDetstoRotate
+                SigntoRotate(i)=SigntoRotate2(i)
+                DetstoRotate(0:NIfD,i)=DetstoRotate2(0:NIfD,i)
+            enddo
+
+            !Now add all the remaining DetstoRotate2 and their signs to the SpawnedPart and SpawnedSign lists.
+            !Since I just copied the determinants from SpawnedPart to DetstoRotate, any in DetstoRotate will already been in SpawnedPart.
+            !Need to just search for it and overwrite its spin value.
+            do j=1,InitNoDetstoRotate
+                tDetinSpawnList=.false.
+                do i=1,ValidSpawned
+                    DetsEq=.false.
+                    DetsEq=DetBitEQ(SpawnedParts(0:NIfD,i),DetstoRotate(0:NIfD,j),NIfD)
+                    IF(DetsEq) THEN
+                        SpawnedSign(i)=SigntoRotate(j)
+                        tDetinSpawnList=.true.
+                        EXIT
+                    ENDIF
+                enddo
+                IF(.not.tDetinSpawnList) THEN
+                    WRITE(6,*) 'Determinant from rotate list : ',DetstoRotate(0:NIfD,j)
+!                    do i=1,ValidSpawned
+!                        WRITE(6,*) SpawnedParts(0:NIfD,i)
+!                    enddo
+                    CALL FLUSH(6)
+                    CALL Stop_All("RotoAnnihilGuidingFunc","Determinant from rotated list cannot be found in SpawnedParts.")
+                ENDIF
+            enddo
+
+        ENDIF
+
+        !Calculated the number of walkers in the guiding function after this annihilation.
+        iInitGuideParts=0
+        AlliInitGuideParts=0
+        do i=1,iGuideDets
+            iInitGuideParts=iInitGuideParts+ABS(GuideFuncSign(i))
+        enddo
+!        CALL MPI_Reduce(iInitGuideParts,AlliInitGuideParts,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+        !Need to calculate the contribution to the HF from the guiding function, and then also the contribution from doubles.
+        GuideFuncHF=GuideFuncHF+GuideFuncSign(GuideFuncHFIndex)
+
+
+        !Run through all other determinants in the guiding function.  Find out if they are doubly excited.  Find H elements, and multiply by number on that double.
+        do i=1,iGuideDets
+            CALL FindBitExcitLevel(GuideFuncDets(0:NIfD,i),iLutHF,NIfD,ExcitLevel,2)
+            IF(ExcitLevel.eq.2) THEN
+                DoubDet(:)=0
+                CALL DecodeBitDet(DoubDet,GuideFuncDets(0:NIfD,i),NEl,NIfD)
+                HdoubTemp=GetHElement2(HFDet,DoubDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                HDoub=REAL(HDoubTemp%v,r2)
+                GuideFuncDoub=GuideFuncDoub+(GuideFuncSign(i)*Hdoub)
+            ENDIF
+        enddo
+
+
+    ENDSUBROUTINE RotoAnnihilGuidingFunc
+
+
+
+    SUBROUTINE WriteGuidingFunc()
+!This routine writes out the iGuideDets determinants with the largest no of walkers at the end of a calculation.    
+!Really it finds the number of walkers on the final determinant in iGuideDets, and writes out any determinants
+!with this number or more walkers on them (accounts for degeneracies in the number of walkers on the determinants).
+        INTEGER :: i,j,k,MinGuideDetPop,ierr,error,TestSum,OrigiGuideDets
+        INTEGER :: AlliGuideDets,CompiGuideDets
+        CHARACTER(len=*), PARAMETER :: this_routine='WriteGuidingFunc'
+        INTEGER , ALLOCATABLE :: AllCurrentDets(:,:),AllCurrentSign(:)
+        INTEGER :: AllCurrentDetsTag,AllCurrentSignTag
+        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors)
+        LOGICAL :: DetBitEQ
+
+        CALL FLUSH(6)
+        IF(iGuideDets.gt.TotWalkers) CALL Stop_All(this_routine,'iGuideDets is greater than the number of populated determinants')
+
+!        WRITE(6,*) 'the determinants and sign, on each processor, before I touched them'
+!        do j=1,TotWalkers
+!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
+!        enddo
+        
+! Firstly order CurrentSign in descending absolute value, taking the corresponding CurrentDets with it.
+        CALL SortBitSign(TotWalkers,CurrentSign(1:TotWalkers),NIfD,CurrentDets(0:NIfD,1:TotWalkers))
+
+! Then run through CurrentSign, finding out how many walkers are on the iGuideDets most populated, and counting how
+! many have this many walkers or more.
+    
+        OrigiGuideDets=iGuideDets
+        MinGuideDetPop=0
+        MinGuideDetPop=ABS(CurrentSign(iGuideDets))
+        ! This is the minimum number of walkers on the included determinants.
+        ! Also want to include determinants with the same number of walkers.
+        j=iGuideDets+1
+        do while (ABS(CurrentSign(j)).eq.MinGuideDetPop)
+            j=j+1
+            iGuideDets=iGuideDets+1
+        enddo
+ 
+!        WRITE(6,*) 'The most populated determinants on each processor, ordered in terms of sign'
+!        WRITE(6,*) iGuideDets,' determinants included in the guiding function.'    
+!        do j=1,iGuideDets
+!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
+!        enddo
+!        CALL FLUSH(6)
+        
+! Now take the iGuideDets determinants and reorder them back in terms of determinants (taking the sign with them).
+        
+        CALL SortBitDets(iGuideDets,CurrentDets(0:NIfD,1:iGuideDets),NIfD,CurrentSign(1:iGuideDets))
+
+!        WRITE(6,*) 'The most populated determinants on each processor, ordered by determinant'
+!        WRITE(6,*) iGuideDets,' determinants included in the guiding function.'    
+!        do j=1,iGuideDets
+!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
+!        enddo
+        
+! Calculate RecvCounts(1:nProcessors), and OffSets for the Gatherv calculation
+! Need to gather the iGuideDets values from each processor for this.
+        CALL MPI_Gather(iGuideDets,1,MPI_INTEGER,RecvCounts,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        Offsets(:)=0
+        do j=1,nProcessors-1
+            OffSets(j+1)=RecvCounts(j)+OffSets(j)
+        enddo
+        do j=1,nProcessors
+            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
+        enddo
+        OffSets02(:)=0
+        do j=1,nProcessors-1
+            OffSets02(j+1)=RecvCounts02(j)+OffSets02(j)
+        enddo
+
+!        do j=1,nProcessors
+!            WRITE(6,*) RecvCounts(j),OffSets(j),RecvCounts02(j),OffSets02(j)
+!        enddo
+
+
+! Find out the total number of iGuideDets on all processors (roughly the input, but not exactly because of 
+! of the degeneracies in the populations). 
+! This should be the same as the sum of RecvCounts.
+        AlliGuideDets=0
+        CALL MPI_Reduce(iGuideDets,AlliGuideDets,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        IF(iProcIndex.eq.Root) THEN
+            TestSum=0
+            do i=1,nProcessors
+                TestSum=TestSum+RecvCounts(i)
+            enddo
+            IF(AlliGuideDets.ne.TestSum) CALL Stop_All("WriteGuidingFunc","Error in parallel sum")
+        ENDIF
+        
+!        IF(iProcIndex.eq.Root) WRITE(6,*) 'AlliGuideDets ',AlliGuideDets
+!        CALL FLUSH(6)
+
+
+! Make arrays containing the most populated determinants from all processors.        
+
+        IF(iProcIndex.eq.Root) THEN
+            ALLOCATE(AllCurrentDets(0:NIfD,1:AlliGuideDets),stat=ierr)
+            CALL LogMemAlloc('AllCurrentDets',(NIfD+1)*AlliGuideDets,4,this_routine,AllCurrentDetsTag,ierr)
+            ALLOCATE(AllCurrentSign(1:AlliGuideDets),stat=ierr)
+            CALL LogMemAlloc('AllCurrentSign',AlliGuideDets,4,this_routine,AllCurrentSignTag,ierr)
+        ENDIF
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+        CALL MPI_Gatherv(CurrentSign(1:iGuideDets),iGuideDets,MPI_INTEGER,AllCurrentSign(1:AlliGuideDets),&
+        &RecvCounts,Offsets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gatherv(CurrentDets(0:NIfD,1:iGuideDets),((NIfD+1)*iGuideDets),MPI_INTEGER,&
+        &AllCurrentDets(0:NIfD,1:AlliGuideDets),RecvCounts02,Offsets02,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL FLUSH(6)
+
+
+        IF(iProcIndex.eq.Root) THEN
+
+!            OPEN(31,file='GUIDINGFUNCall-01',status='unknown')
+!            WRITE(31,*) 'The determinants from each processor combined'
+!            WRITE(31,*) AlliGuideDets,' determinants included in the guiding function.'    
+!            do j=1,AlliGuideDets
+!                WRITE(31,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(31)
+
+! Having taken the largest occupied determinants from each processor, select the iGuideDets most populated from
+! this total list.
+! I.e. reorder in terms of population, compressing so that each determinant only appears once.  Then select out the top iGuideDets 
+! and reorder by determinant once again.
+
+! From the list of determinants from all processors, order in terms of determinant so that this may be compressed to make sure each
+! determinant only appears once.
+            CALL SortBitDets(AlliGuideDets,AllCurrentDets(0:NIfD,1:AlliGuideDets),NIfD,AllCurrentSign(1:AlliGuideDets))
+
+!            OPEN(32,file='GUIDINGFUNCall-02',status='unknown')
+!            WRITE(32,*) 'The determinants from each processor combined'
+!            WRITE(32,*) AlliGuideDets,' determinants included in the guiding function.'    
+!            do j=1,AlliGuideDets
+!                WRITE(32,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(32)
+            
+
+! Find out if two determinants next to each are the same, if so add their signs and move the ones below them up.
+! DetBitEq returns true if two determinants are identical, or false otherwise.
+            CompiGuideDets=AlliGuideDets
+            do i=1,AlliGuideDets-1
+
+                IF(i.gt.CompiGuideDets) EXIT 
+                ! This means we have got to the end of the compressed list, don't want to keep going, as all determinants after this are 0. 
+
+                do while (DetBitEQ(AllCurrentDets(0:NIfD,i),AllCurrentDets(0:NIfD,i+1),NIfD))
+                    ! Take a determinant, if the one above it is identical, add its sign to the original and move the others up to overwrite
+                    ! the second.
+                    ! Repeat this until the i+1 determinant is no longer equal to the i determinant.
+
+                    IF((AllCurrentSign(i)*AllCurrentSign(i+1)).lt.0) THEN
+                        WRITE(6,*) 'Determinant populated with opposite signs',AllCurrentDets(0:NIfD,i)
+                        WRITE(6,*) 'Identical determinant next to it',AllCurrentDets(0:NIfD,i+1)
+                        CALL FLUSH(6)
+                        CALL Stop_All("WriteGuidingFunc","Identical determinants populated with opposite sign")
+                    ENDIF
+
+                    AllCurrentSign(i)=AllCurrentSign(i)+AllCurrentSign(i+1)
+
+                    CompiGuideDets=CompiGuideDets-1
+
+                    do j=i+2,AlliGuideDets
+                        AllCurrentDets(0:NIfD,j-1)=AllCurrentDets(0:NIfD,j)
+                        AllCurrentSign(j-1)=AllCurrentSign(j)
+                    enddo
+                    ! Zero the last determinant
+                    AllCurrentSign(AlliGuideDets)=0
+                    AllCurrentDets(0:NIfD,AlliGuideDets)=0
+                enddo
+            enddo
+            AlliGuideDets=CompiGuideDets
+     
+!            OPEN(33,file='GUIDINGFUNCall-03',status='unknown')
+!            WRITE(33,*) 'The determinants from each processor combined and compressed, ordered by determinant'
+!            WRITE(33,*) AlliGuideDets,' determinants included in the guiding function.'    
+!            do j=1,AlliGuideDets
+!                WRITE(33,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(33)
+
+          
+! Reorder the compressed list of determinants by population (i.e. descending according to absolute value of AllCurrentSign, taking determinant with it).        
+            CALL SortBitSign(AlliGuideDets,AllCurrentSign(1:AlliGuideDets),NIfD,AllCurrentDets(0:NIfD,1:AlliGuideDets))
+
+
+! From this total list of most populated determinants, pick out the iGuideDets most populated, along with any with the same number of walkers as the last.        
+            iGuideDets=OrigiGuideDets
+            MinGuideDetPop=0
+            MinGuideDetPop=ABS(AllCurrentSign(iGuideDets))
+            ! This is the minimum number of walkers on the included determinants.
+            ! Also want to include determinants with the same number of walkers.
+            j=iGuideDets+1
+            do while (ABS(AllCurrentSign(j)).eq.MinGuideDetPop)
+                j=j+1
+                iGuideDets=iGuideDets+1
+            enddo
+      
+!            OPEN(34,file='GUIDINGFUNCall-04',status='unknown')
+!            WRITE(34,*) 'The determinants from each processor combined and compressed, ordered by sign'
+!            WRITE(34,*) iGuideDets,' determinants included in the guiding function.'    
+!            do j=1,iGuideDets
+!                WRITE(34,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
+!            enddo
+!            CLOSE(34)
+
+
+! Now take the iGuideDets determinants and reorder them back in terms of determinants (taking the sign with them).
+            CALL SortBitDets(iGuideDets,AllCurrentDets(0:NIfD,1:iGuideDets),NIfD,AllCurrentSign(1:iGuideDets))
+
+
+! Write the iGuideDets most populated determinants (in order of their bit strings) to a file.
+            OPEN(35,file='GUIDINGFUNC',status='unknown')
+            WRITE(35,*) iGuideDets,' determinants included in the guiding function.'    
+            do j=1,iGuideDets
+                WRITE(35,*) AllCurrentDets(0:NIfD,j),AllCurrentSign(j)
+            enddo
+            CLOSE(35)
+
+            DEALLOCATE(AllCurrentDets)
+            CALL LogMemDealloc(this_routine,AllCurrentDetsTag)
+            DEALLOCATE(AllCurrentSign)
+            CALL LogMemDealloc(this_routine,AllCurrentSignTag)
+        
+        ENDIF
+
+
+    END SUBROUTINE WriteGuidingFunc
+
+
+
+
+    SUBROUTINE WriteFinalGuidingFunc()
+        INTEGER :: j,AllGuideFuncSignTag,ierr,error
+        INTEGER , ALLOCATABLE :: AllGuideFuncSign(:)
+
+        IF(iProcIndex.eq.Root) THEN
+            ALLOCATE(AllGuideFuncSign(iGuideDets),stat=ierr)
+            CALL LogMemAlloc('AllGuideFuncSign',iGuideDets,4,'WriteFinalGuidingFunc',AllGuideFuncSignTag,ierr)
+        ENDIF 
+
+        CALL MPI_Reduce(GuideFuncSign(1:iGuideDets),AllGuideFuncSign,iGuideDets,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+ 
+        IF(iProcIndex.eq.Root) THEN
+            OPEN(38,file='GUIDINGFUNCfinal',status='unknown')
+            WRITE(38,*) iGuideDets,' determinants included in the guiding function.'    
+            WRITE(38,'(A11,A28,A11,A15)') "Determinant","InitialPop","FinalPop","TotalChange"
+            do j=1,iGuideDets
+                WRITE(38,*) GuideFuncDets(0:NIfD,j),InitGuideFuncSign(j),AllGuideFuncSign(j),(ABS(AllGuideFuncSign(j))-ABS(InitGuideFuncSign(j)))
+            enddo
+            CLOSE(38)
+
+            DEALLOCATE(AllGuideFuncSign)
+            CALL LogMemDealloc('WriteFinalGuidingFunc',AllGuideFuncSignTag)
+            DEALLOCATE(InitGuideFuncSign)
+            CALL LogMemDealloc('WriteFinalGuidingFunc',InitGuideFuncSignTag)
+ 
+        ENDIF
+
+
+    ENDSUBROUTINE WriteFinalGuidingFunc
+
+
+
+    SUBROUTINE InitSpawnDominant()
+!It then scales the number of walkers on each determinant up so that the total is that specified in the input for iInitGuideParts. 
+!The result is an array of determinats and a corresponding array of populations (with sign) for the guiding function.
+        INTEGER :: i,j,ierr,error,iNoExcLevels,Temp,iMinDomLevPop,SumExcLevPop,ExcitLevel
+        CHARACTER(len=*), PARAMETER :: this_routine='InitSpawnDominant'
+
+        IF(iProcIndex.eq.Root) THEN
+            OPEN(41,FILE='DOMINANTDETS',Status='old')
+            READ(41,*) iNoDomDets
+            READ(41,*) iNoExcLevels 
+            READ(41,*) iMinDomLev,SumExcLevPop
+            iMaxDomLev=iMinDomLev+iNoExcLevels-1
+!            IF(iMinDomLev.le.2) CALL Stop_All('InitSpawnDominant','Code is not set up to deal with removing doubles or lower.')
+        ENDIF
+        
+        CALL MPI_Bcast(iMinDomLev,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(iMaxDomLev,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(iNoDomDets,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Bcast(iNoExcLevels,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+        ALLOCATE(DomExcIndex(iMinDomLev:(iMinDomLev+iNoExcLevels)),stat=ierr)
+        CALL LogMemAlloc('DomExcIndex',iNoExcLevels+1,4,this_routine,DomExcIndexTag,ierr)
+        DomExcIndex(:)=0
+        
+        IF(iProcIndex.eq.Root) THEN
+            DomExcIndex(iMinDomLev)=1
+            i=iMinDomLev+1
+            do while(i.le.iMaxDomLev)
+                DomExcIndex(i)=SumExcLevPop+DomExcIndex(i-1)
+                READ(41,*) ExcitLevel,Temp
+                SumExcLevPop=Temp
+                i=i+1
+            enddo
+            DomExcIndex(iMaxDomLev+1)=SumExcLevPop+DomExcIndex(i-1)
+            IF(DomExcIndex(iMaxDomLev+1).ne.(iNoDomDets+1)) CALL Stop_All(this_routine,'ERROR in filling the indexing excitation indexing array.')
+        ENDIF
+
+
+        CALL MPI_Bcast(DomExcIndex(iMinDomLev:(iMaxDomLev+1)),iMaxDomLev-iMinDomLev+2,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+
+
+        ALLOCATE(DomDets(0:NIfD,1:iNoDomDets),stat=ierr)
+        CALL LogMemAlloc('DomDets',(NIfD+1)*iNoDomDets,4,this_routine,DomDetsTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory for dominant determinants')
+
+        IF(iProcIndex.eq.Root) THEN
+            !Set up the determinant and sign arrays by reading in from the GUIDINGFUNC file.
+            j=1
+            do while (j.le.iNoDomDets)
+                READ(41,*) DomDets(0:NIfD,j)
+                j=j+1
+            enddo
+            CLOSE(41)
+        ENDIF
+
+        ! Broadcast this list of DomDets to all processors
+        CALL MPI_Bcast(DomDets(0:NIfD,1:iNoDomDets),(NIfD+1)*iNoDomDets,MPI_INTEGER,Root,MPI_COMM_WORLD,ierr)
+
+
+        IF(tMinorDetsStar) THEN
+            IF(.not.tRotoAnnihil) THEN
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS can only be used with rotoannihilation.') 
+            ELSEIF(tFixShiftShell) THEN
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS cannot be used with the fixed shift shell approximation.') 
+            ELSEIF(iMinDomLev.le.2) THEN
+                CALL Stop_All(this_routine,'STARMINORDETERMINANTS is not set up to deal with removing doubles or lower.')
+            ELSE
+                CALL InitMinorDetsStar()
+            ENDIF
+        ENDIF
+
+
+    ENDSUBROUTINE InitSpawnDominant 
+
+
+
+
+    SUBROUTINE PrintDominantDets()
+! This routine takes the list of determinants with particles on them, and picks out those with excitation levels between the max and min
+! specified in the input file.  It then orders these in terms of population, takes the iNoDominantDets most populated and prints them 
+! in order of excitation level and then determinant to a file named DOMINANTDETS.
+        INTEGER :: i,j,k,ierr,error,TestSum,ExcitLevel,NoExcDets,AllNoExcDets,ExcDetsTag,ExcSignTag,AllExcDetsTag,AllExcSignTag,ipos
+        INTEGER :: ExcDetsIndex,MinDomDetPop,AllExcLevelTag,ExcLevelTag,CurrExcitLevel,NoExcitLevel,OrigiDominantDets,HFPop,CurriNoDominantDets
+        CHARACTER(len=*), PARAMETER :: this_routine='PrintDominantDets'
+        REAL*8 :: MinRelDomPop,SpinTot,NormDef
+        INTEGER , ALLOCATABLE :: ExcDets(:,:),ExcSign(:),AllExcDets(:,:),AllExcSign(:)
+        INTEGER :: RecvCounts(nProcessors),Offsets(nProcessors),RecvCounts02(nProcessors),OffSets02(nProcessors),DetCurr(NEl),NormDefTrunc,NormDefTot
+        INTEGER :: SpinCoupDetBit(0:NIfD),SpinCoupDet(NEl),OpenShell(2,NEl),UpSpin(NEl),NoOpenShell,NoUpSpin,iRead,PartInd,ID1,ID2,iComb,TempSign
+        LOGICAL :: tDoubOcc,tSuccess
+
+        CALL FLUSH(6)
+        IF(.not.tRotoAnnihil) CALL Stop_All(this_routine,'PRINTDOMINANTDETS can only be used with rotoannihilation.')
+
+        WRITE(6,'(A13,I10,A53,I3,A5,I3)') 'Printing the ',iNoDominantDets,' dominant determinants with excitation level between ',MinExcDom,' and ',MaxExcDom
+
+
+!        WRITE(6,*) 'the determinants and sign, on each processor, before I touched them'
+!        do j=1,TotWalkers
+!            WRITE(6,*) CurrentDets(0:NIfD,j),CurrentSign(j)
+!        enddo
+
+
+! Firstly, copy the determinants with excitation level between the min and max into a separate array (and do the same with sign).  
+! Need to first count the number that are going to go in this array.
+        NoExcDets=0
+        AllNoExcDets=0
+        do i=1,TotWalkers
+            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
+            IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
+                NoExcDets=NoExcDets+1
+            ELSEIF(ExcitLevel.eq.0) THEN
+                HFPop=ABS(CurrentSign(i))
+            ENDIF
+        enddo
+
+        CALL MPI_Reduce(NoExcDets,AllNoExcDets,1,MPI_INTEGER,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+
+! Allocate arrays of this size - these are the ones that will be reordered to find the iNoDominantDets most populated etc.        
+        ALLOCATE(ExcDets(0:NIfD,1:NoExcDets),stat=ierr)
+        CALL LogMemAlloc('ExcDets',(NIfD+1)*NoExcDets,4,this_routine,ExcDetsTag,ierr)
+        ALLOCATE(ExcSign(1:NoExcDets),stat=ierr)
+        CALL LogMemAlloc('ExcSign',NoExcDets,4,this_routine,ExcSignTag,ierr)
+ 
+        IF(iProcIndex.eq.Root) THEN
+            ALLOCATE(AllExcDets(0:NIfD,1:(10*AllNoExcDets)),stat=ierr)
+            CALL LogMemAlloc('AllExcDets',(NIfD+1)*10*AllNoExcDets,4,this_routine,AllExcDetsTag,ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'ERROR allocating memory to AllExcDets.')
+            ALLOCATE(AllExcSign(1:(10*AllNoExcDets)),stat=ierr)
+            CALL LogMemAlloc('AllExcSign',10*AllNoExcDets,4,this_routine,AllExcSignTag,ierr)
+            IF(ierr.ne.0) CALL Stop_All(this_routine,'ERROR allocating memory to AllExcSign.')
+        ENDIF
+
+
+! Now run through the occupied determinants.  If the determinant has the correct excitation level, add it to the ExcDets array, and
+! add its sign to the ExcSign array.
+        ExcDetsIndex=0
+        do i=1,TotWalkers
+            CALL FindBitExcitLevel(CurrentDets(0:NIfD,i),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
+            IF((ExcitLevel.ge.MinExcDom).and.(ExcitLevel.le.MaxExcDom)) THEN
+                ExcDetsIndex=ExcDetsIndex+1
+                ExcDets(0:NIfD,ExcDetsIndex)=CurrentDets(0:NIfD,i)
+                ExcSign(ExcDetsIndex)=CurrentSign(i)
+            ENDIF
+        enddo
+
+
+! Now need to collect this array on the root processor and find the most populated determinants.
+! First set up the RecvCounts and OffSet arrays.
+
+! Need to gather the NoExcDets values from each processor for this.
+        CALL MPI_Gather(NoExcDets,1,MPI_INTEGER,RecvCounts,1,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        
+        Offsets(:)=0
+        do j=1,nProcessors-1
+            OffSets(j+1)=RecvCounts(j)+OffSets(j)
+        enddo
+        do j=1,nProcessors
+            RecvCounts02(j)=RecvCounts(j)*(NIfD+1)
+        enddo
+        OffSets02(:)=0
+        do j=1,nProcessors-1
+            OffSets02(j+1)=RecvCounts02(j)+OffSets02(j)
+        enddo
+
+!        do j=1,nProcessors
+!            WRITE(6,*) RecvCounts(j),OffSets(j),RecvCounts02(j),OffSets02(j)
+!        enddo
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+        CALL MPI_Gatherv(ExcSign(1:NoExcDets),NoExcDets,MPI_INTEGER,AllExcSign(1:AllNoExcDets),&
+        &RecvCounts,Offsets,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gatherv(ExcDets(0:NIfD,1:NoExcDets),((NIfD+1)*NoExcDets),MPI_INTEGER,&
+        &AllExcDets(0:NIfD,1:AllNoExcDets),RecvCounts02,Offsets02,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+        CALL FLUSH(6)
+       
+! Now that we have arrays on the root processor with the determinants and sign of correct excitation level, need to order these 
+! in descending absolute value, taking the corresponding sign with it.
+        IF(iProcIndex.eq.Root) THEN
+ 
+            IF(iNoDominantDets.gt.AllNoExcDets) THEN
+                WRITE(6,*) 'iNoDominantDets: ',iNoDominantDets
+                WRITE(6,*) 'AllNoExcDets: ',AllNoExcDets
+                CALL Stop_All(this_routine,'Not enough determinants are occupied to pick out the number of dominant requested.')
+            ENDIF
+
+
+            CALL SortBitSign(AllNoExcDets,AllExcSign(1:AllNoExcDets),NIfD,AllExcDets(0:NIfD,1:AllNoExcDets))
+
+! Then run through AllExcSign, finding out how many walkers are on the iNoDominantDets most populated, and counting how
+! many have this many walkers or more.
+        
+            OrigiDominantDets=iNoDominantDets
+            MinDomDetPop=0
+            MinDomDetPop=ABS(AllExcSign(iNoDominantDets))
+            ! This is the minimum number of walkers on the included determinants.
+            ! Also want to include determinants with the same number of walkers.
+            j=iNoDominantDets+1
+            do while (ABS(AllExcSign(j)).eq.MinDomDetPop)
+                j=j+1
+                iNoDominantDets=iNoDominantDets+1
+            enddo
+ 
+            OPEN(39,file='DOMINANTDETSdescpop',status='unknown')
+            WRITE(39,*) AllNoExcDets,' determinants with the right excitation level.'    
+            WRITE(39,*) iNoDominantDets,' with population ',MinDomDetPop, ' and above.'
+            do j=1,AllNoExcDets
+                WRITE(39,*) AllExcDets(0:NIfD,j),AllExcSign(j)
+            enddo
+            CLOSE(39)
+          
+            WRITE(6,*) 'This amounts to determinants with population ',MinDomDetPop,' and larger.'
+!            WRITE(6,*) 'HFPop',HFPop
+!            WRITE(6,*) 'MinDomDetPop',MinDomDetPop
+            MinRelDomPop=REAL(MinDomDetPop)/REAL(HFPop)
+            WRITE(6,*) 'These determinants have amplitude ; ',MinRelDomPop,' relative to the most populated determinant.' 
+
+! In order to do binary searches for the spin determinants, need to sort the determinants back into order.
+! Do this in two separate lots, 1:iNoDominantDets and iNoDominantDets+1:AllNoExcDets
+
+            CALL SortBitDets(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),NIfD,AllExcSign(1:iNoDominantDets))
+            CALL SortBitDets((AllNoExcDets-iNoDominantDets),AllExcDets(0:NIfD,(iNoDominantDets+1):AllNoExcDets),NIfD,&
+                            &AllExcSign((iNoDominantDets+1):AllNoExcDets))
+ 
+            OPEN(47,file='DOMINANTDETSsorted',status='unknown')
+            WRITE(47,*) AllNoExcDets,' determinants with the right excitation level.'    
+            WRITE(47,*) iNoDominantDets,' with population ',MinDomDetPop, ' and above.'
+            do j=1,AllNoExcDets
+                WRITE(47,*) AllExcDets(0:NIfD,j),AllExcSign(j)
+            enddo
+            CLOSE(47)
+ 
+
+! Run through all the determinants, finding sum_k=1->AllNoExcDets c_k^2 = NormDefTot.  Want to do this before doing the spin
+! coupled stuff when some determinants have overwritten others.
+            NormDefTot=0
+            do i=1,AllNoExcDets
+                NormDefTot=NormDefTot+(AllExcSign(i)**2)
+            enddo
+
+
+
+! Put a bit in here to run through the determinants, construct all the different spin eigenstates from each and make sure 
+! they are all included.  - need to add them to the list maintaining order.
+! At the moment, these are ordered by determinant, and only the first iNoDominantDets are going to be taken.
+! Determinants that are added to the list should be added in order.
+            IF(.not.tNoDomSpinCoup) THEN 
+                WRITE(6,*) 'Also including determinants that are spin coupled to those in the list of dominant dets.'
+                CurriNoDominantDets=iNoDominantDets
+                ! The number of DominantDets before including spin coupled ones.
+                do j=1,CurriNoDominantDets
+                    ! Add the sign from this determinant to the Norm Deficiency calc - this will be in trunc.
+                    ! Decode the current determinant
+                    CALL DecodeBitDet(DetCurr,AllExcDets(0:NIfD,j),NEl,NIfD)
+!                    WRITE(6,*) 'DetCurrBit',AllExcDets(:,j)
+!                    WRITE(6,*) 'DetCurr',DetCurr(:)
+
+                    ! Need to find overall spin of DetCurr
+                    SpinTot=0.D0
+                    do i=1,NEl
+                        SpinTot=SpinTot+G1(DetCurr(i))%Ms
+                    enddo
+                    IF(SpinTot.ne.(LMS/2)) THEN
+                        WRITE(6,*) 'SpinTot',SpinTot
+                        WRITE(6,*) 'LMS',LMS
+                        CALL FLUSH(6)
+                        CALL Stop_All(this_routine,'Error, the summed Ms values of each electon does not equal LMS/2.')
+                    ENDIF
+
+                    ! Run through orbitals - creating a list of open shell electrons
+                    OpenShell(:,:)=0
+                    NoOpenShell=0
+                    UpSpin(:)=0
+                    NoUpSpin=0
+                    SpinCoupDet(:)=0
+                    do i=1,NEl
+                        ! For an electron of the current det, find the spatial orbital.
+!                        CALL GTID(nBasisMax,DetCurr(i),ID1)
+                        ID1=CEILING(REAL(DetCurr(i))/2.0)
+                        ! Now run through all other orbitals finding out if the same spat orb is occupied.
+                        do k=1,NEl
+                            IF(k.eq.i) CYCLE 
+                            tDoubOcc=.false.
+!                            CALL GTID(nBasisMax,DetCurr(k),ID2)
+                            ID2=CEILING(REAL(DetCurr(k))/2.0)
+                            IF(ID2.eq.ID1) THEN
+                                ! doubly occupied orbital, these will be the same in the spin coupled det.
+                                SpinCoupDet(i)=DetCurr(i)
+                                SpinCoupDet(k)=DetCurr(k)
+                                tDoubOcc=.true.
+                                EXIT
+                            ENDIF
+                        enddo
+                        IF(.not.tDoubOcc) THEN
+                            ! Singly occupied orbitals, put these in the openshell array.
+                            ! OpenShell(1,:) - the spatial orbital 
+                            ! OpenShell(2,:) - the electron number
+                            NoOpenShell=NoOpenShell+1
+                            OpenShell(1,NoOpenShell)=ID1
+                            OpenShell(2,NoOpenShell)=i
+                            IF(mod(DetCurr(i),2).eq.0) NoUpSpin=NoUpSpin+1
+!                            IF(G1(DetCurr(i))%Ms.gt.0) NoUpSpin=NoUpSpin+1
+                        ENDIF
+                    enddo
+!                    WRITE(6,*) 'SpinCoup with just doub occ',SpinCoupDet(:)
+!                    WRITE(6,*) 'OpenShell(1,:) - spat orbs',OpenShell(1,:)
+!                    WRITE(6,*) 'OpenShell(2,:) - electron no.',OpenShell(2,:)
+
+                    CALL gennct(NoOpenShell,NoUpSpin,iComb)
+                    ! in the future, change this so that it doesn't print then read, but takes array straight away.
+
+                    OPEN(91,FILE='COMBINATIONS',Status='old')
+
+                    iRead=1
+                    do while(iRead.le.iComb) 
+                        READ(91,*) UpSpin(1:NoUpSpin)
+!                        WRITE(6,*) 'NoUpSpin',NoUpSpin
+!                        WRITE(6,*) 'UpSpin',UpSpin(1:NoUpSpin)
+
+                        do i=1,NoOpenShell
+                            ! Make all the open shell electrons beta, then overwrite the alpha spin.
+                            SpinCoupDet(OpenShell(2,i))=(OpenShell(1,i)*2)-1                    
+                        enddo
+
+                        do i=1,NoUpSpin
+                            SpinCoupDet(OpenShell(2,(UpSpin(i)+1)))=(OpenShell(1,(UpSpin(i)+1)))*2
+                        enddo
+
+                        ! Then have to turn SpinCoupDet into the bit string for binary searching...
+!                        WRITE(6,*) 'SpinCoup with beta and alpha',SpinCoupDet(:)
+
+                        CALL EncodeBitDet(SpinCoupDet(1:NEl),SpinCoupDetBit(0:NIfD),NEl,NIfD)
+!                        WRITE(6,*) 'SpinCoupDetBit',SpinCoupDetBit(:)
+
+                        ! First search through the list of dominant determinants.
+                        tSuccess=.false.
+                        CALL BinSearchDomParts(AllExcDets(0:NIfD,1:CurriNoDominantDets),SpinCoupDetBit(0:NIfD),1,CurriNoDominantDets,PartInd,tSuccess)
+                        IF(tSuccess) THEN
+                            ! Determinant found in the dominant list.
+                            iRead=iRead+1
+                        ELSE
+                            ! If not found in the original dominant determinant list then need to search through the determinants that have been added.
+                            IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
+                                CALL BinSearchDomParts(AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),SpinCoupDetBit(0:NIfD),(CurriNoDominantDets+1),&
+                                                    &iNoDominantDets,PartInd,tSuccess)
+                                IF((PartInd.le.CurriNoDominantDets).or.(PartInd.gt.iNoDominantDets)) CALL Stop_All(this_routine, '')                                                    
+                            ENDIF
+
+                            IF(tSuccess) THEN
+                                iRead=iRead+1
+                                ! If the determinant has already been added, don't need to do anything.
+                            ELSE
+
+                                ! If there are still determinants left in the rest of the list, search through these to check if the determinant is there (to get the sign).
+                                IF((AllNoExcDets-iNoDominantDets).gt.0) THEN
+                                    CALL BinSearchDomParts(AllExcDets(0:NIfD,(iNoDominantDets+1):AllNoExcDets),SpinCoupDetBit(0:NIfD),(iNoDominantDets+1),&
+                                                    &AllNoExcDets,PartInd,tSuccess)
+                                ENDIF
+                                IF(tSuccess) THEN
+                                    ! Determinant found in the rest of the list, put it in dom dets along with its sign.
+                                    ! Need to insert the determinant in the correct position, so that these added determinants stay ordered.
+                                    ! SearchGen will give back ipos so that the determinant we are inserting is < ipos-1 and ge ipos.
+                                    ! I.e this determinant goes in ipos and everything else is moved up 1.
+                                    IF((iNoDominantDets-CurriNoDominantDets).gt.0) THEN
+                                        CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
+                                                    &SpinCoupDetBit(0:NIfD),ipos,NIfD)
+                                    ELSE
+                                        ipos=0
+                                    ENDIF
+                                    ipos=ipos+CurriNoDominantDets
+!                                    CALL SearchGen(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),SpinCoupDetBit(0:NIfD),ipos,NIfD)
+                                    ! The position the determinant should go is ipos, if the current determinant in ipos is not equal to the SpinCoupDetBit,
+                                    ! then we want to insert this determinant here, move all the others up by one, put the determinant that is getting written
+                                    ! over at iNoDominantDets+1 in the position of the spincoupdetbit.
+                                    
+                                    TempSign=AllExcSign(iNoDominantDets+1) 
+                                    AllExcDets(0:NIfD,PartInd)=AllExcDets(0:NIfD,iNoDominantDets+1)
+
+                                    do i=iNoDominantDets,ipos,-1                                                    
+                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
+                                        AllExcSign(i+1)=AllExcSign(i)
+                                    enddo
+                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
+                                    AllExcSign(ipos)=AllExcSign(PartInd)
+                                    iRead=iRead+1
+                                    iNoDominantDets=iNoDominantDets+1
+                                    AllExcSign(PartInd)=TempSign
+                                ELSE
+                                    ! Determinant not in the list at all, add to added determinants (maintaining order) with a sign of 0.
+                                    CALL SearchGen((iNoDominantDets-CurriNoDominantDets),AllExcDets(0:NIfD,(CurriNoDominantDets+1):iNoDominantDets),&
+                                                    &SpinCoupDetBit(0:NIfD),ipos,NIfD)
+                                    ipos=ipos+CurriNoDominantDets
+                                    
+                                    AllExcDets(0:NIfD,AllNoExcDets+1)=AllExcDets(0:NIfD,iNoDominantDets+1)
+                                    AllExcSign(AllNoExcDets+1)=AllExcSign(iNoDominantDets+1)
+
+                                    do i=iNoDominantDets,ipos,-1                                                    
+                                        AllExcDets(0:NIfD,i+1)=AllExcDets(0:NIfD,i)                                                    
+                                        AllExcSign(i+1)=AllExcSign(i)
+                                    enddo
+
+                                    AllExcDets(0:NIfD,ipos)=SpinCoupDetBit(0:NIfD)
+                                    AllExcSign(ipos)=0
+                                    iRead=iRead+1
+                                    iNoDominantDets=iNoDominantDets+1
+                                    AllNoExcDets=AllNoExcDets+1
+                                ENDIF
+                            ENDIF
+                        ENDIF
+                        IF(iNoDominantDets.gt.(10*AllNoExcDets)) THEN
+                            do i=1,iNoDominantDets
+                                WRITE(6,*) AllExcDets(:,i),AllExcSign(i)
+                            enddo
+                            CALL FLUSH(6)
+                            CALL Stop_All(this_routine,'No spin coupled dets has reached larger than AllExcDets array can handle.')
+                        ENDIF
+                    enddo
+                    CLOSE(91)
+                    ! do that little bit for all spin coupled determinants and then for all determinants currently in the list.       
+!                    CALL FLUSH(6)
+!                    CALL Stop_All(this_routine,'cos I meant to.')
+                enddo
+            ENDIF
+            WRITE(6,*) 'By including spin coupling ',iNoDominantDets-CurriNoDominantDets,' more determinants are included.'
+
+! Run through all the determinants we are including in the truncated list (i.e. all those to go in the dominant dets list).            
+! Count up the squares of the populations to calculate the normalisation deficiency.
+            NormDefTrunc=0
+            do i=1,iNoDominantDets
+                NormDefTrunc=NormDefTrunc+(AllExcSign(i)**2)
+            enddo
+            NormDef=1.D0-(REAL(NormDefTrunc)/REAL(NormDefTot))
+            WRITE(6,*) 'The NORMALISATION DEFICIENCY of such a truncation is : ',NormDef
+
+ 
+! Now take the iNoDominantDets determinants and reorder them in terms of excitation level and then determinants.
+! SortExcitBitDets orders the determinants first by excitation level and then by determinant, taking the corresponding sign with them.        
+! We have just fed the first iNoDominantDets from the list ordered in terms of population.
+! Only this amount will be reordered by excitation level then determinant, and then we print out this many only.
+
+            CALL SortExcitBitDets(iNoDominantDets,AllExcDets(0:NIfD,1:iNoDominantDets),NIfD,AllExcSign(1:iNoDominantDets),iLutHF(0:NIfD),NEl)
+ 
+!            OPEN(40,file='DOMINANTDETSexclevelbit',status='unknown')
+!            WRITE(40,*) AllNoExcDets,' determinants with the right excitation level.'    
+!            do j=1,AllNoExcDets
+!                CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
+!                WRITE(40,*) AllExcDets(0:NIfD,j),AllExcSign(j),ExcitLevel
+!            enddo
+!            CLOSE(40)
+
+
+! Write the iGuideDets most populated determinants (in order of their bit strings) to a file.
+            OPEN(38,file='DOMINANTDETS',status='unknown')
+            WRITE(38,*) iNoDominantDets,' dominant determinants printed here.'    
+            WRITE(38,*) (MaxExcDom-MinExcDom+1),' excitation levels included.'
+            
+! Need to run through these ordered determinants, counting the number in each excitation level.            
+            j=1
+            do while (j.le.iNoDominantDets)
+                NoExcitLevel=0
+                i=j 
+                IF(ExcitLevel.ne.(CurrExcitLevel+1)) THEN
+                    do k=CurrExcitLevel+1,ExcitLevel-1
+                        WRITE(38,*) k,0
+                    enddo
+                ENDIF
+                CALL FindBitExcitLevel(AllExcDets(0:NIfD,i),iLutHF(0:NIfD),NIfD,CurrExcitLevel,MaxExcDom)
+                ExcitLevel=CurrExcitLevel
+                do while (ExcitLevel.eq.CurrExcitLevel)
+                    NoExcitLevel=NoExcitLevel+1
+                    j=j+1
+                    IF(j.gt.iNoDominantDets) EXIT
+                    CALL FindBitExcitLevel(AllExcDets(0:NIfD,j),iLutHF(0:NIfD),NIfD,ExcitLevel,MaxExcDom)
+                enddo
+                WRITE(38,*) CurrExcitLevel,NoExcitLevel
+            enddo
+            IF(CurrExcitLevel.ne.MaxExcDom) THEN
+                do i=CurrExcitLevel+1,MaxExcDom
+                    WRITE(38,*) i,0
+                enddo
+            ENDIF
+
+            do j=1,iNoDominantDets
+                WRITE(38,*) AllExcDets(0:NIfD,j),AllExcSign(j)
+            enddo
+            CLOSE(38)
+
+            DEALLOCATE(AllExcDets)
+            CALL LogMemDealloc(this_routine,AllExcDetsTag)
+            DEALLOCATE(AllExcSign)
+            CALL LogMemDealloc(this_routine,AllExcSignTag)
+
+        ENDIF
+
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+        DEALLOCATE(ExcDets)
+        CALL LogMemDealloc(this_routine,ExcDetsTag)
+        DEALLOCATE(ExcSign)
+        CALL LogMemDealloc(this_routine,ExcSignTag)
+
+    END SUBROUTINE PrintDominantDets 
+
+
+
+    subroutine gennct(n,t,icomb)
+       integer n,t
+       integer c(t+2)
+       integer j
+       integer icomb
+       icomb=0
+       open(90,file='COMBINATIONS',STATUS='UNKNOWN')
+!      WRITE(6,*) ' Writing combinations to file COMBINATIONS'
+       do j=1,t
+           c(j)=j-1
+       enddo
+       c(t+1)=n
+       c(t+2)=0
+20     continue
+!      visit c(t)
+       
+       icomb=icomb+1
+!      write(90,'(20i3)' ) (c(j)+1,j=1,t)
+       
+       write(90,'(20i3)' ) (c(j),j=1,t)
+       
+       do j=1,n
+           if(c(j+1).ne.(c(j)+1)) goto 30
+           c(j)=j-1
+       enddo
+30     continue
+       if(j.gt.t) then 
+!           write(6,*) ' Generated combinations:',ICOMB
+           CLOSE(90)
+           RETURN
+       endif
+       c(j)=c(j)+1
+       goto 20
+       
+   end subroutine gennct
+       
+
+
+   SUBROUTINE InitMinorDetsStar()
+! This routine simply sets up the arrays etc for the particles spawned into the determinant space that is not in the allowed list.
+! MinorStarDets etc are the particles remaining after annihilation, death etc, whereas MinorSpawnDets etc are the walkers newly
+! spawned in a particular iteration.
+        INTEGER :: ierr
+        CHARACTER(len=*), PARAMETER :: this_routine='InitMinorDetsStar'
+
+        ! The actual determinants.
+        ALLOCATE(MinorStarDets(0:NIfD,1:MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('MinorStarDets',(NIfD+1)*MaxWalkersPart,4,this_routine,MinorStarDetsTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarDets')
+        ALLOCATE(MinorSpawnDets(0:NIfD,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnDets',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnDetsTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnDets')
+        MinorSpawnDets(:,:)=0
+        ALLOCATE(MinorSpawnDets2(0:NIfD,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnDets2',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnDets2Tag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnDets2')
+
+
+        ! The sign (number of walkers) on each determinant.
+        ALLOCATE(MinorStarSign(1:MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('MinorStarSign',MaxWalkersPart,4,this_routine,MinorStarSignTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarSign')
+        ALLOCATE(MinorSpawnSign(0:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnSign',MaxSpawned+1,4,this_routine,MinorSpawnSignTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnSign')
+        ALLOCATE(MinorSpawnSign2(0:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnSign2',MaxSpawned+1,4,this_routine,MinorSpawnSign2Tag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnSign2')
+
+
+        ! The parent from which the walker was spawned.
+        ALLOCATE(MinorStarParent(0:NIfD,1:MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('MinorStarParent',(NIfD+1)*MaxWalkersPart,4,this_routine,MinorStarParentTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarParent')
+        ALLOCATE(MinorSpawnParent(0:NIfD,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnParent',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnParentTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnParent')
+        ALLOCATE(MinorSpawnParent2(0:NIfD,1:MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('MinorSpawnParent2',(NIfD+1)*MaxSpawned,4,this_routine,MinorSpawnParent2Tag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorSpawnParent2')
+
+
+        ! The energy of the "forbidden" determinant with a walker on it.
+        ALLOCATE(MinorStarHii(1:MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('MinorStarHii',MaxWalkersPart,8,this_routine,MinorStarHiiTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarHii')
+
+        ! The diagonal element connecting the "forbidden" determinant to its allowed parent.
+        ALLOCATE(MinorStarHij(1:MaxWalkersPart),stat=ierr)
+        CALL LogMemAlloc('MinorStarHij',MaxWalkersPart,8,this_routine,MinorStarHijTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to MinorStarHij')
+
+        ALLOCATE(HashArray(MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('HashArray',MaxSpawned,8,this_routine,HashArrayTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to HashArry')
+        HashArray(:)=0
+        ALLOCATE(Hash2Array(MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('Hash2Array',MaxSpawned,8,this_routine,Hash2ArrayTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to Hash2Arry')
+        Hash2Array(:)=0
+ 
+        ALLOCATE(IndexTable(MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('IndexTable',MaxSpawned,4,this_routine,IndexTableTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to IndexTable')
+        IndexTable(:)=0
+        ALLOCATE(Index2Table(MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('Index2Table',MaxSpawned,4,this_routine,Index2TableTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to Index2Table')
+        Index2Table(:)=0
+
+        ALLOCATE(ProcessVec(MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('ProcessVec',MaxSpawned,4,this_routine,ProcessVecTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to ProcessVec')
+        ProcessVec(:)=0
+        ALLOCATE(Process2Vec(MaxSpawned),stat=ierr)
+        CALL LogMemAlloc('Process2Vec',MaxSpawned,4,this_routine,Process2VecTag,ierr)
+        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating memory to Process2Vec')
+        Process2Vec(:)=0
+
+
+    END SUBROUTINE InitMinorDetsStar
+
+
+
+
+
+!This routine will write out the average wavevector from the spawning run up until now.
+    SUBROUTINE WriteHistogram()
+        use Determinants , only : GetHElement3
+        use SystemData , only : BasisFN
+        INTEGER :: i,j,bits,iLut(0:NIfD),error,IterRead
+        TYPE(BasisFN) :: ISym
+        REAL*8 :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts
+        TYPE(HElement) :: HEL
+        CHARACTER(len=22) :: abstr,abstr2
+        LOGICAL :: exists
+
+!This will open a file called SpawnHist-"Iter" on unit number 17.
+        abstr=''
+        write(abstr,'(I12)') Iter
+        abstr='SpawnHist-'//adjustl(abstr)
+        IF(iProcIndex.eq.0) THEN
+            WRITE(6,*) "Writing out the average wavevector up to iteration number: ", Iter
+            CALL FLUSH(6)
+        ENDIF
+
+!        IF(nBasis/32.ne.0) THEN
+!            CALL Stop_All("WriteHistogram","System is too large to histogram as it stands...")
+!        ENDIF
+
+        IF(iProcIndex.eq.0) THEN
+            AllHistogram(:)=0.D0
+            AllInstHist(:)=0.D0
+            AllAvAnnihil(:)=0.D0
+            AllInstAnnihil(:)=0.D0
+        ENDIF
+
+        CALL MPI_Reduce(Histogram,AllHistogram,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(InstHist,AllInstHist,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(InstAnnihil,AllInstAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Reduce(AvAnnihil,AllAvAnnihil,Det,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        
+        IF(iProcIndex.eq.0) THEN
+
+            IF(.not.associated(NMRKS)) THEN
+                CALL Stop_All("WriteHistogram","A Full Diagonalization is required in the same calculation before histogramming can occur.")
+            ENDIF
+
+            norm=0.D0
+            norm1=0.D0
+            norm2=0.D0
+            norm3=0.D0
+            do i=1,Det
+                norm=norm+AllHistogram(i)**2
+                norm1=norm1+AllInstHist(i)**2
+                norm2=norm2+AllInstAnnihil(i)**2
+                norm3=norm3+AllAvAnnihil(i)**2
+            enddo
+            norm=SQRT(norm)
+            norm1=SQRT(norm1)
+            norm2=SQRT(norm2)
+            norm3=SQRT(norm3)
+!            WRITE(6,*) "NORM",norm
+            do i=1,Det
+                AllHistogram(i)=AllHistogram(i)/norm
+                AllInstHist(i)=AllInstHist(i)/norm1
+                IF(norm2.ne.0.D0) THEN
+                    AllInstAnnihil(i)=AllInstAnnihil(i)/norm2
+                ENDIF
+                IF(norm3.ne.0.D0) THEN
+                    AllAvAnnihil(i)=AllAvAnnihil(i)/norm3
+                ENDIF
+            enddo
+            
+            OPEN(17,FILE=abstr,STATUS='UNKNOWN')
+
+            abstr=''
+            write(abstr,'(I12)') Iter-iWriteHistEvery
+            abstr='Energies-'//adjustl(abstr)
+
+            abstr2=''
+            write(abstr2,'(I12)') Iter
+            abstr2='Energies-'//adjustl(abstr2)
+            OPEN(29,FILE=abstr2,STATUS='NEW')
+
+            INQUIRE(FILE=abstr,EXIST=exists)
+            IF(exists) THEN
+                OPEN(28,FILE=abstr,STATUS='OLD',POSITION='REWIND',ACTION='READ')
+                do while(.true.)
+                    READ(28,"(I13,3G25.16)",END=99) IterRead,ShiftRead,AllERead,NumParts
+                    WRITE(29,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
+                enddo
+99              CONTINUE
+                IF(AllHFCyc.eq.0) THEN
+                    WRITE(19,"(I13,3G25.16)") Iter,DiagSft,AllERead,AllTotPartsOld
+                ELSE
+                    WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
+                ENDIF
+                CLOSE(29)
+                CLOSE(28)
+
+            ELSE
+                OPEN(29,FILE=abstr2,STATUS='UNKNOWN')
+                WRITE(29,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,AllTotPartsOld
+                CLOSE(29)
+            ENDIF
+
+
+            norm=0.D0
+            norm1=0.D0
+            do i=1,Det
+                norm=norm+(AllHistogram(i))**2
+                norm1=norm1+(AllAvAnnihil(i))**2
+                WRITE(17,"(I13,6G25.16)") i,AllHistogram(i),norm,AllInstHist(i),AllInstAnnihil(i),AllAvAnnihil(i),norm1
+            enddo
+
+!            do i=1,Maxdet
+!                bits=0
+!                do j=0,nbasis-1
+!                    IF(BTEST(i,j)) THEN
+!                        Bits=Bits+1
+!                    ENDIF
+!                enddo
+!                IF(Bits.eq.NEl) THEN
+!
+!                    do j=1,ndet
+!                        CALL EncodeBitDet(NMRKS(:,j),iLut,NEl,nBasis/32)
+!                        IF(iLut(0).eq.i) THEN
+!                            CALL GETSYM(NMRKS(1,j),NEL,G1,NBASISMAX,ISYM)
+!                            IF(ISym%Sym%S.eq.0) THEN
+!                                Det=Det+1
+!                                WRITE(17,"(3I12)",advance='no') Det,iLut(0)
+!                                HEL=GetHElement3(NMRKS(:,j),NMRKS(:,j),0)
+!                                norm=norm+(AllHistogram(i))**2
+!                                norm1=norm1+(AllInstHist(i))**2
+!                                WRITE(17,"(5G25.16)") REAL(HEL%v,8),AllHistogram(i),norm,AllInstHist(i),norm1
+!                            ENDIF
+!                            EXIT
+!                        ENDIF
+!                    ENDDO
+!                ENDIF
+!
+!            ENDDO
+            CLOSE(17)
+        ENDIF
+        InstHist(:)=0.D0
+        InstAnnihil(:)=0.D0
+
+    END SUBROUTINE WriteHistogram
+
 
 !This routine simply reduces the histogrammed determinants, and prints out their population for the given iteration
     SUBROUTINE WriteHistogrammedDets()

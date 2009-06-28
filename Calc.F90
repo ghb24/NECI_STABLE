@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          tDirectAnnihil=.false.
           tMultipleDetsSpawn=.false.
           iDetGroup=2
           tExpandSpace=.false.
