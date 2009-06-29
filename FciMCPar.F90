@@ -402,7 +402,7 @@ MODULE FciMCParMod
         ParticleWeight=1    !This will always be the same unless we are 'spawning as determinants'
 
         IF(tHistSpawn) HistMinInd(1:NEl)=FCIDetIndex(1:NEl)    !This is for the binary search when histogramming
-
+        
         do j=1,TotWalkers
 !j runs through all current walkers
 !If we are rotoannihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
@@ -621,9 +621,9 @@ MODULE FciMCParMod
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
 
-!                        WRITE(6,*) "Spawning particle to:",nJ(:)
-!                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
-!                        WRITE(6,*) "Excitlevel:", ExcitLevel
+!                    WRITE(6,*) "Spawning particle to:",nJ(:)
+!                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+!                    WRITE(6,*) "Excitlevel:", ExcitLevel
                     NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
                     IF(IC.eq.1) THEN
                         SpawnFromSing=SpawnFromSing+abs(Child)
@@ -673,7 +673,7 @@ MODULE FciMCParMod
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
                         Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
-!                        WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child
+!                        WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
 !                        CALL FLUSH(6)
                         SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
                         SpawnedSign(ValidSpawnedList(Proc))=Child
@@ -991,7 +991,9 @@ MODULE FciMCParMod
         
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
-
+!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get into annihilation"
+!        CALL FLUSH(6)
 
         IF(tDirectAnnihil) THEN
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
@@ -1128,6 +1130,9 @@ MODULE FciMCParMod
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
         CALL SendProcNewParts(MaxIndex)
 
+!        WRITE(6,*) "Sent particles"
+!        CALL FLUSH(6)
+
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
         IF(associated(SpawnedParts2,target=SpawnVec2)) THEN
             SpawnedParts2 => SpawnVec
@@ -1145,14 +1150,25 @@ MODULE FciMCParMod
 !MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, and the particles will end up in the spawnedSign/SpawnedParts lists.
         CALL CompressSpawnedList(MaxIndex)
 
+!        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
+!        CALL FLUSH(6)
+
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
+
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew)
+
+!            WRITE(6,*) "Annihilation finished",MaxIndex,TotWalkersNew
+!            CALL FLUSH(6)
 
 !Put the surviving particles in the main list, maintaining order of the main list.
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), and remove the annihilated particles from the main list.
         CALL set_timer(Sort_Time,30)
         CALL InsertRemoveParts(MaxIndex,TotWalkersNew)
+
+!            WRITE(6,*) "Surviving particles merged"
+!            CALL FLUSH(6)
+
         CALL halt_timer(Sort_Time)
 
     END SUBROUTINE DirectAnnihilation
@@ -1242,7 +1258,8 @@ MODULE FciMCParMod
         do i=0,NIfD
             Summ=(1099511628211*Summ)+(i+1)*iLut(i)
         enddo
-        DetermineDetProc=mod(Summ,nProcessors)
+        DetermineDetProc=abs(mod(Summ,nProcessors))
+!        WRITE(6,*) DetermineDetProc
 
     END FUNCTION DetermineDetProc
 
@@ -2703,8 +2720,12 @@ MODULE FciMCParMod
 !The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
+        USE Determinants , only : GetHElement3
         INTEGER :: TotWalkersNew,ValidSpawned
-        INTEGER :: i,DetsMerged
+        INTEGER :: i,DetsMerged,nJ(NEl)
+        REAL*8 :: HDiag
+        TYPE(HElement) :: HDiagTemp
+        LOGICAL :: DetBitEQ
 
 !        IF(Iter.eq.56) THEN
 !            WRITE(6,*) "Merging lists, ",TotWalkersNew,Iter
@@ -2721,6 +2742,7 @@ MODULE FciMCParMod
         
 !If we want to do this while only keeping the data in one array, the first thing which is needed, is for the annihilated
 !determinants to be removed from the main array. These are denoted by zeros in the sign array for it.
+!Surely we only need to perform this loop if the number of annihilated particles > 0?
 
         TotParts=0
         DetsMerged=0
@@ -2779,9 +2801,38 @@ MODULE FciMCParMod
        
         IF(tRegenDiagHEls) THEN
 
-            CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NIfD)
+            IF(TotWalkersNew.eq.0) THEN
+!Merging algorithm will not work with no determinants in the main list.
+                TotWalkersNew=ValidSpawned
+                do i=1,ValidSpawned
+                    CurrentDets(:,i)=SpawnedParts(:,i)
+                    CurrentSign(i)=SpawnedSign(i)
+                enddo
+            ELSE
+                CALL MergeLists(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NIfD)
+            ENDIF
         ELSE
-            CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NIfD)
+            IF(TotWalkersNew.eq.0) THEN
+!Merging algorithm will not work with no determinants in the main list.
+                TotWalkersNew=ValidSpawned
+                do i=1,ValidSpawned
+                    CurrentDets(:,i)=SpawnedParts(:,i)
+                    CurrentSign(i)=SpawnedSign(i)
+!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
+                    IF(DetBitEQ(CurrentDets(0:NIfD,i),iLutHF,NIfD)) THEN
+!We know we are at HF - HDiag=0
+                        HDiag=0.D0
+                    ELSE
+                        CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,i),NEl,NIfD)
+                        HDiagTemp=GetHElement3(nJ,nJ,0)
+                        HDiag=(REAL(HDiagTemp%v,8))-Hii
+                    ENDIF
+                    CurrentH(i)=HDiag
+                enddo
+            ELSE
+                CALL MergeListswH(TotWalkersNew,MaxWalkersPart,ValidSpawned,SpawnedParts(0:NIfD,1:ValidSpawned),SpawnedSign(1:ValidSpawned),NIfD)
+            ENDIF
+
         ENDIF
         TotWalkers=TotWalkersNew
 
