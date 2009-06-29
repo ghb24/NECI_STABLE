@@ -9782,7 +9782,7 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         DEALLOCATE(WalkVecSign)
         CALL LogMemDealloc(this_routine,WalkVecSignTag)
-        IF(.not.tRotoAnnihil) THEN
+        IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
             DEALLOCATE(WalkVec2Dets)
             CALL LogMemDealloc(this_routine,WalkVec2DetsTag)
             DEALLOCATE(WalkVec2Sign)
@@ -9791,7 +9791,7 @@ MODULE FciMCParMod
         IF(.not.tRegenDiagHEls) THEN
             DEALLOCATE(WalkVecH)
             CALL LogMemDealloc(this_routine,WalkVecHTag)
-            IF(.not.tRotoAnnihil) THEN
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
                 DEALLOCATE(WalkVec2H)
                 CALL LogMemDealloc(this_routine,WalkVec2HTag)
             ENDIF
