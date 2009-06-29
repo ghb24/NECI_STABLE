@@ -118,12 +118,13 @@ MODULE FciMCParMod
     REAL*8 :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
     REAL*8 :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
     REAL*8 :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
+    REAL*8 :: DetsNorm          !This is the sum of the square of the particles on each determinant. It will be meaningless unless in serial, or using rotoannihil, or better - direct annihil.
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate
 !    REAL*8 :: AllMeanExcitLevel
 !    INTEGER :: AllMinExcitLevel
-    REAL(KIND=r2) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld
+    REAL(KIND=r2) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld,AllDetsNorm
 !    INTEGER :: AllMaxExcitLevel
     INTEGER(KIND=i2) :: AllSumWalkersCyc
     INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs,AllLocalAnn
@@ -385,6 +386,7 @@ MODULE FciMCParMod
 !Reset number at HF and doubles
         NoatHF=0
         NoatDoubs=0
+        DetsNorm=0.D0
         iPartBloom=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
         IF(tDirectAnnihil) THEN
@@ -4871,6 +4873,7 @@ MODULE FciMCParMod
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
+        DetsNorm=DetsNorm+REAL((WSign**2),r2)
         IF(tHistSpawn) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
@@ -5050,7 +5053,7 @@ MODULE FciMCParMod
         INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
-        REAL*8 :: inpairreal(3),outpairreal(3)
+        REAL*8 :: inpairreal(4),outpairreal(4)
         LOGICAL :: TBalanceNodesTemp
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
@@ -5245,10 +5248,12 @@ MODULE FciMCParMod
         inpairreal(1)=ENumCyc
         inpairreal(2)=TempSumNoatHF
         inpairreal(3)=SumENum
-        CALL MPI_Reduce(inpairreal,outpairreal,3,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        inpairreal(4)=DetsNorm
+        CALL MPI_Reduce(inpairreal,outpairreal,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         AllENumCyc=outpairreal(1)
         AllSumNoatHF=outpairreal(2)
         AllSumENum=outpairreal(3)
+        AllDetsNorm=outpairreal(4)
 
 
 !To find minimum and maximum excitation levels, search for them using MPI_Reduce
@@ -5319,6 +5324,7 @@ MODULE FciMCParMod
         SumWalkersCyc=0
 !        AvSign=0.D0        !Rezero this quantity - <s> is now a average over the update cycle
 !        AvSignHFD=0.D0     !This is the average sign over the HF and doubles
+        DetsNorm=0.D0
         Annihilated=0
         MinorAnnihilated=0
         LocalAnn=0
@@ -5338,6 +5344,7 @@ MODULE FciMCParMod
 !Also reinitialise the global variables - should not necessarily need to do this...
 !        AllHFCyc=0.D0
 !        AllENumCyc=0.D0
+        AllDetsNorm=0.D0
         AllSumENum=0.D0
         AllSumNoatHF=0.D0
         AllTotWalkersOld=AllTotWalkers
@@ -5532,7 +5539,7 @@ MODULE FciMCParMod
         use Determinants , only : GetH0Element3
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
-        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
+        INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
@@ -5754,6 +5761,7 @@ MODULE FciMCParMod
         SumNoatHF=0
         NoatHF=0
         NoatDoubs=0
+        DetsNorm=0.D0
 !        MeanExcitLevel=0.D0
 !        MinExcitLevel=NEl+10
 !        MaxExcitLevel=0
@@ -5791,6 +5799,7 @@ MODULE FciMCParMod
         AllMinorAnnihilated=0
         AllENumCyc=0.D0
         AllHFCyc=0.D0
+        AllDetsNorm=0.D0
 
         IF(tHistSpawn) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -5910,6 +5919,12 @@ MODULE FciMCParMod
             WRITE(6,*) "This is equivalent to running seperate calculations."
         ELSEIF(tRotoAnnihil) THEN
             WRITE(6,*) "RotoAnnihilation in use...!"
+        ELSEIF(tDirectAnnihil) THEN
+            WRITE(6,*) "Direct Annihilation in use...Explicit load-balancing disabled."
+            IF(.not.TStartSinglePart) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Direct annihilation must start with a single particle as it is at the moment...")
+            ENDIF
+            ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
         ENDIF
         IF(TReadPops) THEN
 !List of things that readpops can't work with...
@@ -6109,7 +6124,7 @@ MODULE FciMCParMod
             MaxWalkersPart=NINT(MemoryFacPart*InitWalkers)
             WRITE(6,"(A,F14.5)") "Memory Factor for walkers is: ",MemoryFacPart
             WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
                 WRITE(6,"(A,F14.5)") "Memory Factor for arrays used for spawning is: ",MemoryFacSpawn
                 WRITE(6,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
@@ -6125,7 +6140,7 @@ MODULE FciMCParMod
             ALLOCATE(WalkVecDets(0:NIfD,MaxWalkersPart),stat=ierr)
             CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NIfD,1:MaxWalkersPart)=0
-            IF(.not.tRotoAnnihil) THEN
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
 !Rotoannihilation only used a single main array. Spawned particles are put into the spawned arrays.
                 ALLOCATE(WalkVec2Dets(0:NIfD,MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVec2Dets',MaxWalkersPart*(NIfD+1),4,this_routine,WalkVec2DetsTag,ierr)
@@ -6136,20 +6151,20 @@ MODULE FciMCParMod
                 ALLOCATE(WalkVecH(MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
                 WalkVecH(:)=0.d0
-                IF(.not.tRotoAnnihil) THEN
+                IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
                     ALLOCATE(WalkVec2H(MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVec2H',MaxWalkersPart,8,this_routine,WalkVec2HTag,ierr)
                     WalkVec2H(:)=0.d0
                 ENDIF
             ELSE
-                IF(tRotoAnnihil) THEN
+                IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                     WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*8,r2)/1048576.D0," Mb/Processor"
                 ELSE
                     WRITE(6,"(A,F14.6,A)") "Diagonal H-Elements will not be stored. This will *save* ",REAL(MaxWalkersPart*16,r2)/1048576.D0," Mb/Processor"
                 ENDIF
             ENDIF
             
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 ALLOCATE(WalkVecSign(MaxWalkersPart),stat=ierr)
                 CALL LogMemAlloc('WalkVecSign',MaxWalkersPart,4,this_routine,WalkVecSignTag,ierr)
 !                ALLOCATE(WalkVec2Sign(MaxWalkersPart),stat=ierr)
@@ -6165,7 +6180,7 @@ MODULE FciMCParMod
             ENDIF
 
             IF(tRegenDiagHEls) THEN
-                IF(tRotoAnnihil) THEN
+                IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                     MemoryAlloc=MemoryAlloc-(MaxWalkersPart*8)
                 ELSE
                     MemoryAlloc=MemoryAlloc-(MaxWalkersPart*16)
@@ -6173,9 +6188,9 @@ MODULE FciMCParMod
             ENDIF
             
             WalkVecSign(:)=0
-            IF(.not.tRotoAnnihil) WalkVec2Sign(:)=0
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) WalkVec2Sign(:)=0
 
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
 
                 WRITE(6,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned," particles to be spawned in any one iteration."
                 ALLOCATE(SpawnVec(0:NIfD,MaxSpawned),stat=ierr)
@@ -6228,20 +6243,29 @@ MODULE FciMCParMod
             CurrentSign=>WalkVecSign
             IF(.not.tRegenDiagHEls) THEN
                 CurrentH=>WalkVecH
-                IF(.not.tRotoAnnihil) NewH=>WalkVec2H
+                IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) NewH=>WalkVec2H
             ENDIF
-            IF(.not.tRotoAnnihil) THEN
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) THEN
                 NewDets=>WalkVec2Dets
                 NewSign=>WalkVec2Sign
             ENDIF
 
             IF(TStartSinglePart) THEN
-                CurrentDets(:,1)=iLutHF(:)
-                CurrentSign(1)=1
-                IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
-!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
-                    HashArray(1)=HFHash
+                IF(tDirectAnnihil) THEN
+                    Proc=DetermineDetProc(iLutHF)
+                    IF(iProcIndex.eq.Proc) THEN
+                        CurrentDets(:,1)=iLutHF(:)
+                        CurrentSign(1)=1
+                        IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+                    ENDIF
+                ELSE
+                    CurrentDets(:,1)=iLutHF(:)
+                    CurrentSign(1)=1
+                    IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+!                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+                    IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) THEN
+                        HashArray(1)=HFHash
+                    ENDIF
                 ENDIF
             ELSE
 
@@ -6264,7 +6288,7 @@ MODULE FciMCParMod
             ENDIF
 
             WRITE(6,"(A,F14.6,A)") "Initial memory (without excitgens + temp arrays) consists of : ",REAL(MemoryAlloc,r2)/1048576.D0," Mb/Processor"
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 WRITE(6,*) "Only one array of memory to store main particle list allocated..."
             ENDIF
             WRITE(6,*) "Initial memory allocation sucessful..."
@@ -6315,7 +6339,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,"(A)") "Excitation generators will not be stored, but regenerated each time they are needed..."
             ENDIF
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
                 WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxSpawned*9*4,r2)/1048576.D0," Mb/Processor"
             ELSE
                 WRITE(6,"(A,F14.6,A)") "Temp Arrays for annihilation cannot be more than : ",REAL(MaxWalkersPart*12,r2)/1048576.D0," Mb/Processor"
@@ -6323,16 +6347,38 @@ MODULE FciMCParMod
             CALL FLUSH(6)
         
             IF(TStartSinglePart) THEN
-                TotWalkers=1
-                TotWalkersOld=1
-                TotParts=1
-                TotPartsOld=1
+                IF(tDirectAnnihil) THEN
+                    Proc=DetermineDetProc(iLutHF)
+                    IF(iProcIndex.eq.Proc) THEN
+                        TotWalkers=1
+                        TotWalkersOld=1
+                        TotParts=1
+                        TotPartsOld=1
+                    ELSE
+                        TotWalkers=0
+                        TotWalkersOld=0
+                        TotParts=0
+                        TotPartsOld=0
+                    ENDIF
 !Initialise global variables for calculation on the root node
-                IF(iProcIndex.eq.root) THEN
-                    AllTotWalkers=REAL(nProcessors,r2)
-                    AllTotWalkersOld=REAL(nProcessors,r2)
-                    AllTotParts=REAL(nProcessors,r2)
-                    AllTotPartsOld=REAL(nProcessors,r2)
+                    IF(iProcIndex.eq.root) THEN
+                        AllTotWalkers=1.D0
+                        AllTotWalkersOld=1.D0
+                        AllTotParts=1.D0
+                        AllTotPartsOld=1.D0
+                    ENDIF
+                ELSE
+                    TotWalkers=1
+                    TotWalkersOld=1
+                    TotParts=1
+                    TotPartsOld=1
+!Initialise global variables for calculation on the root node
+                    IF(iProcIndex.eq.root) THEN
+                        AllTotWalkers=REAL(nProcessors,r2)
+                        AllTotWalkersOld=REAL(nProcessors,r2)
+                        AllTotParts=REAL(nProcessors,r2)
+                        AllTotPartsOld=REAL(nProcessors,r2)
+                    ENDIF
                 ENDIF
             ELSE
                 IF(.not.tRotoAnnihil) THEN
@@ -6367,10 +6413,10 @@ MODULE FciMCParMod
 
         IF(tFindGuide) THEN
             WRITE(6,*) 'Finding the guiding function from approximately ',iGuideDets,' most populated determinants'
-            IF(.not.tRotoAnnihil) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
         ELSEIF(tUseGuide) THEN
             WRITE(6,*) 'Reading in the guiding function and scaling the number of walkers to ',iInitGuideParts
-            IF(.not.tRotoAnnihil) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
+            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
             IF(.not.tStartSinglePart) CALL Stop_All("InitFCIMCCalcPar","Must use single particle start when reading in the guiding function")
 
             ! Check the guiding function file exists, if so, set up the guiding function arrays based on this file.
@@ -6421,7 +6467,7 @@ MODULE FciMCParMod
 
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    DetsNorm"
             
             ENDIF
         ENDIF
@@ -8983,12 +9029,14 @@ MODULE FciMCParMod
         AllSumNoatHF=0.D0
         AllNoatHF=0
         AllNoatDoubs=0
+        AllDetsNorm=0.D0
         AllHFCyc=0.D0
         AllENumCyc=0.D0
         ProjectionE=0.D0
         SumENum=0.D0
         NoatHF=0
         NoatDoubs=0
+        DetsNorm=0.D0
         HFCyc=0
         HFPopCyc=0
         ENumCyc=0.D0
@@ -9797,8 +9845,8 @@ MODULE FciMCParMod
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 !                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn)
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5,2G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),SQRT(AllDetsNorm)
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
             ENDIF
