@@ -671,10 +671,14 @@ MODULE FciMCParMod
                     ELSEIF(tDirectAnnihil) THEN
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
+
                         Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
+!                        WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child
+!                        CALL FLUSH(6)
                         SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
                         SpawnedSign(ValidSpawnedList(Proc))=Child
                         ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
+
                     ELSE
 !Calculate diagonal ham element
 
@@ -988,6 +992,7 @@ MODULE FciMCParMod
         CALL halt_timer(Walker_Time)
         CALL set_timer(Annihil_Time,30)
 
+
         IF(tDirectAnnihil) THEN
 !This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
             CALL DirectAnnihilation(TotWalkersNew)
@@ -1158,7 +1163,10 @@ MODULE FciMCParMod
         INTEGER :: i,sendcounts(nProcessors),disps(nProcessors),recvcounts(nProcessors),recvdisps(nProcessors),error
         INTEGER :: MaxIndex,MaxSendIndex
 
+!        WRITE(6,*) "ValidSpawnedList ",ValidSpawnedList(:)
+
         Gap=REAL(MaxSpawned)/REAL(nProcessors)
+!        WRITE(6,*) "Gap: ",Gap
         do i=0,nProcessors-1
             sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
             disps(i+1)=NINT(Gap*i)
@@ -1182,19 +1190,45 @@ MODULE FciMCParMod
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
             CALL Warning("SendProcNewParts","Maximum index of newly-spawned array is close to maximum length after annihilation send. Increase MemoryFacSpawn")
         ENDIF
+
+!        WRITE(6,*) "sendcounts: ",sendcounts(:)
+!        WRITE(6,*) "disps: ",disps(:)
+!        WRITE(6,*) "recvcounts: ", recvcounts(:)
+!        WRITE(6,*) "recvdisps: ",recvdisps(:)
+!        WRITE(6,*) "Sent Sign: ", NINT(Gap),sendcounts(2)
+!        do i=NINT(Gap),NINT(Gap)+sendcounts(2)
+!            WRITE(6,*) i,"***",SpawnedSign(i)
+!        enddo
         
 !This is the main send of newly-spawned particles and signs to each determinants correct processor.
         CALL MPI_AlltoAllv(SpawnedSign(1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedSign2(1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+        
+!        WRITE(6,*) MaxIndex, "Recieved signs: "
+!        do i=1,MaxIndex
+!            WRITE(6,*) SpawnedSign2(i)
+!        enddo
 
 !Update the number of integers we need to send.
         do i=1,nProcessors
             sendcounts(i)=sendcounts(i)*(NIfD+1)
-            disps=disps(i)*(NIfD+1)
+            disps(i)=disps(i)*(NIfD+1)
             recvcounts(i)=recvcounts(i)*(NIfD+1)
             recvdisps(i)=recvdisps(i)*(NIfD+1)
         enddo
 
+!        WRITE(6,*) "Sent Particles: ", NINT(Gap),sendcounts(2)
+!        do i=NINT(Gap)+1,NINT(Gap)+sendcounts(2)
+!            WRITE(6,*) i,"***",SpawnedParts(:,i)
+!        enddo
+
         CALL MPI_AlltoAllv(SpawnedParts(0:NIfD,1:MaxSendIndex),sendcounts,disps,MPI_INTEGER,SpawnedParts2(0:NIfD,1:MaxIndex),recvcounts,recvdisps,MPI_INTEGER,MPI_COMM_WORLD,error)
+
+!        WRITE(6,*) MaxIndex, "Recieved particles: "
+!        do i=1,MaxSpawned
+!            IF(SpawnedParts2(1,i).ne.0) THEN
+!                WRITE(6,*) SpawnedParts2(:,i)
+!            ENDIF
+!        enddo
 
     END SUBROUTINE SendProcNewParts
     
