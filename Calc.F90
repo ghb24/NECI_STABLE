@@ -885,6 +885,10 @@ MODULE Calc
 !MEMORYFACANNIHIL is no longer needed (MEMORYFACPART still is), and you will need to specift a MEMORYFACSPAWN since newly spawned walkers are held on a different array each iteration.
 !Since the newly-spawned particles are annihilated initially among themselves, you can still specift ANNIHILATEATRANGE as a keyword, which will change things.
                 tRotoAnnihil=.true.
+            case("DIRECTANNIHILATION")
+!A parallel FCIMC option which is a different annihilation algorithm. It has elements in common with both rotoannihilation and the hashing annihilation, but hopefully will be quicker and
+!better scaling with number of processors. It has no explicit loop over processors.
+                tDirectAnnihil=.true.
             case("LOCALANNIHIL")
 !A parallel FCIMC experimental option. This will attempt to compensate for undersampled systems, by including extra annihilation for walkers which are the sole occupier of determiants
 !This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.
