@@ -740,7 +740,7 @@ MODULE FciMCParMod
             NoDied=NoDied+iDie          !Update death counter
 
 !iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
-            IF(tRotoAnnihil) THEN
+            IF(tRotoAnnihil.or.tDirectAnnihil) THEN
 !We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
 !entry, but VecSlot remains where it is, meaning that j should never be less that VecSlot
 
@@ -816,7 +816,7 @@ MODULE FciMCParMod
 !                        ENDIF
                         IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(j),NewExcits(VecSlot),.true.)
                         IF(.not.tRegenDiagHEls) NewH(VecSlot)=HDiagCurr
-                        IF((.not.TNoAnnihil).and.(.not.tRotoAnnihil)) Hash2Array(VecSlot)=HashArray(j)
+                        IF(.not.TNoAnnihil) Hash2Array(VecSlot)=HashArray(j)
 !                        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) Hash2Array(VecSlot)=HashArray(j)
                         VecSlot=VecSlot+1
                     enddo
@@ -977,6 +977,11 @@ MODULE FciMCParMod
             IF(rat.gt.0.9) THEN
                 WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                 CALL FLUSH(6)
+            ENDIF
+        ELSEIF(tDirectAnnihil) THEN
+            rat=((ValidSpawnedList(nProcessors-1)-1.D0)/(MaxSpawned+0.D0))
+            IF(rat.gt.0.95) THEN
+                WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
             ENDIF
         ENDIF
         
@@ -1155,7 +1160,7 @@ MODULE FciMCParMod
 
         Gap=REAL(MaxSpawned)/REAL(nProcessors)
         do i=0,nProcessors-1
-            sendcounts(i+1)=ValidSpawnedList(i)-NINT(Gap*i)+1
+            sendcounts(i+1)=ValidSpawnedList(i)-(NINT(Gap*i)+1)
             disps(i+1)=NINT(Gap*i)
         enddo
 
