@@ -708,6 +708,14 @@ The following options are only available in **FCIMC** calculations:
     reference changed to the new determinant. For a HF basis, this cannot happen, but with 
     rotated orbital may be important.
 
+**DIRECTANNIHILATION**
+    Default=.false.
+
+    A parallel FCIMC option. This annihilation algorithm has elements in common with rotoannihilation
+    and the default annihilation, but should be faster and better scaling than both of these, with
+    respect to the number of processors. There are no explicit loops over processors, and newly-spawned
+    particles are sent directly to their respective processors.
+
 **ANNIHILATDISTANCE** [Lambda]
     Default=0.D0
 
