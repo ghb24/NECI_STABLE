@@ -1251,15 +1251,26 @@ MODULE FciMCParMod
 
 
     INTEGER FUNCTION DetermineDetProc(iLut)
-        INTEGER :: iLut(0:NIfD),i
+        INTEGER :: iLut(0:NIfD),i,j,Elecs
         INTEGER(KIND=i2) :: Summ
 
+!        Summ=0
+!        do i=0,NIfD
+!            Summ=(1099511628211*Summ)+(i+1)*iLut(i)
+!        enddo
         Summ=0
-        do i=0,NIfD
-            Summ=(1099511628211*Summ)+(i+1)*iLut(i)
-        enddo
+        Elecs=0
+        lp2: do i=0,NIfD
+            do j=0,31
+                IF(BTEST(iLut(i),j)) THEN
+                    Elecs=Elecs+1
+                    Summ=(1099511628211*Summ)+((i*32)+(j+1))*Elecs
+                    IF(Elecs.eq.NEl) EXIT lp2
+                ENDIF
+            enddo
+        enddo lp2
         DetermineDetProc=abs(mod(Summ,nProcessors))
-!        WRITE(6,*) DetermineDetProc
+!        WRITE(6,*) DetermineDetProc,Summ,nProcessors
 
     END FUNCTION DetermineDetProc
 
@@ -5217,6 +5228,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.0) THEN
             IF(AllTotWalkers.le.0.2) THEN
+                WRITE(6,*) AllTotWalkers,TotWalkers
                 CALL Stop_All("CalcNewShift","All particles have died. Consider choosing new seed, or raising shift value.")
             ENDIF
         ENDIF
@@ -6343,6 +6355,7 @@ MODULE FciMCParMod
             IF(TStartSinglePart) THEN
                 IF(tDirectAnnihil) THEN
                     Proc=DetermineDetProc(iLutHF)
+                    WRITE(6,*) "HF processor is: ",Proc
                     IF(iProcIndex.eq.Proc) THEN
                         CurrentDets(:,1)=iLutHF(:)
                         CurrentSign(1)=1
@@ -8427,15 +8440,21 @@ MODULE FciMCParMod
 
 ! This creates a hash based not only on one current determinant, but is also dependent on the 
 ! determinant from which the walkers on this determinant came.
-    FUNCTION CreateHashBit(DetCurr,NIfD)
-        INTEGER :: NIfD,DetCurr(0:NIfD),i
+    FUNCTION CreateHashBit(DetCurr)
+        INTEGER :: DetCurr(0:NIfD),i,Elecs,j
         INTEGER(KIND=i2) :: CreateHashBit
 
         CreateHashBit=0
+        Elecs=0
         do i=0,NIfD
-            CreateHashBit=(1099511628211*CreateHashBit)+i*DetCurr(i)
+            do j=0,31
+                IF(BTEST(DetCurr(i),j)) THEN
+                    CreateHashBit=(1099511628211*CreateHashBit)+((i*32)+(j+1))*j
+                    Elecs=Elecs+1
+                    IF(Elecs.eq.NEl) RETURN
+                ENDIF
+            enddo
         enddo
-        RETURN
 
     END FUNCTION CreateHashBit
 

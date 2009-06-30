@@ -171,8 +171,8 @@
             do j=0,31
                 IF(BTEST(iLut(i),j)) THEN
 !An electron is at this orbital
-                    nI(Elec+1)=(i*32)+(j+1)
                     Elec=Elec+1
+                    nI(Elec)=(i*32)+(j+1)
                     IF(Elec.eq.NEl) RETURN
                 ENDIF
             enddo
