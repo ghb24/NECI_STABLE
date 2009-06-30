@@ -6020,6 +6020,9 @@ MODULE FciMCParMod
             WRITE(6,*) "Annihilation will occur on each processors' walkers only. This should be faster, but result in less annihilation."
             WRITE(6,*) "This is equivalent to running seperate calculations."
         ELSEIF(tRotoAnnihil) THEN
+            IF(tDirectAnnihil) THEN
+                CALL Stop_All("InitFCIMCCalcPar","Cannot specify both direct annihilation and rotoannihilation.")
+            ENDIF
             WRITE(6,*) "RotoAnnihilation in use...!"
         ELSEIF(tDirectAnnihil) THEN
             WRITE(6,*) "Direct Annihilation in use...Explicit load-balancing disabled."
