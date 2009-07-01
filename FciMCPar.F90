@@ -221,6 +221,7 @@ MODULE FciMCParMod
     INTEGER :: DoublesDetsTag,NoDoubs
 
     INTEGER , ALLOCATABLE :: ValidSpawnedList(:) !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
+    INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
 
     contains
 
@@ -251,7 +252,7 @@ MODULE FciMCParMod
         do Iter=1,NMCyc
 
             IF(TBalanceNodes) THEN 
-                CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced.
+                CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced. However, this will not be called with direct annihilation.
             ENDIF
             
             s=etime(tstart)
@@ -391,10 +392,7 @@ MODULE FciMCParMod
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
         IF(tDirectAnnihil) THEN
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
-            Gap=REAL(MaxSpawned)/REAL(nProcessors)
-            do j=0,nProcessors-1
-                ValidSpawnedList(j)=NINT(Gap*j)+1
-            enddo
+            ValidSpawnedList(:)=InitialSpawnedSlots(:)
         ENDIF
         MinorValidSpawned=1
         tMinorDetList=.false.
@@ -984,10 +982,21 @@ MODULE FciMCParMod
             ENDIF
         ELSEIF(tDirectAnnihil) THEN
 !Need to test whether any of the sublists are getting to the end of their allotted space.
-            rat=((ValidSpawnedList(nProcessors-1)-1.D0)/(MaxSpawned+0.D0))
-            IF(rat.gt.0.95) THEN
-
-!                WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
+            IF(nProcessors.gt.1) THEN
+                do i=0,nProcessors-1
+                    rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
+!                    WRITE(6,*) rat,(ValidSpawnedList(i)-InitialSpawnedSlots(i)),InitialSpawnedSlots(1)
+                    IF(rat.gt.0.95) THEN
+                        WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
+                        CALL FLUSH(6)
+                    ENDIF
+                enddo
+            ELSE
+                rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
+                IF(rat.gt.0.9) THEN
+                    WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
+                    CALL FLUSH(6)
+                ENDIF
             ENDIF
         ENDIF
         
@@ -1051,20 +1060,9 @@ MODULE FciMCParMod
 
         CALL halt_timer(Annihil_Time)
         
-!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
-        AllNoatHF=0
-
-!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,ierr)
-
-        IF(AllNoatHF.lt.0) THEN
-!Flip the sign if we're beginning to get a negative population on the HF
-            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
-            CALL FlipSign()
-        ENDIF
 
         IF(TSinglePartPhase) THEN
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
 !Do not allow culling if we are still in the single particle phase.
             IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
                 IF(TotParts.gt.InitWalkers) THEN
@@ -5194,6 +5192,18 @@ MODULE FciMCParMod
 
 !Put a barrier here so all processes synchronise
         CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+!Find the total number of particles at HF (x sign) across all nodes. If this is negative, flip the sign of all particles.
+        AllNoatHF=0
+
+!Find sum of noathf, and then use an AllReduce to broadcast it to all nodes
+        CALL MPI_AllReduce(NoatHF,AllNoatHF,1,MPI_INTEGER,MPI_SUM,MPI_COMM_WORLD,error)
+
+        IF(AllNoatHF.lt.0) THEN
+!Flip the sign if we're beginning to get a negative population on the HF
+            WRITE(6,*) "No. at HF < 0 - flipping sign of entire ensemble of particles..."
+            CALL FlipSign()
+        ENDIF
                 
 !IF we're using a guiding function, want to sum in the contributions to the energy from this guiding function.
         IF(tUseGuide) THEN
@@ -5678,6 +5688,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
         LOGICAL :: exists,tSuccess,tFoundOrbs(nBasis)
+        REAL :: Gap
 
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -6060,6 +6071,13 @@ MODULE FciMCParMod
                 CALL Stop_All("InitFCIMCCalcPar","Direct annihilation must start with a single particle as it is at the moment...")
             ENDIF
             ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
+            ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
+!InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
+            MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+            Gap=REAL(MaxSpawned)/REAL(nProcessors)
+            do j=0,nProcessors-1
+                InitialSpawnedSlots(j)=NINT(Gap*j)+1
+            enddo
         ENDIF
         IF(TReadPops) THEN
 !List of things that readpops can't work with...
