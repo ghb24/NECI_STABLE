@@ -370,9 +370,9 @@ MODULE FciMCParMod
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
 
-        IF(TDebug) THEN
+        IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
-!            CALL FLUSH(11)
+            CALL FLUSH(11)
         ENDIF
         
 !        IF(tRotoAnnihil) THEN
@@ -983,9 +983,11 @@ MODULE FciMCParMod
                 CALL FLUSH(6)
             ENDIF
         ELSEIF(tDirectAnnihil) THEN
+!Need to test whether any of the sublists are getting to the end of their allotted space.
             rat=((ValidSpawnedList(nProcessors-1)-1.D0)/(MaxSpawned+0.D0))
             IF(rat.gt.0.95) THEN
-                WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
+
+!                WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
             ENDIF
         ENDIF
         
@@ -1252,7 +1254,7 @@ MODULE FciMCParMod
 
     INTEGER FUNCTION DetermineDetProc(iLut)
         INTEGER :: iLut(0:NIfD),i,j,Elecs
-        INTEGER(KIND=i2) :: Summ
+        INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
 
 !        Summ=0
 !        do i=0,NIfD
@@ -1271,6 +1273,34 @@ MODULE FciMCParMod
         enddo lp2
         DetermineDetProc=abs(mod(Summ,nProcessors))
 !        WRITE(6,*) DetermineDetProc,Summ,nProcessors
+
+!        RangeofBins=NINT(HUGE(RangeofBins)/(nProcessors/2.D0),8)
+!        NextBin=-HUGE(NextBin)+RangeofBins
+!        do i=1,nProcessors
+!            IF(i.eq.nProcessors) THEN
+!!Make sure catch them all...
+!                DetermineDetProc=nProcessors-1
+!                RETURN
+!            ENDIF
+!            IF(Summ.gt.NextBin) THEN
+!                NextBin=NextBin+RangeofBins
+!            ELSE
+!                DetermineDetProc=i-1
+!                RETURN
+!            ENDIF
+!        enddo
+!!Determine range by simply dividing hash...
+!        IF(mod(nProcessors,2).ne.0) THEN
+!            CALL Stop_All("DetermineDetProc","Number of processors must be a multiple of two for this hashing algorithm")
+!        ENDIF
+!        RangeofBins=NINT(HUGE(RangeofBins)/(nProcessors/2.D0),8)
+!        IF(Summ.gt.0) THEN
+!            DetermineDetProc=INT(((Summ+0.D0)/(RangeofBins+0.D0)),4)
+!        ELSE
+!            DetermineDetProc=INT(((abs(Summ)+0.D0)/(RangeofBins+0.D0)),4)+nProcessors/2
+!        ENDIF
+            
+            
 
     END FUNCTION DetermineDetProc
 
@@ -7664,6 +7694,7 @@ MODULE FciMCParMod
 
             Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
             CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fjj)
+!            WRITE(6,"(8I5,2G25.10)") nJ(:),real(Hij%v,r2),(Fii-(REAL(Fjj%v,r2)))
 
             Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
             IF(Compt.lt.0.D0) THEN
@@ -7691,6 +7722,7 @@ MODULE FciMCParMod
         IF(MP1Comps(VecSlot).ne.SumMP1Compts) THEN
             CALL Stop_All("InitWalkersMP1","Error in calculating sum of MP1 components")
         ENDIF
+!        WRITE(6,*) VecSlot,HFConn,SumMP1Compts,ExcitLength
 
 !        DiagSft=MP2Energy
         MP2Energy=MP2Energy+Hii
