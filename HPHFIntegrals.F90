@@ -108,65 +108,114 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
 !OpenShell -> Open Shell. Find the spin pair of nJ.
 !            WRITE(6,*) "Open Shell -> Open Shell"
 !            CALL FLUSH(6)
-            CALL FindDetSpinSym(nJ,nJ2,NEl)
-            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
-        
-!We need to find out whether the nJ HPHF wavefunction is symmetric or antisymmetric. This is dependant on the number of open shell orbitals.
-            CALL CalcOpenOrbs(iLutnJ,NIfD,NEl,OpenOrbsJ)
-            IF((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)) THEN
-                tSymmetricInts=.true.
-            ELSE
-                tSymmetricInts=.false.
-            ENDIF
+!            WRITE(6,*) "***"
 
-!Matrix element is 1/2 [Hia + Hib + Hja + Hjb] when both HPHF functions are symmetric
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
-                IF(ExcitLevel.le.0) THEN
-                    WRITE(6,*) ExcitLevel,iLutnI,iLutnJ
-                    CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart4")
-                ENDIF
+!                IF(ExcitLevel.le.0) THEN
+!                    WRITE(6,*) ExcitLevel,iLutnI,iLutnJ
+!                    CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart4")
+!                ENDIF
                 MatEl2=HElement(0.D0)
                 CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!                WRITE(6,*) 1,REAL(MatEl2%v,8),ExcitLevel
+!                WRITE(6,*) 4,REAL(MatEl2%v,8),ExcitLevel
                 MatEl=MatEl+MatEl2
+               
             ENDIF
+            
             CALL FindBitExcitLevel(iLutnI2,ilutnJ,NIfD,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
-                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart3")
+!We need to find out whether the nJ HPHF wavefunction is symmetric or antisymmetric. This is dependant on the number of open shell orbitals.
+                CALL CalcOpenOrbs(iLutnJ,NIfD,NEl,OpenOrbsJ)
+                IF((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)) THEN
+                    tSymmetricInts=.true.
+                ELSE
+                    tSymmetricInts=.false.
+                ENDIF
+!                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart3")
                 MatEl2=HElement(0.D0)
                 CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
                 IF(tSymmetricInts.or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
-!Positive is Sym -> sym or Sym -> AntiSym
+!                    WRITE(6,*) 2,REAL(MatEl2%v,8),ExcitLevel
+!                    WRITE(6,*) 3,REAL(MatEl2%v,8),ExcitLevel
                     MatEl=MatEl+MatEl2
                 ELSE
+!                    WRITE(6,*) 2,-1.D0*REAL(MatEl2%v,8),ExcitLevel
+!                    WRITE(6,*) 3,-1.D0*REAL(MatEl2%v,8),ExcitLevel
                     MatEl=MatEl-MatEl2
                 ENDIF
             ENDIF
-            CALL FindBitExcitLevel(iLutnI,iLutnJ2,NIfD,ExcitLevel,2)
-            IF(ExcitLevel.le.2) THEN
-                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart2")
-                MatEl2=HElement(0.D0)
-                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ2,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
-                IF(tSymmetricInts.or.((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.0))) THEN
-!Positive is sym -> sym or antisym -> sym
-                    MatEl=MatEl+MatEl2
-                ELSE
-                    MatEl=MatEl-MatEl2
-                ENDIF
-            ENDIF
-            CALL FindBitExcitLevel(iLutnI2,ilutnJ2,NIfD,ExcitLevel,2)
-            IF(ExcitLevel.le.2) THEN
-                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart1")
-                MatEl2=HElement(0.D0)
-                CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ2,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
-                IF(tSymmetricInts.or.((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1))) THEN
-!Positive is sym -> sym or antisym -> antisym
-                    MatEl=MatEl+MatEl2
-                ELSE
-                    MatEl=MatEl-MatEl2
-                ENDIF
-            ENDIF
-            MatEl%v=MatEl%v/2.D0
+        
+!Below is the old method for calculating these integrals.
+
+!            CALL FindDetSpinSym(nJ,nJ2,NEl)
+!            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
+!            CALL CalcOpenOrbs(iLutnJ,NIfD,NEl,OpenOrbsJ)
+!            IF((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)) THEN
+!                tSymmetricInts=.true.
+!            ELSE
+!                tSymmetricInts=.false.
+!            ENDIF
+!
+!
+!
+!!Matrix element is 1/2 [Hia + Hib + Hja + Hjb] when both HPHF functions are symmetric
+!            CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
+!            IF(ExcitLevel.le.2) THEN
+!                IF(ExcitLevel.le.0) THEN
+!                    WRITE(6,*) ExcitLevel,iLutnI,iLutnJ
+!                    CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart4")
+!                ENDIF
+!                MatEl2=HElement(0.D0)
+!                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!                WRITE(6,*) 1,REAL(MatEl2%v,8),ExcitLevel
+!                MatEl=MatEl+MatEl2
+!            ENDIF
+!            CALL FindBitExcitLevel(iLutnI2,ilutnJ,NIfD,ExcitLevel,2)
+!            IF(ExcitLevel.le.2) THEN
+!                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart3")
+!                MatEl2=HElement(0.D0)
+!                CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!                IF(tSymmetricInts.or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+!!Positive is Sym -> sym or Sym -> AntiSym
+!                    MatEl=MatEl+MatEl2
+!                    WRITE(6,*) 2,REAL(MatEl2%v,8),ExcitLevel
+!                ELSE
+!                    MatEl=MatEl-MatEl2
+!                    WRITE(6,*) 2,-1.D0*REAL(MatEl2%v,8),ExcitLevel
+!                ENDIF
+!            ENDIF
+!            CALL FindBitExcitLevel(iLutnI,iLutnJ2,NIfD,ExcitLevel,2)
+!            IF(ExcitLevel.le.2) THEN
+!                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart2")
+!                MatEl2=HElement(0.D0)
+!                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ2,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!                IF(tSymmetricInts.or.((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.0))) THEN
+!!Positive is sym -> sym or antisym -> sym
+!                    WRITE(6,*) 3,REAL(MatEl2%v,8),ExcitLevel
+!                    MatEl=MatEl+MatEl2
+!                ELSE
+!                    WRITE(6,*) 3,-1.D0*REAL(MatEl2%v,8),ExcitLevel
+!                    MatEl=MatEl-MatEl2
+!                ENDIF
+!            ENDIF
+!            CALL FindBitExcitLevel(iLutnI2,ilutnJ2,NIfD,ExcitLevel,2)
+!            IF(ExcitLevel.le.2) THEN
+!                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart1")
+!                MatEl2=HElement(0.D0)
+!                CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ2,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!                IF(tSymmetricInts.or.((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+!!Positive is sym -> sym or antisym -> antisym
+!                    WRITE(6,*) 4,REAL(MatEl2%v,8),ExcitLevel
+!                    MatEl=MatEl+MatEl2
+!                ELSE
+!                    WRITE(6,*) 4,-1.D0*REAL(MatEl2%v,8),ExcitLevel
+!                    MatEl=MatEl-MatEl2
+!                ENDIF
+!            ENDIF
+!            MatEl%v=MatEl%v/2.D0
+!            WRITE(6,*) MatEl%v
         ENDIF
 
     ENDIF
