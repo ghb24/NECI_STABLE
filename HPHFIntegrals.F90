@@ -267,30 +267,21 @@ SUBROUTINE HPHFGetDiagHElement(nI,MatEl)
         MatEl%v=MatEl%v+ECore
         RETURN
     ELSE
-        CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbs)
-!Open Shell Determinant. Find the spin pair
-        CALL FindDetSpinSym(nI,nI2,NEl)
-        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-
-        MatEl2=HElement(0.D0)
+!<i|H|i> = <j|H|j>, so no need to calculate both.
+        MatEl2%v=0.D0
 !<X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are the two spin-coupled dets which make up X
 !In the case of the antisymmetric pair, the cross term is subtracted.
         CALL SltCnd(nEl,nBasisMax,nBasis,nI,nI,G1,nEl,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
-        MatEl=MatEl+MatEl2
-!        WRITE(6,*) MatEl2%v,ECore
-        MatEl2=HElement(0.D0)
+        MatEl%v=MatEl%v+MatEl2%v
 
-        CALL SltCnd(nEl,nBasisMax,nBasis,nI2,nI2,G1,nEl,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
-        MatEl=MatEl+MatEl2
-!        WRITE(6,*) MatEl2%v,ECore
-        MatEl2=HElement(0.D0)
-
-        MatEl%v=MatEl%v/2.D0
-
-!See if they are connected for the 'cross' term
+!See if there is a cross-term
+        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
         CALL FindBitExcitLevel(iLutnI,iLutnI2,NIfD,ExcitLevel,2)
         IF(ExcitLevel.le.2) THEN
-            IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetDiagHElement","Determinants are a forbidden excitation level apart")
+            MatEl2%v=0.D0
+            CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbs)
+            CALL FindDetSpinSym(nI,nI2,NEl)
+!            IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetDiagHElement","Determinants are a forbidden excitation level apart")
             CALL SltCnd(NEl,nBasisMax,nBasis,nI,nI2,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
             IF(mod(OpenOrbs,2).eq.1) THEN
 !Subtract cross terms if determinant is antisymmetric.
@@ -298,9 +289,49 @@ SUBROUTINE HPHFGetDiagHElement(nI,MatEl)
             ELSE
                 MatEl=MatEl+MatEl2
             ENDIF
-!            WRITE(6,*) MatEl2
         ENDIF
         MatEl%v=MatEl%v+ECore
+
+
+!Below is the old way of doing it - extra effort...
+!        CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbs)
+!!Open Shell Determinant. Find the spin pair
+!        CALL FindDetSpinSym(nI,nI2,NEl)
+!        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
+!
+!        MatEl2=HElement(0.D0)
+!!<X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are the two spin-coupled dets which make up X
+!!In the case of the antisymmetric pair, the cross term is subtracted.
+!        CALL SltCnd(nEl,nBasisMax,nBasis,nI,nI,G1,nEl,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!        MatEl=MatEl+MatEl2
+!        WRITE(6,*) 1,MatEl2%v
+!!        WRITE(6,*) MatEl2%v,ECore
+!        MatEl2=HElement(0.D0)
+!
+!        CALL SltCnd(nEl,nBasisMax,nBasis,nI2,nI2,G1,nEl,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!        MatEl=MatEl+MatEl2
+!        WRITE(6,*) 2,MatEl2%v
+!!        WRITE(6,*) MatEl2%v,ECore
+!        MatEl2=HElement(0.D0)
+!
+!        MatEl%v=MatEl%v/2.D0
+!
+!!See if they are connected for the 'cross' term
+!        CALL FindBitExcitLevel(iLutnI,iLutnI2,NIfD,ExcitLevel,2)
+!        IF(ExcitLevel.le.2) THEN
+!            IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetDiagHElement","Determinants are a forbidden excitation level apart")
+!            CALL SltCnd(NEl,nBasisMax,nBasis,nI,nI2,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!            IF(mod(OpenOrbs,2).eq.1) THEN
+!!Subtract cross terms if determinant is antisymmetric.
+!                MatEl=MatEl-MatEl2
+!                WRITE(6,*) 3,MatEl2%v
+!            ELSE
+!                MatEl=MatEl+MatEl2
+!                WRITE(6,*) 4,MatEl2%v
+!            ENDIF
+!!            WRITE(6,*) MatEl2
+!        ENDIF
+!        MatEl%v=MatEl%v+ECore
     ENDIF
 
 END SUBROUTINE HPHFGetDiagHElement
