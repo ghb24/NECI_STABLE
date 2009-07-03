@@ -426,6 +426,7 @@ MODULE UMatCache
       SUBROUTINE SETUPUMAT2D_DF()
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for 
          ! density fitting calculations.
+         use System, only: tRIIntegrals
          use global_utilities
          IMPLICIT NONE
          INTEGER ierr
@@ -439,6 +440,9 @@ MODULE UMatCache
             call LogMemAlloc('UMat2D',nStates**2,8*HelementSize,thisroutine,tagUMat2D,ierr)
             IF(TSTARSTORE) THEN
                 RETURN
+            ELSEIF(tRIIntegrals) THEN
+        !        CALL ReadRI2EIntegrals(nStates,UMat2D,tUMat2D)
+         !  This happens later
             ELSE
                 CALL ReadDalton2EIntegrals(nStates,UMat2D,tUMat2D)
             ENDIF

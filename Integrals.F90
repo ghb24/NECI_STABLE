@@ -296,7 +296,7 @@ MODULE Integrals
       Use UMatCache, only: InitStarStoreUMat
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
       use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
-      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER
+      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
       use SystemData, only: uhub, arr,alat,treal
       INCLUDE 'cons.inc'
@@ -356,6 +356,16 @@ MODULE Integrals
          CALL SetupTMAT(nBasis,2,TMATINT)
          Call ReadDalton1EIntegrals(G1,nBasis,Arr,Brr,ECore)
          Call ReadDF2EIntegrals(nBasis,I)
+      ELSEIF(TREADINT.AND.tRIIntegrals) THEN
+         Allocate(UMat(1), stat=ierr)
+         LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
+         CALL SetupTMAT(nBasis,2,TMATINT)
+         CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
+         !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+         Call ReadRIIntegrals(nBasis,I)
+         CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+         NBASISMAX(2,3)=0
+         WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(TREADINT.AND.TSTARSTORE) THEN
          WRITE(6,*) ' *** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP *** '
          NBASISMAX(2,3)=2
@@ -903,7 +913,7 @@ MODULE Integrals
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-      use SystemData, only: Symmetry,BasisFN,tVASP
+      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals
       use UMatCache
       use vasp_neci_interface, only: CONSTRUCT_IJAB_one
       IMPLICIT NONE
@@ -925,8 +935,9 @@ MODULE Integrals
       logical GetCachedUMatEl,calc2ints
 !   IF NBASISMAX(1,3) is less than zero, we directly give the integral.
 !   Otherwise we just look it up in umat
+!      WRITE(6,*) "INT",IDI,IDJ,IDK,IDL
+!      WRITE(6,*) NBASISMAX(2,3),ISS,tUMat2D
       IF(NBASISMAX(1,3).GE.0) THEN
-
 !   See if we need to calculate on the fly
          IF(ISS.EQ.0) THEN
 
@@ -940,6 +951,7 @@ MODULE Integrals
 !  <ij|ij> is always real and allowed (densities i*i and j*j)
 !  <ij|ji> is always real and allowed (codensities i*j and j*i = (i*j)*)
 !  <ii|jj> is not stored in UMAT2D, and may not be allowed by symmetry.  It can be complex.
+!  If orbitals are real, we substitute <ij|ij> for <ii|jj>
             IF (IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL.AND.TUMAT2D) THEN
 !    <ii|ii>
                GETUMATEL=UMAT2D(IDI,IDI)
@@ -953,12 +965,12 @@ MODULE Integrals
                I=MAX(IDI,IDJ)
                J=MIN(IDI,IDJ)
                GETUMATEL=UMAT2D(I,J)
-    !           ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
+            ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
 !   <ii|jj> = <ij|ji> Only for real systems (and not for the local exchange
 !   scheme.)
-!              I=MAX(IDI,IDK)
-!              J=MIN(IDI,IDK)
-!              GETUMATEL=UMAT2D(I,J)
+              I=MAX(IDI,IDK)
+              J=MIN(IDI,IDK)
+              GETUMATEL=UMAT2D(I,J)
             ELSE
 !   Check to see if the umat element is in the cache
                I=IDI
@@ -970,6 +982,7 @@ MODULE Integrals
                SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
                SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
                SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
+!               WRITE(6,*) SYM
 !   Check the symmetry of the 4-index integrals
                IF(.NOT.LSYMSYM(SYM)) THEN
                    GETUMATEL=0.D0
@@ -997,8 +1010,9 @@ MODULE Integrals
 !   This will rearrange I,J,K,L into the correct order
 !   (i,k)<=(j,l) and i<=k, j<=l.
                   IF(GETCACHEDUMATEL(I,J,K,L,GETUMATEL,ICACHE,ICACHEI,A,B,ITYPE)) THEN
+!                     WRITE(6,*) "Not Cached"
 !   We don't have a stored UMAT - we call to generate it.
-                     IF(tDFInts) THEN
+                     IF(tDFInts.or.tRIIntegrals) THEN
 !   We're using density fitting
                         Call GetDF2EInt(I,J,K,L,UElems)
                         GetUMatEl=UElems(0)
@@ -1036,6 +1050,7 @@ MODULE Integrals
 !  Bit 1 tells us whether we need to complex conj the integral
                         IF(BTEST(ITYPE,1)) GETUMATEL=DCONJG(GETUMATEL)
                      ENDIF
+!                     WRITE(6,*) "Caching",UElems
 !  Because we've asked for the integral in the form to be stored, we store as iType=0
                      IF(ICACHE.NE.0) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI,0)
                      NMISSES=NMISSES+1

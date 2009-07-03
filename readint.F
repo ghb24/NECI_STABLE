@@ -330,7 +330,8 @@ C.. These are stored as spinorbitals (with elements between different spins bein
 C.. 2-e integrals
 C.. UMAT is stored as just spatial orbitals (not spinorbitals)
 C..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-            IF(TSTARSTORE.and.TUMAT2D) THEN
+C.. AJWT removed the restriction to TSTARSTORE
+            IF(TUMAT2D) THEN
                 IF(I.eq.J.and.I.eq.K.and.I.eq.L) THEN
                     !<ii|ii>
                     UMAT2D(I,I)=Z

@@ -48,7 +48,9 @@ C..
          SUM=SUM
      &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID2,ID4,ID3)
       ENDIF
-         
+ 
+!      WRITE(6,*) EX(1:2,1:2),SUM
+        
       SUM=SUM*HElement(COULCOUPLE)
       IF(TSIGN) SUM=-SUM
 C     &      COULDAMP(ND1(1),NHG)*COULDAMP(ND1(2),NHG)*

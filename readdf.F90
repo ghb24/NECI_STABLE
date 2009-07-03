@@ -152,7 +152,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          res=0.D0
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
-!CC         write(6,"(6I4)") a,b,c,d,x,y
+!         write(6,"(7I4)") a,b,c,d,x,y,iDFMethod
          select case(iDFMethod)
 ! 0 - no DF
          case(0)

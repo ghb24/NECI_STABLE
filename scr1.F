@@ -45,6 +45,7 @@ C..
             IF(LCOUL) THEN 
                SUM3=
      &     GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID,ID2,ID)
+!               WRITE(6,*) ID1,ID,ID2,ID,SUM3
             ELSE
                SUM3=0.D0
             ENDIF
@@ -52,6 +53,7 @@ C..
      &         .AND.     G1(EX(2))%Ms.EQ.G1(NDET1(I))%Ms) THEN
                SUM3=SUM3-
      &     GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID,ID,ID2)
+!               WRITE(6,*) ID1,ID,ID,ID2,SUM3
             ENDIF
             SUM2=SUM2+SUM3
          ENDIF
@@ -61,6 +63,8 @@ C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
       SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1),EX(2))
+!      WRITE(6,*) EX(1),EX(2)
+!      WRITE(6,*) SUM2,GetTMATEl(EX(1),EX(2))
       IF(TSIGN) SUM=-SUM
 !      call halt_timer(proc_timer) 
       RETURN
@@ -131,6 +135,8 @@ C*(COULDAMP(NDET1(I),NHG)**2)*CD
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
+      WRITE(6,*) EX(1,1),EX(2,1)
+      WRITE(6,*) SUM2,GetTMATEl(EX(1,1),EX(2,1))
       SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1,1),EX(2,1))
       IF(TParity) SUM=-SUM
 !      call halt_timer(proc_timer) 

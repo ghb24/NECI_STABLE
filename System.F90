@@ -35,6 +35,7 @@ MODULE System
       TREADINT=.false.
       THFORDER=.false.
       TDFREAD=.false.
+      tRIIntegrals=.false.
       TPBC=.false.
       TUEG=.false.
       TCPMD=.false.
@@ -184,7 +185,6 @@ MODULE System
           case("NOORDER")
               THFNOORDER = .true.
           end select
-
       case("READ","GENERIC")
           TREADINT = .true.
           call readu(w)
@@ -197,6 +197,9 @@ MODULE System
       case("HUBBARD")
           THUB = .true.
           TPBC=.true.
+      case("RIINTEGRALS")
+          tRIIntegrals = .true.
+          tReadInt=.true.
       case("UEG")
           TUEG = .true.
       case("VASP")
@@ -237,8 +240,9 @@ MODULE System
             tBin=.true.
         case("DENSITYFITTED")
             tDFRead=.true.
-
         ! General options.
+        case("RIINTEGRALS")
+          tRIIntegrals = .true.
         case("ELECTRONS","NEL")
             call geti(NEL)
         case("SPIN-RESTRICT")
@@ -765,6 +769,28 @@ MODULE System
             WRITE(6,*) "Reading Density fitted integrals."
             LMSBASIS=LMS
             CALL InitDFBasis(nEl,nBasisMax,Len,LMsBasis)
+         ELSEIF(tRIIntegrals) THEN
+            WRITE(6,*) "Reading RI integrals."
+            LMSBASIS=LMS
+            CALL InitRIBasis(nEl,nBasisMax,Len,LMsBasis)
+            LMSBASIS=LMS
+            CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
+            nBasisMax(3,3)=1
+            nBasisMax(4,1)=-1
+            nBasisMax(4,2)=1
+!.. Correspond to ISS=0
+!            NBASISMAX(2,3)=-1  !indicate we generate on the fly
+            iSpinSkip=-1
+!NBASISMAX(2,3)  !indicate we generate on the fly
+!C.. say we're a UHF det so all singles are 0
+            IF(LMS.EQ.0) THEN
+               NBASISMAX(4,5)=1
+            ELSE
+               NBASISMAX(4,5)=2
+            ENDIF
+            IF(NBASISMAX(2,3).EQ.1) then
+                WRITE(6,*) "Unrestricted calculation.  Cave Arthropodia"
+            ENDIF
          ELSE
             IF(TSTARSTORE) THEN
                 WRITE(6,*) "Reading 2-vertex integrals of double excitations only"
