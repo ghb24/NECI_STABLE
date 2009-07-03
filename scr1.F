@@ -135,8 +135,8 @@ C*(COULDAMP(NDET1(I),NHG)**2)*CD
 C..  We then add in the non-diagonal part of the kinetic energy -
 C..  <ph_a|T|ph_a'> where a and a' are the only basis fns that differ in
 C..  NDET1 and NDET2
-      WRITE(6,*) EX(1,1),EX(2,1)
-      WRITE(6,*) SUM2,GetTMATEl(EX(1,1),EX(2,1))
+!      WRITE(6,*) EX(1,1),EX(2,1)
+!      WRITE(6,*) SUM2,GetTMATEl(EX(1,1),EX(2,1))
       SUM=SUM2*HElement(COULCOUPLE)+GetTMATEl(EX(1,1),EX(2,1))
       IF(TParity) SUM=-SUM
 !      call halt_timer(proc_timer) 
