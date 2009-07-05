@@ -708,6 +708,13 @@ than the energy of the current reference determinant, the energies are rezeroed 
 reference changed to the new determinant. For a HF basis, this cannot happen, but with
 rotated orbital may be important.</p>
 </dd>
+<dt><strong>DIRECTANNIHILATION</strong></dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">A parallel FCIMC option. This annihilation algorithm has elements in common with rotoannihilation
+and the default annihilation, but should be faster and better scaling than both of these, with
+respect to the number of processors. There are no explicit loops over processors, and newly-spawned
+particles are sent directly to their respective processors.</p>
+</dd>
 <dt><strong>ANNIHILATDISTANCE</strong> [Lambda]</dt>
 <dd><p class="first">Default=0.D0</p>
 <p class="last">A serial FCIMC option. Here, walkers i and j have the chance to annihilate each other
@@ -827,6 +834,36 @@ calculations.</dd>
 <dd>This option will regenerate the excitation generator for each particle, every time a
 new random excitation is wanted. This is MUCH slower for the same number of particles
 (10x?). However, this frees up a lot more memory to store more particles.</dd>
+<dt><strong>PRINTDOMINANTDETS</strong> [NoDeterminants] [MinExcLevel] [MaxExcLevel]</dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This is a parallel FCIMC option.  With this keyword, at the end of a calculation a DOMINANTDETS file
+is printed containing the NoDeterminants most populated determinants between excitation
+levels of MinExcLevel and MaxExcLevel (inclusive).  This must be used with rotoannihilation.</p>
+</dd>
+<dt><strong>PRINTDOMSPINCOUPLED</strong> [OFF]</dt>
+<dd><p class="first">Default=.true.</p>
+<p class="last">This a parallel FCIMC option to go with the one above.  It takes the list of dominant determinants
+chosen based on their populations and adds to the list all the spin coupled determinants that
+are not already there.  This prevents any spin contamination when we truncate the available
+determinants.  This is automatically on, but can be turned off using this keyword followed by OFF.</p>
+</dd>
+<dt><strong>SPAWNDOMINANTONLY</strong></dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This is a parallel FCIMC option.  It takes a DOMINANTDETS file (printed using the above keywords)
+and reads it in at the beginning of the calculation.  During the calculation, if a walker is
+to be spawned with an excitation level of those printed in DOMINANTDETS, this is only allowed if
+the determinant is in the list of dominant determinants.  This does not allow truncation of
+the doubles, and must be used with rotoannihilation.</p>
+</dd>
+<dt><strong>STARMINORDETERMINANTS</strong></dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This is a parallel FCIMC option.  It goes along with the <strong>SPAWNDOMINANTONLY</strong> keyword.  If this
+is present, spawning to determinants not in the dominant list is done with a star approximation.
+That is, spawning onto minor determinants is allowed, but these walkers are only allowed
+to spawn back to the parent from which they came.  The walkers undergo death and annihilation
+like usual (however, the walkers for annihilation are chosen randomly as they differ depending
+on their parent).</p>
+</dd>
 </dl>
 <p>The following option are only available in <strong>MCSTAR</strong> calculations:</p>
 <dl class="docutils">
@@ -850,6 +887,26 @@ HF determinant. <strong>ALLSPAWNSTARDETS</strong> is another optional keyword, w
 means that all particles can spawn at determinants with star orbitals, and
 once there, annihilation can occur. However, they cannot respawn anywhere
 else and are left there to die.</p>
+</dd>
+<dt><strong>EXCITETRUNCSING</strong> [iHightExcitsSing]</dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This is a parallel FCIMC option, where excitations between determinants where
+at least one of the determinants is above iHighExcitsSing will be restricted to be single excitations.</p>
+</dd>
+<dt><strong>EXPANDSPACE</strong> [ICILevel]</dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel.
+However, the space can be expanded (or shrunk) during the course of the simulation (to the full space).
+This wants to be used with a single particle start (no need for an
+EXCITE or anything) and means that the simulation will start of doing a
+truncated &#8216;ICILevel&#8217; calculation (you can obviously specify any initial level).
+However, if you create a file in the directory where the job is running
+called EXPANDSPACE (similar to the SOFTEXIT facility), with a single
+integer in the file, then it will expand the working space of the
+algorithm to this value of the truncation. If you specify 0, it will
+allow the full space and not continue checking for the files from then
+on. Hopefully expanding the space in this way will allow quicker
+convergence.</p>
 </dd>
 </dl>
 </div>
@@ -1349,7 +1406,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Apr 17, 2009.
+      Last updated on Jul 05, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>
