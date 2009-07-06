@@ -405,7 +405,7 @@ MODULE FciMCParMod
         
         do j=1,TotWalkers
 !j runs through all current walkers
-!If we are rotoannihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
+!If we are rotoannihilating/direct annihilating, the sign indicates the sum of the signs on the determinant, and hence j loops over determinants, not particles.
 !            WRITE(6,*) Iter,j,TotWalkers
 !            CALL FLUSH(6)
 

@@ -8,9 +8,9 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     use HPHFRandExcitMod , only : FindDetSpinSym,FindExcitBitDetSym
     IMPLICIT NONE
     INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),nI(NEl),nI2(NEl),nJ(NEl),nJ2(NEl),iLutnI2(0:NIfD),iLutnJ2(0:NIfD)
-    INTEGER :: ExcitLevel,OpenOrbsI,OpenOrbsJ,Ex(2,NEl)
+    INTEGER :: ExcitLevel,OpenOrbsI,OpenOrbsJ,Ex(2,2)
     TYPE(HElement) :: MatEl,MatEl2
-    LOGICAL :: TestClosedShellDet,tSymmetricInts,DetBitEQ
+    LOGICAL :: TestClosedShellDet,tSymmetricInts,DetBitEQ,tSign
 
     MatEl%v=0.D0
 
@@ -20,6 +20,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !Do not allow an 'off-diagonal' matrix element. The problem is that the HPHF excitation generator can generate the same HPHF function. We do not want to allow spawns here.
         RETURN
     ENDIF
+    
 
     IF(TestClosedShellDet(iLutnI,NIfD)) THEN
         IF(TestClosedShellDet(iLutnJ,NIfD)) THEN
@@ -28,9 +29,12 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !            CALL FLUSH(6)
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
+                Ex(1,1)=ExcitLevel
+                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart9")
-                CALL SltCnd(nEl,nBasisMax,nBasis,nI,nJ,G1,nEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl)
+                CALL SltCndExcit2(nEl,nBasisMax,nBasis,nI,nJ,G1,nEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
             ENDIF
+!            WRITE(6,*) "1 ",MatEl%v
             RETURN
         ELSE
 !Closed Shell -> Open Shell. <X|H|Y>= 1/sqrt(2) [Hia + Hib], or with a minus if iLutnJ has an odd number of open orbitals.
@@ -39,9 +43,10 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !First, find <nI|H|nJ>
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
-                MatEl2%v=0.D0
-                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
-                MatEl%v=SQRT(2.D0)*MatEl2%v
+                Ex(1,1)=ExcitLevel
+                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
+                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
+                MatEl%v=SQRT(2.D0)*MatEl%v
             ENDIF
 
 
@@ -76,6 +81,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                ENDIF
 !            ENDIF
 !            MatEl%v=MatEl%v/SQRT(2.D0)
+!            WRITE(6,*) "2 ",MatEl%v
             RETURN
         ENDIF
     ELSE
@@ -87,11 +93,13 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
             CALL FindBitExcitLevel(iLutnI,iLutnJ,NIfD,ExcitLevel,2)
             IF(ExcitLevel.le.2) THEN
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart6")
-                MatEl2%v=0.D0
-                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+                Ex(1,1)=ExcitLevel
+                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
+                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
 !                WRITE(6,*) 1,MatEl2%v,Excitlevel
 !                WRITE(6,*) 2,MatEl2%v,Excitlevel
-                MatEl%v=MatEl%v+SQRT(2.D0)*MatEl2%v
+                MatEl%v=SQRT(2.D0)*MatEl%v
+!                WRITE(6,*) "3 ",MatEl%v,nI(:),nJ(:)
             ENDIF
 
 
@@ -136,11 +144,13 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                    WRITE(6,*) ExcitLevel,iLutnI,iLutnJ
 !                    CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart4")
 !                ENDIF
-                MatEl2%v=0.D0
-                CALL SltCnd(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+!                MatEl2%v=0.D0
+                Ex(1,1)=ExcitLevel
+                CALL GetExcitation(nI,nJ,NEl,Ex,tSign)
+                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl,Ex,tSign)
 !                WRITE(6,*) 1,REAL(MatEl2%v,8),ExcitLevel
 !                WRITE(6,*) 4,REAL(MatEl2%v,8),ExcitLevel
-                MatEl=MatEl+MatEl2
+!                MatEl=MatEl+MatEl2
                
             ENDIF
             
@@ -152,15 +162,15 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !Original HPHF is antisymmetric if OpenOrbs is odd, or symmetric if its even.
                 CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbsI)
 
-                IF((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)) THEN
-                    tSymmetricInts=.true.
-                ELSE
-                    tSymmetricInts=.false.
-                ENDIF
+!                IF((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)) THEN
+!                    tSymmetricInts=.true.
+!                ELSE
+!                    tSymmetricInts=.false.
+!                ENDIF
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart3")
                 MatEl2%v=0.D0
                 CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
-                IF(tSymmetricInts.or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+                IF(((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
 !                    WRITE(6,*) 2,REAL(MatEl2%v,8),ExcitLevel
 !                    WRITE(6,*) 3,REAL(MatEl2%v,8),ExcitLevel
                     MatEl=MatEl+MatEl2
@@ -240,6 +250,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !            ENDIF
 !            MatEl%v=MatEl%v/2.D0
 !            WRITE(6,*) MatEl%v
+!            WRITE(6,*) "4 ",MatEl%v
         ENDIF
 
     ENDIF
