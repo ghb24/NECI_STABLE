@@ -965,7 +965,7 @@ MODULE Integrals
                I=MAX(IDI,IDJ)
                J=MIN(IDI,IDJ)
                GETUMATEL=UMAT2D(I,J)
-            ELSE IF (IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
+            ELSE IF (tRIIntegrals.and.IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
 !   <ii|jj> = <ij|ji> Only for real systems (and not for the local exchange
 !   scheme.)
               I=MAX(IDI,IDK)
