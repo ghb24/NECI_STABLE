@@ -20,7 +20,8 @@ contains
       use global_utilities
       implicit none
       integer :: vasp_nbands,vasp_nkpts,vasp_kpntind(vasp_nbands*vasp_nkpts),vasp_kpmsh(3)
-      real(q) :: vasp_kpnts(3,vasp_nkpts),vasp_xi,vasp_eigv(vasp_nbands*vasp_nkpts),vasp_nEl
+      real(q) :: vasp_kpnts(3,vasp_nkpts),vasp_xi,vasp_eigv(vasp_nbands*vasp_nkpts)
+      integer :: vasp_nEl
       complex(q) :: vasp_umat2d(vasp_nbands*vasp_nkpts,vasp_nbands*vasp_nkpts)
       integer :: i,j,ik,ierr
       character(*), parameter :: thisroutine='NECIReceiveVASPData'
