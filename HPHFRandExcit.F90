@@ -259,17 +259,33 @@ MODULE HPHFRandExcitMod
 !There will be a quicker way to do this without needing the sort.
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
-        INTEGER :: nI(NEl),nJ(NEl),NEl,i
+        INTEGER :: nTemp(NEl),nI(NEl),nJ(NEl),NEl,i
 
         do i=1,NEl
             IF(mod(nI(i),2).eq.0) THEN
 !electron is an alpha - change it to a beta (remove one)
-                nJ(i)=nI(i)-1
+!However, we only want to do this if the electron before it is not the beta in the same spatial orbital
+                IF((i.eq.1).or.((nI(i)-1).ne.nI(i-1))) THEN
+                    nJ(i)=nI(i)-1
+                ELSE
+                    nJ(i)=nI(i)
+                ENDIF
             ELSE
-                nJ(i)=nI(i)+1
+                IF((i.eq.NEl).or.((nI(i)+1).ne.nI(i+1))) THEN
+                    nJ(i)=nI(i)+1
+                ELSE
+                    nJ(i)=nI(i)
+                ENDIF
             ENDIF
         enddo
-        CALL NECI_SORTI(NEl,nJ)
+
+!        nTemp(:)=nJ(:)
+!        CALL NECI_SORTI(NEl,nTemp)
+!        do i=1,NEl
+!            IF(nTemp(i).ne.nJ(i)) THEN
+!                STOP 'Massive Error'
+!            ENDIF
+!        enddo
 
     END SUBROUTINE FindDetSpinSym
 
