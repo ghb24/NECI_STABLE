@@ -34,7 +34,7 @@ contains
       do i=1,nKP
          write (6,*) vasp_kpnts(:,i)
       end do 
-      nEl=nint(vasp_nEl*nKP)
+      nEl=vasp_nEl*nKP
 
       allocate(KPNTInd(nStates))
       allocate(eigv(nStates))
