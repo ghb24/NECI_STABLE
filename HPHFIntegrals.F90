@@ -1,6 +1,6 @@
 !Find the HElement between two half-projected hartree-fock determinants (different ones).
 !nI and nJ have to be uniquely chosen, so that their spin-coupled determinant will not arise.
-SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
+SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
     Use HElem
     Use SystemData , only : NIfD,NEl,nBasisMax,G1,nBasis,Brr
     use SystemData, only : ECore,ALat,NMSH
@@ -14,8 +14,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
 
     MatEl%v=0.D0
 
-    CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
-    CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
+!    CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
+!    CALL EncodeBitDet(nJ,iLutnJ,NEl,NIfD)
     IF(DetBitEQ(iLutnI,iLutnJ,NIfD)) THEN
 !Do not allow an 'off-diagonal' matrix element. The problem is that the HPHF excitation generator can generate the same HPHF function. We do not want to allow spawns here.
         RETURN
@@ -247,7 +247,7 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,MatEl)
 END SUBROUTINE HPHFGetOffDiagHElement
 
 
-SUBROUTINE HPHFGetDiagHElement(nI,MatEl)
+SUBROUTINE HPHFGetDiagHElement(nI,iLutnI,MatEl)
     Use HElem
     Use SystemData , only : NIfD,NEl,nBasisMax,G1,nBasis,Brr
     use SystemData, only : ECore,ALat,NMSH
@@ -259,9 +259,9 @@ SUBROUTINE HPHFGetDiagHElement(nI,MatEl)
     TYPE(HElement) :: MatEl,MatEl2
     LOGICAL :: TestClosedShellDet
 
-    MatEl=HElement(0.D0)
+    MatEl%v=0.D0
 
-    CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
+!    CALL EncodeBitDet(nI,iLutnI,NEl,NIfD)
     IF(TestClosedShellDet(iLutnI,NIfD)) THEN
         CALL SltCnd(nEl,nBasisMax,nBasis,nI,nI,G1,nEl,NMSH,FCK,NMAX,ALAT,UMat,MatEl)
         MatEl%v=MatEl%v+ECore

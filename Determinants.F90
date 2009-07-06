@@ -157,13 +157,14 @@ MODULE Determinants
          LOGICAL ISCSF
          type(timer), save :: proc_timer
          IF(tHPHFInts) THEN
-             IF(IC2.eq.0) THEN
-                 CALL HPHFGetDiagHElement(nI,Sum2)
-             ELSE
-                 CALL HPHFGetOffDiagHElement(nI,nJ,Sum2)
-             ENDIF
-             GetHElement2=Sum2
-             RETURN
+!             IF(IC2.eq.0) THEN
+!                 CALL HPHFGetDiagHElement(nI,Sum2)
+!             ELSE
+                 CALL Stop_All("GetHElement2","Should not be calling HPHF integrals from here.")
+!                 CALL HPHFGetOffDiagHElement(nI,nJ,Sum2)
+!             ENDIF
+!             GetHElement2=Sum2
+!             RETURN
          ENDIF
          IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
             CALL CSFGETHELEMENT(NI,NJ,nEl,nBasisMax,G1,nBasis,Brr,NMSH,FCK,NMAX,ALAT,UMat,ECore,Sum2)

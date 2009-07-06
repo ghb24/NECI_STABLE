@@ -446,7 +446,11 @@ MODULE FciMCParMod
 !We know we are at HF - HDiag=0
                     HDiagCurr=0.D0
                 ELSE
-                    HDiagTemp=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    IF(tHPHF) THEN
+                        CALL HPHFGetDiagHElement(DetCurr,CurrentDets(:,j),HDiagTemp)
+                    ELSE
+                        HDiagTemp=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    ENDIF
                     HDiagCurr=(REAL(HDiagTemp%v,r2))-Hii
                 ENDIF
             ELSE
@@ -537,10 +541,10 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                                 Child=0
                             ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                             ENDIF
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                         ENDIF
 
                     ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
@@ -550,11 +554,11 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                             Child=0
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                         ENDIF
                     ELSE
 !Excitation cannot be in a dissallowed excitation level - allow it as normal
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                     ENDIF 
                 
                 ELSE
@@ -567,12 +571,12 @@ MODULE FciMCParMod
                                 Child=0
                             ELSE
 !Here, we are at a high-energy det and have generated HF which we will try to spawn to.
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                             ENDIF
 
                         ELSEIF((WalkExcitLevel.eq.0).or.tAllSpawnStarDets) THEN
 !We are at HF - all determinants allowed. No need to check generated excitations
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
 
                         ELSE
 !We need to check whether the excitation generated is in the allowed or disallowed space. High-lying orbitals cannot be generated from non-HF determinants.
@@ -583,7 +587,7 @@ MODULE FciMCParMod
                                 Child=0
                             ELSE
 !We have not generated a 'star' determinant. Allow as normal.
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                             ENDIF
 
                         ENDIF
@@ -595,7 +599,7 @@ MODULE FciMCParMod
 !Only allow doubles to the cutoff-1
                             ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
                             IF(ExcitLevel.eq.(iHighExcitsSing-1)) THEN
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                             ELSE
                                 Child=0
                             ENDIF
@@ -603,17 +607,17 @@ MODULE FciMCParMod
 !Only allow doubles to the cutoff, or less
                             ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,iHighExcitsSing-1)
                             IF(ExcitLevel.le.iHighExcitsSing) THEN
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                             ELSE
                                 Child=0
                             ENDIF
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                         ENDIF
 
                     ELSE
 
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                     ENDIF
 
                 ENDIF
@@ -705,7 +709,11 @@ MODULE FciMCParMod
 !                                        ENDIF
 
                                 ELSE
-                                    HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                                    IF(tHPHF) THEN
+                                        CALL HPHFGetDiagHElement(nJ,iLutnJ,HDiagTemp)
+                                    ELSE
+                                        HDiagTemp=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                                    ENDIF
                                     HDiag=(REAL(HDiagTemp%v,r2))-Hii
                                 ENDIF
                             ENDIF
@@ -1074,50 +1082,52 @@ MODULE FciMCParMod
             ENDIF
 !Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration
             CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
-        ELSE
+!        ELSE
 
-            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
-!Particle number is too large - kill them randomly
-                IF(.not.tRotoAnnihil) THEN
+!Culling (either up or down) has now been disabled...
 
-!Log the fact that we have made a cull
-                    NoCulls=NoCulls+1
-                    IF(NoCulls.gt.10) THEN
-                        WRITE(6,*) "Too Many Culls"
-                        CALL FLUSH(6)
-                        call Stop_All("PerformFCIMCyc","Too Many Culls")
-                    ENDIF
-!CullInfo(:,1) is walkers before cull
-                    CullInfo(NoCulls,1)=TotParts
-!CullInfo(:,3) is MC Steps into shift cycle before cull
-                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-
-                    WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
-                    WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
-                    WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
-                    CALL FLUSH(6)
-                    CALL ThermostatParticlesPar(.true.)
-
-                ENDIF
-
-            ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
-!Particle number is too small - double every particle in its current position
-                IF(.not.tRotoAnnihil) THEN
-!Log the fact that we have made a cull
-                    NoCulls=NoCulls+1
-                    IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
-!CullInfo(:,1) is walkers before cull
-                    CullInfo(NoCulls,1)=TotParts
-!CullInfo(:,3) is MC Steps into shift cycle before cull
-                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
-                    
-                    WRITE(6,*) "Doubling particle population on this node to increase total number..."
-                    CALL ThermostatParticlesPar(.false.)
-                ELSE
-!                    WRITE(6,*) "Particle number on this node is less than half InitWalkers value"
-                ENDIF
-            ENDIF
-        
+!            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
+!!Particle number is too large - kill them randomly
+!                IF(.not.tRotoAnnihil) THEN
+!
+!!Log the fact that we have made a cull
+!                    NoCulls=NoCulls+1
+!                    IF(NoCulls.gt.10) THEN
+!                        WRITE(6,*) "Too Many Culls"
+!                        CALL FLUSH(6)
+!                        call Stop_All("PerformFCIMCyc","Too Many Culls")
+!                    ENDIF
+!!CullInfo(:,1) is walkers before cull
+!                    CullInfo(NoCulls,1)=TotParts
+!!CullInfo(:,3) is MC Steps into shift cycle before cull
+!                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+!
+!                    WRITE(6,"(A,F8.2,A)") "Total number of particles has grown to ",GrowMaxFactor," times initial number on this node..."
+!                    WRITE(6,"(A,I12,A)") "Killing randomly selected particles in cycle ", Iter," in order to reduce total number on this node..."
+!                    WRITE(6,"(A,F8.2)") "Population on this node will reduce by a factor of ",CullFactor
+!                    CALL FLUSH(6)
+!                    CALL ThermostatParticlesPar(.true.)
+!
+!                ENDIF
+!
+!            ELSEIF(TotParts.lt.(InitWalkers/2)) THEN
+!!Particle number is too small - double every particle in its current position
+!                IF(.not.tRotoAnnihil) THEN
+!!Log the fact that we have made a cull
+!                    NoCulls=NoCulls+1
+!                    IF(NoCulls.gt.10) CALL Stop_All("PerformFCIMCyc","Too Many Culls")
+!!CullInfo(:,1) is walkers before cull
+!                    CullInfo(NoCulls,1)=TotParts
+!!CullInfo(:,3) is MC Steps into shift cycle before cull
+!                    CullInfo(NoCulls,3)=mod(Iter,StepsSft)
+!                    
+!                    WRITE(6,*) "Doubling particle population on this node to increase total number..."
+!                    CALL ThermostatParticlesPar(.false.)
+!                ELSE
+!!                    WRITE(6,*) "Particle number on this node is less than half InitWalkers value"
+!                ENDIF
+!            ENDIF
+!        
         ENDIF
 
     END SUBROUTINE PerformFCIMCycPar
@@ -2865,7 +2875,11 @@ MODULE FciMCParMod
                         HDiag=0.D0
                     ELSE
                         CALL DecodeBitDet(nJ,CurrentDets(0:NIfD,i),NEl,NIfD)
-                        HDiagTemp=GetHElement3(nJ,nJ,0)
+                        IF(tHPHF) THEN
+                            CALL HPHFGetDiagHElement(nJ,CurrentDets(0:NIfD,i),HDiagTemp)
+                        ELSE
+                            HDiagTemp=GetHElement3(nJ,nJ,0)
+                        ENDIF
                         HDiag=(REAL(HDiagTemp%v,8))-Hii
                     ENDIF
                     CurrentH(i)=HDiag
@@ -5085,7 +5099,11 @@ MODULE FciMCParMod
         ELSEIF(ExcitLevel.eq.2) THEN
             NoatDoubs=NoatDoubs+abs(WSign)
 !At double excit - find and sum in energy
-            HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+            IF(tHPHF) THEN
+                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
+            ELSE
+                HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+            ENDIF
             IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
@@ -5122,7 +5140,11 @@ MODULE FciMCParMod
 !For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
 !be included in the energy values along with the doubles.
             IF(ExcitLevel.eq.1) THEN
-                HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                IF(tHPHF) THEN
+                    CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
+                ELSE
+                    HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+                ENDIF
 
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
                 ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
@@ -5693,7 +5715,7 @@ MODULE FciMCParMod
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts
         use GenRandSymExcitNUMod , only : SpinOrbSymSetup,tNoSingsPossible
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
-        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl)
+        INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
@@ -5853,11 +5875,16 @@ MODULE FciMCParMod
         ENDIF
         
         IF(tHPHF) THEN
+            IF(tSpn) CALL Stop_All("InitFCIMCCalcPar","Cannot use HPHF with high-spin systems.")
             tHPHFInts=.true.
         ENDIF
 
 !Calculate Hii
-        TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        IF(tHPHF) THEN
+            CALL HPHFGetDiagHElement(HFDet,iLutHF,TempHii)
+        ELSE
+            TempHii=GetHElement2(HFDet,HFDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        ENDIF
         Hii=REAL(TempHii%v,r2)
         WRITE(6,*) "Reference Energy set to: ",Hii
         TempHii=GetH0Element3(HFDet)
@@ -5868,7 +5895,12 @@ MODULE FciMCParMod
             do i=1,NEl
                 HighEDet(i)=Brr(nBasis-(i-1))
             enddo
-            TempHii=GetHElement2(HighEDet,HighEDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            IF(tHPHF) THEN
+                CALL EncodeBitDet(HighEDet,iLutTemp,NEl,NIfD)
+                CALL HPHFGetDiagHElement(HighEDet,iLutTemp,TempHii)
+            ELSE
+                TempHii=GetHElement2(HighEDet,HighEDet,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            ENDIF
             WRITE(6,"(A,G25.15)") "Highest energy determinant is (approximately): ",TempHii%v
             WRITE(6,"(A,F25.15)") "This means tau should be no more than about ",-2.D0/TempHii%v
 !            WRITE(6,*) "Highest energy determinant is: ", HighEDet(:)
@@ -7454,7 +7486,11 @@ MODULE FciMCParMod
                 ENDIF
             ELSE
                 IF(.not.tRegenDiagHEls) THEN
-                    HElemTemp=GetHElement2(TempnI,TempnI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    IF(tHPHF) THEN
+                        CALL HPHFGetDiagHElement(TempnI,CurrentDets(:,j),HElemTemp)
+                    ELSE
+                        HElemTemp=GetHElement2(TempnI,TempnI,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+                    ENDIF
                     CurrentH(j)=REAL(HElemTemp%v,r2)-Hii
                 ENDIF
                 IF(.not.TRegenExcitgens) CurrentExcits(j)%PointToExcit=>null()
@@ -8006,7 +8042,7 @@ MODULE FciMCParMod
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
-    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,Prob,IC,Ex,tParity,nParts,tMinorDetList)
+    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,WSign,nJ,iLutnJ,Prob,IC,Ex,tParity,nParts,tMinorDetList)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,StoreNumTo,StoreNumFrom,DetLT,i,ExtraCreate,Ex(2,2),WSign,nParts
         INTEGER :: iLutCurr(0:NIfD),Bin,iLutnJ(0:NIfD),PartInd,ExcitLev,iLut(0:NIfD),iLut2(0:NIfD)
@@ -8050,7 +8086,8 @@ MODULE FciMCParMod
         IF(tHPHF) THEN
 !The IC given doesn't really matter. It just needs to know whether it is a diagonal or off-diagonal matrix element.
 !However, the excitation generator can generate the same HPHF again. If this is done, the routine will send the matrix element back as zero.
-            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
+!            rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,2,ECore)
+            CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
         ELSE
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
         ENDIF
@@ -8175,7 +8212,11 @@ MODULE FciMCParMod
                 ENDIF
             ENDIF
 
-            rh=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            IF(tHPHF) THEN
+                CALL HPHFGetDiagHElement(nJ,iLutnJ,rh)
+            ELSE
+                rh=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+            ENDIF
             Bin=INT((real(rh%v,r2)-Hii)/BinRange)+1
             IF(Bin.gt.iNoBins) THEN
                 CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
@@ -8764,11 +8805,11 @@ MODULE FciMCParMod
 !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
                             Child=0
                         ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                         ENDIF
                     ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
                     ENDIF
                 ENDIF
                 
