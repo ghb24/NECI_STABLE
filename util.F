@@ -180,3 +180,20 @@
          RETURN
       END FUNCTION Choose
 
+      integer function record_length(bytes)
+         ! Some compilers use record lengths in units of bytes.
+         ! Some compilers use record lengths in units of words.
+         ! This is an utter *pain* for reading unformatted files,
+         ! where you must specify the record length.
+         !
+         ! In:
+         !    bytes: number of bytes in record type of interest (should
+         !    be a multiple of 4).
+         !
+         ! Returns:
+         !    record_length: size of record in units of the compiler's
+         !    choice.
+         integer bytes
+         inquire(iolength=record_length) bytes
+         record_length = (bytes/4)*record_length 
+      end function record_length

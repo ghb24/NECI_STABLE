@@ -7,7 +7,8 @@ subroutine InitRIBasis(nEl,nBasisMax,Len,lMs)
    integer info,lenrec,nrec,i
    integer nBasis
    integer*8 nAb,nB
-   OPEN(29,file='RIINTDUMP',status='old',FORM='UNFORMATTED',access='DIRECT',recl=8)
+   integer record_length
+   OPEN(29,file='RIINTDUMP',status='old',FORM='UNFORMATTED',access='DIRECT',recl=record_length(8))
 !.. The first element is the number of aux basis fns.
 !.. The second element is the number of basisfunctions.
    READ(29,rec=1) nAb
@@ -71,8 +72,9 @@ SUBROUTINE ReadRIIntegrals(nBasis,nOrbUsed)
    real*8 val
    integer*8 nA,nB
    integer GetDFIndex
+   integer record_length
    WRITE(6,*) "Reading QChem C Matrices"
-   OPEN(29,file='RIINTDUMP',status='old',FORM='UNFORMATTED',access='DIRECT',recl=8)
+   OPEN(29,file='RIINTDUMP',status='old',FORM='UNFORMATTED',access='DIRECT',recl=record_length(8))
    read(29,rec=1) nA
    read(29,rec=2) nB
    onints=2
