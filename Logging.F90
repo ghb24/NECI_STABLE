@@ -204,6 +204,7 @@ MODULE Logging
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 
 !number of quads to histogram.
             TAutoCorr=.true.
+            CALL Stop_All("LogReadInput","The ACF code has been commented out in the FCIMCPar module")
             do i=2,4
                 IF(item.lt.nitems) call readi(NoACDets(i))
             enddo

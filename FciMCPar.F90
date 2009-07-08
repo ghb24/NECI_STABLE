@@ -20,7 +20,7 @@ MODULE FciMCParMod
     use IntegralsData , only : fck,NMax,UMat
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
-    USE Logging , only : TAutoCorr,NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep
+    USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE global_utilities
@@ -314,7 +314,7 @@ MODULE FciMCParMod
                     CALL WriteToPopsFilePar()
                 ENDIF
             ENDIF
-            IF(TAutoCorr) CALL WriteHistogrammedDets()
+!            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0)) THEN
                 CALL WriteHistogram()
@@ -356,7 +356,7 @@ MODULE FciMCParMod
 
         IF(iProcIndex.eq.Root) THEN
             CLOSE(15)
-            IF(TAutoCorr) CLOSE(44)
+!            IF(TAutoCorr) CLOSE(44)
         ENDIF
         IF(TDebug) CLOSE(11)
 
@@ -607,19 +607,6 @@ MODULE FciMCParMod
 
         CALL halt_timer(Annihil_Time)
         
-        IF(TSinglePartPhase) THEN
-!Exit the single particle phase if the number of walkers exceeds the value in the input file.
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(TotParts.gt.InitWalkers) THEN
-                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
-                    TSinglePartPhase=.false.
-                ENDIF
-            ENDIF
-!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
-            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
-        ENDIF
-
     END SUBROUTINE PerformCleanFCIMCycPar
 
 !This is the heart of FCIMC, where the MC Cycles are performed.
@@ -1318,9 +1305,9 @@ MODULE FciMCParMod
 !This means that there is no communication between processors and so should be much faster as the system size increases.
 
             CALL Stop_All("PerformFCIMCyc","AnnihilonProc has been disabled")
-            CALL AnnihilateonProc(TotWalkersNew)
-            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
-            TotParts=TotWalkers
+!            CALL AnnihilateonProc(TotWalkersNew)
+!            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
+!            TotParts=TotWalkers
 
         ELSE
 !This routine now cancels down the particles with opposing sign on each determinant
@@ -1334,21 +1321,21 @@ MODULE FciMCParMod
         CALL halt_timer(Annihil_Time)
         
 
-        IF(TSinglePartPhase) THEN
-!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
-!Do not allow culling if we are still in the single particle phase.
-            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
-                IF(TotParts.gt.InitWalkers) THEN
-                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
-                    TSinglePartPhase=.false.
-                ENDIF
-            ENDIF
-!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration
-            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
+!        IF(TSinglePartPhase) THEN
+!!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!!Do not allow culling if we are still in the single particle phase.
+!            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+!                IF(TotParts.gt.InitWalkers) THEN
+!                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+!                    TSinglePartPhase=.false.
+!                ENDIF
+!            ENDIF
+!!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration
+!            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
 !        ELSE
-
-!Culling (either up or down) has now been disabled...
-
+!
+!!Culling (either up or down) has now been disabled...
+!
 !            IF(TotWalkers.gt.(InitWalkers*GrowMaxFactor)) THEN
 !!Particle number is too large - kill them randomly
 !                IF(.not.tRotoAnnihil) THEN
@@ -1391,7 +1378,7 @@ MODULE FciMCParMod
 !                ENDIF
 !            ENDIF
 !        
-        ENDIF
+!        ENDIF
 
     END SUBROUTINE PerformFCIMCycPar
 
@@ -5420,42 +5407,42 @@ MODULE FciMCParMod
 !            PartsinExcitLevel(ExcitLevel)=PartsinExcitLevel(ExcitLevel)+1
 !        ENDIF
 
-        IF(TAutoCorr) THEN
-!First element is HF Det to histogram. Then come doubles, triples and quads
-
-            IF(ExcitLevel.eq.4) THEN
-                LowIndex=2+NoACDets(2)+NoACDets(3)
-                HighIndex=NoAutoDets
-            ELSEIF(ExcitLevel.eq.3) THEN
-                LowIndex=2+NoACDets(2)
-                HighIndex=1+NoACDets(2)+NoACDets(3)
-            ELSEIF(ExcitLevel.eq.2) THEN
-                LowIndex=2
-                HighIndex=1+NoACDets(2)
-            ELSEIF(ExcitLevel.eq.0) THEN
-                LowIndex=1
-                HighIndex=1
-            ELSE
-                LowIndex=0
-            ENDIF
-
-            IF(LowIndex.ne.0) THEN
-
-                do i=LowIndex,HighIndex
-            
-                    IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
-!The walker is at a determinant for which we want to calculate the autocorrelation function
-                        IF(TFlippedSign) THEN
-                            WeightatDets(i)=WeightatDets(i)-WSign
-                        ELSE
-                            WeightatDets(i)=WeightatDets(i)+WSign
-                        ENDIF
-                        EXIT
-                    ENDIF
-
-                enddo
-            ENDIF
-        ENDIF
+!        IF(TAutoCorr) THEN
+!!First element is HF Det to histogram. Then come doubles, triples and quads
+!
+!            IF(ExcitLevel.eq.4) THEN
+!                LowIndex=2+NoACDets(2)+NoACDets(3)
+!                HighIndex=NoAutoDets
+!            ELSEIF(ExcitLevel.eq.3) THEN
+!                LowIndex=2+NoACDets(2)
+!                HighIndex=1+NoACDets(2)+NoACDets(3)
+!            ELSEIF(ExcitLevel.eq.2) THEN
+!                LowIndex=2
+!                HighIndex=1+NoACDets(2)
+!            ELSEIF(ExcitLevel.eq.0) THEN
+!                LowIndex=1
+!                HighIndex=1
+!            ELSE
+!                LowIndex=0
+!            ENDIF
+!
+!            IF(LowIndex.ne.0) THEN
+!
+!                do i=LowIndex,HighIndex
+!            
+!                    IF(CompiPath(DetCurr,AutoCorrDets(:,i),NEl)) THEN
+!!The walker is at a determinant for which we want to calculate the autocorrelation function
+!                        IF(TFlippedSign) THEN
+!                            WeightatDets(i)=WeightatDets(i)-WSign
+!                        ELSE
+!                            WeightatDets(i)=WeightatDets(i)+WSign
+!                        ENDIF
+!                        EXIT
+!                    ENDIF
+!
+!                enddo
+!            ENDIF
+!        ENDIF
         
         RETURN
 
@@ -5471,6 +5458,19 @@ MODULE FciMCParMod
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
         REAL*8 :: inpairreal(4),outpairreal(4)
         LOGICAL :: TBalanceNodesTemp
+        
+        IF(TSinglePartPhase) THEN
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF(TotParts.gt.InitWalkers) THEN
+                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                    TSinglePartPhase=.false.
+                ENDIF
+            ENDIF
+!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,error)
+        ENDIF
 
 !This first call will calculate the GrowRate for each processor, taking culling into account
 !        WRITE(6,*) "Get Here"
@@ -6504,8 +6504,8 @@ MODULE FciMCParMod
             IF(TResumFciMC) CALL Stop_All("InitFciMCPar","Space cannot be truncated with ResumFCIMC")
         ENDIF
 
-        IF(TAutoCorr) THEN
-!We want to calculate the autocorrelation function over the determinants
+!        IF(TAutoCorr) THEN
+!!We want to calculate the autocorrelation function over the determinants
 !            IF(iLagMin.lt.0) THEN
 !                CALL Stop_All("InitFciMCPar","LagMin cannot be less than zero (and when equal 0 should be strictly 1")
 !            ELSEIF(iLagMax.gt.NMCyc) THEN
@@ -6513,11 +6513,12 @@ MODULE FciMCParMod
 !            ELSEIF(iLagStep.lt.1) THEN
 !                CALL Stop_All("InitFciMCPar","LagStep cannot be less than 1")
 !            ENDIF
-
-            CALL ChooseACFDets()
-
-!            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
-        ENDIF
+!
+!            CALL ChooseACFDets()
+!            CALL Stop_All("ChooseACFDets","This code has been commented out...")
+!
+!!            WRITE(6,*) "Storing information to calculate the ACF at end of simulation..."
+!        ENDIF
 
         IF(tMagnetize) THEN
 
@@ -9371,9 +9372,9 @@ MODULE FciMCParMod
 !This means that there is no communication between processors and so should be much faster as the system size increases.
 
             CALL Stop_All("PerformFCIMCyc","AnnihilonProc has been disabled")
-            CALL AnnihilateonProc(TotWalkersNew)
-            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
-            TotParts=TotWalkers
+!            CALL AnnihilateonProc(TotWalkersNew)
+!            Annihilated=Annihilated+(TotWalkersNew-TotWalkers)
+!            TotParts=TotWalkers
 
         ELSE
 !This routine now cancels down the particles with opposing sign on each determinant
@@ -11998,703 +11999,703 @@ MODULE FciMCParMod
     END SUBROUTINE WriteHistogrammedDets
     
     
-    SUBROUTINE ChooseACFDets()
-        use SystemData , only : tAssumeSizeExcitgen
-        INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j,MaxIndex,ExcitLevel,iGetExcitLevel_2
-        INTEGER :: iMaxExcit,ExcitLength,MinInd
-        REAL*8 , ALLOCATABLE :: TempMax(:),ACEnergy(:)
-        LOGICAL :: TurnBackAssumeExGen
-        TYPE(HElement) :: Hij,Hjj,Fjj,Fkk
-        REAL*8 :: Compt,MaxWeight,MinValue
-        INTEGER , ALLOCATABLE :: ExcitGenTemp(:),ACExcLevel(:)
-        CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
-
-!Commented out code is to just perform the ACF for the HF determinant.
-!            NoAutoDets=1    !Initially, we are just after the ACF for one determinant
-!Fill the autocorrdets array with the determinants that you want to work out the autocorrelation for.
-!            AutoCorrDets(:,1)=HFDet(:)
-
-!The code calculates the ACF for the number of doubles here, or all if it is more
-!        NoAutoDets=10
-!        WRITE(6,"(A,I5,A)") "Choosing the ",NoAutoDets," highest MP1 weight determinants to calculate the ACF for."
-        NoAutoDets=1+NoACDets(2)+NoACDets(3)+NoACDets(4)    !Total number of dets to histogram is sum of the determinants for the individual excitation levels.
-        WRITE(6,"(A,I5,A)") "Choosing the ",NoACDets(2)+1," highest MP1 weight determinants to calculate the ACF for."
-        WRITE(6,"(A,I5,A,I5,A)") "Also picking ",NoACDets(3), " high weighted triply excited and ",NoACDets(4), " quadruply excited determinants."
-        WRITE(6,*) "First determinant will be the HF determinant"
-        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
-        IF(NoAutoDets.gt.HFConn) NoAutoDets=HFConn
-        ALLOCATE(AutoCorrDets(NEl,NoAutoDets),stat=ierr)
-        CALL LogMemAlloc('AutoCorrDets',NEl*NoAutoDets,4,this_routine,AutoCorrDetsTag,ierr)
-        AutoCorrDets(:,:)=0
-        
-!Set the first determinant to find the ACF of to be the HF determinant
-        AutoCorrDets(:,1)=HFDet(:)
-
-        ALLOCATE(ACExcLevel(NoAutoDets))
-        ACExcLevel(:)=0
-        ALLOCATE(ACEnergy(NoAutoDets))
-        AcEnergy(:)=0
-
-!We do not know if tAssumeSizeExcitgen is on - if it is, then we can't enumerate all determinants. Get around this by simply regenerating it anyway.
-!First, we need to turn off AssumeSizeExcitgen if it is on.
-        IF(tAssumeSizeExcitgen) THEN
-            TurnBackAssumeExGen=.true.
-            tAssumeSizeExcitgen=.false.
-        ELSE
-            TurnBackAssumeExGen=.false.
-        ENDIF
-
-        ALLOCATE(TempMax(2:NoACDets(2)+1),stat=ierr)   !This will temporarily hold the largest components (+1 since we are no longer considering HF in NoACDets(2))
-        IF(ierr.ne.0) THEN
-            CALL Stop_All("ChooseACFDets","Problem allocating memory")
-        ENDIF
-        TempMax(:)=0.D0
-
-!Setup excit generators for HF Determinant
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
-        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("ChooseACFDets","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
-        ACEnergy(1)=0.D0
-
-        do while(.true.)
-!Generate double excitations
-            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
-            IF(nJ(1).eq.0) EXIT
-            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
-!            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Hjj)
-!            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
-            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
-            MinInd=2
-            MinValue=TempMax(2)
-!First need to find the minimum value to swap out
-            do j=3,NoACDets(2)+1    !NoAutoDets
-                IF(MinValue.gt.TempMax(j)) THEN
-                    MinValue=TempMax(j)
-                    MinInd=j
-                ENDIF
-            enddo
-
-!See if the just calculated value of the MP1 component is larger than the one current minimum.
-            IF(abs(Compt).gt.TempMax(MinInd)) THEN
-                Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                TempMax(MinInd)=abs(Compt)
-                AutoCorrDets(:,MinInd)=nJ(:)
-                ACExcLevel(MinInd)=2
-                ACEnergy(MinInd)=real(Hjj%v,r2)-Hii
-            ENDIF
-
-!            do j=2,NoACDets(2)+1!NoAutoDets
-!                IF(abs(Compt).gt.TempMax(j)) THEN
-!                    TempMax(j)=abs(Compt)
-!                    AutoCorrDets(:,j)=nJ(:)
-!                    ACExcLevel(j)=2
-!                    ACEnergy(j)=real(Fjj%v,r2)
-!                    EXIT
+!    SUBROUTINE ChooseACFDets()
+!        use SystemData , only : tAssumeSizeExcitgen
+!        INTEGER :: ierr,HFConn,nStore(6),i,nJ(NEl),iExcit,j,MaxIndex,ExcitLevel,iGetExcitLevel_2
+!        INTEGER :: iMaxExcit,ExcitLength,MinInd
+!        REAL*8 , ALLOCATABLE :: TempMax(:),ACEnergy(:)
+!        LOGICAL :: TurnBackAssumeExGen
+!        TYPE(HElement) :: Hij,Hjj,Fjj,Fkk
+!        REAL*8 :: Compt,MaxWeight,MinValue
+!        INTEGER , ALLOCATABLE :: ExcitGenTemp(:),ACExcLevel(:)
+!        CHARACTER(len=*), PARAMETER :: this_routine='ChooseACFDets'
+!
+!!Commented out code is to just perform the ACF for the HF determinant.
+!!            NoAutoDets=1    !Initially, we are just after the ACF for one determinant
+!!Fill the autocorrdets array with the determinants that you want to work out the autocorrelation for.
+!!            AutoCorrDets(:,1)=HFDet(:)
+!
+!!The code calculates the ACF for the number of doubles here, or all if it is more
+!!        NoAutoDets=10
+!!        WRITE(6,"(A,I5,A)") "Choosing the ",NoAutoDets," highest MP1 weight determinants to calculate the ACF for."
+!        NoAutoDets=1+NoACDets(2)+NoACDets(3)+NoACDets(4)    !Total number of dets to histogram is sum of the determinants for the individual excitation levels.
+!        WRITE(6,"(A,I5,A)") "Choosing the ",NoACDets(2)+1," highest MP1 weight determinants to calculate the ACF for."
+!        WRITE(6,"(A,I5,A,I5,A)") "Also picking ",NoACDets(3), " high weighted triply excited and ",NoACDets(4), " quadruply excited determinants."
+!        WRITE(6,*) "First determinant will be the HF determinant"
+!        CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+!        IF(NoAutoDets.gt.HFConn) NoAutoDets=HFConn
+!        ALLOCATE(AutoCorrDets(NEl,NoAutoDets),stat=ierr)
+!        CALL LogMemAlloc('AutoCorrDets',NEl*NoAutoDets,4,this_routine,AutoCorrDetsTag,ierr)
+!        AutoCorrDets(:,:)=0
+!        
+!!Set the first determinant to find the ACF of to be the HF determinant
+!        AutoCorrDets(:,1)=HFDet(:)
+!
+!        ALLOCATE(ACExcLevel(NoAutoDets))
+!        ACExcLevel(:)=0
+!        ALLOCATE(ACEnergy(NoAutoDets))
+!        AcEnergy(:)=0
+!
+!!We do not know if tAssumeSizeExcitgen is on - if it is, then we can't enumerate all determinants. Get around this by simply regenerating it anyway.
+!!First, we need to turn off AssumeSizeExcitgen if it is on.
+!        IF(tAssumeSizeExcitgen) THEN
+!            TurnBackAssumeExGen=.true.
+!            tAssumeSizeExcitgen=.false.
+!        ELSE
+!            TurnBackAssumeExGen=.false.
+!        ENDIF
+!
+!        ALLOCATE(TempMax(2:NoACDets(2)+1),stat=ierr)   !This will temporarily hold the largest components (+1 since we are no longer considering HF in NoACDets(2))
+!        IF(ierr.ne.0) THEN
+!            CALL Stop_All("ChooseACFDets","Problem allocating memory")
+!        ENDIF
+!        TempMax(:)=0.D0
+!
+!!Setup excit generators for HF Determinant
+!        iMaxExcit=0
+!        nStore(1:6)=0
+!        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,2)
+!        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+!        IF(ierr.ne.0) CALL Stop_All("ChooseACFDets","Problem allocating excitation generator")
+!        ExcitGenTemp(1)=0
+!        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,2)
+!        ACEnergy(1)=0.D0
+!
+!        do while(.true.)
+!!Generate double excitations
+!            CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,2)
+!            IF(nJ(1).eq.0) EXIT
+!            Hij=GetHElement2(HFDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+!!            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Hjj)
+!!            CALL GetH0Element(HFDet,NEl,Arr,nBasis,ECore,Fii)
+!            Compt=real(Hij%v,r2)/(Fii-(REAL(Fjj%v,r2)))
+!            MinInd=2
+!            MinValue=TempMax(2)
+!!First need to find the minimum value to swap out
+!            do j=3,NoACDets(2)+1    !NoAutoDets
+!                IF(MinValue.gt.TempMax(j)) THEN
+!                    MinValue=TempMax(j)
+!                    MinInd=j
 !                ENDIF
 !            enddo
-            
-        enddo
-        DEALLOCATE(ExcitGenTemp)
-!Find largest weight MP1 contribution
-        MaxWeight=0.D0
-        do i=2,NoACDets(2)+1
-            IF(TempMax(i).gt.MaxWeight) THEN
-                MaxIndex=i
-            ENDIF
-        enddo
-        DEALLOCATE(TempMax)
-        
+!
+!!See if the just calculated value of the MP1 component is larger than the one current minimum.
+!            IF(abs(Compt).gt.TempMax(MinInd)) THEN
+!                Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!                TempMax(MinInd)=abs(Compt)
+!                AutoCorrDets(:,MinInd)=nJ(:)
+!                ACExcLevel(MinInd)=2
+!                ACEnergy(MinInd)=real(Hjj%v,r2)-Hii
+!            ENDIF
+!
+!!            do j=2,NoACDets(2)+1!NoAutoDets
+!!                IF(abs(Compt).gt.TempMax(j)) THEN
+!!                    TempMax(j)=abs(Compt)
+!!                    AutoCorrDets(:,j)=nJ(:)
+!!                    ACExcLevel(j)=2
+!!                    ACEnergy(j)=real(Fjj%v,r2)
+!!                    EXIT
+!!                ENDIF
+!!            enddo
+!            
+!        enddo
+!        DEALLOCATE(ExcitGenTemp)
+!!Find largest weight MP1 contribution
+!        MaxWeight=0.D0
+!        do i=2,NoACDets(2)+1
+!            IF(TempMax(i).gt.MaxWeight) THEN
+!                MaxIndex=i
+!            ENDIF
+!        enddo
+!        DEALLOCATE(TempMax)
+!        
+!!        IF(iProcIndex.eq.root) THEN
+!!            WRITE(6,*) "*** Histogramming the following determinants:"
+!!            do i=1,NoAutoDets
+!!                do j=1,NEl
+!!                    WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
+!!                enddo
+!!                WRITE(6,*) ""
+!!            enddo
+!!        ENDIF
+!
+!!We have now found the largest weight Doubles. To guess at large weighted triples & quads, we simply take the largest weighted double, and find 
+!!its large MP1 weighted contributions with it as the reference.
+!!        WRITE(6,*) "MaxIndex = ", MaxIndex
+!!Setup excit generators for the highest weighted double excitation
+!        iMaxExcit=0
+!        nStore(1:6)=0
+!        CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
+!        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
+!        IF(ierr.ne.0) CALL Stop_All("ChooseACFDets","Problem allocating excitation generator")
+!        ExcitGenTemp(1)=0
+!        CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
+!
+!        CALL GetH0Element(AutoCorrDets(:,MaxIndex),NEl,Arr,nBasis,ECore,Fjj)
+!        ALLOCATE(TempMax(1:(NoACDets(3)+NoACDets(4))),stat=ierr)
+!        TempMax(:)=0.D0
+!
+!        do while(.true.)
+!            CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
+!            IF(nJ(1).eq.0) EXIT
+!            Hij=GetHElement2(AutoCorrDets(:,MaxIndex),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
+!            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fkk)
+!            Compt=real(Hij%v,r2)/(real(Fjj%v,r2)-(real(Fkk%v,r2)))
+!            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,4)
+!            IF(ExcitLevel.eq.3) THEN
+!!We have generated a triple - try to add it to the list
+!                do j=1,NoACDets(3)
+!                    IF(abs(Compt).gt.TempMax(j)) THEN
+!                        Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!                        TempMax(j)=abs(Compt)
+!                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
+!                        ACExcLevel(j+1+NoACDets(2))=3
+!                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
+!                        EXIT
+!                    ENDIF
+!                enddo
+!            ELSEIF(ExcitLevel.eq.4) THEN
+!!We have generated a quad - try to add it to the list
+!                do j=NoACDets(3)+1,(NoACDets(3)+NoACDets(4))
+!                    IF(abs(Compt).gt.TempMax(j)) THEN
+!                        Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!                        TempMax(j)=abs(Compt)
+!                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
+!                        ACExcLevel(j+1+NoACDets(2))=4
+!                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
+!                        EXIT
+!                    ENDIF
+!                enddo
+!            ENDIF
+!        enddo
+!
+!!Deallocate TempExcitgen
+!        DEALLOCATE(TempMax)
+!!        CALL DissociateExitgen(ExcitGenTemp)
+!        DEALLOCATE(ExcitGenTemp)
+!        
+!!Find if any zeros
+!        do i=1,NoAutoDets
+!            IF(AutoCorrDets(1,i).eq.0) THEN
+!!                NoAutoDets=NoAutoDets-1
+!                WRITE(6,*) "Could not find AutoCorrFunc determinant to histogram slot ",i
+!!Move these zeros to the end of the list
+!                do j=i,NoAutoDets
+!                    IF(AutoCorrDets(1,j).ne.0) THEN
+!                        AutoCorrDets(:,i)=AutoCorrDets(:,j)
+!                        ACExcLevel(i)=ACExcLevel(j)
+!                        ACEnergy(i)=ACEnergy(j)
+!                        EXIT
+!                    ENDIF
+!                enddo
+!                NoAutoDets=NoAutoDets-1
+!            ENDIF
+!        enddo
+!            
+!!The number of occurunces of walkers at the determiants selected needs to be stored for all iterations
+!        ALLOCATE(WeightatDets(NoAutoDets),stat=ierr)
+!        CALL LogMemAlloc('WeightatDets',NoAutoDets,4,this_routine,WeightatDetsTag,ierr)
+!        WeightatDets(:)=0
+!!If we want to calculate the ACF, then we now do this in a seperate step. Now we simply write out the determinant populations at each iteration
+!!to a file called HFDoublePops
+!        
 !        IF(iProcIndex.eq.root) THEN
-!            WRITE(6,*) "*** Histogramming the following determinants:"
+!            WRITE(6,*) "Histogramming the following determinants:"
 !            do i=1,NoAutoDets
 !                do j=1,NEl
 !                    WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
 !                enddo
 !                WRITE(6,*) ""
 !            enddo
-!        ENDIF
-
-!We have now found the largest weight Doubles. To guess at large weighted triples & quads, we simply take the largest weighted double, and find 
-!its large MP1 weighted contributions with it as the reference.
-!        WRITE(6,*) "MaxIndex = ", MaxIndex
-!Setup excit generators for the highest weighted double excitation
-        iMaxExcit=0
-        nStore(1:6)=0
-        CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitLength,nJ,iMaxExcit,0,nStore,3)
-        ALLOCATE(ExcitGenTemp(ExcitLength),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All("ChooseACFDets","Problem allocating excitation generator")
-        ExcitGenTemp(1)=0
-        CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.TRUE.,ExcitGenTemp,nJ,iMaxExcit,0,nStore,3)
-
-        CALL GetH0Element(AutoCorrDets(:,MaxIndex),NEl,Arr,nBasis,ECore,Fjj)
-        ALLOCATE(TempMax(1:(NoACDets(3)+NoACDets(4))),stat=ierr)
-        TempMax(:)=0.D0
-
-        do while(.true.)
-            CALL GenSymExcitIt2(AutoCorrDets(:,MaxIndex),NEl,G1,nBasis,nBasisMax,.false.,ExcitGenTemp,nJ,iExcit,0,nStore,3)
-            IF(nJ(1).eq.0) EXIT
-            Hij=GetHElement2(AutoCorrDets(:,MaxIndex),nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,iExcit,ECore)
-            CALL GetH0Element(nJ,NEl,Arr,nBasis,ECore,Fkk)
-            Compt=real(Hij%v,r2)/(real(Fjj%v,r2)-(real(Fkk%v,r2)))
-            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,4)
-            IF(ExcitLevel.eq.3) THEN
-!We have generated a triple - try to add it to the list
-                do j=1,NoACDets(3)
-                    IF(abs(Compt).gt.TempMax(j)) THEN
-                        Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                        TempMax(j)=abs(Compt)
-                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
-                        ACExcLevel(j+1+NoACDets(2))=3
-                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
-                        EXIT
-                    ENDIF
-                enddo
-            ELSEIF(ExcitLevel.eq.4) THEN
-!We have generated a quad - try to add it to the list
-                do j=NoACDets(3)+1,(NoACDets(3)+NoACDets(4))
-                    IF(abs(Compt).gt.TempMax(j)) THEN
-                        Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                        TempMax(j)=abs(Compt)
-                        AutoCorrDets(:,(j+1+NoACDets(2)))=nJ(:)
-                        ACExcLevel(j+1+NoACDets(2))=4
-                        ACEnergy(j+1+NoACDets(2))=real(Hjj%v,r2)-Hii
-                        EXIT
-                    ENDIF
-                enddo
-            ENDIF
-        enddo
-
-!Deallocate TempExcitgen
-        DEALLOCATE(TempMax)
-!        CALL DissociateExitgen(ExcitGenTemp)
-        DEALLOCATE(ExcitGenTemp)
-        
-!Find if any zeros
-        do i=1,NoAutoDets
-            IF(AutoCorrDets(1,i).eq.0) THEN
-!                NoAutoDets=NoAutoDets-1
-                WRITE(6,*) "Could not find AutoCorrFunc determinant to histogram slot ",i
-!Move these zeros to the end of the list
-                do j=i,NoAutoDets
-                    IF(AutoCorrDets(1,j).ne.0) THEN
-                        AutoCorrDets(:,i)=AutoCorrDets(:,j)
-                        ACExcLevel(i)=ACExcLevel(j)
-                        ACEnergy(i)=ACEnergy(j)
-                        EXIT
-                    ENDIF
-                enddo
-                NoAutoDets=NoAutoDets-1
-            ENDIF
-        enddo
-            
-!The number of occurunces of walkers at the determiants selected needs to be stored for all iterations
-        ALLOCATE(WeightatDets(NoAutoDets),stat=ierr)
-        CALL LogMemAlloc('WeightatDets',NoAutoDets,4,this_routine,WeightatDetsTag,ierr)
-        WeightatDets(:)=0
-!If we want to calculate the ACF, then we now do this in a seperate step. Now we simply write out the determinant populations at each iteration
-!to a file called HFDoublePops
-        
-        IF(iProcIndex.eq.root) THEN
-            WRITE(6,*) "Histogramming the following determinants:"
-            do i=1,NoAutoDets
-                do j=1,NEl
-                    WRITE(6,"(I4)",advance='no') AutoCorrDets(j,i)
-                enddo
-                WRITE(6,*) ""
-            enddo
-
-            OPEN(44,FILE='HFDoublePops',STATUS='UNKNOWN')
-            WRITE(44,*) 'Energy of determinant'
-            WRITE(44,"(A8)",advance='no') "-"
-            do i=1,NoAutoDets
-                WRITE(44,"(F20.10)",advance='no') ACEnergy(i)
-            enddo
-            WRITE(44,*) 'Excitation level'
-            WRITE(44,"(A8)",advance='no') "-"
-            do i=1,NoAutoDets
-                WRITE(44,"(I8)",advance='no') ACExcLevel(i)
-            enddo
-            WRITE(44,"(/,A14,5X,A23)") "Iteration No.","Determinant Populations"
-        ENDIF
-
-        DEALLOCATE(ACExcLevel)
-        DEALLOCATE(ACEnergy)
-
-        IF(TurnBackAssumeExGen) THEN
-!We turned off assumed sized excitation generators for this routine - turn it back on.
-            tAssumeSizeExcitgen=.true.
-        ENDIF
-
-        RETURN
-
-    END SUBROUTINE ChooseACFDets
-
-
-    
-!This is a routine to create a graph from the walker at nI, and ascribe new walkers at each vertex on the graph, according to a number of applications of the rho matrix.
-    SUBROUTINE ResumGraphPar(nI,WSign,VecSlot,VecInd)
-        INTEGER :: nI(NEl),VecSlot,VecInd
-        LOGICAL :: WSign
-        REAL*8 :: Prob
-
-!This routine will create the graph. It will calculate it differently depending on the size of the graph, and whether excitation generators are stored. 
-        CALL CreateGraphPar(nI,VecInd,Prob)
-
-!Apply the rho matrix successive times. This could be improved if large numbers of applications of rho are needed by diagonalising the rho matrix
-        CALL ApplyRhoMatPar()
-        
-        IF(.not.tRegenDiagHEls) THEN
-            CALL CreateNewPartsPar(nI,VecInd,WSign,CurrentH(VecInd),VecSlot,Prob)   !Create particles proportionally to the magnitude of the vector elements in GraphVec
-        ELSE
-            CALL Stop_All("ResumGraphPar","ResumGraphPar does not work with regendiaghels.")
-        ENDIF
-
-        RETURN
-
-    END SUBROUTINE ResumGraphPar
-
-!This routine will create a graph from a given initial determinant
-    SUBROUTINE CreateGraphPar(nI,VecInd,Prob)
-        TYPE(ExcitPointer) :: TempExcitgen
-        INTEGER :: nI(NEl),nJ(NEl),VecInd,i,j,IC,iCount,Attempts
-        REAL*8 :: Prob,ExcitProb
-        LOGICAL :: SameDet,CompiPath
-        TYPE(HElement) :: Hij,Hjj
-
-        IF(tRegenDiagHEls) THEN
-            CALL Stop_All("CreateGraphPar","CreateGraphPar will not work with RegenDiagHEls")
-        ENDIF
-
-        TempExcitgen%PointToExcit=>null()
-
-!First, set up the excitation generators for the root determinant
-        IF(.not.TRegenExcitgens) THEN
-            CALL SetupExitgenPar(nI,CurrentExcits(VecInd))
-        ELSE
-            CALL SetupExitgenPar(nI,TempExcitgen)
-        ENDIF
-
-        IF(NDets.eq.2) THEN
-!We know that determinants are not going to be regenerated if NDets=2, so we can do this in a slightly simpler way
-            
-            IF(TRegenExcitgens) THEN
-                CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,0,IC,0,Prob,iCount)
-            ELSE
-                CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,0,IC,0,Prob,iCount)
-            ENDIF
-
-            Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-            Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-
-            GraphRhoMat(1,1)=1.D0-Tau*(CurrentH(VecInd)-DiagSft)
-            GraphRhoMat(1,2)=-Tau*real(Hij%v,r2)
-            GraphRhoMat(2,1)=GraphRhoMat(1,2)
-            GraphRhoMat(2,2)=1.D0-Tau*((real(Hjj%v,r2)-Hii)-DiagSft)
-                
-            DetsinGraph(:,2)=nJ(:)
-            GraphKii(2)=REAL(Hjj%v,r2)-Hii              !store det generated and kii element
-
-        ELSE
-!Zero the matrix
-            GraphRhoMat(1:NDets,1:NDets)=0.D0
-            
-            GraphRhoMat(1,1)=1.D0-Tau*(CurrentH(VecInd)-DiagSft)    !This is the first rho-matrix element
-
-            i=2
-            Attempts=0
-            do while(i.lt.NDets)    !Loop until all determinants found
-
-                IF(TRegenExcitgens) THEN
-                    CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,0,IC,0,Prob,iCount)
-                ELSE
-                    CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,0,IC,0,Prob,iCount)
-                ENDIF
-
-                SameDet=.false.
-                do j=2,(i-1)
-                    IF(CompiPath(nJ,DetsinGraph(:,j),NEl)) THEN
-!Determinants are the same as already created determinant - ignore it
-
-                        SameDet=.true.
-                        Attempts=Attempts+1
-                        IF(Attempts.gt.1000) THEN
-                            WRITE(6,*) "iCOUNT IS: ", iCount
-                            CALL FLUSH(6)
-                            CALL Stop_All("CreateGraphPar","More than 1000 attempts needed to grow graph")
-                        ENDIF
-                        EXIT
-                    ENDIF
-                enddo
-
-                IF(.not.SameDet) THEN
-!Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
-                    IF(i.eq.2) THEN
-                        ExcitProb=Prob
-                    ELSE
-                        IF(abs(Prob-ExcitProb).gt.1.D-07) THEN
-                            CALL Stop_All("CreateGraph","Excitation probabilities are not uniform - problem here...")
-                        ENDIF
-                    ENDIF
-
-!Determinant is distinct - add it
-                    DetsinGraph(1:NEl,i)=nJ(1:NEl)
-!First find connection to root
-                    Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-                    GraphRhoMat(1,i)=-Tau*REAL(Hij%v,r2)
-                    GraphRhoMat(i,1)=GraphRhoMat(1,i)
-
-!Then find connection to other determinants
-                    do j=2,(i-1)
-                        Hij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
-                        GraphRhoMat(i,j)=-Tau*REAL(Hij%v,r2)
-                        GraphRhoMat(j,i)=GraphRhoMat(i,j)
-                    enddo
-
-!Find diagonal element - and store it for later on...
-                    Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-                    GraphKii(i)=REAL(Hjj%v,r2)-Hii                !Again, the root value is not stored
-                    GraphRhoMat(i,i)=1.D0-Tau*(GraphKii(i)-DiagSft)
-
-                    i=i+1
-
-                ENDIF
-            enddo
-
-        ENDIF   !End if ndets=2
-
-        IF(TRegenExcitgens) THEN
-!Deallocate excitation generator if we are regenerating them
-            CALL DissociateExitgen(TempExcitgen)
-        ENDIF
-
-        RETURN
-
-    END SUBROUTINE CreateGraphPar
-
-    
-!This routine creates new particles from the vector which results from the 
-    SUBROUTINE CreateNewPartsPar(nI,VecInd,WSign,Kii,VecSlot,Prob)
-        IMPLICIT NONE
-        LOGICAL :: WSign,TempSign
-        INTEGER :: nI(NEl),VecInd
-        INTEGER :: i,j,VecSlot,Create,ExcitLevel,iGetExcitLevel_2
-        INTEGER(KIND=i2) :: HashTemp
-        REAL*8 :: rat,Kii,Kjj,Prob,r
-
-!First deal with the excitations...
-        do i=2,NDets
-!Now create the new particles according the the final vector GraphVec
-            
-            GraphVec(i)=GraphVec(i)/((NDets-1)*Prob)    !Augment the component by the chances of picking that determinant
-    
-            Create=INT(abs(GraphVec(i)))
-            rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
-            IF(tMerTwist) THEN
-                CALL genrand_real2(r) 
-            ELSE
-                CALL RANLUX(r,1)
-            ENDIF
-            IF(rat.gt.r) Create=Create+1
-            IF(abs(Create).gt.0) THEN
-                IF(.not.WSign) Create=-Create
-                IF(GraphVec(i).lt.0.D0) Create=-Create
-!Find needed information out about the new particles
-!Calculate excitation level, connection to HF. Diagonal ham element info is already stored
-                
-                ExcitLevel=iGetExcitLevel_2(HFDet,DetsinGraph(:,i),NEl,NEl)
-                IF(ExcitLevel.eq.0) THEN
-                    IF(ABS(GraphKii(i)).gt.1.D-07) THEN
-                        CALL Stop_All("ResumGraphPar","Diagonal K-mat element should be zero for HF particles")
-                    ENDIF
-                ENDIF
-                IF(Create.lt.0) THEN
-                    TempSign=.false.
-                ELSE
-                    TempSign=.true.
-                ENDIF
-                
-                IF(.not.TNoAnnihil) THEN
-!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                    HashTemp=CreateHash(DetsInGraph(:,i))
-                ENDIF
-                
-!Now actually create the particles in NewDets and NewSign
-                do j=1,abs(Create)
-                    NewDets(1:NEl,VecSlot)=DetsInGraph(1:NEl,i)
-                    NewSign(VecSlot)=TempSign
-!                    NewIC(VecSlot)=ExcitLevel
-                    IF(.not.tRegenDiagHEls) NewH(VecSlot)=GraphKii(i)       !Diagonal H El previously stored
-                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
-                    IF(.not.TNoAnnihil) THEN
-!                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                        Hash2Array(VecSlot)=HashTemp
-                    ENDIF
-                    VecSlot=VecSlot+1
-                enddo
-
-            ENDIF
-
-        enddo
-
-!Now deal with root
-        Create=INT(abs(GraphVec(1)))
-
-        rat=abs(GraphVec(1))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
-        IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
-        ELSE
-            CALL RANLUX(r,1)
-        ENDIF
-        IF(rat.gt.r) Create=Create+1
-        
-        IF((abs(Create)).gt.0) THEN
-        
-            IF(.not.WSign) Create=-Create
-            IF(GraphVec(1).lt.0.D0) Create=-Create
-
-!Test since the root should not change sign - comment out later
-            IF(WSign.and.(Create.lt.0)) THEN
-                call Stop_All("CreateNewPartsPar","Root determinant should not change sign")
-            ELSEIF((.not.WSign).and.(Create.gt.0)) THEN
-                call Stop_All("CreateNewPartsPar","Root determinant should not change sign")
-            ENDIF
-            
-            IF(Create.lt.0) THEN
-                TempSign=.false.
-            ELSE
-                TempSign=.true.
-            ENDIF
-
-!Now actually create the particles in NewDets and NewSign. It is the same particle as the parent particle.
-            do j=1,abs(Create)
-                NewDets(:,VecSlot)=nI(:)
-                NewSign(VecSlot)=TempSign
-!Copy excitation generator accross
-                IF(j.eq.abs(Create)) THEN
-                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot),.true.)
-                ELSE
-                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot),.false.)
-                ENDIF
-!                NewIC(VecSlot)=CurrentIC(VecInd)
-                IF(.not.tRegenDiagHEls) NewH(VecSlot)=CurrentH(VecInd)
-                IF(.not.TNoAnnihil) THEN
-!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
-                    Hash2Array(VecSlot)=HashArray(VecInd)
-                ENDIF
-                VecSlot=VecSlot+1
-            enddo
-
-        ENDIF
-
-        RETURN
-
-    END SUBROUTINE CreateNewPartsPar
-
-!This applies the rho matrix successive times to a root determinant. From this, GraphVec is filled with the correct probabilities for the determinants in the graph
-    SUBROUTINE ApplyRhoMatPar()
-        REAL*8 :: TempVec(NDets)
-        INTEGER :: i,j,k
-
-!        IF(NDets.eq.2) THEN
 !
-!            GraphVec(1)=1.D0
-!            GraphVec(2)=0.D0
-!
-!            do i=1,RhoApp
-!            
-!                TempVec(1)=(GraphRhoMat(1,1)*GraphVec(1))+(GraphRhoMat(1,2)*GraphVec(2))
-!                TempVec(2)=(GraphRhoMat(2,1)*GraphVec(1))+(GraphRhoMat(2,2)*GraphVec(2))
-!            
-!                GraphVec(1)=TempVec(1)
-!                GraphVec(2)=TempVec(2)
-!
+!            OPEN(44,FILE='HFDoublePops',STATUS='UNKNOWN')
+!            WRITE(44,*) 'Energy of determinant'
+!            WRITE(44,"(A8)",advance='no') "-"
+!            do i=1,NoAutoDets
+!                WRITE(44,"(F20.10)",advance='no') ACEnergy(i)
 !            enddo
+!            WRITE(44,*) 'Excitation level'
+!            WRITE(44,"(A8)",advance='no') "-"
+!            do i=1,NoAutoDets
+!                WRITE(44,"(I8)",advance='no') ACExcLevel(i)
+!            enddo
+!            WRITE(44,"(/,A14,5X,A23)") "Iteration No.","Determinant Populations"
+!        ENDIF
+!
+!        DEALLOCATE(ACExcLevel)
+!        DEALLOCATE(ACEnergy)
+!
+!        IF(TurnBackAssumeExGen) THEN
+!!We turned off assumed sized excitation generators for this routine - turn it back on.
+!            tAssumeSizeExcitgen=.true.
+!        ENDIF
+!
+!        RETURN
+!
+!    END SUBROUTINE ChooseACFDets
+!
+!
+!    
+!!This is a routine to create a graph from the walker at nI, and ascribe new walkers at each vertex on the graph, according to a number of applications of the rho matrix.
+!    SUBROUTINE ResumGraphPar(nI,WSign,VecSlot,VecInd)
+!        INTEGER :: nI(NEl),VecSlot,VecInd
+!        LOGICAL :: WSign
+!        REAL*8 :: Prob
+!
+!!This routine will create the graph. It will calculate it differently depending on the size of the graph, and whether excitation generators are stored. 
+!        CALL CreateGraphPar(nI,VecInd,Prob)
+!
+!!Apply the rho matrix successive times. This could be improved if large numbers of applications of rho are needed by diagonalising the rho matrix
+!        CALL ApplyRhoMatPar()
+!        
+!        IF(.not.tRegenDiagHEls) THEN
+!            CALL CreateNewPartsPar(nI,VecInd,WSign,CurrentH(VecInd),VecSlot,Prob)   !Create particles proportionally to the magnitude of the vector elements in GraphVec
+!        ELSE
+!            CALL Stop_All("ResumGraphPar","ResumGraphPar does not work with regendiaghels.")
+!        ENDIF
+!
+!        RETURN
+!
+!    END SUBROUTINE ResumGraphPar
+!
+!!This routine will create a graph from a given initial determinant
+!    SUBROUTINE CreateGraphPar(nI,VecInd,Prob)
+!        TYPE(ExcitPointer) :: TempExcitgen
+!        INTEGER :: nI(NEl),nJ(NEl),VecInd,i,j,IC,iCount,Attempts
+!        REAL*8 :: Prob,ExcitProb
+!        LOGICAL :: SameDet,CompiPath
+!        TYPE(HElement) :: Hij,Hjj
+!
+!        IF(tRegenDiagHEls) THEN
+!            CALL Stop_All("CreateGraphPar","CreateGraphPar will not work with RegenDiagHEls")
+!        ENDIF
+!
+!        TempExcitgen%PointToExcit=>null()
+!
+!!First, set up the excitation generators for the root determinant
+!        IF(.not.TRegenExcitgens) THEN
+!            CALL SetupExitgenPar(nI,CurrentExcits(VecInd))
+!        ELSE
+!            CALL SetupExitgenPar(nI,TempExcitgen)
+!        ENDIF
+!
+!        IF(NDets.eq.2) THEN
+!!We know that determinants are not going to be regenerated if NDets=2, so we can do this in a slightly simpler way
+!            
+!            IF(TRegenExcitgens) THEN
+!                CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,0,IC,0,Prob,iCount)
+!            ELSE
+!                CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,0,IC,0,Prob,iCount)
+!            ENDIF
+!
+!            Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!            Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!
+!            GraphRhoMat(1,1)=1.D0-Tau*(CurrentH(VecInd)-DiagSft)
+!            GraphRhoMat(1,2)=-Tau*real(Hij%v,r2)
+!            GraphRhoMat(2,1)=GraphRhoMat(1,2)
+!            GraphRhoMat(2,2)=1.D0-Tau*((real(Hjj%v,r2)-Hii)-DiagSft)
+!                
+!            DetsinGraph(:,2)=nJ(:)
+!            GraphKii(2)=REAL(Hjj%v,r2)-Hii              !store det generated and kii element
 !
 !        ELSE
-            
-            GraphVec(1:NDets)=0.d0
-            GraphVec(1)=1.D0        !Set the initial vector to be 1 at the root (i.e. for one walker initially)
-        
-            do i=1,RhoApp
-
-                CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
-                GraphVec(1:NDets)=TempVec(1:NDets)
-                TempVec(1:NDets)=0.d0
-            
-!            do j=1,NDets
-!                TempVec(j)=0.D0
-!                do k=1,NDets
-!                    TempVec(j)=TempVec(j)+GraphRhoMat(j,k)*GraphVec(k)
+!!Zero the matrix
+!            GraphRhoMat(1:NDets,1:NDets)=0.D0
+!            
+!            GraphRhoMat(1,1)=1.D0-Tau*(CurrentH(VecInd)-DiagSft)    !This is the first rho-matrix element
+!
+!            i=2
+!            Attempts=0
+!            do while(i.lt.NDets)    !Loop until all determinants found
+!
+!                IF(TRegenExcitgens) THEN
+!                    CALL GenRandSymExcitIt3(nI,TempExcitgen%PointToExcit,nJ,0,IC,0,Prob,iCount)
+!                ELSE
+!                    CALL GenRandSymExcitIt3(nI,CurrentExcits(VecInd)%PointToExcit,nJ,0,IC,0,Prob,iCount)
+!                ENDIF
+!
+!                SameDet=.false.
+!                do j=2,(i-1)
+!                    IF(CompiPath(nJ,DetsinGraph(:,j),NEl)) THEN
+!!Determinants are the same as already created determinant - ignore it
+!
+!                        SameDet=.true.
+!                        Attempts=Attempts+1
+!                        IF(Attempts.gt.1000) THEN
+!                            WRITE(6,*) "iCOUNT IS: ", iCount
+!                            CALL FLUSH(6)
+!                            CALL Stop_All("CreateGraphPar","More than 1000 attempts needed to grow graph")
+!                        ENDIF
+!                        EXIT
+!                    ENDIF
 !                enddo
+!
+!                IF(.not.SameDet) THEN
+!!Store the unbiased probability of generating excitations from this root - check that it is the same as other excits generated
+!                    IF(i.eq.2) THEN
+!                        ExcitProb=Prob
+!                    ELSE
+!                        IF(abs(Prob-ExcitProb).gt.1.D-07) THEN
+!                            CALL Stop_All("CreateGraph","Excitation probabilities are not uniform - problem here...")
+!                        ENDIF
+!                    ENDIF
+!
+!!Determinant is distinct - add it
+!                    DetsinGraph(1:NEl,i)=nJ(1:NEl)
+!!First find connection to root
+!                    Hij=GetHElement2(nI,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+!                    GraphRhoMat(1,i)=-Tau*REAL(Hij%v,r2)
+!                    GraphRhoMat(i,1)=GraphRhoMat(1,i)
+!
+!!Then find connection to other determinants
+!                    do j=2,(i-1)
+!                        Hij=GetHElement2(nJ,DetsInGraph(:,j),NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,-1,ECore)
+!                        GraphRhoMat(i,j)=-Tau*REAL(Hij%v,r2)
+!                        GraphRhoMat(j,i)=GraphRhoMat(i,j)
+!                    enddo
+!
+!!Find diagonal element - and store it for later on...
+!                    Hjj=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!                    GraphKii(i)=REAL(Hjj%v,r2)-Hii                !Again, the root value is not stored
+!                    GraphRhoMat(i,i)=1.D0-Tau*(GraphKii(i)-DiagSft)
+!
+!                    i=i+1
+!
+!                ENDIF
 !            enddo
-!            GraphVec(:)=TempVec(:)
-
-            enddo
-
+!
+!        ENDIF   !End if ndets=2
+!
+!        IF(TRegenExcitgens) THEN
+!!Deallocate excitation generator if we are regenerating them
+!            CALL DissociateExitgen(TempExcitgen)
 !        ENDIF
-
-        RETURN
-    END SUBROUTINE ApplyRhoMatPar
-
-
-
-    
-!A routine to annihilate particles separatly on each node. This should mean less annihilation occurs, but it is effect running nProcessors separate simulations.
-!If there are enough particles, then this should be sufficient. Less memory is required, since no hashes need to be stored. Also, no communication is needed,
-!so the routine should scale better as the number of walkers grows.
-    SUBROUTINE AnnihilateonProc(TotWalkersNew)
-        TYPE(ExcitPointer) :: TempExcit
-        REAL*8 :: TempH
-!        INTEGER :: TempIC
-        INTEGER :: TotWalkersNew,j,k,l,DetCurr(0:NIfD),VecSlot,TotWalkersDet
-        INTEGER :: DetLT
-
-        TempExcit%PointToExcit=>null()
-!First, it is necessary to sort the list of determinants
-        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NIfD+1)
-
-!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
-        j=1
-!j is the counter over all uncancelled walkers - it indicates when we have reached the end of the list of total walkers
-!DetCurr is the current determinant
-        DetCurr(:)=NewDets(:,j)
-!        TempIC=NewIC(j)
-        IF(.not.tRegenDiagHEls) TempH=NewH(j)
-        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit,.true.) !This will delete what is behind it - is that ok?
-        
-        VecSlot=1
-
-        do while(j.le.TotWalkersNew)
-!Loop over all walkers
-            TotWalkersDet=0
-            do while ((DetLT(NewDets(:,j),DetCurr,(NIfD+1)).eq.0).and.(j.le.TotWalkersNew))
-!Loop over all walkers on DetCurr and count residual number after cancelling
-                IF(NewSign(j)) THEN
-                    TotWalkersDet=TotWalkersDet+1
-                ELSE
-                    TotWalkersDet=TotWalkersDet-1
-                ENDIF
-                j=j+1
-            enddo
-!Transfer residual population into VecSlot, along with residual sign
-            IF(TotWalkersDet.gt.0) THEN
-!Positive sign particles want to populate this determinant
-                do l=1,abs(TotWalkersDet)
-                    CurrentDets(:,VecSlot)=DetCurr(:)
-                    CurrentSign(VecSlot)=1
-!                    CurrentIC(VecSlot)=TempIC
-                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=TempH
-                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
-                    VecSlot=VecSlot+1
-                enddo
-            ELSE
-!Negative sign particles want to populate this determinant
-                do l=1,abs(TotWalkersDet)
-                    CurrentDets(:,VecSlot)=DetCurr(:)
-                    CurrentSign(VecSlot)=1
-!                    CurrentIC(VecSlot)=TempIC
-                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=TempH
-                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
-                    VecSlot=VecSlot+1
-                enddo
-            ENDIF
-!Now update the current determinant
-            DetCurr(:)=NewDets(:,j)
-!            TempIC=NewIC(j)
-            IF(.not.tRegenDiagHEls) TempH=NewH(j)
-            IF(.not.TRegenExcitgens) THEN
-                CALL DissociateExitGen(TempExcit)
-                CALL CopyExitGenPar(NewExcits(j),TempExcit,.true.)
-            ENDIF
-        enddo
-!The new number of residual cancelled walkers is given by one less that VecSlot again.
-        TotWalkers=VecSlot-1
-
-        RETURN
-
-    END SUBROUTINE AnnihilateonProc
-
-!This routine sorts the particles before annihilation. It is identical to the routine in the serial version, but the data which is taken is different.
-! Based on SORTI, SORTPARTS sorts arrays of integers, representing the determinant the walkers are on
-! It then takes all the corresponding info with it
-! Dets is the array (length N) of integers to sort
-! NElecs is the length (in numbers of integers) of each element of Dets
-! Vectors of NewXXX will be sorted correspondingly
-    SUBROUTINE SortPartsPar(N,Dets,NElecs)
-        TYPE(ExcitPointer) :: ExcitTemp
-        REAL*8 :: HTemp
-!        INTEGER :: ICTemp
-        INTEGER :: TempDet(NElecs)     !This stores a single element of the vector temporarily     
-        INTEGER :: WSignTemp
-        INTEGER N,I,L,IR,J,NElecs
-        INTEGER Dets(NElecs,N)
-        INTEGER DETLT
-
-        ExcitTemp%PointToExcit=>null()
-        IF(N.LE.1) RETURN
-        L=N/2+1 
-        IR=N
-10      CONTINUE
-        IF(L.GT.1)THEN
-            L=L-1
-            TempDet(:)=Dets(:,L)
-            IF(.not.tRegenDiagHEls) HTemp=NewH(L)
-!            ICTemp=NewIC(L)
-            WSignTemp=NewSign(L)
-            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp,.true.) !This will delete what is behind it - is this ok?
-        ELSE
-            TempDet(:)=Dets(:,IR)      !Copy IRth elements to temp
-            IF(.not.tRegenDiagHEls) HTemp=NewH(IR)
-!            ICTemp=NewIC(IR)
-            WSignTemp=NewSign(IR)
-            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp,.true.)
-
-            Dets(:,IR)=Dets(:,1)    !Copy 1st element to IRth element
-            IF(.not.tRegenDiagHEls) NewH(IR)=NewH(1)
-!            NewIC(IR)=NewIC(1)
-            NewSign(IR)=NewSign(1)
-            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR),.true.)
-            IR=IR-1
-            IF(IR.EQ.1)THEN
-                Dets(:,1)=TempDet(:)    !Copy temp element to 1st element
-                IF(.not.tRegenDiagHEls) NewH(1)=HTemp
-!                NewIC(1)=ICTemp
-                NewSign(1)=WSignTemp
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(1),.true.)
-                RETURN
-            ENDIF
-        ENDIF
-        I=L
-        J=L+L
-20      IF(J.LE.IR)THEN
-            IF(J.LT.IR)THEN
-                IF((DETLT(Dets(1,J),Dets(1,J+1),NElecs)).eq.-1) J=J+1
-            ENDIF
-            IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
-                Dets(:,I)=Dets(:,J)     !Copy Jth element to Ith element
-                IF(.not.tRegenDiagHEls) NewH(I)=NewH(J)
-!                NewIC(I)=NewIC(J)
-                NewSign(I)=NewSign(J)
-                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(J),NewExcits(I),.true.)
-                I=J
-                J=J+J
-            ELSE
-                J=IR+1
-            ENDIF
-            GO TO 20
-        ENDIF
-        Dets(:,I)=TempDet(:)
-        IF(.not.tRegenDiagHEls) NewH(I)=HTemp
-!        NewIC(I)=ICTemp
-        NewSign(I)=WSignTemp
-        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(I),.true.)
-        GO TO 10
-
-    END SUBROUTINE SortPartsPar
+!
+!        RETURN
+!
+!    END SUBROUTINE CreateGraphPar
+!
+!    
+!!This routine creates new particles from the vector which results from the 
+!    SUBROUTINE CreateNewPartsPar(nI,VecInd,WSign,Kii,VecSlot,Prob)
+!        IMPLICIT NONE
+!        LOGICAL :: WSign,TempSign
+!        INTEGER :: nI(NEl),VecInd
+!        INTEGER :: i,j,VecSlot,Create,ExcitLevel,iGetExcitLevel_2
+!        INTEGER(KIND=i2) :: HashTemp
+!        REAL*8 :: rat,Kii,Kjj,Prob,r
+!
+!!First deal with the excitations...
+!        do i=2,NDets
+!!Now create the new particles according the the final vector GraphVec
+!            
+!            GraphVec(i)=GraphVec(i)/((NDets-1)*Prob)    !Augment the component by the chances of picking that determinant
+!    
+!            Create=INT(abs(GraphVec(i)))
+!            rat=abs(GraphVec(i))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+!            IF(tMerTwist) THEN
+!                CALL genrand_real2(r) 
+!            ELSE
+!                CALL RANLUX(r,1)
+!            ENDIF
+!            IF(rat.gt.r) Create=Create+1
+!            IF(abs(Create).gt.0) THEN
+!                IF(.not.WSign) Create=-Create
+!                IF(GraphVec(i).lt.0.D0) Create=-Create
+!!Find needed information out about the new particles
+!!Calculate excitation level, connection to HF. Diagonal ham element info is already stored
+!                
+!                ExcitLevel=iGetExcitLevel_2(HFDet,DetsinGraph(:,i),NEl,NEl)
+!                IF(ExcitLevel.eq.0) THEN
+!                    IF(ABS(GraphKii(i)).gt.1.D-07) THEN
+!                        CALL Stop_All("ResumGraphPar","Diagonal K-mat element should be zero for HF particles")
+!                    ENDIF
+!                ENDIF
+!                IF(Create.lt.0) THEN
+!                    TempSign=.false.
+!                ELSE
+!                    TempSign=.true.
+!                ENDIF
+!                
+!                IF(.not.TNoAnnihil) THEN
+!!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+!                    HashTemp=CreateHash(DetsInGraph(:,i))
+!                ENDIF
+!                
+!!Now actually create the particles in NewDets and NewSign
+!                do j=1,abs(Create)
+!                    NewDets(1:NEl,VecSlot)=DetsInGraph(1:NEl,i)
+!                    NewSign(VecSlot)=TempSign
+!!                    NewIC(VecSlot)=ExcitLevel
+!                    IF(.not.tRegenDiagHEls) NewH(VecSlot)=GraphKii(i)       !Diagonal H El previously stored
+!                    IF(.not.TRegenExcitgens) NewExcits(VecSlot)%PointToExcit=>null()
+!                    IF(.not.TNoAnnihil) THEN
+!!                    IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+!                        Hash2Array(VecSlot)=HashTemp
+!                    ENDIF
+!                    VecSlot=VecSlot+1
+!                enddo
+!
+!            ENDIF
+!
+!        enddo
+!
+!!Now deal with root
+!        Create=INT(abs(GraphVec(1)))
+!
+!        rat=abs(GraphVec(1))-REAL(Create,r2)    !rat is now the fractional part, to be assigned stochastically
+!        IF(tMerTwist) THEN
+!            CALL genrand_real2(r) 
+!        ELSE
+!            CALL RANLUX(r,1)
+!        ENDIF
+!        IF(rat.gt.r) Create=Create+1
+!        
+!        IF((abs(Create)).gt.0) THEN
+!        
+!            IF(.not.WSign) Create=-Create
+!            IF(GraphVec(1).lt.0.D0) Create=-Create
+!
+!!Test since the root should not change sign - comment out later
+!            IF(WSign.and.(Create.lt.0)) THEN
+!                call Stop_All("CreateNewPartsPar","Root determinant should not change sign")
+!            ELSEIF((.not.WSign).and.(Create.gt.0)) THEN
+!                call Stop_All("CreateNewPartsPar","Root determinant should not change sign")
+!            ENDIF
+!            
+!            IF(Create.lt.0) THEN
+!                TempSign=.false.
+!            ELSE
+!                TempSign=.true.
+!            ENDIF
+!
+!!Now actually create the particles in NewDets and NewSign. It is the same particle as the parent particle.
+!            do j=1,abs(Create)
+!                NewDets(:,VecSlot)=nI(:)
+!                NewSign(VecSlot)=TempSign
+!!Copy excitation generator accross
+!                IF(j.eq.abs(Create)) THEN
+!                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot),.true.)
+!                ELSE
+!                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(CurrentExcits(VecInd),NewExcits(VecSlot),.false.)
+!                ENDIF
+!!                NewIC(VecSlot)=CurrentIC(VecInd)
+!                IF(.not.tRegenDiagHEls) NewH(VecSlot)=CurrentH(VecInd)
+!                IF(.not.TNoAnnihil) THEN
+!!                IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
+!                    Hash2Array(VecSlot)=HashArray(VecInd)
+!                ENDIF
+!                VecSlot=VecSlot+1
+!            enddo
+!
+!        ENDIF
+!
+!        RETURN
+!
+!    END SUBROUTINE CreateNewPartsPar
+!
+!!This applies the rho matrix successive times to a root determinant. From this, GraphVec is filled with the correct probabilities for the determinants in the graph
+!    SUBROUTINE ApplyRhoMatPar()
+!        REAL*8 :: TempVec(NDets)
+!        INTEGER :: i,j,k
+!
+!!        IF(NDets.eq.2) THEN
+!!
+!!            GraphVec(1)=1.D0
+!!            GraphVec(2)=0.D0
+!!
+!!            do i=1,RhoApp
+!!            
+!!                TempVec(1)=(GraphRhoMat(1,1)*GraphVec(1))+(GraphRhoMat(1,2)*GraphVec(2))
+!!                TempVec(2)=(GraphRhoMat(2,1)*GraphVec(1))+(GraphRhoMat(2,2)*GraphVec(2))
+!!            
+!!                GraphVec(1)=TempVec(1)
+!!                GraphVec(2)=TempVec(2)
+!!
+!!            enddo
+!!
+!!        ELSE
+!            
+!            GraphVec(1:NDets)=0.d0
+!            GraphVec(1)=1.D0        !Set the initial vector to be 1 at the root (i.e. for one walker initially)
+!        
+!            do i=1,RhoApp
+!
+!                CALL DGEMV('n',NDets,NDets,1.D0,GraphRhoMat,NDets,GraphVec,1,0.D0,TempVec,1)
+!                GraphVec(1:NDets)=TempVec(1:NDets)
+!                TempVec(1:NDets)=0.d0
+!            
+!!            do j=1,NDets
+!!                TempVec(j)=0.D0
+!!                do k=1,NDets
+!!                    TempVec(j)=TempVec(j)+GraphRhoMat(j,k)*GraphVec(k)
+!!                enddo
+!!            enddo
+!!            GraphVec(:)=TempVec(:)
+!
+!            enddo
+!
+!!        ENDIF
+!
+!        RETURN
+!    END SUBROUTINE ApplyRhoMatPar
+!
+!
+!
+!    
+!!A routine to annihilate particles separatly on each node. This should mean less annihilation occurs, but it is effect running nProcessors separate simulations.
+!!If there are enough particles, then this should be sufficient. Less memory is required, since no hashes need to be stored. Also, no communication is needed,
+!!so the routine should scale better as the number of walkers grows.
+!    SUBROUTINE AnnihilateonProc(TotWalkersNew)
+!        TYPE(ExcitPointer) :: TempExcit
+!        REAL*8 :: TempH
+!!        INTEGER :: TempIC
+!        INTEGER :: TotWalkersNew,j,k,l,DetCurr(0:NIfD),VecSlot,TotWalkersDet
+!        INTEGER :: DetLT
+!
+!        TempExcit%PointToExcit=>null()
+!!First, it is necessary to sort the list of determinants
+!        CALL SortPartsPar(TotWalkersNew,NewDets(:,1:TotWalkersNew),NIfD+1)
+!
+!!Once ordered, each block of walkers on similar determinants can be analysed, and the residual walker concentration moved to CurrentDets
+!        j=1
+!!j is the counter over all uncancelled walkers - it indicates when we have reached the end of the list of total walkers
+!!DetCurr is the current determinant
+!        DetCurr(:)=NewDets(:,j)
+!!        TempIC=NewIC(j)
+!        IF(.not.tRegenDiagHEls) TempH=NewH(j)
+!        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(j),TempExcit,.true.) !This will delete what is behind it - is that ok?
+!        
+!        VecSlot=1
+!
+!        do while(j.le.TotWalkersNew)
+!!Loop over all walkers
+!            TotWalkersDet=0
+!            do while ((DetLT(NewDets(:,j),DetCurr,(NIfD+1)).eq.0).and.(j.le.TotWalkersNew))
+!!Loop over all walkers on DetCurr and count residual number after cancelling
+!                IF(NewSign(j)) THEN
+!                    TotWalkersDet=TotWalkersDet+1
+!                ELSE
+!                    TotWalkersDet=TotWalkersDet-1
+!                ENDIF
+!                j=j+1
+!            enddo
+!!Transfer residual population into VecSlot, along with residual sign
+!            IF(TotWalkersDet.gt.0) THEN
+!!Positive sign particles want to populate this determinant
+!                do l=1,abs(TotWalkersDet)
+!                    CurrentDets(:,VecSlot)=DetCurr(:)
+!                    CurrentSign(VecSlot)=1
+!!                    CurrentIC(VecSlot)=TempIC
+!                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=TempH
+!                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
+!                    VecSlot=VecSlot+1
+!                enddo
+!            ELSE
+!!Negative sign particles want to populate this determinant
+!                do l=1,abs(TotWalkersDet)
+!                    CurrentDets(:,VecSlot)=DetCurr(:)
+!                    CurrentSign(VecSlot)=1
+!!                    CurrentIC(VecSlot)=TempIC
+!                    IF(.not.tRegenDiagHEls) CurrentH(VecSlot)=TempH
+!                    IF(.not.TRegenExcitgens) CALL CopyExitgenPar(TempExcit,CurrentExcits(VecSlot),.false.)
+!                    VecSlot=VecSlot+1
+!                enddo
+!            ENDIF
+!!Now update the current determinant
+!            DetCurr(:)=NewDets(:,j)
+!!            TempIC=NewIC(j)
+!            IF(.not.tRegenDiagHEls) TempH=NewH(j)
+!            IF(.not.TRegenExcitgens) THEN
+!                CALL DissociateExitGen(TempExcit)
+!                CALL CopyExitGenPar(NewExcits(j),TempExcit,.true.)
+!            ENDIF
+!        enddo
+!!The new number of residual cancelled walkers is given by one less that VecSlot again.
+!        TotWalkers=VecSlot-1
+!
+!        RETURN
+!
+!    END SUBROUTINE AnnihilateonProc
+!
+!!This routine sorts the particles before annihilation. It is identical to the routine in the serial version, but the data which is taken is different.
+!! Based on SORTI, SORTPARTS sorts arrays of integers, representing the determinant the walkers are on
+!! It then takes all the corresponding info with it
+!! Dets is the array (length N) of integers to sort
+!! NElecs is the length (in numbers of integers) of each element of Dets
+!! Vectors of NewXXX will be sorted correspondingly
+!    SUBROUTINE SortPartsPar(N,Dets,NElecs)
+!        TYPE(ExcitPointer) :: ExcitTemp
+!        REAL*8 :: HTemp
+!!        INTEGER :: ICTemp
+!        INTEGER :: TempDet(NElecs)     !This stores a single element of the vector temporarily     
+!        INTEGER :: WSignTemp
+!        INTEGER N,I,L,IR,J,NElecs
+!        INTEGER Dets(NElecs,N)
+!        INTEGER DETLT
+!
+!        ExcitTemp%PointToExcit=>null()
+!        IF(N.LE.1) RETURN
+!        L=N/2+1 
+!        IR=N
+!10      CONTINUE
+!        IF(L.GT.1)THEN
+!            L=L-1
+!            TempDet(:)=Dets(:,L)
+!            IF(.not.tRegenDiagHEls) HTemp=NewH(L)
+!!            ICTemp=NewIC(L)
+!            WSignTemp=NewSign(L)
+!            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(L),ExcitTemp,.true.) !This will delete what is behind it - is this ok?
+!        ELSE
+!            TempDet(:)=Dets(:,IR)      !Copy IRth elements to temp
+!            IF(.not.tRegenDiagHEls) HTemp=NewH(IR)
+!!            ICTemp=NewIC(IR)
+!            WSignTemp=NewSign(IR)
+!            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(IR),ExcitTemp,.true.)
+!
+!            Dets(:,IR)=Dets(:,1)    !Copy 1st element to IRth element
+!            IF(.not.tRegenDiagHEls) NewH(IR)=NewH(1)
+!!            NewIC(IR)=NewIC(1)
+!            NewSign(IR)=NewSign(1)
+!            IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(1),NewExcits(IR),.true.)
+!            IR=IR-1
+!            IF(IR.EQ.1)THEN
+!                Dets(:,1)=TempDet(:)    !Copy temp element to 1st element
+!                IF(.not.tRegenDiagHEls) NewH(1)=HTemp
+!!                NewIC(1)=ICTemp
+!                NewSign(1)=WSignTemp
+!                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(1),.true.)
+!                RETURN
+!            ENDIF
+!        ENDIF
+!        I=L
+!        J=L+L
+!20      IF(J.LE.IR)THEN
+!            IF(J.LT.IR)THEN
+!                IF((DETLT(Dets(1,J),Dets(1,J+1),NElecs)).eq.-1) J=J+1
+!            ENDIF
+!            IF((DETLT(TempDet,Dets(1,J),NElecs)).eq.-1)THEN
+!                Dets(:,I)=Dets(:,J)     !Copy Jth element to Ith element
+!                IF(.not.tRegenDiagHEls) NewH(I)=NewH(J)
+!!                NewIC(I)=NewIC(J)
+!                NewSign(I)=NewSign(J)
+!                IF(.not.TRegenExcitgens) CALL CopyExitgenPar(NewExcits(J),NewExcits(I),.true.)
+!                I=J
+!                J=J+J
+!            ELSE
+!                J=IR+1
+!            ENDIF
+!            GO TO 20
+!        ENDIF
+!        Dets(:,I)=TempDet(:)
+!        IF(.not.tRegenDiagHEls) NewH(I)=HTemp
+!!        NewIC(I)=ICTemp
+!        NewSign(I)=WSignTemp
+!        IF(.not.TRegenExcitgens) CALL CopyExitgenPar(ExcitTemp,NewExcits(I),.true.)
+!        GO TO 10
+!
+!    END SUBROUTINE SortPartsPar
 
 
 
