@@ -133,6 +133,8 @@ MODULE FciMCParMod
 
     REAL*8 :: MPNorm        !MPNorm is used if TNodalCutoff is set, to indicate the normalisation of the MP Wavevector
 
+    LOGICAL :: tCleanRun    !This will be true if the options are there to use the clean code (this should be faster.)
+
     TYPE(HElement) :: rhii
     REAL*8 :: Hii,Fii
 
@@ -252,6 +254,7 @@ MODULE FciMCParMod
 !Start MC simulation...
         TIncrement=.true.   !If TIncrement is true, it means that when it comes out of the loop, it wants to subtract 1 from the Iteration count to get the true number of iterations
         do Iter=1,NMCyc
+!Main iteration loop...
 
             IF(TBalanceNodes) THEN 
                 CALL BalanceWalkersonProcs()      !This routine is call periodically when the nodes need to be balanced. However, this will not be called with direct annihilation.
@@ -260,6 +263,8 @@ MODULE FciMCParMod
             s=etime(tstart)
             IF(tMultipleDetsSpawn) THEN
                 CALL MultipleConnFCIMCycPar()
+            ELSEIF(tCleanRun) THEN
+                CALL PerformCleanFCIMCycPar()
             ELSE
                 CALL PerformFCIMCycPar()
             ENDIF
@@ -302,7 +307,7 @@ MODULE FciMCParMod
             ENDIF
 
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
-!This will write out the POPSFILE
+!This will write out the POPSFILE if wanted
                 IF(tRotoAnnihil) THEN
                     CALL WriteToPopsFileParOneArr()
                 ELSE
@@ -359,7 +364,265 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
-!This is the heart of FCIMC, where the MC Cycles are performed
+    
+!This is the heart of FCIMC, where the MC Cycles are performed. However, this version is clean and does not have unnecessary tests for experimental options.
+    SUBROUTINE PerformCleanFCIMCycPar()
+        INTEGER :: VecSlot,i,j,k,l,CopySign,iPartBloom
+        INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
+        REAL*8 :: Prob,rat,HDiagCurr
+        INTEGER :: iDie,WalkExcitLevel,Proc
+        INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        LOGICAL :: tParity,tFilled
+
+        IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
+            WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
+            CALL FLUSH(11)
+        ENDIF
+        
+        CALL set_timer(Walker_Time,30)
+        
+!VecSlot indicates the next free position in NewDets
+        VecSlot=1
+!Reset number at HF and doubles
+        NoatHF=0
+        NoatDoubs=0
+        DetsNorm=0.D0
+        iPartBloom=0
+!ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
+        ValidSpawnedList(:)=InitialSpawnedSlots(:)
+
+        do j=1,TotWalkers
+!j runs through all determinants in the main list. TotWalkers is the number of unique DETERMINANTS in the main array of this processor, not walkers, despite the name.
+!the sign indicates the sum of the signs of the walkers on the determinant, and hence j loops over determinants, not particles.
+!            WRITE(6,*) Iter,j,TotWalkers
+!            CALL FLUSH(6)
+
+!First, decode the bit-string representation of the determinant the walker is on, into a string of naturally-ordered integers
+            CALL DecodeBitDet(DetCurr,CurrentDets(:,j),NEl,NIfD)
+
+!Also, we want to find out the excitation level of the determinant - we only need to find out if its connected or not (so excitation level of 3 or more is ignored.
+!This can be changed easily by increasing the final argument.
+            IF(tTruncSpace) THEN
+!We need to know the exact excitation level for truncated calculations.
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,NEl)
+            ELSE
+                CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
+            ENDIF
+!HDiags are stored.
+            HDiagCurr=CurrentH(j)
+
+!Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
+            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr)
+
+            tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
+
+            do p=1,abs(CurrentSign(j))
+!Here, we spawn each particle on the determinant in a seperate attempt.
+!we are simply looping over all the particles on the determinant
+!This will only be a help if most determinants are multiply occupied.
+
+                IF(tHPHF) THEN
+                    CALL GenRandHPHFExcit2Scratch(DetCurr,CurrentDets(:,j),nJ,iLutnJ,pDoubles,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                ELSE
+                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
+                ENDIF
+
+!Calculate number of children to spawn
+                IF(TTruncSpace) THEN
+!We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
+
+                    IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
+!The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
+
+                        IF(IC.eq.2) THEN
+!Need to check excitation level of excitation
+                            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                            IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                                Child=0
+                            ELSE
+                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                            ENDIF
+                        ELSE
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                        ENDIF
+
+                    ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
+!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
+                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                        IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                            Child=0
+                        ELSE
+                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                        ENDIF
+                    ELSE
+!Excitation cannot be in a dissallowed excitation level - allow it as normal
+                        Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+                    ENDIF 
+                
+                ELSE
+!SD Space is not truncated - allow attempted spawn as usual
+
+                    Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
+
+                ENDIF
+                
+                IF(Child.ne.0) THEN
+!We want to spawn a child - find its information to store
+
+!                    WRITE(6,*) "Spawning particle to:",nJ(:)
+!                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,NEl)
+!                    WRITE(6,*) "Excitlevel:", ExcitLevel
+                    NoBorn=NoBorn+abs(Child)     !Update counter about particle birth
+                    IF(IC.eq.1) THEN
+                        SpawnFromSing=SpawnFromSing+abs(Child)
+                    ENDIF
+
+                    IF(abs(Child).gt.25) THEN
+!If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
+                        IF(abs(Child).gt.abs(iPartBloom)) THEN
+                            IF(IC.eq.1) THEN
+                                iPartBloom=-abs(Child)
+                            ELSE
+                                iPartBloom=abs(Child)
+                            ENDIF
+                        ENDIF
+!                        WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
+!                        WRITE(6,"(A,I5)") "Excitation: ",IC
+!                        WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
+!                        CALL FLUSH(6)
+                    ENDIF
+
+!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
+                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
+
+!In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
+!The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
+
+                    Proc=DetermineDetProc(iLutnJ)   !This wants to return a value between 0 -> nProcessors-1
+!                    WRITE(6,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
+!                    CALL FLUSH(6)
+                    SpawnedParts(:,ValidSpawnedList(Proc))=iLutnJ(:)
+                    SpawnedSign(ValidSpawnedList(Proc))=Child
+                    ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
+
+                    Acceptances=Acceptances+ABS(Child)      !Sum the number of created children to use in acceptance ratio
+                
+                ENDIF   !End if child created
+
+            enddo   !End of cycling over mulitple particles on same determinant.
+
+!We now have to decide whether the parent particle (j) wants to die or not...
+!we can have multiple particles on the same determinant - these can be stochastically killed at the same time.
+
+            iDie=AttemptDiePar(DetCurr,HDiagCurr,WalkExcitLevel,CurrentSign(j))
+            NoDied=NoDied+iDie          !Update death counter
+
+!iDie can be positive to indicate the number of deaths, or negative to indicate the number of births
+!We slot the particles back into the same array and position VecSlot if the particle survives. If it dies, then j increases, moving onto the next
+!entry, but VecSlot remains where it is, meaning that j should never be less that VecSlot
+
+            IF(CurrentSign(j).le.0) THEN
+                CopySign=CurrentSign(j)+iDie    !Copy sign is the total number of particles x sign that we want to copy accross.
+                IF(CopySign.gt.0) THEN
+!If we are copying to the main array, we have to ensure that we maintain sign-coherence in the array. Therefore, if we are spawning anti-particles,
+!it wants to go in the spawning array, rather than the main array, so it has a chance to annihilate. However, since anti-particles should not be created
+!in normal circumstances, we will remove this possibility.
+                    CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
+                ENDIF
+            ELSE
+                CopySign=CurrentSign(j)-iDie
+                IF(CopySign.lt.0) THEN
+                    CALL Stop_All("PerformFCIMCyc","Creating anti-particles")
+                ENDIF
+            ENDIF
+
+!We only have a single array, therefore surviving particles are simply transferred back into the original array.
+!We should not get to the case where we want to overwrite particles that we haven't even got to yet.
+            IF(CopySign.ne.0) THEN
+
+                CurrentDets(:,VecSlot)=CurrentDets(:,j)
+                CurrentSign(VecSlot)=CopySign
+                CurrentH(VecSlot)=HDiagCurr
+                VecSlot=VecSlot+1
+
+            ENDIF   !To kill if
+
+!Finish cycling over determinants
+        enddo
+
+
+!***Birth/death processes finished. Tidy up and then annihilate.
+
+!SumWalkersCyc calculates the total number of walkers over an update cycle on each process
+        SumWalkersCyc=SumWalkersCyc+(INT(TotParts,i2))
+!        WRITE(6,*) "Born, Die: ",NoBorn, NoDied
+
+!Since VecSlot holds the next vacant slot in the main determinant array, TotWalkers will be one less than this.
+        TotWalkersNew=VecSlot-1
+
+!Output if there has been a particle bloom this iteration. A negative number indicates that particles were created from a single excitation.
+        IF(iPartBloom.ne.0) THEN
+            WRITE(6,"(A,I10,A)") "LARGE PARTICLE BLOOMS in iteration ",Iter
+            IF(iPartBloom.gt.0) THEN
+                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from double excit."
+            ELSE
+                WRITE(6,"(A,I10,A)") "A max of ",abs(iPartBloom)," particles created in one attempt from single excit."
+            ENDIF
+        ENDIF
+
+
+        rat=(TotWalkersNew+0.D0)/(MaxWalkersPart+0.D0)
+        IF(rat.gt.0.95) THEN
+            WRITE(6,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
+            CALL FLUSH(6)
+        ENDIF
+
+!Need to test whether any of the sublists in the spawning array are getting to the end of their allotted space.
+        IF(nProcessors.gt.1) THEN
+            do i=0,nProcessors-1
+                rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.D0)
+                IF(rat.gt.0.95) THEN
+                    WRITE(6,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
+                    CALL FLUSH(6)
+                ENDIF
+            enddo
+        ELSE
+            rat=(ValidSpawnedList(0)+0.D0)/(MaxSpawned+0.D0)
+            IF(rat.gt.0.9) THEN
+                WRITE(6,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
+                CALL FLUSH(6)
+            ENDIF
+        ENDIF
+        
+        CALL halt_timer(Walker_Time)
+        CALL set_timer(Annihil_Time,30)
+!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+!        WRITE(6,*) "Get into annihilation"
+!        CALL FLUSH(6)
+
+!This is the direct annihilation algorithm. The newly spawned walkers should be in a seperate array (SpawnedParts) and the other list should be ordered.
+        CALL DirectAnnihilation(TotWalkersNew)
+
+        CALL halt_timer(Annihil_Time)
+        
+        IF(TSinglePartPhase) THEN
+!Exit the single particle phase if the number of walkers exceeds the value in the input file.
+!            CALL MPI_Barrier(MPI_COMM_WORLD,error)
+            IF(iProcIndex.eq.root) THEN     !Only exit phase if particle number is sufficient on head node.
+                IF(TotParts.gt.InitWalkers) THEN
+                    WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                    TSinglePartPhase=.false.
+                ENDIF
+            ENDIF
+!Broadcast the fact that TSinglePartPhase may have changed to all processors - unfortunatly, have to do this broadcast every iteration.
+            CALL MPI_Bcast(TSinglePartPhase,1,MPI_LOGICAL,root,MPI_COMM_WORLD,ierr)
+        ENDIF
+
+    END SUBROUTINE PerformCleanFCIMCycPar
+
+!This is the heart of FCIMC, where the MC Cycles are performed.
     SUBROUTINE PerformFCIMCycPar()
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
@@ -369,7 +632,7 @@ MODULE FciMCParMod
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
-        TYPE(HElement) :: HDiagTemp,HOffDiag
+        TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
 
@@ -5986,6 +6249,7 @@ MODULE FciMCParMod
         AllENumCyc=0.D0
         AllHFCyc=0.D0
         AllDetsNorm=0.D0
+        tCleanRun=.false.
 
         IF(tHistSpawn) THEN
             ALLOCATE(HistMinInd(NEl))
@@ -6085,6 +6349,15 @@ MODULE FciMCParMod
         ENDIF
         IF((.not.tRegenExcitgens).and.(tRotoAnnihil)) THEN
             CALL Stop_All("InitFCIMCCalcPar","Storage of excitation generators is incompatable with RotoAnnihilation. Regenerate excitation generators.")
+        ENDIF
+
+!This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
+        IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
+     &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant) THEN
+            WRITE(6,*) "It is not possible to use to clean spawning routine..."
+        ELSE
+            WRITE(6,*) "Clean spawning routine in use..."
+            tCleanRun=.true.
         ENDIF
     
         IF(tConstructNOs) THEN
@@ -6615,7 +6888,7 @@ MODULE FciMCParMod
             IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
         ELSEIF(tUseGuide) THEN
             WRITE(6,*) 'Reading in the guiding function and scaling the number of walkers to ',iInitGuideParts
-            IF((.not.tRotoAnnihil).and.(.not.tDirectAnnihil)) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
+            IF(.not.tRotoAnnihil) CALL Stop_All("InitFCIMCCalcPar","Cannot use or find the guiding function without using ROTOANNIHILATION")
             IF(.not.tStartSinglePart) CALL Stop_All("InitFCIMCCalcPar","Must use single particle start when reading in the guiding function")
 
             ! Check the guiding function file exists, if so, set up the guiding function arrays based on this file.
@@ -8163,7 +8436,7 @@ MODULE FciMCParMod
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 IF(WSign.gt.0) THEN
                     IF(real(rh%v).gt.0.D0) THEN
-                        AttemptCreatePar=-1*ExtraCreate    !Additional particles are negative
+                        AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreatePar=ExtraCreate       !Additional particles are positive
                     ENDIF
@@ -8171,7 +8444,7 @@ MODULE FciMCParMod
                     IF(real(rh%v).gt.0.D0) THEN
                         AttemptCreatePar=ExtraCreate
                     ELSE
-                        AttemptCreatePar=-1*ExtraCreate
+                        AttemptCreatePar=-ExtraCreate
                     ENDIF
                 ENDIF
             ENDIF
@@ -8227,8 +8500,6 @@ MODULE FciMCParMod
             ENDIF
             AttemptHist(Bin)=AttemptHist(Bin)+(REAL(nParts,r2)*Tau/Prob)
         ENDIF
-
-        RETURN
 
     END FUNCTION AttemptCreatePar
 
