@@ -170,8 +170,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !Original HPHF is antisymmetric if OpenOrbs is odd, or symmetric if its even.
                 CALL CalcOpenOrbs(iLutnI,NIfD,NEl,OpenOrbsI)
 !                CALL GetBitExcitation(iLutnI2,iLutnJ,NIfD,NEl,Ex,tSign)
-!                Ex(1,1)=ExcitLevel
-!                CALL GetExcitation(nI2,nJ,NEl,Ex,tSign)
+                Ex(1,1)=ExcitLevel
+                CALL GetExcitation(nI2,nJ,NEl,Ex,tSign)
 
 !                IF((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)) THEN
 !                    tSymmetricInts=.true.
@@ -180,8 +180,8 @@ SUBROUTINE HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl)
 !                ENDIF
 !                IF(ExcitLevel.le.0) CALL Stop_All("HPHFGetOffDiagHElement","Determinants are a forbidden excitation level apart3")
                 MatEl2%v=0.D0
-!                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex,tSign)
-                CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
+                CALL SltCndExcit2(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2,Ex,tSign)
+!                CALL SltCnd(NEl,nBasisMax,nBasis,nI2,nJ,G1,NEl-ExcitLevel,NMSH,FCK,NMAX,ALAT,UMat,MatEl2)
                 IF(((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.0)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
 !                    WRITE(6,*) 2,REAL(MatEl2%v,8),ExcitLevel
 !                    WRITE(6,*) 3,REAL(MatEl2%v,8),ExcitLevel

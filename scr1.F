@@ -77,7 +77,7 @@ C..  NDET1 and NDET2
      &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM,EX,TParity)
       USE HElem
       use Integrals, only : GetUMatEl
-      USE UMatCache, only : GTID
+!      USE UMatCache, only : GTID
       use OneEInts, only: GetTMatEl
       use SystemData, only: BasisFN
 !      use global_utilities

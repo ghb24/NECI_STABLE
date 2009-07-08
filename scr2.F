@@ -135,7 +135,7 @@ C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
       USE HElem
       use Integrals, Only : GetUMatEl
-      USE UMatCache , Only : tTransGTID,TransTable
+!      USE UMatCache , Only : tTransGTID,TransTable
       use SystemData, only: BasisFN
 !      use global_utilities
       IMPLICIT NONE
@@ -173,12 +173,12 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          ID3=(EX(2,1)-1)/2+1
          ID2=(EX(1,2)-1)/2+1
          ID4=(EX(2,2)-1)/2+1
-         IF(TTRANSGTID) THEN
-             ID1=TRANSTABLE(ID1)
-             ID2=TRANSTABLE(ID2)
-             ID3=TRANSTABLE(ID3)
-             ID4=TRANSTABLE(ID4)
-         ENDIF
+!         IF(TTRANSGTID) THEN
+!             ID1=TRANSTABLE(ID1)
+!             ID2=TRANSTABLE(ID2)
+!             ID3=TRANSTABLE(ID3)
+!             ID4=TRANSTABLE(ID4)
+!         ENDIF
       ENDIF
 
       IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,1))%Ms

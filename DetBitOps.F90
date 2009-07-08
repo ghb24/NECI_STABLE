@@ -259,7 +259,7 @@
 !!        IF(ToInd.ne.FromInd) CALL Stop_All("GetBitExcitation","Error in constructing excitation matrix")
 !
 !    END SUBROUTINE GetBitExcitation
-!
+
 
 !This routine will find the bit-representation of an excitation by constructing the new iLut from the old one and the excitation matrix.
     SUBROUTINE FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat,NIfD)
