@@ -104,8 +104,10 @@ Subroutine MPIInit(tExternal)
                  write (NodeFile,'(a,i1)') 'NodeFile',iProcIndex+1
              elseif(iProcIndex.lt.99) then
                  write (NodeFile,'(a,i2)') 'NodeFile',iProcIndex+1
-             else
+             elseif(iProcIndex.lt.999) then
                  write (NodeFile,'(a,i3)') 'NodeFile',iProcIndex+1
+             else
+                 write (NodeFile,'(a,i4)') 'NodeFile',iProcIndex+1
              end if
              write(6,*) "outfile=",NodeFile
              close(6,status="keep")
