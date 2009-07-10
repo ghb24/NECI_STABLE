@@ -1526,12 +1526,12 @@ MODULE FciMCParMod
             do j=0,31
                 IF(BTEST(iLut(i),j)) THEN
                     Elecs=Elecs+1
-                    Summ=(1099511628211*Summ)+((i*32)+(j+1))*Elecs
+                    Summ=(1099511628211_8*Summ)+((i*32)+(j+1))*Elecs
                     IF(Elecs.eq.NEl) EXIT lp2
                 ENDIF
             enddo
         enddo lp2
-        DetermineDetProc=abs(mod(Summ,nProcessors))
+        DetermineDetProc=abs(mod(Summ,INT(nProcessors,8)))
 !        WRITE(6,*) DetermineDetProc,Summ,nProcessors
 
 !        RangeofBins=NINT(HUGE(RangeofBins)/(nProcessors/2.D0),8)
@@ -3397,7 +3397,7 @@ MODULE FciMCParMod
             IF(ValidSpawned.gt.0) THEN
                 j=1
                 do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
-                    do while((abs(mod(HashArray1(j),nProcessors)).eq.i).and.(j.le.ValidSpawned))
+                    do while((abs(mod(HashArray1(j),INT(nProcessors,8))).eq.i).and.(j.le.ValidSpawned))
                         j=j+1
                     enddo
                     sendcounts(i+1)=j-1
@@ -4709,7 +4709,7 @@ MODULE FciMCParMod
 !Send counts is the size of each block of ordered dets which are going to each processor. This could be binary searched for extra speed
             j=1
             do i=0,nProcessors-1    !Search through all possible values of abs(mod(Hash,nProcessors))
-                do while((abs(mod(Hash2Array(j),nProcessors)).eq.i).and.(j.le.TotWalkersNew))
+                do while((abs(mod(Hash2Array(j),INT(nProcessors,8))).eq.i).and.(j.le.TotWalkersNew))
                     j=j+1 
                 enddo
                 sendcounts(i+1)=j-1
@@ -8806,7 +8806,7 @@ MODULE FciMCParMod
         CreateHash=0
         do i=1,NEl
 !            CreateHash=13*CreateHash+i*DetCurr(i)
-            CreateHash=(1099511628211*CreateHash)+i*DetCurr(i)
+            CreateHash=(1099511628211_8*CreateHash)+i*DetCurr(i)
             
 !            CreateHash=mod(1099511628211*CreateHash,2**64)
 !            CreateHash=XOR(CreateHash,DetCurr(i))
@@ -8828,7 +8828,7 @@ MODULE FciMCParMod
         do i=0,NIfD
             do j=0,31
                 IF(BTEST(DetCurr(i),j)) THEN
-                    CreateHashBit=(1099511628211*CreateHashBit)+((i*32)+(j+1))*j
+                    CreateHashBit=(1099511628211_8*CreateHashBit)+((i*32)+(j+1))*j
                     Elecs=Elecs+1
                     IF(Elecs.eq.NEl) RETURN
                 ENDIF
