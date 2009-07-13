@@ -1,7 +1,7 @@
      compiler='pathf95 -on-LINUX'
      IRAT=2
      CPP='/lib/cpp -P -C -traditional'
-     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT'
      NCPUS=2
      #-sb is to use Workshop package
      FFLAGS='-r8'
