@@ -1,0 +1,31 @@
+     compiler='pathf95-on-LINUX'
+     IRAT=2
+     CPP='/lib/cpp -P -C -traditional'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL'
+     NCPUS=2
+     #-sb is to use Workshop package
+     FFLAGS=''
+#     FFLAGS='-r8 '
+     LFLAGS='-lacml'
+#     LFLAGS='-L /opt/acml/4.2.0/pathscale64_mp_int64/lib -lacml'
+     AR='ar'
+     ARFLAGS='-rcs'
+     F90FLAGS=''
+     GLOBALS='GLOBALS-pathf95'
+     if [ $debug ]; then
+       FC='ftn -c -g '
+       CC='cc -g -sb -C -errtags'
+       LD='ftn -g -Bstatic'
+       FCD='ftn -c -g '
+       CCD='cc -g -sb -C -errtags'
+       LDD='ftn -g'
+     else
+       FC='ftn -c -O3 -OPT:Ofast -LNO:simd_verbose=ON'
+       CC='cc -O'
+       LD='ftn -O3'
+       FCD='ftn -c -g'
+       CCD='cc -g -sb -C -errtags'
+       LDD='ftn -g'
+     fi
+#     LDLIB=' pgf90'
+#     LDLIBFLAGS=' -Mnostdlib -Mnostartup -Wl,-r'
