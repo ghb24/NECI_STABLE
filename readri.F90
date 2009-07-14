@@ -1,5 +1,6 @@
 subroutine InitRIBasis(nEl,nBasisMax,Len,lMs)
    USE HElem
+   Use SymData , only : tAbelian
 ! lenrec is the number of auxiliary basis functions
    use UMatCache
    implicit none
@@ -8,6 +9,7 @@ subroutine InitRIBasis(nEl,nBasisMax,Len,lMs)
    integer nBasis
    integer*8 nAb,nB
    integer record_length
+   tAbelian=.true.
    OPEN(29,file='RIINTDUMP',status='old',FORM='UNFORMATTED',access='DIRECT',recl=record_length(8))
 !.. The first element is the number of aux basis fns.
 !.. The second element is the number of basisfunctions.

@@ -290,11 +290,13 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
       END
       SUBROUTINE InitDaltonBasis(nBasisMax,Arr,Brr,G1,nBasis)
          use SystemData, only: Symmetry,BasisFN,BasisFNSize
+         use SymData , only : tAbelian
          implicit none
          integer nBasis,Brr(nBasis),i,j,nBasisMax(5,*)
          real*8 Arr(nBasis,2),val,ECore
          type(BasisFN) G1(nBasis)
          Type(Symmetry) TotSymRep
+         tAbelian=.true.
          open(11,file='HONEEL',status='unknown')
          i=1
          G1(1:nBasis)=BasisFN((/0,0,0/),0,Symmetry(0))

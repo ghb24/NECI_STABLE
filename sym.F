@@ -278,18 +278,18 @@ C               WRITE(6,*) "SL",I,SymClasses(I)
             
       END
 
-      SUBROUTINE GENMOLPSYMREPS(NSYMMAX,G1,NBASIS,ARR,BRR)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: tSymIgnoreEnergies
+      SUBROUTINE GENMOLPSYMREPS(NSYMMAX)
+         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,Arr
+         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,Brr
+         use SystemData, only: tSymIgnoreEnergies,nBasis,G1
          use SymData, only: SymReps,tagSymReps
          use global_utilities
          IMPLICIT NONE
          INTEGER NSYMMAX
          INTEGER I,J
-         TYPE(BasisFN) G1(NBASIS)
-         INTEGER NBASIS,BRR(NBASIS)
-         REAL*8 ARR(NBASIS)
+!         TYPE(BasisFN) G1(NBASIS)
+!         INTEGER NBASIS,BRR(NBASIS)
+!         REAL*8 ARR(NBASIS)
          character(*), parameter :: this_routine='GENMOLPSYMREPS'
          
 C.. now work out which reps are degenerate and label them
@@ -297,13 +297,16 @@ C.. now work out which reps are degenerate and label them
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
          DO I=1,NBASIS
+!             WRITE(6,*) I,nbasis
             IF(tSymIgnoreEnergies.AND.MOD(I,2).EQ.0) THEN
 !Pair even orbs up with the odd ones.
                SYMREPS(2,J)=SYMREPS(2,J)+1
-            ELSEIF(I.GT.1.AND.(ABS(ARR(I)-ARR(I-1)).LT.1.D-5
+            ELSEIF(I.GT.1) THEN
+                IF((ABS(ARR(I,1)-ARR(I-1,1)).LT.1.D-5
      &         .AND.G1(BRR(I))%Sym%s.EQ.G1(BRR(I-1))%Sym%s)) THEN
 C.. we have the same degenerate rep as the previous entry
-               SYMREPS(2,J)=SYMREPS(2,J)+1
+                    SYMREPS(2,J)=SYMREPS(2,J)+1
+                ENDIF
             ELSE
 C.. we have a new rep
                J=J+1

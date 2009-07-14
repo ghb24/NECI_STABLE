@@ -52,7 +52,7 @@ MODULE Determinants
       CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
       E0HFDET=ECORE
       DO I=1,NEL
-         E0HFDET=E0HFDET+ARR(NBASIS+NUHFDET(i),1)
+         E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
       ENDDO     
       WRITE(6,*) "Fock operator energy:",E0HFDET
     End Subroutine DetPreFreezeInit
