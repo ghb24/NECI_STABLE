@@ -118,13 +118,13 @@ MODULE FciMCParMod
     REAL*8 :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
     REAL*8 :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
     REAL*8 :: ProjEIter,ProjEIterSum    !This is the energy estimator where each update cycle contributes an energy and each is given equal weighting.
-    REAL*8 :: DetsNorm          !This is the sum of the square of the particles on each determinant. It will be meaningless unless in serial, or using rotoannihil, or better - direct annihil.
+!    REAL*8 :: DetsNorm          !This is the sum of the square of the particles on each determinant. It will be meaningless unless in serial, or using rotoannihil, or better - direct annihil.
 
 !These are the global variables, calculated on the root processor, from the values above
     REAL*8 :: AllGrowRate
 !    REAL*8 :: AllMeanExcitLevel
 !    INTEGER :: AllMinExcitLevel
-    REAL(KIND=r2) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld,AllDetsNorm
+    REAL(KIND=r2) :: AllTotWalkers,AllTotWalkersOld,AllTotParts,AllTotPartsOld!,AllDetsNorm
 !    INTEGER :: AllMaxExcitLevel
     INTEGER(KIND=i2) :: AllSumWalkersCyc
     INTEGER :: AllAnnihilated,AllNoatHF,AllNoatDoubs,AllLocalAnn
@@ -386,7 +386,6 @@ MODULE FciMCParMod
 !Reset number at HF and doubles
         NoatHF=0
         NoatDoubs=0
-        DetsNorm=0.D0
         iPartBloom=0
 !ValidSpawndList now holds the next free position in the newly-spawned list, but for each processor.
         ValidSpawnedList(:)=InitialSpawnedSlots(:)
@@ -639,7 +638,7 @@ MODULE FciMCParMod
 !Reset number at HF and doubles
         NoatHF=0
         NoatDoubs=0
-        DetsNorm=0.D0
+!        DetsNorm=0.D0
         iPartBloom=0
         ValidSpawned=1  !This is for rotoannihilation - this is the number of spawned particles (well, one more than this.)
         IF(tDirectAnnihil) THEN
@@ -5268,7 +5267,7 @@ MODULE FciMCParMod
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
-        DetsNorm=DetsNorm+REAL((WSign**2),r2)
+!        DetsNorm=DetsNorm+REAL((WSign**2),r2)
         IF(tHistSpawn) THEN
             IF(ExcitLevel.eq.NEl) THEN
                 CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
@@ -5456,7 +5455,7 @@ MODULE FciMCParMod
         INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
-        REAL*8 :: inpairreal(4),outpairreal(4)
+        REAL*8 :: inpairreal(3),outpairreal(3)
         LOGICAL :: TBalanceNodesTemp
         
         IF(TSinglePartPhase) THEN
@@ -5686,12 +5685,12 @@ MODULE FciMCParMod
         inpairreal(1)=ENumCyc
         inpairreal(2)=TempSumNoatHF
         inpairreal(3)=SumENum
-        inpairreal(4)=DetsNorm
-        CALL MPI_Reduce(inpairreal,outpairreal,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+!        inpairreal(4)=DetsNorm
+        CALL MPI_Reduce(inpairreal,outpairreal,3,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
         AllENumCyc=outpairreal(1)
         AllSumNoatHF=outpairreal(2)
         AllSumENum=outpairreal(3)
-        AllDetsNorm=outpairreal(4)
+!        AllDetsNorm=outpairreal(4)
 
 
 !To find minimum and maximum excitation levels, search for them using MPI_Reduce
@@ -5762,7 +5761,7 @@ MODULE FciMCParMod
         SumWalkersCyc=0
 !        AvSign=0.D0        !Rezero this quantity - <s> is now a average over the update cycle
 !        AvSignHFD=0.D0     !This is the average sign over the HF and doubles
-        DetsNorm=0.D0
+!        DetsNorm=0.D0
         Annihilated=0
         MinorAnnihilated=0
         LocalAnn=0
@@ -5782,7 +5781,7 @@ MODULE FciMCParMod
 !Also reinitialise the global variables - should not necessarily need to do this...
 !        AllHFCyc=0.D0
 !        AllENumCyc=0.D0
-        AllDetsNorm=0.D0
+!        AllDetsNorm=0.D0
         AllSumENum=0.D0
         AllSumNoatHF=0.D0
         AllTotWalkersOld=AllTotWalkers
@@ -6210,7 +6209,7 @@ MODULE FciMCParMod
         SumNoatHF=0
         NoatHF=0
         NoatDoubs=0
-        DetsNorm=0.D0
+!        DetsNorm=0.D0
 !        MeanExcitLevel=0.D0
 !        MinExcitLevel=NEl+10
 !        MaxExcitLevel=0
@@ -6248,7 +6247,7 @@ MODULE FciMCParMod
         AllMinorAnnihilated=0
         AllENumCyc=0.D0
         AllHFCyc=0.D0
-        AllDetsNorm=0.D0
+!        AllDetsNorm=0.D0
         tCleanRun=.false.
 
         IF(tHistSpawn) THEN
@@ -6941,7 +6940,7 @@ MODULE FciMCParMod
             ELSE
                 WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
                 WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter",&
-&               "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    DetsNorm    WalkersDiffProc"
+&               "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    WalkersDiffProc"
             
             ENDIF
         ENDIF
@@ -9518,14 +9517,14 @@ MODULE FciMCParMod
         AllSumNoatHF=0.D0
         AllNoatHF=0
         AllNoatDoubs=0
-        AllDetsNorm=0.D0
+!        AllDetsNorm=0.D0
         AllHFCyc=0.D0
         AllENumCyc=0.D0
         ProjectionE=0.D0
         SumENum=0.D0
         NoatHF=0
         NoatDoubs=0
-        DetsNorm=0.D0
+!        DetsNorm=0.D0
         HFCyc=0
         HFPopCyc=0
         ENumCyc=0.D0
@@ -10334,8 +10333,8 @@ MODULE FciMCParMod
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
 !                WRITE(6,"(I12,G16.7,I9,G16.7,I12,3I11,3G17.9,2I10,2G13.5,2I6)") Iter+PreviousCycles,DiagSft,AllTotWalkers-AllTotWalkersOld,AllGrowRate,    &
 ! &                  AllTotWalkers,AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,AllMeanExcitLevel,AllMinExcitLevel,AllMaxExcitLevel
-                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5,2G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
- &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),SQRT(AllDetsNorm),WalkersDiffProc
+                WRITE(15,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5,G13.5,I10)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,   &
+ &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime,REAL(AllSpawnFromSing)/REAL(AllNoBorn),WalkersDiffProc
                 WRITE(6,"(I12,G16.7,I10,G16.7,I12,3I11,3G17.9,2I10,G13.5,I12,G13.5)") Iter+PreviousCycles,DiagSft,INT(AllTotParts-AllTotPartsOld,i2),AllGrowRate,    &
  &                  INT(AllTotParts,i2),AllAnnihilated,AllNoDied,AllNoBorn,ProjectionE,ProjEIter,AllENumCyc/AllHFCyc,AllNoatHF,AllNoatDoubs,AccRat,INT(AllTotWalkers,i2),IterTime
             ENDIF

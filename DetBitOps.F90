@@ -166,7 +166,7 @@
         INTEGER :: nI(NEl),iLut(0:NIfD),NIfD,NEl,i,j,Elec
 
         Elec=0
-        nI(:)=0
+!        nI(:)=0
         do i=0,NIfD
             do j=0,31
                 IF(BTEST(iLut(i),j)) THEN
