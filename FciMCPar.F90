@@ -6352,7 +6352,7 @@ MODULE FciMCParMod
 
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
-     &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant) THEN
+     &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0)) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
