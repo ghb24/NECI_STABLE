@@ -720,8 +720,12 @@ MODULE Integrals
       IF(TSTARSTORE.or.tCPMDSymTMat) THEN
 !C.. Now setup the default symmetry to include the frozen electrons
 !C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
-          CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
-          CALL SetupFreezeAllSym(KSYM)
+          IF (NFROZEN>0) THEN
+             ! if no orbitals are frozen then the symmetry of the "frozen"
+             ! orbitals is already initialised as totally symmetric.
+             CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
+             CALL SetupFreezeAllSym(KSYM)
+          END IF
 !C.. Freeze the sym labels
           !SYMCLASSES2 gives the new symmetry of the frozen set of orbitals
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.true.)
@@ -868,8 +872,10 @@ MODULE Integrals
        ENDIF
        IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
        IF(.NOT.TSTARSTORE) THEN
-          CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
-          CALL SetupFREEZEALLSYM(KSym)
+          IF(NFROZEN>0) THEN
+             CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
+             CALL SetupFREEZEALLSYM(KSym)
+          END IF
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
           CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
        ENDIF 
