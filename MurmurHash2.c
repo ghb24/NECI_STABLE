@@ -65,8 +65,18 @@ unsigned int MurmurHash2 ( const void * key, int len, unsigned int seed )
 
     return h;
 } 
+// Wrapper to be used from fortran.
+// 1. fortran appends an underscore to the object names (C doesn't) so we have to add it explicitly.
+// 2. fortran passes everything by reference by default.  C passes only arrays by reference by default.
+//    MurmurHash takes the length of the array (key) and the seed as integers.
+//    The wrapper takes the arguments as references and passes the references or their values
+//    (as appropriate) to MurmurHash and returns the hash.
 unsigned int murmurhash2wrapper_ ( int *key, int *len, unsigned int *seed ) {
+    // In:
+    //    key: array to be hashed.
+    //    len: length of array (in units of 4 bytes)
+    //    seed: random seed used to generate the hash.
     int i;
-    unsigned int h = MurmurHash2(key,*len,*seed);
-    return h;
+    // Need to dereference len and seed.
+    return h = MurmurHash2(key,*len,*seed);
 }
