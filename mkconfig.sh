@@ -204,6 +204,7 @@ CFLAGS = ${CFLAGS}
 CPP = ${CPP}
 CPPFLAGS = ${CPPFLAGS} -DMAXMEM='\$(MAXMEM)' -D_VCS_VER='\$(VCS_VER)' \$(WORKING_DIR_CHANGES) #CMPLXFLAG
 FC = ${FC}
+CC = ${CC}
 LD = ${LD}
 FCD = ${FCD}
 LDD = ${LDD}
@@ -373,7 +374,7 @@ clean :
 # Explicit rules
 #----------------------------------------------------------------------------
 .SUFFIXES:
-.SUFFIXES: .o .f .F .f90 .F90 .mod .inc
+.SUFFIXES: .o .f .F .f90 .F90 .mod .inc .c
 
 \$(OBJECTSF:.o=.f) : 
 	rm -f \$@
@@ -386,8 +387,8 @@ clean :
 .f90.o :
 	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) \$(FFLAGS) \$(F90FLAGS) \$<" -provides "\$(*F).o " -requires "\$^"
 
-\$(OBJ_CC) :
-	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
+\$(OBJ_CC) .c.o:
+	\$(CC) $< -o \$(DEST)/\$@
 
 util-sp.o :
 	\$(FCD) \$(FFLAGS) \$(FNEWFLAGS) \$(DEST)/util-sp.f
@@ -432,7 +433,7 @@ clean :
 # Explicit rules
 #----------------------------------------------------------------------------
 .SUFFIXES:
-.SUFFIXES: .o .F .F90 .mod .inc
+.SUFFIXES: .o .F .F90 .mod .inc .c
 
 \$(DOBJECTSF): 
 	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F" -provides "\$(*).o " -requires "\$^"
@@ -440,8 +441,8 @@ clean :
 \$(DOBJECTSF90):
 	perl -w \$(SRC)/compile_mod.pl -cmp "perl -w \$(SRC)/compare_module_file.pl -compiler \$(compiler)" -fc "\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90" -provides "\$(*).o " -requires "\$^"
 #	\$(FC) -o \$(@) \$(FFLAGS) \$(F90FLAGS) \$(CPPFLAGS) \$(shell basename \$@ .o).F90
-\$(OBJ_CC) :
-	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c \$(SRC)/\$(@:.o=.c)
+\$(OBJ_CC) .c.o:
+	\$(CC) \$(CFLAGS) $< -o \$(DEST)/\$@
 
 \$(DEST)/util-sp.o :
 	\$(FCD) -o \$(@) \$(FFLAGS) \$(CPPFLAGS) \$(SRC)/util-sp.F

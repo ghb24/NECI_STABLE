@@ -12,14 +12,14 @@
      GLOBALS='GLOBALS-ifort'
      if [ $debug ]; then
        FC='mpif90 -c -g -I /usr/local/Cluster-Apps/infinipath/2.2/mpi/include/mpich/intel9/x86_64/'
-       CC='mpicc -g -sb -C -errtags'
+       CC='mpicc -c -g -sb -C -errtags'
        LD='mpif90 -g'
        FCD='mpif90 -c -g '
        CCD='mpicc -g -sb -C -errtags'
        LDD='mpif90 -g'
      else
        FC='mpif90 -c -O3 -I /usr/local/Cluster-Apps/infinipath/2.2/mpi/include/mpich/intel9/x86_64/' 
-       CC='mpicc -O'
+       CC='mpicc -c -O'
        LD='mpif90 -O3'
        FCD='mpif90 -c -g'
        CCD='mpicc -g -sb -C -errtags'

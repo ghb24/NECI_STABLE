@@ -380,6 +380,10 @@ MODULE UMatCache
             UMATCACHEFLAG=0
             WRITE(6,"(A,I3,2I7,I10)") "UMAT NTYPES,NSLOTS,NPAIRS,TOT",NTYPES,NSLOTS,NPAIRS,NSLOTS*NPAIRS*NTYPES
             TUMAT2D=.FALSE.
+            ! Each cache element stores <ij|ab> and <ib|aj>.  If real orbitals
+            ! then these are identical and we can use this to halve the storage
+            ! space (setting nTypes=1).  If not, we must store both explicitly
+            ! (nTypes=2).
             Allocate(UMatCacheData(0:nTypes-1,nSlots,nPairs), STAT=ierr)
             call LogMemAlloc('UMatCache',nTypes*nSlots*nPairs,8*HelementSize,thisroutine,tagUMatCacheData)
             Allocate(UMatLabels(nSlots,nPairs), STAT=ierr)

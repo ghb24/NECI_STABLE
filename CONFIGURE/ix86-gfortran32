@@ -12,16 +12,16 @@
 #     PreprocSep=""
      if [ $debug ]; then
        FC='gfortran -m32 -c -g '
-       CC='cc -g -sb -C -errtags'
+       CC='gcc -c -g -sb -C -errtags'
        LD='gfortran -m32 -g'
        FCD='gfortran -m32 -c -g '
-       CCD='cc -g -sb -C -errtags'
+       CCD='gcc -g -sb -C -errtags'
        LDD='gfortran -m32 -g'
      else
        FC='gfortran -m32 -c -O4'
-       CC='cc -O'
+       CC='gcc -c -O'
        LD='gfortran -m32 -O4'
        FCD='gfortran -m32 -c -g'
-       CCD='cc -g -sb -C -errtags'
+       CCD='gcc -g -sb -C -errtags'
        LDD='gfortran -m32 -g'
      fi

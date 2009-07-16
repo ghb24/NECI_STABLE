@@ -10,16 +10,16 @@
      ARFLAGS='-rcs'
      if [ $debug ]; then
        FC='g95 -c -g '
-       CC='cc -g -sb -C -errtags'
+       CC='gcc -c -g -sb -C -errtags'
        LD='g95 -g'
        FCD='g95 -c -g '
-       CCD='cc -g -sb -C -errtags'
+       CCD='gcc -g -sb -C -errtags'
        LDD='g95 -g'
      else
        FC='g95 -c -O4 -fast'
-       CC='cc -O'
+       CC='gcc -c -O'
        LD='g95 -O4'
        FCD='g95 -c -g'
-       CCD='cc -g -sb -C -errtags'
+       CCD='gcc -g -sb -C -errtags'
        LDD='g95 -g'
      fi

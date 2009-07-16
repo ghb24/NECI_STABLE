@@ -11,14 +11,14 @@
      ARFLAGS='-rcs'
      if [ $debug ]; then
        FC='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g '
-       CC='cc -g -sb -C -errtags'
+       CC='cc -c -g -sb -C -errtags'
        LD='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g'
        FCD='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g'
        CCD='cc -g -sb -C -errtags'
        LDD='/opt/ibmcmp/xlf/8.1/bin/xlf90 -c -g'
      else
        FC='/opt/ibmcmp/xlf/8.1/bin/xlf90 '
-       CC='cc -O'
+       CC='cc -c -O'
        LD='/opt/ibmcmp/xlf/8.1/bin/xlf90 '
        FCD='/opt/ibmcmp/xlf/8.1/bin/xlf90 '
        CCD='cc -g -sb -C -errtags'

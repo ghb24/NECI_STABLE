@@ -12,17 +12,17 @@
      GLOBALS='GLOBALS-ifort'
      if [ $debug ]; then
        FC='mpif90 -c -g'
-       CC='gcc -g -sb -C -errtags'
+       CC='mpicc -g -c -sb -C -errtags'
        LD='mpif90 -g'
        FCD='mpif90 -c -g '
-       CCD='gcc -g -sb -C -errtags'
+       CCD='mpicc -g -sb -C -errtags'
        LDD='mpif90 -g'
      else
        FC='mpif90 -c -O3' 
-       CC='gcc -O'
+       CC='mpicc -O -c'
        LD='mpif90 -O3'
        FCD='mpif90 -c -g'
-       CCD='gcc -g -sb -C -errtags'
+       CCD='mpicc -g -sb -C -errtags'
        LDD='mpif90 -g'
      fi
      LDLIB=' ifort'

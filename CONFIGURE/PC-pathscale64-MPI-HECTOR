@@ -14,14 +14,14 @@
      GLOBALS='GLOBALS-pathf95'
      if [ $debug ]; then
        FC='ftn -c -g '
-       CC='cc -g -sb -C -errtags'
+       CC='cc -c -g -sb -C -errtags'
        LD='ftn -g -Bstatic'
        FCD='ftn -c -g '
        CCD='cc -g -sb -C -errtags'
        LDD='ftn -g'
      else
        FC='ftn -c -O3 -OPT:Ofast -LNO:simd_verbose=ON'
-       CC='cc -O'
+       CC='cc -c -O'
        LD='ftn -O3'
        FCD='ftn -c -g'
        CCD='cc -g -sb -C -errtags'

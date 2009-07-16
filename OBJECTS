@@ -33,6 +33,8 @@ OBJ_F90 = readdf.o df_common.o df_record_handler.o input.o HElem.o \
          DetBitOps.o NatOrbs.o RotateOrbs.o Orthonorm.o SortMerge.o MerTwistRan.o \
          HPHFRandExcit.o HPHFIntegrals.o readri.o
 
+OBJ_CC  = MurmurHash2.o
+
 OBJ_NOCPMD = cpmdstub.o
 OBJ_NOVASP = vasp_neci_interface_stub.o
 OBJ_NOTLIB = init_coul.o init_coul2D.o
@@ -40,9 +42,10 @@ OBJ_STANDALONE = $(OBJ_NOCPMD) $(OBJ_NOVASP) $(OBJ_NOTLIB)
 OBJ_LIBSTUB = libstub.o
 MAIN_OBJS = necimain.o
 
-OBJECTS = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_STANDALONE) $(OBJ_F90)
-OBJECTSCPMDLIB = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_LIBSTUB) $(OBJ_NOVASP) $(OBJ_F90)
-OBJECTSVASPLIB = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_LIBSTUB) $(OBJ_NOCPMD) $(OBJ_F90)
+OBJECTS = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_STANDALONE) $(OBJ_F90) $(OBJ_CC)
+OBJECTSCPMDLIB = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_LIBSTUB) $(OBJ_NOVASP) $(OBJ_F90) $(OBJ_CC)
+OBJECTSVASPLIB = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_LIBSTUB) $(OBJ_NOCPMD) $(OBJ_F90) $(OBJ_CC)
 OBJECTSF = $(OBJ_AL) $(OBJ_CU) $(OBJ_MC) $(OBJ_NOCPMD) $(OBJ_NOTLIB) $(OBJ_LIBSTUB)
 OBJECTSF90 = $(OBJ_F90) $(MAIN_OBJS) $(OBJ_NOVASP)
+OBJECTSC = $(OBJ_CC)
 

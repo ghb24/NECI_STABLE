@@ -350,6 +350,12 @@ MODULE Integrals
          CALL GENSymStatePairs(nBasis/2,.false.)
          CALL SetupTMAT(nBasis,2,TMATINT)
          CALL VASPInitIntegrals(I,ECore,tHFOrder)
+!      ELSEIF(TREADINT.AND.TReadCacheInts)...
+!set up dummy umat, read in TMAT, <ij|ij> and <ii|jj>
+!Work out size needed for cache
+!Initialise cache
+!read in integral and put in cache
+!change flag to read integrals from cache
       ELSEIF(TREADINT.AND.TDFREAD) THEN
          Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
@@ -359,6 +365,7 @@ MODULE Integrals
       ELSEIF(TREADINT.AND.tRIIntegrals) THEN
          Allocate(UMat(1), stat=ierr)
          LogAlloc(ierr, 'UMat', 1,HElementSizeB, tagUMat)
+!Why is this called twice here?!
          CALL SetupTMAT(nBasis,2,TMATINT)
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)

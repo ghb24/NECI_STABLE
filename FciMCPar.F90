@@ -1454,6 +1454,8 @@ MODULE FciMCParMod
 !We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
         recvcounts(1:nProcessors)=0
         
+        CALL set_timer(Comms_Time,30)
+        
         CALL MPI_AlltoAll(sendcounts,1,MPI_INTEGER,recvcounts,1,MPI_INTEGER,MPI_COMM_WORLD,error)
 
 !We can now get recvdisps from recvcounts, since we want the data to be contiguous after the move.
@@ -1506,19 +1508,23 @@ MODULE FciMCParMod
 !                WRITE(6,*) SpawnedParts2(:,i)
 !            ENDIF
 !        enddo
+        
+        CALL halt_timer(Comms_Time)
 
     END SUBROUTINE SendProcNewParts
     
 
 
     INTEGER FUNCTION DetermineDetProc(iLut)
-        INTEGER :: iLut(0:NIfD),i,j,Elecs
+        INTEGER :: iLut(0:NIfD),i,j,Elecs!,TempDet(NEl),MurmurHash2Wrapper
         INTEGER(KIND=i2) :: Summ!,RangeofBins,NextBin
 
-!        Summ=0
-!        do i=0,NIfD
-!            Summ=(1099511628211*Summ)+(i+1)*iLut(i)
-!        enddo
+!        CALL DecodeBitDet(TempDet,iLut,NEl,NIfD)
+!        i=MurmurHash2Wrapper(TempDet,NEl,13)
+!        write(6,*) i
+        
+        
+        
         Summ=0
         Elecs=0
         lp2: do i=0,NIfD
