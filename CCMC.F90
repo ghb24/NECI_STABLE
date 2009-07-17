@@ -176,10 +176,11 @@ END SUBROUTINE AddBitExcitor
         dProbSelNewExcitor=0.5
 
         IF (tTruncSpace) THEN
-            nMaxSelExcitors=nEl
-        ELSE
             nMaxSelExcitors=ICILevel
+        ELSE
+            nMaxSelExcitors=nEl
         ENDIF
+        write(6,*) "Max excitors can be selected.", nMaxSelExcitors
 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
@@ -187,6 +188,7 @@ END SUBROUTINE AddBitExcitor
         ENDIF
         
         CALL set_timer(Walker_Time,30)
+        WRITE(6,*) "Number of particles, excitors:",TotParts, TotWalkers
         
 !VecSlot indicates the next free position in NewDets
         VecSlot=1
@@ -206,6 +208,12 @@ END SUBROUTINE AddBitExcitor
 ! We take the number of walkers as the number of samples to begin with.
         iHFDet=1
         NoatHF=abs(CurrentSign(iHFDet))
+        write(6,*) "HF det"
+        call WriteBitDet(6,iLutHF,.true.)
+        do j=1,TotWalkers
+         call WriteBitDet(6,CurrentDets(:,j),.false.)
+         call WriteBitEx(6,iLutHF,CurrentDets(:,j),.true.)
+        enddo
         do j=1,NoatHF
 ! Now select a sample of walkers.  We need up to as many walkers as electrons.
             dProbNumExcit=1   !prob of this number of excitors will go here
@@ -221,11 +229,13 @@ END SUBROUTINE AddBitExcitor
 ! Select a new random walker
                call genrand_real2(r)  !On GHB's advice
                k=2+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
+               Write(6,*) "Selected excitor",k
                SelectedExcitorIndices(i)=k
                SelectedExcitors(:,i)=CurrentDets(:,k)
                dProb=(dProb*abs(CurrentSign(k)))/TotParts
                write(6,*) "Prob ",i,": ",(abs(CurrentSign(k))+0.d0)/TotParts," Cuml:", dProb
             enddo
+            WRITE(6,*) 'prob out of sel routine.',dProbNumExcit
             if(i.gt.nMaxSelExcitors) THEN !We've been limited by the max number of excitations
                ! Let s be dProbSelNewExcitor, and X be nMaxSelExcitors
                !  The sum of all levels up to X-1 is
@@ -234,7 +244,7 @@ END SUBROUTINE AddBitExcitor
                dProbNumExcit= 1- (dProbSelNewExcitor - dProbNumExcit) / (1-dProbSelNewExcitor)
             ENDIF
             iCompositeSize=i-1  !Save the number of excitors we've selected
-            WRITE(6,*) "Iteration ",Iter," Excitors:", iCompositeSize
+            WRITE(6,*) "Iteration ",Iter," Excitors in composite:", iCompositeSize
             do i=1,iCompositeSize
                call WriteBitEx(6,iLutHF,SelectedExcitors(:,i),.true.)
             enddo
@@ -378,8 +388,8 @@ END SUBROUTINE AddBitExcitor
                dProbDecompose=1
                iPartDie=iHFDet
             ENDIF 
-            
-            Write(6,'(A)',advance='no') "Killing at excitor: "
+            Write(6,'(A,I)',advance='no') "Killing at excitor: ",iPartDie
+            call WriteDet(6,CurrentDets(:,iPartDie),nEl,.true.)
             call WriteBitEx(6,iLutHF,CurrentDets(:,iPartDie),.true.)
 !Now get the full representation of the dying excitor
             CALL DecodeBitDet(DetCurr,CurrentDets(:,iPartDie),NEl,NIfD)
