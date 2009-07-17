@@ -6391,9 +6391,6 @@ MODULE FciMCParMod
             WRITE(6,*) "RotoAnnihilation in use...!"
         ELSEIF(tDirectAnnihil) THEN
             WRITE(6,*) "Direct Annihilation in use...Explicit load-balancing disabled."
-            IF(.not.TStartSinglePart) THEN
-                CALL Stop_All("InitFCIMCCalcPar","Direct annihilation must start with a single particle as it is at the moment...")
-            ENDIF
             ALLOCATE(ValidSpawnedList(0:nProcessors-1),stat=ierr)
             ALLOCATE(InitialSpawnedSlots(0:nProcessors-1),stat=ierr)
 !InitialSpawnedSlots now holds the first free position in the newly-spawned list for each processor, so it does not need to be reevaluated each iteration.
