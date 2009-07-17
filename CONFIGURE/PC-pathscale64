@@ -12,16 +12,16 @@
      GLOBALS='GLOBALS-pathf95 -m64'
      if [ $debug ]; then
        FC='pathf95 -m64 -c -g'
-       CC='cc -c -g -sb -C -errtags'
+       CC='pathcc -c -g -sb -C -errtags'
        LD='pathf95 -m64 -g -Bstatic'
        FCD='pathf95 -m64 -c -g '
-       CCD='cc -g -sb -C -errtags'
+       CCD='pathcc -g -sb -C -errtags'
        LDD='pathf95 -m64 -g'
      else
        FC='pathf95 -m64 -c -O3' 
-       CC='cc -c -O'
+       CC='pathcc -c -O'
        LD='pathf95 -m64 -O3'
        FCD='pathf95 -m64 -c -g'
-       CCD='cc -g -sb -C -errtags'
+       CCD='pathcc -g -sb -C -errtags'
        LDD='pathf95 -m64 -g'
      fi

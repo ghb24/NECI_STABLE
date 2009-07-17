@@ -20,7 +20,7 @@
        LDD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -g'
      else
        FC='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -c -fast -O4'
-       CC='gcc -c -O2 -Wall -m64'
+       CC='gcc -c -O2 -m64'
        LD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -O4'
        FCD='/opt/vltmpi/OPENIB/mpi.pgcc.rsh/bin/mpif90 -c -g'
        CCD='gcc -g -sb -C -errtags'

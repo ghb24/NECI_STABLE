@@ -21,7 +21,7 @@
        LDD='ftn -g'
      else
        FC='ftn -c -fastsse -Minfo -Mneginfo'
-       CC='cc -c -O2 -Wall -m64'
+       CC='cc -c -O2 -m64'
        LD='ftn -fastsse'
        FCD='ftn -c -g'
        CCD='cc -g -sb -C -errtags'
