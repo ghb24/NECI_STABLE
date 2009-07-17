@@ -6585,14 +6585,14 @@ MODULE FciMCParMod
 !Start the initial distribution off at the distribution of the MP1 eigenvector
 
             WRITE(6,"(A)") "Starting run with particles populating double excitations proportionally to MP1 wavevector..."
-!            IF(tRotoAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with rotoannihilation")
+            IF(tRotoAnnihil) CALL Stop_All(this_routine,"MP1Start currently disabled with directannihilation")
             CALL InitWalkersMP1Par()
 
         ELSEIF(TReadPops) THEN
 !Read in particles from multiple POPSFILES for each processor
             WRITE(6,*) "Reading in initial particle configuration from POPSFILES..."
 
-!            IF(tRotoAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with rotoannihilation")
+            IF(tDirectAnnihil) CALL Stop_All(this_routine,"READPOPS currently disabled with rotoannihilation")
             CALL ReadFromPopsFilePar()
 
         ELSE
@@ -6752,6 +6752,14 @@ MODULE FciMCParMod
                     CurrentDets(:,1)=iLutHF(:)
                     CurrentSign(1)=InitWalkers
                     IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+                ELSEIF(tDirectAnnihil) THEN
+                    Proc=DetermineDetProc(iLutHF)
+                    WRITE(6,*) "HF processor is: ",Proc
+                    IF(iProcIndex.eq.Proc) THEN
+                        CurrentDets(:,1)=iLutHF(:)
+                        CurrentSign(1)=InitWalkers
+                        IF(.not.tRegenDiagHEls) CurrentH(1)=0.D0
+                    ENDIF
                 ELSE
 
                     do j=1,InitWalkers
@@ -6862,7 +6870,39 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
             ELSE
-                IF(.not.tRotoAnnihil) THEN
+                IF(tDirectAnnihil) THEN
+!In this, only one processor has initial particles.
+                    Proc=DetermineDetProc(iLutHF)
+                    IF(iProcIndex.eq.Proc) THEN
+                        TotWalkers=1
+                        TotWalkersOld=1
+                        TotParts=InitWalkers
+                        TotPartsOld=InitWalkers
+                    ELSE
+                        TotWalkers=0
+                        TotWalkersOld=0
+                        TotParts=0
+                        TotPartsOld=0
+                    ENDIF
+                    IF(iProcIndex.eq.Root) THEN
+                        AllTotWalkers=1.D0
+                        AllTotWalkersOld=1.D0
+                        AllTotParts=REAL(InitWalkers,r2)
+                        AllTotPartsOld=REAL(InitWalkers,r2)
+                    ENDIF
+                ELSEIF(tRotoAnnihil) THEN
+!This is different, since the arrays are stored in a compressed form, but on all processors.
+                    TotWalkers=1
+                    TotWalkersOld=1
+                    TotParts=InitWalkers
+                    TotPartsOld=InitWalkers
+                    IF(iProcIndex.eq.root) THEN
+                        AllTotWalkers=REAL(nProcessors,r2)
+                        AllTotWalkersOld=REAL(nProcessors,r2)
+                        AllTotParts=REAL(InitWalkers*nProcessors,r2)
+                        AllTotPartsOld=REAL(InitWalkers*nProcessors,r2)
+                    ENDIF
+                ELSE
 !TotWalkers contains the number of current walkers at each step
                     TotWalkers=InitWalkers
                     TotWalkersOld=InitWalkers
@@ -6874,17 +6914,6 @@ MODULE FciMCParMod
                         AllTotWalkersOld=REAL(InitWalkers*nProcessors,r2)
                         AllTotParts=AllTotWalkers
                         AllTotPartsOld=AllTotWalkersOld
-                    ENDIF
-                ELSE
-                    TotWalkers=1
-                    TotWalkersOld=1
-                    TotParts=InitWalkers
-                    TotPartsOld=InitWalkers
-                    IF(iProcIndex.eq.root) THEN
-                        AllTotWalkers=REAL(nProcessors,r2)
-                        AllTotWalkersOld=REAL(nProcessors,r2)
-                        AllTotParts=REAL(InitWalkers*nProcessors,r2)
-                        AllTotPartsOld=REAL(InitWalkers*nProcessors,r2)
                     ENDIF
                 ENDIF
 
