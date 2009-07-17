@@ -12,16 +12,16 @@
      GLOBALS='GLOBALS-ifort'
      if [ $debug ]; then
        FC='ifort -c -g'
-       CC='cc -g -sb -C -errtags'
+       CC='icc -c -g -sb -C -errtags'
        LD='ifort -g -Bstatic'
        FCD='ifort -c -g '
-       CCD='cc -g -sb -C -errtags'
+       CCD='icc -g -sb -C -errtags'
        LDD='ifort -g'
      else
        FC='ifort -c -O3' 
-       CC='cc -O'
+       CC='icc -c -O'
        LD='ifort -O3 -Bstatic'
        FCD='ifort -c -g'
-       CCD='cc -g -sb -C -errtags'
+       CCD='icc -g -sb -C -errtags'
        LDD='ifort -g'
      fi
