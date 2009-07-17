@@ -1,0 +1,27 @@
+     compiler='INTEL-ifort9-on-LINUX'
+     IRAT=2
+     CPP='/usr/bin/cpp -P -C -traditional'
+     CPPFLAGS='-D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8'
+     NCPUS=2
+     #-sb is to use Workshop package
+     FFLAGS='-r8'
+     LFLAGS='-L /Library/Frameworks/Intel_MKL.framework/Versions/9.1.026/lib/em64t/ -lmkl  -lmkl_lapack -L ~/local/lib/ -lfftw3'
+     AR='ar'
+     ARFLAGS='-rcs'
+     F90FLAGS=''
+     GLOBALS='GLOBALS-ifort'
+     if [ $debug ]; then
+       FC='mpif90 -c -g'
+       CC='mpicc -c -g -sb -C -errtags'
+       LD='mpif90 -g'
+       FCD='mpif90 -c -g '
+       CCD='mpicc -g -sb -C -errtags'
+       LDD='mpif90 -g'
+     else
+       FC='mpif90 -c -O3' 
+       CC='mpicc -c -O'
+       LD='mpif90 -O3'
+       FCD='mpif90 -c -g'
+       CCD='icc -g -sb -C -errtags'
+       LDD='mpif90 -g'
+     fi
