@@ -13,6 +13,7 @@ MODULE FciMCParMod
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
     use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace,tMinorDetsStar
+    use CalcData , only : tCCMC
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch 
     USE Determinants , only : FDet,GetHElement2,GetHElement4
     USE DetCalc , only : NMRKS,ICILevel,nDet,Det,FCIDetIndex
@@ -265,6 +266,8 @@ MODULE FciMCParMod
                 CALL MultipleConnFCIMCycPar()
             ELSEIF(tCleanRun) THEN
                 CALL PerformCleanFCIMCycPar()
+            ELSEIF(tCCMC) THEN
+                CALL PerformCCMCCycPar()
             ELSE
                 CALL PerformFCIMCycPar()
             ENDIF

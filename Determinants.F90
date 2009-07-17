@@ -513,13 +513,14 @@ END MODULE Determinants
          integer Ex(2,nEl)
          logical lTerm
          logical tSign
+         INTEGER iEl,I
          EX(1,1)=nEl  !Indicate the length of EX
          CALL GetBitExcitation(iLutRef,iLutnI,nIfD,nEl,Ex,tSign)
          WRITE(NUNIT,"(A)",advance='no') "("
 ! First the excit from
          DO I=1,NEL
             IEL=EX(1,I)
-            if(iEl.eq.0) EXIT DO
+            if(iEl.eq.0) EXIT
             WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
          ENDDO
          IF(tSign) THEN
@@ -530,7 +531,7 @@ END MODULE Determinants
 !Now the excit to
          DO I=1,NEL
             IEL=EX(2,I)
-            if(iEl.eq.0) EXIT DO
+            if(iEl.eq.0) EXIT
             WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
          ENDDO
          IF(LTERM) WRITE(NUNIT,*)

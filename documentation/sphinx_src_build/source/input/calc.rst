@@ -445,6 +445,16 @@ Experimental methods
     This reduces to the original spawning algorithm when **GRAPHSIZE** is 2 and
     **HAPP** is 1. Uses many of the same options as **FCIMC**.
 
+**VERTEX** **CCMC**
+    Perform Monte Carlo calculations over coupled cluster excitation space, which
+    is sampled using a series of 'particles' (or 'walkers').
+
+    The walkers are not necessarily unique and must be sorted at every
+    iteration.  Each walker has its own excitation generator.
+
+    Extremely experimental.
+
+
 **VERTEX** **GRAPHMORPH** [**HDIAG**]
     Set up an initial graph and systematically improve it, by applying the
     :math:`rho` matrix of the graph and its excitations as a propagator

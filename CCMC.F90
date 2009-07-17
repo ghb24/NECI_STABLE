@@ -2,10 +2,129 @@
 ! based on GHB's FciMCPar, this is a version in Coupled Cluster space.
 
 
-MODULE CCMCParMod
 !Note that the main routine called by FciMCPar is PerformCCMCCycPar and is outside the module, so
 !FciMCPar doesn't need to use the module
-END MODULE
+
+!Based on AttemptDiePar
+!This function tells us whether we should kill the particle at determinant DetCurr
+!If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
+!The function allows multiple births(if +ve shift) or deaths from the same particle.
+!The returned number is the number of deaths if positive, and the number of births if negative.
+!Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
+!dProb is an extra probability factor the death probability is multiplied by 
+    INTEGER FUNCTION AttemptDieProbPar(DetCurr,Kii,IC,WSign,dProb)
+        USE FciMCParMod
+        IMPLICIT NONE
+        INTEGER :: DetCurr(NEl),iKill,IC,WSign
+!        TYPE(HElement) :: rh,rhij
+        REAL*8 :: r,rat,Kii
+        REAL*8 dProb
+        LOGICAL :: tDETinCAS
+
+
+!Calculate the diagonal hamiltonian matrix element for the determinant
+!        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
+!Subtract from the diagonal the value of the lowest hamiltonian matrix element
+!        rh=rh-Hii
+
+!Subtract the current value of the shift and multiply by tau
+        IF(TFixShiftShell.and.(.not.TSinglePartPhase)) THEN
+!            IF((IC.eq.0).or.(IC.eq.2)) THEN
+            IF(IC.le.ShellFix) THEN
+                rat=Tau*(Kii-FixShift)
+            ELSE
+                rat=Tau*(Kii-DiagSft)
+            ENDIF
+        ELSEIF(tFixShiftKii.and.(.not.TSinglePartPhase)) THEN
+            IF(Kii.le.FixedKiiCutoff) THEN
+                rat=Tau*(Kii-FixShift)
+            ELSE
+                rat=Tau*(Kii-DiagSft)
+            ENDIF
+        ELSEIF(tFixCASShift.and.(.not.TSinglePartPhase)) THEN
+! The 'TestifDETinCAS' function finds out if the determinant is in the complete active space or not.  If it is, the shift is fixed at 
+! the chosen fixed value (FixShift), if not the shift remains as the changing DiagSft value.
+           
+            tDETinCAS=TestifDETinCAS(DetCurr)
+            
+            IF(tDETinCAS) THEN
+                rat=Tau*(Kii-FixShift)
+            ELSE
+                rat=Tau*(Kii-DiagSft)
+            ENDIF
+        ELSE
+            rat=Tau*(Kii-DiagSft)
+        ENDIF
+
+!If there are multiple particles, decide how many to kill in total...
+        rat=rat*abs(WSign)
+        rat=rat*dProb
+
+        iKill=INT(rat)
+        rat=rat-REAL(iKill)
+
+!Stochastically choose whether to die or not
+        IF(tMerTwist) THEN
+            CALL genrand_real2(r) 
+        ELSE
+            CALL RANLUX(r,1)
+        ENDIF
+        IF(abs(rat).gt.r) THEN
+            IF(rat.ge.0.D0) THEN
+!Depends whether we are trying to kill or give birth to particles.
+                iKill=iKill+1
+            ELSE
+                iKill=iKill-1
+            ENDIF
+        ENDIF
+
+        AttemptDieProbPar=iKill
+
+        RETURN
+
+    END FUNCTION AttemptDieProbPar
+
+!Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is
+!updated with the relevant permutation or set to zero if the excitation is
+!disallowed.
+SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,nIfD,iSgn)
+   use SystemData, only : nEl
+   INTEGER nIfD
+   INTEGER iLutnI(0:nIfD), iLutnJ(0:nIfD),iLutRef(0:nIfD)
+   INTEGER iLutTmp(0:nIfD)
+   INTEGER T1,T2,T3
+   INTEGER iSgn
+! We need to run through the bits of J and I concurrently, setting bits of I
+   INTEGER i,j
+!NB This is wrong as yet, but just to test compile - it doesn't set the sign correctly.
+!First the occ
+   do i=0,nIfD
+! First mask so we only have 'occupied' orbitals.  The occupieds which are zero
+! mean they have been excited from.
+      T1=IAND(iLutnI(i),iLutRef(i))
+      T2=IAND(iLutnJ(i),iLutRef(i))
+      IF(IAND(NOT(T1),NOT(T2)).NE.0) THEN
+!The two excitors are exciting from at least one of the same orbitals.  This
+!gives a sign of zero.
+         iSgn=0
+      ENDIF
+      iLutTmp(i)=IAND(T1,T2)  !Combine the excitors
+   enddo
+   do i=0,nIfD
+! Now mask so we only have 'virtual' orbitals.  The virtuals which are set mean they have been excited to.
+      T3=NOT(iLutRef(i))
+      T1=IAND(iLutnI(i),T3)
+      T2=IAND(iLutnJ(i),T3)
+      IF(IAND(T1,T2).NE.0) THEN
+!The two excitors are exciting to at least one of the same orbitals.  This
+!gives a sign of zero.
+         iSgn=0
+      ENDIF
+      iLutnI(i)=IOR(iLutTmp(i),IOR(T1,T2)) 
+!Combine the excitors and the excitor from and put them back into where they should go
+   enddo
+   return
+END SUBROUTINE AddBitExcitor
 
 !Note that the main routine called by FciMCPar is PerformCCMCCycPar and is outside the module, so
 !FciMCPar doesn't need to use the module
@@ -13,6 +132,8 @@ END MODULE
 !Based on PerformCleanFCIMCycPar()
 
     SUBROUTINE PerformCCMCCycPar()
+      USe FCIMCParMod
+      Use Determinants, only: GetHElement3
         INTEGER :: VecSlot,i,j,k,l,CopySign,iPartBloom
         INTEGER :: nJ(NEl),ierr,IC,Child,DetCurr(NEl),iLutnJ(0:NIfD)
         REAL*8 :: Prob,rat,HDiagCurr,r
@@ -49,6 +170,7 @@ END MODULE
 
 ! The number of excitors we select to make the composite.
         INTEGER iCompositeSize
+        TYPE(HElement) Htmp
 
         iHFDet=1
         dProbSelNewExcitor=0.5
@@ -95,13 +217,13 @@ END MODULE
 
 ! decide not to choose another walker with this prob.
                call genrand_real2(r)  !On GHB's advice
-               if(r.lt.dProbSelNewExcitor) exit do
+               if(r.lt.dProbSelNewExcitor) exit
 ! Select a new random walker
                call genrand_real2(r)  !On GHB's advice
                k=2+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
                SelectedExcitorIndices(i)=k
                SelectedExcitors(:,i)=CurrentDets(:,k)
-               dProb=(dProb*abs(CurrentSign(k))/TotParts
+               dProb=(dProb*abs(CurrentSign(k)))/TotParts
                write(6,*) "Prob ",i,": ",(abs(CurrentSign(k))+0.d0)/TotParts," Cuml:", dProb
             enddo
             if(i.gt.nMaxSelExcitors) THEN !We've been limited by the max number of excitations
@@ -120,9 +242,9 @@ END MODULE
             Write(6,*) "Select Prob given level: ",dProb
             dProb=dProbNumExcit*dProb
             iLutnI(:)=iLutHF(:)
-            iSgn=sign(CurrentSign(iHFDet))
+            iSgn=sign(CurrentSign(iHFDet),1)
             do i=1,iCompositeSize 
-               AddBitExcitor(iLutnI,SelectedExcitors(:,i),iLutHF,nIfD,iSgn)
+               call AddBitExcitor(iLutnI,SelectedExcitors(:,i),iLutHF,nIfD,iSgn)
                Write(6,*) "Results of addition ",i, "Sign ",iSgn
                call WriteBitEx(6,iLutHF,iLutnI,.true.)
             enddo
@@ -257,11 +379,12 @@ END MODULE
                iPartDie=iHFDet
             ENDIF 
             
-            Write(6,'(A)',advance=no) "Killing at excitor: "
-            WriteBitEx(6,iLutHF,CurrentDets(:,iPartDie),.true.)
+            Write(6,'(A)',advance='no') "Killing at excitor: "
+            call WriteBitEx(6,iLutHF,CurrentDets(:,iPartDie),.true.)
 !Now get the full representation of the dying excitor
             CALL DecodeBitDet(DetCurr,CurrentDets(:,iPartDie),NEl,NIfD)
-            HDiagCurr=GetHElement3(DetCurr,DetCurr,0)
+            Htmp=GetHElement3(DetCurr,DetCurr,0)
+            HDiagCurr=REAL(Htmp%v,r2)
             HDiagCurr=HDiagCurr-Hii
 
 !Die with a probability as normal, but biased because we only selected this set
@@ -361,122 +484,4 @@ END MODULE
     END SUBROUTINE PerformCCMCCycPar
 
 
-!Based on AttemptDiePar
-!This function tells us whether we should kill the particle at determinant DetCurr
-!If also diffusing, then we need to know the probability with which we have spawned. This will reduce the death probability.
-!The function allows multiple births(if +ve shift) or deaths from the same particle.
-!The returned number is the number of deaths if positive, and the number of births if negative.
-!Multiple particles can be attempted to die at the same time - here, |WSign| > 1 and the probability of a death will be multiplied by |WSign|
-!dProb is an extra probability factor the death probability is multiplied by 
-    INTEGER FUNCTION AttemptDieProbPar(DetCurr,Kii,IC,WSign,dProb)
-        IMPLICIT NONE
-        INTEGER :: DetCurr(NEl),iKill,IC,WSign
-!        TYPE(HElement) :: rh,rhij
-        REAL*8 :: r,rat,Kii
-        REAL*8 dProb
-        LOGICAL :: tDETinCAS
-
-
-!Calculate the diagonal hamiltonian matrix element for the determinant
-!        rh=GetHElement2(DetCurr,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,0,ECore)
-!Subtract from the diagonal the value of the lowest hamiltonian matrix element
-!        rh=rh-Hii
-
-!Subtract the current value of the shift and multiply by tau
-        IF(TFixShiftShell.and.(.not.TSinglePartPhase)) THEN
-!            IF((IC.eq.0).or.(IC.eq.2)) THEN
-            IF(IC.le.ShellFix) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixShiftKii.and.(.not.TSinglePartPhase)) THEN
-            IF(Kii.le.FixedKiiCutoff) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSEIF(tFixCASShift.and.(.not.TSinglePartPhase)) THEN
-! The 'TestifDETinCAS' function finds out if the determinant is in the complete active space or not.  If it is, the shift is fixed at 
-! the chosen fixed value (FixShift), if not the shift remains as the changing DiagSft value.
-           
-            tDETinCAS=TestifDETinCAS(DetCurr)
-            
-            IF(tDETinCAS) THEN
-                rat=Tau*(Kii-FixShift)
-            ELSE
-                rat=Tau*(Kii-DiagSft)
-            ENDIF
-        ELSE
-            rat=Tau*(Kii-DiagSft)
-        ENDIF
-
-!If there are multiple particles, decide how many to kill in total...
-        rat=rat*abs(WSign)
-        rat=rat*dProb
-
-        iKill=INT(rat)
-        rat=rat-REAL(iKill)
-
-!Stochastically choose whether to die or not
-        IF(tMerTwist) THEN
-            CALL genrand_real2(r) 
-        ELSE
-            CALL RANLUX(r,1)
-        ENDIF
-        IF(abs(rat).gt.r) THEN
-            IF(rat.ge.0.D0) THEN
-!Depends whether we are trying to kill or give birth to particles.
-                iKill=iKill+1
-            ELSE
-                iKill=iKill-1
-            ENDIF
-        ENDIF
-
-        AttemptDiePar=iKill
-
-        RETURN
-
-    END FUNCTION AttemptDiePar
-
-!Add the excitation in iLutnJ to iLutnI and return it in iLutnI.  iSgn is
-!updated with the relevant permutation or set to zero if the excitation is
-!disallowed.
-SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,nIfD,iSgn)
-   use SystemData, only : nEl
-   INTEGER nIfD
-   INTEGER iLutnI(0:nIfD), iLutnJ(0:nIfD),iLutRef(0:nIfD)
-   INTEGER iLutTmp(0:nIfD)
-   INTEGER T1,T2,T3
-   INTEGER iSgn
-! We need to run through the bits of J and I concurrently, setting bits of I
-   INTEGER i,j
-!NB This is wrong as yet, but just to test compile - it doesn't set the sign correctly.
-!First the occ
-   do i=0,nIfD
-! First mask so we only have 'occupied' orbitals.  The occupieds which are zero
-! mean they have been excited from.
-      T1=IAND(iLutnI(i),iLutRef(i))
-      T2=IAND(iLutnJ(i),iLutRef(i))
-      IF(IAND(NOT(T1),NOT(T2)).NE.0) THEN
-!The two excitors are exciting from at least one of the same orbitals.  This
-!gives a sign of zero.
-         iSgn=0
-      ENDIF
-      iLutTmp(i)=IAND(T1,T2)  !Combine the excitors
-   enddo
-   do i=0,nIfD
-! Now mask so we only have 'virtual' orbitals.  The virtuals which are set mean they have been excited to.
-      T3=NOT(iLutRef(i))
-      T1=IAND(iLutnI(i),T3)
-      T2=IAND(iLutnJ(i),T3)
-      IF(IAND(T1,T2).NE.0) THEN
-!The two excitors are exciting to at least one of the same orbitals.  This
-!gives a sign of zero.
-         iSgn=0
-      ENDIF
-      iLutI(i)=IOR(iLutTmp(i),IOR(T1,T2))  !Combine the excitors and the excitor from and put them back into where they should go
-   enddo
-   
-END SUBROUTINE
-
+#endif

@@ -100,6 +100,7 @@ MODULE Calc
           CullFactor=2.D0
           TStartMP1=.false.
           TFCIMC=.false.
+          TCCMC=.false.
           TMCDets=.false.
           TBinCancel=.false.  
           ScaleWalkers=1.D0
@@ -1387,7 +1388,7 @@ MODULE Calc
          use input
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion
+         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion,tCCMC
          use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -1408,6 +1409,11 @@ MODULE Calc
                    case("RESUMFCIMC")
                        TResumFCIMC=.true.
                    endselect
+               case("CCMC")
+                  !Piggy-back on the FCIMC code
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   TCCMC=.true.
                case("RETURNPATHMC")
                    I_HMAX=-21
                    TReturnPathMC=.true.

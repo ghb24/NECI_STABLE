@@ -13,7 +13,7 @@ LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
 LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips,tConstructNOs
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-LOGICAL :: THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil
+LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC
 LOGICAL :: TStartMP1,TNoBirth,TDiffuse,TFlipTau,TExtraPartDiff,tMultipleDetsSpawn
 LOGICAL :: TFullUnbias,TNodalCutoff,TNoAnnihil,TMCDiffusion,tPrintDominant
 LOGICAL :: TRhoElems,TReturnPathMC,TResumFCIMC,TSignShift,tFindGuide,tUseGuide
