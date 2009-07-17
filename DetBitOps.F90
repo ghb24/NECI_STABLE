@@ -180,85 +180,85 @@
 
     END SUBROUTINE DecodeBitDet
 
-!    SUBROUTINE GetBitExcitation(iLutnI,iLutnJ,NIfD,NEl,Ex,tSign)
-!        IMPLICIT NONE
-!        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),Ex(2,2),i,BitExcitMat(0:NIfD),BitCommonOrbs(0:NIfD),FromInd,ToInd,j
-!        INTEGER :: nIElec,nJElec,Diff,NIfD,NEl
-!        LOGICAL :: tSign
-!
-!        tSign=.false.
-!        ToInd=1
-!        FromInd=1
-!        nIElec=0
-!        nJElec=0
-!
-!        do i=0,NIfD
-!            BitExcitMat(i)=IEOR(iLutnI(i),iLutnJ(i))
-!            BitCommonOrbs(i)=IAND(iLutnI(i),iLutnJ(i))
-!            
-!            IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) CYCLE
-!
-!!            WRITE(6,*) "BitExcitMat: "
-!!            do j=0,31
-!!                IF(BTEST(BitExcitMat(i),j)) THEN
-!!                    WRITE(6,"(A)",advance='no') " 1 "
-!!                ELSE
-!!                    WRITE(6,"(A)",advance='no') " 0 "
-!!                ENDIF
-!!            enddo
-!!            WRITE(6,*) "*** iLutnI: "
-!!            do j=0,31
-!!                IF(BTEST(iLutnI(i),j)) THEN
-!!                    WRITE(6,"(A)",advance='no') " 1 "
-!!                ELSE
-!!                    WRITE(6,"(A)",advance='no') " 0 "
-!!                ENDIF
-!!            enddo
-!
-!
+    SUBROUTINE GetBitExcitation(iLutnI,iLutnJ,NIfD,NEl,Ex,tSign)
+        IMPLICIT NONE
+        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),Ex(2,2),i,BitExcitMat(0:NIfD),BitCommonOrbs(0:NIfD),FromInd,ToInd,j
+        INTEGER :: nIElec,nJElec,Diff,NIfD,NEl
+        LOGICAL :: tSign
+
+        tSign=.false.
+        ToInd=1
+        FromInd=1
+        nIElec=0
+        nJElec=0
+
+        do i=0,NIfD
+            BitExcitMat(i)=IEOR(iLutnI(i),iLutnJ(i))
+            BitCommonOrbs(i)=IAND(iLutnI(i),iLutnJ(i))
+            
+            IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) CYCLE
+
+!            WRITE(6,*) "BitExcitMat: "
 !            do j=0,31
-!!First, find the parity of the excitations.
-!!we need to search the common orbitals, in order to check the parity shift.
-!
-!                IF(BTEST(BitCommonOrbs(i),j)) THEN
-!                    IF(nIElec.ne.nJElec) THEN
-!                        Diff=abs(nIElec-nJElec)
-!                        IF(mod(Diff,2).eq.1) THEN
-!                            tSign=.not.tSign
-!                        ENDIF
-!                    ENDIF
-!                    BitCommonOrbs(i)=IBCLR(BitCommonOrbs(i),j)
-!!                ELSE
-!!                    IF(BTEST(iLutnI(i),j)) nIElec=nIElec+1
-!!                    IF(BTEST(iLutnJ(i),j)) nJElec=nJElec+1
-!                ENDIF
-!
-!!Now, create the Ex matrix
 !                IF(BTEST(BitExcitMat(i),j)) THEN
-!!This is either a 'from' orbital, or a 'to' orbital - find out which.
-!                    IF(BTEST(iLutnI(i),j)) THEN
-!!This is one of the orbitals that an electron is excited *from*
-!                        nIElec=nIElec+1
-!                        Ex(1,FromInd)=(i*32)+(j+1)
-!                        FromInd=FromInd+1
-!                        BitExcitMat(i)=IBCLR(BitExcitMat(i),j)  !Remove the bit
-!                        IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) EXIT
-!                    ELSE
-!!This is one of the orbitals that an electron is excited *to*
-!                        nJElec=nJElec+1
-!                        Ex(2,ToInd)=(i*32)+(j+1)
-!                        ToInd=ToInd+1
-!                        BitExcitMat(i)=IBCLR(BitExcitMat(i),j)  !Remove the bit
-!                        IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) EXIT
-!                    ENDIF
+!                    WRITE(6,"(A)",advance='no') " 1 "
+!                ELSE
+!                    WRITE(6,"(A)",advance='no') " 0 "
 !                ENDIF
-!
 !            enddo
-!        enddo
-!        
-!!        IF(ToInd.ne.FromInd) CALL Stop_All("GetBitExcitation","Error in constructing excitation matrix")
-!
-!    END SUBROUTINE GetBitExcitation
+!            WRITE(6,*) "*** iLutnI: "
+!            do j=0,31
+!                IF(BTEST(iLutnI(i),j)) THEN
+!                    WRITE(6,"(A)",advance='no') " 1 "
+!                ELSE
+!                    WRITE(6,"(A)",advance='no') " 0 "
+!                ENDIF
+!            enddo
+
+
+            do j=0,31
+!First, find the parity of the excitations.
+!we need to search the common orbitals, in order to check the parity shift.
+
+                IF(BTEST(BitCommonOrbs(i),j)) THEN
+                    IF(nIElec.ne.nJElec) THEN
+                        Diff=abs(nIElec-nJElec)
+                        IF(mod(Diff,2).eq.1) THEN
+                            tSign=.not.tSign
+                        ENDIF
+                    ENDIF
+                    BitCommonOrbs(i)=IBCLR(BitCommonOrbs(i),j)
+!                ELSE
+!                    IF(BTEST(iLutnI(i),j)) nIElec=nIElec+1
+!                    IF(BTEST(iLutnJ(i),j)) nJElec=nJElec+1
+                ENDIF
+
+!Now, create the Ex matrix
+                IF(BTEST(BitExcitMat(i),j)) THEN
+!This is either a 'from' orbital, or a 'to' orbital - find out which.
+                    IF(BTEST(iLutnI(i),j)) THEN
+!This is one of the orbitals that an electron is excited *from*
+                        nIElec=nIElec+1
+                        Ex(1,FromInd)=(i*32)+(j+1)
+                        FromInd=FromInd+1
+                        BitExcitMat(i)=IBCLR(BitExcitMat(i),j)  !Remove the bit
+                        IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) EXIT
+                    ELSE
+!This is one of the orbitals that an electron is excited *to*
+                        nJElec=nJElec+1
+                        Ex(2,ToInd)=(i*32)+(j+1)
+                        ToInd=ToInd+1
+                        BitExcitMat(i)=IBCLR(BitExcitMat(i),j)  !Remove the bit
+                        IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) EXIT
+                    ENDIF
+                ENDIF
+
+            enddo
+        enddo
+        
+!        IF(ToInd.ne.FromInd) CALL Stop_All("GetBitExcitation","Error in constructing excitation matrix")
+
+    END SUBROUTINE GetBitExcitation
 
 
 !This routine will find the bit-representation of an excitation by constructing the new iLut from the old one and the excitation matrix.
