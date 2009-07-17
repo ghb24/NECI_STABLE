@@ -1,3 +1,19 @@
+!CSFs - brief docs from old INPUT_DOC
+!
+!CSF code is mostly functional, but only operates with spin csfs (not symmetry ones),
+! and  only with the OLD excitation generator. CSFs are generated using a branching diagram,
+! and decomposed into determinants when hamiltonian elements are required.
+!CSFs are printed thus: (CLOSED, OPEN).  CLOSED is a list of orbitals in closed shells
+!            OPEN is a list of open shell orbitals, along with an encoded Ms values
+!                                         and an S generation string (see csf.F)
+!               e.g. (    1,    2,   13,   14,  7+B,  9+B, 19-A, 23-A,)
+!                  has (1,2) and (13,14) spin-orbital pairs doubly occupied
+!                  and (7,8) and (19,20) each singly occupied.  
+!                  BBAA corresponds to an Ms=0 state (two beta, two alpha) (these labels are always B...BA...A).
+!                  ++-- corresponds to 2S=+1+1-1-1=0 and with the ++-- generation combination (see branching diagrams).
+!                 The other possible
+!                  combination would be +-+- (the partial sums can never go below 0,
+!                  so e.g. +--+ is not allowed)
       INTEGER FUNCTION ICMPCSFS(C1,C2,NEL)
          IMPLICIT NONE
          INTEGER NEL,I
