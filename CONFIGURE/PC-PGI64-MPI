@@ -20,7 +20,7 @@
        LDD='mpif90 -g'
      else
        FC='mpif90 -c -fastsse -tp k8-64'
-       CC='mpicc -c -O2 -m64'
+       CC='mpicc -c -O2'
        LD='mpif90 -fastsse -tp k8-64'
        FCD='mpif90 -c -g'
        CCD='mpicc -g -sb -C -errtags'
