@@ -496,9 +496,6 @@ MODULE FciMCParMod
 !                        CALL FLUSH(6)
                     ENDIF
 
-!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
-
 !In direct annihilation, we spawn particles into a seperate array, but we do not store them contiguously in the SpawnedParts/SpawnedSign arrays.
 !The processor that the newly-spawned particle is going to be sent to has to be determined, and then it will get put into the the appropriate element determined by ValidSpawnedList.
 
@@ -899,9 +896,6 @@ MODULE FciMCParMod
 !                        WRITE(6,"(A,G25.10)") "PROB IS: ",Prob
 !                        CALL FLUSH(6)
                     ENDIF
-
-!We need to calculate the bit-representation of this new child. This can be done easily since the ExcitMat is known.
-                    IF(.not.tHPHF) CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ,IC,Ex,NIfD)
 
                     IF(tRotoAnnihil) THEN
 !In the RotoAnnihilation implimentation, we spawn particles into a seperate array - SpawnedParts and SpawnedSign. 
@@ -8483,6 +8477,11 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
             ENDIF
+        ENDIF
+        
+!We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
+        IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
+            CALL FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex,NIfD)
         ENDIF
 
 !        IF(AttemptCreatePar.ne.0) THEN
