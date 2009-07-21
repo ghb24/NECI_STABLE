@@ -28,6 +28,8 @@ MODULE RotateOrbsMod
     REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:)  
     REAL*8 , ALLOCATABLE :: TwoIndInts01Temp(:,:,:,:),TwoIndInts02Temp(:,:,:,:),ThreeIndInts01Temp(:,:,:,:),FourIndInts02Temp(:,:,:,:)
     REAL*8 , ALLOCATABLE :: ThreeIndInts02Temp(:,:,:,:),ThreeIndInts03Temp(:,:,:,:),ThreeIndInts04Temp(:,:,:,:),DiagTMAT2Dfull(:)   
+    REAL*8 , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:)
+    INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
     INTEGER :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
     INTEGER :: TwoIndInts01TempTag,TwoIndInts02TempTag,ThreeIndInts01TempTag,ThreeIndInts02TempTag,ThreeIndInts03TempTag,ThreeIndInts04TempTag
     INTEGER :: FourIndInts02TempTag,FourIndIntsTempTag,CoeffT1TempTag,LowBound02,HighBound02,TMAT2DTempTag,TMAT2DRotTag,TMAT2DPartRot01Tag,TMAT2DPartRot02Tag
@@ -281,54 +283,66 @@ MODULE RotateOrbsMod
   
         ALLOCATE(DiagTMAT2Dfull(SpatOrbs-(NEl/2)),stat=ierr)
         CALL LogMemAlloc('DiagTMAT2Dfull',(SpatOrbs-(NEl/2)),8,this_routine,DiagTMAT2DfullTag,ierr)
-        ALLOCATE(TMAT2DTemp(SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('TMAT2DTemp',SpatOrbs**2,8,this_routine,TMAT2DTempTag,ierr)
-        ALLOCATE(TMAT2DPartRot01(SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('TMAT2DPartRot01',SpatOrbs**2,8,this_routine,TMAT2DPartRot01Tag,ierr)
-        ALLOCATE(TMAT2DPartRot02(SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('TMAT2DPartRot02',SpatOrbs**2,8,this_routine,TMAT2DPartRot02Tag,ierr)
-        ALLOCATE(TMAT2DRot(SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('TMAT2DRot',SpatOrbs**2,8,this_routine,TMAT2DRotTag,ierr)
         ALLOCATE(UMATTemp01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('UMATTemp01',SpatOrbs**4,8,this_routine,UMATTemp01Tag,ierr)
-        ALLOCATE(UMATTemp02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('UMATTemp02',SpatOrbs**4,8,this_routine,UMATTemp02Tag,ierr)
-
-        ! Partially transformed temporary arrays.
         ALLOCATE(TwoIndInts01Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('TwoIndInts01Temp',SpatOrbs**4,8,this_routine,TwoIndInts01TempTag,ierr)
-        ALLOCATE(TwoIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('TwoIndInts02Temp',SpatOrbs**4,8,this_routine,TwoIndInts02TempTag,ierr)
-        ALLOCATE(ThreeIndInts01Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('ThreeIndInts01Temp',SpatOrbs**4,8,this_routine,ThreeIndInts01TempTag,ierr)
+        ALLOCATE(TwoIndInts01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('TwoIndInts01',SpatOrbs**4,8,this_routine,TwoIndInts01Tag,ierr)
         ALLOCATE(ThreeIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('ThreeIndInts02Temp',SpatOrbs**4,8,this_routine,ThreeIndInts02TempTag,ierr)
-        ALLOCATE(ThreeIndInts03Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('ThreeIndInts03Temp',SpatOrbs**4,8,this_routine,ThreeIndInts03TempTag,ierr)
-        ALLOCATE(ThreeIndInts04Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('ThreeIndInts04Temp',SpatOrbs**4,8,this_routine,ThreeIndInts04TempTag,ierr)
+        ALLOCATE(ThreeIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+        CALL LogMemAlloc('ThreeIndInts02',SpatOrbs**4,8,this_routine,ThreeIndInts02Tag,ierr)
         ALLOCATE(FourIndIntsTemp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndIntsTemp',SpatOrbs**4,8,this_routine,FourIndIntsTempTag,ierr)
         ALLOCATE(FourIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndInts02Temp',SpatOrbs**4,8,this_routine,FourIndInts02TempTag,ierr)
- 
-        ! Partially transformed combined arrays.
-        ALLOCATE(TwoIndInts01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('TwoIndInts01',SpatOrbs**4,8,this_routine,TwoIndInts01Tag,ierr)
-        ALLOCATE(TwoIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('TwoIndInts02',SpatOrbs**4,8,this_routine,TwoIndInts02Tag,ierr)
-        ALLOCATE(ThreeIndInts01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('ThreeIndInts01',SpatOrbs**4,8,this_routine,ThreeIndInts01Tag,ierr)
-        ALLOCATE(ThreeIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('ThreeIndInts02',SpatOrbs**4,8,this_routine,ThreeIndInts02Tag,ierr)
-        ALLOCATE(ThreeIndInts03(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('ThreeIndInts03',SpatOrbs**4,8,this_routine,ThreeIndInts03Tag,ierr)
-        ALLOCATE(ThreeIndInts04(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
-        CALL LogMemAlloc('ThreeIndInts04',SpatOrbs**4,8,this_routine,ThreeIndInts04Tag,ierr)
         ALLOCATE(FourIndInts(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndInts',SpatOrbs**4,8,this_routine,FourIndIntsTag,ierr)
         ALLOCATE(FourIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndInts02',SpatOrbs**4,8,this_routine,FourIndInts02Tag,ierr)
+
+        ! Partially transformed temporary arrays.
+        IF(tERLocalization) THEN
+            ALLOCATE(TwoIndIntsER(SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('TwoIndIntsER',SpatOrbs**3,8,this_routine,TwoIndIntsERTag,ierr)
+            ALLOCATE(ThreeIndInts01ER(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts01ER',SpatOrbs**2,8,this_routine,ThreeIndInts01ERTag,ierr)
+            ALLOCATE(ThreeIndInts02ER(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts02ER',SpatOrbs**2,8,this_routine,ThreeIndInts02ERTag,ierr)
+            ALLOCATE(FourIndIntsER(SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('FourIndIntsER',SpatOrbs,8,this_routine,FourIndIntsERTag,ierr)
+        ELSE
+            ALLOCATE(TMAT2DTemp(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('TMAT2DTemp',SpatOrbs**2,8,this_routine,TMAT2DTempTag,ierr)
+            ALLOCATE(TMAT2DPartRot01(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('TMAT2DPartRot01',SpatOrbs**2,8,this_routine,TMAT2DPartRot01Tag,ierr)
+            ALLOCATE(TMAT2DPartRot02(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('TMAT2DPartRot02',SpatOrbs**2,8,this_routine,TMAT2DPartRot02Tag,ierr)
+            ALLOCATE(TMAT2DRot(SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('TMAT2DRot',SpatOrbs**2,8,this_routine,TMAT2DRotTag,ierr)
+            ALLOCATE(UMATTemp02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('UMATTemp02',SpatOrbs**4,8,this_routine,UMATTemp02Tag,ierr)
+ 
+            ALLOCATE(TwoIndInts02Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('TwoIndInts02Temp',SpatOrbs**4,8,this_routine,TwoIndInts02TempTag,ierr)
+            ALLOCATE(ThreeIndInts01Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts01Temp',SpatOrbs**4,8,this_routine,ThreeIndInts01TempTag,ierr)
+            ALLOCATE(ThreeIndInts03Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts03Temp',SpatOrbs**4,8,this_routine,ThreeIndInts03TempTag,ierr)
+            ALLOCATE(ThreeIndInts04Temp(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts04Temp',SpatOrbs**4,8,this_routine,ThreeIndInts04TempTag,ierr)
+        
+            ! Partially transformed combined arrays.
+            ALLOCATE(TwoIndInts02(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('TwoIndInts02',SpatOrbs**4,8,this_routine,TwoIndInts02Tag,ierr)
+            ALLOCATE(ThreeIndInts01(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts01',SpatOrbs**4,8,this_routine,ThreeIndInts01Tag,ierr)
+            ALLOCATE(ThreeIndInts03(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts03',SpatOrbs**4,8,this_routine,ThreeIndInts03Tag,ierr)
+            ALLOCATE(ThreeIndInts04(SpatOrbs,SpatOrbs,SpatOrbs,SpatOrbs),stat=ierr)
+            CALL LogMemAlloc('ThreeIndInts04',SpatOrbs**4,8,this_routine,ThreeIndInts04Tag,ierr)
+        ENDIF
 
         ! Allocate according to orthonormalisation method being used.
         IF(tLagrange) THEN
@@ -397,6 +411,9 @@ MODULE RotateOrbsMod
         ELSEIF(tERLocalization.and.tHijSqrdMin) THEN
             WRITE(12,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force","6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
             WRITE(6,"(A12,7A24)") "# Iteration","2.ERPotEnergy","3.HijSqrdPotEnergy","4.PotEnergy","5.Force","6.Totalcorrforce","7.OrthoNormCondition","8.DistMovedbyCs"
+        ELSEIF(tERLocalization) THEN
+            WRITE(12,"(A12,5A24)") "# Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
+            WRITE(6,"(A12,5A24)") "Iteration","2.Sum_i<ii|ii>","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
         ELSE
             WRITE(12,"(A12,5A24)") "# Iteration","2.PotEnergy","3.Force","4.Totalcorrforce","5.OrthoNormCondition","6.DistMovedbyCs"
             WRITE(6,"(A12,5A24)") "Iteration","2.PotEnergy","3.Force","4.TotCorrForce","5.OrthoNormCondition","6.DistMovedbyCs"
@@ -524,30 +541,39 @@ MODULE RotateOrbsMod
 ! Doing this now, rather than using UMatInd in each transform2elint routine proved a lot faster.
         DerivCoeff(:,:)=0.D0
         UMATTemp01(:,:,:,:)=0.D0
-        UMATTemp02(:,:,:,:)=0.D0
+        IF(.not.tERLocalization) UMATTemp02(:,:,:,:)=0.D0
 
 ! These loops can be sped up with spatial symmetry and pairwise permutation symmetry if needed.
         do a=1,SpatOrbs
             i=SymLabelList2(a)
             do g=1,a
                 j=SymLabelList2(g)
-                s=REAL(TMAT2D(2*i,2*j)%v,8)
-                TMAT2DTemp(a,g)=s
-                TMAT2DTemp(g,a)=s
+                IF(.not.tERLocalization) THEN
+                    s=REAL(TMAT2D(2*i,2*j)%v,8)
+                    TMAT2DTemp(a,g)=s
+                    TMAT2DTemp(g,a)=s
+                ENDIF
                 do b=1,SpatOrbs
                     k=SymLabelList2(b)
                     do d=1,b
                         l=SymLabelList2(d)
                         t=REAL(UMAT(UMatInd(i,k,j,l,0,0))%v,8)
-                        UMATTemp01(a,g,b,d)=t                   !a,g,d,b chosen to make 'transform2elint' steps more efficient
-                        UMATTemp01(g,a,b,d)=t
-                        UMATTemp01(a,g,d,b)=t
-                        UMATTemp01(g,a,d,b)=t
+                        IF(tERLocalization) THEN
+                            UMATTemp01(g,d,a,b)=t
+                            UMATTemp01(g,b,a,d)=t
+                            UMATTemp01(a,b,g,d)=t
+                            UMATTemp01(a,d,g,b)=t
+                        ELSE
+                            UMATTemp01(a,g,b,d)=t                   !a,g,d,b chosen to make 'transform2elint' steps more efficient
+                            UMATTemp01(g,a,b,d)=t
+                            UMATTemp01(a,g,d,b)=t
+                            UMATTemp01(g,a,d,b)=t
 
-                        UMATTemp02(d,b,a,g)=t                   !d,b,a,g order also chosen to speed up the transformation.
-                        UMATTemp02(d,b,g,a)=t
-                        UMATTemp02(b,d,a,g)=t
-                        UMATTemp02(b,d,g,a)=t
+                            UMATTemp02(d,b,a,g)=t                   !d,b,a,g order also chosen to speed up the transformation.
+                            UMATTemp02(d,b,g,a)=t
+                            UMATTemp02(b,d,a,g)=t
+                            UMATTemp02(b,d,g,a)=t
+                        ENDIF
                     enddo
                 enddo
             enddo
@@ -600,7 +626,11 @@ MODULE RotateOrbsMod
 ! With UMAT with the correct indexing and the starting coefficient, find the partially transformed 
 ! four index integrals (and hence the initial potential energy), and then the initial force.
 
-        CALL Transform2ElInts()
+        IF(tERLocalization) THEN
+            CALL Transform2ElIntsERlocal()
+        ELSE
+            CALL Transform2ElInts()
+        ENDIF
         CALL Findtheforce()
 
         IF(tPrintInts) THEN
@@ -623,12 +653,12 @@ MODULE RotateOrbsMod
             IF(iProcIndex.eq.Root) WRITE(6,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
             WRITE(12,"(I12,11F18.10)") Iteration,PotEnergy,PEInts,PEOrtho,Force,ForceInts,OrthoForce,TwoEInts,OrthoNorm,DistCs,DistLs,LambdaMag
         ELSEIF(tERLocalization.and.tHijSqrdMin) THEN
-            IF(Mod(Iteration,1).eq.0) THEN
+            IF(Mod(Iteration,10).eq.0) THEN
                 IF(iProcIndex.eq.Root) WRITE(6,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
                 WRITE(12,"(I12,7F24.10)") Iteration,ERPotEnergy,HijSqrdPotEnergy,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
             ENDIF
         ELSE
-            IF(Mod(Iteration,1).eq.0) THEN
+            IF(Mod(Iteration,10).eq.0) THEN
                 IF(iProcIndex.eq.Root) WRITE(6,"(I12,5F24.10)") Iteration,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
                 WRITE(12,"(I12,5F24.10)") Iteration,PotEnergy,Force,TotCorrectedForce,OrthoNorm,DistCs
             ENDIF
@@ -1210,8 +1240,11 @@ MODULE RotateOrbsMod
 
     SUBROUTINE FindNewOrbs()
            
-
-        CALL Transform2ElInts()     ! Find the partially (and completely) transformed 4 index integrals to be used in further calcs.
+        IF(tERLocalization) THEN
+            CALL Transform2ElIntsERlocal()
+        ELSE
+            CALL Transform2ElInts()     ! Find the partially (and completely) transformed 4 index integrals to be used in further calcs.
+        ENDIF
 
 
 !Find derivatives of the c and lambda matrices and print the sum of off-diagonal matrix elements.
@@ -1257,58 +1290,62 @@ MODULE RotateOrbsMod
         CALL set_timer(Transform2ElInts_time,30)
 
 !Zero arrays from previous transform
-        TMAT2DRot(:,:)=0.D0
 
         TwoIndInts01Temp(:,:,:,:)=0.D0
         TwoIndInts01(:,:,:,:)=0.D0
-        TwoIndInts02Temp(:,:,:,:)=0.D0
-        TwoIndInts02(:,:,:,:)=0.D0
-
-        ThreeIndInts01Temp(:,:,:,:)=0.D0
-        ThreeIndInts01(:,:,:,:)=0.D0
         ThreeIndInts02Temp(:,:,:,:)=0.D0
         ThreeIndInts02(:,:,:,:)=0.D0
-        ThreeIndInts03Temp(:,:,:,:)=0.D0
-        ThreeIndInts03(:,:,:,:)=0.D0
-        ThreeIndInts04Temp(:,:,:,:)=0.D0
-        ThreeIndInts04(:,:,:,:)=0.D0
-
         FourIndIntsTemp(:,:,:,:)=0.D0
         FourIndInts(:,:,:,:)=0.D0
         FourIndInts02Temp(:,:,:,:)=0.D0
         FourIndInts02(:,:,:,:)=0.D0
 
+        IF(tNotConverged) THEN
+            TwoIndInts02Temp(:,:,:,:)=0.D0
+            TwoIndInts02(:,:,:,:)=0.D0
+            ThreeIndInts01Temp(:,:,:,:)=0.D0
+            ThreeIndInts01(:,:,:,:)=0.D0
+            ThreeIndInts03Temp(:,:,:,:)=0.D0
+            ThreeIndInts03(:,:,:,:)=0.D0
+            ThreeIndInts04Temp(:,:,:,:)=0.D0
+            ThreeIndInts04(:,:,:,:)=0.D0
+        ENDIF
+
 ! ************
 !Transform the 1 electron, 2 index integrals (<i|h|j>).
-        TMAT2DPartRot01(:,:)=0.D0
-        TMAT2DPartRot02(:,:)=0.D0
+        IF(tNotConverged) THEN
+            TMAT2DRot(:,:)=0.D0
+            TMAT2DPartRot01(:,:)=0.D0
+            TMAT2DPartRot02(:,:)=0.D0
 
-!        WRITE(6,*) 'coefft1'
-!        do i=1,SpatOrbs
-!            do j=1,SpatOrbs
-!                WRITE(6,'(2F20.10)',advance='no') CoeffT1(i,j)
+!            WRITE(6,*) 'coefft1'
+!            do i=1,SpatOrbs
+!                do j=1,SpatOrbs
+!                    WRITE(6,'(2F20.10)',advance='no') CoeffT1(i,j)
+!                enddo
+!                WRITE(6,*) ''
 !            enddo
-!            WRITE(6,*) ''
-!        enddo
 
-!        WRITE(6,*) 'tmat2dtemp'
-!        do i=1,SpatOrbs
-!            do j=1,SpatOrbs
-!                WRITE(6,'(2F20.10)',advance='no') TMAT2DTemp(i,j)
+!            WRITE(6,*) 'tmat2dtemp'
+!            do i=1,SpatOrbs
+!                do j=1,SpatOrbs
+!                    WRITE(6,'(2F20.10)',advance='no') TMAT2DTemp(i,j)
+!                enddo
+!                WRITE(6,*) ''
 !            enddo
-!            WRITE(6,*) ''
-!        enddo
-!        stop
+!            stop
 
 
-        CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TMAT2DTemp(:,:),SpatOrbs,0.0,TMAT2DPartRot01(:,:),SpatOrbs)
-        ! get TMAT2DPartRot(i,a) out of this.
+            CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TMAT2DTemp(:,:),SpatOrbs,0.0,TMAT2DPartRot01(:,:),SpatOrbs)
+            ! get TMAT2DPartRot(i,a) out of this.
 
-        CALL DGEMM('T','T',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TMAT2DTemp(:,:),SpatOrbs,0.0,TMAT2DPartRot02(:,:),SpatOrbs)
-        ! get TMAT2DPartRot(a,j) out of this.
- 
-        CALL DGEMM('T','T',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TMAT2DPartRot01(:,:),SpatOrbs,0.0,TMAT2DRot(:,:),SpatOrbs)
-        ! get TMAT2DRot(i,j) out of this.
+            CALL DGEMM('T','T',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TMAT2DTemp(:,:),SpatOrbs,0.0,TMAT2DPartRot02(:,:),SpatOrbs)
+            ! get TMAT2DPartRot(a,j) out of this.
+     
+            CALL DGEMM('T','T',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TMAT2DPartRot01(:,:),SpatOrbs,0.0,TMAT2DRot(:,:),SpatOrbs)
+            ! get TMAT2DRot(i,j) out of this.
+
+        ENDIF
 
 
 !        WRITE(6,*) 'TMAT2DRot in the virtuals'
@@ -1493,12 +1530,166 @@ MODULE RotateOrbsMod
 
     END SUBROUTINE Transform2ElInts
 
+    
+! This is a transformation of the four index integrals for the ERlocalisation, in this only the <ii|ii> integrals are needed 
+! therefore the process may be much simpler.
+    SUBROUTINE Transform2ElIntsERlocal()
+        INTEGER :: i,j,k,l,a,b,g,d,m
+        REAL*8 :: t,Temp4indints(SpatOrbs,SpatOrbs)
+        REAL*8 :: Temp4indints02(SpatOrbs)  
+        
+        CALL set_timer(Transform2ElInts_time,30)
+
+! Zero arrays from previous transform
+
+        TwoIndIntsER(:,:,:)=0.D0
+
+        ThreeIndInts01ER(:,:)=0.D0
+        ThreeIndInts02ER(:,:)=0.D0
+
+        FourIndIntsER(:)=0.D0
+
+! **************
+! Calculating the two-transformed, four index integrals.
+
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
+
+
+!        LowBound=iProcIndex*(SpatOrbs/nProcessors)+1
+!        HighBound=(iProcIndex+1)*(SpatOrbs/nProcessors)
+!        IF(iProcIndex.eq.(nProcessors-1)) HighBound=SpatOrbs
+
+
+! UMATTemp01(g,d,a,b)
+
+!        do a=LowBound02,HighBound02
+        do a=1,SpatOrbs
+            do b=1,SpatOrbs
+                Temp4indints(:,:)=0.D0
+                Temp4indints02(:)=0.D0
+                CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,UMATTemp01(:,:,a,b),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
+                ! Temp4indints(m,d) comes out of here.
+                ! Want to transform d to m as well.
+
+                do m=1,SpatOrbs
+                    do d=1,SpatOrbs
+                        Temp4indints02(m)=Temp4indints02(m)+(Temp4indints(m,d)*CoeffT1(d,m))
+                    enddo
+                enddo
+                ! Now have Temp4indints(m,m) for each a and b.
+
+                do m=1,SpatOrbs
+                    TwoIndIntsER(a,b,m)=Temp4indints02(m)
+                enddo
+            enddo
+        enddo
+    
+! Now want to transform either a or b, to get the two types of 3-transformed 4-index integrals.
+! These can be stored in 2-D arrays, as they can be specified by only m and z.
+
+        do m=1,SpatOrbs
+            do a=1,SpatOrbs
+                do b=1,SpatOrbs
+                    ThreeIndInts01ER(a,m)=ThreeIndInts01ER(a,m)+(TwoIndIntsER(a,b,m)*CoeffT1(b,m))
+                    ThreeIndInts02ER(a,m)=ThreeIndInts02ER(a,m)+(TwoIndIntsER(b,a,m)*CoeffT1(b,m))
+                enddo
+            enddo
+        enddo
+        ! ThreeIndInts01Temp(z,m) is where z is alpha (a).
+        ! ThreeIndInts01Temp(z,m) is where z is beta (b).
+
+
+! Find the <ii|ii> integrals, to calculate the potential energy.
+
+        do m=1,SpatOrbs
+            do a=1,SpatOrbs
+                FourIndIntsER(m)=FourIndIntsER(m)+(ThreeIndInts01ER(a,m)*CoeffT1(a,m))
+            enddo
+        enddo
+
+! ***************************
+! Calc the potential energies for this iteration (with these transformed integrals).        
+
+! This can be sped up by merging the calculations of the potentials with the transformations, but while 
+! we are playing around with different potentials, it is simpler to keep these separate.
+        
+        PotEnergy=0.D0
+        TwoEInts=0.D0
+        PEInts=0.D0
+        CALL CalcPotentials()
+
+        IF(tPrintInts) CALL PrintIntegrals()
+        IF((Iteration.eq.0).or.((.not.tNotConverged).and.(Iteration.gt.1))) CALL WriteDoubHisttofile()
+        IF(tROHistSingExc.and.(Iteration.eq.0)) CALL WriteSingHisttofile()
+
+
+! If doing Lagrange orthormalisations, find the change of the potential energy due to the orthonormality 
+! of the orbitals...
+        IF(tLagrange) THEN
+            PEOrtho=0.D0
+            do i=1,SpatOrbs
+                do j=1,SpatOrbs
+                    t=0.D0
+                    do a=1,SpatOrbs
+                        t=CoeffT1(a,i)*CoeffT1(a,j)
+                    enddo
+                    IF(i.eq.j) t=t-1.D0
+                    PEOrtho=PEOrtho-Lambdas(i,j)*t
+                    PotEnergy=PotEnergy-Lambdas(i,j)*t
+                enddo
+            enddo
+        ENDIF
+
+        CALL halt_timer(Transform2ElInts_Time)
+
+
+    END SUBROUTINE Transform2ElIntsERlocal
+
+
 
 
     SUBROUTINE CalcPotentials()
     ! only temporarily like this, can tidy it up majorly
-        INTEGER :: i,j,k,l,Starti
+        INTEGER :: i,j,k,l,Starti,Finishi
         REAL*8 :: MaxTerm
+
+
+        IF(tERLocalization) THEN
+            IF(tRotateVirtOnly) THEN 
+                Starti=(NEl/2)+1
+                Finishi=SpatOrbs
+            ELSEIF(tRotateOccOnly) THEN
+                Starti=1
+                Finishi=(NEl/2)
+            ELSE
+                Starti=1
+                Finishi=SpatOrbs
+            ENDIF
+            CoulPotEnergy=0.D0
+            OffDiagPotEnergy=0.D0
+!            do i=1,SpatOrbs
+!                IF((i.ge.Starti).and.(i.le.Finishi)) THEN
+            do i=Starti,Finishi
+                    ERPotEnergy=ERPotEnergy+FourIndIntsER(i)
+                    IF(FourIndIntsER(i).lt.0) THEN
+                        FLUSH(6)
+                        CALL Stop_All('CalcPotentials','A <ii|ii> value is less than 0.')
+                    ENDIF
+!                    WRITE(6,*) FourIndIntsER(i)
+                    PotEnergy=PotEnergy+FourIndIntsER(i)
+                    TwoEInts=TwoEInts+FourIndIntsER(i)
+                    PEInts=PEInts+FourIndIntsER(i)
+!                ENDIF
+!                do k=i+1,SpatOrbs
+!                    IF((i.ge.Starti).and.(i.le.Finishi)) CoulPotEnergy=CoulPotEnergy+FourIndInts(i,k,i,k)
+!                    do j=1,SpatOrbs
+!                        do l=j+1,SpatOrbs
+!                            OffDiagPotEnergy=OffDiagPotEnergy+FourIndInts(i,j,k,l)
+!                        enddo
+!                    enddo
+!                enddo
+            enddo
+        ENDIF
 
         IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax.or.tOffDiagMin.or.tOffdiagMax) THEN
             do i=1,SpatOrbs
@@ -1555,33 +1746,6 @@ MODULE RotateOrbsMod
                     MaxTerm=MaxTerm**OrbEnMaxAlpha
                 ENDIF
                 PotEnergy=PotEnergy+MaxTerm
-            enddo
-        ENDIF
-
-
-        IF(tERLocalization) THEN
-            IF(tRotateVirtOnly) THEN 
-                Starti=(NEl/2)+1
-            ELSE
-                Starti=1
-            ENDIF
-            CoulPotEnergy=0.D0
-            OffDiagPotEnergy=0.D0
-            do i=1,SpatOrbs
-                IF(i.ge.Starti) THEN
-                    ERPotEnergy=PotEnergy+FourIndInts(i,i,i,i)
-                    PotEnergy=PotEnergy+FourIndInts(i,i,i,i)
-                    TwoEInts=TwoEInts+FourIndInts(i,i,i,i)
-                    PEInts=PEInts+FourIndInts(i,i,i,i)
-                ENDIF
-                do k=i+1,SpatOrbs
-                    IF(i.ge.Starti) CoulPotEnergy=CoulPotEnergy+FourIndInts(i,k,i,k)
-                    do j=1,SpatOrbs
-                        do l=j+1,SpatOrbs
-                            OffDiagPotEnergy=OffDiagPotEnergy+FourIndInts(i,j,k,l)
-                        enddo
-                    enddo
-                enddo
             enddo
         ENDIF
 
@@ -1697,7 +1861,8 @@ MODULE RotateOrbsMod
                     ! DIAG TERMS
                     ! Maximise <ii|ii>, self interaction terms. 
                     IF(tERLocalization) THEN
-                        DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+ThreeIndInts02(m,m,m,z)+ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
+!                        DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+ThreeIndInts02(m,m,m,z)+ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
+                        DiagForcemz=DiagForcemz+(2*ThreeIndInts01ER(z,m))+(2*ThreeIndInts02ER(z,m))
                         ! Derivative of <ii|ii> only non-zero when i=m.
                         ! each of the four terms then correspond to zeta = a, b, g, then d in the unrotated basis.
                     ENDIF
@@ -1865,7 +2030,7 @@ MODULE RotateOrbsMod
                     ENDIF
                     ! DerivCoeffTemp(z,m) then combines all the different forces on coefficient(m,z).
                     DerivCoeffTemp(z,m)=(MaxMinFac*OffDiagWeight*OffDiagForcemz)+(DiagMaxMinFac*DiagWeight*DiagForcemz)+(OneElMaxMinFac*OneElWeight*OneElForcemz)
-                    ForceTemp=ForceTemp+DerivCoeffTemp(z,m)
+                    ForceTemp=ForceTemp+ABS(DerivCoeffTemp(z,m))
                 enddo
             enddo
         enddo
@@ -2065,7 +2230,7 @@ MODULE RotateOrbsMod
             WRITE(8,'(A20,4A35,A20)') 'Shake Iteration','Sum Lambdas','Total of corrected forces','Sum unconstrained constraints',&
                                         &'Sum corrected constraints','Converge count'
         ENDIF
-        IF(Mod(Iteration,1).eq.0) WRITE(8,*) 'Orbital rotation iteration = ',Iteration
+        IF(Mod(Iteration,10).eq.0) WRITE(8,*) 'Orbital rotation iteration = ',Iteration
 
 
         ShakeIteration=0
@@ -2195,7 +2360,7 @@ MODULE RotateOrbsMod
 ! and to SHAKEstats file:
             CALL FLUSH(6)
             CALL FLUSH(8)
-            IF(Mod(Iteration,1).eq.0) THEN
+            IF(Mod(Iteration,10).eq.0) THEN
                 WRITE(8,'(I20,4F35.20,I20)') ShakeIteration,TotLambdas,TotCorrectedForce,TotConstraints,TotCorConstraints,ConvergeCount 
             ENDIF
 
@@ -2330,7 +2495,7 @@ MODULE RotateOrbsMod
                     ! the previous iteration).
                     
                     ! Calculate parameters for printing
-                    TotForce=TotForce+ForceCorrect(a,m)
+                    TotForce=TotForce+ABS(ForceCorrect(a,m))
                     TotDiffCoeffs=TotDiffCoeffs+ABS(CoeffT2(a,m)-CoeffT1(a,m))
                 enddo
             enddo
@@ -2629,7 +2794,32 @@ MODULE RotateOrbsMod
             ! print the whole matrix twice, once for alpha spin, once for beta.
         enddo
         CLOSE(66)
+ 
+        OPEN(67,FILE='MOTRANSFORM02')
+! Need to put this back into the original order. 
+        w=1
+        x=1   !keep a counter of record number
+        do while (w.le.2)
+            do i=1,SpatOrbs
+                j=SymLabelListInv(i)
+                ! SymLabelList2(i) gives the orbital label (from Dalton or QChem) corresponding to our
+                ! label i.
+                ! SymLabelListInv(j) therefore gives the label used in CoeffT1 corresponding to the
+                ! Qchem/Dalton label j.
+                do a=1,SpatOrbs
+                    b=SymLabelListInv(a)
+                    WRITE(67,'(F20.10)',advance='no') CoeffT1(b,j)
+                    x=x+1
+                    ! a/b are the original (HF) orbitals, and i/j the transformed
+                enddo
+                WRITE(67,*) ''
+            enddo
+            w=w+1
+            ! print the whole matrix twice, once for alpha spin, once for beta.
+        enddo
+        CLOSE(67)
       
+     
 !        do a=1,SpatOrbs
 !            b=SymLabelListInv(a)
 !            do i=1,SpatOrbs
@@ -2658,6 +2848,7 @@ MODULE RotateOrbsMod
         IF(iProcIndex.eq.Root) WRITE(6,*) 'Final Potential Energy before orthogonalisation',PotEnergy
 
         CALL Transform2ElInts()
+
 ! Use these final coefficients to find the FourIndInts(i,j,k,l).
 ! These are now the <ij|kl> integrals we now want to use instead of the HF UMat.
 ! New potential energy is calculated in this routine using the orthogonalised coefficients.
@@ -4088,58 +4279,68 @@ MODULE RotateOrbsMod
         DEALLOCATE(DerivCoeff)
         CALL LogMemDealloc(this_routine,DerivCoeffTag)
 
-
         DEALLOCATE(DiagTMAT2Dfull)
         CALL LogMemDealloc(this_routine,DiagTMAT2DfullTag)
-
-        DEALLOCATE(TMAT2DTemp)
-        CALL LogMemDealloc(this_routine,TMAT2DTempTag)
-        DEALLOCATE(TMAT2DPartRot01)
-        CALL LogMemDealloc(this_routine,TMAT2DPartRot01Tag)
-        DEALLOCATE(TMAT2DPartRot02)
-        CALL LogMemDealloc(this_routine,TMAT2DPartRot02Tag)
-        DEALLOCATE(TMAT2DRot)
-        CALL LogMemDealloc(this_routine,TMAT2DRotTag)
- 
         DEALLOCATE(TwoIndInts01Temp)
         CALL LogMemDealloc(this_routine,TwoIndInts01TempTag)
-        DEALLOCATE(TwoIndInts02Temp)
-        CALL LogMemDealloc(this_routine,TwoIndInts02TempTag)
-        DEALLOCATE(ThreeIndInts01Temp)
-        CALL LogMemDealloc(this_routine,ThreeIndInts01TempTag)
         DEALLOCATE(ThreeIndInts02Temp)
         CALL LogMemDealloc(this_routine,ThreeIndInts02TempTag)
-        DEALLOCATE(ThreeIndInts03Temp)
-        CALL LogMemDealloc(this_routine,ThreeIndInts03TempTag)
-        DEALLOCATE(ThreeIndInts04Temp)
-        CALL LogMemDealloc(this_routine,ThreeIndInts04TempTag)
         DEALLOCATE(FourIndIntsTemp)
         CALL LogMemDealloc(this_routine,FourIndIntsTempTag)
         DEALLOCATE(FourIndInts02Temp)
         CALL LogMemDealloc(this_routine,FourIndInts02TempTag)
-
-
+ 
         DEALLOCATE(TwoIndInts01)
         CALL LogMemDealloc(this_routine,TwoIndInts01Tag)
-        DEALLOCATE(TwoIndInts02)
-        CALL LogMemDealloc(this_routine,TwoIndInts02Tag)
-        DEALLOCATE(ThreeIndInts01)
-        CALL LogMemDealloc(this_routine,ThreeIndInts01Tag)
         DEALLOCATE(ThreeIndInts02)
         CALL LogMemDealloc(this_routine,ThreeIndInts02Tag)
-        DEALLOCATE(ThreeIndInts03)
-        CALL LogMemDealloc(this_routine,ThreeIndInts03Tag)
-        DEALLOCATE(ThreeIndInts04)
-        CALL LogMemDealloc(this_routine,ThreeIndInts04Tag)
         DEALLOCATE(FourIndInts)
         CALL LogMemDealloc(this_routine,FourIndIntsTag)
         DEALLOCATE(FourIndInts02)
         CALL LogMemDealloc(this_routine,FourIndInts02Tag)
 
+        IF(tERLocalization) THEN
+            DEALLOCATE(TwoIndIntsER)
+            CALL LogMemDeAlloc(this_routine,TwoIndIntsERTag)
+            DEALLOCATE(ThreeIndInts01ER)
+            CALL LogMemDeAlloc(this_routine,ThreeIndInts01ERTag)
+            DEALLOCATE(ThreeIndInts02ER)
+            CALL LogMemDeAlloc(this_routine,ThreeIndInts02ERTag)
+            DEALLOCATE(FourIndIntsER)
+            CALL LogMemDeAlloc(this_routine,FourIndIntsERTag)
+ 
+        ELSE
+            DEALLOCATE(TMAT2DTemp)
+            CALL LogMemDealloc(this_routine,TMAT2DTempTag)
+            DEALLOCATE(TMAT2DPartRot01)
+            CALL LogMemDealloc(this_routine,TMAT2DPartRot01Tag)
+            DEALLOCATE(TMAT2DPartRot02)
+            CALL LogMemDealloc(this_routine,TMAT2DPartRot02Tag)
+            DEALLOCATE(TMAT2DRot)
+            CALL LogMemDealloc(this_routine,TMAT2DRotTag)
+     
+            DEALLOCATE(TwoIndInts02Temp)
+            CALL LogMemDealloc(this_routine,TwoIndInts02TempTag)
+            DEALLOCATE(ThreeIndInts01Temp)
+            CALL LogMemDealloc(this_routine,ThreeIndInts01TempTag)
+            DEALLOCATE(ThreeIndInts03Temp)
+            CALL LogMemDealloc(this_routine,ThreeIndInts03TempTag)
+            DEALLOCATE(ThreeIndInts04Temp)
+            CALL LogMemDealloc(this_routine,ThreeIndInts04TempTag)
+            DEALLOCATE(TwoIndInts02)
+            CALL LogMemDealloc(this_routine,TwoIndInts02Tag)
+            DEALLOCATE(ThreeIndInts01)
+            CALL LogMemDealloc(this_routine,ThreeIndInts01Tag)
+            DEALLOCATE(ThreeIndInts03)
+            CALL LogMemDealloc(this_routine,ThreeIndInts03Tag)
+            DEALLOCATE(ThreeIndInts04)
+            CALL LogMemDealloc(this_routine,ThreeIndInts04Tag)
+            DEALLOCATE(UMATTemp02)
+            CALL LogMemDealloc(this_routine,UMATTemp02Tag)
+        ENDIF 
+
         DEALLOCATE(UMATTemp01)
         CALL LogMemDealloc(this_routine,UMATTemp01Tag)
-        DEALLOCATE(UMATTemp02)
-        CALL LogMemDealloc(this_routine,UMATTemp02Tag)
         DEALLOCATE(SymLabelList2)
         CALL LogMemDealloc(this_routine,SymLabelList2Tag)
         DEALLOCATE(SymLabelCounts2)
