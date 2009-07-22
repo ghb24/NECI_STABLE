@@ -429,45 +429,19 @@ MODULE FciMCParMod
                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                 ENDIF
 
+
 !Calculate number of children to spawn
                 IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-
-                    IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
-!The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
-
-                        IF(IC.eq.2) THEN
-!Need to check excitation level of excitation
-                            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                            IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                                Child=0
-                            ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                            ENDIF
-                        ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                        ENDIF
-
-                    ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
-!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
-                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                        IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                            Child=0
-                        ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                        ENDIF
-                    ELSE
-!Excitation cannot be in a dissallowed excitation level - allow it as normal
+                    IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
+!The excitation is allowed - it is below the ICILevel cutoff.
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                    ENDIF 
-                
+                    ELSE
+                        Child=0
+                    ENDIF
                 ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-
                     Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-
                 ENDIF
                 
                 IF(Child.ne.0) THEN
@@ -775,41 +749,18 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
 
+
 !Calculate number of children to spawn
                 IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
                     IF(tImportanceSample) CALL Stop_All("PerformFCIMCyc","Truncated calculations not yet working with importance sampling")
 
-                    IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
-!The current walker is one below the excitation cutoff - if IC is a double, then could go over
-
-                        IF(IC.eq.2) THEN
-!Need to check excitation level of excitation
-                            ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                            IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                                Child=0
-                            ELSE
-                                Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-                            ENDIF
-                        ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-                        ENDIF
-
-                    ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
-!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
-                        ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                        IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                            Child=0
-                        ELSE
-                            Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-                        ENDIF
-                    ELSE
-!Excitation cannot be in a dissallowed excitation level - allow it as normal
+                    IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
                         Child=AttemptCreatePar(DetCurr,CurrentDets(:,j),CurrentSign(j),nJ,iLutnJ,Prob,IC,Ex,tParity,ParticleWeight,tMinorDetList)
-                    ENDIF 
-                
+                    ELSE
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                        Child=0
+                    ENDIF
                 ELSE
 !SD Space is not truncated - allow attempted spawn as usual
                     IF(tStarOrbs) THEN
@@ -8341,6 +8292,58 @@ MODULE FciMCParMod
         RETURN
     
     END SUBROUTINE FlipSign
+
+!This function will tell us whether we should allow attempted spawning at an excitation when we are truncating the space.
+!We pass in the excitation level of the original particle, the two representations of the excitation (we only need the bit-representation of the excitation
+!for HPHF) and the magnitude of the excitation (for determinant representation).
+    LOGICAL FUNCTION CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)
+        INTEGER :: nJ(NEl),WalkExcitLevel,iLutnJ(0:NIfD),ExcitLevel,IC,iGetExcitLevel_2
+
+        IF(tHPHF) THEN
+!With HPHF, we can't rely on this, since one excitation could be a single, and one a double. Also, IC is not returned.
+            CALL FindBitExcitLevel(iLutHF,iLutnJ,NIfD,ExcitLevel,ICILevel)
+            IF(ExcitLevel.gt.ICILevel) THEN
+                CheckAllowedTruncSpawn=.false.
+            ELSE
+                CheckAllowedTruncSpawn=.true.
+            ENDIF
+
+        ELSE
+!Determinant representation.
+
+            IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
+!The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
+                
+                IF(IC.eq.2) THEN
+                    ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                ELSE
+!Always allow this - a single cannot put us over the truncated excitation level
+                    CheckAllowedTruncSpawn=.true.
+                    RETURN
+                ENDIF
+                IF(ExcitLevel.gt.ICILevel) THEN
+                    CheckAllowedTruncSpawn=.false.
+                ELSE
+                    CheckAllowedTruncSpawn=.true.
+                ENDIF
+
+            ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
+!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
+                ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
+                IF(ExcitLevel.gt.ICILevel) THEN
+!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
+                    CheckAllowedTruncSpawn=.false.
+                ELSE
+                    CheckAllowedTruncSpawn=.true.
+                ENDIF
+            ELSE
+!Excitation cannot be in a dissallowed excitation level - allow it as normal
+                CheckAllowedTruncSpawn=.true.
+            ENDIF 
+
+        ENDIF
+
+    END FUNCTION CheckAllowedTruncSpawn
 
 !This function tells us whether we should create a child particle on nJ, from a parent particle on DetCurr with sign WSign, created with probability Prob
 !It returns zero if we are not going to create a child, or -1/+1 if we are to create a child, giving the sign of the new particle
