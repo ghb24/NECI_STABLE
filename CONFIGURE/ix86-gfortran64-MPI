@@ -5,7 +5,7 @@
      NCPUS=1
      #-sb is to use Workshop package
      FFLAGS='-fcray-pointer -ffree-line-length-none -J$(DEST)'
-     LFLAGS='-L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas'
+     LFLAGS='-L ~/src/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas'
      AR='ar'
      ARFLAGS='-rcs'
      GLOBALS='GLOBALS-gfortran'
