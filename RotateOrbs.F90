@@ -1672,7 +1672,7 @@ MODULE RotateOrbsMod
             do i=Starti,Finishi
                     ERPotEnergy=ERPotEnergy+FourIndIntsER(i)
                     IF(FourIndIntsER(i).lt.0) THEN
-                        FLUSH(6)
+                        CALL FLUSH(6)
                         CALL Stop_All('CalcPotentials','A <ii|ii> value is less than 0.')
                     ENDIF
 !                    WRITE(6,*) FourIndIntsER(i)
