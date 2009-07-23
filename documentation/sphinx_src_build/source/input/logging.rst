@@ -202,7 +202,15 @@ FCIMC options
     information. The first variable to input is the number of histogram bins which will be calculated,
     and the second is the maximum determinant energy of the histogram.
 
-
+**PRINTTRICONNECTIONS** [TriConMax] [NoTriConBins]
+    This is a parallel FCIMC option. It looks at sets of connected determinants i,j and k.  A sign coherent
+    triangular connection is one where walkers spawned all around the triangle return to the original 
+    determinant with the same sign.  Sign incoherent connections are those where the sign is reversed.  
+    If this option is on, two files are printed.  TriConnTotal monitors the number of sign coherent and sign 
+    incoherent triangles over the course of the simulation, as well as the sum of the Hij x Hik x Hjk values,
+    and the ratios for each.  (The ratios are coherent / incoherent).  TriConnHist prints out a histogram of
+    the Hij x Hik x Hjk values for coherent (col 1 and 2) and incoherent (col 3 and 4) triangles.  The histogram
+    goes from 0 -> +/- TriConMax with NoTriConBins for each.
 
 GraphMorph options
 ------------------

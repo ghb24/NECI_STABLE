@@ -22,6 +22,7 @@ MODULE FciMCParMod
     USE UMatCache , only : GTID
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep,tAutoCorr
+    USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE global_utilities
@@ -228,6 +229,13 @@ MODULE FciMCParMod
 
     INTEGER :: WalkersDiffProc
 
+    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:)
+    REAL*8 :: NoSignCohTri,NoSignInCohTri,SignCohTri,SignInCohTri
+    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag
+ 
+
+ 
+
     contains
 
 
@@ -350,7 +358,17 @@ MODULE FciMCParMod
 
 !If we are writing out the dominant determinats, do this here.
         IF(tPrintDominant) CALL PrintDominantDets()
-
+        
+        IF(tPrintTriConnections) THEN
+            OPEN(78,file='TriConnHistograms',status='unknown')
+            WRITE(78,"(4A25)") "Sign Coh Bin Value","No. in bin","SignIncoh Bin Value","No. in bin"
+            do i=1,NoTriConBins
+                IF((SignCohTriHist(2,i).ne.0.D0).or.(SignIncohTriHist(2,i).ne.0.D0)) THEN
+                    WRITE(78,"(4F25.10)") SignCohTriHist(1,i),SignCohTriHist(2,i),SignIncohTriHist(1,i),SignIncohTriHist(2,i)
+                ENDIF
+            enddo 
+            CLOSE(78)
+        ENDIF
 
 !Deallocate memory
         CALL DeallocFCIMCMemPar()
@@ -585,17 +603,21 @@ MODULE FciMCParMod
 !This is the heart of FCIMC, where the MC Cycles are performed.
     SUBROUTINE PerformFCIMCycPar()
 !        use HPHFRandExcitMod , only : TestGenRandHPHFExcit 
+        USE Determinants , only : GetHElement3
         INTEGER :: MinorVecSlot,VecSlot,i,j,k,l,MinorValidSpawned,ValidSpawned,CopySign,ParticleWeight,Loop,iPartBloom
-        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),iLutnJ2(0:NIfD),NoMinorWalkersNew
+        INTEGER :: nJ(NEl),ierr,IC,Child,iCount,DetCurr(NEl),iLutnJ(0:NIfD),NoMinorWalkersNew
         REAL*8 :: Prob,rat,HDiag,HDiagCurr
         INTEGER :: iDie,WalkExcitLevel,Proc             !Indicated whether a particle should self-destruct on DetCurr
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
-        TYPE(HElement) :: HDiagTemp
+        TYPE(HElement) :: HDiagTemp,Hjk,Hij,Hik
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
-
+        INTEGER :: nK(NEl),IC2,Ex2(2,2),iLutnJ2(0:NIfD),iLutnK(0:NIfD),BinNo,NoPos
+        LOGICAL :: tParity2,DetsEqTri
+        REAL*8 :: Prob2
+ 
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
             CALL FLUSH(11)
@@ -749,6 +771,78 @@ MODULE FciMCParMod
                     ENDIF
                 ENDIF
 
+!If we want to look at determinants connected in loops of 3, need to select a third determinant.  Currently have DetCurr exciting to nJ.  Now need DetCurr
+!to excite to a different nk. - then add the product of the three connecting Helements to either the sign coherent or sign incoherent loops.
+                IF(tPrintTriConnections) THEN
+                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nK,pDoubles,IC2,Ex2,tParity2,exFlag,Prob2,Scratch1,Scratch2,tFilled)
+
+                    ! Need to check that the determinant we just generated is not the same as nJ.
+                    DetsEqTri=.false.
+
+                    ! These routines find the bit representation of nJ and nK given the excitation matrices Ex and Ex2 respectively.
+                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ2,IC,Ex,NIfD)
+                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnK,IC2,Ex2,NIfD)
+
+                    DetsEqTri=DetBitEQ(iLutnJ2(0:NIfD),iLutnK(0:NIfD),NIfD)
+
+                    IF(.not.DetsEqTri) THEN
+                        ! Add the connecting elements to the relevant sum.
+
+                        ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
+                        Hjk=GetHElement3(nJ,nK,-1)
+
+                        IF((REAL(Hjk%v,r2)).ne.0.D0) THEN
+                            NoPos=0
+                            IF((REAL(Hjk%v,r2)).gt.0.D0) NoPos=NoPos+1
+
+                            Hij=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+                            IF((REAL(Hij%v,r2)).gt.0.D0) NoPos=NoPos+1
+
+                            Hik=GetHElement4(DetCurr,nK,IC2,Ex2,tParity2)
+                            IF((REAL(Hik%v,r2)).gt.0.D0) NoPos=NoPos+1
+
+                            ! If there are 1 or 3 positive elements, the triangular connection is 'sign coherent'.
+                            ! i.e. if a walker starts with a positive sign at i, it would return to i with a positive sign after completing the 
+                            ! three cycle loop.
+                            ! If there are 0 or 2 positive elements, the walker would return with the opposite sign from its starting point, 
+                            ! and the loop is considered 'sign incoherent'.
+
+                            IF((NoPos.eq.1).or.(NoPos.eq.3)) THEN
+                                SignCohTri=SignCohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                                NoSignCohTri=NoSignCohTri+1.D0
+                                BinNo=CEILING(((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))*NoTriConBins)/TriConMax)
+                                IF((BinNo.gt.NoTriConBins)) THEN
+                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                                    CALL FLUSH(6)
+                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                            & but a value is outside the chosen range.')
+                                ENDIF
+                                IF((BinNo.le.0)) THEN
+                                    CALL FLUSH(6)
+                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                            & but a value is below 0.')
+                                ENDIF
+                                SignCohTriHist(2,BinNo)=SignCohTriHist(2,BinNo)+1.D0
+                            ELSE
+                                SignIncohTri=SignIncohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                                NoSignIncohTri=NoSignIncohTri+1.D0
+                                BinNo=CEILING((ABS((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)))*NoTriConBins)/TriConMax)
+                                IF((BinNo.gt.NoTriConBins)) THEN
+                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                                    CALL FLUSH(6)
+                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                            & but a value is outside the chosen range.')
+                                ENDIF
+                                IF((BinNo.le.0)) THEN
+                                    CALL FLUSH(6)
+                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                            & but a value is below 0.')
+                                ENDIF
+                                SignIncohTriHist(2,BinNo)=SignIncohTriHist(2,BinNo)+1.D0
+                            ENDIF
+                        ENDIF
+                    ENDIF
+                ENDIF
 
 !Calculate number of children to spawn
                 IF(TTruncSpace) THEN
@@ -5409,7 +5503,7 @@ MODULE FciMCParMod
         INTEGER :: inpair(9),outpair(9)
         REAL*8 :: TempTotWalkers,TempTotParts
         REAL*8 :: TempSumNoatHF,MeanWalkers,TempSumWalkersCyc,TempAllSumWalkersCyc,TempNoMinorWalkers
-        REAL*8 :: inpairreal(3),outpairreal(3)
+        REAL*8 :: inpairreal(3),outpairreal(3),TriConStats(4),AllTriConStats(4)
         LOGICAL :: TBalanceNodesTemp
         
         IF(TSinglePartPhase) THEN
@@ -5707,6 +5801,22 @@ MODULE FciMCParMod
 
         CALL WriteFCIMCStats()
 
+        IF(tPrintTriConnections) THEN
+!Write to files the sum of the sign coherent and incoherent triangles. 
+            TriConStats(1)=NoSignCohTri
+            TriConStats(2)=NoSignIncohTri
+            TriConStats(3)=SignCohTri
+            TriConStats(4)=SignIncohTri
+            AllTriConStats(:)=0.D0
+
+            CALL MPI_Reduce(TriConStats,AllTriConStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+
+            IF(iProcIndex.eq.Root) THEN
+                WRITE(77,"(I12,2F24.2,6F20.10)") Iter+PreviousCycles,AllTriConStats(1),AllTriConStats(2),AllTriConStats(3),AllTriConStats(4),(AllTriConStats(3)/(Iter+PreviousCycles)),&
+                                                 &(AllTriConStats(4)/(Iter+PreviousCycles)),(AllTriConStats(1)/AllTriConStats(2)),(ABS(AllTriConStats(3)/AllTriConStats(4)))
+            ENDIF
+        ENDIF
+
 !Now need to reinitialise all variables on all processers
         IterTime=0.0
 !        MinExcitLevel=NEl+10
@@ -5933,7 +6043,7 @@ MODULE FciMCParMod
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
-        REAL*8 :: TotDets,SymFactor,Choose
+        REAL*8 :: TotDets,SymFactor,Choose,BinVal,BinIter
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
         LOGICAL :: exists,tSuccess,tFoundOrbs(nBasis)
@@ -6306,7 +6416,8 @@ MODULE FciMCParMod
 
 !This is a list of options which cannot be used with the stripped-down spawning routine. New options not added to this routine should be put in this list.
         IF(tHighExcitsSing.or.tHistSpawn.or.tRegenDiagHEls.or.tFindGroundDet.or.tStarOrbs.or.tResumFCIMC.or.tSpawnAsDet.or.tImportanceSample    &
-     &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0)) THEN
+     &      .or.(.not.tRegenExcitgens).or.(.not.tNonUniRandExcits).or.(.not.tDirectAnnihil).or.tMinorDetsStar.or.tSpawnDominant.or.(DiagSft.gt.0.D0).or.   &
+     &      tPrintTriConnections) THEN
             WRITE(6,*) "It is not possible to use to clean spawning routine..."
         ELSE
             WRITE(6,*) "Clean spawning routine in use..."
@@ -6890,6 +7001,35 @@ MODULE FciMCParMod
             ENDIF
         ELSEIF(tMinorDetsStar.and.(.not.tSpawnDominant)) THEN
             CALL Stop_All("InitFCIMCCalcPar","Cannot use the star approximation on the insignificant determinants if the SPAWNDOMINANTONLY option is not on.")
+        ENDIF
+
+
+        IF(tPrintTriConnections) THEN
+            NoSignCohTri=0.D0
+            NoSignInCohTri=0.D0
+            SignCohTri=0.D0
+            SignInCohTri=0.D0
+            IF(iProcIndex.eq.root) THEN
+                OPEN(77,file='TriConnTotals',status='unknown')
+                WRITE(77,"(A12,2A24,6A20)") "1.Iteration","2.No. Sign Coh Loops","3.No. Sign Incoh Loops","4.Sign Coh Tot","5.Sign Incoh Tot","6.Sign Coh/Iter","7.Sign Incoh/Iter","8.Ratio No.","9.Ratio Val."
+            ENDIF
+
+! Set up histogramms.
+            ALLOCATE(SignCohTriHist(2,NoTriConBins),stat=ierr)
+            CALL LogMemAlloc('SignCohTriHist',2*NoTriConBins,8,this_routine,SignCohTriHistTag,ierr)
+            ALLOCATE(SignIncohTriHist(2,NoTriConBins),stat=ierr)
+            CALL LogMemAlloc('SignIncohTriHist',2*NoTriConBins,8,this_routine,SignIncohTriHistTag,ierr)
+ 
+            SignCohTriHist(:,:)=0.D0
+            SignIncohTriHist(:,:)=0.D0
+            BinIter=ABS(TriConMax)/REAL(NoTriConBins)
+
+            BinVal=0.D0
+            do i=1,NoTriConBins
+                SignCohTriHist(1,i)=BinVal
+                SignIncohTriHist(1,i)=(-1)*BinVal
+                BinVal=BinVal+BinIter
+            enddo
         ENDIF
 
         CullInfo(1:10,1:3)=0
@@ -13209,6 +13349,9 @@ MODULE FciMCParMod
     TYPE(HElement), ALLOCATABLE :: MinorStarHii(:),MinorStarHij(:)
     REAL*8 :: AllNoMinorWalkers
 
+    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:)
+    REAL*8 :: NoSignCohTri,NoSignInCohTri,SignCohTri,SignInCohTri
+    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag
 
     contains
 

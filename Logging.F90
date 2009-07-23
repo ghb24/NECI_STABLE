@@ -6,11 +6,11 @@ MODULE Logging
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
-    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange
+    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins
 
     contains
 
@@ -55,6 +55,9 @@ MODULE Logging
       tROHistOnePartOrbEn=.false.
       tROHistOneElInts=.false.
       tPrintInts=.false.
+      tPrintTriConnections=.false.
+      TriConMax=0.50
+      NoTriConBins=10000
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -198,6 +201,14 @@ MODULE Logging
 !This option prints 2 files containing the values of certain integrals at each rotation iteration.  This is so that we can see the
 !effect the rotation is having on all values, other than just the one we are max/minimising.
             tPrintInts=.true.
+
+        case("PRINTTRICONNECTIONS")
+!This option takes each generated pair of determinant and excitation and finds 3rd determinant to make up a triangular connection.
+!The product of the three connecting elements are then histogrammed in two separate files. In one, the triangular connections that combine 
+!to be sign coherent are recorded, and in the other, those which are sign incoherent.
+            call readf(TriConMax)
+            call readi(NoTriConBins)
+            tPrintTriConnections=.true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
