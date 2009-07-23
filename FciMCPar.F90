@@ -817,7 +817,8 @@ MODULE FciMCParMod
                                     CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                             & but a value is outside the chosen range.')
                                 ENDIF
-                                IF((BinNo.le.0)) THEN
+                                IF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
+                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
                                     CALL FLUSH(6)
                                     CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                             & but a value is below 0.')
@@ -833,7 +834,8 @@ MODULE FciMCParMod
                                     CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                             & but a value is outside the chosen range.')
                                 ENDIF
-                                IF((BinNo.le.0)) THEN
+                                IF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
+                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
                                     CALL FLUSH(6)
                                     CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
                                                                                             & but a value is below 0.')
