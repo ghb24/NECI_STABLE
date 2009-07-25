@@ -33,6 +33,7 @@ MODULE Calc
 
 
 !       Calc defaults 
+          iFullSpaceIter=0
           tDirectAnnihil=.false.
           tMultipleDetsSpawn=.false.
           iDetGroup=2
@@ -964,6 +965,10 @@ MODULE Calc
                 ENDIF
                 tExpandSpace=.true.
                 call geti(ICILevel)
+                if(item.lt.nitems) then
+!Read in a value of the iteration to expand to the full space.
+                    call geti(iFullSpaceIter)
+                endif
             case("MULTIPLEDETSSPAWN")
 !This option creates connections from iDetGroup randomly chosen determinants and attempts to spawn from them all at once. This should hopefully mean that annihilations are implicitly done.
                 tMultipleDetsSpawn=.true.

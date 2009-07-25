@@ -241,6 +241,7 @@ MODULE FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use soft_exit, only : test_SOFTEXIT,test_ExpandSpace,test_VaryShift
+        use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
         TYPE(HDElement) :: Weight,Energyxw
         INTEGER :: i,j,error
@@ -288,10 +289,10 @@ MODULE FciMCParMod
 
 
 !Test whether to increase the current excitation level allowed in the equilibration step.
-                IF(tExpandSpace.and.test_ExpandSpace(ICILevel)) THEN
+                IF(tExpandSpace.and.(test_ExpandSpace(ICILevel).or.(Iter.gt.iFullSpaceIter.and.iFullSpaceIter.ne.0))) THEN
 !If an EXPANDSPACE file exists, it will read the value of ICILevel from it, delete the file, and expand the space.
                     
-                    IF(ICILevel.eq.0) THEN
+                    IF((ICILevel.eq.0).or.(Iter.gt.iFullSpaceIter.and.iFullSpaceIter.ne.0)) THEN
                         WRITE(6,"(A,I12,A)") "*** EXPANDSPACE file detected. Expanding the space on iteration ",Iter, " to the full space." 
 !The full space is now accessible. There is no longer any need to continue to check for the presence of the file.
                         tTruncSpace=.false.
