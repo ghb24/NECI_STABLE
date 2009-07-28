@@ -229,12 +229,10 @@ MODULE FciMCParMod
 
     INTEGER :: WalkersDiffProc
 
-    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:)
+    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:),SignCohHFTriHist(:,:),SignIncohHFTriHist(:,:)
     REAL*8 :: NoSignCohTri,NoSignInCohTri,SignCohTri,SignInCohTri
-    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag
- 
+    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag,SignCohHFTriHistTag,SignIncohHFTriHistTag
 
- 
 
     contains
 
@@ -359,16 +357,23 @@ MODULE FciMCParMod
 
 !If we are writing out the dominant determinats, do this here.
         IF(tPrintDominant) CALL PrintDominantDets()
-        
+ 
         IF(tPrintTriConnections) THEN
             OPEN(78,file='TriConnHistograms',status='unknown')
             WRITE(78,"(4A25)") "Sign Coh Bin Value","No. in bin","SignIncoh Bin Value","No. in bin"
+            OPEN(79,file='TriConnHFHistograms',status='unknown')
+            WRITE(79,"(4A25)") "Sign Coh Bin Value","No. in bin","SignIncoh Bin Value","No. in bin"
+ 
             do i=1,NoTriConBins
                 IF((SignCohTriHist(2,i).ne.0.D0).or.(SignIncohTriHist(2,i).ne.0.D0)) THEN
                     WRITE(78,"(4F25.10)") SignCohTriHist(1,i),SignCohTriHist(2,i),SignIncohTriHist(1,i),SignIncohTriHist(2,i)
                 ENDIF
+                IF((SignCohHFTriHist(2,i).ne.0.D0).or.(SignIncohHFTriHist(2,i).ne.0.D0)) THEN
+                    WRITE(79,"(4F25.10)") SignCohHFTriHist(1,i),SignCohHFTriHist(2,i),SignIncohHFTriHist(1,i),SignIncohHFTriHist(2,i)
+                ENDIF
             enddo 
             CLOSE(78)
+            CLOSE(79)
         ENDIF
 
 !Deallocate memory
@@ -615,8 +620,8 @@ MODULE FciMCParMod
         TYPE(HElement) :: HDiagTemp,Hjk,Hij,Hik
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
-        INTEGER :: nK(NEl),IC2,Ex2(2,2),iLutnJ2(0:NIfD),iLutnK(0:NIfD),BinNo,NoPos
-        LOGICAL :: tParity2,DetsEqTri
+        INTEGER :: nK(NEl),IC2,Ex2(2,2),iLutnJ2(0:NIfD),iLutnK(0:NIfD),BinNo,NoPos,NoNeg
+        LOGICAL :: tParity2,DetsEqTri,tHF
         REAL*8 :: Prob2
  
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
@@ -789,18 +794,29 @@ MODULE FciMCParMod
                     IF(.not.DetsEqTri) THEN
                         ! Add the connecting elements to the relevant sum.
 
+
+                        ! First quickly test if any of the determinants are the HF.
+                        tHF=.false.
+                        tHF=DetBitEQ(iLutHF(0:NIfD),CurrentDets(:,j),NIfD)
+                        IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnJ2(0:NIfD),NIfD)
+                        IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnK(0:NIfD),NIfD)
+
                         ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
                         Hjk=GetHElement3(nJ,nK,-1)
 
                         IF((REAL(Hjk%v,r2)).ne.0.D0) THEN
                             NoPos=0
+                            NoNeg=0
                             IF((REAL(Hjk%v,r2)).gt.0.D0) NoPos=NoPos+1
+                            IF((REAL(Hjk%v,r2)).lt.0.D0) NoNeg=NoNeg+1
 
                             Hij=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
                             IF((REAL(Hij%v,r2)).gt.0.D0) NoPos=NoPos+1
+                            IF((REAL(Hij%v,r2)).lt.0.D0) NoNeg=NoNeg+1
 
                             Hik=GetHElement4(DetCurr,nK,IC2,Ex2,tParity2)
                             IF((REAL(Hik%v,r2)).gt.0.D0) NoPos=NoPos+1
+                            IF((REAL(Hik%v,r2)).lt.0.D0) NoNeg=NoNeg+1
 
                             ! If there are 1 or 3 positive elements, the triangular connection is 'sign coherent'.
                             ! i.e. if a walker starts with a positive sign at i, it would return to i with a positive sign after completing the 
@@ -825,7 +841,8 @@ MODULE FciMCParMod
                                                                                             & but a value is below 0.')
                                 ENDIF
                                 SignCohTriHist(2,BinNo)=SignCohTriHist(2,BinNo)+1.D0
-                            ELSE
+                                IF(tHF) SignCohHFTriHist(2,BinNo)=SignCohHFTriHist(2,BinNo)+1.D0
+                            ELSEIF((NoNeg.eq.1).or.(NoNeg.eq.3)) THEN
                                 SignIncohTri=SignIncohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
                                 NoSignIncohTri=NoSignIncohTri+1.D0
                                 BinNo=CEILING((ABS((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)))*NoTriConBins)/TriConMax)
@@ -842,6 +859,7 @@ MODULE FciMCParMod
                                                                                             & but a value is below 0.')
                                 ENDIF
                                 SignIncohTriHist(2,BinNo)=SignIncohTriHist(2,BinNo)+1.D0
+                                IF(tHF) SignIncohHFTriHist(2,BinNo)=SignIncohHFTriHist(2,BinNo)+1.D0
                             ENDIF
                         ENDIF
                     ENDIF
@@ -5815,8 +5833,9 @@ MODULE FciMCParMod
             CALL MPI_Reduce(TriConStats,AllTriConStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
 
             IF(iProcIndex.eq.Root) THEN
-                WRITE(77,"(I12,2F24.2,6F20.10)") Iter+PreviousCycles,AllTriConStats(1),AllTriConStats(2),AllTriConStats(3),AllTriConStats(4),(AllTriConStats(3)/(Iter+PreviousCycles)),&
-                                                 &(AllTriConStats(4)/(Iter+PreviousCycles)),(AllTriConStats(1)/AllTriConStats(2)),(ABS(AllTriConStats(3)/AllTriConStats(4)))
+                WRITE(77,"(I12,2F24.2,8F20.10)") Iter+PreviousCycles,AllTriConStats(1),AllTriConStats(2),AllTriConStats(3),AllTriConStats(4),(AllTriConStats(3)/(Iter+PreviousCycles)),&
+                                                 &(AllTriConStats(4)/(Iter+PreviousCycles)),(AllTriConStats(3)/AllTriConStats(1)),(AllTriConStats(4)/AllTriConStats(2)),&
+                                                 &(AllTriConStats(1)/AllTriConStats(2)),(ABS(AllTriConStats(3)/AllTriConStats(4)))
             ENDIF
         ENDIF
 
@@ -7014,7 +7033,8 @@ MODULE FciMCParMod
             SignInCohTri=0.D0
             IF(iProcIndex.eq.root) THEN
                 OPEN(77,file='TriConnTotals',status='unknown')
-                WRITE(77,"(A12,2A24,6A20)") "1.Iteration","2.No. Sign Coh Loops","3.No. Sign Incoh Loops","4.Sign Coh Tot","5.Sign Incoh Tot","6.Sign Coh/Iter","7.Sign Incoh/Iter","8.Ratio No.","9.Ratio Val."
+                WRITE(77,"(A12,2A24,8A20)") "1.Iteration","2.No. Sign Coh Loops","3.No. Sign Incoh Loops","4.Sign Coh Tot","5.Sign Incoh Tot","6.Sign Coh/Iter",&
+                                                &"7.Sign Incoh/Iter","8.Sign Coh/Loop","9.Sign Incoh/Loop","10.Ratio No.","11.Ratio Val."
             ENDIF
 
 ! Set up histogramms.
@@ -7023,14 +7043,24 @@ MODULE FciMCParMod
             ALLOCATE(SignIncohTriHist(2,NoTriConBins),stat=ierr)
             CALL LogMemAlloc('SignIncohTriHist',2*NoTriConBins,8,this_routine,SignIncohTriHistTag,ierr)
  
+            ALLOCATE(SignCohHFTriHist(2,NoTriConBins),stat=ierr)
+            CALL LogMemAlloc('SignCohHFTriHist',2*NoTriConBins,8,this_routine,SignCohHFTriHistTag,ierr)
+            ALLOCATE(SignIncohHFTriHist(2,NoTriConBins),stat=ierr)
+            CALL LogMemAlloc('SignIncohHFTriHist',2*NoTriConBins,8,this_routine,SignIncohHFTriHistTag,ierr)
+ 
             SignCohTriHist(:,:)=0.D0
             SignIncohTriHist(:,:)=0.D0
+            SignCohHFTriHist(:,:)=0.D0
+            SignIncohHFTriHist(:,:)=0.D0
+ 
             BinIter=ABS(TriConMax)/REAL(NoTriConBins)
 
             BinVal=0.D0
             do i=1,NoTriConBins
                 SignCohTriHist(1,i)=BinVal
                 SignIncohTriHist(1,i)=(-1)*BinVal
+                SignCohHFTriHist(1,i)=BinVal
+                SignIncohHFTriHist(1,i)=(-1)*BinVal
                 BinVal=BinVal+BinIter
             enddo
         ENDIF
@@ -13352,9 +13382,9 @@ MODULE FciMCParMod
     TYPE(HElement), ALLOCATABLE :: MinorStarHii(:),MinorStarHij(:)
     REAL*8 :: AllNoMinorWalkers
 
-    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:)
+    REAL*8 , ALLOCATABLE :: SignCohTriHist(:,:),SignIncohTriHist(:,:),SignCohHFTriHist(:,:),SignIncohHFTriHist(:,:)
     REAL*8 :: NoSignCohTri,NoSignInCohTri,SignCohTri,SignInCohTri
-    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag
+    INTEGER :: SignCohTriHistTag,SignIncohTriHistTag,SignCohHFTriHistTag,SignIncohHFTriHistTag
 
     contains
 
