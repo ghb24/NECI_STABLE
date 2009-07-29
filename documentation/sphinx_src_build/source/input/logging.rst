@@ -212,6 +212,15 @@ FCIMC options
     the Hij x Hik x Hjk values for coherent (col 1 and 2) and incoherent (col 3 and 4) triangles.  The histogram
     goes from 0 -> +/- TriConMax with NoTriConBins for each.
 
+**HISTTRICONNELEMENTS** [TriConHElSingMax] [TriConHElDoubMax] [NoTriConHElBins]
+    This option histograms all the H elements involved in the triangular connections of determinants mentioned
+    above.  These are separated into doubles and singles, and an extra file, containing only the Hjk elements is
+    also included.
+    The histogram range is between +/-TriConHElSingMax for the singles and +/-TriConHElDoubMax for the doubles, with
+    NoTriConHElBins bins for each.
+    With this option, some stats are also printed in the output regarding the average magnitudes for each type of H
+    elements.
+
 GraphMorph options
 ------------------
 

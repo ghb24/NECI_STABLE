@@ -6,11 +6,11 @@ MODULE Logging
     INTEGER ILOGGING,ILOGGINGDef,iGlobalTimerLevel,nPrintTimer,G_VMC_LOGCOUNT
     INTEGER HFLOGLEVEL,iWritePopsEvery
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins
-    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax
+    REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins
 
     contains
 
@@ -58,6 +58,10 @@ MODULE Logging
       tPrintTriConnections=.false.
       TriConMax=0.50
       NoTriConBins=10000
+      tHistTriConHEls=.false.
+      NoTriConHElBins=10000
+      TriConHElSingMax=1.D0
+      TriConHElDoubMax=0.50
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -209,6 +213,15 @@ MODULE Logging
             call readf(TriConMax)
             call readi(NoTriConBins)
             tPrintTriConnections=.true.
+
+        case("HISTTRICONNELEMENTS")
+!This keyword takes the above triangles of connected determinants and histograms each connecting element that contributes to the triangle.
+!It then prints these according to whether they are single or double connecting elements.
+!It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
+            call readf(TriConHElSingMax)
+            call readf(TriConHElDoubMax)
+            call readi(NoTriConHElBins)
+            tHistTriConHEls=.true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
