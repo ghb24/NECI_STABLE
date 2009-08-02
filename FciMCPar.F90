@@ -262,12 +262,12 @@ MODULE FciMCParMod
             ENDIF
             
             s=etime(tstart)
-            IF(tMultipleDetsSpawn) THEN
+            IF(tCCMC) THEN
+                CALL PerformCCMCCycPar()
+            ELSEIF(tMultipleDetsSpawn) THEN
                 CALL MultipleConnFCIMCycPar()
             ELSEIF(tCleanRun) THEN
                 CALL PerformCleanFCIMCycPar()
-            ELSEIF(tCCMC) THEN
-                CALL PerformCCMCCycPar()
             ELSE
                 CALL PerformFCIMCycPar()
             ENDIF
@@ -5266,12 +5266,22 @@ MODULE FciMCParMod
 
 
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr)
+!AJWT added optional argument dProb which is a probability that whatever gave this contribution as generated.
+!  It defaults to 1, and weights the contribution of this det. (Only in the projected energy)
+    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb)
+        use SystemData, only : tUseBrillouin
         INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfD),WSign,Bin
         INTEGER :: PartInd,iLutSym(0:NIfD),OpenOrbs
         LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfD),DetBitEQ
         REAL*8 :: HDiagCurr
         TYPE(HElement) :: HOffDiag
+        real*8, optional :: dProb
+        real*8 dProbFin
+        if(present(dProb)) then
+            dProbFin=dProb
+        else
+            dProbFin=1
+        endif
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
@@ -5349,8 +5359,8 @@ MODULE FciMCParMod
         ENDIF
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
-            NoatHF=NoatHF+WSign
-            HFCyc=HFCyc+WSign       !This is simply the number at HF*sign over the course of the update cycle 
+            NoatHF=NoatHF+WSign/dProbFin
+            HFCyc=HFCyc+WSign/dProbFin      !This is simply the number at HF*sign over the course of the update cycle 
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             
@@ -5362,18 +5372,29 @@ MODULE FciMCParMod
             ELSE
                 HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
             ENDIF
-            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
-            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
+            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
             
             
 !        ELSE
 !            AvSign=AvSign+REAL(WSign,r2)
 
-        ELSEIF(tConstructNOs) THEN
+        ELSEIF(ExcitLevel.eq.1) THEN
+          if(.not.tUseBrillouin) then
+            IF(tHPHF) THEN
+                CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
+            ELSE
+                HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
+            ENDIF
+            IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign/dProbFin)
+!            AvSign=AvSign+REAL(WSign,r2)
+!            AvSignHFD=AvSignHFD+REAL(WSign,r2)
+            ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
+          endif 
+          IF(tConstructNOs) THEN
 !Fill the 1-RDM to find natural orbital on-the-fly.
-            IF(ExcitLevel.eq.1) THEN
 !Find the orbitals that are involved in the excitation (those that differ in occupation to the ref orbital).
                 CALL FindSingleOrbs(iLutHF,iLutCurr,NIfD,Orbs)
 !Add 1.D0 (or -1.D0) to the off-diagonal element connecting the relevent orbitals.
@@ -5389,7 +5410,7 @@ MODULE FciMCParMod
 !                ELSE
 !                    IF(Iter.gt.NEquilSteps) SumENumSing=SumENumSing-REAL(HOffDiagSing%v,r2)
 !                ENDIF
-            ENDIF
+          ENDIF
             
         ENDIF
 
@@ -8422,7 +8443,6 @@ MODULE FciMCParMod
 
 !Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
         rat=Tau*abs(rh%v)*REAL(nParts,r2)/Prob
-
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
         rat=rat-REAL(ExtraCreate)
