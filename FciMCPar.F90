@@ -23,6 +23,7 @@ MODULE FciMCParMod
     USE Logging , only : iWritePopsEvery,TPopsFile,TZeroProjE,iPopsPartEvery,tBinPops,tHistSpawn,iWriteHistEvery,tHistEnergies
     USE Logging , only : NoACDets,BinRange,iNoBins,OffDiagBinRange,OffDiagMax!,iLagMin,iLagMax,iLagStep,tAutoCorr
     USE Logging , only : tPrintTriConnections,TriConMax,NoTriConBins,tHistTriConHEls,NoTriConHElBins,TriConHElSingMax,TriConHElDoubMax
+    USE Logging , only : tPrintHElAccept
     USE SymData , only : nSymLabels
     USE mt95 , only : genrand_real2
     USE global_utilities
@@ -237,7 +238,7 @@ MODULE FciMCParMod
     INTEGER :: AllSignCohTriHistTag,AllSignIncohTriHistTag,AllSignCohHFTriHistTag,AllSignIncohHFTriHistTag
     INTEGER :: AllTriConnHElHistSingTag,AllTriConnHElHistDoubTag,TriHjkHistSingTag,TriHjkHistDoubTag,AllTriHjkHistSingTag,AllTriHjkHistDoubTag
 
-
+    REAL*8 :: NoNotAccept,NoAccept,TotHElNotAccept,TotHElAccept,MaxHElNotAccept,MinHElAccept
 
 
     contains
@@ -701,13 +702,10 @@ MODULE FciMCParMod
         INTEGER :: ExcitLevel,TotWalkersNew,iGetExcitLevel_2,error,length,temp,Ex(2,2),WSign,p,Scratch1(2,nSymLabels),Scratch2(2,nSymLabels),FDetSym,FDetSpin
         LOGICAL :: tParity,DetBitEQ,tMainArr,tFilled,tCheckStarGenDet,tStarDet,tMinorDetList,tAnnihilateMinorTemp,tAnnihilateMinor,TestClosedShellDet
         INTEGER(KIND=i2) :: HashTemp
-        TYPE(HElement) :: HDiagTemp,Hjk,Hij,Hik,HEl
+        TYPE(HElement) :: HDiagTemp
         CHARACTER(LEN=MPI_MAX_ERROR_STRING) :: message
         REAL :: Gap
-        INTEGER :: nK(NEl),IC2,IC3,Ex2(2,2),iLutnJ2(0:NIfD),iLutnK(0:NIfD),BinNo,NoPos,NoNeg,ICgen
-        LOGICAL :: tParity2,DetsEqTri,tHF
-        REAL*8 :: Prob2
- 
+
         IF(TDebug.and.(mod(Iter,10).eq.0)) THEN
             WRITE(11,*) Iter,TotWalkers,NoatHF,NoatDoubs,MaxIndex,TotParts
             CALL FLUSH(11)
@@ -863,167 +861,7 @@ MODULE FciMCParMod
 
 !If we want to look at determinants connected in loops of 3, need to select a third determinant.  Currently have DetCurr exciting to nJ.  Now need DetCurr
 !to excite to a different nk. - then add the product of the three connecting Helements to either the sign coherent or sign incoherent loops.
-                IF(tPrintTriConnections) THEN
-                    CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nK,pDoubles,IC2,Ex2,tParity2,exFlag,Prob2,Scratch1,Scratch2,tFilled)
-
-                    ! Need to check that the determinant we just generated is not the same as nJ.
-                    DetsEqTri=.false.
-
-                    ! These routines find the bit representation of nJ and nK given the excitation matrices Ex and Ex2 respectively.
-                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ2,IC,Ex,NIfD)
-                    CALL FindExcitBitDet(CurrentDets(:,j),iLutnK,IC2,Ex2,NIfD)
-
-                    DetsEqTri=DetBitEQ(iLutnJ2(0:NIfD),iLutnK(0:NIfD),NIfD)
-
-                    IF(.not.DetsEqTri) THEN
-                        ! Add the connecting elements to the relevant sum.
-
-                        ! First quickly test if any of the determinants are the HF.
-                        tHF=.false.
-                        tHF=DetBitEQ(iLutHF(0:NIfD),CurrentDets(:,j),NIfD)
-                        IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnJ2(0:NIfD),NIfD)
-                        IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnK(0:NIfD),NIfD)
-
-                        ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
-                        CALL FindBitExcitLevel(iLutnJ2,iLutnK,NIfD,IC3,NEl)
-                        Hjk=GetHElement3(nJ,nK,IC3)
-
-                        ! Histogram and add in the Hjk elements - regardless of whether or not this is 0.
-                        ! If the connection is not via a double or a single, the element will not be histogrammed, but it will always be 0,
-                        ! and this will be added into the sum.
-
-                        TriConHEls(3,1)=TriConHEls(3,1)+1.D0
-                        TriConHEls(3,2)=TriConHEls(3,2)+ABS(REAL(Hjk%v,r2))
-                        IF(IC3.eq.1) THEN
-                            BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
-                            TriHjkHistSing(2,BinNo)=TriHjkHistSing(2,BinNo)+1.D0
-                        ELSEIF(IC3.eq.2) THEN
-                            BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
-                            TriHjkHistDoub(2,BinNo)=TriHjkHistDoub(2,BinNo)+1.D0
-                        ENDIF 
-
-                        ! Now histogram all the stats from the whole loops.
-                        IF((REAL(Hjk%v,r2)).ne.0.D0) THEN
-                            NoPos=0
-                            NoNeg=0
-                            IF((REAL(Hjk%v,r2)).gt.0.D0) NoPos=NoPos+1
-                            IF((REAL(Hjk%v,r2)).lt.0.D0) NoNeg=NoNeg+1
-
-                            Hij=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
-                            IF((REAL(Hij%v,r2)).gt.0.D0) NoPos=NoPos+1
-                            IF((REAL(Hij%v,r2)).lt.0.D0) NoNeg=NoNeg+1
-
-                            Hik=GetHElement4(DetCurr,nK,IC2,Ex2,tParity2)
-                            IF((REAL(Hik%v,r2)).gt.0.D0) NoPos=NoPos+1
-                            IF((REAL(Hik%v,r2)).lt.0.D0) NoNeg=NoNeg+1
-
-                            ! If there are 1 or 3 positive elements, the triangular connection is 'sign coherent'.
-                            ! i.e. if a walker starts with a positive sign at i, it would return to i with a positive sign after completing the 
-                            ! three cycle loop.
-                            ! If there are 0 or 2 positive elements, the walker would return with the opposite sign from its starting point, 
-                            ! and the loop is considered 'sign incoherent'.
-
-                            IF((NoPos.eq.1).or.(NoPos.eq.3)) THEN
-                                SignCohTri=SignCohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                                NoSignCohTri=NoSignCohTri+1.D0
-                                BinNo=CEILING(((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))*NoTriConBins)/TriConMax)
-                                IF((BinNo.gt.NoTriConBins)) THEN
-                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                                    CALL FLUSH(6)
-                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                            & but a value is outside the chosen range.')
-                                ENDIF
-                                IF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
-                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                                    CALL FLUSH(6)
-                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                            & but a value is below 0.')
-                                ENDIF
-                                SignCohTriHist(2,BinNo)=SignCohTriHist(2,BinNo)+1.D0
-                                IF(tHF) SignCohHFTriHist(2,BinNo)=SignCohHFTriHist(2,BinNo)+1.D0
-                            ELSEIF((NoNeg.eq.1).or.(NoNeg.eq.3)) THEN
-                                SignIncohTri=SignIncohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                                NoSignIncohTri=NoSignIncohTri+1.D0
-                                BinNo=CEILING((ABS((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)))*NoTriConBins)/TriConMax)
-                                IF((BinNo.gt.NoTriConBins)) THEN
-                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                                    CALL FLUSH(6)
-                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                            & but a value is outside the chosen range.')
-                                ENDIF
-                                IF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
-                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
-                                    CALL FLUSH(6)
-                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
-                                                                                            & but a value is below 0.')
-                                ENDIF
-                                SignIncohTriHist(2,BinNo)=SignIncohTriHist(2,BinNo)+1.D0
-                                IF(tHF) SignIncohHFTriHist(2,BinNo)=SignIncohHFTriHist(2,BinNo)+1.D0
-                            ENDIF
-
-                            ! TriConHEls(1,1) - number of singles
-                            ! TriConHEls(1,2) - sum of single elements
-                            ! TriConHEls(2,1) - number of doubles
-                            ! TriConHEls(2,2) - sum of double elements
-                     
-                            k=1
-                            do while (k.le.3)
-                                ! consider each of the 3 H elements, whose excitation levels have been calculated.
-                                IF(k.eq.1) THEN
-                                    ICgen=IC3
-                                    HEl=Hjk
-                                ELSEIF(k.eq.2) THEN
-                                    ICgen=IC2
-                                    HEl=Hik
-                                ELSEIF(k.eq.3) THEN
-                                    ICgen=IC
-                                    HEl=Hij
-                                ELSE
-                                    WRITE(6,*) 'error in k'
-                                    CALL FLUSH(6)
-                                    stop
-                                ENDIF
-
-                                ! add the H elements to the appropriate histogram, depending on their excitation level.
-                                IF(ICgen.eq.1) THEN
-                                    TriConHEls(1,1)=TriConHEls(1,1)+1.D0
-                                    TriConHEls(1,2)=TriConHEls(1,2)+ABS(REAL(HEl%v,r2))
-                                    BinNo=CEILING((REAL(HEl%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
-                                    TriConnHElHistSing(2,BinNo)=TriConnHElHistSing(2,BinNo)+1.D0
-                                ELSEIF(ICgen.eq.2) THEN
-                                    TriConHEls(2,1)=TriConHEls(2,1)+1.D0
-                                    TriConHEls(2,2)=TriConHEls(2,2)+ABS(REAL(HEl%v,r2))
-                                    BinNo=CEILING((REAL(HEl%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
-                                    TriConnHElHistDoub(2,BinNo)=TriConnHElHistDoub(2,BinNo)+1.D0
-                                ELSE
-                                    WRITE(6,*) 'H element value : ',REAL(HEl%v,r2)
-                                    WRITE(6,*) 'IC (excitation level) : ',ICgen
-                                    CALL Stop_All('PerformFCIMCCycle','An H element is neither a single nor double, but it is supposedly &
-                                                                       & connected.')
-                                ENDIF
-
-                                IF(BinNo.gt.NoTriConHElBins) THEN
-                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
-                                    WRITE(6,*) 'With excitation level : ',ICgen
-                                    CALL FLUSH(6)
-                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram an H element in a triangle of determinants, &
-                                                                                            & but the value is outside the chosen range.')
-                                ENDIF
-                                IF((BinNo.le.0).and.(REAL(HEl%v,r2).ne.0.D0)) THEN
-                                    WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
-                                    WRITE(6,*) 'With excitation level : ',ICgen
-                                    WRITE(6,*) 'Bin number : ',BinNo
-                                    CALL FLUSH(6)
-                                    CALL Stop_All('PerformFCIMCCycle','Trying to histogram an H element in a triangle of determinants, &
-                                                                                            & but the value is below 0.')
-                                ENDIF
-
-                                k=k+1
-                            enddo
- 
-                        ENDIF
-                    ENDIF
-                ENDIF
+                IF(tPrintTriConnections) CALL FindTriConnections(j,DetCurr,nJ,IC,Ex,tFilled,tParity,Scratch1,Scratch2)
 
 !Calculate number of children to spawn
                 IF(TTruncSpace) THEN
@@ -1097,6 +935,9 @@ MODULE FciMCParMod
 
                 ENDIF
 
+! Want to put a wee routine in here that monitors the number of accepted vs the number of not accepted attempts at spawns, and the H elements that
+! are involved in each.
+                IF(tPrintHElAccept) CALL TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
                 
                 IF(Child.ne.0) THEN
 !We want to spawn a child - find its information to store
@@ -1605,6 +1446,257 @@ MODULE FciMCParMod
 
     END SUBROUTINE PerformFCIMCycPar
 
+
+    SUBROUTINE FindTriConnections(j,DetCurr,nJ,IC,Ex,tFilled,tParity,Scratch1,Scratch2)
+        USE Determinants , only : GetHElement3,GetHElement4
+        TYPE(HElement) :: Hjk,Hij,Hik,HEl
+        INTEGER :: j,k,DetCurr(NEl),nJ(NEl),IC,Ex(2,2),Scratch1(2,nSymLabels),Scratch2(2,nSymLabels)
+        INTEGER :: nK(NEl),IC2,IC3,Ex2(2,2),iLutnJ2(0:NIfD),iLutnK(0:NIfD),BinNo,NoPos,NoNeg,ICgen
+        LOGICAL :: tParity2,DetsEqTri,tHF,DetBitEQ,tFilled,tParity
+        REAL*8 :: Prob2
+        
+
+        CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nK,pDoubles,IC2,Ex2,tParity2,exFlag,Prob2,Scratch1,Scratch2,tFilled)
+
+        ! Need to check that the determinant we just generated is not the same as nJ.
+        DetsEqTri=.false.
+
+        ! These routines find the bit representation of nJ and nK given the excitation matrices Ex and Ex2 respectively.
+        CALL FindExcitBitDet(CurrentDets(:,j),iLutnJ2,IC,Ex,NIfD)
+        CALL FindExcitBitDet(CurrentDets(:,j),iLutnK,IC2,Ex2,NIfD)
+
+        DetsEqTri=DetBitEQ(iLutnJ2(0:NIfD),iLutnK(0:NIfD),NIfD)
+
+        IF(.not.DetsEqTri) THEN
+            ! Add the connecting elements to the relevant sum.
+
+            ! First quickly test if any of the determinants are the HF.
+            tHF=.false.
+            tHF=DetBitEQ(iLutHF(0:NIfD),CurrentDets(:,j),NIfD)
+            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnJ2(0:NIfD),NIfD)
+            IF(.not.tHF) tHF=DetBitEQ(iLutHF(0:NIfD),iLutnK(0:NIfD),NIfD)
+
+            ! Calculate Hjk first (connecting element between two excitations), because if this is 0, no need to go further.
+            CALL FindBitExcitLevel(iLutnJ2,iLutnK,NIfD,IC3,NEl)
+            Hjk=GetHElement3(nJ,nK,IC3)
+
+            ! Histogram and add in the Hjk elements - regardless of whether or not this is 0.
+            ! If the connection is not via a double or a single, the element will not be histogrammed, but it will always be 0,
+            ! and this will be added into the sum.
+
+            TriConHEls(3,1)=TriConHEls(3,1)+1.D0
+            TriConHEls(3,2)=TriConHEls(3,2)+ABS(REAL(Hjk%v,r2))
+            IF(IC3.eq.1) THEN
+                BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
+                TriHjkHistSing(2,BinNo)=TriHjkHistSing(2,BinNo)+1.D0
+            ELSEIF(IC3.eq.2) THEN
+                BinNo=CEILING((REAL(Hjk%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
+                TriHjkHistDoub(2,BinNo)=TriHjkHistDoub(2,BinNo)+1.D0
+            ENDIF 
+
+            ! Now histogram all the stats from the whole loops.
+            IF((REAL(Hjk%v,r2)).ne.0.D0) THEN
+                NoPos=0
+                NoNeg=0
+                IF((REAL(Hjk%v,r2)).gt.0.D0) NoPos=NoPos+1
+                IF((REAL(Hjk%v,r2)).lt.0.D0) NoNeg=NoNeg+1
+
+                Hij=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+                IF((REAL(Hij%v,r2)).gt.0.D0) NoPos=NoPos+1
+                IF((REAL(Hij%v,r2)).lt.0.D0) NoNeg=NoNeg+1
+
+                Hik=GetHElement4(DetCurr,nK,IC2,Ex2,tParity2)
+                IF((REAL(Hik%v,r2)).gt.0.D0) NoPos=NoPos+1
+                IF((REAL(Hik%v,r2)).lt.0.D0) NoNeg=NoNeg+1
+
+                ! If there are 1 or 3 positive elements, the triangular connection is 'sign coherent'.
+                ! i.e. if a walker starts with a positive sign at i, it would return to i with a positive sign after completing the 
+                ! three cycle loop.
+                ! If there are 0 or 2 positive elements, the walker would return with the opposite sign from its starting point, 
+                ! and the loop is considered 'sign incoherent'.
+
+                IF((NoPos.eq.1).or.(NoPos.eq.3)) THEN
+                    SignCohTri=SignCohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                    NoSignCohTri=NoSignCohTri+1.D0
+                    BinNo=CEILING(((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))*NoTriConBins)/TriConMax)
+                    IF((BinNo.gt.NoTriConBins)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                        CALL FLUSH(6)
+                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                & but a value is outside the chosen range.')
+                    ENDIF
+                    IF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                        CALL FLUSH(6)
+                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                & but a value is below 0.')
+                    ENDIF
+                    SignCohTriHist(2,BinNo)=SignCohTriHist(2,BinNo)+1.D0
+                    IF(tHF) SignCohHFTriHist(2,BinNo)=SignCohHFTriHist(2,BinNo)+1.D0
+                ELSEIF((NoNeg.eq.1).or.(NoNeg.eq.3)) THEN
+                    SignIncohTri=SignIncohTri+(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                    NoSignIncohTri=NoSignIncohTri+1.D0
+                    BinNo=CEILING((ABS((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)))*NoTriConBins)/TriConMax)
+                    IF((BinNo.gt.NoTriConBins)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                        CALL FLUSH(6)
+                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                & but a value is outside the chosen range.')
+                    ENDIF
+                    IF((BinNo.le.0).and.((REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2)).ne.0.D0)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(Hjk%v,r2)*REAL(Hij%v,r2)*REAL(Hik%v,r2))
+                        CALL FLUSH(6)
+                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram the sign coherent triangles of determinants, &
+                                                                                & but a value is below 0.')
+                    ENDIF
+                    SignIncohTriHist(2,BinNo)=SignIncohTriHist(2,BinNo)+1.D0
+                    IF(tHF) SignIncohHFTriHist(2,BinNo)=SignIncohHFTriHist(2,BinNo)+1.D0
+                ENDIF
+
+                ! TriConHEls(1,1) - number of singles
+                ! TriConHEls(1,2) - sum of single elements
+                ! TriConHEls(2,1) - number of doubles
+                ! TriConHEls(2,2) - sum of double elements
+         
+                k=1
+                do while (k.le.3)
+                    ! consider each of the 3 H elements, whose excitation levels have been calculated.
+                    IF(k.eq.1) THEN
+                        ICgen=IC3
+                        HEl=Hjk
+                    ELSEIF(k.eq.2) THEN
+                        ICgen=IC2
+                        HEl=Hik
+                    ELSEIF(k.eq.3) THEN
+                        ICgen=IC
+                        HEl=Hij
+                    ELSE
+                        WRITE(6,*) 'error in k'
+                        CALL FLUSH(6)
+                        stop
+                    ENDIF
+
+                    ! add the H elements to the appropriate histogram, depending on their excitation level.
+                    IF(ICgen.eq.1) THEN
+                        TriConHEls(1,1)=TriConHEls(1,1)+1.D0
+                        TriConHEls(1,2)=TriConHEls(1,2)+ABS(REAL(HEl%v,r2))
+                        BinNo=CEILING((REAL(HEl%v,r2)+TriConHElSingMax)*NoTriConHElBins)/(2*TriConHElSingMax)
+                        TriConnHElHistSing(2,BinNo)=TriConnHElHistSing(2,BinNo)+1.D0
+                    ELSEIF(ICgen.eq.2) THEN
+                        TriConHEls(2,1)=TriConHEls(2,1)+1.D0
+                        TriConHEls(2,2)=TriConHEls(2,2)+ABS(REAL(HEl%v,r2))
+                        BinNo=CEILING((REAL(HEl%v,r2)+TriConHElDoubMax)*NoTriConHElBins)/(2*TriConHElDoubMax)
+                        TriConnHElHistDoub(2,BinNo)=TriConnHElHistDoub(2,BinNo)+1.D0
+                    ELSE
+                        WRITE(6,*) 'H element value : ',REAL(HEl%v,r2)
+                        WRITE(6,*) 'IC (excitation level) : ',ICgen
+                        CALL Stop_All('PerformFCIMCCycle','An H element is neither a single nor double, but it is supposedly &
+                                                           & connected.')
+                    ENDIF
+
+                    IF(BinNo.gt.NoTriConHElBins) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
+                        WRITE(6,*) 'With excitation level : ',ICgen
+                        CALL FLUSH(6)
+                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram an H element in a triangle of determinants, &
+                                                                                & but the value is outside the chosen range.')
+                    ENDIF
+                    IF((BinNo.le.0).and.(REAL(HEl%v,r2).ne.0.D0)) THEN
+                        WRITE(6,*) 'The value about to be histogrammed is :',(REAL(HEl%v,r2))
+                        WRITE(6,*) 'With excitation level : ',ICgen
+                        WRITE(6,*) 'Bin number : ',BinNo
+                        CALL FLUSH(6)
+                        CALL Stop_All('PerformFCIMCCycle','Trying to histogram an H element in a triangle of determinants, &
+                                                                                & but the value is below 0.')
+                    ENDIF
+
+                    k=k+1
+                enddo
+
+            ENDIF
+        ENDIF
+
+    ENDSUBROUTINE FindTriConnections
+
+
+    SUBROUTINE TrackSpawnAttempts(Child,DetCurr,j,nJ,iLutnJ,IC,Ex,tParity)
+        INTEGER :: Child,DetCurr(NEl),j,nJ(NEl),iLutnJ(0:NIfD),IC,Ex(2,2)
+        LOGICAL :: tParity
+        TYPE(HElement) :: HEl
+
+!        WRITE(6,*) 'Child',Child
+!        WRITE(6,*) 'DetCurr',DetCurr
+!        WRITE(6,*) 'CurrentDets(:,j)',CurrentDets(:,j)
+!        WRITE(6,*) 'nJ',nJ
+!        WRITE(6,*) 'iLutnJ',iLutnJ
+!        CALL FLUSH(6)
+!        stop
+
+        ! Need to find the H element between the current determinant and that which we're trying to spawn on.
+        HEl=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+            
+        IF(Child.eq.0) THEN
+            ! Spawn not accepted.
+            NoNotAccept=NoNotAccept+1.D0
+            TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl%v,r2))
+            IF(ABS(REAL(HEl%v,r2)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl%v,r2))
+        ELSE
+            ! Spawn accepted.
+            NoAccept=NoAccept+1.D0
+            TotHElAccept=TotHElAccept+ABS(REAL(HEl%v,r2))
+            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl%v,r2)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl%v,r2))
+        ENDIF
+
+    ENDSUBROUTINE TrackSpawnAttempts
+        
+
+    SUBROUTINE PrintSpawnAttemptStats()
+        REAL*8 :: AllStats(4),AcceptStats(4),AllMaxHElNotAccept(1:nProcessors),AllMinHElAccept(1:nProcessors)
+        INTEGER :: i,error
+
+        ! Need to distribute the max and min values to all processors, but only if it has changed.        
+        AcceptStats(1)=TotHElNotAccept       ! Total not accepted
+        AcceptStats(2)=TotHElAccept          ! Total accepted
+        AcceptStats(3)=NoNotAccept
+        AcceptStats(4)=NoAccept
+        AllStats(:)=0.D0
+        AllMaxHElNotAccept(:)=0.D0
+        AllMinHElAccept(:)=0.D0
+
+!        WRITE(6,*) 'MinHElAccept',MinHElAccept
+        CALL FLUSH(6)
+!        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+
+        CALL MPI_Reduce(AcceptStats,AllStats,4,MPI_DOUBLE_PRECISION,MPI_SUM,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gather(MaxHElNotAccept,1,MPI_DOUBLE_PRECISION,AllMaxHElNotAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+        CALL MPI_Gather(MinHElAccept,1,MPI_DOUBLE_PRECISION,AllMinHElAccept(1:nProcessors),1,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+
+
+        IF(iProcIndex.eq.Root) THEN 
+!            WRITE(6,*) 'AllMinHElAccept',AllMinHElAccept
+            CALL FLUSH(6)
+            MaxHElNotAccept=ABS(AllMaxHElNotAccept(1))
+            do i=2,nProcessors
+                IF(ABS(AllMaxHElNotAccept(i)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(AllMaxHElNotAccept(i))
+            enddo
+
+            MinHElAccept=0.D0
+            IF(AllStats(4).gt.0.D0) THEN
+                do i=1,nProcessors
+                    IF(AllMinHElAccept(i).ne.0.D0) THEN
+                        MinHElAccept=ABS(AllMinHElAccept(i))
+                        EXIT
+                    ENDIF
+                enddo
+                do i=1,nProcessors
+                    IF((AllMinHElAccept(i).ne.0.D0).and.(ABS(AllMinHElAccept(i)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(AllMinHElAccept(i))
+                enddo
+            ENDIF
+
+            WRITE(84,'(I10,2F20.1,5F20.6)') Iter+PreviousCycles,AllStats(3),AllStats(4),AllStats(3)/AllStats(4),AllStats(1)/AllStats(3),AllStats(2)/AllStats(4),MaxHElNotAccept,MinHElAccept
+        ENDIF
+
+    ENDSUBROUTINE PrintSpawnAttemptStats
 
 !This is a new annihilation algorithm. In this, determinants are kept on predefined processors, and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
@@ -6000,6 +6092,8 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
 
+        IF(tPrintHElAccept) CALL PrintSpawnAttemptStats()
+
 !Now need to reinitialise all variables on all processers
         IterTime=0.0
 !        MinExcitLevel=NEl+10
@@ -6226,7 +6320,7 @@ MODULE FciMCParMod
         INTEGER :: ierr,i,j,k,l,DetCurr(NEl),ReadWalkers,TotWalkersDet,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate,Proc
         INTEGER :: DetLT,VecSlot,error,HFConn,MemoryAlloc,iMaxExcit,nStore(6),nJ(Nel),BRR2(nBasis),LargestOrb,nBits,HighEDet(NEl),iLutTemp(0:NIfD)
         TYPE(HElement) :: rh,TempHii
-        REAL*8 :: TotDets,SymFactor,Choose,BinVal,BinIter
+        REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
         LOGICAL :: exists,tSuccess,tFoundOrbs(nBasis)
@@ -7186,6 +7280,52 @@ MODULE FciMCParMod
             CALL Stop_All("InitFCIMCCalcPar","Cannot use the star approximation on the insignificant determinants if the SPAWNDOMINANTONLY option is not on.")
         ENDIF
 
+        IF(tPrintTriConnections.or.tHistTriConHEls.or.tPrintHElAccept) CALL InitTriHElStats()
+
+        CullInfo(1:10,1:3)=0
+        NoCulls=0
+        
+        IF(iProcIndex.eq.root) THEN
+!Print out initial starting configurations
+            WRITE(6,*) ""
+            IF(TLocalAnnihilation) THEN
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    LocalAnn   TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
+
+            ELSEIF(tUseGuide) THEN
+                WRITE(6,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
+
+                WRITE(15,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13,A18,A14)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoinGuideFunc"
+
+            ELSEIF(tMinorDetsStar) THEN
+                WRITE(6,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
+
+                WRITE(15,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13,A18,A16)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
+&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoMinorWalkers"
+
+
+            ELSE
+                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
+                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter",&
+&               "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    WalkersDiffProc"
+            
+            ENDIF
+        ENDIF
+        
+!Put a barrier here so all processes synchronise
+        CALL MPI_Barrier(MPI_COMM_WORLD,error)
+        RETURN
+
+    END SUBROUTINE InitFCIMCCalcPar
+
+
+    SUBROUTINE InitTriHElStats()
+        INTEGER :: i,ierr
+        REAL*8 :: BinVal,BinIter
+        CHARACTER(len=*), PARAMETER :: this_routine='InitTriHElStats'
 
         IF(tPrintTriConnections) THEN
             NoSignCohTri=0.D0
@@ -7299,44 +7439,22 @@ MODULE FciMCParMod
 
         ENDIF
 
-        CullInfo(1:10,1:3)=0
-        NoCulls=0
-        
-        IF(iProcIndex.eq.root) THEN
-!Print out initial starting configurations
-            WRITE(6,*) ""
-            IF(TLocalAnnihilation) THEN
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    LocalAnn   TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs      AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers   LocalAnn    TotAnnihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     NoatHF NoatDoubs       AvSign    AvSignHF+D   AccRat       MeanEx     MinEx MaxEx"
 
-            ELSEIF(tUseGuide) THEN
-                WRITE(6,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
-&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
-
-                WRITE(15,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13,A18,A14)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
-&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoinGuideFunc"
-
-            ELSEIF(tMinorDetsStar) THEN
-                WRITE(6,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13)") "Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
-&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime"
-
-                WRITE(15,"(A12,A16,A10,A16,A12,3A11,3A17,2A10,A13,A12,A13,A18,A16)") "#","Step","Shift","WalkerCng","GrowRate","TotWalkers","Annihil","NoDied","NoBorn","Proj.E","Proj.E.Iter",&
-&               "Proj.E.ThisCyc","NoatHF","NoatDoubs","AccRat","UniqueDets","IterTime","FracSpawnFromSing","NoMinorWalkers"
-
-
-            ELSE
-                WRITE(6,"(A)") "       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter     Proj.E.ThisCyc   NoatHF NoatDoubs      AccRat     UniqueDets     IterTime"
-                WRITE(15,"(A)") "#       Step     Shift      WalkerCng    GrowRate       TotWalkers    Annihil    NoDied    NoBorn    Proj.E          Proj.E.Iter",&
-&               "Proj.E.ThisCyc   NoatHF NoatDoubs       AccRat     UniqueDets     IterTime    FracSpawnFromSing    WalkersDiffProc"
-            
+        IF(tPrintHElAccept) THEN
+            NoNotAccept=0.D0
+            NoAccept=0.D0
+            TotHElNotAccept=0.D0
+            TotHElAccept=0.D0
+            MaxHElNotAccept=0.D0
+            MinHElAccept=0.D0
+            IF(iProcIndex.eq.root) THEN
+                OPEN(84,file='HElsAcceptance',status='unknown')
+                WRITE(84,'(A10,7A20)') "Iteration","No. Not Accepted","No. Accepted","Ratio NotAcc/Acc","Av.HEl Not Accept","Av.HEl Accept","Max HEl Not Accept","Min HEl Accept"
             ENDIF
         ENDIF
-        
-!Put a barrier here so all processes synchronise
-        CALL MPI_Barrier(MPI_COMM_WORLD,error)
-        RETURN
 
-    END SUBROUTINE InitFCIMCCalcPar
+    ENDSUBROUTINE InitTriHElStats
+
 
 !This routine is the same as WriteToPopsfilePar, but does not require two main arrays to hold the data.
 !The root processors data will be stored in a temporary array while it recieves the data from the other processors.

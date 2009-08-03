@@ -9,7 +9,7 @@ MODULE Logging
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins
 
     contains
@@ -62,6 +62,7 @@ MODULE Logging
       NoTriConHElBins=10000
       TriConHElSingMax=1.D0
       TriConHElDoubMax=0.50
+      tPrintHElAccept=.false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -222,6 +223,11 @@ MODULE Logging
             call readf(TriConHElDoubMax)
             call readi(NoTriConHElBins)
             tHistTriConHEls=.true.
+
+        case("PRINTHELACCEPTSTATS")
+!This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts that are accepted or not accepted.
+!It prints out the average H elements where spawning is accepted and the average where it is not accepted.
+            tPrintHElAccept=.true.
         
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
