@@ -221,6 +221,11 @@ FCIMC options
     With this option, some stats are also printed in the output regarding the average magnitudes for each type of H
     elements.
 
+**PRINTHELACCEPTSTATS**
+    This option prints out a file (HElsAcceptance) containing information about the nature of the H elements 
+    resulting in accepted and not accepted spawns.  This includes the number of not accepted spawns vs accepted, 
+    and the average size of the H element involved in accepted and not accepted spawns. 
+
 GraphMorph options
 ------------------
 
