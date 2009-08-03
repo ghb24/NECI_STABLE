@@ -30,6 +30,201 @@ contains
 
 #if PARALLEL
 
+!This will work with FCIMCPar, and if a file is created called CHANGEVARS in one of the working directories of the run, multiple values can be changed
+!Ways that the simulation can be affected are:
+!   EXCITE  XXX      Will change the excitation level of the simulation (< 0 or > NEl sets it to the full space.)
+!   SOFTEXIT         Will exit cleanly from the program
+!   WRITEPOPS        Will write a current popsfile
+!   VARYSHIFT        Will exit out of fixed shift phase
+!   TAU XXX          Will change the value of tau for the simulation
+!   DIAGSHIFT XXX    Will change the shift
+!   SHIFTDAMP XXX    Will change the damping parameter
+!   STEPSSHIFT XXX   Will change the length of the update cycle
+
+    subroutine ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+       use Parallel
+       use Input
+       implicit none
+       integer :: Iter,NEl,StepsSft,ICILevel,error,i,ios
+       logical :: tSoftExitFound,tWritePopsFound,tSinglePartPhase,exists,AnyExist,deleted_file,tTruncSpace
+       logical :: tEof,any_deleted_file,tChangeParams(8)
+       real*8 :: DiagSft,Tau,SftDamp
+       Character(len=100) :: w
+
+       tSoftExitFound=.false.
+       tWritePopsFound=.false.
+       inquire(file='CHANGEVARS',exist=exists)
+       !This collective will check the exists logical on all nodes, and perform a logical or operation,
+       !before broadcasting the result back to all nodes.
+       CALL MPI_AllReduce(exists,AnyExist,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+       if(AnyExist) then
+           IF(iProcIndex.eq.0) THEN
+               WRITE(6,*) "CHANGEVARS file detected on iteration ",Iter
+           ENDIF
+!Set the defaults
+           tChangeParams(1:8)=.false.
+           ios=0
+
+!           tChangeTau=.false.
+!           tChangeDiagSft=.false.
+!           tChangeSftDamp=.false.
+!           tChangeStepsSft=.false.
+!           tChangeICILevel=.false.
+!           tSinglePartPhaseFound=.false.
+
+           deleted_file=.false.
+           do i=0,nProcessors-1
+               ! This causes each processor to attempt to delete
+               ! CHANGEVARS in turn (as each cycle of the loop involves waiting
+               ! for all processors to reach the AllReduce before the next cycle 
+               ! can start, and hence avoid race conditions between processors 
+               ! sharing the same disk.
+               if (i==iProcIndex.and.exists) then
+                   open(13,file='CHANGEVARS',Status='OLD',err=99,iostat=ios)
+                   ir=13
+                   Call input_options(echo_lines=.true.,skip_blank_lines=.true.)
+                   Do
+                       Call read_line(tEof)
+                       IF(tEof) Exit
+                       Call ReadU(w)
+                       Select Case(w)
+                       CASE("TAU")
+                           tChangeParams(1)=.true.
+!                           tChangeTau=.true.
+                           Call Readf(Tau)
+                       CASE("DIAGSHIFT")
+                           tChangeParams(2)=.true.
+!                           tChangeDiagSft=.true.
+                           CALL Readf(DiagSft)
+                       CASE("SHIFTDAMP")
+                           tChangeParams(3)=.true.
+!                           tChangeSftDamp=.true.
+                           CALL Readf(SftDamp)
+                       CASE("STEPSSHIFT")
+                           tChangeParams(4)=.true.
+!                           tChangeStepsSft=.true.
+                           CALL Readi(StepsSft)
+                       CASE("EXCITE")
+                           tChangeParams(5)=.true.
+!                           tChangeICILevel=.true.
+                           CALL Readi(ICILevel)
+                       CASE("SOFTEXIT")
+                           tChangeParams(6)=.true.
+!                           tSoftExitFound=.true.
+                       CASE("WRITEPOPS")
+                           tChangeParams(7)=.true.
+!                           tWritePopsFound=.true.
+                       CASE("VARYSHIFT")
+                           tChangeParams(8)=.true.
+!                           tSinglePartPhaseFound=.true.
+!                           tSinglePartPhase=.false.
+                       END SELECT
+
+                   End Do
+                   close(13,status='delete')
+                   deleted_file=.true.
+               end if
+               call MPI_AllReduce(deleted_file,any_deleted_file,1,MPI_LOGICAL,MPI_LOR,MPI_COMM_WORLD,error)
+               if (any_deleted_file) exit
+           end do
+           CALL MPI_BCast(tChangeParams,8,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+
+!           CALL MPI_BCast(tChangeTau,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+!           CALL MPI_BCast(tChangeDiagSft,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+!           CALL MPI_BCast(tChangeSftDamp,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+!           CALL MPI_BCast(tChangeStepsSft,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+!           CALL MPI_BCast(tChangeICILevel,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+!           CALL MPI_BCast(tSoftExitFound,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+!           CALL MPI_BCast(tWritePopsFound,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+!           CALL MPI_BCast(tSinglePartPhaseFound,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
+
+           IF(tChangeParams(1)) THEN
+!Change Tau
+               CALL MPI_BCast(Tau,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Tau changed to a value of : ",Tau
+               ENDIF
+           ENDIF
+           IF(tChangeParams(2)) THEN
+!Change DiagSft
+               CALL MPI_BCast(DiagSft,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "DIAGSHIFT changed to a value of : ",DiagSft
+               ENDIF
+           ENDIF
+           IF(tChangeParams(3)) THEN
+!Change SftDamp
+               CALL MPI_BCast(SftDamp,1,MPI_DOUBLE_PRECISION,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "SHIFTDAMP changed to a value of : ",SftDamp
+               ENDIF
+           ENDIF
+           IF(tChangeParams(4)) THEN
+!Change StepsSft
+               CALL MPI_BCast(StepsSft,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "STEPSSHIFT changed to a value of : ",StepsSft
+               ENDIF
+           ENDIF
+           IF(tChangeParams(5)) THEN
+!Change Excite Level
+               IF(.not.tTruncSpace) THEN
+                   IF(iProcIndex.eq.0) THEN
+                       WRITE(6,*) "The space is not truncated, so EXCITE keyword in the CHANGEVARS file will not affect run."
+                   ENDIF
+               ELSE
+                   CALL MPI_BCast(ICILevel,1,MPI_INTEGER,i,MPI_COMM_WORLD,error)
+                   IF((ICILevel.le.0).or.(ICILevel.ge.NEl)) THEN
+                       tTruncSpace=.false.
+                       IF(iProcIndex.eq.0) THEN
+                           WRITE(6,*) "Expanding the space to the full space."
+                       ENDIF
+                   ELSE
+                       IF(iProcIndex.eq.0) THEN
+                           WRITE(6,*) "Increasing truncation level of space to a value of ",ICILevel
+                       ENDIF
+                   ENDIF
+               ENDIF
+           ENDIF
+           IF(tChangeParams(6)) THEN
+!SoftExit detected
+!We don't need to broadcast this as it can't go the other way!
+               tSoftExitFound=.true.
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "SOFTEXIT triggered. Exiting out of run."
+               ENDIF
+           ENDIF
+           IF(tChangeParams(7)) THEN
+!Write Popsfile
+               tWritePopsFound=.true.
+               IF(iProcIndex.eq.0) THEN
+                   WRITE(6,*) "Asked to write out a POPSFILE..."
+               ENDIF
+           ENDIF
+           IF(tChangeParams(8)) THEN
+!Vary Shift
+!We don't need to broadcast this as it can't go the other way!
+               IF(.not.tSinglePartPhase) THEN
+                   IF(iProcIndex.eq.0) THEN
+                       WRITE(6,*) "Request to vary shift denied, since simulation already in variable shift mode..."
+                   ENDIF
+               ELSE
+                   tSinglePartPhase=.false.
+                   IF(iProcIndex.eq.0) THEN
+                       WRITE(6,*) "Request to vary the shift detected on a node..."
+                   ENDIF
+               ENDIF
+           ENDIF
+       endif
+
+  99   IF (ios.gt.0) THEN
+          WRITE (6,*) 'Problem reading CHANGEVARS file '
+          call stop_all('ChangeVars','CHANGEVARS read error.')
+       END IF
+    
+    end subroutine ChangeVars
+
+
     logical function test_SOFTEXIT()
        != Test if the file SOFTEXIT exists.
        != Return True means that the file is there and you should start to exit cleanly.

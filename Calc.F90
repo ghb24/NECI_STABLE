@@ -37,7 +37,6 @@ MODULE Calc
           tDirectAnnihil=.false.
           tMultipleDetsSpawn=.false.
           iDetGroup=2
-          tExpandSpace=.false.
           tHighExcitsSing=.false.
           iHighExcitsSing=0
           tFindDets=.false.
@@ -293,9 +292,6 @@ MODULE Calc
                     TBLOCK = .true.
                 end select
             case("EXCITE")
-                IF(tExpandSpace) THEN
-                    CALL Stop_All("ReadCalc","Cannot specift EXPANDSPACE and EXCITE to avoid confusion")
-                ENDIF
                 call geti(ICILEVEL)
             case("EXCITATIONS")
                 call readu(w)
@@ -960,15 +956,10 @@ MODULE Calc
 !and the energies not calculated. This is needed when the full list of determinants is needed for later on.
                 tFindDets=.true.
             case("EXPANDSPACE")
-                IF(ICILevel.ne.0) THEN
-                    CALL Stop_All("ReadCalc","Cannot specify both EXCITE and EXPANDSPACE to avoid confusion")
-                ENDIF
-                tExpandSpace=.true.
-                call geti(ICILevel)
-                if(item.lt.nitems) then
+                call report(" "//trim(w)//" is a depreciated option - look at EXPANDFULLSPACE",.true.)
+            case("EXPANDFULLSPACE")
 !Read in a value of the iteration to expand to the full space.
-                    call geti(iFullSpaceIter)
-                endif
+                call geti(iFullSpaceIter)
             case("MULTIPLEDETSSPAWN")
 !This option creates connections from iDetGroup randomly chosen determinants and attempts to spawn from them all at once. This should hopefully mean that annihilations are implicitly done.
                 tMultipleDetsSpawn=.true.

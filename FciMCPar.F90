@@ -12,7 +12,7 @@ MODULE FciMCParMod
     use CalcData , only : NDets,RhoApp,TResumFCIMC,TNoAnnihil,MemoryFacPart,TAnnihilonproc,MemoryFacAnnihil,iStarOrbs,tAllSpawnStarDets
     use CalcData , only : FixedKiiCutoff,tFixShiftKii,tFixCASShift,tMagnetize,BField,NoMagDets,tSymmetricField,tStarOrbs,SinglesBias
     use CalcData , only : tHighExcitsSing,iHighExcitsSing,tFindGuide,iGuideDets,tUseGuide,iInitGuideParts,tNoDomSpinCoup
-    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tExpandSpace,tMinorDetsStar
+    use CalcData , only : tPrintDominant,iNoDominantDets,MaxExcDom,MinExcDom,tSpawnDominant,tMinorDetsStar
     use CalcData , only : tCCMC
     use HPHFRandExcitMod , only : FindExcitBitDetSym,GenRandHPHFExcit,GenRandHPHFExcit2Scratch 
     USE Determinants , only : FDet,GetHElement2,GetHElement4
@@ -233,7 +233,7 @@ MODULE FciMCParMod
 
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-        use soft_exit, only : test_SOFTEXIT,test_ExpandSpace,test_VaryShift
+        use soft_exit, only : ChangeVars 
         use CalcData, only : iFullSpaceIter
         use UMatCache, only : UMatInd
         use FciMCLoggingMOD , only : PrintTriConnHist,PrintTriConnHElHist
@@ -241,7 +241,7 @@ MODULE FciMCParMod
         INTEGER :: i,j,error
         CHARACTER(len=*), PARAMETER :: this_routine='FciMCPar'
         TYPE(HElement) :: Hamii
-        LOGICAL :: TIncrement
+        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound
         REAL(4) :: s,etime,tstart(2),tend(2)
 
         TDebug=.false.  !Set debugging flag
@@ -281,35 +281,30 @@ MODULE FciMCParMod
 !This will communicate between all nodes, find the new shift (and other parameters) and broadcast them to the other nodes.
                 CALL CalcNewShift()
 
-
-!Test whether to increase the current excitation level allowed in the equilibration step.
-                IF(tExpandSpace.and.(test_ExpandSpace(ICILevel).or.(Iter.gt.iFullSpaceIter.and.iFullSpaceIter.ne.0))) THEN
-!If an EXPANDSPACE file exists, it will read the value of ICILevel from it, delete the file, and expand the space.
-                    
-                    IF((ICILevel.eq.0).or.(Iter.gt.iFullSpaceIter.and.iFullSpaceIter.ne.0)) THEN
-                        WRITE(6,"(A,I12,A)") "*** EXPANDSPACE file detected. Expanding the space on iteration ",Iter, " to the full space." 
-!The full space is now accessible. There is no longer any need to continue to check for the presence of the file.
-                        tTruncSpace=.false.
-                        tExpandSpace=.false.
-                    ELSE
-                        WRITE(6,"(A,I12,A,I5)") "*** EXPANDSPACE file detected. Expanding the space on iteration ",Iter, " to excitation level: ",ICILevel
+                IF(tTruncSpace.and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
+!Test if we want to expand to the full space if an EXPANDSPACE variable has been set
+                    ICILevel=0
+                    tTruncSpace=.false.
+                    IF(iProcIndex.eq.0) THEN
+                        WRITE(6,*) "Expanding to the full space on iteration ",Iter
                     ENDIF
-
                 ENDIF
 
-!Test if the file SOFTEXIT is present. If it is, then exit cleanly.
-                IF(test_SOFTEXIT()) THEN
-                    TIncrement=.false.  !This is so that when the popsfile is written out before exit, it counteracts the subtraction by one.
+!This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
+                CALL ChangeVars(Iter,NEl,Tau,DiagSft,SftDamp,StepsSft,ICILevel,tTruncSpace,tSoftExitFound,tWritePopsFound,tSinglePartPhase)
+                IF(tSoftExitFound) THEN
+                    TIncrement=.false.
                     EXIT
                 ENDIF
-
-                IF(TSinglePartPhase) THEN
-                    IF(test_VaryShift()) THEN
-                        TSinglePartPhase=.false.
-                        IF(iProcIndex.eq.Root) WRITE(6,*) "Exiting the single particle growth phase - shift can now change"
+                IF(tWritePopsFound) THEN
+!We have explicitly asked to write out the POPSFILE from the CHANGEVARS file.
+                    IF(tRotoAnnihil) THEN
+                        CALL WriteToPopsFileParOneArr()
+                    ELSE
+                        CALL WriteToPopsFilePar()
                     ENDIF
                 ENDIF
-
+                
             ENDIF
 
             IF(TPopsFile.and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
@@ -6463,14 +6458,7 @@ MODULE FciMCParMod
         IF(ICILevel.ne.0) THEN
 !We are truncating the excitations at a certain value
             TTruncSpace=.true.
-            IF(tExpandSpace) THEN
-                IF(.not.tStartSinglePart) THEN
-                    CALL Stop_All("InitFCIMCCalcPar","Must use Single particle start with EXPANDSPACE")
-                ENDIF
-                WRITE(6,'(A,I4,A)') "Truncating the space initially at an excitation level of ",ICILevel, " which can be expanded with EXPANDSPACE files"
-            ELSE
-                WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
-            ENDIF
+            WRITE(6,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
             IF(TResumFciMC) CALL Stop_All("InitFciMCPar","Space cannot be truncated with ResumFCIMC")
         ENDIF
 

@@ -929,21 +929,16 @@ The following option are only available in **MCSTAR** calculations:
     This is a parallel FCIMC option, where excitations between determinants where 
     at least one of the determinants is above iHighExcitsSing will be restricted to be single excitations.
 
-**EXPANDSPACE** [ICILevel]
-    Default=.false.
+**EXPANDFULLSPACE** [iFullSpaceIter]
+    Default=0
     
-    This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel.
-    However, the space can be expanded (or shrunk) during the course of the simulation (to the full space).
-    This wants to be used with a single particle start (no need for an
-    EXCITE or anything) and means that the simulation will start of doing a
-    truncated 'ICILevel' calculation (you can obviously specify any initial level).
-    However, if you create a file in the directory where the job is running
-    called EXPANDSPACE (similar to the SOFTEXIT facility), with a single
-    integer in the file, then it will expand the working space of the
-    algorithm to this value of the truncation. If you specify 0, it will
-    allow the full space and not continue checking for the files from then
-    on. Hopefully expanding the space in this way will allow quicker
-    convergence.
+    This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel,
+    set by the value of the EXCITE parameter. If EXPANDFULLSPACE is set, then the 
+    system will continue to be truncated at the value set by EXCITE, but will
+    expand to the full space after iteration iFullSpaceIter.
+    Hopefully expanding the space in this way will allow quicker
+    convergence, without needing to do this dynamically through the use of CHANGEVARS which may be difficult for
+    long/queued jobs.
 
 Return Path Monte Carlo options
 -------------------------------
