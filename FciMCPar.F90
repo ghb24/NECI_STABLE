@@ -5282,6 +5282,9 @@ MODULE FciMCParMod
         else
             dProbFin=1
         endif
+!        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
+         
+
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
@@ -5359,8 +5362,8 @@ MODULE FciMCParMod
         ENDIF
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
-            NoatHF=NoatHF+WSign/dProbFin
-            HFCyc=HFCyc+WSign/dProbFin      !This is simply the number at HF*sign over the course of the update cycle 
+            NoatHF=NoatHF+WSign
+            HFCyc=HFCyc+WSign      !This is simply the number at HF*sign over the course of the update cycle 
 !            AvSign=AvSign+REAL(WSign,r2)
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             
@@ -5425,8 +5428,8 @@ MODULE FciMCParMod
                     HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
                 ENDIF
 
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)
-                ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)     !This is simply the Hij*sign summed over the course of the update cycle
+                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)/dProbFin
+                ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
             ENDIF
         ENDIF
 

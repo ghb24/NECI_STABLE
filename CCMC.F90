@@ -286,11 +286,17 @@ END SUBROUTINE AddBitExcitor
         REAL*8 dT1Sq
         INTEGER AttemptDieProbPar
         REAL*8 AJWTProjE
+        INTEGER iCumlExcits,iLeftHere
+
   
+        if(tCCMCFCI) then
+         iMaxExcitorSelections=1
+        else
+         iMaxExcitorSelections=2
+        endif
 
         if(Iter.eq.1) dT1SqCuml=0 
-        iMaxExcitorSelections=1
-        iDebug=4
+        iDebug=2
 !Number of excitors dying
         iDeaths=0
 
@@ -339,9 +345,9 @@ END SUBROUTINE AddBitExcitor
         endif
 !TotRealWalkers gets updated with the number of non-zero walkers at each stage.
         TotRealWalkers=TotWalkers
+        iCumlExcits=0
         do j=1,TotWalkers
 !#if 0
-          write(89,'(I)',advance='no') CurrentSign(j)
           IF(iDebug.gt.4) WRITE(6,*) "Iteration ",Iter,':',j
 ! Deal with T_1^2
           CALL FindBitExcitLevel(iLutHF,CurrentDets(:,j),NIfD,WalkExcitLevel,2)
@@ -373,14 +379,34 @@ END SUBROUTINE AddBitExcitor
 !#endif
 !Go through all particles on the current walker det
           do l=1,abs(CurrentSign(j))
+            iCumlExcits=iCumlExcits+1
             if(j.eq.iHFDet) then
                iMaxEx=1
             else
-               iMaxEx=iMaxExcitorSelections
+               if(tExactCluster) then  !Go through all possible clusters explicitly
+                  IF (tTruncSpace) THEN
+                     nMaxSelExcitors=ICILevel
+                  ELSE
+                     nMaxSelExcitors=nEl
+                  ENDIF
+                  iMaxEx=1
+                  k=TotParts-iCumlExcits
+                  if(j.lt.iHFDet) k=k-HFcount
+                  do i=k,max(k-(nMaxSelExcitors-1)+1,1),-1  !-1 because we've already chosen this excitor.  +1 to exclude the end (off by 1 problem)
+                     iMaxEx=iMaxEx*i
+                  enddo
+                  if(k.eq.0) iMaxEx=0
+                  iMaxEx=iMaxEx+1  !Account for the non-cluster
+                  if(iDebug.gt.4) write(6,*) iMaxEx-1, ' combined excitations available from det ',j
+!iMaxEx is now the number of possible clusters which can be made from this and walkers after it.  we go through them in turn.
+               else
+                  iMaxEx=iMaxExcitorSelections
+               endif
             endif
 ! tNewExcitor will be set at the end of this loop if we decide to come 
             do iExcitor=1,iMaxEx
                if(iExcitor.eq.1) then
+                  if(iDebug.gt.4) write(6,*) 'Plain old excitor.'
 !just select the single excitor
                   iLutnI(:)=CurrentDets(:,j)
                   iSgn=sign(1,CurrentSign(j))
@@ -388,7 +414,7 @@ END SUBROUTINE AddBitExcitor
                   dProbNorm=1
                   iCompositeSize=0
                else
-                  stop
+                  if(iDebug.gt.4) write(6,*) 'Excitor composite number ',iExcitor
 ! Now select a sample of walkers.  We need up to as many walkers as electrons.
                   dProbNumExcit=1
 !dProbSelNewExcitor   !prob of this number of excitors will go here
@@ -398,7 +424,7 @@ END SUBROUTINE AddBitExcitor
                      nMaxSelExcitors=nEl
                   ENDIF
             
-                  if(nMaxSelExcitors.gt.(TotWalkers-1)) nMaxSelExcitors=TotRealWalkers-1
+                  if(nMaxSelExcitors.gt.(TotWalkers-1)) nMaxSelExcitors=TotWalkers-1
                   IF(iDebug.gt.4) write(6,*) "Max excitors can be selected.", nMaxSelExcitors
                   if(nMaxSelExcitors.lt.2) exit  !If we can't choose a new excit, we leave the loop
                   dProb=1           !prob of these excitors given this number of excitors goes here
@@ -430,33 +456,53 @@ END SUBROUTINE AddBitExcitor
 
                   do i=2,nMaxSelExcitors
    ! Calculate the probability that we've reached this far in the loop
-                     !We must have at least one excitor, so we cannot exit here.
-                     if(i.gt.2) then
-                        call genrand_real2(r)  !On GHB's advice
-                        if(r.lt.dProbSelNewExcitor) exit
-                     endif
+                     if(tExactCluster) then
+!This only works for up to pairs of clusters
+                        if(iExcitor.eq.2) then
+                           iLeftHere=abs(CurrentSign(j))-l
+                           SelectedExcitorIndices(2)=j
+                        else
+                           iLeftHere=iLeftHere-1
+                        endif
+                        k=SelectedExcitorIndices(2)
+                        if(iLeftHere.eq.0) then
+                           k=k+1
+                           iLeftHere=abs(CurrentSign(k))
+                        endif
+                     else
+                        !We must have at least one excitor, so we cannot exit here.
+                        if(i.gt.2) then
+                           call genrand_real2(r)  !On GHB's advice
+                           if(r.lt.dProbSelNewExcitor) exit
+                        endif
 
-   ! decide not to choose another walker with this prob.
-                     dProbNumExcit=dProbNumExcit*dProbSelNewExcitor
-   ! Select a new random walker
-                     k=0
-                     do while (k.eq.0)
-                        call genrand_real2(r)  !On GHB's advice
-                        k=1+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
-                        if(k.ge.iHFDet) k=k+1          !We're not allowed to select the HF det
-                        if(CurrentSign(k).eq.0) k=0
-                     enddo
+      ! decide not to choose another walker with this prob.
+                        dProbNumExcit=dProbNumExcit*dProbSelNewExcitor
+      ! Select a new random walker
+                        k=0
+                        do while (k.eq.0)
+                           call genrand_real2(r)  !On GHB's advice
+                           k=1+floor(r*(TotWalkers-1))    !This selects a unique excitor (which may be multiply populated)
+                           if(k.ge.iHFDet) k=k+1          !We're not allowed to select the HF det
+                           if(CurrentSign(k).eq.0) k=0
+                        enddo
+                     endif
                      IF(iDebug.gt.5) Write(6,*) "Selected excitor",k
                      SelectedExcitorIndices(i)=k
                      SelectedExcitors(:,i)=CurrentDets(:,k)
-                     dProb=(dProb*abs(CurrentSign(k)))/((TotParts-HFcount))
+                     if(tExactCluster) then
+                        dProb=1
+!Account for intermediate Normalization
+                        dProbNorm=dProbNorm*HFCount
+                     else
+                        dProb=(dProb*abs(CurrentSign(k)))/((TotParts-HFcount))
 
 !Account for intermediate Normalization
-                     dProbNorm=dProbNorm*HFCount
+                        dProbNorm=dProbNorm*HFCount
 
 !Account for possible orderings of selection
-                     dProbNorm=dProbNorm/i
-
+                        dProbNorm=dProbNorm/i
+                     endif
                      IF(iDebug.gt.5) WRITE(6,*) "TotParts,HFCount:",TotParts,HFcount
                      IF(iDebug.gt.5) write(6,*) "Prob ",i,": ",(abs(CurrentSign(k))+0.d0)/(TotParts-HFcount)," Cuml:", dProb
                   enddo
@@ -648,7 +694,7 @@ END SUBROUTINE AddBitExcitor
                ENDIF
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 !               WRITE(6,'(A,3G,2I)') "PPP",dProb,dProbNorm,dProb*dProbNorm,WalkExcitLevel,iCompositeSize
-!               CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,(dProb*dProbNorm))
+               CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,iLutnI,HDiagCurr,(dProb*dProbNorm))
 
 
 
@@ -693,7 +739,6 @@ END SUBROUTINE AddBitExcitor
           enddo     
 !Finish cycling over determinants
         enddo
-        write(89,*)
 !#if 0
         dT1Sq=(dT1Sq/HFCount)
         dT1SqCuml=dT1SqCuml+dT1Sq
@@ -737,7 +782,9 @@ END SUBROUTINE AddBitExcitor
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
 
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.d0)
+            iSgn=sign(1,CurrentSign(j))
+            iSgn=CurrentSign(j)
+!            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.d0)
             CopySign=CurrentSign(j)
             IF(CopySign.ne.0) THEN
                 CurrentDets(:,VecSlot)=CurrentDets(:,j)

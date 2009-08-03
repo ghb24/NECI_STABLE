@@ -1390,6 +1390,7 @@ MODULE Calc
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,TMCDiffusion,tCCMC
          use CalcData , only : TRhoElems,TReturnPathMC, TResumFCIMC
+         use CCMCData, only: tExactCluster,tCCMCFCI
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w
@@ -1411,9 +1412,20 @@ MODULE Calc
                    endselect
                case("CCMC")
                   !Piggy-back on the FCIMC code
-                   I_HMAX=-21
-                   TFCIMC=.true.
-                   TCCMC=.true.
+                  I_HMAX=-21
+                  TFCIMC=.true.
+                  TCCMC=.true.
+                  tExactCluster=.false.
+                  tCCMCFCI=.false.
+                  do while(item.lt.nitems)
+                    call readu(w)
+                    select case(w)
+                    case("EXACTCLUSTER")
+                       tExactCluster=.true.
+                    case("FCI")
+                       tCCMCFCI=.true.
+                    end select
+                  enddo
                case("RETURNPATHMC")
                    I_HMAX=-21
                    TReturnPathMC=.true.
