@@ -1530,7 +1530,7 @@ MODULE RotateOrbsMod
 
     END SUBROUTINE Transform2ElInts
 
-    
+   
 ! This is a transformation of the four index integrals for the ERlocalisation, in this only the <ii|ii> integrals are needed 
 ! therefore the process may be much simpler.
     SUBROUTINE Transform2ElIntsERlocal()
@@ -1645,7 +1645,108 @@ MODULE RotateOrbsMod
 
     END SUBROUTINE Transform2ElIntsERlocal
 
+    
+!This is the final transformation routine if ER localisation is being performed.  Like Transform2ElInts it transforms all the four index
+!integrals (not just the m,m,m,m ones) but is slightly simpler and has a different indexing system than Transform2ElInts.
+!Probably not the best way to do this... can be easily improved.
+!This is an M^5 transform, which transforms all the two-electron integrals into the new basis described by the Coeff matrix.
+!This is v memory inefficient and currently does not use any spatial symmetry information.
+    SUBROUTINE Transform2ElIntsERFinal()
+        INTEGER :: i,j,k,l,a,b,g,d
+        REAL*8 :: t,Temp4indints(SpatOrbs,SpatOrbs)
+        REAL*8 :: Temp4indints02(SpatOrbs,SpatOrbs)  
+        
+        CALL set_timer(Transform2ElInts_time,30)
 
+!Zero arrays from previous transform
+
+        TwoIndInts01Temp(:,:,:,:)=0.D0
+        TwoIndInts01(:,:,:,:)=0.D0
+        FourIndIntsTemp(:,:,:,:)=0.D0
+        FourIndInts(:,:,:,:)=0.D0
+
+! **************
+! Calculating the two-transformed, four index integrals.
+
+! The untransformed <alpha beta | gamma delta> integrals are found from UMAT(UMatInd(i,j,k,l,0,0)
+
+        do b=1,SpatOrbs
+            do a=1,SpatOrbs
+                Temp4indints(:,:)=0.D0
+                CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,UMatTemp01(:,:,a,b),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
+                ! Temp4indints(k,d) comes out of here, so to transform b to j, we need the transpose of this.
+
+                Temp4indints02(:,:)=0.D0
+                CALL DGEMM('T','T',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,Temp4indints(:,:),SpatOrbs,0.0,Temp4indints02(:,:),SpatOrbs)
+                ! Get Temp4indits02(k,l)
+                 
+                do l=1,SpatOrbs
+                    do k=1,SpatOrbs
+                        TwoIndInts01Temp(a,b,k,l)=Temp4indints02(k,l)
+                        TwoIndInts01Temp(k,l,a,b)=Temp4indints02(k,l)
+                    enddo
+                enddo
+            enddo
+        enddo
+        CALL MPIDSumArr(TwoIndInts01Temp(:,:,:,:),SpatOrbs**4,TwoIndInts01(:,:,:,:))
+
+
+! Calculating the 3 transformed, 4 index integrals. 01=a untransformed,02=b,03=g,04=d
+        do l=1,SpatOrbs
+            do k=1,SpatOrbs
+                Temp4indints(:,:)=0.D0
+                CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,TwoIndInts01(:,:,k,l),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
+                !Temp4indints(i,b)
+
+                Temp4indints02(:,:)=0.D0
+                CALL DGEMM('T','T',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,Temp4indints(:,:),SpatOrbs,0.0,Temp4indints02(:,:),SpatOrbs)
+                !Temp4indints02(i,j)
+                do j=1,SpatOrbs
+                    do i=1,SpatOrbs
+                        FourIndIntsTemp(i,j,k,l)=Temp4indints02(i,j)
+                        FourIndIntsTemp(k,l,i,j)=Temp4indints02(k,l)
+                    enddo
+                enddo
+            enddo
+        enddo
+        CALL MPIDSumArr(FourIndIntsTemp(:,:,:,:),SpatOrbs**4,FourIndInts(:,:,:,:))
+
+! ***************************
+! Calc the potential energies for this iteration (with these transformed integrals).        
+
+! This can be sped up by merging the calculations of the potentials with the transformations, but while 
+! we are playing around with different potentials, it is simpler to keep these separate.
+        
+        PotEnergy=0.D0
+        TwoEInts=0.D0
+        PEInts=0.D0
+        CALL CalcPotentials()
+
+        IF(tPrintInts) CALL PrintIntegrals()
+        IF((Iteration.eq.0).or.((.not.tNotConverged).and.(Iteration.gt.1))) CALL WriteDoubHisttofile()
+        IF(tROHistSingExc.and.(Iteration.eq.0)) CALL WriteSingHisttofile()
+
+
+! If doing Lagrange orthormalisations, find the change of the potential energy due to the orthonormality 
+! of the orbitals...
+        IF(tLagrange) THEN
+            PEOrtho=0.D0
+            do i=1,SpatOrbs
+                do j=1,SpatOrbs
+                    t=0.D0
+                    do a=1,SpatOrbs
+                        t=CoeffT1(a,i)*CoeffT1(a,j)
+                    enddo
+                    IF(i.eq.j) t=t-1.D0
+                    PEOrtho=PEOrtho-Lambdas(i,j)*t
+                    PotEnergy=PotEnergy-Lambdas(i,j)*t
+                enddo
+            enddo
+        ENDIF
+        CALL halt_timer(Transform2ElInts_Time)
+
+
+    END SUBROUTINE Transform2ElIntsERFinal
 
 
     SUBROUTINE CalcPotentials()
@@ -2852,7 +2953,12 @@ MODULE RotateOrbsMod
         
         IF(iProcIndex.eq.Root) WRITE(6,*) 'Final Potential Energy before orthogonalisation',PotEnergy
 
-        CALL Transform2ElInts()
+        IF(tERLocalization) THEN
+            CALL Transform2ElIntsERFinal()
+        ELSE
+            CALL Transform2ElInts()
+        ENDIF
+            
 
 ! Use these final coefficients to find the FourIndInts(i,j,k,l).
 ! These are now the <ij|kl> integrals we now want to use instead of the HF UMat.
@@ -4106,7 +4212,7 @@ MODULE RotateOrbsMod
 !            WRITE(6,*) BRR(i),ARRTemp(i)
 !        enddo
 
-        CALL NECI_SORT2(nBasis,ARRTemp,BRR)
+!        CALL NECI_SORT2(nBasis,ARRTemp,BRR)
 
         do j=1,nBasis
             ARR(j,1)=ArrTemp(j)
