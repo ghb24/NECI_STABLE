@@ -61,6 +61,7 @@ MODULE RotateOrbsMod
 
         CALL FLUSH(6)
 
+
         CALL InitLocalOrbs()        ! Set defaults, allocate arrays, write out headings for OUTPUT, set integarals to HF values.
 
 
@@ -1251,7 +1252,6 @@ MODULE RotateOrbsMod
         CALL FindTheForce()
         ! This finds the unconstrained force (unless the lagrange keyword is present).
       
-
 !Update coefficents by moving them in direction of force. Print sum of squared changes in coefficients. 
         IF(tShake) THEN
             CALL ShakeConstraints()
@@ -2237,7 +2237,7 @@ MODULE RotateOrbsMod
         tShakeNotConverged=.true.
 
 ! Before we start iterating, take the current coefficients and find the derivative of the constraints with respect to them.
-        
+
         CALL CalcDerivConstr(CoeffT1,DerivConstrT1)
 
 !        WRITE(6,*) 'DerivContsrT1'
@@ -2263,7 +2263,7 @@ MODULE RotateOrbsMod
 
         CALL CalcConstraints(CoeffUncorT2,Constraint,TotConstraints)
 
-
+ 
 ! Write stats from the beginning of the iteration to output.            
 !        IF(Mod(Iteration,1).eq.0.or.Iteration.eq.1) THEN
 !            IF(iProcIndex.eq.Root) CALL WriteShakeOUTstats01()
@@ -2438,7 +2438,7 @@ MODULE RotateOrbsMod
 ! This takes the current lambdas with the derivatives of the constraints and calculates a force
 ! for each cm, with an orthonormalisation correction.
 ! This is then used to rotate the coefficients by a defined timestep.
-        INTEGER :: a,l,m,Symm,x,y,w,SymMin
+        INTEGER :: a,l,m,Symm,x,y,w,SymMin,TempMaxOccVirt
         REAL*8 :: TotForce,TotDiffCoeffs,CoeffT2(SpatOrbs,SpatOrbs)
 
 !        WRITE(6,*) 'DerivCoeff'
@@ -2460,9 +2460,14 @@ MODULE RotateOrbsMod
 
         CALL set_timer(findandusetheforce_time,30)
 
+        IF(tSeparateOccVirt) THEN
+            TempMaxOccVirt=2
+        ELSE
+            TempMaxOccVirt=1
+        ENDIF
 
 !        do w=MinOccVirt,MaxOccVirt
-        do w=1,2
+        do w=1,TempMaxOccVirt
 ! the force will be zero on those coefficients not being mixed, but still want to run over all, so that the diagonal 1 values are maintained.
             IF(w.eq.1) THEN
                 SymMin=1
