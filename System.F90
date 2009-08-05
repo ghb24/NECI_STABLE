@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tCacheFCIDUMPInts=.false.
       tHPHFInts=.false.
       tHPHF=.false.
       tMaxHLGap=.false.
@@ -769,15 +770,21 @@ MODULE System
             WRITE(6,*) "Reading Density fitted integrals."
             LMSBASIS=LMS
             CALL InitDFBasis(nEl,nBasisMax,Len,LMsBasis)
-         ELSEIF(tRIIntegrals) THEN
-            WRITE(6,*) "Reading RI integrals."
+         ELSEIF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
+!tCacheFCIDUMPInts means that we read in all the integrals from the FCIDUMP integral file, but store them contiguously in the cache
             LMSBASIS=LMS
-            CALL InitRIBasis(nEl,nBasisMax,Len,LMsBasis)
-            LMSBASIS=LMS
+            IF(tRIIntegrals) THEN
+                WRITE(6,*) "Reading RI integrals."
+                CALL InitRIBasis(nEl,nBasisMax,Len,LMsBasis)
+                LMSBASIS=LMS
+            ELSE
+                WRITE(6,*) "Reading in all integrals from FCIDUMP file, but storing them in a cache..."
+                tAbelian=.true.
+            ENDIF
             CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
-            nBasisMax(3,3)=1
-            nBasisMax(4,1)=-1
-            nBasisMax(4,2)=1
+            nBasisMax(3,3)=1    !No momentum conservation
+            nBasisMax(4,1)=-1   !God knows...
+            nBasisMax(4,2)=1    !Ditto
 !.. Correspond to ISS=0
 !            NBASISMAX(2,3)=-1  !indicate we generate on the fly
             iSpinSkip=-1
@@ -1012,6 +1019,7 @@ MODULE System
          nBasis=Len
          call GenMolpSymTable(1,G1,nBasis,Arr,Brr)
       ELSEIF(TREADINT) THEN
+!This is also called for tRiIntegrals and tCacheFCIDUMPInts
          WRITE(6,*) ' *** CREATING BASIS FNs FROM FCIDUMP *** '
          CALL GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN) 
          NBASIS=LEN

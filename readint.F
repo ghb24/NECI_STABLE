@@ -240,7 +240,8 @@ C.. set momentum to 0
          USE HElem
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SystemData, only: UMatEps,tUMatEps
+         use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
+         use SystemData, only: tRIIntegrals
          USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
@@ -351,7 +352,11 @@ C.. AJWT removed the restriction to TSTARSTORE
                     Y=MAX(I,J)
                     UMAT2D(Y,X)=Z
                 ELSE
-                    UMAT(UMatInd(I,K,J,L,0,0))=Z
+                    IF(.not.tCacheFCIDUMPInts.and.                      &
+     &                  (.not.tRIIntegrals)) THEN
+!This doesn't want to be read for RI and tCacheFCIDUMPInts since the integrals from a cache!
+                        UMAT(UMatInd(I,K,J,L,0,0))=Z
+                    ENDIF
                 ENDIF
             ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
                 STOP 'Need UMAT2D with TSTARSTORE'

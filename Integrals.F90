@@ -293,12 +293,12 @@ MODULE Integrals
       use HElem
       Use OneEInts, only: SetupTMat
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
-      Use UMatCache, only: InitStarStoreUMat
+      Use UMatCache, only: InitStarStoreUMat,SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
       use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP,tStarStore
-      use SystemData, only: uhub, arr,alat,treal
+      use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts
       INCLUDE 'cons.inc'
       INTEGER iCacheFlag
       COMPLEX*16,ALLOCATABLE :: ZIA(:)
@@ -372,6 +372,25 @@ MODULE Integrals
          Call ReadRIIntegrals(nBasis,I)
          CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          NBASISMAX(2,3)=0
+         WRITE(6,*) ' ECORE=',ECORE
+      ELSEIF(tReadInt.and.tCacheFCIDUMPInts) THEN
+         ALLOCATE(UMat(1),stat=ierr)
+         LogAlloc(ierr,'UMat',1,HElementSizeB,tagUMat)
+         CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
+!Now set up the UMatCache (**what size is allocated**.)
+         IF(nBasis.ne.I) THEN
+!We will freeze later - only allocate a small preliminary cache before freezing.
+             WRITE(6,*) "Setting up pre-freezing UMatCache"
+             call SetupUMatCache(I/2,.TRUE.)
+         ELSE
+             WRITE(6,*) "Setting up main UMatCache"
+             call SetupUMatCache(I/2,.FALSE.)
+         ENDIF
+!Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
+         call SetupUMat2D_df()  !This needs to be changed
+!The actual UMat2D integrals are read here into UMat2D here, but not into the cache.
+         CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+         NBASISMAX(2,3)=0   !Not really sure what this is saying... This is generally iSpinSkp
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(TREADINT.AND.TSTARSTORE) THEN
          WRITE(6,*) ' *** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP *** '
@@ -555,6 +574,7 @@ MODULE Integrals
             UMAT2=HElement(0.d0)
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
+            WRITE(6,*) "tCacheFCIDUMPInts SHOULD GET HERE!!! ****"
             Allocate(UMat2(1), stat=ierr)
             LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat)
          ENDIF 
@@ -717,7 +737,7 @@ MODULE Integrals
           IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
        ENDDO
 
-      IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+       IF(TSTARSTORE.or.tCPMDSymTMat) THEN
 !C.. Now setup the default symmetry to include the frozen electrons
 !C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
           IF (NFROZEN>0) THEN
@@ -870,7 +890,10 @@ MODULE Integrals
 !C.. GG(I) is the new position in G of the (old) orb I
           CALL FreezeUMatCache(GG,NHG,NBASIS)
        ENDIF
-       IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
+       IF(ISS.EQ.0) THEN
+           WRITE(6,*) "What does ISS=0 mean?? Does tCacheFCIDUMPInts get here??"
+           CALL SetupUMatTransTable(GG,nHG,nBasis)  !What is this for?!
+       ENDIF
        IF(.NOT.TSTARSTORE) THEN
           IF(NFROZEN>0) THEN
              CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)

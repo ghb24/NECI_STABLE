@@ -390,6 +390,8 @@ MODULE UMatCache
             CALL LogMemAlloc('UMATLABELS',nSlots*nPairs,4,thisroutine,tagUMatLabels)
             UMatCacheData=HElement(0.d0)
             UMATLABELS(1:nSlots,1:nPairs)=0
+!If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
+!FillUMatCache routine. Otherwise, we need to read in all the integrals.
             if (.not.tSmallUMat.and.tReadInCache) then
                 write (6,*) 'reading in cache'
                 call ReadInUMatCache
@@ -430,7 +432,7 @@ MODULE UMatCache
       SUBROUTINE SETUPUMAT2D_DF()
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for 
          ! density fitting calculations.
-         use System, only: tRIIntegrals
+         use System, only: tRIIntegrals,tCacheFCIDUMPInts
          use global_utilities
          IMPLICIT NONE
          INTEGER ierr
@@ -444,7 +446,7 @@ MODULE UMatCache
             call LogMemAlloc('UMat2D',nStates**2,8*HelementSize,thisroutine,tagUMat2D,ierr)
             IF(TSTARSTORE) THEN
                 RETURN
-            ELSEIF(tRIIntegrals) THEN
+            ELSEIF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
         !        CALL ReadRI2EIntegrals(nStates,UMat2D,tUMat2D)
          !  This happens later
             ELSE

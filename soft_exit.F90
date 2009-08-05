@@ -65,13 +65,6 @@ contains
            tChangeParams(1:8)=.false.
            ios=0
 
-!           tChangeTau=.false.
-!           tChangeDiagSft=.false.
-!           tChangeSftDamp=.false.
-!           tChangeStepsSft=.false.
-!           tChangeICILevel=.false.
-!           tSinglePartPhaseFound=.false.
-
            deleted_file=.false.
            do i=0,nProcessors-1
                ! This causes each processor to attempt to delete
@@ -90,34 +83,25 @@ contains
                        Select Case(w)
                        CASE("TAU")
                            tChangeParams(1)=.true.
-!                           tChangeTau=.true.
                            Call Readf(Tau)
                        CASE("DIAGSHIFT")
                            tChangeParams(2)=.true.
-!                           tChangeDiagSft=.true.
                            CALL Readf(DiagSft)
                        CASE("SHIFTDAMP")
                            tChangeParams(3)=.true.
-!                           tChangeSftDamp=.true.
                            CALL Readf(SftDamp)
                        CASE("STEPSSHIFT")
                            tChangeParams(4)=.true.
-!                           tChangeStepsSft=.true.
                            CALL Readi(StepsSft)
                        CASE("EXCITE")
                            tChangeParams(5)=.true.
-!                           tChangeICILevel=.true.
                            CALL Readi(ICILevel)
                        CASE("SOFTEXIT")
                            tChangeParams(6)=.true.
-!                           tSoftExitFound=.true.
                        CASE("WRITEPOPS")
                            tChangeParams(7)=.true.
-!                           tWritePopsFound=.true.
                        CASE("VARYSHIFT")
                            tChangeParams(8)=.true.
-!                           tSinglePartPhaseFound=.true.
-!                           tSinglePartPhase=.false.
                        END SELECT
 
                    End Do
@@ -128,15 +112,6 @@ contains
                if (any_deleted_file) exit
            end do
            CALL MPI_BCast(tChangeParams,8,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-
-!           CALL MPI_BCast(tChangeTau,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-!           CALL MPI_BCast(tChangeDiagSft,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-!           CALL MPI_BCast(tChangeSftDamp,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-!           CALL MPI_BCast(tChangeStepsSft,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-!           CALL MPI_BCast(tChangeICILevel,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-!           CALL MPI_BCast(tSoftExitFound,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-!           CALL MPI_BCast(tWritePopsFound,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
-!           CALL MPI_BCast(tSinglePartPhaseFound,1,MPI_LOGICAL,i,MPI_COMM_WORLD,error)
 
            IF(tChangeParams(1)) THEN
 !Change Tau
