@@ -310,6 +310,7 @@ MODULE Integrals
       REAL*8 :: UMatMem
       integer iErr
       character(25), parameter :: this_routine='IntInit'
+      LOGICAL :: tReadFreezeInts
 
       FREEZETRANSFER=.false.
             
@@ -370,7 +371,7 @@ MODULE Integrals
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          !   CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          Call ReadRIIntegrals(nBasis,I)
-         CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+         CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,.false.)
          NBASISMAX(2,3)=0
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(tReadInt.and.tCacheFCIDUMPInts) THEN
@@ -382,14 +383,18 @@ MODULE Integrals
 !We will freeze later - only allocate a small preliminary cache before freezing.
              WRITE(6,*) "Setting up pre-freezing UMatCache"
              call SetupUMatCache(I/2,.TRUE.)
+!Here, if we are freezing, we only want to read in the <ij|kj> integrals - not all of them.
+             tReadFreezeInts=.true.
          ELSE
              WRITE(6,*) "Setting up main UMatCache"
              call SetupUMatCache(I/2,.FALSE.)
+             tReadFreezeInts=.false.
          ENDIF
 !Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
          call SetupUMat2D_df()  !This needs to be changed
-!The actual UMat2D integrals are read here into UMat2D here, but not into the cache.
-         CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+!The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
+         CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,tReadFreezeInts)
+
          NBASISMAX(2,3)=0   !Not really sure what this is saying... This is generally iSpinSkp
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(TREADINT.AND.TSTARSTORE) THEN
@@ -410,7 +415,7 @@ MODULE Integrals
          IF(TBIN) THEN
              CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          ELSE
-             CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+             CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,.false.)
          ENDIF
          WRITE(6,*) ' ECORE=',ECORE
          ISPINSKIP=2
@@ -434,7 +439,7 @@ MODULE Integrals
          IF(TBIN) THEN
             CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)
          ELSE
-            CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+            CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,.false.)
          ENDIF
          WRITE(6,*) ' ECORE=',ECORE
       ELSE

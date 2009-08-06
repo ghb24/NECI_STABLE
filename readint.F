@@ -236,23 +236,30 @@ C.. set momentum to 0
          CLOSE(8)
          RETURN
       END
-      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1)
+
+!tReadFreezeInts only matters when we are cacheing the FCIDUMP file.
+!It is set if we want to cache the integrals to enable the freezing routine to take place, i.e. the <ij|kj> integrals.
+!The UMAT2D integrals will also be read in in this case.
+!If tReadFreezeInts is false, then if we are cacheing the FCIDUMP file, then we will read and cache all the integrals.
+      SUBROUTINE READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,               &
+     &   tReadFreezeInts)
          USE HElem
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
-         use SystemData, only: tRIIntegrals
-         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D
+         use SystemData, only: tRIIntegrals,nBasisMax
+         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D,GTID
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS,ZeroedInt,NonZeroInt
          REAL*8 ECORE,ARR(NBASIS,2)
          REAL*8 UMAT(*)
          REAL*8 Z
-         INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y
+         TYPE(HElement) UMatEl
+         INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y,A,B,iCache,iCacheI,iType
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
-         LOGICAL LWRITE,UHF
-         INTEGER ISPINS,ISPN,ISPN2
+         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
+         INTEGER ISPINS,ISPN,ISPN2,tReadFreezeInts,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),Index(1000)
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
@@ -351,15 +358,53 @@ C.. AJWT removed the restriction to TSTARSTORE
                     X=MIN(I,J)
                     Y=MAX(I,J)
                     UMAT2D(Y,X)=Z
-                ELSE
-                    IF(.not.tCacheFCIDUMPInts.and.                      &
-     &                  (.not.tRIIntegrals)) THEN
-!This doesn't want to be read for RI and tCacheFCIDUMPInts since the integrals from a cache!
-                        UMAT(UMatInd(I,K,J,L,0,0))=Z
+                ELSEIF(tRIIntegrals) THEN
+                    CALL Stop_All("ReadFCIINTS","we should not be "     &
+     /                    //"reading in generic 2e integrals from "     &
+     &                    //"the FCIDUMP file with ri.")
+                ELSEIF(tCacheFCIDUMPInts) THEN
+!Read in the FCIDUMP integrals to a cache.
+                    IF(tReadFreezeInts) THEN
+!Here, we only want to cache the <ij|kj> integrals, since they are the only integrals which are needed for the freezing process.
+                        CALL Stop_All("READFCIINTS","Freezing is not "  &
+     &                 //"yet compatible with caching the FCIDUMP file")
+                    ELSE
+                        IF(tUMatEps) THEN
+!We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
+                            IF(abs(Z).lt.UMatEps) THEN
+                                ZeroedInt=ZeroedInt+1
+                            ELSE
+!Cache the FCIDUMP integral
+!                                UMAT(UMatInd(I,K,J,L,0,0))=Z
+                                CALL GTID(nBasisMax,I,IDI)
+                                CALL GTID(nBasisMax,J,IDK)
+                                CALL GTID(nBasisMax,K,IDJ)
+                                CALL GTID(nBasisMax,L,IDL)
+                                tAddtoCache=GETCACHEDUMATEL(IDI,IDJ,    &
+     &          IDK,IDL,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
+                                IF(tAddtoCache) THEN
+                                    UMatEl=HElement(Z)
+                                    CALL CacheUMatEl(A,B,UMatEl,iCache, &
+     &                                     iCacheI,iType)
+                                ELSE
+                                    IF((abs(REAL(UMatEl%v,8)-Z)).gt.    &
+     &                                      1.D-7) THEN
+                                        CALL Stop_All("READFCIINT",     &
+     &        "Same integral cached in same place with different value")
+                                    ENDIF
+                                ENDIF
+                                NonZeroInt=NonZeroInt+1
+                            ENDIF
+                        ENDIF
                     ENDIF
+                ELSE
+!Read in all integrals as normal.
+                    UMAT(UMatInd(I,K,J,L,0,0))=Z
                 ENDIF
             ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
                 STOP 'Need UMAT2D with TSTARSTORE'
+            ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
+                CALL Stop_All("ReadFCIInts","TUMAT2D should be set...")
             ELSE
                 IF(tUMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
