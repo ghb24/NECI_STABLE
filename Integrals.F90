@@ -43,6 +43,8 @@ MODULE Integrals
       TReadHF=.false.
       NFROZEN=0
       NTFROZEN=0
+      NFROZENIN=0
+      NTFROZENIN=0
       OrbOrder(:,:)=0
       OrbOrder2(:)=0.d0
       nSlotsInit=1024
@@ -202,6 +204,15 @@ MODULE Integrals
      &       (NTFROZEN.LT.0 .and. mod(NEL-NTFROZEN,2).ne.0) ) then
                 call report("-ve NTFROZEN must be same parity  "      &
      &          //"as NEL",.true.)
+            end if
+        case("FREEZEINNER")
+            call readi(NFROZENIN)
+            call readi(NTFROZENIN)
+            NFROZENIN=ABS(NFROZENIN)
+            NTFROZENIN=ABS(NTFROZENIN)
+            if((mod(NFROZENIN,2).ne.0).or.(mod(NTFROZENIN,2).ne.0) ) then
+                call report("NFROZENIN and NTFROZENIN must be"      &
+     &          //"multiples of 2",.true.)
             end if
         case("ORDER")
             I = 1
@@ -543,6 +554,7 @@ MODULE Integrals
       use SystemData, only: nBasis,nEl,arr,nbasismax
       use UMatCache, only: GetUMatSize
       use HElem, only: HElement,HElementSize,HElementSizeB
+      use SymData , only : TwoCycleSymGens
       use global_utilities
       character(25), parameter ::this_routine='IntFreeze'            
 !//Locals
@@ -551,6 +563,7 @@ MODULE Integrals
       INTEGER nOcc
       integer UMATInt
       integer nHG
+
       nHG=nBasis
             
       CHEMPOT=(ARR(NEL,1)+ARR(NEL+1,1))/2.D0
@@ -559,7 +572,16 @@ MODULE Integrals
          WRITE(6,*) "NTFROZEN<0.  Leaving ", -NTFROZEN," unfrozen virtuals."
          NTFROZEN=NTFROZEN+nBasis-NEL
       ENDIF
-      IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0) THEN
+      IF((NFROZEN+NFROZENIN).gt.NEL) CALL Stop_All("IntFreeze","Overlap between low energy frozen orbitals &
+                                                    & and inner frozen occupied orbitals - to many frozen occupied orbitals &
+                                                    & for the number of electrons.")
+      IF((NTFROZEN+NTFROZENIN).gt.(NBASIS-NEL)) CALL Stop_All("IntFreeze","Overlap between high energy frozen orbitals &
+                                                    & and inner frozen virtual orbitals - to many frozen virtual orbitals &
+                                                    & for the number of unnoccupied orbitals.")
+      IF(((NFROZENIN.GT.0).or.(NTFROZENIN.GT.0)).and.(.not.TwoCycleSymGens)) CALL Stop_All("IntFreeze","TwoCycleSymGens is not true. &
+                                                    & The code is only set up to deal with freezing from the inside for molecular &
+                                                    & systems with only 8 symmetry irreps.")
+      IF(NFROZEN.GT.0.OR.NTFROZEN.GT.0.OR.NFROZENIN.GT.0.OR.NTFROZENIN.GT.0) THEN
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
 !!C..
@@ -568,30 +590,33 @@ MODULE Integrals
 !!C.. t'_ii = t_ii+ sum_a ( <ai|ai> - <ai|ia> ) 
 !!C.. NHG contains the old number of orbitals
 !!C.. NBASIS contains the new
-         NBASIS=NBASIS-NFROZEN-NTFROZEN
+         NBASIS=NBASIS-NFROZEN-NTFROZEN-NFROZENIN-NTFROZENIN
 !!C.. We need to transform some integrals
          !CALL N_MEMORY(IP_TMAT2,HElementSize*(NBASIS)**2,'TMAT2')
          !TMAT2=HElement(0.d0)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
-            CALL GetUMatSize(nBasis,(nEl-NFROZEN),iSpinSkip,UMATINT)
+            CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),iSpinSkip,UMATINT)
                 Allocate(UMat2(UMatInt), stat=ierr)
                 LogAlloc(ierr, 'UMat2', UMatInt,HElementSizeB, tagUMat)
             UMAT2=HElement(0.d0)
          ELSE
 !!C.. we don't precompute 4-e integrals, so don't allocate a large UMAT
-            WRITE(6,*) "tCacheFCIDUMPInts SHOULD GET HERE!!! ****"
             Allocate(UMat2(1), stat=ierr)
             LogAlloc(ierr, 'UMat2', 1,HElementSizeB, tagUMat)
          ENDIF 
          CALL N_MEMORY_CHECK()
+
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
-         CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
+         CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL,ALAT)
+         CALL FLUSH(6)
          CALL N_MEMORY_CHECK()
          WRITE(6,*) "Freezing ",NFROZEN," core orbitals."
          WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
+         WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
+         WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
          WRITE(6,*) "ECORE now",ECORE
          WRITE(6,*) NBASIS," orbitals remain."
-         NEL=NEL-NFROZEN
+         NEL=NEL-NFROZEN-NFROZENIN
          NOCC=NEL/2
 !!C.. NEL now only includes active electrons
          WRITE(6,*) "Number of active electrons:",NEL
@@ -643,9 +668,9 @@ MODULE Integrals
     END Subroutine IntCleanup
 
 
-
+!This routine takes the frozen orbitals and modifies ECORE, UMAT, BRR etc accordingly.
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
-   &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NEL,ALAT)
+   &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL,ALAT)
        USE HElem
        use SystemData, only: Symmetry,BasisFN,BasisFNSize,arr,tagarr,tHub
        use OneEInts
@@ -665,8 +690,10 @@ MODULE Integrals
        REAL*8 ARR2(NBASIS,2)
        INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),GG(NHG)
        TYPE(BASISFN) G2(NHG)
-       INTEGER NTFROZEN
-       INTEGER I,J,K,L,A,B,IP,JP,KP,LP,IDI,IDJ,IDK,IDL
+       INTEGER NTFROZEN,NFROZENIN,NTFROZENIN
+       INTEGER BLOCKMINW,BLOCKMAXW,FROZENBELOWW,BLOCKMINY,BLOCKMAXY,FROZENBELOWY
+       INTEGER BLOCKMINX,BLOCKMAXX,FROZENBELOWX,BLOCKMINZ,BLOCKMAXZ,FROZENBELOWZ
+       INTEGER I,J,K,L,A,B,IP,JP,KP,LP,IDI,IDJ,IDK,IDL,W,X,Y,Z
        INTEGER IB,JB,KB,LB,AB,BB,IPB,JPB,KPB,LPB
        INTEGER IDIP,IDJP,IDKP,IDLP
        INTEGER IDA,IDB,SGN
@@ -700,6 +727,26 @@ MODULE Integrals
              write (6,'(a)') 'This should only be done for debugging purposes.'
           ENDIF
        ENDIF
+       IF(NFROZENIN.GT.0) THEN
+          IF(ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.D-6.AND.       &
+   &        G1(BRR(NEL-NFROZENIN))%SYM%s.EQ.G1(BRR(NEL-NFROZENIN+1))%SYM%s) THEN
+             STOP "Cannot freeze in the middle of a degenerate set"
+          ELSE IF (ABS(ARR(NEL-NFROZENIN,1)-ARR(NEL-NFROZENIN+1,1)).LT.1.D-6) THEN
+             write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+             write (6,'(a)') 'This should only be done for debugging purposes.'
+          ENDIF
+       ENDIF
+       IF(NTFROZENIN.GT.0) THEN
+          IF(ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.D-6  &
+   &         .AND.G1(BRR(NEL+NTFROZENIN))%SYM%s                         &
+   &               .EQ.G1(BRR(NEL+NTFROZENIN+1))%SYM%s) THEN
+             STOP "Cannot freeze in the middle of a degenerate virtual set"
+          ELSE IF (ABS(ARR(NEL+NTFROZENIN,1)-ARR(NEL+NTFROZENIN+1,1)).LT.1.D-6) THEN
+             write (6,'(a)') 'WARNING: Freezing in the middle of a degenerate set.'
+             write (6,'(a)') 'This should only be done for debugging purposes.'
+          ENDIF
+       ENDIF
+
 
 !!C.. At this point, we transform the UMAT and TMAT into a new UMAT and
 !!C.. TMAT and Ecore with the frozen orbitals factored in
@@ -711,6 +758,7 @@ MODULE Integrals
 !!C.. NBASIS contains the new
 !!C.. We first need to work out where each of the current orbitals will
 !!C.. end up in the new set
+
        K=0
        DO I=1,NHG
           L=1
@@ -718,7 +766,13 @@ MODULE Integrals
 !C.. if orb I is to be frozen, L will become 0
              IF(BRR(J).EQ.I) L=0
           ENDDO
-          DO J=NBASIS+NFROZEN+1,NHG
+          DO J=NEL-NFROZENIN+1,NEL
+             IF(BRR(J).EQ.I) L=0
+          ENDDO
+          DO J=NEL+1,NEL+NTFROZENIN
+             IF(BRR(J).EQ.I) L=0
+          ENDDO
+          DO J=NBASIS+NFROZEN+NFROZENIN+NTFROZENIN+1,NHG
 !C.. if orb I is to be frozen, L will become 0
              IF(BRR(J).EQ.I) L=0
           ENDDO
@@ -733,16 +787,40 @@ MODULE Integrals
              CALL NECI_ICOPY(BasisFNSize,G1(I),1,G2(K),1)
           ENDIF
        ENDDO
+
 !C.. Now construct the new BRR and ARR
-       DO I=1,NBASIS
-          BRR2(I)=GG(BRR(I+NFROZEN))
-          ARR2(I,1)=ARR(I+NFROZEN,1)
-       ENDDO
+!       DO I=1,NBASIS
+
+!Need to run through the remaining orbitals in 2 lots, the occupied and virtual, because
+!each are being shifted by different amounts.  The occupied are only affected by the low energy 
+!frozen orbitals, but the virtuals need to also account for the inner frozen orbitals.
+       DO W=1,2
+          IF(W.eq.1) THEN
+              BLOCKMINW=1 
+              BLOCKMAXW=NEL-NFROZEN-NFROZENIN
+              FROZENBELOWW=NFROZEN
+          ELSEIF(W.eq.2) THEN
+              BLOCKMINW=NEL-NFROZEN-NFROZENIN+1 
+              BLOCKMAXW=NBASIS
+              FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
+          ENDIF
+          DO I=BLOCKMINW,BLOCKMAXW
+              BRR2(I)=GG(BRR(I+FROZENBELOWW))
+              ARR2(I,1)=ARR(I+FROZENBELOWW,1)
+          ENDDO
+       ENDDO 
+
        DO I=1,NHG
           IF(GG(I).NE.0) ARR2(GG(I),2)=ARR(I,2)
        ENDDO
 
        IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+          IF(NFROZENIN.gt.0.or.NTFROZENIN.gt.0)             &
+!The symmetry routines (GETSYM etc) required for StarStore or CPMD are a bit confusing, so these have not been set 
+!up to cope with freezing the inner orbitals as it is not expected to be done with these options much.
+!Can remove this restriction and modify the symmetry routines if needed.
+  &           CALL Stop_All("IntFreezeBasis","Freezing from the inner is not set up to cope &
+                            &with StarStore or CPMDSymTMat.")
 !C.. Now setup the default symmetry to include the frozen electrons
 !C.. BRR(1:NFROZEN) is effectively the det of the frozens, so we get its sym
           IF (NFROZEN>0) THEN
@@ -762,9 +840,15 @@ MODULE Integrals
        CALL SetupTMAT2(NBASIS,2,iSize)
 
 !C.. First deal with Ecore
+!Adding the energy of the occupied orbitals to the core energy.
+!Need to do this for both the low energy frozen and inner frozen orbitals.
        DO A=1,NFROZEN
           AB=BRR(A)
+          ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
+          ! TMATEL is the one electron integrals <a|h|a>.
           ECORE=ECORE+DREAL(GetTMATEl(AB,AB))
+
+          ! Ecore' = Ecore + sum a<b (<ab|ab> - <ab|ba>)
           DO B=A+1,NFROZEN
              BB=BRR(B)
              CALL GTID(NBASISMAX,AB,IDA)
@@ -776,117 +860,261 @@ MODULE Integrals
              IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
    &            ECORE=ECORE-DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDB,IDA))
           ENDDO
+
+!The sum over b runs over all frozen orbitals > a, so the inner frozen orbitals too.          
+          DO B=NEL-NFROZENIN+1,NEL
+             BB=BRR(B)
+             CALL GTID(NBASISMAX,AB,IDA)
+             CALL GTID(NBASISMAX,BB,IDB)
+!C.. No sign problems from permuations here as all perms even
+             ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
+!C.. If we have spin-independent integrals, or 
+!C.. if the spins are the same
+             IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
+   &            ECORE=ECORE-DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDB,IDA))
+          ENDDO
        ENDDO
+
+!Need to also account for when a is the frozen inner orbitals, but b > a, so b only runs over the frozen 
+!inner.
+       DO A=NEL-NFROZENIN+1,NEL
+          AB=BRR(A)
+          ECORE=ECORE+DREAL(GetTMATEl(AB,AB))
+          DO B=A+1,NEL
+             BB=BRR(B)
+             CALL GTID(NBASISMAX,AB,IDA)
+             CALL GTID(NBASISMAX,BB,IDB)
+!C.. No sign problems from permuations here as all perms even
+             ECORE=ECORE+DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDA,IDB))
+!C.. If we have spin-independent integrals, or 
+!C.. if the spins are the same
+             IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
+   &            ECORE=ECORE-DREAL(GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDB,IDB,IDA))
+          ENDDO
+       ENDDO
+
 !C.. now deal with the new TMAT
        FREEZETRANSFER=.true.
-       DO I=1,NBASIS
-          IP=I+NFROZEN
-          IB=BRR(IP)
-          IPB=GG(IB)
-          CALL GTID(NBASISMAX,IB,IDI)
-          DO J=1,NBASIS
-             JP=J+NFROZEN
-             JB=BRR(JP)
-             JPB=GG(JB)
-             CALL GTID(NBASISMAX,JB,IDJ)
-             IF(TSTARSTORE.or.tCPMDSymTMat) THEN
-                 TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
-             ELSE
-                 TMAT2D2(IPB,JPB)=GetTMATEl(IB,JB)
-             ENDIF
-             DO A=1,NFROZEN
-                AB=BRR(A)
-                CALL GTID(NBASISMAX,AB,IDA)
+!First the low energy frozen orbitals.
+
+!t'_ii = t_ii+ sum_a ( <ai|ai> - <ai|ia> ) 
+!Again need to do this for the remaining occupied, and then the remaining virtual separately.
+!The above i runs over all orbitals, whereas a is only over the occupied virtuals.
+       DO W=1,2
+          IF(W.eq.1) THEN
+              BLOCKMINW=1 
+              BLOCKMAXW=NEL-NFROZEN-NFROZENIN
+              FROZENBELOWW=NFROZEN
+          ELSEIF(W.eq.2) THEN
+              BLOCKMINW=NEL-NFROZEN-NFROZENIN+1 
+              BLOCKMAXW=NBASIS
+              FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
+          ENDIF
+ 
+          DO I=BLOCKMINW,BLOCKMAXW
+              IP=I+FROZENBELOWW
+              IB=BRR(IP)
+              IPB=GG(IB)
+              CALL GTID(NBASISMAX,IB,IDI)
+
+!I and J give the indexes of the TMAT.  This bit accounts for the off-diagonal terms which must be copied accross.          
+              DO Y=1,2
+                 IF(Y.eq.1) THEN
+                    BLOCKMINY=1 
+                    BLOCKMAXY=NEL-NFROZEN-NFROZENIN
+                    FROZENBELOWY=NFROZEN
+                 ELSEIF(Y.eq.2) THEN
+                    BLOCKMINY=NEL-NFROZEN-NFROZENIN+1 
+                    BLOCKMAXY=NBASIS
+                    FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
+                 ENDIF
+ 
+                 DO J=BLOCKMINY,BLOCKMAXY
+                    JP=J+FROZENBELOWY
+                    JB=BRR(JP)
+                    JPB=GG(JB)
+                    CALL GTID(NBASISMAX,JB,IDJ)
+                    IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                       TMATSYM2(NEWTMATInd(IPB,JPB))=GetTMATEl(IB,JB)
+                    ELSE
+                       IF(IPB.eq.0.or.JPB.eq.0) THEN
+!                           WRITE(6,*) 'W',W,'I',I,'J',J,'IPB',IPB,'JPB',JPB
+!                           CALL FLUSH(6)
+!                           CALL Stop_All("","here 01")
+                       ENDIF
+                       TMAT2D2(IPB,JPB)=GetTMATEl(IB,JB)
+                    ENDIF
+                    DO A=1,NFROZEN
+                       AB=BRR(A)
+                       CALL GTID(NBASISMAX,AB,IDA)
 !C.. SGN takes into account permutationnness.
 !C                SGN=1
 !C                IF(IB.GT.AB) SGN=-SGN
 !C                IF(JB.GT.AB) SGN=-SGN
-                IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
-                    IF(TSTARSTORE.or.tCPMDSymTMat) THEN
-                      TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
-   &                  GetNEWTMATEl(IPB,JPB)+GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
-                    ELSE
-                       TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
-                    ENDIF
-                ENDIF
+                       IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
+                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                             TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
+   &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
+                          ELSE
+!                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 02")
+                             TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
+                          ENDIF
+                       ENDIF
 !C.. If we have spin-independent integrals, ISS.EQ.2.OR
 !C.. if the spins are the same
-                IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
-                      IF(TSTARSTORE.or.tCPMDSymTMat) THEN
-                          TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
-   &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)        
-                      ELSE
-                          TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
-   &        -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
-                      ENDIF
-                  ENDIF
-             ENDDO
+                       IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
+                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                             TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
+   &                         -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)        
+                          ELSE
+!                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 03")
+                             TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
+   &                         -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
+                          ENDIF
+                       ENDIF
+                    ENDDO
+                    DO A=NEL-NFROZENIN+1,NEL
+                       AB=BRR(A)
+                       CALL GTID(NBASISMAX,AB,IDA)
+!C.. SGN takes into account permutationnness.
+!C                SGN=1
+!C                IF(IB.GT.AB) SGN=-SGN
+!C                IF(JB.GT.AB) SGN=-SGN
+                       IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
+                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                             TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
+   &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
+                          ELSE
+!                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 04")
+                             TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDA,IDJ)
+                          ENDIF
+                       ENDIF
+!C.. If we have spin-independent integrals, ISS.EQ.2.OR
+!C.. if the spins are the same
+                       IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
+                          IF(TSTARSTORE.or.tCPMDSymTMat) THEN
+                             TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
+   &                         -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)        
+                          ELSE
+!                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 05")
+                             TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
+   &                         -GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,IDA,IDI,IDJ,IDA)
+                          ENDIF
+                       ENDIF
+                    ENDDO
 !             WRITE(6,*) "T",TMAT(IB,JB),I,J,TMAT2(IPB,JPB)
 !          IF(TMAT(IPB,JPB).AGT.1.D-9) WRITE(16,*) I,J,TMAT2(IPB,JPB)
-          ENDDO
+                 ENDDO
+             ENDDO
+          ENDDO  
        ENDDO
+
        IF(NBASISMAX(1,3).GE.0.AND.ISS.NE.0) THEN
 
           CALL CREATEINVBRR2(BRR2,NBASIS)
 !CC Only do the below if we've a stored UMAT
 !C.. Now copy the relevant matrix elements of UMAT across
 !C.. the primed (...P) are the new versions
-          DO I=1,NBASIS
-             IB=BRR(I+NFROZEN)
-             IPB=GG(IB)
-             IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                CALL GTID(NBASISMAX,IB,IDI)
-                CALL GTID(NBASISMAX,IPB,IDIP)
-                DO J=1,NBASIS
-                  JB=BRR(J+NFROZEN)
-                  JPB=GG(JB)
-                  IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                     CALL GTID(NBASISMAX,JB,IDJ)
-                     CALL GTID(NBASISMAX,JPB,IDJP)
-                     DO K=I,NBASIS
-                        KB=BRR(K+NFROZEN)
-                        KPB=GG(KB)
-                        IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                           CALL GTID(NBASISMAX,KB,IDK)
-                           CALL GTID(NBASISMAX,KPB,IDKP)
-                           DO L=J,NBASIS
-                              IF((K*(K-1))/2+I.GE.(L*(L-1))/2+J) THEN
-                                 LB=BRR(L+NFROZEN)
-                                 LPB=GG(LB)
-                                 IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
-                                    CALL GTID(NBASISMAX,LB,IDL)
-                                    CALL GTID(NBASISMAX,LPB,IDLP)
-
-                                    IF(TSTARSTORE) THEN
-                                       IF(.NOT.TUMAT2D) STOP 'UMAT2D should be on'
-                                       IF((IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL).or.    &
-   &                                        (IDI.eq.IDK.and.IDJ.eq.IDL).or.                 &
-   &                                        (IDI.eq.IDL.and.IDJ.eq.IDK).or.                 &
-   &                                        (IDI.eq.IDJ.and.IDK.eq.IDL)) THEN
-                                          CONTINUE
-                                       ELSE
-                                          IF(((I+NFROZEN).gt.NEL).or.((J+NFROZEN).gt.NEL)) THEN
-                                             CONTINUE
-                                          ELSE
-                                             UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,(NEL-NFROZEN)/2))=  &
-   &                                                          UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
-                                          ENDIF
-                                       ENDIF
-                                    ELSE
-                                       UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,0))=             &
-   &                                                 UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
-                                    ENDIF
+          DO W=1,2
+              IF(W.eq.1) THEN
+                  BLOCKMINW=1 
+                  BLOCKMAXW=NEL-NFROZEN-NFROZENIN
+                  FROZENBELOWW=NFROZEN
+              ELSEIF(W.eq.2) THEN
+                  BLOCKMINW=NEL-NFROZEN-NFROZENIN+1 
+                  BLOCKMAXW=NBASIS
+                  FROZENBELOWW=NFROZEN+NFROZENIN+NTFROZENIN
+              ENDIF
+              DO I=BLOCKMINW,BLOCKMAXW
+                 IB=BRR(I+FROZENBELOWW)
+                 IPB=GG(IB)
+                 IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
+                    CALL GTID(NBASISMAX,IB,IDI)
+                    CALL GTID(NBASISMAX,IPB,IDIP)
+                    DO X=1,2
+                      IF(X.eq.1) THEN
+                         BLOCKMINX=1 
+                         BLOCKMAXX=NEL-NFROZEN-NFROZENIN
+                         FROZENBELOWX=NFROZEN
+                      ELSEIF(X.eq.2) THEN
+                         BLOCKMINX=NEL-NFROZEN-NFROZENIN+1 
+                         BLOCKMAXX=NBASIS
+                         FROZENBELOWX=NFROZEN+NFROZENIN+NTFROZENIN
+                      ENDIF
+                      DO J=BLOCKMINX,BLOCKMAXX
+                          JB=BRR(J+FROZENBELOWX)
+                          JPB=GG(JB)
+                          IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
+                             CALL GTID(NBASISMAX,JB,IDJ)
+                             CALL GTID(NBASISMAX,JPB,IDJP)
+                             DO Y=1,2
+                                 IF(Y.eq.1) THEN
+                                    BLOCKMINY=1 
+                                    BLOCKMAXY=NEL-NFROZEN-NFROZENIN
+                                    FROZENBELOWY=NFROZEN
+                                 ELSEIF(Y.eq.2) THEN
+                                    BLOCKMINY=NEL-NFROZEN-NFROZENIN+1 
+                                    BLOCKMAXY=NBASIS
+                                    FROZENBELOWY=NFROZEN+NFROZENIN+NTFROZENIN
                                  ENDIF
-                              ENDIF
-                           ENDDO
-                        ENDIF
-                     ENDDO
-                  ENDIF
-                ENDDO
-             ENDIF
+                                 DO K=BLOCKMINY,BLOCKMAXY
+                                    KB=BRR(K+FROZENBELOWY)
+                                    KPB=GG(KB)
+                                    IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
+                                       CALL GTID(NBASISMAX,KB,IDK)
+                                       CALL GTID(NBASISMAX,KPB,IDKP)
+                                       DO Z=1,2
+                                         IF(Z.eq.1) THEN
+                                            BLOCKMINZ=1 
+                                            BLOCKMAXZ=NEL-NFROZEN-NFROZENIN
+                                            FROZENBELOWZ=NFROZEN
+                                         ELSEIF(Z.eq.2) THEN
+                                            BLOCKMINZ=NEL-NFROZEN-NFROZENIN+1 
+                                            BLOCKMAXZ=NBASIS
+                                            FROZENBELOWZ=NFROZEN+NFROZENIN+NTFROZENIN
+                                         ENDIF
+                                         DO L=BLOCKMINZ,BLOCKMAXZ
+                                              IF((K*(K-1))/2+I.GE.(L*(L-1))/2+J) THEN
+                                                 LB=BRR(L+FROZENBELOWZ)
+                                                 LPB=GG(LB)
+                                                 IF(ISS.NE.0.OR.G1(I)%MS.EQ.1) THEN
+                                                    CALL GTID(NBASISMAX,LB,IDL)
+                                                    CALL GTID(NBASISMAX,LPB,IDLP)
+                                                    IF(TSTARSTORE) THEN
+                                                       IF(.NOT.TUMAT2D) STOP 'UMAT2D should be on'
+                                                       IF((IDI.eq.IDJ.and.IDI.eq.IDK.and.IDI.eq.IDL).or.    &
+                   &                                        (IDI.eq.IDK.and.IDJ.eq.IDL).or.                 &
+                   &                                        (IDI.eq.IDL.and.IDJ.eq.IDK).or.                 &
+                   &                                        (IDI.eq.IDJ.and.IDK.eq.IDL)) THEN
+                                                          CONTINUE
+                                                       ELSE
+                                                          IF(((I+FROZENBELOWZ).gt.NEL).or.((J+FROZENBELOWZ).gt.NEL)) THEN
+                                                             CONTINUE
+                                                          ELSE
+                                                             UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,(NEL-NFROZEN-NFROZENIN)/2))=  &
+                   &                                                          UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
+                                                          ENDIF
+                                                       ENDIF
+                                                    ELSE
+                                                       UMAT2(UMatInd(IDIP,IDJP,IDKP,IDLP,0,0))=             &
+                   &                                                 UMAT(UMatInd(IDI,IDJ,IDK,IDL,NHG/2,0))
+                                                    ENDIF
+                                                 ENDIF
+                                              ENDIF
+                                         ENDDO
+                                       ENDDO
+                                    ENDIF
+                                 ENDDO
+                             ENDDO
+                          ENDIF
+                      ENDDO
+                    ENDDO
+                 ENDIF
+              ENDDO
           ENDDO
           CALL FLUSH(11)
           CALL FLUSH(12)
+ 
           IF(TSTARSTORE) CALL FreezeUMAT2D(NHG,NBASIS,GG,2)
        ELSEIF(Associated(UMatCacheData)) THEN
 !.. We've a UMAT2D and a UMATCACHE.  Go and Freeze them
@@ -895,21 +1123,32 @@ MODULE Integrals
 !C.. GG(I) is the new position in G of the (old) orb I
           CALL FreezeUMatCache(GG,NHG,NBASIS)
        ENDIF
-       IF(ISS.EQ.0) THEN
-           WRITE(6,*) "What does ISS=0 mean?? Does tCacheFCIDUMPInts get here??"
-           CALL SetupUMatTransTable(GG,nHG,nBasis)  !What is this for?!
-       ENDIF
+       IF(ISS.EQ.0) CALL SetupUMatTransTable(GG,nHG,nBasis)
+
        IF(.NOT.TSTARSTORE) THEN
-          IF(NFROZEN>0) THEN
+          IF(NFROZENIN.gt.0) THEN
+!             CALL GETSYM(BRR,NFROZEN,BRR((NEL-NFROZENIN+1):NEL),G1,NBASISMAX,KSym)
+!This is slightly dodgey... I have commented out the above routine that finds the symmetry of the frozen orbitals.
+!There is already a test to check we are not freezing in the middle of degenracies, so the symmetry should always come
+!out as 0 anyway, unless we are breaking up a set of symmetry irreps somehow ... I think.
+             WRITE(6,*) "WARNING: Setting the symmetry of the frozen orbitals to 0. This will be incorrect &
+                        &if orbitals are frozen in the middle of a degenerate set of the same symmetery irrep."
+             KSym%S=0
+             CALL SetupFREEZEALLSYM(KSym)
+          ELSEIF(NFROZEN>0) THEN
              CALL GETSYM(BRR,NFROZEN,G1,NBASISMAX,KSym)
+!             WRITE(6,*) '************'
+!             WRITE(6,*) 'KSym',KSym
              CALL SetupFREEZEALLSYM(KSym)
           END IF
           CALL FREEZESYMLABELS(NHG,NBASIS,GG,.false.)
           CALL NECI_ICOPY(BasisFNSize*NBASIS,G2,1,G1,1)
        ENDIF 
+
        FREEZETRANSFER=.false.
 !C.. Copy the new BRR and ARR over the old ones
        CALL SWAPTMAT(NBASIS,NHG,GG)
+
        deallocate(arr)
        LogDealloc(tagarr)
        allocate(arr(nBasis,2),stat=ierr)
@@ -920,7 +1159,7 @@ MODULE Integrals
 !C.. Now reset the total number of orbitals
        NHG=NBASIS
        Call DetFreezeBasis(GG)
-       
+
        RETURN
     end subroutine intfreezebasis
 

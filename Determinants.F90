@@ -305,7 +305,7 @@ END MODULE Determinants
       subroutine DetFreezeBasis(GG)
         Use Determinants, only: FDet, nUHFDet
         use SystemData, only : nEl, nBasis
-        use IntegralsData, only : nFrozen
+        use IntegralsData, only : nFrozen,nFrozenIn
         implicit none
         integer i,j
         INTEGER GG(*)
@@ -323,7 +323,7 @@ END MODULE Determinants
                ENDIF
             ENDDO
             CALL NECI_SORTI(NEL,FDET)
-            IF(J.NE.NEL-NFROZEN) THEN
+            IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                CALL WRITEDET(6,NEL,FDET,.TRUE.)
                STOP "After Freezing, FDET has wrong number of electrons"
@@ -341,14 +341,14 @@ END MODULE Determinants
                ENDIF
             ENDDO
             CALL NECI_SORTI(NEL,nUHFDET)
-            IF(J.NE.NEL-NFROZEN) THEN
+            IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                CALL WRITEDET(6,NEL,nUHFDET,.TRUE.)
                STOP "After Freezing, UHFDET has wrong number of electrons"
             ENDIF
          ENDIF
          WRITE(6,"(A)",advance='no') "Post-Freeze Fermi det (D0):"
-         CALL WRITEDET(6,FDET,NEL-NFROZEN,.TRUE.)
+         CALL WRITEDET(6,FDET,NEL-NFROZEN-NFROZENIN,.TRUE.)
       end subroutine
 
 

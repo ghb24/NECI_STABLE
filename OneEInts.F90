@@ -544,8 +544,8 @@ contains
                 ENDIF
             ELSE
                 IF(ASSOCIATED(TMAT2D)) THEN
-                    call LogMemDealloc(thisroutine,tagTMat2D)
                     Deallocate(TMAT2D)
+                    call LogMemDealloc(thisroutine,tagTMat2D)
                     NULLIFY(TMAT2D)
                 ENDIF
             ENDIF
@@ -578,7 +578,7 @@ contains
         integer I,J,NBASIS,NHG,GG(NHG)
         integer*8 TMATINT,LG
         character(*),parameter :: this_routine='SwapTMat'
-        
+
          IF(TSTARSTORE) THEN
             !Transfer across the vectors for indexing TMAT
             deallocate(SymClasses2)
