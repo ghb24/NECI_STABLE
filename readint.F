@@ -258,8 +258,8 @@ C.. set momentum to 0
          TYPE(HElement) UMatEl
          INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y,A,B,iCache,iCacheI,iType
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
-         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl
-         INTEGER ISPINS,ISPN,ISPN2,tReadFreezeInts,IDI,IDJ,IDK,IDL
+         LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
+         INTEGER ISPINS,ISPN,ISPN2,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),Index(1000)
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
