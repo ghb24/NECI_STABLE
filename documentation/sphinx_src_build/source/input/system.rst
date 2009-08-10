@@ -305,6 +305,13 @@ Read options
         list for each excitation.  Currently only working for the 2-vertex
         star Fock-Partition-Lowdiag calculations.
 
+**READCACHEINTS**
+    Default=.false.
+
+    This means that the FCIDUMP file will be read in the integrals in it will be
+    cached. This means that less space should be used for storage of the integrals,
+    however, it will be slower since the integrals will need to be binary searched.
+
 Model system options 
 --------------------
 

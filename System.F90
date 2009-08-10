@@ -243,7 +243,9 @@ MODULE System
             tDFRead=.true.
         ! General options.
         case("RIINTEGRALS")
-          tRIIntegrals = .true.
+           tRIIntegrals = .true.
+        case("READCACHEINTS")
+           tCacheFCIDUMPInts=.true.
         case("ELECTRONS","NEL")
             call geti(NEL)
         case("SPIN-RESTRICT")

@@ -1193,7 +1193,7 @@ MODULE Integrals
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals
+      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts
       use UMatCache
       use vasp_neci_interface, only: CONSTRUCT_IJAB_one
       IMPLICIT NONE
@@ -1245,7 +1245,7 @@ MODULE Integrals
                I=MAX(IDI,IDJ)
                J=MIN(IDI,IDJ)
                GETUMATEL=UMAT2D(I,J)
-            ELSE IF (tRIIntegrals.and.IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
+            ELSE IF ((tCacheFCIDUMPInts.or.tRIIntegrals).and.IDI.eq.IDJ.and.IDK.eq.IDL.AND.TUMAT2D.AND.HElementSize.EQ.1) THEN
 !   <ii|jj> = <ij|ji> Only for real systems (and not for the local exchange
 !   scheme.)
               I=MAX(IDI,IDK)
@@ -1266,6 +1266,7 @@ MODULE Integrals
 !   Check the symmetry of the 4-index integrals
                IF(.NOT.LSYMSYM(SYM)) THEN
                    GETUMATEL=0.D0
+!                   WRITE(6,*) "Get here!"
                    RETURN
                ELSE
              
@@ -1296,6 +1297,8 @@ MODULE Integrals
 !   We're using density fitting
                         Call GetDF2EInt(I,J,K,L,UElems)
                         GetUMatEl=UElems(0)
+                     ELSEIF(tCacheFCIDUMPInts) THEN
+                        GetUMatEl=HElement(0.D0)
                      ELSE IF (tVASP) then
                         IF(TTRANSFINDX) THEN
                            CALL CONSTRUCT_IJAB_one(TRANSTABLE(I),TRANSTABLE(J),TRANSTABLE(K),TRANSTABLE(L),vasp_int(1,0))
@@ -1381,6 +1384,7 @@ MODULE Integrals
       ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
          CALL GetUEGUmatEl(IDI,IDJ,IDK,IDL,ISS,G1,ALAT,iPeriodicDampingType,GetUMatEl)
       ENDIF
+!      WRITE(6,*) GetUMatEl,IDI,IDJ,IDK,IDL
 
       RETURN
     END FUNCTION GetUMatEl

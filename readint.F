@@ -248,7 +248,7 @@ C.. set momentum to 0
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
          use SystemData, only: tRIIntegrals,nBasisMax
-         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D,GTID
+         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D!,GTID
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS,ZeroedInt,NonZeroInt
@@ -259,7 +259,7 @@ C.. set momentum to 0
          INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y,A,B,iCache,iCacheI,iType
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
-         INTEGER ISPINS,ISPN,ISPN2,IDI,IDJ,IDK,IDL
+         INTEGER ISPINS,ISPN,ISPN2!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),Index(1000)
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
@@ -376,12 +376,12 @@ C.. AJWT removed the restriction to TSTARSTORE
                             ELSE
 !Cache the FCIDUMP integral
 !                                UMAT(UMatInd(I,K,J,L,0,0))=Z
-                                CALL GTID(nBasisMax,I,IDI)
-                                CALL GTID(nBasisMax,J,IDK)
-                                CALL GTID(nBasisMax,K,IDJ)
-                                CALL GTID(nBasisMax,L,IDL)
-                                tAddtoCache=GETCACHEDUMATEL(IDI,IDJ,    &
-     &          IDK,IDL,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
+!                                CALL GTID(nBasisMax,I,IDI)
+!                                CALL GTID(nBasisMax,J,IDK)
+!                                CALL GTID(nBasisMax,K,IDJ)
+!                                CALL GTID(nBasisMax,L,IDL)
+                                tAddtoCache=GETCACHEDUMATEL(I,K,        &
+     &                            J,L,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
                                 IF(tAddtoCache) THEN
                                     UMatEl=HElement(Z)
                                     CALL CacheUMatEl(A,B,UMatEl,iCache, &
@@ -395,6 +395,28 @@ C.. AJWT removed the restriction to TSTARSTORE
                                 ENDIF
                                 NonZeroInt=NonZeroInt+1
                             ENDIF
+                        
+                        ELSE    !read in all integrals
+
+!                            CALL GTID(nBasisMax,I,IDI)
+!                            CALL GTID(nBasisMax,J,IDK)
+!                            CALL GTID(nBasisMax,K,IDJ)
+!                            CALL GTID(nBasisMax,L,IDL)
+                            tAddtoCache=GETCACHEDUMATEL(I,K,            &
+     &                            J,L,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
+                            IF(tAddtoCache) THEN
+                                UMatEl=HElement(Z)
+                                CALL CacheUMatEl(A,B,UMatEl,iCache,     &
+     &                                 iCacheI,iType)
+                            ELSE
+                                IF((abs(REAL(UMatEl%v,8)-Z)).gt.        &
+     &                                  1.D-7) THEN
+                                    WRITE(6,*) i,j,k,l,z,UMatEl
+                                    CALL Stop_All("READFCIINT",         &
+     &        "Same integral cached in same place with different value")
+                                ENDIF
+                            ENDIF
+
                         ENDIF
                     ENDIF
                 ELSE
