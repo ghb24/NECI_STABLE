@@ -161,9 +161,6 @@ MODULE RotateOrbsMod
         ENDIF
 
 ! Only virtual orbitals need to be transformed.
-        IF(.not.lNoSymmetry) THEN
-            CALL Stop_All("ReadInCoeffT1","ReadInCoeffT1 and the following transformation not set up to deal with symmetry.")
-        ENDIF
 
         ALLOCATE(CoeffT1(NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('ReadInCoeffT1',NoOrbs**2,8,this_routine,CoeffT1Tag,ierr)
