@@ -104,6 +104,8 @@ MODULE System
       tVirtExchangeMin=.false.
       tRotateOccOnly=.false.
       tRotateVirtOnly=.false.
+      tSpinOrbs=.false.
+      tReadInCoeff=.false.
       DiagWeight=1.D0
       OffDiagWeight=1.D0
       OneElWeight=1.D0
@@ -581,6 +583,15 @@ MODULE System
 ! H elements for single excitations are no longer 0 (as for HF), and walkers on singly excited determinants must be included in the energy 
 ! calculations.
             tRotatedOrbs=.true.
+
+        case("SPINORBS")
+! This flag simply uses spin orbitals to perform the rotation rather than spatial orbitals.
+            tSpinOrbs=.true.
+
+        case("READINTRANSMAT")
+! This sets the rotation routine to read in a transformation matrix (coefft1) and use the transformation routine and print rofcidump routines
+! to transform the orbitals and print out a new dump file.
+            tReadInCoeff=.true.
 
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
