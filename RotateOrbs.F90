@@ -1363,10 +1363,10 @@ MODULE RotateOrbsMod
 !        IF(iProcIndex.eq.(nProcessors-1)) HighBound=SpatOrbs
 
 
-        do b=LowBound02,HighBound02
-            do d=1,b
+        do d=LowBound02,HighBound02
+            do b=1,d
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,UMatTemp01(:,:,d,b),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
+                CALL DGEMM('T','N',SpatOrbs,SpatOrbs,SpatOrbs,1.0,CoeffT1(:,:),SpatOrbs,UMatTemp01(:,:,b,d),SpatOrbs,0.0,Temp4indints(:,:),SpatOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
                 Temp4indints02(:,:)=0.D0
@@ -2493,8 +2493,8 @@ MODULE RotateOrbsMod
             TempMaxOccVirt=1
         ENDIF
 
-        do w=MinOccVirt,MaxOccVirt
-!        do w=1,TempMaxOccVirt
+!        do w=MinOccVirt,MaxOccVirt
+        do w=1,TempMaxOccVirt
 ! the force will be zero on those coefficients not being mixed, but still want to run over all, so that the diagonal 1 values are maintained.
             IF(w.eq.1) THEN
                 SymMin=1
