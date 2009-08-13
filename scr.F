@@ -50,25 +50,26 @@ C        SUM3=COULDAMP(NDET1(I),NHG)**2
          IG1I=G1(NDET1(I))%Ms
         DO J=I+1,NEL
           CALL CHK(IG1I,G1(NDET2(J))%Ms,IDS)
-          IF(TUMAT2D) THEN
-             SUM4=SUM4+UMAT2D(ID(I),ID(J))
-          ELSE
+!          IF(TUMAT2D) THEN
+!             SUM4=SUM4+UMAT2D(ID(I),ID(J))
+!          ELSE
             SUM4=SUM4+
      & GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(I),ID(J))
-          ENDIF
+!          ENDIF
           IF(TEXCH.AND.IDS.NE.0) THEN 
-            IF(TUMAT2D) THEN
-               SUM5=SUM5-HElement(IDS)*UMAT2D(ID(J),ID(I))
-            ELSE
+!            IF(TUMAT2D) THEN
+!               SUM5=SUM5-HElement(IDS)*UMAT2D(ID(J),ID(I))
+!            ELSE
                SUM5=SUM5-HElement(IDS)*
      &GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID(I),ID(J),ID(J),ID(I))
                
-            ENDIF
+!            ENDIF
           ENDIF
 C  *SUM3*(COULDAMP(NDET2(J),NHG)**2)
         ENDDO
       ENDDO
       SUM2=SUM4+SUM5
+!      WRITE(6,*) TUMAT2D
 !      WRITE(6,*) "1e:", SUM1
 !      WRITE(6,*) "Coulomb:", SUM4
 !      WRITE(6,*) "Exchange:", SUM5

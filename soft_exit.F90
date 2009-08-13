@@ -194,7 +194,7 @@ contains
 
   99   IF (ios.gt.0) THEN
           WRITE (6,*) 'Problem reading CHANGEVARS file '
-          call stop_all('ChangeVars','CHANGEVARS read error.')
+!          call stop_all('ChangeVars','CHANGEVARS read error.')
        END IF
     
     end subroutine ChangeVars

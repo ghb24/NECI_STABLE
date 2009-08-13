@@ -351,6 +351,7 @@ MODULE UMatCache
          use global_utilities
          IMPLICIT NONE
          INTEGER NSTATE
+         REAL*8 Memory
          LOGICAL TSMALL
          INTEGER ierr
          INCLUDE 'irat.inc'
@@ -365,6 +366,7 @@ MODULE UMatCache
             WRITE(6,*) "Not using UMATCACHE."
          ELSE
             NPAIRS=NSTATES*(NSTATES+1)/2
+!            WRITE(6,*) "NPairs: ",NSTATES,NPAIRS
             IF(TSMALL) THEN
                NSLOTS=NSTATES
                tSmallUMat=.TRUE.
@@ -388,6 +390,9 @@ MODULE UMatCache
             call LogMemAlloc('UMatCache',nTypes*nSlots*nPairs,8*HelementSize,thisroutine,tagUMatCacheData)
             Allocate(UMatLabels(nSlots,nPairs), STAT=ierr)
             CALL LogMemAlloc('UMATLABELS',nSlots*nPairs,4,thisroutine,tagUMatLabels)
+            Memory=(REAL(nTypes*nSlots,8)*nPairs*8.D0*HElementSize+nSlots*nPairs*4.D0)*9.536743316D-7
+            WRITE(6,"(A,G20.10,A)") "Total memory allocated for storage of integrals in cache is: ",Memory,"Mb/Processor"
+
             UMatCacheData=HElement(0.d0)
             UMATLABELS(1:nSlots,1:nPairs)=0
 !If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
@@ -664,6 +669,13 @@ MODULE UMatCache
                I=J
             ENDIF
          ENDDO
+!Finally, check the last element of the array, as it can still be there.
+         IF(TAB(B).eq.VAL) THEN
+             LOC=B
+             LOC1=B
+             LOC2=B
+             RETURN
+         ENDIF
 !   We've failed.  However, the new value should sit between I and J.
 !   Split whichever of the prior or after slots which has the most duplicates
 !         WRITE(6,*) "FAIL:",IFIRST,I,J,ILAST
@@ -896,6 +908,109 @@ MODULE UMatCache
       END SUBROUTINE FreezeUMatCacheInt
 
 
+      SUBROUTINE CacheFCIDUMP(I,J,K,L,Z,CacheInd,ZeroedInt,NonZeroInt)
+          use SystemData, only : UMatEps
+          IMPLICIT NONE
+          INTEGER :: I,J,K,L,CacheInd(nPairs),ZeroedInt,NonZeroInt,A,B
+          REAL*8 :: Z
+          
+          IF(abs(Z).lt.UMatEps) THEN
+!We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
+              ZeroedInt=ZeroedInt+1
+              RETURN
+          ELSE
+              NonZeroInt=NonZeroInt+1
+          ENDIF
+
+!Find unique indices within permutational symmetry.
+          IF(K.lt.I) THEN
+              CALL SWAP(I,K)
+          ENDIF
+          IF(L.lt.J) THEN
+              CALL SWAP(J,L)
+          ENDIF
+          CALL GETCACHEINDEX(I,K,A)
+          CALL GETCACHEINDEX(J,L,B)
+          IF(A.gt.B) THEN
+              CALL SWAP(A,B)
+              CALL SWAP(I,J)
+              CALL SWAP(K,L)
+          ENDIF
+
+!          IF(tFoundInt) WRITE(6,*) "Final Phys ordering: ",I,J,K,L
+!          IF(tFoundInt) WRITE(6,*) "Pair indices: ",A,B
+
+          IF(A.gt.nPairs) THEN
+              CALL Stop_All("CacheFCIDUMP","Error in caching")
+          ENDIF
+          
+!Store the integral in a contiguous fashion. A is the index for the i,k pair
+          IF(UMATLABELS(CacheInd(A),A).ne.0) THEN
+              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)%v,8)-Z)).gt.1.D-7) THEN
+                  WRITE(6,*) i,j,k,l,z,UMatCacheData(nTypes-1,CacheInd(A),A)
+                  CALL Stop_All("READFCIINT","Same integral cached in same place with different value")
+              ENDIF
+
+              CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
+          ENDIF
+          UMATLABELS(CacheInd(A),A)=B
+          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)%v).ne.0.D0) THEN
+              CALL Stop_All("CacheFCIDUMP","Overwriting when trying to fill cache.")
+          ENDIF
+          UMatCacheData(nTypes-1,CacheInd(A),A)%v=Z
+
+          CacheInd(A)=CacheInd(A)+1
+          IF(CacheInd(A).gt.nSlotsInit) THEN
+              CALL Stop_All("CacheFCIDUMP","Error in filling cache")
+          ENDIF
+
+!After we have filled all of the cache, this will want to be sorted.
+      END SUBROUTINE CacheFCIDUMP
+      
+
+!This is a routine to calculate the maximum size needed for nSlotsInit to hold all the needed two-electron
+!integrals in the cache.
+!We are assuming that there is no more than one integral per i,j pair and so permutational
+!symmetry is taken into account when determining islotsmax.
+      SUBROUTINE CalcNSlotsInit(I,J,K,L,Z,nPairs2,MaxSlots)
+          use SystemData, only : UMatEps
+          IMPLICIT NONE
+          INTEGER :: I,J,K,L,MaxSlots(1:nPairs2),A,B,C,D,X,Y,nPairs2
+          REAL*8 :: Z
+
+!The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so 
+!we do not want to include them in the consideration of the size of the cache.
+          IF((I.eq.J).and.(K.eq.L)) THEN
+              RETURN
+          ELSEIF((I.eq.K).and.(J.eq.L)) THEN
+              RETURN
+          ELSEIF(min(I,J,K,L).eq.0) THEN
+              RETURN
+          ENDIF
+          A=I
+          B=J
+          C=K
+          D=L
+          IF(B.lt.A) THEN
+              CALL SWAP(B,A)
+          ENDIF
+          IF(D.lt.C) THEN
+              CALL SWAP(C,D)
+          ENDIF
+          CALL GETCACHEINDEX(A,B,X)
+          CALL GETCACHEINDEX(C,D,Y)
+          IF(X.gt.Y) THEN
+              CALL SWAP(X,Y)
+              CALL SWAP(A,B)
+              CALL SWAP(C,D)
+          ENDIF
+
+          IF(abs(Z).gt.UMatEps) THEN
+              MaxSlots(X)=MaxSlots(X)+1
+          ENDIF
+
+      END SUBROUTINE CalcNSlotsInit
+
 
       subroutine ReadInUMatCache()
       ! Read in cache file from CacheDump.
@@ -956,6 +1071,12 @@ MODULE UMatCache
       type(HElement) UMatEl
       type(Symmetry) Sym,Symprod,SymConj
       open (21,file="CacheDump",status="unknown")
+!      do i=1,nPairs !Run through ik pairs
+!          do j=1,nSlots !Run through all pairs (unordered in the list)
+!              WRITE(21,*) i,j,UMatLabels(j,i),UMatCacheData(:,j,i)  !ik label, slot value, jl label, integral
+!          enddo
+!      enddo
+!      WRITE(21,*) "*****"
       write (21,*) nStates
       do iPair=1,nPairs
         do iSlot=iPair,nSlots
@@ -973,7 +1094,7 @@ MODULE UMatCache
                   end if
                   ! Print out UmatCacheData as UMatEl holds just a single
                   ! integral.
-                  write (21,*) i,j,k,l,UMatCacheData(:,ICACHE2,ICACHE1)
+                  write (21,"(4I5,G25.15)") i,j,k,l,UMatCacheData(:,ICACHE2,ICACHE1)!,A,B
               end if
           end if
         end do
@@ -1048,6 +1169,7 @@ END MODULE UMatCache
          DATA ITOTAL /0/
          if (nSlots.eq.0) return
 !         WRITE(6,*) "CU",A,B,UMATEL,iType
+!         WRITE(6,*) A,ICache,B,ICacheI
          if(nTypes.gt.1) then
 ! A number of different cases to deal with depending on the order the integral came in (see GetCachedUMatEl for details)
 !  First get which pos in the slot will be the new first pos
@@ -1135,11 +1257,19 @@ END MODULE UMatCache
 
          USE HElem
          use UMatCache
+!         use SystemData, only : nBasis,G1
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI
          INTEGER ICACHEI1,ICACHEI2
          TYPE(HElement) UMATEL
          INTEGER I,A,B,ITYPE,ISTAR,ISWAP
+!         LOGICAL tDebug
+!         IF(IDI.eq.14.and.IDJ.eq.17.and.IDK.eq.23.and.IDL.eq.6) THEN
+!             WRITE(6,*) "Setting tDebug!"
+!             tDebug=.true.
+!         ELSE
+!             tDebug=.false.
+!         ENDIF
 !         WRITE(6,"(A,4I5)") "GCUI",IDI,IDJ,IDK,IDL
          IF(NSLOTS.EQ.0) THEN
 !We don't have a cache so signal failure.
@@ -1265,7 +1395,7 @@ END MODULE UMatCache
                ENDIF
             ENDIF
          ENDIF
-!         WRITE(6,"(A,7I5)") "GCUE",IDI,IDJ,IDK,IDL,A,B,iType
+!         IF(tDebug) WRITE(6,"(A,8I5)") "GCUE",IDI,IDJ,IDK,IDL,A,B,iType,UMatCacheFlag
          ICACHE=A
          IF(NSLOTS.EQ.NPAIRS.OR.tSmallUMat) THEN
 !   we've a small enough system to store everything.
@@ -1288,7 +1418,13 @@ END MODULE UMatCache
 !                  WRITE(6,*) ICACHEI1,ICACHEI2
 !                  WRITE(6,*) ICACHEI
             ELSE
-            CALL BINARYSEARCH(B,UMATLABELS(1:NSLOTS,A),1,NSLOTS,ICACHEI,ICACHEI1,ICACHEI2)
+!                IF(tDebug) THEN
+!                     CALL DumpUMatCache(nBasis,G1)
+!                     WRITE(8,*) B,NSLOTS
+!                     WRITE(8,*) UMATLABELS(1:NSLOTS,A)
+!                 ENDIF
+                CALL BINARYSEARCH(B,UMATLABELS(1:NSLOTS,A),1,NSLOTS,ICACHEI,ICACHEI1,ICACHEI2)
+!                IF(tDebug) WRITE(8,*) "***",UMATLABELS(ICACHEI,A),ICACHEI,ICACHEI1,ICACHEI2
             ENDIF
          ENDIF
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN

@@ -8405,6 +8405,7 @@ MODULE FciMCParMod
             CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
         ELSE
             rh=GetHElement4(DetCurr,nJ,IC,Ex,tParity)
+!            WRITE(6,*) rh%v
         ENDIF
 
 !        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 

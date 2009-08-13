@@ -1266,7 +1266,6 @@ MODULE Integrals
 !   Check the symmetry of the 4-index integrals
                IF(.NOT.LSYMSYM(SYM)) THEN
                    GETUMATEL=0.D0
-!                   WRITE(6,*) "Get here!"
                    RETURN
                ELSE
              
@@ -1335,7 +1334,7 @@ MODULE Integrals
                      ENDIF
 !                     WRITE(6,*) "Caching",UElems
 !  Because we've asked for the integral in the form to be stored, we store as iType=0
-                     IF(ICACHE.NE.0) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI,0)
+                     IF((ICACHE.NE.0).and.(.not.tCacheFCIDUMPInts)) CALL CACHEUMATEL(A,B,UElems,ICACHE,ICACHEI,0)
                      NMISSES=NMISSES+1
                   ELSE
                      NHITS=NHITS+1

@@ -71,8 +71,12 @@ C.. SHow that there's no momentum conservation
          NBASISMAX(3,3)=1
          RETURN
       END
+
+
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry
+         use SystemData, only: tCacheFCIDUMPInts
+         use UMatCache, only: nSlotsInit,CalcNSlotsInit
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
@@ -82,7 +86,8 @@ C.. SHow that there's no momentum conservation
          INTEGER I,J,K,L
          INTEGER ISYMNUM,ISNMAX,SYMMAX
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,ISPINS,ISPN
-         INTEGER Counter(1:8),Index(1000)
+         INTEGER Counter(1:8),Index(1000),nPairs,iErr,MaxnSlot,MaxIndex
+         INTEGER , ALLOCATABLE :: MaxSlots(:)
          LOGICAL TBIN,UHF
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          UHF=.FALSE.
@@ -139,6 +144,17 @@ C.. SHow that there's no momentum conservation
 !!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
 !         CALL NECI_SORTI(norb,OrbSym(1:norb))
 
+!If we are reading in and cacheing the FCIDUMP integrals, we need to know the maximum number j,l pairs of
+!integrals for a given i,k pair. (Or in chemical notation, the maximum number of k,l pairs for a given i,j pair.)
+         IF(tCacheFCIDUMPInts) THEN
+             WRITE(6,*) "Calculating number of slots needed for "       &
+     &           //"integral Cache..."
+             nPairs=NORB*(NORB+1)/2
+!             WRITE(6,*) "NPAIRS: ",NORB,NPAIRS
+             CALL FLUSH(6)
+             ALLOCATE(MaxSlots(nPairs),stat=ierr)
+             MaxSlots(:)=0
+         ENDIF
 
 
          IF(TBIN) THEN
@@ -180,6 +196,11 @@ C.. At the moment we're ignoring the core energy
             IF(I.NE.0) GOTO 2
          ELSE
 1           READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+
+            IF(tCacheFCIDUMPInts) THEN
+                CALL CalcNSlotsInit(I,J,K,L,Z,nPairs,MaxSlots)
+            ENDIF
+
 !            I=Index(I)
 !            J=Index(J)
 !            K=Index(K)
@@ -234,6 +255,23 @@ C.. set momentum to 0
          NBASISMAX(2,1)=0
          NBASISMAX(2,2)=0
          CLOSE(8)
+         IF(tCacheFCIDUMPInts) THEN
+!Calculate the minimum required value for nSlotsInit
+             MaxnSlot=0
+             do i=1,nPairs
+                 IF(MaxSlots(i).gt.MaxnSlot) THEN
+                     MaxnSlot=MaxSlots(i)
+                     MaxIndex=i
+                 ENDIF
+             enddo
+
+             DEALLOCATE(MaxSlots)
+             nSlotsInit=MaxnSlot+2
+             WRITE(6,*) "Maximum number of slots needed in cache is: ", &
+     &           nSlotsInit
+             WRITE(6,*) "Index corresponding to this maximum number:",  &
+     &           MaxIndex
+         ENDIF
          RETURN
       END
 
@@ -248,7 +286,8 @@ C.. set momentum to 0
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
          use SystemData, only: tRIIntegrals,nBasisMax
-         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D!,GTID
+         USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
+         USE UMatCache, only: FillUpCache
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS,ZeroedInt,NonZeroInt
@@ -256,11 +295,13 @@ C.. set momentum to 0
          REAL*8 UMAT(*)
          REAL*8 Z
          TYPE(HElement) UMatEl
-         INTEGER I,J,K,L,BRR(NBASIS),G1(*),X,Y,A,B,iCache,iCacheI,iType
+         TYPE(BasisFN) G1(*)
+         INTEGER I,J,K,L,BRR(NBASIS),X,Y,A,B,iCache,iCacheI,iType
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,SYMMAX
          LOGICAL LWRITE,UHF,tAddtoCache,GetCachedUMatEl,tReadFreezeInts
-         INTEGER ISPINS,ISPN,ISPN2!,IDI,IDJ,IDK,IDL
+         INTEGER ISPINS,ISPN,ISPN2,ierr!,IDI,IDJ,IDK,IDL
          INTEGER Counter(1:8),Index(1000)
+         INTEGER , ALLOCATABLE :: CacheInd(:)
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -303,6 +344,12 @@ C.. set momentum to 0
 !         enddo
 !!Now need to sort OrbSym so that the symmetries correspond to the correct orbitals.
 !         CALL NECI_SORTI(NORB,OrbSym(1:NORB))
+                
+         IF(tCacheFCIDUMPInts) THEN
+!We need to fill the cache. We do this by filling it contiguously, then ordering.
+             ALLOCATE(CacheInd(nPairs),stat=ierr)
+             CacheInd(:)=1
+         ENDIF
 
 
 
@@ -369,55 +416,9 @@ C.. AJWT removed the restriction to TSTARSTORE
                         CALL Stop_All("READFCIINTS","Freezing is not "  &
      &                 //"yet compatible with caching the FCIDUMP file")
                     ELSE
-                        IF(tUMatEps) THEN
-!We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
-                            IF(abs(Z).lt.UMatEps) THEN
-                                ZeroedInt=ZeroedInt+1
-                            ELSE
-!Cache the FCIDUMP integral
-!                                UMAT(UMatInd(I,K,J,L,0,0))=Z
-!                                CALL GTID(nBasisMax,I,IDI)
-!                                CALL GTID(nBasisMax,J,IDK)
-!                                CALL GTID(nBasisMax,K,IDJ)
-!                                CALL GTID(nBasisMax,L,IDL)
-                                tAddtoCache=GETCACHEDUMATEL(I,K,        &
-     &                            J,L,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
-                                IF(tAddtoCache) THEN
-                                    UMatEl=HElement(Z)
-                                    CALL CacheUMatEl(A,B,UMatEl,iCache, &
-     &                                     iCacheI,iType)
-                                ELSE
-                                    IF((abs(REAL(UMatEl%v,8)-Z)).gt.    &
-     &                                      1.D-7) THEN
-                                        CALL Stop_All("READFCIINT",     &
-     &        "Same integral cached in same place with different value")
-                                    ENDIF
-                                ENDIF
-                                NonZeroInt=NonZeroInt+1
-                            ENDIF
-                        
-                        ELSE    !read in all integrals
+                        CALL CacheFCIDUMP(I,K,J,L,Z,CacheInd,ZeroedInt, &
+     &                          NonZeroInt)
 
-!                            CALL GTID(nBasisMax,I,IDI)
-!                            CALL GTID(nBasisMax,J,IDK)
-!                            CALL GTID(nBasisMax,K,IDJ)
-!                            CALL GTID(nBasisMax,L,IDL)
-                            tAddtoCache=GETCACHEDUMATEL(I,K,            &
-     &                            J,L,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
-                            IF(tAddtoCache) THEN
-                                UMatEl=HElement(Z)
-                                CALL CacheUMatEl(A,B,UMatEl,iCache,     &
-     &                                 iCacheI,iType)
-                            ELSE
-                                IF((abs(REAL(UMatEl%v,8)-Z)).gt.        &
-     &                                  1.D-7) THEN
-                                    WRITE(6,*) i,j,k,l,z,UMatEl
-                                    CALL Stop_All("READFCIINT",         &
-     &        "Same integral cached in same place with different value")
-                                ENDIF
-                            ENDIF
-
-                        ENDIF
                     ENDIF
                 ELSE
 !Read in all integrals as normal.
@@ -454,6 +455,12 @@ C.. AJWT removed the restriction to TSTARSTORE
      %          " percent of 2E integrals zeroed."
          ENDIF
          CLOSE(8)
+         IF(tCacheFCIDUMPInts) THEN
+             WRITE(6,*) "Ordering cache..."
+             CALL FillUpCache()
+             DEALLOCATE(CacheInd)
+!             CALL DumpUMatCache(nBasis,G1)
+         ENDIF
 C.. If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN
 !            WRITE(6,*) "1-electron energies have been read in."
