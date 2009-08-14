@@ -88,6 +88,7 @@ logical, save :: MemUnitsBytes = .true. ! If true, then output object size in by
 logical, save :: err_output = .true. ! Print error messages.
 
 integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
+integer, parameter :: lr = selected_real_kind(1,18) !reals between +-10^18
 
 type MemLogEl
     character(len=25) :: ObjectName=''
@@ -510,8 +511,8 @@ contains
     write (iunit,*)
     write (iunit,*) '================================================================'
     write (iunit,*) 'Memory usage'
-    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',dfloat(MaxMemory)/1024**2
-    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',dfloat(MaxMemoryUsed)/1024**2
+    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',real(MaxMemory,lr)/1024**2
+    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',real(MaxMemoryUsed,lr)/1024**2
     if (nWarn.gt.0) then
         write (iunit,*)'Maximum memory exceeded ',nWarn,' times.'
     endif
