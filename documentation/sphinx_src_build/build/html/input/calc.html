@@ -467,6 +467,13 @@ the H-matrix successively in order to achieve a local spawning algorithm.
 This reduces to the original spawning algorithm when <strong>GRAPHSIZE</strong> is 2 and
 <strong>HAPP</strong> is 1. Uses many of the same options as <strong>FCIMC</strong>.</p>
 </dd>
+<dt><strong>VERTEX</strong> <strong>CCMC</strong></dt>
+<dd><p class="first">Perform Monte Carlo calculations over coupled cluster excitation space, which
+is sampled using a series of &#8216;particles&#8217; (or &#8216;walkers&#8217;).</p>
+<p>The walkers are not necessarily unique and must be sorted at every
+iteration.  Each walker has its own excitation generator.</p>
+<p class="last">Extremely experimental.</p>
+</dd>
 <dt><strong>VERTEX</strong> <strong>GRAPHMORPH</strong> [<strong>HDIAG</strong>]</dt>
 <dd><p class="first">Set up an initial graph and systematically improve it, by applying the
 <img src="../mathimg/math-7b83fdec7c.png" /> matrix of the graph and its excitations as a propagator
@@ -893,20 +900,15 @@ else and are left there to die.</p>
 <p class="last">This is a parallel FCIMC option, where excitations between determinants where
 at least one of the determinants is above iHighExcitsSing will be restricted to be single excitations.</p>
 </dd>
-<dt><strong>EXPANDSPACE</strong> [ICILevel]</dt>
-<dd><p class="first">Default=.false.</p>
-<p class="last">This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel.
-However, the space can be expanded (or shrunk) during the course of the simulation (to the full space).
-This wants to be used with a single particle start (no need for an
-EXCITE or anything) and means that the simulation will start of doing a
-truncated &#8216;ICILevel&#8217; calculation (you can obviously specify any initial level).
-However, if you create a file in the directory where the job is running
-called EXPANDSPACE (similar to the SOFTEXIT facility), with a single
-integer in the file, then it will expand the working space of the
-algorithm to this value of the truncation. If you specify 0, it will
-allow the full space and not continue checking for the files from then
-on. Hopefully expanding the space in this way will allow quicker
-convergence.</p>
+<dt><strong>EXPANDFULLSPACE</strong> [iFullSpaceIter]</dt>
+<dd><p class="first">Default=0</p>
+<p class="last">This is a parallel FCIMC option. When this is set, the space initially is truncated at excitation level of ICIlevel,
+set by the value of the EXCITE parameter. If EXPANDFULLSPACE is set, then the
+system will continue to be truncated at the value set by EXCITE, but will
+expand to the full space after iteration iFullSpaceIter.
+Hopefully expanding the space in this way will allow quicker
+convergence, without needing to do this dynamically through the use of CHANGEVARS which may be difficult for
+long/queued jobs.</p>
 </dd>
 </dl>
 </div>
@@ -1406,7 +1408,7 @@ in <strong>HDIAG</strong> calculations at the third vertex level and higher.</dd
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Jul 05, 2009.
+      Last updated on Aug 14, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

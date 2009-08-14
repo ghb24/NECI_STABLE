@@ -348,6 +348,14 @@ list for each excitation.  Currently only working for the 2-vertex
 star Fock-Partition-Lowdiag calculations.</dd>
 </dl>
 </blockquote>
+<dl class="docutils">
+<dt><strong>READCACHEINTS</strong></dt>
+<dd><p class="first">Default=.false.</p>
+<p class="last">This means that the FCIDUMP file will be read in the integrals in it will be
+cached. This means that less space should be used for storage of the integrals,
+however, it will be slower since the integrals will need to be binary searched.</p>
+</dd>
+</dl>
 </div>
 <div class="section" id="model-system-options">
 <h2 id="model-system-options">Model system options<a class="headerlink" href="#model-system-options" title="Permalink to this headline">¶</a></h2>
@@ -595,7 +603,7 @@ the HF.</dd>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Jul 05, 2009.
+      Last updated on Aug 14, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>

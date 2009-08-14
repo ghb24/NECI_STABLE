@@ -237,6 +237,27 @@ had particles spawned at them and their excitation level. The histogram logs the
 amount of time spent at a determinant and its energy for each energy range. This is diagnostic
 information. The first variable to input is the number of histogram bins which will be calculated,
 and the second is the maximum determinant energy of the histogram.</dd>
+<dt><strong>PRINTTRICONNECTIONS</strong> [TriConMax] [NoTriConBins]</dt>
+<dd>This is a parallel FCIMC option. It looks at sets of connected determinants i,j and k.  A sign coherent
+triangular connection is one where walkers spawned all around the triangle return to the original
+determinant with the same sign.  Sign incoherent connections are those where the sign is reversed.
+If this option is on, two files are printed.  TriConnTotal monitors the number of sign coherent and sign
+incoherent triangles over the course of the simulation, as well as the sum of the Hij x Hik x Hjk values,
+and the ratios for each.  (The ratios are coherent / incoherent).  TriConnHist prints out a histogram of
+the Hij x Hik x Hjk values for coherent (col 1 and 2) and incoherent (col 3 and 4) triangles.  The histogram
+goes from 0 -&gt; +/- TriConMax with NoTriConBins for each.</dd>
+<dt><strong>HISTTRICONNELEMENTS</strong> [TriConHElSingMax] [TriConHElDoubMax] [NoTriConHElBins]</dt>
+<dd>This option histograms all the H elements involved in the triangular connections of determinants mentioned
+above.  These are separated into doubles and singles, and an extra file, containing only the Hjk elements is
+also included.
+The histogram range is between +/-TriConHElSingMax for the singles and +/-TriConHElDoubMax for the doubles, with
+NoTriConHElBins bins for each.
+With this option, some stats are also printed in the output regarding the average magnitudes for each type of H
+elements.</dd>
+<dt><strong>PRINTHELACCEPTSTATS</strong></dt>
+<dd>This option prints out a file (HElsAcceptance) containing information about the nature of the H elements
+resulting in accepted and not accepted spawns.  This includes the number of not accepted spawns vs accepted,
+and the average size of the H element involved in accepted and not accepted spawns.</dd>
 </dl>
 </div>
 <div class="section" id="graphmorph-options">
@@ -398,7 +419,7 @@ where j is over the occupied orbitals only.</dd>
     </div>
     <div class="footer">
       &copy; Copyright 2008, Alavi Group.
-      Last updated on Jul 05, 2009.
+      Last updated on Aug 14, 2009.
       Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.5.
     </div>
   </body>
