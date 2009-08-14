@@ -53,6 +53,7 @@ contains
 
        tSoftExitFound=.false.
        tWritePopsFound=.false.
+       ios=0
        inquire(file='CHANGEVARS',exist=exists)
        !This collective will check the exists logical on all nodes, and perform a logical or operation,
        !before broadcasting the result back to all nodes.
@@ -63,7 +64,6 @@ contains
            ENDIF
 !Set the defaults
            tChangeParams(1:8)=.false.
-           ios=0
 
            deleted_file=.false.
            do i=0,nProcessors-1
@@ -194,7 +194,7 @@ contains
 
   99   IF (ios.gt.0) THEN
           WRITE (6,*) 'Problem reading CHANGEVARS file '
-!          call stop_all('ChangeVars','CHANGEVARS read error.')
+          call stop_all('ChangeVars','CHANGEVARS read error.')
        END IF
     
     end subroutine ChangeVars
