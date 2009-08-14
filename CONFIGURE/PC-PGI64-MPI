@@ -13,17 +13,17 @@
      GLOBALS='GLOBALS-pgi'
      if [ $debug ]; then
        FC='mpif90 -c -g '
-       CC='mpicc -c -g -sb -C -errtags'
+       CC='mpicc -c -g -C'
        LD='mpif90 -g'
        FCD='mpif90 -c -g '
-       CCD='mpicc -g -sb -C -errtags'
+       CCD='mpicc -g -C'
        LDD='mpif90 -g'
      else
        FC='mpif90 -c -fastsse -tp k8-64'
        CC='mpicc -c -O2'
        LD='mpif90 -fastsse -tp k8-64'
        FCD='mpif90 -c -g'
-       CCD='mpicc -g -sb -C -errtags'
+       CCD='mpicc -g -C'
        LDD='mpif90 -g'
      fi
      LDLIB=' pgf90'
