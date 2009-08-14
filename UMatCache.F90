@@ -1094,7 +1094,7 @@ MODULE UMatCache
                   end if
                   ! Print out UmatCacheData as UMatEl holds just a single
                   ! integral.
-                  write (21,"(4I5,G25.15)") i,j,k,l,UMatCacheData(:,ICACHE2,ICACHE1)!,A,B
+                  write (21,*) i,j,k,l,UMatCacheData(:,ICACHE2,ICACHE1)!,A,B
               end if
           end if
         end do
