@@ -349,6 +349,7 @@ MODULE UMatCache
          ! nState: # states.
          ! TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals.
          use global_utilities
+!         use SystemData , only : tspn
          IMPLICIT NONE
          INTEGER NSTATE
          REAL*8 Memory
@@ -361,12 +362,15 @@ MODULE UMatCache
          NMISSES=0
          iCacheOvCount=0
          NSTATES=NSTATE
+!         IF(TSpn) THEN
+!             NSTATES=2*NSTATES
+!         ENDIF
          IF(NSLOTSINIT.LE.0) THEN
             NSLOTS=0
             WRITE(6,*) "Not using UMATCACHE."
          ELSE
             NPAIRS=NSTATES*(NSTATES+1)/2
-!            WRITE(6,*) "NPairs: ",NSTATES,NPAIRS
+            WRITE(6,*) "NPairs: ",NSTATES,NPAIRS
             IF(TSMALL) THEN
                NSLOTS=NSTATES
                tSmallUMat=.TRUE.
@@ -937,10 +941,13 @@ MODULE UMatCache
               CALL SWAP(K,L)
           ENDIF
 
-!          IF(tFoundInt) WRITE(6,*) "Final Phys ordering: ",I,J,K,L
-!          IF(tFoundInt) WRITE(6,*) "Pair indices: ",A,B
+!          WRITE(6,*) "Final Phys ordering: ",I,J,K,L
+!          WRITE(6,*) "Pair indices: ",A,B
 
           IF(A.gt.nPairs) THEN
+              WRITE(6,*) "Final Phys ordering: ",I,J,K,L
+              WRITE(6,*) "Pair indices: ",A,B
+              WRITE(6,*) "nPairs,nSlots: ", nPairs,nSlots
               CALL Stop_All("CacheFCIDUMP","Error in caching")
           ENDIF
           
@@ -960,7 +967,7 @@ MODULE UMatCache
           UMatCacheData(nTypes-1,CacheInd(A),A)%v=Z
 
           CacheInd(A)=CacheInd(A)+1
-          IF(CacheInd(A).gt.nSlotsInit) THEN
+          IF(CacheInd(A).gt.nSlots) THEN
               CALL Stop_All("CacheFCIDUMP","Error in filling cache")
           ENDIF
 
@@ -977,7 +984,7 @@ MODULE UMatCache
           IMPLICIT NONE
           INTEGER :: I,J,K,L,MaxSlots(1:nPairs2),A,B,C,D,X,Y,nPairs2
           REAL*8 :: Z
-
+          
 !The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so 
 !we do not want to include them in the consideration of the size of the cache.
           IF((I.eq.J).and.(K.eq.L)) THEN
@@ -1007,6 +1014,12 @@ MODULE UMatCache
 
           IF(abs(Z).gt.UMatEps) THEN
               MaxSlots(X)=MaxSlots(X)+1
+              IF(X.gt.nPairs2) THEN
+                  CALL Stop_All("CalcNSlotsInit","Problem since X > nPairs")
+              ENDIF
+              IF(MaxSlots(X).gt.nPairs2) THEN
+                  CALL Stop_All("CalcNSlotsInit","Problem since more integrals for a given ik pair found than possible.")
+              ENDIF
           ENDIF
 
       END SUBROUTINE CalcNSlotsInit
