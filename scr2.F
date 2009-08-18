@@ -30,7 +30,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 !      call set_timer(proc_timer)
       EX(1,1)=2
       CALL GETEXCITATION(NDET1,NDET2,NEL,EX,TSIGN)
-!      WRITE(6,*) TSIGN
+!      WRITE(6,*) "TSIGN: ",TSIGN
       CALL GTID(NBASISMAX,EX(1,1),ID1)
       CALL GTID(NBASISMAX,EX(1,2),ID2)
 C..
@@ -135,7 +135,7 @@ C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
 C..that are NOT common to both.
       USE HElem
       use Integrals, Only : GetUMatEl
-!      USE UMatCache , Only : tTransGTID,TransTable
+      USE UMatCache , Only : GTID 
       use SystemData, only: BasisFN
 !      use global_utilities
       IMPLICIT NONE
@@ -153,33 +153,11 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 !      type(timer), save :: proc_timer
 !      proc_timer%timer_name='      SCR2'
 !      call set_timer(proc_timer)
-!      EX(1,1)=nJ(4)
-!      EX(1,2)=nJ(5)
-!      EX(2,1)=nJ(6)
-!      EX(2,2)=nJ(7)
-!      TSIGN=.FALSE.
-!      CALL GTID(NBASISMAX,EX(1,1),ID1)
-!      CALL GTID(NBASISMAX,EX(1,2),ID2)
-!      CALL GTID(NBASISMAX,EX(2,1),ID3)
-!      CALL GTID(NBASISMAX,EX(2,2),ID4)
 
-      IF(NBASISMAX(2,3).GT.0) THEN
-         ID1=(EX(1,1)-1)/NBASISMAX(2,3)+1
-         ID3=(EX(2,1)-1)/NBASISMAX(2,3)+1
-         ID2=(EX(1,2)-1)/NBASISMAX(2,3)+1
-         ID4=(EX(2,2)-1)/NBASISMAX(2,3)+1
-      ELSE
-         ID1=(EX(1,1)-1)/2+1
-         ID3=(EX(2,1)-1)/2+1
-         ID2=(EX(1,2)-1)/2+1
-         ID4=(EX(2,2)-1)/2+1
-!         IF(TTRANSGTID) THEN
-!             ID1=TRANSTABLE(ID1)
-!             ID2=TRANSTABLE(ID2)
-!             ID3=TRANSTABLE(ID3)
-!             ID4=TRANSTABLE(ID4)
-!         ENDIF
-      ENDIF
+      CALL GTID(NBASISMAX,EX(1,1),ID1)
+      CALL GTID(NBASISMAX,EX(1,2),ID2)
+      CALL GTID(NBASISMAX,EX(2,1),ID3)
+      CALL GTID(NBASISMAX,EX(2,2),ID4)
 
       IF(    G1(EX(1,1))%Ms.EQ.G1(EX(2,1))%Ms
      &    .AND.G1(EX(1,2))%Ms.EQ.G1(EX(2,2))%Ms) THEN

@@ -77,7 +77,7 @@ C..  NDET1 and NDET2
      &	NHG,UMAT,ALAT,ISS,COULCOUPLE,TEXCH,SUM,EX,TParity)
       USE HElem
       use Integrals, only : GetUMatEl
-!      USE UMatCache, only : GTID
+      USE UMatCache, only : GTID
       use OneEInts, only: GetTMatEl
       use SystemData, only: BasisFN
 !      use global_utilities
@@ -108,19 +108,9 @@ C..In this routine the determinants differ by only 1 spin orbital
 !      CALL GETEXCITATION(NDET1,NDET2,NEL,EX,TParity)
 C.. ND2 is the deifferent basis fn in NDET2
 C..The two electron integrals are to be done 
-!      CALL GTID(NBASISMAX,EX(1,1),ID1)
-!      CALL GTID(NBASISMAX,EX(2,1),ID2)
-!Explicitly inline GTID here.
 
-       IF(NBASISMAX(2,3).gt.0) THEN
-           ID1=(EX(1,1)-1)/NBASISMAX(2,3)+1
-           ID2=(EX(2,1)-1)/NBASISMAX(2,3)+1
-       ELSE
-           ID1=(EX(1,1)-1)/2+1
-           ID2=(EX(2,1)-1)/2+1
-!BEWARE that the tTransGTID option is not here.
-       ENDIF
-
+      CALL GTID(NBASISMAX,EX(1,1),ID1)
+      CALL GTID(NBASISMAX,EX(2,1),ID2)
 
 C      CD=COULDAMP(ND1,NHG)*COULDAMP(ND2,NHG)
 C..
@@ -128,13 +118,13 @@ C..
       SUM2=0.D0
       DO I=1,NEL
          IF(EX(1,1).NE.NDET1(I)) THEN
-!Again, explicitly inline gtid.
-            IF(NBASISMAX(2,3).gt.0) THEN
-                ID=(NDET1(I)-1)/NBASISMAX(2,3)+1
-            ELSE
-                ID=(NDET1(I)-1)/2+1
-            ENDIF
-!            CALL GTID(NBASISMAX,NDET1(I),ID)
+!!Again, explicitly inline gtid. Put it back...
+!            IF(NBASISMAX(2,3).gt.0) THEN
+!                ID=(NDET1(I)-1)/NBASISMAX(2,3)+1
+!            ELSE
+!                ID=(NDET1(I)-1)/2+1
+!            ENDIF
+            CALL GTID(NBASISMAX,NDET1(I),ID)
             IF(LCOUL) THEN 
                SUM3=
      &     GETUMATEL(NBASISMAX,UMAT,ALAT,NHG,ISS,G1,ID1,ID,ID2,ID)

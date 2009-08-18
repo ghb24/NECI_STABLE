@@ -77,6 +77,7 @@ C.. SHow that there's no momentum conservation
          use SystemData, only: BasisFN,BasisFNSize,Symmetry
          use SystemData, only: tCacheFCIDUMPInts
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
+         use UMatCache, only: GetCacheIndexStates
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
@@ -271,6 +272,9 @@ C.. set momentum to 0
      &           nSlotsInit
              WRITE(6,*) "Index corresponding to this maximum number:",  &
      &           MaxIndex
+             CALL GetCacheIndexStates(MaxIndex,i,k)
+             WRITE(6,"(A,2I6)") "This corresponds to an (i,k) pair of ",&
+     &           i,k
          ENDIF
          RETURN
       END
@@ -460,6 +464,9 @@ C.. AJWT removed the restriction to TSTARSTORE
              CALL FillUpCache()
              DEALLOCATE(CacheInd)
 !             CALL DumpUMatCache(nBasis,G1)
+!             do i=1,norb
+!                 WRITE(8,*) UMAT2D(:,i)
+!             enddo
          ENDIF
 C.. If we've changed the eigenvalues, we write out the basis again
 !         IF(LWRITE) THEN

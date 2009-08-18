@@ -397,8 +397,15 @@ MODULE Integrals
 !Here, if we are freezing, we only want to read in the <ij|kj> integrals - not all of them.
              tReadFreezeInts=.true.
          ELSE
-             WRITE(6,*) "Setting up main UMatCache"
-             call SetupUMatCache(I/2,.FALSE.)
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+             iSpinSkip=nBasisMax(2,3)
+             IF(iSpinSkip.eq.1) THEN
+                 WRITE(6,*) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
+                 call SetupUMatCache(I,.FALSE.)
+             ELSE
+                 WRITE(6,*) "Setting up main UMatCache for closed-shell system"
+                 call SetupUMatCache(I,.FALSE.)
+             ENDIF
              tReadFreezeInts=.false.
          ENDIF
 !Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals
@@ -406,7 +413,7 @@ MODULE Integrals
 !The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
          CALL READFCIINT(UMAT,NBASIS,ECORE,ARR,BRR,G1,tReadFreezeInts)
 
-         NBASISMAX(2,3)=0   !Not really sure what this is saying... This is generally iSpinSkp
+         NBASISMAX(2,3)=0   !This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(TREADINT.AND.TSTARSTORE) THEN
          WRITE(6,*) ' *** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP *** '
@@ -1193,7 +1200,7 @@ MODULE Integrals
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts
+      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts,tSpn
       use UMatCache
       use vasp_neci_interface, only: CONSTRUCT_IJAB_one
       IMPLICIT NONE
@@ -1258,10 +1265,19 @@ MODULE Integrals
                K=IDK
                L=IDL
                SYM=TotSymRep()
-               SYM=SYMPROD(SYM,SYMCONJ(G1(I*2-1)%Sym))
-               SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
-               SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
-               SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
+               IF(tSpn) THEN
+!UHF/ROHF calculation - integrals stored as spin-orbitals already...
+!Also assume real orbitals, since this can only be done by tCacheFCIDUMPInts
+                   SYM=SYMPROD(SYM,G1(I)%Sym)
+                   SYM=SYMPROD(SYM,G1(J)%Sym)
+                   SYM=SYMPROD(SYM,G1(K)%Sym)
+                   SYM=SYMPROD(SYM,G1(L)%Sym)
+               ELSE
+                   SYM=SYMPROD(SYM,SYMCONJ(G1(I*2-1)%Sym))
+                   SYM=SYMPROD(SYM,SYMCONJ(G1(J*2-1)%Sym))
+                   SYM=SYMPROD(SYM,G1(K*2-1)%Sym)
+                   SYM=SYMPROD(SYM,G1(L*2-1)%Sym)
+               ENDIF
 !               WRITE(6,*) SYM
 !   Check the symmetry of the 4-index integrals
                IF(.NOT.LSYMSYM(SYM)) THEN

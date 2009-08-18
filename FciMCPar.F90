@@ -428,6 +428,7 @@ MODULE FciMCParMod
                 ELSE
                     CALL GenRandSymExcitScratchNU(DetCurr,CurrentDets(:,j),nJ,pDoubles,IC,Ex,tParity,exFlag,Prob,Scratch1,Scratch2,tFilled)
                 ENDIF
+!                WRITE(6,"(A,7I5)") "Generated: ",nJ(:)
 
 
 !Calculate number of children to spawn

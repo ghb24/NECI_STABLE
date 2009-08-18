@@ -349,7 +349,6 @@ MODULE UMatCache
          ! nState: # states.
          ! TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals.
          use global_utilities
-!         use SystemData , only : tspn
          IMPLICIT NONE
          INTEGER NSTATE
          REAL*8 Memory
@@ -362,9 +361,6 @@ MODULE UMatCache
          NMISSES=0
          iCacheOvCount=0
          NSTATES=NSTATE
-!         IF(TSpn) THEN
-!             NSTATES=2*NSTATES
-!         ENDIF
          IF(NSLOTSINIT.LE.0) THEN
             NSLOTS=0
             WRITE(6,*) "Not using UMATCACHE."
@@ -452,6 +448,7 @@ MODULE UMatCache
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
+!            WRITE(6,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D',nStates**2,8*HelementSize,thisroutine,tagUMat2D,ierr)
             IF(TSTARSTORE) THEN
                 RETURN
@@ -1132,12 +1129,23 @@ MODULE UMatCache
 
       SUBROUTINE GTID(NBASISMAX,GIND,ID)
          ! Convert from spin orbitals to spatial orbitals.
+         ! Stupidly, nBasisMax(2,3) is not only iSpinSkip (whether things are stored as spin/spatial orbs), 
+         ! but also whether to calculate integrals on the fly or not...
+         use SystemData , only :tSpn
          IMPLICIT NONE
          INTEGER GIND,nBasisMax(5,*),ID
-            IF(NBASISMAX(2,3).GT.0) THEN
-               ID=(GIND-1)/NBASISMAX(2,3)+1
-            ELSE
+            IF(NBASISMAX(2,3).EQ.1) THEN
+!Storing as spin-orbitals (UHF/ROHF)
+               ID=GIND
+            ELSEIF(NBASISMAX(2,3).EQ.2) THEN
+!Storing as spatial orbitals (RHF)
                ID=(GIND-1)/2+1
+            ELSE
+               IF(tSpn) THEN
+                   ID=GIND
+               ELSE
+                   ID=(GIND-1)/2+1
+               ENDIF
                IF(TTRANSGTID) ID=TRANSTABLE(ID)
             ENDIF
       RETURN
