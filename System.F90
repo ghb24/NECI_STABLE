@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tROHF=.false.
       tCacheFCIDUMPInts=.false.
       tHPHFInts=.false.
       tHPHF=.false.
@@ -641,6 +642,10 @@ MODULE System
 !magnitude than the value set for UMatEps will be set to zero.
             call readf(UMatEps)
             tUMatEps=.true.
+        case("ROHF")
+!This is an option for open-shell systems to specify that the integrals are *restricted* open-shell integrals.
+!This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).
+            tROHF=.true.
         case("ENDSYS") 
             exit system
         case default
@@ -803,29 +808,33 @@ MODULE System
             iSpinSkip=-1
 !NBASISMAX(2,3)  !indicate we generate on the fly
 !C.. say we're a UHF det so all singles are 0
-            IF(LMS.EQ.0) THEN
-               NBASISMAX(4,5)=1
-            ELSE
-               NBASISMAX(4,5)=2
-            ENDIF
+!            IF(LMS.EQ.0) THEN
+!               NBASISMAX(4,5)=1
+!            ELSE
+!               NBASISMAX(4,5)=2
+!            ENDIF
             IF(NBASISMAX(2,3).EQ.1) then
                 WRITE(6,*) "Unrestricted calculation.  Cave Arthropodia"
+            ELSEIF(tROHF) then
+                WRITE(6,*) "High-spin restricted calculation. Seriously Cave Arthropodia"
             ENDIF
          ELSE
             IF(TSTARSTORE) THEN
                 WRITE(6,*) "Reading 2-vertex integrals of double excitations only"
             ENDIF
             LMSBASIS=LMS
-            WRITE(6,*) "TBIN:",tBin
+!            WRITE(6,*) "TBIN:",tBin
             CALL INITFROMFCID(NEL,NBASISMAX,LEN,LMSBASIS,TBIN)
 !C.. say we're a UHF det so all singles are 0
-            IF(LMS.EQ.0) THEN
-               NBASISMAX(4,5)=1
-            ELSE
-               NBASISMAX(4,5)=2
-            ENDIF
+!            IF(LMS.EQ.0) THEN
+!               NBASISMAX(4,5)=1
+!            ELSE
+!               NBASISMAX(4,5)=2
+!            ENDIF
             IF(NBASISMAX(2,3).EQ.1) then
                 WRITE(6,*) "Unrestricted calculation.  Cave Arthropodia"
+            ELSEIF(tROHF) then
+                WRITE(6,*) "High-spin restricted calculation. Seriously Cave Arthropodia"
             ENDIF
          ENDIF 
       ELSE   

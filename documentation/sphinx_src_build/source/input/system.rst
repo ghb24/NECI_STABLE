@@ -262,6 +262,20 @@ General options
     and the number frozen in the INTEGRAL block needs to be set to 0.
     This will hopefully be fixed in the near future.
 
+**ROHF**
+    This is to be used when we are reading in integrals from an FCIDUMP interface for a 
+    *restricted* open-shell system. Without this keyword, ROHF and UHF are treated the 
+    same and the integral file and calculations are performed on spin-orbitals. However,
+    for ROHF, this results in a duplication in the storage of the integrals, since integrals
+    of the same spatial orbitals are stored multiple times. With this option, the integrals
+    for ROHF systems are stored as spatial orbitals, not spin orbtials, which leads to a
+    ~16x memory saving! The results should be unchanged by this option, and the integral file
+    can remain in spin-orbitals. A word of warning is that with ROHF systems, the fock
+    eigenvalues for the orbitals are different between alpha and beta spins, but with this,
+    the eigenvalues are written out as the same (the value of the alpha one). This means that
+    the eigenvalues cannot be trusted and values derived from them will be wrong (such as the
+    chemical potential which is printed out.)
+
 Read options 
 ------------
 

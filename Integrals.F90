@@ -397,7 +397,7 @@ MODULE Integrals
 !Here, if we are freezing, we only want to read in the <ij|kj> integrals - not all of them.
              tReadFreezeInts=.true.
          ELSE
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
              iSpinSkip=nBasisMax(2,3)
              IF(iSpinSkip.eq.1) THEN
                  WRITE(6,*) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
@@ -441,10 +441,8 @@ MODULE Integrals
          WRITE(6,*) ' *** READING PRIMITIVE INTEGRALS FROM FCIDUMP *** '
 !.. Generate the 2e integrals (UMAT)
          ISPINSKIP=NBasisMax(2,3)
-         IF(ISPINSKIP.eq.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
-!!C.. We can only do restricted systems, so alpha and beta spinorbital
-!!C... integrals will be the same 
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+         IF(ISPINSKIP.le.0) STOP 'NBASISMAX(2,3) ISpinSkip unset'
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL GetUMatSize(nBasis,nEl,iSpinSkip,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,8)*REAL(HElementSizeB,8)*(9.536743164D-7)
@@ -452,7 +450,7 @@ MODULE Integrals
          Allocate(UMat(UMatInt), stat=ierr)
          LogAlloc(ierr, 'UMat', UMatInt,HElementSizeB, tagUMat)
          UMat=HElement(0.d0)
-!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF
+!nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
          CALL SetupTMAT(nBasis,iSpinSkip,TMATINT)
          IF(TBIN) THEN
             CALL READFCIINTBIN(UMAT,NBASIS,ECORE,ARR,BRR,G1)

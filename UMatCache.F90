@@ -977,7 +977,7 @@ MODULE UMatCache
 !We are assuming that there is no more than one integral per i,j pair and so permutational
 !symmetry is taken into account when determining islotsmax.
       SUBROUTINE CalcNSlotsInit(I,J,K,L,Z,nPairs2,MaxSlots)
-          use SystemData, only : UMatEps
+          use SystemData, only : UMatEps,tROHF
           IMPLICIT NONE
           INTEGER :: I,J,K,L,MaxSlots(1:nPairs2),A,B,C,D,X,Y,nPairs2
           REAL*8 :: Z
@@ -1014,7 +1014,10 @@ MODULE UMatCache
               IF(X.gt.nPairs2) THEN
                   CALL Stop_All("CalcNSlotsInit","Problem since X > nPairs")
               ENDIF
-              IF(MaxSlots(X).gt.nPairs2) THEN
+              IF((MaxSlots(X).gt.nPairs2).and.(.not.tROHF)) THEN
+                  WRITE(6,*) "Final Phys ordering: ",I,J,K,L
+                  WRITE(6,*) "Pair indices: ",X,Y
+                  WRITE(6,*) "nPairs,nSlots: ", nPairs2,MaxSlots(X)
                   CALL Stop_All("CalcNSlotsInit","Problem since more integrals for a given ik pair found than possible.")
               ENDIF
           ENDIF
@@ -1131,7 +1134,7 @@ MODULE UMatCache
          ! Convert from spin orbitals to spatial orbitals.
          ! Stupidly, nBasisMax(2,3) is not only iSpinSkip (whether things are stored as spin/spatial orbs), 
          ! but also whether to calculate integrals on the fly or not...
-         use SystemData , only :tSpn
+         use SystemData , only :tSpn,tROHF
          IMPLICIT NONE
          INTEGER GIND,nBasisMax(5,*),ID
             IF(NBASISMAX(2,3).EQ.1) THEN
@@ -1141,7 +1144,9 @@ MODULE UMatCache
 !Storing as spatial orbitals (RHF)
                ID=(GIND-1)/2+1
             ELSE
-               IF(tSpn) THEN
+               IF(tROHF) THEN
+                   ID=(GIND-1)/2+1
+               ELSEIF(tSpn) THEN
                    ID=GIND
                ELSE
                    ID=(GIND-1)/2+1

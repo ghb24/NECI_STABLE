@@ -1,5 +1,5 @@
       SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
-         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry
+         use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
          IMPLICIT NONE
          INTEGER NEL,nBasisMax(5,*),LEN,LMS
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i
@@ -61,7 +61,7 @@ C         NBASISMAX(1,2)=NORB
          NBASISMAX(4,2)=1
          
 !the indicator of UHF (which becomes ISpinSkip or ISS later
-         IF(UHF) then
+         IF(UHF.and.(.not.tROHF)) then
             NBASISMAX(2,3)=1
          else
             NBASISMAX(2,3)=2
@@ -75,9 +75,9 @@ C.. SHow that there's no momentum conservation
 
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry
-         use SystemData, only: tCacheFCIDUMPInts
+         use SystemData, only: tCacheFCIDUMPInts,tROHF
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
-         use UMatCache, only: GetCacheIndexStates
+         use UMatCache, only: GetCacheIndexStates,GTID
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),BRR(LEN),LEN
          TYPE(BasisFN) G1(LEN)
@@ -104,7 +104,27 @@ C.. SHow that there's no momentum conservation
          ISYMNUM=0
          ISNMAX=0
          ISPINS=2
-         IF(UHF) ISPINS=1
+         IF(UHF.and.(.not.tROHF)) ISPINS=1
+
+         IF(tROHF) THEN
+             WRITE(6,*) "Reading in Spin-orbital FCIDUMP but storing as"&
+     &          //" spatial orbitals."
+             WRITE(6,*) "*** Warning - Fock energy of orbitals will be "&
+     &                //"incorrect ***"
+!We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
+             DO i=1,NORB-1,2
+                 IF(ORBSYM(i).ne.ORBSYM(i+1)) THEN
+                     CALL Stop_All("GetFCIBASIS","Spin-orbitals are not"&
+     &                  //" ordered in symmetry pairs")
+                 ENDIF
+                 ORBSYM((i+1)/2)=ORBSYM(i)
+             ENDDO
+!NORB is the length in spatial orbitals, LEN is spin orbitals (both spin for UHF)
+             NORB=NORB/2
+             DO i=NORB+1,1000
+                 ORBSYM(i)=0
+             ENDDO
+         ENDIF
         
          IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
          G1(1:LEN)=BasisFN((/0,0,0/),0,Symmetry(0))
@@ -150,6 +170,14 @@ C.. SHow that there's no momentum conservation
          IF(tCacheFCIDUMPInts) THEN
              WRITE(6,*) "Calculating number of slots needed for "       &
      &           //"integral Cache..."
+             IF(tROHF) THEN
+                 WRITE(6,*) "This will be inefficient, since multiple " &
+     &           //"versions of the same integral are present since we "&
+     &           //"are converting to spatial orbitals, so nSlots will "&
+     &           //"be too large."
+                 CALL Stop_All("readint","ROHF doesn't seem to be "     &
+     &            //"working with Caching. ghb can fix if needed...")
+             ENDIF
              nPairs=NORB*(NORB+1)/2
 !             WRITE(6,*) "NPAIRS: ",NORB,NPAIRS
              CALL FLUSH(6)
@@ -159,7 +187,7 @@ C.. SHow that there's no momentum conservation
 
 
          IF(TBIN) THEN
-            IF(UHF) STOP 'UHF Bin read not functional'
+            IF(UHF.or.tROHF) STOP 'UHF Bin read not functional'
             MASK=(2**16)-1
             
             !IND contains all the indices in an integer*8 - use mask of 16bit to extract them
@@ -197,6 +225,22 @@ C.. At the moment we're ignoring the core energy
             IF(I.NE.0) GOTO 2
          ELSE
 1           READ(8,'(1X,G20.12,4I3)',END=99) Z,I,J,K,L
+
+            IF(tROHF) THEN
+!The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
+                IF(I.ne.0) THEN
+                    CALL GTID(NBASISMAX,I,I)
+                ENDIF
+                IF(J.ne.0) THEN
+                    CALL GTID(NBASISMAX,J,J)
+                ENDIF
+                IF(K.ne.0) THEN
+                    CALL GTID(NBASISMAX,K,K)
+                ENDIF
+                IF(L.ne.0) THEN
+                    CALL GTID(NBASISMAX,L,L)
+                ENDIF
+            ENDIF
 
             IF(tCacheFCIDUMPInts) THEN
                 CALL CalcNSlotsInit(I,J,K,L,Z,nPairs,MaxSlots)
@@ -267,7 +311,7 @@ C.. set momentum to 0
              enddo
 
              DEALLOCATE(MaxSlots)
-             nSlotsInit=MaxnSlot+2
+             nSlotsInit=MaxnSlot+1
              WRITE(6,*) "Maximum number of slots needed in cache is: ", &
      &           nSlotsInit
              WRITE(6,*) "Index corresponding to this maximum number:",  &
@@ -276,6 +320,7 @@ C.. set momentum to 0
              WRITE(6,"(A,2I6)") "This corresponds to an (i,k) pair of ",&
      &           i,k
          ENDIF
+!         WRITE(6,*) Arr(:,1)
          RETURN
       END
 
@@ -289,9 +334,9 @@ C.. set momentum to 0
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: UMatEps,tUMatEps,tCacheFCIDUMPInts
-         use SystemData, only: tRIIntegrals,nBasisMax
+         use SystemData, only: tRIIntegrals,nBasisMax,tROHF
          USE UMatCache, only: UMatInd,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
-         USE UMatCache, only: FillUpCache
+         USE UMatCache, only: FillUpCache,GTID
          use OneEInts, only: TMatind,TMat2D,TMATSYM,TSTARSTORE
          IMPLICIT NONE
          INTEGER NBASIS,ZeroedInt,NonZeroInt
@@ -315,7 +360,13 @@ C.. set momentum to 0
          OPEN(8,FILE='FCIDUMP',STATUS='OLD')
          READ(8,FCI)
          ISPINS=2
-         IF(UHF) ISPINS=1
+         IF(UHF.and.(.not.tROHF)) ISPINS=1
+
+         IF(tROHF) THEN
+!We are reading in the symmetry of the orbitals in spin-orbitals - we need to change this to spatial orbitals
+!NORB is the length in spatial orbitals, LEN is spin orbitals (both spin for UHF)
+             NORB=NORB/2
+         ENDIF
 
 !!Calculate a key, which will reorder the orbitals in symmetry order.
 !!Counter is the cumulative number of symmetries, just to indicate the allowed current index of an orbital
@@ -358,6 +409,21 @@ C.. set momentum to 0
 
 
 101      READ(8,'(1X,G20.12,4I3)',END=199) Z,I,J,K,L
+         IF(tROHF) THEN
+!The FCIDUMP file is in spin-orbitals - we need to transfer them to spatial orbitals.
+            IF(I.ne.0) THEN
+                CALL GTID(NBASISMAX,I,I)
+            ENDIF
+            IF(J.ne.0) THEN
+                CALL GTID(NBASISMAX,J,J)
+            ENDIF
+            IF(K.ne.0) THEN
+                CALL GTID(NBASISMAX,K,K)
+            ENDIF
+            IF(L.ne.0) THEN
+                CALL GTID(NBASISMAX,L,L)
+            ENDIF
+         ENDIF
 !         I=Index(I)
 !         J=Index(J)
 !         K=Index(K)
