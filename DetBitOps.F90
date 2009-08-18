@@ -182,8 +182,8 @@
 
     SUBROUTINE GetBitExcitation(iLutnI,iLutnJ,NIfD,NEl,Ex,tSign)
         IMPLICIT NONE
-        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),Ex(2,2),i,BitExcitMat(0:NIfD),BitCommonOrbs(0:NIfD),FromInd,ToInd,j
-        INTEGER :: nIElec,nJElec,Diff,NIfD,NEl
+        INTEGER :: iLutnI(0:NIfD),iLutnJ(0:NIfD),Ex(2,*),i,BitExcitMat(0:NIfD),BitCommonOrbs(0:NIfD),FromInd,ToInd,j
+        INTEGER :: nIElec,nJElec,Diff,NIfD,NEl,iMaxSize
         LOGICAL :: tSign
 
         tSign=.false.
@@ -191,12 +191,13 @@
         FromInd=1
         nIElec=0
         nJElec=0
+        iMaxSize=EX(1,1) 
 
         do i=0,NIfD
             BitExcitMat(i)=IEOR(iLutnI(i),iLutnJ(i))
             BitCommonOrbs(i)=IAND(iLutnI(i),iLutnJ(i))
             
-            IF((BitExcitMat(i).eq.0).and.(BitCommonOrbs(i).eq.0)) CYCLE
+            IF((BitExcitMat(i).eq.2).and.(BitCommonOrbs(i).eq.0)) CYCLE
 
 !            WRITE(6,*) "BitExcitMat: "
 !            do j=0,31
@@ -255,7 +256,10 @@
 
             enddo
         enddo
-        
+        if (ToInd.LE.iMaxSize) THEN
+           EX(1,ToInd)=0  !Indicate that we've ended the excit
+           EX(2,ToInd)=0  !Indicate that we've ended the excit
+        ENDIF
 !        IF(ToInd.ne.FromInd) CALL Stop_All("GetBitExcitation","Error in constructing excitation matrix")
 
     END SUBROUTINE GetBitExcitation

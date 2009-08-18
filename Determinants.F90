@@ -534,6 +534,7 @@ END MODULE Determinants
             if(iEl.eq.0) EXIT
             WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
          ENDDO
+         WRITE(NUNIT,"(A)",advance='no') ")"
          IF(LTERM) WRITE(NUNIT,*)
          RETURN
       END
