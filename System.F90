@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tNoBrillouin=.false.
       tROHF=.false.
       tCacheFCIDUMPInts=.false.
       tHPHFInts=.false.
@@ -283,6 +284,8 @@ MODULE System
             IPARITY(4)=0
         case("USEBRILLOUINTHEOREM")
           TUSEBRILLOUIN=.TRUE. 
+        case("NOBRILLOUINTHEOREM")
+            tNoBrillouin=.true.
         case("RS")
             call getf(FUEGRS)
         case("EXCHANGE-CUTOFF")
@@ -585,6 +588,7 @@ MODULE System
 ! H elements for single excitations are no longer 0 (as for HF), and walkers on singly excited determinants must be included in the energy 
 ! calculations.
             tRotatedOrbs=.true.
+            tNoBrillouin=.true.
 
         case("SPINORBS")
 ! This flag simply uses spin orbitals to perform the rotation rather than spatial orbitals.
@@ -652,6 +656,7 @@ MODULE System
 !This is an option for open-shell systems to specify that the integrals are *restricted* open-shell integrals.
 !This will save memory (around a factor of 16) for the integral storage, but the FCIDUMP file should be the same as before (ie in UHF form).
             tROHF=.true.
+            tNoBrillouin=.true.
         case("ENDSYS") 
             exit system
         case default

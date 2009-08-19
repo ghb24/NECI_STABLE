@@ -414,7 +414,7 @@ MODULE FciMCParMod
             HDiagCurr=CurrentH(j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr)
+            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
 
             tFilled=.false.     !This is for regenerating excitations from the same determinant multiple times. There will be a time saving if we can store the excitation generators temporarily.
 
@@ -696,7 +696,7 @@ MODULE FciMCParMod
             ENDIF
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr)
+            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
 
 !            IF(TResumFCIMC) CALL ResumGraphPar(DetCurr,CurrentSign(j),VecSlot,j)
 
@@ -5222,23 +5222,15 @@ MODULE FciMCParMod
 !This routine sums in the energy contribution from a given walker and updates stats such as mean excit level
 !AJWT added optional argument dProb which is a probability that whatever gave this contribution as generated.
 !  It defaults to 1, and weights the contribution of this det. (Only in the projected energy)
-    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb)
-        use SystemData, only : tUseBrillouin
+    SUBROUTINE SumEContrib(DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProbFin)
+        use SystemData, only : tNoBrillouin
         INTEGER :: DetCurr(NEl),ExcitLevel,i,HighIndex,LowIndex,iLutCurr(0:NIfD),WSign,Bin
         INTEGER :: PartInd,iLutSym(0:NIfD),OpenOrbs
         LOGICAL :: CompiPath,tSuccess,iLut2(0:NIfD),DetBitEQ
         REAL*8 :: HDiagCurr
         TYPE(HElement) :: HOffDiag
-        real*8, optional :: dProb
         real*8 dProbFin
-        if(present(dProb)) then
-            dProbFin=dProb
-        else
-            dProbFin=1.D0
-        endif
 !        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
-         
-
 
 !        MeanExcitLevel=MeanExcitLevel+real(ExcitLevel,r2)
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
@@ -5269,7 +5261,10 @@ MODULE FciMCParMod
 !            AvSign=AvSign+REAL(WSign,r2)
 
         ELSEIF(ExcitLevel.eq.1) THEN
-          if(.not.tUseBrillouin) then
+          if(tNoBrillouin.or.(tHub.and.tReal).or.tRotatedOrbs) then
+!For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
+!For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
+!be included in the energy values along with the doubles.
             IF(tHPHF) THEN
                 CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
             ELSE
@@ -5280,6 +5275,7 @@ MODULE FciMCParMod
 !            AvSignHFD=AvSignHFD+REAL(WSign,r2)
             ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign/dProbFin)     !This is simply the Hij*sign summed over the course of the update cycle
           endif 
+
           IF(tConstructNOs) THEN
 !Fill the 1-RDM to find natural orbital on-the-fly.
 !Find the orbitals that are involved in the excitation (those that differ in occupation to the ref orbital).
@@ -5290,33 +5286,10 @@ MODULE FciMCParMod
                     OneRDM(Orbs(2),Orbs(1))=OneRDM(Orbs(1),Orbs(2))
                 ENDIF
 !At the end of all iterations, this OneRDM will contain only the unnormalised off-diagonal elements.
-
-
-!                IF(WSign.eq.1) THEN
-!                    IF(Iter.gt.NEquilSteps) SumENumSing=SumENumSing+REAL(HOffDiagSing%v,r2) 
-!                ELSE
-!                    IF(Iter.gt.NEquilSteps) SumENumSing=SumENumSing-REAL(HOffDiagSing%v,r2)
-!                ENDIF
           ENDIF
             
         ENDIF
 
-        IF((tHub.and.tReal).or.tRotatedOrbs) THEN
-!For the real-space hubbard model, determinants are only connected to excitations one level away, and brillouins theorem can not hold.
-!For Rotated orbitals, brillouins theorem also cannot hold, and energy contributions from walkers on singly excited determinants must
-!be included in the energy values along with the doubles.
-            IF(ExcitLevel.eq.1) THEN
-                IF(tHPHF) THEN
-                    CALL HPHFGetOffDiagHElement(HFDet,DetCurr,iLutHF,iLutCurr,HOffDiag)
-                ELSE
-                    HOffDiag=GetHElement2(HFDet,DetCurr,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,ExcitLevel,ECore)
-                ENDIF
-
-                IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)/dProbFin
-                ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
-            ENDIF
-        ENDIF
-        
         
 !Histogramming diagnostic options...
         IF(tHistSpawn) THEN
@@ -5978,7 +5951,7 @@ MODULE FciMCParMod
         REAL*8 :: TotDets,SymFactor,Choose
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         CHARACTER(len=12) :: abstr
-        LOGICAL :: exists,tSuccess,tFoundOrbs(nBasis)
+        LOGICAL :: exists,tSuccess,tFoundOrbs(nBasis),tTurnBackBrillouin
         REAL :: Gap
 
 
@@ -6109,6 +6082,13 @@ MODULE FciMCParMod
 
 
 !Setup excitation generator for the HF determinant. If we are using assumed sized excitgens, this will also be assumed size.
+        IF(tUseBrillouin.and.tNonUniRandExcits) THEN
+            WRITE(6,*) "Temporarily turning brillouins theorem off in order to calculate pDoubles for non-uniform excitation generators"
+            tTurnBackBrillouin=.true.
+            tUseBrillouin=.false.
+        ELSE
+            tTurnBackBrillouin=.false.
+        ENDIF
         iMaxExcit=0
         nStore(1:6)=0
         CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,nBasisMax,.TRUE.,HFExcit%nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
@@ -6121,6 +6101,11 @@ MODULE FciMCParMod
 
 !        CALL SetupExitgenPar(HFDet,HFExcit)
         CALL GetSymExcitCount(HFExcit%ExcitData,HFConn)
+
+        IF(tTurnBackBrillouin) THEN
+            tUseBrillouin=.true.
+            WRITE(6,*) "Turning back on brillouins theorem"
+        ENDIF
 
 !Initialise random number seed - since the seeds need to be different on different processors, subract processor rank from random number
         Seed=abs(G_VMC_Seed-iProcIndex)
@@ -9303,7 +9288,7 @@ MODULE FciMCParMod
             HDiagCurr=CurrentH(j)
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
-            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr)
+            CALL SumEContrib(DetCurr,WalkExcitLevel,CurrentSign(j),CurrentDets(:,j),HDiagCurr,1.D0)
 
 !We now have to decide whether the parent particle (j) wants to self-destruct or not...
 !For rotoannihilation, we can have multiple particles on the same determinant - these can be stochastically killed at the same time.

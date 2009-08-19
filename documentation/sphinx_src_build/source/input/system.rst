@@ -242,6 +242,12 @@ General options
     the Hartree--Fock determinant coupled to the Hartree--Fock determinant
     is zero, so explicitly exclude such single excitations.
 
+**NOBRILLOUINTHEOREM**
+    For the FCIMC parallel calculations, brillouins theorem is on by default. To disable
+    this, this keyword is required (for say non-HF orbitals, ROHF orbitals, rotated orbitals...).
+    This is automatically turned on if the **ROHF** or **ROTATEDORBS** keyword is
+    also supplied.
+
 **ROTATEORBS** [TimeStep] [ConvergedForce]
     This keyword initiates an iterative rotation of the HF orbitals to find the 
     coefficients that best fit a particular criteria (e.g those which maximise 
