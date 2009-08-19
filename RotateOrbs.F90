@@ -9,7 +9,7 @@ MODULE RotateOrbsMod
     USE SystemData , only : G1,ARR,NEl,nBasis,LMS,ECore,tSeparateOccVirt,Brr,nBasisMax,OrbOrder,lNoSymmetry,tRotatedOrbs,tERLocalization,tRotateOccOnly
     USE SystemData, only : tOffDiagMin,DiagWeight,OffDiagWeight,tRotateVirtOnly,tOffDiagSqrdMax,tOffDiagSqrdMin,tOffDiagMax,tDoubExcMin,tOneElIntMax,tOnePartOrbEnMax
     USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tVirtExchangeMin,MaxMinFac,tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
-    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff
+    USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
     USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc,tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
     USE Logging , only : tPrintInts
     USE OneEInts , only : TMAT2D
@@ -62,10 +62,11 @@ MODULE RotateOrbsMod
         CALL FLUSH(6)
 
 ! If we are reading in our own transformation matrix (coeffT1) don't need a lot of the initialisation stuff.
-        IF(tReadInCoeff) THEN
+        IF(tReadInCoeff.or.tUseMP2VarDenMat) THEN
 
             tNotConverged=.false.
-            CALL ReadInCoeffT1()
+!            CALL ReadInCoeffT1()
+            CALL UseMP2VarDenMat()
 
         ELSE
 ! Need to actually find the coefficient matrix and then use it.
@@ -138,9 +139,9 @@ MODULE RotateOrbsMod
     END SUBROUTINE RotateOrbs
 
 
-    SUBROUTINE ReadInCoeffT1()
+    SUBROUTINE UseMP2VarDenMat()
         INTEGER :: i,a,ierr,MinReadIn,MaxReadIn
-        CHARACTER(len=*) , PARAMETER :: this_routine='ReadInCoeffT1'
+        CHARACTER(len=*) , PARAMETER :: this_routine='UseMP1VarDenMat'
 
 
         SpatOrbs=nBasis/2
@@ -163,13 +164,14 @@ MODULE RotateOrbsMod
 ! Only virtual orbitals need to be transformed.
 
         ALLOCATE(CoeffT1(NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('ReadInCoeffT1',NoOrbs**2,8,this_routine,CoeffT1Tag,ierr)
+        CALL LogMemAlloc(this_routine,NoOrbs**2,8,this_routine,CoeffT1Tag,ierr)
         CoeffT1(:,:)=0.D0
         IF(tSeparateOccVirt) THEN
             do i=1,NoOrbs
                 CoeffT1(i,i)=1.D0
             enddo
         ENDIF
+
 
         ALLOCATE(SymLabelList2(NoOrbs),stat=ierr)
         CALL LogMemAlloc('SymLabelList2',NoOrbs,4,this_routine,SymLabelList2Tag,ierr)
@@ -180,32 +182,47 @@ MODULE RotateOrbsMod
 
 
 ! No symmetry, so no reordering of the orbitals - symlabellist just goes from 1-NoOrbs.        
-        do i=1,NoOrbs
-            SymLabelList2(i)=i
-            SymLabelListInv(i)=i
-        enddo
+        IF(tReadInCoeff) THEN
+            do i=1,NoOrbs
+                SymLabelList2(i)=i
+                SymLabelListInv(i)=i
+            enddo
+        ELSEIF(tUseMP2VarDenMat) THEN
+            do i=1,NoOrbs
+                SymLabelList2(i)=CEILING(BRR(2*i)/2.D0)
+            enddo
+            do i=1,NoOrbs
+                SymLabelListInv(SymLabelList2(i))=i
+            enddo
+!            tSeparateOccVirt=.true.
+!            CALL InitSymmArrays()
+        ENDIF
 
-!        OPEN(42,file="TRANSFORMMAT",status="old")
-!        do i=MinReadIn,MaxReadIn
-!            j=SymLabelList2(i)
-!            do a=MinReadIn,MaxReadIn
-!                b=SymLabelList2(a)
-!                READ(42,*) CoeffT1(b,j)
-!                READ(42,*) CoeffT1
-!            enddo
+!        WRITE(6,*) 'SymLabelList'
+!        do i=1,NoOrbs
+!            WRITE(6,*) SymLabelList2(i)
 !        enddo
-!        CLOSE(42)
+!        CALL FLUSH(6)
+!        stop
 
-        OPEN(72,FILE='TRANSFORMMAT',status='old')
-        READ(72,*) CoeffT1
-        CLOSE(72)
-      
+!            OPEN(42,file="TRANSFORMMAT",status="old")
+!            do i=MinReadIn,MaxReadIn
+!                j=SymLabelList2(i)
+!                do a=MinReadIn,MaxReadIn
+!                    b=SymLabelList2(a)
+!                    READ(42,*) CoeffT1(b,j)
+!                    READ(42,*) CoeffT1
+!                enddo
+!            enddo
+!            CLOSE(42)
+         
 ! Need to read to convert the UMAT matrix from UMATInd to the appropriate indexing for Transform2ElInts.        
         ALLOCATE(UMATTemp01(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('UMATTemp01',NoOrbs**4,8,this_routine,UMATTemp01Tag,ierr)
- 
+
         CALL CopyAcrossUMAT()
         
+
         ALLOCATE(TwoIndInts01Temp(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('TwoIndInts01Temp',NoOrbs**4,8,this_routine,TwoIndInts01TempTag,ierr)
         ALLOCATE(TwoIndInts01(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
@@ -216,15 +233,42 @@ MODULE RotateOrbsMod
         ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('FourIndInts',NoOrbs**4,8,this_routine,FourIndIntsTag,ierr)
 
+        IF(tReadInCoeff) THEN
+
+            WRITE(6,*) "Reading in the transformation matrix from TRANSFORMMAT, and using this to rotate the HF orbitals."
+
+            OPEN(72,FILE='TRANSFORMMAT',status='old')
+            READ(72,*) CoeffT1
+            CLOSE(72)
+
+!            OPEN(78,FILE='TRANSFORMMATORIG',status='unknown')
+!            do i=1,NoOrbs
+!                do a=1,NoOrbs
+!                    WRITE(78,*) i,a,CoeffT1(i,a)
+!                enddo
+!            enddo
+!            stop
+
+        ELSEIF(tUseMP2VarDenMat) THEN
+! This bit generates the MP2 variational density matrix, and uses this as the transformation matrix (CoeffT1).        
+    
+            WRITE(6,*) "Calculating the MP2 vartiational density matrix, and using this to rotate the HF orbitals."
+            CALL CalcMP2VarDenMat()
+
+        ENDIF
 
 ! Then, transform2ElInts
+        WRITE(6,*) 'Transforming the four index integrals'
         CALL Transform2ElInts()
  
         CALL CalcFOCKMatrix()
  
+        WRITE(6,*) 'Printing the new FCIDUMP file'
         CALL RefillUMATandTMAT2D()        
  
         CALL PrintROFCIDUMP()
+
+        CALL FLUSH(6)
  
         IF(iProcIndex.eq.Root) CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
 
@@ -246,9 +290,167 @@ MODULE RotateOrbsMod
         CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
 
 
-    END SUBROUTINE ReadInCoeffT1
+    END SUBROUTINE UseMP2VarDenMat 
+
+    
+
+    SUBROUTINE CalcMP2VarDenMat()
+        INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,ierr,LWORK2,INFO,MP2VDMTag
+        CHARACTER(len=*) , PARAMETER :: this_routine='InitLocalOrbs'
+        REAL*8 :: Evalues(NoOrbs),WORK2(3*(NoOrbs-NoOcc)+1),MP2VDMSum
+        REAL*8 , ALLOCATABLE :: MP2VDM(:,:)
+
+        ALLOCATE(MP2VDM(NoOrbs,NoOrbs),stat=ierr)
+        CALL LogMemAlloc('MP2VDM',NoOrbs**2,8,this_routine,MP2VDMTag,ierr)
+        MP2VDM(:,:)=0.D0
+ 
+
+!        do i=1,NoOcc
+!            MP2VDM(i,i)=1.D0
+!        enddo
+        Evalues(:)=0.D0
+
+!        WRITE(6,*) 'NoOcc',NoOcc
+!        WRITE(6,*) 'NoOrbs',NoOrbs
+        do a2=NoOcc+1,NoOrbs
+            a=SymLabelList2(a2)
+            do b2=NoOcc+1,NoOrbs
+                b=SymLabelList2(b2)
+                MP2VDMSum=0.D0
+
+                do c2=NoOcc+1,NoOrbs
+                    c=SymLabelList2(c2)
+                    do i2=1,NoOcc
+                        i=SymLabelList2(i2)
+                        do j2=1,NoOcc
+                            j=SymLabelList2(j2)
+                            IF(tSpinOrbs) THEN
+                                CALL Stop_All(this_routine,"have not set UseMP2VarDenMat up for spin orbitals yet.")
+                            ELSE
+!                                MP2VDMSum=MP2VDMSum+&
+!                                            &(UMATTemp01(i,a,j,c)/(ARR(2*i,1)-ARR(2*a,1)+ARR(2*j,1)-ARR(2*c,1)))*&
+!                                            &(2.D0*UMATTemp01(i,b,j,c)/(ARR(2*i,1)-ARR(2*b,1)+ARR(2*j,1)-ARR(2*c,1)))&
+!                                            &-(UMATTemp01(i,a,j,c)/(ARR(2*i,1)-ARR(2*a,1)+ARR(2*j,1)-ARR(2*c,1)))*&
+!                                            &(UMATTemp01(j,b,i,c)/(ARR(2*i,1)-ARR(2*c,1)+ARR(2*j,1)-ARR(2*b,1)))
+
+                                MP2VDMSum=MP2VDMSum+&
+                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0))%v,8))) )/&
+                                            &( (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*a2,1)-ARR(2*c2,1)) * (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*b2,1)-ARR(2*c2,1)) ) )
+                                MP2VDMSum=MP2VDMSum-&                                            
+                                            &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
+                                            &( (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*a2,1)-ARR(2*c2,1)) * (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*c2,1)-ARR(2*b2,1)) ) )
+ 
+!                                            &(((REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8))/(ARR(2*i2,1)-ARR(2*a2,1)+ARR(2*j2,1)-ARR(2*c2,1)))*&
+!                                            &((REAL(UMAT(UMatInd(j,i,b,c,0,0))%v,8))/(ARR(2*i2,1)-ARR(2*c2,1)+ARR(2*j2,1)-ARR(2*b2,1))))
+!                                IF((a.eq.6).and.(b.eq.15)) THEN            
+
+!                                    WRITE(6,'(5I3,F20.10)') i,j,a,b,c, ((REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8))/(ARR(2*i,2)-ARR(2*a,2)+ARR(2*j,2)-ARR(2*c,2)))
+!                                    WRITE(6,'(4I3,F20.10)') i,j,b,c, ((2.D0*(REAL(UMAT(UMatInd(i,j,b,c,0,0))%v,8)))/(ARR(2*i,1)-ARR(2*b,1)+ARR(2*j,1)-ARR(2*c,1)))
+!                                    WRITE(6,'(4I3,2F20.10)') i,j,b,c,REAL(UMAT(UMatInd(i,j,b,c,0,0))%v,8),(ARR(2*i,1)-ARR(2*b,1)+ARR(2*j,1)-ARR(2*c,1)) 
+!                                    WRITE(6,*) i,ARR(2*i,2),j,ARR(2*j,1),b,ARR(2*b,1),c,ARR(2*b,1)
+                                    
+!                                    WRITE(6,'(5I3,F20.10)') i,j,a,b,c, (((REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8))/(ARR(2*i,2)-ARR(2*a,2)+ARR(2*j,2)-ARR(2*c,2))))
+!                                    WRITE(6,'(5I3,F20.10)') i,j,b,c, ((REAL(UMAT(UMatInd(j,i,b,c,0,0))%v,8))/(ARR(2*i,2)-ARR(2*c,2)+ARR(2*j,2)-ARR(2*b,2)))
+!                                    WRITE(6,'(4I3,2F20.10)') i,j,a,c,REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8),(ARR(2*i,2)-ARR(2*a,2)+ARR(2*j,2)-ARR(2*c,2)) 
+!                                    WRITE(6,'(4I3,2F20.10)') j,i,b,c,REAL(UMAT(UMatInd(i,j,b,c,0,0))%v,8),(ARR(2*i,2)-ARR(2*b,2)+ARR(2*j,2)-ARR(2*c,2)) 
+!                                ENDIF
+ 
+                            ENDIF
+                        enddo
+                    enddo
+                enddo
+                MP2VDM(a2,b2)=MP2VDMSum
+                MP2VDM(b2,a2)=MP2VDMSum
+
+
+            enddo
+        enddo
+        WRITE(6,*) 'Finished filling MP2VDM'
+        CALL FLUSH(6)
+        
+!        OPEN(83,file='D2MATRIX-mine',status='unknown')
+!        do a=1,NoOrbs
+!            do b=1,NoOrbs
+!                WRITE(83,*) a,b,MP2VDM(a,b)
+!            enddo
+!        enddo
+!        CLOSE(83)
+
+!        do i=1,NoOrbs
+!            WRITE(6,*) MP2VDM(:,i)
+!        enddo
+!        CALL FLUSH(6)
+!        stop
+
+        WRITE(6,*) 'Calculating eigenvectors and eigenvalues of MP2VDM'
+        CALL FLUSH(6)
+        LWORK2=3*(NoOrbs-NoOcc)+1
+
+        CALL DSYEV( 'V', 'L', (NoOrbs-NoOcc), MP2VDM((NoOcc+1):NoOrbs,(NoOcc+1):NoOrbs), (NoOrbs-NoOcc), Evalues((NoOcc+1):NoOrbs), WORK2, LWORK2, INFO )
+        ! MP2VDM goes in as the D2 matrix, comes out as the eigenvectors.
+        ! Evalues come out in ascending order.
+        WRITE(6,*) 'Matrix diagonalised'
+        CALL FLUSH(6)
+
+!        do i=1,NoOrbs
+!            WRITE(6,*) Evalues(i)
+!        enddo
+!        do i=1,NoOrbs
+!            WRITE(6,*) MP2VDM(:,i)
+!        enddo
+!        CALL FLUSH(6)
+!        stop
+
+        do i=1,NoOcc
+            Evalues(i)=1.D0
+            MP2VDM(i,i)=1.D0
+        enddo
+
+        OPEN(73,FILE='D2EVS',status='unknown')
+        WRITE(73,*) NoOrbs
+        WRITE(73,*) Evalues
+        CLOSE(73)
+        WRITE(6,*) 'Eigen-values: '
+        do i=1,NoOrbs
+            WRITE(6,*) Evalues(i)
+        enddo
+        WRITE(6,*) 'MP2VDM matrix'
+        do i=1,NoOrbs
+            WRITE(6,*) MP2VDM(:,i)
+        enddo
+
+!        do i=1,NoOrbs
+!            do j=1,NoOrbs
+!                MP2VDMInv(i,j)=MP2VDM(j,i)
+!                CoeffT1(i,j)=MP2VDMInv(i,j)
+!            enddo
+!        enddo
+!        CoeffT1(:,:)=MP2VDMInv(:,:)
+        CoeffT1(:,:)=0.D0
+        
+        do i=1,NoOcc
+            CoeffT1(:,i)=MP2VDM(:,i)
+        enddo
+        do i=NoOcc+1,NoOrbs
+            CoeffT1(:,i)=MP2VDM(:,(NoOrbs-i+NoOcc+1))
+        enddo
+
+        OPEN(74,FILE='TRANSFORMMAT',status='unknown')
+        do i=1,NoOrbs
+            do j=1,NoOrbs
+                WRITE(74,*) i,j,CoeffT1(i,j)
+            enddo
+        enddo
+        CLOSE(74)
+        
+        DEALLOCATE(MP2VDM)
+        CALL LogMemDeAlloc(this_routine,MP2VDMTag)
+
+
+    END SUBROUTINE CalcMP2VarDenMat
 
  
+
     SUBROUTINE InitLocalOrbs()
         CHARACTER(len=*) , PARAMETER :: this_routine='InitLocalOrbs'
         INTEGER :: ierr
@@ -660,7 +862,8 @@ MODULE RotateOrbsMod
 ! Doing this now, rather than using UMatInd in each transform2elint routine proved a lot faster.
         DerivCoeff(:,:)=0.D0
         UMATTemp01(:,:,:,:)=0.D0
-        IF(((.not.tERLocalization).and.(.not.tReadInCoeff)).or.(tERLocalization.and.tSpinOrbs)) UMATTemp02(:,:,:,:)=0.D0
+        IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat))&
+        &.or.(tERLocalization.and.tSpinOrbs)) UMATTemp02(:,:,:,:)=0.D0
 
         CALL CopyAcrossUMAT()
 
@@ -736,7 +939,8 @@ MODULE RotateOrbsMod
         REAL*8 :: s,t
 
 
-        IF(((.not.tERLocalization).and.(.not.tReadInCoeff)).or.(tERLocalization.and.tSpinOrbs)) TMAT2DTemp(:,:)=0.D0
+        IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat))&
+        &.or.(tERLocalization.and.tSpinOrbs)) TMAT2DTemp(:,:)=0.D0
 
 ! These loops can be sped up with spatial symmetry and pairwise permutation symmetry if needed.
         do a=1,NoOrbs
@@ -759,7 +963,8 @@ MODULE RotateOrbsMod
                         Sping=1
                     ENDIF
                 ENDIF
-                IF(((.not.tERLocalization).and.(.not.tReadInCoeff)).or.(tERLocalization.and.tSpinOrbs)) THEN
+                IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat))&
+                &.or.(tERLocalization.and.tSpinOrbs)) THEN
                     IF(tSpinOrbs) THEN
                         s=REAL(TMAT2D(i,j)%v,8)
                         TMAT2DTemp(a,g)=s
@@ -800,7 +1005,8 @@ MODULE RotateOrbsMod
                                 UMATTemp01(g,a,b,d)=t
                                 UMATTemp01(a,g,d,b)=t
                                 UMATTemp01(g,a,d,b)=t
-                                IF(((.not.tERLocalization).and.(.not.tReadInCoeff)).or.(tERLocalization.and.tSpinOrbs)) THEN
+                                IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat))&
+                                &.or.(tERLocalization.and.tSpinOrbs)) THEN
                                     UMATTemp02(b,d,a,g)=t
                                     UMATTemp02(b,d,g,a)=t
                                     UMATTemp02(d,b,a,g)=t
@@ -813,7 +1019,8 @@ MODULE RotateOrbsMod
                             UMATTemp01(g,a,b,d)=t
                             UMATTemp01(a,g,d,b)=t
                             UMATTemp01(g,a,d,b)=t
-                            IF(((.not.tERLocalization).and.(.not.tReadInCoeff)).or.(tERLocalization.and.tSpinOrbs)) THEN
+                            IF(((.not.tERLocalization).and.(.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat))&
+                            &.or.(tERLocalization.and.tSpinOrbs)) THEN
                                 UMATTemp02(d,b,a,g)=t                   !d,b,a,g order also chosen to speed up the transformation.
                                 UMATTemp02(d,b,g,a)=t
                                 UMATTemp02(b,d,a,g)=t
@@ -1734,7 +1941,7 @@ MODULE RotateOrbsMod
 ! This can be sped up by merging the calculations of the potentials with the transformations, but while 
 ! we are playing around with different potentials, it is simpler to keep these separate.
     
-        IF(.not.tReadInCoeff) THEN
+        IF((.not.tReadInCoeff).and.(.not.tUseMP2VarDenMat)) THEN
             
             PotEnergy=0.D0
             TwoEInts=0.D0
@@ -4527,7 +4734,6 @@ MODULE RotateOrbsMod
 
 
     ENDSUBROUTINE CalcFOCKMatrix
-
 
 
     SUBROUTINE RefillUMATandTMAT2D()

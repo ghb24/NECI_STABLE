@@ -107,6 +107,7 @@ MODULE System
       tRotateVirtOnly=.false.
       tSpinOrbs=.false.
       tReadInCoeff=.false.
+      tUseMP2VarDenMat=.false.
       DiagWeight=1.D0
       OffDiagWeight=1.D0
       OneElWeight=1.D0
@@ -593,6 +594,11 @@ MODULE System
 ! This sets the rotation routine to read in a transformation matrix (coefft1) and use the transformation routine and print rofcidump routines
 ! to transform the orbitals and print out a new dump file.
             tReadInCoeff=.true.
+
+        case("USEMP2VDM")
+! Once in the rotation routine, the MP2 variational density matrix is calculated, and this is used to transform the orbitals and print and 
+! new FCIDUMP file.
+            tUseMP2VarDenMat=.true.
 
         case("RANLUXLEV")
 !This is the level of quality for the random number generator. Values go from 1 -> 4. 3 is default.
