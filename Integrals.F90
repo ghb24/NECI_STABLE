@@ -403,8 +403,8 @@ MODULE Integrals
                  WRITE(6,*) "Setting up main UMatCache for open-shell system (inefficient - ~16x too much memory used for ROHF)"
                  call SetupUMatCache(I,.FALSE.)
              ELSE
+                 call SetupUMatCache(I/2,.FALSE.)
                  WRITE(6,*) "Setting up main UMatCache for closed-shell system"
-                 call SetupUMatCache(I,.FALSE.)
              ENDIF
              tReadFreezeInts=.false.
          ENDIF
