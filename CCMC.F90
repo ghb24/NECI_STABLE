@@ -569,42 +569,14 @@ END SUBROUTINE AddBitExcitor
 !Calculate number of children to spawn
                IF(TTruncSpace) THEN
 !We have truncated the excitation space at a given excitation level. See if the spawn should be allowed.
-
-                   IF(WalkExcitLevel.eq.(ICILevel-1)) THEN
-!The current walker is one below the excitation cutoff - if IC is a double, then could go over - we need to check
-
-                       IF(IC.eq.2) THEN
-!Need to check excitation level of excitation
-                           ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                           IF(ExcitLevel.gt.ICILevel) THEN
-!Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                               Child=0
-                           ELSE
-                               Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                           ENDIF
-                       ELSE
-                           Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                       ENDIF
-
-                   ELSEIF(WalkExcitLevel.eq.ICILevel) THEN
-!Walker is at the excitation cutoff level - all possible excitations could be disallowed - check the actual excitation level
-                       ExcitLevel=iGetExcitLevel_2(HFDet,nJ,NEl,ICILevel)
-                       IF(ExcitLevel.gt.ICILevel) THEN
-   !Attempted excitation is above the excitation level cutoff - do not allow the creation of children
-                           Child=0
-                       ELSE
-                           Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                       ENDIF
-                   ELSE
-   !Excitation cannot be in a dissallowed excitation level - allow it as normal
+                   IF(CheckAllowedTruncSpawn(WalkExcitLevel,nJ,iLutnJ,IC)) THEN
                        Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-                   ENDIF 
-                
+                   ELSE
+                       Child=0
+                   ENDIF
                ELSE
 !SD Space is not truncated - allow attempted spawn as usual
-
                    Child=AttemptCreatePar(DetCurr,iLutnI,iSgn,nJ,iLutnJ,Prob,IC,Ex,tParity,1,.false.)
-
                ENDIF
 
                IF(iDebug.gt.4.or.((iDebug.eq.3.or.iDebug.eq.4).and.Child.ne.0)) THEN
