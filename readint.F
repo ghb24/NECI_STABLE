@@ -1,5 +1,6 @@
       SUBROUTINE INITFROMFCID(NEL,NBASISMAX,LEN,LMS,TBIN)
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF
+         use SystemData , only : tStoreSpinOrbs
          IMPLICIT NONE
          INTEGER NEL,nBasisMax(5,*),LEN,LMS
          INTEGER NORB,NELEC,MS2,ORBSYM(1000),ISYM,i

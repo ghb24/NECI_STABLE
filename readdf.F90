@@ -1,5 +1,6 @@
 ! lenrec is the number of auxiliary basis functions
 SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
+         use SystemData , only : tStoreSpinOrbs
          use record_handler
          USE HElem
          use UMatCache
