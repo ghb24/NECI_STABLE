@@ -996,6 +996,7 @@ MODULE Calc
 
 
         Subroutine CalcInit()
+          use HElem , only : HElement
           use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace
           use IntegralsData, only: FCK, CST, nMax, UMat
@@ -1009,6 +1010,7 @@ MODULE Calc
           
           INTEGER I, IC
           INTEGER nList
+          TYPE(HElement) HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
 
           Allocate(MCDet(nEl))
@@ -1070,7 +1072,8 @@ MODULE Calc
           IF(.NOT.TREAD) THEN
 !             CALL WRITETMAT(NBASIS)
              IC=0
-             WRITE(6,*) '<D0|H|D0>=',GETHELEMENT2(FDET,FDET,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+             HDiagTemp=GETHELEMENT2(FDET,FDET,NEL,NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,IC,ECORE)
+             WRITE(6,*) '<D0|H|D0>=',HDiagTemp
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL,G1,NBASIS)
              IF(TUEG) THEN
 !  The actual KE rather than the one-electron part of the Hamiltonian
