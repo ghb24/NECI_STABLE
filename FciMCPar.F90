@@ -5234,7 +5234,7 @@ MODULE FciMCParMod
         if(present(dProb)) then
             dProbFin=dProb
         else
-            dProbFin=1
+            dProbFin=1.D0
         endif
 !        write(81,*) DetCurr,ExcitLevel,WSign,iLutCurr,HDiagCurr,dProb
          
@@ -5244,76 +5244,6 @@ MODULE FciMCParMod
 !        IF(MinExcitLevel.gt.ExcitLevel) MinExcitLevel=ExcitLevel
 !        IF(MaxExcitLevel.lt.ExcitLevel) MaxExcitLevel=ExcitLevel
 !        DetsNorm=DetsNorm+REAL((WSign**2),r2)
-        IF(tHistSpawn) THEN
-            IF(ExcitLevel.eq.NEl) THEN
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
-                HistMinInd(ExcitLevel)=PartInd
-            ELSEIF(ExcitLevel.eq.0) THEN
-                PartInd=1
-                tSuccess=.true.
-            ELSE
-                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                HistMinInd(ExcitLevel)=PartInd
-            ENDIF
-            IF(tSuccess) THEN
-                IF(tFlippedSign) THEN
-                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                    InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                ELSE
-                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                    InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                ENDIF
-            ELSE
-                WRITE(6,*) DetCurr(:)
-                WRITE(6,*) "***",iLutCurr(0:NIfD)
-                WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
-                CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
-            ENDIF
-            IF(tHPHF) THEN
-!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
-                CALL FindExcitBitDetSym(iLutCurr,iLutSym)
-                IF(ExcitLevel.eq.NEl) THEN
-                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
-                ELSEIF(ExcitLevel.eq.0) THEN
-                    PartInd=1
-                    tSuccess=.true.
-                ELSE
-                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
-                ENDIF
-                IF(tSuccess) THEN
-                    CALL CalcOpenOrbs(iLutSym,NIfD,NEl,OpenOrbs)
-                    IF(tFlippedSign) THEN
-                        IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                        ELSE
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                        ENDIF
-                    ELSE
-                        IF(mod(OpenOrbs,2).eq.1) THEN
-                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
-                        ELSE
-                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
-                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
-                        ENDIF
-                    ENDIF
-                ELSE
-                    WRITE(6,*) DetCurr(:)
-                    WRITE(6,*) "***",iLutSym(0:NIfD)
-                    WRITE(6,*) "***",ExcitLevel,Det
-                    CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
-                ENDIF
-            ENDIF
-        ELSEIF(tHistEnergies) THEN
-!This wil histogramm the energies of the particles, rather than the determinants themselves.
-            Bin=INT(HDiagCurr/BinRange)+1
-            IF(Bin.gt.iNoBins) THEN
-                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
-            ENDIF
-            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
-        ENDIF
         IF(ExcitLevel.eq.0) THEN
             IF(Iter.gt.NEquilSteps) SumNoatHF=SumNoatHF+WSign
             NoatHF=NoatHF+WSign
@@ -5385,6 +5315,79 @@ MODULE FciMCParMod
                 IF(Iter.gt.NEquilSteps) SumENum=SumENum+(REAL(HOffDiag%v,r2)*WSign)/dProbFin
                 ENumCyc=ENumCyc+(REAL(HOffDiag%v,r2)*WSign)/dProbFin     !This is simply the Hij*sign summed over the course of the update cycle
             ENDIF
+        ENDIF
+        
+        
+!Histogramming diagnostic options...
+        IF(tHistSpawn) THEN
+            IF(ExcitLevel.eq.NEl) THEN
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),Det,PartInd,tSuccess)
+                HistMinInd(ExcitLevel)=PartInd
+            ELSEIF(ExcitLevel.eq.0) THEN
+                PartInd=1
+                tSuccess=.true.
+            ELSE
+                CALL BinSearchParts2(iLutCurr,HistMinInd(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                HistMinInd(ExcitLevel)=PartInd
+            ENDIF
+            IF(tSuccess) THEN
+                IF(tFlippedSign) THEN
+                    Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                    InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                ELSE
+                    Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                    InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                ENDIF
+            ELSE
+                WRITE(6,*) DetCurr(:)
+                WRITE(6,*) "***",iLutCurr(0:NIfD)
+                WRITE(6,*) "***",ExcitLevel,HistMinInd(ExcitLevel),Det
+                CALL Stop_All("SumEContrib","Cannot find corresponding FCI determinant when histogramming")
+            ENDIF
+            IF(tHPHF) THEN
+!With HPHF space, we need to also include the spin-coupled determinant, which will have the same amplitude as the original determinant, unless it is antisymmetric.
+                CALL FindExcitBitDetSym(iLutCurr,iLutSym)
+                IF(ExcitLevel.eq.NEl) THEN
+                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),Det,PartInd,tSuccess)
+                ELSEIF(ExcitLevel.eq.0) THEN
+                    PartInd=1
+                    tSuccess=.true.
+                ELSE
+                    CALL BinSearchParts2(iLutSym,FCIDetIndex(ExcitLevel),FCIDetIndex(ExcitLevel+1)-1,PartInd,tSuccess)
+                ENDIF
+                IF(tSuccess) THEN
+                    CALL CalcOpenOrbs(iLutSym,NIfD,NEl,OpenOrbs)
+                    IF(tFlippedSign) THEN
+                        IF(mod(OpenOrbs,2).eq.1) THEN
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                        ENDIF
+                    ELSE
+                        IF(mod(OpenOrbs,2).eq.1) THEN
+                            Histogram(PartInd)=Histogram(PartInd)-REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)-REAL(WSign,r2)
+                        ELSE
+                            Histogram(PartInd)=Histogram(PartInd)+REAL(WSign,r2)
+                            InstHist(PartInd)=InstHist(PartInd)+REAL(WSign,r2)
+                        ENDIF
+                    ENDIF
+                ELSE
+                    WRITE(6,*) DetCurr(:)
+                    WRITE(6,*) "***",iLutSym(0:NIfD)
+                    WRITE(6,*) "***",ExcitLevel,Det
+                    CALL Stop_All("SumEContrib","Cannot find corresponding spin-coupled FCI determinant when histogramming")
+                ENDIF
+            ENDIF
+        ELSEIF(tHistEnergies) THEN
+!This wil histogramm the energies of the particles, rather than the determinants themselves.
+            Bin=INT(HDiagCurr/BinRange)+1
+            IF(Bin.gt.iNoBins) THEN
+                CALL Stop_All("SumEContrib","Histogramming energies higher than the arrays can cope with. Increase iNoBins or BinRange")
+            ENDIF
+            Histogram(Bin)=Histogram(Bin)+real(abs(WSign),r2)
         ENDIF
 
 
