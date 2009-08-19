@@ -18,6 +18,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tStoreSpinOrbs=.false.    !by default we store/lookup integrals as spatial integrals
       tNoBrillouin=.false.
       tROHF=.false.
       tCacheFCIDUMPInts=.false.
@@ -842,7 +843,7 @@ MODULE System
 !            ELSE
 !               NBASISMAX(4,5)=2
 !            ENDIF
-            IF(NBASISMAX(2,3).EQ.1) then
+            IF(tStoreSpinOrbs) then
                 WRITE(6,*) "Unrestricted calculation.  Cave Arthropodia"
             ELSEIF(tROHF) then
                 WRITE(6,*) "High-spin restricted calculation. Seriously Cave Arthropodia"

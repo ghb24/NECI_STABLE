@@ -1198,7 +1198,7 @@ MODULE Integrals
       !    NHG: # basis functions.`
       !    G1: symmetry and momentum information on the basis functions.
       !    IDI,IDJ,IDK,IDL: indices for integral.
-      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts,tSpn
+      use SystemData, only: Symmetry,BasisFN,tVASP,tRIIntegrals,tCacheFCIDUMPInts,tStoreSpinOrbs
       use UMatCache
       use vasp_neci_interface, only: CONSTRUCT_IJAB_one
       IMPLICIT NONE
@@ -1263,8 +1263,8 @@ MODULE Integrals
                K=IDK
                L=IDL
                SYM=TotSymRep()
-               IF(tSpn) THEN
-!UHF/ROHF calculation - integrals stored as spin-orbitals already...
+               IF(tStoreSpinOrbs) THEN
+!UHF/ROHF (but not explicit ROHF in input) calculation - integrals stored as spin-orbitals already...
 !Also assume real orbitals, since this can only be done by tCacheFCIDUMPInts
                    SYM=SYMPROD(SYM,G1(I)%Sym)
                    SYM=SYMPROD(SYM,G1(J)%Sym)

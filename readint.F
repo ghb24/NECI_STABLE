@@ -63,8 +63,10 @@ C         NBASISMAX(1,2)=NORB
 !the indicator of UHF (which becomes ISpinSkip or ISS later
          IF(UHF.and.(.not.tROHF)) then
             NBASISMAX(2,3)=1
+            tStoreSpinOrbs=.true.   !indicate that we are storing the orbitals in umat as spin-orbitals
          else
             NBASISMAX(2,3)=2
+            tStoreSpinOrbs=.false.   !indicate that we are storing the orbitals in umat as spatial-orbitals
          endif
 
 C.. SHow that there's no momentum conservation

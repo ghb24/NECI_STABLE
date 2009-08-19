@@ -1134,26 +1134,18 @@ MODULE UMatCache
          ! Convert from spin orbitals to spatial orbitals.
          ! Stupidly, nBasisMax(2,3) is not only iSpinSkip (whether things are stored as spin/spatial orbs), 
          ! but also whether to calculate integrals on the fly or not...
-         use SystemData , only :tSpn,tROHF
+         use SystemData , only :tROHF,tStoreSpinOrbs
          IMPLICIT NONE
          INTEGER GIND,nBasisMax(5,*),ID
-            IF(NBASISMAX(2,3).EQ.1) THEN
-!Storing as spin-orbitals (UHF/ROHF)
+            IF(tStoreSpinOrbs) THEN
+!Storing as spin-orbitals (UHF/default ROHF)
                ID=GIND
-            ELSEIF(NBASISMAX(2,3).EQ.2) THEN
-!Storing as spatial orbitals (RHF)
-               ID=(GIND-1)/2+1
             ELSE
-               IF(tROHF) THEN
-                   ID=(GIND-1)/2+1
-               ELSEIF(tSpn) THEN
-                   ID=GIND
-               ELSE
-                   ID=(GIND-1)/2+1
-               ENDIF
-               IF(TTRANSGTID) ID=TRANSTABLE(ID)
+!Storing as spatial orbitals (RHF or explicit input option ROHF)
+               ID=(GIND-1)/2+1
             ENDIF
-      RETURN
+            IF(TTRANSGTID) ID=TRANSTABLE(ID)
+            RETURN
       END SUBROUTINE GTID
       
       

@@ -30,6 +30,7 @@ SUBROUTINE InitDFBasis(nEl,nBasisMax,Len,lMs)
          nBasisMax(1,3)=0
 !.. Setup Max Sym 
          nBasisMax(5,2)=0
+         tStoreSpinOrbs=.false.     !DF cannot cope currently with UHF/ROHF
       END
 !  A file to read in density fitted two-electron integrals from SITUS/Dalton.
 !.. Also will read in one-electron integrals

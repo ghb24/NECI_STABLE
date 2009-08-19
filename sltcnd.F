@@ -60,12 +60,12 @@ C..Differ by none
      &         NHG,UMAT,ALAT,ISPINSKIP,COULCOUPLE,TEXCH,SUM)
 C.. If we're in the UEG, we need to add in the part of the background
 C.. contribution which doesn't cancel
-         IF(NBASISMAX(1,3).EQ.-1) THEN
+!         IF(NBASISMAX(1,3).EQ.-1) THEN
 C            WRITE(6,*) FCK(0,0,0)
 CC removed by AJWT 6/3/06
 C            SUM=SUM-NEL*REAL(FCK(0,0,0))/2
 
-         ENDIF
+!         ENDIF
       ELSE
         SUM=0.D0
         RETURN
