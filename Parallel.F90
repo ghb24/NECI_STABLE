@@ -289,7 +289,50 @@ Subroutine MPIDSumArr(dValues, iLen, dReturn)
 #endif
 end Subroutine MPIDSumArr
 
+!A wrapper for the mpi_bcast double precision routine, so it can be used in serial
+Subroutine MPIDBCast(dValues,iLen,Root)
+    REAL*8 :: dValues
+    INTEGER :: iLen,Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,iLen,MPI_DOUBLE_PRECISION,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPIDBCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPIDBCast
 
+!A wrapper for the mpi_bcast integer routine, so it can be used in serial
+Subroutine MPIIBCast(dValues,iLen,Root)
+    INTEGER :: dValues
+    INTEGER :: iLen,Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,iLen,MPI_INTEGER,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPIIBCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPIIBCast
+
+!A wrapper for the mpi_bcast logical routine, so it can be used in serial
+Subroutine MPILBCast(dValues,iLen,Root)
+    LOGICAL :: dValues
+    INTEGER :: iLen,Root,error,rc
+#ifdef PARALLEL
+    CALL MPI_Bcast(dValues,iLen,MPI_LOGICAL,Root,MPI_COMM_WORLD,error)
+    if(error.ne.MPI_SUCCESS) then
+        print *,'Error broadcasting values in MPILBCast. Terminating.'
+        call MPI_ABORT(MPI_COMM_WORLD,rc,error)
+    endif
+#else
+#endif
+    RETURN
+End Subroutine MPILBCast
 
 Subroutine MPIDSumRoot(dValues,iLen,dReturn,Root)
    !=  Same as above, but only updates the value on the root processor.
