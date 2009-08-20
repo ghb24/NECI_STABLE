@@ -11,7 +11,7 @@ MODULE RotateOrbsMod
     USE SystemData, only : tShakeDelay,ShakeStart,tVirtCoulombMax,tVirtExchangeMin,MaxMinFac,tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
     USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
     USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc,tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
-    USE Logging , only : tPrintInts
+    USE Logging , only : tPrintInts,tTruncRODump,NoFrozenVirt
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
     USE Timing , only : end_timing,print_timing_report
@@ -28,8 +28,8 @@ MODULE RotateOrbsMod
     REAL*8 , ALLOCATABLE :: ThreeIndInts02(:,:,:,:),ThreeIndInts03(:,:,:,:),ThreeIndInts04(:,:,:,:)  
     REAL*8 , ALLOCATABLE :: TwoIndInts01Temp(:,:,:,:),TwoIndInts02Temp(:,:,:,:),ThreeIndInts01Temp(:,:,:,:),FourIndInts02Temp(:,:,:,:)
     REAL*8 , ALLOCATABLE :: ThreeIndInts02Temp(:,:,:,:),ThreeIndInts03Temp(:,:,:,:),ThreeIndInts04Temp(:,:,:,:),DiagTMAT2Dfull(:)   
-    REAL*8 , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:)
-    INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag
+    REAL*8 , ALLOCATABLE :: TwoIndIntsER(:,:,:),ThreeIndInts01ER(:,:),ThreeIndInts02ER(:,:),FourIndIntsER(:),SymLabelList3(:)
+    INTEGER :: TwoIndIntsERTag,ThreeIndInts01ERTag,ThreeIndInts02ERTag,FourIndIntsERTag,SymLabelList3Tag
     INTEGER :: TwoIndInts01Tag,TwoIndInts02Tag,ThreeIndInts01Tag,ThreeIndInts02Tag,ThreeIndInts03Tag,ThreeIndInts04Tag,FourIndInts02Tag
     INTEGER :: TwoIndInts01TempTag,TwoIndInts02TempTag,ThreeIndInts01TempTag,ThreeIndInts02TempTag,ThreeIndInts03TempTag,ThreeIndInts04TempTag
     INTEGER :: FourIndInts02TempTag,FourIndIntsTempTag,CoeffT1TempTag,LowBound02,HighBound02,TMAT2DTempTag,TMAT2DRotTag,TMAT2DPartRot01Tag,TMAT2DPartRot02Tag
@@ -37,7 +37,7 @@ MODULE RotateOrbsMod
     INTEGER :: CoeffT1Tag,CoeffCorT2Tag,CoeffUncorT2Tag,LambdasTag,DerivCoeffTag,DerivLambdaTag,Iteration,TotNoConstraints,ShakeLambdaNewTag
     INTEGER :: ShakeLambdaTag,ConstraintTag,ConstraintCorTag,DerivConstrT1Tag,DerivConstrT2Tag,DerivConstrT1T2Tag,DerivConstrT1T2DiagTag,DerivCoeffTempTag
     INTEGER :: LabVirtOrbsTag,LabOccOrbsTag,MinOccVirt,MaxOccVirt,MinMZ,MaxMZ,SymLabelCounts2Tag,SymLabelList2Tag,SymLabelListInvTag,error,LowBound,HighBound
-    INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06,DiagTMAT2DfullTag
+    INTEGER :: NoInts01,NoInts02,NoInts03,NoInts04,NoInts05,NoInts06,DiagTMAT2DfullTag,NoRotOrbs
     LOGICAL :: tNotConverged,tInitIntValues
     REAL*8 :: OrthoNorm,ERPotEnergy,HijSqrdPotEnergy,OffDiagPotEnergy,CoulPotEnergy,PotEnergy,Force,TwoEInts,DistCs,OrthoForce,DistLs,LambdaMag,PEInts,PEOrtho
     REAL*8 :: ForceInts,TotCorrectedForce
@@ -65,7 +65,6 @@ MODULE RotateOrbsMod
         IF(tReadInCoeff.or.tUseMP2VarDenMat) THEN
 
             tNotConverged=.false.
-!            CALL ReadInCoeffT1()
             CALL UseMP2VarDenMat()
 
         ELSE
@@ -160,42 +159,36 @@ MODULE RotateOrbsMod
             IF(tRotateVirtOnly) MinReadIn=(NEl/2)+1
             IF(tRotateOccOnly) MaxReadIn=NEl/2
         ENDIF
+        NoRotOrbs=NoOrbs
 
 ! Only virtual orbitals need to be transformed.
-
-        ALLOCATE(CoeffT1(NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc(this_routine,NoOrbs**2,8,this_routine,CoeffT1Tag,ierr)
-        CoeffT1(:,:)=0.D0
-        IF(tSeparateOccVirt) THEN
-            do i=1,NoOrbs
-                CoeffT1(i,i)=1.D0
-            enddo
-        ENDIF
-
 
         ALLOCATE(SymLabelList2(NoOrbs),stat=ierr)
         CALL LogMemAlloc('SymLabelList2',NoOrbs,4,this_routine,SymLabelList2Tag,ierr)
         SymLabelList2(:)=0                     
+        ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
+        CALL LogMemAlloc('SymLabelList3',NoOrbs,4,this_routine,SymLabelList3Tag,ierr)
+        SymLabelList3(:)=0                     
+ 
         ALLOCATE(SymLabelListInv(NoOrbs),stat=ierr)
         CALL LogMemAlloc('SymLabelListInv',NoOrbs,4,this_routine,SymLabelListInvTag,ierr)
         SymLabelListInv(:)=0                     
 
 
-! No symmetry, so no reordering of the orbitals - symlabellist just goes from 1-NoOrbs.        
         IF(tReadInCoeff) THEN
+! No symmetry, so no reordering of the orbitals - symlabellist just goes from 1-NoOrbs.        
+! When we are just reading in the coefficients and transforming, it does not matter about the ordering of the orbitals.
             do i=1,NoOrbs
                 SymLabelList2(i)=i
                 SymLabelListInv(i)=i
             enddo
         ELSEIF(tUseMP2VarDenMat) THEN
-            do i=1,NoOrbs
-                SymLabelList2(i)=CEILING(BRR(2*i)/2.D0)
-            enddo
-            do i=1,NoOrbs
-                SymLabelListInv(SymLabelList2(i))=i
-            enddo
-!            tSeparateOccVirt=.true.
-!            CALL InitSymmArrays()
+! When we are calculating the MP2VDM ourselves, we need to be able to run over occupied and virtual separately, so the 
+! orbitals are always separated.
+! Also, we want to have the option of maintaining symmetry, so SymLabelList2 and SymLabelCounts2 are both constructed so 
+! that the orbitals are labelled by symmetry within the occupied and virtual.
+            tSeparateOccVirt=.true.
+            CALL InitSymmArrays()
         ENDIF
 
 !        WRITE(6,*) 'SymLabelList'
@@ -217,21 +210,58 @@ MODULE RotateOrbsMod
 !            CLOSE(42)
          
 ! Need to read to convert the UMAT matrix from UMATInd to the appropriate indexing for Transform2ElInts.        
+! This just contains all the untransformed orbitals.
         ALLOCATE(UMATTemp01(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('UMATTemp01',NoOrbs**4,8,this_routine,UMATTemp01Tag,ierr)
 
         CALL CopyAcrossUMAT()
         
 
-        ALLOCATE(TwoIndInts01Temp(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('TwoIndInts01Temp',NoOrbs**4,8,this_routine,TwoIndInts01TempTag,ierr)
-        ALLOCATE(TwoIndInts01(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('TwoIndInts01',NoOrbs**4,8,this_routine,TwoIndInts01Tag,ierr)
+! Yet another labelling system, SymLabelList3 is created here.
+! This indicates the label of the transformed orbital.
+! In the case where we are truncating the space, the transformed orbitals are ordered according to the size of the eigenvalues of the MP2VDM
+! matrix when it is diagonalised.  We wish to keep them in this order when transforming the integrals etc, so that when we truncate the last 
+! NoFrozenVirt orbitals, we are removing those with the smallest MP2VDM eigenvalues (occupation numbers).
+! In the case where no truncation is made however, SymLabelList3 is the same as SymLabelList2, so that the indexes remain the same as previously.
+! This allows for the option of going straight into a spawning calc from the rotation, which is not possible when a truncation is performed 
+! because of the messed up indices.
+        IF(tTruncRODump) THEN
+            IF(MOD(NoFrozenVirt,2).ne.0) CALL Stop_All(this_routine,"Must freeze virtual spin orbitals in pairs of 2.")
+            IF(tSpinOrbs) THEN
+                NoRotOrbs=NoOrbs-NoFrozenVirt
+            ELSE
+                NoRotOrbs=NoOrbs-(NoFrozenVirt/2)
+            ENDIF            
+            do i=1,NoOrbs
+                SymLabelList3(i)=i
+            enddo
+        ELSE
+            do i=1,NoOrbs
+                SymLabelList3(i)=SymLabelList2(i)
+            enddo
+        ENDIF
 
-        ALLOCATE(FourIndIntsTemp(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('FourIndIntsTemp',NoOrbs**4,8,this_routine,FourIndIntsTempTag,ierr)
-        ALLOCATE(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
-        CALL LogMemAlloc('FourIndInts',NoOrbs**4,8,this_routine,FourIndIntsTag,ierr)
+
+        ALLOCATE(CoeffT1(NoOrbs,NoRotOrbs),stat=ierr)
+        CALL LogMemAlloc(this_routine,NoRotOrbs*NoOrbs,8,this_routine,CoeffT1Tag,ierr)
+        CoeffT1(:,:)=0.D0
+        IF(tSeparateOccVirt) THEN
+            do i=1,NoRotOrbs
+                CoeffT1(i,i)=1.D0
+            enddo
+        ENDIF
+
+! The last two indices of these are the transformed and possibly truncated orbitals.        
+        ALLOCATE(TwoIndInts01Temp(NoOrbs,NoOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
+        CALL LogMemAlloc('TwoIndInts01Temp',(NoOrbs**2)*(NoRotOrbs**2),8,this_routine,TwoIndInts01TempTag,ierr)
+        ALLOCATE(TwoIndInts01(NoOrbs,NoOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
+        CALL LogMemAlloc('TwoIndInts01',(NoOrbs**4)*(NoRotOrbs**2),8,this_routine,TwoIndInts01Tag,ierr)
+
+        ALLOCATE(FourIndIntsTemp(NoRotOrbs,NoRotOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
+        CALL LogMemAlloc('FourIndIntsTemp',NoRotOrbs**4,8,this_routine,FourIndIntsTempTag,ierr)
+        ALLOCATE(FourIndInts(NoRotOrbs,NoRotOrbs,NoRotOrbs,NoRotOrbs),stat=ierr)
+        CALL LogMemAlloc('FourIndInts',NoRotOrbs**4,8,this_routine,FourIndIntsTag,ierr)
+
 
         IF(tReadInCoeff) THEN
 
@@ -260,12 +290,14 @@ MODULE RotateOrbsMod
 ! Then, transform2ElInts
         WRITE(6,*) 'Transforming the four index integrals'
         CALL Transform2ElInts()
- 
+
+        WRITE(6,*) 'Re-calculating the fock matrix'
         CALL CalcFOCKMatrix()
- 
-        WRITE(6,*) 'Printing the new FCIDUMP file'
+
+        WRITE(6,*) 'Refilling the UMAT and TMAT2D'
         CALL RefillUMATandTMAT2D()        
  
+        WRITE(6,*) 'Printing the new FCIDUMP file'
         CALL PrintROFCIDUMP()
 
         CALL FLUSH(6)
@@ -295,23 +327,18 @@ MODULE RotateOrbsMod
     
 
     SUBROUTINE CalcMP2VarDenMat()
-        INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,ierr,LWORK2,INFO,MP2VDMTag
+        INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,ierr,LWORK2,INFO,MP2VDMTag,WORK2Tag
+        INTEGER :: MP2VDMSymTag,MP2VDMTempTag,EvaluesSymTag,NoSymBlock,SymStartInd,Sym
         CHARACTER(len=*) , PARAMETER :: this_routine='InitLocalOrbs'
-        REAL*8 :: Evalues(NoOrbs),WORK2(3*(NoOrbs-NoOcc)+1),MP2VDMSum
-        REAL*8 , ALLOCATABLE :: MP2VDM(:,:)
+        REAL*8 :: Evalues(NoOrbs),MP2VDMSum
+        REAL*8 , ALLOCATABLE :: MP2VDM(:,:),MP2VDMSym(:,:),MP2VDMTemp(:,:),EvaluesSym(:),WORK2(:)
 
         ALLOCATE(MP2VDM(NoOrbs,NoOrbs),stat=ierr)
         CALL LogMemAlloc('MP2VDM',NoOrbs**2,8,this_routine,MP2VDMTag,ierr)
         MP2VDM(:,:)=0.D0
- 
 
-!        do i=1,NoOcc
-!            MP2VDM(i,i)=1.D0
-!        enddo
         Evalues(:)=0.D0
 
-!        WRITE(6,*) 'NoOcc',NoOcc
-!        WRITE(6,*) 'NoOrbs',NoOrbs
         do a2=NoOcc+1,NoOrbs
             a=SymLabelList2(a2)
             do b2=NoOcc+1,NoOrbs
@@ -335,26 +362,10 @@ MODULE RotateOrbsMod
 
                                 MP2VDMSum=MP2VDMSum+&
                                             &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (2.D0*(REAL(UMAT(UMatInd(b,c,i,j,0,0))%v,8))) )/&
-                                            &( (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*a2,1)-ARR(2*c2,1)) * (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*b2,1)-ARR(2*c2,1)) ) )
+                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
                                 MP2VDMSum=MP2VDMSum-&                                            
                                             &(( (REAL(UMAT(UMatInd(a,c,i,j,0,0))%v,8)) * (REAL(UMAT(UMatInd(c,b,i,j,0,0))%v,8)) )/&
-                                            &( (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*a2,1)-ARR(2*c2,1)) * (ARR(2*i2,1)+ARR(2*j2,1)-ARR(2*c2,1)-ARR(2*b2,1)) ) )
- 
-!                                            &(((REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8))/(ARR(2*i2,1)-ARR(2*a2,1)+ARR(2*j2,1)-ARR(2*c2,1)))*&
-!                                            &((REAL(UMAT(UMatInd(j,i,b,c,0,0))%v,8))/(ARR(2*i2,1)-ARR(2*c2,1)+ARR(2*j2,1)-ARR(2*b2,1))))
-!                                IF((a.eq.6).and.(b.eq.15)) THEN            
-
-!                                    WRITE(6,'(5I3,F20.10)') i,j,a,b,c, ((REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8))/(ARR(2*i,2)-ARR(2*a,2)+ARR(2*j,2)-ARR(2*c,2)))
-!                                    WRITE(6,'(4I3,F20.10)') i,j,b,c, ((2.D0*(REAL(UMAT(UMatInd(i,j,b,c,0,0))%v,8)))/(ARR(2*i,1)-ARR(2*b,1)+ARR(2*j,1)-ARR(2*c,1)))
-!                                    WRITE(6,'(4I3,2F20.10)') i,j,b,c,REAL(UMAT(UMatInd(i,j,b,c,0,0))%v,8),(ARR(2*i,1)-ARR(2*b,1)+ARR(2*j,1)-ARR(2*c,1)) 
-!                                    WRITE(6,*) i,ARR(2*i,2),j,ARR(2*j,1),b,ARR(2*b,1),c,ARR(2*b,1)
-                                    
-!                                    WRITE(6,'(5I3,F20.10)') i,j,a,b,c, (((REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8))/(ARR(2*i,2)-ARR(2*a,2)+ARR(2*j,2)-ARR(2*c,2))))
-!                                    WRITE(6,'(5I3,F20.10)') i,j,b,c, ((REAL(UMAT(UMatInd(j,i,b,c,0,0))%v,8))/(ARR(2*i,2)-ARR(2*c,2)+ARR(2*j,2)-ARR(2*b,2)))
-!                                    WRITE(6,'(4I3,2F20.10)') i,j,a,c,REAL(UMAT(UMatInd(i,j,a,c,0,0))%v,8),(ARR(2*i,2)-ARR(2*a,2)+ARR(2*j,2)-ARR(2*c,2)) 
-!                                    WRITE(6,'(4I3,2F20.10)') j,i,b,c,REAL(UMAT(UMatInd(i,j,b,c,0,0))%v,8),(ARR(2*i,2)-ARR(2*b,2)+ARR(2*j,2)-ARR(2*c,2)) 
-!                                ENDIF
- 
+                                            &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * (ARR(2*i,2)+ARR(2*j,2)-ARR(2*c,2)-ARR(2*b,2)) ) )
                             ENDIF
                         enddo
                     enddo
@@ -362,35 +373,144 @@ MODULE RotateOrbsMod
                 MP2VDM(a2,b2)=MP2VDMSum
                 MP2VDM(b2,a2)=MP2VDMSum
 
-
             enddo
         enddo
         WRITE(6,*) 'Finished filling MP2VDM'
         CALL FLUSH(6)
-        
-!        OPEN(83,file='D2MATRIX-mine',status='unknown')
-!        do a=1,NoOrbs
-!            do b=1,NoOrbs
-!                WRITE(83,*) a,b,MP2VDM(a,b)
-!            enddo
-!        enddo
-!        CLOSE(83)
 
-!        do i=1,NoOrbs
-!            WRITE(6,*) MP2VDM(:,i)
-!        enddo
+        
+        OPEN(83,file='D2MATRIX-sym',status='unknown')
+        do a=1,NoOrbs
+            do b=1,NoOrbs
+                WRITE(83,'(4I3,F20.10)') a,INT(G1(SymLabelList2(a)*2)%sym%S,4),b,INT(G1(SymLabelList2(b)*2)%sym%S,4),MP2VDM(a,b)
+            enddo
+        enddo
+        CLOSE(83)
 !        CALL FLUSH(6)
 !        stop
 
         WRITE(6,*) 'Calculating eigenvectors and eigenvalues of MP2VDM'
         CALL FLUSH(6)
-        LWORK2=3*(NoOrbs-NoOcc)+1
+        IF(lNoSymmetry) THEN
+            LWORK2=3*(NoOrbs-NoOcc)+1
 
-        CALL DSYEV( 'V', 'L', (NoOrbs-NoOcc), MP2VDM((NoOcc+1):NoOrbs,(NoOcc+1):NoOrbs), (NoOrbs-NoOcc), Evalues((NoOcc+1):NoOrbs), WORK2, LWORK2, INFO )
-        ! MP2VDM goes in as the D2 matrix, comes out as the eigenvectors.
-        ! Evalues come out in ascending order.
+            ALLOCATE(WORK2(LWORK2),stat=ierr)
+            CALL LogMemAlloc('WORK2',LWORK2,8,this_routine,WORK2Tag,ierr)
+
+            CALL DSYEV( 'V', 'L', (NoOrbs-NoOcc), MP2VDM((NoOcc+1):NoOrbs,(NoOcc+1):NoOrbs), (NoOrbs-NoOcc), Evalues((NoOcc+1):NoOrbs), WORK2, LWORK2, INFO )
+            ! MP2VDM goes in as the D2 matrix, comes out as the eigenvectors.
+            ! Evalues come out in ascending order.
+
+            DEALLOCATE(WORK2)
+            CALL LogMemDealloc(this_routine,WORK2Tag)
+
+        ELSE
+! If we want to maintain the symmetry, we cannot have all the orbitals jumbled up when the diagonaliser reorders the eigenvectors.
+! Must instead feed each symmetry block in separately.
+            CALL Stop_All(this_routine,"Have not finished the routine for keeping symmetry.") 
+      
+            ALLOCATE(MP2VDMTemp(NoOrbs,NoOrbs),stat=ierr)
+            CALL LogMemAlloc('MP2VDMTemp',NoOrbs**2,8,this_routine,MP2VDMTempTag,ierr)
+            MP2VDMTemp(:,:)=0.D0
+           
+            Sym=0
+            LWORK2=-1
+            do while (Sym.le.7)
+
+                NoSymBlock=SymLabelCounts2(2,Sym+9)
+
+                SymStartInd=SymLabelCounts2(1,Sym+9)-1
+                ! This is one less than the index that the symmetry starts, so that when we run through i=1,..., we can
+                ! start at SymStartInd+i.
+
+                IF(NoSymBlock.gt.1) THEN
+                    ALLOCATE(MP2VDMSym(NoSymBlock,NoSymBlock),stat=ierr)
+                    CALL LogMemAlloc('MP2VDMSym',NoSymBlock**2,8,this_routine,MP2VDMSymTag,ierr)
+                    ALLOCATE(EvaluesSym(NoSymBlock),stat=ierr)
+                    CALL LogMemAlloc('EvaluesSym',NoSymBlock,8,this_routine,EvaluesSymTag,ierr)
+
+                    LWORK2=3*NoSymBlock+1
+                    ALLOCATE(WORK2(LWORK2),stat=ierr)
+                    CALL LogMemAlloc('WORK2',LWORK2,8,this_routine,WORK2Tag,ierr)
+
+                    do j=1,NoSymBlock
+                        do i=1,NoSymBlock
+                            MP2VDMSym(i,j)=MP2VDM(SymStartInd+i,SymStartInd+j)
+                        enddo
+                    enddo
+
+                    WRITE(6,*) '*****'
+                    WRITE(6,*) 'Symmetry ',Sym,' has ',NoSymBlock,' orbitals .'
+                    WRITE(6,*) 'The MP2VDM for this symmetry block is '
+                    do i=1,NoSymBlock
+                        do j=1,NoSymBlock
+                            WRITE(6,'(F20.10)',advance='no') MP2VDMSym(j,i)
+                        enddo
+                        WRITE(6,*) ''
+                    enddo
+
+                    CALL DSYEV('V','L',NoSymBlock,MP2VDMSym,NoSymBlock,EvaluesSym,WORK2,LWORK2,ierr)
+                    ! MP2VDMSym goes in as the original MP2VDMSym, comes out as the eigenvectors (Coefficients).
+                    ! EvaluesSym comes out as the eigenvalues in ascending order.
+
+                    WRITE(6,*) 'After diagonalization, the e-vectors (diagonal elements) of this matrix are ,'
+                    do i=1,NoSymBlock
+                        WRITE(6,'(F20.10)',advance='no') EvaluesSym(i)
+                    enddo
+                    WRITE(6,*) ''
+                    WRITE(6,*) 'These go from orbital ,',SymStartInd+1,' to ',SymStartInd+NoSymBlock
+                   
+                    do i=1,NoSymBlock
+                        Evalues(SymStartInd+i-NoOcc)=EvaluesSym(i)
+                    enddo
+
+                    ! CAREFUL if eigenvalues are put in ascending order, this may not be correct, with the labelling system.
+                    ! may be better to just take coefficients and transform TMAT2DRot in transform2elints.
+                    ! a check that comes out as diagonal is a check of this routine anyway.
+
+                    WRITE(6,*) 'The eigenvectors (coefficients) for symmtry block ',Sym
+                    do i=1,NoSymBlock
+                        do j=1,NoSymBlock
+                            WRITE(6,'(F20.10)',advance='no') MP2VDMSym(j,i)
+                        enddo
+                        WRITE(6,*) ''
+                    enddo
+                 
+                    do j=1,NoSymBlock
+                        do i=1,NoSymBlock
+                            MP2VDMTemp(SymStartInd+i,SymStartInd+j)=MP2VDMSym(i,j)
+                        enddo
+                    enddo
+                    ! Directly fill the coefficient matrix with the eigenvectors from the diagonalization.
+
+                    DEALLOCATE(WORK2)
+                    CALL LogMemDealloc(this_routine,WORK2Tag)
+
+                    DEALLOCATE(MP2VDMSym)
+                    CALL LogMemDealloc(this_routine,MP2VDMSymTag)
+
+                    DEALLOCATE(EvaluesSym)
+                    CALL LogMemDealloc(this_routine,EvaluesSymTag)
+
+                ELSEIF(NoSymBlock.eq.1) THEN
+
+                    Evalues(SymStartInd+1-NoOcc)=MP2VDM(SymStartInd+1,SymStartInd+1)
+                    MP2VDMTemp(SymStartInd+1,SymStartInd+1)=MP2VDM(SymStartInd+1,SymStartInd+1)
+                    WRITE(6,*) '*****'
+                    WRITE(6,*) 'Symmetry ',Sym,' has only one orbital.'
+                    WRITE(6,*) 'Copying diagonal element ,',SymStartInd+1,'to MP2VDM'
+                ENDIF
+
+                Sym=Sym+1
+            enddo
+        ENDIF
+
+
         WRITE(6,*) 'Matrix diagonalised'
         CALL FLUSH(6)
+
+! Here, if symmetry is kept, we are going to have to reorder the eigenvectors according to the size of the eigenvalues, while taking
+! the orbital labels (and therefore symmetries) with them. This will be put back into MP2VDM from MP2VDMTemp.
 
 !        do i=1,NoOrbs
 !            WRITE(6,*) Evalues(i)
@@ -403,20 +523,35 @@ MODULE RotateOrbsMod
 
         do i=1,NoOcc
             Evalues(i)=1.D0
-            MP2VDM(i,i)=1.D0
+            IF(lNoSymmetry) THEN
+                MP2VDM(i,i)=1.D0
+            ELSE
+                MP2VDMTemp(i,i)=1.D0
+            ENDIF
         enddo
 
         OPEN(73,FILE='D2EVS',status='unknown')
         WRITE(73,*) NoOrbs
-        WRITE(73,*) Evalues
+        do i=1,NoOcc
+            WRITE(73,*) NoOrbs-i+1,Evalues(i)
+        enddo
+        do i=NoOcc+1,NoOrbs
+            WRITE(73,*) NoOrbs-i+1,Evalues(NoOrbs-i+NoOcc+1)
+        enddo
         CLOSE(73)
+
         WRITE(6,*) 'Eigen-values: '
         do i=1,NoOrbs
             WRITE(6,*) Evalues(i)
         enddo
+
         WRITE(6,*) 'MP2VDM matrix'
         do i=1,NoOrbs
-            WRITE(6,*) MP2VDM(:,i)
+            IF(lNoSymmetry) THEN
+                WRITE(6,*) MP2VDM(:,i)
+            ELSE
+                WRITE(6,*) MP2VDMTemp(:,i)
+            ENDIF
         enddo
 
 !        do i=1,NoOrbs
@@ -427,17 +562,27 @@ MODULE RotateOrbsMod
 !        enddo
 !        CoeffT1(:,:)=MP2VDMInv(:,:)
         CoeffT1(:,:)=0.D0
-        
-        do i=1,NoOcc
-            CoeffT1(:,i)=MP2VDM(:,i)
-        enddo
-        do i=NoOcc+1,NoOrbs
-            CoeffT1(:,i)=MP2VDM(:,(NoOrbs-i+NoOcc+1))
-        enddo
+            
+        IF(lNoSymmetry) THEN
+            do i=1,NoOcc
+                CoeffT1(:,i)=MP2VDM(:,i)
+            enddo
+            do i=NoOcc+1,NoRotOrbs
+                CoeffT1(:,i)=MP2VDM(:,(NoOrbs-i+NoOcc+1))
+            enddo
+        ELSE 
+            do i=1,NoOcc
+                CoeffT1(:,i)=MP2VDMTemp(:,i)
+            enddo
+            do i=NoOcc+1,NoRotOrbs
+                CoeffT1(:,i)=MP2VDMTemp(:,(NoOrbs-i+NoOcc+1))
+            enddo
+        ENDIF
+
 
         OPEN(74,FILE='TRANSFORMMAT',status='unknown')
         do i=1,NoOrbs
-            do j=1,NoOrbs
+            do j=1,NoRotOrbs
                 WRITE(74,*) i,j,CoeffT1(i,j)
             enddo
         enddo
@@ -445,6 +590,12 @@ MODULE RotateOrbsMod
         
         DEALLOCATE(MP2VDM)
         CALL LogMemDeAlloc(this_routine,MP2VDMTag)
+
+        IF(.not.lNoSymmetry) THEN
+            DEALLOCATE(MP2VDMTemp)
+            CALL LogMemDeAlloc(this_routine,MP2VDMTempTag)
+        ENDIF
+
 
 
     END SUBROUTINE CalcMP2VarDenMat
@@ -566,6 +717,7 @@ MODULE RotateOrbsMod
             NoOrbs=SpatOrbs
             NoOcc=NEl/2
         ENDIF
+        NoRotOrbs=NoOrbs
         Iteration=0
         OrthoForce=0.D0
         ShakeIterInput=ShakeIterMax
@@ -717,6 +869,10 @@ MODULE RotateOrbsMod
         ALLOCATE(SymLabelList2(NoOrbs),stat=ierr)
         CALL LogMemAlloc('SymLabelList2',NoOrbs,4,this_routine,SymLabelList2Tag,ierr)
         SymLabelList2(:)=0                     
+        ALLOCATE(SymLabelList3(NoOrbs),stat=ierr)
+        CALL LogMemAlloc('SymLabelList3',NoOrbs,4,this_routine,SymLabelList3Tag,ierr)
+        SymLabelList3(:)=0                     
+ 
         ALLOCATE(SymLabelListInv(NoOrbs),stat=ierr)
         CALL LogMemAlloc('SymLabelListInv',NoOrbs,4,this_routine,SymLabelListInvTag,ierr)
         SymLabelListInv(:)=0                     
@@ -765,6 +921,9 @@ MODULE RotateOrbsMod
 ! the occuppied from virtual.
 ! The arrays used in this routine are labelled with a 2 (SymLabelList2 and SymLabelCount2), so as to not
 ! mess up the spawing/FCI calcs.
+        do i=1,NoOrbs
+            SymLabelList3(i)=SymLabelList2(i)
+        enddo
 
 ! Set up constraint labels.  Constraint l is the dot product of i.j.
         Const=0
@@ -1159,7 +1318,7 @@ MODULE RotateOrbsMod
         
 
 !        WRITE(6,*) 'Sym Label Counts'
-!        do i=1,8
+!        do i=1,16
 !            WRITE(6,*) SymLabelCounts2(1,i),SymLabelCounts2(2,i)
 !        enddo
 !        WRITE(6,*) 'Sym label list (i.e the orbitals in symm order), and their symmetries according to G1'
@@ -1724,8 +1883,8 @@ MODULE RotateOrbsMod
 !This is v memory inefficient and currently does not use any spatial symmetry information.
     SUBROUTINE Transform2ElInts()
         INTEGER :: i,j,k,l,a,b,g,d
-        REAL*8 :: t,Temp4indints(NoOrbs,NoOrbs)
-        REAL*8 :: Temp4indints02(NoOrbs,NoOrbs)  
+        REAL*8 :: t,Temp4indints(NoRotOrbs,NoOrbs)
+        REAL*8 :: Temp4indints02(NoRotOrbs,NoRotOrbs)  
 
         
         CALL set_timer(Transform2ElInts_time,30)
@@ -1814,14 +1973,14 @@ MODULE RotateOrbsMod
         do b=1,NoOrbs
             do d=1,b
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
                 Temp4indints02(:,:)=0.D0
-                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoOrbs,0.0,Temp4indints02(:,:),NoOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(:,:),NoRotOrbs)
                 ! Get Temp4indits02(i,k)
-                 
-                do i=1,NoOrbs
+
+                do i=1,NoRotOrbs
                     do k=1,i
                         TwoIndInts01Temp(d,b,k,i)=Temp4indints02(k,i)
                         TwoIndInts01Temp(b,d,k,i)=Temp4indints02(k,i)
@@ -1831,6 +1990,7 @@ MODULE RotateOrbsMod
                 enddo
             enddo
         enddo
+        
 
 ! These calculations are unnecessary when this routine is calculated to finalize the new orbs.
         IF(tNotConverged) THEN
@@ -1857,17 +2017,18 @@ MODULE RotateOrbsMod
             enddo
             CALL MPIDSumArr(TwoIndInts02Temp(:,:,:,:),NoOrbs**4,TwoIndInts02(:,:,:,:))
         ENDIF
-        CALL MPIDSumArr(TwoIndInts01Temp(:,:,:,:),NoOrbs**4,TwoIndInts01(:,:,:,:))
+        CALL MPIDSumArr(TwoIndInts01Temp(:,:,:,:),(NoOrbs**2)*(NoRotOrbs**2),TwoIndInts01(:,:,:,:))
 
 
 ! Calculating the 3 transformed, 4 index integrals. 01=a untransformed,02=b,03=g,04=d
 
 
 !        do i=LowBound02,HighBound02
-        do i=1,NoOrbs
+        do i=1,NoRotOrbs
             do k=1,i
                 Temp4indints(:,:)=0.D0
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs,0.0,Temp4indints(:,:),NoRotOrbs)
+
                 IF(tNotConverged) THEN
                     do b=1,NoOrbs
                         do l=1,NoOrbs
@@ -1876,7 +2037,7 @@ MODULE RotateOrbsMod
                         enddo
                     enddo
                     Temp4indints02(:,:)=0.D0
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs,0.0,Temp4indints02(:,:),NoOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs,0.0,Temp4indints02(:,:),NoRotOrbs)
                     do d=1,NoOrbs
                         do j=1,NoOrbs
                             ThreeIndInts04Temp(k,i,j,d)=Temp4indints02(j,d)
@@ -1885,8 +2046,8 @@ MODULE RotateOrbsMod
                     enddo
                 ENDIF
                 Temp4indints02(:,:)=0.D0
-                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoOrbs,0.0,Temp4indints02(:,:),NoOrbs)
-                do l=1,NoOrbs
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs,0.0,Temp4indints02(:,:),NoRotOrbs)
+                do l=1,NoRotOrbs
                     do j=1,l
                         FourIndIntsTemp(i,j,k,l)=Temp4indints02(j,l)
                         FourIndIntsTemp(i,l,k,j)=Temp4indints02(j,l)
@@ -1932,8 +2093,7 @@ MODULE RotateOrbsMod
             CALL MPIDSumArr(FourIndInts02Temp(:,:,:,:),NoOrbs**4,FourIndInts02(:,:,:,:))
         ENDIF
 
-
-        CALL MPIDSumArr(FourIndIntsTemp(:,:,:,:),NoOrbs**4,FourIndInts(:,:,:,:))
+        CALL MPIDSumArr(FourIndIntsTemp(:,:,:,:),NoRotOrbs**4,FourIndInts(:,:,:,:))
 
 ! ***************************
 ! Calc the potential energies for this iteration (with these transformed integrals).        
@@ -4647,10 +4807,10 @@ MODULE RotateOrbsMod
 !        enddo
 
         FOCKDiagSumNew=0.D0
-        do j=1,NoOrbs
-            l=SymLabelList2(j)
-            do i=1,NoOrbs
-                k=SymLabelList2(i)
+        do j=1,NoRotOrbs
+            l=SymLabelList3(j)
+            do i=1,NoRotOrbs
+                k=SymLabelList3(i)
                 ArrNew(k,l)=0.D0
                 do a=1,NoOrbs
                     b=SymLabelList2(a)
@@ -4660,20 +4820,16 @@ MODULE RotateOrbsMod
                         ArrNew(k,l)=ArrNew(k,l)+(CoeffT1(a,i)*Arr(2*b,2)*CoeffT1(a,j))
                     ENDIF
                 enddo
-!                ArrNew(2*i-1,2*j-1)=ArrNewTemp
-!                ArrNew(2*i,2*j)=ArrNewTemp
             enddo
             IF(tSpinOrbs) THEN
-                FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(l,l))
+                FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(j,j))
             ELSE
-                FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(l,l)*2)
+                FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(j,j)*2)
             ENDIF
             !only running through spat orbitals, count each twice to compare to above.
         enddo
+        ! If we are truncation the virtual space, only the unfrozen entries will be transformed.
         
-!        do j=1,NoOrbs
-!            FOCKDiagSumNew=FOCKDiagSumNew+(ArrNew(j,j)*2)
-!        enddo
 
         IF(iProcIndex.eq.Root) WRITE(6,*) 'Sum of the fock matrix diagonal elements in the transformed basis set = ',FOCKDiagSumNew
 
@@ -4696,12 +4852,12 @@ MODULE RotateOrbsMod
 ! correct when reading in qchem INTDUMPS as the orbital number ordering is by energy.
 
         IF(tSpinOrbs) THEN
-            do j=1,NoOrbs
+            do j=1,NoRotOrbs
                 ARR(j,2)=ArrNew(j,j)
                 ARRTemp(j)=ArrNew(BRR(j),BRR(j))
             enddo
         ELSE
-            do j=1,NoOrbs
+            do j=1,NoRotOrbs
                 ARR(2*j,2)=ArrNew(j,j)
                 ARR(2*j-1,2)=ArrNew(j,j)
                 ARRTemp(2*j)=ArrNew(BRR(2*j)/2,BRR(2*j)/2)
@@ -4718,7 +4874,7 @@ MODULE RotateOrbsMod
 
 !        CALL NECI_SORT2(nBasis,ARRTemp,BRR)
 
-        do j=1,nBasis
+        do j=1,(nBasis-NoFrozenVirt)
             ARR(j,1)=ArrTemp(j)
         enddo
 
@@ -4726,8 +4882,8 @@ MODULE RotateOrbsMod
 !        do i=1,nBasis
 !            WRITE(6,*) i,BRR(i),ARR(i,1),ARR(BRR(i),2)
 !        enddo
+!        CALL FLUSH(6)
 !        stop       
-        CALL FLUSH(6)
 
         DEALLOCATE(ArrNew)
         CALL LogMemDealloc(this_routine,ArrNewTag)
@@ -4738,54 +4894,41 @@ MODULE RotateOrbsMod
 
     SUBROUTINE RefillUMATandTMAT2D()
         INTEGER :: l,k,j,i,a,b,g,d,c,BinNo,l2,k2,j2,i2
-        REAL*8 :: NewTMAT,TMAT2DPart(nBasis,nBasis)
+        REAL*8 :: NewTMAT,TMAT2DPart((nBasis-(NoFrozenVirt/2)),nBasis)
 
-!        do i=1,NoOrbs
-!            do j=1,NoOrbs
-!                do k=1,NoOrbs
-!                    do l=1,NoOrbs
-!                        WRITE(6,*) HElement(FourIndInts(i,j,k,l))
-!                    enddo
-!                enddo
-!            enddo
-!        enddo
-!        CALL FLUSH(6)
-!        stop
 
 ! Make the UMAT elements the four index integrals.  These are calculated by transforming the HF orbitals using the
 ! coefficients that have been found
-        do l=1,SpatOrbs
+        do l=1,(SpatOrbs-(NoFrozenVirt/2))
             IF(tSpinOrbs) THEN
                 l2=l*2-1
-                d=CEILING(SymLabelList2(2*l)/2.0)
+                d=CEILING(SymLabelList3(2*l)/2.0)
             ELSE
-                d=SymLabelList2(l)
+                d=SymLabelList3(l)
             ENDIF
-            do k=1,SpatOrbs
+            do k=1,(SpatOrbs-(NoFrozenVirt/2))
                 IF(tSpinOrbs) THEN
                     k2=k*2
-                    g=CEILING(SymLabelList2(2*k)/2.0)
+                    g=CEILING(SymLabelList3(2*k)/2.0)
                 ELSE
-                    g=SymLabelList2(k)
+                    g=SymLabelList3(k)
                 ENDIF
  
-                do j=1,SpatOrbs
+                do j=1,(SpatOrbs-(NoFrozenVirt/2))
                     IF(tSpinOrbs) THEN
                         j2=j*2-1
-                        b=CEILING(SymLabelList2(2*j)/2.0)
+                        b=CEILING(SymLabelList3(2*j)/2.0)
                     ELSE
-                        b=SymLabelList2(j)
+                        b=SymLabelList3(j)
                     ENDIF
-                    do i=1,SpatOrbs
+                    do i=1,(SpatOrbs-(NoFrozenVirt/2))
                         IF(tSpinOrbs) THEN
                             i2=i*2
-                            a=CEILING(SymLabelList2(2*i)/2.0)
+                            a=CEILING(SymLabelList3(2*i)/2.0)
                             UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i2,j2,k2,l2))
-!                            WRITE(6,*) a,b,g,d,HElement(FourIndInts(i2,j2,k2,l2)),i2,j2,k2,l2
                         ELSE
-                            a=SymLabelList2(i)
+                            a=SymLabelList3(i)
                             UMAT(UMatInd(a,b,g,d,0,0))=HElement(FourIndInts(i,j,k,l))
-!                            WRITE(6,*) a,b,g,d,HElement(FourIndInts(i,j,k,l)),i,j,k,l
                         ENDIF
                     enddo
                 enddo
@@ -4805,8 +4948,8 @@ MODULE RotateOrbsMod
 
 
         do a=1,nBasis
-            do k=1,NoOrbs
-                i=SymLabelList2(k)
+            do k=1,NoRotOrbs
+                i=SymLabelList3(k)
                 NewTMAT=0.D0
                 do b=1,NoOrbs
                     d=SymLabelList2(b)
@@ -4824,9 +4967,9 @@ MODULE RotateOrbsMod
                 ENDIF
             enddo
         enddo
-        do k=1,nBasis
-            do l=1,NoOrbs
-                j=SymLabelList2(l)
+        do k=1,(nBasis-NoFrozenVirt)
+            do l=1,NoRotOrbs
+                j=SymLabelList3(l)
                 NewTMAT=0.D0
                 do a=1,NoOrbs
                     c=SymLabelList2(a)
@@ -4872,30 +5015,29 @@ MODULE RotateOrbsMod
 
         OPEN(48,FILE='ROFCIDUMP',STATUS='unknown')
         
-
-        WRITE(48,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',SpatOrbs,',NELEC=',NEl,',MS2=',LMS,','
+        WRITE(48,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',(SpatOrbs-(NoFrozenVirt/2)),',NELEC=',NEl,',MS2=',LMS,','
         WRITE(48,'(A9)',advance='no') 'ORBSYM='
-        do i=1,SpatOrbs 
+        do i=1,(SpatOrbs-(NoFrozenVirt/2))
             WRITE(48,'(I1,A1)',advance='no') (INT(G1(i*2)%sym%S,4)+1),','
         enddo
         WRITE(48,*) ''
         WRITE(48,'(A7,I1)') 'ISYM=',1
         WRITE(48,'(A5)') '&END'
        
-        do i=1,SpatOrbs
+        do i=1,(SpatOrbs-(NoFrozenVirt/2))
             do k=1,i
-                do j=1,SpatOrbs
+                do j=1,(SpatOrbs-(NoFrozenVirt/2))
                     Sym=IEOR(INT(G1(j*2)%sym%S,4),IEOR(INT(G1(k*2)%sym%S,4),INT(G1(i*2)%sym%S,4)))
 !                    do l=SymLabelCounts2(1,Sym+SymMin),(SymLabelCounts2(1,Sym+SymMin)+SymLabelCounts2(2,Sym+SymMin)-1)
                     ! Potential to put symmetry in here.
                     do l=1,j
                         Syml=INT(G1(l*2)%sym%S,4)
-                        IF(Syml.eq.Sym) WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8),i,k,j,l 
+                        IF((Syml.eq.Sym).and.((REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8)).ne.0.D0)) &
+                                        &WRITE(48,'(F21.12,4I3)') REAL(UMat(UMatInd(i,j,k,l,0,0))%v,8),i,k,j,l 
                     enddo
                 enddo
            enddo
         enddo
-
 
        
 !        do i=1,SpatOrbs
@@ -4914,17 +5056,17 @@ MODULE RotateOrbsMod
 
 
 ! TMAT2D stored as spin orbitals
-        do k=1,SpatOrbs
+        do k=1,(SpatOrbs-(NoFrozenVirt/2))
             ! Symmetry?
-            do i=k,SpatOrbs
-                WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k)%v,8),i,k,0,0
+            do i=k,(SpatOrbs-(NoFrozenVirt/2))
+                IF((REAL(TMAT2D(2*i,2*k)%v,8)).ne.0.D0) WRITE(48,'(F21.12,4I3)') REAL(TMAT2D(2*i,2*k)%v,8),i,k,0,0
             enddo
         enddo
 
 ! ARR has the energies of the orbitals (eigenvalues).  ARR(:,2) has ordering we want.
 ! ARR is stored as spin orbitals.
 
-        do k=1,SpatOrbs
+        do k=1,(SpatOrbs-(NoFrozenVirt/2))
             WRITE(48,'(F21.12,4I3)') Arr(2*k,2),k,0,0,0
         enddo
 

@@ -9,8 +9,8 @@ MODULE Logging
     REAL*8 MaxHistE,BinRange,OffDiagMax,OffDiagBinRange,TriConMax,TriConHElSingMax,TriConHElDoubMax
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
     LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tROHistogramAll,tROHistER,tHistSpawn,tROHistSingExc,tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins
+    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tPrintTriConnections,tHistTriConHEls,tPrintHElAccept,tTruncRODump
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,iNoBins,NoTriConBins,NoTriConHElBins,NoFrozenVirt
 
     contains
 
@@ -48,6 +48,8 @@ MODULE Logging
       tBinPops=.false.
       tROHistogramAll=.false.
       tROFciDump=.true.
+      tTruncRODump=.false.
+      NoFrozenVirt=0
       tROHistER=.false.
       tROHistDoubExc=.false.
       tROHistOffDiag=.false.
@@ -103,6 +105,12 @@ MODULE Logging
             ELSE
                 tROFCIDUMP=.true.
             ENDIF
+
+        case("TRUNCROFCIDUMP")
+!This options truncates the rotated FCIDUMP file by removing the specified number of virtual orbitals, based on the occupation
+!numbers given by diagonalisation of the MP2 variational density matrix.
+            tTruncRODump=.true.
+            call readi(NoFrozenVirt)
             
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
